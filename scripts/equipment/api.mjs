@@ -302,8 +302,10 @@ export function buildApi() {
     setMasterwork,
     // VARIATIONS — the open-ended half of "how does this one differ" (see
     // docs/equipment/DECISIONS.md, "A variation is a document, and applying
-    // it is putting it inside (2026-08-15)"). The legacy setters above stay
-    // until the importer replaces the flags they write.
+    // it is putting it inside (2026-08-15)"). `setMasterwork`, `scavengeItem`
+    // and `setShieldVariant` are the Construction tab's own controls, which
+    // write the masterwork, scavenged and shield-variant flags; the variation
+    // document is the other way an item differs, and the two coexist.
     variations: {
       ...variationRules,
       ...variationItems,

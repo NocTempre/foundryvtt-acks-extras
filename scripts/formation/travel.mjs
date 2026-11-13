@@ -935,9 +935,6 @@ export function patchSettlement(formationId, patch = {}) {
     for (const key of ["pace", "where", "route", "hour", "intent", "conveyance"]) {
       if (patch[key] !== undefined) next[key] = String(patch[key]);
     }
-    // The older boolean form of the hour, kept for callers written to it: a
-    // tick is the Judge's word for night, a clear one their word for day.
-    if (patch.night !== undefined && patch.hour === undefined) next.hour = patch.night ? "night" : "day";
     if (patch.wanted !== undefined) {
       next.wanted = !!patch.wanted;
       // The Judge's untick outranks the ledger: the hunter's name goes with

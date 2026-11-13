@@ -5162,7 +5162,7 @@ polygon backend, which answer only for the scene being viewed; and squeezing
 in the rules (`effectiveFrontage`), which nothing reads yet and which is the
 roadmap's, not this report's.
 
-## 2026-11-11 — The party check resolves through the abilities
+## 2026-11-11 — The party check resolves through the abilities — SUPERSEDED IN PART 2026-11-13 (the flag migration: `docs/DECISIONS.md` §29)
 
 **Asked.** T-0481: the party check, the Rolls tab and the skill's own sheet
 resolved a member's search, listen or trapbreak throw three ways, and the party

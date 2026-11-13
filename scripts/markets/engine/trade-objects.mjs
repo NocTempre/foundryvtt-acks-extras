@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, ui, Roll */
+/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, Roll */
 /**
  * The trade house: the one GM-designated location actor whose embedded Items
  * are every trade object a player owns, inspects or hands over (today, market
@@ -344,55 +344,4 @@ registerHandler("marketsReportChoose", async ({ itemUuid, categories, requestUse
 export async function performChoose(item, categories) {
   if (game.user.isGM) return chooseGoods(item, categories);
   return executeAsGM("marketsReportChoose", { itemUuid: item.uuid, categories });
-}
-
-/* ------------------------------ migration ------------------------------ */
-
-const plain = (row) => row?.toObject?.() ?? foundry.utils.deepClone(row);
-
-/**
- * GM: move the per-party demand beliefs the markets used to keep on each
- * location (`system.market.goods.dmKnowledge`) into report Items. One report
- * per market and party, outcome `migrated`, stamped to the house itself, and
- * the rows cleared afterwards. Idempotent: a market and party that already
- * hold a migrated report are cleared without a second one, and a market with
- * no rows is not touched. Creates the house only when there is something to move.
- * @returns {Promise<{markets: number, reports: number}>}
- */
-export async function migrateDmKnowledge() {
-  const result = { markets: 0, reports: 0 };
-  if (!game.user?.isGM) return result;
-  const sources = game.actors.filter((a) => a.type === LOCATION_TYPE && (a.system?.market?.goods?.dmKnowledge?.length ?? 0) > 0);
-  if (!sources.length) return result;
-  const house = await tradeHouse({ create: true });
-  if (!house) return result;
-  for (const location of sources) {
-    const rows = location.system.market.goods.dmKnowledge.map(plain);
-    const byParty = new Map();
-    for (const row of rows) {
-      if (!row.category) continue;
-      if (!byParty.has(row.partyId)) byParty.set(row.partyId, []);
-      byParty.get(row.partyId).push(row);
-    }
-    for (const [partyId, held] of byParty) {
-      const written = objectsAt(location.uuid).some((i) => i.system.outcome === "migrated" && i.system.partyId === partyId);
-      if (written) continue;
-      const made = await writeReport({
-        ownerUuid: HOUSE_OWNER,
-        marketUuid: location.uuid,
-        marketName: location.name,
-        assessorUuid: "",
-        partyId,
-        time: Math.max(...held.map((r) => Number(r.time) || 0)),
-        outcome: "migrated",
-        beliefs: held.map((r) => ({ category: r.category, dm: r.believed })),
-      });
-      if (made.error) throw new Error(`markets | migrating ${location.name}: ${made.error}`);
-      result.reports += 1;
-    }
-    await location.update({ "system.market.goods.dmKnowledge": [] });
-    result.markets += 1;
-  }
-  if (typeof ui !== "undefined") ui.notifications?.info(game.i18n.format(`${LANG}.report.migrated`, result));
-  return result;
 }

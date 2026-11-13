@@ -62,7 +62,7 @@ enums; local-only, never in the repo).
 | Item flag (weapon) | `flags.acks-extras.profileKey` | WHICH imported weapon row this is. The top of the identity ladder below; written by Annotate and by the item sheet's Weapon type control. |
 | Item flag (weapon) | `flags.acks-extras.grips` | `1h` \| `versatile` \| `2h` — which grips the weapon OFFERS. Answers ahead of the size derivation in `handCost`/`isTwoHandedOnly`/`canOneHand`. Distinct from `grip`, which is the grip a player picked this round out of these. |
 | Item flag (weapon) | `flags.acks-extras.category` | Which proficiency CLASS the weapon belongs to (a `WEAPON_CATEGORY` value), read by `classifyWeapon` ahead of the table row's own. Written by the item sheet's Class control; absent = the row's. |
-| Item flag (weapon) | `flags.acks-extras.{size,hands,style,handy,thrown,damageType}` | Per-item classifier overrides, a Judge's or the sheet's (Annotate no longer stamps them; an item an earlier Annotate stamped keeps its stamps, which outrank the row). `hands` is superseded by `grips` and is written by nothing. |
+| Item flag (weapon) | `flags.acks-extras.{size,style,damageType}` | Per-item classifier overrides, a Judge's or the sheet's, which outrank the row. Annotate does not stamp them; thrown and handy are read from the item's special properties and the row, never from a flag. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
@@ -733,11 +733,11 @@ an `armor` document and a gem is an ordinary `item`. `BASE_TYPE_DOCUMENTS` says
 which flag may sit on which document, and a base type its document cannot carry
 is refused whether it was declared or guessed.
 
-For items that predate the flag, `base-type-infer.mjs` still guesses from the
-name using the same clothing patterns and gear profiles the rest of the feature
-reads. It reads core's clothing subtype first, which is a declaration, not a
-guess. The declared flag always wins. The guess retires once the migration has
-run and the importer sets base types on what it materialises.
+For an item with no declared flag, `base-type-infer.mjs` guesses from the
+document type and name using the same clothing patterns and gear profiles the
+rest of the feature reads. It reads core's clothing subtype first, which is a
+declaration, not a guess. The declared flag always wins. The importer writes no
+base type, so the guess answers for every imported item.
 
 **Clothing is declared on two fields that say one thing.** The flag is what the
 rail shows; core's `system.subtype` is what core leaves out of the weight
@@ -747,9 +747,7 @@ of them gets the other in the same write: `clothingDeclarationPatch`
 `clothing-declaration.mjs`. So the rail, core's sheet, the importer, a macro and
 the API all end in the same weight. When one write moves both apart, the flag
 wins. A write that moves neither leaves an existing disagreement alone, and
-Annotate writes the flag's half through where the flag says clothing. The repair
-tool's `equipment.railClothing` check finds every disagreement left from before
-and settles it the same way (docs/lib/MODEL.md, "The repair tool"). The item
+Annotate writes the flag's half through where the flag says clothing. The item
 sheet has no subtype control of its own; the rail is the one control. Clothing
 sits on `item` documents only, because core weighs every `armor` document
 whatever it is flagged.

@@ -250,14 +250,9 @@ export function freshSettlement() {
 
 /**
  * Normalize whatever the record holds into the vocabulary above.
- *
- * A board written before the hour had a source carries `night` as a boolean:
- * a ticked one was the Judge's word and reads as `night`, a clear one was the
- * default and reads as the clock. The flag is not kept — the next write stores
- * `hour` alone.
  */
 export function settlementOf(travel) {
-  const { night: legacyNight, ...s } = travel?.settlement ?? {};
+  const s = travel?.settlement ?? {};
   const fresh = freshSettlement();
   return {
     ...fresh,
@@ -266,7 +261,7 @@ export function settlementOf(travel) {
     pace: SETTLEMENT_PACES[s.pace] ? s.pace : fresh.pace,
     where: SETTLEMENT_LOCATIONS[s.where] ? s.where : fresh.where,
     route: ROUTE_KNOWLEDGE[s.route] ? s.route : fresh.route,
-    hour: HOUR_MODES[s.hour] ? s.hour : (legacyNight ? "night" : fresh.hour),
+    hour: HOUR_MODES[s.hour] ? s.hour : fresh.hour,
     intent: SETTLEMENT_INTENTS[s.intent] ? s.intent : fresh.intent,
     conveyance: CONVEYANCES[s.conveyance] ? s.conveyance : fresh.conveyance,
     wanted: !!s.wanted,

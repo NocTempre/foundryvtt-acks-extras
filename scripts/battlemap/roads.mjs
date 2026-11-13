@@ -106,9 +106,8 @@ export function roadWallsOf(scene) {
 export function roadWallData({ surface = ROAD_SURFACES[0], street = null, name = "" } = {}) {
   return {
     ...openWallData(),
-    // `EDGE_DOOR_TYPES` is v14's name for the same numbers; the v13 spelling
-    // still answers behind a deprecation proxy.
-    door: (CONST.EDGE_DOOR_TYPES ?? CONST.WALL_DOOR_TYPES)?.NONE ?? 0,
+    // A road is no door: core's `WALL_DOOR_TYPES.NONE`.
+    door: CONST.WALL_DOOR_TYPES?.NONE ?? 0,
     flags: { [MODULE_ID]: { [ROAD_FLAG]: { surface, street, name } } },
   };
 }

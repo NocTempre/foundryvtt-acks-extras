@@ -129,7 +129,6 @@ export function goodsSchema() {
         unitPriceCp: int(0),
         totalCp: int(0),
         hub: str({ choices: ["", "local", "regional"] }),
-        hubShift: num({ integer: true, min: 1, max: 2 }), // legacy ordinal (1 local, 2 regional) on orders placed before `hub`; never written now
         placedTime: int(),
         arrivalTime: int(),
         lost: new f.BooleanField({ initial: false }),
@@ -263,17 +262,6 @@ export function goodsSchema() {
         stayDays: int(0),
         stayPaidCp: int(0),
         staySettled: new f.BooleanField({ initial: false }),
-      })
-    ),
-    // LEGACY: the per-party beliefs assessments wrote before reports were Items.
-    // Nothing writes it; `migrateDmKnowledge` moves any rows to report Items and
-    // clears them. The field stays so a world that has not migrated loses nothing.
-    dmKnowledge: new f.ArrayField(
-      new f.SchemaField({
-        partyId: str(),
-        category: str(),
-        believed: int(0),
-        time: int(),
       })
     ),
     // The month's rolled market price per merchandise type (step 4 — one

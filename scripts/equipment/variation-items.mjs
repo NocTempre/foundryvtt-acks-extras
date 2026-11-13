@@ -48,7 +48,11 @@ export function baseItemOf(variation) {
   return siblingsOf(variation)?.get?.(id) ?? siblingsOf(variation)?.find?.((i) => i.id === id) ?? null;
 }
 
-/** The base type of a live item, with the legacy name-pattern guess behind it. */
+/**
+ * The base type of a live item: the declared `baseType` flag, else the guess
+ * from its document type and name. The importer writes no flag, so the guess
+ * answers for every imported item and for any a Judge has not declared.
+ */
 export const itemBaseType = (item) => baseTypeOf(item, { infer: inferBaseType });
 
 /**

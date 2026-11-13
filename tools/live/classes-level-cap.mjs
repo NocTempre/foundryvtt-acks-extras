@@ -13,19 +13,14 @@
  * per-level rates from the world's tables, writes the dice cells with them,
  * and with the level absent writes none and names it; a class with racial
  * value -1 takes the imported human cap and one at 0 or more the racial
- * table's row on its total points; saved builders in the pre-upgrade shape
- * (racial value 0 for both) are corrected once, in the world and on a
- * character, by the sweep called directly and by the world's own `ready` on a
- * reload; and the Intellect bonus picks follow the system's own modifier at
- * every score. Machine values arrive through ./_env.mjs.
+ * table's row on its total points; and the Intellect bonus picks follow the
+ * system's own modifier at every score. Machine values arrive through
+ * ./_env.mjs.
  *
  * Fixtures, kept and found by marker: three classes with INVENTED level rows
  * (`classes/level-cap-open-class`, four rows and no cap;
  * `classes/level-cap-capped-class`, the same rows and an invented cap;
- * `classes/level-cap-builder-class`, builder mode), four for the migration
- * (`classes/level-cap-saved-human`, `-saved-racial`, `-saved-held` on
- * `classes/level-cap-saved-holder`), each brought to its pre-upgrade shape at
- * the step's start, and
+ * `classes/level-cap-builder-class`, builder mode), and
  * `classes/level-cap-character`, a character the Player seat owns, brought to
  * a known shape at each step's start. "Absent" is an OVERRIDE layer this run
  * registers in each page's table registry and removes in the finally, so no
@@ -463,40 +458,6 @@ const P = {
     await sheet.close({ animate: false });
     return out;
   },
-  /** Bring a saved class to the shape the previous release stored: record version 0, `value` as its racial value and `race` as its race reference. */
-  saveOld: async ({ uuid, value, race }) => {
-    const item = await fromUuid(uuid);
-    await item.update({
-      "system._schemaVersion": 0,
-      "system.race": race,
-      "system.levels": [],
-      "system.maximumLevel": null,
-      "system.hitDie": "",
-      "system.builder": { enabled: true, hdValue: 1, fighting: { value: 2, sub: "", damageBonus: "" }, thievery: { value: 1, skills: [] }, magic: [], race: { value }, tradeoffs: [], powers: [] },
-    });
-    const s = item._source.system;
-    return { version: s._schemaVersion, value: s.builder.race.value, race: !!s.race };
-  },
-  /** What each saved class stores: its record version, its racial value and whether it names a race. */
-  readSaved: async ({ uuids }) => {
-    const out = {};
-    for (const uuid of uuids) {
-      const s = (await fromUuid(uuid))?._source?.system;
-      out[uuid] = s ? { version: s._schemaVersion, value: s.builder?.race?.value ?? null, race: !!s.race } : null;
-    }
-    return out;
-  },
-  /** Set a stamped class's racial value by hand, as a Judge does on the sheet. */
-  setValue: async ({ uuid, value }) => {
-    const item = await fromUuid(uuid);
-    await item.update({ "system.builder.race.value": value });
-    return item._source.system.builder.race.value;
-  },
-  /** The sweep the ready hook runs, called on the GM seat: what it stamped and corrected, as counts. */
-  migrate: async () => {
-    const m = await import("/modules/acks-extras/scripts/classes/builder-race-migration.mjs");
-    return m.migrateBuilderRace();
-  },
   /**
    * The Ruledata Browser as a Judge uses it: open it, press Edit on the builder's budget row, put a figure in
    * the human maximum level and Save; or press Revert on the row. Answers whether the row was there, whether the
@@ -871,78 +832,6 @@ try {
     check("after Revert, Derive gives the imported cap again", derived.derivable && capState.storedIsHuman && capState.rowsReachIt, capState);
   }
 
-  // The reload below drops the GM page's record of the cards and console errors it made, so they are claimed first.
-  await claim(gm, "gm");
-
-  section("saved builders from before the racial value was -1 are corrected once");
-  // The previous release stored 0 for a class with no racial category and for a racial class alike. The
-  // PRE-UPGRADE shape is built on purpose: record version 0, racial value 0, with and without a race reference.
-  const savedHuman = await gm.fixture("classes/level-cap-saved-human", "Item", { name: "QA Saved Human", type: `${MOD}.class`, system: {} });
-  const savedRacial = await gm.fixture("classes/level-cap-saved-racial", "Item", { name: "QA Saved Racial", type: `${MOD}.class`, system: {} });
-  const holder = await gm.fixture("classes/level-cap-saved-holder", "Actor", { name: "QA Saved Holder", type: "character", system: {} });
-  const savedHeld = await gm.fixture("classes/level-cap-saved-held", "Item", { name: "QA Saved Held", type: `${MOD}.class`, system: {} }, { parent: holder.uuid });
-  const SAVED = [savedHuman.uuid, savedRacial.uuid, savedHeld.uuid];
-  const stage = async () => {
-    const shapes = [
-      await run(gm, P.saveOld, { uuid: savedHuman.uuid, value: 0, race: "" }),
-      await run(gm, P.saveOld, { uuid: savedRacial.uuid, value: 0, race: "def.race.qa-level-cap" }),
-      await run(gm, P.saveOld, { uuid: savedHeld.uuid, value: 0, race: "" }),
-    ];
-    return shapes.every((s) => s.version === 0 && s.value === 0) && shapes.map((s) => s.race).join() === "false,true,false";
-  };
-  check("the pre-upgrade shape is stored: version 0 and racial value 0, one class naming a race, one in the world, one on a character", await stage());
-
-  const first = await run(gm, P.migrate);
-  note("the sweep's tally (world class items stamped, on characters, racial values rewritten)", first);
-  check("the sweep rewrote at least the two classes with no racial category, in the world and on a character", first.corrected >= 2 && first.world >= 2 && first.actors >= 1, first);
-  let saved = await run(gm, P.readSaved, { uuids: SAVED });
-  check("no racial category now stores -1, in the world and on the character", saved[savedHuman.uuid].value === -1 && saved[savedHeld.uuid].value === -1, saved);
-  check("a racial class at value 0 keeps 0", saved[savedRacial.uuid].value === 0 && saved[savedRacial.uuid].race === true, saved[savedRacial.uuid]);
-  check("every one is stamped current", SAVED.every((u) => saved[u].version >= 1), SAVED.map((u) => saved[u].version));
-  const savedDerived = async (item) => {
-    await run(gm, P.shapeValue, { itemId: item.id, value: saved[item.uuid].value });
-    const d = await run(gm, P.derive, { itemId: item.id });
-    return { derived: d, state: await run(gm, P.capState, { itemId: item.id }) };
-  };
-  const human = await savedDerived(savedHuman);
-  check("the corrected class derives the imported human cap", human.derived.derivable && human.state.storedIsHuman && human.state.rowsReachIt, human.state);
-  const racial = await savedDerived(savedRacial);
-  check("the racial class at 0 derives the racial table's row on its total", racial.derived.derivable && racial.state.storedIsRacialFour && racial.state.rowsReachIt, racial.state);
-
-  const again = await run(gm, P.migrate);
-  check("a second run stamps and rewrites nothing", again.world === 0 && again.actors === 0 && again.corrected === 0, again);
-  await run(gm, P.setValue, { uuid: savedHuman.uuid, value: 0 });
-  const kept = await run(gm, P.migrate);
-  saved = await run(gm, P.readSaved, { uuids: SAVED });
-  check("a racial value of 0 a Judge sets afterwards on a stamped class is left alone", kept.corrected === 0 && saved[savedHuman.uuid].value === 0, { kept, value: saved[savedHuman.uuid].value });
-
-  // The real trigger: the world's own `ready`, on a reload of the GM's page.
-  check("the pre-upgrade shape is stored again", await stage());
-  note("gm reloaded; ready after (s)", await record(PORTS.gm, "gm", gm));
-  const reloaded = await run(gm, P.install, { tag: TAG });
-  check("the reload ran init, setup and ready with no error recorded", ["init", "setup", "ready"].every((p) => (reloaded.boot?.phases ?? []).includes(p)) && (reloaded.boot?.errors ?? []).length === 0, { phases: reloaded.boot?.phases ?? [], errors: (reloaded.boot?.errors ?? []).length });
-  let healed = null;
-  for (let n = 0; n < 60 && !healed; n++) {
-    saved = await run(gm, P.readSaved, { uuids: SAVED });
-    if (SAVED.every((u) => saved[u]?.version >= 1)) healed = saved;
-    else await sleep(1000);
-  }
-  check("on ready the sweep corrected the classes without a racial category and kept the racial one at 0", !!healed && healed[savedHuman.uuid].value === -1 && healed[savedHeld.uuid].value === -1 && healed[savedRacial.uuid].value === 0, healed ? SAVED.map((u) => healed[u].value) : "not stamped after 60 s");
-  // A canary proves the hook ran on this reload: the embedded class is put back below the stamp, and the
-  // stamped class beside it carries a 0 a Judge typed.
-  await run(gm, P.setValue, { uuid: savedHuman.uuid, value: 0 });
-  const canary = await run(gm, P.saveOld, { uuid: savedHeld.uuid, value: 0, race: "" });
-  check("the canary is below the stamp and a stamped class holds a hand-set 0", canary.version === 0 && canary.value === 0 && (await run(gm, P.readSaved, { uuids: [savedHuman.uuid] }))[savedHuman.uuid].value === 0);
-  note("gm reloaded again; ready after (s)", await record(PORTS.gm, "gm", gm));
-  await run(gm, P.install, { tag: TAG });
-  let ran = null;
-  for (let n = 0; n < 60 && !ran; n++) {
-    saved = await run(gm, P.readSaved, { uuids: SAVED });
-    if (saved[savedHeld.uuid]?.version >= 1) ran = saved;
-    else await sleep(1000);
-  }
-  check("a second ready ran the sweep, and left a stamped class's hand-set 0 alone", !!ran && ran[savedHeld.uuid].value === -1 && ran[savedHuman.uuid].value === 0 && ran[savedRacial.uuid].value === 0, ran ? SAVED.map((u) => ran[u].value) : "the canary was not stamped after 60 s");
-
   section("the last die level and the per-level rates, hidden in turn");
   await run(gm, P.builderShape, { itemId: built.id });
   const noLevel = await run(gm, P.hide, { what: "afterLevel" });
@@ -983,7 +872,7 @@ try {
   }
   // The ledger also holds any fixture `fixture` built this run; only the run's own cards go.
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  console.log("fixtures kept: classes/level-cap-open-class, classes/level-cap-capped-class, classes/level-cap-builder-class, classes/level-cap-character, classes/level-cap-saved-human, classes/level-cap-saved-racial, classes/level-cap-saved-holder, classes/level-cap-saved-held");
+  console.log("fixtures kept: classes/level-cap-open-class, classes/level-cap-capped-class, classes/level-cap-builder-class, classes/level-cap-character");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

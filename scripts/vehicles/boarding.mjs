@@ -23,11 +23,10 @@ export const ARRANGEMENT_FLAG = "lastArrangement";
 
 /**
  * What one actor costs a hold: their TRUE mass — body (or bodies, for a
- * stack) plus what they carry. `_vehicle` stays for API compatibility and
- * is no longer read. See docs/vehicles/DECISIONS.md, "Weights are true;
- * the printed rate prices the unnamed head."
+ * stack) plus what they carry. See docs/vehicles/DECISIONS.md, "Weights are
+ * true; the printed rate prices the unnamed head."
  */
-export function passengerCost(actor, _vehicle) {
+export function passengerCost(actor) {
   return borneBy6(actor) / STONE;
 }
 
@@ -63,7 +62,7 @@ export async function boardForBestPace(vehicle, candidates = [], { ground = null
     const pace = paceNow();
     // Riding must be an improvement for THIS member, or they walk.
     if (ownSpeed(actor) >= pace) continue;
-    if (holdOf(vehicle).free < passengerCost(actor, vehicle)) break; // the hold is full
+    if (holdOf(vehicle).free < passengerCost(actor)) break; // the hold is full
     await attach(actor, vehicle, "passenger");
     boarded.push(actor.name);
   }

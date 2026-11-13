@@ -5912,7 +5912,7 @@ text. Where a later build words it differently the list reads as empty and
 an aliased path fails the gate again. The ledger's `--free` offers a renamed
 file as unclaimed though an entry spends that picture under its old path.
 
-## 2026-10-17 — A book is in the library as one Adventure
+## 2026-10-17 — A book is in the library as one Adventure — SUPERSEDED IN PART 2026-11-13 (the retirement of per-map Adventures: `docs/DECISIONS.md` §29)
 
 Supersedes "A settlement's map is in the library too, as one Adventure"
 (2026-09-30). The user's ruling: the per-map Adventure "is just a WIP that

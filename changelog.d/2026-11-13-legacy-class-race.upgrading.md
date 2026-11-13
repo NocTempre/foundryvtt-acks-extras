@@ -1,0 +1,1 @@
+- **A class saved before 11.14.0 with a racial value of 0 and no race is no longer corrected to -1 on load.** Such a class now reads as a racial class at its first rung, and its maximum level follows. Open the class from the Items sidebar tab and set its racial value on the class sheet: -1 for no racial category.

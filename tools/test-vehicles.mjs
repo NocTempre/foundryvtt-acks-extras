@@ -208,8 +208,8 @@ assert.equal(travelMultiplier({ terrain: "grassland", road: "paved", raining: tr
   "a paved road keeps its worth in the wet");
 assert.equal(travelMultiplier({ terrain: "grassland", road: "gravel", snowing: true }).multiplier, 1,
   "a row may be nulled by snow instead");
-assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 2,
-  "a legacy boolean road reads as an earth road");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 1,
+  "a road that is not a ROAD_KINDS key earns nothing");
 
 /* --- the parts name what the sheet will say ------------------------------ */
 const namedGround = travelMultiplier({ terrain: "swamp", road: "earth", driverProficient: true });

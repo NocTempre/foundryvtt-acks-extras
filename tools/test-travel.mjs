@@ -450,7 +450,7 @@ settings.formations = {
       mode: "settlement",
       settlement: {
         sceneId: "Scene.riverport", pace: "commuting", route: "route", where: "holedUp",
-        night: true, blocks: 40, turns: 12, days: 3, holeUpSince: 500, wanted: true,
+        hour: "night", blocks: 40, turns: 12, days: 3, holeUpSince: 500, wanted: true,
       },
     },
   },
@@ -472,23 +472,15 @@ assert.equal(arrived.holeUpSince, null,
   "and the stay stamp goes, or the journey between the two is charged as a stay");
 assert.equal(arrived.pace, "commuting", "what the Judge set still carries");
 assert.equal(arrived.route, "route");
-assert.equal(arrived.hour, "night", "a board from before the hour had a source arrives on the Judge's word");
-assert.equal("night" in arrived, false, "and the old flag is not written back");
+assert.equal(arrived.hour, "night", "the Judge's hour carries into the next city");
 
-/* The board's own writer takes the hour by name, and still reads the older
-   boolean a caller written to it sends. */
+/* The board's own writer takes the hour by name. */
 await patchSettlement("f1", { hour: "day" });
 assert.equal(boardOf("f1").hour, "day");
 await patchSettlement("f1", { hour: "clock" });
 assert.equal(boardOf("f1").hour, "clock");
 await patchSettlement("f1", { hour: "noon" });
 assert.equal(boardOf("f1").hour, "clock", "an hour outside the vocabulary follows the clock");
-await patchSettlement("f1", { night: true });
-assert.equal(boardOf("f1").hour, "night", "the older tick is the Judge's word for night");
-await patchSettlement("f1", { night: false });
-assert.equal(boardOf("f1").hour, "day", "and the older clear their word for day");
-await patchSettlement("f1", { night: true, hour: "clock" });
-assert.equal(boardOf("f1").hour, "clock", "named beside the boolean, the hour wins");
 
 /* A dungeon under the city it is already in: the mode flips, and coming back
    up starts a fresh tally without forgetting what the Judge set. */

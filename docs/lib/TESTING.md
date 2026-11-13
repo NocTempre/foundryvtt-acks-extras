@@ -864,8 +864,7 @@ that the formations setting no longer holds the run's record.
 Covers the gates at the `ready` sweeps and at the legacy mount cleanup: the
 retainer sheet sweep and the monster landing-sheet rewrite (`module.mjs`), the
 compendium filing (`compendium-folders.mjs`), the defence-band migration
-(`monsters/module.mjs`), the language upgrade
-(`classes/language-migration.mjs`), and `mount.mjs`'s `deleteActor` cleanup.
+(`monsters/module.mjs`), and `mount.mjs`'s `deleteActor` cleanup.
 Walked on core 14.369 with the capture driver: three browsers, about 3
 minutes.
 
@@ -876,9 +875,6 @@ when it appears (3.4 to 4.5 s into the load, measured). Key the tally on the
 hook and the document's id, or its name for a create.
 
 **Fixtures**, all through A's ledger:
-- a world `ability` stamped `flags.acks-extras.cookbook.id =
-  "def.language.fixture-<random>"` (docs/classes/TESTING.md, "The language
-  upgrade");
 - a `monster` whose `flags.acks-extras.extras.defenses.immunities.effects` is
   a string;
 - a `character` created with `system.retainer.enabled: true`, then
@@ -893,11 +889,9 @@ hook and the document's id, or its name for a create.
    `Page.reload` all three at once. Reloading one of two GM windows hands the
    lead to the other, and the reloaded window follows, so neither sweeps on
    that load: reload every window, or a lone one.
-   **Observable:** one `language` item carries the fixture's id and the
-   `ability` is gone, the band's `effects` is an array with the string kept
+   **Observable:** the band's `effects` is an array with the string kept
    in its note, and the retainer carries `flags.core.sheetClass`. The lead's
-   tally alone holds the `preCreateItem`, the fixture's `preDeleteItem` and
-   both actors' `preUpdateActor`. The other GM window's tally and the
+   tally alone holds both actors' `preUpdateActor`. The other GM window's tally and the
    Assistant's hold none of them, and no recorder caught an error.
 2. **One cleanup per deletion.** Delete the rider from the GM window that
    does not lead.
@@ -909,9 +903,8 @@ The landing-sheet rewrite needs a `core.sheetClasses` pin naming
 folder. Both are world settings a shared test world's other sessions rely on,
 so these two stay offline here.
 
-**Teardown.** Track the `language` item by the id read back through the
-fixture's cookbook id, then `api.sweepTracked()` from A, quoted. It reports
-the rider and the retired `ability` missing.
+**Teardown.** `api.sweepTracked()` from A, quoted. It reports the rider
+missing.
 
 ## A dropped bundle arrives as its goods
 

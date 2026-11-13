@@ -1,16 +1,13 @@
 /**
  * The imported skills' ladders as a borrowed throw reads them
  * (scripts/abilities/skill-ladders.mjs, through `ladderRungAt` in
- * scripts/classes/registry.mjs) and the migration that moves the party check's
- * old per-item flags onto the throw (scripts/abilities/skill-flag-migration.mjs).
+ * scripts/classes/registry.mjs).
  *
  * Stand-in documents; every figure is invented. What this pins: a borrowed
  * ladder that no class document publishes is read from the world's imported
  * skill of that key, a class that does publish it wins, a pack-held skill is
  * read once the cache has loaded and a cold cache answers nothing rather than a
- * wrong figure, the level reads at the fraction the throw states, and the
- * migration rewrites the default throw before it removes the flags, leaves what
- * it cannot move exactly, and is idempotent. The world's own sweep and the
+ * wrong figure, and the level reads at the fraction the throw states. The
  * figures a character sees are the live walk's (docs/formation/TESTING.md).
  */
 import assert from "node:assert/strict";
@@ -43,13 +40,7 @@ globalThis.foundry = {
 
 const { ladderRungAt, resolveLevelOutcome } = await import("../scripts/classes/registry.mjs");
 const { importedLadderFor, skillLadderRungs, refreshLadders } = await import("../scripts/abilities/skill-ladders.mjs");
-const { planSkillFlagMigration, migrateItem, factorFraction, migrateSkillFlags } = await import("../scripts/abilities/skill-flag-migration.mjs");
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
-const { rollsOf } = await import("../scripts/abilities/ability-rolls.mjs");
-// The schema's coercion needs Foundry's data model; what is pinned here is what
-// the migration hands it, so the stand-in returns the input unchanged.
-const { default: AbilityExtras } = await import("../scripts/abilities/ability-extras.mjs");
-AbilityExtras.normalize = (raw) => JSON.parse(JSON.stringify(raw));
 
 /* --- fixtures ---------------------------------------------------------------- */
 let serial = 0;
@@ -138,81 +129,6 @@ await ok("the owner's own copy of a skill is read before the world's", async () 
   const a = actorOf([mine]);
   assert.equal(importedLadderFor("climbing", a).breakpoints[0].value, 4);
   assert.equal(importedLadderFor("climbing", null).breakpoints[0].value, 9);
-});
-
-/* --- the migration ----------------------------------------------------------- */
-
-await ok("a level factor states itself as the smallest exact fraction, or nothing", async () => {
-  assert.deepEqual(factorFraction(0.5), { num: 1, den: 2 });
-  assert.deepEqual(factorFraction(1), { num: 1, den: 1 });
-  assert.deepEqual(factorFraction(0.75), { num: 3, den: 4 });
-  assert.equal(factorFraction(0), null);
-  assert.equal(factorFraction(0.333), null, "a figure no small fraction states exactly is not guessed at");
-});
-
-await ok("an item with no legacy flag is left alone, and one whose flags change nothing is cleared", async () => {
-  reset();
-  assert.equal(planSkillFlagMigration(item("Plain")).action, "none");
-  assert.equal(planSkillFlagMigration(item("Whole", { flags: { levelFactor: 1 } })).action, "clear");
-});
-
-await ok("a named skill moves onto the default throw as a progression, and the flags are removed", async () => {
-  reset();
-  game.items.push(skill("climbing", [1, 9], [4, 7]));
-  const borrowed = item("Wall Scrambling", { id: "def.power.wallscrambling", rolls: [throwOf("primary", { kind: "flat", flat: 12 })], flags: { thiefSkill: "climbing", levelFactor: 0.5 } });
-  assert.equal(await migrateItem(borrowed, null), "moved");
-  const [roll] = rollsOf(borrowed);
-  assert.deepEqual(roll.target, { kind: "progression", as: "thief", table: "climbing", atLevelNum: 1, atLevelDen: 2, round: "up" });
-  assert.equal(borrowed.getFlag("acks-extras", "thiefSkill"), undefined);
-  assert.equal(borrowed.getFlag("acks-extras", "levelFactor"), undefined);
-  assert.equal(borrowed.getFlag("acks-extras", "isSkill"), true, "a flag that made it a skill keeps it one");
-  assert.equal(await migrateItem(borrowed, null), "none", "a second run finds nothing");
-});
-
-await ok("a fraction with no table named reads the item's own imported skill key", async () => {
-  reset();
-  game.items.push(skill("hiding", [1, 11], [4, 8]));
-  const own = item("Hiding", { id: "def.skill.hiding", rolls: [throwOf("throw1", ladder([1, 11], [4, 8]))], flags: { levelFactor: 0.5 } });
-  assert.equal(planSkillFlagMigration(own, null).table, "hiding");
-  const lonely = item("Anything", { flags: { levelFactor: 0.5 } });
-  assert.deepEqual([planSkillFlagMigration(lonely, null).action, planSkillFlagMigration(lonely, null).reason], ["keep", "noTable"]);
-});
-
-await ok("what cannot be moved exactly keeps its flags and says why", async () => {
-  reset();
-  const unimported = item("Wall Scrambling", { flags: { thiefSkill: "climbing" } });
-  assert.deepEqual([planSkillFlagMigration(unimported, null).action, planSkillFlagMigration(unimported, null).reason], ["keep", "notImported"]);
-  assert.equal(await migrateItem(unimported, null), "keep");
-  assert.equal(unimported.getFlag("acks-extras", "thiefSkill"), "climbing", "the flag stays for the party check to be re-run once the skill is imported");
-  game.items.push(skill("climbing", [1, 9]));
-  const odd = item("Odd", { flags: { thiefSkill: "climbing", levelFactor: 0.333 } });
-  assert.deepEqual([planSkillFlagMigration(odd, null).action, planSkillFlagMigration(odd, null).reason], ["keep", "fraction"]);
-});
-
-await ok("the world sweep counts what it moved, cleared and left, over world and character items", async () => {
-  reset();
-  game.items.push(skill("climbing", [1, 9], [4, 7]));
-  const moves = item("Wall Scrambling", { rolls: [throwOf("primary", { kind: "flat", flat: 12 })], flags: { thiefSkill: "climbing", levelFactor: 0.5 } });
-  const clears = item("Whole", { flags: { levelFactor: 1 } });
-  const keeps = item("Orphan", { flags: { thiefSkill: "notimported" } });
-  game.items.push(moves);
-  game.actors.push(actorOf([clears, keeps]));
-  const out = await migrateSkillFlags();
-  assert.deepEqual([out.moved, out.cleared, out.kept, out.keptReasons], [1, 1, 1, { notImported: 1 }]);
-  const again = await migrateSkillFlags();
-  assert.deepEqual([again.moved, again.cleared, again.kept], [0, 0, 1], "only the one it cannot move is met again");
-});
-
-await ok("a player's client does not sweep", async () => {
-  reset();
-  game.user = { id: "p1", isGM: false };
-  try {
-    const kept = item("Wall Scrambling", { flags: { thiefSkill: "climbing" } });
-    game.items.push(kept);
-    assert.deepEqual(await migrateSkillFlags(), { moved: 0, cleared: 0, kept: 0, keptReasons: {} });
-  } finally {
-    game.user = { id: "u1", isGM: true };
-  }
 });
 
 console.log(`\n${passed} passed`);

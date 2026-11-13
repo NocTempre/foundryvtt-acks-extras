@@ -73,7 +73,7 @@ import {
 import { installRoadMarkers } from "./road-markers.mjs";
 import { installSceneNavigation, sessionFollowsScene } from "./scene-nav.mjs";
 import { installMapModes, mapModes, mapView, openMapModes, registerMapMode, registerMapViewSetting, setMapView } from "./map-modes.mjs";
-import { convertRoutesToWalls, derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
+import { derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
 import { elementOf } from "../lib/util.mjs";
 
 const TEMPLATES = [
@@ -163,7 +163,6 @@ Hooks.once("ready", () => {
       armRoadPreset,
       armAlleyPreset,
       roadFromSelection,
-      convertRoutesToWalls,
       routesOf,
       derivedRoutesOf,
       nodePoint,
@@ -305,14 +304,6 @@ function installSceneControls() {
       order: CAPTURE_MODES.length + 2 + ROAD_SURFACES.length,
       button: true,
       onChange: () => armAlleyPreset(),
-    };
-    tools["route-convert"] = {
-      name: "route-convert",
-      title: game.i18n.localize(`${LANG_PREFIX}.routes.convert`),
-      icon: "fa-solid fa-arrow-right-arrow-left",
-      order: CAPTURE_MODES.length + 3 + ROAD_SURFACES.length,
-      button: true,
-      onChange: () => convertRoutes(),
     };
     // Rivers and coasts are drawn as WALLS too, armed the way a road is: a
     // preset for core's wall tool, not a canvas mode.
@@ -504,23 +495,4 @@ function incidentsRow(scene) {
     row.querySelector(selector).addEventListener("change", (ev) => writeSceneIncidents(scene, { [key]: ev.currentTarget.value }));
   }
   return row;
-}
-
-/**
- * Retire this scene's declared hex links into road walls, and say what became
- * of them.
- *
- * A press rather than a migration on load: converting writes walls to a scene,
- * and a module that did that unasked would edit maps the Judge had not opened.
- */
-async function convertRoutes() {
-  const scene = canvas?.scene;
-  if (!scene) return;
-  const result = await convertRoutesToWalls(scene);
-  if (!result) return;
-  if (!result.made && !result.skipped) {
-    ui.notifications?.info(game.i18n.localize(`${LANG_PREFIX}.routes.convertNone`));
-    return;
-  }
-  ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.routes.converted`, result));
 }

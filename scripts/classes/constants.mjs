@@ -11,9 +11,7 @@ export const LANG_PREFIX = "ACKS-CLASSES";
 export const CLASS_TYPE = `${MODULE_ID}.class`;
 
 /**
- * The class record version a new class document starts at and a one-time
- * migration stamps (builder-race-migration.mjs). A record below it is read once
- * by that migration.
+ * The class record version a new class document starts at.
  */
 export const CLASS_SCHEMA_VERSION = 1;
 

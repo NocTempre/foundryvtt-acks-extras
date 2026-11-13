@@ -1,14 +1,14 @@
 /**
  * Live walk: docs/formation/TESTING.md "The party check resolves through the
  * abilities". The GM seat drives the party check, the Rolls tab, the skill
- * sheet and the disarm dialog against five characters, and proves that the
+ * sheet and the disarm dialog against four characters, and proves that the
  * four read one figure for the same throw.
  *
  * Every figure typed into a fixture is invented. An imported figure is compared
  * in the page and only the boolean (or the equality of two reads) is printed.
  *
  * Fixtures, kept and found again by marker (`api.fixture`):
- *   formation/skills-party     an acks-extras.party actor holding the five
+ *   formation/skills-party     an acks-extras.party actor holding the four
  *   formation/skills-thief     a level-6 character with the library's
  *                              Searching, Trapbreaking and Eavesdropping
  *   formation/skills-alert     the library's Alertness proficiency and an
@@ -19,8 +19,6 @@
  *                              proficiency with no import behind it, one bound
  *                              to Search with a flat throw, one naming a ladder
  *                              no import holds
- *   formation/skills-borrowed  a hand-made skill still carrying the legacy
- *                              party-check scaling flags
  * Each section brings what it reads to shape at its start. The chat card the
  * party check posts and the conditions' effect are tracked by id and swept.
  */
@@ -76,7 +74,6 @@ const P = {
     H.rolls = await import(`${BASE}character-sheet/rolls.mjs`);
     H.adv = await import(`${BASE}abilities/adventuring-throw.mjs`);
     H.ar = await import(`${BASE}abilities/ability-rolls.mjs`);
-    H.mig = await import(`${BASE}abilities/skill-flag-migration.mjs`);
     H.lad = await import(`${BASE}abilities/skill-ladders.mjs`);
     H.zone = await import(`${BASE}formation/trap-zone.mjs`);
     H.LIB = await import(`${BASE}lib/library.mjs`);
@@ -286,21 +283,6 @@ const P = {
     return [...(actor.statuses ?? [])].length;
   },
 
-  /** The legacy-flag item before and after the migration. */
-  migrate: async ({ actorId, name }) => {
-    const H = globalThis.__psk;
-    const actor = game.actors.get(actorId);
-    const item = actor.items.find((i) => i.name === name);
-    await H.lad.refreshLadders();
-    const flags = () => ({ thiefSkill: item.getFlag("acks-extras", "thiefSkill") ?? null, levelFactor: item.getFlag("acks-extras", "levelFactor") ?? null });
-    const target = () => foundry.utils.deepClone(H.ar.rollsOf(item)[0]?.target ?? null);
-    const before = { flags: flags(), kind: target()?.kind ?? null };
-    const plan = H.mig.planSkillFlagMigration(item, actor);
-    const done = await H.mig.migrateItem(item, actor);
-    const t = target();
-    return { before, plan: { action: plan.action, reason: plan.reason ?? null }, done, after: { flags: flags(), kind: t?.kind ?? null, as: t?.as ?? null, hasFraction: t?.atLevelNum != null, hasRound: t?.round != null } };
-  },
-
   /** The skill sheet rendered, and the Skill audit opened from the party's Order tab. */
   openWindows: async ({ actorId, name, partyId }) => {
     const H = globalThis.__psk;
@@ -437,12 +419,11 @@ try {
   const alert = await gm.fixture("formation/skills-alert", "Actor", character("QA Skills Alert"));
   const elf = await gm.fixture("formation/skills-elf", "Actor", character("QA Skills Elf"));
   const hand = await gm.fixture("formation/skills-handmade", "Actor", character("QA Skills Handmade"));
-  const borrowed = await gm.fixture("formation/skills-borrowed", "Actor", character("QA Skills Borrowed"));
-  const members = [thief, alert, elf, hand, borrowed];
+  const members = [thief, alert, elf, hand];
   const { fid, error } = await run(gm, P.formationOf, { partyId: party.id });
   if (error) throw new Error(error);
   const seated = await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
-  check("the party holds its five members", seated.members.length === 5, seated);
+  check("the party holds its four members", seated.members.length === 4, seated);
   for (const m of members) await run(gm, P.setStored, { actorId: m.id, figures: STORED });
   note("thief holds", await run(gm, P.give, { actorId: thief.id, ids: [LIBRARY.searching, LIBRARY.trapbreaking, LIBRARY.eavesdropping] }));
   note("alert holds", await run(gm, P.give, { actorId: alert.id, ids: [LIBRARY.alertnessProf] }));
@@ -517,24 +498,6 @@ try {
   check("a character with no Trapbreaking skill is offered the methodical attempt on the Adventuring figure", dAlert.hasCheck && dAlert.dialogTarget === dAlert.auditTarget, dAlert);
   const dHasty = await run(gm, P.disarm, { fid, actorId: alert.id, mode: "hasty" });
   check("and no hasty attempt at all", !dHasty.hasCheck, dHasty);
-
-  section("the legacy party-check flags");
-  const legacy = handmade("QA Borrowed Pick", [flat("primary", 17, "Pick")], { checkKey: "search", thiefSkill: "searching", levelFactor: 0.5 });
-  note("legacy item built", await run(gm, P.ensureItems, { actorId: borrowed.id, items: [legacy] }));
-  const before = await run(gm, P.surfaces, { actorId: borrowed.id, itemName: "QA Borrowed Pick", checkKey: "searchMethodical", rollKey: "primary" });
-  check("before: the legacy flags are inert, the party check reads the item's own throw", before.party?.target === 17 && before.sheet?.figure === 17 && before.rolls?.figure === 17, { party: before.party?.target, sheet: before.sheet?.figure, rolls: before.rolls?.figure });
-  const mig = await run(gm, P.migrate, { actorId: borrowed.id, name: "QA Borrowed Pick" });
-  note("migration", mig);
-  if (mig.plan.action === "move") {
-    check("migration: the throw now borrows the ladder, at the stored fraction and the rounding, and the flags are gone", mig.done === "moved" && mig.after.kind === "progression" && mig.after.as === "thief" && mig.after.hasFraction && mig.after.hasRound && mig.after.flags.thiefSkill === null && mig.after.flags.levelFactor === null, mig.after);
-    const after = await run(gm, P.surfaces, { actorId: borrowed.id, itemName: "QA Borrowed Pick", checkKey: "searchMethodical", rollKey: "primary" });
-    same("after: the party check, the Rolls tab and the skill sheet read one figure", after, (x) => [x.party?.target, x.rolls?.figure, x.sheet?.figure]);
-    const rerun = await run(gm, P.migrate, { actorId: borrowed.id, name: "QA Borrowed Pick" });
-    check("a second run changes nothing", rerun.done === "none" && rerun.plan.action === "none", rerun);
-  } else {
-    check("migration: no imported ladder, so the flags are kept and counted", mig.plan.action === "keep" && mig.plan.reason === "notImported" && mig.done === "keep" && mig.after.flags.thiefSkill !== null, mig);
-    note("migration move", "the library holds no Searching ladder in this world: the move itself was not reached");
-  }
 
   section("the real surfaces");
   const cards = await run(gm, P.postCard, { fid, checkKey: "listen" });

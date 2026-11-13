@@ -952,27 +952,6 @@ walked in docs/lib/TESTING.md, "The repair tool".
     The refusal's gate and the split's arithmetic are checked offline
     (`tools/test-henchmen.mjs`); the recipe's shape against the real book is
     `tools/importer/test-recipe-content.mjs`.
-22. The repair check for a monster left under a former employer
-    (`henchmen.monsterEmployers`, `repair-checks.mjs`). Fixtures, by marker:
-    the characters `henchmen/employers-a` and `henchmen/employers-b` (level
-    above the monster's Hit Dice) and the monster
-    `henchmen/employers-monster`. Bring them to the pre-repair shape at the
-    step's start: hire the monster for B
-    (`acksExtras.henchmen.hireMonster(monster, B)`, skipped when its record
-    already names B), then write its id onto A's
-    `flags["acks-extras"].monsterHenchmenList` by hand — nothing the module
-    does leaves it there any more, which is why the check exists.
-    `staleMonsterIds(A)` (`henchmen/repair.mjs`) now names it.
-    - Open the repair tool (Settings tab → Game Settings → ACKS II — Extras →
-      Repair this world), and in its Henchmen group press **Scan** on
-      "Monster hirelings listed under a former employer". *Observable:* one
-      finding, Employer A, "1 monster hireling(s) belong to another
-      employer"; nothing names B.
-    - Tick the finding, press **Fix selected**, answer **Yes**.
-      *Observable:* the group reads "Fixed 1; failed 0" and the rescan
-      "Nothing found"; A's list no longer holds the monster, B's still does,
-      and the monster's record still names B.
-    Nothing to sweep: the run makes no card, and the three fixtures stay.
 23. The henchman shares, imported, absent and overridden, on the Service tab
     of a henchman whose record holds no share of its own (marker
     `henchmen/share-henchman`, built through the hire path so its record is

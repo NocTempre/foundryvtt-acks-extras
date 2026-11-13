@@ -201,16 +201,10 @@ ok("the Judge's word on the hour outranks the clock", () => {
   assert.equal(isNight(null, { dark: true }), true);
 });
 
-ok("a board written with the old night flag reads as the Judge's word, or as the clock", () => {
-  // A ticked flag was the Judge saying it is dark; a clear one was the default.
-  assert.equal(settlementOf({ settlement: { night: true } }).hour, "night");
-  assert.equal(settlementOf({ settlement: { night: false } }).hour, "clock");
+ok("a board's hour is the stored mode, or the clock", () => {
   assert.equal(settlementOf({ settlement: {} }).hour, "clock");
-  // Where both are stored, the hour is the newer field and wins.
-  assert.equal(settlementOf({ settlement: { night: true, hour: "day" } }).hour, "day");
+  assert.equal(settlementOf({ settlement: { hour: "day" } }).hour, "day");
   assert.equal(settlementOf({ settlement: { hour: "noon" } }).hour, "clock", "an unknown hour follows the clock");
-  // And the flag itself is not carried onto the normalized board.
-  assert.equal("night" in settlementOf({ settlement: { night: true } }), false);
 });
 
 /* --- the turn tick: what makes the board's fields live -------------------- */
@@ -960,8 +954,6 @@ ok("re-entering a city keeps what the Judge set and drops what the last city cou
     pace: "commuting", where: "alley", route: "route", hour: "night",
     intent: "trouble", conveyance: "litter",
   });
-  // A board from before the hour had a source re-enters on the Judge's word too.
-  assert.equal(reenterSettlement({ ...previous, hour: undefined, night: true }).hour, "night");
   // What was counted goes — another city's mileage is not this one's.
   assert.match2(back, { blocks: 0, turns: 0, days: 0, holeUpSince: null, lost: false, lastThrow: null });
 });

@@ -9,7 +9,7 @@
  * the first two missed). See docs/henchmen/MODEL.md §4b for the full
  * mechanics and why the wrap lives here rather than in lib/.
  */
-import { MODULE_ID, FLAG_MONSTER_LIST, FLAG_RECORD } from "./constants.mjs";
+import { MODULE_ID, FLAG_MONSTER_LIST } from "./constants.mjs";
 import { isPrimaryGM, primaryGMSettled } from "../lib/util.mjs";
 
 /** Ids already reported by the render guard, so the console stays readable. */
@@ -73,36 +73,6 @@ export async function repairActor(actor, { dryRun = false } = {}) {
 
   if (!dryRun) await actor.update(update);
   return { actor, ...found };
-}
-
-/**
- * Monster hirelings an actor's monster list still holds after their record
- * names another actor as the employer. A monster whose record is missing, or
- * names an actor that is gone, is left alone: nothing says whose it is.
- * @param {Actor} actor the actor whose list is read
- * @returns {string[]} the ids on the list that belong to someone else
- */
-export function staleMonsterIds(actor) {
-  const list = actor?.getFlag?.(MODULE_ID, FLAG_MONSTER_LIST);
-  if (!Array.isArray(list)) return [];
-  return list.filter((id) => {
-    const employerUuid = game.actors.get(id)?.getFlag?.(MODULE_ID, FLAG_RECORD)?.employerUuid;
-    const [kind, employerId] = String(employerUuid ?? "").split(".");
-    return kind === "Actor" && employerId !== actor.id && !!game.actors.get(employerId);
-  });
-}
-
-/**
- * Drop from an actor's monster list every monster its record gives to another
- * employer (GM-only write).
- * @returns {Promise<string[]>} the ids removed; empty when the list was already right
- */
-export async function pruneStaleMonsters(actor) {
-  const stale = staleMonsterIds(actor);
-  if (!stale.length) return [];
-  const list = actor.getFlag(MODULE_ID, FLAG_MONSTER_LIST).filter((id) => !stale.includes(id));
-  await actor.setFlag(MODULE_ID, FLAG_MONSTER_LIST, list);
-  return stale;
 }
 
 /**

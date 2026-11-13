@@ -282,7 +282,7 @@ export async function prepareTradeTab(sheet, context) {
       .map((o) => ({
         itemName: o.itemName,
         qty: o.qty,
-        hubLabel: game.i18n.localize(`${LANG}.imports.${(o.hub || (o.hubShift === 2 ? "regional" : "local")) === "regional" ? "hubRegional" : "hubLocal"}`),
+        hubLabel: game.i18n.localize(`${LANG}.imports.${o.hub === "regional" ? "hubRegional" : "hubLocal"}`),
         etaDays: daysUntil(o.arrivalTime, t),
         ...attribution(o),
       })),

@@ -28,8 +28,7 @@ import {
 import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
-import { CLASS_SCHEMA_VERSION, CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
-import { builderRaceUpdate, migrateBuilderRace } from "../scripts/classes/builder-race-migration.mjs";
+import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { builderUpdate } from "../scripts/importer/builder-binding.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
 import { ANSWERED, closesRung, grantableRefs, grantsFrom } from "../scripts/classes/picks.mjs";
@@ -2762,31 +2761,7 @@ test("every path that writes a rolled maximum writes the record beside it", () =
   assert.match(apply, /\[HP_ROLLS_KEY\]: hpRolls/, "a bind that rebuilds, chargen's 1st level among them");
 });
 
-/* ---------- a saved builder's "no racial category" is corrected once ---------- */
-
-/** A stored class `system` source: the builder's racial value, an optional race ref, a record version. */
-const stored = (value, { race = "", version } = {}) => ({ ...(version === undefined ? {} : { _schemaVersion: version }), race, builder: { race: value === undefined ? {} : { value } } });
-
-test("a stored 0 with no race becomes -1 and every other builder keeps its value", () => {
-  const humanZero = builderRaceUpdate(stored(0));
-  assert.equal(humanZero.corrected, true);
-  assert.equal(humanZero.update["system.builder.race.value"], -1);
-  assert.equal(humanZero.update["system._schemaVersion"], CLASS_SCHEMA_VERSION);
-  // A racial category chosen at 0 stays 0, however the race is named; only the record is stamped.
-  for (const race of ["def.race.qa-folk", "uuid:Item.abc"]) {
-    const racialZero = builderRaceUpdate(stored(0, { race }));
-    assert.equal(racialZero.corrected, false, race);
-    assert.deepEqual(racialZero.update, { "system._schemaVersion": CLASS_SCHEMA_VERSION });
-  }
-  // A racial value spent, a value already -1, and a value never stored are not rewritten.
-  for (const value of [1, 4, -1, undefined]) {
-    assert.equal(builderRaceUpdate(stored(value)).corrected, false, `${value}`);
-  }
-  // A record at the current version is left alone, so a Judge's later 0 is never rewritten.
-  assert.equal(builderRaceUpdate(stored(0, { version: CLASS_SCHEMA_VERSION })), null);
-  assert.equal(builderRaceUpdate(stored(0, { version: CLASS_SCHEMA_VERSION + 1 })), null);
-  assert.equal(builderRaceUpdate(undefined).corrected, false, "a record with no source is stamped, never failed");
-});
+/* ---------- the builder's "no racial category" is -1 ---------- */
 
 test("an imported build naming no race stores -1, and one naming a race stores its value", () => {
   const base = { hdValue: 1, fighting: { value: 2, sub: "" }, thievery: 1, magic: [], notes: "n" };
@@ -2796,55 +2771,10 @@ test("an imported build naming no race stores -1, and one naming a race stores i
   assert.equal(builderUpdate({})["system.builder.race.value"], -1, "a paragraph that reads nothing is no racial category");
 });
 
-test("a new class record starts at the version the migration stamps", () => {
+test("a new class record starts at the current version", () => {
   const model = readFileSync(new URL("../scripts/classes/class-data.mjs", import.meta.url), "utf8");
   assert.match(model, /_schemaVersion: int\(CLASS_SCHEMA_VERSION,/);
   assert.match(model, /race: new SchemaField\(\{ value: int\(-1, \{ min: -1 \}\) \}\)/, "a new builder is -1: no racial category");
-});
-
-await atest("the sweep corrects the world's and the characters' class items once, and a second run writes nothing", async () => {
-  const writes = [];
-  const item = (id, source, type = CLASS_TYPE) => ({ id, type, _source: { system: source } });
-  const world = [item("w1", stored(0)), item("w2", stored(0, { race: "def.race.qa-folk" })), item("w3", stored(2)), { id: "w4", type: "weapon", _source: { system: stored(0) } }];
-  const held = [item("a1", stored(0)), item("a2", stored(0, { version: CLASS_SCHEMA_VERSION }))];
-  const apply = (rows, docs) => {
-    for (const row of rows) {
-      const doc = docs.find((d) => d.id === row._id);
-      const next = { ...doc._source.system };
-      for (const [path, value] of Object.entries(row)) {
-        if (path === "_id") continue;
-        if (path === "system._schemaVersion") next._schemaVersion = value;
-        if (path === "system.builder.race.value") next.builder = { ...next.builder, race: { ...next.builder.race, value } };
-      }
-      doc._source.system = next;
-    }
-    writes.push(...rows);
-  };
-  const actor = { items: held, updateEmbeddedDocuments: async (_k, rows) => apply(rows, held) };
-  const saved = globalThis.game;
-  globalThis.game = { user: { isGM: true }, items: Object.assign([...world], { documentClass: { updateDocuments: async (rows) => apply(rows, world) } }), actors: [actor] };
-  try {
-    const first = await migrateBuilderRace();
-    assert.deepEqual(first, { world: 3, actors: 1, corrected: 2 });
-    assert.equal(world[0]._source.system.builder.race.value, -1);
-    assert.equal(world[1]._source.system.builder.race.value, 0);
-    assert.equal(world[2]._source.system.builder.race.value, 2);
-    assert.equal(world[3]._source.system.builder.race.value, 0, "an item that is not a class is never read");
-    assert.equal(held[0]._source.system.builder.race.value, -1);
-    const wrote = writes.length;
-    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
-    assert.equal(writes.length, wrote, "a second run writes nothing");
-    // A Judge who sets 0 on a stamped record after the sweep keeps it.
-    world[0]._source.system.builder.race.value = 0;
-    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
-    // A player's client changes nothing.
-    world[1]._source.system._schemaVersion = 0;
-    globalThis.game.user.isGM = false;
-    assert.deepEqual(await migrateBuilderRace(), { world: 0, actors: 0, corrected: 0 });
-    assert.equal(world[1]._source.system._schemaVersion, 0);
-  } finally {
-    globalThis.game = saved;
-  }
 });
 
 await atest("a score rolled before the library arrives is counted against the dice allowance", async () => {

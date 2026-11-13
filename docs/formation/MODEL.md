@@ -351,9 +351,7 @@ ability's contribution with the page its import names, the Judge's Throw bonus
 and the conditions, and the card, the Skill audit's Resolution table and its roll
 read it. `bonus` stays on the result, always 0, for the trap zone and the Disarm
 dialog that read it. The Skill tab's Progression and Factor fields do not exist:
-a borrowed throw is the ability's own throw, edited on the ability sheet, and a
-one-time migration (`abilities/skill-flag-migration.mjs`) moves the old
-`thiefSkill` and `levelFactor` item flags onto it. A hand-made item matches a
+a borrowed throw is the ability's own throw, edited on the ability sheet. A hand-made item matches a
 check by its `checkKey` binding or, if it carries a stored target or a
 level-scaled throw, by name; it contributes no bonus unless it carries a row.
 
@@ -2284,13 +2282,6 @@ dark* through a morning is visible rather than silent. Open party sheets
 re-render on `updateWorldTime` while any formation is in settlement mode, so a
 clock dragged past dusk moves the line and the cadence figures without a
 reopen; the board is not re-written, because nothing on it changed.
-
-A board written before the hour had a source carries `night` as a boolean.
-`settlementOf` reads a ticked one as the Judge's word (`night`) and a clear one
-as the default (`clock`), and drops the flag; the next write stores `hour`
-alone. `patchSettlement` still accepts the boolean for callers written to it
-and maps a tick to `night` and a clear to `day`, since a caller sending
-`night: false` is stating an hour and not asking for the clock.
 
 ### The districts
 

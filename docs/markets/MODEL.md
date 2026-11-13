@@ -644,17 +644,10 @@ report whose beliefs are wrong, and the market's true demand never enters it.
   look alike on every surface. The picks left are written with the beliefs.
 - **Assessment writes one report** when it learned anything or left picks,
   owner and assessor the acting character, `partyId` the party posted under,
-  and the assess card links it when there are picks to spend. It stops
-  writing `system.market.goods.dmKnowledge`; the schema field stays, marked
-  legacy, so an unmigrated world loses nothing. The house is created by the
-  sweep if it is missing. The resolution runs on a GM seat only: a player's
+  and the assess card links it when there are picks to spend. The house is
+  created by the sweep if it is missing. The resolution runs on a GM seat only: a player's
   "Process now" leaves an assessment pending, since a player cannot write the
   house. A write that fails leaves the day pending for the next sweep.
-- **Migration** (`migrateDmKnowledge`, GM, run at `ready` on the primary GM once
-  the sub-type exists in the world): one `migrated` report per market and
-  party, stamped to the house itself (`HOUSE_OWNER`), then the rows cleared.
-  Idempotent: a market and party that already hold a migrated report are
-  cleared without a second one, and a market with no rows is not touched.
 
 ### The Trade tab on the character sheet
 

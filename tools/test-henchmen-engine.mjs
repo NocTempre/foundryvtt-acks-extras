@@ -185,7 +185,6 @@ await test("a written loyalty is held to the range too", async () => {
 /* -------------------------------------------- */
 
 const { assignMonsterEmployer } = await import("../scripts/henchmen/engine/monster-employer.mjs");
-const { staleMonsterIds, pruneStaleMonsters } = await import("../scripts/henchmen/repair.mjs");
 
 /** An employer, a second one, and a monster on the first's list, its record and manager naming the first. */
 function twoEmployers() {
@@ -266,28 +265,6 @@ await test("a monster in nobody's service is switched on and listed under its fi
   assert.deepEqual(first.getFlag(MODULE, "monsterHenchmenList"), ["beast"]);
   assert.equal(beast.system.retainer.managerid, "first");
   assert.deepEqual(told, ["first"]);
-});
-
-console.log("henchmen: repair prunes a stale monster list");
-await test("a list holding a monster whose record names another employer is stale, and pruned", async () => {
-  const { first, second, beast } = twoEmployers();
-  await second.setFlag(MODULE, "monsterHenchmenList", ["beast"]);
-  await beast.setFlag(MODULE, "record", { employerUuid: "Actor.second" });
-  assert.deepEqual(staleMonsterIds(first), ["beast"], "the first employer's list is stale");
-  assert.deepEqual(staleMonsterIds(second), [], "the record's employer's list is not");
-  assert.deepEqual(await pruneStaleMonsters(first), ["beast"]);
-  assert.deepEqual(first.getFlag(MODULE, "monsterHenchmenList"), []);
-  assert.deepEqual(second.getFlag(MODULE, "monsterHenchmenList"), ["beast"], "the right list is untouched");
-  assert.deepEqual(await pruneStaleMonsters(first), [], "a second pass has nothing to do");
-});
-await test("a monster whose record is missing, or names an employer that is gone, is left alone", async () => {
-  const { first, beast } = twoEmployers();
-  await beast.setFlag(MODULE, "record", { employerUuid: "Actor.vanished" });
-  assert.deepEqual(staleMonsterIds(first), []);
-  await beast.setFlag(MODULE, "record", undefined);
-  assert.deepEqual(staleMonsterIds(first), []);
-  actors.delete("beast");
-  assert.deepEqual(staleMonsterIds(first), [], "a monster that is not an actor is the dangling check's");
 });
 
 /* -------------------------------------------- */

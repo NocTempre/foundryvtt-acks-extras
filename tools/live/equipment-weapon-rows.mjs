@@ -12,7 +12,7 @@
  *
  * Fixtures, kept and found by marker (each step brings its shape back first):
  *   equipment/rows-core-axe  a character with one weapon named for a placed row
- *   equipment/rows-legacy    the same, wearing the stamps an old Annotate wrote
+ *   equipment/rows-legacy    the same, taking the size and damage-type stamps
  *   equipment/rows-trained   a character the Player seat owns: two placed
  *                            weapons of different classes, one no row names,
  *                            and a one-class weapon-proficiency list
@@ -199,7 +199,7 @@ const P = {
     };
     const axe = await named(ids.axe, names.axe);
     const legacy = await named(ids.legacy, names.axe);
-    const stamps = [H.CONST.ITEM_FLAGS.SIZE, H.CONST.ITEM_FLAGS.DAMAGE_TYPE, H.CONST.ITEM_FLAGS.THROWN, H.CONST.ITEM_FLAGS.HANDY, H.CONST.ITEM_FLAGS.PROFILE_KEY, H.CONST.ITEM_FLAGS.CATEGORY];
+    const stamps = [H.CONST.ITEM_FLAGS.SIZE, H.CONST.ITEM_FLAGS.DAMAGE_TYPE, H.CONST.ITEM_FLAGS.PROFILE_KEY, H.CONST.ITEM_FLAGS.CATEGORY];
     for (const item of [axe, legacy]) {
       const dirty = stamps.filter((f) => item?.getFlag("acks-extras", f) != null);
       if (dirty.length) {
@@ -256,21 +256,19 @@ const P = {
       [`flags.acks-extras.${F.PROFILE_KEY}`]: H.pick.axe,
       [`flags.acks-extras.${F.SIZE}`]: stampSize,
       [`flags.acks-extras.${F.DAMAGE_TYPE}`]: "qa-stamped",
-      [`flags.acks-extras.${F.THROWN}`]: true,
-      [`flags.acks-extras.${F.HANDY}`]: true,
     });
     const stamped = H.shape(item);
-    await item.update(Object.fromEntries([F.SIZE, F.DAMAGE_TYPE, F.THROWN, F.HANDY, F.PROFILE_KEY].map((f) => [`flags.acks-extras.${f}`, new foundry.data.operators.ForcedDeletion()])));
+    await item.update(Object.fromEntries([F.SIZE, F.DAMAGE_TYPE, F.PROFILE_KEY].map((f) => [`flags.acks-extras.${f}`, new foundry.data.operators.ForcedDeletion()])));
     const cleared = H.shape(item);
     const fresh = await fromUuid(transientUuid);
     const wrote = await H.API.annotateItem(fresh);
     const flags = fresh.flags?.["acks-extras"] ?? {};
     return {
       beforeIsTheRow: before.size === (row.size ?? null),
-      stampedOutranks: stamped.size === stampSize && stamped.type === "qa-stamped" && stamped.thrown === true && stamped.handy === true && stamped.key === H.pick.axe,
-      clearedIsTheRow: cleared.size === before.size && cleared.type === before.type && cleared.thrown === before.thrown && cleared.handy === before.handy,
+      stampedOutranks: stamped.size === stampSize && stamped.type === "qa-stamped" && stamped.key === H.pick.axe,
+      clearedIsTheRow: cleared.size === before.size && cleared.type === before.type,
       annotatedKeyIsTheRow: wrote === H.pick.axe && flags[F.PROFILE_KEY] === H.pick.axe,
-      annotateStampedNoFigure: [F.SIZE, F.DAMAGE_TYPE, F.THROWN, F.HANDY].every((f) => flags[f] == null),
+      annotateStampedNoFigure: [F.SIZE, F.DAMAGE_TYPE].every((f) => flags[f] == null),
     };
   },
 
@@ -530,9 +528,9 @@ try {
   const transient = await gm.create("Item", { name: names.axe, type: "weapon", system: { melee: true } }, { parent: `Actor.${ids.axe}` });
   const l = await run(gm, P.legacy, { actorId: ids.legacy, itemId: shaped.itemIds.legacy, transientUuid: transient.uuid }).catch(async (err) => { console.error("legacy step:", err?.message ?? err); return {}; });
   check("before any stamp the item reads the row's size", l.beforeIsTheRow === true);
-  check("an old Annotate's stamps outrank the row: size, damage type, thrown, handy", l.stampedOutranks === true);
+  check("the size and damage-type stamps outrank the row", l.stampedOutranks === true);
   check("with the stamps taken off the item reads the row again", l.clearedIsTheRow === true);
-  check("Annotate on a fresh item writes the profile key and no size, damage type, thrown or handy", l.annotatedKeyIsTheRow === true && l.annotateStampedNoFigure === true, l);
+  check("Annotate on a fresh item writes the profile key and no size or damage type",l.annotatedKeyIsTheRow === true && l.annotateStampedNoFigure === true, l);
   { const swept = await gm.sweepTracked({ only: [transient.uuid] }); note("sweep of the annotate item", { removed: swept.removed.map((r) => r.uuid), missing: swept.missing, failed: swept.failed }); }
 
   section("5. grants against imported classes; undecided is not refused");

@@ -180,8 +180,6 @@ export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implemen
  * Thief skill level ladders are read from the GM's own book, not shipped here.
  * See `ability-bridge.mjs` (`importedLadderFor`) for the lookup and
  * docs/formation/DECISIONS.md, "The ladders come from the GM's own book".
- * The `acks-formation.thiefSkill: <key>` flag still means "scale as <key>
- * does".
  */
 
 /**

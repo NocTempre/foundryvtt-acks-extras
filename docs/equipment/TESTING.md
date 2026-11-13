@@ -719,8 +719,6 @@ drag makes. Read encumbrance on the character sheet's bar as well as the API.
 6. **One control.** Open a plain item's Record panel.
    *Observable:* no Kind select; Quantity and Max remain. On an `armor`
    document the rail's Base type list offers no Clothing.
-7. **A disagreement left from before.** Walked as the repair tool's
-   `equipment.railClothing` check in docs/lib/TESTING.md, "The repair tool".
 
 Teardown: `api.sweepTracked()`; quote what it removed, what it could not find
 and what refused.
@@ -1366,8 +1364,7 @@ the first placed row of another class), so no name is written in the walk.
 - **`equipment/rows-core-axe`**: a character with one weapon named for a placed
   row, no stamps.
 - **`equipment/rows-legacy`**: the same weapon, which the walk dresses in the
-  stamps an old Annotate wrote (size, damage type, thrown, handy, profile key)
-  and takes them off again. A transient item under the core-axe actor is
+  size, damage-type and profile-key stamps and takes them off again. A transient item under the core-axe actor is
   annotated and swept by its uuid.
 - **`equipment/rows-trained`**: a character the Player seat owns, holding the
   placed weapon, the second-class weapon and one no row names, with a
@@ -1392,7 +1389,7 @@ the first placed row of another class), so no name is written in the walk.
 4. Dress the legacy weapon in stamps; classify; take them off; classify.
    Annotate the transient item. *Observable:* the stamps outrank the row; once
    removed the item reads the row again; Annotate writes the profile key and
-   no size, damage type, thrown or handy.
+   no size or damage type.
 5. On the trained character: classify the three weapons and ask the grants.
    *Observable:* the listed weapon is proficient and decided; the other class
    is decided and refused (where enforcement is on); the unplaced weapon has no
@@ -1421,9 +1418,8 @@ the first placed row of another class), so no name is written in the walk.
    weapons exactly as the GM seat does.
 9. *Observable:* no console error on either seat over the whole walk.
 
-What it cannot reach: a first import in a world that holds the old table's
-stamps (the stale-stamp repair check is its own recipe), and a Judge's edit
-that blanks one field of a row (the unit suites cover it).
+What it cannot reach: a Judge's edit that blanks one field of a row (the unit
+suites cover it).
 
 ### Teardown
 

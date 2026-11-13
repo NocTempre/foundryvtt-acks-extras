@@ -345,9 +345,8 @@ dialog's promise waits for a hand that never comes and times the driver out.
 
 ## Roads (added with the settlement layer)
 
-Fixtures: three disposable scenes — gridless, square, and hex (the hex one
-given a `hexRoutes` flag by hand, so the legacy path and the conversion are
-both exercised); a disposable party with one member.
+Fixtures: three disposable scenes — gridless, square, and hex; a disposable
+party with one member.
 
 **Drive mechanics.** Drawing a wall is a real drag on the wall layer: call
 `canvas.app.render()` before each PointerEvent or the hit test runs against a
@@ -362,7 +361,7 @@ network with `roadGraph(scene)` and the derived links with
 On a PLAYER seat the road surface is absent rather than refused: there is no
 `walls` control and no battlemap group at all, so the tools cannot be reached,
 and the overlay draws nothing though the scene still holds its road walls.
-`convertRoutesToWalls` answers null. Arming a preset, however, SUCCEEDS on a
+Arming a preset, however, SUCCEEDS on a
 player seat and is meant to — the slot is client-scoped, so a seat with no wall
 tool arms something it can never draw with. Do not read a player-armed preset
 as a permission leak.
@@ -454,30 +453,17 @@ as a permission leak.
     so drag the X there at a third angle again. On the hex scene,
     `derivedRoutesOf(scene)` returns one link per adjacent-hex crossing and
     `stepBetweenHexes(scene, from, to)` answers `{on: true}` for a crossing the
-    road makes — with nothing declared in the flag.
-11. Press **Convert declared routes to road walls** on the hex scene, with one
-    declaration the conversion cannot place (both ends in the same hex).
-    *Observable:* one wall per placeable link, drawn hex MIDDLE to hex middle —
-    never between the link's own two ends, which are the two halves of one
-    shared boundary and resolve to the SAME point, so a wall between them would
-    have no length and nothing would be made. `derivedRoutesOf` re-finds each
-    converted link with its declared surface and a MEASURED winding of 1 (the
-    typed figure is not carried across), and `stepBetweenHexes` still answers
-    `{on: true}`. The unplaceable declaration is still on the `hexRoutes` flag
-    and the converted ones are gone — a press must never destroy what it could
-    not carry. A second press is a no-op (`{made: 0, skipped: 1}`); with nothing
-    declared it reports `{made: 0, skipped: 0}`.
-12. Journey read on the hex scene: move the party across a crossing the drawn
     road makes.
-    *Observable:* `travel.map.road` is the drawn road's surface, as it was for
-    a declared link, and the Country section's road card reads it with no
-    chip.
+11. Journey read on the hex scene: move the party across a crossing the drawn
+    road makes.
+    *Observable:* `travel.map.road` is the drawn road's surface, and the
+    Country section's road card reads it with no chip.
 
 Teardown: delete the three scenes (their walls go with them) and the party
 fixtures. Press a road preset once more if the run left the trap preset armed —
 the preset is CLIENT state — one slot per seat, not per world — so it outlives
 the run on the browser profile that drove it while disturbing no other seat, and
-it is the one thing here a sweep cannot delete. The walk takes step 12 on the
+it is the one thing here a sweep cannot delete. The walk takes step 11 on the
 formation recipe's "The country" fixtures, which it keeps.
 
 ## The country's layers and water (added with the party-sheet redesign's phase 2a)

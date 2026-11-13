@@ -72,30 +72,16 @@ export function ladderOf(item) {
   return Array.isArray(rec?.ladder) ? rec.ladder : [];
 }
 
-/**
- * The item's total rung count FOR DISPLAY: the ladder's length, else the legacy
- * `max` some early records carry (a bare unlocked/max pair with no ladder — the
- * Judge has not set the unlock order yet, so no bonuses can apply, but the
- * tracker must still show its progress rather than pretending 0/0).
- */
+/** The item's total rung count: the ladder's length, 0 until the Judge sets the unlock order. */
 export function maxOf(item) {
-  const rec = namedOf(item);
-  return ladderOf(item).length || Math.max(0, Number(rec?.max ?? 0));
+  return ladderOf(item).length;
 }
 
-/** How many rungs are currently unlocked (mechanics: bounded by the ladder). */
+/** How many rungs are currently unlocked, bounded by the ladder; every rung once the true name is known. */
 export function unlockedCount(item) {
   const rec = namedOf(item);
-  if (rec?.revealed) return ladderOf(item).length; // true name known → full power
+  if (rec?.revealed) return ladderOf(item).length;
   return Math.max(0, Math.min(Number(rec?.unlocked ?? 0), ladderOf(item).length));
-}
-
-/** Unlocked rungs FOR DISPLAY — falls back to the legacy record's own count. */
-export function unlockedDisplay(item) {
-  const rec = namedOf(item);
-  if (!rec) return 0;
-  if (ladderOf(item).length) return rec.revealed ? ladderOf(item).length : unlockedCount(item);
-  return Math.max(0, Math.min(Number(rec.unlocked ?? 0), maxOf(item)));
 }
 
 /** Totals per category for the unlocked rungs. */

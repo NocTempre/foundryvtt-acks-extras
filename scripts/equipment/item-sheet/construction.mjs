@@ -259,7 +259,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     }));
     // Auto reads the size: with none imported the hands are unknown and count
     // as one, and the note says so rather than citing a size nothing states.
-    const gripsFromSize = !grips.declared && profile.melee && profile.size == null && !profile.twoHandedForced && profile.handsOverride == null;
+    const gripsFromSize = !grips.declared && profile.melee && profile.size == null && !profile.twoHandedForced;
     withTip(gripsRow, "size", grips.declared, "ACKS-EQUIPMENT.props.grips");
     note(loc(grips.declared ? "props.gripsNote" : gripsFromSize ? "props.gripsAutoNoSize" : "props.gripsAuto", { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${grips.declared ?? grips.inferred}`) }));
 

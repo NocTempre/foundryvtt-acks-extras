@@ -93,13 +93,8 @@ export const ITEM_FLAGS = Object.freeze({
   // training grant is matched against, so it is the declaration that makes a
   // weapon no row identifies count as trained.
   CATEGORY: "category",
-  // Superseded by GRIPS and written by nothing — read so a world that set it by
-  // hand keeps its answer.
-  HANDS: "hands", // explicit hand cost override (number)
   STYLE: "style", // required fighting style key
   DAMAGE_TYPE: "damageType", // aligns with acks-monsters DAMAGE_TYPES
-  HANDY: "handy",
-  THROWN: "thrown",
   THROWN_STATE: "thrownAway", // runtime STATE: this weapon has been thrown and awaits recovery (weight removed)
   SHIELD_VARIANT: "shieldVariant", // JJ overlay: buckler|auxiliary|crescent|heater|kite|phalanx
   STRAP: "strap", // JJ overlay: "hand" | "back" | "front"

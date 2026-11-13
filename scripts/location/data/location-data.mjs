@@ -568,16 +568,14 @@ export class LocationData extends foundry.abstract.TypeDataModel {
 
   /**
    * Count of active refuse-and-slander entries that apply to a recruiting
-   * subject. Accepts `{ employerUuid, characterUuid }`; a bare string is treated
-   * as `employerUuid` (back-compat shim for one release). Each entry matches at
+   * subject. Accepts `{ employerUuid, characterUuid }`. Each entry matches at
    * most one scope branch, so it is counted exactly once — the property that
    * lets a party-wide and an individual slander coexist without double counting.
    *
    * A place with no market has nobody to slander you to: 0, not an error.
    */
   slanderCountFor(query) {
-    const { employerUuid = "", characterUuid = "" } =
-      typeof query === "string" ? { employerUuid: query } : (query ?? {});
+    const { employerUuid = "", characterUuid = "" } = query ?? {};
     return (this.slander ?? []).filter((s) => {
       const scope = s.subject?.scope ?? "all";
       const uuid = s.subject?.uuid ?? "";

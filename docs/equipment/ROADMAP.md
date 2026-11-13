@@ -73,11 +73,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   a feature whose table is absent refuses by naming it. `test-equipment` asserts
   those shipped numbers today; it passes invented values in once the code takes
   them.
-- **The clothing repair's encumbrance preview.** The repair tool's
-  `equipment.railClothing` check settles an item whose two halves disagree
-  (docs/lib/MODEL.md, "The repair tool"). It does not yet show each carrier's
-  encumbrance change before the fix.
-
 - **The `SLAYER` effect domain is declared but not read.** `EFFECT_DOMAINS.SLAYER`
   (`scripts/equipment/constants.mjs`) is a seam for a future situational
   roll-time consumer (e.g. Goblin-/Vermin-Slaying); nothing in

@@ -407,24 +407,6 @@ await test("adoption is by flag, so a renamed table keeps its identity", async (
   assert.deepEqual(calls, ["RollTable.updateDocuments:1"], `only the drifted table updates: ${calls.join(", ")}`);
 });
 
-await test("a legacy raw-key sidebar table is retired and rebuilt on the shelf", async () => {
-  world({ registry: manyRollables(1) });
-  // A world materialized before the flag existed: named by raw key, unfiled,
-  // and in the SIDEBAR, where every release before the shelves wrote.
-  const legacy = table({ name: "people.classPercentages.level.0", folder: null, results: [] });
-  game.tables.push(legacy);
-  await materializeAll();
-  assert.equal(game.tables.length, 0, "the sidebar copy is retired");
-  assert.equal(shelf("RollTable").contents.length, 1, "and rebuilt once on the shelf");
-  const t = [...shelf("RollTable").contents][0];
-  assert.notEqual(t.id, legacy.id, "a shelf document, not the sidebar one moved");
-  assert.equal(t.name, "Class Percentages — Level 0", "named for readers");
-  assert.equal(t.getFlag(MODULE_ID, "tableKey"), "people.classPercentages.level.0", "and stamped");
-  assert.equal(t.folder?.name, "People", "and filed under its doc's subfolder");
-  assert.equal(t.results.length, 2, "with its results built from the registry");
-  assert.ok(calls.includes("RollTable.deleteDocuments:1"), `the retirement is one delete: ${calls.join(", ")}`);
-});
-
 await test("a sidebar tree from an earlier release is retired once, and the shelf takes over", async () => {
   world({ registry: { ...manyRollables(2), wages: { labour: { rows: [1] } } } });
   // What a release that wrote to the sidebar left behind: the flagged root,

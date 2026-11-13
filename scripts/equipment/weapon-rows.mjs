@@ -17,9 +17,8 @@
  * and no table of names has to exist for a row to be found. A row carries what
  * the library item carries: its name, the grid sub-header the row was filed
  * under (`block`), the system's figures and the item's own damage types. An
- * item that does not carry the system's structured weapon fields (an import
- * from before they were written) yields no row; nothing is inferred to stand
- * in for it. The row's citation is the item's stored one, so a figure's
+ * item that does not carry the system's structured weapon fields yields no
+ * row; nothing is inferred to stand in for it. The row's citation is the item's stored one, so a figure's
  * tooltip can name the page.
  *
  * Readers that must wait for the first publication await `rowsReady()`, and an
@@ -56,34 +55,7 @@ const SIZES = Object.freeze(["tiny", "small", "medium", "large"]);
  */
 export const PRODUCES = Object.freeze({ [WEAPONS_DOC]: { [WEAPONS_TABLE]: null } });
 
-/** A quality word reduced to letters, the form a special-property key takes. */
-const wordKey = (w) => String(w ?? "").toLowerCase().replace(/[^a-z]/g, "");
-
-/**
- * Does this item hold the schema's defaults where the row's figures belong,
- * as an import from before the importer wrote the system's weapon fields
- * does? Two shapes mark it:
- *  - a melee weapon with no size: the type cell prints a size for every melee
- *    row, and the earlier import read none;
- *  - a quality word kept as a custom tag while its special property is unlit:
- *    the earlier import handed the words to a tag migration that lit nothing.
- */
-function isLegacyImport(sys) {
-  if (sys.melee && !SIZES.includes(sys.size)) return true;
-  const tags = Array.isArray(sys.customTags) ? sys.customTags : [];
-  return tags.some((tag) => {
-    const key = wordKey(typeof tag === "string" ? tag : tag?.title);
-    const prop = key in sys.special ? key : key.startsWith("cleave") && "cleave" in sys.special ? "cleave" : null;
-    return prop !== null && sys.special[prop] !== true;
-  });
-}
-
-/**
- * Does this document carry the system's structured weapon fields, as the
- * importer wrote them? A live document always holds every field (the schema
- * fills the defaults), so presence alone proves nothing; `isLegacyImport`
- * names the shapes that are only defaults.
- */
+/** Does this document carry the system's structured weapon fields the row reads? */
 function hasCoreFields(sys) {
   return (
     sys != null &&
@@ -92,8 +64,7 @@ function hasCoreFields(sys) {
     sys.special != null &&
     typeof sys.special === "object" &&
     typeof sys.damage?.base?.formula === "string" &&
-    typeof sys.size === "string" &&
-    !isLegacyImport(sys)
+    typeof sys.size === "string"
   );
 }
 

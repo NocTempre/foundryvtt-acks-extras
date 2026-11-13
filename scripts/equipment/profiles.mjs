@@ -5,7 +5,7 @@
  *
  * Source order (reuse → override → lookup → default):
  *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`)
- *   2. per-item overrides `flags.acks-extras.{size,hands,style,handy,thrown,damageType}`
+ *   2. per-item overrides `flags.acks-extras.{size,grips,category,style,damageType}`
  *   3. the RAW table row the item is identified as (`weaponIdentity`)
  *   4. default: melee, one-handed; a size, class or damage die nothing above
  *      states is null (the die ""), never invented
@@ -474,8 +474,8 @@ export function classifyWeapon(item) {
     size,
     melee,
     missile,
-    thrown: flag(ITEM_FLAGS.THROWN) ?? (item.system?.special?.thrown || undefined) ?? base?.thrown ?? thrownTag ?? false,
-    handy: flag(ITEM_FLAGS.HANDY) ?? (item.system?.special?.handy || undefined) ?? base?.handy ?? handyTag ?? false,
+    thrown: (item.system?.special?.thrown || undefined) ?? base?.thrown ?? thrownTag ?? false,
+    handy: (item.system?.special?.handy || undefined) ?? base?.handy ?? handyTag ?? false,
     // The row's statement that the weapon needs both hands, or the core tag
     // the item carries: either forces them, whatever the size.
     twoHandedForced: base?.twoHandedForced === true || twoHandedTag,
@@ -489,7 +489,6 @@ export function classifyWeapon(item) {
     special: base?.special ?? [],
     anyoneThrows: false,
     grips: GRIPS.has(flag(ITEM_FLAGS.GRIPS)) ? flag(ITEM_FLAGS.GRIPS) : null,
-    handsOverride: flag(ITEM_FLAGS.HANDS) ?? null,
     styleHint: flag(ITEM_FLAGS.STYLE) ?? null,
   };
   profile.anyoneThrows = throwsAsAnyone(item, profile, tags);
@@ -528,7 +527,6 @@ export function handCost(profile, { twoHanded = false } = {}) {
   if (profile.grips === "1h") return 1;
   if (profile.grips === "2h") return 2;
   if (profile.grips === "versatile") return twoHanded ? 2 : 1;
-  if (profile.handsOverride != null) return profile.handsOverride;
   if (profile.twoHandedForced) return 2;
   if (profile.missile && !profile.melee) return profile.handy || profile.thrown ? 1 : 2;
   // A size nothing states leaves the hands unknown, and unknown is one hand.
@@ -554,7 +552,6 @@ export function isTwoHandedOnly(profile) {
 /** True if a melee weapon may be wielded in one hand (for dual/shield styles). */
 export function canOneHand(profile) {
   if (profile.grips) return profile.grips !== "2h";
-  if (profile.handsOverride === 1) return true;
   if (profile.twoHandedForced) return false;
   if (profile.size == null) return true;
   return [SIZE.TINY, SIZE.SMALL, SIZE.MEDIUM].includes(profile.size);

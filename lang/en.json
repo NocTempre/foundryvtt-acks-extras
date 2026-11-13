@@ -1979,15 +1979,6 @@
       "renameHint": "Give it a name…",
       "renamed": "The item is now called “{item}” — one of its powers stirs."
     },
-    "repair": {
-      "check": {
-        "label": "Clothing declared on one half only",
-        "hint": "A garment's base type and its clothing type say the same thing and are kept together on every change. This finds the items that disagree from before. Fixing writes the missing half. Where the two disagree, the base type wins.",
-        "flagOnly": "Declared clothing, but its type is not clothing.",
-        "subtypeOnly": "Declared {type}, but its type is clothing.",
-        "wrongDocument": "Declared clothing, but its document type ({type}) cannot be clothing."
-      }
-    },
     "baseType": {
       "weapon": "Weapon",
       "armour": "Armour",
@@ -4497,9 +4488,6 @@
   "ACKS-HENCHMEN.repair.check.monsters": "{count} deleted monster hireling(s) listed",
   "ACKS-HENCHMEN.repair.check.duplicates": "{count} hireling(s) listed twice",
   "ACKS-HENCHMEN.repair.check.manager": "employer deleted",
-  "ACKS-HENCHMEN.repair.check.employers.label": "Monster hirelings listed under a former employer",
-  "ACKS-HENCHMEN.repair.check.employers.hint": "An employer's monster hireling list holding a monster whose record names a different employer. Fixing removes the monster from the list of every employer but the one its record names.",
-  "ACKS-HENCHMEN.repair.check.employers.detail": "{count} monster hireling(s) belong to another employer",
   "ACKS-HENCHMEN.setting.autoRepairReferences": "Auto-repair dangling hireling references",
   "ACKS-HENCHMEN.setting.autoRepairReferencesHint": "At world load, remove references to deleted hirelings from employers' rosters. With this off, a GM can run acksExtras.henchmen.repair.repairWorld() from the console instead.",
   "ACKS-HENCHMEN.tablesMissing": "ACKS Extras | rules tables not imported ({list}). Book tables ship with no world — with your own ACKS II PDFs open on this seat, run Rules tables in Reimport One Shelf (ACKS Extras Macros), or Import Everything. The market, wage and hiring automation that reads them stays disabled until then.",
@@ -6807,7 +6795,6 @@
   "ACKS-MARKETS.report.heldHere": "Reports held here",
   "ACKS-MARKETS.report.goodsCount": "{n} good(s)",
   "ACKS-MARKETS.report.falseNote": "A false assessment: these beliefs are wrong.",
-  "ACKS-MARKETS.report.migrated": "Demand beliefs moved to reports: {reports} report(s) across {markets} market(s).",
   "ACKS-MARKETS.report.error.gmOnly": "Only the Judge can write a report.",
   "ACKS-MARKETS.report.error.noHouse": "The trade house could not be made, so the report was not written.",
   "ACKS-MARKETS.report.error.notWritten": "The report was refused when it was saved; the console names the field.",
@@ -7714,9 +7701,6 @@
   "ACKS-BATTLEMAP.routes.gravel": "Gravel road",
   "ACKS-BATTLEMAP.routes.paved": "Paved road",
   "ACKS-BATTLEMAP.routes.alley": "Alley (of the armed road)",
-  "ACKS-BATTLEMAP.routes.convert": "Convert declared routes to road walls",
-  "ACKS-BATTLEMAP.routes.converted": "{made} road wall(s) drawn from declared routes; {skipped} skipped.",
-  "ACKS-BATTLEMAP.routes.convertNone": "This scene has no declared routes to convert.",
   "ACKS-BATTLEMAP.routes.presetArmed": "The wall tool now draws: {road}.",
   "ACKS-BATTLEMAP.routes.presetUnavailable": "No wall preset is available here — the wall tool is armed, but set the road on the wall after drawing it.",
   "ACKS-BATTLEMAP.routes.toolMark": "Mark the selected walls as roads",

@@ -2562,7 +2562,6 @@ it does not.
 | `location.orphanVaults` | A vault whose character is gone, and goods stored for an owner who is gone | Report only. The row points at the place's Storage tab, whose storage manager moves them. |
 | `formation.members` | A marching-order member whose actor is gone | Drops the member, with the lights it bore and the spells it cast |
 | `formation.shadows` | A true-position marker with no party, on a party no longer lost, or beside the one its episode keeps on its own scene; a marker only on another scene; a lost party with none | Deletes the first three. A marker from a closed episode also names the Lost section of the party's sheet, which can move the party onto it instead. The last two are report-only and point there. |
-| `equipment.railClothing` | An item whose base type and clothing subtype disagree, and an `armor` document declared clothing | Writes the missing half, with the base type winning, or unsets the declaration on the `armor` document |
 
 **A missing image is found by asking the server, once per file.** The
 `lib.missingImages` scan collects the distinct local paths over the documents

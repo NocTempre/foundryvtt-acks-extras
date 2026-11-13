@@ -31,7 +31,6 @@ import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { registerManagedEffect, managedDelete } from "../lib/managed-effects.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { BUILDER_DOC_ID } from "../classes/builder-logic.mjs";
-import { registerEquipmentRepairChecks } from "./repair-checks.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { registerWeaponRows, rowsReady } from "./weapon-rows.mjs";
 import { librarySource } from "./weapon-source.mjs";
@@ -51,7 +50,6 @@ Hooks.once("init", () => {
   // Lib's surfaces (the follower card) read an unannotated garment's place
   // from its name through this, and wear it as the equipment tab does.
   registerWearInference({ slots: (item) => inferGear(item).slots, wear: wearItem });
-  registerEquipmentRepairChecks();
   // The non-proficient package's, the dual weapon style's and the heavy
   // helmet's figures are imported; the import names these tables as missing
   // until the Judge's books supply them, and so are the sizes Weapon Finesse

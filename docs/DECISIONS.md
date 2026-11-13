@@ -1143,12 +1143,43 @@ produces stays, under whatever name it carries.
   fields into `market` (`location-migrate.mjs`), and the henchmen ready-time
   sweep that cleared market postings on a location below schema version 2,
   with its `schemaVersion` setting, which nothing read.
+- The two previous-version tools built on 2026-11-11, which the owner had
+  asked to see walked: the class builder's correction of a saved racial value
+  of 0 with no race to -1 at load, and the `henchmen.monsterEmployers` repair
+  check. Asked on 2026-11-13 whether they go, the owner answered "Remove both
+  (Recommended)". That is the new evidence the classes entry of 2026-11-11,
+  under seven days old, is superseded on.
+- The ability flag migration (`thiefSkill`, `levelFactor` onto the throw) and
+  the language migration (ability-typed `def.language.*` items, carrier entry
+  names); the formation entry of 2026-11-11 that names the first is
+  superseded in part on the owner's 2026-11-12 ruling.
+- The battlemap's hand-declared routes (`hexRoutes`) and the scene control
+  that converted them to road walls; roads are walls.
+- Markets' `hubShift` ordinal and `dmKnowledge` with its move into report
+  items; a location's string argument to `slanderCountFor`; the table
+  documents' lookup of a table or folder by name from before it was stamped.
+- `passengerCost`'s unread vehicle argument, `travelMultiplier`'s `road: true`
+  and a settlement board's pre-`hour` night flag, read from a stored board
+  and accepted by `patchSettlement`.
+- Equipment: `isLegacyImport` (an offline run of the importer's weapon path
+  over the printed grid bound 25 melee weapons, every one with a size and none
+  with a tag), the `thrown`, `handy` and `hands` item flags nothing writes, a
+  named item's stored `max`, and the `equipment.railClothing` repair check for
+  garments written before the clothing hooks.
 
 **Kept, as current-version paths:**
 
 - `migrateDefenseBands` (monsters): the importer still writes a monster's
   defence-band effects as a joined string, and this sweep is what turns them
   into the set the data model stores.
+- `lib.legacyEffectKeys`: Active Effects authored under `acks` 14.0.x still
+  carry the old field names, in the worlds `legacy-source.mjs` is kept for.
+  Asked, the owner answered "Keep it (Recommended)".
+- The chargen "legacy row path" (`grantRowEntries`), the whole grant for a
+  template row with no bundle; the equipment setters on the Construction tab;
+  the base-type guess every item depends on; `WALL_DOOR_TYPES`, core 14's
+  plain constant; `canEnter`'s boolean `road`, which its one caller still
+  passes from the country reader.
 
 **Cost.** A world built on an earlier version and never repaired or
 re-imported keeps whatever shape that version left; the release notes say so

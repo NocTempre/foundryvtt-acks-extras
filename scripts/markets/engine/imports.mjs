@@ -62,14 +62,13 @@ async function postCard(buyer, html) {
 
 /**
  * Place an import order: pay now, arrival (or hidden loss) already decided.
- * The hub is `payload.hub` ("local" or "regional"); the legacy `hubShift`
- * ordinal (1 local, 2 regional) is still read for a caller that sends it. How
- * far each hub shifts the market class and which transit result loses the
+ * The hub is `payload.hub` ("local" or "regional"; anything else is local).
+ * How far each hub shifts the market class and which transit result loses the
  * goods are printed figures read from the imported market rules.
  */
 export async function placeImportOrder(location, payload) {
-  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, hubShift: legacyShift, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
-  const hub = Object.hasOwn(HUBS, rawHub) ? rawHub : legacyShift === 2 ? "regional" : "local";
+  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
+  const hub = Object.hasOwn(HUBS, rawHub) ? rawHub : "local";
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
 
   const buyerDoc = await fromUuid(buyerUuid).catch(() => null);

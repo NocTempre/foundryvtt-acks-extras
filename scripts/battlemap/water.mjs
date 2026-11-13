@@ -73,9 +73,8 @@ export function waterWallData({ kind = WATER_KINDS[0], navigable = null, name = 
   const k = kindOf(kind);
   return {
     ...openWallData(),
-    // `EDGE_DOOR_TYPES` is v14's name for the same numbers; the v13 spelling
-    // still answers behind a deprecation proxy.
-    door: (CONST.EDGE_DOOR_TYPES ?? CONST.WALL_DOOR_TYPES)?.NONE ?? 0,
+    // Water is no door: core's `WALL_DOOR_TYPES.NONE`.
+    door: CONST.WALL_DOOR_TYPES?.NONE ?? 0,
     flags: {
       [MODULE_ID]: {
         [WATER_FLAG]: {

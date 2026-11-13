@@ -251,10 +251,7 @@ monster sheet's **Serve as henchman of…** (`monsters/monster-actions.mjs`
 `serveAsHenchman`, which never writes core's `henchmenList`); it removes the
 monster from every other actor's list. Each caller announces
 `HOOKS.ROSTER_CHANGED` for the new employer and for every actor `previous`
-hands back. The repair check
-`henchmen.monsterEmployers` prunes a list still holding a monster whose record
-names a different employer, and leaves one whose record is missing or names an
-actor that is gone.
+hands back.
 
 The henchman limit (`acks-adapter.mjs > getRetainMax`) is the imported base
 (`wages.henchmanLimit`, RR 168, read by `rules/wages.mjs > henchmanLimitBase`)

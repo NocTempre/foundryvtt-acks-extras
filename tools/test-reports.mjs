@@ -226,40 +226,29 @@ globalThis.fromUuid = async (uuid) => {
 const objects = await import(new URL("../scripts/markets/engine/trade-objects.mjs", import.meta.url));
 const { HOUSE_OWNER } = await import(new URL("../scripts/lib/money.mjs", import.meta.url));
 const LOCATION = "acks-extras.location";
-const location = (name, rows) => makeActor({ name, type: LOCATION, system: { market: { goods: { dmKnowledge: rows } } } });
+const location = (name) => makeActor({ name, type: LOCATION });
 
 check("no house is designated until something needs one", objects.tradeHouseSync() === null);
-same("with no rows there is nothing to migrate and no house is made", await objects.migrateDmKnowledge(), { markets: 0, reports: 0 });
-check("the house was not made for nothing", objects.tradeHouseSync() === null && world.settingWrites === 0);
+check("the house is not made for nothing", objects.tradeHouseSync() === null && world.settingWrites === 0);
 
-const row = (partyId, category, believed, time) => ({ partyId, category, believed, time });
-const townA = location("Town A", [row("p1", "aa", 3, 100), row("p1", "bb", -2, 400), row("p2", "aa", 1, 250)]);
-const townB = location("Town B", [row("p1", "cc", 5, 50)]);
-location("Town C", []);
+const townA = location("Town A");
+const townB = location("Town B");
 
-game.user = alice;
-same("a player's seat migrates nothing", await objects.migrateDmKnowledge(), { markets: 0, reports: 0 });
-check("and leaves the rows where they were", townA.system.market.goods.dmKnowledge.length === 3);
-game.user = gm;
-
-same("the migration writes one report per market and party", await objects.migrateDmKnowledge(), { markets: 2, reports: 3 });
+const houseOwn = (market, partyId, time, beliefs) => objects.writeReport({ ownerUuid: HOUSE_OWNER, marketUuid: market.uuid, marketName: market.name, assessorUuid: "", partyId, time, outcome: "success", beliefs });
+same("the first report on a market is written", (await houseOwn(townA, "p1", 400, [{ category: "aa", dm: 3 }, { category: "bb", dm: -2 }])).ok, true);
 const house = objects.tradeHouseSync();
 check("the house is a location actor holding storage", house?.type === LOCATION && house.getFlag("acks-extras", "storage")?.provider === true);
 check("its default ownership is observer", house.ownership?.default === 2);
 check("its uuid is the world setting, written once", world.setting === house.uuid && world.settingWrites === 1);
-check("the rows are cleared", townA.system.market.goods.dmKnowledge.length === 0 && townB.system.market.goods.dmKnowledge.length === 0);
+await houseOwn(townA, "p2", 250, [{ category: "aa", dm: 1 }]);
+await houseOwn(townB, "p1", 50, [{ category: "cc", dm: 5 }]);
+check("a second report does not make a second house", world.settingWrites === 1);
 const written = objects.allReports().map(objects.plainReport);
-check("three reports exist, all migrated, all the house's own", written.length === 3 && written.every((r) => r.outcome === "migrated" && r.ownerUuid === HOUSE_OWNER));
+check("three reports exist, all the house's own", written.length === 3 && written.every((r) => r.ownerUuid === HOUSE_OWNER));
 const p1a = objects.objectsAt(townA.uuid).map(objects.plainReport).find((r) => r.partyId === "p1");
-same("a party's report carries its beliefs and its newest time", [p1a.beliefs, p1a.time, p1a.marketName], [[{ category: "aa", dm: 3 }, { category: "bb", dm: -2 }], 400, "Town A"]);
+same("a party's report carries its beliefs and its time", [p1a.beliefs, p1a.time, p1a.marketName], [[{ category: "aa", dm: 3 }, { category: "bb", dm: -2 }], 400, "Town A"]);
 same("objectsOf finds nothing for a character with no report", objects.objectsOf("Actor.nobody"), []);
 same("the party reads its belief back through the pure rule", beliefsFor(objects.objectsAt(townA.uuid).map(objects.plainReport), { partyId: "p1", marketUuid: townA.uuid }).map((b) => [b.category, b.dm]), [["aa", 3], ["bb", -2]]);
-
-same("a second run finds nothing to move", await objects.migrateDmKnowledge(), { markets: 0, reports: 0 });
-townA.system.market.goods.dmKnowledge = [row("p1", "aa", 3, 100)];
-same("rows left behind by an interrupted run are cleared without a second report", await objects.migrateDmKnowledge(), { markets: 1, reports: 0 });
-check("still three reports", objects.allReports().length === 3);
-check("and the leftover rows are gone", townA.system.market.goods.dmKnowledge.length === 0);
 
 /* ------------------------- give and discard on the house ------------------------- */
 

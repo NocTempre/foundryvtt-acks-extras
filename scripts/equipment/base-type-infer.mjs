@@ -3,10 +3,12 @@ import { BASE_TYPE, CLOTHING_SUBTYPE } from "./base-types.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /**
- * Guessing a base type from an item's NAME, for a world that predates the
- * `baseType` flag. See docs/equipment/MODEL.md, "Base types and variations".
- * Reads the SAME tables the rest of the feature reads, so nothing can drift
- * between the guess and what it stands in for.
+ * Guessing a base type from an item's document type and NAME, for an item with
+ * no declared `baseType` flag: the importer writes none, so every imported item
+ * and every hand-made one a Judge has not declared rests on this guess. See
+ * docs/equipment/MODEL.md, "Base types and variations". Reads the SAME tables
+ * the rest of the feature reads, so nothing can drift between the guess and
+ * what it stands in for.
  */
 
 /**

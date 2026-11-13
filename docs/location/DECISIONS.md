@@ -170,7 +170,7 @@ That one is load-bearing.
 
 ---
 
-### A location is a PLACE, and a market is an option on one (2026-08-02)
+### A location is a PLACE, and a market is an option on one (2026-08-02) — SUPERSEDED IN PART 2026-11-13 (the fold of legacy locations on load: `docs/DECISIONS.md` §29)
 
 Four rulings taken together, all from the owner.
 

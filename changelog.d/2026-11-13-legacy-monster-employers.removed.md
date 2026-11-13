@@ -1,0 +1,1 @@
+- **Repair This World no longer lists monsters left on a former employer's henchmen list.** The check repaired lists an earlier version could leave; assigning a monster an employer now takes it off every other list. Repair This World: Settings tab → Game Settings → ACKS II — Extras → Repair This World.

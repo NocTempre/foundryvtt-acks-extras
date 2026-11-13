@@ -1,34 +1,17 @@
-/* global game, canvas */
+/* global canvas */
 /**
  * Where a scene's routes come from. `hex-topology.mjs` is the pure model —
  * nodes, links, hubs, cost; this is the half that knows about a scene:
  * turning a click into a node, and answering what links the scene has.
  *
  * Roads are drawn as walls (`roads.mjs`); on a hex grid their crossings ARE
- * the link set, derived rather than declared. The older DECLARED links live
- * on in the `hexRoutes` scene flag, read alongside the derived ones so a
- * part-converted world keeps working; `convertRoutesToWalls` retires them.
- * Nothing here writes new declared links.
+ * the link set, derived rather than declared. Nothing here stores links.
  */
-import { MODULE_ID } from "../lib/constants.mjs";
 import { isHexScene } from "./terrain-paint.mjs";
 import {
-  nodeId, parseNode, makeLink, withLink, withoutLink, onRoad, routeCost, hubs, linksFromRoadSegments,
+  nodeId, parseNode, onRoad, routeCost, hubs, linksFromRoadSegments,
 } from "./hex-topology.mjs";
-import { roadGraph, roadSegmentsOf, roadWallData } from "./roads.mjs";
-
-/** The scene flag holding the legacy declared link set. */
-export const ROUTES_FLAG = "hexRoutes";
-
-/**
- * The links a Judge DECLARED on this scene with the retired node tool. Kept
- * apart from the derived ones — this is what the writers read and write
- * back, and a write over the union would freeze today's roads into the flag.
- */
-export function declaredRoutesOf(scene) {
-  const raw = scene?.getFlag?.(MODULE_ID, ROUTES_FLAG);
-  return Array.isArray(raw) ? raw.filter((l) => l && l.a && l.b) : [];
-}
+import { roadGraph, roadSegmentsOf } from "./roads.mjs";
 
 /** Derived link sets, keyed by the road network they came from. */
 const derived = new WeakMap();
@@ -62,96 +45,18 @@ export function derivedRoutesOf(scene) {
 }
 
 /**
- * Every link on a scene: drawn roads first, then any legacy declaration the
- * roads have not replaced.
- *
- * The drawn road wins a boundary both describe, because the wall is the thing
- * the Judge can see and move.
+ * Every link on a scene: the ones its drawn roads imply. A road is a wall the
+ * Judge can see and move, so editing the wall is how a link is changed.
  */
 export function routesOf(scene) {
-  const fromRoads = derivedRoutesOf(scene);
-  if (!fromRoads.length) return declaredRoutesOf(scene);
-  const declared = declaredRoutesOf(scene).filter(
-    (l) => !fromRoads.some((r) => r.a === l.a && r.b === l.b));
-  return [...declared, ...fromRoads];
-}
-
-/**
- * Declare a link on the scene flag. **Legacy** — a road is drawn as a wall now,
- * and nothing in the module calls this; it stays exported for a world's own
- * macros and for the conversion's tests.
- */
-export async function declareLink(scene, from, to, { road = "earth", winding = 1 } = {}) {
-  if (!game.user?.isGM || !isHexScene(scene)) return false;
-  const link = makeLink(from, to, { road, winding });
-  if (!link) return false;
-  await scene.setFlag(MODULE_ID, ROUTES_FLAG, withLink(declaredRoutesOf(scene), link));
-  return true;
-}
-
-/**
- * Remove a declared link. **Legacy**, as above — a DERIVED link is removed by
- * editing the wall that draws it, which is the point of drawing it.
- */
-export async function removeLink(scene, from, to) {
-  if (!game.user?.isGM || !isHexScene(scene)) return false;
-  const next = withoutLink(declaredRoutesOf(scene), from, to);
-  if (next.length === declaredRoutesOf(scene).length) return false;
-  await scene.setFlag(MODULE_ID, ROUTES_FLAG, next);
-  return true;
-}
-
-/**
- * The middle of the hex a node belongs to.
- *
- * Rounded, because a wall drawn by hand carries the integer core snapped it to
- * and a converted one should be indistinguishable from it.
- */
-function hexCentre(scene, id) {
-  const n = parseNode(id);
-  if (!n || !scene?.grid?.getCenterPoint) return null;
-  const c = scene.grid.getCenterPoint({ i: n.i, j: n.j });
-  return c ? { x: Math.round(c.x), y: Math.round(c.y) } : null;
-}
-
-/**
- * Turn every declared link on this scene into a road wall — one press, not
- * a migration. Drawn hex MIDDLE to hex middle: the link's own two ends are
- * one shared boundary and would make a zero-length wall, and a middle-to-
- * middle line is also the only shape the derivation can re-read. The old
- * typed winding is not carried across, since winding is now measured off
- * the drawn shape. A link that cannot be placed stays on the flag.
- *
- * @returns {Promise<{made: number, skipped: number}|null>}
- */
-export async function convertRoutesToWalls(scene) {
-  if (!game.user?.isGM || !scene) return null;
-  const links = declaredRoutesOf(scene);
-  if (!links.length) return { made: 0, skipped: 0 };
-  const data = [];
-  const kept = [];
-  for (const link of links) {
-    const a = hexCentre(scene, link.a);
-    const b = hexCentre(scene, link.b);
-    if (!a || !b || (a.x === b.x && a.y === b.y)) {
-      kept.push(link);
-      continue;
-    }
-    data.push({ c: [a.x, a.y, b.x, b.y], ...roadWallData({ surface: link.road }) });
-  }
-  if (data.length) await scene.createEmbeddedDocuments("Wall", data);
-  if (kept.length) await scene.setFlag(MODULE_ID, ROUTES_FLAG, kept);
-  else await clearRoutes(scene);
-  return { made: data.length, skipped: kept.length };
+  return derivedRoutesOf(scene);
 }
 
 /**
  * Where on the map a node sits: a hex's middle, one of its corners, or the
  * midpoint of one of its sides.
  *
- * The inverse of `nodeAtPoint`. Published for a world's own macros; the
- * conversion draws between hex MIDDLES instead, because a link's two ends are
- * one shared boundary and resolve here to the same point.
+ * The inverse of `nodeAtPoint`. Published for a world's own macros.
  */
 export function nodePoint(scene, id) {
   const n = parseNode(id);
@@ -165,13 +70,6 @@ export function nodePoint(scene, id) {
   const a = v[n.index % v.length];
   const b = v[(n.index + 1) % v.length];
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-}
-
-/** Clear every route. The Judge's undo for a network gone wrong. */
-export async function clearRoutes(scene) {
-  if (!game.user?.isGM) return false;
-  await scene.unsetFlag(MODULE_ID, ROUTES_FLAG);
-  return true;
 }
 
 /**

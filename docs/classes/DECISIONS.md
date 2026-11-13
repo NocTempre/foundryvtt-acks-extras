@@ -2095,7 +2095,7 @@ Derive on a human build writes no level rows. The figure is read from a sentence
 that names it only by implication, so an edition that rewords the sentence reads
 nothing and says so rather than guessing.
 
-## 2026-11-11 — the racial value is -1 for no racial category, and saved builders are corrected once
+## 2026-11-11 — the racial value is -1 for no racial category, and saved builders are corrected once — SUPERSEDED IN PART 2026-11-13 (the correction of saved builders: `docs/DECISIONS.md` §29)
 
 **Evidence.** The first cut of the human cap told a human class from a racial one
 that spends none of its points on the race by whether the class named a race

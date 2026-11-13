@@ -88,7 +88,7 @@ every write. The trap row had carried both faults since it shipped. One shared
 `wallSheetFields` answers for both, in the file that owns core's wall-sheet
 mechanics.
 
-## 2026-09-12 — A road is a wall, on every grid
+## 2026-09-12 — A road is a wall, on every grid — SUPERSEDED IN PART 2026-11-13 (the `hexRoutes` read and `route-convert`: `docs/DECISIONS.md` §29)
 
 **Ruled.** A road is a **Wall document that restricts nothing**, flagged
 `flags["acks-extras"].road`. The hex node tool that declared links between a

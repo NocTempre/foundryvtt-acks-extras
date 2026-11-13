@@ -3684,9 +3684,7 @@ Eavesdropping), `skills-alert` (the library's Alertness proficiency),
 `skills-elf` (Attunement to Nature and the Alertness power), `skills-handmade`
 (three hand-made abilities, rebuilt at the section's start: one named
 Alertness with no import behind it, one bound to Search with a flat throw, one
-whose throw borrows a ladder no import holds) and `skills-borrowed` (a
-hand-made skill rebuilt at the section's start with the legacy `thiefSkill`
-and `levelFactor` flags). Every member's stored Adventuring figures are set to
+whose throw borrows a ladder no import holds). Every member's stored Adventuring figures are set to
 an invented value at the start. Update Abilities runs first for the walk's
 library ids: a library copy older than the recipes holds the old rows.
 
@@ -3715,12 +3713,7 @@ library ids: a library copy older than the recipes holds the old rows.
    read `_prepareContext()`. *Observable:* its resolved check equals the audit's
    for the thief in both modes; a member with no Trapbreaking skill has the
    methodical attempt on the Adventuring figure and no hasty one.
-6. **The legacy flags.** Before `migrateItem`, the party check reads the item's
-   own throw. After it the default throw borrows the ladder at the stored
-   fraction and rounding, both flags are gone, the three surfaces agree, and a
-   second run reports nothing to do. With no imported ladder the plan is
-   `keep`, reason `notImported`, and the flags stay.
-7. **The real card.** `rollPartyCheck(formation, "listen")` posts one card,
+6. **The real card.** `rollPartyCheck(formation, "listen")` posts one card,
    whispered to the Judges, one row per member who can listen, each target with
    a tooltip. Open the thief's Searching sheet: it renders. Open the Skill audit
    from the party sheet's Order tab: its roster lists abilities and has no

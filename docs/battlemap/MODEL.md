@@ -244,7 +244,7 @@ such region is never written.
 | `road-markers.mjs` | The GM-side overlay that makes a street and a water line visible: a street tinted by surface and dashed where it is an alley, a river or a coast in its own blue and dashed where a boat cannot follow it, drawn only while a map-drawing control is open and the handout view is off. Presentation only. |
 | `scene-nav.mjs` | The navigation card's system icon: one per scene card in core's Scene Navigation, showing the system the setup record declares (`sceneSystemFace`) or the undeclared face. For a GM it is the control: a click opens the picker (core's ContextMenu, bound once to the navigation root, `pickerEntries`), a right click clears, both through `writeSceneSystem`; a player's navigation gets none. `sessionFollowsScene` keeps the setup panel's session on what the viewed scene's card wrote. |
 | `hex-topology.mjs` | Pure hex nodes and links, and `linksFromRoadSegments` — the links a set of drawn roads implies. No Foundry. |
-| `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, the legacy declared flag still read beside them, `convertRoutesToWalls`, `nodeAtPoint` / `nodePoint`. |
+| `hex-routes.mjs` | The scene half of the topology: links DERIVED from road walls, `nodeAtPoint` / `nodePoint`. |
 | `../lib/wall-geometry.mjs` | Segments and the graph they draw — the crossing, distance and along-the-lines measurement every wall layer shares. No Foundry. |
 | `../lib/wall-layers.mjs` | What a drawn line MEANS to this module: the flag read and write, the all-NONE shape, core's one drawing-preset slot, a region from an enclosed loop. |
 | `module.mjs` | Registrar: the scene-control group (the capture modes, the country brush, the road and water presets, the Map modes window), the Walls-layer tools, the scene-config row, the navigation card's icon, preCreateToken install, `acksExtras.battlemap` API. |
@@ -452,10 +452,8 @@ Two facts the travel rules lean on:
   weigh.
 
 [hex-routes.mjs](../../scripts/battlemap/hex-routes.mjs) is the scene half:
-the link set is a single scene FLAG rather than a document each, because a
-network is read on every step of every march and is only ever consulted whole.
-Terrain earns its regions because terrain is DRAWN; a link is a fact about the
-map, not a shape on it.
+the link set is read on every step of every march and is only ever consulted
+whole, so it is computed once per road edit and cached rather than stored.
 
 `nodeAtPoint` turns a click into a node — the middle wins only near the centre,
 so a click around the rim declares an edge or a corner rather than silently
@@ -483,24 +481,10 @@ without meeting are counted together there, so such a hex reports more bend
 than either road has; `makeLink` floors the figure at 1, so the measure can
 never make a road cheaper than crossing straight.
 
-`declaredRoutesOf` still reads the legacy `hexRoutes` scene flag beside the
-derived set, so a world part-way through a hand-declared network keeps working;
-a drawn road wins a boundary both describe. `convertRoutesToWalls` retires the
-flag into walls on one press — a Judge's act, not a migration on load, because
-converting writes walls to a scene. The winding a Judge TYPED is not carried
-across: winding is now read off the shape of the line, and writing the old
-figure onto a straight wall would make the two disagree the moment it is
-dragged.
+`routesOf` is the derived set and nothing else: no link is stored on the scene,
+so editing the wall that draws a link is the only way to change it.
 
-A converted link is drawn **hex middle to hex middle**, not between the link's
-own two ends: those ends are the two halves of one shared boundary and resolve
-to the same point, so a wall between them would have no length. A line through
-both hexes is also the only shape the derivation can re-read, which is what
-makes the press idempotent — what it writes comes straight back as a derived
-link. A declaration it cannot place stays on the flag; the press never destroys
-what it failed to carry.
-
-The journey consults the union: `onJourneyTokenMoved` asks `stepBetweenHexes`,
+The journey consults it: `onJourneyTokenMoved` asks `stepBetweenHexes`,
 and the road the step followed — or `"none"` for a step that left the network
 — is the map's reading of the road for the hex arrived in, laid over what
 `countryAt` read there. A scene with no roads asks nothing, and its reading of

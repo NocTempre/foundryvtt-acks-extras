@@ -445,7 +445,7 @@ function namedSnapshot(item, gm) {
     given: rec.givenName ?? item.name,
     trueName: gm ? rec.trueName ?? "" : null,
     revealed: !!rec.revealed,
-    unlocked: named.unlockedDisplay(item),
+    unlocked: named.unlockedCount(item),
     unlockedRaw: Number(rec.unlocked ?? 0),
     ladderText: ladder.join(","),
     total,

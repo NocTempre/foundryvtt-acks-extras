@@ -1,0 +1,1 @@
+- **The "Convert declared routes to road walls" scene control is gone, and hand-declared routes are no longer read.** Roads are the road walls drawn on the scene, as they have been since roads became walls; a scene that still relies on declared routes draws its roads as walls again.

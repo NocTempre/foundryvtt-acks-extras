@@ -49,11 +49,7 @@ function categorize(item, racialRefs) {
   const id = cookbookId(item);
   // A language is declared, never inferred from its name: "Goblin" is a
   // language and a monster and a class restriction, and only the record knows.
-  if (
-    item.type === "language" ||
-    item.flags?.[MODULE_ID]?.extras?.category === "language" ||
-    id.startsWith("def.language.")
-  ) {
+  if (item.type === "language" || item.flags?.[MODULE_ID]?.extras?.category === "language") {
     return "language";
   }
   if (item.flags?.[MODULE_ID]?.training) return "fighting";

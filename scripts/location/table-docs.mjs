@@ -575,41 +575,35 @@ const journalDocs = (pack) => [...(pack ? pack.contents : game.journal)];
 /**
  * What materialization owns among the given documents: the flagged tables and
  * every table filed in the flagged folder tree, the tree itself, and the
- * flagged journal. Name fallbacks cover documents made before the flags
- * existed — the unflagged root folder and journal, and a table still NAMED by
- * its raw key (`entryKeys`), the pre-flag identity.
+ * flagged journal. Identity is the flag, never the name.
  */
-function materializedIn({ tables, folders, journals }, entryKeys = []) {
-  const keys = new Set(entryKeys);
+function materializedIn({ tables, folders, journals }) {
   const folderIds = new Set(
-    folders
-      .filter((f) => f.type === "RollTable" && (f.getFlag(MODULE_ID, FLAG_DOCS) || (!f.folder && f.name === FOLDER_NAME)))
-      .map((f) => f.id),
+    folders.filter((f) => f.type === "RollTable" && f.getFlag(MODULE_ID, FLAG_DOCS)).map((f) => f.id),
   );
   for (const f of folders) {
     if (f.type === "RollTable" && f.folder && folderIds.has(f.folder.id)) folderIds.add(f.id);
   }
   return {
-    tables: tables.filter(
-      (t) => t.getFlag(MODULE_ID, FLAG_KEY) || (t.folder && folderIds.has(t.folder.id)) || keys.has(t.name),
-    ),
+    tables: tables.filter((t) => t.getFlag(MODULE_ID, FLAG_KEY) || (t.folder && folderIds.has(t.folder.id))),
     folders: folders.filter((f) => folderIds.has(f.id)),
-    journals: journals.filter((j) => j.getFlag(MODULE_ID, FLAG_DOCS) || j.name === JOURNAL_NAME),
+    journals: journals.filter((j) => j.getFlag(MODULE_ID, FLAG_DOCS)),
   };
 }
 
 /** Materialized documents the SIDEBAR holds — an earlier release's, or a world with no shelf. */
-const sidebarMaterialized = (entryKeys = []) =>
-  materializedIn({ tables: [...game.tables], folders: [...game.folders], journals: [...game.journal] }, entryKeys);
+const sidebarMaterialized = () =>
+  materializedIn({ tables: [...game.tables], folders: [...game.folders], journals: [...game.journal] });
 
 /** Materialized documents on the shelves, read without opening them. */
-function shelfMaterialized(entryKeys = []) {
+function shelfMaterialized() {
   const tables = findLibraryPack("RollTable");
   const journals = findLibraryPack("JournalEntry");
-  return materializedIn(
-    { tables: [...(tables?.contents ?? [])], folders: [...(tables?.folders ?? [])], journals: [...(journals?.contents ?? [])] },
-    entryKeys,
-  );
+  return materializedIn({
+    tables: [...(tables?.contents ?? [])],
+    folders: [...(tables?.folders ?? [])],
+    journals: [...(journals?.contents ?? [])],
+  });
 }
 
 /**
@@ -621,10 +615,10 @@ function shelfMaterialized(entryKeys = []) {
  * folder deleted first orphans its contents to the sidebar root, where the
  * tree filter no longer finds them.
  */
-async function openTableShelf(entryKeys) {
+async function openTableShelf() {
   const pack = await openShelf("RollTable");
   if (!pack) return null;
-  const { tables, folders } = sidebarMaterialized(entryKeys);
+  const { tables, folders } = sidebarMaterialized();
   if (tables.length) await RollTable.deleteDocuments(tables.map((t) => t.id));
   if (folders.length) await Folder.deleteDocuments(folders.map((f) => f.id));
   return pack;
@@ -642,8 +636,8 @@ async function openJournalShelf() {
 
 /**
  * The root folder plus one child per ruledata doc ("People", "Rarity", …), so
- * the shelf groups tables the way the registry does. Both are flagged; a
- * root created before the flag existed is adopted by name and stamped.
+ * the shelf groups tables the way the registry does. Both are flagged,
+ * and the root is found by its flag.
  *
  * Every missing child is created in ONE call: folders must exist before the
  * tables that name them, so this is the one place the batch pass has to wait,
@@ -657,15 +651,13 @@ async function ensureFolders(docIds, pack) {
   const out = new Map();
   if (!docIds.length) return out;
   const isRoot = (f) => f.type === "RollTable" && !f.folder;
-  let root =
-    folderDocs(pack).find((f) => isRoot(f) && f.getFlag(MODULE_ID, FLAG_DOCS)) ??
-    folderDocs(pack).find((f) => isRoot(f) && f.name === FOLDER_NAME);
+  let root = folderDocs(pack).find((f) => isRoot(f) && f.getFlag(MODULE_ID, FLAG_DOCS));
   if (!root) {
     root = await Folder.create(
       { name: FOLDER_NAME, type: "RollTable", flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } },
       packOpts(pack),
     );
-  } else if (!root.getFlag(MODULE_ID, FLAG_DOCS)) await root.setFlag(MODULE_ID, FLAG_DOCS, true);
+  }
   const children = new Map(
     folderDocs(pack)
       .filter((f) => f.type === "RollTable" && f.folder?.id === root.id)
@@ -698,10 +690,7 @@ async function ensureFolders(docIds, pack) {
 const ensureFolder = async (docId, pack) => (await ensureFolders([docId], pack)).get(docId);
 
 /** The ruledata journal on the shelf (else in the sidebar), or null. */
-const findJournal = (pack) =>
-  journalDocs(pack).find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ??
-  journalDocs(pack).find((j) => j.name === JOURNAL_NAME) ??
-  null;
+const findJournal = (pack) => journalDocs(pack).find((j) => j.getFlag(MODULE_ID, FLAG_DOCS)) ?? null;
 
 async function ensureJournal(pack) {
   let journal = findJournal(pack);
@@ -710,21 +699,12 @@ async function ensureJournal(pack) {
       { name: JOURNAL_NAME, flags: { [MODULE_ID]: { [FLAG_DOCS]: true } } },
       packOpts(pack),
     );
-  } else if (!journal.getFlag(MODULE_ID, FLAG_DOCS)) await journal.setFlag(MODULE_ID, FLAG_DOCS, true);
+  }
   return journal;
 }
 
-/**
- * The table that IS this entry, or null.
- *
- * Identity is the flagged key; the raw-key NAME is the legacy form, and
- * matching it is what migrates a pre-flag document (rename + refile + stamp)
- * on its next materialize instead of duplicating every table.
- */
-const findTable = (key, pack) =>
-  tableDocs(pack).find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ??
-  tableDocs(pack).find((t) => t.name === key) ??
-  null;
+/** The table that IS this entry, found by its flagged key (never its name), or null. */
+const findTable = (key, pack) => tableDocs(pack).find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ?? null;
 
 /**
  * Does this table already hold exactly these results?
@@ -824,7 +804,7 @@ export async function exportEntry(entry) {
 
   if (entry.rollable) {
     const spec = rollTableSpec(entry, data);
-    const pack = await openTableShelf([entry.key]);
+    const pack = await openTableShelf();
     const folder = await ensureFolder(entry.docId, pack);
     const existing = findTable(entry.key, pack);
     if (existing) {
@@ -885,16 +865,15 @@ export async function exportEntry(entry) {
 export async function materializeAll() {
   await classesPublished();
   const entries = listEntries();
-  const keys = entries.map((e) => e.key);
   const t = lib()?.tables;
   let exported = 0;
   let placeholders = 0;
-  const legacy = sidebarMaterialized(keys);
+  const legacy = sidebarMaterialized();
 
   /* --- RollTables: one folder pass, one create, one update, rebuilds only
      where the results actually moved. --- */
   const rollable = entries.filter((e) => e.rollable);
-  const tablePack = rollable.length || legacy.tables.length || legacy.folders.length ? await openTableShelf(keys) : null;
+  const tablePack = rollable.length || legacy.tables.length || legacy.folders.length ? await openTableShelf() : null;
   const folders = await ensureFolders([...new Set(rollable.map((e) => e.docId))], tablePack);
   const creates = [];
   const updates = [];
@@ -1005,7 +984,7 @@ export async function materializeAll() {
 /**
  * Everything materialization has put in this world, on the shelves and in
  * the sidebar both: the flagged RollTables, the folder tree, and the JSON
- * journal (`materializedIn` for what counts and the name fallbacks).
+ * journal (`materializedIn` for what counts).
  *
  * @param {object} [options]
  * @param {boolean} [options.sidebar] only what the SIDEBAR holds — for a
@@ -1013,10 +992,9 @@ export async function materializeAll() {
  * @returns {{tables: object[], folders: object[], journals: object[]}}
  */
 export function listMaterializedDocs({ sidebar = false } = {}) {
-  const keys = listEntries().map((e) => e.key);
-  const own = sidebarMaterialized(keys);
+  const own = sidebarMaterialized();
   if (sidebar) return own;
-  const shelved = shelfMaterialized(keys);
+  const shelved = shelfMaterialized();
   return {
     tables: [...shelved.tables, ...own.tables],
     folders: [...shelved.folders, ...own.folders],

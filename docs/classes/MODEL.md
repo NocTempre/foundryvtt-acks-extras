@@ -213,10 +213,7 @@ turns that state into a PLAN:
   count is a total less the maximum level, and the sentence after gives the
   typical count; that a typical class is a human one is this module's
   inference, DECISIONS 2026-11-11). No branch reads a race's name, species or
-  document. A new builder stores -1, and a one-time migration
-  (`builder-race-migration.mjs`, at `ready` on the primary GM) rewrites a saved
-  class's stored 0 with no `system.race` to -1 once, stamping the record with
-  `_schemaVersion` (`CLASS_SCHEMA_VERSION`) so it never runs again on it. A cap
+  document. A new builder stores -1. A cap
   the world lacks stays null: Derive writes no
   `maximumLevel` and no level rows, names `missingHumanMaxLevel` (or
   `missingRacialCap`), and the attack bands and traditions keep every row the
@@ -945,11 +942,6 @@ language off the sheet frees its slot with nothing to reconcile; `freeSlots` is
 spent. The picker and drop live in
 [abilities/language-slots.mjs](../../scripts/abilities/language-slots.mjs);
 clearing a slot deletes the document the slot bought.
-
-[language-migration.mjs](../../scripts/classes/language-migration.mjs) converts
-worlds written the old way at `ready`, in the one window that runs the world's
-automation (docs/lib/MODEL.md, "Which window automates"): idempotent, and
-creating every replacement before removing what it replaced.
 
 Which languages exist is never shipped: they arrive through the importer from
 the GM's own books, or a Judge writes their own. Telling Polyglot about those

@@ -184,21 +184,11 @@ game.items = [zorgle, oldImport, noSpecial, noDie];
 rows.publish();
 check("an item without the structured weapon fields gives no row rather than a guessed one", grid().mace === undefined && grid().zorgle != null);
 
-// A live document always holds every field: the schema fills the defaults.
-// An import from before the importer wrote the weapon fields is that shape.
-const defaults = () => ({ cleave: false, entangling: false, flexible: false, handy: false, impact: false, incapacitating: false, long: false, mounted: false, silver: false, slow: false, thrown: false });
-const unsized = minted("w15", "Mace", "mace", { melee: true, missile: false, size: "na", special: defaults(), cleaveLimit: { numeric: 2, addStrMod: false } });
-const tagged = minted("w16", "Mace", "mace", { melee: false, missile: true, size: "na", special: defaults(), customTags: ["Handy", "Slow"] });
-const taggedCleave = minted("w17", "Mace", "mace", { melee: false, missile: true, size: "na", special: defaults(), customTags: [{ title: "Cleave 2", value: "" }] });
-for (const [label, item] of [["an unsized melee weapon", unsized], ["quality words left as tags", tagged], ["a cleave word left as a tag object", taggedCleave]]) {
-  game.items = [zorgle, item];
-  rows.publish();
-  check(`${label}, every schema default, gives no row`, grid().mace === undefined);
-}
-const customOnly = minted("w18", "Mace", "mace", { melee: false, missile: true, size: "na", special: { ...defaults(), handy: true }, customTags: ["A tag no property names"] });
-game.items = [zorgle, customOnly];
+// A melee weapon whose size is the system's `na` still gives its row, with no size.
+const unsized = minted("w15", "Mace", "mace", { melee: true, missile: false, size: "na", special: {}, customTags: ["A tag no property names"] });
+game.items = [zorgle, unsized];
 rows.publish();
-check("a tag no special property names, beside lit properties, is not a legacy mark", grid().mace?.handy === true);
+check("an unsized melee weapon gives its row with no size, and a custom tag changes nothing", grid().mace?.melee === true && grid().mace.size === null);
 
 // --- identity -----------------------------------------------------------------------------
 const handMade = { ...minted("w19", "Dagger", "dagger"), flags: {} };

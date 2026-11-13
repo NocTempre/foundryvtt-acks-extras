@@ -561,8 +561,8 @@ tracked id; the place stays. The in-memory steering is restored.
 
 The sub-type is declared in `module.json`, which the server reads at world
 launch: **relaunch the world**, then confirm
-`game.documentTypes.Item.includes("acks-extras.marketReport")`. Without it the
-`ready` migration waits with a console warning and a report cannot be created.
+`game.documentTypes.Item.includes("acks-extras.marketReport")`. Without it a
+report cannot be created.
 
 **Check this first (undecided offline): can a PLAYER open an embedded item
 sheet on the OBSERVER-owned house?** Make one report on the house (step 2), join
@@ -620,9 +620,9 @@ house the run made, the reports go with it.
    *Observable:* a whispered assessment card, and (unless the result was
    *failed*, which writes none — repeat) exactly one new report stamped to A with
    `partyId` from `partyOf(A)`, `marketUuid` M1, the rolled outcome and the
-   learned beliefs; `goods.dmKnowledge` stays empty. The card reads Partial when
+   learned beliefs. The card reads Partial when
    the roll was a false one. A partial or false roll writes no beliefs and
-   `system.picks` between 1 and 6, and its card links the report (step 10). *Expertise* with no matching Art/Craft/Profession
+   `system.picks` between 1 and 6, and its card links the report (step 9). *Expertise* with no matching Art/Craft/Profession
    ranks also writes none. Drive mechanics: advancing the clock on the GM seat
    resolves the day by itself (the markets world-time watcher runs
    `processAllImports`), so a player's Process never sees a due assessment and
@@ -643,7 +643,8 @@ house the run made, the reports go with it.
    Give and Discard follow the SEAT: when the same seat owns B they stay (it
    may manage B's reports); when B belongs to another seat they are gone and
    `performGive` from A's seat answers `notYours`. With one player seat, the
-   `notYours` observable is reached through step 8's house-stamped reports.
+   `notYours` observable is reached through a report the GM stamps to an actor
+   that seat does not own (`writeReport`, tracked).
 6. Second market and Compare: write a report for M2 stamped to A, open the tab.
    *Observable:* Compare lists M1 and M2; picking both shows one row per good
    either believes with the difference where both do, a dash where one does not;
@@ -653,17 +654,10 @@ house the run made, the reports go with it.
    *Observable:* it is deleted from the house (`objectsAt(M1.uuid)` shrinks). A
    seat that does not own the stamp calling `performRetire` gets `notYours` and
    nothing is deleted.
-8. Migration: on the GM seat set `M1.system.market.goods.dmKnowledge` to two rows
-   for two parties, run `acksExtras.markets.tradeObjects.migrateDmKnowledge()`
-   twice.
-   *Observable:* the first run answers `{markets: 1, reports: 2}`, two
-   `migrated` reports stamped `acks-extras:house` (a party's Research lists
-   them, without Give/Discard for a player), the rows are cleared; the second
-   answers zeros. A world reload runs it again at `ready` and changes nothing.
-9. Delete the market M2 actor.
+8. Delete the market M2 actor.
    *Observable:* its reports remain and are listed under the snapshot name
    they carry; nothing throws when the tab opens.
-10. Choosing the goods. GM seat: `writeReport` a `partial` report for M1
+9. Choosing the goods. GM seat: `writeReport` a `partial` report for M1
     stamped to A with `beliefs: []` and `picks: 2`, and a `false` one with
     `picks: 1` (track both). Player seat: open the partial one from the Trade
     tab.
