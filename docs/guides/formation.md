@@ -110,6 +110,22 @@ is narrower than the frontage the members who do not fit march in the next rank.
 A combat deploy puts each member's token on the square their portrait stood on.
 Players see the column only where they can see the squares it stands on.
 
+Once the Revised Rulebook's **Rules tables** have been imported, the column is
+spaced the way the book spaces a marching column: each member stands in a
+square as wide as their frontage (wider for a member with an equipped large
+melee weapon that crushes or cuts and does not pierce), files are set side by
+side at the sum of those widths, and ranks stand one rank interval apart along
+the way the party walked, not one grid square apart. A combat deploy then puts a
+member's token on the spot their square marks, even between grid squares, unless
+a wall would touch it there; that member's token takes the grid square the
+one-per-square column gives them. A token standing between squares snaps to the
+grid the first time you move it. A world imported before this was added keeps the
+one-per-square column until **Rules tables** is run again in the **Reimport One
+Shelf (GM)** macro (`Compendium Packs → ACKS II — Extras → Macros → ACKS Extras
+Macros → Import from your books`); read what arrived in the Ruledata Browser
+(`Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables → Open
+Ruledata Browser`), where the three frontage rows can also be overridden.
+
 ![](../releases/v11.14.2/formation-column.png)
 
 *A Player's view down a lit corridor: the party token at the head, and the

@@ -4,7 +4,9 @@
  * client.
  *
  * One state per linked party token on the viewed scene: a PIXI container of
- * one tinted square and one portrait per body, and the column's light sources
+ * one tinted square and one portrait per body, each square as wide as the
+ * body's frontage (one cell where the column is not spaced), centred on the
+ * point the body stands on, and the column's light sources
  * (`column-light.mjs`). Each frame a party token refreshes, the column is laid
  * again from the stored trail, the move this client was told about, and the
  * token's live position (`column.mjs` `columnFor`), so the bodies follow the
@@ -18,7 +20,7 @@
  * Factories, not PIXI subclasses: the offline suite imports this file, where
  * PIXI does not exist.
  */
-import { FLAG_FORMATION_ID, FLAG_TRAIL, MODULE_ID, SETTING_PARTY_TOKEN_SHAPE } from "./constants.mjs";
+import { FLAG_FORMATION_ID, FLAG_TRAIL, FORMATION_DOC, MODULE_ID, SETTING_PARTY_TOKEN_SHAPE } from "./constants.mjs";
 import { columnFor, memberCells, pathCells } from "./column.mjs";
 import { destroyColumnLights, syncColumnLights } from "./column-light.mjs";
 import { getFormationForActor, getMemberActor, isLinkedPartyToken, partyTokenShape, readFormations, SETTING_FORMATIONS } from "./formation-model.mjs";
@@ -105,28 +107,32 @@ function ensureGlyphs(state, formation, token, count) {
   });
 }
 
-/** Lay the glyphs on their cells and decide what this seat may see. */
-function placeGlyphs(state, cells, token, gs) {
+/**
+ * Lay the glyphs on the points the bodies stand on, each in a square of its
+ * own width, and decide what this seat may see.
+ */
+function placeGlyphs(state, points, sizes, token, gs) {
   const gm = !!game.user?.isGM;
   const shown = gm || token.visible;
   state.container.visible = !!shown;
   if (!shown) return;
   state.bodies.forEach(({ cell, square, glyph }, i) => {
-    const at = cells[i];
+    const at = points[i];
     if (!at) {
       cell.visible = false;
       return;
     }
-    cell.position.set(at.x, at.y);
-    square.scale.set(gs, gs);
+    const size = sizes[i] ?? gs;
+    cell.position.set(at.x - size / 2, at.y - size / 2);
+    square.scale.set(size, size);
     if (glyph) {
-      glyph.position.set(gs / 2, gs / 2);
-      const side = gs * GLYPH_SCALE;
+      glyph.position.set(size / 2, size / 2);
+      const side = size * GLYPH_SCALE;
       const tex = glyph.texture;
       const fit = tex?.width && tex?.height ? side / Math.max(tex.width, tex.height) : 0;
       glyph.scale.set(fit, fit);
     }
-    cell.visible = gm || canvas.visibility.testVisibility({ x: at.x + gs / 2, y: at.y + gs / 2 }, { tolerance: gs * 0.25 });
+    cell.visible = gm || canvas.visibility.testVisibility({ x: at.x, y: at.y }, { tolerance: gs * 0.25 });
   });
 }
 
@@ -144,7 +150,7 @@ export function refreshColumn(token) {
   if (!state) states.set(doc.id, (state = { lights: new Map(), path: null, key: null, container: null, bodies: [] }));
   const at = columnFor(formation, doc, { live: true, path: state.path });
   if (!at) return void drop(doc.id);
-  syncColumnLights(state, formation, token, at.cells);
+  syncColumnLights(state, formation, token, at.points);
   const drawn = at.column && partyTokenShape(formation) === "order";
   if (!drawn) {
     state.container?.destroy({ children: true });
@@ -152,8 +158,8 @@ export function refreshColumn(token) {
     state.key = null;
     return;
   }
-  ensureGlyphs(state, formation, token, at.cells.length);
-  placeGlyphs(state, at.cells, token, Number(doc.parent.grid.size));
+  ensureGlyphs(state, formation, token, at.points.length);
+  placeGlyphs(state, at.points, at.sizes, token, Number(doc.parent.grid.size));
 }
 
 /** Lay every party token on the viewed scene again. */
@@ -205,10 +211,11 @@ export function installColumnView() {
   };
   Hooks.on("createSetting", onSetting);
   Hooks.on("updateSetting", onSetting);
-  // A light figure is read from the lib's table registry, which an import or a
-  // Judge's override rewrites without touching any setting named above.
+  // A light figure and the frontage figures are read from the lib's table
+  // registry, which an import or a Judge's override rewrites without touching
+  // any setting named above.
   onTablesChanged((docId) => {
-    if (docId === LIGHT_DOC) refreshAllColumns();
+    if (docId === LIGHT_DOC || docId === FORMATION_DOC) refreshAllColumns();
   });
   // A member's effect light (a spell on them, an item they carry) is read off
   // their actor, not the record: an effect or an item with effects that

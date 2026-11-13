@@ -17,7 +17,7 @@ import {
   readFormations,
   updateFormation,
 } from "./formation-model.mjs";
-import { columnPlacement } from "./column.mjs";
+import { columnPlacement, columnSpacing, deploySpot, spotFits } from "./column.mjs";
 
 /**
  * Putting members on the map and gathering them back in: the combat deploy,
@@ -141,9 +141,11 @@ export function hasStaleDeployment(formation, member) {
  * members already on the map are skipped. A stack goes out as the bodies
  * it holds, laid into the squares its cell occupies; those bodies belong
  * to the group actor, and the cell only records that it is out. A column
- * that walked a bend lays everyone on its own cells (`columnPlacement`);
- * otherwise the block is oriented to the party token's heading and fitted
- * (shifted, never squashed) onto the scene before anyone is placed.
+ * that walked a bend lays everyone on its own cells, and a spaced column on
+ * the points the book spaces it by wherever the token fits there
+ * (`columnPlacement`, `deploySpot`); otherwise the block is oriented to the
+ * party token's heading and fitted (shifted, never squashed) onto the scene
+ * before anyone is placed.
  *
  * @param {object} formation
  * @param {object[]} members  which members to send out (default: all of them)
@@ -165,8 +167,10 @@ export async function deployMembers(formation, { members = formation.members, de
   // move's tween, which starts at the corner the token is leaving.
   const at = partyToken._source ?? partyToken;
   const origin = blockOrigin(formation, scene, { x: at.x, y: at.y }, { heading });
-  // A column that walked a bend deploys onto its own cells.
+  // A column that walked a bend deploys onto its own cells, a spaced one onto its points.
   const column = columnPlacement(formation, partyToken);
+  const fits = column ? spotFits(formation, partyToken) : null;
+  const gs = Number(scene.grid?.size);
 
   const toCreate = [];
   const stacked = [];
@@ -189,7 +193,8 @@ export async function deployMembers(formation, { members = formation.members, de
     if (!data) continue;
     // A fresh id kept through the create tells each token back to its member.
     data._id = foundry.utils.randomID();
-    const { x, y } = column?.[cell]?.[0] ?? cellPosition(formation, scene, origin, cell, heading);
+    const spot = column?.[cell]?.[0];
+    const { x, y } = spot ? deploySpot(spot, { w: data.width, h: data.height, gs, fits }) : cellPosition(formation, scene, origin, cell, heading);
     data.x = x;
     data.y = y;
     data.hidden = false;
@@ -225,7 +230,7 @@ export async function deployMembers(formation, { members = formation.members, de
 
   const groups = stacked.length ? await groupOps() : null;
   for (const { member, actor, cell } of stacked) {
-    const spots = column?.[cell]?.length ? column[cell] : cellPositions(formation, scene, origin, cell, heading);
+    const spots = column?.[cell]?.length ? column[cell] : cellPositions(formation, scene, origin, cell, heading).map((p) => ({ point: null, cell: p }));
     const before = created.length;
     let body = 0;
     for (const stack of actor.system.stacks ?? []) {
@@ -237,7 +242,8 @@ export async function deployMembers(formation, { members = formation.members, de
       const bodies = await groups.deploy(actor, scene, {
         stackKey: stack.key,
         count: n,
-        place: (k) => spots[first + k] ?? spots.at(-1),
+        // A stack's bodies are one cell each.
+        place: (k) => deploySpot(spots[first + k] ?? spots.at(-1), { gs, fits }),
       });
       created.push(...bodies);
       body += n;
@@ -255,6 +261,18 @@ export async function deployMembers(formation, { members = formation.members, de
   if (combatId) for (const member of placed) member.deployedCombatId = combatId;
   await patchDeployments(formation, placed);
   return created;
+}
+
+/**
+ * The corner the party token re-forms on, from the first token standing on its
+ * scene. A spaced column stands tokens between cells, and the party token's
+ * footprint is a cell, so it takes the nearest cell corner; an unspaced column
+ * stands them on cells and the token's own corner is the anchor.
+ */
+function settledAnchor(token, scene) {
+  const gs = Number(scene?.grid?.size);
+  if (!columnSpacing(scene) || !(gs > 0)) return { x: token.x, y: token.y };
+  return { x: Math.round(token.x / gs) * gs, y: Math.round(token.y / gs) * gs };
 }
 
 /**
@@ -291,7 +309,7 @@ export async function recallMembers(formation, { members = formation.members } =
     delete member.detach;
     // The party re-forms where its people actually stood, on its own scene.
     const here = bodies.find((t) => t.parent?.id === scene?.id);
-    if (!anchor && here) anchor = { x: here.x, y: here.y };
+    if (!anchor && here) anchor = settledAnchor(here, scene);
     if (wasStack) {
       const actor = getMemberActor(member);
       if (!actor) continue; // the stack's sheet is gone; the marker is cleared regardless

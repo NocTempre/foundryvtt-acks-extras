@@ -1272,11 +1272,12 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
   const heading = snapHeading(partyToken?.rotation);
   const origin = anchor && grid ? blockOrigin(formation, scene, anchor, { heading }) : null;
   const nextFree = anchor && !grid ? freeCellPlacer(scene, anchor) : null;
-  // A column that walked a bend restores onto its own cells. Imported here,
-  // not at the top: column.mjs imports this file.
-  const column = anchor && grid && partyToken.parent?.id === scene.id
-    ? (await import("./column.mjs")).columnPlacement(formation, partyToken)
-    : null;
+  // A column that walked a bend restores onto its own cells, a spaced one onto
+  // its points where the token fits. Imported here, not at the top: column.mjs
+  // imports this file.
+  const columns = anchor && grid && partyToken.parent?.id === scene.id ? await import("./column.mjs") : null;
+  const column = columns?.columnPlacement(formation, partyToken) ?? null;
+  const fits = column ? columns.spotFits(formation, partyToken) : null;
 
   const toCreate = [];
   for (const member of stashed) {
@@ -1284,8 +1285,9 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
     delete data._id;
     if (anchor) {
       const cell = formation.members.indexOf(member);
+      const spot = column?.[cell]?.[0];
       const { x, y } = grid
-        ? (column?.[cell]?.[0] ?? cellPosition(formation, scene, origin, cell, heading))
+        ? (spot ? columns.deploySpot(spot, { w: data.width, h: data.height, gs: Number(scene.grid?.size), fits }) : cellPosition(formation, scene, origin, cell, heading))
         : nextFree();
       data.x = x;
       data.y = y;

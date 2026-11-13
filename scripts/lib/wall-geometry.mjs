@@ -83,6 +83,36 @@ export function segmentCrossing(from, to, seg) {
 }
 
 /**
+ * Whether a segment touches a closed axis-aligned rectangle: an end inside it,
+ * a crossing of its edge, and a graze of its boundary all count, so a segment
+ * lying along an edge touches it.
+ *
+ * @param {number[]} seg `[x1, y1, x2, y2]`
+ * @param {{minX: number, minY: number, maxX: number, maxY: number}} rect
+ */
+export function segmentTouchesRect(seg, rect) {
+  const [x1, y1, x2, y2] = seg;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+  // Liang–Barsky: clip the parameter range against each of the four edges.
+  const clip = (p, q) => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  return clip(-dx, x1 - rect.minX) && clip(dx, rect.maxX - x1) && clip(-dy, y1 - rect.minY) && clip(dy, rect.maxY - y1);
+}
+
+/**
  * The shortest distance between two segments.
  *
  * Crossing segments are zero apart; otherwise the closest approach is at one of

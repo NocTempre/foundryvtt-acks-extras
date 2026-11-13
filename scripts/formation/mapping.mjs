@@ -1,6 +1,6 @@
 /* global game */
 import { MODULE_ID } from "./constants.mjs";
-import { cellCentre, columnFor, memberCells } from "./column.mjs";
+import { columnFor, memberCells } from "./column.mjs";
 import { columnLights } from "./column-light-logic.mjs";
 import { isMemberDeployed, standsElsewhere } from "./deployment.mjs";
 import {
@@ -26,7 +26,7 @@ import { clockReading } from "../lib/world-time.mjs";
  * formation, the scene and the actors, so the fog, the measurement flag, the
  * Map item and the warnings strip all read one answer.
  *
- * A mapper's place is the centre of their cell in the party's column, or the
+ * A mapper's place is the point they stand on in the party's column, or the
  * centre of their own token while they stand out on the map. The light reaching
  * it is read straight-line and through no wall, as `lib/light.mjs` reads every
  * light it is asked about.
@@ -85,7 +85,7 @@ function recordLights(formation, scene, at, gs) {
   const units = scene?.grid?.units;
   const points = [];
   if (at && gs > 0) {
-    for (const p of columnLights(formation, at.cells, gs, effectsOf)) {
+    for (const p of columnLights(formation, at.points, effectsOf)) {
       points.push({ x: p.x, y: p.y, bright: feetToUnits(p.bright, units) });
     }
   }
@@ -110,8 +110,7 @@ function placeOf(formation, member, index, scene, at, gs) {
     const token = scene.tokens?.get?.(member.deployedTokenId);
     if (token) return tokenCentre(token, gs);
   }
-  const cell = at ? memberCells(formation, at.cells)[index]?.[0] : null;
-  return cell ? cellCentre(cell, gs) : null;
+  return at ? (memberCells(formation, at.points)[index]?.[0] ?? null) : null;
 }
 
 /**

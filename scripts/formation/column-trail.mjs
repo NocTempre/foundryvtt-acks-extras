@@ -53,7 +53,7 @@ export async function recordTrail(tokenDoc, changes, options, flags, formation) 
     head: { x: head.x, y: head.y, width: head.width, height: head.height },
     sceneId: scene.id,
     gs: Number(scene.grid.size),
-    bound: trailBound(formation),
+    bound: trailBound(formation, scene),
   });
   if (!next) return false;
   if (JSON.stringify(next) === JSON.stringify(stored)) return false;

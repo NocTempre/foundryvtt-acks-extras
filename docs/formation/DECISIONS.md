@@ -5536,3 +5536,56 @@ the card says not imported.
 `OBSTACLES` loses `fail` and `botch`; `readThrow` answers the imported outcome
 and `ends`. A world shows no ancillary slot and applies no obstacle outcome
 until it re-imports the Revised Rulebook's tables.
+
+## 2026-11-13 — The column is spaced as the book spaces it
+
+**New evidence.** The owner's rulings: 2026-11-05 "follow RAW not the grid";
+2026-11-12, asked how a deploy lays a spaced column, "Book spacing where it
+fits". And the importer now reads the three printed figures (RR ch. 6,
+"Combatant Frontage and Interval"): `marchFrontageFeet`, `wideFrontageFeet` and
+`rankIntervalFeet` in the `formation` document. This supersedes IN PART "The
+party token is the head of its column" (2026-11-04), whose column stood one
+body per cell and whose deploy took the cells, and "The column stands inside
+its walls" (2026-11-04), whose wall test and deploy rule were per cell. Both
+stand unchanged for a world with none of the three imported.
+
+**Ruled.**
+- Spaced only when all three figures are above nothing and the scene says what a
+  cell is worth; otherwise one body per cell, byte for byte as before, with no
+  notice, no setting and no fallback figure.
+- Rank r stands r × interval along the line through the spine cells' centres;
+  files spread right then left at the sum of their half-frontages; a file is
+  open when its far edge stays on the scene and no movement wall lies between
+  it and the body before it, and a refused body goes to the next rank.
+- A body is wide when it is an individual with an equipped melee weapon that is
+  large and deals bludgeoning or slashing damage and none that pierces, read
+  across the weapon's base and alternate damage. Everyone else, stacks and
+  blanks, marches. The piercing exclusion is an inferred reading: core carries
+  a size and damage types on a weapon, and the rule's own wording is read
+  against those; a Judge whose reading differs gives the weapon another size.
+- Deploy is the owner's "Book spacing where it fits": a token's footprint, its
+  own width and height centred on its point and shrunk a pixel, stands there
+  when no wall that stops movement touches it (an open door is not one, a
+  one-way wall counts by its line) and it lies on the scene; else on the body's
+  one-per-cell cell. Overlap with another body is not a misfit. A stack's bodies
+  are one cell each. A spaced deploy and restore always lay the column, since
+  the points have no straight block to fall back to.
+- `trailBound` grows past one cell per body only when the rank interval is wider
+  than a cell. The drawn square is the body's frontage wide, and the column's
+  lights, the mapper's place and the carried light points read the points.
+- A recall of a spaced deploy re-forms the party token on the cell corner
+  nearest the first recalled token, since a token at a point is off the grid.
+
+**Rejected.** Importing corridor widths: the walls the scene draws are the
+corridor. A notice or a setting for the not-imported case: the surface is the
+cell column the module has always drawn, and nothing in it claims to be the
+book's. Deploying to the point regardless of a wall: a token inside rock.
+Deploying only on the cell, as the book's points are not cells: that
+discards the owner's ruling for the sake of the grid.
+
+**Cost.** A world imported before this release holds none of the three until
+Rules tables is run again in Reimport One Shelf with the books open; until
+then nothing changes. Spaced tokens stand between cells until a user moves one,
+and a drag snaps it to the grid. The `columnLights` and `columnPlacement`
+shapes change (points and `{point, cell}`), both internal. `effectiveFrontage`
+and the trap readers of rank depth are left to the trap-ranks slice.

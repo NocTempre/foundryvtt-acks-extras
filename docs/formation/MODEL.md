@@ -627,7 +627,7 @@ A party whose trail holds a step lays out along that trail instead
 
 The party token is the head of a marching column: rank 0, file 0, one cell
 (§Data flow, the party token's size). Rank *r* stands on the cell the head stood
-on *r* cells ago; files spread along the right hand of the way the column walks
+on *r* cells ago (§Spacing below for a world with the frontage figures); files spread along the right hand of the way the column walks
 at that rank. Past the end of the trail the column runs on straight, away from
 the trail's oldest step, or behind the heading when the trail holds no step, so
 a column that has walked nowhere in the open is exactly `formationOffset`'s
@@ -649,14 +649,50 @@ only a step from its shut side, a wall naming no level stands on every one).
 It reads the walls themselves, not the canvas, so the Night Vision sweep and a
 deploy on a scene nobody is viewing see the same column.
 
+**Spacing.** The book spaces a column by frontage and interval (RR ch. 6,
+"Combatant Frontage and Interval"), not by cell. Three figures arrive through
+the importer into the `formation` document: `marchFrontageFeet`,
+`wideFrontageFeet` and `rankIntervalFeet`. The column is spaced when all three
+are above nothing and the scene says what a cell is worth
+(`columnSpacing(scene)`, pixels from feet at the scene's scale); otherwise every
+body stands one to a cell, exactly as before the figures existed, with no notice
+and no setting. Spaced, `columnPoints` lays the bodies:
+
+- Rank *r* stands *r* × interval along the line through the spine cells'
+  centres from the head (the spine is the same cells the one-per-cell layout
+  walks, so a bend bends the line); the line runs on straight past the trail
+  as the spine does.
+- A rank's first body stands on that point. Files go to the right hand, then
+  the left, each centred a half-frontage past the body before it, so widths sum
+  rather than snap to a grid. A file is open when its far edge stays on the
+  scene and no wall that stops movement lies between the body before it and
+  that edge (`stepCrosses`); a body neither hand reaches goes to the next
+  rank, as in the one-per-cell layout.
+- A body is wide (`wideFrontageFeet`) when it is an individual whose equipped
+  melee weapon is large (`system.size`) and deals bludgeoning or slashing
+  damage and none that pierces, read across the weapon's base and alternate
+  damage (`isWideBearer`, core fields only; the piercing exclusion is an
+  inferred reading, DECISIONS 2026-11-13). Everyone else, a stack's bodies and a
+  blank included, takes the march frontage.
+- At most the frontage stand to a rank, as before.
+
+`columnFor` returns `cells` (always the one-per-cell layout), `points` (the
+centres the bodies stand on, which are the cells' centres while unspaced) and
+`sizes` (the width of each body's drawn square). Every reader of where a body
+stands reads `points`: the drawing, the column's lights, the mapper's place and
+the carried light points.
+
 **Where a column is laid.** A square grid at a scale where a cell is a body's
 ground (`sceneHasColumn`): a hex map, a gridless one and a mile-scale map lay
-none, and every body there stands at the head.
+none, and every body there stands at the head. Spacing applies only on a scene
+that lays a column.
 
 **The trail** is `flags.acks-extras.trail` on the linked party token,
 `{sceneId, points}`, cell corners newest first, at most one longer than the
 party has bodies (`trailBound`: a column squeezed to single file is that deep,
-and the cell before the oldest tells the last rank which way it walked). The primary GM writes it from the
+and the cell before the oldest tells the last rank which way it walked; a spaced
+column whose rank interval is wider than a cell keeps the cells that reach its
+last rank, and an interval of a cell or less keeps one per body). The primary GM writes it from the
 party token's own update (`column-trail.mjs`), after the step's animation, as a
 flag-only write that neither moves the token nor bills the clock. The path is
 the move's own waypoints (`options._movement[id].passed`); a scripted move with
@@ -679,8 +715,9 @@ written, and the column reads straight behind the head.
 column is laid again each time the party token refreshes, from the stored
 trail, the move this client was told about (`moveToken`) and the token's live
 position (`liveTrail`), so the bodies follow the head around a corner while it
-walks. Every body's cell gets a translucent square in the party's tint, the
-head's under the token, and every body but the head its member's portrait; the
+walks. Every body gets a translucent square in the party's tint, centred on its
+point and as wide as its frontage (a cell while unspaced), the head's under the
+token, and every body but the head its member's portrait; the
 head's portrait is the token itself. The tint is the record's `columnColor`
 (the Order tab's Column tint), else the token's disposition colour. The drawing sits in `canvas.controls`, which fog does not mask, so a
 player's seat shows each body only where `canvas.visibility.testVisibility`
@@ -689,7 +726,7 @@ a GM sees the whole column. In `fixed` nothing is drawn.
 
 **Lights.** Every bearer still inside the party token who holds a lit,
 unshuttered source, or whose effects shed a magic light, sheds it from the
-centre of their own first cell, in both shapes (`columnLights`: each radius the
+point their first body stands on, in both shapes (`columnLights`: each radius the
 larger of lib's `emittedLight` over the bearer's flames and the `extraOf`
 callback, which `column-light.mjs` answers with lib's `effectLight` of the
 member's actor, so a member with only a magic light gives a point). A point
@@ -720,11 +757,20 @@ set at rest, read from the stored record, position and trail, for the Night
 Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is
 drawing.
 
-**Deploy and restore read the column.** A combat deploy and a grid restore lay
-everyone on the column's cells (`columnPlacement`) once the trail holds a step,
-or where a wall cuts the column laid without one; otherwise they lay the
-straight block, which shifts whole onto the scene where the column turns at
-its edge.
+**Deploy and restore read the column.** Unspaced, a combat deploy and a grid
+restore lay everyone on the column's cells (`columnPlacement`) once the trail
+holds a step, or where a wall cuts the column laid without one; otherwise they
+lay the straight block, which shifts whole onto the scene where the column
+turns at its edge. Spaced, they always lay the column, and each body's token
+stands on its point where it fits: the token's own width and height (a stack's
+bodies are one cell), centred on the point and shrunk a pixel, touches no wall
+that stops movement (an open door does not stop it, a one-way wall stops by its
+line whichever way it faces) and lies on the scene (`deploySpot`, `spotFits`).
+A token that does not fit stands on its body's one-per-cell cell, which is
+`cells` beside `points`; the rest of the column keeps its points. Another body
+standing there is not a misfit: bodies may overlap. Positions are whole pixels.
+Recalling a spaced deploy re-forms the party token on the cell corner nearest
+the first recalled token.
 
 ## Saved marching orders
 

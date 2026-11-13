@@ -21,6 +21,15 @@
  *       alone the Kit tab and the bearer's sheet say the figure is not
  *       imported; and "Supplying a light": a Judge's light on a bearer with no
  *       fuel hands over the largest stack its pattern matches.
+ *   "The column and its lights" 17-19, the column spaced as the book spaces it
+ *       (Ruledata Browser overrides of invented figures): the drawn squares,
+ *       the lights and the rank spacing on the points `columnFor` lays, files
+ *       at the sum of their half-frontages, a wide body, a deploy that stands a
+ *       token on its point where it fits and on its cell where a wall cuts it,
+ *       the combat tracker, a Player's drag snapping an off-grid token, and the
+ *       gather re-forming the party on a cell corner. Steps 1 to 16 are walked
+ *       with the figures read as not imported on both seats (a client-side
+ *       unregister), which is the one-per-cell column they describe.
  *   "The delve's wandering cadence" 1-5.
  *   "The rest switch" 1-4.
  *   The column's frontage figures: the three `formation` keys the Rules tables
@@ -379,7 +388,10 @@ const P = {
     const roots = canvas.controls.children.filter((c) => c.eventMode === "none" && c.children?.length && c.children.every((col) => col.children?.length && col.children.every((cell) => cell.children?.[0] instanceof PIXI.Graphics)));
     const columns = roots.flatMap((r) => r.children);
     const col = columns[0] ?? null;
-    const cells = col ? col.children.map((cell) => ({ x: Math.round(cell.position.x), y: Math.round(cell.position.y), v: !!cell.visible, tint: cell.children[0]?.geometry?.graphicsData?.[0]?.fillStyle?.color ?? null })) : [];
+    const cells = col ? col.children.map((cell) => {
+      const size = cell.children[0]?.scale?.x ?? canvas.scene.grid.size;
+      return { x: Math.round(cell.position.x), y: Math.round(cell.position.y), size, cx: cell.position.x + size / 2, cy: cell.position.y + size / 2, v: !!cell.visible, tint: cell.children[0]?.geometry?.graphicsData?.[0]?.fillStyle?.color ?? null };
+    }) : [];
     const lights = {};
     for (const [name, id] of Object.entries(bearers)) {
       const s = canvas.effects.lightSources.get(H.cl.columnLightId(fid, id));
@@ -424,7 +436,8 @@ const P = {
     const doc = token.document;
     const gs = canvas.scene.grid.size;
     const laid = C.columnFor(f, doc)?.cells ?? [];
-    const placed = (C.columnPlacement(f, doc) ?? []).flat();
+    const spots = (C.columnPlacement(f, doc) ?? []).flat();
+    const placed = spots.map((s) => s.cell);
     const blocked = C.wallTest(canvas.scene.walls, { level: doc.level, gs, near: { x: (box.x0 + box.x1) * gs / 2, y: (box.y0 + box.y1) * gs / 2 }, reach: (box.x1 - box.x0 + box.y1 - box.y0 + 4) * gs });
     const rect = canvas.dimensions.sceneRect;
     const onScene = (c) => c.x >= rect.x && c.y >= rect.y && c.x + gs <= rect.x + rect.width && c.y + gs <= rect.y + rect.height;
@@ -443,7 +456,49 @@ const P = {
         }
       }
     }
-    return { frontage: f.frontage, laid, placed, agree, differs: differ.length, differ: differ.slice(0, 8), walls: !!blocked };
+    return { frontage: f.frontage, laid, placed, spots: spots.map((s) => ({ point: s.point, cell: s.cell })), agree, differs: differ.length, differ: differ.slice(0, 8), walls: !!blocked };
+  },
+
+  /** Whether the column on this seat is spaced, and the spacing in pixels (the figures are the walk's invented overrides when it asks). */
+  spacingOf: async () => {
+    const H = globalThis.__col;
+    const sp = H.column.columnSpacing(canvas.scene);
+    return { spaced: !!sp, px: sp ? { march: sp.marchPx, wide: sp.widePx, interval: sp.intervalPx } : null };
+  },
+
+  /** The formation document's layers unregistered on this client alone, so the figures read as not imported: nothing persists. */
+  dropFrontage: async () => {
+    const H = globalThis.__col;
+    H.t.unregisterTable("formation", { priority: H.t.PRIORITY.WORLD });
+    H.t.unregisterTable("formation", { priority: H.t.PRIORITY.OVERRIDE });
+    await H.sleep(400);
+    return { gone: !H.t.hasDoc("formation"), spaced: !!H.column.columnSpacing(canvas.scene) };
+  },
+  /** The world's store mirrored back into this client's registry. */
+  reloadFormation: async () => {
+    const H = globalThis.__col;
+    await acksExtras.lib.services.get("ruledata-import").reload();
+    await H.sleep(600);
+    return { back: H.t.hasDoc("formation"), spaced: !!H.column.columnSpacing(canvas.scene) };
+  },
+
+  /** `columnFor` and the deploy's spots as they stand, for the spaced section; `weapon` puts a large slashing weapon on the first member for the wide read. */
+  spacedProbe: async ({ fid, tokenId, frontage }) => {
+    const H = globalThis.__col;
+    await H.model.patchFormation(fid, (r) => { r.frontage = frontage; });
+    await H.sleep(900);
+    const f = H.model.getFormation(fid);
+    const doc = canvas.tokens.get(tokenId).document;
+    const at = H.column.columnFor(f, doc);
+    const spots = (H.column.columnPlacement(f, doc) ?? []).flat();
+    return { points: at.points, sizes: at.sizes, cells: at.cells, spots: spots.map((s) => ({ point: s.point, cell: s.cell })) };
+  },
+
+  /** A large slashing weapon, equipped, on an actor, for the wide read: the item's uuid, to be tracked and swept. */
+  giveWeapon: async ({ actorId }) => {
+    const [item] = await game.actors.get(actorId).createEmbeddedDocuments("Item", [{ name: "QA Column Axe", type: "weapon", system: { equipped: true, melee: true, size: "large", damage: { base: { formula: "1d8", types: ["slashing"] } } } }]);
+    await globalThis.__col.sleep(600);
+    return { uuid: item?.uuid ?? null };
   },
 
   /** `drawn`, read again until each named light's presence is as wanted or the time runs out; `waited` is the ms it took. */
@@ -608,7 +663,7 @@ const P = {
     const f = H.model.getFormation(fid);
     const doc = game.scenes.get(sceneId).tokens.get(tokenId);
     const at = H.column.columnFor(f, doc);
-    return at ? H.cll.columnLights(f, at.cells, Number(doc.parent.grid.size)).map((p) => ({ bearer: p.bearerId, x: p.x, y: p.y })) : null;
+    return at ? H.cll.columnLights(f, at.points).map((p) => ({ bearer: p.bearerId, x: p.x, y: p.y })) : null;
   },
 
   /** A copy of the party token pasted on its scene, `api.track`ed by the caller from the id returned. */
@@ -725,7 +780,7 @@ const P = {
     const f = H.model.getFormation(fid);
     const t = H.model.getPartyToken(f);
     const place = H.column.columnPlacement(f, t);
-    return { trail: (t.getFlag("acks-extras", "trail")?.points ?? []).map((p) => `${p.x},${p.y}`), placement: place ? place.map((cs) => cs.map((c) => `${c.x},${c.y}`)) : null, rotation: t.rotation };
+    return { trail: (t.getFlag("acks-extras", "trail")?.points ?? []).map((p) => `${p.x},${p.y}`), placement: place ? place.map((cs) => cs.map((s) => `${s.cell.x},${s.cell.y}`)) : null, rotation: t.rotation };
   },
 
   /** One redraw of the token on this seat, as any move or refresh gives it. */
@@ -1105,6 +1160,14 @@ try {
   check("S1: the Rules tables import brought the march frontage, the wide frontage and the rank interval", Object.values(tables.frontage).every(Boolean), tables.frontage);
   check("S1: each of the three is cited to its page", Object.values(tables.frontageCite).every(Boolean), tables.frontageCite);
   const FRONTAGE_OVERRIDE = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
+  // A run that died before its put-back leaves this walk's own invented figures in the store; they are cleared, so "as found" is the Judge's.
+  for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) {
+    const left = (await run(gm, P.overrideGet, { docId: "formation", tableId })).data;
+    if ([2, 4, 1.5, 2.8].includes(left)) {
+      await run(gm, P.overrideSet, { docId: "formation", tableId, data: null });
+      note(`a leftover invented override of ${tableId} cleared`, true);
+    }
+  }
   for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) restore.overrides.push({ docId: "formation", tableId, data: (await run(gm, P.overrideGet, { docId: "formation", tableId })).data });
   for (const [tableId, data] of Object.entries(FRONTAGE_OVERRIDE)) await run(gm, P.overrideSet, { docId: "formation", tableId, data });
   check("S1: a Ruledata Browser override of the three keys is what the reader returns", (await run(gm, P.frontageIs, { want: FRONTAGE_OVERRIDE })).same);
@@ -1145,6 +1208,26 @@ try {
   check("start shape: frontage 1, shape and tint unset, nobody deployed, both lights lit and open, the head at the west end facing east", start.frontage === 1 && !start.tokenShape && !start.columnColor && !start.deployed && start.lights.length === 2 && start.lights.every((l) => l.lit && !l.shielded) && start.at.x === START.x && start.at.y === START.y && start.at.rotation === 270, start);
   if (restore.settings.partyTokenShape !== "order") await run(gm, P.setSetting, { key: "partyTokenShape", value: "order" });
 
+  // The not-imported pass: steps 1 to 16 below describe the column that stands
+  // one body to a cell, so both seats read the frontage figures as absent. A
+  // seat's reload and a mirror of the store each bring them back, and each is
+  // followed by another drop.
+  const notImported = async (label) => {
+    // A mirror of the store that the S1 overrides set going on another seat can land after a drop and register the document again: drop until a drop holds across a wait.
+    let seats = null;
+    for (let n = 0; n < 6; n++) {
+      seats = { gm: await run(gm, P.dropFrontage), player: await run(player, P.dropFrontage) };
+      await sleep(2500);
+      const again = { gm: await run(gm, P.dropFrontage), player: await run(player, P.dropFrontage) };
+      const held = (s) => s.gm.gone && !s.gm.spaced && s.player.gone && !s.player.spaced;
+      if (held(seats) && held(again)) { seats = again; break; }
+      seats = again;
+    }
+    note(`${label}: the frontage figures read as not imported`, seats);
+    return seats.gm.gone && !seats.gm.spaced && seats.player.gone && !seats.player.spaced;
+  };
+  check("not imported: both seats read the frontage figures as absent, so the column stands one body to a cell", await notImported("pass start"));
+
   // Step 1.
   await run(gm, P.sync);
   let ts = await run(gm, P.tokenState, { tokenId, sceneId: scene.id });
@@ -1159,6 +1242,7 @@ try {
 
   // Step 2: the Player seat drags the head east to the corner, then south to the corridor's end.
   check("the Player seat views the corridor", (await run(player, P.view, { sceneId: scene.id })).scene);
+  check("2: neither seat's column is spaced", !(await run(gm, P.spacingOf)).spaced && !(await run(player, P.spacingOf)).spaced);
   // Core refuses a Player's move while the game is paused; the pause is put back as found.
   restore.paused = await gm.eval(`game.paused`);
   if (restore.paused) await gm.eval(`(async () => { game.togglePause(false, { broadcast: true }); await new Promise((r) => setTimeout(r, 1000)); return game.paused; })()`);
@@ -1212,6 +1296,7 @@ try {
   // Step 3.
   note("player reloaded after (s)", await record(PORTS.player, "player", player));
   await run(player, P.install, { nonce: NONCE });
+  await run(player, P.dropFrontage);
   await run(player, P.view, { sceneId: scene.id });
   await sleep(1500);
   const after3 = await run(player, P.drawn, { fid, bearers });
@@ -1285,6 +1370,7 @@ try {
   const back = await run(gm, P.reloadLight);
   restore.lightDropped = !back.back;
   check("the light document is mirrored back from the world's store", back.back);
+  await notImported("after the light document is mirrored back");
   await run(gm, P.sync);
 
   section("the column and its lights, continued");
@@ -1310,6 +1396,7 @@ try {
   // Step 7.
   const before7 = await run(gm, P.drawn, { fid, bearers });
   note("7: what the deploy reads", await run(gm, P.placementProbe, { fid }));
+  check("7: the column is not spaced, so the deploy is the one-per-cell deploy", !(await run(gm, P.spacingOf)).spaced);
   const combats = await gm.eval(`game.combats.size`);
   note("combats in the world before the deploy", combats);
   const dep = await run(gm, P.deploy, { tokenId, sceneId: scene.id });
@@ -1451,6 +1538,7 @@ try {
   const w0 = await run(gm, P.columnStart, { fid, torchId: torch.id, lanternId: lantern.id, at: START });
   note("the Player seat after step 15's start", await run(player, P.errs));
   check("15: start shape: frontage 1, the head at the west end facing east, its trail reset by the turn", w0.frontage === 1 && w0.at.x === START.x && w0.at.y === START.y && w0.at.rotation === 270 && w0.trail <= 1, w0.at);
+  check("15: the column is not spaced", !(await run(gm, P.spacingOf)).spaced);
   await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "order" });
   // Facing east the right hand is south; the corridor is two rows tall, so a third file meets a wall on either hand.
   const w15 = await run(gm, P.walled, { fid, tokenId, frontage: 3, box: { x0: 0, y0: 0, x1: 7, y1: 7 } });
@@ -1481,6 +1569,107 @@ try {
   const w15r = await run(gm, P.walled, { fid, tokenId, frontage: 1, box: { x0: 0, y0: 0, x1: 0, y1: 0 } });
   await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "" });
   check("15: the frontage is put back to 1", w15r.frontage === 1, w15r.frontage);
+
+  /* ---------------- the column spaced as the book spaces it ---------------- */
+  section("the column spaced as the book spaces it");
+  const mirrored = { gm: await run(gm, P.reloadFormation), player: await run(player, P.reloadFormation) };
+  note("the store mirrored back on both seats (booleans)", mirrored);
+  check("17: the world's store is mirrored back on both seats", mirrored.gm.back && mirrored.player.back, mirrored);
+  // Invented figures, as a Judge's override of the three keys: 2 ft march, 4 ft wide, 1.5 ft between ranks, on 5 ft to 100 px.
+  const SPACED = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
+  const setFigures = async (figures) => { for (const [tableId, data] of Object.entries(figures)) await run(gm, P.overrideSet, { docId: "formation", tableId, data }); };
+  for (const tableId of Object.keys(SPACED)) restore.overrides.push({ docId: "formation", tableId, data: (await run(gm, P.overrideGet, { docId: "formation", tableId })).data });
+  await setFigures(SPACED);
+  const sp17 = await run(gm, P.spacingOf);
+  check("17: with the three figures set, the column is spaced: 40, 80 and 30 px at 5 ft to 100 px", sp17.spaced && sp17.px.march === 40 && sp17.px.wide === 80 && sp17.px.interval === 30, sp17);
+  await run(gm, P.columnStart, { fid, torchId: torch.id, lanternId: lantern.id, at: START });
+  await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "order" });
+  const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const at17 = (p, q) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
+  // Frontage 1, the head facing east: ranks stand west of it, an interval apart.
+  const pr1 = await run(gm, P.spacedProbe, { fid, tokenId, frontage: 1 });
+  await run(gm, P.redraw, { tokenId });
+  const g17 = await run(gm, P.drawn, { fid, bearers });
+  check("17: the drawn squares stand on the points `columnFor` lays, each 40 px wide", g17.cells.length === 3 && pr1.points.length === 3 && g17.cells.every((c, i) => at17({ x: c.cx, y: c.cy }, pr1.points[i]) && c.size === 40), { drawn: g17.cells.map((c) => ({ x: c.cx, y: c.cy, s: c.size })), points: pr1.points });
+  check("17: ranks stand one interval (30 px) apart along the way the head walked, not a cell", pr1.points.slice(1).every((p, i) => Math.abs(apart(pr1.points[i], p) - 30) < 0.01) && at17(pr1.points[0], { x: START.x + GS / 2, y: START.y + GS / 2 }), pr1.points);
+  check("17: the one-per-cell cells are still given beside the points", same(pr1.cells, [START, { x: START.x - GS, y: START.y }, { x: START.x - 2 * GS, y: START.y }]), pr1.cells);
+  check("17: each light shines from its bearer's point", at17({ x: g17.lights.torch?.x, y: g17.lights.torch?.y }, pr1.points[1]) && at17({ x: g17.lights.lantern?.x, y: g17.lights.lantern?.y }, pr1.points[2]), g17.lights);
+  // Frontage 2: the second body stands a half-frontage each past the first, south of it (east's right hand), and the third starts the next rank.
+  const pr2 = await run(gm, P.spacedProbe, { fid, tokenId, frontage: 2 });
+  const c0 = { x: START.x + GS / 2, y: START.y + GS / 2 };
+  check("17: two abreast stand 40 px apart across the way, and the third on the next rank", at17(pr2.points[0], c0) && at17(pr2.points[1], { x: c0.x, y: c0.y + 40 }) && at17(pr2.points[2], { x: c0.x - 30, y: c0.y }), pr2.points);
+  // A large slashing weapon equipped on the lead makes it a wide body.
+  const axe = await run(gm, P.giveWeapon, { actorId: lead.id });
+  if (axe.uuid) tracked.push(gm.track(axe.uuid, "Item"));
+  const prW = await run(gm, P.spacedProbe, { fid, tokenId, frontage: 2 });
+  check("17: a member with an equipped large slashing weapon is 80 px wide and widens its file", prW.sizes[0] === 80 && prW.sizes[1] === 40 && at17(prW.points[1], { x: c0.x, y: c0.y + 60 }), { sizes: prW.sizes, second: prW.points[1] });
+  if (axe.uuid) {
+    note("axe swept", await gm.sweepTracked({ only: [axe.uuid] }));
+    tracked.splice(tracked.indexOf(axe.uuid), 1);
+  }
+
+  // Step 18: a deploy stands each token on its point where it fits. 2.8 ft of march frontage, three abreast in the corridor two cells wide:
+  // the third file of the first rank stands 38 px short of the south wall, so its 100 px token touches it.
+  await setFigures({ marchFrontageFeet: 2.8 });
+  await run(gm, P.columnStart, { fid, torchId: torch.id, lanternId: lantern.id, at: START });
+  await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "order" });
+  const w18 = await run(gm, P.walled, { fid, tokenId, frontage: 3, box: { x0: 0, y0: 0, x1: -1, y1: -1 } });
+  // The footprint test, written here over the corridor's own walls: a wall (all axis-aligned) touches a rectangle when it lies within both its extents.
+  const touchesWall = (r) => WALLS.some(([x1, y1, x2, y2]) => (y1 === y2
+    ? r.minY <= y1 && y1 <= r.maxY && Math.max(r.minX, Math.min(x1, x2)) <= Math.min(r.maxX, Math.max(x1, x2))
+    : r.minX <= x1 && x1 <= r.maxX && Math.max(r.minY, Math.min(y1, y2)) <= Math.min(r.maxY, Math.max(y1, y2))));
+  const stands18 = w18.spots.map(({ point, cell }) => {
+    const box = { minX: point.x - 49, minY: point.y - 49, maxX: point.x + 49, maxY: point.y + 49 };
+    const fits = !touchesWall(box) && box.minX >= 0 && box.minY >= 0 && box.maxX <= 1200 && box.maxY <= 800;
+    return { fits, at: fits ? { x: Math.round(point.x - 50), y: Math.round(point.y - 50) } : cell };
+  });
+  check("18: three abreast in the corridor, the first two bodies' tokens fit at their points and the third's is cut by a wall", w18.spots.length === 3 && stands18.map((s) => s.fits).join() === "true,true,false", { fits: stands18.map((s) => s.fits), spots: w18.spots.map((s) => ({ point: s.point, cell: s.cell })) });
+  const dep18 = await run(gm, P.deploy, { tokenId, sceneId: scene.id });
+  tracked.push(gm.track(dep18.combatUuid, "Combat"));
+  const d18 = await run(gm, P.deployed, { fid, sceneId: scene.id, combatId: dep18.combatId });
+  const order18 = [lead.id, torch.id, lantern.id];
+  const tok18 = order18.map((id) => d18.members.find((m) => m.id === id)?.token ?? null);
+  const where18 = tok18.map((t, i) => !!t && t.x === stands18[i].at.x && t.y === stands18[i].at.y);
+  check("18: each deployed token stands on its point where it fits and on its own cell where a wall cuts it", d18.active && where18.every(Boolean), { where: where18, tokens: tok18.map((t) => t && key(t)), want: stands18.map((s) => key(s.at)) });
+  check("18: each deployed token is its own actor's, and one stands between cells", tok18.every((t, i) => t?.actor === order18[i]) && tok18.some((t) => t && (t.x % GS !== 0 || t.y % GS !== 0)), { own: tok18.map((t, i) => t?.actor === order18[i]), offGrid: tok18.map((t) => !!t && (t.x % GS !== 0 || t.y % GS !== 0)) });
+  check("18: the combat tracker holds every deployed token, the off-grid ones included", tok18.every((t) => !!t && d18.combatants?.includes(t.id)), { combatants: d18.combatants?.length, tokens: tok18.map((t) => !!t) });
+
+  // Step 19: a Player drags an off-grid token; it snaps to the grid.
+  const sheet19 = tok18[1];
+  restore.paused = await gm.eval(`game.paused`);
+  if (restore.paused) await gm.eval(`(async () => { game.togglePause(false, { broadcast: true }); await new Promise((r) => setTimeout(r, 1000)); return game.paused; })()`);
+  const input19 = await rawInput(PORTS.player);
+  let drag19 = null;
+  try {
+    // A window left open on the seat takes the press, so compose clears it; with a combat open, a seat whose sidebar is closed
+    // throws in the combat tracker on a token's move, so the sidebar comes back.
+    await player.compose();
+    await run(player, P.sidebarBack);
+    const from19 = { x: sheet19.x + GS / 2, y: sheet19.y + GS / 2 };
+    const aim19 = await run(player, P.aim, { tokenId: sheet19.id, points: [from19, { x: from19.x + GS, y: from19.y }] });
+    if (!aim19.owner) throw new Error("the Player seat does not own the deployed token");
+    await input19.click(aim19.points[0]);
+    await sleep(2500);
+    await run(player, P.probeStart, { tokenId: sheet19.id, at: aim19.points[0] });
+    await input19.drag(aim19.points[0], aim19.points[1]);
+    await sleep(4500);
+    note("19: what the drag reached", await run(player, P.probeStop));
+    drag19 = await run(gm, P.tokenState, { tokenId: sheet19.id, sceneId: scene.id });
+  } catch (err) {
+    note("19: the drag did not run", String(err?.message ?? err));
+  } finally {
+    input19.close();
+    if (restore.paused) { await gm.eval(`(async () => { game.togglePause(true, { broadcast: true }); await new Promise((r) => setTimeout(r, 800)); return game.paused; })()`); restore.paused = false; }
+  }
+  check("19: a Player's drag of the off-grid token moves it and snaps it onto the grid", !!drag19 && !drag19.gone && drag19.x % GS === 0 && drag19.y % GS === 0 && (drag19.x !== sheet19.x || drag19.y !== sheet19.y), drag19 && { x: drag19.x, y: drag19.y, moved: drag19.x !== sheet19.x || drag19.y !== sheet19.y });
+  const end18 = await run(gm, P.endCombat, { combatId: dep18.combatId });
+  const g18b = await run(gm, P.deployed, { fid, sceneId: scene.id, combatId: dep18.combatId });
+  const ts18 = await run(gm, P.tokenState, { tokenId, sceneId: scene.id });
+  check("19: ending the fight gathers the party, and the party token re-forms on a cell corner", end18.gone && !g18b.partyHidden && g18b.members.every((m) => !m.token) && ts18.x % GS === 0 && ts18.y % GS === 0, { gone: end18.gone, x: ts18.x, y: ts18.y });
+  await run(gm, P.walled, { fid, tokenId, frontage: 1, box: { x0: 0, y0: 0, x1: -1, y1: -1 } });
+  await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "" });
+  for (const _ of Object.keys(SPACED)) await run(gm, P.overrideSet, restore.overrides.pop());
+  check("17: the overrides cleared, the column reads the world's own figures again", (await run(gm, P.tables)).frontage.marchFrontageFeet);
 
   /* ---------------- the delve's wandering cadence ---------------- */
   section("the delve's wandering cadence");

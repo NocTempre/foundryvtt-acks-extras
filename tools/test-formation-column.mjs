@@ -16,6 +16,7 @@ const { HEADINGS, formationOffset } = await import("../scripts/formation/formati
 const column = await import("../scripts/formation/column.mjs");
 const { columnCells, memberCells, extendTrail, nextTrail, pathCells, trailBound, trailDecision, usableTrail, cellUnder, stepCells } = column;
 const { columnLights } = await import("../scripts/formation/column-light-logic.mjs");
+const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const tables = await import("../scripts/lib/tables.mjs");
 const { LIGHT_DOC, LIGHT_TABLE } = await import("../scripts/lib/light.mjs");
 
@@ -38,6 +39,10 @@ const party = (count, frontage) => ({
 });
 /** A cell `cx`,`cy` cells from the origin. */
 const at = (cx, cy) => ({ x: cx * GS, y: cy * GS });
+/** A deploy spot standing on a cell alone, as an unspaced column gives it. */
+const spot = (cell) => ({ point: null, cell });
+/** A cell's centre. */
+const ctr = (cell) => column.cellCentre(cell, GS);
 
 /* -------------------------------------------- */
 /*  A straight column                           */
@@ -309,14 +314,14 @@ test("a deploy takes the column's cells only once the trail has a step", () => {
   assert.equal(column.columnPlacement(f, partyToken(sq, 4, 4, { sceneId: "other", points: [at(4, 4), at(3, 4)] })), null, "a trail from another scene");
   assert.equal(column.columnPlacement(f, partyToken(scene("h", { type: 2 }), 4, 4, { sceneId: "h", points: [at(4, 4), at(3, 4)] })), null, "no column on a hex map");
   const bent = column.columnPlacement(f, partyToken(sq, 4, 4, { sceneId: "s", points: [at(4, 4), at(4, 3), at(3, 3)] }));
-  assert.deepEqual(bent, [[at(4, 4)], [at(4, 3)], [at(3, 3)]], "one cell list per member, along the bend");
+  assert.deepEqual(bent, [[spot(at(4, 4))], [spot(at(4, 3))], [spot(at(3, 3))]], "one spot list per member, along the bend, none standing off its cell");
 });
 
 test("a deploy that walked nowhere lays the column where a wall cuts the block, and the block where none does", () => {
   const f = party(2, 2);
   // Rotation 180 faces north: the files spread east.
   const cut = { ...scene("w"), walls: [wallX(5)] };
-  assert.deepEqual(column.columnPlacement(f, partyToken(cut, 4, 4, null, 180)), [[at(4, 4)], [at(3, 4)]], "the second file steps west of the wall");
+  assert.deepEqual(column.columnPlacement(f, partyToken(cut, 4, 4, null, 180)), [[spot(at(4, 4))], [spot(at(3, 4))]], "the second file steps west of the wall");
   const far = { ...scene("f"), walls: [wallX(20)] };
   assert.equal(column.columnPlacement(f, partyToken(far, 4, 4, null, 180)), null, "a wall the block never meets");
 });
@@ -327,6 +332,189 @@ test("columnFor reads the scene's walls on the party token's level", () => {
   const tok = (level) => ({ ...partyToken(sc, 4, 4, null, 180), level });
   assert.deepEqual(column.columnFor(f, tok("upper")).cells, [at(4, 4), at(3, 4)]);
   assert.deepEqual(column.columnFor(f, tok("ground")).cells, [at(4, 4), at(5, 4)]);
+});
+
+/* -------------------------------------------- */
+/*  The column spaced as the book spaces it     */
+/* -------------------------------------------- */
+
+// Invented figures, registered the way an import registers them: 2 ft of march
+// frontage, 4 ft wide, 1.5 ft between ranks, on a grid of 5 ft to 100 px.
+const FIGURES = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
+const withFigures = (figures, fn) => {
+  tables.registerTable({ id: FORMATION_DOC, tables: figures }, { priority: tables.PRIORITY.WORLD });
+  try {
+    return fn();
+  } finally {
+    tables.unregisterTable(FORMATION_DOC);
+  }
+};
+/** A 5 ft grid scene, so 2 / 4 / 1.5 ft are 40 / 80 / 30 px. */
+const spaced = (id, extra = {}) => ({ ...scene(id, { distance: 5 }), ...extra });
+/** The spacing literal the pure layout takes, in pixels. */
+const SPACING = { marchPx: 40, widePx: 80, intervalPx: 30 };
+const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} is not ${b}`);
+const pointsAre = (got, want) => {
+  assert.equal(got.length, want.length);
+  got.forEach((p, i) => {
+    near(p.x, want[i].x);
+    near(p.y, want[i].y);
+  });
+};
+
+test("the spacing needs all three figures and a scene that says what a cell is worth", () => {
+  assert.equal(column.columnSpacing(spaced("s")), null, "nothing registered");
+  withFigures(FIGURES, () => {
+    assert.deepEqual(column.columnSpacing(spaced("s")), { march: 2, wide: 4, interval: 1.5, feetPerCell: 5, marchPx: 40, widePx: 80, intervalPx: 30 });
+    assert.equal(column.columnSpacing({ id: "n", grid: { type: 1, size: GS } }), null, "a scene with no cell distance");
+  });
+  withFigures({ marchFrontageFeet: 2, wideFrontageFeet: 4 }, () => assert.equal(column.columnSpacing(spaced("s")), null, "two of the three"));
+  withFigures({ ...FIGURES, rankIntervalFeet: 0 }, () => assert.equal(column.columnSpacing(spaced("s")), null, "a figure of nothing"));
+});
+
+test("ranks stand an interval apart along the line, not a cell", () => {
+  const f = party(4, 1);
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING }), [0, 30, 60, 90].map((d) => ({ x: 550, y: 550 + d })));
+});
+
+test("files stand at the sum of their half-frontages, and a wide body widens its file", () => {
+  const f = party(3, 3);
+  // Facing north the right hand is east.
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING }), [{ x: 550, y: 550 }, { x: 590, y: 550 }, { x: 630, y: 550 }]);
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING, wide: [false, true, false] }), [{ x: 550, y: 550 }, { x: 610, y: 550 }, { x: 670, y: 550 }]);
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING, wide: [true, false, false] }), [{ x: 550, y: 550 }, { x: 610, y: 550 }, { x: 650, y: 550 }]);
+});
+
+test("a file a wall shuts out takes the other hand, and one neither hand reaches goes to the next rank", () => {
+  const f = party(3, 3);
+  const one = column.nearWalls([wallX(6)], { near: { x: 550, y: 550 }, reach: 2000 });
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING, walls: one }), [{ x: 550, y: 550 }, { x: 510, y: 550 }, { x: 470, y: 550 }]);
+  const both = column.nearWalls([wallX(5), wallX(6)], { near: { x: 550, y: 550 }, reach: 2000 });
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING, walls: both }), [{ x: 550, y: 550 }, { x: 550, y: 580 }, { x: 550, y: 610 }]);
+  const edge = { minX: 0, minY: 0, maxX: 500, maxY: 900 };
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: SPACING, bounds: edge }), [{ x: 550, y: 550 }, { x: 510, y: 550 }, { x: 470, y: 550 }]);
+});
+
+test("the line bends where the trail does, and files follow the way each rank walks", () => {
+  const f = party(4, 1);
+  const trail = [at(7, 7), at(7, 6), at(7, 5), at(6, 5), at(5, 5)];
+  const wide = { marchPx: 40, widePx: 80, intervalPx: 70 };
+  // 70 px a rank: 70 down the first leg, 140 reaches 40 into the second, 210 is 10 into the third.
+  pointsAre(column.columnPoints(f, { anchor: at(7, 7), trail, heading: "south", gs: GS, spacing: wide }), [{ x: 750, y: 750 }, { x: 750, y: 680 }, { x: 750, y: 610 }, { x: 740, y: 550 }]);
+  const two = party(2, 2);
+  // A rank walking east has its right hand to the south: the second file stands 40 px south.
+  pointsAre(column.columnPoints(two, { anchor: at(7, 5), trail: [at(7, 5), at(6, 5)], heading: "east", gs: GS, spacing: { ...SPACING, intervalPx: 70 }, count: 2 }), [{ x: 750, y: 550 }, { x: 750, y: 590 }]);
+});
+
+test("a body is wide with an equipped large melee weapon that crushes or cuts and does not pierce", () => {
+  const weapon = (system) => ({ type: "weapon", system: { equipped: true, melee: true, size: "large", damage: { base: { types: ["slashing"] }, alternate: { types: [] } }, ...system } });
+  const wields = (...items) => column.isWideBearer({ items });
+  assert.equal(wields(weapon({})), true, "a large slashing weapon");
+  assert.equal(wields(weapon({ damage: { base: { types: new Set(["bludgeoning"]) }, alternate: { types: [] } } })), true, "a large bludgeoning one, types held as a set");
+  assert.equal(wields(weapon({ damage: { base: { types: ["slashing"] }, alternate: { types: ["piercing"] } } })), false, "one that also pierces");
+  assert.equal(wields(weapon({ damage: { base: { types: ["piercing"] }, alternate: { types: [] } } })), false, "a piercing one");
+  assert.equal(wields(weapon({ equipped: false })), false, "not equipped");
+  assert.equal(wields(weapon({ size: "medium" })), false, "not large");
+  assert.equal(wields(weapon({ melee: false })), false, "not a melee weapon");
+  assert.equal(wields({ type: "item", system: { equipped: true, melee: true, size: "large", damage: { base: { types: ["slashing"] } } } }), false, "not a weapon");
+  assert.equal(column.isWideBearer(null), false, "nobody");
+  globalThis.game.actors = new Map([["w", { id: "w", items: [weapon({})] }], ["g", { id: "g", type: "acks-extras.group", system: { stacks: [{ size: { current: 2 } }] }, items: [weapon({})] }]]);
+  try {
+    const f = { frontage: 2, members: [{ actorId: "w" }, { blank: true }, { actorId: "g" }, { actorId: "x" }] };
+    assert.deepEqual(column.bodyWides(f), [true, false, false, false, false], "a stack's bodies, a blank and an unknown actor march");
+  } finally {
+    globalThis.game.actors = new Map();
+  }
+});
+
+test("a scene with nothing registered lays today's column: points are the cells' centres, one cell wide", () => {
+  const sq = spaced("s");
+  const f = party(3, 1);
+  const tok = partyToken(sq, 7, 7, { sceneId: "s", points: [at(7, 7), at(7, 6), at(6, 6)] });
+  const out = column.columnFor(f, tok);
+  assert.deepEqual(out.cells, [at(7, 7), at(7, 6), at(6, 6)]);
+  assert.deepEqual(out.points, out.cells.map(ctr));
+  assert.deepEqual(out.sizes, [GS, GS, GS]);
+  assert.deepEqual(column.columnPlacement(f, tok), out.cells.map((cell) => [spot(cell)]));
+  for (const sc of [scene("h", { type: 2 }), scene("m", { units: "mi", distance: 6 })]) {
+    const none = column.columnFor(f, partyToken(sc, 2, 2));
+    assert.deepEqual(none.points, [ctr(at(2, 2)), ctr(at(2, 2)), ctr(at(2, 2))], `${sc.id}: no column, every body at the head`);
+  }
+});
+
+test("a spaced scene answers points and widths, and keeps the one-per-cell cells beside them", () => {
+  withFigures(FIGURES, () => {
+    const sq = spaced("s");
+    const f = party(3, 1);
+    const tok = partyToken(sq, 7, 7, { sceneId: "s", points: [at(7, 7), at(7, 6), at(6, 6)] });
+    const out = column.columnFor(f, tok);
+    assert.deepEqual(out.cells, [at(7, 7), at(7, 6), at(6, 6)], "the cells a world with no figures stands on");
+    pointsAre(out.points, [{ x: 750, y: 750 }, { x: 750, y: 720 }, { x: 750, y: 690 }]);
+    assert.deepEqual(out.sizes, [40, 40, 40]);
+    assert.deepEqual(out.head, at(7, 7));
+    for (const sc of [scene("h", { type: 2, distance: 5 }), scene("m", { units: "mi", distance: 6 })]) {
+      assert.equal(column.columnFor(f, partyToken(sc, 2, 2)).column, false, `${sc.id} lays no column even with figures`);
+    }
+  });
+});
+
+test("a spaced deploy with no step walked is still the column, never the straight block", () => {
+  withFigures(FIGURES, () => {
+    const f = party(2, 1);
+    const placed = column.columnPlacement(f, partyToken(spaced("s"), 4, 4));
+    assert.equal(placed.length, 2);
+    pointsAre(placed.map(([s]) => s.point), [{ x: 450, y: 450 }, { x: 450, y: 420 }]);
+    assert.deepEqual(placed.map(([s]) => s.cell), [at(4, 4), at(4, 3)], "each body's one-per-cell cell, behind the facing");
+  });
+});
+
+test("a deploy stands the token on its point where it fits, and on its own cell where it does not", () => {
+  const cellOf = at(5, 5);
+  const point = { x: 560, y: 540 };
+  const opts = (w, h, fits) => ({ w, h, gs: GS, fits });
+  const on = (fits, w = 1, h = 1) => column.deploySpot({ point, cell: cellOf }, opts(w, h, fits));
+  assert.deepEqual(on(() => true), { x: 510, y: 490 }, "open ground: the token centred on the point");
+  assert.deepEqual(on(() => false), cellOf, "a wall cuts it: its own cell");
+  assert.deepEqual(column.deploySpot({ point: null, cell: cellOf }, opts(1, 1, () => true)), cellOf, "no point: its own cell");
+  assert.deepEqual(on(null), cellOf, "no footprint test: its own cell");
+  const seen = [];
+  on((box) => (seen.push(box), true));
+  assert.deepEqual(seen[0], { minX: 511, minY: 491, maxX: 609, maxY: 589 }, "the footprint is shrunk a pixel on every side");
+  assert.deepEqual(on(() => true, 2, 2), { x: 460, y: 440 }, "a token two cells wide is centred by its own size");
+});
+
+test("the footprint test: a wall touching the token cuts it, a token flush against a wall fits, a 2x2 fits at 1x1 but not at its own size", () => {
+  withFigures(FIGURES, () => {
+    const f = party(1, 1);
+    const fitsAgainst = (walls, scn = {}) => column.spotFits(f, partyToken({ ...spaced("d", { walls }), ...scn }, 5, 5));
+    const put = (fits, w, h) => column.deploySpot({ point: { x: 550, y: 550 }, cell: at(5, 5) }, { w, h, gs: GS, fits });
+    assert.deepEqual(put(fitsAgainst([wallX(20)]), 1, 1), { x: 500, y: 500 }, "no wall near");
+    assert.deepEqual(put(fitsAgainst([wallX(6)]), 1, 1), { x: 500, y: 500 }, "flush against a wall");
+    assert.deepEqual(put(fitsAgainst([wallX(5.8)]), 1, 1), at(5, 5), "a wall through the token's footprint: the cell");
+    assert.deepEqual(put(fitsAgainst([wallX(6.4)]), 1, 1), { x: 500, y: 500 }, "a wall past the footprint");
+    assert.deepEqual(put(fitsAgainst([wallX(6.4)]), 2, 2), at(5, 5), "the same wall touches a token twice the size");
+    assert.deepEqual(put(fitsAgainst([wallX(5.8, { door: 1, ds: 1 })]), 1, 1), { x: 500, y: 500 }, "an open door stops nothing");
+    assert.deepEqual(put(fitsAgainst([wallX(5.8, { dir: 2 })]), 1, 1), at(5, 5), "a one-way wall stops by its line, whichever way it faces");
+    assert.deepEqual(put(fitsAgainst([wallX(5.8, { move: 0 })]), 1, 1), { x: 500, y: 500 }, "a wall that stops no one");
+    const small = { dimensions: { sceneRect: { x: 0, y: 0, width: 600, height: 600 } } };
+    assert.deepEqual(put(fitsAgainst([], small), 1, 1), { x: 500, y: 500 }, "a token flush with the scene's edge fits");
+    assert.deepEqual(put(fitsAgainst([], { dimensions: { sceneRect: { x: 0, y: 0, width: 580, height: 600 } } }), 1, 1), at(5, 5), "a token past the scene's edge does not");
+  });
+});
+
+test("the trail bound grows only past a cell per body", () => {
+  const f = party(6, 2);
+  assert.equal(trailBound(f), 7, "no scene: one per body and one more");
+  withFigures(FIGURES, () => assert.equal(trailBound(f, spaced("s")), 7, "an interval under a cell keeps one per body"));
+  withFigures({ ...FIGURES, rankIntervalFeet: 5 }, () => assert.equal(trailBound(f, spaced("s")), 7, "an interval of a cell keeps one per body"));
+  withFigures({ ...FIGURES, rankIntervalFeet: 7.5 }, () => assert.equal(trailBound(f, spaced("s")), 10, "an interval of one and a half cells reaches nine cells"));
+  assert.equal(trailBound(f, spaced("s")), 7, "nothing registered");
+});
+
+test("a column longer than its trail runs on straight to reach every rank", () => {
+  const f = party(4, 1);
+  const long = { marchPx: 40, widePx: 80, intervalPx: 150 };
+  pointsAre(column.columnPoints(f, { anchor: at(5, 5), heading: "north", gs: GS, spacing: long }), [0, 150, 300, 450].map((d) => ({ x: 550, y: 550 + d })));
 });
 
 /* -------------------------------------------- */
@@ -345,7 +533,7 @@ test("two bearers give two light points, each at its bearer's cell centre", () =
     { id: "l2", type: "lantern", bearerId: "c", lit: true },
   ] };
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
-  const points = columnLights(f, cells, GS);
+  const points = columnLights(f, cells.map(ctr));
   assert.deepEqual(points.map((p) => p.bearerId), ["a", "c"]);
   assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 7, dim: 11, kind: "flame" });
   assert.deepEqual(points[1], { bearerId: "c", x: 550, y: 750, bright: 9, dim: 13, kind: "flame" });
@@ -358,17 +546,17 @@ test("a member's effect light gives a point, and joins a flame at the larger of 
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
   // Invented reaches: "b" has nothing but an effect, "a" a flame beaten by one, "c" nothing at all.
   const reach = { a: { bright: 20, dim: 8 }, b: { bright: 15, dim: 30 }, c: { bright: 0, dim: 0 } };
-  const points = columnLights(f, cells, GS, (id) => reach[id]);
+  const points = columnLights(f, cells.map(ctr), (id) => reach[id]);
   assert.deepEqual(points.map((p) => p.bearerId), ["a", "b"]);
   assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 20, dim: 11, kind: "magic" });
   assert.deepEqual(points[1], { bearerId: "b", x: 550, y: 650, bright: 15, dim: 30, kind: "magic" });
-  assert.deepEqual(columnLights(f, cells, GS, () => null).map((p) => p.bearerId), ["a"], "no effect light leaves the flame alone");
+  assert.deepEqual(columnLights(f, cells.map(ctr), () => null).map((p) => p.bearerId), ["a"], "no effect light leaves the flame alone");
 });
 
 test("a deployed member's effect light is not the column's", () => {
   const f = { frontage: 1, members: [{ actorId: "a", deployedTokenId: "t1" }], lights: [] };
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
-  assert.deepEqual(columnLights(f, cells, GS, () => ({ bright: 10, dim: 20 })), []);
+  assert.deepEqual(columnLights(f, cells.map(ctr), () => ({ bright: 10, dim: 20 })), []);
 });
 
 test("a deployed bearer and a shuttered lantern shed nothing in the column", () => {
@@ -377,14 +565,14 @@ test("a deployed bearer and a shuttered lantern shed nothing in the column", () 
     { id: "l2", type: "lantern", bearerId: "b", lit: true, shielded: true },
   ] };
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
-  assert.deepEqual(columnLights(f, cells, GS), []);
+  assert.deepEqual(columnLights(f, cells.map(ctr)), []);
 });
 
 test("with no light figures imported a lit torch sheds nothing", () => {
   tables.unregisterTable(LIGHT_DOC);
   const f = { frontage: 1, members: [{ actorId: "a" }], lights: [{ id: "l1", type: "torch", bearerId: "a", lit: true }] };
   const cells = columnCells(f, { anchor: at(1, 1), heading: "north", gs: GS });
-  assert.deepEqual(columnLights(f, cells, GS), []);
+  assert.deepEqual(columnLights(f, cells.map(ctr)), []);
 });
 
 {
@@ -409,6 +597,10 @@ test("with no light figures imported a lit torch sheds nothing", () => {
   assert.equal(laid, 1, "removing a layer that was never there changes nothing");
   tables.unregisterTable(LIGHT_DOC);
   assert.equal(laid, 2, "removing the document lays them again");
+  tables.registerTable({ id: FORMATION_DOC, tables: FIGURES });
+  assert.equal(laid, 3, "registered frontage figures lay the columns again");
+  tables.unregisterTable(FORMATION_DOC);
+  assert.equal(laid, 4, "removing them lays the columns again");
   tables.unregisterTable("invented-other");
   delete globalThis.Hooks;
   delete globalThis.canvas;

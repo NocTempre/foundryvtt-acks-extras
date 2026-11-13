@@ -18,13 +18,23 @@
  * No Foundry dependency in the layout: grid size, bounds, the trail and the
  * wall test come in as arguments, so the offline suite drives every case.
  *
- * Points are cell TOP-LEFT corners in scene pixels, the position a 1×1 token
- * stores; a centre is `cellCentre`.
+ * Two layouts share the spine of cells the trail gives. `columnCells` stands
+ * one body per cell, the layout of a world with no frontage figures imported.
+ * `columnPoints` spaces the bodies as the book spaces them (RR ch. 6, "Combatant
+ * Frontage and Interval"): rank r stands r intervals along the line through the
+ * spine's cell centres, and files spread either side of that point at the sum
+ * of their half-frontages. `columnFor` answers both: `cells` is always the
+ * one-per-cell layout, `points` the centres the bodies stand on, which are the
+ * cells' centres while nothing is spaced.
+ *
+ * Cells are TOP-LEFT corners in scene pixels, the position a 1×1 token stores;
+ * a centre is `cellCentre`. Points are centres.
  */
-import { cellBodies, formationBodies, getFrontage, HEADING_QUADRANTS, HEADINGS, sceneBounds, snapHeading } from "./formation-model.mjs";
-import { FLAG_TRAIL, MODULE_ID } from "./constants.mjs";
-import { isExpeditionScale } from "../lib/distance-units.mjs";
-import { segmentCrossing } from "../lib/wall-geometry.mjs";
+import { cellBodies, formationBodies, getFrontage, getMemberActor, HEADING_QUADRANTS, HEADINGS, sceneBounds, snapHeading } from "./formation-model.mjs";
+import { FLAG_TRAIL, MODULE_ID, formationValue } from "./constants.mjs";
+import { isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { segmentCrossing, segmentTouchesRect } from "../lib/wall-geometry.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 
 /** A step's sign along one axis: -1, 0 or 1. */
 const sign = (n) => (n > 0 ? 1 : n < 0 ? -1 : 0);
@@ -84,12 +94,46 @@ export function pathCells(waypoints, gs) {
 }
 
 /**
+ * The figures that space a column on `scene`, in feet as imported and in pixels
+ * at the scene's scale, or null: the spacing needs all three frontage figures
+ * and a scene that says what a cell is worth, and without either the column
+ * stands one body per cell.
+ * @returns {{march: number, wide: number, interval: number, feetPerCell: number,
+ *   marchPx: number, widePx: number, intervalPx: number}|null}
+ */
+export function columnSpacing(scene) {
+  const march = Number(formationValue("marchFrontageFeet"));
+  const wide = Number(formationValue("wideFrontageFeet"));
+  const interval = Number(formationValue("rankIntervalFeet"));
+  const feetPerCell = sceneFeetPerCell(scene);
+  const gs = Number(scene?.grid?.size);
+  if (!(march > 0 && wide > 0 && interval > 0 && feetPerCell > 0 && gs > 0)) return null;
+  const px = (feet) => (feet / feetPerCell) * gs;
+  return { march, wide, interval, feetPerCell, marchPx: px(march), widePx: px(wide), intervalPx: px(interval) };
+}
+
+/**
+ * How many cells the spine of a spaced column needs to reach its last rank: the
+ * ranks' span along the line, in cells, and the cell it ends on.
+ */
+function spineCells(bodies, spacing, gs) {
+  return Math.max(1, Math.ceil((Math.max(0, bodies - 1) * spacing.intervalPx) / gs) + 1);
+}
+
+/**
  * How many cells a party's trail keeps: one per body behind the head, since a
  * column squeezed to single file is that deep, and the cell before the oldest,
- * so the last rank still knows which way it walked.
+ * so the last rank still knows which way it walked. Where `scene` spaces the
+ * column, a rank interval wider than a cell stretches the column past one cell
+ * per body, and the trail keeps the cells that reach.
+ * @param {object} formation
+ * @param {object|null} [scene] the party token's scene
  */
-export function trailBound(formation) {
-  return formationBodies(formation) + 1;
+export function trailBound(formation, scene = null) {
+  const bodies = formationBodies(formation);
+  const spacing = scene ? columnSpacing(scene) : null;
+  if (!spacing) return bodies + 1;
+  return Math.ceil((bodies * Math.max(spacing.interval, spacing.feetPerCell)) / spacing.feetPerCell) + 1;
 }
 
 /**
@@ -287,6 +331,127 @@ export function columnCells(formation, { anchor, trail = null, heading = "south"
   return out;
 }
 
+/**
+ * Whether a member stands wide: an individual whose equipped melee weapon is
+ * large and deals bludgeoning or slashing damage, and none that pierces. Read
+ * off the weapon's own fields; an actor with no such weapon, a blank and a
+ * stack's bodies march.
+ * @param {Actor|null} actor
+ */
+export function isWideBearer(actor) {
+  for (const item of actor?.items ?? []) {
+    const system = item?.system;
+    if (item?.type !== ITEM_TYPE.weapon || !system?.equipped || !system?.melee || system.size !== "large") continue;
+    const types = new Set([...(system.damage?.base?.types ?? []), ...(system.damage?.alternate?.types ?? [])]);
+    if ((types.has("bludgeoning") || types.has("slashing")) && !types.has("piercing")) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether each body of the formation stands wide, in body order: a stack's
+ * bodies and a blank march, an individual by `isWideBearer`.
+ * @returns {boolean[]}
+ */
+export function bodyWides(formation) {
+  const out = [];
+  for (const member of formation?.members ?? []) {
+    const n = cellBodies(member);
+    const wide = n === 1 && !member?.blank && !!member?.actorId && isWideBearer(getMemberActor(member));
+    for (let i = 0; i < n; i++) out.push(wide);
+  }
+  return out;
+}
+
+/**
+ * The line through a spine's cell centres, read by distance from its head:
+ * the point at `distance`, and the cardinal the column walks there (rank 0
+ * toward the cell ahead of it, every later stretch into the cell it leaves).
+ * Past the line's end the last point stands.
+ */
+function lineAlong(spineCellsList, gs, fallback) {
+  const centres = spineCellsList.map(({ cell }) => cellCentre(cell, gs));
+  const heads = centres.slice(0, -1).map((c, k) => headingOf(c.x - centres[k + 1].x, c.y - centres[k + 1].y, spineCellsList[k].heading ?? fallback));
+  return (distance) => {
+    if (centres.length < 2) return { point: centres[0], heading: spineCellsList[0]?.heading ?? fallback };
+    let rest = Math.max(0, distance);
+    for (let k = 0; k < centres.length - 1; k++) {
+      const a = centres[k];
+      const b = centres[k + 1];
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      if (rest < length || k === centres.length - 2) {
+        const t = length ? Math.min(rest, length) / length : 0;
+        return { point: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, heading: heads[k] };
+      }
+      rest -= length;
+    }
+    return { point: centres.at(-1), heading: heads.at(-1) };
+  };
+}
+
+/**
+ * Where every body of the column stands when the book spaces it, in body order
+ * (rank by rank, file by file), as centres in scene pixels.
+ *
+ * Rank r stands at r × interval along the line through the spine's cell
+ * centres from the head. A rank's first body stands on that point; the files
+ * after it go to the right hand, then the left, each centred a half-frontage
+ * past the body before it. A file is open when its far edge stays on the scene
+ * and no wall that stops movement lies between the body before it and that
+ * edge; a body no hand reaches goes to the next rank. At most `frontage` bodies
+ * stand to a rank.
+ *
+ * @param {object} formation the record (frontage and members)
+ * @param {object} opts
+ * @param {{x: number, y: number}} opts.anchor the head's cell
+ * @param {{x: number, y: number}[]} [opts.trail] newest first, from `usableTrail`
+ * @param {string|number} [opts.heading] a HEADINGS key, or a token rotation
+ * @param {number} opts.gs grid size in pixels
+ * @param {{minX: number, minY: number, maxX: number, maxY: number}|null} [opts.bounds]
+ *   the corners a 1×1 token may occupy; the scene's rectangle follows from it
+ * @param {((from: {x: number, y: number}, to: {x: number, y: number}) => boolean)|null} [opts.blocked]
+ *   the cell wall test the spine turns by
+ * @param {{c: number[], dir: number}[]} [opts.walls] the movement walls near the column (`movementWalls`)
+ * @param {{marchPx: number, widePx: number, intervalPx: number}} opts.spacing `columnSpacing`
+ * @param {boolean[]} [opts.wide] whether each body stands wide (`bodyWides`)
+ * @param {number} [opts.count] bodies to place; the whole formation by default
+ * @returns {{x: number, y: number}[]}
+ */
+export function columnPoints(formation, { anchor, trail = null, heading = "south", gs, bounds = null, blocked = null, walls = [], spacing, wide = [], count } = {}) {
+  if (!(gs > 0) || !anchor || !spacing) return [];
+  const facing = HEADINGS[heading] ? heading : snapHeading(heading);
+  const bodies = count ?? formationBodies(formation);
+  const frontage = getFrontage(formation);
+  const onScene = (p) => !bounds || (p.x >= bounds.minX && p.x <= bounds.maxX + gs && p.y >= bounds.minY && p.y <= bounds.maxY + gs);
+  const inside = (c) => !bounds || (c.x >= bounds.minX && c.x <= bounds.maxX && c.y >= bounds.minY && c.y <= bounds.maxY);
+  const open = (from, to) => inside(to) && !blocked?.(from, to);
+  const walked = trail?.length && sameCell(trail[0], anchor) ? trail : [anchor];
+  const line = lineAlong(spine(walked, spineCells(bodies, spacing, gs), facing, gs, open), gs, facing);
+  const half = (body) => (wide[body] ? spacing.widePx : spacing.marchPx) / 2;
+  const out = [];
+  for (let rank = 0; out.length < bodies; rank++) {
+    const { point, heading: local } = line(rank * spacing.intervalPx);
+    const right = HEADINGS[local].right;
+    out.push(point);
+    let inRank = 1;
+    for (const side of [1, -1]) {
+      let from = point;
+      let edge = half(out.length - inRank);
+      while (inRank < frontage && out.length < bodies) {
+        const h = half(out.length);
+        const along = edge + h;
+        const far = { x: point.x + side * right.x * (along + h), y: point.y + side * right.y * (along + h) };
+        if (!onScene(far) || stepCrosses(walls, from, far)) break;
+        from = { x: point.x + side * right.x * along, y: point.y + side * right.y * along };
+        out.push(from);
+        inRank += 1;
+        edge = along + h;
+      }
+    }
+  }
+  return out;
+}
+
 /* -------------------------------------------- */
 /*  Walls                                       */
 /* -------------------------------------------- */
@@ -346,11 +511,19 @@ export function stepCrosses(walls, from, to) {
  * @returns {((from: {x: number, y: number}, to: {x: number, y: number}) => boolean)|null}
  */
 export function wallTest(walls, { level = null, gs, near, reach }) {
-  const inReach = (c) => Math.min(c[0], c[2]) <= near.x + reach && Math.max(c[0], c[2]) >= near.x - reach
-    && Math.min(c[1], c[3]) <= near.y + reach && Math.max(c[1], c[3]) >= near.y - reach;
-  const close = movementWalls(walls, level).filter((w) => inReach(w.c));
+  const close = nearWalls(walls, { level, near, reach });
   if (!close.length) return null;
   return (from, to) => stepCrosses(close, cellCentre(from, gs), cellCentre(to, gs));
+}
+
+/**
+ * The walls that stop movement on `level` whose bounding box lies within `reach`
+ * pixels of `near`, as `movementWalls` gives them.
+ */
+export function nearWalls(walls, { level = null, near, reach }) {
+  const inReach = (c) => Math.min(c[0], c[2]) <= near.x + reach && Math.max(c[0], c[2]) >= near.x - reach
+    && Math.min(c[1], c[3]) <= near.y + reach && Math.max(c[1], c[3]) >= near.y - reach;
+  return movementWalls(walls, level).filter((w) => inReach(w.c));
 }
 
 /**
@@ -396,7 +569,11 @@ export function liveTrail(stored, { path = null, head, sceneId, gs, bound }) {
  * @param {boolean} [opts.live] read the token's animated position (a client
  *   drawing the move) instead of its stored one
  * @param {{x: number, y: number}[]|null} [opts.path] the move's cells (`liveTrail`)
- * @returns {{head: {x: number, y: number}, cells: {x: number, y: number}[], column: boolean}|null}
+ * @returns {{head: {x: number, y: number}, cells: {x: number, y: number}[],
+ *   points: {x: number, y: number}[], sizes: number[], column: boolean}|null}
+ *   `cells` is the one-per-cell layout; `points` the centres the bodies stand
+ *   on and `sizes` the width of the square each is drawn in, which are the
+ *   cells' centres and one cell while the scene is not spaced (`columnSpacing`).
  *   `column` false where the scene lays no column (`sceneHasColumn`): every
  *   body then stands at the head.
  */
@@ -407,33 +584,50 @@ export function columnFor(formation, tokenDoc, { live = false, path = null } = {
   const src = live ? tokenDoc : (tokenDoc._source ?? tokenDoc);
   const head = cellUnder(src, gs);
   if (!sceneHasColumn(scene)) {
-    return { head, cells: Array.from({ length: formationBodies(formation) }, () => head), column: false };
+    const cells = Array.from({ length: formationBodies(formation) }, () => head);
+    return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), column: false };
   }
-  const trail = liveTrail(tokenDoc.getFlag?.(MODULE_ID, FLAG_TRAIL) ?? null, { path, head, sceneId: scene.id, gs, bound: trailBound(formation) });
-  const blocked = columnWalls(formation, scene, tokenDoc, head, gs);
-  const cells = columnCells(formation, { anchor: head, trail, heading: snapHeading(src.rotation), gs, bounds: sceneBounds(scene), blocked });
-  return { head, cells, column: true };
+  const spacing = columnSpacing(scene);
+  const trail = liveTrail(tokenDoc.getFlag?.(MODULE_ID, FLAG_TRAIL) ?? null, { path, head, sceneId: scene.id, gs, bound: trailBound(formation, scene) });
+  const { close, blocked } = columnWalls(formation, scene, tokenDoc, head, gs, spacing);
+  const heading = snapHeading(src.rotation);
+  const bounds = sceneBounds(scene);
+  const cells = columnCells(formation, { anchor: head, trail, heading, gs, bounds, blocked });
+  if (!spacing) return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), column: true };
+  const wide = bodyWides(formation);
+  const points = columnPoints(formation, { anchor: head, trail, heading, gs, bounds, blocked, walls: close, spacing, wide });
+  return { head, cells, points, sizes: points.map((_, i) => (wide[i] ? spacing.widePx : spacing.marchPx)), column: true };
 }
 
 /**
- * The wall test a party's column reads on its scene, on the party token's
- * level, over the walls a column of the whole party could reach from `head`.
+ * The movement walls a party's column reads on its scene, on the party token's
+ * level, over the ground a column of the whole party could reach from `head`,
+ * and the cell wall test over them (null where none is near).
  */
-function columnWalls(formation, scene, tokenDoc, head, gs) {
-  const reach = (formationBodies(formation) + 2) * gs;
-  return wallTest(scene.walls, { level: tokenDoc.level ?? tokenDoc._source?.level ?? null, gs, near: cellCentre(head, gs), reach });
+function columnWalls(formation, scene, tokenDoc, head, gs, spacing) {
+  const cells = spacing ? spineCells(formationBodies(formation), spacing, gs) : 0;
+  const reach = (Math.max(formationBodies(formation), cells) + 2) * gs;
+  const close = nearWalls(scene.walls, { level: tokenDoc.level ?? tokenDoc._source?.level ?? null, near: cellCentre(head, gs), reach });
+  const blocked = close.length ? (from, to) => stepCrosses(close, cellCentre(from, gs), cellCentre(to, gs)) : null;
+  return { close, blocked };
 }
 
 /**
- * Where a deploy or a restore lays each marching-order cell: the column's
- * cells, by member index (`memberCells`), when the party token stands at the
- * head of a walked trail on a column scene, or when a wall cuts the column it
- * would lay without one; else null, and the caller lays the straight block
+ * Where a deploy or a restore lays each marching-order cell, by member index
+ * (`memberCells`): one `{point, cell}` per body, the centre the column stands
+ * it on (null where the scene is not spaced) and the cell the column's
+ * one-per-cell layout gives it, which a body takes when its token does not fit
+ * at its point (`deploySpot`).
+ *
+ * Without spacing: the cells when the party token stands at the head of a
+ * walked trail on a column scene, or when a wall cuts the column it would lay
+ * without one; else null, and the caller lays the straight block
  * (`blockOrigin`), which a column with no trail in the open equals and which
- * shifts whole onto the scene where the column turns at its edge.
+ * shifts whole onto the scene where the column turns at its edge. With spacing,
+ * always the column, for the points have no block to fall back to.
  * @param {object} formation the record
  * @param {TokenDocument} tokenDoc the linked party token, read at its stored position
- * @returns {{x: number, y: number}[][]|null}
+ * @returns {{point: {x: number, y: number}|null, cell: {x: number, y: number}}[][]|null}
  */
 export function columnPlacement(formation, tokenDoc) {
   const scene = tokenDoc?.parent;
@@ -441,8 +635,9 @@ export function columnPlacement(formation, tokenDoc) {
   const gs = Number(scene.grid.size);
   const src = tokenDoc._source ?? tokenDoc;
   const head = cellUnder(src, gs);
-  if (usableTrail(tokenDoc.getFlag?.(MODULE_ID, FLAG_TRAIL) ?? null, head, scene.id).length < 2) {
-    const blocked = columnWalls(formation, scene, tokenDoc, head, gs);
+  const spacing = columnSpacing(scene);
+  if (!spacing && usableTrail(tokenDoc.getFlag?.(MODULE_ID, FLAG_TRAIL) ?? null, head, scene.id).length < 2) {
+    const { blocked } = columnWalls(formation, scene, tokenDoc, head, gs, null);
     if (!blocked) return null;
     const heading = snapHeading(src.rotation);
     const walled = columnCells(formation, { anchor: head, heading, gs, blocked });
@@ -450,7 +645,49 @@ export function columnPlacement(formation, tokenDoc) {
     if (walled.every((cell, i) => sameCell(cell, open[i]))) return null;
   }
   const at = columnFor(formation, tokenDoc);
-  return at ? memberCells(formation, at.cells) : null;
+  if (!at) return null;
+  return memberCells(formation, at.cells.map((cell, i) => ({ point: spacing ? at.points[i] : null, cell })));
+}
+
+/**
+ * Where a token of `w`×`h` cells goes for one placement: centred on the spot's
+ * point when its footprint, shrunk a pixel so a token flush against a wall
+ * fits, passes `fits`; else on the spot's own cell, which is how a token stands
+ * where no point is given or none fits. Positions are whole pixels.
+ * @param {{point: {x: number, y: number}|null, cell: {x: number, y: number}}} spot
+ * @param {object} opts
+ * @param {number} [opts.w] the token's width in cells
+ * @param {number} [opts.h] the token's height in cells
+ * @param {number} opts.gs grid size in pixels
+ * @param {((box: {minX: number, minY: number, maxX: number, maxY: number}) => boolean)|null} [opts.fits]
+ *   whether a footprint stands clear of the walls and on the scene (`spotFits`)
+ * @returns {{x: number, y: number}}
+ */
+export function deploySpot(spot, { w = 1, h = 1, gs, fits = null } = {}) {
+  const { point, cell } = spot;
+  if (!point || !(gs > 0) || typeof fits !== "function") return { x: cell.x, y: cell.y };
+  const halfW = (Math.max(1, Number(w) || 1) * gs) / 2;
+  const halfH = (Math.max(1, Number(h) || 1) * gs) / 2;
+  const box = { minX: point.x - halfW + 1, minY: point.y - halfH + 1, maxX: point.x + halfW - 1, maxY: point.y + halfH - 1 };
+  return fits(box) ? { x: Math.round(point.x - halfW), y: Math.round(point.y - halfH) } : { x: cell.x, y: cell.y };
+}
+
+/**
+ * The footprint test a deploy from `tokenDoc`'s column answers by: whether a
+ * rectangle lies on the scene and no wall that stops movement touches it. An
+ * open door does not stop movement, and a one-way wall stops by its line alone.
+ * @param {object} formation
+ * @param {TokenDocument} tokenDoc the linked party token
+ * @returns {(box: {minX: number, minY: number, maxX: number, maxY: number}) => boolean}
+ */
+export function spotFits(formation, tokenDoc) {
+  const scene = tokenDoc?.parent;
+  const gs = Number(scene?.grid?.size);
+  const head = cellUnder(tokenDoc._source ?? tokenDoc, gs);
+  const { close } = columnWalls(formation, scene, tokenDoc, head, gs, columnSpacing(scene));
+  const bounds = sceneBounds(scene);
+  return (box) => (!bounds || (box.minX >= bounds.minX && box.minY >= bounds.minY && box.maxX <= bounds.maxX + gs && box.maxY <= bounds.maxY + gs))
+    && !close.some((wall) => segmentTouchesRect(wall.c, box));
 }
 
 /**

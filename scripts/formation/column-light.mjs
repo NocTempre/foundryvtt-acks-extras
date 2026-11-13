@@ -50,16 +50,16 @@ export function columnLightId(formationId, bearerId) {
  * @param {{lights: Map<string, object>}} state
  * @param {object} formation the record
  * @param {Token} token the party token's placeable
- * @param {{x: number, y: number}[]} cells `columnFor(...).cells`
+ * @param {{x: number, y: number}[]} points `columnFor(...).points`
  */
-export function syncColumnLights(state, formation, token, cells) {
+export function syncColumnLights(state, formation, token, points) {
   const doc = token?.document;
   const scene = doc?.parent;
   const gs = Number(scene?.grid?.size);
   const wanted = new Map();
   // A hidden party token sheds nothing, as a hidden token's own light does not.
   if (columnLightsOn() && gs > 0 && !doc.hidden && token.visible !== false) {
-    for (const point of columnLights(formation, cells, gs, memberEffectLight)) wanted.set(point.bearerId, point);
+    for (const point of columnLights(formation, points, memberEffectLight)) wanted.set(point.bearerId, point);
   }
   let changed = false;
   for (const [bearerId, source] of state.lights) {
@@ -136,7 +136,7 @@ export function carriedLightPoints(scene) {
     if (!token || token.parent?.id !== scene.id || token.hidden) continue;
     const at = columnFor(formation, token);
     if (!at) continue;
-    for (const point of columnLights(formation, at.cells, gs, memberEffectLight)) {
+    for (const point of columnLights(formation, at.points, memberEffectLight)) {
       out.push({ x: point.x, y: point.y, bright: feetToUnits(point.bright, scene.grid.units) });
     }
   }

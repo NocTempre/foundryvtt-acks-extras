@@ -3820,6 +3820,17 @@ open if `acksExtras.lib.light?.lightFigures?.("torch")` reads nulls. Then read
 it there or in the Ruledata Browser, and use those figures below, never a
 number from memory.
 
+The column is spaced by the three frontage figures the `formation` document
+holds (MODEL §The column, Spacing), and a world that has imported them draws
+and deploys a spaced column. Steps 1 to 16 describe the one-per-cell column, so
+walk them with the figures read as not imported: on each seat, unregister the
+document's layers client-side (`acksExtras.lib.tables.unregisterTable("formation",
+{priority})` for the world and override priorities), after every reload of that
+seat and every mirror of the store, which bring them back. Nothing persists.
+Steps 17 to 19 set invented figures as a Judge's override in the Ruledata
+Browser (`Settings tab → Game Settings → ACKS II — Extras → Imported Rules
+Tables → Open Ruledata Browser`) and put them back.
+
 Fixtures, each found by its marker or built carrying it:
 
 - `formation/column-scene`: a scene with a square 100 px grid of 5 ft,
@@ -3871,7 +3882,8 @@ unset. A kept fixture carries what the last walk left.
    behind the new heading (turning where the corridor's end wall stands in its
    way, as `columnFor` lays it), no size or position is written, and the clock
    is unchanged.
-7. Start a combat with the party token; the party deploys.
+7. With the frontage figures not imported, start a combat with the party
+   token; the party deploys.
    *Observable:* each member's token stands on the cell their glyph stood on
    (the bend included) and carries that member's own actor in its `actorId`
    (a position check alone passes a swapped pair); each bearer's own token
@@ -3933,6 +3945,38 @@ unset. A kept fixture carries what the last walk left.
     `object.checkCollision(destCentre, {origin: originCentre, type: "move"})`.
     *Observable:* they agree on every step. A step off the scene is left out:
     core's scene edge is the column's bounds, not a wall.
+17. **The column spaced.** Set the Judge's override of the three frontage keys
+    to the invented figures 2, 4 and 1.5 (feet; the scene is 5 ft to 100 px, so
+    40, 80 and 30 px),
+    put the head at the corridor's west end facing east with a fresh trail, and
+    read `columnFor` (`/modules/acks-extras/scripts/formation/column.mjs`) and
+    the drawn squares at frontage 1, then 2.
+    *Observable:* `points` are the glyph centres, each square 40 px wide, rank
+    spacing 30 px along the way walked and not a cell, `cells` still the
+    one-per-cell layout beside them, and each light on its bearer's point. At
+    frontage 2 the second body stands 40 px south of the first (east's right
+    hand) and the third starts the next rank. Give the lead an equipped large
+    slashing weapon (`api.track` the item, sweep it after): its square is 80 px
+    and the second body stands 60 px south. A hex scene and a mile-scale scene
+    still lay no column.
+18. **A spaced deploy.** Set the march figure to 2.8 (the third file of a rank
+    of three then stands within a token's half-width of the corridor's south
+    wall), put the head at the west end facing east, set the frontage to 3 and
+    start a combat with the party token.
+    *Observable:* the two bodies whose footprint (100 px, shrunk 1 px) clears
+    every wall stand on their points, one between cells, and the third, whose
+    footprint touches the wall, stands on its one-per-cell cell. The expectation
+    is computed in the walk from the corridor's own walls. Each token carries its
+    member's actor, and the combat tracker lists every deployed token. Overlap
+    with another body is not a misfit.
+19. **A dragged off-grid token snaps; the gather re-forms on the grid.** With
+    step 18's tokens out, a real Player seat drags the off-grid one a cell.
+    *Observable:* it comes to rest on the grid (`x` and `y` multiples of the
+    grid size) and not where it started. End the fight: the party token shows
+    and stands on a cell corner. Clear the overrides, set the frontage to 1.
+    Off-grid readers: the leash and the mapper read token centres and distances
+    and take an off-grid token as it stands; no module code reads a token's cell
+    by `x / gridSize`.
 
 A plate shot from the Player seat composes that seat, and compose closes its
 sidebar. Core's token pan reads the sidebar's width, so the next move of a
@@ -3943,7 +3987,8 @@ hotbar, so the other order throws too.
 
 Teardown: the kept fixtures stay. Gather anyone deployed, set the shape and
 colour back to unset, the frontage to 1, and relight both sources, so the next
-walk's assertions hold. A token pasted in step 9 and the hand-lit token in step 13 are this
+walk's assertions hold. Clear the frontage overrides steps 17 to 19 set, and
+sweep the weapon step 17 gave the lead. A token pasted in step 9 and the hand-lit token in step 13 are this
 run's: `api.track` each id as it is made and `api.sweepTracked()` them. The
 lantern bearer's token edited in step 14 is the deployed token, which the
 gather removes; if it stands, reclaim it as step 14 says.
