@@ -18,7 +18,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
-import { locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
+import { cultureNames, locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys, quantity } from "../../scripts/lib/tables.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
@@ -96,6 +96,9 @@ const TABLES = {
   // and their missed-throw outcomes, and the street's two dice.
   formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
+  // The cultures' name lists and appearance palettes, each read by the keys of
+  // its page; a culture's name list may be in a supplement.
+  people: ["cultures", "cultureAppearance"],
 };
 
 const NEEDED = [...new Set(
@@ -898,6 +901,26 @@ Object.assign(VERIFY, {
       if (next && isNum(r.max) && isNum(next.min) && next.min !== r.max + 1) fail(`row ${next.key}: band does not follow the one before`);
     });
   },
+  // Each culture's name lists are non-empty runs of names, and every colour list a block declares was read.
+  "people.cultures": (out, recipe, fail) => {
+    for (const b of recipe.blocks) {
+      const got = out[b.cultureId];
+      if (!got) { fail(`culture ${b.cultureId}: not read`); continue; }
+      for (const field of ["male", "female"]) {
+        if (!Array.isArray(got[field]) || !got[field].length) fail(`culture ${b.cultureId}: ${field} list is empty`);
+        else if (!got[field].every(isText)) fail(`culture ${b.cultureId}: ${field} list holds a non-text entry`);
+      }
+    }
+  },
+  "people.cultureAppearance": (out, recipe, fail) => {
+    for (const b of recipe.valueBlocks) {
+      for (const v of b.values) {
+        const got = out[b.id]?.[v.key];
+        if (!Array.isArray(got) || !got.length) fail(`culture ${b.id}: ${v.key} is absent or empty`);
+        else if (!got.every(isText)) fail(`culture ${b.id}: ${v.key} holds a non-text entry`);
+      }
+    }
+  },
 });
 
 /* --------------------------------- the run -------------------------------- */
@@ -919,7 +942,23 @@ for (const [docId, ids] of Object.entries(TABLES)) {
     else {
       try {
         const doc = await open(recipe.book);
-        if (recipe.valueBlocks) {
+        if (recipe.blocks) {
+          // A culture block is located by its first name's key and read over
+          // the located page and the next, as the import reads it.
+          const out = {};
+          const searches = recipeLocates(recipe);
+          for (const block of recipe.blocks) {
+            const bookId = block.book ?? recipe.book;
+            if (!FILES[bookId] || !fs.existsSync(FILES[bookId])) continue;
+            const bdoc = await open(bookId);
+            const page = await locatePageNumber(bdoc, searches.find((s) => s.id === block.cultureId).args);
+            if (page == null) { fail(`block ${block.cultureId}: page not found`); continue; }
+            const span = [(await pageItems(bdoc, page)).items];
+            if (page < bdoc.numPages) span.push((await pageItems(bdoc, page + 1)).items);
+            out[block.cultureId] = cultureNames(span, recipe, block);
+          }
+          VERIFY[name](out, { ...recipe, blocks: recipe.blocks.filter((b) => b.cultureId in out) }, fail);
+        } else if (recipe.valueBlocks) {
           // Each block searches its own page (`recipeLocates`) and is read
           // with the recipe's settings over its own values and column, as the
           // import reads a block.
@@ -929,7 +968,7 @@ for (const [docId, ids] of Object.entries(TABLES)) {
             if (page == null) { fail(`block ${id}: page not found`); continue; }
             const block = recipe.valueBlocks.find((b) => b.id === id);
             const { items } = await pageItems(doc, page);
-            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column });
+            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, section: block.section });
           }
           VERIFY[name](out, recipe, fail);
         } else {

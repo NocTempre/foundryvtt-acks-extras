@@ -63,8 +63,8 @@ export function classInfo(classKey) {
  * so it never reads the henchmen registry back.
  */
 export function raceFromClassKey(classKey) {
-  const m = String(classKey ?? "").toLowerCase().match(/^(elven|dwarven|thrassian)\b/);
-  if (m) return { elven: "elf", dwarven: "dwarf", thrassian: "thrassian" }[m[1]];
+  const m = String(classKey ?? "").toLowerCase().match(/^(elven|dwarven|lizard(?:man)?)\b/);
+  if (m) return { elven: "elf", dwarven: "dwarf" }[m[1]] ?? "lizardman";
   return globalThis.acksExtras?.classes?.raceKeyOfClass?.(classKey) || null;
 }
 
@@ -93,13 +93,17 @@ export function raceOfCulture(cultureId) {
  * CONSTRAINED to a race so culture and class always align (no human of a
  * people's own culture, no elven vaultguards). Falls back to the race's own
  * culture(s) when the demographics don't include one; a race other than human
- * matches the cultures that declare it.
+ * matches the cultures that declare it. A culture that lists the race in
+ * `alsoRaces` is the one that race draws its names from.
  */
 export function pickCulture(rand, demographics, race = null, cultureWhitelist = null) {
   const cultures = getTable("people", "cultures").list;
   // people1 has no culture of its own in the registry: it draws from the
-  // `auran` culture's lists.
-  if (race === "people1" && cultures.auran) return "auran";
+  // lists of the culture that names it in `alsoRaces`.
+  if (race === "people1") {
+    const lender = Object.keys(cultures).find((id) => cultures[id].alsoRaces?.includes(race));
+    if (lender) return lender;
+  }
   const matchesRace = (id) => {
     if (cultureWhitelist && !cultureWhitelist.includes(id)) return false;
     if (!race) return true;
@@ -199,7 +203,7 @@ export function generateAge(rand, level, classKey) {
 
 /**
  * 0th-level general proficiency COUNT by race and age (JJ 253). Races the
- * table does not column (thrassian…) count as human. Null until imported.
+ * table does not column (lizardman…) count as human. Null until imported.
  */
 export function profCountFor(race, age) {
   const rows = optTable("people", "proficienciesByAge")?.rows;

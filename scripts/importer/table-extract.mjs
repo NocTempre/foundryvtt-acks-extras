@@ -12,6 +12,7 @@
  * PDF's pageItems) and in Node (tools/verification against the reference PDFs).
  */
 import { BOOKS } from "./books.mjs";
+import { findHeading, holdsKey } from "./printed-name.mjs";
 
 /** Cluster a page's text items into rows by y proximity. */
 export function rowsByY(items, tol = 3) {
@@ -600,6 +601,8 @@ export function extractPairs(items, recipe) {
  * from its label to the next field's label (the last one until the list stops
  * looking like names). Names are DATA and persist; the surrounding appearance
  * PROSE is never touched. A valid name is one capitalized token (accents ok).
+ * `startAfterKey` starts the search at the row holding the name whose
+ * `printKey` it is, for a list located without its first name written down.
  */
 // Full Unicode letters: the books print Buǧra, Mătine, Tϋlay — extraction
 // keeps them as printed (the seat's book is authoritative over any
@@ -615,8 +618,8 @@ export function extractNameList(items, recipe) {
   // stacked culture blocks in one column pick the right one.
   const rowText = (r) => r.items.map((it) => it.str).join("").replace(/\s+/g, " ").trim();
   let from = 0;
-  if (recipe.startAfter) {
-    const idx = rows.findIndex((r) => rowText(r).includes(recipe.startAfter));
+  if (recipe.startAfterKey || recipe.startAfter) {
+    const idx = rows.findIndex((r) => (recipe.startAfterKey ? holdsKey(rowText(r), recipe.startAfterKey) : rowText(r).includes(recipe.startAfter)));
     if (idx >= 0) from = idx;
   }
   const fields = recipe.fields.map((f) => {
@@ -1203,12 +1206,54 @@ function rowLabel(text, at, len, span) {
   return label[0].toUpperCase() + label.slice(1);
 }
 
+/**
+ * The runs of a page's reading order that belong to the heading whose key is
+ * `section.key`: everything after the heading up to the next run set at
+ * `section.headH` or taller, or to the end of the page. Empty when no heading
+ * on the page has the key, so a page that does not print it yields nothing.
+ */
+function sectionRuns(its, section) {
+  const heading = findHeading(its, section.headH, section.key);
+  if (!heading) return [];
+  const next = its.findIndex((it, i) => i > heading.to && it.h >= section.headH);
+  return its.slice(heading.to + 1, next < 0 ? undefined : next);
+}
+
+/**
+ * Where `find` (a phrase) or `findRe` (a pattern, for a phrase that carries a
+ * word the page sets and the recipe does not name) first stands in `text` at or
+ * after its `occurrence`th place: `{idx, len}`, or null.
+ */
+function findIn(text, v) {
+  if (v.findRe) {
+    const re = new RegExp(v.findRe, "g");
+    let m;
+    for (let n = v.occurrence ?? 1; n > 0; n--) if (!(m = re.exec(text))) return null;
+    return { idx: m.index, len: m[0].length };
+  }
+  const find = v.find.toLowerCase();
+  let idx = -1;
+  for (let n = v.occurrence ?? 1; n > 0; n--) {
+    idx = text.indexOf(find, idx + 1);
+    if (idx < 0) return null;
+  }
+  return { idx, len: find.length };
+}
+
+/**
+ * `proseValues`: each value is read from the window of text beside a phrase.
+ * With `section: {key, headH}` the text is bounded to the part of the page that
+ * follows the heading whose `printKey` is `key` (`sectionRuns`), so a phrase
+ * shared by several headings' paragraphs is read from the paragraph under the
+ * one asked for. Phrases are matched on the lowercased page.
+ */
 export function extractProseValues(items, recipe) {
   const split = recipe.colSplit ?? 300;
   const { xMin = 20, xMax = 600 } = recipe.column ?? {};
-  const its = items
+  let its = items
     .filter((i) => i.x >= xMin && i.x < xMax && i.y >= (recipe.yMin ?? 55) && i.y <= (recipe.yMax ?? 765))
     .sort((a, b) => ((a.x < split ? 0 : 1) - (b.x < split ? 0 : 1)) || (a.y - b.y) || (a.x - b.x));
+  if (recipe.section) its = sectionRuns(its, recipe.section);
   const printed = its.map((i) => i.str).join(" ").replace(/\s+/g, " ");
   const text = printed.toLowerCase();
   // Anchors are found in the lowercased text and a label is cut from the page
@@ -1217,18 +1262,14 @@ export function extractProseValues(items, recipe) {
   const cased = printed.length === text.length ? printed : text;
   const out = {};
   for (const v of recipe.values) {
-    const find = v.find.toLowerCase();
-    let idx = -1;
-    for (let n = v.occurrence ?? 1; n > 0; n--) {
-      idx = text.indexOf(find, idx + 1);
-      if (idx < 0) break;
-    }
-    if (idx < 0) continue; // absent, not undefined: page-span merges keep earlier pages' captures
+    const found = findIn(text, v);
+    if (!found) continue; // absent, not undefined: page-span merges keep earlier pages' captures
+    const { idx, len } = found;
     const span = v.span ?? 90;
-    const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + find.length, idx + find.length + span);
+    const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + len, idx + len + span);
     // `runins` is read from the page's own case; every other take reads the
     // lowercased window.
-    const casedWindow = v.before ? cased.slice(Math.max(0, idx - span), idx) : cased.slice(idx + find.length, idx + find.length + span);
+    const casedWindow = v.before ? cased.slice(Math.max(0, idx - span), idx) : cased.slice(idx + len, idx + len + span);
     let val = v.take === "runins" ? takeRunins(casedWindow.trim()) : takeProse(window, v.take ?? "int", v);
     if (v.before && val !== undefined) {
       // before-windows want the LAST match, not the first
@@ -1244,7 +1285,7 @@ export function extractProseValues(items, recipe) {
     // `label: true`: the row's own wording rides beside its figure, as
     // `<key>Label`. It is the reader's page and never a string of this repo.
     if (v.label) {
-      const label = rowLabel(cased, idx, find.length, v.labelSpan ?? ROW_LABEL_MAX);
+      const label = rowLabel(cased, idx, len, v.labelSpan ?? ROW_LABEL_MAX);
       if (label) out[`${v.key}Label`] = label;
     }
   }

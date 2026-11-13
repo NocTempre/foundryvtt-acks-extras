@@ -1311,7 +1311,7 @@ override reaches the anchor, the hash candidates and the flow's stop alike.
 
 A row that withholds a printed name locates it by `anchor.hash`, the
 `printKey` of the name's folded letters (`printed-name.mjs`), and the words
-arrive from the Judge's page. Four mechanisms carry that past the keyed
+arrive from the Judge's page. Five mechanisms carry that past the keyed
 places of an adventure.
 
 - **Display headings.** `compileClass` (a `kind.class` row with `anchor.hash`
@@ -1344,6 +1344,26 @@ places of an adventure.
   before the first label belongs to none. A page whose lowercase form is
   longer than its text (the fallback `extractProseValues` documents) is read
   from the lowercased text, which has no capitals to find.
+- **Table recipes.** The `people` document's cultures
+  (`table-recipes.mjs` `CULTURES`, one table feeding the name lists and the
+  appearance palettes) ship ordinal ids and neutral labels and name no
+  printed word. A block locates its name list by `anchorKey`, the
+  `printKey` of the list's first given name (`locatePageNumber`'s
+  `locateKey`, `holdsKey`, and `startAfterKey` for the list's start row),
+  and its heading by `heading.key`, the `printKey` of the heading as
+  `headingGroups` joins it (consecutive display runs, every contiguous
+  sub-join, up to eight runs, since a heading wraps). The two are searched
+  apart because a heading and its list can stand on different pages and
+  columns. `runBlocks` reads the heading group's text into `list[id].label`
+  (set as a title where the page's case carries nothing) and keeps the
+  block's neutral label where the book that prints the heading is not open.
+  An appearance block carries `section: {key, headH}`: `extractProseValues`
+  searches only the runs from that heading to the next display run, so a
+  phrase shared by several cultures' paragraphs is read from the right one,
+  and a phrase that holds a word the page sets is a `findRe`. Structural
+  meta (`race`, `alsoRaces` for the culture another race draws its names
+  from, `patronym`) rides in the block. The ordinal-to-people pairing is
+  kept LOCAL-ONLY with the decoder rings.
 
 ## A book's page bands
 

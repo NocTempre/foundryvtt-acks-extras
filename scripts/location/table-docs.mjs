@@ -43,7 +43,7 @@ const lib = () => globalThis.acksExtras?.lib;
  * Result text as the reader means it, with HTML entities decoded.
  *
  * A result's description is an HTML field: a bare `&` in a book's own wording
- * ("grain & vegetables", "armor & weapons") is not valid markup and comes back
+ * (RR p. 374, JJ p. 202) is not valid markup and comes back
  * from storage normalized to `&amp;`. That matters twice — comparing a
  * freshly rendered spec against the stored form never matched, so those tables
  * deleted and recreated their whole result set on EVERY materialize pass
@@ -187,7 +187,9 @@ export function listEntries() {
         // one NAME TABLE per culture per list (male/female/surnames)
         for (const [cultureId, c] of Object.entries(data.list)) {
           for (const field of ["male", "female", "surnames"]) {
-            if (Array.isArray(c[field]) && c[field].length) out.push(entryOf(docId, tableId, `${cultureId}.${field}`));
+            if (Array.isArray(c[field]) && c[field].length) {
+              out.push(entryOf(docId, tableId, `${cultureId}.${field}`, { label: `${humanize(tableId)} — ${c.label ?? humanize(cultureId)} ${humanize(field)}` }));
+            }
           }
         }
         continue;
@@ -230,10 +232,10 @@ export function listEntries() {
 
 const OCCUPANT_COLUMNS = ["smallCot", "mediumCot", "mediumTownhouse", "largeTownhouse", "generalStreet"];
 
-function entryOf(docId, tableId, subId, { absent = false } = {}) {
+function entryOf(docId, tableId, subId, { absent = false, label = null } = {}) {
   const key = subId ? `${docId}.${tableId}.${subId}` : `${docId}.${tableId}`;
   return {
-    docId, tableId, subId, key, label: partsLabel(tableId, subId),
+    docId, tableId, subId, key, label: label ?? partsLabel(tableId, subId),
     rollable: isRollable(docId, tableId, subId),
     /** True when the engine asks for this table and nothing has supplied it. */
     absent,

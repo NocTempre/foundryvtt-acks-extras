@@ -59,9 +59,10 @@ for (const [docId, docRec] of Object.entries(TABLE_RECIPES)) {
   for (const [tableId, recipe] of Object.entries(docRec.tables)) {
     for (const { id, args } of recipeLocates(recipe)) {
       const name = `${docId}.${tableId}${id ? `.${id}` : ""}`;
-      check(`${name}: has a locate`, !!args.locate);
+      const locates = !!(args.locate || args.locateKey || args.locateHeadingKey);
+      check(`${name}: has a locate`, locates);
       check(`${name}: reads a book with a reference file`, !!FILES[args.book]);
-      if (!args.locate || !FILES[args.book]) continue;
+      if (!locates || !FILES[args.book]) continue;
       const doc = await open(args.book);
       const page = await locatePageNumber(doc, args);
       check(`${name}: located`, page != null);

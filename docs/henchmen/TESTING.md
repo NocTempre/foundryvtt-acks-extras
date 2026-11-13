@@ -991,15 +991,29 @@ walked in docs/lib/TESTING.md, "The repair tool".
       roster: the hireling's row is unaffected.
     The Deal XP half is formation's TESTING.md, "Deal XP". The recipes' shape
     against the real book is `tools/importer/test-recipe-content.mjs`.
-24. A people race's culture and age column, with RR and JJ imported (the
-    class documents `def.class.class20` / `class21` present) and the `people`
-    tables read. Read the class's printed name off its document, then
-    `rules/identity.mjs > raceForClass(<name lower-cased>)`, `pickCulture`
-    with that race, and `generateAge` for that name.
-    *Observable:* class 20's race is `people1` and its culture is `auran`;
-    class 21's race is `people2` and its culture is `people2` (label
-    `People 2`); both follow the `mage` age column. With the classes API
-    absent (a Node run), a name carrying no common race word reads `human`.
+24. The cultures a Judge's book names, on `henchmen/cultures-place` (a
+    location with a market) with the staged rulebook open, and the supplement
+    that prints the dwarves' name list where one is staged. Run Rules tables
+    for `people` (Settings tab → Game Settings → ACKS II — Extras → Manage
+    imports; the walk calls `acksExtras.importer.cookbookImportTables`), then
+    read `acksExtras.lib.tables.getTable("people", "cultures").list`. Open
+    the place's sheet on its GM Settings tab, press Add on Demographics, and
+    generate an identity with `rules/identity.mjs > generateIdentity` from
+    one culture. Walked by `tools/live/henchmen-cultures.mjs`.
+    *Observable:* every culture whose book is open is in the list, its id
+    `culture1` to `culture12`, `dwarven`, `elven`, `lizardman` or `people2`;
+    each label is the heading the book prints, never the neutral
+    `Culture N` stand-in; every culture has male and female name lists, and
+    every culture the appearance recipe declares has a palette. The
+    Demographics select lists those labels in the list's order, Add stores a
+    row on the first imported culture and the select shows it. A candidate
+    drawn from one culture reads that culture's label in `cultureLabel` and a
+    given name from its list; `pickCulture` for race `people1` returns the
+    culture that lists it in `alsoRaces`; the lizard people's culture has
+    race `lizardman`. A world with nothing imported lists no cultures and the
+    row Add writes carries no culture until the Judge picks one (not walked: it
+    needs the `people` document absent). The class half — a class's race,
+    its culture and its age column — is `tools/test-henchmen.mjs`, offline.
 25. An Irrefusable Offer to a captured monster, through the influence-hosted
     page, on `henchmen/bonus-employer` raised to a level above the captives'
     hit dice and three disposable `monster` actors of 1d8 (tracked as they are

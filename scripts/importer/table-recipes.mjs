@@ -172,47 +172,61 @@ const RARITY_TIER_ROWS = [
 // them in full ("dwarven craftpriest"), so reading the book instead of the
 // cheatsheet retired the map along with the screen (0.38.0).
 
-// Culture appearance blocks: [id, printed page, hair anchor, eyes anchor].
-// An anchor is the sentence's own lead-in; `#N` picks the Nth occurrence in
-// reading order where the book writes "Their …" instead of naming the
-// culture (page structure, not a value).
-const CULTURE_APPEARANCE = [
-  ["auran", 502, "tirenean hair is", "tirenean eyes are"],
-  ["celdorean", 495, "celdorean hair is", "celdorean eyes are"],
-  ["dwarven", 496, "their hair is#1", "their eyes are#1"],
-  ["elven", 496, "their hair is#2", "their eyes are#2"],
-  ["jutlandic", 497, "jutlandic hair is", "their eyes are#1"],
-  ["kemeshi", 497, "", "kemeshi eyes are"], // hair not stated in this printing
-  ["krysean", 498, "krysean hair is", "kryseans eyes are"],
-  ["kushtu", 498, "their hair is#1", "kushtu eyes are"],
-  ["nicean", 499, "nicean hair is", "nicean eyes are"],
-  ["opelenean", 499, "opelenean hair is", "opelenean eyes are"],
-  ["rornish", 500, "rornish hair is", "rornish eyes are"],
-  ["shebatean", 500, "shebatean hair is", "shebatean eyes are"],
-  ["skysos", 501, "hair of the skysos is", ""], // eyes phrasing varies; hair only
-  ["somirean", 501, "somirean hair is", "somirean eyes are"],
-  ["people2", 503, "", "zaharan eyes are"], // hair phrasing varies; eyes only
+// The cultures of RR pp. 495-503 (and the dwarves' name list, BTA p. 22): ONE
+// table feeds both the name lists and the appearance palettes. A culture is
+// named by ordinal (`Culture N`, in printed order) and found by keys of what
+// the page prints (`printKey`): `headingKey` the heading that opens its
+// description, `anchorKey` the first name of its name list. The words are read
+// at import from the Judge's own copy (the heading becomes the culture's
+// label); nothing here says whose they are. A list may stand on a later page or
+// in the other column from its heading, so each carries its own page.
+//
+// `hair` and `eyes` are the phrases that open the colour sentence under the
+// heading, matched inside the heading's own section (`section` of
+// `proseValues`) — a copula with no people word, or `findRe` where the sentence
+// carries the culture's noun in the middle. A culture whose sentence is not
+// matched by a phrase has none.
+const CULTURE_HEAD_H = 11;
+const HAIR = { key: "hair", find: "hair is" };
+const EYES = { key: "eyes", find: "eyes are" };
+const CULTURES = [
+  { id: "culture1", label: "Culture 1", headingKey: "ivpuv4", headingPage: 495, anchorKey: "1065lmh", anchorPage: 496, values: [HAIR, EYES], meta: { patronym: { male: "{parent}apur", female: "{parent}adar" } } },
+  { id: "dwarven", label: "Dwarven", headingKey: "1m7yn3i", headingPage: 496, anchorBook: "bta", anchorKey: "1reqnkv", anchorPage: 22, values: [HAIR, EYES], meta: { race: "dwarf" } },
+  { id: "elven", label: "Elven", headingKey: "8ymv64", headingPage: 496, anchorKey: "n9rd5g", anchorPage: 497, values: [HAIR, EYES], meta: { patronym: { male: "Mag {parent}", female: "Ni {parent}" }, race: "elf" } },
+  { id: "culture2", label: "Culture 2", headingKey: "6eji6p", headingPage: 497, anchorKey: "1pz6pit", anchorPage: 497, values: [HAIR, EYES], meta: { patronym: { male: "{parent}sson", female: "{parent}dottir" } } },
+  { id: "culture3", label: "Culture 3", headingKey: "11xmgrr", headingPage: 497, anchorKey: "1y7yn0x", anchorPage: 498, values: [EYES], meta: {} },
+  { id: "culture4", label: "Culture 4", headingKey: "o18ozw", headingPage: 498, anchorKey: "zrmrmw", anchorPage: 498, values: [HAIR, EYES], meta: { patronym: { male: "{parent}", female: "{parent}" } } },
+  { id: "culture5", label: "Culture 5", headingKey: "d8561", headingPage: 498, anchorKey: "1ql9zpk", anchorPage: 498, values: [HAIR, EYES], meta: {} },
+  { id: "culture6", label: "Culture 6", headingKey: "1lvob1n", headingPage: 499, anchorKey: "1yjk5wk", anchorPage: 499, values: [HAIR, EYES], meta: { patronym: { male: "{parent}ides", female: "{parent}ides" } } },
+  { id: "culture7", label: "Culture 7", headingKey: "6ypst4", headingPage: 499, anchorKey: "os7kxc", anchorPage: 499, values: [HAIR, EYES], meta: { patronym: { male: "Bar {parent}", female: "Bat {parent}" } } },
+  { id: "culture8", label: "Culture 8", headingKey: "12ww7vi", headingPage: 500, anchorKey: "1uxocl2", anchorPage: 500, values: [HAIR, EYES], meta: { patronym: { male: "{parent}", female: "{parent}" } } },
+  { id: "culture9", label: "Culture 9", headingKey: "1w2cr94", headingPage: 500, anchorKey: "e0sjjw", anchorPage: 500, values: [HAIR, EYES], meta: { patronym: { male: "Ibn {parent}", female: "Bint {parent}" } } },
+  { id: "culture10", label: "Culture 10", headingKey: "1o4ow49", headingPage: 501, anchorKey: "1fobk7k", anchorPage: 501, values: [{ key: "hair", findRe: "hair of the \\S+ is" }], meta: {} },
+  { id: "culture11", label: "Culture 11", headingKey: "m93zbr", headingPage: 501, anchorKey: "ykfzq", anchorPage: 501, values: [HAIR, EYES], meta: {} },
+  { id: "lizardman", label: "Lizardman", headingKey: "1wm4c0u", headingPage: 502, anchorKey: "wgaiha", anchorPage: 502, values: [], meta: { race: "lizardman" } },
+  // The culture the people-1 race draws its names from.
+  { id: "culture12", label: "Culture 12", headingKey: "hththt", headingPage: 502, anchorKey: "zco3ru", anchorPage: 502, values: [HAIR, EYES], meta: { alsoRaces: ["people1"] } },
+  { id: "people2", label: "People 2", headingKey: "bjsxms", headingPage: 503, anchorKey: "1ivm55z", anchorPage: 503, values: [EYES], meta: { patronym: { male: "Bet-{parent}", female: "Bet-{parent}" }, race: "people2" } },
 ];
 
-const CULTURE_APPEARANCE_BLOCKS = CULTURE_APPEARANCE.map(([id, page, hair, eyes]) => {
-  const val = (key, anchor) => {
-    const [find, nth] = anchor.split("#");
-    return { key, find, take: "colorList", span: 240, ...(nth ? { occurrence: Number(nth) } : {}) };
-  };
-  const anchors = [["hair", hair], ["eyes", eyes]].filter(([, a]) => a);
-  // Locate on an anchor that NAMES the culture — a "Their …" sentence is
-  // ambiguous on a page carrying several cultures.
-  const locate = (anchors.find(([, a]) => !a.startsWith("their")) ?? anchors[0])[1].split("#")[0];
-  return {
-    id,
-    printedPage: page,
-    // Page-margin chapter tabs (x≈597) interleave into the flattened text
-    // ("kemeshi tt i eyes are…") — bound the print columns.
-    column: { xMin: 25, xMax: 590 },
-    locate,
-    values: anchors.map(([key, a]) => val(key, a)),
-  };
-});
+const CULTURE_APPEARANCE_BLOCKS = CULTURES.filter((c) => c.values.length).map((c) => ({
+  id: c.id,
+  printedPage: c.headingPage,
+  // Page-margin chapter tabs (x≈597) interleave into the flattened text, so
+  // the print columns are bounded.
+  column: { xMin: 25, xMax: 590 },
+  section: { key: c.headingKey, headH: CULTURE_HEAD_H },
+  values: c.values.map((v) => ({ ...v, take: "colorList", span: 240 })),
+}));
+
+const CULTURE_NAME_BLOCKS = CULTURES.map((c) => ({
+  cultureId: c.id,
+  ...(c.anchorBook ? { book: c.anchorBook, optional: true } : {}),
+  printedPage: c.anchorPage,
+  anchorKey: c.anchorKey,
+  heading: { key: c.headingKey, printedPage: c.headingPage, headH: CULTURE_HEAD_H },
+  meta: { label: c.label, ...c.meta },
+}));
 
 // Scavenged equipment (RR p160) prints FOUR d20 grids in a 2×2 block: the two
 // weapon tables above, armour/equipment and vessels/vehicles below, left and
@@ -2907,13 +2921,11 @@ export const TABLE_RECIPES = {
         labelMaxX: 130,
         minTokens: 2,
       },
-      // Culture APPEARANCE palettes (RR "People of Aurëpos"): each culture's
-      // description states its hair and eye colours in a formulaic sentence
-      // ("Tirenean hair is straight or wavy, and colored …"). Blocks locate
-      // their own page; the anchor phrase names the culture, so a page
-      // carrying several cultures cannot cross-match. Where the book writes
-      // "Their hair is…", the block disambiguates by reading-order
-      // occurrence — page structure, never a value.
+      // Culture APPEARANCE palettes (RR pp. 495-503): each culture's
+      // description gives its hair and eye colours in one sentence each. A
+      // block locates its page by the key of its heading and reads inside that
+      // heading's section, so a page carrying several cultures cannot
+      // cross-match. See `CULTURES`.
       cultureAppearance: {
         shape: "proseValues",
         book: "rr",
@@ -2940,12 +2952,13 @@ export const TABLE_RECIPES = {
         ],
         emit: { path: ["classes"] },
       },
-      // Culture name lists (RR "People of Aurëpos" + BTA for dwarves). Each
-      // block is SELF-LOCATING: its anchor (the list's first male name — a
-      // short-label page anchor) finds the page, the print column, and the
-      // start row, so stacked two-column culture blocks never cross-match.
-      // NAMES are extracted data; label/patronym-template/race are
-      // structural assists; appearance PROSE is never touched.
+      // Culture name lists (RR pp. 495-503, BTA p. 22 for the dwarves). Each
+      // block is SELF-LOCATING: the key of the list's first male name finds the
+      // page, the print column and the start row, so stacked two-column culture
+      // blocks never cross-match. NAMES are extracted data; the label is the
+      // culture's heading as printed, read by its key and falling back to the
+      // block's neutral label; patronym templates and race are structural
+      // assists; appearance PROSE is never touched. See `CULTURES`.
       cultures: {
         shape: "nameList",
         book: "rr",
@@ -2954,24 +2967,7 @@ export const TABLE_RECIPES = {
           { key: "female", label: "Female Names:" },
           { key: "surnames", label: "Surnames:" },
         ],
-        blocks: [
-          { cultureId: "auran", printedPage: 502, anchor: "Aurëus", meta: { label: "Tirenean (Auran)", surnameStyle: "hereditary" } },
-          { cultureId: "celdorean", printedPage: 496, anchor: "Ardumanish", meta: { label: "Celdorean", patronym: { male: "{parent}apur", female: "{parent}adar" } } },
-          { cultureId: "dwarven", book: "bta", optional: true, printedPage: 22, anchor: "Arsic", meta: { label: "Dwarven (Meniri/Jutting)", surnameStyle: "hereditary", race: "dwarf" } },
-          { cultureId: "elven", printedPage: 497, anchor: "Aodan", meta: { label: "Elven (Argollëan)", patronym: { male: "Mag {parent}", female: "Ni {parent}" }, race: "elf" } },
-          { cultureId: "jutlandic", printedPage: 497, anchor: "Asmund", meta: { label: "Jutlandic", patronym: { male: "{parent}sson", female: "{parent}dottir" } } },
-          { cultureId: "kemeshi", printedPage: 498, anchor: "Ankhopten", meta: { label: "Kemeshi" } },
-          { cultureId: "krysean", printedPage: 498, anchor: "Aibekeres", meta: { label: "Krysean", patronym: { male: "{parent}", female: "{parent}" } } },
-          { cultureId: "kushtu", printedPage: 498, anchor: "Abimbola", meta: { label: "Kushtu" } },
-          { cultureId: "nicean", printedPage: 499, anchor: "Apollonis", meta: { label: "Nicean", patronym: { male: "{parent}ides", female: "{parent}ides" } } },
-          { cultureId: "opelenean", printedPage: 499, anchor: "Abedsh", meta: { label: "Opelenean", patronym: { male: "Bar {parent}", female: "Bat {parent}" } } },
-          { cultureId: "rornish", printedPage: 500, anchor: "Aeron", meta: { label: "Rornish", patronym: { male: "{parent}", female: "{parent}" } } },
-          { cultureId: "shebatean", printedPage: 500, anchor: "Abaddon", meta: { label: "Shebatean", patronym: { male: "Ibn {parent}", female: "Bint {parent}" } } },
-          { cultureId: "skysos", printedPage: 501, anchor: "Attila", meta: { label: "Skysos" } },
-          { cultureId: "somirean", printedPage: 501, anchor: "Artashumara", meta: { label: "Somirean" } },
-          { cultureId: "people2", printedPage: 503, anchor: "Ashurdan", meta: { label: "People 2", patronym: { male: "Bet-{parent}", female: "Bet-{parent}" }, race: "people2" } },
-          { cultureId: "thrassian", printedPage: 502, anchor: "Akalamdug", meta: { label: "Thrassian", race: "thrassian" } },
-        ],
+        blocks: CULTURE_NAME_BLOCKS,
       },
       // NPC minimum age by class group (JJ ~248): level rows × six labeled
       // trajectory columns. "44+" caps a column; "-" means the trajectory

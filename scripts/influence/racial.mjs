@@ -37,7 +37,7 @@ export function inferRace(actor) {
   if (/dwarv|dwarf/.test(cls)) return "dwarf";
   if (/elv|elf/.test(cls)) return "elf";
   if (/gnom/.test(cls)) return "gnome";
-  if (/thrassian|lizard/.test(cls)) return "lizardman";
+  if (/lizard/.test(cls)) return "lizardman";
   if (/beastman|bugbear|gnoll|goblin|hobgoblin|kobold|orc/.test(cls)) return "beastman";
   return globalThis.acksExtras?.classes?.raceKeyOfClass?.(cls) || "human";
 }
@@ -58,7 +58,7 @@ const NAME_KIND_MATCHERS = [
   ["bugbear", /bugbear/],
   ["ogre", /\bogre/],
   ["troll", /\btroll/],
-  ["lizardman", /lizard\s*m[ae]n|thrassian/],
+  ["lizardman", /lizard\s*m[ae]n/],
   ["dwarf", /dwarv|dwarf/],
   ["elf", /\belv(?:es|en|ish)?\b|\belf\b/],
   ["gnome", /\bgnome/],

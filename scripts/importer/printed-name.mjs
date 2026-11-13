@@ -41,6 +41,60 @@ export function printKey(text) {
   return folded ? hash36(folded) : "";
 }
 
+/** Where a text breaks into the tokens `holdsKey` tests: whitespace and the marks a list or a heading sets between words. */
+const KEY_TOKEN_BREAK = /[\s,;:()[\]{}"“”]+/u;
+
+/**
+ * Whether a text holds a printed name whose key is `key`: any one of its
+ * tokens folds to it. The name is found without being written — a list's first
+ * entry is located by the key of its folded letters, the way a heading is.
+ * An empty key holds nothing.
+ */
+export function holdsKey(text, key) {
+  if (!key) return false;
+  return String(text ?? "").split(KEY_TOKEN_BREAK).some((token) => token && printKey(token) === key);
+}
+
+/** The most runs one heading is joined from: a heading wraps over a few lines, and a display-heavy page holds hundreds of runs. */
+const HEADING_MAX_RUNS = 8;
+
+/**
+ * Every candidate heading on a page: the runs set at `minH` or taller, taken
+ * where they stand consecutively, and every contiguous join of them up to
+ * `HEADING_MAX_RUNS` runs, since a heading that wraps its line prints as two
+ * runs and a page can set another heading's run beside it. Callers match a
+ * group's `printKey` against a key.
+ *
+ * @param {{str: string, h: number}[]} items a page's runs, in the order given
+ * @param {number} minH the smallest height that counts as display type
+ * @returns {{text: string, from: number, to: number}[]} `text` is the joined
+ *   runs, space-separated; `from` and `to` index `items`, both inclusive
+ */
+export function headingGroups(items, minH) {
+  const groups = [];
+  let start = -1;
+  const close = (end) => {
+    for (let from = start; from <= end; from++) {
+      for (let to = from; to <= end && to - from < HEADING_MAX_RUNS; to++) {
+        const text = items.slice(from, to + 1).map((it) => String(it.str ?? "").trim()).filter(Boolean).join(" ");
+        if (text) groups.push({ text, from, to });
+      }
+    }
+    start = -1;
+  };
+  items.forEach((it, i) => {
+    if (it.h >= minH) {
+      if (start < 0) start = i;
+    } else if (start >= 0) close(i - 1);
+  });
+  if (start >= 0) close(items.length - 1);
+  return groups;
+}
+
+/** The first heading group whose key is `key`, or null: where a keyed heading stands on a page. */
+export const findHeading = (items, minH, key) =>
+  key ? headingGroups(items, minH).find((g) => printKey(g.text) === key) ?? null : null;
+
 /** The first run of non-space characters: where a keyed heading prints its number. */
 export const firstToken = (text) => /^\s*(\S+)/.exec(String(text ?? ""))?.[1] ?? "";
 

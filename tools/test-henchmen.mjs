@@ -1067,7 +1067,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const { raceForClass, pickCulture, generateAge } = await import(new URL("../scripts/henchmen/rules/identity.mjs", import.meta.url));
   const ns = (globalThis.acksExtras ??= {});
   const saved = { classes: ns.classes, lib: ns.lib };
-  const cultures = { auran: { race: "human" }, people2: { race: "people2" }, fenfolk: { race: "human" } };
+  const cultures = { culture1: { race: "human" }, culture2: { race: "human", alsoRaces: ["people1"] }, people2: { race: "people2" }, fenfolk: { race: "human" } };
   const ageRows = [{ level: 1, noble: 20, mage: 30 }];
   try {
     ns.lib = {
@@ -1084,8 +1084,9 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(raceForClass("marsh warden"), "people1", "the class record names the race");
     assert.strictEqual(raceForClass("fen reaver"), "people2");
     assert.strictEqual(raceForClass("elven lamplighter"), "elf", "a name no class answers to falls to its common adjective");
+    assert.strictEqual(raceForClass("lizardman lamplighter"), "lizardman", "a lizardman class key names its race");
     assert.strictEqual(raceForClass("lamplighter"), "human");
-    assert.strictEqual(pickCulture(() => 0, [], "people1"), "auran", "people1 draws from the auran lists");
+    assert.strictEqual(pickCulture(() => 0, [], "people1"), "culture2", "people1 draws from the culture that lists it in alsoRaces");
     assert.strictEqual(pickCulture(() => 0, [], "people2"), "people2", "people2 takes the culture that declares it");
     const zero = () => 0;
     assert.strictEqual(generateAge(zero, 1, "marsh warden"), 30, "class 20 follows the mage column, by its key");

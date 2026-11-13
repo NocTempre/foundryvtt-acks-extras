@@ -10,6 +10,7 @@
  */
 import { pageItems } from "./extract.mjs";
 import { extractTable, pdfGuess } from "./table-extract.mjs";
+import { caseCarriesNothing, findHeading, holdsKey, titleCaseHeading } from "./printed-name.mjs";
 import { TABLE_RECIPES } from "./table-recipes.mjs";
 import { BOOKS } from "./books.mjs";
 import { recipeCite } from "./produces.mjs";
@@ -41,9 +42,16 @@ function pageReader() {
   };
 }
 
+/** The smallest run height a heading is set at when a recipe does not say. */
+const HEAD_H = 11;
+
 /**
- * The PDF page whose text holds `recipe.locate`, searched outward from
+ * The PDF page that holds what `recipe` names, searched outward from
  * `pdfGuess` and then through the whole book; null when no page holds it.
+ * A page is named by a phrase (`locate`), by the key of a name one of its runs
+ * holds (`locateKey`), or by the key of a heading set at `headH` or taller
+ * (`locateHeadingKey`). The two keys are `printKey`s, so the recipe names the
+ * page without writing what is printed on it.
  * `read` is the page reader (`pageItems` unless a caller holds a cache).
  */
 export async function locatePageNumber(doc, recipe, read = pageItems) {
@@ -58,9 +66,11 @@ export async function locatePageNumber(doc, recipe, read = pageItems) {
   const bare = (s) => String(s).replace(/\s+/g, "").toLowerCase();
   for (const p of order) {
     const { items } = await read(doc, p);
-    const hit = recipe.locateBare
-      ? bare(items.map((i) => i.str).join("")).includes(bare(recipe.locate))
-      : items.map((i) => i.str).join(" ").includes(recipe.locate);
+    let hit;
+    if (recipe.locateHeadingKey) hit = !!findHeading(items, recipe.headH ?? HEAD_H, recipe.locateHeadingKey);
+    else if (recipe.locateKey) hit = items.some((i) => holdsKey(i.str, recipe.locateKey));
+    else if (recipe.locateBare) hit = bare(items.map((i) => i.str).join("")).includes(bare(recipe.locate));
+    else hit = items.map((i) => i.str).join(" ").includes(recipe.locate);
     if (hit) return p;
   }
   return null;
@@ -78,20 +88,31 @@ async function locatePage(doc, recipe, read) {
   return span;
 }
 
-// The search each kind of block makes. A culture block's anchor is a list's
-// first name, and its list may wrap onto the next page.
-const blockLocate = (recipe, block) => ({ book: block.book ?? recipe.book, printedPage: block.printedPage, locate: block.anchor, pageSpan: 2 });
+// The search each kind of block makes. A culture block's anchor is the key of a
+// list's first name, and its list may wrap onto the next page; its heading is
+// searched on its own page, which need not be the list's.
+const blockLocate = (recipe, block) => ({ book: block.book ?? recipe.book, printedPage: block.printedPage, locateKey: block.anchorKey, pageSpan: 2 });
+const headingLocate = (recipe, block) => ({ book: block.heading.book ?? recipe.book, printedPage: block.heading.printedPage, locateHeadingKey: block.heading.key, headH: block.heading.headH });
 const subTableLocate = (recipe, st) => ({ book: recipe.book, printedPage: st.printedPage, locate: st.locate ?? st.anchor, locateBare: true });
-const valueBlockLocate = (recipe, block) => ({ book: recipe.book, printedPage: block.printedPage, locate: block.locate, locateBare: true });
+const valueBlockLocate = (recipe, block) =>
+  block.section
+    ? { book: recipe.book, printedPage: block.printedPage, locateHeadingKey: block.section.key, headH: block.section.headH }
+    : { book: recipe.book, printedPage: block.printedPage, locate: block.locate, locateBare: true };
 
 /**
  * Every page search one recipe makes, as `[{id, args}]`: `args` is what the
  * import hands `locatePage`, and `id` names the block (null for the recipe
- * itself).
+ * itself). A culture block that names a heading adds the heading's search as
+ * `<cultureId>.heading`.
  */
 export function recipeLocates(recipe) {
   if (recipe.valueBlocks) return recipe.valueBlocks.map((b) => ({ id: b.id, args: valueBlockLocate(recipe, b) }));
-  if (recipe.blocks) return recipe.blocks.map((b) => ({ id: b.cultureId, args: blockLocate(recipe, b) }));
+  if (recipe.blocks) {
+    return recipe.blocks.flatMap((b) => [
+      { id: b.cultureId, args: blockLocate(recipe, b) },
+      ...(b.heading ? [{ id: `${b.cultureId}.heading`, args: headingLocate(recipe, b) }] : []),
+    ]);
+  }
   if (recipe.subTables) return recipe.subTables.map((st) => ({ id: st.id, args: subTableLocate(recipe, st) }));
   return [{ id: null, args: recipe }];
 }
@@ -102,10 +123,31 @@ export function tableRecipeBooks() {
   for (const doc of Object.values(TABLE_RECIPES)) {
     for (const recipe of Object.values(doc.tables)) {
       if (recipe.book) books.add(recipe.book);
-      for (const block of recipe.blocks ?? []) if (block.book ?? recipe.book) books.add(block.book ?? recipe.book);
+      for (const block of recipe.blocks ?? []) {
+        if (block.book ?? recipe.book) books.add(block.book ?? recipe.book);
+        if (block.heading?.book) books.add(block.heading.book);
+      }
     }
   }
   return books;
+}
+
+/**
+ * One culture block's name lists, read from the pages `span` (the located
+ * page and the one after it). The page is two-column and a list wraps
+ * column to column to page, so the columns are stitched into one virtual
+ * column starting from the side that holds the block's first name; the list
+ * then starts at the row holding that name's key.
+ */
+export function cultureNames(span, recipe, block) {
+  const seg = (pg, side) => (pg ?? []).filter((it) => (side === "L" ? it.x >= 25 && it.x < 295 : it.x >= 295 && it.x < 585));
+  const run = span[0].find((it) => holdsKey(it.str, block.anchorKey));
+  const startSide = run && run.x >= 295 ? 1 : 0;
+  const flow = [[span[0], "L"], [span[0], "R"], [span[1], "L"], [span[1], "R"]].slice(startSide);
+  const stitched = flow.flatMap(([pg, side], si) =>
+    seg(pg, side).map((it) => ({ ...it, x: side === "R" ? it.x - 268 : it.x, y: it.y + si * 2000, _p2: si > 0 }))
+  );
+  return extractTable(stitched, { ...recipe, blocks: null, column: { xMin: 25, xMax: 320 }, startAfterKey: block.anchorKey });
 }
 
 /**
@@ -178,7 +220,21 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
   const read = pageReader();
   const bookMissing = (book, optional) => (optional ? optionalBooks : report.missingBooks).add(book);
 
-  // Self-locating culture blocks: the anchor (a list's first name) finds the
+  // A culture's name as its own heading prints it: the heading group whose key
+  // the block holds, set as a title when the page's case carries nothing.
+  // Null when the book that prints it is not open or the page does not hold it,
+  // and the block's neutral label stands.
+  const headingLabel = async (recipe, block) => {
+    if (!block.heading) return null;
+    const session = sessionDocs.get(block.heading.book ?? recipe.book);
+    if (!session?.doc) return null;
+    const items = await locatePage(session.doc, headingLocate(recipe, block), read);
+    const group = items && findHeading(items, block.heading.headH ?? HEAD_H, block.heading.key);
+    if (!group) return null;
+    return caseCarriesNothing(group.text) ? titleCaseHeading(group.text) : group.text;
+  };
+
+  // Self-locating culture blocks: the key of a list's first name finds the
   // page and print column; two-column reading order is stitched into one
   // virtual column so a list can wrap column→column→page.
   const runBlocks = async (recipe) => {
@@ -189,15 +245,9 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
       if (!session?.doc) { bookMissing(bk, block.optional ?? recipe.optional); continue; }
       const span = await locatePage(session.doc, blockLocate(recipe, block), read);
       if (!span) { report.missingTables.push(`cultures.${block.cultureId} (page not found)`); continue; }
-      const seg = (pg, side) => (pg ?? []).filter((it) => (side === "L" ? it.x >= 25 && it.x < 295 : it.x >= 295 && it.x < 585));
-      const run = span[0].find((it) => it.str.includes(block.anchor));
-      const startSide = run && run.x >= 295 ? 1 : 0;
-      const flow = [[span[0], "L"], [span[0], "R"], [span[1], "L"], [span[1], "R"]].slice(startSide);
-      const stitched = flow.flatMap(([pg, side], si) =>
-        seg(pg, side).map((it) => ({ ...it, x: side === "R" ? it.x - 268 : it.x, y: it.y + si * 2000, _p2: si > 0 }))
-      );
-      const names = extractTable(stitched, { ...recipe, blocks: null, column: { xMin: 25, xMax: 320 }, startAfter: block.anchor });
-      list[block.cultureId] = { ...block.meta, ...names };
+      const names = cultureNames(span, recipe, block);
+      const label = await headingLabel(recipe, block);
+      list[block.cultureId] = { ...block.meta, ...(label ? { label } : {}), ...names };
     }
     return { list };
   };
@@ -228,7 +278,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
       if (!items) continue; // a printing without that class simply omits it
       // A block may bound its own page: a column, and a yMax above a table
       // that shares the page with the prose it reads.
-      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMax: block.yMax ?? recipe.yMax });
+      const got = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, yMax: block.yMax ?? recipe.yMax, section: block.section });
       if (Object.keys(got).length) out[block.id] = got;
     }
     return recipe.emit?.path?.length ? { [recipe.emit.path[0]]: out } : out;

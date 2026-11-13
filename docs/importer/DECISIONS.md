@@ -10166,3 +10166,38 @@ rows that need a duration. It is a new feature; the owner's phase ruling
 *Cost:* the amount list is a word list, so "a dozen days" or "fortnight" passes.
 A note that paraphrases the rule without an amount-plus-unit phrase still needs
 a reviewer.
+
+## 2026-11-13 — Cultures are read by key, under ordinal ids (T-0511)
+
+**Ruled.** The `people` document's cultures are `culture1` to `culture12`, in
+the order the Revised Rulebook's People chapter prints their headings (RR
+495-503), and `dwarven`, `elven`, `people2` and `lizardman` (the lizard
+people's culture id and race key). Each ships a neutral label (`Culture N`,
+`Dwarven`, `Elven`, `People 2`, `Lizardman`) and is found by keys, never
+words: a block's `heading.key` is the `printKey` of its heading, `anchorKey`
+the `printKey` of its name list's first given name, and an appearance block's
+`section.key` bounds the search for its hair and eye sentences to the
+heading's own paragraph. The label is the heading as the Judge's page prints
+it, read at import (`caseCarriesNothing`, `titleCaseHeading`), and the
+neutral label where that book is not open. One table, `CULTURES`, feeds both
+recipes; the culture the People 1 race draws its names from says so in
+`alsoRaces`, and `pickCulture` follows it. The same ruling took the one
+people word out of `raceFromClassKey` and `inferRace`, and Add on a
+location's Demographics writes the first imported culture, or none. Which
+ordinal is which people is kept LOCAL-ONLY, in the decoder ring beside the
+rules extracts. The owner's sweep ruling that put the row in: "Close all
+open plus an IP safety sweep."
+
+**Rejected:** a migration of stored culture ids (owner, 2026-11-11: no tools
+for data earlier versions wrote). Locating a name list by its heading: a
+heading and its list stand on different pages or columns for several
+cultures (a heading at the foot of one column opens a list at the head of the
+next), so each is located by its own key and the two are read apart.
+Matching the heading as a substring of the page: a key is a hash of the
+folded letters, so the recipe holds nothing a reader could take for the name.
+
+*Cost:* a culture id stored on a location's demographics or a hireling's
+record that is not one of these does not resolve, and Rules tables for
+`people` must be read again to write them. A heading joined from more than
+eight display runs is not found. A culture whose book is not open shows its
+neutral label.

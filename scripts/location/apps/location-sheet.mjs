@@ -1005,10 +1005,12 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     Hooks.callAll(HOOKS.SLANDER_CHANGED, { location: this.actor });
   }
 
+  /** Adds a demographics row on the first imported culture; the culture is left for the Judge to pick when none is imported. */
   static async #onAddDemographic() {
+    const [firstCulture = ""] = Object.keys(optTable("people", "cultures")?.list ?? {});
     const demographics = [
       ...(this.actor.system.demographics ?? []).map((d) => d.toObject?.() ?? d),
-      { culture: "auran", weight: 1 },
+      { culture: firstCulture, weight: 1 },
     ];
     await this.actor.update({ "system.market.demographics": demographics });
   }
