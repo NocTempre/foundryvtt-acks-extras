@@ -8,17 +8,16 @@ investigated, and you will hear back on the issue whether the answer is a
 fix, a documentation improvement, a design-feedback note, or an explanation
 of what the module was doing and why.
 
-One module, one issue queue — the importer is part of ACKS II — Extras, so a
-problem connecting or importing a book goes to the same form as a problem on a
-sheet. The form has an optional field for which book, if that is where it
-happened.
+One issue queue covers everything: a problem connecting or importing a book
+goes to the same form as a problem on a sheet. The form has an optional field
+for which book, if that is where it happened.
 
 ## Where to file
 
 <ul class="acks-buy">
   <li>
     <h3>ACKS II — Extras</h3>
-    <p>Everything on the sheet and at the table: class documents and the class builder, proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks — and connecting your books, importing content and tables from them, and the Getting Started band in the Books window.</p>
+    <p>Everything on the sheet and at the table: class documents and the class builder, proficiencies and class powers, equipment and encumbrance, formations and marching order, henchmen and hirelings, influence and reactions, places and markets, monster stat blocks, vehicles, factions, domains, the Discord bot — and connecting your books, importing content and tables from them, and the Getting Started walkthrough.</p>
     <p><a href="https://github.com/NocTempre/foundryvtt-acks-extras/issues/new?template=bug_report.yml">File a bug report</a></p>
   </li>
 </ul>
@@ -56,8 +55,8 @@ missing, that's a report worth filing too.
 
 Something in your world looks broken rather than behaving wrongly? Examples
 are a sheet listing someone who was deleted, a purchase you cannot find, or a
-party member who is no longer there. As the GM, run **Repair This World (GM)**
-from the *ACKS Extras Macros* compendium, or open it from the module's
-settings. It lists the damage this module knows how to find and changes
+party member who is not there. As the GM, run **Repair This World (GM)**
+from the *ACKS Extras Macros* compendium, or open it from **Settings tab →
+Game Settings → ACKS II — Extras → Repair this world**. It lists the damage this module knows how to find and changes
 nothing until you choose. If it finds nothing, or its fix does not take, that
 is worth a report. Say what it listed.
