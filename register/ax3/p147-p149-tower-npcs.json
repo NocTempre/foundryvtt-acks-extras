@@ -84,5 +84,123 @@
     "assists": {
       "statLabelKey": "1hhhodw"
     }
+  },
+  {
+    "id": "ax3.npc66",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 66",
+    "anchor": {
+      "hash": "1we08a5",
+      "as": "label"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc67",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 67",
+    "anchor": {
+      "hash": "1nzqez4",
+      "as": "label"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc68",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 68",
+    "anchor": {
+      "hash": "1vzki6a",
+      "as": "label"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc69",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 69",
+    "anchor": {
+      "hash": "1asg2xb",
+      "as": "label"
+    },
+    "pages": [
+      152
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true,
+      "statColumns": [
+        54,
+        310
+      ]
+    }
+  },
+  {
+    "id": "ax3.npc76",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 76",
+    "anchor": {
+      "hash": "2ybw5e",
+      "as": "label"
+    },
+    "pages": [
+      150
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc77",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 77",
+    "anchor": {
+      "hash": "1mfbuvd",
+      "as": "label"
+    },
+    "pages": [
+      151
+    ],
+    "meta": {
+      "group": "Tower District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

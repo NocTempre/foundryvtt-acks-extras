@@ -304,5 +304,43 @@
     "assists": {
       "anchorAtStatline": true
     }
+  },
+  {
+    "id": "ax3.npc65",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 65",
+    "anchor": {
+      "hash": "3x8q58",
+      "as": "label"
+    },
+    "pages": [
+      110
+    ],
+    "meta": {
+      "group": "Festival District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc75",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 75",
+    "anchor": {
+      "hash": "p38m4v",
+      "as": "label"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "group": "Festival District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

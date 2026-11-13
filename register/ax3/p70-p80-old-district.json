@@ -324,5 +324,24 @@
     "meta": {
       "group": "Old District"
     }
+  },
+  {
+    "id": "ax3.npc64",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 64",
+    "anchor": {
+      "hash": "4xropk",
+      "as": "label"
+    },
+    "pages": [
+      79
+    ],
+    "meta": {
+      "group": "Old District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

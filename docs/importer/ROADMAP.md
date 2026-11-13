@@ -959,18 +959,19 @@ carries the picture, without shipping any of it.
 Every keyed place, every quarter's residents section, every list and every
 organisation has a row. What has none, by shape:
 
-- **Stat blocks inside a quarter's special-encounters list** — eleven across
-  five quarters: nine persons and two guard ranks with a count. The list's row
-  names them and the walk lands on them, but no NPC row exists to build them
-  from, so the card cannot open one. Wants NPC rows anchored on the stat
-  label, grouped under the quarter's special encounters.
+- **A counted rank a special-encounters list prints without scores** has no
+  NPC row; every block with its scores has one, grouped under the quarter's
+  special encounters.
 - **The two champions of the gladiatorial schools**, whose blocks sit in the
   residents section beside their school's organisation row.
 - **Occupants of the keyed interiors** (the special-location writeups) — the
-  factions ROADMAP's "People named only in the room-by-room writeups", now
-  counted: eleven blocks in three interiors, two of them persons and nine the
-  interior's own ranks (a guard, a burglar, a torturer) with a block each.
-  They land with the interiors.
+  factions ROADMAP's "People named only in the room-by-room writeups". The
+  named persons of the bridge, temple and lake interiors have rows, under
+  special-location groups. The old and festival quarters' interiors (AX3
+  pp. 87–94, 120–124) have none: their persons and their own ranks (a guard,
+  a burglar, a torturer, each with a block), well over eleven blocks across
+  more than three interiors, and the unnamed ranks of the bridge, temple and
+  lake interiors, wait for a slice of their own.
 - **The building tables** (size, type and occupants, occupant tables, style,
   treasure): the printed half of the dynamic-buildings row in
   `docs/formation/ROADMAP.md`.

@@ -9695,6 +9695,56 @@
         }
       }
     },
+    "ax3.npc64": {
+      "kind": "kind.npc",
+      "name": "NPC 64",
+      "cite": "AX3 p.77",
+      "pages": [
+        79
+      ],
+      "meta": {
+        "group": "Old District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 79,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0289999999998,
+            "y0": 471.2699,
+            "y1": 539.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              6
+            ],
+            "mergeHyphen": [
+              5
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 79,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 472.7699,
+            "y1": 477.7699
+          },
+          "hash": "4xropk"
+        }
+      }
+    },
     "ax3.festivalDistrict": {
       "kind": "kind.location",
       "name": "Festival District",
@@ -12216,6 +12266,55 @@
         }
       }
     },
+    "ax3.npc65": {
+      "kind": "kind.npc",
+      "name": "NPC 65",
+      "cite": "AX3 p.108",
+      "pages": [
+        110
+      ],
+      "meta": {
+        "group": "Festival District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 110,
+          "pattern": "statline",
+          "box": {
+            "x0": 321,
+            "x1": 561.0519999999999,
+            "y0": 609.2699,
+            "y1": 665.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              5
+            ],
+            "mergeHyphen": [
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 110,
+          "box": {
+            "x0": 322,
+            "x1": 326,
+            "y0": 610.7699,
+            "y1": 615.7699
+          },
+          "hash": "3x8q58"
+        }
+      }
+    },
     "ax3.festivalSpecialEncounters": {
       "kind": "kind.rolltable",
       "name": "Festival District — Special Encounters",
@@ -12703,6 +12802,52 @@
               }
             }
           ]
+        }
+      }
+    },
+    "ax3.npc75": {
+      "kind": "kind.npc",
+      "name": "NPC 75",
+      "cite": "AX3 p.109",
+      "pages": [
+        111
+      ],
+      "meta": {
+        "group": "Festival District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 111,
+          "pattern": "statline",
+          "box": {
+            "x0": 339.72,
+            "x1": 579.7596000000002,
+            "y0": 321.2699,
+            "y1": 365.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 111,
+          "box": {
+            "x0": 340.72,
+            "x1": 344.72,
+            "y0": 322.7699,
+            "y1": 327.7699
+          },
+          "hash": "p38m4v"
         }
       }
     },
@@ -17048,6 +17193,57 @@
         }
       }
     },
+    "ax3.npc76": {
+      "kind": "kind.npc",
+      "name": "NPC 76",
+      "cite": "AX3 p.148",
+      "pages": [
+        150
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 150,
+          "pattern": "statline",
+          "box": {
+            "x0": 321,
+            "x1": 561.0079999999999,
+            "y0": 633.7699,
+            "y1": 713.7699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              4,
+              7,
+              8
+            ],
+            "mergeHyphen": [
+              3,
+              6
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 150,
+          "box": {
+            "x0": 322,
+            "x1": 326,
+            "y0": 635.2699,
+            "y1": 640.2699
+          },
+          "hash": "2ybw5e"
+        }
+      }
+    },
     "ax3.towerSpecialEncounters": {
       "kind": "kind.rolltable",
       "name": "Tower District — Special Encounters",
@@ -17576,6 +17772,299 @@
               }
             }
           ]
+        }
+      }
+    },
+    "ax3.npc66": {
+      "kind": "kind.npc",
+      "name": "NPC 66",
+      "cite": "AX3 p.149",
+      "pages": [
+        151
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 151,
+          "pattern": "statline",
+          "box": {
+            "x0": 69,
+            "x1": 309.0200000000002,
+            "y0": 543.2699,
+            "y1": 671.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              8,
+              9,
+              10,
+              13
+            ],
+            "mergeHyphen": [
+              5,
+              7,
+              12
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 151,
+          "box": {
+            "x0": 70,
+            "x1": 74,
+            "y0": 544.7699,
+            "y1": 549.7699
+          },
+          "hash": "1we08a5"
+        }
+      }
+    },
+    "ax3.npc67": {
+      "kind": "kind.npc",
+      "name": "NPC 67",
+      "cite": "AX3 p.149",
+      "pages": [
+        151
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 151,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 578.9959999999999,
+            "y0": 447.2699,
+            "y1": 527.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              7,
+              9,
+              10
+            ],
+            "mergeHyphen": [
+              6,
+              12
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 151,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 448.7699,
+            "y1": 453.7699
+          },
+          "hash": "1nzqez4"
+        }
+      }
+    },
+    "ax3.npc77": {
+      "kind": "kind.npc",
+      "name": "NPC 77",
+      "cite": "AX3 p.149",
+      "pages": [
+        151
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 151,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0200000000002,
+            "y0": 144.2699,
+            "y1": 248.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              8,
+              9
+            ],
+            "mergeHyphen": [
+              5,
+              7,
+              11
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 151,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 145.7699,
+            "y1": 150.7699
+          },
+          "hash": "1mfbuvd"
+        }
+      }
+    },
+    "ax3.npc68": {
+      "kind": "kind.npc",
+      "name": "NPC 68",
+      "cite": "AX3 p.150",
+      "pages": [
+        152
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 152,
+          "pattern": "statline",
+          "box": {
+            "x0": 52.44,
+            "x1": 292.44540000000006,
+            "y0": 285.2699,
+            "y1": 401.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              4,
+              5,
+              8,
+              9,
+              11,
+              13,
+              14,
+              16,
+              18,
+              20,
+              22,
+              24,
+              26,
+              28,
+              30,
+              32,
+              33,
+              35
+            ],
+            "mergeHyphen": [
+              7
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 152,
+          "box": {
+            "x0": 53.44,
+            "x1": 57.44,
+            "y0": 286.7699,
+            "y1": 291.7699
+          },
+          "hash": "1vzki6a"
+        }
+      }
+    },
+    "ax3.npc69": {
+      "kind": "kind.npc",
+      "name": "NPC 69",
+      "cite": "AX3 p.150",
+      "pages": [
+        152
+      ],
+      "meta": {
+        "group": "Tower District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 152,
+          "pattern": "statline",
+          "box": {
+            "x0": 52.44,
+            "x1": 292.46899999999994,
+            "y0": 414.2699,
+            "y1": 554.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7,
+              9,
+              11,
+              13,
+              15,
+              17,
+              19,
+              21,
+              22,
+              24,
+              26,
+              28,
+              30,
+              31,
+              33,
+              34
+            ],
+            "mergeHyphen": [
+              5
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 152,
+          "box": {
+            "x0": 53.44,
+            "x1": 57.44,
+            "y0": 415.7699,
+            "y1": 420.7699
+          },
+          "hash": "1asg2xb"
         }
       }
     },
@@ -22158,6 +22647,53 @@
         }
       }
     },
+    "ax3.npc70": {
+      "kind": "kind.npc",
+      "name": "NPC 70",
+      "cite": "AX3 p.182",
+      "pages": [
+        184
+      ],
+      "meta": {
+        "group": "Lake District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 184,
+          "pattern": "statline",
+          "box": {
+            "x0": 51,
+            "x1": 291.02610000000004,
+            "y0": 483.2699,
+            "y1": 539.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 184,
+          "box": {
+            "x0": 52,
+            "x1": 56,
+            "y0": 484.7699,
+            "y1": 489.7699
+          },
+          "hash": "5qh5vs"
+        }
+      }
+    },
     "ax3.npc46": {
       "kind": "kind.npc",
       "name": "NPC 46",
@@ -23986,6 +24522,203 @@
               }
             }
           ]
+        }
+      }
+    },
+    "ax3.npc71": {
+      "kind": "kind.npc",
+      "name": "NPC 71",
+      "cite": "AX3 p.191",
+      "pages": [
+        193
+      ],
+      "meta": {
+        "group": "Palace District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 193,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0190000000001,
+            "y0": 294.2699,
+            "y1": 386.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              5,
+              6,
+              7,
+              8
+            ],
+            "mergeHyphen": [
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 193,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 295.7699,
+            "y1": 300.7699
+          },
+          "hash": "2ra6xx"
+        }
+      }
+    },
+    "ax3.npc72": {
+      "kind": "kind.npc",
+      "name": "NPC 72",
+      "cite": "AX3 p.191",
+      "pages": [
+        193
+      ],
+      "meta": {
+        "group": "Palace District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 193,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 578.9895000000004,
+            "y0": 516.2699,
+            "y1": 596.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              6,
+              7
+            ],
+            "mergeHyphen": [
+              5
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 193,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 517.7699,
+            "y1": 522.7699
+          },
+          "hash": "173ja6k"
+        }
+      }
+    },
+    "ax3.npc73": {
+      "kind": "kind.npc",
+      "name": "NPC 73",
+      "cite": "AX3 p.191",
+      "pages": [
+        193
+      ],
+      "meta": {
+        "group": "Palace District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 193,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0153999999998,
+            "y0": 75.2699,
+            "y1": 131.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 193,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 76.7699,
+            "y1": 81.7699
+          },
+          "hash": "ucf09q"
+        }
+      }
+    },
+    "ax3.npc74": {
+      "kind": "kind.npc",
+      "name": "NPC 74",
+      "cite": "AX3 p.191",
+      "pages": [
+        193
+      ],
+      "meta": {
+        "group": "Palace District — Special Encounters"
+      },
+      "fields": {
+        "statline": {
+          "op": "value",
+          "page": 193,
+          "pattern": "statline",
+          "box": {
+            "x0": 339,
+            "x1": 579.0400000000002,
+            "y0": 144.2699,
+            "y1": 200.2699
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "drop": [
+              0
+            ]
+          }
+        },
+        "name": {
+          "op": "heading",
+          "page": 193,
+          "box": {
+            "x0": 340,
+            "x1": 344,
+            "y0": 145.7699,
+            "y1": 150.7699
+          },
+          "hash": "1vl4zm1"
         }
       }
     },

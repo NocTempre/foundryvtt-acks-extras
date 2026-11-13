@@ -77,5 +77,81 @@
     "assists": {
       "statLabelKey": "1nxbc78"
     }
+  },
+  {
+    "id": "ax3.npc71",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 71",
+    "anchor": {
+      "hash": "2ra6xx",
+      "as": "label"
+    },
+    "pages": [
+      193
+    ],
+    "meta": {
+      "group": "Palace District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc72",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 72",
+    "anchor": {
+      "hash": "173ja6k",
+      "as": "label"
+    },
+    "pages": [
+      193
+    ],
+    "meta": {
+      "group": "Palace District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc73",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 73",
+    "anchor": {
+      "hash": "ucf09q",
+      "as": "label"
+    },
+    "pages": [
+      193
+    ],
+    "meta": {
+      "group": "Palace District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
+  },
+  {
+    "id": "ax3.npc74",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 74",
+    "anchor": {
+      "hash": "1vl4zm1",
+      "as": "label"
+    },
+    "pages": [
+      193
+    ],
+    "meta": {
+      "group": "Palace District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

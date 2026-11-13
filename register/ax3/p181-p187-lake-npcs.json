@@ -96,5 +96,24 @@
     "assists": {
       "anchorAtStatline": true
     }
+  },
+  {
+    "id": "ax3.npc70",
+    "kind": "kind.npc",
+    "book": "ax3",
+    "name": "NPC 70",
+    "anchor": {
+      "hash": "5qh5vs",
+      "as": "label"
+    },
+    "pages": [
+      184
+    ],
+    "meta": {
+      "group": "Lake District — Special Encounters"
+    },
+    "assists": {
+      "anchorAtStatline": true
+    }
   }
 ]

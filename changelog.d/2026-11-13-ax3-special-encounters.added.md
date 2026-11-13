@@ -1,0 +1,1 @@
+AX3's special-encounters lists can open the people and guard ranks they name: fourteen stat blocks printed inside the lists of five city quarters now import as NPC actors in each quarter's special-encounters folder (Settings tab → Game Settings → ACKS II — Extras → Manage imports → Import, AX3).
