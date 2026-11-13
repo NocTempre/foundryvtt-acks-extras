@@ -1928,7 +1928,9 @@ async function execInstruction(instr, ctx) {
      *
      * `transpose` reads a sideways table (properties as rows, options as
      * columns — the elemental by-element page): one output row per COLUMN,
-     * cells keyed by the slugged property labels.
+     * cells keyed by the slugged property labels. The property labels as
+     * printed come back as `labels`, keyed as the cells are, because
+     * `header` is keyed by column and names no property.
      */
     case "grid": {
       const runs = runsIn(pd, { box: instr.box });
@@ -2008,6 +2010,7 @@ async function execInstruction(instr, ctx) {
         }
       }
       const rows = [];
+      const labels = {};
       if (instr.transpose) {
         // Property labels come from the label span of every y-row; each
         // authored column becomes one output row (an option). A sideways table
@@ -2025,7 +2028,9 @@ async function execInstruction(instr, ctx) {
             if (instr.dropRows?.includes(slug)) continue; // claimed header/title row
             const eff = instr.props?.[slug] ? { ...col, ...instr.props[slug] } : col;
             const v = cellValue(spanText(p.items, col.x0, col.x1), eff, spanRaw(p.items, col.x0, col.x1));
-            if (v != null) cells[slug] = v;
+            if (v == null) continue;
+            cells[slug] = v;
+            if (p.label && !(slug in labels)) labels[slug] = p.label;
           }
           if (Object.keys(cells).length) rows.push({ key: col.key, label: col.label ?? col.key, cells });
         }
@@ -2054,7 +2059,9 @@ async function execInstruction(instr, ctx) {
         misses.push({ field: ctx.field, error: "grid matched no rows" });
         return null;
       }
-      return header ? { rows, header } : { rows };
+      const grid = header ? { rows, header } : { rows };
+      if (Object.keys(labels).length) grid.labels = labels;
+      return grid;
     }
     case "art": {
       const infos = await ctx.getArt(instr.page);

@@ -5968,7 +5968,7 @@ keeps its per-map Adventure, which still imports as a fill. A book Adventure in
 another world still needs its pack moved by hand and the same server for its
 pictures.
 
-## 2026-10-17 — Later books supersede, by the year their printing carries
+## 2026-10-17 — Later books supersede, by the year their printing carries — SUPERSEDED IN PART 2026-11-13
 
 Amends "Between books, identity follows the newest printing and content the
 most specific" (2026-10-09). It also amends, on a condition, "Same name, two
@@ -7848,7 +7848,7 @@ and a turn.
 *Cost:* against a wall a rect's fourth side stands along the wall, and it
 weighs 4 where three lines would weigh 3.
 
-## 2026-10-24 — An item two books print is the later printing's
+## 2026-10-24 — An item two books print is the later printing's — SUPERSEDED IN PART 2026-11-13
 
 Meets the condition "Later books supersede, by the year their printing
 carries" (2026-10-17) set for items: they kept `BOOKS` order until a census
@@ -10665,3 +10665,29 @@ features out."
 *Cost:* a few name cells are spelled differently in the two printings, and the
 monster book's spelling is never read. A grid name that matches no monster row
 is the resolver's to settle, on its own ledger row.
+
+## 2026-11-13 — Same-year adventures are ordered by their place in the series (K9)
+
+**Ruled.** Supersedes in part "Later books supersede, by the year their
+printing carries" (2026-10-17) and "An item two books print is the later
+printing's" (2026-10-24), applying the owner's ruling of 2026-10-28: where two
+books print the same thing, the later printing wins, ACKS II over AX6 over AX5
+and down the series to AX1. `books.mjs` `REGISTRY` gives AX1–AX6 a
+`seriesOrder` (1–6). `laterBook` orders by year first and, on a tie, by
+`seriesOrder` when both books carry one; otherwise it still returns null.
+`keptBook`, the place pairs, the register's pair and revision lints and
+`baseIsImportable` all read `laterBook`, so a pair or a base demand between
+two of AX2–AX6 now resolves to the later adventure, and an item two of them
+print keeps the later printing instead of the one `BOOKS` declares first.
+
+**Not ordered:** the AXIOMS Compendium (`axc`) against AX2–AX6, whose years
+also tie. The ruling orders AXIOMS issues among themselves, and `axc` is one
+book, but it does not place the compendium in the adventure series. A pair
+between `axc` and one of AX2–AX6 is still refused, and the lint says no
+printing order ranks them.
+
+*Rejected:* a full precedence list over every registered book. The year
+already orders every other pair, and a list would restate it.
+
+*Cost:* `seriesOrder` is a second field a new adventure must carry to join
+the order; one that lacks it ties as before.

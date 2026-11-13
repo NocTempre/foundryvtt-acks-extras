@@ -121,7 +121,8 @@ export function goodsResolver(catalog = []) {
 /**
  * One profile per market row across a book's grids.
  * @param {object} args
- * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object}>} args.grids executed grid outputs
+ * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object, labels?: object}>} args.grids executed grid
+ *   outputs; a sideways grid's `labels` are its goods' printed names, which its column-keyed `header` does not hold
  * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null, familiesErratum?: string|null}>} [args.records]
  *   domain-record reads by market key; `gridClassErratum` says the grid's class for that row is a
  *   misprint, `familiesErratum` that the record's own family count is one, so none is read from it
@@ -134,6 +135,7 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
   const out = [];
   for (const grid of grids) {
     const header = grid?.header ?? {};
+    const labels = grid?.labels ?? {};
     for (const row of grid?.rows ?? []) {
       if (!row?.key) continue;
       const demand = [];
@@ -151,7 +153,10 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
         if (modifier === null) continue;
         const category = resolve(column, header[column]);
         if (!category) {
-          unmapped.push({ column, header: String(header[column] ?? column) });
+          // The report names the good as printed: the column's header where
+          // the grid has one, a sideways grid's property label otherwise. The
+          // label never feeds `resolve`, so what maps does not depend on it.
+          unmapped.push({ column, header: String(header[column] ?? labels[column] ?? column) });
           continue;
         }
         // Two columns feeding one good: the first in the order above stands,
@@ -202,9 +207,9 @@ export const marketOrdinal = (market) => Number(/(\d+)$/u.exec(String(market ?? 
 /**
  * Whether a place's base demand may be written by a book import: it is empty,
  * it already came from this same source, or it came from a book `laterBook`
- * ranks earlier than this one. A base from a later book, from a book whose
- * year ties or is unknown, and a base the Judge generated or typed (no source)
- * are left standing.
+ * ranks earlier than this one. A base from a later book, from a book `laterBook`
+ * cannot order against this one, and a base the Judge generated or typed (no
+ * source) are left standing.
  */
 export function baseIsImportable(goods, source) {
   if (!(goods?.demand ?? []).length) return true;

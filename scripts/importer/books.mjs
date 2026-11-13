@@ -28,8 +28,12 @@
  * with every player, whose exports read it too.
  *
  * `published` is the copyright year the registered printing carries on its
- * credits page. It is the only order between books that `laterBook` reads.
- * Only the ACKS line carries it: a pair never crosses lines.
+ * credits page, and `laterBook` orders by it first. Only the ACKS line carries
+ * it: a pair never crosses lines.
+ *
+ * `seriesOrder` orders books whose years tie: the later number is the later
+ * printing. Only the AX series carries it, as its own number, so a year tie
+ * between two books that do not both carry one stays unordered.
  */
 
 /**
@@ -93,6 +97,7 @@ export const REGISTRY = {
     label: "AX1 The Sinister Stone of Sakkara",
     short: "AX1",
     published: 2015,
+    seriesOrder: 1,
     pages: 80,
     titleRe: /Sinister Stone of Sakkara/i,
     printedOffset: 1,
@@ -102,6 +107,7 @@ export const REGISTRY = {
     label: "AX2 Secrets of the Nethercity",
     short: "AX2",
     published: 2018,
+    seriesOrder: 2,
     pages: 186,
     titleRe: /Secrets of the Nethercity/i,
     printedOffset: 2,
@@ -111,6 +117,7 @@ export const REGISTRY = {
     label: "AX3 Capital of the Borderlands",
     short: "AX3",
     published: 2018,
+    seriesOrder: 3,
     pages: 226,
     titleRe: /Capital of the Borderlands/i,
     printedOffset: 2,
@@ -120,6 +127,7 @@ export const REGISTRY = {
     label: "AX4 Ruined City of Cyfandir",
     short: "AX4",
     published: 2018,
+    seriesOrder: 4,
     pages: 30,
     titleRe: /Ruined City of Cyfandir/i,
     printedOffset: 2,
@@ -129,6 +137,7 @@ export const REGISTRY = {
     label: "AX5 Eyrie of the Dread Eye",
     short: "AX5",
     published: 2018,
+    seriesOrder: 5,
     pages: 59,
     // The stock filename welds and misspells the title ("EyrireDreadEye");
     // the pattern tolerates both it and the printed form.
@@ -140,6 +149,7 @@ export const REGISTRY = {
     label: "AX6 Sepulcher of the Sorceress-Queen",
     short: "AX6",
     published: 2018,
+    seriesOrder: 6,
     pages: 58,
     titleRe: /Sepulcher of the Sorceress[\s-]*Queen/i,
     printedOffset: 2,
@@ -344,7 +354,8 @@ export const shelfBooksToOpen = (staged, observes, isOpen) =>
 
 /**
  * The later of two books by the year their printings carry (`published`), or
- * null when the years tie or either book has none. A tie is never broken by
+ * null when either book has none. A tie in year is broken by `seriesOrder`
+ * where both books carry one, and is otherwise null. It is never broken by
  * declaration order: that order is a habit of this file, not a fact of
  * publication, so a caller that needs an answer has to refuse or fall back on
  * a rule of its own.
@@ -352,15 +363,19 @@ export const shelfBooksToOpen = (staged, observes, isOpen) =>
 export function laterBook(a, b) {
   const ya = REGISTRY[a]?.published;
   const yb = REGISTRY[b]?.published;
-  if (!Number.isInteger(ya) || !Number.isInteger(yb) || ya === yb) return null;
-  return ya > yb ? a : b;
+  if (!Number.isInteger(ya) || !Number.isInteger(yb)) return null;
+  if (ya !== yb) return ya > yb ? a : b;
+  const oa = REGISTRY[a]?.seriesOrder;
+  const ob = REGISTRY[b]?.seriesOrder;
+  if (!Number.isInteger(oa) || !Number.isInteger(ob) || oa === ob) return null;
+  return oa > ob ? a : b;
 }
 
 /**
  * Which of two books' printings of one item the library keeps when an import
- * finds the other already held (`b`): the later (`laterBook`), and where the
- * years tie or one is missing, the book this file declares first, the held
- * one when neither is declared. Items alone fall back so; a place's pair
+ * finds the other already held (`b`): the later (`laterBook`), and where
+ * that names nobody, the book this file declares first, the held one when
+ * neither is declared. Items alone fall back so; a place's pair
  * refuses instead.
  */
 export function keptBook(a, b) {

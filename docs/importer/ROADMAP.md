@@ -1110,17 +1110,16 @@ seven classes:
 - **AX3's people as characters.** They stay monster NPCs. Converting them
   means re-minting stable ids and re-pointing every organisation and roster
   slot that names them.
-- **An order for same-year printings.** AX2–AX6 all carry 2018, so
-  `laterBook` cannot order them, and a place two of them print cannot be
-  paired until the register records which came first. The user ruled the
-  order (2026-10-28): ACKS II over AX6 over AX5 and down the series, and a
-  later AXIOMS issue over an earlier one. The AXIOMS Compendium is registered
-  as one book (`axc`, 2018), so its issues never compete with each other, but
-  it ties with AX2–AX6 on year.
-  Until `laterBook` carries it, a base demand from one of those books never
-  replaces another's (`baseIsImportable`).
-- **A sideways grid's reports.** An unmapped or duplicate good on a
-  transposed grid is reported by its key, not its printed label.
+- **The AXIOMS Compendium against the adventures.** `axc` and AX2–AX6 all
+  carry 2018, and the owner's 2026-10-28 order places the adventures and the
+  AXIOMS issues among themselves but not the compendium among the adventures,
+  so a pair between `axc` and one of them is still refused (DECISIONS
+  2026-11-13, K9).
+- **A sideways grid's duplicate goods.** A good a transposed grid names twice
+  is reported by its key, not its printed label: the duplicate report in the
+  market-profile step reads `grid.header` only, and a transposed grid keeps
+  its printed labels in `grid.labels`. An unmapped good is reported by its
+  label.
 - **AX1's fort as AX3's site 28.** Site 28 binds onto its market, so it
   builds no place of its own to join, and the fort stands apart until joining
   two places that both stand is ruled.

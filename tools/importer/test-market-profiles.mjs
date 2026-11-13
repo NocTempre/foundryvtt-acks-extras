@@ -13,6 +13,7 @@
  */
 import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
+import { executeEntry } from "../../scripts/importer/executor.mjs";
 import {
   ACKS1_GOODS, baseIsForceable, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
   marketProfileUpdate, marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName, unprintedMarketUpdate, withErratumNote,
@@ -20,7 +21,7 @@ import {
 import { MERCHANDISE_TYPES } from "../../scripts/markets/config.mjs";
 
 let passed = 0;
-const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
+const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
 
 const SOURCE = { book: "bk", page: "BK p.9" };
 
@@ -218,14 +219,19 @@ ok("a base from the same source refreshes; from another source it stands", () =>
   assert.equal("system.market.urbanFamilies" in update, false);
 });
 
-ok("a later printing's base replaces an earlier one's; never the reverse, a tie, or the Judge's", () => {
+ok("a later printing's base replaces an earlier one's; never the reverse, an unordered tie, or the Judge's", () => {
   const held = (book) => ({ demand: [{ category: "salt", modifier: 1 }], dmProfile: { source: book ? { book, page: `${book} p.1` } : null } });
   const from = (book) => ({ book, page: `${book} p.2` });
-  // ax1 is printed before ax3; ax5 and ax6 share a year.
+  // ax1 is printed before ax3; ax5 and ax6 share a year and the series order puts ax6 later;
+  // the Compendium shares it and is placed against no AX book.
   assert.equal(baseIsImportable(held("ax1"), from("ax3")), true);
   assert.equal(baseIsImportable(held("ax3"), from("ax1")), false);
-  assert.equal(baseIsImportable(held("ax5"), from("ax6")), false);
+  assert.equal(baseIsImportable(held("ax5"), from("ax6")), true);
   assert.equal(baseIsImportable(held("ax6"), from("ax5")), false);
+  assert.equal(baseIsImportable(held("ax2"), from("ax6")), true);
+  assert.equal(baseIsImportable(held("axc"), from("ax6")), false);
+  assert.equal(baseIsImportable(held("ax6"), from("axc")), false);
+  assert.equal(baseIsImportable(held("rr"), from("jj")), false);
   assert.equal(baseIsImportable(held("bk"), from("ax3")), false);
   assert.equal(baseIsImportable(held(null), from("ax3")), false);
 });
@@ -243,6 +249,8 @@ ok("a forced repair writes the class, families and base over the Judge's, but ne
   assert.equal(earlier.wrote.marketClass, true);
   assert.equal(baseIsForceable(later.goods, { book: "ax1", page: "ax1 p.2" }), false);
   assert.equal(baseIsForceable(later.goods, { book: "ax5", page: "ax5 p.2" }), true);
+  assert.equal(baseIsForceable({ ...later.goods, dmProfile: { source: { book: "ax6", page: "ax6 p.1" } } }, { book: "ax5", page: "ax5 p.2" }), false);
+  assert.equal(baseIsForceable({ ...later.goods, dmProfile: { source: { book: "axc", page: "axc p.1" } } }, { book: "ax5", page: "ax5 p.2" }), true);
   assert.equal(baseIsForceable({ demand: [] }, SOURCE), true);
   const unforced = marketProfileUpdate(judged, p, SOURCE);
   assert.deepEqual(unforced.update, {});
@@ -369,6 +377,54 @@ ok("a hand-moved base stands through every later run, and an untouched one is wr
     assert.equal(wrote.demand, false);
     assert.deepEqual(update, {});
   }
+});
+
+// A sideways grid read through the real executor from an invented page: the header is keyed by
+// column and the goods' printed names ride in `labels`.
+const run = (str, x, y) => ({ str, x, y, w: str.length * 5, h: 9 });
+const sidewaysPage = {
+  width: 612,
+  height: 792,
+  items: [
+    run("Qa", 110, 88), run("Qb", 210, 88),
+    run("Brine Casks", 10, 110), run("+1", 110, 110), run("-2", 210, 110),
+    run("Wool Bolts", 10, 130), run("0", 110, 130), run("3", 210, 130),
+    run("Salt Lumps", 10, 150), run("+2", 110, 150), run("+1", 210, 150),
+  ],
+};
+const readSideways = async () => {
+  const cookbook = {
+    schema: "acks-cookbook/3",
+    entries: { "qq.grid": { kind: "kind.marketGrid", fields: { "grids.markets": {
+      op: "grid", page: 1, transpose: true, box: { x0: 0, x1: 300, y0: 100, y1: 160 }, label: { x0: 0, x1: 90 },
+      headerBand: { y0: 82, y1: 95 }, rowBands: [{ y0: 105, y1: 115 }, { y0: 125, y1: 135 }, { y0: 145, y1: 155 }],
+      cols: [{ key: "mkt1", x0: 100, x1: 190 }, { key: "mkt2", x0: 200, x1: 290 }],
+    } } } },
+  };
+  const node = await executeEntry(null, cookbook, {}, "qq.grid", { pageCache: new Map([[1, sidewaysPage]]) });
+  return node.fields["grids.markets"] ?? node.fields.grids?.markets;
+};
+
+await ok("a sideways grid's unmapped goods are reported by their printed label, not their key", async () => {
+  const grid = await readSideways();
+  assert.deepEqual(Object.keys(grid.header), ["mkt1", "mkt2"], "the header is keyed by column and names no good");
+  assert.deepEqual(grid.labels, { brineCasks: "Brine Casks", woolBolts: "Wool Bolts", saltLumps: "Salt Lumps" });
+  const resolve = goodsResolver([{ key: "clothing", aliases: ["woolBolts"] }, { key: "salt", aliases: ["saltLumps"] }]);
+  const [one, two] = marketProfiles({ grids: [grid], resolve });
+  assert.deepEqual(one.unmapped, [{ column: "brineCasks", header: "Brine Casks" }]);
+  assert.deepEqual(two.unmapped, [{ column: "brineCasks", header: "Brine Casks" }]);
+  assert.deepEqual(one.demand, [{ category: "clothing", modifier: 0 }, { category: "salt", modifier: 2 }]);
+  // The label reports; it never maps: the resolver is handed the column's own header, which a sideways grid lacks.
+  const seen = [];
+  const spy = (column, header) => { seen.push(header); return null; };
+  marketProfiles({ grids: [grid], resolve: spy });
+  assert.equal(seen.length > 0 && seen.every((h) => h === undefined), true);
+});
+
+await ok("a grid with no property labels reports a good by its column key", () => {
+  const bare = { rows: [{ key: "mkt1", cells: { brineCasks: "+1" } }], header: { mkt1: "Qa" } };
+  const [p] = marketProfiles({ grids: [bare], resolve: goodsResolver([]) });
+  assert.deepEqual(p.unmapped, [{ column: "brineCasks", header: "brineCasks" }]);
 });
 
 console.log(`\ntest-market-profiles: ${passed} passed`);

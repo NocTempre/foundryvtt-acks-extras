@@ -65,8 +65,9 @@ const earlier = (meta, id = "ax1.fortPlace") => loc(id, { meta });
 none("a pair from the earlier book", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [2, 5] }))));
 none("an earlier printing that adds nothing", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [] }))));
 flags("a pair declared on the later book's row", pairProblems(rowsOf(loc("ax1.fortPlace"), loc("ax3.site27", { meta: { sameAs: "ax1.fortPlace", unique: [] } }))), /earlier book's row/);
-flags("a pair between books whose years tie", pairProblems(rowsOf(loc("ax4.x"), loc("ax2.x", { meta: { sameAs: "ax4.x", unique: [] } }))), /no printing year orders/);
-flags("a pair with a book of no year", pairProblems(rowsOf(loc("cat.x"), earlier({ sameAs: "cat.x", unique: [] }))), /no printing year orders/);
+none("a pair between same-year books the series orders", pairProblems(rowsOf(loc("ax4.x"), loc("ax2.x", { meta: { sameAs: "ax4.x", unique: [] } }))));
+flags("a pair between same-year books nothing orders", pairProblems(rowsOf(loc("axc.x"), loc("ax2.x", { meta: { sameAs: "axc.x", unique: [] } }))), /no printing order/);
+flags("a pair with a book of no year", pairProblems(rowsOf(loc("cat.x"), earlier({ sameAs: "cat.x", unique: [] }))), /no printing order/);
 flags("a pair within one book", pairProblems(rowsOf(loc("ax1.other"), earlier({ sameAs: "ax1.other", unique: [] }))), /another book's row/);
 flags("a pair without the reviewer's list", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27" }))), /carries meta\.unique/);
 flags("a unique list of words", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: ["intro"] }))), /paragraph ordinals/);
@@ -105,7 +106,8 @@ flags("a column naming neither", columns(demandGrid({ mkt1: {} })), /exactly one
 flags("meta.markets on a place", columns({ ...ownPlace, meta: { markets: {} } }), /market grid row only/);
 flags("a pair with a book printed earlier", columns(record("ax1.mkt9"), demandGrid({ mkt1: { sameAs: "ax1.mkt9" } }, "ax3.marketGrid9")), /earlier book's grid/);
 flags("a pair within one book", columns(record("ax1.mkt9"), demandGrid({ mkt1: { sameAs: "ax1.mkt9" } })), /another book's market/);
-flags("a pair between books whose years tie", columns(record("ax6.mkt9"), demandGrid({ mkt1: { sameAs: "ax6.mkt9" } }, "ax5.marketGrid1")), /no printing year orders/);
+none("a pair between same-year books the series orders", columns(record("ax6.mkt9"), demandGrid({ mkt1: { sameAs: "ax6.mkt9" } }, "ax5.marketGrid1")));
+flags("a pair between same-year books nothing orders", columns(record("axc.mkt9"), demandGrid({ mkt1: { sameAs: "axc.mkt9" } }, "ax5.marketGrid1")), /no printing order/);
 flags("a pair with a row no record defines", columns(demandGrid({ mkt1: { sameAs: "ax3.mkt9" } })), /no row defines/);
 flags("a pair with a row that is no market or place", columns({ id: "ax3.box9", book: "ax3", kind: "kind.prose" }, demandGrid({ mkt1: { sameAs: "ax3.box9" } })), /no market record or place/);
 none("a pair with a market a later site names, one its grid alone prints, and a later site's own place",
@@ -149,7 +151,8 @@ flags("a families erratum on a grid", errata(bandGrid({ familiesErratum: "bk-p9-
 
 none("a revision into a later book", rowMetaProblems({ id: "ax2.m1", book: "ax2", kind: "kind.monster", meta: { revisedBy: "mm.m1" } }));
 flags("a revision into an earlier book", rowMetaProblems({ id: "mm.m1", book: "mm", kind: "kind.monster", meta: { revisedBy: "ax2.m1" } }), /not a later printing/);
-flags("a revision between same-year books", rowMetaProblems({ id: "ax2.m1", book: "ax2", kind: "kind.monster", meta: { revisedBy: "ax6.m1" } }), /not a later printing/);
+none("a revision into a later book of the same year", rowMetaProblems({ id: "ax2.m1", book: "ax2", kind: "kind.monster", meta: { revisedBy: "ax6.m1" } }));
+flags("a revision between same-year books nothing orders", rowMetaProblems({ id: "ax2.m1", book: "ax2", kind: "kind.monster", meta: { revisedBy: "axc.m1" } }), /not a later printing/);
 none("a person bound to a character", rowMetaProblems({ id: "ax1.npc1", book: "ax1", kind: "kind.npc", meta: { actor: "character" } }));
 flags("an actor of another sort", rowMetaProblems({ id: "ax1.npc1", book: "ax1", kind: "kind.npc", meta: { actor: "monster" } }), /not an actor/);
 flags("an actor on a place", rowMetaProblems({ id: "ax1.poi1", book: "ax1", kind: "kind.location", meta: { actor: "character" } }), /npc row only/);

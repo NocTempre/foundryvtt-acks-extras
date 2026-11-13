@@ -135,39 +135,56 @@ check("an unknown page count names nobody", identifyBook(9999, "ACKS II Revised 
 check("a count collision with a foreign title names nobody", identifyBook(BOOKS.jj.pages, "ACKS II Revised Rulebook") === null);
 
 /* Publication order. A year is carried only by the ACKS line's books, as a
- * whole year; `laterBook` answers the same whichever way round it is asked,
- * and on a tie or a missing year it answers nobody rather than falling back to
- * the order this file declares. */
+ * whole year; `laterBook` answers the same whichever way round it is asked.
+ * A year tie is ordered by `seriesOrder` where both books carry one (the AX
+ * series), and otherwise, like a missing year, answers nobody rather than
+ * falling back to the order this file declares. */
 {
   const dated = Object.entries(BOOKS).filter(([, b]) => b.published !== undefined);
   for (const [id, b] of dated) {
     check(`${id} carries a whole year`, Number.isInteger(b.published) && b.published > 2000);
     check(`${id} is an ACKS book, not another line's or a form`, !b.line && !b.form);
   }
+  const ordered = (ba, bb) => Number.isInteger(ba.seriesOrder) && Number.isInteger(bb.seriesOrder) && ba.seriesOrder !== bb.seriesOrder;
   for (const [a, ba] of dated) {
     for (const [b, bb] of dated) {
       const got = laterBook(a, b);
       check(`laterBook(${a}, ${b}) is symmetric`, got === laterBook(b, a));
-      if (ba.published === bb.published) check(`a tie names nobody (${a}, ${b})`, got === null);
-      else check(`the later year wins (${a}, ${b})`, got === (ba.published > bb.published ? a : b));
+      if (ba.published !== bb.published) check(`the later year wins (${a}, ${b})`, got === (ba.published > bb.published ? a : b));
+      else if (ordered(ba, bb)) check(`a tie goes to the later series number (${a}, ${b})`, got === (ba.seriesOrder > bb.seriesOrder ? a : b));
+      else check(`a tie nobody ordered names nobody (${a}, ${b})`, got === null);
     }
   }
+  for (const [id, b] of Object.entries(BOOKS)) {
+    if (b.seriesOrder !== undefined) check(`${id} carries a whole series number, and only an AX book does`, Number.isInteger(b.seriesOrder) && /^ax\d+$/.test(id) && b.seriesOrder === Number(id.slice(2)));
+  }
+  // The ruled order: ACKS II over AX6 over AX5 and down the series.
+  check("AX6 is later than AX5, whichever way round", laterBook("ax5", "ax6") === "ax6" && laterBook("ax6", "ax5") === "ax6");
+  check("AX6 is later than AX2, whichever way round", laterBook("ax2", "ax6") === "ax6" && laterBook("ax6", "ax2") === "ax6");
+  check("AX3 is later than AX2 and earlier than AX4", laterBook("ax2", "ax3") === "ax3" && laterBook("ax3", "ax4") === "ax4");
+  check("ACKS II is later than AX6", laterBook("ax6", "rr") === "rr" && laterBook("rr", "ax6") === "rr");
+  // What the ruling does not place stays unordered.
+  check("the AXIOMS Compendium is placed against no AX book", laterBook("axc", "ax3") === null && laterBook("ax3", "axc") === null && laterBook("ax6", "axc") === null);
+  check("two ACKS II books tie", laterBook("rr", "jj") === null);
+  check("a book is not later than itself", laterBook("ax3", "ax3") === null && laterBook("rr", "rr") === null);
   // The pair the 2026-10-17 ruling was made over.
   check("AX3 supersedes AX1", laterBook("ax1", "ax3") === "ax3");
   check("a book with no year names nobody", laterBook("ax1", "cat") === null);
   check("an unknown book names nobody", laterBook("ax1", "nope") === null);
 
-  // An item's kept printing: the later year, else the earlier declaration, else the held one.
+  // An item's kept printing: the later printing, else the earlier declaration, else the held one.
   // `keptBook` ranks by the registry, which still holds a book `BOOKS` has withdrawn.
   const declared = Object.keys(REGISTRY);
   for (const [a, ba] of dated) {
     for (const [b, bb] of dated) {
       if (a === b) continue;
-      const want = ba.published !== bb.published ? laterBook(a, b) : declared.indexOf(a) < declared.indexOf(b) ? a : b;
+      const want = laterBook(a, b) ?? (declared.indexOf(a) < declared.indexOf(b) ? a : b);
       check(`keptBook(${a}, ${b}) keeps ${want}`, keptBook(a, b) === want);
     }
   }
   check("an item AX3 prints too is AX3's, whichever arrives first", keptBook("ax1", "ax3") === "ax3" && keptBook("ax3", "ax1") === "ax3");
+  check("an item AX2 and AX6 both print is AX6's, whichever arrives first", keptBook("ax2", "ax6") === "ax6" && keptBook("ax6", "ax2") === "ax6");
+  check("an item the Compendium and AX3 both print keeps the book declared first", keptBook("axc", "ax3") === (declared.indexOf("axc") < declared.indexOf("ax3") ? "axc" : "ax3"));
   check("a book with no year yields to the one declared first", keptBook("cat", "rr") === (declared.indexOf("cat") < declared.indexOf("rr") ? "cat" : "rr"));
   check("between two undeclared books the held one stays", keptBook("nope", "nada") === "nada");
   check("a declared book outranks an undeclared one either way", keptBook("nope", "rr") === "rr" && keptBook("rr", "nope") === "rr");

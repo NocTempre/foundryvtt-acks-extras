@@ -137,7 +137,7 @@ export function pairProblems(rows) {
     if (other === r.book) out.push(`${id}: meta.sameAs pairs with another book's row, never one of ${r.book}`);
     else {
       const later = laterBook(r.book, other);
-      if (later === null) out.push(`${id}: no printing year orders ${r.book} and ${other}; a pair between them waits until the register records which came first`);
+      if (later === null) out.push(`${id}: no printing order ranks ${r.book} and ${other}; a pair between them waits until the register records which came first`);
       else if (later !== other) out.push(`${id}: meta.sameAs is declared on the earlier book's row, and ${other} is earlier than ${r.book}`);
     }
     const t = rows.get(sameAs);
@@ -214,7 +214,7 @@ export function marketColumnProblems(rows) {
       if (other === r.book) out.push(`${at}.sameAs pairs with another book's market, never one of ${r.book}`);
       else {
         const later = laterBook(r.book, other);
-        if (later === null) out.push(`${at}: no printing year orders ${r.book} and ${other}; a pair between them waits until the register records which came first`);
+        if (later === null) out.push(`${at}: no printing order ranks ${r.book} and ${other}; a pair between them waits until the register records which came first`);
         else if (later !== other) out.push(`${at}.sameAs is declared on the earlier book's grid, and ${other} is earlier than ${r.book}`);
       }
       const problem = pairTargetProblem(rows, to);
