@@ -105,7 +105,7 @@ export function parseThrowTarget(text) {
   return m ? Number(m[1]) : null;
 }
 
-/** The first signed modifier in a window ("gains a +4 bonus"). */
+/** The first signed modifier in a window (a bonus clause; RR p. 27, JJ p. 68, MM p. 19). */
 export function parseSigned(text) {
   const m = /([+-]\s*\d+)/.exec(String(text ?? ""));
   return m ? Number(m[1].replace(/\s+/g, "")) : null;
@@ -162,7 +162,7 @@ export function parseKindList(text, re) {
   return out.length ? [...new Set(out)] : null;
 }
 
-/** "gathers 1/2 stone of food, enough for three man-sized creatures". */
+/** The yield clause: a stone count (whole, fraction or decimal) and the number of creatures it feeds (RR p. 276). */
 export function parseYield(text) {
   const t = String(text ?? "").toLowerCase();
   const m = /(\d+(?:\s*\/\s*\d+)?|\d*\.\d+)\s*(st|stone)\b/.exec(t);

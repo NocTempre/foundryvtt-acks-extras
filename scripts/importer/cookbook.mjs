@@ -820,8 +820,8 @@ export function bindMonster(node) {
 /**
  * Every import lands in a tree, not a heap:
  *
- *   <book label>                e.g. "AX2 Secrets of the Nethercity"
- *     └── <entry meta.group>    e.g. "New Monsters", "Old District — …"
+ *   <book label>                e.g. a book's code plus its title
+ *     └── <entry meta.group>    e.g. a section heading, or a heading with a sub-area suffix
  *
  * The PACK is the container; entries without a group sit in the book folder,
  * and content-type items (abilities, equipment) use their own top level
@@ -4116,8 +4116,8 @@ async function importOne(bookId, id, folderId) {
 /*  grids -> acks-extras.template generator actor  */
 /* -------------------------------------------- */
 
-/** "Adult (51-75 years)" -> "Adult"; smallcap case healed ("Green dragon" ->
- *  "Green Dragon") — the short piece generated names use. */
+/** A label's parenthesised range suffix is dropped (MM p. 106), and smallcap
+ *  case is healed to title case — the short piece generated names use. */
 const nameLabelOf = (label) =>
   String(label ?? "")
     .replace(/\s*\([^)]*\)\s*/g, " ")
@@ -8974,7 +8974,7 @@ const lenientRe = (surface, { alias = false } = {}) =>
 /**
  * Tokenize a template's Proficiencies cell: greedy longest-known-name match,
  * then an optional rank digit and an optional parenthesized selection.
- * "Fighting Style Spec. (weapon & shield)Siege Engineering" →
+ * A selected entry run straight into the next entry's name (RR p. 25) →
  * two entries. Text that matches nothing is skipped a glyph at a time and
  * accumulated on the preceding entry, where it is dropped on the way out —
  * the cell keeps only what resolved.
@@ -9005,7 +9005,7 @@ export function tokenizeProfs(cellText, menu) {
     }
     rest = rest.slice(hit.len).trim();
     // The rank sits on EITHER side of the selection: the spreads print
-    // "Craft (armor-making) 3" and "Alertness 2" alike, so a reader that only
+    // a rank after the parenthesis and a rank after a bare name alike (RR p. 82), so a reader that only
     // looked before the parenthesis brought every selected entry in at rank 1.
     const takeRank = () => {
       const m = /^(\d)\b/.exec(rest);
@@ -9177,7 +9177,7 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   // An authored equivalence is a menu row with one form: it matches on exactly
   // the terms a printed name does, so a four-letter key like "pole" can no more
   // fire from inside "polearm" than the catalogue's own short names can.
-  // Longest first, so "long bearded axe" is not answered by "bearded axe".
+  // Longest first, so a three-word name is not answered by the two-word name inside it (RR pp. 25, 50, 138).
   // Each value is a ref, or `{ref}` where the register also records WHY.
   const aliasForms = Object.entries(aliases)
     .map(([k, v]) => ({ text: k, fold: fold(k), ref: typeof v === "string" ? v : (v?.ref ?? "") }))
@@ -9346,8 +9346,8 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       continue;
     }
     // A pair splits only when BOTH halves resolve to known equipment —
-    // "spear and short sword" is two weapons, while "tunic and pants" (one
-    // outfit, one printed price) is a known item WHOLE and stays whole. The
+    // two weapons joined by "and" are two items, while a garment pair priced
+    // as one outfit (RR pp. 25, 27, 33, 35; JJ p. 449) is a known item WHOLE and stays whole. The
     // whole-descriptor test is `resolveWhole`, never `resolve`: see there.
     //
     // "Under" pairs the same way — the templates dress a character in both at
@@ -10245,8 +10245,8 @@ export function readTraining(bodyParts, runin) {
  * paragraph (weapons, then armour, then fighting styles, in that fixed
  * order; the run-in label is declared per class in the register).
  *
- * Weapons: "all weapons" is unrestricted, a size clause is a set of size
- * grants, "all missile weapons" is the missile grant, otherwise a named
+ * Weapons: an unqualified "all" clause is unrestricted, a size clause is a set of size
+ * grants, an "all" clause over the missile group is the missile grant (RR p. 15; JJ p. 290), otherwise a named
  * list — a parenthesized enumeration after a group name overrides the group.
  * An "except" clause returns no weapon grant at all. Armour: the heaviest
  * rung named (a denial is the bottom rung). Styles: the positive clause
@@ -10349,7 +10349,8 @@ export function parseCombatTraining(body, runin) {
   let armour = "";
   const aSeg = seg.armour ?? "";
   // The sentence names every rung it includes, so the answer is the HEAVIEST
-  // named — "light and very light" is a light class, not a very light one.
+  // named — a sentence naming both the light and very light rungs (RR p. 26;
+  // JJ p. 290) is a light class, not a very light one.
   // "very light" is removed before looking for "light" so the qualifier cannot
   // be read as the bare rung it contains.
   const aBare = aSeg.replace(/very\s*light/gi, " ");
@@ -10379,7 +10380,7 @@ export function parseCombatTraining(body, runin) {
 
 /**
  * The second grammar: a spread that states its training in sentences
- * ("can fight with…", "can wield…") rather than in the RR formula the
+ * (a fight-with or wield lead-in verb; RR p. 15, JJ pp. 316, 329, MM p. 95) rather than in the RR formula the
  * segmenter above keys on.
  *
  * Both books' readers converge on the one grant vocabulary the consumer
@@ -10396,7 +10397,7 @@ export function parseTrainingProse(para) {
   /** A clause's own sentence, cut before whatever it goes on to forbid. */
   const positive = (clause) => String(clause ?? "").split(/\bbut\s+(?:they\s+)?(?:cannot|can\s*not|typically)\b/i)[0];
 
-  /* --- weapons: "can fight with …" ------------------------------------- */
+  /* --- weapons: the fight-with lead-in ------------------------------------ */
   const weapons = [];
   // "can only fight with" is the same sentence; and extraction welds, so the
   // seams are `\s*` and the word boundary before a welded noun ("weararmor")
@@ -10410,7 +10411,7 @@ export function parseTrainingProse(para) {
     for (const raw of list.split(/,| and | or /i)) {
       const part = raw.trim();
       if (!part || /\bexcept\b/i.test(part)) continue;
-      // "all missile weapons", "all axes" — an unqualified group.
+      // An "all <group>" part — an unqualified group (RR p. 15, JJ p. 290).
       if (/all\s*missile\s*weapons/i.test(part)) { weapons.push("missile:all"); continue; }
       const group = TRAINING_GROUPS.find(([re]) => re.test(part));
       if (group) { weapons.push(group[1]); continue; }
@@ -10420,8 +10421,8 @@ export function parseTrainingProse(para) {
   }
 
   /* --- armour ----------------------------------------------------------- */
-  // Written as a ceiling ("leather armor or lighter", "no armor heavier than
-  // leather") or as a grant of everything, or as a refusal of the whole idea.
+  // Written as a ceiling ("or lighter" or "heavier than" a named rung; JJ
+  // p. 292) or as a grant of everything, or as a refusal of the whole idea.
   let armour = "";
   const aSeg = /((?:can|cannot|can\s*not)[^.]*(?:armor|armour)[^.]*)/i.exec(text)?.[1] ?? "";
   const eschew = /eschew[^.]*(?:armor|armour)|(?:armor|armour)[^.]*\bentirely\b/i.test(text);
@@ -10433,8 +10434,8 @@ export function parseTrainingProse(para) {
       (/very\s*light/i.test(aSeg) && !/\b(leather|light|medium|heavy)\b/i.test(bare) ? "veryLight" : "") ||
       (/\bheavy\b/i.test(bare) && !/heavier\s*than/i.test(bare) ? "heavy" : "") ||
       (/\bmedium\b/i.test(bare) ? "medium" : "") ||
-      // "leather" IS the light rung, and the sentence names it rather than the
-      // rung: "leather armor or lighter", "no armor heavier than leather".
+      // "leather" IS the light rung, and the ceiling sentence names it rather
+      // than the rung (JJ p. 292).
       (/\bleather\b|\blight\b/i.test(bare) ? "light" : "");
   }
 
@@ -10597,7 +10598,7 @@ export function parseTongues(body) {
         .replace(/(tongues|languages)$/i, "")
         .trim()
         .replace(/([a-z])([A-Z])/g, "$1 $2");
-      // A tongue is a proper name; "with beasts (as the spell)" is not.
+      // A tongue is a proper name; a lowercase "(as the spell)" clause is not (RR p. 79; JJ pp. 145, 312, 325).
       if (/^[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*$/.test(name) && !granted.includes(name)) granted.push(name);
     }
   }
@@ -10967,8 +10968,8 @@ function bindSeaVesselRow(row, entry, id) {
  * What makes one table ROW distinct from its neighbours, for the dedup claim.
  *
  * NOT the grid's own row key, which is `slugLabel` of the label and therefore
- * drops the parenthetical: "Cart, Large (1 heavy horse)" and "(2 heavy horses)"
- * both slug to `cartLarge`, and a claim on that silently skips the second as
+ * drops the parenthetical: two cart rows differing only in the team named
+ * in parentheses (RR pp. 134, 151, 161) both slug to one key, and a claim on that silently skips the second as
  * already imported. The table distinguishes those rows ONLY by the
  * parenthetical — it is the team, and it is what changes the cargo — so the
  * claim is folded from the whole printed label.
@@ -11797,8 +11798,8 @@ export function bindEquipment(entry, node, id) {
 /**
  * What a printed animal name says the creature is trained for.
  *
- * The RR prices animals BY ROLE — "Horse, Heavy War", "Mule, Draft",
- * "Camel, Riding", "Dog, Hunting" — so the qualifier in the name the book
+ * The RR prices animals BY ROLE, a species followed by a comma and a
+ * qualifier (RR p. 130), so the qualifier in the name the book
  * printed IS its statement of training, and the words it uses are the same
  * set acks-extras' `ANIMAL_TRAINING` enumerates. Reading a qualifier out of a
  * name the seat's own book supplied is extraction like any other: no roster of
@@ -11814,7 +11815,7 @@ export function trainingFromName(name) {
   return null;
 }
 
-/** The species a printed animal name heads with: "Horse, Heavy War" → "horse". */
+/** The species a printed animal name heads with: the text before the first comma, lowercased (RR p. 130). */
 export const animalSpecies = (name) => String(name ?? "").split(",")[0].trim().toLowerCase();
 
 /**
@@ -12225,8 +12226,8 @@ const armorId = (name) => `def.armor.${slugLabel(name).replace(/-([a-z0-9])/g, (
  * Cookbook id for an item materialized from a printed price row.
  *
  * Folds the WHOLE printed name, parenthetical included — `slugLabel` drops it,
- * and it is exactly what tells two rows of one thing apart ("Candle (tallow,
- * 1 lb)" and "Candle (wax, 1 lb)"). The same distinction `rowClaimKey` keeps
+ * and it is exactly what tells two rows of one thing apart (two rows of one
+ * item differing only in the material named in parentheses; RR p. 129). The same distinction `rowClaimKey` keeps
  * for a vehicle whose team is its only difference.
  */
 const pricedId = (name) =>

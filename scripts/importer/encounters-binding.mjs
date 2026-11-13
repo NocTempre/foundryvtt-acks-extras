@@ -147,7 +147,7 @@ export function parseTarget(cell) {
   return m ? Number(m[1]) : null;
 }
 
-/** The size header window "…6- 7 to 14 15 to 30 31 to 60 61+" → [6,14,30,60]. */
+/** The size-band header window (a run of ascending ranges ending open-ended) → the upper edges of the closed bands, e.g. [6,14,30,60] (RR p. 284). */
 export function parseSizeEdges(window) {
   const s = String(window ?? "").toLowerCase();
   const first = /(\d+)\s*-/.exec(s);
@@ -439,7 +439,7 @@ export function assembleEncounterTables(raw = {}) {
       visibility.formationScale = [{ min: null, max: floor, pct: 0 }, ...rows.sort((a, b) => a.min - b.min)];
     }
 
-    // The window opens AFTER its find ("count each mounted man…"), so the
+    // The window opens AFTER its find (the mounted-count sentence, RR pp. 281, 284), so the
     // first figure is the mounted/large count with its lead-in cut off.
     const heads = String(vis.heads ?? "").toLowerCase();
     const head = (re) => {

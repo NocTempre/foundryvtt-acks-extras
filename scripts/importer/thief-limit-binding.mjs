@@ -1,7 +1,7 @@
 /* global game */
 /**
  * Armour-limit binding: the imported `thiefLimits` table (JJ ch. 12,
- * "Limitations on Thief Skill Usage") → one `limitation` row on each skill it
+ * the thief-skill limitations table, p. 292) → one `limitation` row on each skill it
  * names. The row is `equipment/armour-limits.mjs` `importedLimitRow`: it names
  * no figure, and the consumer reads the rung and the shield rule from the
  * table itself, so this binding decides only WHICH abilities carry it.

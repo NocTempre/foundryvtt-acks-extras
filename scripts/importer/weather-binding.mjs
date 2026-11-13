@@ -68,7 +68,7 @@ const BAND_WORDS = [
   ["gale", "gale"],
 ];
 
-/** "Frigid (-75 F or less)" → "frigid"; "Gale, Stormy" → "gale"; "-" → null. */
+/** A band cell's leading word, ignoring any parenthesised range or second word → the band key; a bare dash → null (JJ pp. 39, 472). */
 export function parseBandCell(cell) {
   const s = String(cell ?? "").toLowerCase().replace(/[^a-z]/g, "");
   if (!s) return null;
@@ -77,8 +77,9 @@ export function parseBandCell(cell) {
 }
 
 /**
- * "T +3 (day), +0 (night), P -3, W +2" → {tDay, tNight, p, w}; the polar
- * rows print one temperature for "(day and night)". Junk → null.
+ * A modifier cell of signed temperature (day and night), precipitation and
+ * wind figures → {tDay, tNight, p, w}; the polar rows print one temperature
+ * for both halves of the day (JJ p. 41). Junk → null.
  */
 export function parseModifierCell(cell) {
   const s = String(cell ?? "").toLowerCase();
@@ -95,7 +96,7 @@ export function parseModifierCell(cell) {
   return { tDay, tNight, p, w };
 }
 
-/** "…speed halved and cannot forage" → 0.5; "…quartered" → 0.25; else null. */
+/** A speed clause naming a halving → 0.5, a quartering → 0.25; else null (RR p. 277). */
 export function parseSpeedWord(window) {
   const s = String(window ?? "").toLowerCase();
   if (/quarter/.test(s)) return 0.25;
@@ -105,7 +106,7 @@ export function parseSpeedWord(window) {
 
 const WORD_INTS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
 
-/** "seven days of moderate…" → the count before a phrase; junk → null. */
+/** The day count (spelled or numeric) in front of a "days of <phrase>" run → the count; junk → null (RR p. 279). */
 export function parseDaysBefore(window, phraseRe) {
   const s = String(window ?? "").toLowerCase();
   const m = new RegExp(`(${Object.keys(WORD_INTS).join("|")}|\\d+)\\s*days?\\s*of\\s*${phraseRe}`).exec(s);
@@ -113,7 +114,7 @@ export function parseDaysBefore(window, phraseRe) {
   return WORD_INTS[m[1]] ?? Number(m[1]);
 }
 
-/** "freezes in one day of cold" → the count after a verb; junk → null. */
+/** The day count (spelled or numeric) after a verb → the count; junk → null (RR p. 279). */
 export function parseDaysAfter(window, verbRe) {
   const s = String(window ?? "").toLowerCase();
   const m = new RegExp(`${verbRe}\\s*(${Object.keys(WORD_INTS).join("|")}|\\d+)\\s*days?`).exec(s);
@@ -210,13 +211,13 @@ export function parsePenaltyClauses(sentence) {
   return out;
 }
 
-/** "… reduced to 20'" → 20; "… drops to a flat 20 ft" → 20; nothing → null. */
+/** A visibility clause giving an absolute distance in feet (either "reduced" or "drops" verb, optional "flat") → the feet; nothing → null (RR pp. 209, 279, 281; JJ pp. 116, 117, 472). */
 export function parseVisibilityFeet(sentence) {
   const m = /visibility(?: distance)?\s*(?:drops|is reduced|reduced)\s*to\s*(?:a\s*flat\s*)?(\d[\d,]*)\s*(?:'|ft\b|feet)/.exec(normalize(sentence));
   return m ? Number(m[1].replace(/,/g, "")) : null;
 }
 
-/** "… drops to half range" → 0.5; nothing → null. */
+/** A visibility clause giving a fraction of range (half, third, quarter) → the fraction; nothing → null (RR p. 278). */
 export function parseVisibilityFactor(sentence) {
   const m = /visibility(?: distance)?\s*(?:drops|is reduced|reduced)\s*to\s*(half|a third|a quarter|quarter)/.exec(normalize(sentence));
   if (!m) return null;
@@ -273,8 +274,9 @@ export function parseConditionEntry(window) {
     if (feet != null) out.visibilityFeet = feet;
     const factor = parseVisibilityFactor(sentence);
     if (factor != null) out.visibilityFactor = factor;
-    // "air speed is halved …" and "air speed in any terrain is quartered" both
-    // name the factor somewhere after the words; the sentence is the window.
+    // The air-speed clauses (RR pp. 209, 279; JJ p. 472) name the factor
+    // somewhere after the "air speed" words, with or without a terrain
+    // qualifier between; the sentence is the window.
     const air = /\bair speed\b[^.]*?\b(halved|half|quartered|quarter)\b/.exec(sentence);
     const airFactor = air ? parseSpeedWord(air[1]) : null;
     if (airFactor != null) out.airSpeed = airFactor;

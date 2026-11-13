@@ -655,7 +655,7 @@ export function extractRunin({ items, height }, heading) {
 
 /**
  * Spoils subsection: a bold run-in "Spoils" header followed by component
- * bullets like "beak (2 3/6 st, 150gp, sharpness, striking, swift sword)".
+ * bullets of the form `name (weight, cost, effects…)` (MM p. 169).
  * Self-calibrating like extractRunin. Returns [{name, weight6, cost, effects}].
  */
 export function extractSpoils({ items, height }) {

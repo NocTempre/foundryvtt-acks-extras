@@ -46,8 +46,8 @@ export const PRODUCES = Object.freeze({
 /* ------------------------------------------------------------------ */
 
 /**
- * Small counts are spelled out in this prose ("after two consecutive days"),
- * so a digit-only reader finds nothing. "A single day" is the same one.
+ * Small counts are spelled out in this prose (the day-count clauses, RR p. 276),
+ * so a digit-only reader finds nothing. A count of "a single day" is the same one.
  */
 const WORD_NUMBERS = Object.freeze({
   a: 1, an: 1, single: 1, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -67,8 +67,8 @@ export function parseCount(token) {
 /**
  * The first capture of `re` in `text`, read as a count.
  *
- * A leading article is dropped first: the page writes "after a single day"
- * as readily as "after two days", and a pattern that captures one token would
+ * A leading article is dropped first: the page writes a day count with an
+ * article as readily as with a bare number (RR p. 276), and a pattern that captures one token would
  * otherwise read the article and give up.
  */
 export function countFrom(text, re) {

@@ -16,7 +16,7 @@ export const ARMOR_TABLE = Object.freeze({
   anchors: ["Armor and Barding", "Leather Armor"], // section title + a known row
   labelMaxX: 175,
   rowTol: 3,
-  // The category column ("Very Light Armor" … "Shield" … "Barding") is centered
+  // The category column (first armor tier through the shield and barding rows) is centered
   // like the weapons' type column, so it is read as a band, not a point value.
   typeBand: { x0: 176, x1: 250 },
   columns: [

@@ -89,7 +89,7 @@ export function gridToRows(grid) {
     .sort((a, b) => a.atLevel - b.atLevel);
 }
 
-/** "…mage for arcane…" (the printed mapping sentence) → {category: chassis}. */
+/** The mapping sentence's `<chassis> for <category>` pairs → {category: chassis} (JJ p. 297). */
 export function parseSavesMap(text) {
   const out = {};
   for (const m of String(text ?? "").matchAll(/\b(fighter|thief|crusader|mage)\s+for\s+(\w+)/gi)) {
@@ -98,7 +98,7 @@ export function parseSavesMap(text) {
   return out;
 }
 
-/** "arcane, then divine, then …" → ["arcane","divine",…]. */
+/** The precedence sentence's comma-and-"then" list of categories → an ordered array of category keys (JJ p. 297). */
 export const parseSavesPrecedence = (text) =>
   String(text ?? "")
     .split(/,|\bthen\b/i)

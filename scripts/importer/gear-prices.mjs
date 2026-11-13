@@ -51,8 +51,8 @@ export const PRICE_TABLES = Object.freeze({
 
 /**
  * The printed name as a name: the grid small-caps the opening letter of each
- * comma-separated part, which extracts lowercase ("cloak, Linen or Wool" →
- * "Cloak, Linen or Wool"). Only that letter is restored — title-casing the
+ * comma-separated part, which extracts lowercase (a clothing row's first
+ * part comes out as "cloak" and is restored to "Cloak"; RR p. 130). Only that letter is restored — title-casing the
  * rest would be inventing capitals the page does not print.
  */
 export function tidyRowName(name) {
@@ -183,7 +183,8 @@ export function extractPrices(items, recipe) {
       const raw = joinRuns(nameRuns, recipe.nameGap ?? NAME_GAP).replace(/\s+/g, " ").trim();
       if (!raw || raw.length < 2) continue;
       // A long name reaches into the price column, so its own price can be
-      // read as part of the name ("Gown, Duchess 1,000gp"). It is the row's
+      // read as part of the name (a comma-bearing clothing row with a four-digit
+      // price, RR p. 130). It is the row's
       // price wherever it landed: taken off the name, and used as the cost
       // when the cost column itself came back empty. This happens BEFORE the
       // name is tidied, because the tidier treats a comma as separating parts

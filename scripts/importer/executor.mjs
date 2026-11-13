@@ -287,7 +287,7 @@ function splitOr(s) {
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
-/** Parse one routine "3 (2 claws, bite 8+)" -> { count, throw, names:[{name,nw}] }. */
+/** Parse one routine (an attack count with its parenthesised counted-name list and throw target; MM pp. 80, 152, 207) -> { count, throw, names:[{name,nw}] }. */
 function parseRoutine(text) {
   const t = (text ?? "").trim();
   const m = /^(\d+)?\s*(?:\(([^)]*)\))?/.exec(t);
@@ -387,8 +387,8 @@ const DEF_BOUNDARY =
 /**
  * Proportions the books write as WORDS, so a locator can point at them.
  *
- * "a bonus to their Mortal Wounds throw of one-half his class level (round up)"
- * carries no digit at all. Without this the only ways to model it are to ship
+ * A bonus clause scaled by a fraction of class level (RR pp. 60, 113) carries
+ * no digit at all. Without this the only ways to model it are to ship
  * 0.5 — a value read off the page — or to drop the mechanic. Both are wrong, so
  * the fraction is read from the seat's own prose like any other number.
  */
@@ -484,8 +484,9 @@ const LOCATABLE_FIELDS = {
   // the page's number like any other, so it is located, not shipped.
   kickerAt: "integer",
   // Roll-outcome triggers (acks-lib `outcome`): the botch band's top edge
-  // ("on an unmodified 1–3" -> 3) and the notice fraction ("below half the
-  // target value" -> 0.5, via the word-numeral table). Both are the page's
+  // (the "unmodified" clause's upper bound, RR pp. 386, 425; JJ p. 259) and the
+  // notice fraction (a "below half the target" clause read through the
+  // word-numeral table). Both are the page's
   // numbers; the recipe ships only where to read them.
   naturalMax: "integer",
   belowFraction: "number",
@@ -667,7 +668,7 @@ export function materializeEffects(specs, paras) {
       }
       // Strip the page's own punctuation ("1,000 gp" -> 1000) but keep the
       // decimal point for the fields allowed to be fractional — `amount`, and
-      // `value` because "one-half his class level" is a rate, not a count.
+      // `value` because a fraction-of-class-level phrase (RR pp. 41, 60; JJ p. 311) is a rate, not a count.
       const n = readNumber(raw, kind !== "integer");
       if (!Number.isFinite(n)) {
         complete = false;
@@ -795,7 +796,7 @@ export function materializeRolls(specs, paras, ctx = {}) {
       continue;
     }
 
-    // A BORROWED throw: "as a thief of one-half his class level (rounded up)".
+    // A BORROWED throw: a skill taken as another class at a fraction of class level, with a rounding clause (RR pp. 116, 121).
     // The recipe ships which class's skill the sentence borrows and where the
     // sentence is; the proportion and the rounding are read off the seat's own
     // prose. A proportion the recipe names but the page does not yield drops the
@@ -871,8 +872,8 @@ export function rollScan(paras) {
   const claimed = [];
   const inClaimed = (i) => claimed.some(([a, b]) => i >= a && i < b);
 
-  // "a proficiency throw of 18+ / 14+ / 10+" — one roll whose target improves
-  // by RANK, written as a slash run.
+  // A proficiency throw written as a slash run of three targets (RR p. 106) —
+  // one roll whose target improves by RANK.
   for (const m of text.matchAll(/([a-z][a-z' -]{2,40}?)\s+(?:requires|takes)?[^.]{0,40}?proficiency throw of\s*(\d+)\+\s*\/\s*(\d+)\+\s*\/\s*(\d+)\+/gi)) {
     const label = m[1].replace(/\s+/g, " ").trim();
     const key = slug(label) || `roll${out.length}`;
@@ -991,8 +992,8 @@ export function effectScan(paras, registers) {
   /**
    * WHICH activity a target phrase names, if it names one.
    *
-   * `classify` answers what KIND of thing is modified ("a proficiency throw")
-   * and deliberately throws away which one, because the vocabulary is shipped
+   * `classify` answers what KIND of thing is modified (a proficiency throw, a
+   * saving throw, a reaction roll) and deliberately throws away which one, because the vocabulary is shipped
    * and the name is not. But a bonus with no name on it is not usable: "+2 on
    * Lockpicking proficiency throws" and "+2 on Hiding and Sneaking proficiency
    * throws" both stored as an unattributed "+2 to proficiency throws", so a
@@ -1051,16 +1052,17 @@ export function effectScan(paras, registers) {
   }
   const sentenceAt = (i) => bounds.find((b) => i >= b.start && i <= b.end)?.s ?? text;
 
-  /** A number that is a DIE FACE, not a modifier: "on an unmodified roll of 1". */
+  /** A number that is a DIE FACE, not a modifier: the figure after an unmodified-roll lead-in (RR pp. 110, 113, 115, 266). */
   const isDieFace = (sentence, n) =>
     new RegExp(`(?:unmodified|natural)\\s+(?:die\\s+)?rolls?\\s+of\\s+${Math.abs(n)}\\b|rolls?\\s+of\\s+${Math.abs(n)}\\s*(?:-|–|to)\\s*\\d`, "i").test(sentence);
 
   const judge = (sentence, n) => {
     if (isDieFace(sentence, n)) return "skip";
-    // "does not suffer a penalty", "nor is his speed reduced" — the penalty is
-    // VOIDED here, so emitting it as an active modifier inverts the ability.
+    // A negation clause (a does-not-suffer, nor-is or without-penalty form; RR
+    // pp. 108, 119) VOIDS the penalty, so emitting it as an active modifier
+    // inverts the ability.
     if (/\b(?:does not|doesn't|no longer|never)\s+suffers?\b|\bnor is\b|\bwithout (?:any )?penalt/i.test(sentence)) return "skip";
-    // "instead of the base -4" is decisive: the number is this character's, and
+    // An instead-of-the-base lead-in (RR p. 108) is decisive: the number is this character's, and
     // it SUPERSEDES a default. Checked before the opponent rule, which would
     // otherwise skip it for merely mentioning the enemies it applies against.
     // A replacement is almost always conditional too ("when blinded"), and the
@@ -1094,10 +1096,10 @@ export function effectScan(paras, registers) {
 
   const OWNER = "(?:all\\s+|his\\s+|her\\s+|their\\s+|its\\s+|the\\s+)?";
   // The target phrase must be long enough to reach the end of a two-activity
-  // name ("Hiding and Sneaking proficiency throws"), which a shorter cap cuts
+  // name (two proficiencies joined by "and", RR p. 119), which a shorter cap cuts
   // mid-word so the vocabulary lookup misses.
   const TARGET = `${OWNER}[A-Za-z' -]{2,50}`;
-  // "gains a +1 bonus to avoid surprise" / "suffers a -2 penalty on reaction rolls"
+  // A signed figure, then the word bonus or penalty, then "to"/"on" and the target (RR pp. 26, 105; JJ p. 308; MM pp. 12, 13, 267)
   for (const m of text.matchAll(new RegExp(`([+-]?\\d+)\\s+(bonus|penalty)\\s+(?:to|on)\\s+(${TARGET})`, "gi"))) {
     let n = parseInt(m[1], 10);
     if (Number.isNaN(n)) continue;
@@ -1106,7 +1108,7 @@ export function effectScan(paras, registers) {
       pushModifier({ type: "modifier", target: key, value: flat(n), ...(forWhat ? { forWhat } : {}) }, m.index);
     }
   }
-  // "gains a +2 to saving throws" (no bonus/penalty word — require an explicit sign)
+  // A signed figure straight into "to"/"on" and the target, with no bonus/penalty word (RR pp. 105, 108; JJ p. 308) — require an explicit sign
   for (const m of text.matchAll(new RegExp(`([+-]\\d+)\\s+(?:to|on)\\s+(${TARGET})`, "gi"))) {
     for (const { key, forWhat } of targetsOf(m[2])) {
       pushModifier(
@@ -1115,7 +1117,7 @@ export function effectScan(paras, registers) {
       );
     }
   }
-  // Reversed order: "+1 initiative bonus" / "-2 saving throw penalty".
+  // Reversed order: the signed figure, the target, then the word bonus or penalty (RR pp. 107, 110; JJ p. 310).
   for (const m of text.matchAll(/([+-]\d+)\s+([a-z][a-z' -]{2,30}?)\s+(bonus|penalty)\b/gi)) {
     const key = classify(m[2]);
     if (!key) continue;
@@ -1153,7 +1155,7 @@ export function effectScan(paras, registers) {
   /* --- Limitations: what switches the ability OFF ---
    * Only shapes that reduce to a VALUE are classified — an encumbrance ceiling,
    * an armour weight. The books state plenty of other restrictions in prose
-   * ("cannot tumble past the same enemy on two consecutive rounds"), and those
+   * (a per-round-count movement restriction, RR pp. 86, 105), and those
    * stay in the imported description on purpose: the sentence already lives
    * there, and a flag holding a second copy is one this module would have to
    * state the rule to fill. A conclusion may ship; a sentence may not. */
@@ -1172,8 +1174,8 @@ export function effectScan(paras, registers) {
     push({ type: "spellLike", spell: m[1].trim(), ...(frequency ? { frequency } : {}) });
   }
 
-  /* --- Prerequisite: "must have the mercantile network power" / "requires that
-   * the character have the ability to inspire dread" --- */
+  /* --- Prerequisite: a "must have the <name> power" clause, or a "requires
+   * that the character have <ability>" clause (JJ p. 308) --- */
   for (const m of text.matchAll(/must have (?:the |gained )?([A-Z][A-Za-z' -]{2,40}?) (?:custom |class )?power\b/g)) {
     push({ type: "requires", note: m[1].trim() });
   }
@@ -1195,20 +1197,20 @@ export function effectScan(paras, registers) {
     push({ type: "resource", resource: kind, action: /gain|recover/i.test(m[1]) ? "gain" : "spend" });
   }
 
-  /* --- Caster-level equivalence: "two caster levels higher than actual" --- */
+  /* --- Caster-level equivalence: a count of caster levels counted above actual (RR pp. 73, 74, 108, 115; JJ pp. 311, 312, 317, 319) --- */
   const WORD_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5 };
   for (const m of text.matchAll(/\b(one|two|three|four|five|\d+)\s+(?:class|caster)\s+levels?\s+higher\s+than\s+(?:(?:his|her|their|its)\s+)?actual/gi)) {
     const n = WORD_NUM[m[1].toLowerCase()] ?? parseInt(m[1], 10);
     if (n) push({ type: "spellcastingMod", casterLevelDelta: n });
   }
 
-  /* --- Movement grant: "gains a flying movement rate of 30'" --- */
+  /* --- Movement grant: a mode word, then a movement-rate lead-in and a distance (RR p. 448, JJ p. 316) --- */
   for (const m of text.matchAll(/\b(flying|climbing|swimming|burrowing)\s+movement rate of\s+(\d+)/gi)) {
     const movementMode = { flying: "fly", climbing: "climb", swimming: "swim", burrowing: "burrow" }[m[1].toLowerCase()];
     push({ type: "movement", movementMode, value: flat(parseInt(m[2], 10)) });
   }
 
-  /* --- Economic rate: "construction rate of 1.33gp per day" --- */
+  /* --- Economic rate: a construction or research rate as an amount, coin and period (RR p. 110) --- */
   for (const m of text.matchAll(/\b(?:construction|research) rate of\s+([\d.]+)\s*(gp|sp|cp)\s*per\s+(day|week|month)/gi)) {
     push({ type: "economic", amount: parseFloat(m[1]), unit: m[2].toLowerCase(), period: m[3].toLowerCase() });
   }
@@ -1224,9 +1226,9 @@ export function effectScan(paras, registers) {
     if (refs.length) push({ type: "grants", refs, choose: 1 });
   }
 
-  // "climb as a thief of his class level" / "control undead as a crusader of one
-  // half his class level" / "as thieves of his class level" (plural, no article)
-  // / "as a thief of his level" (the class/caster qualifier is sometimes absent).
+  // A skill borrowed "as <class> of <fraction> his level" (RR pp. 108, 115; JJ
+  // p. 308): the class may be plural with no article, and the class/caster
+  // qualifier before "level" is sometimes absent.
   for (const m of text.matchAll(
     /as\s+(?:an?\s+)?(thie(?:f|ves)|crusaders?|fighters?|mages?)\s+of\s+(one[- ]half\s+)?(?:his|her|their)\s+(?:(?:class|caster)\s+)?level/gi,
   )) {
@@ -1694,8 +1696,8 @@ async function execInstruction(instr, ctx) {
       claim(runs, ctx.field);
       const found = clean(joinRuns(runs));
       // A printed heading can carry glyph artifacts the shipped label does not
-      // ("Conjure Dark Powers (1st level)" vs "(1level)" when the superscript
-      // detaches), so compare folded and fall back to a prefix. That still
+      // (a heading's "(1st level)" suffix reads "(1level)" when the superscript
+      // detaches; RR p. 73, JJ p. 312), so compare folded and fall back to a prefix. That still
       // proves we are on the right entry — a wrong page shares no prefix — but
       // does not fail over a stray glyph, and a failed expect would otherwise
       // zero the entry's mechanics.
@@ -1776,8 +1778,8 @@ async function execInstruction(instr, ctx) {
           text,
         });
       }
-      // The JJ closes a custom power with the classes that may take it —
-      // "[Beastmaster, Cultist of Atlach-Nacha, Elven Nightblade, Fool]". That
+      // The JJ closes a custom power with the classes that may take it, as a
+      // bracketed list of class names (JJ p. 308). That
       // is the CONTAINER's business, not the ability's: an ability does not know
       // who may take it. Strip it so the description is the ability itself.
       const last = paras[paras.length - 1];
@@ -1927,9 +1929,9 @@ async function execInstruction(instr, ctx) {
           (lines.get(k) ?? lines.set(k, []).get(k)).push(it);
         }
         // A HYPHEN AT THE END OF A LINE IS INSIDE A WORD, not before a
-        // space. These cells wrap where the compound breaks — "well-",
-        // "blood-", "leather-" — and joining the lines with a space put
-        // "Well- made wool dress" on the character sheet. The hyphen is
+        // space. These cells wrap where a compound breaks (RR p. 78), and
+        // joining the lines with a space put a gap after the hyphen on the
+        // character sheet. The hyphen is
         // kept rather than swallowed: it is a real one in every compound
         // these tables print, and keeping it can only ever misspell
         // visibly, where dropping it would silently invent a word.
@@ -2161,7 +2163,7 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     if (rolls.length) fields.rolls = rolls;
   }
   // Values the books state in PROSE rather than in a labelled field — the
-  // custom-class build cost, "counts as 2 1/2 custom powers". The pattern is
+  // custom-class build cost, a "counts as <n> custom powers" clause (JJ pp. 310, 320, 322). The pattern is
   // shipped vocabulary; the NUMBER is read here, from this seat's own extracted
   // text, so no book value ever rides along in the module.
   if (fields.description?.length) {

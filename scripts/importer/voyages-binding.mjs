@@ -54,7 +54,7 @@ export function parseTargetPlus(window) {
   return m ? Number(m[1]) : null;
 }
 
-/** A signed bonus out of a prose window ("gains a +4 bonus…"). */
+/** A signed bonus out of a prose window (a bonus clause; RR p. 27, JJ p. 68, MM p. 19). */
 export function parseBonus(window) {
   const m = /([+-]\s*\d+)/.exec(String(window ?? ""));
   return m ? Number(m[1].replace(/\s+/g, "")) : null;

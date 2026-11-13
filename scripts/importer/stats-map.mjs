@@ -285,7 +285,7 @@ export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
     system.attacks = [attacks, damage].filter(Boolean).join(" — ");
     // Split RAW segments so each keeps its damage-type icon glyph.
     const segments = (damageRaw ?? "").split("/").map((s) => s.trim()).filter((s) => /\d*d\d+/.test(s));
-    // Names from the parenthetical: "2 talons, bite 4+" -> [talons, talons, bite]
+    // Names from the parenthetical: a counted name repeats per count, so "2 x, y 4+" -> [x, x, y] (MM pp. 169, 176)
     const inner = /\(([^)]*)\)/.exec(attacks)?.[1] ?? "";
     const names = [];
     for (let token of inner.replace(/\d+\+\s*$/, "").split(",")) {

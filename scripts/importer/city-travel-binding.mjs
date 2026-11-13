@@ -65,18 +65,18 @@ const TURNS_PER_HOUR = 6;
 /*  Parsers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** "to walk five city blocks" | "one city block" → the count. */
+/** The walk clause's block count, spelled or numeric, singular or plural → the count (JJ p. 79). */
 export function parseBlocks(text) {
   return countFrom(String(text ?? ""), /walk\s+(\S+)\s+city\s+blocks?/i);
 }
 
-/** "navigation throw of 11+" → 11. */
+/** The throw clause's target number before its trailing "+" → that number (JJ p. 79). */
 export function parseTarget(text) {
   const m = /throw\s+of\s+(\d+)\s*\+/i.exec(String(text ?? ""));
   return m ? Number(m[1]) : null;
 }
 
-/** "add +4 to the throw" → 4. */
+/** The first signed figure in the throw-modifier clause → that figure (JJ p. 79). */
 export function parseSigned(text) {
   const m = /([+-]\s*\d+)/.exec(String(text ?? ""));
   return m ? Number(m[1].replace(/\s+/g, "")) : null;
@@ -112,8 +112,8 @@ export function parseStragglingTiers(text) {
 }
 
 /**
- * A street cadence in TURNS: "every hour (6 turns)", "every 30 minutes (3
- * turns)", "every day (24 hours)".
+ * A street cadence in TURNS: an hour, minute or day interval, with a
+ * parenthesised turn or hour count where the page gives one (JJ p. 80).
  *
  * The parenthesised turn count is preferred where the page gives one. A row
  * stated only in hours is converted, because the engine ticks in turns and a
@@ -176,7 +176,7 @@ function districtClauses(text) {
  * long each of the two paces takes between two points of interest in the
  * same district versus an adjacent one, in turns.
  *
- * Read as one paragraph and split on "at meandering speed" rather than
+ * Read as one paragraph and split on the meandering-speed marker (JJ p. 79) rather than
  * windowed per figure, for the same reason the survival paragraphs are: the
  * commuting reading and the meandering reading share both scope phrases, so
  * a single scan would not know which paragraph a clause belongs to.

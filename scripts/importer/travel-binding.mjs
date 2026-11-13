@@ -74,14 +74,14 @@ export function parseThrow(cell) {
 
 /**
  * A frequency cell onto the engine's cadence kinds (acks-extras'
- * ANCILLARY_ACTIVITIES vocabulary): "once per 6-mile hex" → perHex,
- * "once per hour" → perHour, "once per attempt" / "once per 6 traps" →
- * perAttempt, "once per 12 hours" / "once per 7 nights" → perPeriod with its
- * count, "none" → null. Junk → undefined, so a cell that did not read is
+ * ANCILLARY_ACTIVITIES vocabulary): a per-hex cell → perHex, a per-hour
+ * cell → perHour, a per-attempt or per-N-things cell → perAttempt, a
+ * per-N-hours or per-N-nights cell → perPeriod with its count (JJ pp. 41, 71,
+ * 471), an empty marker → null. Junk → undefined, so a cell that did not read is
  * omitted rather than silently quiet.
  */
 export function parseFrequencyCell(cell) {
-  // Small-caps runs weld unpredictably ("o" + "nce per attempt"), so the
+  // Small-caps runs weld unpredictably (the leading capital splits off the rest of the word), so the
   // match runs on the cell's characters alone.
   const s = String(cell ?? "").toLowerCase().replace(/\s+/g, "");
   if (!s) return undefined;

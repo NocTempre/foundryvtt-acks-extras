@@ -61,8 +61,8 @@ export function parseSigned(text) {
 }
 
 /**
- * A cadence in TURNS: "one searching throw per three turns", "each hour (six
- * turns)". The parenthesised turn count is preferred where the page gives both,
+ * A cadence in TURNS: a throws-per-turn-count clause, or an hour with its turn
+ * count in parentheses (RR p. 274). The parenthesised turn count is preferred where the page gives both,
  * because it is the exact figure and the hour is its round description.
  */
 export function parseTurns(text) {
@@ -91,8 +91,8 @@ export function parseTerrainList(text) {
   const m = /([a-z,\s]+?)\s*\bterrain\b/.exec(t);
   if (!m) return null;
   // Everything up to and including "searching" is run-in, wherever it sits: a
-  // window can open on the clause ("when searching forest…") or one word
-  // earlier ("however, when searching…"), and an anchored strip only handles
+  // window can open on the clause itself or one connective word
+  // earlier (RR p. 274), and an anchored strip only handles
   // whichever of the two it was written against.
   const list = m[1]
     .replace(/^.*\bsearching\s+/s, "")

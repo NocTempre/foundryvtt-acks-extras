@@ -62,7 +62,7 @@ export const PRODUCES = Object.freeze({
 /*  Parsers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Number words a list of kinds never holds: "any four weapons" names no kind. */
+/** Number words a list of kinds never holds: a "any <number> weapons" item names no kind (RR p. 114). */
 const NUMBER_WORD = /^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/;
 
 /** A window lowercased, whitespace collapsed, and a line-wrap hyphen closed ("staff- slings"). */
@@ -77,8 +77,8 @@ const unwrap = (text) =>
  * The nouns of one list: the items between commas, slashes, "and" and "or",
  * each without a leading "any" or a trailing "weapons". An item that holds a
  * figure, is a number word, or runs past three words names no kind and is
- * dropped, which is what keeps "any combination of 3 weapons" and "any four
- * weapons" out of the lists they stand in.
+ * dropped, which is what keeps the counted-combination items (JJ p. 290) and
+ * the spelled-count items (RR p. 114) out of the lists they stand in.
  *
  * @returns {string[]} the nouns as printed (lowercase), each once, in order
  */
@@ -164,7 +164,7 @@ const GENERIC_WORD = new Set(["any", "all", "and", "or", "weapon", "weapons"]);
  * One marked option as the table keeps it: `{n, marker, label}` and, by what
  * the words are,
  *
- *  - `any` and `prereqs`: a combination ("combination of 3", "any four weapons")
+ *  - `any` and `prereqs`: a counted combination or a spelled-count item (RR p. 114, JJ p. 290)
  *  - `melee`, `missile` and `sizes`: a predicate, every word of which is a size
  *    or "melee" or "missile"
  *  - `weapon`: a restricted option, which names one weapon
@@ -199,7 +199,7 @@ export function optionOf({ n, marker, text }, { restricted = false, sizes = Obje
   return restricted && nouns.length === 1 ? { ...base, weapon: nouns[0] } : { ...base, nouns };
 }
 
-/** The leading words of a prerequisite's condition that name no weapon ("also", "he already has or also selects"). */
+/** The leading words of a prerequisite's condition that name no weapon: connectives and the verbs of the condition clause (RR p. 114). */
 const CONDITION_WORD = new Set(["also", "proficient", "in", "with", "he", "she", "already", "has", "or", "selects", "select"]);
 
 /**
@@ -322,7 +322,8 @@ export function assembleCategory(optionLists, categories = WEAPON_CATEGORY) {
 /**
  * The Weapon Focus table from the sentence that lists them: `;` separates one
  * focus from the next and each holds its own nouns. A focus is keyed by its
- * nouns folded together ("slings and thrown weapons" is `slingsthrown`), the
+ * nouns folded together (letters only, the connective dropped, as in the sling
+ * focus; RR p. 121), the
  * spelling the module's focus grants already use.
  * @returns {Record<string, string[]>}
  */
@@ -392,8 +393,8 @@ const NEEDS_BOTH_HANDS = /\brequir(?:e|es|ing)\s+two\s+hands\b|\b(?:is|are)\s+tw
 /**
  * The weapons whose description states they need both hands, named as the
  * grid names them ("great axe", for the entry headed "axe, great"). A window
- * is cut at each entry head; a sentence about one grip among several ("one or
- * two hands", "if used on foot with two hands") states no such need.
+ * is cut at each entry head; a sentence about one grip among several (a
+ * hands-count or conditional-grip clause, RR p. 138) states no such need.
  * @returns {string[]}
  */
 export function parseTwoHands(window) {
