@@ -486,9 +486,8 @@ export async function setWorn(item, slot = null) {
  * Null is not "holds nothing": an item that declares `gear.holds` is a
  * container whose size is not imported (`holdsGear`). Capacity
  * is a property of GEAR, not of a category called containers — see
- * docs/lib/MODEL.md, "Capacity". Reads the gear model first and the legacy
- * container record second, so worlds annotated before the concept moved keep
- * answering correctly.
+ * docs/lib/MODEL.md, "Capacity". Reads the gear model first and the
+ * container record second, so an item carrying only that record still answers.
  */
 export function capacityOf(item) {
   const declared = gearOf(item).capacity;
@@ -557,7 +556,7 @@ export function contentsOf(owner, containerId) {
 /** Everything contained in this item, wherever the item happens to live. */
 export const contentsIn = (item) => (item?.id ? contentsOf(siblingsOf(item), item.id) : []);
 
-/** A thing gear can go inside: declared capacity, or the legacy container
+/** A thing gear can go inside: declared capacity, or the container
  * record (which may state no capacity and still contain). */
 export const isContainer = (item) =>
   holdsGear(item) || !!(item?.getFlag?.(MODULE_ID, "container") ?? item?.flags?.[MODULE_ID]?.container);

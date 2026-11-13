@@ -281,7 +281,7 @@ export function profileStrips(actor) {
   }));
 
   // weaponProficiency answers with `{all, tokens}` (tokens a Set) — it also
-  // accepts a bare "all", array or CSV from older builds, so normalise all four.
+  // accepts a bare "all", array or CSV, so normalise all four.
   const allWeapons = weaponProf?.all === true || norm(weaponProf) === "all";
   const rawTokens = weaponProf?.tokens ?? weaponProf;
   const tokenList =

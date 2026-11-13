@@ -16,17 +16,17 @@
  * nothing has to be kept in sync with a parallel record of what is really where.
  *
  * A PROVIDER is any actor carrying `flags.acks-extras.storage.provider`. This
- * library deliberately does not know what a "location" is: acks-location's
- * settlement, acks-henchmen's market actor, and the carts and wagons a later
+ * library deliberately does not know what a "location" is: the location
+ * feature's settlement, the henchmen feature's market actor, and the carts and wagons a later
  * pass turns into base camps are all just actors with the flag. Storage is
  * type-agnostic on purpose.
  *
  * ATTRIBUTION IS A UI CONVENTION, NOT A SECURITY BOUNDARY. `ownerUuid` says
  * whose goods these are so the sheets can group and gate them; a player with
  * ownership of a shared location can still reach every item on it from the
- * console, exactly as they can with acks-equipment's containers (that module's
- * MODEL.md makes the same ruling — anything that must genuinely stay secret
- * belongs on a GM-owned actor).
+ * console, exactly as they can with the equipment feature's containers
+ * (docs/equipment/MODEL.md makes the same ruling — anything that must genuinely
+ * stay secret belongs on a GM-owned actor).
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
@@ -551,14 +551,13 @@ export const deletePolicy = () => {
  * the system's totals only see loose money items.
  *
  * The container itself is a plain system `item` weighing nothing, flagged as one
- * of acks-equipment's containers so the goods nest properly in its UI. That
- * vocabulary is READ AND WRITTEN, never imported — no dependency edge.
+ * of the equipment feature's containers so the goods nest properly in its UI.
+ * That vocabulary is READ AND WRITTEN, never imported — no dependency edge.
  *
- * The nesting used to sit behind an `equipment` guard from the days when that
- * module could be absent. It is not optional now, and the guard must not come
- * back: as an undeclared identifier it threw a ReferenceError on every non-coin
- * item, and the caller's try/catch swallowed it — so the default "return the
- * goods when a place is deleted" policy silently lost them.
+ * The nesting never sits behind an `equipment` guard: as an undeclared
+ * identifier it throws a ReferenceError on every non-coin item, and the
+ * caller's try/catch swallows it — so the default "return the goods when a
+ * place is deleted" policy silently loses them.
  */
 export async function returnGoodsTo(owner, plainGoods, { containerName = "Storage" } = {}) {
   if (!owner || !plainGoods?.length) return { ok: false };

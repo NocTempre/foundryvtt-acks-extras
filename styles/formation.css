@@ -1127,7 +1127,8 @@
   width: calc(40px * var(--acks-extras-k));
   height: calc(40px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-ink-faint);
-  background: var(--acks-extras-country-swatch, transparent);
+  --acks-extras-country-swatch: transparent;
+  background: var(--acks-extras-country-swatch);
 }
 
 .acks-extras.acks-extras-party-sheet .acks-extras-country-swatch.is-empty {
@@ -1823,7 +1824,7 @@
 }
 
 /* --- Stacked occupants ------------------------------------------------
- * A marching-order row whose occupant is an acks-lib.group stands for the
+ * A marching-order row whose occupant is a group actor stands for the
  * bodies it counts, not for one. Both selectors are scoped to that row, so
  * nothing here reaches the rest of the sheet. The badge states the count in
  * words, so the row is ruled in the spot colour rather than tinted a
@@ -3196,7 +3197,7 @@
    label beside it, not a second control competing for the eye. */
 
 .acks-extras.party-sheet .acks-extras-formation-weather-glyph {
-  color: var(--acks-ink-muted, currentColor);
+  color: var(--acks-ink-soft);
   opacity: 0.75;
   font-size: 0.9em;
   margin-inline-end: 1px;

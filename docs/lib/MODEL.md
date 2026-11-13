@@ -9,9 +9,9 @@ only one feature needs stays with that feature.
   `game.acks?.lib` shim) any surface later upstreamed into core.
 - **Extend**: the shared ACKS effect/ability vocabulary (`vocab.mjs`, with
   the magic families in `magic-vocab.mjs`) and its DataModel field-builders
-  (`fields.mjs`) — the target the abilities feature and (deferred) the
-  monsters feature build their models from.
-- **Enhance**: the plumbing every feature was duplicating before the merge —
+  (`fields.mjs`) — the target the abilities and monsters features build their
+  models from.
+- **Enhance**: the plumbing every feature would otherwise duplicate —
   one socket transport (`sockets.mjs`), one effect-scan core
   (`effect-scan.mjs`), one tables registry (`tables.mjs`), one service registry
   (`services.mjs`).
@@ -304,7 +304,7 @@ the theme class lands on the *application* root, not `<body>`, and a body-scoped
 branch would miss it.
 
 **Category is never encoded by hue.** The palette is one burgundy spot plus a
-warm black; distinctions that a hue used to carry — magical vs mundane, GM-set vs
+warm black; distinctions a hue could carry — magical vs mundane, GM-set vs
 by-the-rules — are carried by the glyph, the glyph's weight, or the rule weight.
 `--acks-gold` is the one accent beyond the spot colour, and it is a real measured
 token, not a per-feature invention.
@@ -317,8 +317,8 @@ startup prompt or Configure Settings: `foundry`, `acksCore` or `acksExtras`
 
 - **The world's look.** `foundry` is the `core` look below; the other two are
   `book`. A client's own `look` setting reads `world` by default and defers to
-  it; `effectiveLook()` is the one resolver, and every reader that used to ask
-  the client setting asks it instead.
+  it; `effectiveLook()` is the one resolver, and every reader asks it rather
+  than the client setting.
 - **The world's default sheet per Actor and Item type**, resolved by the ladder
   in `ui-preset-logic.mjs`. Every registered sheet belongs to a rung by the
   scope of its id (`acks-extras.`, the system's id, `core.`); the preset names
@@ -370,7 +370,7 @@ an embedded item's sheet is not re-resolved until then.
   Foundry's own theme-aware variables, so the seat's light and dark are Foundry's
   to decide, and a pin here could only put the ACKS palette back underneath the
   host's. It is also what keeps one authority choosing ground and ink inside a
-  window this module no longer dresses.
+  window this module does not dress.
 - `sheetStyle` — `full` (default) or `palette`, per the table above. Not
   consulted under `look: core`.
 - `fontScale` — writes `--acks-fs-base` inline on `<html>`, rescaling every ACKS
@@ -1183,8 +1183,8 @@ dragged out of a hold onto such a sheet
 ### Capacity
 
 `capacityOf(item)` is stone, or `null` when the item states no capacity. It reads
-`gear.capacity` first and the legacy `container.capacity` second, so worlds
-annotated before the concept moved answer correctly with nothing to migrate.
+`gear.capacity` first and the `container.capacity` record second, so an item
+carrying only that record still answers.
 Null is not "holds nothing": an item that declares `gear.holds` is a
 container whose size is not imported, so `holdsGear` is true for it,
 `capacityStated` false, and it counts no limit.
@@ -1300,8 +1300,8 @@ sheet lists an embedded one. So nothing embeds one:
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
   units, so it hands over one stack of the quantity bought or that many
   copies, through the same `deliverItems`.
-- **A bundle already embedded**, which both paths wrote whole before they
-  opened bundles, is opened where it lies by `unpackEmbeddedBundle` (the
+- **A bundle already embedded**, which a path that wrote it whole leaves
+  behind, is opened where it lies by `unpackEmbeddedBundle` (the
   repair tool's `lib.embeddedBundles`). It writes three times: the stack
   merges together with a journal on the bundle (`flags.acks-extras.unpack`,
   holding the planned copies), then those copies, each stamped `unpackedFrom`
@@ -1337,7 +1337,7 @@ and are passed over.
 [mount.mjs](../../scripts/lib/mount.mjs) is a permanent FACADE over that one
 model, not a second one: it keeps the mounted-combat vocabulary
 (`mountActor`/`dismount`/`mountOf`/`riderOf` and the `acksLibMounted` /
-`acksLibDismounted` hooks) that acks-equipment's overlay was promised, and
+`acksLibDismounted` hooks) that the equipment feature's overlay reads, and
 implements it as a `rider` attachment.
 
 The binding is made by a gesture, and the lib answers two drops for it ahead of
@@ -1368,9 +1368,9 @@ different questions:
 **What it CARRIES is a third question, and it has exactly one store.**
 `capacity6()` reads `flags[MODULE_ID].extras.load` — the pair the monster
 sheet already edits under Rating & Saves — so that is where a mount's normal
-and maximum load live, and where acks-importer writes the loads it reads from
+and maximum load live, and where the importer writes the loads it reads from
 the creature's own printed description. The animal sub-type's like-named
-`capacity6` / `unencumbered6` fields are LEGACY: no consumer reads them and
+`capacity6` / `unencumbered6` fields are unused: no consumer reads them and
 nothing writes them, and filling them would make a mount look provisioned
 while `capacity6()` still answered null.
 
@@ -1380,7 +1380,7 @@ not a lib one: an animal's default sheet IS that sheet.
 
 Both training and mountability arrive by import. The RR prices animals BY ROLE — a "Heavy War" horse,
 a "Draft" mule, a "Riding" camel — so the qualifier in the name the book
-printed is its statement of training, and acks-importer reads it there
+printed is its statement of training, and the importer reads it there
 (`trainingFromName`); mountability is taken from the species having a
 riding form priced in that same book (`mountableSpecies`). A field the book
 supplies directly always wins over the name. Nothing about which animals

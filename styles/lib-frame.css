@@ -686,7 +686,7 @@
 .acks-extras-frame__tabs .acks-tab.is-dyn {
   border-color: var(--acks-gold-deep);
   color: var(--acks-gold-deep);
-  background: var(--acks-gold-tint);
+  background: color-mix(in srgb, var(--acks-gold) 15%, transparent);
 }
 
 .acks-extras-frame__tabs .acks-tab.is-dyn.active {
@@ -1001,7 +1001,7 @@ a.acks-extras-frame__gear-name:hover {
 .acks-extras-frame__chip.is-gold {
   border-color: var(--acks-gold-deep);
   color: var(--acks-gold-deep);
-  background: var(--acks-gold-tint);
+  background: color-mix(in srgb, var(--acks-gold) 15%, transparent);
 }
 
 /* Tones a chip can carry: a warning (something is owed) and the alarm (coin due). */
@@ -1618,7 +1618,7 @@ button.acks-extras-frame__pill:not(:disabled) {
   gap: var(--acks-sp-4);
   padding: calc(8px * var(--acks-extras-k)) calc(10px * var(--acks-extras-k));
   border: var(--acks-rule-hair) solid var(--acks-gold-deep);
-  background: var(--acks-gold-tint);
+  background: color-mix(in srgb, var(--acks-gold) 15%, transparent);
   color: var(--acks-gold-deep);
 }
 

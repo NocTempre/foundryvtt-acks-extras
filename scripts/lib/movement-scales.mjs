@@ -29,6 +29,7 @@
  * is what the page prints it as.
  */
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
+import { positiveFigure } from "./util.mjs";
 
 /** The registered document the expedition figures arrive in. */
 export const TRAVEL_DOC = "travel";
@@ -45,12 +46,6 @@ export function declareMovementTables() {
   expectTables(TRAVEL_DOC, [EXPEDITION_TABLE]);
 }
 
-/** A stored figure as a positive number, or null for anything else. */
-function figure(value) {
-  const n = Number(value);
-  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
-}
-
 /**
  * The expedition figures the world's table gives (the Judge's override over
  * the import), each null where nothing registered says. Nothing is defaulted:
@@ -60,7 +55,7 @@ function figure(value) {
 export function expeditionFigures() {
   const row = hasDoc(TRAVEL_DOC) ? getDoc(TRAVEL_DOC)?.tables?.[EXPEDITION_TABLE] : null;
   const read = row && typeof row === "object" ? row : {};
-  return Object.fromEntries(EXPEDITION_KEYS.map((key) => [key, figure(read[key])]));
+  return Object.fromEntries(EXPEDITION_KEYS.map((key) => [key, positiveFigure(read[key])]));
 }
 
 /**

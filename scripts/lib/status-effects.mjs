@@ -19,6 +19,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { expectTables } from "./tables.mjs";
+import { signed } from "./frame-model.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { getMonsterExtras } from "./senses.mjs";
@@ -67,7 +68,6 @@ const LEGACY_STATUS_IDS = Object.freeze({
 
 const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.conditionRoll.${key}`, data);
 const nameOf = (id) => game.i18n.localize(conditionNameKey(id));
-const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
 
 /* -------------------------------------------- */
 /*  The palette                                  */

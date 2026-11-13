@@ -1,4 +1,4 @@
-/* global game, ui, foundry, canvas, CONST, Actor, Folder, fromUuid, fromUuidSync */
+/* global game, ui, foundry, canvas, CONST, Actor, Folder, fromUuid */
 /**
  * Player summons — the Foundry half. A character's owner summons creatures
  * from the monster library onto the scene they are looking at; each one is an
@@ -24,7 +24,7 @@
  * that cannot open its shelf still summons it.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { makeLoc } from "./util.mjs";
+import { docOf, makeLoc } from "./util.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
 import {
   SUMMON_COPY_FLAG,
@@ -64,15 +64,6 @@ const MAX_DISMISS = 200;
 
 /** The socket transport, loaded when a call needs it so this file evaluates without a Foundry session. */
 const transport = () => import("./sockets.mjs");
-
-/** A document by uuid, or null — never a throw for a stale pointer. */
-function resolveSync(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
-}
 
 /** The scene the seat summons on: the one on the canvas, else the world's active one. */
 const sceneNow = () => canvas?.scene ?? game.scenes?.active ?? null;
@@ -226,7 +217,7 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
 /** Dismiss summons: authorize, then delete the tokens the module made for this summoner. */
 async function dismissOp({ summonerUuid, tokenUuids, user }) {
   const summoner = await fromUuid(summonerUuid);
-  const tokens = [...new Set(tokenUuids ?? [])].slice(0, MAX_DISMISS).map(resolveSync).filter((t) => t?.documentName === "Token");
+  const tokens = [...new Set(tokenUuids ?? [])].slice(0, MAX_DISMISS).map(docOf).filter((t) => t?.documentName === "Token");
   const verdict = checkDismissRequest({ user, summoner, tokens });
   if (!verdict.ok) return refused(verdict.reason);
   const byScene = new Map();

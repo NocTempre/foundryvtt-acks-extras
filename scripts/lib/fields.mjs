@@ -43,14 +43,13 @@ import { OCCUPANT_KIND } from "./place-logic.mjs";
 
 const F = () => foundry.data.fields;
 
-/* --- leaf helpers (mirror acks-monsters/scripts/monster-extras.mjs) --- */
+/* --- leaf helpers (the same builders scripts/monsters/monster-extras.mjs uses) --- */
 export const num = (opts = {}) => new (F().NumberField)({ required: false, nullable: true, initial: null, ...opts });
 export const str = (opts = {}) => new (F().StringField)({ required: false, blank: true, initial: "", ...opts });
 export const bool = (initial = false) => new (F().BooleanField)({ initial });
 // A REQUIRED integer that always holds a value — the counterpart to `num` for
 // fields the system writes concrete integers into (stub attack/initiative,
-// counts, indices). acks-henchmen defined this verbatim in two data files; it
-// belongs here beside num/str.
+// counts, indices). It lives here beside num/str so no data file defines its own.
 export const int = (initial = 0, opts = {}) =>
   new (F().NumberField)({ required: true, nullable: false, integer: true, initial, ...opts });
 export const html = () => new (F().HTMLField)({ required: false, blank: true, initial: "" });
@@ -79,7 +78,7 @@ export function occupantField() {
     // capacity decision made from the sheet.
     quantity: int(1),
     ownerUuid: str(), // who put it here / whose it is; "" = the holder's own
-    // Caller-supplied at placement (acks-lib `occupantRow` / `addOccupant`
+    // Caller-supplied at placement (lib's `occupantRow` / `addOccupant`
     // option bag), and kept when a stored row absorbs its derived duplicate.
     notes: str(),
     // Display gating only, never a security boundary — the same ruling storage
@@ -124,7 +123,7 @@ export function levelValueField() {
     // writes it — a numerator over a denominator. It is data because which
     // fraction a rule uses is printed: enumerating the ones some book happens
     // to state would transcribe those rules and still miss the next one.
-    // `atLevel` is the legacy shorthand and is read when no fraction is set.
+    // `atLevel` is a shorthand, read when no fraction is set.
     atLevelNum: num({ integer: true }),
     atLevelDen: num({ integer: true }),
     atLevel: choice(PROGRESSION_LEVELS),

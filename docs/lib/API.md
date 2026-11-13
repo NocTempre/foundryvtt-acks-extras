@@ -5,12 +5,11 @@ every other feature is allowed to depend on, and the one place overrides of core
 logic belong — a feature patches core directly only where the behavior is unique
 to its own domain.
 
-It was `acks-lib`, a separate module, until the 2026-08-01 merge. Nothing about
-it is a *dependency* any more: features import it directly
-(`import … from "../lib/vocab.mjs"`), which is what makes a moved surface fail at
-load instead of degrading into silence. There is no `requires` edge, no
-installed-but-disabled case, and `apiVersion` is an informational stamp rather
-than a handshake — a feature and the lib always ship at the same version.
+Features import it directly (`import … from "../lib/vocab.mjs"`), which is what
+makes a moved surface fail at load instead of degrading into silence. There is
+no `requires` edge and no installed-but-disabled case, and `apiVersion` is an
+informational stamp rather than a handshake — a feature and the lib always ship
+at the same version.
 
 Scope: the effect/ability vocabulary and DataModel field-builders, the scoping
 primitives the social rolls need, the layered tables registry, the
@@ -73,8 +72,8 @@ sizes that one stack and resolves to `{ok, reason?, name?, why?, found?, total?,
 `rollRefusal(group, stack)`; `makeEncounter(source)`; `defaultRollContext()`; and
 `ROLL_CONTEXT_HOOK`
 (`"acksExtrasGroupRollContext"`), called with `{scene, context}` for a feature to
-write `context` in place. `groups.sizeFromEcology` is unchanged for a caller who
-names no state; apiVersion 32 adds the state.
+write `context` in place. `groups.sizeFromEcology(source, context, state)` takes
+the state (`"wandering"`, `"lair"` or null) as its third argument.
 
 The elided trailing group and the full file-by-file surface are indexed in
 **`scripts/lib/README.md`** — check there first. No gate compares that index
@@ -133,9 +132,8 @@ run actually read), and an assembled table cites the raw tables its binding's
 class item's `source.cite`. `citeOf(docId, tableId)` answers from the layer a read
 takes the table from, falling back to that layer's `source.pages`; it returns
 null for a table no layer holds, and for one a Judge's override or a module's
-sample supplies, since neither was read off a page. A world imported before
-apiVersion 20 has no `cites` until it re-reads, so it shows the document's
-pages.
+sample supplies, since neither was read off a page. A document with no `cites`
+shows the document's pages.
 
 **A printed quantity** (apiVersion 20) is `{value, atLeast, per}`: a figure,
 whether it is a floor ("4 or more") rather than an exact amount, and the unit a
@@ -155,7 +153,7 @@ imported". The Foundry-side `missingTablesList(docIds)` (ruledata.mjs) turns
 that into a localized list for a notice, naming a table that arrived with rows
 unread apart from a table that did not arrive.
 
-Consumers read ONLY through this registry — never a sibling module's name —
+Consumers read ONLY through this registry — never another feature's name —
 so any provider can substitute data without consumer changes.
 
 ## `services` — named-contract registry (Foundry-free)
@@ -288,8 +286,8 @@ to `{ key: label }` for DataModel `choices`.
   `MAGIC_VOCAB` registry keyed by lang id, and `vocabLabel(family, key)` /
   `vocabChoices(family)` — the label from `ACKS-LIB.enum.<family>.<key>`
   when the client has it, else the inline one.
-- **Scoping** (v0.6): `INFLUENCE_TONES`, `SCOPE_ALIGNMENT_MODES`.
-- **Roll outcomes** (v0.38): `OUTCOME_TRIGGERS` and `outcomeFires(effect, {natural,
+- **Scoping**: `INFLUENCE_TONES`, `SCOPE_ALIGNMENT_MODES`.
+- **Roll outcomes**: `OUTCOME_TRIGGERS` and `outcomeFires(effect, {natural,
   total, target, success})`. An `outcome` effect states "on a roll of X, Y
   happens" — a botch band on the natural die (`naturalBand`/`naturalMax`), the
   result under a fraction of the target (`belowFraction`), or plain `failure`.
@@ -537,11 +535,9 @@ them today; treat a change here as cheap until magic lands.
 `weaponThrowsAsAnyone(key)`, `listedKind(table, text)`,
 `optionUnits(id)`, `optionFindings()`, `martialOption(pick)` and `registerWeaponSource(source)`. Features import them from the file; `lib.*`
 does not carry them. A feature outside this module reads a weapon through the equipment
-API's `classifyWeapon`; its `config` no longer holds a weapon table
-(apiVersion 37 removed `WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS` and
-`WEAPON_ALIASES`). The contract is docs/lib/MODEL.md, "The weapon seam".
+API's `classifyWeapon`; its `config` holds no weapon table. The contract is docs/lib/MODEL.md, "The weapon seam".
 
-## `senses` — what a creature perceives (apiVersion 38 for the printed figures)
+## `senses` — what a creature perceives
 
 `senseProfile(actor, {litBy})` answers `{seesInDark, sightRange, visionMode,
 detection, suppressed}` and `canSeeInDark(actor)` the movement rule's reading of
@@ -556,16 +552,14 @@ to show, and `== null` for the "not imported" state.
 the `senses` ruledata document (`SENSES_DOC`, tables `shadowySensesProse`,
 `lightlessDefaultProse` and `nightVisionProse`) and answer a positive number or
 null; `senseCite("shadowy" | "lightless" | "night")` is the page the table was
-read from, null where it is the Judge's own. apiVersion 38 removed
-`SHADOWY_SENSE_RANGE` and `DEFAULT_LIGHTLESS_RANGE`. The importer reads both ([docs/lib/MODEL.md](MODEL.md),
+read from, null where it is the Judge's own. The importer reads both ([docs/lib/MODEL.md](MODEL.md),
 "Perception: senses, light, and the token").
 
-## `movementScales` — the expedition figures (apiVersion 40 for the printed figures)
+## `movementScales` — the expedition figures
 
-`FEET_PER_TURN_PER_MILE_PER_DAY`, `MARCH_HOURS` and `WILDERNESS_FACTOR` are
-**removed** (apiVersion 40), and `TRAVEL_PACE` entries lose `multiplier` and `hours` (they keep
-`label` and gain `hoursKey`, the name of the figure the pace's hours are read
-under). The figures are the `expedition` table of the `travel` ruledata
+No feet-per-mile, march-hours or wilderness-factor constant exists, and
+`TRAVEL_PACE` entries carry `label` and `hoursKey` (the name of the figure the
+pace's hours are read under) and no `multiplier` or `hours`. The figures are the `expedition` table of the `travel` ruledata
 document (`TRAVEL_DOC`, `EXPEDITION_TABLE`; keys `EXPEDITION_KEYS`):
 `declareMovementTables()` registers the expectation, `expeditionFigures()`
 returns the figures (each a positive number or null) and `expeditionCite()` the
@@ -735,7 +729,7 @@ acksExtras.lib.conditions = {
 `{statuses}`, that giver's statuses, which is where a row's `unless` is read
 for it. `endingAtTurn` takes the bearer's combatant id as `self` and, for
 each given state, its giver's combatant id in `givers`. `giverOf`,
-`endingAtTurn`, `lostTo`, `LOSSES` and `gifts` came with apiVersion 29.
+`endingAtTurn`, `lostTo`, `LOSSES` and `gifts` are the conditions surface's.
 
 `attackMath` returns `{terms, damage, damageFactor, damageFactorBy, forbidden,
 shielded, autoHit, pending, unpriced}`. A term is `{condition, value, side}`
@@ -903,15 +897,9 @@ calling `resolveDue`.
 
 `apiVersion` is bumped when this surface changes shape, and it is informational:
 the lib and its callers are one module at one version, so nothing pins a minimum
-against it. The importer subsystem (`scripts/importer/`) lives in this repo now,
-so a symbol added here and the importer code that consumes it land in the same
-commit — the cross-repo tag-first rule this section used to state (a symbol
-must exist in `acks-extras` HEAD *and* in its released tag before the importer,
-as a separate repo, could tag against it) has no live instance left to apply to.
-
-The `(v0.x)` markers throughout this page are the pre-merge `acks-lib` release
-that first shipped a surface. They are provenance, not anything to check a
-version against.
+against it. The importer subsystem (`scripts/importer/`) lives in this repo, so
+a symbol added here and the importer code that consumes it land in the same
+commit.
 
 ## Patch layer — what the lib adds to the system
 
@@ -929,9 +917,8 @@ path); everything shared is here. One owner per wrapped core method —
 module actor with an incomplete schema aborts the system's own ready work.
 
 Spread `acksCompatStubs()` into any module actor sub-type's `defineSchema()`.
-Four copies of this existed across acks-domains, the formation feature and
-the henchmen feature before it moved here; a system patch four modules maintain
-separately is one system update away from three of them being wrong.
+One definition serves every sub-type: a system patch several features
+maintain separately is one system update away from some of them being wrong.
 
 `savingThrowFields()` is separate, for a sub-type that genuinely saves — same
 field paths and initials as the system's own `SavingThrowsTemplate`.
@@ -1037,7 +1024,7 @@ annotated"; name-heuristic fallbacks must gate on it.
 Slot keys and their capacities come from `vocab.mjs` `WEAR_SLOTS` / `SLOT` /
 `slotCapacity`; `ACCESS_COSTS` is the RAW retrieval cost (RR pp. 293–294).
 
-### `storage` — goods kept somewhere other than on you (v0.39, apiVersion 11)
+### `storage` — goods kept somewhere other than on you
 
 The system has no inventory anywhere except an actor's own item list, and no way
 to move an item between actors at all: its drop handlers **copy** — they create
@@ -1188,20 +1175,19 @@ written, and the relay tells the seat that a GM must be connected. A relayed
 payment never mints: `allowMint` is honoured only at a seat that owns the
 till.
 
-`transferCoin` took a `toBank` option until apiVersion 24. It is gone with the
-field it wrote: coin lands where the payee keeps arriving coin, and coin kept
-at a place for somebody else goes there through `storage.depositCoin` or
-`storage.stash`.
+`transferCoin` takes no `toBank` option: coin lands where the payee keeps
+arriving coin, and coin kept at a place for somebody else goes there through
+`storage.depositCoin` or `storage.stash`.
 
-Until apiVersion 25 `creditCoin` landed coin on the holder's own row of its
-kind, and every payment drew on `ownCoin` alone. A caller that must keep to
-coin on hand passes `within: "hand"`.
+`creditCoin` lands coin in the store the holder's order names, and a payment
+draws on every store in reach. A caller that must keep to coin on hand passes
+`within: "hand"`.
 
 The rules these calls keep (one count, the kind as merge key, stores and a
 holder's order, a payment's reach, exact change) are [MODEL.md](MODEL.md),
 "Currency".
 
-### `coinOrder` — the order on a sheet (apiVersion 25)
+### `coinOrder` — the order on a sheet
 
 ```js
 const { view, bind, TEMPLATE } = acksExtras.lib.coinOrder;
@@ -1254,7 +1240,7 @@ writes it), 4.20.0 (one name rule; packages that link rather than copy) and the
 carry-model release of 2026-08-28; every surface they added is a row in
 `scripts/lib/README.md`.
 
-### `acks-extras.template` — the generator actor (v0.16)
+### `acks-extras.template` — the generator actor
 
 The MM's "characteristics by rank/age/tier" creatures (dragon, cacodemon,
 elemental) have no stat block — every cell points at tables on the following
@@ -1288,12 +1274,12 @@ pins and the base are per-window UI state, never document data. Generated
 actors carry `flags["acks-extras"].generated = {templateUuid, choices, log, menu}`
 as provenance.
 
-v0.17 additions: options carry actor-level `flags`/`token` channels (a family
+Options carry actor-level `flags`/`token` channels (a family
 variant is a complete creature — sheet extras and token size included) and a
 NULLABLE `nameLabel` (null → label; empty string → contributes nothing, so a
 Standard role stays out of generated names). Axes may set `multi: true` —
 opt-in, never rolled, every checked option applies in list order (stacked
-add-ons instead of a combinatorial option list). A dropped base actor now
+add-ons instead of a combinatorial option list). A dropped base actor
 SEEDS generation (full system/items/flags, patches layered on top), so
 templates COMPOSE: generate a Goblin Chieftain, drop it on Vampire Thrall.
 The sheet's edit mode adds/removes axes and options and CAPTURES a dropped
@@ -1302,19 +1288,19 @@ extension, and cross-book merging all ride that one gesture; capturing into
 an otherwise-empty template adopts the source actor's TYPE (mounts and pack
 animals are container roots too).
 
-v0.18: `mergePatch` understands RELATIVE leaves — `{"$add": n}` adjusts the
+`mergePatch` understands RELATIVE leaves — `{"$add": n}` adjusts the
 existing numeric value instead of replacing it (missing base counts from 0;
 only the exact one-key `{$add: number}` shape is relative). This is the
 primitive MODIFIER templates build on: an aging template's "−1 STR" patch
 composes with whatever base actor it is stacked onto.
 
-v0.19: menu rows may carry a `sub` generation roll ({die, twice?, outcomes:
+Menu rows may carry a `sub` generation roll ({die, twice?, outcomes:
 [{min,max,text}]}, importer-materialized from the ability's own prose);
 `rollMenu` resolves it when the row is picked (picks are row COPIES carrying
 `subResult`) via the exported `resolveSubRoll`. Never recurses — an outcome
 that itself says "roll 1d8+4 twice" stays text for the Judge.
 
-v0.20: `system.base` {merge, flags} is the FIXED foundation applied before
+`system.base` {merge, flags} is the FIXED foundation applied before
 any axis (the stat rows a template page prints as plain values); options
 gain `tint` (token texture tint — a dragon wears its hide color), applied
 by the builder alongside art and token-size fragments.

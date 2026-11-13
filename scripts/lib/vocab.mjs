@@ -120,12 +120,12 @@ export function creatureKeys(raw) {
   return keys;
 }
 
-// NOTE deliberately NO normalizeAlignment here. It looked like a fold, but the
-// one module that classifies alignment (acks-influence) keeps its OWN token set
-// (law/chaos/neutral/other, baked into published effect flags) and translates
-// at its boundary on purpose — see its actor-data.mjs. There is no live
-// consumer for a lawful/neutral/chaotic free-text fold, so shipping one would
-// be a dead primitive. Add it beside ALIGNMENTS when a real consumer appears.
+// NOTE deliberately NO normalizeAlignment here. The one feature that classifies
+// alignment (influence) keeps its OWN token set (law/chaos/neutral/other, baked
+// into published effect flags) and translates at its boundary on purpose — see
+// scripts/influence/actor-data.mjs. There is no live consumer for a
+// lawful/neutral/chaotic free-text fold, so shipping one would be a dead
+// primitive. Add it beside ALIGNMENTS when a real consumer appears.
 
 /* ---------------------------------------------------------------- */
 /*  Shared vocabulary — defined here, re-exported by monsters/config */
@@ -201,9 +201,9 @@ export const NATURAL_WEAPONS = {
   pincer: { label: "Pincer", damage: "slashing" },
   spine: { label: "Spine", damage: "piercing" },
   weapon: { label: "Weapon", damage: "varies" },
-  // acks-monsters superset — its sheet offers these three beyond the list above.
-  // `sting` coexists with `stinger` (same concept, different key) so monsters
-  // that stored either resolve; folding them would need a data migration.
+  // The monster sheet offers these three beyond the list above. `sting`
+  // coexists with `stinger` (same concept, different key) so monsters that
+  // stored either resolve; folding them would need a data migration.
   sting: { label: "Sting", damage: "piercing" },
   feeler: { label: "Feeler", damage: "bludgeoning" },
   envelopment: { label: "Envelopment", damage: "acidic" },
@@ -807,9 +807,8 @@ export const PROGRESSION_CLASSES = {
 
 /**
  * Shorthands for the class-level fraction a `progressionAs` effect or a
- * `progression` target reads at. LEGACY: these are the four spellings this
- * module wrote before a fraction became data, and they are read so that
- * anything already stored keeps resolving.
+ * `progression` target reads at. These four spellings are read so that a stored
+ * one keeps resolving.
  *
  * WHICH fraction a rule uses is printed, so it is not enumerated here. Whatever
  * a page states is answered by `atLevelNum` / `atLevelDen` on the value itself,

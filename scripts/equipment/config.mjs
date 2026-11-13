@@ -52,24 +52,18 @@ export const ARMOR_LADDER = Object.freeze(["unarmored", "veryLight", "light", "m
  * WIRED: handAC, frontAC, specOnly, spec, defendCounts, noBack, noMount,
  * enc, encItem, frontEnc, mountEnc (see overlays/shield-variants.mjs).
  *
- * DELIBERATELY NOT WIRED — recorded here so a sweep for dead config does not
- * keep rediscovering them as oversights:
- *  - `backAC` / `vulnerableProtects` — both describe whether the shield helps
- *    against a PARTICULAR attack (from behind; while vulnerable). The system
- *    models no per-attack context to hang that on, so automating it would mean
- *    guessing which attacks qualify. Surfaced in the item description instead.
- *  - `mountAlternates` / `mountShares` — mounted, these shields protect the
- *    rider OR the mount, or share cover between them. That is a player's choice
- *    each round, not a derivable fact; automating it would choose for them.
+ * The situational cover a shield gives (from behind, while vulnerable, and the
+ * mounted rider-or-mount choice) is not modelled: it needs per-attack context
+ * the system has none of, and is surfaced in the item description instead.
  */
 export const SHIELD_VARIANTS = Object.freeze({
-  standard: { label: "Shield", handAC: 1, backAC: 0, enc: 1, spec: true, vulnerableProtects: true },
-  auxiliary: { label: "Auxiliary Shield", handAC: 1, backAC: 1, enc: 1, spec: true, vulnerableProtects: false, mountAlternates: true },
-  buckler: { label: "Buckler", handAC: 1, backAC: 0, enc: 1, encItem: true, spec: true, specOnly: true, vulnerableProtects: false },
-  crescent: { label: "Crescent Shield", handAC: 1, backAC: 1, frontAC: 1, enc: 1, frontEnc: 2, spec: true, vulnerableProtects: false },
-  heater: { label: "Heater Shield", handAC: 1, backAC: 1, enc: 1, spec: true, vulnerableProtects: false, mountAlternates: true },
-  kite: { label: "Kite Shield", handAC: 1, enc: 2, mountEnc: 1, spec: true, vulnerableProtects: false, noBack: true, mountShares: true },
-  phalanx: { label: "Phalanx Shield", handAC: 1, enc: 1, spec: true, vulnerableProtects: false, noBack: true, noMount: true, defendCounts: true },
+  standard: { label: "Shield", handAC: 1, enc: 1, spec: true },
+  auxiliary: { label: "Auxiliary Shield", handAC: 1, enc: 1, spec: true },
+  buckler: { label: "Buckler", handAC: 1, enc: 1, encItem: true, spec: true, specOnly: true },
+  crescent: { label: "Crescent Shield", handAC: 1, frontAC: 1, enc: 1, frontEnc: 2, spec: true },
+  heater: { label: "Heater Shield", handAC: 1, enc: 1, spec: true },
+  kite: { label: "Kite Shield", handAC: 1, enc: 2, mountEnc: 1, spec: true, noBack: true },
+  phalanx: { label: "Phalanx Shield", handAC: 1, enc: 1, spec: true, noBack: true, noMount: true, defendCounts: true },
 });
 
 /**

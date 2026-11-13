@@ -1,4 +1,3 @@
-/* global game */
 /**
  * Shared Active-Effect scanning core for the data-driven modifier features
  * (equipment, henchmen and the character sheet read their modifiers through
@@ -28,7 +27,11 @@
  *  - henchmen's seenItems dedupe, influence-reaction pass and NAME_PRESENCE
  *    reads; equipment's abilities-bridge pass.
  */
+import { locOr } from "./util.mjs";
 import { resolveLevelValue, scopeApplies } from "./vocab.mjs";
+
+/** Localize a key when the active translation has it; otherwise the text passes through unchanged (`locOr` with the key as its own fallback). */
+export const localizeKey = (key) => (key ? locOr(key, key) : (key ?? ""));
 
 /** The change types Foundry applies itself, by the string each carries. */
 export const CHANGE = Object.freeze({
@@ -46,15 +49,6 @@ export function appliedEffects(actor) {
   if (!actor) return [];
   if (Array.isArray(actor.appliedEffects)) return actor.appliedEffects;
   return Array.from(actor.effects ?? []);
-}
-
-/** Localize when the key exists; otherwise pass the text through unchanged. */
-export function localizeKey(key) {
-  try {
-    return key && game?.i18n?.has?.(key) ? game.i18n.localize(key) : (key ?? "");
-  } catch {
-    return key ?? "";
-  }
 }
 
 /**

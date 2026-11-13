@@ -7,8 +7,7 @@
  * brightly it burns; this file is the only thing that puts either on canvas.
  * It exists because the answer must be the same for a character standing alone
  * in a corridor, a monster the Judge just dragged in, and a party member who has
- * stepped out of the formation — three paths that previously had three answers,
- * two of which were "whatever the GM last typed".
+ * stepped out of the formation — three paths, one answer.
  *
  * ## Not clobbering the Judge
  *

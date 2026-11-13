@@ -251,7 +251,7 @@
 }
 
 /* A section's add control, directly under its summary. The row is what puts it
-   back on the right margin the summary used to hold it at. */
+   on the right margin. */
 .acks-extras.acks-extras-location-sheet .section-actions {
   display: flex;
   justify-content: flex-end;

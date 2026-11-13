@@ -324,7 +324,7 @@
   color: var(--acks-spot);
 }
 
-/* Selection picks: a checkbox per canonical pick (acks-lib SELECTION_VOCAB),
+/* Selection picks: a checkbox per canonical pick (lib SELECTION_VOCAB),
    with the comma-separated line below as the fallback for anything else. */
 .acks-abilities-picks {
   display: flex;

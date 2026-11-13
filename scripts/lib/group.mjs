@@ -429,7 +429,7 @@ export async function moveStack(from, to, stackKey) {
 }
 
 /**
- * Back-compat convenience: point the group at ONE prototype. With no stacks yet
+ * Convenience: point the group at ONE prototype. With no stacks yet
  * it creates the first; otherwise it re-points the primary stack. New callers
  * building a mixed unit should use `addStack` per troop type.
  */

@@ -25,6 +25,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
+import { locOr, positiveFigure } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 
 /**
@@ -41,15 +42,6 @@ function lightEnforcement() {
     return game.settings.get(MODULE_ID, LIGHT_ENFORCEMENT_SETTING) ?? "require";
   } catch {
     return "require";
-  }
-}
-
-/** Localize when the key exists; otherwise pass the text through unchanged. */
-function localize(key) {
-  try {
-    return game?.i18n?.has?.(key) ? game.i18n.localize(key) : (key ?? "");
-  } catch {
-    return key ?? "";
   }
 }
 
@@ -123,12 +115,6 @@ export function declareLightTables() {
   expectTables(LIGHT_DOC, [LIGHT_TABLE]);
 }
 
-/** A stored figure as a positive number, or null for anything else. */
-function figure(value) {
-  const n = Number(value);
-  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
-}
-
 /**
  * How far one kind of light reaches and how long it burns, as the world's
  * table gives it (the Judge's override over the import): `{bright, dim}` in
@@ -142,7 +128,7 @@ export function lightFigures(type) {
   if (!LIGHT_SOURCES[type] || !hasDoc(LIGHT_DOC)) return none;
   const row = getDoc(LIGHT_DOC)?.tables?.[LIGHT_TABLE]?.[type];
   if (!row || typeof row !== "object") return none;
-  return { bright: figure(row.bright), dim: figure(row.dim), turns: figure(row.turns) };
+  return { bright: positiveFigure(row.bright), dim: positiveFigure(row.dim), turns: positiveFigure(row.turns) };
 }
 
 /**
@@ -204,19 +190,6 @@ export function actorFlagLights(actor) {
 }
 
 /**
- * Whether a formation owns this actor's lights, and so whether the actor's own
- * flag is the record to write. Asked through the shared namespace rather than
- * an import — lib may not depend on a feature — and answered "no" when the
- * formation feature is absent, which is the degradation every other caller
- * here takes.
- */
-export function formationOwnsLights(actor) {
-  const lightsForBearer = globalThis.acksExtras?.formation?.lightsForBearer;
-  if (typeof lightsForBearer !== "function" || !actor?.id) return false;
-  return lightsForBearer(actor.id) != null;
-}
-
-/**
  * Every light this actor is carrying, from whichever record owns them.
  *
  * The formation feature is asked first, through the shared namespace rather than
@@ -256,7 +229,7 @@ export function bearerLights(actor) {
 export async function prepareToLight(actor, type, { override = false } = {}) {
   if (!LIGHT_SOURCES[type] || !actor) return false;
 
-  // Two-way hand check (acks-equipment). ROOM, not free hands: a two-handed
+  // Two-way hand check (the equipment feature). ROOM, not free hands: a two-handed
   // grip widens for a spare hand and gives it back for the torch, so asking
   // what is free would wrongly refuse it. A source of this type already drawn
   // and unlit needs no hand beyond the one it is in, so `roomForLight` is
@@ -274,7 +247,7 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
     // Names what the sheet already shows in hand, so the refusal is not unexplained.
     held = equipment?.heldHandsClause?.(actor) ?? "";
   } catch (err) {
-    console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
+    console.error(`${MODULE_ID} | hand count failed`, err);
   }
   const noRoom = typeof room === "boolean" ? !room : Number.isFinite(freeHands) && freeHands <= 0;
   if (noRoom) {
@@ -295,7 +268,7 @@ export async function prepareToLight(actor, type, { override = false } = {}) {
   const inHandIs = (g) => !!inHand && g.pattern.test(inHand.name ?? "");
   const fuelGear = gear.find((g) => g.fuel);
   const fuel = inHandIs(fuelGear) ? null : findCarried(actor, fuelGear.pattern);
-  const missing = gear.filter((g) => !inHandIs(g) && !findCarried(actor, g.pattern)).map((g) => localize(g.label));
+  const missing = gear.filter((g) => !inHandIs(g) && !findCarried(actor, g.pattern)).map((g) => locOr(g.label, g.label ?? ""));
   if (missing.length) {
     warnLight("needLightItem", { bearer: actor.name, items: missing.join(", ") });
     // "require" blocks — unless the Judge overrode and the world simply had no
@@ -546,10 +519,10 @@ export function magicLights(actor) {
     for (const change of [...(effect.changes ?? [])]) {
       if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.bright) {
         writes = true;
-        bright = Math.max(bright ?? 0, figure(change.value) ?? 0) || null;
+        bright = Math.max(bright ?? 0, positiveFigure(change.value) ?? 0) || null;
       } else if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.dim) {
         writes = true;
-        dim = Math.max(dim ?? 0, figure(change.value) ?? 0) || null;
+        dim = Math.max(dim ?? 0, positiveFigure(change.value) ?? 0) || null;
       }
     }
     if (!writes) continue;

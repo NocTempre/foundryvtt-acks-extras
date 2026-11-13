@@ -1,26 +1,26 @@
 /* global game, CONFIG, Hooks, Actor, foundry */
 /**
- * acks-lib — shared primitives for the ACKS II module family, and the family's
- * PATCH LAYER on the acks system.
+ * The shared library — primitives every feature uses, and the module's PATCH
+ * LAYER on the acks system.
  *
- * The system is an unmodifiable reference (every module's CLAUDE.md). Anything
- * the family needs that the system does not provide — a new actor sub-type, a
+ * The system is an unmodifiable reference (this repo's CLAUDE.md). Anything
+ * the module needs that the system does not provide — a new actor sub-type, a
  * compatibility stub the system's own code demands, a baseline the system spells
- * out per type instead of sharing — lands here, once, rather than in each module
- * that happens to need it first. A module patches core directly only for
- * behaviour unique to its own domain.
+ * out per type instead of sharing — lands here, once, rather than in each
+ * feature that happens to need it first. A feature patches core directly only
+ * for behaviour unique to its own domain.
  *
- * Scope now:
- *   - the effect/ability vocabulary and field-builders (abilities program)
+ * Scope:
+ *   - the effect/ability vocabulary and field-builders
  *   - the scoping primitives the social rolls need
  *   - the layered tables registry, service registry, ruledata loader
  *   - **actor compatibility stubs** — one definition of the fields the system
- *     touches on every actor, replacing four drifting copies across the family
+ *     touches on every actor
  *   - **the `acks-lib.animal` actor sub-type** — an animal is a monster you can
  *     also buy, load and ride, so its combat block uses the monster's own field
  *     paths and everything that reads a monster reads it unchanged
- *   - **mount binding** — the "who is riding what" fact acks-equipment's
- *     mounted-combat overlay has been blocked on
+ *   - **mount binding** — the "who is riding what" fact the equipment
+ *     feature's mounted-combat overlay reads
  *   - **the shared item baseline** — one answer to "is this physical / can it
  *     be equipped / what does it weigh", which the system spells out per type
  */
@@ -383,7 +383,7 @@ const localImpl = Object.freeze({
   /**
    * PLACES (place.mjs) — the layer above storage: what a place is inside of,
    * what living thing is in it, and how many of it there are. A location actor,
-   * a provider actor and an acks-equipment container item all reduce to one
+   * a provider actor and an equipment container item all reduce to one
    * node shape, so a chest is the trivial case of a duchy rather than a
    * separate mechanism. Nesting (cycle-guarded), rosters, stack splitting.
    */
@@ -404,7 +404,7 @@ const localImpl = Object.freeze({
   actorRead,
   /** The printed "Follower Card": build context, render to HTML, the sheet, the
    *  template, and setSheet(actor, useCard) — the one sanctioned card↔full
-   *  switch (consumed by acks-henchmen's roster bulk buttons). */
+   *  switch (consumed by the henchmen roster's bulk buttons). */
   followerCard: {
     context: followerCardContext,
     render: renderFollowerCard,
@@ -448,8 +448,9 @@ const localImpl = Object.freeze({
   statusPalette: { read: readStatusPalette, open: openStatusPalette },
   /**
    * Weapon damage typing (damage-type.mjs): resolves a type LIVE through
-   * acks-equipment's classifier — no annotate step, no second copy of the weapon
-   * table — plus per-type icons and the equipped-weapon attack option list.
+   * the equipment feature's classifier — no annotate step, no second copy of
+   * the weapon table — plus per-type icons and the equipped-weapon attack
+   * option list.
    */
   damageType,
 });
@@ -540,7 +541,7 @@ Hooks.once("init", () => {
   });
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
-  // acks-henchmen, cross-module) has no fetch miss on first paint — and the
+  // the henchmen feature) has no fetch miss on first paint — and the
   // station chip, the coin-order block and the sheet frame's partials, which
   // other sheets include as partials by path.
   foundry.applications.handlebars

@@ -34,7 +34,7 @@ export const HOUSE_OWNER = `${LIB_ID}:house`;
 /** The flag naming the bundle a copy was unpacked from: provenance, never identity. */
 export const UNPACKED_FROM = "unpackedFrom";
 
-/** acks-equipment's container pointer — read generically, never imported. */
+/** The equipment feature's container pointer — read generically, never imported. */
 const EQUIPMENT_ID = "acks-extras";
 const CONTAINED_IN = "containedIn";
 
@@ -59,7 +59,7 @@ export function quantityOf(plain) {
   return null;
 }
 
-/** The container this item is inside, per acks-equipment. Null when loose. */
+/** The container this item is inside, per the equipment feature. Null when loose. */
 export const containedInOf = (plain) => plain?.flags?.[EQUIPMENT_ID]?.[CONTAINED_IN] ?? null;
 
 /** The attribution stamped on a stored item: whose goods these are. */

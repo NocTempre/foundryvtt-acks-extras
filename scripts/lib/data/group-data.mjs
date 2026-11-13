@@ -137,7 +137,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // The commanding officer (RR 171): a lone leveled actor, not a stack.
         // Only the skirmish-scale bit lives here (uuid + cached morale
         // modifier, so `commandMorale` computes without loading the officer);
-        // domain-scale command is acks-troops.
+        // domain-scale command is the army layer's.
         officerUuid: str(),
         officerMoraleBonus: int(0, { min: 0, max: 4 }),
         // The commander's level (cached from the officer, or the personally-leading
@@ -307,7 +307,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
 
   /** True when the group is larger than its commander can personally lead — it
    *  needs a higher-level officer, or (past a platoon) the multi-unit army
-   *  command structure that is acks-troops, not skirmish scale. A group with
+   *  command structure that is army scale, not skirmish scale. A group with
    *  troops but no commander (capacity 0) is over-command by definition. */
   get overCommand() {
     const cap = this.commandCapacity;

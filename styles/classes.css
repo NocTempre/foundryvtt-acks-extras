@@ -373,8 +373,8 @@ legend > .acks-extras-classes-ctl {
 }
 
 /* The picker and level-up controls beside the system's class input. Chargen
-   is no longer among them — it lives on the Scores Generator, which already
-   rolls the attributes and the template die. */
+   lives on the Scores Generator, which rolls the attributes and the template
+   die. */
 .acks-extras-classes-pick,
 .acks-extras-classes-levelup {
   flex: 0;

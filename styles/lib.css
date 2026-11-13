@@ -215,7 +215,7 @@
   margin: 0.5rem 0 0;
 }
 
-/* --- acks-lib.group sheet --- */
+/* --- Group sheet --- */
 
 .acks-lib-group-sheet .acks-lib-group-body {
   display: flex;
@@ -484,7 +484,7 @@
   cursor: grab;
 }
 
-/* --- acks-lib.template builder sheet --- */
+/* --- Template builder sheet --- */
 .acks-lib-template-sheet .acks-lib-template-body {
   display: flex;
   flex-direction: column;

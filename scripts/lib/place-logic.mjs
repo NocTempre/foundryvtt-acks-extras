@@ -8,7 +8,7 @@
  * docs/lib/PLACES.md.
  */
 
-/** Flag scope shared with the rest of the family (one module id since the merge). */
+/** The flag scope every feature of this module writes under. */
 export const LIB_ID = "acks-extras";
 
 /** `flags.acks-extras.place` — nesting for providers that are NOT location actors. */
@@ -21,7 +21,7 @@ export const PLACE_KEY = "place";
  */
 export const PLACE_KIND = Object.freeze({
   LOCATION: "location", // an acks-extras.location actor — the full article
-  CONTAINER: "container", // an acks-equipment container item — the trivial article
+  CONTAINER: "container", // an equipment container item — the trivial article
   PROVIDER: "provider", // any other actor flagged to hold goods (a wagon, a hireling)
 });
 

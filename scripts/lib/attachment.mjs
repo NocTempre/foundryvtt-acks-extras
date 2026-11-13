@@ -248,13 +248,6 @@ export async function detach(actor) {
   return { ok: true };
 }
 
-/** Detach everyone from a carrier — the whole cart empties at once. */
-export async function detachAll(carrier, role = null) {
-  const people = attachedTo(carrier, role);
-  for (const p of people) await detach(p);
-  return people.length;
-}
-
 /**
  * The arrangement, as a plain record — who was attached to what, in which
  * role, at which station. Stored so it can be put back exactly (see

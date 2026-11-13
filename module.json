@@ -203,13 +203,6 @@
           "minimum": "7.1.8"
         }
       }
-    ],
-    "conflicts": [
-      {
-        "id": "acks-importer",
-        "type": "module",
-        "reason": "The importer is part of this module, and the two write the same library. Disable acks-importer; a library it imported is not carried over, so re-import it with this module."
-      }
     ]
   },
   "url": "https://github.com/NocTempre/foundryvtt-acks-extras",

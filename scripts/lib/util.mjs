@@ -1,9 +1,9 @@
-/* global game, Hooks, foundry, fromUuidSync, Folder */
+/* global game, Hooks, foundry, fromUuidSync, Folder, Roll, ChatMessage, document */
 /**
- * Tiny cross-feature helpers. Everything here used to exist as N identical
- * copies across the merged features (loc ×11, num ×5, gmIds ×4, …); the
- * copies now import the one implementation. Nothing in this file touches
- * Foundry before it is called, so it is safe to import from anywhere.
+ * Tiny cross-feature helpers: one implementation of what a feature would
+ * otherwise copy (loc, num, gmIds, uuid resolution, element building, …).
+ * Nothing in this file touches Foundry before it is called, so it is safe to
+ * import from anywhere.
  */
 
 import { MODULE_ID } from "./constants.mjs";
@@ -58,12 +58,38 @@ export const makeLoc = (prefix) => (key, data = {}) => game.i18n.format(`${prefi
  * in the active translation. Distinct from `makeLoc`, which binds a prefix and
  * formats: this is for vocabularies that ship a readable English fallback
  * beside each key, so a missing translation degrades to a word rather than to
- * the key itself on screen.
+ * the key itself on screen. Before `game` exists the fallback stands.
  */
-export const locOr = (key, fallback) => (game.i18n?.has?.(key) ? game.i18n.localize(key) : fallback);
+export const locOr = (key, fallback) => {
+  const i18n = globalThis.game?.i18n;
+  return i18n?.has?.(key) ? i18n.localize(key) : fallback;
+};
+
+/**
+ * The value as HTML text: `&`, `<`, `>`, `"` and `'` become entities, and an
+ * absent value (null or undefined) is the empty string. Safe inside element
+ * content and a quoted attribute; never inside a `<script>`, an unquoted
+ * attribute or an `href`. Core's `foundry.utils.escapeHTML` does the work where
+ * it exists, and the same five characters are escaped where it does not.
+ */
+export function escape(value) {
+  const text = String(value ?? "");
+  const core = globalThis.foundry?.utils?.escapeHTML;
+  if (typeof core === "function") return core(text);
+  return text.replace(/[&<>"']/g, (c) => ESCAPED[c]);
+}
+
+/** The entity each character `escape` handles becomes when core supplies none. */
+const ESCAPED = Object.freeze({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" });
 
 /** The value as a number, or `fallback` when it is not finite. */
 export const toNum = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+/** A stored figure as a positive number, or null for anything else (absent, blank, non-finite, zero, negative). */
+export function positiveFigure(value) {
+  const n = Number(value);
+  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
+}
 
 /**
  * The value as a number, or **null when it was never stated**.
@@ -120,6 +146,29 @@ export const primaryGMSettled = () => automationSettled().then(() => isPrimaryGM
 
 /** The lib feature's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;
+
+/**
+ * The document a uuid names, or null. Never throws: `fromUuidSync` raises on a
+ * uuid into an unloaded compendium, and a render path cannot afford it.
+ */
+export function docOf(uuid) {
+  try {
+    return uuid ? (fromUuidSync(uuid) ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A `{uuid, name, missing}` reference for a stored uuid, or null for none. A
+ * pointer at a document that is gone keeps its uuid as the name and reads as
+ * missing, so a picker can show the dead row instead of dropping it.
+ */
+export function refOf(uuid) {
+  if (!uuid) return null;
+  const doc = docOf(uuid);
+  return { uuid, name: doc?.name ?? uuid, missing: !doc };
+}
 
 /**
  * The token that replaced `tokenDoc` in the deletion that removed it, or null.
@@ -182,6 +231,35 @@ export function elementOf(target) {
   if (target?.nodeType === 1) return target;
   const first = target?.[0];
   return first?.nodeType === 1 ? first : null;
+}
+
+/**
+ * The world actor a sidebar directory entry stands for, or null: the
+ * `getActorContextOptions` entry's element carries the id as `data-entry-id`,
+ * or as `data-document-id`.
+ */
+export function findActor(target) {
+  const el = elementOf(target);
+  const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
+  return id ? game.actors.get(id) : null;
+}
+
+/**
+ * A plain roll to chat as `actor`: the formula evaluated against `data`, posted
+ * with `flavor`, no threshold stated. Resolves to the evaluated Roll.
+ */
+export async function plainRoll(actor, formula, data, flavor) {
+  const roll = await new Roll(formula, data).evaluate();
+  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor });
+  return roll;
+}
+
+/** A new element: `tag`, an optional class string, and optional text (set as text, never as HTML). */
+export function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
 }
 
 /**

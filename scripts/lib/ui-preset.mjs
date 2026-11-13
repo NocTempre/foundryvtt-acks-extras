@@ -4,7 +4,7 @@
  * or this module's — chosen once by the Judge and holding for every seat.
  *
  * A preset is two things. The world's default LOOK: `lib/module.mjs` reads
- * `effectiveLook` wherever it used to read the client's `look` setting, and a
+ * `effectiveLook` wherever it reads the client's `look` setting, and a
  * client whose `look` says `world` draws what the preset says. And the world's
  * default SHEET for every Actor and Item type, resolved by the ladder in
  * ui-preset-logic.mjs and written into

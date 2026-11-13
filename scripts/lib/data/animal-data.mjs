@@ -86,7 +86,7 @@ export default class AnimalData extends foundry.abstract.TypeDataModel {
       // A war dog IS a hired creature, and the monster sheet renders the
       // retainer block regardless, so the animal carries it. `category` is a
       // plain StringField, not a choice: the sheet populates the dropdown from
-      // the system's config at render, and acks-lib cannot import the system's
+      // the system's config at render, and the library cannot import the system's
       // ACKS.hireling_categories at schema-definition time. Storing the chosen
       // string needs no validator here.
       retainer: new SchemaField({

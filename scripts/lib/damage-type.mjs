@@ -115,29 +115,11 @@ export function damageTypeOf(item) {
   return null;
 }
 
-/** The icon for an item's damage type (neutral when untyped). */
-export const damageIconOf = (item) => DAMAGE_TYPE_ICONS[damageTypeOf(item)] ?? UNTYPED_ICON;
-
 /** Localised label for a damage type key. */
 export function damageTypeLabel(key) {
   if (!key) return "";
   const lang = `ACKS-LIB.damageType.${key}`;
   return game.i18n?.has?.(lang) ? game.i18n.localize(lang) : (DAMAGE_TYPES[key]?.label ?? key);
-}
-
-/**
- * Set (or clear) an item's damage type as an acks-lib override — for ad-hoc and
- * improvised weapons the profile table does not know.
- */
-export async function setDamageType(item, type) {
-  if (!item) return false;
-  if (!type) {
-    await item.unsetFlag(MODULE_ID, "damageTypeOverride");
-    return true;
-  }
-  if (!DAMAGE_TYPES[type]) return false;
-  await item.setFlag(MODULE_ID, "damageTypeOverride", type);
-  return true;
 }
 
 /**

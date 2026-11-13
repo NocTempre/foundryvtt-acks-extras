@@ -13,7 +13,7 @@
 import { satisfies, ITEM_TYPE } from "./vocab.mjs";
 import { cookbookId } from "./library.mjs";
 
-/** The abilities feature's own flag scope, holding the acks-abilities effect model. */
+/** The abilities feature's own flag scope, holding the abilities effect model. */
 const ABILITIES_ID = "acks-extras";
 
 /**

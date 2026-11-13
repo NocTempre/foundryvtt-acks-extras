@@ -860,7 +860,7 @@
   "ACKS-LIB.group.variant.title": "A stack of {name}",
   "ACKS-LIB.group.variant.press": "Add the stack",
   "ACKS-LIB.group.variant.hint": "Pick the variant these bodies are. An axis left on its die is rolled.",
-  "ACKS-LIB.sheet.template": "Template Builder (acks-lib)",
+  "ACKS-LIB.sheet.template": "Template Builder",
   "ACKS-LIB.template.base": "Base actor",
   "ACKS-LIB.template.dropBase": "Drop an actor here to modify it (e.g. a vampire's victim). Leave empty to generate from scratch.",
   "ACKS-LIB.template.clearBase": "Clear base",
