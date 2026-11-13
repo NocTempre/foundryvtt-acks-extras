@@ -1063,8 +1063,9 @@ holds again without an exception.
 required walk has no current result in `aia-tmp/live/walk-results.json`
 (template DECISIONS, 2026-11-12, "A tag needs a recorded walk result for every
 required walk"). This repo's runner kept no verdict past the console, 52 of
-its 65 walks exited 0 with no check run, and `run-tests.mjs` named its 205
-suites by hand.
+its 65 walks set their exit status as `passed === checks.length ? 0 : 1`, so a
+walk that ran no check exited 0, and `run-tests.mjs` named its 205 suites by
+hand.
 
 **Ruled.** The module's half, built to that entry's contract:
 
