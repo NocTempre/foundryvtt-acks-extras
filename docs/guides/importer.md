@@ -21,40 +21,54 @@ books on this computer.*
 
 ### Connect
 
-Open **Your ACKS Books** (the macro in "Your Books") and use the control on
-the book's own row. One window covers all of it: the walkthrough, the server's
-books, the controls that answer for several books at once, and a row per book.
+Open the **Your ACKS Books (this seat)** macro: **Compendium Packs tab → ACKS
+II — Extras → Macros → ACKS Extras Macros → ACKS Extras → Your Books**. It
+opens **Manage Imports** on its **Books** tab. One window covers all of it: the
+walkthrough, the server's books, the controls that answer for several books at
+once, and a row per book. A GM can also open Manage Imports from **Settings tab
+→ Game Settings → ACKS II — Extras → Manage imports**, or with the **Manage
+Imports (GM)** macro in the same pack's *Import from your books* folder. Every
+macro this guide names is in one of those two folders (*Your Books*, *Import
+from your books*).
+
+On a seat with no book connected, the window opens by itself on join, with the
+**Getting Started — ACKS II Content** walkthrough open at its head. Tick *Don't
+open this automatically again (this seat)* in the walkthrough to stop that.
+The window also opens on join when books this browser remembers are waiting.
 
 The module identifies the edition by **page count plus metadata title**, never by
 file hash: DriveThruRPG watermarks each customer's copy, so the bytes differ from
 person to person and a hash would only ever match one buyer's file.
 
-Once connected, the count beside the book tells you how many shipped cookbook
-entries that connection unlocks.
+Once connected, a book's row says how many shipped cookbook entries that
+connection unlocks.
 
 ### Several books in one trip
 
-Use **Pick PDFs…** and choose all of them at once. **The order does not
+In the **On this computer** band of the Books tab, use the file picker beside
+**Reconnect all** and choose all your PDFs at once. **The order does not
 matter.** Each file goes to the book it belongs to, worked out from the name
 this seat used for it last time, its size, or the book's title in the filename
 — the stock DriveThruRPG filenames all carry one.
 
 Anything that cannot be placed is **named rather than guessed at**: a book
 filled from the wrong PDF is far worse than a book left closed. Connect those
-from their own row, where the book is already named and nothing has to be
-inferred.
+from their own row (**Connect…**), where the book is already named and nothing
+has to be inferred.
 
 ### Connect a folder
 
-Point **Connect a folder…** at the folder holding your PDFs (one level of
-subfolders is scanned too). Every book recognised inside connects itself, by
-the same evidence rules; other PDFs living there are left alone and named only
-in the console — in a folder they are the normal case, not a mistake.
+Press **Connect a folder…** in the **On this computer** band and choose the
+folder holding your PDFs (one level of subfolders is scanned too). Every book
+recognised inside connects itself, by the same evidence rules; other PDFs
+living there are left alone and named only in the console — in a folder they
+are the normal case, not a mistake.
 
 On a Chromium browser over a secure origin the folder itself is remembered:
-next session, **one** permission click on the folder reopens everything in it,
-where per-file permissions cost one click per book. Elsewhere the folder scan
-still works; the books fall back to being remembered by name.
+next session, **one** permission click on the folder (**Reopen from folder**)
+reopens everything in it, where per-file permissions cost one click per book.
+Elsewhere the band offers a plain folder picker, and the books fall back to
+being remembered by name.
 
 ### Books on the server
 
@@ -65,10 +79,10 @@ A book the **server** holds asks for nothing.
 There are three ways in, and none of them asks you to connect the book on this
 computer first:
 
-- in the Books tab's **On the server** band, **pick your PDFs** — as many as
-  you like at once. Each one is read here, identified, and uploaded into
-  `acks-extras-books/` under the Foundry data folder. Anything that names no
-  book is listed back to you and left alone;
+- in the Books tab's **On the server** band, use the file picker at the top and
+  choose your PDFs — as many as you like at once. Each one is read here,
+  identified, and uploaded into `acks-extras-books/` under the Foundry data
+  folder. Anything that names no book is listed back to you and left alone;
 - press **Add to server** on any book's own row. The row names the book, so
   the file you hand it needs no guessing at all;
 - copy your PDFs into that folder yourself (drag, FTP, host panel) and press
@@ -84,7 +98,7 @@ If the server already holds a file under that book's name, nothing is uploaded
 a second time: the copy already there is read and staged if it is that book,
 and named to you if it is not.
 
-Every book on the server is also a **journal**. Look in the Journal sidebar
+Every book on the server is also a **journal**. Look in the **Journal** sidebar
 under *Your Books*: one entry per book, holding a PDF page. Open it and press
 *Load PDF* to read the book inside Foundry, from any GM seat; the **Open**
 button on the book's row in the Books tab goes to the same place. The
@@ -95,15 +109,15 @@ book you keep to yourself costs their seat nothing when they join.
 
 The official fillable **character sheet** has a row of its own. Nothing is
 imported from it: the character sheet's export writes characters into it
-(see the character sheet guide, *The official sheet (PDF)*). Its journal is
-created shared with your players, because their exports read it too. A copy
-without the form's fields is refused.
+(see the character sheet guide,
+[The official sheet (PDF)](character-sheet.md#the-official-sheet-pdf)). Its
+journal is created shared with your players, because their exports read it
+too. A copy without the form's fields is refused.
 
 That journal *is* the module's record of the book. Delete it and the book is
 no longer read from the server; the **Remove** button in the Books tab does
 the same. Either way the file stays where it was put, and the window tells you
-where. A world that staged books before they became journals carries them
-across the first time a GM loads it, and says how many.
+where.
 
 One thing to be clear about: a file under the Foundry data folder can be
 fetched by anyone signed in to your world who knows the path, whether or not
@@ -113,34 +127,34 @@ and connect them per seat.
 
 ### Status and reconnecting
 
-The Books tab of the import manager lists every book with its state — open,
-waiting, or not connected — and what connecting it would unlock. The manager
-opens on it on join when remembered books are waiting, and from the **Your
-ACKS Books** macro any time. A player's copy of the manager has this tab and
-no other.
+The Books tab of Manage Imports lists every book with its state — open,
+waiting, or not connected — and what connecting it would unlock. A player's
+copy of the manager has this tab and no other.
 
 **Reconnect all** does everything that needs no permission first — the server's
 books, served paths, and anything the browser will still open by itself — and
 then spends its single click on the remembered folder, which re-reads every
 book inside. Whatever is left is named, because one click can only ever
-re-grant one file's permission; those books keep their own button.
+re-grant one file's permission; those books keep their own button (**Unlock**,
+or **Retry** for a book remembered by address).
 
 Each failure is reported as itself — "it did not reconnect" and "there was
 nothing to reconnect" are different problems.
 
 ### Common problems
 
-**"That is not the edition I expected."** The page count or metadata title does
-not match any known printing. A different printing is not necessarily wrong; the
-book is read anyway, and some passages may not be found where they are expected.
+**A warning names a page count or title and asks "different edition/printing?"**
+The page count or metadata title does not match any known printing. A different
+printing is not necessarily wrong; the book is read anyway, and some passages
+may not be found where they are expected.
 
 **"That file is X, not Y."** The file you picked is a book the module knows, and
 it is not the one it was about to fill. It is not read: a book filled from the
 wrong PDF imports the wrong pages under the right names, which is far harder to
 undo than connecting again. Connect that book on its own, or pick the right file.
 
-**The count says 0.** The book connected but ships no cookbook entries yet, or
-you connected a book the current cookbook does not cover.
+**A book's row says "nothing shipped for it yet".** The book connected but ships
+no cookbook entries, or you connected a book the current cookbook does not cover.
 
 **It forgot my book after a reload.** Expected for a book on your own disk —
 the browser will not re-grant file access without a click. Reconnect from the
@@ -148,7 +162,8 @@ window, or put the book on the server and stop being asked.
 
 ![](../releases/importer/v2.6.0/forget-books-toast.png)
 
-*The forget confirmation, reported only when the clear really happened.*
+*The forget confirmation (**Forget books on this computer…**), reported only
+when the clear really happened.*
 
 ## Importing from the cookbook
 
@@ -163,7 +178,15 @@ supply.
 
 ### Import an entry
 
-**ACKS Content → Cookbook**, find the entry, **Import**.
+Open **Manage Imports → Tools** tab → **(Re)import individual entries**, tick
+the entry, and press **Reimport**. Each ticked entry the world lacks is
+imported, and each it already holds is repaired in place (*Repair in place*,
+below). To import everything the cookbook ships at once, use **Import
+everything** on the **Import** tab (*Managing imports*, below).
+
+For proficiencies, powers and skills there is a finer picker: the **Browse…**
+button at the top of the **Items** sidebar (GM) lists them with a category
+filter, and **Import selected** imports the ticked ones.
 
 What you get depends on the entry's kind — a monster becomes an Actor with its
 weapons and abilities as embedded Items; a proficiency becomes an `ability` Item;
@@ -173,12 +196,8 @@ and the step's notice says how many it passed over and why. Connect the book
 and run the step again to import them.
 
 An import never rewrites a document the world already holds; a **repair**
-does. An item a book introduces that was imported before the importer read
-its paragraph (no slot to wear it at, no price, no magic mark) takes its
-shape through a repair of its book (*Manage Imports* → **Rebuild** tab → the
-book → **Go**), or by ticking it under *A book's items* in the entry picker
-and repairing. A description you edited is put to you before it is written
-over (*Your edits and the book*, below).
+does. A description you edited is put to you before it is written over (*Your
+edits and the book*, below).
 
 The descriptor text is read from your PDF as the document is created and saved
 into it, with the book and page as its closing line. Everyone at the table can
@@ -186,7 +205,7 @@ read it from then on, and you can edit it like any other description.
 
 ![](../releases/importer/v4.0.0/imported-text.png)
 
-*What an import now leaves behind: the entry's own words in the document, closing on the book and page it was read from.*
+*What an import leaves behind: the entry's own words in the document, closing on the book and page it was read from.*
 
 ### What is filled in, and what is not
 
@@ -201,10 +220,9 @@ A plain `item` could do none of that.
 
 ### Gear typing
 
-With **ACKS Extras** installed, gear names route through its equipment root, so a
-torch imports as a carried light stack and a flask of holy water as a thrown
-splash weapon rather than both being generic items. Without it, the register's
-own type stands.
+Gear names route through the module's equipment root, so a torch imports as a
+carried light stack and a flask of holy water as a thrown splash weapon rather
+than both being generic items.
 
 ### Starting equipment on a class template
 
@@ -212,35 +230,31 @@ A template's printed Starting Equipment line becomes one item per piece the book
 lists, and two kinds of piece are taken off that list because they are not gear:
 
 - **What a book is packed with.** A cell that names a spellbook or a prayer book
-  and then its contents — the shape of "battered grimoire with *one spell*, *another*,
-  and *a third*" — is one book and three spells. The book keeps its printed name,
+  and then its contents — a book followed by "with *a spell*, *another*, and *a
+  third*" — is one book and three spells. The book keeps its printed name,
   its contents are preserved on its note, and the spells go to the template's
   **spell list**. The contents are an English list written across commas, so they
   are put back together before anything is read from them; a divine caster's
   prayer book is read exactly as a mage's spellbook is.
 - **A choice the player has not made.** A cell that offers a spell of the
   character's choosing names a decision, not a spell. It stays on the book's note
-  and nothing is minted for it — see [ROADMAP.md](https://github.com/NocTempre/foundryvtt-acks-extras/blob/main/docs/importer/ROADMAP.md) for turning it into a prompt.
+  and nothing is minted for it; it becomes a pick the character owes (see
+  [Picks a character still owes](classes.md#picks-a-character-still-owes)).
 
-Before 2.13.2 neither separation happened: a three-spell book arrived as the book
-welded to its first spell, with the rest of the list beside it as inventory. A
-character built then keeps what that run produced — Foundry does not revisit
-documents it has already written — so re-import the class and rebuild the
-character to pick up the current shape.
+#### A template's spells have to exist in your world
 
-#### A template's spells have to exist in your world already
+The importer carries no spell list of its own: each name on a template's spell
+list is matched against the **spell documents your world holds**, and a name
+nothing answers to is reported on the chat card rather than invented. Nothing is
+created for it, and nothing is lost: the template still names it.
 
-The importer has **no spell list of its own** — the spells are book content it
-carries no recipe for — so each name on a template's spell list is matched
-against the **spell documents your world already holds**, and a name nothing
-answers to is reported on the chat card rather than invented. Nothing is created
-for it, and nothing is lost: the template still names it.
-
-So a caster can finish generation with an empty repertoire while another caster
-in the same world fills hers, and the difference is which spells the world holds
-— not which class was applied. If that happens, bring a spell library into the
-world and apply the template again. The system's own *Arcane Spells* and *Divine
-Spells* compendia answer part of the ACKS II list; most worlds add the rest.
+The import chain's **Importing spells…** step reads the printed spells from your
+open books, and it runs before the class and template steps. A caster can still
+finish generation with an empty repertoire while another caster in the same
+world fills hers, and the difference is which spells the world holds — not which
+class was applied. If that happens, run the spells step (**Manage Imports →
+Import** tab → **Run** beside it) with the spell book open, or bring a spell
+library into the world, and apply the template again.
 
 ![](../releases/importer/v3.0.0/classes-template-spells.png)
 
@@ -252,7 +266,7 @@ Spells* compendia answer part of the ACKS II list; most worlds add the rest.
 
 ![](../releases/importer/v5.5.0/classes-awards.png)
 
-*A 1st-level Dwarven Excavator carrying every power its spread grants at the start of play — including the three the import used to leave behind.*
+*A 1st-level class carrying every power its spread grants at the start of play.*
 
 ### Where a monster files itself
 
@@ -261,9 +275,9 @@ declares**, not for the chapter you found it in. A creature whose block types as
 a beastman files under *Beastmen* beside the others, however unrelated its entry.
 
 A name that looks misspelled is usually the book's own coinage — the Monstrous
-Manual names many creatures unlike their familiar equivalents, and *Hobgholl*
-(MM p.188) is a different creature from *Beastman, Hobgoblin* (MM p.53), not a
-misreading of it. An entry only imports at all when the heading on your page
+Manual names many creatures unlike their familiar equivalents, and a name that
+resembles a familiar monster's can be a different creature, not a misreading of
+it (MM p.188 against MM p.53 is one such pair). An entry only imports at all when the heading on your page
 matches the one the cookbook expects, so a name that arrived is the name your
 book prints. Compare the stat block before assuming a typo.
 
@@ -277,8 +291,7 @@ A book from outside the ACKS II line files its classes and powers on its own
 series' Item shelf, in its folder under *From your books*. Every seat can open
 that shelf. The rest of the book (its monsters, people, items, journals and
 Adventure) stays on the Judge's shelves. Nothing from it merges into an
-ACKS II compendium. A world that imported such a book before keeps its
-classes where they are.
+ACKS II compendium.
 
 A community class whose book states its levels in sentences arrives with a
 row per level and its hit dice, its damage bonus, its cleaves and its
@@ -287,13 +300,14 @@ throws are those of the core class the book says it advances like, so import
 the core classes from your own rulebook first. Where the book says a class
 was built with the Judges Journal's class-creation procedure, its experience
 is priced that way from the class-builder tables your Judges Journal import
-holds; hover an experience cell to see the build. Where the book prints the
-experience and titles only in a picture and nothing prices them, the class
-sheet says so above its tabs and names the page: type each level's
+holds; hover an experience cell to see the build. Where the importer cannot
+read a level's experience or title and nothing prices them, the class sheet
+says so above its tabs and names the page: type each level's
 experience and title on the **Progression** tab from your copy. You type
 them once; a repair keeps them.
-A class imported before these rows were read shows *no progression rows yet*;
-**Manage → the book → Repair** fills it in.
+
+A community class whose sheet shows *no progression rows yet* is filled in by
+a repair of its book: **Manage Imports → Rebuild** tab → the book → **Go**.
 
 ![](../releases/v11.8.0/importer-open-shelf.png)
 
@@ -307,18 +321,17 @@ and a shared family suffix. Repairing the family in place from one book keeps th
 variants the other books merged in.
 
 A family whose page names its leaders, casters and dependants gains a **Role**
-axis from the import; the monsters guide, "A family's leaders", says what it
-generates. A family imported before this version gains it on *Repair in place*.
+axis from the import; the monsters guide,
+[A family's leaders](monsters.md#a-familys-leaders), says what it generates.
 
 ### Repair in place
 
 Every control that brings imported documents back from your books repairs
 them in place:
 
-- the **Reimport One Shelf (GM)** macro in **Compendium Packs → ACKS II —
-  Extras → Macros → ACKS Extras Macros → Import from your books**, for a
-  shelf, a book or the rules tables;
-- *Manage Imports* (below): its **Rebuild** tab, **Repair everything** on its
+- the **Reimport One Shelf (GM)** macro (*Import from your books* folder), for
+  a shelf, a book or the rules tables;
+- *Manage Imports*: its **Rebuild** tab, **Repair everything** on its
   **Import** tab, its **Adventures** tab, and **(Re)import individual
   entries** on its **Tools** tab, for entries ticked one at a time.
 
@@ -356,9 +369,8 @@ description, a note on a place, a roster, an organisation's figures), it
 leaves your version standing and, once it has run, opens a window titled
 **Your edits and the book**. It lists each edited document in a frame of its
 own, one row per edit: **Yours** above **The book's**. Hover either value to
-see where it came from; a row marked **Unstamped** was imported before the
-import recorded what it wrote, so the difference may be the book's own change
-rather than yours.
+see where it came from; a row marked **Unstamped** has no record of what the
+import wrote, so the difference may be the book's own change rather than yours.
 
 - Tick **Take the book's** on the rows you want replaced, then press **Apply
   these choices**.
@@ -383,16 +395,15 @@ characters**, with a note and three answers:
 
 The note says which answer is chosen to start with. A character marked
 **Changed since it was imported**, or **Imported before changes were
-recorded**, starts at the first answer; one marked **Matches what was
-imported** starts at **Leave it as it stands**. A character a player owns is
-not listed.
+recorded** (it carries no record of what was imported), starts at the first
+answer; one marked **Matches what was imported** starts at **Leave it as it
+stands**. A character a player owns is not listed.
 
 ### Managing imports
 
-**Manage Imports** is one window with every import control. A GM opens it from
-**Settings tab → Game Settings → ACKS II — Extras → Manage imports**, or with
-the **Manage Imports (GM)** macro in **Compendium Packs → ACKS II — Extras →
-Macros → ACKS Extras Macros → Import from your books**. The Books macros open it on the Books tab:
+**Manage Imports** is one window with every import control; the Connect section
+above says how a GM opens it, and **Your ACKS Books (this seat)** opens it on
+the Books tab. Its five tabs:
 
 - **Books** — connecting, putting on the server and the status of every book,
   as the sections above describe.
@@ -407,22 +418,29 @@ Macros → ACKS Extras Macros → Import from your books**. The Books macros ope
   one and press **Go**. The same choices as **Reimport One Shelf**.
 - **Adventures** — each adventure book open on this seat, with what its
   Adventure carries: see *Repair an adventure book* below.
-- **Tools** — the entry picker, the recipe audit, the repair window, the
-  merchandise build, overhead tokens (below) and **Remove ALL imports**.
+- **Tools** — **(Re)import individual entries** (the entry picker), **Audit the
+  recipes**, **Repair checks**, **Build merchandise items from imported
+  tables**, overhead tokens (below), **Remove ALL imports** and **Refresh**.
 
 **Overhead tokens.** When another module you have installed and active ships
-monster compendium art, Manage Imports' Tools tab offers **Overhead tokens from** that
-module's title; with several, one button each. Apply sets the token image of
+monster compendium art, the Tools tab offers **Overhead tokens from** that
+module's title; with several, one button each. It sets the token image of
 each imported monster whose name matches the compendium's exactly. The book's
 image stays as the portrait, and the token's size and scale stay as they are.
 The confirm counts what will change and what is left: a token you set yourself,
 a name with more than one image or none, a monster the compendium has no art
-for. A tick also moves tokens already placed on scenes that still show the
-book's image. **Restore book tokens** puts back what each monster showed before.
-A Rebuild gives a monster its book token again; press Apply once more.
+for. A tick in the confirm also moves tokens already placed on scenes that
+still show the book's image. **Restore book tokens** puts back what each
+monster showed before. A Rebuild gives a monster its book token again; apply
+the overhead art once more.
+
+**Repair checks** opens the repair window (*Repair this world*, under
+*Macros* below) and scans.
 
 The window runs one thing at a time and says what is running; each control
-asks before it deletes.
+asks before it deletes. **Remove ALL imports** deletes every document this
+module imported, after one confirm that counts them; imported characters a
+player owns stay. The **Delete Everything Imported (GM)** macro does the same.
 
 ![](../releases/v11.12.0/importer-manager.png)
 
@@ -432,18 +450,17 @@ button, and Import everything above them.*
 ### Rules tables
 
 The rules tables arrive with **Import Everything**. To read them again on
-their own, pick **Rules tables** in **Reimport One Shelf**: they are re-read in
-place, and nothing is deleted. They materialize as Foundry documents in your
-world. In ACKS Extras, those register into the shared tables registry and the
-henchmen and location features read them. The pick is every table at once, or
-one table's own entry beneath it, so the formation's figures or the travel
+their own, pick **Rules tables** in **Reimport One Shelf** (or on the Rebuild
+tab): they are re-read in place, and nothing is deleted. They materialize as
+Foundry documents in your world, register into the shared tables registry, and
+the henchmen and location features read them. The pick is every table at once,
+or one table's own entry beneath it, so the formation's figures or the travel
 tables can be read again on their own.
 
 The re-read needs the books those tables come from open in the browser that
 runs it. A book is connected per browser, so on another computer or browser
 connect it again under **Books** first. A run with a book closed says which
-book it wanted and leaves the old tables in place. An update that adds tables
-to a document is caught up by the same re-read: the notice at load names the
+book it wanted and leaves the old tables in place. A notice at load names the
 tables still missing, by document.
 
 ![](../releases/v11.4.0/importer-rules-tables-formation.png)
@@ -454,8 +471,9 @@ own entry — here the formation figures alone.*
 **(Re)import Individual Entries** lists every rules-table document under
 *Rules tables*, ticked when your world holds its import, with the printed pages
 it reads beside it. Tick one to read just that document again. A table you have
-overridden in **ACKS Imported Rules Tables** keeps your override on top, and
-reverting the override brings back your book's figure.
+overridden in **ACKS Imported Rules Tables** (**Settings tab → Game Settings →
+ACKS II — Extras → Imported Rules Tables**) keeps your override on top, and
+removing the override brings back your book's figure.
 
 Each row of **ACKS Imported Rules Tables** names the book and page its table
 was read from, under the table's name, so you can check any figure the module
@@ -463,8 +481,7 @@ applies against your own copy. A table the module works out from others names
 the pages of the tables it was worked out from. A class's tables name the page
 in the **Cite** field of its class sheet, so a class with none there, such as
 a homebrew one, names no page. A table you have overridden names no page while
-your override stands. A world imported before 8.6.0 shows each document's
-whole page list on every row until you read its rules tables again.
+your override stands.
 
 ![](../releases/v8.6.0/location-table-pages.png)
 
@@ -479,21 +496,19 @@ the pages it reads on the right.*
 The wilderness encounter charts arrive as RollTables, one for each column: the
 territory and rarity throws, each civilized group, each terrain's monsters at
 every rarity, and the terrain-encounter lists. They are filed under
-**Encounters** in the RollTable shelf's **ACKS Imported Tables** folder, and a
-world that imported them before this version gets them the next time it reads
-its rules tables again. Edit one in its sheet and drop it on its row
-in **ACKS Imported Rules Tables**: the travel panel's encounter throw then
-draws from your version, while the chart's other columns keep what your book
-gave them. Every column of that chart then shows **override**, and **Revert**
-on any of them brings back the whole chart. A territory or rarity result has
-to stay one that table already holds, because the throw acts on it, so a word
-it does not know is refused.
+**Encounters** in the RollTable shelf's **ACKS Imported Tables** folder. Edit
+one in its sheet and drop it on its row in **ACKS Imported Rules Tables**: the
+travel panel's encounter throw then draws from your version, while the chart's
+other columns keep what your book gave them. Every column of that chart then
+reads from the override, and **Remove override — fall back to the import** on
+any of them brings back the whole chart. A territory or rarity result has to
+stay one that table already holds, because the throw acts on it, so a word it
+does not know is refused.
 
 The tables a terrain encounter leads to arrive the same way, one RollTable
 each and each on its own die, with the treasure type and ruin modifier for
 every terrain beside them in the rules tables. They belong to the same rules
-table as the charts, so a world that imported the charts earlier gets them the
-next time it reads its rules tables again.
+table as the charts.
 
 ![](../releases/v8.5.0/location-encounter-tables.png)
 
@@ -520,10 +535,10 @@ terrain still reads the import.*
 ### A settlement's map
 
 Books that key a city to a map bring the map in as a scene, with a region for
-each quarter and a hidden token for each keyed place, in the **getting
-started** run's maps step. Run it after the points of interest and
-organisations steps: the map stands on their places, and hands each
-organisation the quarters it controls.
+each quarter and a hidden token for each keyed place, in the chain's maps step
+(**Standing up maps…**). Run it after the **Importing points of interest…** and
+**Importing organisations as factions…** steps: the map stands on their places,
+and hands each organisation the quarters it controls.
 
 ### A dungeon map's walls
 
@@ -538,9 +553,8 @@ is locked, so a module that runs the day and night leaves it dark, and a
 Region over the whole map keeps that module's weather out. To light a
 building by day, uncheck **Darkness Level Lock** in its Scene Configuration first.
 A map without walls is outdoors and takes the day, the night and the weather.
-A map already in your world is never
-re-drawn. To draw it again, with these settings, delete the scene and run the
-step again.
+A map already in your world is never re-drawn. To draw it again, delete the
+scene and run the step again.
 
 ### A book's passages, as journal pages
 
@@ -565,8 +579,7 @@ and changes nothing it already holds. To put a document back as the book has
 it, delete it and import again.
 
 Your edits to the Adventure are kept. A later run rebuilds it only when what
-it carries has changed and you have not edited it since. A book's per-map
-Adventures from earlier versions are retired once its Adventure stands.
+it carries has changed and you have not edited it since.
 
 ![](../releases/v11.11.0/importer-adventure.png)
 
@@ -609,10 +622,10 @@ Where an adventure prints a person's full stat line (class and level, scores,
 proficiencies, spells and gear), the import makes that person a **character**
 on the Judge's shelf, never a monster. The class is bound at the printed level
 by the same import as the official character sheet's, so saves, attack throw
-and spell slots are the ACKS II class's. Older names are read as their ACKS II
-replacements. The biography keeps the line **as printed**, followed by a line
-for each figure the class gives differently and a line for each name your
-library could not match.
+and spell slots are the ACKS II class's. A class name from an older printing of
+the game is read as the name the library carries. The biography keeps the line
+**as printed**, followed by a line for each figure the class gives differently
+and a line for each name your library could not match.
 
 A person a book writes out as labelled lines under a display name (class and
 level, scores, hit points, proficiencies by kind, abilities, inventory) is
@@ -626,7 +639,8 @@ library lacks is imported from your open books first.
 *A person written out as labelled lines, as a character on its Stats tab.*
 
 A rebuild of the entry keeps the character's id, so links to it hold. A
-rebuild, or **Remove Imports**, never deletes a character that a player owns.
+rebuild, or **Remove ALL imports**, never deletes a character that a player
+owns.
 
 An adventure's pregenerated characters are made the same way and filed in the
 book's **Pregenerated** folder, on the Judge's shelf. To give one to a player,
@@ -662,26 +676,31 @@ the row's notes.
 
 A room already in your library is not read again. To bring one in again as
 the book has it, delete it and run the step; the rooms inside it move onto
-the new one. Rooms an earlier version imported as journal pages keep their
-pages.
+the new one.
 
 A plan of a dungeon level or a building is named for that place, and each
 room on it stands as a hidden token on the key the page prints. The maps
 step, and the Adventure's **Import**, bring those rooms into the world with
 their plan, each inside the area, level and book it belongs to, so a place's
-sheet lists the rooms in it. A room no plan shows stays in your library. A
-plan made before its rooms had places has no tokens: delete the scene and run
-the maps step again.
+sheet lists the rooms in it. A room no plan shows stays in your library. Run
+the maps step after the rooms exist as places: a plan drawn before they do has
+no tokens, and the fix is to delete the scene and run the maps step again.
 
-An empty place that other places sit in is no longer removed when the world
-loads, so a level with its rooms, or a town with only its tavern, stays.
+At world start the module cleans up a place that holds nothing and is nothing
+in particular. A place that other places sit in is kept, so a level with its
+rooms stays. The setting is **Settings tab → Game Settings → ACKS II — Extras
+→ Clean up empty locations**.
 
 ### Common problems
 
-**"Missing book."** The entry cites a book this seat has not connected. Connect
-it, or import anyway and accept the unresolved passage.
+**"N passed over — their book is not open on this seat."** The entry's book is
+not connected on this seat. Connect it and run the step again.
 
-**Everything reports as a missing book.** No books are connected on this seat.
+**Everything is passed over.** No books are connected on this seat.
+
+**"N passed over — their page did not match the cookbook."** Your printing's
+page does not carry the heading the cookbook expects, which usually means a
+different printing. Nothing is written for those entries.
 
 **The rules tables say a supplement was skipped.** A few tables come from
 supplements, and the notice names the ones not connected on this seat. Every
@@ -704,34 +723,13 @@ folder it was created in.
 **Will a repair touch my own copy?** No. A document you dragged out of the
 library into the sidebar, or duplicated there, is yours. **Reimport One Shelf**
 and **(Re)import individual entries** leave it as it is and repair the
-library's own document. Only *Delete Everything Imported* removes it.
+library's own document. Only **Remove ALL imports** (or the **Delete Everything
+Imported (GM)** macro) removes it.
 
 **Reimporting lost my edits.** A repair keeps each document's id, folder and
 owners, and puts every edit you made to what the import wrote to you in **Your
 edits and the book** (see *Repair in place*). An edit is replaced only where
 you took the book's value there.
-
-**A description shows `@PdfText[...]` instead of the text.** The document was
-written by a version that stored a placeholder and resolved it while you looked
-at it; the text is materialized into the document itself now, and nothing
-renders the placeholder any more. Importing again does not clear it — import
-creates documents and steps over the ones you already have. Connect the book the
-placeholder names and run **Import Everything**: its last step finds every
-placeholder in the world and its compendia — gear on a character, a class
-template's copy of an item, a journal page — and writes the entry's text in its
-place. Anything you wrote beside a placeholder stays where it is. To see each one
-first, open the repair tool (Game Settings → *ACKS II — Extras* → *Repair
-this world*) and scan *Book text never brought over*: it lists every placeholder,
-says which book to connect for any it cannot fix on your seat, and fixes the ones
-you tick.
-
-**The page an item cites is two pages past the entry.** Fixed in 4.3.2: a
-citation now names the number printed on the page, where before it named the
-page's position in the PDF file, which the front matter puts two ahead (one, in
-*By This Axe*). Documents already in your world keep the number they were written
-with — run **Update Abilities** to rewrite them, or delete and import the entry
-again. An item whose description you have edited yourself is left alone by
-Update Abilities, so its citation stays as it was.
 
 ## Browsing, auditing and fixing entries
 
@@ -740,12 +738,16 @@ disagree.
 
 ![](../releases/importer/v1.0.0/cookbook-import.png)
 
-*The entry picker: every ability with its book and page citation.*
+*The Items sidebar's **Browse…** dialog: every ability with its book and page citation.*
 
 ### Browse
 
-**ACKS Content → Cookbook** lists every shipped entry with its book, its
-citation, and whether this seat can currently read it.
+**Manage Imports → Tools → (Re)import individual entries** lists every entry
+this build can import, grouped by kind, with the id each is known by and its
+citation. A check mark means the world already holds it, and a hammer means a
+repair deletes and imports it again under the same id. The filter box narrows
+the list, **Hide already imported** drops what the world holds, and **Select
+all**, **Select shown** and **Clear** tick and untick rows.
 
 Importing an entry extracts its passage from your own PDF and writes it into the
 document. Extraction is per-entry — nothing is pulled on connect.
@@ -760,13 +762,11 @@ Treat it as a suggestion. If it disagrees with your book, your book wins.
 
 ### When an entry points at nothing
 
-A definition can be withdrawn — some have been, once it turned out a harvest had
-read the tail of a spaceless heading as an ability of its own. Items already
-created in your world stay behind, pointing at nothing.
-
-They are unambiguously this module's (generated, with a cookbook id that no
-longer resolves), which is what makes them safe to offer for removal.
-**Cleanup** finds and lists them before touching anything.
+An imported ability whose cookbook definition is no longer shipped stays in
+your world, pointing at nothing. These are unambiguously this module's
+(generated, with a cookbook id that no longer resolves), which is what makes
+them safe to offer for removal. **Prune** at the top of the **Items** sidebar
+(GM) finds and lists them, and asks before it deletes anything.
 
 ### What never ships
 
@@ -794,14 +794,16 @@ entries carrying an authored placement box. No box, no art — quietly, by desig
 
 ## Macros
 
-Beside the import macros named above, the *ACKS Extras* macro compendium
-carries three Judge macros for the world's data as a whole.
+Beside the import macros named above, the **ACKS Extras Macros** compendium
+carries two Judge macros for the world's data as a whole (in its *ACKS Extras*
+folder).
 
-- **Repair This World (GM)** opens the repair window: scan for data this
+- **Repair This World (GM)** opens the repair window (also **Settings tab →
+  Game Settings → ACKS II — Extras → Repair this world**): scan for data this
   module left damaged, tick the findings and press *Fix selected*; every fix
   is checked by scanning again. Its first check lists the characters,
   monsters and items the system marked as migrated while they still hold
-  its old field names. The module reads those values back each time the
+  older field names. The module reads those values back each time the
   world loads, so an armour's Armor Class and a weapon's damage and bonus
   already show; fixing writes them to the record, so they no longer depend on
   the module to be read. A later check lists the weapons you imported whose
@@ -810,4 +812,3 @@ carries three Judge macros for the world's data as a whole.
   A weapon you built yourself has no row and is never listed.
 - **Restore the Compendium Library (GM)** puts every ACKS compendium back in
   the folder its package's manifest names.
-
