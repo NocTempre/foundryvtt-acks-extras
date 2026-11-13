@@ -16,7 +16,7 @@
  * Run: npm test
  */
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
+import { cookbookSource } from "./importer/cookbook-source.mjs";
 
 // --- the world the Foundry-bound modules load against -------------------------
 class FieldStub {
@@ -480,7 +480,7 @@ standingStep = 0;
   // The register ships a NEUTRAL label, so every path that turns an aliased
   // entry into a document has to go and read the printed name. A dropped call
   // here is invisible offline and names a whole book "NPC 1"… "NPC 63".
-  const src = await fs.readFile(new URL("../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const src = cookbookSource();
   for (const fn of ["async function importAdventureActor", "export async function cookbookImportPoiPlaces", "async function importKeyedPlace", "async function cookbookImportFactions"]) {
     const at = src.indexOf(fn);
     assert.ok(at > 0, `${fn} is still the name of the path this pins`);

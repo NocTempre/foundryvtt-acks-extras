@@ -38,6 +38,18 @@ import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { BOOKS, bookIsJudges } from "../../scripts/importer/books.mjs";
 import { GM_STEPS } from "../../scripts/importer/getting-started.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
+import { cookbookSource } from "./cookbook-source.mjs";
+import { data as cookbookData } from "../../scripts/importer/cookbook/state.mjs";
+
+/**
+ * Empties the loaded cookbook data. A `?shipped` copy of the facade shares
+ * `cookbook/state.mjs` with the first, so its data outlives the copy.
+ */
+const resetCookbookData = () => {
+  cookbookData.registers = null;
+  cookbookData.books.clear();
+  cookbookData.content.clear();
+};
 
 let pass = 0;
 const check = (label, cond) => {
@@ -471,7 +483,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   );
 
   // An adventure book's steps: the ones the run reports, each one kind's.
-  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const start = source.indexOf("async function runAdventureBookSteps");
   const body = source.slice(start, source.indexOf("/** A document type's name in the user's language", start));
   const steps = [...body.matchAll(/run\("(step\w+)"/g)].map((m) => m[1]);
@@ -832,7 +844,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("a decision taking it writes it", await after({ decision: "take" }, judged), { keeps: false, edits: [] });
   same("a scope with no decision writes it", await after({}, judged), { keeps: false, edits: [] });
   check("outside a rewrite nothing is kept", keepsJudgeProse(heldDoc(), "system.details.biography", judged, page) === false);
-  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
   check("a character's biography write asks keepsJudgeProse under its rewrite",
     /isRewriting\(id\) && keepsJudgeProse\(actor, "system\.details\.biography",/.test(character) && /keepBiography \? \{\} :/.test(character));
@@ -872,7 +884,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     upd, { [`flags.${MODULE_ID}.cookbook.sums.${bioKey}`]: blockDigest(page) });
   check("and its key nests nothing in an update path", Object.keys(upd).every((k) => k.slice(`flags.${MODULE_ID}.cookbook.sums.`.length).indexOf(".") === -1));
 
-  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const character = source.slice(source.indexOf("async function importCharacter"), source.indexOf("/** The kinds that bind to a journal page"));
   check("a character's biography write records its digest when it writes the biography",
     /"system\.details\.biography": biography, \.\.\.sumsUpdate\(biography, "system\.details\.biography"\)/.test(character));
@@ -1031,7 +1043,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("an image counts by its source, so one added inside the block is seen", readableText('<p>x</p><img class="a" src="art/a.webp">'), "x [image art/a.webp]");
 
   // The call sites: the step carries the pass's decision on both passes, and the importer writes through the same function.
-  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const steps = source.slice(source.indexOf("async function runAdventureBookSteps"), source.indexOf("/** A document type's name in the user's language"));
   check("the journals step runs under the pass's decision, on pass two as well as pass one",
     /withRewrite\(\{ held: new Map\(\), tally, \.\.\.decisionOf\(tally\) \}, fn\)/.test(steps) && /await run\("stepJournals", \(\) => journalsScoped\(\(\) => a\.cookbookImportJournals\(only\)\)\);/.test(steps));
@@ -1145,7 +1157,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("an empty market is filled unforced and lists nothing", [marketTakes(marketPlace(null), profile, source, { repair: fillRepair }), fillRepair.edits.length], [{}, 0]);
 
   // The wiring that keeps a decided pass from writing what only force wrote.
-  const source2 = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source2 = cookbookSource();
   const steps = source2.slice(source2.indexOf("async function runAdventureBookSteps"), source2.indexOf("/** A document type's name in the user's language"));
   check("under a decision an organisation's relations and strength are never retracted", /retract: decided \? \[\] : retract/.test(steps));
   check("and the organisations' scope carries the decision", /withRewrite\(\{ held: await heldById\(list\), tally, retract: decided \? \[\] : retract, \.\.\.decisionOf\(tally\) \}/.test(steps));
@@ -1426,7 +1438,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     ],
   );
 
-  const source = fs.readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const body = source.slice(source.indexOf("async function repairActors"), source.indexOf("async function repairEntries"));
   check("repairActors takes every claimer through claimerPasses", /claimerPasses\(rewrites,/.test(body));
   check("and builds an entry only in a pass that holds its own claim", /rewrites\.filter\(\(id\) => held\.has\(id\)\)/.test(body));
@@ -1573,6 +1585,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
 {
   const COOKBOOK = fileURLToPath(new URL("../../cookbook/", import.meta.url));
   const real = await import("../../scripts/importer/cookbook.mjs?shipped");
+  resetCookbookData();
   const fetchWas = globalThis.foundry.utils.fetchJsonWithTimeout;
   globalThis.foundry.utils.fetchJsonWithTimeout = async (url) => JSON.parse(fs.readFileSync(COOKBOOK + String(url).split("/").pop(), "utf8"));
   const index = JSON.parse(fs.readFileSync(`${COOKBOOK}index.json`, "utf8"));

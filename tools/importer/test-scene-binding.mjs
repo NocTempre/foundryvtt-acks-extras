@@ -25,6 +25,7 @@ import {
 } from "../../scripts/importer/scene-binding.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
+import { cookbookSource } from "./cookbook-source.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -286,7 +287,7 @@ ok("an import built from the system's own compendium is not", !isWorldCopy({ ...
 // looked up in. A copy found by the second takes the family's rebuild in place
 // of the library's document, which the first then never puts back.
 {
-  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer", "cookbook.mjs"), "utf8");
+  const src = cookbookSource();
   const body = (name) => src.slice(src.indexOf(`async function ${name}(`), src.indexOf("\n}\n", src.indexOf(`async function ${name}(`)));
   ok("the held-id set leaves a library copy out", /!isWorldCopy\(d\)/.test(body("importedIdsOfType")));
   ok("the template lookup leaves a library copy out", /game\.actors\.filter\(\(a\) => a\.type === type && !isWorldCopy\(a\)\)/.test(body("importedActorsOfType")));

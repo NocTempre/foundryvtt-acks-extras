@@ -24,6 +24,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { cookbookSource } from "./cookbook-source.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const COOKBOOK = path.join(ROOT, "cookbook");
@@ -40,7 +41,7 @@ const check = (label, cond) => {
 
 /** `ITEM_SHELF` as `cookbook.mjs` declares it, read from the source. */
 function shelfKeysFromSource() {
-  const src = fs.readFileSync(path.join(ROOT, "scripts", "importer", "cookbook.mjs"), "utf8");
+  const src = cookbookSource();
   const block = src.match(/const ITEM_SHELF = \{([\s\S]*?)\n\};/);
   assert.ok(block, "ITEM_SHELF is declared in scripts/cookbook.mjs");
   return new Set([...block[1].matchAll(/"(def\.[a-zA-Z]+)":/g)].map((m) => m[1]));
@@ -48,7 +49,7 @@ function shelfKeysFromSource() {
 
 /** `NON_ABILITY_KINDS` as `cookbook.mjs` declares it. */
 function nonAbilityKindsFromSource() {
-  const src = fs.readFileSync(path.join(ROOT, "scripts", "importer", "cookbook.mjs"), "utf8");
+  const src = cookbookSource();
   const block = src.match(/const NON_ABILITY_KINDS = new Set\(\[([\s\S]*?)\]\);/);
   assert.ok(block, "NON_ABILITY_KINDS is declared in scripts/cookbook.mjs");
   return new Set([...block[1].matchAll(/"(kind\.[a-zA-Z]+)"/g)].map((m) => m[1]));

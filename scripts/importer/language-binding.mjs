@@ -31,7 +31,7 @@
  * instead of laying a fresh twin beside every one that was already there.
  */
 
-import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook.mjs";
+import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook/target.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { countRepair, repairWrite, REPAIR, unrepaired } from "./refresh.mjs";
 

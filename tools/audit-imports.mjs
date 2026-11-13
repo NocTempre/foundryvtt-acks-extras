@@ -1,5 +1,6 @@
 /**
- * Checks that every named import actually exists in the module it names.
+ * Checks that every named import, and every name a module re-exports with
+ * `export { … } from`, actually exists in the module it names.
  *
  * A wrong name here is MODULE-BREAKING and offline-invisible: the browser
  * throws at load and nothing else in this repo notices, since validate reads
@@ -49,15 +50,15 @@ for (const file of files) {
 const problems = [];
 for (const file of files) {
   const src = fs.readFileSync(file, "utf8");
-  for (const m of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'](\.[^"']+)["']/g)) {
-    const target = path.resolve(path.dirname(file), m[2]);
+  for (const m of src.matchAll(/(import|export)\s*\{([^}]*)\}\s*from\s*["'](\.[^"']+)["']/g)) {
+    const target = path.resolve(path.dirname(file), m[3]);
     const info = exportsOf.get(target);
     if (!info || info.opaque) continue; // outside scripts/, or re-exports opaquely
-    for (const part of m[1].split(",")) {
+    for (const part of m[2].split(",")) {
       const wanted = part.trim().split(/\s+as\s+/)[0]?.trim();
       if (!wanted || wanted === "type") continue;
       if (!info.names.has(wanted)) {
-        problems.push(`${path.relative(ROOT, file)}: imports '${wanted}' from ${m[2]}, which does not export it`);
+        problems.push(`${path.relative(ROOT, file)}: ${m[1]}s '${wanted}' from ${m[3]}, which does not export it`);
       }
     }
   }

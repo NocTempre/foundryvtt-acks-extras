@@ -32,6 +32,7 @@ import {
 import { withErratumNote } from "../../scripts/importer/market-profile-binding.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 import { mergedTally } from "../../scripts/importer/refresh.mjs";
+import { cookbookSource } from "./cookbook-source.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -1446,7 +1447,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("and a decision taking it writes the read name", [judged.name, take.edits.length], ["Orchard Bourse", 0]);
 
   // The site's own place, written on a repair, never names the market.
-  const source = readFileSync(new URL("../../scripts/importer/cookbook.mjs", import.meta.url), "utf8");
+  const source = cookbookSource();
   const row = source.slice(source.indexOf("async function importRegionRow"), source.indexOf("async function nameBoundMarket"));
   ok("a repair's site row yields the name the same way the first import's does",
     /await writeRowBlock\(block, [^;]*;\s*await nameBoundMarket\(block, regionSiteClaim\(/.test(row) && /await nameBoundMarket\(target, claim, e, name\);/.test(row));

@@ -30,6 +30,7 @@ import {
   adventureDropRows,
 } from "../../scripts/importer/adventure-binding.mjs";
 import { linkRegionData, linkQuestion, LINK_ASK } from "../../scripts/importer/scene-binding.mjs";
+import { cookbookSource } from "./cookbook-source.mjs";
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -617,7 +618,7 @@ const sourceWorld = (drop = []) => ({
   ok("an import runs the link pass once its maps are mirrored", after.indexOf("cookbookImportLinks(") > after.indexOf("mirrorCreatedLinks(") && after.includes("mirrorCreatedLinks("));
   ok("a book's Adventure fills as one", /book = kindOf\(adventure\) === BOOK_ADVENTURE_KIND/.test(body(steer, "function fillImport(")));
 
-  const cookbook = read("scripts/importer/cookbook.mjs");
+  const cookbook = cookbookSource();
   const scene = body(cookbook, "async function importScene(");
   ok("the map step writes no Adventure", scene.length > 0 && !/Adventure/.test(scene));
   ok("the made map is built by mapCreateData", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));

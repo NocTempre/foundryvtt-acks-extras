@@ -57,7 +57,7 @@ for (const id of Object.keys(REGISTRY)) {
   const { fileURLToPath } = await import("node:url");
   const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer");
   const raw = /\.short \?\? "[A-Za-z0-9]+"\} p\. \$\{/;
-  const offenders = readdirSync(dir).filter((f) => f.endsWith(".mjs") && raw.test(readFileSync(join(dir, f), "utf8")));
+  const offenders = readdirSync(dir, { recursive: true }).filter((f) => f.endsWith(".mjs") && raw.test(readFileSync(join(dir, f), "utf8")));
   check(`no importer file composes a citation from a raw page (${offenders.join(", ") || "none"})`, offenders.length === 0);
   check("a citation names the folio, not the PDF page", citeFor("rr", 10) === `${REGISTRY.rr.short} p.${10 - (REGISTRY.rr.printedOffset ?? 0)}`);
 }

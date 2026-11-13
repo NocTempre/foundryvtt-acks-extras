@@ -15,7 +15,8 @@ import { REPO, constantIndex, matchBrace, stripComments } from "./parse.mjs";
 
 const LIBRARY = "scripts/lib/library.mjs";
 const FOLDERS = "scripts/lib/compendium-folders.mjs";
-const COOKBOOK = "scripts/importer/cookbook.mjs";
+const COOKBOOK_STATE = "scripts/importer/cookbook/state.mjs";
+const COOKBOOK_TARGET = "scripts/importer/cookbook/target.mjs";
 const BOOKS = "scripts/importer/books.mjs";
 const ADVENTURE = "scripts/importer/adventure-binding.mjs";
 
@@ -127,8 +128,8 @@ export async function extractLibrary() {
   // without the platform. Its rule for a shipped book is restated in `lineOf`
   // below, so the restatement is checked against the source it copies.
   const rule = "returnbookIsJudges(id)?judgeLine(bookLine(id)):bookLine(id);";
-  if (!read(COOKBOOK).replace(/\s+/g, "").includes(rule)) {
-    throw new Error(`lineOf() in ${COOKBOOK} no longer shelves a shipped book as extract-library.mjs reads it — update extractLibrary().`);
+  if (!read(COOKBOOK_STATE).replace(/\s+/g, "").includes(rule)) {
+    throw new Error(`lineOf() in ${COOKBOOK_STATE} no longer shelves a shipped book as extract-library.mjs reads it — update extractLibrary().`);
   }
   const lineOf = (id) => (bookIsJudges(id) ? judgeLine(bookLine(id)) : bookLine(id));
 
@@ -142,7 +143,7 @@ export async function extractLibrary() {
   // takes.
   const asPattern = (line) => (!line || line === judgeLine() ? line : isJudgeLine(line) ? judgeLine(SERIES) : SERIES);
   const adventureLines = [...new Set(mapBooks(books).map(lineOf).map(asPattern))];
-  const itemShelves = mapValues(COOKBOOK, "ITEM_SHELF");
+  const itemShelves = mapValues(COOKBOOK_TARGET, "ITEM_SHELF");
 
   const shelves = [
     ...libraryTypes.map((type) => ({ type, labels: [libraryPackLabel(type)] })),
@@ -165,7 +166,7 @@ export async function extractLibrary() {
     },
     series: {
       label: libraryPackLabel(example, SERIES),
-      unnamed: libraryPackLabel(example, literal(COOKBOOK, "UNLINED_LINE")),
+      unnamed: libraryPackLabel(example, literal(COOKBOOK_STATE, "UNLINED_LINE")),
       judge: libraryPackLabel(example, judgeLine(SERIES)),
     },
     unbriefed: types.filter((type) => !BRIEFS[type]),
