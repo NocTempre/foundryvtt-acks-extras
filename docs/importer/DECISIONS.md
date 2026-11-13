@@ -10091,3 +10091,58 @@ a public zip and still has to pass every gate.
 nothing on `main` can import, rebuild or convert it again. The monster
 sheet's Source tool goes with the converter. `UNLINED_LINE` stays exported,
 because the docs site reads it, while no book routes to that shelf.
+
+## 2026-11-13 — A bulk import reads each page once (T-0353)
+
+**Ruled by the owner** (T-0353, "Import takes forever which might be driving
+bugs"): "in this release; measured first". The phase ruling is "Fixes in, new
+features out", so this is the two page caches and nothing that changes what an
+import writes.
+
+**What was measured, offline, against the real books.** Two steps of Import
+Everything re-extract pages the run has already read. The rules-tables step
+(`importTables`, Settings tab → Game Settings → ACKS II — Extras → Manage
+imports) scans pages outward from each recipe's guess, and recipes of one book
+overlap: 292 recipes made 727 `getTextContent` calls over 194 distinct pages,
+188 of them read more than once and one sixteen times. The abilities update
+pass (`cookbookUpdateAbilities`) ran `executeEntry` once per definition with a
+fresh cache each time: 523 definitions made 561 extractions over 83 pages. The
+import half of the abilities pass already shared a per-run cache
+(`runPageCache`); the update half did not.
+
+**Ruled.** `importTables` holds one page reader for the call, a map per
+document from page to the pending read, dropped when the read rejects so the
+next recipe retries. `cookbookUpdateAbilities` holds a `runPageCache` for the
+run and gives `executeEntry` the one for the definition's book. Both caches end
+with the call; the next call reads the books afresh. The ladder expansion in
+the update pass keeps its own reads, because a ladder spec can read another
+book's entry than the ability's. The documents written are unchanged: the
+tables step hands `importDoc` the same 34 documents byte for byte (sha256 equal
+before and after), and the abilities probe's `executeEntry` output is equal with
+and without a shared cache.
+
+**This is not the 2026-08-24 ruling reversed.** "Writes are batched, because a
+write costs what the shelf already holds" rejected page extraction as the cost
+of the ability IMPORT on a live world, finding a shared cache "changed nothing
+measurable" there, and kept the cache. That measurement was a definition's parse
+and the write that followed it. It never timed these two steps' extraction, and
+offline an extraction costs 30 to 35 ms a page, which 561 reads turn into some
+19 s and 727 into some 22 s on an idle machine (a loaded one measured 65–144 s
+and 71–109 s). Whether the live saving is that large is open: live figures to
+follow.
+
+| Offline, same books | Before | After |
+|---|---|---|
+| Rules tables: extractions / pages | 727 / 194 | 194 / 194 |
+| Rules tables: extraction time | 22.3 s | 6.6 s |
+| Abilities update: extractions / pages | 561 / 83 | 83 / 83 |
+| Abilities update: extraction time | 19.1 s | 2.9 s |
+
+**Rejected:** a cache inside `pageItems`, because every caller then holds every
+page it ever read with no lifetime, and a cache that outlives the call, for the
+reason `runPageCache` already records (it would hold every page of every opened
+book while the world is up).
+
+*Cost:* a call keeps the items of every page it reads until it returns, about
+194 pages' text for a full rules-tables run. Cached items are shared between
+recipes, which read them and never write them.

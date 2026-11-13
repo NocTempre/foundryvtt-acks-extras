@@ -18,10 +18,35 @@ import * as services from "../lib/services.mjs";
 import { getLayer, missingRowKeys, PRIORITY } from "../lib/tables.mjs";
 
 /**
+ * A page reader that extracts each (document, page) once for as long as it is
+ * held. Extraction is the expensive step and every recipe's locate scans pages
+ * outward from its guess, so recipes of one book re-read the same pages. A read
+ * that rejects is forgotten, so the next recipe tries the page again.
+ *
+ * @returns {(doc: object, pageNo: number) => Promise<{items: object[]}>} the
+ *   same shape as `pageItems`; the items are shared between callers, which
+ *   read them and never write them.
+ */
+function pageReader() {
+  const perDoc = new WeakMap();
+  return (doc, pageNo) => {
+    let pages = perDoc.get(doc);
+    if (!pages) perDoc.set(doc, (pages = new Map()));
+    if (!pages.has(pageNo)) {
+      const read = pageItems(doc, pageNo);
+      pages.set(pageNo, read);
+      read.catch(() => pages.delete(pageNo));
+    }
+    return pages.get(pageNo);
+  };
+}
+
+/**
  * The PDF page whose text holds `recipe.locate`, searched outward from
  * `pdfGuess` and then through the whole book; null when no page holds it.
+ * `read` is the page reader (`pageItems` unless a caller holds a cache).
  */
-export async function locatePageNumber(doc, recipe) {
+export async function locatePageNumber(doc, recipe, read = pageItems) {
   const guess = pdfGuess(recipe);
   const order = [];
   for (let d = 0; d <= (recipe.searchRadius ?? 12); d++) {
@@ -32,7 +57,7 @@ export async function locatePageNumber(doc, recipe) {
   for (let p = 1; p <= doc.numPages; p++) if (!seen.has(p)) order.push(p);
   const bare = (s) => String(s).replace(/\s+/g, "").toLowerCase();
   for (const p of order) {
-    const { items } = await pageItems(doc, p);
+    const { items } = await read(doc, p);
     const hit = recipe.locateBare
       ? bare(items.map((i) => i.str).join("")).includes(bare(recipe.locate))
       : items.map((i) => i.str).join(" ").includes(recipe.locate);
@@ -42,14 +67,14 @@ export async function locatePageNumber(doc, recipe) {
 }
 
 /** The located page's items; with `pageSpan`, one items array per page of the span. */
-async function locatePage(doc, recipe) {
-  const p = await locatePageNumber(doc, recipe);
+async function locatePage(doc, recipe, read) {
+  const p = await locatePageNumber(doc, recipe, read);
   if (p == null) return null;
-  const { items } = await pageItems(doc, p);
+  const { items } = await read(doc, p);
   if (!recipe.pageSpan) return items;
   // Multi-page tables (the JJ occupation packages) merge the span.
   const span = [items];
-  for (let k = 1; k < recipe.pageSpan && p + k <= doc.numPages; k++) span.push((await pageItems(doc, p + k)).items);
+  for (let k = 1; k < recipe.pageSpan && p + k <= doc.numPages; k++) span.push((await read(doc, p + k)).items);
   return span;
 }
 
@@ -120,6 +145,10 @@ export const tableRecipeCount = (only = null) => {
  * need, so a seat without the supplement is told what it is missing rather
  * than warned.
  *
+ * A page is extracted once per call however many recipes search it, and read
+ * again by the next call.
+ * See docs/importer/DECISIONS.md, "A bulk import reads each page once".
+ *
  * @param {Map} sessionDocs - bookId → { doc } for connected books
  * @param {object} [options]
  * @param {number} [options.priority] - acksLib table priority (default WORLD)
@@ -145,6 +174,8 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
   const P = priority ?? PRIORITY.WORLD;
   const report = { imported: [], missingBooks: new Set(), missingTables: [], incomplete: [] };
   const optionalBooks = new Set();
+  // One extraction per page for this call; the next call reads the books afresh.
+  const read = pageReader();
   const bookMissing = (book, optional) => (optional ? optionalBooks : report.missingBooks).add(book);
 
   // Self-locating culture blocks: the anchor (a list's first name) finds the
@@ -156,7 +187,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
       const bk = block.book ?? recipe.book;
       const session = sessionDocs.get(bk);
       if (!session?.doc) { bookMissing(bk, block.optional ?? recipe.optional); continue; }
-      const span = await locatePage(session.doc, blockLocate(recipe, block));
+      const span = await locatePage(session.doc, blockLocate(recipe, block), read);
       if (!span) { report.missingTables.push(`cultures.${block.cultureId} (page not found)`); continue; }
       const seg = (pg, side) => (pg ?? []).filter((it) => (side === "L" ? it.x >= 25 && it.x < 295 : it.x >= 295 && it.x < 585));
       const run = span[0].find((it) => it.str.includes(block.anchor));
@@ -178,7 +209,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     const session = sessionDocs.get(recipe.book);
     if (!session?.doc) { bookMissing(recipe.book, recipe.optional); return null; }
     for (const st of recipe.subTables) {
-      const items = await locatePage(session.doc, subTableLocate(recipe, st));
+      const items = await locatePage(session.doc, subTableLocate(recipe, st), read);
       if (!items) { report.missingTables.push(`occupationSubTables.${st.id} (page not found)`); continue; }
       const windowed = items.filter((it) => it.x >= st.window[0] && it.x < st.window[1]);
       categories[st.id] = extractTable(windowed, { ...recipe, subTables: null, startAfter: st.anchor, bandWindow: st.bandWindow, occWindow: st.occWindow, specialWindow: st.specialWindow });
@@ -193,7 +224,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     const session = sessionDocs.get(recipe.book);
     if (!session?.doc) { bookMissing(recipe.book, recipe.optional); return null; }
     for (const block of recipe.valueBlocks) {
-      const items = await locatePage(session.doc, valueBlockLocate(recipe, block));
+      const items = await locatePage(session.doc, valueBlockLocate(recipe, block), read);
       if (!items) continue; // a printing without that class simply omits it
       // A block may bound its own page: a column, and a yMax above a table
       // that shares the page with the prose it reads.
@@ -245,7 +276,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
           continue;
         }
         try {
-          const items = await locatePage(session.doc, recipe);
+          const items = await locatePage(session.doc, recipe, read);
           if (!items) {
             report.missingTables.push(`${docId}.${tableId} (page not found)`);
             continue;

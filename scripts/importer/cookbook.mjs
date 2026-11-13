@@ -13031,7 +13031,9 @@ async function placeGeneratedBeside(holder, id, built) {
  * those are collected during the walk and settled by one dialog afterwards.
  * Both outcomes are idempotent — running twice leaves the same world as
  * running once.
- * See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create".
+ * A page is extracted once per run, however many definitions print on it.
+ * See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create"
+ * and "A bulk import reads each page once".
  *
  * @param {object} [opts]
  * @param {Set<string>|null} [opts.only] cookbook ids to refresh; every ability when null
@@ -13046,6 +13048,10 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
   // name collision without guessing.
   const present = new Set((await importedIndex()).keys());
   const nodeCache = new Map();
+  // One extraction per page for the whole run: a page prints several
+  // definitions, and each is re-executed once. Ladders are resolved apart, with
+  // their own reads.
+  const pageCache = runPageCache();
   // Resolved once per definition like the node it sits beside: expanding a
   // fromLadders spec re-executes another entry, and a sweep touches many copies.
   const ladderCache = new Map();
@@ -13119,7 +13125,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
         const session = ctx.sessionDocs.get(bookOf(found));
         let node = null;
         if (session) {
-          node = await executeEntry(session.doc, found.cb, data.registers, id).catch(() => null);
+          node = await executeEntry(session.doc, found.cb, data.registers, id, { pageCache: pageCache(bookOf(found)) }).catch(() => null);
           if (!node?.ok) node = null;
         }
         nodeCache.set(id, node);

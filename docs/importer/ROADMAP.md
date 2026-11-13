@@ -680,13 +680,17 @@ standalone macro's alone.
 
 ## Import speed
 
-A full import re-runs each recipe over its pages on every run, and nothing in
-this file records how long a run takes or where the time goes. The caches that
-exist cover folders, packs and the presence of an imported document
-(`importedCache` in `scripts/importer/cookbook.mjs`). Not built: a skip for an
-entry whose source and recipe are unchanged since its last import, judged by a
-stamp on the imported document, and a cache of a book's parsed pages shared by
-the recipes of one run. Measure a full run before choosing between them.
+A full import re-runs each recipe over its pages on every run. The caches that
+exist cover folders, packs, the presence of an imported document
+(`importedCache` in `scripts/importer/cookbook.mjs`) and, per call, a book's
+extracted pages in the rules-tables step and the abilities update (DECISIONS,
+2026-11-13, "A bulk import reads each page once"; its live figures are still to
+come). Not built: a skip for an entry whose source and recipe are unchanged
+since its last import, judged by a stamp on the imported document; one write of
+the imported-tables setting per run instead of one per document, which the
+tables step makes about fifty times; and book Adventures that are assembled
+before their stamp is compared. Time a full run live before choosing between
+them.
 
 ## The debug window's two remaining gaps
 
