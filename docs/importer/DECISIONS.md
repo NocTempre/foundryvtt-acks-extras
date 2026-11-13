@@ -10146,3 +10146,23 @@ book while the world is up).
 *Cost:* a call keeps the items of every page it reads until it returns, about
 194 pages' text for a full rules-tables run. Cached items are shared between
 recipes, which read them and never write them.
+
+## 2026-11-13 — A time phrase is refused in a row's prose fields (T-0173)
+
+**Ruled.** `condition-labels.mjs` `TIME_PHRASE` matches an amount (a digit, a
+number word one to twelve, "a" or "an", "once", "twice", "half", "a full")
+followed by a space or hyphen and a unit of game time (round, turn, hour, day,
+week, month, year, minute, singular or plural). `fieldProblem` refuses a match
+before the two-word scope pass, so a short value cannot carry a duration, and
+`noteProblem` refuses one outside a page reference. An amount plus a unit is as
+decidable as the digit rule already in `noteProblem`: a printed time cost
+written in words is a page value, and the lint now sees it. "Per day" has no
+amount and passes, as does a word that merely contains a unit ("around").
+
+**Rejected:** a structured `rollField.duration` read at import, as the fix for
+rows that need a duration. It is a new feature; the owner's phase ruling
+2026-11-12 is "Fixes in, new features out."
+
+*Cost:* the amount list is a word list, so "a dozen days" or "fortnight" passes.
+A note that paraphrases the rule without an amount-plus-unit phrase still needs
+a reviewer.

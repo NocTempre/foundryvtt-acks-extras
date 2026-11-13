@@ -16,7 +16,7 @@
  * A row's `note` is the module's own remark on the row. No pattern can tell a
  * remark on the module from a paraphrase of the rule, so that half needs a
  * reviewer; `noteProblem` refuses only what a machine can decide: a figure
- * outside a page reference, and an open TODO.
+ * outside a page reference, an amount-plus-time-unit phrase, and an open TODO.
  *
  * Pure: the compiler, the lint and the tests import it without Foundry.
  */
@@ -62,6 +62,14 @@ const CITE_TAIL = /\s\([A-Z][A-Za-z0-9]{0,5} p\.\d+\)$/;
 /** Any page reference inside a remark: "(RR p.24)", "p. 333", "its p.57". */
 const PAGE_REF = /\b(?:[A-Z][A-Za-z0-9]{0,5}\s)?p\.\s?\d+/g;
 
+/**
+ * An amount followed by a unit of game time ("3 rounds", "a turn", "half an
+ * hour", "10-minute"): a printed time cost, which arrives from the page and
+ * never ships in a prose field. The separator is `\s+` or `-`, so "around" is
+ * not a "round", and a bare "per day" names a frequency and has no amount.
+ */
+const TIME_PHRASE = /(?:\d+|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|an?(?:\s+full)?|once|twice|half))(?:\s+|-)(?:rounds?|turns?|hours?|days?|weeks?|months?|years?|minutes?)\b/i;
+
 /** The label a field carries, with any page reference `citeLabel` gave it removed. */
 export const bareLabel = (value) => String(value ?? "").replace(CITE_TAIL, "");
 
@@ -84,12 +92,14 @@ export function citeLabel(value, cite, field = "condition") {
 }
 
 /**
- * Why a shipped labelled field is refused, or null: one longer than two words
- * that is not one of the field's neutral labels states what the page says.
+ * Why a shipped labelled field is refused, or null: an amount-plus-time-unit
+ * phrase is a printed cost at any length, and one longer than two words that
+ * is not one of the field's neutral labels states what the page says.
  */
 export function fieldProblem(field, value) {
   if (value == null || value === "") return null;
   if (typeof value !== "string") return `a ${field} is a string`;
+  if (TIME_PHRASE.test(value)) return `${field} "${value}" carries a time phrase; a duration is read off the page with ${field}From, never written in a field`;
   if (isShortCondition(value) || isLabel(value, field)) return null;
   return `${field} "${value}" is neither a neutral label (scripts/importer/condition-labels.mjs) nor two words; read the page's words with ${field}From`;
 }
@@ -99,12 +109,15 @@ export const conditionProblem = (condition) => fieldProblem("condition", conditi
 
 /**
  * Why a shipped note is refused, or null: a figure outside a page reference
- * is a page value, and a TODO is unbuilt work, which is a ROADMAP line.
+ * is a page value, an amount-plus-time-unit phrase is a printed cost written
+ * in words, and a TODO is unbuilt work, which is a ROADMAP line.
  */
 export function noteProblem(note) {
   if (note == null || note === "") return null;
   if (typeof note !== "string") return "a note is a string";
   if (/\b(?:TODO|FIXME)\b/.test(note)) return `note "${note}" carries a TODO; unbuilt work is a ROADMAP line`;
-  if (/\d/.test(note.replace(PAGE_REF, ""))) return `note "${note}" carries a figure; a number is read off the page, never written in a note`;
+  const bare = note.replace(PAGE_REF, "");
+  if (/\d/.test(bare)) return `note "${note}" carries a figure; a number is read off the page, never written in a note`;
+  if (TIME_PHRASE.test(bare)) return `note "${note}" carries a time phrase; a duration is read off the page, never written in a note`;
   return null;
 }

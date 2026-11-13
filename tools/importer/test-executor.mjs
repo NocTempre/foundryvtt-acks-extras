@@ -995,6 +995,18 @@ t("a note carries no figure outside a page reference, and no TODO", () => {
   assert.ok(noteProblem("TODO: a primitive for this."));
   assert.equal(noteProblem("II, the path deepens"), null, "a tier numeral is not a figure");
 });
+t("an amount plus a unit of time is refused in a labelled field and in a note, at any length", () => {
+  assert.ok(fieldProblem("condition", "three rounds"), "two words that state a duration are not a scope name");
+  assert.ok(fieldProblem("condition", "a turn"));
+  assert.ok(fieldProblem("restriction", "10-minute"));
+  assert.ok(noteProblem("Lasts two turns on the module's side."), "a number word and a unit is an invented figure");
+  assert.ok(noteProblem("Lasts half an hour (QQ p.7)."));
+  assert.equal(noteProblem("Tracks uses per day."), null, "a frequency has no amount");
+  assert.equal(fieldProblem("restriction", "per day"), null, "two words with no amount pass as a scope name");
+  assert.equal(fieldProblem("condition", "around"), null, "a word holding a unit is not a unit");
+  assert.equal(noteProblem("The module tracks uses per day, around the table (QQ p.7)."), null);
+  assert.equal(fieldProblem("condition", citeLabel("by speed", "QQ p.7")), null, "a cited label passes");
+});
 t("every shipped restriction and consequence is a word or two or a cited label, and no note carries a figure or a TODO", () => {
   const offenders = [];
   for (const file of ["powers", "proficiencies", "skills"]) {

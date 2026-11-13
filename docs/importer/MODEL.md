@@ -973,7 +973,9 @@ capability or companion row shows as its face over the shipped `note`; with
 no note shipped, a miss leaves the row reading "see description". A row's
 `note` is otherwise the module's own remark on the row (which field holds
 what, what the module does not track); the lint refuses a figure in it
-outside a page reference, and a TODO (`noteProblem`). Whether a remark
+outside a page reference, and a TODO (`noteProblem`). Both prose fields also
+refuse an amount followed by a unit of game time ("three rounds", "a turn",
+"10-minute"), at any length (`TIME_PHRASE`). Whether a remark
 paraphrases the rule is left to review: no pattern tells the two apart.
 
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
