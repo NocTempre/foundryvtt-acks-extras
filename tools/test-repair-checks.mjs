@@ -652,6 +652,15 @@ t("a world whose images are all there lists nothing, and asks the server once pe
   assert.deepEqual(requests, [[`/${HERE}`, "HEAD"]]);
 });
 
+t("a dead path many documents name is asked for once, and a path no document names is never asked for", async () => {
+  const requests = imageWorld({
+    actors: [imgDoc("Actor.a1", "Hero", actorSource(GONE, GONE_TOO), { items: [imgDoc("Actor.a1.Item.i1", "Blade", { img: GONE })] })],
+    items: [imgDoc("Item.i2", "Coil", { img: GONE }), imgDoc("Item.i3", "Rope", { img: GONE_TOO })],
+  });
+  assert.equal((await IMAGES.scan()).length, 4);
+  assert.deepEqual(requests.map(([url, method]) => `${method} ${url}`).sort(), [`HEAD /${GONE_TOO}`, `HEAD /${GONE}`]);
+});
+
 t("every kind of document is read, and each finding names its document as the other checks print it", async () => {
   const fx = (n, img) => imgDoc(`E.${n}`, `Glow ${n}`, { img });
   const slot = imgDoc("Actor.a1.Item.i1", "Blade", { img: GONE }, { effects: [fx("i", GONE)] });

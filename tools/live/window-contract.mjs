@@ -415,6 +415,32 @@ async function walkWindow(gm, input, label, opened, { drag = true, short = 150 }
   await run(gm, P.closeCurrent);
 }
 
+/**
+ * The platform facts `lib.missingImages` stands on, true only of a real core
+ * and server (docs/lib/TESTING.md, "An image whose file is gone"): a HEAD for
+ * a path that names nothing answers a plain 404 and for a present core icon
+ * 200, and `DEFAULT_ICON` is set on the document classes the repair writes to
+ * and absent on the four it only lists. The dead path is built under the
+ * world's own folder, asked for and never printed.
+ */
+async function walkImagePlatformFacts(api) {
+  const facts = await run(api, async () => {
+    const head = async (path) => { const res = await fetch(foundry.utils.getRoute(path), { method: "HEAD" }); return { status: res.status, ok: res.ok, redirected: res.redirected }; };
+    const icon = (kind) => CONFIG[kind]?.documentClass?.DEFAULT_ICON ?? null;
+    const kinds = ["Actor", "Item", "ActiveEffect", "Macro", "RollTable", "Token", "TableResult", "Scene", "JournalEntryPage", "Level"];
+    return {
+      dead: await head(`worlds/${game.world.id}/qq-missing-image.png`),
+      here: await head("icons/svg/skull.svg"),
+      defaults: Object.fromEntries(kinds.map((kind) => [kind, !!icon(kind)])),
+    };
+  });
+  const { dead, here, defaults } = facts;
+  check("a HEAD for a path under the world's folder that names nothing answers a plain 404, not a redirect", dead.status === 404 && !dead.ok && !dead.redirected, { status: dead.status, redirected: dead.redirected });
+  check("a HEAD for a present core icon answers 200", here.status === 200 && here.ok && !here.redirected, { status: here.status });
+  check("the live classes give every repairable kind a default image, ActiveEffect and Token included", ["Actor", "Item", "ActiveEffect", "Macro", "RollTable", "Token"].every((kind) => defaults[kind]), defaults);
+  check("a roll-table result, a scene, a level and a journal page have none, so the check lists them only", ["TableResult", "Scene", "JournalEntryPage", "Level"].every((kind) => !defaults[kind]), defaults);
+}
+
 let gm = null;
 try {
   section("seats");
@@ -525,6 +551,9 @@ try {
     check("core's dialog with no module class keeps no corner", opened.opened === true && opened.option === false && opened.shown === false, { option: opened.option, handle: opened.handle });
     await run(gm, P.closeCurrent);
   }
+
+  section("image platform facts");
+  await walkImagePlatformFacts(gm);
 
   section("a player's seat");
   const playerSeat = await seat("player");
