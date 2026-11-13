@@ -1,0 +1,1 @@
+- **A location saved by the standalone henchmen or location module, before the shared market, is no longer converted on load.** Its old loose market fields are not folded into the location's market, and its old test postings are not cleared. Open the location's sheet from the Actors sidebar tab and set its market again.

@@ -1105,3 +1105,38 @@ stages 4–7 run only with `STAGE` set, and markets with `STAGE` set prints no
 `WALK END`. That is ledger row T-0523. Exit 4 is new: the runtime tree could
 not be read or a result could not be recorded. A peer's runtime edit during
 a walk marks it as changed during its run.
+
+## 29. Nothing serves an earlier version of this module (2026-11-13)
+
+**Ruled** (owner, 2026-11-12, for the Public Beta release): "Legacy support
+out." It follows the owner's 2026-11-11 words for the close-out, "cancel any
+new time on tools designed to repair previous versions" and "Repair broken
+imports is not the same as fix previous versions of imports. The former is
+still approved." Amended the same day, after the `acks` 14.1.0 migration
+runner was found to write only its stamp: `lib/patches/legacy-source.mjs`
+and the `lib.stampedRecords` repair check stay, because worlds on the current
+system still hold the old record shape.
+
+**The test.** Each item was read, not judged by its comment: who calls it,
+and whether anything the current module or the current `acks` system still
+writes the shape it handles. What only an earlier version of this module (or
+one of the standalone modules merged into it) wrote is removed, with no
+migration in its place. What the current system or the current module still
+produces stays, under whatever name it carries.
+
+**Removed:**
+
+- The location data model's fold of the standalone module's loose market
+  fields into `market` (`location-migrate.mjs`), and the henchmen ready-time
+  sweep that cleared market postings on a location below schema version 2,
+  with its `schemaVersion` setting, which nothing read.
+
+**Kept, as current-version paths:**
+
+- `migrateDefenseBands` (monsters): the importer still writes a monster's
+  defence-band effects as a joined string, and this sweep is what turns them
+  into the set the data model stores.
+
+**Cost.** A world built on an earlier version and never repaired or
+re-imported keeps whatever shape that version left; the release notes say so
+once, and a repair or a re-import is how such a world catches up.

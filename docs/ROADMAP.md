@@ -55,9 +55,8 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     item strings quoted in `docs/importer/DECISIONS.md`.
   - *Stale text:* the header of `scripts/monsters/config.mjs` (a local-only
     extract path, the retired sample-monster generation, pre-merge module
-    names); the user-visible strings `ACKS-HENCHMEN.migration.wiped` and
-    `ACKS-HENCHMEN.repair.swept` (a pre-merge module prefix, a version, a
-    history claim); `docs/equipment/MODEL.md` lists the `slayer` effect
+    names); the user-visible string `ACKS-HENCHMEN.repair.swept` (a pre-merge module
+    prefix, a version, a history claim); `docs/equipment/MODEL.md` lists the `slayer` effect
     domain as consumed, and no script reads it by name.
   - *Code:* `bindVariation` in `scripts/importer/cookbook.mjs` spreads `data`
     and `dataFields` twice (harmless).

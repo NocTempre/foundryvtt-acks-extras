@@ -42,7 +42,6 @@ import {
   visibleOccupants,
   wouldCycle,
 } from "../scripts/lib/place-logic.mjs";
-import { migrateLocationSource } from "../scripts/location/data/location-migrate.mjs";
 import {
   DETECTION_MODES,
   LIGHTLESS_DEFAULT_TABLE,
@@ -1539,58 +1538,6 @@ t("isStacked / stackMemberName", () => {
   assert.equal(isStacked({ count: 1 }), false);
   assert.equal(isStacked({}), false); // absent count is a single place
   assert.equal(stackMemberName("Bay", 3), "Bay 3");
-});
-
-/* ------------------------------------------------------------------ */
-/*  location-migrate.mjs — v1 loose market fields -> the `market` subtree */
-/* ------------------------------------------------------------------ */
-
-t("migrateLocationSource: a real market is folded in and kept", () => {
-  const src = { region: "Brackenford", postings: [{ id: "p" }], candidates: [], settlementAlignment: "lawful" };
-  const out = migrateLocationSource(src);
-  assert.equal(out.region, "Brackenford"); // identity stays where it was
-  assert.deepEqual(out.market.postings, [{ id: "p" }]);
-  assert.equal(out.market.settlementAlignment, "lawful");
-  assert.equal("postings" in out, false); // moved, not copied
-});
-
-t("migrateLocationSource: an empty, untouched location becomes market-LESS", () => {
-  // The judgement that decides whether an existing world wakes up with markets
-  // everywhere or nowhere.
-  const out = migrateLocationSource({
-    region: "A cave",
-    postings: [], candidates: [], marketRolls: [], slander: [], demographics: [],
-    monthAnchorTime: 0, desertRealm: false,
-    classRarityTableId: "default", settlementAlignment: "lawful", compositeVariant: "composite",
-  });
-  assert.equal(out.market, null);
-  assert.equal(out.region, "A cave");
-});
-
-t("migrateLocationSource: a touched SETTING alone proves a market", () => {
-  assert.notEqual(migrateLocationSource({ postings: [], settlementAlignment: "chaotic" }).market, null);
-  assert.notEqual(migrateLocationSource({ postings: [], desertRealm: true }).market, null);
-  assert.notEqual(migrateLocationSource({ postings: [], urbanFamilies: 900 }).market, null);
-  assert.notEqual(migrateLocationSource({ postings: [], classRarityTableId: "variant" }).market, null);
-  // ...but a default one does not: every location ever created carried these.
-  assert.equal(migrateLocationSource({ postings: [], classRarityTableId: "default" }).market, null);
-});
-
-t("migrateLocationSource is idempotent and leaves new documents alone", () => {
-  const already = { region: "x", market: { postings: [{ id: "p" }] } };
-  assert.deepEqual(migrateLocationSource(already), already); // already migrated
-  const cleared = { region: "x", market: null };
-  assert.equal(migrateLocationSource(cleared).market, null); // null is a decision, not absence
-  const fresh = { region: "x" };
-  assert.equal("market" in migrateLocationSource(fresh), false); // let the schema initial apply
-  assert.equal(migrateLocationSource(undefined), undefined);
-});
-
-t("migrateLocationSource: a partial update is not mistaken for a v1 document", () => {
-  // `migrateData` runs on every clean, not only on load — an update touching
-  // one roster field must not fabricate a market subtree.
-  const patch = { roster: [{ uuid: "Actor.a" }] };
-  assert.equal("market" in migrateLocationSource(patch), false);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -3975,4 +3922,4 @@ await (async () => {
   console.log("ok - score bounds: the system's schema range per type, an open side stays open, a group reads it too");
 }
 
-console.log(`\n${n} tests passed (including the location migration)`);
+console.log(`\n${n} tests passed`);

@@ -34,9 +34,6 @@ export const RULEDATA = Object.freeze([
   "people",
 ]);
 
-/** Current location-actor schema version (see migrations in module.mjs). */
-export const SCHEMA_VERSION = 2;
-
 /**
  * Active Effect change-key prefix. Any effect change whose key is
  * `flags.acks-extras.<domain>` (for this feature's domains) contributes to

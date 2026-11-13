@@ -8,7 +8,7 @@
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
-import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, SCHEMA_VERSION, FLAG_RECORD } from "./constants.mjs";
+import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, FLAG_RECORD } from "./constants.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
@@ -237,32 +237,6 @@ Hooks.once("ready", () => {
     if (!yes) return;
     for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
       materializePendingHires(location).catch((err) => console.error(`${MODULE_ID} | pending-hire sweep failed`, err));
-    }
-  });
-
-  // Location schema migration (GM): old-shape postings/candidates predate the
-  // shared-market model and cannot be converted, so they are cleared instead.
-  primary.then((yes) => {
-    if (!yes) return;
-    for (const location of game.actors.filter((a) => a.type === LOCATION_TYPE)) {
-      if ((location.system.schemaVersion ?? 1) >= SCHEMA_VERSION) continue;
-      // A place with no market has no subtree to clear, and writing one would
-      // hand it a market it never asked for.
-      if (!location.system.hasMarket) continue;
-      const hadData = (location.system.postings?.length ?? 0) + (location.system.candidates?.length ?? 0) > 0;
-      location
-        .update({
-          "system.market.postings": [],
-          "system.market.candidates": [],
-          "system.market.marketRolls": [],
-          "system.schemaVersion": SCHEMA_VERSION,
-        })
-        .then(() => {
-          if (hadData) {
-            ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.migration.wiped", { name: location.name }));
-          }
-        })
-        .catch((err) => console.error(`${MODULE_ID} | migration failed for ${location.name}`, err));
     }
   });
 

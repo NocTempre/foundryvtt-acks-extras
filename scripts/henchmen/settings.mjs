@@ -81,12 +81,6 @@ export function registerSettings() {
     type: Boolean,
     default: false,
   });
-  reg("schemaVersion", {
-    scope: "world",
-    config: false,
-    type: Number,
-    default: 1,
-  });
 }
 
 export function getSetting(key) {

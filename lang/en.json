@@ -4494,7 +4494,6 @@
   "ACKS-HENCHMEN.location.mixNoCultures": "\"{name}\" has no recognizable culture entries — result text must be a culture name or id.",
   "ACKS-HENCHMEN.location.demographicsEmpty": "No demographics set — candidates draw from all cultures evenly.",
   "ACKS-HENCHMEN.location.weight": "Relative weight",
-  "ACKS-HENCHMEN.migration.wiped": "acks-henchmen: location \"{name}\" was migrated to the shared-market model (v0.3.0) — its old test postings/candidates were cleared.",
   "ACKS-HENCHMEN.repair.swept": "acks-henchmen: repaired dangling hireling references on {count} actor(s) — deleted hirelings were still listed on their employers (this crashed character sheets).",
   "ACKS-HENCHMEN.repair.check.label": "Hireling lists naming actors that are gone",
   "ACKS-HENCHMEN.repair.check.hint": "An employer's hireling list, a monster hireling list or a hireling's employer naming an actor that has been deleted, or a hireling listed twice. Fixing removes the dead entries. A hireling whose employer is gone stays a hireling, with no employer.",

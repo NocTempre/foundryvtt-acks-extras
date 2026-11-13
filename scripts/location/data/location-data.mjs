@@ -40,7 +40,6 @@ import { acksCompatStubs } from "../../lib/actor-compat.mjs";
 // `occupantField` is the roster row a place and a faction share.
 import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { goodsSchema } from "../../markets/data/goods-schema.mjs";
-import { migrateLocationSource } from "./location-migrate.mjs";
 import { PLACE_ROLES } from "../constants.mjs";
 
 const fields = foundry.data.fields;
@@ -392,9 +391,7 @@ export const emptyMarket = () => new fields.SchemaField(marketSchema()).clean({}
 /**
  * The `acks-extras.location` actor sub-type. Identity, nesting, contents and
  * stack count on every place; a nullable `market` subtree only where there is
- * one. `migrateData` folds a v1 location (market fields as siblings of `region`)
- * into the subtree on load, so an un-migrated world reads correctly on its first
- * render rather than after a sweep.
+ * one.
  */
 export class LocationData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -589,22 +586,5 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       if (scope === "character") return !!characterUuid && uuid === characterUuid;
       return false;
     }).length;
-  }
-
-  /* -------------------------------------------- */
-  /*  Migration                                    */
-  /* -------------------------------------------- */
-
-  /**
-   * v1 → v2: the market fields were siblings of `region`; they are now the
-   * `market` subtree, and a location that never had a market gets `null`.
-   *
-   * Runs before validation on load (TypeDataField._migrate → migrateDataSafe),
-   * so an un-migrated world reads correctly on the first render rather than
-   * after a sweep. The rules live in location-migrate.mjs, Foundry-free and
-   * unit-tested; this is the seam Foundry calls.
-   */
-  static migrateData(source) {
-    return super.migrateData(migrateLocationSource(source));
   }
 }
