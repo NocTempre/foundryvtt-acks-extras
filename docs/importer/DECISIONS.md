@@ -10640,3 +10640,28 @@ and their stat lines a roster" (2026-10-24), which governs.
 prose. About seventy area-to-creature links are authored by hand from the
 picture, and lint checks only that each id exists. The JJ's own rows are
 repaired from its adventure row, not from the Books tab.
+
+## 2026-11-13 — The monster book's encounter appendix stays unread
+
+**Ruled.** The monster book's Appendix A (MM pp. 406–423) prints the same
+eighteen terrain-by-rarity monster grids as the Judges Journal (JJ pp. 45–62),
+in the same order and with the same bands. The Judges Journal stays their one
+source: `TABLE_RECIPES.encounters` reads its grids, `encounters-binding.mjs`
+assembles them, `location/table-docs.mjs` projects them as RollTables and
+`formation/encounters.mjs` `runEncounter` draws from them. The appendix adds no
+row, no recipe and no reader. This applies "A Judges Journal chart has one
+source and at most two projections (2026-09-23)" to a second printing of the
+same chart.
+
+**Rejected: the appendix as a second or fallback source.** A recipe names one
+book (`tables-binding.mjs` `importTables` reads `recipe.book` only), so a
+fallback is a new recipe shape, and two readers of one chart drift apart. A
+Judge holding only the monster book gains nothing from it either: the territory
+and rarity throws that open the chain are Judges Journal recipes too.
+**Rejected: RollTable results as links to monster actors** in this release. It
+is a new feature, and the owner's phase ruling (2026-11-12) is "Fixes in, new
+features out."
+
+*Cost:* a few name cells are spelled differently in the two printings, and the
+monster book's spelling is never read. A grid name that matches no monster row
+is the resolver's to settle, on its own ledger row.
