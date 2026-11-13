@@ -6,7 +6,8 @@ monster be hired.
 
 ## What opens first
 
-A monster opens on its **card** — the half-page you fight from. Attacks and
+A monster opens on its **card** (the Follower Card) — the half-page you fight
+from. Attacks and
 their damage, the creature's powers, and its spells by level, in a window a
 little over half the height of the full block.
 
@@ -15,9 +16,9 @@ little over half the height of the full block.
 *What a monster opens on: attacks, powers and spells on one page.*
 
 A power or spell whose entry carries prose has a **speech bubble** beside it.
-Click it and the whole entry goes to chat, so the table reads "Terrifying
-Visage" instead of waiting for someone to find the book. Rolling is separate and
-still sits on its own d20, and a power with no prose gets no button.
+Click it and the whole entry goes to chat, so the table reads it instead of
+waiting for someone to find the book. Rolling is separate and sits on its own
+d20, and a power with no prose gets no button.
 
 ![](../releases/v3.3.0/monster-card-chat.png)
 
@@ -40,9 +41,10 @@ counted in groups.*
 
 Everything else is one click away on **Full sheet** — the chip in the card's
 header band, or the portrait beside the name. If you would rather land on the
-full block, set it once under **Sheet Configuration** on any monster — that
-choice is yours and this module will not move it again. **Animals** still
-open on the full block.
+full block, choose **Use full sheet** on the monster in the Actors directory's
+right-click menu, or set it under **Sheet Configuration** on the monster;
+the choice is yours and stays. An **animal** opens on the full
+block.
 
 ## The sheet
 
@@ -73,8 +75,9 @@ The tabs:
 - **Classification** — the pen for what the frame reads: types, identity,
   the Hit Dice rating and its roll, saves-as and the five save targets, the
   loads, the attributes, and the **Figures** rule with the core fields the
-  system's header used to carry (hit points, armour class, attack throw,
-  morale, initiative, surprise, XP award, alignment, movement).
+  system's own sheet shows in its header (hit points, armour class, attack
+  throw, morale, initiative, surprise, XP award, alignment, movement), which
+  the band and the rails read.
 - **Attacks** — the attack routine, natural weapons and their damage types.
 - **Abilities** — special abilities, tagged by category and carrying their XP
   contribution.
@@ -91,7 +94,7 @@ The tabs:
 - **Animal** — on an animal only: body form, carrying load and training.
 - **Service** — core's retainer fields and the manager picker, and, while
   the creature serves, the same Service panel a hireling's character sheet
-  shows ([henchmen](henchmen.md)): standing, terms, the employer, the
+  shows ([henchmen](henchmen.md#keep-a-retinue)): standing, terms, the employer, the
   ledger and the recorded events.
 - **Description** — the prose, a section at a time; each opens for editing
   in place and grows with its text. The appearance is edited on the art row
@@ -106,7 +109,7 @@ text below it in full.*
 No new actor type is invented: this is core's `monster`, extended through flags,
 so everything that already reads a monster keeps working. The sheet is a
 subclass of the system's own, so it keeps every tab core defines — and core's
-plain sheet is still there under **Sheet Configuration** if you want the lean
+plain sheet is available under **Sheet Configuration** if you want the lean
 view for a particular actor.
 
 ## A monster that casts
@@ -118,10 +121,12 @@ prints beside it; one that casts as a class of a level gets that class's
 slots at that level and a repertoire drawn from the class's list; one whose
 entry prints a repertoire carries it as printed. A name no imported spell
 answers stays in the prose. The Spells tab is on for any creature that
-carries a spell, its slots at zero unless the entry fills them. A creature
-imported before the spells were gains its spells on *Repair in place*; a
-creature generated from a template whose row prints a spell column gets its
-slots and a drawn repertoire at generation.
+carries a spell, its slots at zero unless the entry fills them. A creature imported while its
+spells are not yet in the world gains them on *Repair in place*
+(**Settings tab → Game Settings → ACKS II — Extras → Manage imports**, its
+**Rebuild** tab); a creature generated from a template whose
+row prints a spell column gets its slots and a drawn repertoire at
+generation.
 
 ![](../releases/v9.1.0/monsters-spellcasting.png)
 
@@ -133,7 +138,7 @@ drawn to them.*
 An imported monster family is a template: drop it on a group, or press its
 **Generate**, and pick from its axes. Where the family's page names the
 leaders, casters and dependants that come with a band, the template carries a
-**Role** axis beside the kind. Left blank it generates the ordinary member;
+**Role** axis beside the kind. On *Standard* it generates the ordinary member;
 pick a role and the creature is built from that role's own figures on the
 page: its hit dice, armour, hit points and damage bonus, with its attack
 throw and saves worked out from its hit dice and its experience read from the
@@ -156,7 +161,8 @@ ch. 6), which imports with the rulebook's tables: import those before the
 family. Hover a leader's throw or saves on its Statblock to see what they were
 worked out from. Without the ladder, a leader keeps the member's throw and the
 tooltip says the ladder is not imported. To change the ladder, edit its rows in
-the Ruledata Browser, then repair the template.
+the Ruledata Browser (**Settings tab → Game Settings → ACKS II — Extras →
+Imported Rules Tables → Open Ruledata Browser**), then repair the template.
 
 With the AXIOMS Compendium connected and its tables imported, a family also
 gets champions, sub-chieftains and chieftains worked out by the AXIOMS
@@ -212,9 +218,10 @@ Import the tables before the family, or repair the family in place after
 importing them: a template built without them has no Kit axis. Mounted troops
 (the rider rows) are not offered.
 
-A family imported before this module version has no Role axis. Repair it in
-place (**Manage Imports**, *Repair in place*), or import it again. A creature
-imported earlier gains its leader template the same way.
+A family template that shows no Role axis, or a creature whose page names
+leaders but has no leader template beside it, is repaired in place: open
+**Manage Imports**, pick the shelf or book on the **Rebuild** tab and press
+**Go** (the *Reimport One Shelf (GM)* macro asks the same question).
 
 ## What an attack card shows
 
@@ -243,9 +250,9 @@ named.*
 
 ## Groups of monsters
 
-Drop a monster on a group's sheet, or press **Make an encounter group** on the
-monster's tools rail for a new group with the creature already in it, filed under
-Encounters.
+Drop a monster on a group's sheet, or, as a Judge, press **Make an encounter
+group** on the full sheet's tools rail for
+a new group with the creature already in it, filed under Encounters.
 
 The sheet lists the group like an inventory. Each monster is one row, with its art, its
 name and its counts, which you edit where they stand. Anyone with a record of their own
@@ -315,10 +322,6 @@ creature, as the template's own Generate does.
 and its count.*
 
 ## Common problems
-
-**A save throws an error on an old monster.** Pre-migration monsters store saves
-under the old keys (`breath`/`wand` rather than `blast`/`implements`). The sheet
-warns instead of throwing — re-save the actor to bring it current.
 
 **The stat block is empty.** The actor is a `monster` but was never given extras.
 Fill in the monster sheet's Classification tab; everything else keys off it.

@@ -10,13 +10,15 @@ matching proficiency pills.
 
 ## The sheet
 
-Open any **ability** item. Beyond core's fields:
+Open any **ability** item (Items sidebar, or a character's Abilities tab).
+Beyond core's fields it carries two tabs:
 
-- **Mechanics** — *Imported mechanics*, what the ability does as read from your
-  book, and below it the system's own Active Effects, folded in rather than kept
-  in a separate tab. See *What the imported modifiers do* below.
+- **Mechanics** — *Classification* (category, general or class, times taken and
+  the **Selections** a proficiency of this category can take), *Imported
+  mechanics*, what the ability does as read from your book, and below it the
+  system's own Active Effects, folded in rather than kept in a separate tab.
+  See *What the imported modifiers do* below.
 - **Rolls** — every throw the ability makes.
-- **Selections** — the picks a proficiency of this category can take.
 
 ## What the imported modifiers do
 
@@ -87,8 +89,12 @@ Monsters' abilities are not applied.
 opens it in its own window, and a **trash**, which deletes it after asking;
 **Add a row** under the list puts a new one at the bottom and opens it. Edits
 save as you make them. A player's seat shows the rows without these controls.
-**Repair in place** reads every row from your book again, so a row you changed
-returns to what the page prints the next time the ability is repaired.
+**Repair in place** (the *Reimport One Shelf (GM)* macro in **Compendium
+Packs → ACKS II — Extras → Macros → ACKS Extras Macros → Import from your
+books**, or **Settings tab → Game Settings → ACKS II — Extras → Manage
+imports**, its **Rebuild** tab) reads every row from your book again, so a row
+you changed returns to what the page prints the next time the ability is
+repaired.
 
 **Armour Training** raises the armour rungs on the character's Stats tab by
 its row's step for each rank, read from your book. Under the rungs, each
@@ -97,10 +103,10 @@ the rank. An Armour Training made by hand, or imported without its book, says
 *step not imported* and adds nothing; give it a Modifies row with Domain
 *Armor* and the step in Value to make it count.
 
-**Copies imported before this release** keep the rows they were imported
-with until you run **Update Abilities**; a row that carried a condition reads
-situational until then. **Manage Imports → Repair** records, on each old copy,
-whether its rows came from a recipe, so the unverified marks are right.
+**Update Abilities**, a button at the top of the Items sidebar on a GM seat
+beside *Browse…*, *Import Abilities* and *Prune*, rewrites every ability in the world — loose
+items and the copies on characters — against the current import. An ability
+with no import id is matched by name and adopted.
 
 On the character sheet the ability list files itself, so a long proficiency list
 is not one scroll.
@@ -115,17 +121,15 @@ as a class or a general one to match the button you pressed.
 
 ![](../releases/v3.3.0/classes-category-tabs.png)
 
-*The ability list's filter bar: fighting, thief skills, general, powers.*
+*The ability list's filter bar: all, fighting, thief skills, general, class, powers, racial.*
 
 ## Multiple rolls
 
-Core stores **one** roll per ability, so every route into a roll — the sheet's
-proficiency row, a chat card button, `item.use()`, a hotbar macro — could only
-ever reach an ability's *first* throw, while the Rolls tab showed all of them.
-The same ability rolled differently depending on where you clicked.
-
-This module owns the ability roll path and routes all of them to the same place.
-Add as many throws as the ability has; they all work from everywhere.
+Core stores **one** roll per ability. This module owns the ability roll path
+and routes every way into a roll — the sheet's proficiency row, a chat card
+button, `item.use()`, a hotbar macro — to the same place. Add as many throws
+as the ability has; they all work from everywhere, and the Rolls tab lists all
+of them.
 
 ![](../releases/v3.4.0/abilities-throws.png)
 
@@ -182,30 +186,29 @@ each point where the printed number changes — a step holds from where it start
 until the next one begins, so a throw whose target changes at the second rank
 and again at the third is three steps, not one per level.
 
-The table belongs to that throw. Sharing one table between abilities is not
-built yet.
+The table belongs to that throw.
 
 *Per Level* is the shape for a target that moves by a fixed amount each level
 rather than in steps; a target that gets easier moves **down**, so write the
-change negative. *Progression* is for a throw the book rates off another class's
-table — the table itself is not carried yet, so the sheet shows the progression
-instead of a number.
+change negative. *Progression* is for a throw the book rates off another
+class's table: pick the class and which of its tables, then the fraction of the
+character's level to read it at (leave the boxes blank for the whole level).
+The sheet shows the progression it follows.
 
 ![](../releases/v4.8.0/abilities-ladder-picker.png)
 
 *A progression throw naming a ladder the class publishes, beside the
 attack-throw default.*
 
-**An ability with no roll shows itself instead of rolling.** Core intends this,
-but tests a field that defaults to `"1d20"` and is therefore never empty — so a
-proficiency that makes no throw used to post a d20 against a target of 0.
+**An ability with no roll shows itself instead of rolling.** A proficiency
+that makes no throw posts its card, not a d20.
 
 **To announce one at the table**, press the **eye** on its row in the character
 sheet's *Abilities* tab: the ability's card goes to chat with its description,
 which is how a power that grants a bonus rather than a throw is put in front of
 everyone. Dragged to the hotbar, the same ability posts the same card. The card
-announces it; a bonus the power grants reaches the sheet only through an Active
-Effect (see **Mechanics** above).
+announces it; a bonus the power grants reaches the sheet through its modifier
+rows or an Active Effect (see **Mechanics** above).
 
 ## What a throw looks like in chat
 
@@ -244,8 +247,8 @@ dice.*
 
 Some proficiencies are not finished until you say WHICH: Weapon Focus names a
 weapon group, Fighting Style Specialization a style, Combat Trickery a
-manoeuvre, Art/Craft a discipline. Those abilities show a box per printed
-choice, and ticking one is guaranteed to light the matching proficiency pill —
+manoeuvre, Art/Craft a discipline. On the ability's Mechanics tab, those
+abilities show a *Selections* box per printed choice, and ticking one is guaranteed to light the matching proficiency pill —
 the keys are the same ones the profile strips match on, so a pick you tick is a
 pick the rules actually read.
 
@@ -271,23 +274,23 @@ acksExtras.lib.tables.registerTable(
 );
 ```
 
-The closed families — Weapon Focus, Martial Training, fighting styles, Combat
-Trickery, Elementalism — take no additions, because each entry drives a rule the
-module resolves and a sixth fighting style would be a box that changes nothing.
-Languages are not on this list either: they are documents you fill slots with,
-not words you tick.
+The closed families — Weapon Focus, fighting styles, Combat Trickery,
+Elementalism — take no additions, because each entry drives a rule the module
+resolves and an extra fighting style would be a box that changes nothing.
+Martial Training takes its boxes from the martial options your import read,
+one per option. Languages are not on this list either: they are documents you
+fill slots with, not words you tick.
 
 ![](../releases/v4.10.1/abilities-language-slots.png)
 
 *The open slots a character still has, and the tongue one of them bought — a
 real language document on the character.*
 
-**Imported characters keep their picks.** A template that says
-"Fighting Style Spec. (weapon & shield)" ticks *Weapon & Shield*, and one that
-says "Swords" ticks *Swords & Daggers*, rather than leaving the words sitting in
-free text where nothing matches them.
+**Imported characters keep their picks.** A template that names a pick in
+words — a fighting style, a weapon group — ticks the matching box rather than
+leaving the words sitting in free text where nothing matches them.
 
-**Weapon proficiency offers the whole selection vocabulary.** Beside the six
+**Weapon proficiency offers the whole selection vocabulary.** Beside the
 weapon groups sit *Any weapon*, *All missile weapons* and one box per melee
 size, so a class trained in every missile weapon and every melee weapon up to
 medium size is four ticks, and the Training strip lights every class they
@@ -300,18 +303,13 @@ carry it — *Weapon Focus* becomes *Weapon Focus (Swords & Daggers)* — so you
 never type the parenthesis yourself. Changing the pick rewrites the suffix
 instead of adding a second one, and clearing every box takes it off again.
 
-Fighting styles list the five the combat rules resolve. A sixth that the rules
+Fighting styles list the ones the combat rules resolve. A style the rules
 cannot place would be a choice that grants nothing, so it is not offered.
 
 ## Common problems
 
-**The sheet died with "the partial could not be found".** Open an ability first
-after a reload and the system's Active Effects partial may not be registered yet.
-The module preloads it; if the system renames the file, the tab renders without
-that block rather than breaking.
-
 **A shared world item shows a ladder instead of a number.** It has no owner to
 resolve against, so it presents the ladder itself. That is correct.
 
-**My roll target is 0.** A core record sitting at its schema defaults (`1d20`,
-target 0) is not a roll — those are field initials, not a throw anyone entered.
+**My roll target is 0.** An ability whose roll sits at the schema defaults (`1d20`,
+target 0) makes no throw — those are field initials, not a throw anyone entered.

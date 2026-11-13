@@ -3,12 +3,14 @@
 ## Getting class documents
 
 Import them from your own book: connect the Revised Rulebook — and By This
-Axe, if you own it — in the importer, then run
-**Import Everything** from the Macros compendium (or
-`acksExtras.importer.importClasses()` for the classes alone). Every class arrives as a
-**Class** item — progressions, saves, awards, starting templates — read from
-your PDF. Or build homebrew from scratch: **Create Item → Class** opens the
-same constructor.
+Axe, if you own it — in the importer, then run **Import everything** on the
+Import tab of **Settings tab → Game Settings → ACKS II — Extras → Manage
+imports** (or the **Import Everything (GM)** macro in **Compendium Packs →
+ACKS II — Extras → Macros → ACKS Extras Macros → Import from your books**;
+`acksExtras.importer.importClasses()` imports the classes alone). Every class
+arrives as a **Class** item — progressions, saves, awards, starting templates —
+read from your PDF. Or build homebrew from scratch: **Items sidebar → Create
+Item → Class** opens the same constructor.
 
 ![](../releases/v3.3.0/classes-constructor.png)
 
@@ -35,11 +37,12 @@ is trained in.
 *A starting template: abilities, gear and spells by name, a reference nothing
 answers marked, the whole row a drop zone.*
 
-A row whose spells were still printed names when its package was built — the
-class imported before the spells were — relinks them on the next *Build
-packages* (a class re-import or repair runs the same pass): each spell a
-document now answers joins the package and leaves the printed row. A package
-you edited by hand is left as it is and named in the report.
+A row whose spells were still printed names when its package was built (the
+spells were not in the world yet) relinks them on the next *Build packages*
+on the Templates tab (a class import or repair runs the same pass): each
+spell a document answers joins the package and leaves the printed row. A
+package you edited by hand is left as it is and counted as skipped in the
+report.
 
 ![](../releases/v9.1.0/classes-templates.png)
 
@@ -55,9 +58,14 @@ may choose.
 
 ## On the character sheet
 
-Three small controls appear beside the class field:
+The character sheet's **Class** tab carries the class controls: the **Choose
+class** chip (a graduation cap), the **Reopen scores** chip (dice), the
+**Legacy** chip, and a gold **Level up** band when the character's experience
+qualifies. The system's own character sheet carries the same controls as
+small icons beside its class field. Character generation itself happens on the
+system's Scores Generator, below.
 
-- **Graduation cap** — bind the character to a class document and apply its
+- **Graduation cap** (*Choose class*) — bind the character to a class document and apply its
   printed numbers for the current level (saves, attack throw, title,
   XP-to-next, hit dice, cleaves, spell slots). The confirm lists every change
   old → new and flags anything you hand-edited since the last apply.
@@ -69,24 +77,33 @@ Three small controls appear beside the class field:
   they already carry is not given twice, and what lands is posted to chat.
   Dropping a class document onto the sheet does the same thing.
 
-  Applying the same class at the same level again is how a character who was
-  bound before this existed collects what they were always owed: the fields
-  will show nothing to change, and the abilities will still be listed.
+  Applying the same class at the same level again hands over any ability the
+  level owes that the character does not yet carry: the fields show nothing to
+  change, and the abilities are still listed.
 
   ![](../releases/v3.0.0/classes-apply-diff.png)
 
   *Every change old → new before it lands, with hand edits flagged.*
-- **Dice** (level 1 characters) — roll a starting template: 3d6, then choose
-  the rolled template or any lower band. The menu stays closed until the die
-  gives it something to offer, and a class whose entry prints no packages
-  leaves it closed for good — the note under the menu says which of the two you
-  are looking at. A Judge's override lifts the die, never the empty class. Applying grants the proficiencies
-  (ranks and selections included), the equipment — each piece named as
-  printed over its base item's mechanics — the coin, and your Intellect
-  bonus proficiency picks.
+- **Scores Generator** (a new character) — a new character's sheet offers the
+  system's Scores Generator, which this module extends into the whole of
+  character generation: the attributes, rolled under the campaign's attribute
+  rule (a Judge sets it under **Settings tab → Game Settings → ACKS II —
+  Extras → Attribute generation**), the class, and the *Template die*, with
+  what is left to choose beside them. The template picker lists what the
+  rolled die reaches and stays closed until the die is rolled; a class whose
+  entry prints no packages leaves it closed for good — the note under the menu
+  says which of the two you are looking at. *Judge override* offers every class
+  and template whatever the dice say; it lifts the die, never the empty class.
+  *Build without a package* takes no template, and *Add, do not replace* keeps
+  what the character already holds. Applying, when the window closes, grants
+  the proficiencies (ranks and selections included), the equipment — each
+  piece named as printed over its base item's mechanics — the coin, and your
+  Intellect bonus proficiency picks. **Reopen scores** (the dice icon, on a
+  character who is no longer new) offers the generator again; it replaces
+  what the last run granted, and asks first.
 
   Each template can be a **package**: a bundle item holding the template's
-  actual abilities and gear as world documents, linked from a 3d6 roll table
+  actual abilities and gear as world documents, linked from the template roll table
   on the class (the importer builds these; the class sheet's Templates tab
   has a *Build packages* button for hand-made classes). If the import got a
   piece wrong — a staff that landed as un-wieldable plain inventory instead
@@ -98,11 +115,10 @@ Three small controls appear beside the class field:
 
   *A class's Templates tab with its packages built: each band is a bundle of
   real, repairable documents.*
-- **Rising arrow** (when XP qualifies) — the level-up wizard: HP rerolled per
-  RAW (full Hit Dice, Constitution per die, never on the flat bonus past
-  the last die level, minimum one over the old maximum), the new level's powers granted,
-  class/general proficiency picks
-  offered, slots bumped.
+- **Rising arrow** (the gold **Level up** button on the Class tab; when XP
+  qualifies) — the level-up window: the hit points rolled from the class's
+  imported Hit Dice, the new level's powers granted, class/general proficiency
+  picks offered, slots bumped. It posts a summary to chat.
 
   ![](../releases/v3.0.0/classes-levelup.png)
 
@@ -127,8 +143,7 @@ opposite act to generating them.*
 
 **A proficiency you already have is an answer.** Each choice lists what the
 character already holds first, and picking it closes the choice and grants
-nothing — you no longer have to take something unwanted and delete it
-afterwards. Beside the options sit *already covered*, for the proficiency the
+nothing, so nothing unwanted is taken and then deleted. Beside the options sit *already covered*, for the proficiency the
 choice never listed, and *leave open*, the one answer that closes nothing. A
 choice answered anywhere — here, at level-up, or during character generation —
 is remembered, so re-applying a class does not walk a 5th-level character
@@ -242,7 +257,7 @@ lock where the trash would be. They can still be edited, emptied and disabled �
 emptying the training is how you leave a character deliberately untrained, and
 it stays that way until the class is applied again. The loadout is rebuilt from
 what is equipped, so emptying that one lasts only until the next change.
-Deleting the character works exactly as before.
+Deleting the character removes both with it.
 
 
 ## Legacy — the reserve fund, funerals and a will
@@ -277,8 +292,8 @@ constructor, and it never blocks: the printed tables stay hand-editable in
 both modes, and the accounting line reports (points spent, power picks
 left, the 2nd-level XP cost) rather than enforces.
 
-Tick *Advanced mode*, set your build values — Hit Die, Fighting (with the
-1-point a/b split), Thievery and its chosen skills, one row per **magic
+Tick *Advanced mode* on the Builder tab, set your build values — Hit Die,
+Fighting, Thievery and its chosen skills, one row per **magic
 value** (arcane and divine arrive with the Judges Journal import;
 ceremonial, gnostic, alchemy, eldritch, fairie or your own tradition are
 rows of the same shape once their tables are in the world), and a racial
@@ -294,15 +309,16 @@ tweak afterwards.
 *The Builder tab on an imported Ready-for-Play example: build values, the
 accounting line, and Derive.*
 
-Everything numeric comes from your own book: run **Import Everything** with
-the Judges Journal connected, and the builder tables, the Dwarf and Elf race
-documents, and the printed Ready-for-Play builds on
-the core and demi-human classes all land together — open any of those
-classes on the Builder tab and Derive reproduces its printed spread.
+Everything numeric comes from your own book: run **Import everything** with
+the Judges Journal connected, and the builder tables, the race documents it
+prints, and its Ready-for-Play builds stamped onto their classes all land
+together — open any of those classes on the Builder tab and Derive works from
+the build it carries. Without the builder tables the tab says so; it can
+record your choices but derives nothing.
 
 A **race document** (its own item type) carries the racial value ladder:
 each rung's XP cost and granted powers, the race's attribute floors, how it
-stacks with a magic category, and its post-8th XP increases. Simple-mode
+stacks with a magic category, and its later XP increases. Simple-mode
 classes may bind one too.
 
 ![](../releases/v4.5.0/classes.png)
@@ -323,12 +339,17 @@ anywhere, including one you made, works the same way.
 
 ## Keeping documents current
 
-After reconnecting your book, `acksExtras.importer.cookbookUpdateClasses()` rewrites
-imported class documents from the page (hand edits on them are replaced —
-the confirm says so). A combat training you edited on the class sheet is the
-one exception: it is kept where the book's would have been rebuilt. `repairSaveReferences` under
-`acksExtras.classes` finds stale save-key references world-wide; dry-run by
-default.
+After reconnecting your book, repair the **Classes** shelf in place
+(**Settings tab → Game Settings → ACKS II — Extras → Manage imports**, its
+**Rebuild** tab; or the *Reimport One Shelf (GM)* macro): it rewrites the
+imported class documents from the page, and hand edits on them are replaced —
+the confirm says so. A description you wrote and a combat training you edited
+on the class sheet are kept where the book's would have been rebuilt.
+`acksExtras.importer.cookbookUpdateClasses()` is the same write from the
+console. `acksExtras.classes.repairSaveReferences()` finds save-key
+references world-wide that name a save the system does not have (on
+characters, abilities and their Active Effects); it reports and writes
+nothing unless called with `{ dryRun: false }`, as a GM.
 
 ## Paths — when a class offers a choice
 
@@ -348,12 +369,13 @@ armour and fighting styles.
 adds an option; each option takes a weapon list, an armour rung and its fighting
 styles. A group can instead be pointed at the class's starting templates.
 
-**Your starting templates are one of these groups.** They are shown in the list
-beside the others, and nothing about them moved — the same rows, the same
-package bundles, the same 3d6 table you already had.
+**A class's starting templates are one of these groups.** They are shown in the
+list beside the others, with the same rows, package bundles and template-die table the
+Templates tab holds.
 
 When you apply a class to a character, you are asked once for each group, with
-whatever the character already chose pre-selected. Choosing a region grants that
+whatever the character already chose pre-selected; the character sheet's Class
+tab lists each group with its choice and lets you change it. Choosing a region grants that
 region's training; choosing a different one later swaps it rather than adding a
 second. **A group you leave unanswered grants nothing** — the module will not
 pick a region for you.
@@ -366,12 +388,10 @@ you have already chosen.
 ## Picks a character still owes
 
 A printed starting package does not only hand things over. Sometimes it hands
-over a choice — "and one spell of character's choice" — and until now that
-arrived as a sentence on an item's note, where nothing on the character showed
-it and the pick was quietly never made.
+over a choice, such as a spell left to the character's pick.
 
-Such a row now arrives on the character as a marker named for the question it
-asks. The chargen chat card lists it under its own heading, apart from what was
+Such a row arrives on the character as a marker named for the question it
+asks, so the pick is visible on the sheet and is not quietly skipped. The chargen chat card lists it under its own heading, apart from what was
 granted and from what could not be resolved. Clicking the marker opens the
 chooser; what you pick replaces it.
 
@@ -383,11 +403,10 @@ list of its own can still answer the offer. Nothing is chosen for you: the
 control opens on "— choose —", so closing it without deciding leaves the pick
 standing rather than spending it on whichever option sorted first.
 
-Since 9.1.0 the chooser lists what the character casts at the level being
-set — a starting character's first, the level a level-up climbs to — and a
-class whose page prints its own repertoire (the bladedancer, crusader,
-priestess and shaman) offers that list alone; its Casting tab says how many
-spells the list holds.
+The chooser lists what the character casts at the level being set — a
+starting character's first, the level a level-up climbs to — and a class whose
+page prints its own repertoire offers that list alone; its Casting tab says how
+many spells the list holds.
 
 ![](../releases/v9.1.0/classes-spell-pick.png)
 
@@ -405,7 +424,7 @@ brings a settled pick back.
 
 ## Building a race
 
-**Create Item → Race** opens the race constructor: attribute minimums, the
+**Items sidebar → Create Item → Race** opens the race constructor: attribute minimums, the
 racial value ladder — each rung an XP cost, a level cap and the powers it
 grants — and the always-on traits. Rungs and traits take an ability dropped
 from the Items sidebar or a compendium, once each.
@@ -417,12 +436,12 @@ grants named on it.*
 
 ## What a race adds past the last hit die
 
-Past a class's last Hit Die level it stops gaining Hit Dice and gains a flat
-number of hit points instead. The rate comes from the class's saving-throw
-progression, and some races add to it. The rate, the level the dice stop at and
-the race's share are all read from your own books; the race's share is on the
-race document (Items sidebar → the race → its sheet), where you can also type it
-for a race the importer has no recipe for.
+A race document's *Extra hit points per level past the last hit die* is the
+race's share of the flat hit points a class gains once its Hit Dice stop. The
+class-side rate, the level the dice stop at and the race's share are all read
+from your own books; the race's share is on the race document (Items sidebar →
+the race → its sheet), where you can also type it for a race the importer has
+no recipe for. Importing the race again overwrites what you typed.
 
 ![](../releases/v5.4.0/race-post-ninth.png)
 
