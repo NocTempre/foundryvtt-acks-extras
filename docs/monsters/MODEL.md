@@ -231,14 +231,18 @@ table (MM Overview p. 11), imported into registry document `monsters`, table
 `scripts/monsters/sizes.mjs` `sizeSquares(key)` reads a cell as `{w, h}`
 squares: the first printed pair, else a lone figure or fraction, each side held
 to one square at the least (a body never occupies less than a token square).
-Two readers take it: the battlemap's `footprintFeet`
-(`docs/battlemap/MODEL.md`, "Token sizing") and the importer, which sets a
-monster's prototype token to it. The Judge edits it in the Ruledata Browser
-like any imported table, and the override wins. A world with no table, an
-unread row, or a cell holding no figure answers null for that category, so the
-battlemap leaves the token as it is and a monster is imported with Foundry's
-default token. The weight, length and feet lines of the same table are not
-read.
+The unit of that row's label, what one of its squares is worth in feet, is
+read from the label itself into table `sizeSquare` (`squares: {feet}`, the
+`squareFeet` label pattern of the importer's `gridRows`), and
+`sizes.mjs` `sizeSquareFeet()` answers it. Two readers take them: the
+battlemap's `footprintFeet`, which multiplies the one by the other
+(`docs/battlemap/MODEL.md`, "Token sizing"), and the importer, which sets a
+monster's prototype token to the squares. The Judge edits both in the Ruledata
+Browser like any imported table, and the override wins. A world with no table,
+an unread row, or a cell holding no figure answers null for that category, and
+a world with no square answers null for every one, so the battlemap leaves the
+token as it is and a monster is imported with Foundry's default token. The
+weight, length and feet lines of the same table are not read.
 
 **Provenance.** Each derived throw and save row stores its parts on the
 generated actor (`extras.derived`: the figure written, the member's figure

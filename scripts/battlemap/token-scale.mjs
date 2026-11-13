@@ -11,6 +11,7 @@ import { sceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
+import { sizeSquareFeet } from "../monsters/sizes.mjs";
 import { FLAG_FORMATION_ID } from "../formation/constants.mjs";
 import { unset } from "../lib/util.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
@@ -25,8 +26,8 @@ export function autoScaleEnabled(scene) {
 /**
  * Whether a token is ours to size, and the size it takes. Not ours: party
  * tokens (formation-owned), locked tokens, markers, and scenes without a usable
- * grid distance. Ours with no size: its actor's size category has no imported
- * frontage, so it keeps the size it has.
+ * grid distance. Ours with no size: the monster book's square or its actor's
+ * size category frontage is not imported, so it keeps the size it has.
  * @returns {{ours: boolean, size: {width:number, height:number}|null}}
  */
 function resolveSize(tokenDoc, scene) {
@@ -44,15 +45,15 @@ function resolveSize(tokenDoc, scene) {
   if (!(distance > 0)) return notOurs;
   const override = tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? tokenDoc.actor?.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? null;
   const sizeKey = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_EXTRAS)?.size ?? null;
-  const feet = footprintFeet({ override, sizeKey });
+  const feet = footprintFeet({ override, sizeKey, feetPerSquare: sizeSquareFeet() });
   return { ours: true, size: feet ? { width: tokenSpan(feet.w, distance), height: tokenSpan(feet.h, distance) } : null };
 }
 
 /**
  * The size (in grid squares) this token should occupy on its scene, or null
  * when the token is not ours to size (party tokens, locked tokens, markers,
- * scenes without a usable grid distance) or its actor's size category has no
- * imported frontage.
+ * scenes without a usable grid distance) or the square or its actor's size
+ * category frontage is not imported.
  * @returns {{width:number, height:number}|null}
  */
 export function sizeForToken(tokenDoc, scene = tokenDoc?.parent) {
@@ -61,7 +62,8 @@ export function sizeForToken(tokenDoc, scene = tokenDoc?.parent) {
 
 /**
  * How many tokens on the scene are ours to size but have no footprint because
- * their size category has no imported frontage: they keep the size they have.
+ * the square or their size category's frontage is not imported: they keep the
+ * size they have.
  */
 export function unsizedTokenCount(scene) {
   let count = 0;

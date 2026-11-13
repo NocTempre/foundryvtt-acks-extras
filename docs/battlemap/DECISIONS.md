@@ -1162,3 +1162,43 @@ viewed scene. The owner asked for it on the navigation card.
 - The writer treats a word outside `TRAVEL_MODES` as a clear, which is what
   the read already made of it; a typo'd API call clears rather than errors.
 
+## 2026-11-13 — The footprint's square is the book's; the assistant's ladders are the scene's
+
+**Ruled** (owner): "Fix backed values to imports and also expose somewhere as
+editable (this is a global rule applying here, fix whenever caught)"; and, on
+the trap figures' open question, "Values: import or drop".
+
+**Decision.**
+- A footprint's square is read, not stated. `footprintFeet`'s `feetPerSquare`
+  has no default and the battlemap imports nothing from the formation: the
+  square is the unit the Monster Size table's squares row names in its own
+  label (MM ch. 1), imported into `monsters` / `sizeSquare` beside
+  `sizeFrontage` and read by `monsters/sizes.mjs` `sizeSquareFeet()`. The Judge
+  edits it in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
+  Extras → Imported Rules Tables → Open Ruledata Browser) like the frontage.
+- With no square, `footprintFeet` answers the override or null, as it already
+  does for a category with no frontage; the token keeps its size and the
+  rescale warning says the square and frontage are not both imported. A token
+  with no category needs the square too, so it keeps its size as well.
+- The assistant's chip ladders are the scene's, computed per scene at render:
+  the size hotbar is steps of `sceneFeetPerCell(scene)`, the square-size
+  ladder steps of `scene.grid.distance`, and an unentered map cell is worth
+  the scene's `grid.distance`. A scene with no usable distance offers none.
+  Nothing in either ladder is a figure from a page.
+
+**Rejected.**
+- *Chips from the imported size categories.* A category's frontage is a count
+  of squares, not a distance a Judge picks for a token or a map, and a world
+  with no import would show no chips at all.
+- *A rules window in the formation module for the square.* The figure is the
+  monster book's, beside the frontage it multiplies; a second home would be a
+  second thing to import and to edit.
+
+**Cost.**
+- A world that has not imported the Monstrous Manual's tables sizes no token
+  from a category and no category-less token; it keeps what each token has
+  until Manage imports → Rules tables runs. No migration is built (owner
+  ruling on earlier data).
+- The two ladders are in different units (feet and the scene's own), as the
+  fields they sit under already were.
+

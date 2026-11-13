@@ -7176,7 +7176,7 @@
   "ACKS-BATTLEMAP.tokens.rescaled": "{count} token(s) rescaled.",
   "ACKS-BATTLEMAP.tokens.applied": "{count} token(s) set to {feet}'.",
   "ACKS-BATTLEMAP.tokens.resetDone": "{count} token(s) reset.",
-  "ACKS-BATTLEMAP.tokens.unsized": "{count} monster token(s) keep their size: the monster size frontage (Monstrous Manual p. 11) is not imported.",
+  "ACKS-BATTLEMAP.tokens.unsized": "{count} token(s) keep their size: the Monster Size table's square and frontage (Monstrous Manual ch. 1, p. 11) are not both imported. Import the Monstrous Manual (Settings tab, Game Settings, ACKS II — Extras, Manage imports).",
   "ACKS-BATTLEMAP.warn.notSquareGrid": "This scene uses a hex grid, so a square fit is refused. Choose a hex family above, or scale only.",
   "ACKS-BATTLEMAP.warn.noBackground": "This scene has no background image to calibrate against.",
   "ACKS-BATTLEMAP.warn.highResidual": "The fit is loose — samples disagree. Erase outliers or add better ones.",

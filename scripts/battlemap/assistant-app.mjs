@@ -20,8 +20,7 @@ import { hexProbe, sceneCountry, writeSceneSetup, writeSceneSystem } from "./sce
 import { rescaleSceneTokens, unsizedTokenCount, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
-import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
-import { FEET_PER_RANK } from "../formation/trap-rules.mjs";
+import { DISTANCE_UNITS, sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
@@ -29,16 +28,32 @@ const loc = makeLoc(LANG_PREFIX);
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/** The size hotbar's chips, in feet: halves and small multiples of the combat square. */
-const HOTBAR_FEET = [FEET_PER_RANK / 2, FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 3, FEET_PER_RANK * 4, FEET_PER_RANK * 6];
+/** The size hotbar's steps: a half and small multiples of the scene's own cell. */
+const HOTBAR_STEPS = [0.5, 1, 2, 3, 4, 6];
+
+/** The square-size ladder's steps: multiples of the scene's grid distance. */
+const SQUARE_STEPS = [1, 2, 10, 20];
+
+/**
+ * The size hotbar's chips, in feet, for a scene: steps of what one of its
+ * cells is worth. A scene with no usable distance offers none. Nothing read
+ * off a page belongs in a chip.
+ */
+const hotbarFeet = (scene) => {
+  const cell = sceneFeetPerCell(scene);
+  return cell > 0 ? HOTBAR_STEPS.map((step) => cell * step) : [];
+};
 
 /**
  * The square-size ladder offered as chips under BOTH scale fields: the same
  * set of values answers "what is the map's square" and "what should a Foundry
- * square be". Multiples of the combat square, which is structure — nothing
- * read off a page belongs in a chip.
+ * square be". Steps of the scene's grid distance, in its own units; a scene
+ * with no usable distance offers none.
  */
-const SQUARE_FEET = [FEET_PER_RANK, FEET_PER_RANK * 2, FEET_PER_RANK * 10, FEET_PER_RANK * 20];
+const squareFeet = (scene) => {
+  const distance = scene?.grid?.distance;
+  return distance > 0 ? SQUARE_STEPS.map((step) => distance * step) : [];
+};
 
 const GRID_PX_MAX = 300;
 
@@ -172,7 +187,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (this.opts.mapCellFeet > 0) return this.opts.mapCellFeet;
     const bar = this.scaleBarFeet;
     if (bar > 0) return bar;
-    return FEET_PER_RANK;
+    const distance = canvas?.scene?.grid?.distance;
+    return distance > 0 ? distance : null;
   }
 
   get scaleBarFeet() {
@@ -382,7 +398,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       keepsGridless: gridless && this.isScaleOnly,
       warnNoBackground: scene && !hasBackground && !this.isScaleOnly,
       warnResidual: !!(fit?.ok && fit.confidence === "loose"),
-      hotbar: HOTBAR_FEET.map((v) => ({ value: v, label: `${v}'` })),
+      hotbar: hotbarFeet(scene).map((v) => ({ value: v, label: `${v}'` })),
       // The card: the fit read at a glance while the eye is on the map.
       cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? fit.sizeX.toFixed(1) : `${fit.sizeX.toFixed(1)} × ${fit.sizeY.toFixed(1)}`) : null,
       residualPct: fit?.ok ? (fit.rmsPct * 100).toFixed(1) : null,
@@ -441,7 +457,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
    */
   #outputChips() {
     const comfortable = this.isScaleOnly ? this.comfortableCell : null;
-    const values = comfortable ? roundSuggestions(comfortable) : SQUARE_FEET;
+    const values = comfortable ? roundSuggestions(comfortable) : squareFeet(canvas?.scene);
     return values.map((v) => ({ value: v, active: this.outputFeet === v }));
   }
 
@@ -453,7 +469,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
    */
   #mapChips(rawFeet) {
     if (!rawFeet && this.isHex) return [];
-    const values = rawFeet ? roundSuggestions(rawFeet) : SQUARE_FEET;
+    const values = rawFeet ? roundSuggestions(rawFeet) : squareFeet(canvas?.scene);
     return values.map((v) => ({ value: v, active: this.mapCellFeet === v }));
   }
 

@@ -281,6 +281,11 @@ such region is never written.
   number and the number the arithmetic uses cannot diverge. An entered value
   wins; a dragged scale bar answers only when nothing is entered, and is
   offered as chips rather than applied over the top (DECISIONS).
+- **The plain ladders are the scene's.** With no bar measured, the square
+  chips under both fields are steps of the scene's `grid.distance`, the
+  size hotbar's chips are steps of `sceneFeetPerCell(scene)`, and an unentered
+  map cell is worth the scene's `grid.distance`, all read at render. A scene
+  with no usable distance offers no chips and no default.
 - **Arming is a mode, and the group has a resting state.** Each capture mode
   is a tool in the `acksBattlemap` control group; `off` is ordered first and is
   the group's `activeTool`, so opening the toolbar arms nothing. Escape
@@ -355,16 +360,20 @@ other's tokens, so no token ever has two size owners.
 
 Footprint precedence, resolved by `footprint.mjs`: token flag `footprint
 {w,h}` (feet) → actor flag → the monster size category's frontage in squares
-at the 5-ft combat square → one square for a token with no category. The
-frontage is imported, never held in source: it is the Frontage (5'-squares)
-line of MM Overview p. 11, read into registry document `monsters`, table
-`sizeFrontage`, and taken through `monsters/sizes.mjs` `sizeSquares`
-(`docs/monsters/MODEL.md`, "The size frontage"). A category the world holds no
-figure for has no footprint: `footprintFeet` answers null, `sizeForToken`
-answers null, and the token keeps the size it has. The assistant's "Rescale
-tokens on scene" then adds a warning naming how many tokens kept their size
-(`unsizedTokenCount`) and that the frontage is not imported; the
-preCreateToken auto-size leaves such a token alone without a message.
+times the imported square's feet → one such square for a token with no
+category. Both are imported, never held in source: the frontage is the
+Frontage (squares) line of MM Overview p. 11, read into registry document
+`monsters`, table `sizeFrontage`, and the square is that row's own unit label,
+table `sizeSquare`; `monsters/sizes.mjs` `sizeSquares` and `sizeSquareFeet`
+take them (`docs/monsters/MODEL.md`, "The size frontage"). `token-scale.mjs`
+passes `sizeSquareFeet()` as `footprintFeet`'s `feetPerSquare`, which has no
+default. With no square imported, or a category the world holds no frontage
+for, there is no footprint: `footprintFeet` answers null (an override still
+wins, and needs neither), `sizeForToken` answers null, and the token keeps the
+size it has. The assistant's "Rescale tokens on scene" then adds a warning
+naming how many tokens kept their size (`unsizedTokenCount`) and that the
+square and frontage are not both imported; the preCreateToken auto-size
+leaves such a token alone without a message.
 `footprintLock` on a token opts it out of every automatic resize,
 the party token's included. No surface sets it; it is written by script.
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).

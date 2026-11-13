@@ -165,4 +165,23 @@ check("each cell reads as its own row's miles", JSON.stringify(ranges.map((r) =>
   JSON.stringify([[23, 71], [5, 140], [88, 12], [301, 47], [9, 1020], [64, 333]]));
 check("the other print column never joins a cell", !ranges.some((r) => /across/.test(r.road + r.water)));
 
+// The monster size row's unit: an invented label naming its square in feet is
+// read into {feet} by the shipped recipe, on a row with no cells of its own; the
+// frontage recipe claims the same row by any figure in the bracket.
+{
+  const unit = TABLE_RECIPES.monsters.tables.sizeSquare;
+  const page = (n) => [
+    run("Length/Height:", 95, 682), run("A cell", 148, 682),
+    run("Frontage (ft.):", 99, 692), run("Another cell", 148, 692),
+    run(`Frontage (${n}’-squares)`, 76, 703), run("A squares cell", 148, 703),
+  ];
+  check("the unit is read as feet from an invented label", extractTable(page(7), unit).squares?.feet === 7);
+  check("the unit row holds nothing but the figure", Object.keys(extractTable(page(7), unit).squares).join() === "feet");
+  check("a label with another figure reads that figure", extractTable(page(12), unit).squares?.feet === 12);
+  check("a page without the row reads missing", extractTable([run("Length/Height:", 95, 682)], unit).squares?.__missing === true);
+  const frontage = extractTable(page(7), TABLE_RECIPES.monsters.tables.sizeFrontage);
+  check("the frontage recipe claims the row whatever figure the bracket holds", frontage.squares?.small === "A squares cell");
+  check("squareFeet reads no figure from a label without one", applyCellPattern("Frontage (squares)", "squareFeet") === null);
+}
+
 console.log(`test-grid-rows: all ${pass} checks passed`);

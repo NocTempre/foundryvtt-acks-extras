@@ -3,7 +3,9 @@
  * Monstrous Manual prints it (Monster Size, MM p. 11, the frontage in
  * battle-grid squares). The figures are imported into the `monsters` registry
  * document's `sizeFrontage` table, one printed cell per category, and read
- * here; nothing in source states one. Foundry-free.
+ * here; nothing in source states one. What one of those squares is worth in
+ * feet is the unit the same row's label prints, imported into `sizeSquare` and
+ * read by `sizeSquareFeet`. Foundry-free.
  *
  * A cell is the page's own text. It prints a pair of squares, the first
  * arrangement being the one read, or a single figure for a body that fills at
@@ -17,10 +19,13 @@ export const SIZE_DOC = "monsters";
 export const SIZE_TABLE = "sizeFrontage";
 export const SIZE_ROW = "squares";
 
-// Declared where it is read, so the import names the table as outstanding
-// whichever feature loads first. The id is SIZE_TABLE, written as a literal
-// because the producers gate reads this call from source.
-expectTables(SIZE_DOC, ["sizeFrontage"]);
+/** The table holding what one battle-grid square is worth in feet, on the same row. */
+export const SQUARE_TABLE = "sizeSquare";
+
+// Declared where it is read, so the import names the tables as outstanding
+// whichever feature loads first. The ids are SIZE_TABLE and SQUARE_TABLE,
+// written as literals because the producers gate reads this call from source.
+expectTables(SIZE_DOC, ["sizeFrontage", "sizeSquare"]);
 
 const PAIR = /(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)/;
 const FRACTION = /(\d+)\s*\/\s*(\d+)/;
@@ -58,6 +63,20 @@ export function sizeSquares(sizeKey) {
   const row = getDoc(SIZE_DOC)?.tables?.[SIZE_TABLE]?.[SIZE_ROW];
   if (!row || typeof row !== "object" || isMissingRow(row)) return null;
   return Object.hasOwn(row, sizeKey) ? parseFrontage(row[sizeKey]) : null;
+}
+
+/**
+ * What one battle-grid square is worth in feet, or null where the world holds
+ * no `sizeSquare` table, its row was not read, or the row holds no positive
+ * figure. Reads the layer a Judge's override sits on; nothing stands in for a
+ * square that was not imported.
+ */
+export function sizeSquareFeet() {
+  if (!hasDoc(SIZE_DOC)) return null;
+  const row = getDoc(SIZE_DOC)?.tables?.[SQUARE_TABLE]?.[SIZE_ROW];
+  if (!row || typeof row !== "object" || isMissingRow(row)) return null;
+  const feet = Number(row.feet);
+  return feet > 0 ? feet : null;
 }
 
 /** The page the frontage table was read from, or null where it was not read from one. */

@@ -88,8 +88,9 @@ const TABLES = {
     "personalAuthority", "moraleRoll", "moraleLevels", "moraleEffects",
     "settlementInvestment", "settlementRevenue", "settlementExpenses",
   ],
-  // The frontage a monster size category occupies on a battle grid.
-  monsters: ["sizeFrontage"],
+  // The frontage a monster size category occupies on a battle grid, and what
+  // one of its squares is worth in feet.
+  monsters: ["sizeFrontage", "sizeSquare"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
   // The jumping and fall figures, the Spelunking grids' stretch and targets
@@ -492,6 +493,13 @@ VERIFY["monsters.sizeFrontage"] = (out, recipe, fail) => {
   }
   for (const col of recipe.cellColumns) if (!SIZES[col.key]) fail(`${col.key}: not a size category the monsters feature declares`);
   for (const key of Object.keys(SIZES)) if (!recipe.cellColumns.some((col) => col.key === key)) fail(`${key}: a declared size category the recipe does not read`);
+};
+// The size row's unit: one row read, holding a positive figure. Shape only; no
+// figure is named.
+VERIFY["monsters.sizeSquare"] = (out, recipe, fail) => {
+  const row = out?.[recipe.rows[0].key];
+  if (!row || isMissingRow(row)) return fail("squares: row not read");
+  if (!(Number(row.feet) > 0)) fail("feet: the label's unit is not read as a positive figure");
 };
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape
