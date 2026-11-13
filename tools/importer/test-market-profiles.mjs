@@ -276,4 +276,99 @@ ok("market ids and ordinals", () => {
   assert.equal(marketOrdinal("mkt12"), 12);
 });
 
+// --- a sideways grid, one market per column ---------------------------------------------------
+// Three invented markets printed as columns: each row is a market keyed as its
+// column, each cell a modifier for one banded good, each column headed.
+const SIDEWAYS = {
+  header: { mkt1: "Alder Quay", mkt2: "Birch Ford", mkt3: "Cedar Row", salt: "Salt", textiles: "Weave", gems: "Stones" },
+  rows: [
+    { key: "mkt1", cells: { salt: "+2", textiles: "-1", gems: "0" } },
+    { key: "mkt2", cells: { salt: "-3", textiles: "+1", gems: "+4" } },
+    { key: "mkt3", cells: { salt: "0", textiles: "+2", gems: "-2" } },
+  ],
+};
+const STOCKED = goodsResolver([{ key: "salt" }, { key: "textiles" }, { key: "gems" }]);
+
+ok("a sideways grid reads one profile per column, keyed as the column, one demand row per banded good", () => {
+  const profiles = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  assert.deepEqual(profiles.map((p) => p.market), ["mkt1", "mkt2", "mkt3"]);
+  for (const p of profiles) {
+    assert.equal(p.demand.length, 3);
+    assert.deepEqual(p.unmapped, []);
+    assert.deepEqual(p.duplicates, []);
+    assert.equal(p.marketClass, null);
+  }
+  assert.deepEqual(profiles[1].demand, [{ category: "salt", modifier: -3 }, { category: "textiles", modifier: 1 }, { category: "gems", modifier: 4 }]);
+  // Every cell is a modifier; every column carries a header that names its market.
+  for (const row of SIDEWAYS.rows) for (const cell of Object.values(row.cells)) assert.notEqual(parseDm(cell), null);
+  for (const row of SIDEWAYS.rows) assert.notEqual(placeName(SIDEWAYS.header[row.key]), "");
+});
+
+ok("a market's base lands only where the catalogue answers its goods", () => {
+  const noneStocked = marketProfiles({ grids: [SIDEWAYS], resolve: goodsResolver([{ key: "unrelated" }]) });
+  for (const p of noneStocked) {
+    assert.equal(p.demand.length, 0);
+    assert.equal(p.unmapped.length, 3);
+    assert.equal(marketProfileUpdate(null, p, SOURCE).wrote.demand, false);
+  }
+  const stocked = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  for (const p of stocked) assert.equal(marketProfileUpdate(null, p, SOURCE).wrote.demand, true);
+});
+
+ok("a market made from a column is a location stamped as the column's market, named for its header", () => {
+  const [p] = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  const name = placeName(SIDEWAYS.header[p.market]);
+  const data = marketActorData({ name, entryId: marketEntryId("bk", p.market), book: "bk" });
+  assert.equal(data.type, "acks-extras.location");
+  assert.equal(data.name, "Alder Quay");
+  const stamp = data.flags[MODULE_ID].cookbook;
+  assert.equal(stamp.id, "bk.mkt1");
+  assert.equal(stamp.book, "bk");
+  assert.equal(stamp.kind, "kind.marketRecord");
+  assert.equal(stamp.printed, data.name);
+  // The neutral label is the fallback the header replaces, never the other way round.
+  assert.notEqual(data.name, `ACKS-IMPORTER.markets.label ${marketOrdinal(p.market)}`);
+});
+
+ok("a made market carries its column's base and the page it was read from, nothing the grid does not print", () => {
+  const profiles = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  for (const p of profiles) {
+    const { update, wrote } = marketProfileUpdate(null, p, SOURCE);
+    assert.deepEqual(wrote, { marketClass: false, families: false, demand: true });
+    const goods = update["system.market"].goods;
+    assert.deepEqual(goods.demand, p.demand);
+    assert.deepEqual(goods.dmProfile.source, SOURCE);
+    assert.deepEqual(Object.keys(update["system.market"]), ["goods"]);
+  }
+});
+
+ok("a column joined onto a place that held no base gives it the base alone; a place's own fields are never in the update", () => {
+  const [p] = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  const held = { marketClassOverride: 4, urbanFamilies: 55, goods: { demand: [], dmProfile: { source: null } } };
+  const { update, wrote } = marketProfileUpdate(held, p, SOURCE);
+  assert.equal(wrote.demand, true);
+  assert.deepEqual(update["system.market.goods.demand"], p.demand);
+  assert.deepEqual(update["system.market.goods.dmProfile.source"], SOURCE);
+  // Name, notes, parent and region are not part of this update; the class and count the place holds stand.
+  assert.deepEqual(Object.keys(update).sort(), ["system.market.goods.demand", "system.market.goods.dmProfile.source"]);
+});
+
+ok("a hand-moved base stands through every later run, and an untouched one is written again", () => {
+  const [p] = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
+  const first = marketProfileUpdate(null, p, SOURCE).update["system.market"];
+  // A run over what the last run wrote refreshes the base.
+  const again = marketProfileUpdate({ goods: structuredClone(first.goods) }, p, SOURCE);
+  assert.equal(again.wrote.demand, true);
+  assert.deepEqual(again.update["system.market.goods.demand"], p.demand);
+  // A hand write moves one row and clears the source: the next two runs leave it alone.
+  const moved = structuredClone(first.goods);
+  moved.demand[0].modifier += 1;
+  moved.dmProfile.source = null;
+  for (let run = 0; run < 2; run++) {
+    const { update, wrote } = marketProfileUpdate({ goods: moved }, p, SOURCE);
+    assert.equal(wrote.demand, false);
+    assert.deepEqual(update, {});
+  }
+});
+
 console.log(`\ntest-market-profiles: ${passed} passed`);
