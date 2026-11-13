@@ -791,13 +791,13 @@ export const EXTERNAL_MODES = Object.freeze({
     printedDoc: INFLUENCE_DOC,
     cite: "MM 351",
     postsWithoutBands: true,
-    bandKeys: ["betrayal", "escape", "hesitate", "accept", "elan"],
+    bandKeys: ["betrayal", "escape", "hesitate", "accept", "acceptElan"],
     bandLabels: {
       betrayal: "ACKS-INFLUENCE.mode.irrefusable.betrayal",
       escape: "ACKS-INFLUENCE.mode.irrefusable.escape",
       hesitate: "ACKS-INFLUENCE.mode.irrefusable.hesitate",
       accept: "ACKS-INFLUENCE.mode.irrefusable.accept",
-      elan: "ACKS-INFLUENCE.mode.irrefusable.elan",
+      acceptElan: "ACKS-INFLUENCE.mode.irrefusable.acceptElan",
     },
     groups: [
       {

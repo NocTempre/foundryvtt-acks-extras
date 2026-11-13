@@ -41,13 +41,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   `data/throws-data.mjs` are the same kind as the bribe tiers the influence
   roller now imports. The `judgeAdj` stepper's bounds want a ruling on whether
   they are printed before they move.
-- **A captured monster offered through the influence roller is never hired.**
-  With the influence API present the offer opens the roller's hosted page, and
-  `registerInfluenceIntegration` (`integrations/influence.mjs`) has no branch
-  for `irrefusableOffer`: the page names a result and hires nobody, and its top
-  rung is keyed `elan` where this feature's is `acceptElan`. Only the fallback
-  throw dialog applies an imported start through `applyIrrefusableOutcome`; the
-  branch maps the key and calls it.
 - **The liberation loyalty throw opens from nowhere.** `throws-data.mjs`
   still declares `liberationLoyalty`, no surface opens it, and no page for its
   figures has been found; it is wired to a page or removed.

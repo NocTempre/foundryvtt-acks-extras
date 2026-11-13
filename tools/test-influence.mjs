@@ -476,7 +476,7 @@ t("a read irrefusable offer is worth the page's figure and takes the page's edge
   const mode = EXTERNAL_MODES.irrefusableOffer;
   const row = rowOf(mode, "oppositeAlignment");
   assert.deepEqual({ type: row.type, value: row.value, showFigure: row.showFigure }, { type: "check", value: -7, showFigure: true });
-  assert.deepEqual(printedBands(mode.printed, mode.bandKeys, mode.printedDoc).map((b) => b.key), ["betrayal", "escape", "hesitate", "accept", "elan"]);
+  assert.deepEqual(printedBands(mode.printed, mode.bandKeys, mode.printedDoc).map((b) => b.key), ["betrayal", "escape", "hesitate", "accept", "acceptElan"]);
   assert.deepEqual(printedBands("hirelingLoyalty", EXTERNAL_MODES.loyalty.bandKeys, INFLUENCE_DOC).map((b) => b.key), ["hostility", "resignation", "grudging", "loyal", "fanatic"]);
   resetTables();
 });

@@ -1015,6 +1015,35 @@ walked in docs/lib/TESTING.md, "The repair tool".
     class 21's race is `people2` and its culture is `people2` (label
     `People 2`); both follow the `mage` age column. With the classes API
     absent (a Node run), a name carrying no common race word reads `human`.
+25. An Irrefusable Offer to a captured monster, through the influence-hosted
+    page, on `henchmen/bonus-employer` raised to a level above the captives'
+    hit dice and three disposable `monster` actors of 1d8 (tracked as they are
+    created, swept by the ledger). The GM page's priority-30 `influence`
+    layer holds invented figures: a five-rung result column whose ends leave
+    a rigged top roll on the last rung and a rigged bottom roll on the first
+    whatever the employer's Charisma, an opposite-alignment figure, three
+    starts, and a forced-servitude figure; the walk puts the layer back as it
+    found it. Open each offer with `recruitMonster(monster, employer,
+    {captured: true})` from `scripts/henchmen/engine/monster.mjs`, the entry
+    the roster uses, press **Roll** on the page, and read the monster's
+    `flags.acks-extras.record`.
+    - *Top roll.* Rig every die to its highest face.
+      *Observable:* the page opens (no throw dialog), the roll-complete
+      payload names `acceptElan`, and the monster is hired: a record whose
+      `special.irrefusableResult` is `acceptElan`, `retainer.managerid` the
+      employer, its id on the employer's `monsterHenchmenList`, and
+      `loyalty.start` the layer's élan start; no warning, no whispered card.
+    - *Bottom roll.* Rig every die to its lowest face.
+      *Observable:* the payload names `betrayal`, the captive is hired at the
+      forced-servitude figure, and one GM-only card says the acceptance is
+      feigned.
+    - *Not imported.* Shadow the table with an empty one and roll.
+      *Observable:* the payload's outcome is null, no record flag, no
+      manager, no list entry, and the Judge is warned the column is not
+      imported.
+    Teardown: the layer restored, the captives taken off the employer's
+    monster list, then swept with their cards by ledger.
+    Walked by `tools/live/henchmen-hire-terms.mjs`, section 25.
 
 ## Teardown
 

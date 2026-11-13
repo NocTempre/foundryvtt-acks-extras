@@ -11,8 +11,11 @@
  * and changes nothing, the GM's Forgive clears it and leaves the arrears, and
  * the Player's Pay moves the coin and clears it. It also measures, without
  * writing, how many of the world's candidate class keys resolve to an imported
- * class through the lookup a hire uses. Machine values arrive through
- * ./_env.mjs.
+ * class through the lookup a hire uses. Step 25, on the GM seat alone: an
+ * Irrefusable Offer to a captured monster, made through the influence-hosted
+ * page under invented table figures, hires the captive at the figure for the
+ * result the roll names, and with the table not imported names no result,
+ * hires nothing and warns. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: `henchmen/bonus-place`, a location with
  * a market the Player seat observes, and `henchmen/bonus-employer`, a
@@ -444,6 +447,95 @@ const P = {
     await e.update({ "system.henchmenList": (e.system.henchmenList ?? []).filter((id) => !ids.includes(id)) });
     return true;
   },
+  /**
+   * Step 25's table: this page's priority-30 `influence` layer holds invented
+   * figures for the Irrefusable Offer (`invented`) or an empty table for it
+   * (`absent`), over whatever the layer held before, which `irrRestore` puts
+   * back. The edges leave the page's result at either end whatever the
+   * employer's Charisma modifier.
+   */
+  irrLayer: async ({ mode, tables }) => {
+    const H = globalThis.__ht;
+    const T = acksExtras.lib.tables;
+    if (!H.irrPrev) H.irrPrev = { tables: structuredClone(T.getLayer("influence", 30)?.tables ?? {}) };
+    const put = mode === "invented" ? tables : { irrefusableOffer: {} };
+    T.registerTable({ id: "influence", tables: { ...H.irrPrev.tables, ...put } }, { priority: 30, source: "qa-hire-terms" });
+    return { read: !!T.getTable("influence", "irrefusableOffer") && (mode !== "invented" || (T.getTable("influence", "irrefusableOffer")?.bands ?? []).length === 5) };
+  },
+  /** Put this page's priority-30 `influence` layer back as step 25 found it. */
+  irrRestore: async () => {
+    const H = globalThis.__ht;
+    if (!H?.irrPrev) return "never changed";
+    const T = acksExtras.lib.tables;
+    if (Object.keys(H.irrPrev.tables).length) T.registerTable({ id: "influence", tables: H.irrPrev.tables }, { priority: 30, source: "qa-hire-terms" });
+    else T.unregisterTable("influence", { priority: 30 });
+    H.irrPrev = null;
+    return "restored";
+  },
+  /** The employer at a level above the captives' hit dice. */
+  irrEmployer: async ({ employerId, level }) => {
+    const e = game.actors.get(employerId);
+    await e.update({ "system.details.level": level });
+    return e.system.details.level === level;
+  },
+  /**
+   * Offer a captured monster the Irrefusable Offer through the real entry
+   * (`recruitMonster`, captured), press Roll on the hosted page under a rig
+   * that throws every die at `u`, and read what became of the monster. Result
+   * names, booleans and the loyalty start the record holds.
+   */
+  irrOffer: async ({ employerId, monsterId, u }) => {
+    const H = globalThis.__ht;
+    const { recruitMonster } = await import("/modules/acks-extras/scripts/henchmen/engine/monster.mjs");
+    const employer = game.actors.get(employerId);
+    const monster = game.actors.get(monsterId);
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    const warns = [];
+    const warn0 = ui.notifications.warn;
+    ui.notifications.warn = function (...args) { warns.push(String(args[0])); return warn0.apply(this, args); };
+    H.chat.length = 0;
+    let fired = false;
+    let outcome = null;
+    const hook = Hooks.on("acksExtras.influenceRollComplete", (p) => { if (p?.mode === "irrefusableOffer") { fired = true; outcome = p.outcome ?? null; } });
+    const rig0 = CONFIG.Dice.randomUniform;
+    try {
+      recruitMonster(monster, employer, { captured: true });
+      const app = await H.poll(() => { const a = H.apps().find((x) => x.constructor?.name === "InfluenceApp"); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; }, { tries: 60, every: 200 });
+      if (!app) return { opened: false, throwDialog: H.apps().some((a) => a.constructor?.name === "ThrowDialog") };
+      CONFIG.Dice.randomUniform = () => u;
+      H.root(app).querySelector('[data-action="roll"]').click();
+      await H.poll(() => fired || null, { tries: 40, every: 150 });
+      await H.sleep(2500);
+    } finally {
+      CONFIG.Dice.randomUniform = rig0;
+      ui.notifications.warn = warn0;
+      Hooks.off("acksExtras.influenceRollComplete", hook);
+    }
+    for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
+    const rec = monster.getFlag("acks-extras", "record");
+    const ids = H.chat.splice(0);
+    return {
+      opened: true,
+      fired,
+      outcome,
+      hired: !!rec?.terms,
+      start: rec?.loyalty?.start ?? null,
+      kept: rec?.special?.irrefusableResult ?? "",
+      managed: monster.system.retainer?.managerid === employerId,
+      listed: (employer.getFlag("acks-extras", "monsterHenchmenList") ?? []).includes(monsterId),
+      unreadWarn: warns.includes(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands")),
+      whispered: ids.filter((id) => game.messages.get(id)?.whisper?.length).length,
+      cards: ids.map((id) => game.messages.get(id)?.uuid).filter(Boolean),
+    };
+  },
+  /** Take the captives off the employer's monster list before they are swept. */
+  irrUnlist: async ({ employerId, ids }) => {
+    const e = game.actors.get(employerId);
+    if (!e) return false;
+    const list = e.getFlag("acks-extras", "monsterHenchmenList") ?? [];
+    await e.setFlag("acks-extras", "monsterHenchmenList", list.filter((id) => !ids.includes(id)));
+    return true;
+  },
   drain: async () => ({ errors: (globalThis.__ht?.errors ?? []).slice() }),
   restore: async () => {
     const H = globalThis.__ht;
@@ -477,6 +569,7 @@ let gm = null;
 let player = null;
 const made = [];
 const hireIds = [];
+const captiveIds = [];
 let employerId = null;
 let limitBefore = null;
 let autoRollBefore = null;
@@ -641,6 +734,43 @@ try {
     for (const uuid of await run(seat, P.ownCards, { ids: await run(seat, P.takeChat), actorIds: [employer.id, ...hireIds] })) await track(uuid, "ChatMessage");
   }
 
+  section("25: an Irrefusable Offer through the hosted page hires the captive");
+  // Figures are invented for the walk; the page's own are never read or printed.
+  const INVENTED = {
+    irrefusableOffer: {
+      bands: [{ min: null, max: 5 }, { min: 6, max: 6 }, { min: 7, max: 7 }, { min: 8, max: 8 }, { min: 9, max: null }],
+      oppositeAlignment: -2, hesitateLoyalty: 1, acceptLoyalty: 2, elanLoyalty: 3,
+    },
+    loyaltyChanges: { forcedServitude: -1 },
+  };
+  check("25: the employer stands above the captives' hit dice", await run(gm, P.irrEmployer, { employerId: employer.id, level: 6 }));
+  const captive = async (name) => {
+    const doc = await gm.create("Actor", { name, type: "monster", system: { hp: { hd: "1d8" } } });
+    const id = doc.uuid.split(".").pop();
+    captiveIds.push(id);
+    made.push(doc.uuid);
+    return id;
+  };
+  const top = await captive("QA Irrefusable Captive A");
+  const bottom = await captive("QA Irrefusable Captive B");
+  const none = await captive("QA Irrefusable Captive C");
+  check("25: the invented table is read from this page's layer", (await run(gm, P.irrLayer, { mode: "invented", tables: INVENTED })).read);
+  const t = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: top, u: 0.025 });
+  for (const uuid of t.cards ?? []) await track(uuid, "ChatMessage");
+  check("25: the offer opens the influence-hosted page, not the fallback dialog", t.opened, { opened: t.opened, throwDialog: t.throwDialog });
+  check("25: the top roll names the top result in this feature's vocabulary", t.fired && t.outcome === "acceptElan", { fired: t.fired, outcome: t.outcome });
+  check("25: the captive is hired: record, employer, monster list, the result kept", t.hired && t.managed && t.listed && t.kept === "acceptElan", { hired: t.hired, managed: t.managed, listed: t.listed, kept: t.kept });
+  check("25: it starts at the table's figure for that result, and nothing warns", t.start === INVENTED.irrefusableOffer.elanLoyalty && !t.unreadWarn && t.whispered === 0, { start: t.start, unreadWarn: t.unreadWarn, whispered: t.whispered });
+  const b = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: bottom, u: 0.975 });
+  for (const uuid of b.cards ?? []) await track(uuid, "ChatMessage");
+  check("25: the bottom roll names a feigned acceptance and the captive is hired at the forced-servitude start", b.fired && b.outcome === "betrayal" && b.hired && b.managed && b.listed && b.start === INVENTED.loyaltyChanges.forcedServitude, { outcome: b.outcome, hired: b.hired, start: b.start });
+  check("25: the Judge alone is told the acceptance is feigned", b.whispered >= 1, { whispered: b.whispered });
+  check("25: the empty table is read from this page's layer", (await run(gm, P.irrLayer, { mode: "absent" })).read);
+  const n = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: none, u: 0.025 });
+  for (const uuid of n.cards ?? []) await track(uuid, "ChatMessage");
+  check("25: with the table not imported the roll names no result, hires nothing, and the Judge is told", n.opened && n.fired && n.outcome === null && !n.hired && !n.managed && !n.listed && n.unreadWarn, { opened: n.opened, fired: n.fired, outcome: n.outcome, hired: n.hired, listed: n.listed, unreadWarn: n.unreadWarn });
+  note("layer", await run(gm, P.irrRestore));
+
   const pe = player ? await run(player, P.drain) : { errors: [] };
   const ge = await run(gm, P.drain);
   check("no console error on either seat from install to the end of the walk", !pe.errors.length && !ge.errors.length, { player: pe.errors.length, gm: ge.errors.length });
@@ -652,6 +782,10 @@ try {
   section("teardown");
   if (gm && employerId && hireIds.length) {
     try { note("employer roster unlinked", await run(gm, P.unlink, { employerId, ids: hireIds })); } catch (err) { console.error("unlink:", err?.message ?? err); }
+  }
+  if (gm && captiveIds.length) {
+    try { await run(gm, P.irrRestore); } catch (err) { console.error("restore layer:", err?.message ?? err); }
+    try { note("employer monster list unlinked", await run(gm, P.irrUnlist, { employerId, ids: captiveIds })); } catch (err) { console.error("unlist:", err?.message ?? err); }
   }
   if (gm && made.length) {
     try { note("swept", await gm.sweepTracked({ only: made })); } catch (err) { console.error("sweep:", err?.message ?? err); }

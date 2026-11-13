@@ -333,7 +333,15 @@ loyalty a result changes or a hire starts at, are read from the Judge's
 | The start of each entering Irrefusable result | `irrefusableOffer.hesitateLoyalty` / `acceptLoyalty` / `elanLoyalty` (MM 351) | `irrefusableStart` | the monster is not hired; the Judge is warned |
 | The start of a feigned acceptance (Betrayal, Escape) | `loyaltyChanges.forcedServitude` (RR 166) | `irrefusableStart` | as above |
 
-An Irrefusable start is the whole start: no élan figure is added to it. The
+An Irrefusable start is the whole start: no élan figure is added to it. An
+offer to a captured monster is applied the same way from either surface. The
+influence-hosted page names its results in this feature's vocabulary
+(`rules/irrefusable.mjs > IRREFUSABLE_OUTCOMES`, the top rung `acceptElan`),
+and on its roll-complete hook `integrations/influence.mjs >
+applyIrrefusableResult` hands the monster, the employer and the result to
+`applyIrrefusableOutcome`; the fallback throw calls the same function. A roll
+that named no result (the column is not imported) hires nothing and warns the
+Judge. The
 provenance of an applied figure (`engine/events.mjs > originText`: the page,
 the Judge's override, or not imported) rides in the ledger entry's note for a
 loyalty change, in the hired event's note for a monster's start, and in the

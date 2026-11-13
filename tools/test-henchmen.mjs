@@ -725,7 +725,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 // The figures below are authored for the test; none is a page's.
 {
   const { loyaltyDeltaForOutcome, loyaltyChange, hirelingLoyaltyOutcomes, LOYALTY_CHANGES } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
-  const { irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure, IRREFUSABLE } = await import(new URL("../scripts/henchmen/rules/irrefusable.mjs", import.meta.url));
+  const { irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure, IRREFUSABLE, IRREFUSABLE_OUTCOMES } = await import(new URL("../scripts/henchmen/rules/irrefusable.mjs", import.meta.url));
   const { outcomeFromTable } = await import(new URL("../scripts/henchmen/rules/bulk-offer.mjs", import.meta.url));
   const { EXTERNAL_MODES } = await import(new URL("../scripts/influence/constants.mjs", import.meta.url));
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
@@ -791,6 +791,46 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(THROWS_DATA.throws[id].outcomeTable, undefined, `${id}: names no shipped column`);
   }
   assert.strictEqual(THROWS_DATA.throws.irrefusableOffer.modifiers.find((m) => m.id === "oppositeAlignment").value, undefined, "no opposite-alignment figure ships");
+  assert.deepStrictEqual(EXTERNAL_MODES.irrefusableOffer.bandKeys, [...IRREFUSABLE_OUTCOMES], "the hosted page names its results in this feature's vocabulary, the top rung included");
+  assert.deepStrictEqual(Object.keys(EXTERNAL_MODES.irrefusableOffer.bandLabels), [...IRREFUSABLE_OUTCOMES], "and labels each one");
+}
+
+// ---- the influence-hosted Irrefusable Offer hires the captive ----
+// The hiring call is a recorder: what is under test is that a finished page
+// reaches it with the monster, the employer and the result the roll named,
+// and that a roll naming none hires nothing and warns.
+{
+  const keys = ["game", "ui", "fromUuid", "foundry"];
+  const saved = Object.fromEntries(keys.map((k) => [k, globalThis[k]]));
+  const warned = [];
+  const docs = { "Actor.mon": { name: "Captive" }, "Actor.emp": { name: "Employer" }, "Scene.s.Token.t": { actor: { name: "Token captive" } } };
+  globalThis.foundry ??= { abstract: { DataModel: class {} }, data: { fields: {} } };
+  const { applyIrrefusableResult } = await import(new URL("../scripts/henchmen/integrations/influence.mjs", import.meta.url));
+  const { IRREFUSABLE_OUTCOMES } = await import(new URL("../scripts/henchmen/rules/irrefusable.mjs", import.meta.url));
+  globalThis.game = { i18n: { localize: (k) => k, format: (k) => k } };
+  globalThis.ui = { notifications: { warn: (t) => warned.push(t) } };
+  globalThis.fromUuid = async (uuid) => docs[uuid] ?? null;
+  try {
+    const calls = [];
+    const hire = async (...args) => { calls.push(args); return { actor: args[0] }; };
+    const context = { actorUuid: "Actor.mon", employerUuid: "Actor.emp" };
+    for (const outcome of IRREFUSABLE_OUTCOMES) {
+      calls.length = 0;
+      await applyIrrefusableResult({ outcome }, context, { hire });
+      assert.deepStrictEqual(calls, [[docs["Actor.mon"], docs["Actor.emp"], outcome]], `${outcome}: the captive is hired on the result the page named`);
+    }
+    calls.length = 0;
+    await applyIrrefusableResult({ outcome: "acceptElan" }, { actorUuid: "Scene.s.Token.t", employerUuid: "Actor.emp" }, { hire });
+    assert.strictEqual(calls[0][0], docs["Scene.s.Token.t"].actor, "a token's actor is the one hired");
+    calls.length = 0;
+    assert.strictEqual(await applyIrrefusableResult({ outcome: null }, context, { hire }), null);
+    assert.deepStrictEqual(calls, [], "a roll that named no result hires nothing");
+    assert.deepStrictEqual(warned, ["ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"], "and says the column is not imported");
+    await applyIrrefusableResult({ outcome: "accept" }, { actorUuid: "Actor.gone", employerUuid: "Actor.emp" }, { hire });
+    assert.deepStrictEqual(calls, [], "a captive that no longer exists is not hired");
+  } finally {
+    for (const k of keys) globalThis[k] = saved[k];
+  }
 }
 
 // ---- the hosted pages: an employer's powers offered, and the unvalued ones named by item ----

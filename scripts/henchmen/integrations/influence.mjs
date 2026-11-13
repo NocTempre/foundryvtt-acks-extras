@@ -1,4 +1,4 @@
-/* global game, Hooks, foundry */
+/* global game, ui, Hooks, foundry */
 /**
  * Influence-feature integration.
  *
@@ -148,6 +148,30 @@ export function signingTierFromParts(parts) {
   return Number(entry?.value) || 0;
 }
 
+/**
+ * Apply a finished Irrefusable Offer page (MM 351): hire the captured monster
+ * the page named on the result the roll reached, at the start
+ * `applyIrrefusableOutcome` reads from the import, exactly as the fallback
+ * throw does. The page names its results in this feature's own vocabulary
+ * (`IRREFUSABLE_OUTCOMES`). A roll that named no result (the column is not
+ * imported) hires nothing and says so.
+ * @param {object} payload - the roll-complete payload
+ * @param {object} context - the context `openIrrefusableViaInfluence` was given
+ * @param {object} [seams] - `hire(monster, employer, outcome)`, the hiring call, replaceable by a test
+ * @returns {Promise<object|null>} what the hire returned, or null where nothing was hired
+ */
+export async function applyIrrefusableResult(payload, context, { hire } = {}) {
+  if (!payload.outcome) {
+    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"));
+    return null;
+  }
+  const monster = context.actorUuid ? await fromUuid(context.actorUuid) : null;
+  const employer = context.employerUuid ? await fromUuid(context.employerUuid) : null;
+  if (!monster || !employer) return null;
+  const apply = hire ?? (await import("../engine/monster.mjs")).applyIrrefusableOutcome;
+  return apply(monster.actor ?? monster, employer.actor ?? employer, payload.outcome);
+}
+
 /** Recently applied roll resolutions (signature → ms) — see the dedupe below. */
 const _seenResolutions = new Map();
 
@@ -204,6 +228,8 @@ export function registerInfluenceIntegration() {
               note: context.reason ?? "",
             });
           }
+        } else if (payload.mode === "irrefusableOffer") {
+          await applyIrrefusableResult(payload, context);
         }
         return;
       }
