@@ -2,9 +2,8 @@
 
 Extras ships a bot that lives on the same machine as your Foundry server,
 holds a seat of its own in the world, and lets the members of your Discord
-server roll, speak and read their characters without opening Foundry. It is
-the first step toward play-by-post: the world keeps every roll and every
-word, and Discord is where they are made.
+server roll, speak and read their characters without opening Foundry. The
+world keeps every roll and every word, and Discord is where they are made.
 
 You set it up **in Foundry**: one window in Game Settings holds the
 token, the server and the channel, and the bot on your host reads them from
@@ -46,8 +45,7 @@ it with the host; on Windows, Task Scheduler starts it when you sign in
   (an ARM host has no Chrome build; use Debian's `chromium` or a Chromium
   from a non-snap PPA). The installer skips the stub and names what it found.
   On Windows, Microsoft Edge is already there and is found by itself.
-- **The Extras module installed** in Foundry, 7.1.0 or later. The bot's code
-  is inside it: `discord/` under the module's directory in your Foundry data
+- **The Extras module installed** in Foundry. The bot's code is inside it: `discord/` under the module's directory in your Foundry data
   path, `Data/modules/acks-extras/discord`.
 
 ### 2. The Discord application
@@ -95,11 +93,11 @@ minute or two the first time — npm's own output, as the service's user),
 enables the service, and waits a few seconds to show you its state and the
 first lines of its journal: the seat joining, or the reason it did not.
 
-Run it again whenever you like, including over an earlier attempt that did
-not work: it stops what is there, clears any failure state, rewrites both
-files and takes over a `node_modules` another account left behind. Anything
-Discord-related an earlier install kept in `/etc` is dropped and named — those
-values live in Foundry now.
+Run it again whenever you like, including over an attempt that did not work:
+it stops what is there, clears any failure state, rewrites both files and
+takes over a `node_modules` another account left behind. A token, server or
+channel found in the environment file is dropped and named — those values live
+in Foundry.
 
 If `sudo npm` cannot find npm (Node installed through a version manager), run
 the script with the node you have instead:
@@ -220,7 +218,7 @@ saved change takes, for when the bot is running and you want it to start
 over anyway. It cannot start a bot that is not running or install one that is
 not installed: Foundry has no hand on the host, and a request through the
 world reaches only a bot that is already listening. Starting is the service's
-job (`Restart=always`, so a bot that exits or crashes is back within
+job (`Restart=always`, so a bot that exits or crashes is back within about ten
 seconds, and it comes up with the host), and installing is the one command in
 [Install the service](#4-install-the-service), run again as often as you like.
 On Windows the scheduled task's loop does the service's part.
@@ -301,7 +299,7 @@ the token with the window's own button if the bot is not coming back.
 - **`/map`** posts the party's scene as the bot's seat sees it, centred on
   the party token when the scene has one. `scale:` zooms (1 is the scene's
   own size), `private:` shows it only to you. It is the Judge's view, with
-  everything the Judge can see; a players'-eyes map is planned. It needs
+  everything the Judge can see. It needs
   **Draw the map** turned on in the bot's window, and a host with hardware
   acceleration to turn it on for; otherwise it answers that the seat draws no
   canvas.
@@ -340,25 +338,16 @@ not shown twice.
   is inside a directory Foundry's updater has since replaced — every module
   update deletes and recreates `modules/acks-extras/`. `cd` into the
   directory again (the same path) and run the command again.
-- **The installer seems to hang, or ends saying the service is not
-  running.** Two causes before 7.1.2, both fixed: the questions were drawn
-  invisibly (the installer was waiting for an answer at a blank cursor —
-  pressing Enter took the default), and the first start installed the bot's
-  dependencies out of sight. Now the questions show, npm runs in front of
-  you, and the installer ends with `systemctl is-active` and the journal's
-  last lines, which name the cause. Fix it and run the same command again.
-  To run it with no questions at all, redirect stdin (`</dev/null`): every
-  answer comes from the environment variable of the same name, else from
-  the last install.
-- **The installer stops at `npm error code EACCES` on a path under
-  `/root/.npm`, and says the dependencies could not be installed.** Before
-  7.4.2 npm looked for its cache in root's home rather than the service
-  user's — a directory that user cannot write. npm's own advice there, to
-  make root's cache directory writable by someone else, is not the fix and is
-  worth undoing if you took it. Update the module and run the install command
-  again; nothing was enabled, so there is nothing to undo on the service
-  side. On 7.3.2 specifically, `sudo node src/install-service.mjs` — the same
-  installer, reached without `npm run` — gets past it.
+- **The installer ends saying the service is not running.** It finishes with
+  `systemctl is-active` and the journal's last lines, which name the cause.
+  Fix it and run the same command again. To run it with no questions at all,
+  redirect stdin (`</dev/null`): every answer comes from the environment
+  variable of the same name, else from the last install.
+- **The installer says the dependencies could not be installed as the
+  service's user.** npm's own output above that line names the cause — no
+  network, or a directory that user cannot write. Fix it and run the install
+  command again; nothing was enabled, so there is nothing to undo on the
+  service side.
 - **The token field is greyed out.** It unlocks when the bot has announced
   its key, which happens the moment the bot's seat joins the world — so a
   locked field means the service is not running, or its seat cannot reach

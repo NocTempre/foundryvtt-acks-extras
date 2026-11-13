@@ -7,8 +7,9 @@ characters. Make one from the Actors sidebar: **Create Actor → Vehicle**.
 
 A header stays pinned at the top whatever you are looking at: the picture
 (click it to change it), the name, and tags for what matters right now —
-**deployed**, **sinking**, **over capacity**, **short-handed** — with the pace
-and how full the hold is. Under it are five tabs:
+the kind, **deployed** (with where), **sinking**, **over capacity**,
+**short-handed** — with the pace (a vessel's sail speed) and how full the hold
+is. Under it are five tabs:
 
 - **Travel** — the speed she makes now and why, the ground or the wind, the
   crew's condition, the hull, and (at sea) the seamanship throws;
@@ -20,11 +21,12 @@ and how full the hold is. Under it are five tabs:
 ## Setting one up
 
 A vehicle holds what its book prints and derives everything else. On
-**Details**, pick **Land** or **Sea** first — it decides what the other tabs
-offer: a wagon is pulled and driven, a ship is crewed, and offering either the
-other's controls would teach you the wrong model. Then fill in her **AC and
-structural hit points** and her **printed oar and sail speeds** (a vessel), or
-her **load and speed rows** (a land vehicle). On **Hold**, type her **cargo
+**Details**, pick the **Kind** first, **Cart or wagon** or **Vessel** — it
+decides what the other tabs offer: a wagon is pulled and driven, a ship is
+crewed, and offering either the other's controls would teach you the wrong
+model. Then fill in her **Armour class** and **Structural hit points**, and her
+**printed speeds** under **Printed speeds** (a vessel: oar, sail and voyage), or
+her **Load and speed** rows (a cart or wagon). On **Hold**, type her **cargo
 capacity in stone**; on **Aboard**, the **crew** she wants or the **team** she
 is built for. Nothing you type says what is aboard — that comes from what you
 actually put aboard.
@@ -61,8 +63,9 @@ written. A drop **on a specific seat** skips the question. An item dragged
 from another character's sheet is moved into the hold; one from the sidebar or
 a compendium is copied in. Another vehicle can only ride as cargo.
 
-The typed team rows remain for the ABSTRACT complement — "2 heavy horses"
-without minting two actor documents — and real and abstract pull add up.
+The typed team rows under **In harness** on **Aboard** hold the ABSTRACT
+complement — "2 heavy horses" without minting two actor documents — and real
+and abstract pull add up.
 
 What each role costs:
 
@@ -88,13 +91,12 @@ What each role costs:
 
 ![](../releases/v4.4.0/vehicles-passengers.png)
 
-*Two riders aboard, the day's march in miles and hexes, and the boarding
-macros.*
+*Two riders aboard and the day's march in miles and hexes.*
 
-**Board for best pace** loads everyone the vehicle would carry faster than their
-own legs, slowest first, and stops when the hold is full. **Re-board as before**
-puts everyone back where the last change found them, which is what you want at a
-ford.
+On a cart or wagon, **Aboard** carries two buttons. **Board for best pace** loads
+everyone the vehicle would carry faster than their own legs, slowest first, and
+stops when the hold is full. **Re-board as before** puts everyone back where the
+last change found them, which is what you want at a ford.
 
 ## The hold
 
@@ -130,8 +132,8 @@ Circle the wagons for the night, or tie the ship up at the quay: on **Place**,
 
 **Strike** takes the marker up and moves on; everything aboard stays aboard,
 and only what deploying did is undone — a token you placed yourself, or a
-place she was already filed under, stays as it was. The party's **train**, on
-the formation sheet, has the same toggle beside each vehicle it brings. A
+place she was already filed under, stays as it was. The party's **Train**, on
+the party sheet, has the same toggle beside each vehicle it brings. A
 player can deploy and strike a vehicle they own; the Judge's client places the
 token for them.
 
@@ -143,8 +145,9 @@ filed under, and a coil of rope a trader keeps aboard.*
 ## Taking it to market
 
 A party entering a market for a mercantile venture brings its transport, and
-the size of it is what the gate tolls and how much the party moves the market
-(RR §VIII.6). **Enter the market** lists your vehicles — one someone in the
+the gate's toll and the party's impact on the market are figured on the size of
+it (RR §VIII.6). **Enter the market**, on a market's **Ventures** tab
+([Mercantile ventures](markets.md#mercantile-ventures)), lists your vehicles — one someone in the
 party rides is already ticked — and a number for anything else: porters, pack
 animals. Each vehicle counts at its hold's capacity.
 
@@ -199,7 +202,8 @@ that token's own sheet, and the mount counts the token as its rider.
 *A mount ridden by an unlinked token: its Inventory counts the rider at body
 plus gear against the load the animal can bear.*
 
-With the mounted-combat overlay on, damage to a rider or its mount brings a
+With the **Overlay: mounted saves** setting on (Settings tab → Game Settings →
+ACKS II — Extras), damage to a rider or its mount brings a
 card asking for the save the overlay reads (RR ch. 6). The card comes once,
 whichever seat dealt the damage, and it needs a Gamemaster connected.
 
@@ -207,20 +211,22 @@ whichever seat dealt the damage, and it needs a Gamemaster connected.
 
 *The card after a player lowered their own rider's hit points on the sheet.*
 
-Two things about an animal decide what the rules do with it, and they are
-different questions. Its **training** — riding, draft, war, hunting, herding —
-is what it was schooled for, and the mounted-combat overlay reads it (RR
-ch. 6). Its **mountability** is whether the species
-can be ridden at all: an ox is rideable in principle and untrained in
-practice, and a war dog is trained for war and is still not a mount.
+Two things about an animal decide what the module does with it, and they are
+different questions. Its **training** (**Trained for**: riding, draft, war,
+hunting, herding) is what it was schooled for, and the mounted-combat overlay
+reads it (RR ch. 6). Its **mountability** (**Mountable**, labelled *Can be
+ridden*) is whether its kind can carry a rider at all. A species can be
+rideable while the animal in front of you is untrained, and an animal can be
+schooled for war and still not be something a rider can sit on.
 
 Both are filled by importing the animals from your own book. The rulebook
 prices animals by role — a *Heavy War* horse, a *Draft* mule, a *Riding* camel
 — so the importer reads the training out of the name the page printed, and
 treats a species the book sells in a riding form as one you can sit on. If you
-create an animal by hand instead, set them yourself on its sheet; an animal
-that has never said arrives *untrained*, which the rules read as "not stated"
-rather than as a claim, and fall back to its name.
+create an animal by hand instead, set both yourself on the **Animal** tab of
+its sheet; an animal with no training set reads as *untrained*, which the
+module takes as "not stated" rather than as a claim, and falls back to its
+name.
 
 A team is counted in heavy-horse equivalents. The heavy horse is the unit, so
 it always counts as one; what an ox or a mule is worth against it is a number
@@ -245,10 +251,9 @@ slow, and says so.
 
 ## A ship's day is not a party's day
 
-A voyage day and a march day are not the same length (RR ch. 7), so a ship's
-miles a day and a party's are not two numbers you can compare. **Travel**
-prints the hours in her day and her **miles per hour** beside the miles; compare
-those.
+**Travel** prints the hours in a voyage day and her **miles per hour** beside
+the miles a day (RR ch. 7); compare a ship's day and a party's day by the
+hour, not by the miles.
 
 ## Damage, and what it costs
 
@@ -272,9 +277,9 @@ she stays up, and **Round passes** counts it down.
 casualties and damage governs her speed, and what a repair would cost.*
 
 Which attacks can harm a hull, and how much of a hit lands, is your book's to
-say (RR ch. 7). A macro can ask `acksExtras.vehicles.damageToVessel(amount,
-source)` what a hit does to her at your imported shares; type the result into
-her hull.
+say (RR ch. 7). A macro can call `acksExtras.vehicles.damageToVessel(amount,
+source)` to ask what a hit does to her at your imported shares; type the
+result into her hull.
 
 ## Getting lost, and getting holed
 
