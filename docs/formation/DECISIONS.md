@@ -359,7 +359,7 @@ anyone who opens that layer.
 
 ---
 
-### 2026-08-18 — The automatic search sweeps everything in reach, at RAW's reach
+### 2026-08-18 — The automatic search sweeps everything in reach, at RAW's reach — SUPERSEDED IN PART 2026-11-13 (the reaches are imported)
 
 The automatic hasty search only ever ran against the trap the party was walking
 into. RAW is wider and narrower at once: **wider**, because a thief moving at
@@ -943,7 +943,7 @@ conflation trap are ruled once in `docs/influence/DECISIONS.md` ("Three
 morale subsystems, never conflated"); mass-combat resolution itself is out of
 scope entirely (root `docs/DECISIONS.md`, Battles VTT ruling).
 
-## 2026-08-19 — The party token wears the formation's face
+## 2026-08-19 — The party token wears the formation's face — SUPERSEDED IN PART 2026-11-13 (`FEET_PER_RANK` is retired)
 
 **Superseded 2026-11-04** ("The party token is the head of its column"): both
 rulings below. The token is one cell in `order` and the Judge's in `fixed`, and
@@ -5590,7 +5590,7 @@ and a drag snaps it to the grid. The `columnLights` and `columnPlacement`
 shapes change (points and `{point, cell}`), both internal. `effectiveFrontage`
 and the trap readers of rank depth are left to the trap-ranks slice.
 
-## 2026-11-13 — Trap ranks read the laid column
+## 2026-11-13 — Trap ranks read the laid column — SUPERSEDED IN PART 2026-11-13 (a rank's depth no longer falls back to a constant)
 
 **New evidence.** The column is laid by the book's frontage and interval
 (the entry above), so the rank a body stands in is not its member's index
@@ -5624,3 +5624,53 @@ order than the per-member count gave, which is the fix. The search, pole and
 trap-breaking reaches and the other readers of `FEET_PER_RANK` stay constants
 for the trap-ranks slice (T-0419). A trap check reads the party token's stored
 position and trail.
+
+## 2026-11-13 — The trap reaches, the trigger die and the pit's dice are imported
+
+**New evidence.** The owner's "Values: import or drop" (T-0512 question 2): a
+figure a string or a unit shows comes from an existing recipe or is dropped, and
+the earlier "No house rules ship" and "Caught printed values are fixed on the
+spot" rulings apply to a constant as much as to a string. And the column
+entry above showed what a constant hides: an unspaced column lays one body to a
+cell, so the cell, not a printed square, is a rank's depth where nothing is
+imported.
+
+**Ruled.**
+- `FEET_PER_RANK`, `SEARCH_REACH_FEET`, `POLE_REACH_FEET`,
+  `TRAPBREAK_REACH_FEET`, `TRIGGER_DIE`, `TRIGGER_DEFAULT` and `BOTCH_BANDS` are
+  deleted; the pole's lead (a hidden `rank - 1`), the methodical bonus (which the
+  disarm plan took from a literal), the pit's per-depth die and the spike dice
+  moved with them. Each is a key of the `formation` document, read by
+  `trapFigures` and `pitFigures`: eleven new keys from four prose recipes
+  (RR ch. 6 Searching, Traps and Trapbreaking, the combat actions; JJ ch. 8 the
+  pit), and the pit's per-depth die is the existing `fall` table.
+- A rank's depth is the imported interval, else the scene's cell in feet, else
+  nothing (`laidOrder`'s `rankFeet`). Distances to a trap are the scene's cell
+  over its pixels, and a scene with no cell size measures none.
+- **Not imported is stated, never defaulted:** no search reach, only the front
+  rank and the crossed trap; no pole lead or depth, no pole probe; no trigger
+  die or band, nothing rolled and nothing springs, the crossing resolved by hand;
+  no trapbreak reach, only a trap the token touches; no botch band, no botch; no
+  fall table or spike dice, the pit's damage is the part that is known. Each
+  case says so on its card or its sheet.
+- A trap's `triggerOn` is nullable: null reads the imported band, and a number
+  typed on the sheet wins. The field no longer has a ceiling of its own, the die
+  being imported.
+- Applying the trapbreak reach to the methodical column as well as the hasty is
+  this module's inference, recorded: nothing in the passage says a thief
+  disabling a trap is anywhere but at it.
+- `TRAP_LEVELS` is record layout and stays (owner, Q3a); the importer imports it
+  instead of restating it.
+- `apiVersion` 23 carries it, since 23 is not released.
+
+**Rejected.** Keeping a default beside each figure "until imported": the two
+earlier entries show where that leads, a world that reads a printed number it
+never imported. One window for the two search reaches: they sit in one sentence
+and the first figure would answer for both. A new setting for the pole lead: it
+is a printed distance and takes the registry's override layer like every other.
+
+**Cost.** A world must run Rules tables again before a trap's secret die, the
+reaches and the pit's spikes read; until then a crossing is resolved by hand and
+says so. The stored `triggerOn` of a trap made earlier is an explicit band and
+stays one. This entry's predecessors print the reaches in their text and, being
+append-only, keep them; they are marked superseded in part.

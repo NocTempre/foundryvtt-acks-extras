@@ -36,6 +36,7 @@ import {
   partySpeed,
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
+import { trapFigures } from "./trap-rules.mjs";
 import { LIT_BY, MAP_BLOCK } from "./mapper-logic.mjs";
 import { journeyIsNight, mappingNeedsLight, mappingOf } from "./mapping.mjs";
 import { bringableActors } from "./membership.mjs";
@@ -109,6 +110,17 @@ import { FORAGE_KINDS, forageSpec, huntSpec, standingWaterOf } from "./foraging.
 import { searchSpec, searchesAvailable } from "./searching.mjs";
 import { weatherEffects, throwPenalty, foragePenalty } from "./weather-effects.mjs";
 import { hexStockView, readStock } from "./hex-stock-run.mjs";
+
+/**
+ * The trap figures the role hints interpolate, each as feet or the localized
+ * "not imported": `search` and `pole` (the automatic search's reach bare and
+ * with a pole) and `lead` (how far a pole probes ahead of its bearer).
+ */
+function roleFigures() {
+  const figures = trapFigures();
+  const feet = (value) => (value === null ? game.i18n.localize("ACKS-FORMATION.traps.notImported") : `${value} ft`);
+  return { search: feet(figures.searchFeet), pole: feet(figures.poleSearchFeet ?? figures.searchFeet), lead: feet(figures.poleLeadFeet) };
+}
 import { hexStockKey } from "./hex-stock.mjs";
 
 /**
@@ -283,7 +295,7 @@ export function buildFormationView(formation) {
       roles: ROLE_ORDER.map((role) => ({
         key: role,
         label: game.i18n.localize(ROLE_LABELS[role]),
-        hint: game.i18n.localize(ROLE_HINTS[role]),
+        hint: game.i18n.format(ROLE_HINTS[role], roleFigures()),
         active: member.roles?.includes(role) ?? false,
       })),
       // Riding: the mount as a chip, so who-is-on-what reads off the roster.

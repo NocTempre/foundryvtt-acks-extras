@@ -66,6 +66,11 @@ export function parseDice(window) {
   return m ? m[1].replace(/\s+/g, "").toLowerCase() : null;
 }
 
+/** The share a clause that says its quantity is halved leaves: one half; junk or any other word → null. */
+export function parseHalved(window) {
+  return /\bhalved\b|\bhalf\b/i.test(String(window ?? "")) ? 0.5 : null;
+}
+
 /** The first fraction-or-number in a window ("1/10", "×1/3"). */
 export function parseShare(window) {
   return parseMultiplier(String(window ?? ""));
@@ -150,6 +155,12 @@ export function assembleVoyageTables(raw = {}) {
     const shallow = parseBonus(flat.shallowDraft);
     if (half != null) throwTable.halfSpeed = Math.abs(half);
     if (shallow != null) throwTable.shallowDraft = Math.abs(shallow);
+    // The speed share that earns the bonus, and the share of a hazard's damage
+    // taken at that speed; each is a fraction strictly between none and all.
+    const speedShare = Number(flat.speedShare);
+    if (Number.isFinite(speedShare) && speedShare > 0 && speedShare < 1) throwTable.speedShare = speedShare;
+    const damageShare = parseHalved(flat.reducedDamage);
+    if (damageShare != null) throwTable.damageShare = damageShare;
     if (Object.keys(throwTable).length) out.hazardThrow = throwTable;
   }
 

@@ -443,7 +443,7 @@ cadence is imported" and "The encounter throw's dice are imported too").
 | Where | What | Note |
 |---|---|---|
 | `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
-| `trap-rules.mjs` | the default trigger and the trigger die, the crude-trap modifiers, the botch bands, pit and spike damage | Found by the 2026-09-23 audit; the trigger die, the roll `trap-zone.mjs` makes and the ceiling of the trigger field, was named 2026-11-11. The trap's trigger field falls back to an imported default once one exists. The search, pole and trap-breaking reaches are the next section's row, "The square scale and the reaches it sets". |
+| `trap-rules.mjs` `CRUDE` | the crude-trap modifiers (find, remove, attack, save) | Found by the 2026-09-23 audit. The reaches, the trigger die and band, the botch bands, the methodical bonus and the pit's dice are imported (DECISIONS 2026-11-13); the crude modifiers are printed in the Judges Journal's trap chapter and have no recipe yet. |
 | `formation-model.mjs`, `formation-view.mjs` | the blind speed share, the combat-speed ratio | Found by the 2026-09-23 audit. The exploration-speed bands are no longer here: the figure is read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`). |
 | `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price; the fallback carries no cost. |
 | `obstacles.mjs` `OBSTACLES` | each obstacle's vulnerability and movement type (`vertical`, `descendOnly`) | Cells of the same Spelunking grid whose failed- and botched-throw rows now import (`spelunkingOutcomes`). The next row of that recipe; `tools/test-obstacles.mjs` asserts the vulnerabilities and moves with them. |
@@ -564,7 +564,6 @@ a fight that is over").
 | Not built | What it is | What it needs first |
 |---|---|---|
 | The trail with no GM online | The trail is written by the primary GM, so a party moved while no GM is seated keeps the trail of its last GM-seen step and reads straight behind the head after a reload. | a writer other than the primary GM that is still one writer, or a ruling that a straight column is enough there. |
-| The square scale and the reaches it sets | `FEET_PER_RANK` (`trap-rules.mjs`) is a printed figure, and the search, pole and trap-breaking reaches, the battlemap footprint and its assistant, and the trap-zone fallback all derive from it; the book places ranks at the imported interval (`rankIntervalFeet`), which the constant contradicts. Moves with the trap-ranks slice: a rank's depth from the laid column (`effectiveFrontage` retired), and each reach from its own imported figure. | T-0419, which reads `rankIntervalFeet` for a rank's depth and owns the reaches' own figures. |
 
 ## A copy of the party token on another scene
 

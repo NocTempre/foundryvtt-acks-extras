@@ -84,7 +84,7 @@ async function postScavengeCard(item, { rolls, cond }) {
   if (cond.ac) mech.push(`${cond.ac} AC`);
   if (cond.encumbrance) mech.push(`+${cond.encumbrance} stone`);
   if (cond.initiative) mech.push(`${cond.initiative} initiative`);
-  if (cond.breaks) mech.push("breaks on a natural 1");
+  if (cond.breaks) mech.push(game.i18n.localize("ACKS-EQUIPMENT.itemSheet.condition.breakable"));
   if (cond.cannotSneak) mech.push("cannot sneak/hide");
   const labels = cond.labels.length ? cond.labels.join("; ") : "Serviceable";
   const content =

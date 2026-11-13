@@ -8,23 +8,22 @@ import { renderRollCard } from "../lib/roll-card.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { findZone, regionEdges } from "./zones.mjs";
+import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import {
   CRUDE,
-  FEET_PER_RANK,
-  POLE_REACH_FEET,
   RESOLUTIONS,
-  SEARCH_REACH_FEET,
   STATES,
-  TRAPBREAK_REACH_FEET,
-  TRIGGER_DIE,
+  autoSearchers,
   damageTaken,
   disarmPlan,
   firingPlan,
   isBotch,
   lockAfterFailure,
+  poleLeadRanks,
   probeSequence,
-  rankDepth,
   repeatLocked,
+  searcherReachFeet,
+  trapFigures,
   triggerFires,
   victimsOf,
 } from "./trap-rules.mjs";
@@ -36,10 +35,12 @@ import {
  *
  * The sequence is the one the delve's own sequence of play lays down, in that
  * order and for its reasons: anyone searching the ground throws FIRST, because
- * a trap found is a trap not sprung; then the 10' pole, which is an adventurer
- * moving 5' ahead of its bearer; then the party itself, rank by rank, each with
+ * a trap found is a trap not sprung; then the pole, which is an adventurer
+ * moving ahead of its bearer; then the party itself, rank by rank, each with
  * its own secret die. The first throw that comes up inside the trigger band
- * ends the sequence — one trap goes off once.
+ * ends the sequence — one trap goes off once. The reaches, the die and the
+ * band are imported figures (`trapFigures`); a figure not imported is said on
+ * the card and never defaulted.
  *
  * Everything the Judge sees is whispered. A trap the party crossed untouched is
  * reported too, and only to the Judge: knowing that the corridor was clear is
@@ -235,12 +236,15 @@ export async function livePlacement(formation, { from = null, to = null } = {}) 
  * distance test below handles without a second code path.
  *
  * @returns {{seg: number[], gs: number, feetPerPixel: number, halfToken: number}|null}
+ *   null for a scene that says no cell size: no distance in feet can be read off it
  */
 function partyPath(formation, { from = null, to = null } = {}) {
   const token = getPartyToken(formation);
   if (!token) return null;
   const scene = token.parent;
   const gs = scene.grid.size;
+  const feetPerCell = sceneFeetPerCell(scene);
+  if (!(feetPerCell > 0) || !(gs > 0)) return null;
   const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
   const centre = (p) => ({ x: p.x + half.x, y: p.y + half.y });
   const a = centre(from ?? { x: token.x, y: token.y });
@@ -254,7 +258,7 @@ function partyPath(formation, { from = null, to = null } = {}) {
     // the middle of a 2×2 marker would put a tripwire it is touching two
     // squares away.
     halfToken: Math.max(half.x, half.y),
-    feetPerPixel: (scene.grid.distance || FEET_PER_RANK) / gs,
+    feetPerPixel: feetPerCell / gs,
   };
 }
 
@@ -290,6 +294,16 @@ function pointInsideEdges(edges, pt) {
 }
 
 /**
+ * How far from the party a trap can be and still be worked on, in feet: the
+ * imported trapbreak reach, else 0, which reaches only a trap the party's
+ * token is touching or standing in. A trapbreak is never offered at a distance
+ * nothing imported states.
+ */
+export function trapbreakReach() {
+  return trapFigures().trapbreakReachFeet ?? 0;
+}
+
+/**
  * Every trap placed on this scene, as placements — trapped walls and enabled
  * Trap Zone behaviors alike.
  *
@@ -315,12 +329,13 @@ export function allPlacements(scene) {
  *
  * @param {object} formation
  * @param {object} [opts]
- * @param {number} [opts.feet] the reach being measured
+ * @param {number} [opts.feet] the reach being measured; `trapbreakReach()` by
+ *   default
  * @param {object} [opts.from] where the party started this move, if it moved
  * @param {object} [opts.to] where it ended
  * @returns {Array<Placement & {distanceFeet: number}>}
  */
-export function placementsNear(formation, { feet = TRAPBREAK_REACH_FEET, from = null, to = null } = {}) {
+export function placementsNear(formation, { feet = trapbreakReach(), from = null, to = null } = {}) {
   const path = partyPath(formation, { from, to });
   if (!path) return [];
   return allPlacements(path.scene)
@@ -337,12 +352,12 @@ export function placementsNear(formation, { feet = TRAPBREAK_REACH_FEET, from = 
  * target announces its existence, which is the one thing a hidden feature is
  * for.
  */
-export function knownPlacementsNear(formation, feet = TRAPBREAK_REACH_FEET) {
+export function knownPlacementsNear(formation, feet = trapbreakReach()) {
   return placementsNear(formation, { feet }).filter((p) => p.known);
 }
 
 /** One placement by its document uuid, if it is within reach of the party. */
-export function placementNearByUuid(formation, uuid, feet = TRAPBREAK_REACH_FEET) {
+export function placementNearByUuid(formation, uuid, feet = trapbreakReach()) {
   return placementsNear(formation, { feet }).find((p) => p.uuid === uuid) ?? null;
 }
 
@@ -363,38 +378,8 @@ async function whisper(html, formation, rolls = []) {
 /*  Walking into it                             */
 /* -------------------------------------------- */
 
-/**
- * Who is close enough to notice the trap on the way past.
- *
- * The book gives a moving thief an AUTOMATIC hasty search within 5' of a hidden
- * feature, and 10' if they are probing with a pole. In a column that is the
- * front rank, plus a pole-bearer one rank further back whose pole reaches the
- * same ground. It is not offered to the whole party: a mage six ranks back is
- * not within 5' of anything.
- *
- * Being *capable* is left to `resolveCheck`, which answers null for anyone
- * without a real Searching skill — hasty searching is skill-only, so that gate
- * already says "thief" without this file having to name a class.
- */
-export function autoSearchers(order) {
-  return (order ?? []).filter((row) => row.rank === 0 || ((row.roles ?? []).includes(ROLES.POLE) && row.rank <= 1));
-}
-
 /** The member record behind a marching-order row, which `isDown` reads a member's own hit points from. */
 const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.actorId === actorId) ?? null;
-
-/**
- * How far ahead of the party token this searcher's own reach extends.
- *
- * The reach belongs to the CHARACTER and the distance is measured from the
- * party token, so the searcher's own place in the column is subtracted: a
- * pole-bearer in the second rank probes 10' from himself, which is 5' from the
- * front of the party. `rankFeet` is how deep a rank stands (`rankDepth`).
- */
-function searcherReachFeet(row, rankFeet) {
-  const own = (row.roles ?? []).includes(ROLES.POLE) ? POLE_REACH_FEET : SEARCH_REACH_FEET;
-  return own - row.rank * rankDepth(rankFeet);
-}
 
 /**
  * The automatic hasty search, swept over every hidden trap the party came
@@ -402,9 +387,14 @@ function searcherReachFeet(row, rankFeet) {
  *
  * This is the book's own automatic search and it is deliberately wider than the
  * corridor: a thief moving at exploration speed throws against ANY hidden
- * feature he passes within 5' of, 10' with a pole, and the Judge makes the
- * throw in secret. So the sweep runs on every party move, silently, and only
- * says anything when something is spotted.
+ * feature he passes within reach of (a longer one with a pole), and the Judge
+ * makes the throw in secret. So the sweep runs on every party move, silently,
+ * and only says anything when something is spotted. Who reaches is
+ * `autoSearchers`, by the imported reaches and the laid column's rank depth.
+ *
+ * **With no search reach imported** only the front rank searches, and only the
+ * trap the party crossed (`include`); the result's `reachImported` is false so
+ * the card can say so.
  *
  * **A searcher gets one attempt per trap per level.** The automatic throw is a
  * hasty search and carries the hasty search's price — a failure is a failure to
@@ -423,30 +413,37 @@ function searcherReachFeet(row, rankFeet) {
  * @param {Placement} [opts.include] a placement to sweep whatever the distance
  *   says: the wall the party CROSSED is met by definition, however far the step
  *   that crossed it carried them past it.
- * @returns {Promise<{found: Set<string>, rows: object[], rolls: Roll[]}>}
+ * @returns {Promise<{found: Set<string>, rows: object[], rolls: Roll[],
+ *   reachImported: boolean}>} `reachImported` is false when searchers stood in
+ *   the party and no search reach is imported
  */
 export async function sweepForTraps(formation, { from = null, to = null, hurried = false, include = null } = {}) {
-  const empty = { found: new Set(), rows: [], rolls: [] };
+  const empty = { found: new Set(), rows: [], rolls: [], reachImported: true };
   if (hurried) return empty;
 
   const { order, rankFeet } = await laidOrder(formation);
-  const searchers = autoSearchers(order).filter((row) => {
+  const figures = { ...trapFigures(), rankFeet };
+  const reachOf = (row) => searcherReachFeet(row, figures);
+  const searchers = autoSearchers(order, figures).filter((row) => {
     const actor = game.actors.get(row.actorId);
     return actor && !isDown(actor, memberOf(formation, row.actorId));
   });
   if (!searchers.length) return empty;
+  const reachImported = figures.searchFeet !== null;
 
   const path = partyPath(formation, { from, to });
-  if (!path) return empty;
+  if (!path) return { ...empty, reachImported };
 
-  const reach = Math.max(...searchers.map((row) => searcherReachFeet(row, rankFeet)));
+  // Every searcher's reach is a length where the search reach is imported; with
+  // none imported only the crossed placement is swept, at no distance.
+  const reach = reachImported ? Math.max(...searchers.map((row) => reachOf(row) ?? 0)) : -1;
   const candidates = allPlacements(path.scene)
     .map((p) => ({ ...p, distanceFeet: placementDistanceFeet(p, path) }))
     .filter((p) => p.state === STATES.armed && !p.known && p.distanceFeet <= reach);
   if (include && include.state === STATES.armed && !include.known && !candidates.some((p) => p.uuid === include.uuid)) {
     candidates.push({ ...include, distanceFeet: 0 });
   }
-  if (!candidates.length) return empty;
+  if (!candidates.length) return { ...empty, reachImported };
 
   const found = new Set();
   const rows = [];
@@ -460,7 +457,10 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
 
     for (const row of searchers) {
       if (spotted) break;
-      if (placement.distanceFeet > searcherReachFeet(row, rankFeet)) continue;
+      // Reach is a length where it is stated; where it is not, the front rank
+      // searches the crossed placement and nothing else.
+      const own = reachOf(row);
+      if (own === null ? placement.uuid !== include?.uuid : placement.distanceFeet > own) continue;
       const actor = game.actors.get(row.actorId);
       const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
       if (!check) continue; // no Searching skill: no automatic search to make
@@ -495,7 +495,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
     }
   }
 
-  return { found, rows, rolls };
+  return { found, rows, rolls, reachImported };
 }
 
 /**
@@ -517,12 +517,15 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   // (RR p. 263) — it is moving too fast for either.
   const hurried = isHurried(formation);
   const rolls = [];
+  const figures = trapFigures();
 
   /* (a) Anyone searching the ground throws first — against every hidden trap
      they passed within reach of, not only the one in the way. */
   const search = await sweepForTraps(formation, { from, to, hurried, include: placement });
   rolls.push(...search.rolls);
   const crossedFound = !!placement && search.found.has(placement.uuid);
+  // A figure the world does not hold is said on whichever card posts.
+  const notImported = [!search.reachImported ? loc("searchReachNotImported") : ""];
 
   if (crossedFound) {
     await haltParty(formation, haltAt, approach);
@@ -530,7 +533,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("foundTitle"),
         subtitle: formation.name,
-        note: loc("foundNote"),
+        note: [loc("foundNote"), ...notImported].filter(Boolean).join(" "),
         sections: [{ rows: search.rows }],
       }),
       formation,
@@ -546,7 +549,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("sweepTitle"),
         subtitle: formation.name,
-        note: loc("sweepNote", { count: search.found.size }),
+        note: [loc("sweepNote", { count: search.found.size }), ...notImported].filter(Boolean).join(" "),
         sections: [{ rows: search.rows }],
       }),
       formation,
@@ -559,8 +562,29 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   if (!trap) return null;
   const cfg = trap.system;
 
+  // The trap's own band wins; a trap with none reads the imported one. With no
+  // die or no band the secret die cannot be rolled, so nothing springs and the
+  // Judge resolves the crossing by hand.
+  const triggerOn = cfg.triggerOn ?? figures.triggerOn;
+  if (figures.triggerFaces === null || triggerOn === null) {
+    await whisper(
+      renderRollCard({
+        title: loc("crossedTitle"),
+        subtitle: formation.name,
+        note: [loc("triggerNotImported"), ...notImported].filter(Boolean).join(" "),
+        sections: search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : [],
+      }),
+      formation,
+      rolls,
+    );
+    return { outcome: "byHand" };
+  }
+
   /* (b) and (c): the pole, then the party, each with its own secret die. */
-  const probes = probeSequence(order, { pole: !hurried });
+  const poleRanks = poleLeadRanks(figures.poleLeadFeet, rankFeet);
+  const probes = probeSequence(order, { pole: !hurried, poleRanks });
+  const poleCarried = order.some((row) => (row.roles ?? []).includes(ROLES.POLE));
+  if (!hurried && poleCarried && poleRanks === null) notImported.push(loc("poleLeadNotImported"));
   const probeRows = [];
   let sprungAt = -1;
 
@@ -568,9 +592,9 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     const probe = probes[i];
     const actor = game.actors.get(probe.actorId);
     if (actor && isDown(actor, memberOf(formation, probe.actorId))) continue;
-    const die = await new Roll(`1d${TRIGGER_DIE}`).evaluate();
+    const die = await new Roll(`1d${figures.triggerFaces}`).evaluate();
     rolls.push(die);
-    const fires = triggerFires(die.total, cfg.triggerOn);
+    const fires = triggerFires(die.total, triggerOn);
     probeRows.push({
       name: probe.kind === "pole" ? loc("poleOf", { name: probe.name ?? "" }) : (probe.name ?? ""),
       total: die.total,
@@ -589,7 +613,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("crossedTitle"),
         subtitle: formation.name,
-        note: hurried ? loc("hurriedNote") : loc("crossedNote"),
+        note: [hurried ? loc("hurriedNote") : loc("crossedNote"), ...notImported].filter(Boolean).join(" "),
         sections: [
           ...(search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : []),
           { title: loc("probeSection"), rows: probeRows },
@@ -611,6 +635,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     ],
     rolls,
     sprungBy: probes[sprungAt],
+    notes: notImported.filter(Boolean),
   });
 }
 
@@ -678,7 +703,7 @@ async function haltParty(formation, haltAt, from = null) {
  * a bruise this once. The card carries the number; the sheet is nobody's to
  * write from here.
  */
-async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null } = {}) {
+async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null, notes: extraNotes = [] } = {}) {
   const cfg = trap.system;
   // What the trap does comes from the row its level selects; how it was BUILT
   // (crudely or well) is the same at every level and stays on the trap.
@@ -774,6 +799,10 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
   if (sprungBy?.kind === "pole") notes.push(loc("sprungByPole"));
   if (!caught.length) notes.push(loc("caughtNobody"));
   if (tier.rider) notes.push(tier.rider);
+  // A pit's damage rests on imported dice; what is missing is said, not guessed.
+  if (plan.pitUnknown.includes("fall")) notes.push(loc("pitFallNotImported"));
+  if (plan.pitUnknown.includes("spikes")) notes.push(loc("pitSpikesNotImported"));
+  notes.push(...extraNotes);
 
   await whisper(
     renderRollCard({
@@ -796,7 +825,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
 
 /**
  * Thieves' tools. The book gates disabling traps on holding a set, so the
- * pattern is matched against carried gear the same way the 10' pole is.
+ * pattern is matched against carried gear the same way the pole is.
  */
 export const TOOLS_ITEM_PATTERN = /thie(f|ves)'?s?\s*tools|lock\s*picks?|pick\s*locks?/i;
 
@@ -838,9 +867,9 @@ export function disarmRefusal(placement, actor, mode) {
  * The outcomes are the book's and they are not symmetrical. A made throw lets
  * the thief choose whether the trap is disarmed (and so re-armable) or
  * deliberately discharged; a plain failure ends a hasty attempt for good at
- * this level but leaves a methodical one open; and the botch bands — an
- * unmodified 1–3 hastily, 1 methodically — set the thing off with the thief on
- * top of it.
+ * this level but leaves a methodical one open; and the imported botch bands
+ * (`isBotch`; none imported, none botch) set the thing off with the thief on
+ * top of it (RR ch. 6, Traps and Trapbreaking).
  *
  * @param {object} formation
  * @param {Actor} actor the character doing the work

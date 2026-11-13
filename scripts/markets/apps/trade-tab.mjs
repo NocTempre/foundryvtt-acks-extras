@@ -22,7 +22,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { LANG_PREFIX as LOCATION_LANG } from "../../location/constants.mjs";
-import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 import { now } from "../../henchmen/time.mjs";
@@ -79,6 +79,29 @@ const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
 const plain = (row) => row.toObject?.() ?? foundry.utils.deepClone(row);
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 const daysUntil = (time, t) => Math.max(0, Math.ceil((Number(time) - t) / SECONDS_PER_DAY));
+
+/**
+ * The coin denominations the change dialog offers, as `[copperValue, name]`
+ * pairs, largest first: every money item the system's compendia and the world
+ * carry, plus the coin on the stacks being changed. One entry per rate, named
+ * by the first item that has it, so the worth of each comes from the item's own
+ * `coppervalue`.
+ * @param {Item[]} held - the coin stacks the dialog lists
+ */
+async function coinDenominations(held) {
+  const byRate = new Map();
+  const add = (name, rate) => {
+    const cv = Number(rate);
+    if (cv > 0 && !byRate.has(cv)) byRate.set(cv, String(name ?? ""));
+  };
+  for (const pack of game.packs?.filter((p) => p.documentName === "Item" && p.metadata?.packageType === "system") ?? []) {
+    const index = await pack.getIndex({ fields: ["system.coppervalue"] }).catch(() => null);
+    for (const entry of index ?? []) if (entry.type === ITEM_TYPE.money) add(entry.name, entry.system?.coppervalue);
+  }
+  for (const item of game.items ?? []) if (item.type === ITEM_TYPE.money) add(item.name, coinRate(item));
+  for (const item of held) add(item.name, coinRate(item));
+  return [...byRate].sort((a, b) => b[0] - a[0]);
+}
 
 /** The actor a uuid names, or null. Never throws: an unloaded pack's uuid does. */
 function actorOfUuid(uuid) {
@@ -840,8 +863,8 @@ export const TRADE_TAB_ACTIONS = {
       return;
     }
     const options = stacks.map((i) => `<option value="${i.id}">${foundry.utils.escapeHTML(i.name)} ×${coinCount(i)} (${coinRate(i)} cp)</option>`).join("");
-    const denoms = [[100, locationLoc("market.exchangeGp")], [10, locationLoc("market.exchangeSp")], [1, locationLoc("market.exchangeCp")]]
-      .map(([cv, label]) => `<option value="${cv}">${label}</option>`).join("");
+    const denoms = (await coinDenominations(stacks))
+      .map(([cv, name]) => `<option value="${cv}">${foundry.utils.escapeHTML(locationLoc("market.exchangeDenom", { name, cp: cv }))}</option>`).join("");
     const form = await foundry.applications.api.DialogV2.prompt({
       window: { title: locationLoc("market.exchangeTitle") },
       classes: DIALOG_CLASSES,

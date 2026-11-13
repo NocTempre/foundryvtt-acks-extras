@@ -166,3 +166,23 @@ reads them. Two readers still ask `fromUuidSync` and read
 `system.itemList` off the answer: `templateContents`, which on a shelf that
 is not loaded falls back to the row as printed, and `stripRepresented`,
 which then strips nothing. Neither throws; both read a package as absent.
+
+## Printed dice and floors still held in source
+
+Found by the T-0512 lang sweep; each needs a recipe or a ruling, none is
+built.
+
+- **The attribute methods.** `stat-page.mjs` `METHODS` holds the standard
+  method's counts, formulas and floors and the three variants' formulas, and
+  `chargen.remaining` prints the counts. They need an attribute-method recipe
+  (RR ch. 1, Attributes; JJ ch. 16).
+- **The generated template table's die.** `template-packages.mjs`
+  `syncTemplateTable` writes the table's formula as a literal, and
+  `class-data.mjs` bounds a template band by the range that die spans. Core's
+  roll button carries the die only on the Scores Generator, which is not open
+  when the table is built.
+- **The level-up floor.** `hitpoints.mjs` `rebuildHitPoints` and `levelup.mjs`
+  `levelUpHitPoints` hold a level's maximum at a fixed amount over the previous
+  one. No recipe carries it and the sweep did not find it printed for levels
+  past the first; the `hpAudit.stepNone` text names the two maxima and no
+  amount.

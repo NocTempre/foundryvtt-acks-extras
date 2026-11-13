@@ -12,17 +12,18 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   in this feature is the last resort, only if no candidate grows a
   data-driven write API.
 
-- **Three `ACKS-HENCHMEN` strings still print a magnitude in the label** —
-  `outcomeHint.refuseSlander`, `followers.loyaltyDefault` and
-  `followers.loyaltyFanatic`. The 2026-09-03 pass retired printed figures
-  from 21 sibling strings in this root and deliberately left these; the reason
-  and the order the fix has to take are one ruling, in
-  [../influence/DECISIONS.md](../influence/DECISIONS.md). Unlike those 21 these
-  carry no page reference at all, so once a magnitude goes the reader has
-  nowhere to look it up — retiring one here means leaving a reference behind
-  it. `posting.created`,
-  `card.downedNote` and `roster.calamityPlaceholder` are not in the set —
-  their figures are world-computed interpolations or the zero point.
+- **The settlement-alignment rarity shift is a module inference.**
+  `RARITY_AUTOMATION` in `data/throws-data.mjs` ships one rarity step for a
+  directed class search that meets an opposed-alignment settlement; the
+  location sheet's alignment field (`settlementAlignment` in
+  `scripts/location/data/location-data.mjs`) feeds it. No page prints the
+  step, so it needs a ruling: keep it as a Judge-set number, or retire it with
+  the field.
+- **The followers card names the page and shows no starting figures.** The
+  dialog (`apps/followers-dialog.mjs`) picks the fanatic or the default
+  line from the `followerLoyalty` table's class list and prints each as a
+  field name with its page; the starting loyalty, morale and calamity rule
+  they point at arrive when a followers recipe exists (next entry).
 
 - **Loyalty penalty magnitudes arrive through the importer.** `WOUND_PENALTIES`
   in `rules/loyalty.mjs` ships the printed magnitudes (RR 166). The agreed

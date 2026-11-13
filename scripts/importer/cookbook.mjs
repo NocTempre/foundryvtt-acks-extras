@@ -114,6 +114,7 @@ import {
 } from "./market-profile-binding.mjs";
 import { merchandiseCatalog, primeMerchandiseCatalog } from "../markets/engine/merchandise.mjs";
 import { TRAP_ITEM_TYPE } from "../formation/constants.mjs";
+import { TRAP_LEVELS } from "../formation/trap-rules.mjs";
 // The spell primitive's DataModel is not imported here: this file loads under
 // plain Node in the offline harness, and the model needs `foundry`. The bind
 // writes the plain shape `spellFromStat` returns; the model coerces on read.
@@ -9540,7 +9541,8 @@ export function proseHitDiceLevels(body, spec, maximumLevel) {
  * The experience thresholds of a class built by the JJ class-creation
  * procedure, priced against the world's builder tables: the register's
  * allocation, the racial value's cost read from the race's own page by the
- * register's pattern, and the saves chassis's post-8 increment.
+ * register's pattern, and the saves chassis's flat increment past the imported
+ * level the doubling stops at.
  * @param {object} build - the register's `build` block (allocation + race)
  * @param {string} raceText - the race page's raw text
  * @param {object|null} tables - the assembled `acks.classBuilder` tables
@@ -9571,8 +9573,9 @@ export function buildXp(build, raceText, tables, maximumLevel, chassis) {
   const base = baseXpCost(state, tables, { values: [{ value: raceValue, xpCost: raceCost }] }, issues);
   const post = tables.budget.postEight ?? {};
   const increment = chassis === "crusader" || chassis === "thief" ? post.crusaderThief : post[chassis];
-  if (issues.length || !Number.isInteger(increment)) return null;
-  const xp = xpSchedule(base, maximumLevel, { smoothing: tables.budget.smoothing, postEightIncrement: increment });
+  const flatAfter = tables.budget.xpFlatAfter;
+  if (issues.length || !Number.isInteger(increment) || !Number.isInteger(flatAfter)) return null;
+  const xp = xpSchedule(base, maximumLevel, { smoothing: tables.budget.smoothing, flatIncrement: increment, flatAfter });
   return { xp, base, raceCost };
 }
 
@@ -11327,9 +11330,6 @@ export async function importVariations({ only = null, repair = null } = {}) {
   );
   return made;
 }
-
-/** 1st through 6th: the levels the Judge's book prints every trap at. */
-const TRAP_LEVELS = 6;
 
 /**
  * Where one printed level begins.

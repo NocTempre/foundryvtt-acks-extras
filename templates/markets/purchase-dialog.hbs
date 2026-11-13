@@ -26,8 +26,8 @@
     <label>{{localize "ACKS-MARKETS.imports.hub"}}</label>
     <select name="hub">
       <option value="">{{localize "ACKS-MARKETS.imports.hubNone"}}</option>
-      <option value="local">{{localize "ACKS-MARKETS.imports.hubLocal"}}</option>
-      <option value="regional">{{localize "ACKS-MARKETS.imports.hubRegional"}}</option>
+      <option value="local">{{localize "ACKS-MARKETS.imports.hubLocal"}}{{#if hubWaits.local}} ({{hubWaits.local}}){{/if}}</option>
+      <option value="regional">{{localize "ACKS-MARKETS.imports.hubRegional"}}{{#if hubWaits.regional}} ({{hubWaits.regional}}){{/if}}</option>
     </select>
   </div>
   <p class="hint">{{localize "ACKS-MARKETS.imports.hubHint"}}</p>

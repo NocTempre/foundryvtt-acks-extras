@@ -14,11 +14,11 @@
  * because the dialog is a helper and the Judge is the authority.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { makeLoc, gmIds, fractionLabel } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { abilityRank } from "../lib/capabilities.mjs";
 import { occupantsOf } from "./occupants.mjs";
-import { WATERS, HAZARD_KINDS, navigationThrow, hazardThrow, hazardSpec } from "./navigation.mjs";
+import { WATERS, HAZARD_KINDS, navigationThrow, hazardThrow, hazardSpec, reducedSpeed } from "./navigation.mjs";
 import { sinkFormula, isSinking } from "./vessel-damage.mjs";
 
 const loc = makeLoc("ACKS-VEHICLES");
@@ -47,7 +47,8 @@ function bestSeafaring(vehicleActor) {
 const partsList = (parts) =>
   parts
     .map((p) => {
-      const label = loc(`reason.${p.key}`);
+      // A part that read its share from the book names it; the plain label otherwise.
+      const label = p.share != null ? loc(`reason.${p.key}At`, { speed: fractionLabel(p.share) }) : loc(`reason.${p.key}`);
       return p.missing ? `<li class="hint">${label}</li>` : `<li>${label}: <strong>${p.value}</strong></li>`;
     })
     .join("");
@@ -130,6 +131,8 @@ export async function openHazardDialog(vehicleActor) {
     .join("");
   const check = (name, label, on) =>
     `<label class="checkbox"><input type="checkbox" name="${name}" ${on ? "checked" : ""}> ${label}</label>`;
+  const slow = reducedSpeed();
+  const slowedLabel = slow.speedShare != null ? loc("sea.halfSpeedAt", { speed: fractionLabel(slow.speedShare) }) : loc("sea.halfSpeed");
 
   const result = await DialogV2.prompt({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -138,7 +141,7 @@ export async function openHazardDialog(vehicleActor) {
       <div class="acks-extras-sea-throw-dialog">
         <label>${loc("sea.hazard")} <select name="kind">${hazardOptions}</select></label>
         ${check("masterMariner", loc("sea.masterMariner"), master)}
-        ${check("halfSpeed", loc("sea.halfSpeed"), false)}
+        ${check("halfSpeed", slowedLabel, false)}
         ${check("shallowDraft", loc("sea.shallowDraft"), false)}
       </div>`,
     ok: { label: loc("sea.roll"), callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object },
@@ -154,13 +157,19 @@ export async function openHazardDialog(vehicleActor) {
   const roll = spec.effective != null ? await new Roll("1d20").evaluate() : null;
 
   // A failed throw meets the hazard: state its imported effects — dice,
-  // stranding, the half-speed halving — for the Judge to apply.
+  // stranding, the slowed passage's reduction — for the Judge to apply.
   let extra = spec.missing ? `<p class="hint">${loc("sea.importHint")}</p>` : "";
   if (roll && roll.total < spec.effective) {
     const hz = hazardSpec(result.kind);
     const lines = [];
     if (hz?.damage) {
-      lines.push(loc(result.halfSpeed ? "sea.hazardDamageHalved" : "sea.hazardDamage", { dice: hz.damage }));
+      lines.push(
+        !result.halfSpeed
+          ? loc("sea.hazardDamage", { dice: hz.damage })
+          : slow.damageShare != null
+            ? loc("sea.hazardDamageShare", { dice: hz.damage, share: fractionLabel(slow.damageShare) })
+            : loc("sea.hazardDamageReduced", { dice: hz.damage }),
+      );
     } else if (hz?.harmless) {
       lines.push(loc("sea.hazardHolds"));
     }

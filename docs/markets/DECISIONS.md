@@ -180,7 +180,7 @@ Players hold OBSERVER on the housing actor and the UI filters by owner — the
 boundary. Nothing secret goes in a trade Item: true demand stays on the market;
 a report holds only what its owner believes.
 
-## 2026-09-29 — Markets reads its figures from the page
+## 2026-09-29 — Markets reads its figures from the page — SUPERSEDED IN PART 2026-11-13
 
 **Ruled:** every figure markets v1 carried as a constant is either read from
 the Judge's book through a `proseValues` recipe or derived from an imported
@@ -1145,3 +1145,28 @@ all: it makes the 18 record-less AX3 markets `Market N`.
 step that reads a different name. A place two books print keeps the later book's
 row as its namer (`takeoverPatch`), a site's heading included, until that book's
 market step reads a name of its own.
+
+## 2026-11-13 — A hub's wait and an agreement's price steps are read, not coded (T-0512, batch B11)
+
+**Ruled:** the line under the 2026-09 figures ruling, "Procedure, kept in
+code: dice expressions ... which hub takes days and which weeks", is
+superseded in part for the import wait. A printed value found in source moves
+with the work that finds it, and a figure a string states comes from an
+existing recipe or is dropped (the owner's answers on the T-0512 report).
+`availability.marketRulesProse` reads each hub's wait as a phrase
+(`localHubWait`, `regionalHubWait`); `rules/imports.mjs` `parseHubWait` turns
+the phrase into dice and a calendar unit; the order rolls those dice.
+`mercantile.negotiationProse` reads `priceSteps`, how many steps an agreement
+moves the price. With either unread, the action refuses with the table named
+(`printedError`). The coin changer offers the denominations the money items
+carry (`coppervalue`), where it offered three literals.
+
+**Kept in code:** that a wait counts in days or weeks (the unit set is
+calendar structure), that the transit roll is the wait's own dice, and that
+the price moves by the merchandise row's own step.
+
+**Rejected:** a new setting for either figure; the recipes own them.
+
+*Cost:* a world imported before this change re-runs Rules tables to gain the
+two waits and the step count; until then an import from a hub and a
+negotiation refuse.

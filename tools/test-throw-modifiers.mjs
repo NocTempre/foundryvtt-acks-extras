@@ -154,4 +154,21 @@ await ok("a conditioned modifier that names the activity is pending, an uncondit
   assert.deepEqual(out.pending, [{ name: "Careful Eyes", amount: 2, condition: "in a dim place" }]);
 });
 
+await ok("the fallback throw die is core's own ability default, read from its model", async () => {
+  const { coreThrowDie } = await import("../scripts/abilities/ability-rolls.mjs");
+  const had = globalThis.CONFIG;
+  try {
+    globalThis.CONFIG = { Item: { dataModels: { ability: { schema: { fields: { roll: { initial: "1d6" } } } } } } };
+    assert.equal(coreThrowDie(), "1d6", "a string initial value");
+    globalThis.CONFIG = { Item: { dataModels: { ability: { schema: { fields: { roll: { initial: () => " 2d4 " } } } } } } };
+    assert.equal(coreThrowDie(), "2d4", "a function initial value, trimmed");
+    globalThis.CONFIG = { Item: { dataModels: {} } };
+    assert.equal(typeof coreThrowDie(), "string", "an unregistered model still yields a die");
+    assert.ok(coreThrowDie().length > 0);
+  } finally {
+    globalThis.CONFIG = had;
+  }
+  assert.match(format("ACKS-ABILITIES.roll.badFormula", { name: "X", formula: "zz", fallback: "1d6" }), /Rolling 1d6 for now/, "the message names the die it rolls");
+});
+
 console.log(`\n${passed} passed`);

@@ -147,7 +147,7 @@ export const INTERVAL_UNITS = {
 /*  Ability scores                              */
 /* -------------------------------------------- */
 
-/** Monster attribute keys (MM Rules p.349; default 9 if unspecified). */
+/** Monster attribute keys (MM Rules p.349; the default score is `load-rule.mjs` `defaultScore`). */
 export const ABILITY_SCORES = {
   str: { label: "STR" },
   int: { label: "INT" },

@@ -190,7 +190,7 @@ export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implemen
 export { LIGHT_SOURCES, lightGear } from "../lib/light.mjs";
 
 
-/** A 10' pole needs the physical implement: a pole item or a polearm. */
+/** A pole probe needs the physical implement: a pole item or a polearm. */
 export const POLE_ITEM_PATTERN = /\bpole\b|polearm|spear|pike|halberd|glaive|lance/i;
 
 /**
@@ -230,7 +230,7 @@ export const ROLE_GEAR = Object.freeze({
 
 /**
  * Roles whose kit is HELD rather than merely carried, and so costs hands for as
- * long as the role is held. Only mapping does: a 10' pole is probed with and set
+ * long as the role is held. Only mapping does: a pole is probed with and set
  * down again, while the mapper's quill and parchment stay in both hands — which
  * is what makes mapping and a drawn sword mutually exclusive.
  */

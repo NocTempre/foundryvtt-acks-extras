@@ -275,7 +275,7 @@ export function layerSummary(item) {
     bits.push(game.i18n.format("ACKS-EQUIPMENT.printed.layerNotImported", { layer: game.i18n.localize(`ACKS-EQUIPMENT.props.${u.layer}`) }));
   }
   const sc = scavengedOf(item);
-  if (sc?.breaks) bits.push("breaks on a 1");
+  if (sc?.breaks) bits.push(game.i18n.localize("ACKS-EQUIPMENT.itemSheet.condition.breakable"));
   if (sc?.cannotSneak) bits.push("cannot sneak");
   if (sc?.initiative) bits.push(`${sc.initiative} init`);
   for (const n of sc?.notes ?? []) bits.push(n);

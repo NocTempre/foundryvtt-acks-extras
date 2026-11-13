@@ -8,6 +8,7 @@ import {
   assembleVoyageTables,
   parseBonus,
   parseDice,
+  parseHalved,
   parseShare,
   parseSigned,
   parseTargetPlus,
@@ -50,6 +51,7 @@ const out = assembleVoyageTables({
       captain: "of 9+ (5+ if master mariner). if the",
       halfSpeed: "or less, the captain gains a +3 bonus",
       shallowDraft: ", the captain gains +2 if navigating",
+      speedShare: 0.25,
     },
     repairRounding: {
       repairCrew: "four crew members one turn to repair",
@@ -60,6 +62,7 @@ const out = assembleVoyageTables({
     hazardEffects: {
       kelpFree: "2d4 hours plus an additional hour per 50 tons the vessel",
       rockDamage: "5d10  structural",
+      reducedDamage: ", the damage is cut by half. sand",
       shoalDamage: "3d10  struct",
       refloat: "2d12 hours (jud",
       lighten: "cumulative 10% chance the ves",
@@ -80,6 +83,11 @@ check("navigation carries targets and both art bonuses out of one sentence",
 check("the hazard throw reads captain and master from one sentence",
   out.hazardThrow.captain === 9 && out.hazardThrow.masterMariner === 5 &&
   out.hazardThrow.halfSpeed === 3 && out.hazardThrow.shallowDraft === 2);
+check("the slowed passage reads its speed share and the share of damage it leaves",
+  out.hazardThrow.speedShare === 0.25 && out.hazardThrow.damageShare === 0.5);
+check("a speed share of a whole or none, and a reduction worded otherwise, assemble to nothing",
+  assembleVoyageTables({ voyagesProse: { hazardThrow: { speedShare: 1 }, hazardEffects: { reducedDamage: ", the damage is tripled" } } }).hazardThrow === undefined);
+check("parseHalved reads the word and nothing else", parseHalved("damage is halved") === 0.5 && parseHalved("by half") === 0.5 && parseHalved("a third") === null && parseHalved(null) === null);
 check("each hazard assembles its own dice and rates",
   out.hazards.kelpForest.freeFormula === "2d4" && out.hazards.kelpForest.perTons === 50 &&
   out.hazards.rockReefWreck.damage === "5d10" &&

@@ -30,6 +30,7 @@ import { announceChange } from "../lib/util.mjs";
 import { equipForRole } from "./judge-override.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { clearShadows } from "./shadow.mjs";
+import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 
 /** World-setting key holding all formation records, keyed by formation id. */
 export const SETTING_FORMATIONS = "formations";
@@ -937,7 +938,7 @@ export const hasRoleGear = (actor, role) => missingRoleGear(actor, role).length 
 /**
  * Is the party hurrying (exploring at combat speed)? RR p. 263: exploration
  * speed is already the careful, quiet pace; a party CAN explore at combat
- * speed instead, but loses 10' poles, mapping, and hasty searching, and
+ * speed instead, but loses pole probing, mapping, and hasty searching, and
  * makes much more noise.
  */
 export function isHurried(formation) {
@@ -1481,15 +1482,18 @@ export function partyDepth(formation, count = formationBodies(formation)) {
  *
  * Where no column is laid (no party token on its scene, or a scene that lays
  * none) the answer is `marchingOrder`. `rankFeet` is the imported rank
- * interval, or null where the scene is not spaced.
+ * interval where the scene is spaced, else the scene's own cell in feet (an
+ * unspaced column lays one body per cell), else null where the scene says
+ * neither.
  * @param {object} formation
  * @returns {Promise<{order: object[], rankFeet: number|null}>}
  */
 export async function laidOrder(formation) {
   const token = getPartyToken(formation);
+  const cellFeet = sceneFeetPerCell(token?.parent) || null;
   // column.mjs imports this file; loaded here, after both have evaluated.
   const laid = token ? (await import("./column.mjs")).columnFor(formation, token) : null;
-  if (!laid?.column) return { order: marchingOrder(formation), rankFeet: null };
+  if (!laid?.column) return { order: marchingOrder(formation), rankFeet: cellFeet };
   const order = [];
   let body = 0;
   for (const member of formation.members ?? []) {
@@ -1499,7 +1503,7 @@ export async function laidOrder(formation) {
     }
     body += cellBodies(member);
   }
-  return { order, rankFeet: laid.rankFeet };
+  return { order, rankFeet: laid.rankFeet ?? cellFeet };
 }
 
 /**
@@ -1875,7 +1879,7 @@ export async function autoArrange(formation) {
  * Take up or set down a role.
  *
  * TAKING one is what is gated: a role with a declared kit (`ROLE_GEAR`) needs
- * that kit in the character's hands — a 10' pole to probe with, a quill and
+ * that kit in the character's hands — a pole to probe with, a quill and
  * parchment to map with. Setting a role DOWN is never gated; a character can
  * always stop doing a job.
  *

@@ -111,7 +111,7 @@ ok("the key stays the entry's own", bindClass(entry, headed("Quillfen Keeper"), 
 // Invented tables in the shape `assembleBuilderTables` emits, and an invented
 // race page; the allocation and its race pattern are the shipped row's.
 const TABLES = {
-  budget: { smoothing: { level: 7, nearest: 1000 }, postEight: { fighter: 7000, crusaderThief: 5000, mage: 9000 } },
+  budget: { smoothing: { level: 7, nearest: 1000 }, postEight: { fighter: 7000, crusaderThief: 5000, mage: 9000 }, xpFlatAfter: 6 },
   hd: [{ value: 0, cost: 10 }, { value: 1, cost: 20 }],
   fighting: [{ value: 2, sub: "", cost: 200 }],
   thievery: [{ value: 0, cost: 0 }],
@@ -122,9 +122,9 @@ const RACE_PAGE = "Catgirl 1: invented.Cost: 99 XP. Catgirl 2:invented features 
 const priced = { ...entry, build: spec.build };
 const pricedNode = { fields: { ...node.fields, race8c0: RACE_PAGE.slice(0, 40), race8c1: RACE_PAGE.slice(40) } };
 const pricedClass = bindClass(priced, pricedNode, "def.class.inventedWarden", { builderTables: TABLES });
-const EXPECTED = [0, 1406, 2812, 5624, 11248, 22496, 45000, 90000, 97000];
+const EXPECTED = [0, 1406, 2812, 5624, 11248, 22496, 29000, 36000, 43000];
 ok(
-  "every level is priced: the allocation's costs and its rung's printed cost at 2nd, doubling, the smoothed 7th, then the chassis's flat step",
+  "every level is priced: the allocation's costs and its rung's printed cost at 2nd, doubling to the imported level, then the chassis's flat step with the smoothed level rounded",
   JSON.stringify(pricedClass.system.levels.map((r) => r.xp)) === JSON.stringify(EXPECTED),
   JSON.stringify(pricedClass.system.levels.map((r) => r.xp)),
 );
@@ -136,7 +136,11 @@ const noRace = bindClass(priced, node, "def.class.inventedWarden", { builderTabl
 ok("a race page that prints no cost prices nothing", noRace.system.levels.every((r) => r.xp === null) && !noRace.flags["acks-extras"].xpBuild);
 const noDivine = { ...TABLES, magicTypes: { arcane: TABLES.magicTypes.arcane } };
 ok("a category the tables cannot price leaves every level unread", bindClass(priced, pricedNode, "def.class.inventedWarden", { builderTables: noDivine }).system.levels.every((r) => r.xp === null));
-ok("a thief or crusader chassis takes their shared step", buildXp(spec.build, RACE_PAGE, TABLES, 9, "thief").xp[8] === 95000);
+ok("a thief or crusader chassis takes their shared step", buildXp(spec.build, RACE_PAGE, TABLES, 9, "thief").xp[8] === 37000);
+{
+  const { xpFlatAfter: _gone, ...budget } = TABLES.budget;
+  ok("a world that imported no level for the flat step prices nothing", buildXp(spec.build, RACE_PAGE, { ...TABLES, budget }, 9, "thief") === null);
+}
 const repairedPrice = refreshPlan({ type: "acks-extras.class", system: { levels: [] }, flags: {} }, pricedClass, REPAIR.class);
 ok("the repair carries the price's provenance onto a held class", repairedPrice.update.flags?.["acks-extras"]?.xpBuild?.base === 1406, JSON.stringify(repairedPrice.update.flags));
 ok("a level a grid read keeps its own figure", bindClass(priced, { fields: { ...pricedNode.fields, progression: { rows: [{ label: "1", cells: { xp: "0", title: "Tyro", hd: "1d6" } }, { label: "2", cells: { xp: "5", title: "B", hd: "2d6" } }] } } }, "def.class.inventedWarden", { builderTables: TABLES }).system.levels[1].xp === 5);

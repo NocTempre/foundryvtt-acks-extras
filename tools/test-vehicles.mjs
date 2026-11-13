@@ -44,7 +44,7 @@ const SAMPLE_VOYAGES = {
     ],
     tacking: { multiplier: 0.25 },
     navigation: { targets: { lakeOrRiver: 3, coast: 6, openSea: 9 }, oneArt: 3, bothArts: 6 },
-    hazardThrow: { captain: 9, masterMariner: 5, halfSpeed: 3, shallowDraft: 2 },
+    hazardThrow: { captain: 9, masterMariner: 5, halfSpeed: 3, shallowDraft: 2, speedShare: 0.25, damageShare: 0.4 },
     hazards: {
       kelpForest: { freeFormula: "2d4", perTons: 50 },
       rockReefWreck: { damage: "5d10" },
@@ -424,6 +424,7 @@ console.log("test-vehicles: OK (true weights, marines' gear, stacked bodies)");
 import {
   navigationThrow,
   hazardThrow,
+  reducedSpeed,
   hazardSpec,
   kelpHours,
   lightenChance,
@@ -436,6 +437,9 @@ assert.equal(navigationThrow({ terrain: "coast" }).target, 6, "targets come from
 assert.equal(navigationThrow({ terrain: "openSea", pathfinding: true, navigation: true }).effective, 3,
   "both arts price as the doc's own pair, never one art doubled");
 assert.equal(hazardThrow({ masterMariner: true, halfSpeed: true }).effective, 2);
+assert.deepEqual(reducedSpeed(), { speedShare: 0.25, damageShare: 0.4 }, "the slowed passage's two shares are the doc's");
+assert.equal(hazardThrow({ halfSpeed: true }).parts.find((p) => p.key === "halfSpeed").share, 0.25, "the slowed part carries the imported share");
+assert.equal("share" in hazardThrow({ shallowDraft: true }).parts.find((p) => p.key === "shallowDraft"), false, "a part with no share carries none");
 assert.equal(hazardSpec("sandbarShoal").damage, "3d10");
 assert.equal(hazardSpec("kelpForest").damage, null, "kelp holds; it does not hole — structure, not a value");
 assert.equal(kelpHours(1, 100), 3, "her bulk adds hours at the imported rate");
@@ -453,6 +457,7 @@ resetTables();
 assert.equal(navigationThrow({ terrain: "coast" }).target, null, "no doc: no target, and the parts say why");
 assert.ok(navigationThrow({ terrain: "coast" }).parts.some((p) => p.key === "tablesMissing"));
 assert.equal(hazardThrow({}).target, null);
+assert.deepEqual(reducedSpeed(), { speedShare: null, damageShare: null }, "no doc: no share, never a guess");
 assert.equal(damageToVessel(20, "lightArtillery").dealt, null, "an unanswerable share is null, never a guess");
 assert.equal(damageToVessel(20, "personal").dealt, 0, "the structural zero needs no import");
 assert.equal(damageToVessel(20, "siege").dealt, 20, "and neither does the structural whole");

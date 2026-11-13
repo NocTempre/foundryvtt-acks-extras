@@ -1,6 +1,6 @@
 /* global game, foundry, ui */
 import { MODULE_ID } from "./constants.mjs";
-import { TRAPBREAK_REACH_FEET, STATES, disarmPlan } from "./trap-rules.mjs";
+import { STATES, disarmPlan } from "./trap-rules.mjs";
 import {
   attemptDisarm,
   attemptRearm,
@@ -9,6 +9,7 @@ import {
   markTrapFound,
   placementsNear,
   resetTrap,
+  trapbreakReach,
 } from "./trap-zone.mjs";
 import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
@@ -18,6 +19,17 @@ import { makeLoc } from "../lib/util.mjs";
 const LANG_PREFIX = "ACKS-FORMATION.traps";
 const loc = makeLoc(LANG_PREFIX);
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/**
+ * The placements a Trapbreaking attempt can reach. A Judge sees every trap in
+ * reach, found or not, because marking one spotted is one of the things the
+ * dialog is for; a player sees only what the party has found.
+ */
+function placementsInReach(formation, reachFeet) {
+  return game.user.isGM
+    ? placementsNear(formation, { feet: reachFeet })
+    : knownPlacementsNear(formation, reachFeet);
+}
 
 /**
  * Working on a trap: who is doing it, WHICH trap, and by which column of the
@@ -95,12 +107,8 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
   async _prepareContext() {
     const formation = this.formation;
     const actor = this.actor;
-    // A Judge is shown every trap in reach, found or not, because marking one
-    // spotted is one of the things this dialog is for. A player is shown only
-    // what the party has found.
-    const inReach = game.user.isGM
-      ? placementsNear(formation, { feet: TRAPBREAK_REACH_FEET })
-      : knownPlacementsNear(formation, TRAPBREAK_REACH_FEET);
+    const reachFeet = trapbreakReach();
+    const inReach = placementsInReach(formation, reachFeet);
     const chosen = inReach.find((p) => p.uuid === this.choice.targetUuid) ?? inReach[0] ?? null;
 
     const check = actor ? resolveCheck(actor, PARTY_CHECKS[this.choice.mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical"]) : null;
@@ -135,7 +143,8 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       repeatable: plan.repeatable,
       refusal: refusal ? loc(`refuse.${refusal}`, { name: actor?.name ?? "" }) : null,
       canAttempt: !!actor && !!chosen && !refusal,
-      reachFeet: TRAPBREAK_REACH_FEET,
+      // 0 reads as "not imported": only a trap the party touches is offered.
+      reachFeet: reachFeet > 0 ? reachFeet : null,
     };
   }
 
@@ -188,9 +197,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
   async _placement() {
     const formation = this.formation;
     if (!formation) return null;
-    const inReach = game.user.isGM
-      ? placementsNear(formation, { feet: TRAPBREAK_REACH_FEET })
-      : knownPlacementsNear(formation, TRAPBREAK_REACH_FEET);
+    const inReach = placementsInReach(formation, trapbreakReach());
     return inReach.find((p) => p.uuid === this.choice.targetUuid) ?? inReach[0] ?? null;
   }
 

@@ -394,6 +394,14 @@ Hooks.once("init", () => {
     // (marching, and with a wide weapon) and the interval between ranks, in
     // feet. Printed, so none of them ship.
     "marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet",
+    // The traps' figures (`trap-rules.mjs` `trapFigures`, `pitFigures`): the
+    // automatic search's reach bare and with a pole, the pole's lead, the
+    // secret die and the band that springs it, the trapbreak reach, the botch
+    // bands and the methodical bonus, and the pit's spike dice. Printed, so
+    // none of them ship.
+    "searchReachFeet", "poleSearchReachFeet", "poleLeadFeet", "trapTriggerDie", "trapTriggerOn",
+    "trapbreakReachFeet", "trapbreakHastyBotch", "trapbreakMethodicalBotch", "trapbreakMethodicalBonus",
+    "pitSpikeCount", "pitSpikeDie",
   ]);
   // The delve's wandering throw: its die, the turns between throws, the throw
   // that meets a monster, and the encounter distance's dice
@@ -765,7 +773,19 @@ Hooks.once("init", () => {
      * body's rank from the column as it is laid on the map (a blank square and
      * a stack's bodies counted, a file a wall squeezes out one rank back) and
      * measure ranks by the imported rank interval where the scene is spaced.
-     * `marchingOrder` is as it was.
+     * `marchingOrder` is as it was. It also drops `traps.FEET_PER_RANK`,
+     * `SEARCH_REACH_FEET`, `POLE_REACH_FEET`, `TRAPBREAK_REACH_FEET`,
+     * `TRIGGER_DIE`, `TRIGGER_DEFAULT` and `BOTCH_BANDS` for the imported
+     * figures `traps.trapFigures()` and `traps.pitFigures()` (each null until
+     * imported). `probeSequence` takes `poleRanks` (the pole's lead in ranks,
+     * `poleLeadRanks`) and probes with no pole without it; `victimsOf`'s
+     * `rankFeet` defaults to null and `rankDepth` answers null for no length;
+     * `autoSearchers` and `searcherReachFeet` join the pure half, taking the
+     * figures and `rankFeet`; `triggerFires` takes no default band; `disarmPlan` and
+     * `isBotch` take `figures`; `pitDamage` and `firingPlan` take the pit
+     * figures, and `firingPlan` also answers `pitUnknown`. A trap's `triggerOn`
+     * is null for the imported band, and `runTrapCheck` answers `byHand` where
+     * the secret die or its band is not imported.
      */
     apiVersion: 23,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },

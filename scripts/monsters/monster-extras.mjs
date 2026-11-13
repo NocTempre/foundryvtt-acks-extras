@@ -169,7 +169,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         compute: bool(false),
       }),
 
-      // --- Monster attributes (MM Rules p.349; default 9 if left blank) ---
+      // --- Monster attributes (MM Rules p.349; a blank score stays blank, and
+      //     the sheet shows the imported default as its placeholder) ---
       scores: new SchemaField({
         str: num({ integer: true }),
         int: num({ integer: true }),

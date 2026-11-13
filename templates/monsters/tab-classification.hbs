@@ -114,7 +114,7 @@
           {{#each scores as |score key|}}
           <label class="acks-extras-monster__score">
             <span class="acks-extras-frame__fact-label">{{localize score.label}}</span>
-            <input class="acks-input acks-attribute-value acks-extras-frame__score" type="number" name="{{@root.x}}.scores.{{key}}" value="{{lookup @root.extras.scores key}}" placeholder="9"/>
+            <input class="acks-input acks-attribute-value acks-extras-frame__score" type="number" name="{{@root.x}}.scores.{{key}}" value="{{lookup @root.extras.scores key}}" placeholder="{{@root.defaultScore}}"/>
           </label>
           {{/each}}
         </div>

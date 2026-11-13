@@ -497,8 +497,7 @@ const P = {
     const f = H.model.getFormation(fid);
     const laid = await H.model.laidOrder(f);
     const rows = (order) => order.map((r) => ({ id: r.actorId, rank: r.rank, file: r.file }));
-    const rules = await import("/modules/acks-extras/scripts/formation/trap-rules.mjs");
-    return { laid: rows(laid.order), rankFeet: laid.rankFeet, marching: rows(H.model.marchingOrder(f)), defaultDepth: rules.FEET_PER_RANK };
+    return { laid: rows(laid.order), rankFeet: laid.rankFeet, marching: rows(H.model.marchingOrder(f)), defaultDepth: canvas.scene?.grid?.distance };
   },
 
   /** The walk's trap zone: the one trap item made an area trap that always springs, with a level-1 radius of `radius` feet, and the zone armed (`on`) or switched off. */

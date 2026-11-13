@@ -36,11 +36,14 @@ placeholders for GMs without the books.
 Every printed figure the rules apply arrives the same way, from an imported
 `proseValues` table, and the pure rules under `scripts/markets/rules/` take
 it as an argument: the shopping crowd, the all-parties multiple and the hub
-shifts and loss result (`availability.marketRulesProse`, RR 124), the
+shifts, waits and loss result (`availability.marketRulesProse`, RR 124; a
+wait is kept as the phrase and `rules/imports.mjs` `parseHubWait` reads its
+dice and calendar unit; the purchase dialog shows it only when imported), the
 Bargaining swing (`availability.bargainingProse`), the magic-item price
 multiples (`magicItems.priceProse`, JJ 131), the identification thresholds
 (`magicItems.identifyProse`), the market-impact limits, assessment bands,
-class price shifts and negotiation profile (`mercantile.impactProse`,
+class price shifts and negotiation profile, including how many price steps an
+agreement moves the price (`mercantile.impactProse`,
 `assessmentProse`, `priceShiftProse`, `negotiationProse`, JJ 202), and the
 randomized tariff's dice (`mercantile.tariffProse`, RR 372). The
 demand step fraction is derived per category from the merchandise row's own
@@ -57,7 +60,9 @@ writes nothing.
 (`lib.money.ownCoin(location)`), valued by `coinTotalCp`, and a monthly
 refresh tops it up with `mintCoin`. The changer lists the coin the trader
 carries that no lock shuts away and exchanges through
-`lib.money.exchangeCoins`. Nothing in this feature counts or writes a coin
+`lib.money.exchangeCoins`; the denominations it offers are the money items of
+the system's compendia, the world and the stacks listed, one per `coppervalue`,
+named by the item. Nothing in this feature counts or writes a coin
 row (docs/lib/MODEL.md, "Currency").
 
 **A market is paid at the market.** Every payment this feature makes states

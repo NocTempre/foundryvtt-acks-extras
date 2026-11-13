@@ -244,6 +244,23 @@ a world with no square answers null for every one, so the battlemap leaves the
 token as it is and a monster is imported with Foundry's default token. The
 weight, length and feet lines of the same table are not read.
 
+**The load rule and the default score** are two more `monsters` tables, read
+by `scripts/monsters/load-rule.mjs`. `loadRule` is the Normal Load entry (MM
+p. 13): `maxMultiple`, the creature's maximum load as a multiple of its normal
+load, and `speedShare`, the share of its speed it keeps above the normal load.
+`defaultScore` (`score`) is the figure MM p. 349 starts every attribute at.
+`loadRule()` and `defaultScore()` answer null for a figure that was not
+imported or is no figure (a multiple at or below one, a share outside zero to
+one, a score that is not a whole number above zero), and a Judge's override
+layer wins. `loadStanding` places a load against the normal load and a ceiling,
+which is the creature's own Max Load, else `maxMultiple` times its normal load;
+the Inventory tab's `computeEncumbrance` and the Statblock bar's `loadReading`
+both take it. With no ceiling a load past normal is Encumbered and never
+Overloaded, the bar scales to the larger of the two loads, and the Statblock
+note names no maximum. The Encumbered speed readout shows `speedShare` and shows
+nothing where none is imported. A blank attribute stays blank on the Classification
+tab and shows `defaultScore()` as its placeholder, or none.
+
 **Provenance.** Each derived throw and save row stores its parts on the
 generated actor (`extras.derived`: the figure written, the member's figure
 and rating it moved from, the rating it moved to, the ladder rows between, the

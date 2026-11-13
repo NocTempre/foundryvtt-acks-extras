@@ -667,13 +667,21 @@ await testAsync("laidOrder on a scene that lays no column is the marching order"
   assert.deepEqual((await laidOrder(f)).order, marchingOrder(f));
 });
 
-await testAsync("laidOrder in the open without figures ranks as the marching order does and keeps the default depth", async () => {
+await testAsync("laidOrder in the open without figures ranks as the marching order does and reads the scene's cell as the rank depth", async () => {
   const sq = spaced("s");
   const f = placed(sq, partyToken(sq, 7, 7), party(5, 2).members, 2);
   const out = await laidOrder(f);
   assert.deepEqual(seatsOf(out.order), ["a0:0/0", "a1:0/1", "a2:1/0", "a3:1/1", "a4:2/0"]);
   assert.deepEqual(out.order, marchingOrder(f), "the same rows, names and roles included");
-  assert.equal(out.rankFeet, null, "nothing imported: no rank interval");
+  assert.equal(out.rankFeet, 5, "nothing imported: an unspaced column is one body to a cell, so a rank is the scene's cell");
+});
+
+await testAsync("laidOrder on a scene that says no cell size has no rank depth", async () => {
+  const blank = scene("n", { distance: 0 });
+  const f = placed(blank, partyToken(blank, 7, 7), party(2, 2).members, 2);
+  assert.equal((await laidOrder(f)).rankFeet, null);
+  const hex = scene("h", { type: 2, distance: 3 });
+  assert.equal((await laidOrder(placed(hex, partyToken(hex, 2, 2), party(5, 2).members, 2))).rankFeet, 3, "a scene that lays no column still reads its cell");
 });
 
 await testAsync("laidOrder counts a blank square and every body of a stack, which the marching order does not", async () => {

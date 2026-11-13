@@ -1,6 +1,6 @@
 /* global foundry, game */
 import { MODULE_ID, SAVE_KEYS } from "./constants.mjs";
-import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, mergeTierSubmit, pitDamageFormula } from "./trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, mergeTierSubmit, pitDamage, trapFigures } from "./trap-rules.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -98,9 +98,23 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // Shown so the Judge can see what a depth is worth without doing the
     // arithmetic, and so a typed formula visibly overriding it is not a
     // surprise. Suppressed when a typed formula has already won.
-    context.derivedDamage = String(tier.damageFormula ?? "").trim()
-      ? null
-      : pitDamageFormula(tier.pitDepthFeet, tier.spiked);
+    const typed = String(tier.damageFormula ?? "").trim();
+    const pit = typed ? { formula: null, unknown: [] } : pitDamage(tier.pitDepthFeet, tier.spiked);
+    context.derivedDamage = pit.formula;
+    // A pit whose dice are not imported says so instead of showing nothing.
+    context.pitUnknown = pit.unknown.includes("fall")
+      ? label("pitFallNotImported")
+      : pit.unknown.includes("spikes")
+        ? label("pitSpikesNotImported")
+        : "";
+
+    // The trigger band: blank reads the imported one, and the secret die's
+    // faces bound what a typed band can mean. Neither is invented when absent.
+    const figures = trapFigures();
+    context.triggerMax = figures.triggerFaces;
+    context.triggerOnDefault = figures.triggerOn;
+    context.triggerOnPlaceholder = figures.triggerOn ?? "";
+    context.triggerNotImported = figures.triggerOn === null || figures.triggerFaces === null;
     return context;
   }
 
@@ -122,6 +136,12 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
+    // A blank band is the imported one: stored as null, never as 0, which
+    // would read as "never springs".
+    if (data.system && "triggerOn" in data.system) {
+      const band = data.system.triggerOn;
+      data.system.triggerOn = band === "" || band == null || Number.isNaN(Number(band)) ? null : Number(band);
+    }
     const submitted = data.system?.levels;
     if (submitted) {
       const level = data.system.level ?? this.item.system.level;

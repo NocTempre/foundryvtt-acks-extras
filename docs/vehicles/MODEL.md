@@ -273,12 +273,18 @@ weightless freight beside the named ones' weighed inventories.
   navigational art aboard helps, both together help more, priced as the
   imported pair. Separately, entering a hex holding a hazard asks the
   CAPTAIN's Seafaring (a master mariner reads the water better), helped by
-  making half speed and by a shallow draft over sandbar or shoal. Kelp holds
+  a slowed passage and by a shallow draft over sandbar or shoal. Kelp holds
   her without harm until she is cut out; rock, reef or wreck tears and lets
   her sail on; sandbar or shoal harms and strands, and a stranded crew
-  lightens her at the imported rates or waits for the tide — damage halved
-  if she was making half speed, the rule rewarding caution twice for one
-  decision.
+  lightens her at the imported rates or waits for the tide — damage reduced
+  if she was slowed, the rule rewarding caution twice for one decision. The
+  slowed passage's two shares sit on the `hazardThrow` table beside the
+  captain's targets: `speedShare`, the share of her speed she must be making,
+  and `damageShare`, the share of a hazard's damage she takes then
+  (`navigation.mjs` `reducedSpeed()`; the importer reads them from the same
+  prose block as the bonus, `voyages-binding.mjs`). The hazard dialog's
+  checkbox, the throw card's part and the damage line name the share where it
+  is imported and say "slowed passage" or "not imported" where it is not.
 
 ## Boarding
 

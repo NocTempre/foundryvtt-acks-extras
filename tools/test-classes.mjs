@@ -76,6 +76,7 @@ const TABLES = {
     savesPrecedence: ["arcane", "divine", "fighting", "thievery"],
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
+    xpFlatAfter: 6,
     hpAfterNine: { crusaderMage: 3, fighterThief: 5, afterLevel: 6 },
     // Invented figures: a cap per total of build points, and the one a human
     // class takes; none is a figure the book prints.
@@ -178,12 +179,16 @@ test("contract names are stable", () => {
   assert.ok(BUILDER_TABLE_IDS.includes("magicTypes"));
 });
 
-test("xpSchedule doubles to 8th, smooths the 7th threshold, then climbs flat", () => {
-  const xp = xpSchedule(1750, 12, { smoothing: { level: 7, nearest: 5000 }, postEightIncrement: 120000 });
-  // 1750 3500 7000 14000 28000 → L7 56000 smoothed 55000 → L8 110000
-  assert.deepEqual(xp.slice(0, 8), [0, 1750, 3500, 7000, 14000, 28000, 55000, 110000]);
-  assert.equal(xp[8], 230000);
-  assert.equal(xp[9], 350000);
+test("xpSchedule doubles to the imported level, rounds the smoothing level's threshold, then climbs flat", () => {
+  const xp = xpSchedule(1750, 12, { smoothing: { level: 7, nearest: 5000 }, flatIncrement: 120000, flatAfter: 6 });
+  // 1750 3500 7000 14000 28000 (L6) → L7 148000 rounded to 150000 → flat steps
+  assert.deepEqual(xp.slice(0, 7), [0, 1750, 3500, 7000, 14000, 28000, 150000]);
+  assert.equal(xp[7], 270000);
+  assert.equal(xp[8], 390000);
+});
+
+test("xpSchedule stops after the 2nd level where no level for the flat step was imported", () => {
+  assert.deepEqual(xpSchedule(1750, 12, { flatIncrement: 120000 }), [0, 1750]);
 });
 
 test("xpSchedule survives a base the tables never answered", () => {
@@ -544,7 +549,7 @@ test("a blank inventory row is never offered as a choice", () => {
 test("derivePlan skips what a partial table set cannot answer", () => {
   const plan = derivePlan({
     builder: { hdValue: 0, fighting: { value: 2 }, magic: [] },
-    tables: { budget: { humanMaxLevel: TABLES.budget.humanMaxLevel }, hd: TABLES.hd, fighting: TABLES.fighting },
+    tables: { budget: { humanMaxLevel: TABLES.budget.humanMaxLevel, xpFlatAfter: TABLES.budget.xpFlatAfter }, hd: TABLES.hd, fighting: TABLES.fighting },
     race: null,
   });
   assert.equal(plan.update.hitDie, "1d4");
@@ -556,6 +561,17 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   assert.ok(plan.issues.some((i) => i.key === "missingHpAfterNine"));
   assert.ok(plan.issues.some((i) => i.key === "missingLastDieLevel"));
   assert.ok(plan.update.levels.every((r) => r.hd === ""), "no last die level, no hit-dice cell");
+});
+
+test("derivePlan writes no level rows where the level the XP rule changes at was not imported", () => {
+  const { xpFlatAfter: _gone, ...budget } = TABLES.budget;
+  const plan = derivePlan({
+    builder: { hdValue: 0, fighting: { value: 2 }, magic: [] },
+    tables: { ...TABLES, budget },
+    race: null,
+  });
+  assert.ok(plan.issues.some((i) => i.key === "missingPostEight"));
+  assert.equal(plan.update.levels, undefined, "a short schedule is never written as if it were whole");
 });
 
 /* A class's cap is the book's, or nothing: a human build reads the budget's
@@ -2843,6 +2859,16 @@ await atest("a score rolled before the library arrives is counted against the di
     globalThis.game = savedGame;
     globalThis.Hooks = savedHooks;
   }
+});
+
+await atest("the Scores Generator's dice are read from core's own buttons, and an absent button yields none", async () => {
+  const { formulaOf } = await import("../scripts/classes/stat-page.mjs");
+  const root = {
+    querySelector: (sel) => (sel === 'button[data-action="rollGold"]' ? { dataset: { formula: "2d5+1" } } : sel.includes("rollTemplate") ? { dataset: {} } : null),
+  };
+  assert.equal(formulaOf(root, "rollGold"), "2d5+1");
+  assert.equal(formulaOf(root, "rollTemplate"), "", "a button that names no formula yields none");
+  assert.equal(formulaOf(root, "rollScore"), "", "no button, no formula");
 });
 
 await atest("a legacy ledger write re-renders the open sheets of that player's characters, and only those", async () => {

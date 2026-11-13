@@ -1,0 +1,1 @@
+- **The class builder reads the level its XP rule changes at from your Judges Journal.** Import it from Settings tab → Game Settings → ACKS II — Extras → Manage imports. Until it is imported, Derive class tables on a class sheet's Builder tab writes no level rows and lists the missing XP figure among its issues, citing JJ ch. 12.

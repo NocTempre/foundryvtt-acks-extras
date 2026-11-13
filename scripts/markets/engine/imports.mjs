@@ -1,8 +1,8 @@
 /* global game, ui, foundry, Hooks, ChatMessage, Roll, fromUuid */
 /**
- * Merchant importing (RR 124): order goods from a local hub (a larger market
- * class, 2d6 days) or regional hub (larger still, 2d6 weeks), paid up front;
- * on the printed transit result the goods are lost and the payment forfeit.
+ * Merchant importing (RR 124): order goods from a local or a regional hub,
+ * paid up front, after the wait the imported market rules give that hub; on
+ * the printed transit result the goods are lost and the payment forfeit.
  *
  * The order's fate is rolled AT PLACEMENT and stays hidden until due, so
  * resolution is deterministic under clock adjustments. Hubs are abstract in
@@ -15,7 +15,7 @@ import { getSetting } from "../settings.mjs";
 import { toGp, bargainWinner } from "../rules/pricing.mjs";
 import { magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { importPlan, dueImports, hubClass, HUBS } from "../rules/imports.mjs";
-import { marketRules, printedError } from "./printed.mjs";
+import { hubWait, marketRules, printedError } from "./printed.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
@@ -63,8 +63,9 @@ async function postCard(buyer, html) {
 /**
  * Place an import order: pay now, arrival (or hidden loss) already decided.
  * The hub is `payload.hub` ("local" or "regional"; anything else is local).
- * How far each hub shifts the market class and which transit result loses the
- * goods are printed figures read from the imported market rules.
+ * How far each hub shifts the market class, how long it takes and which
+ * transit result loses the goods are printed figures read from the imported
+ * market rules.
  */
 export async function placeImportOrder(location, payload) {
   const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
@@ -95,7 +96,8 @@ export async function placeImportOrder(location, payload) {
   if (isMasterwork(itemData) && !goods.masterworkContact) return err("masterworkGated");
 
   const hubRules = marketRules(["localHubShift", "regionalHubShift", "lostOnRoll"]);
-  if (!hubRules) return printedError("marketRulesProse");
+  const wait = hubWait(hub);
+  if (!hubRules || !wait) return printedError("marketRulesProse");
   const localClass = effectiveMarketClass(location, buyer);
   if (localClass == null) return err("noMarket");
   const sourceClass = hubClass(localClass, hub === "regional" ? hubRules.regionalHubShift : hubRules.localHubShift);
@@ -134,9 +136,9 @@ export async function placeImportOrder(location, payload) {
   const paid = await adapter.spendGold(buyer, totalGp, game.i18n.format(`${LANG}.imports.payReason`, { qty, name: itemData.name }), { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
   if (!paid) return err("insufficientGold");
 
-  const roll2d6 = (await new Roll("2d6").evaluate()).total;
+  const roll = (await new Roll(wait.dice).evaluate()).total;
   const t = now();
-  const plan = importPlan({ roll2d6, hub, lostOnRoll: hubRules.lostOnRoll, placedTime: t });
+  const plan = importPlan({ roll, wait, lostOnRoll: hubRules.lostOnRoll, placedTime: t });
   const order = {
     id: resolutionId || foundry.utils.randomID(),
     partyId: partyOf(buyer).id,

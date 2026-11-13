@@ -177,6 +177,11 @@ through `rollFormula`. The lock roll (`equipment/locks.mjs`) passes
 dialog returns `null` and posts nothing.
 Rulings: lib DECISIONS, "One roll dialog, and the natural die on the card".
 
+A throw whose Dice field is blank or not a dice formula rolls core's own throw
+die: `coreThrowDie` reads the initial value of the `roll` field on the ability
+data model core registers, and the warning names that die. A bare harness with
+no registered model gets the same default core ships.
+
 ## A companion is an inventory slot
 
 An ability that confers a creature — a familiar, a totem animal, a summoned

@@ -17,7 +17,7 @@ const { parseCell, priceBandOf, cellFor, partyCap, marketCap, pctMarketStock, re
   await import(new URL("../scripts/markets/rules/availability.mjs", import.meta.url));
 const { quote, magicQuote, magicBandValueGp, bargainWinner, stepFractionOf, toCopper, toGp } =
   await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
-const { importPlan, dueImports, hubClass, HUBS, SECONDS_PER_DAY, SECONDS_PER_WEEK } =
+const { importPlan, dueImports, hubClass, parseHubWait, HUBS, SECONDS_PER_DAY, SECONDS_PER_WEEK } =
   await import(new URL("../scripts/markets/rules/imports.mjs", import.meta.url));
 const { tiersNamed, inBackfireBand } = await import(new URL("../scripts/markets/rules/identification.mjs", import.meta.url));
 const { requireNumber } = await import(new URL("../scripts/markets/rules/required.mjs", import.meta.url));
@@ -274,23 +274,27 @@ assert.strictEqual(hubClass(6, 0), 6, "a zero shift stays put");
 assert.throws(() => hubClass(4), /hubShift/, "no printed shift, no hub class");
 assert.deepStrictEqual(Object.keys(HUBS), ["local", "regional"], "the hub kinds an order can name");
 
+assert.deepStrictEqual(parseHubWait("3d4 days and"), { dice: "3d4", unit: "day", seconds: SECONDS_PER_DAY }, "a wait counts days");
+assert.deepStrictEqual(parseHubWait("1D8 Weeks"), { dice: "1d8", unit: "week", seconds: SECONDS_PER_WEEK }, "a wait counts weeks, case aside");
+assert.strictEqual(parseHubWait("3d4 fortnights"), null, "a unit the module has no length for is no wait");
+assert.strictEqual(parseHubWait("a while"), null, "a phrase with no dice term is no wait");
+assert.strictEqual(parseHubWait(undefined), null, "an unread wait is null");
+
 {
-  const p = importPlan({ roll2d6: 7, hub: "local", lostOnRoll: 11, placedTime: 1000 });
+  const days = parseHubWait("3d4 days");
+  const weeks = parseHubWait("3d4 weeks");
+  const p = importPlan({ roll: 7, wait: days, lostOnRoll: 11, placedTime: 1000 });
   assert.strictEqual(p.lost, false, "a roll other than the printed loss arrives");
-  assert.strictEqual(p.arrivalTime, 1000 + 7 * SECONDS_PER_DAY, "local hub counts days");
+  assert.strictEqual(p.arrivalTime, 1000 + 7 * SECONDS_PER_DAY, "a wait in days counts days");
+  assert.match(p.detail, /^3d4 → 7 days$/, "the detail names the wait's own dice");
+  assert.strictEqual(importPlan({ roll: 5, wait: weeks, lostOnRoll: 11, placedTime: 0 }).arrivalTime, 5 * SECONDS_PER_WEEK, "a wait in weeks counts weeks");
+  const lost = importPlan({ roll: 11, wait: weeks, lostOnRoll: 11, placedTime: 0 });
+  assert.strictEqual(lost.lost, true, "the printed result is lost in transit");
+  assert.strictEqual(lost.arrivalTime, 11 * SECONDS_PER_WEEK, "loss reveals at the would-be arrival");
+  assert.strictEqual(importPlan({ roll: 12, wait: days, lostOnRoll: 11, placedTime: 0 }).lost, false, "a roll of 12 is not the loss unless the table says so");
+  assert.throws(() => importPlan({ roll: 7, wait: days, placedTime: 0 }), /lostOnRoll/, "no printed losing result, no plan");
+  assert.throws(() => importPlan({ roll: 7, wait: null, lostOnRoll: 11, placedTime: 0 }), /wait/, "no printed wait, no plan");
 }
-{
-  const p = importPlan({ roll2d6: 5, hub: "regional", lostOnRoll: 11, placedTime: 0 });
-  assert.strictEqual(p.arrivalTime, 5 * SECONDS_PER_WEEK, "regional hub counts weeks");
-}
-{
-  const p = importPlan({ roll2d6: 11, hub: "regional", lostOnRoll: 11, placedTime: 0 });
-  assert.strictEqual(p.lost, true, "the printed result is lost in transit");
-  assert.strictEqual(p.arrivalTime, 11 * SECONDS_PER_WEEK, "loss reveals at the would-be arrival");
-  assert.strictEqual(importPlan({ roll2d6: 12, hub: "local", lostOnRoll: 11, placedTime: 0 }).lost, false, "a roll of 12 is not the loss unless the table says so");
-}
-assert.throws(() => importPlan({ roll2d6: 7, hub: "local", placedTime: 0 }), /lostOnRoll/, "no printed losing result, no plan");
-assert.throws(() => importPlan({ roll2d6: 7, hub: "orbital", lostOnRoll: 11, placedTime: 0 }), /hub/, "an unknown hub kind is refused");
 
 const orders = [
   { id: "a", status: "ordered", arrivalTime: 100 },
@@ -654,7 +658,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   // would have stored, with every key optional.
   const STORE = {
     availability: {
-      marketRulesProse: { crowdSize: 7, crowdMultiplier: 3, marketTotalMultiplier: 6, localHubShift: 2 },
+      marketRulesProse: { crowdSize: 7, crowdMultiplier: 3, marketTotalMultiplier: 6, localHubShift: 2, localHubWait: "3d4 days and from" },
       bargainingProse: { buyPct: 15, sellPct: 20, rankBonus: 3 },
     },
     magicItems: {
@@ -666,7 +670,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
       impactProse: { impactCap: 7, familyScaledClass: 2 },
       assessmentProse: { bands: [{ min: null, max: 4 }, { min: 5, max: 7 }, { min: 8, max: 9 }, { min: 10, max: 12 }, { min: 13, max: null }] },
       negotiationProse: {
-        commonCha: 3, commonRanks: 2, preciousCha: 4, preciousRanks: 5, extraRanks: 2, rankStep: 3,
+        commonCha: 3, commonRanks: 2, preciousCha: 4, preciousRanks: 5, extraRanks: 2, rankStep: 3, priceSteps: 2,
         bands: [{ min: null, max: 3 }, { min: 4, max: 6 }, { min: 7, max: 10 }, { min: 11, max: 13 }, { min: 14, max: null }],
       },
       tariffProse: { preciousDie: "3d8", commonDie: "1d6" },
@@ -719,6 +723,10 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   );
   assert.deepStrictEqual(printed.negotiation().precious, { cha: 4, ranks: 5 }, "the typical precious merchant is the imported one");
   assert.strictEqual(printed.negotiation().rankStep, 3, "the per-rank step");
+  assert.strictEqual(printed.negotiation().priceSteps, 2, "the price steps an agreement moves");
+  assert.deepStrictEqual(printed.hubWait("local"), { dice: "3d4", unit: "day", seconds: SECONDS_PER_DAY }, "a hub's wait is read from its imported phrase");
+  assert.strictEqual(printed.hubWait("regional"), null, "a hub whose wait the page did not yield has none");
+  assert.strictEqual(printed.hubWait("orbital"), null, "an unknown hub has no wait");
   assert.deepStrictEqual(printed.tariffDice(), { precious: "3d8", common: "1d6" }, "the randomized tariff's dice per tier");
   STORE.mercantile.tariffProse.commonDie = "a few";
   assert.strictEqual(printed.tariffDice(), null, "a die the page did not yield as one die term reads as absent");
@@ -764,6 +772,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual(printed.marketRules(["crowdSize"]), null, "no registry document, no figure");
   assert.strictEqual(printed.bargaining(), null, "no registry document, no swing");
   assert.strictEqual(printed.negotiation(), null, "no registry document, no profile");
+  assert.strictEqual(printed.hubWait("local"), null, "no registry document, no wait");
   assert.strictEqual(printed.tariffDice(), null, "no registry document, no dice");
   assert.strictEqual(printed.stayRates(), null, "no registry document, no rates");
   assert.strictEqual(printed.rangeOfTradeFor(6), null, "no registry document, no range");

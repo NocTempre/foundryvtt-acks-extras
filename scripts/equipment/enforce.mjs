@@ -69,17 +69,8 @@ function violationMessage(v) {
   // overflow has no held hands and must not grow an empty clause.
   const held = v.type === VIOLATION.HAND_OVERFLOW ? heldHandsClause(v.detail) : "";
   const useKey = held && game.i18n.has(`${key}Held`) ? `${key}Held` : key;
-  if (game.i18n.has(useKey)) return game.i18n.format(useKey, { items: names, held, ...(v.detail ?? {}) });
-  switch (v.type) {
-    case VIOLATION.HAND_OVERFLOW:
-      return `Not enough hands (${v.detail.handsUsed}/${v.detail.budget}${held ? `, ${held}` : ""}) — free up: ${names}.`;
-    case VIOLATION.MULTIPLE_ARMOR:
-      return `Only one suit of armour may be worn; ${names} is already worn.`;
-    case VIOLATION.TOO_MANY_SHIELDS:
-      return `A combatant may wield at most two shields; ${names} exceeds that.`;
-    default:
-      return `Illegal loadout: ${names}.`;
-  }
+  // A type with no key of its own reads as its key, which names the violation.
+  return game.i18n.format(useKey, { items: names, held, ...(v.detail ?? {}) });
 }
 
 /**

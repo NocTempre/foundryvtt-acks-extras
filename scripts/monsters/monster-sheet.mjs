@@ -23,6 +23,7 @@ import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
 import * as CFG from "./config.mjs";
 import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
+import { loadRule, loadStanding, defaultScore } from "./load-rule.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
@@ -113,22 +114,24 @@ function computeEncumbrance(actor, extras) {
 
   const normal = extras.load?.normal;
   const max = capacityStone(actor);
+  const { maxMultiple, speedShare } = loadRule();
   let state = "unknown";
   let speedFactor = null;
   let pct = null;
   let normalPct = null;
   if (normal != null) {
-    const denom = (max != null ? max : normal * 2) || 1;
-    pct = Math.min(100, Math.max(0, (stone / denom) * 100));
-    normalPct = Math.min(100, (normal / denom) * 100);
-    if (stone <= normal) [state, speedFactor] = ["unencumbered", 1];
-    else if (max != null ? stone <= max : stone <= normal * 2) [state, speedFactor] = ["encumbered", 0.5];
-    else [state, speedFactor] = ["overloaded", 0];
+    const standing = loadStanding({ stone, normal, max, maxMultiple });
+    state = standing.state;
+    pct = Math.min(100, Math.max(0, (stone / standing.denom) * 100));
+    normalPct = Math.min(100, (normal / standing.denom) * 100);
+    // The speed share above normal is the imported one; none imported, none shown.
+    speedFactor = state === "unencumbered" ? 1 : state === "overloaded" ? 0 : speedShare;
   }
   return {
     stone: Math.round(stone * 10) / 10,
     normal,
     max,
+    maxMultiple,
     pct,
     normalPct,
     state,
@@ -293,6 +296,8 @@ export function createFullMonsterSheet(Base) {
       context.encumbrance = computeEncumbrance(actor, extras);
       context.choices = choices();
       context.scores = CFG.ABILITY_SCORES;
+      // The placeholder of a blank attribute: the imported default, or nothing.
+      context.defaultScore = defaultScore() ?? "";
       context.ages = CFG.AGE_CATEGORIES;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
       // The Animal tab. `training` falls back to the schema initial so a blank
@@ -513,7 +518,7 @@ export function createFullMonsterSheet(Base) {
         vision: Array.from(extras.vision ?? []).map((k) => ({ key: k, label: labelOf(CFG.VISION_TYPES, k) })),
         lightlessRange: extras.lightlessRange,
         otherSenses: (extras.otherSenses ?? []).map((s) => ({ label: labelOf(CFG.SENSE_TYPES, s.type), range: s.range, note: s.note ?? "" })),
-        load: { stone: enc.stone, normal: enc.normal, max: enc.max, rider: enc.rider },
+        load: { stone: enc.stone, normal: enc.normal, max: enc.max, maxMultiple: enc.maxMultiple, rider: enc.rider },
         defenses: { immune: band(def.immunities, true), resist: band(def.resistances, true), susceptible: band(def.susceptibilities, false) },
         spells: { enabled: !!sys.spells?.enabled, casterClass: extras.spellcasting?.class ?? "", casterLevel: extras.spellcasting?.level, slots },
         typeLabels: Array.from(extras.types ?? []).map((k) => labelOf(CFG.MONSTER_TYPES, k)),

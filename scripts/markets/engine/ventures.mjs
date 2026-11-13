@@ -883,10 +883,11 @@ export async function tradeMerchandise(location, payload) {
     const roll = await new Roll("2d6").evaluate();
     const total = roll.total + adapter.getChaMod(actor) + printed.rankStep * abilityRanks(actor, "Bargaining") - merchantCha - printed.rankStep * merchantRanks;
     const outcome = negotiationOutcome(total, roll.total, printed.bands);
-    negotiationLine = game.i18n.format(`${LANG}.ventures.negotiation.${outcome}`, { total });
+    negotiationLine = game.i18n.format(`${LANG}.ventures.negotiation.${outcome}`, { total, steps: printed.priceSteps });
     if (outcome === "outrage") return err("negotiationOutrage");
     if (outcome === "grudging" || outcome === "agreement") {
-      unitCp = Math.max(stepCp, unitCp + (direction === "sell" ? stepCp : -stepCp));
+      const moved = printed.priceSteps * stepCp;
+      unitCp = Math.max(stepCp, unitCp + (direction === "sell" ? moved : -moved));
     }
   }
 

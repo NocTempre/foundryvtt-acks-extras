@@ -47,6 +47,11 @@ enums; local-only, never in the repo).
   (`writeUnlessRaced`). On load the elected window rebuilds the effect of every
   character it owns, once its seat's election has settled; a window still
   joining is elected by nobody.
+- **Violation wording.** `enforce.violationMessage` formats
+  `ACKS-EQUIPMENT.violation.<type>`; a type with no key reads as the key
+  itself. A message names the violation and the items compared, with the page.
+  A scavenged item's breakage reads "Breakable" with its page on the sheet,
+  the chat card and the layer summary, and states no roll.
 - **Data-driven, not name-driven.** Proficiency mechanics live as Active-Effect
   changes keyed `flags.acks-extras.<domain>` on `ability` items, read through the
   shared effect-scan core in `scripts/lib/effect-scan.mjs` with this feature's

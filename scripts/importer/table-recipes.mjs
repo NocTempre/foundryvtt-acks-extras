@@ -861,7 +861,7 @@ export const TABLE_RECIPES = {
   // figure; formation-binding.mjs parses them into the engine shape
   // acks-extras declares via expectTables.
   formation: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 268, 270-271, 288" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 265, 267-268, 270-271, 288, 293; JJ 239" },
     tables: {
       // RR ch. 6 "Combatant Frontage and Interval": prose only. One sentence
       // names the wide frontage and the march frontage together, so each
@@ -878,6 +878,63 @@ export const TABLE_RECIPES = {
           { key: "wide", find: "requires a full", take: "window", span: 30 },
           { key: "march", find: "only requires", take: "window", span: 30 },
           { key: "interval", find: "organize into ranks at", take: "window", span: 25 },
+        ],
+      },
+      // RR ch. 6 Searching (RR 265): the automatic hasty search's reach, bare
+      // and with a pole, in one sentence. Each window opens on the words right
+      // before its own figure; formation-binding parses the feet.
+      searchProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 265,
+        locate: "automatically attempt to hastily search",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592 },
+        values: [
+          { key: "reach", find: "moves within", take: "window", span: 20 },
+          { key: "poleReach", find: "hidden feature (within", take: "window", span: 20 },
+        ],
+      },
+      // RR ch. 6 Traps and Trapbreaking (RR 267): the pole's lead, the secret
+      // die and the band that springs the trap, and the two Trapbreaking
+      // paragraphs, whose windows hold the botch band and the methodical bonus.
+      trapProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 267,
+        locate: "Traps and Trapbreaking",
+        column: { xMin: 40, xMax: 592 },
+        values: [
+          { key: "die", find: "will secretly roll", take: "window", span: 20 },
+          { key: "band", find: "on a roll of", take: "window", span: 14 },
+          { key: "lead", find: "pole is treated as an adventurer moving", take: "window", span: 30 },
+          { key: "hasty", find: "hastily disable a trap requires", take: "window", span: 300 },
+          { key: "methodical", find: "methodically disable a trap requires", take: "window", span: 300 },
+        ],
+      },
+      // RR ch. 6 combat actions (RR 293): the Hastily Trapbreak entry's reach.
+      actionProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 293,
+        locate: "Hastily Trapbreak",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592 },
+        values: [{ key: "reach", find: "hastily trapbreak:", take: "window", span: 70 }],
+      },
+      // JJ ch. 8 (JJ 239): the spiked pit's two dice, the one that counts the
+      // spikes and the one each deals. The page prints the fall's own die
+      // beside them; that is the `fall` table's, read from RR 271.
+      pitSpikeProse: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 239,
+        locate: "impaled on",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592 },
+        values: [
+          { key: "count", find: "impaled on", take: "window", span: 14 },
+          { key: "each", find: "spikes dealing", take: "window", span: 16 },
         ],
       },
       swimmingProse: {
@@ -2125,6 +2182,9 @@ export const TABLE_RECIPES = {
               // mariner's parenthetical together; both parse from it.
               { key: "captain", find: "seafaring proficiency throw", take: "window", span: 40 },
               { key: "halfSpeed", find: "moving at half speed", take: "window", span: 60 },
+              // The speed share that earns that bonus is printed in the
+              // clause's own words, ahead of the anchor above.
+              { key: "speedShare", find: "vessel is moving at", take: "fractionWord", span: 18 },
               { key: "shallowDraft", find: "galley or longship", take: "window", span: 60 },
             ],
           },
@@ -2146,6 +2206,9 @@ export const TABLE_RECIPES = {
             values: [
               { key: "kelpFree", find: "disentangling the vessel requires", take: "window", span: 60 },
               { key: "rockDamage", find: "strikes the hazard below the waterline and suffers", take: "window", span: 20 },
+              // The reduction a vessel at that speed takes, as the sentence
+              // that follows the dice; the binding reads the share from it.
+              { key: "reducedDamage", find: "when it entered the hex", take: "window", span: 24 },
               { key: "shoalDamage", find: "runs aground and suffers", take: "window", span: 16 },
               { key: "refloat", find: "refloated by high tide in", take: "window", span: 16 },
               { key: "lighten", find: "lightening the load grants a", take: "window", span: 30 },
@@ -3236,8 +3299,10 @@ export const TABLE_RECIPES = {
     tables: {
       // The market's own arithmetic around the availability grid (RR 124):
       // the crowd that shops at a multiple, the all-parties ceiling, the hub
-      // shifts an import order sources from, and the transit roll that loses
-      // it. The procedure is in markets; every figure is read here.
+      // shifts an import order sources from, each hub's wait (kept as the
+      // phrase, `markets/rules/imports.mjs` `parseHubWait` reads it) and the
+      // transit roll that loses it. The procedure is in markets; every figure
+      // is read here.
       marketRulesProse: {
         shape: "proseValues",
         book: "rr",
@@ -3249,6 +3314,8 @@ export const TABLE_RECIPES = {
           { key: "marketTotalMultiplier", find: "across all parties is", take: "times", span: 20 },
           { key: "localHubShift", find: "local hub (", take: "signedInt", span: 12 },
           { key: "regionalHubShift", find: "regional hub (", take: "signedInt", span: 12 },
+          { key: "localHubWait", find: "arrive from a local hub after", take: "phrase", span: 14 },
+          { key: "regionalHubWait", find: "from a regional hub after", take: "phrase", span: 14 },
           { key: "lostOnRoll", find: "on a roll of", take: "int", span: 8 },
         ],
       },
@@ -3488,6 +3555,7 @@ export const TABLE_RECIPES = {
           { key: "preciousRanks", find: "wil bonus, and", take: "wordInt", span: 8 },
           { key: "extraRanks", find: "arbitrager is facing has", take: "wordInt", span: 8 },
           { key: "rankStep", find: "the arbitrager adds a", take: "signedInt", span: 8 },
+          { key: "priceSteps", find: "agrees to adjust the price by", take: "wordInt", span: 8 },
           { key: "bands", find: "reaction to negotiation adjusted", take: "bandEdges", span: 170 },
         ],
       },
@@ -3797,6 +3865,9 @@ export const TABLE_RECIPES = {
           { key: "crusaderThief", find: "crusader or thief: additional", take: "int" },
           { key: "fighter", find: "fighter: an additional", take: "int" },
           { key: "mage", find: "mage: an additional", take: "int" },
+          // The level the flat increments start after, read from the first
+          // class line's own "for each level after" clause.
+          { key: "afterLevel", find: "for each level after", take: "int", span: 12 },
         ],
       },
       smoothing: {
@@ -4934,7 +5005,7 @@ export const TABLE_RECIPES = {
   // Monster figures a binder works out rather than reads off the creature's
   // own block. `importer/leader-roles.mjs` keys the ladder rows.
   monsters: {
-    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11" },
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 13, 349" },
     tables: {
       // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
       // the throw value at its far right. The class-level columns between are
@@ -5124,6 +5195,29 @@ export const TABLE_RECIPES = {
         labelMaxX: 140,
         cellColumns: [],
         rows: [{ key: "squares", labelRe: "\\(\\d+\\W+squares", labelPattern: "squareFeet" }],
+      },
+      // The Normal Load entry (MM Overview p. 13): the multiple of the normal
+      // load a creature can carry at most, and the share of its speed it keeps
+      // above the normal load. `monsters/load-rule.mjs` `loadRule` reads both.
+      loadRule: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 13,
+        locate: "can carry a maximum of",
+        values: [
+          { key: "maxMultiple", find: "can carry a maximum of", take: "times", span: 14 },
+          { key: "speedShare", find: "their speed is reduced to", take: "fractionWord", span: 14 },
+        ],
+      },
+      // Attributes for Monsters (MM Rules p. 349): the score most monsters are
+      // assigned in every characteristic, read by `monsters/load-rule.mjs`
+      // `defaultScore`.
+      defaultScore: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 349,
+        locate: "average specimens",
+        values: [{ key: "score", find: "with attributes of", take: "int", span: 4 }],
       },
     },
   },

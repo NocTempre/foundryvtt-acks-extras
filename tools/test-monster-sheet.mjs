@@ -67,10 +67,19 @@ console.log("monster sheet: the load bar");
 test("the bar fills toward the maximum and ticks at the normal load", () => {
   assert.deepEqual(loadReading({ stone: 5, normal: 10, max: 20 }), { pct: 25, tick: 50, tone: null, unset: false, carried: 5, normal: 10, max: 20 });
 });
-test("past normal is amber, past the maximum red, and no maximum means twice normal", () => {
+test("past normal is amber, past the maximum red, and no maximum takes the imported multiple", () => {
   assert.equal(loadReading({ stone: 15, normal: 10, max: 20 }).tone, "warn");
   assert.equal(loadReading({ stone: 25, normal: 10, max: 20 }).tone, "bad");
-  assert.equal(loadReading({ stone: 15, normal: 10 }).max, 20);
+  assert.equal(loadReading({ stone: 15, normal: 10, maxMultiple: 3 }).max, 30);
+  assert.equal(loadReading({ stone: 35, normal: 10, maxMultiple: 3 }).tone, "bad");
+});
+test("with no maximum and no imported multiple, no ceiling is invented and the bar scales to the larger load", () => {
+  const l = loadReading({ stone: 15, normal: 10 });
+  assert.equal(l.max, null);
+  assert.equal(l.tone, "warn");
+  assert.equal(l.pct, 100);
+  assert.equal(l.tick, 67);
+  assert.equal(loadReading({ stone: 400, normal: 10 }).tone, "warn", "past normal is never red without a ceiling");
 });
 test("no normal load is an unset bar", () => {
   const l = loadReading({ stone: 7 });
@@ -241,6 +250,10 @@ test("the load group is a bar with the rider as its one row, and says so when no
   assert.equal(load.rows[0].value, "2.5 st");
   const unset = statblockColumns({ ...snap(), load: { stone: 5, normal: null, max: null, rider: null } }, loc);
   assert.equal(unset.columns[2][2].note, "statblock.note.loadUnset");
+});
+test("the load note names no maximum where there is none", () => {
+  const { columns } = statblockColumns({ ...snap(), load: { stone: 15, normal: 10, max: null, rider: null } }, loc);
+  assert.equal(columns[2][2].note, `statblock.note.loadNoMax:${JSON.stringify({ stone: 15, normal: 10 })}`);
 });
 
 console.log(`\nmonster sheet: ${passed} passed`);

@@ -8,23 +8,28 @@ import {
   ON_SUCCESS,
   RESOLUTIONS,
   SCOPES,
+  autoSearchers,
   damageTaken,
   disarmPlan,
   firingPlan,
   isBotch,
   lockAfterFailure,
+  pitDamage,
   pitDamageFormula,
+  poleLeadRanks,
   probeSequence,
+  rankDepth,
   repeatLocked,
+  searcherReachFeet,
+  trapFigures,
   triggerFires,
   victimsOf,
   TRAP_LEVELS,
-  POLE_REACH_FEET,
-  SEARCH_REACH_FEET,
-  TRAPBREAK_REACH_FEET,
   emptyTier,
   mergeTierSubmit,
 } from "../scripts/formation/trap-rules.mjs";
+import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
+import * as tables from "../scripts/lib/tables.mjs";
 import {
   chainWalls,
   installTrapDrop,
@@ -54,6 +59,29 @@ const column = (...ids) => ids.map((id, i) => row(id, i, 0));
 
 const labels = (probes) => probes.map((p) => `${p.actorId}${p.kind === "pole" ? ":pole" : ""}@${p.reach}`);
 
+/**
+ * Invented figures, none a book's: a search reaches 3, a pole's search 7, a
+ * pole probes 2.5 ahead, a rank stands 1.5 deep, the secret die has 8 faces
+ * and springs on 3 or less, the dice of a fall are 1d4 per 6, the spikes are 1d3
+ * of 1d5, a hasty throw goes wrong at 2 or less and a methodical one at 1,
+ * and the methodical bonus is 3.
+ */
+const SEARCH = { searchFeet: 3, poleSearchFeet: 7 };
+const DEPTH = 1.5;
+const LEAD = 2.5;
+const POLE_RANKS = LEAD / DEPTH;
+const FIG = {
+  searchFeet: 3,
+  poleSearchFeet: 7,
+  poleLeadFeet: LEAD,
+  triggerFaces: 8,
+  triggerOn: 3,
+  trapbreakReachFeet: 4,
+  botch: { hasty: 2, methodical: 1 },
+  methodicalBonus: 3,
+};
+const PIT = { fall: { count: 1, faces: 4, feetPerDie: 6 }, spike: { count: "1d3", faces: 5 } };
+
 /* -------------------------------------------- */
 /*  Who walks into it                           */
 /* -------------------------------------------- */
@@ -63,10 +91,11 @@ test("the party meets a trap in marching order, front rank first", () => {
   assert.deepEqual(labels(probes), ["scout@0", "fighter@1", "mage@2"]);
 });
 
-test("a pole probes one rank ahead of the man carrying it", () => {
+test("a pole probes its lead ahead of the man carrying it", () => {
   // The bearer is second in line; his pole meets the plate while he is still
-  // a square back, which is the entire reason for carrying one.
-  const probes = probeSequence([row("scout", 0, 0), row("bearer", 1, 0, ["pole"])]);
+  // back, which is the entire reason for carrying one. A lead of one rank puts
+  // it on the rank in front.
+  const probes = probeSequence([row("scout", 0, 0), row("bearer", 1, 0, ["pole"])], { poleRanks: 1 });
   assert.deepEqual(labels(probes), ["scout@0", "bearer:pole@0", "bearer@1"]);
 });
 
@@ -74,20 +103,36 @@ test("a man already standing in the square meets it before a pole waved over it"
   // Both reach rank 0 — the scout on his feet, the pole from the rank behind.
   // The pole still gets its own throw; what it cannot do is arrive first at
   // ground somebody is already walking on.
-  const probes = probeSequence([row("scout", 0, 0), row("bearer", 1, 0, ["pole"])]);
+  const probes = probeSequence([row("scout", 0, 0), row("bearer", 1, 0, ["pole"])], { poleRanks: 1 });
   assert.equal(probes[0].kind, "body");
   assert.equal(probes[1].kind, "pole");
 });
 
 test("a pole at the front of the column reaches ahead of the column itself", () => {
-  const probes = probeSequence([row("bearer", 0, 0, ["pole"])]);
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"])], { poleRanks: 1 });
   assert.deepEqual(labels(probes), ["bearer:pole@-1", "bearer@0"]);
 });
 
+test("the pole's lead is the imported feet over a rank's depth, a part of a rank where they do not divide", () => {
+  assert.equal(poleLeadRanks(LEAD, DEPTH), POLE_RANKS);
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"])], { poleRanks: poleLeadRanks(LEAD, DEPTH) });
+  assert.equal(probes[0].kind, "pole");
+  assert.equal(probes[0].reach, -POLE_RANKS);
+});
+
+test("with no lead imported, or no depth to measure it in, no pole probes", () => {
+  const order = [row("bearer", 0, 0, ["pole"])];
+  for (const [lead, depth] of [[null, DEPTH], [LEAD, null], [0, DEPTH], [LEAD, 0], [undefined, undefined], ["x", DEPTH]]) {
+    assert.equal(poleLeadRanks(lead, depth), null, `${lead}/${depth}`);
+    assert.deepEqual(labels(probeSequence(order, { poleRanks: poleLeadRanks(lead, depth) })), ["bearer@0"]);
+  }
+  assert.deepEqual(labels(probeSequence(order)), ["bearer@0"], "poleRanks omitted");
+});
+
 test("at combat speed there is no pole to probe with", () => {
-  // RR p. 263: exploring at combat speed loses the 10' pole, mapping and the
+  // RR p. 263: exploring at combat speed loses pole probing, mapping and the
   // hasty search together.
-  const probes = probeSequence([row("bearer", 0, 0, ["pole"])], { pole: false });
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"])], { pole: false, poleRanks: 1 });
   assert.deepEqual(labels(probes), ["bearer@0"]);
 });
 
@@ -130,50 +175,52 @@ test("a needle takes the man who touched it and nobody else", () => {
 });
 
 test("a pole-sprung trap catches nobody: it fires into empty corridor", () => {
-  const probes = probeSequence([row("bearer", 0, 0, ["pole"])]);
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"])], { poleRanks: POLE_RANKS });
   const poleIndex = probes.findIndex((p) => p.kind === "pole");
   assert.deepEqual(victimsOf(probes, poleIndex, { scope: SCOPES.triggerer }), []);
 });
 
 test("an area effect still reaches back past the pole for its bearer", () => {
-  // The pole buys distance, not immunity. A 10' blast centred a square ahead
-  // of the bearer still has him in it.
-  const probes = probeSequence([row("bearer", 0, 0, ["pole"]), row("second", 1, 0)]);
+  // The pole buys distance, not immunity. A blast centred at the pole's lead
+  // ahead of the bearer still has him in it when its radius is long enough:
+  // the bearer stands 2.5 off and the second rank 4.
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"]), row("second", 1, 0)], { poleRanks: POLE_RANKS });
   const poleIndex = probes.findIndex((p) => p.kind === "pole");
-  const caught = victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 10 });
+  const caught = victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 4, rankFeet: DEPTH });
   assert.deepEqual(caught.map((p) => p.actorId), ["bearer", "second"]);
+  assert.deepEqual(victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 3, rankFeet: DEPTH }).map((p) => p.actorId), ["bearer"], "a radius short of the second rank spares it");
 });
 
 test("a tight area effect sprung on the pole spares even the bearer", () => {
-  // 5' of reach from a square ahead of him is the width of the corridor and
-  // no more. This is the case where the pole earns its weight.
-  const probes = probeSequence([row("bearer", 0, 0, ["pole"]), row("second", 1, 0)]);
+  // A radius shorter than the pole's lead from the bearer leaves him out. This
+  // is the case where the pole earns its weight.
+  const probes = probeSequence([row("bearer", 0, 0, ["pole"]), row("second", 1, 0)], { poleRanks: POLE_RANKS });
   const poleIndex = probes.findIndex((p) => p.kind === "pole");
-  const caught = victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 0 });
-  assert.deepEqual(caught, []);
+  assert.deepEqual(victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 0, rankFeet: DEPTH }), []);
+  assert.deepEqual(victimsOf(probes, poleIndex, { scope: SCOPES.area, radiusFeet: 2, rankFeet: DEPTH }), []);
 });
 
-test("a 10' radius catches two ranks either side of where it went off", () => {
+test("a radius catches the ranks within it either side of where it went off", () => {
+  // Invented: ranks 1.5 deep, so a radius of 3 spans two ranks either side.
   const probes = probeSequence(column("a", "b", "c", "d", "e", "f"));
-  const caught = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 10 });
+  const caught = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 3, rankFeet: DEPTH });
   assert.deepEqual(caught.map((p) => p.actorId), ["b", "c", "d", "e", "f"]);
 });
 
-test("a rank interval narrower than the default square puts more ranks inside the radius", () => {
-  // Invented: ranks 1.5' apart, so a 4' radius spans two ranks either side.
+test("a rank's depth sets how many ranks a radius spans", () => {
   const probes = probeSequence(column("a", "b", "c", "d", "e", "f"));
-  const caught = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4, rankFeet: 1.5 });
-  assert.deepEqual(caught.map((p) => p.actorId), ["b", "c", "d", "e", "f"]);
-  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4 }).map((p) => p.actorId), ["d"], "the default depth reaches no second rank");
-  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 1, rankFeet: 1.5 }).map((p) => p.actorId), ["d"], "a radius short of one interval stays on the sprung rank");
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4, rankFeet: DEPTH }).map((p) => p.actorId), ["b", "c", "d", "e", "f"], "four feet spans two ranks of 1.5 either side");
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4, rankFeet: 4 }).map((p) => p.actorId), ["c", "d", "e"], "a deeper rank spans one either side");
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 1, rankFeet: DEPTH }).map((p) => p.actorId), ["d"], "a radius short of one rank stays on the sprung rank");
 });
 
-test("a rank interval that is no length reads as the default depth", () => {
+test("a rank with no depth leaves an area effect on the rank it sprang in", () => {
   const probes = probeSequence(column("a", "b", "c", "d", "e", "f"));
-  const expected = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 10 }).map((p) => p.actorId);
   for (const rankFeet of [0, -2, NaN, null, undefined, "x"]) {
-    assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 10, rankFeet }).map((p) => p.actorId), expected, String(rankFeet));
+    assert.equal(rankDepth(rankFeet), null, String(rankFeet));
+    assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 30, rankFeet }).map((p) => p.actorId), ["d"], String(rankFeet));
   }
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 30 }).map((p) => p.actorId), ["d"], "rankFeet omitted");
 });
 
 test("an area effect with no radius still takes the man who sprang it", () => {
@@ -190,49 +237,72 @@ test("a probe index naming nobody catches nobody", () => {
 /*  The trigger die                             */
 /* -------------------------------------------- */
 
-test("the trigger die springs the trap on 1-2 and passes it on 3-6", () => {
-  assert.deepEqual([1, 2, 3, 4, 5, 6].map((d) => triggerFires(d)), [true, true, false, false, false, false]);
+test("the trigger die springs the trap at or under the band and passes it above", () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8].map((d) => triggerFires(d, FIG.triggerOn)), [true, true, true, false, false, false, false, false]);
 });
 
 test("a Judge may widen or narrow what springs it", () => {
-  // "You can adjust the range of success if the trap is particularly hard or
-  // easy to set off."
   assert.equal(triggerFires(4, 4), true);
   assert.equal(triggerFires(5, 4), false);
   // A trap set to spring on nothing never springs.
   assert.equal(triggerFires(1, 0), false);
 });
 
+test("a band that is not a number springs nothing", () => {
+  for (const band of [null, undefined, ""]) assert.equal(triggerFires(1, band), false, String(band));
+});
+
 /* -------------------------------------------- */
 /*  The disarm throw                            */
 /* -------------------------------------------- */
 
-test("working methodically is worth four to a skilled thief", () => {
-  const plan = disarmPlan({ mode: "methodical", skilled: true });
-  assert.equal(plan.bonus, 4);
+test("working methodically is worth the imported bonus to a skilled thief", () => {
+  const plan = disarmPlan({ mode: "methodical", skilled: true, figures: FIG });
+  assert.equal(plan.bonus, FIG.methodicalBonus);
   assert.equal(plan.repeatable, true);
   assert.equal(plan.adventuringAllowed, true);
 });
 
+test("with no bonus imported, working methodically adds nothing", () => {
+  assert.equal(disarmPlan({ mode: "methodical", skilled: true, figures: { ...FIG, methodicalBonus: null } }).bonus, 0);
+});
+
 test("a hasty attempt gets no bonus, cannot be repeated, and bars Adventuring", () => {
-  const plan = disarmPlan({ mode: "hasty", skilled: true });
+  const plan = disarmPlan({ mode: "hasty", skilled: true, figures: FIG });
   assert.equal(plan.bonus, 0);
   assert.equal(plan.repeatable, false);
   assert.equal(plan.adventuringAllowed, false);
 });
 
-test("a non-thief working methodically gets the attempt but not the thief's four", () => {
-  assert.equal(disarmPlan({ mode: "methodical", skilled: false }).bonus, 0);
+test("a non-thief working methodically gets the attempt but not the thief's bonus", () => {
+  assert.equal(disarmPlan({ mode: "methodical", skilled: false, figures: FIG }).bonus, 0);
 });
 
-test("a crude trap is four easier to remove, whichever way it is worked", () => {
-  assert.equal(disarmPlan({ mode: "hasty", crude: true }).bonus, CRUDE.remove);
-  assert.equal(disarmPlan({ mode: "methodical", crude: true, skilled: true }).bonus, 4 + CRUDE.remove);
+test("a crude trap is easier to remove, whichever way it is worked", () => {
+  assert.equal(disarmPlan({ mode: "hasty", crude: true, figures: FIG }).bonus, CRUDE.remove);
+  assert.equal(disarmPlan({ mode: "methodical", crude: true, skilled: true, figures: FIG }).bonus, FIG.methodicalBonus + CRUDE.remove);
 });
 
-test("a hasty attempt goes wrong on 1-3 and a methodical one only on 1", () => {
-  assert.deepEqual([1, 2, 3, 4].map((n) => isBotch(n, "hasty")), [true, true, true, false]);
-  assert.deepEqual([1, 2, 3, 4].map((n) => isBotch(n, "methodical")), [true, false, false, false]);
+test("each mode goes wrong at or under its own imported band", () => {
+  assert.deepEqual([1, 2, 3, 4].map((n) => isBotch(n, "hasty", FIG)), [true, true, false, false]);
+  assert.deepEqual([1, 2, 3, 4].map((n) => isBotch(n, "methodical", FIG)), [true, false, false, false]);
+  assert.equal(disarmPlan({ mode: "hasty", figures: FIG }).botchBand, FIG.botch.hasty);
+  assert.equal(disarmPlan({ mode: "methodical", figures: FIG }).botchBand, FIG.botch.methodical);
+});
+
+test("a band that is not imported never botches", () => {
+  const none = { ...FIG, botch: { hasty: null, methodical: null } };
+  assert.deepEqual([1, 2, 3].map((n) => isBotch(n, "hasty", none)), [false, false, false]);
+  assert.deepEqual([1, 2, 3].map((n) => isBotch(n, "methodical", none)), [false, false, false]);
+  assert.equal(disarmPlan({ mode: "hasty", figures: none }).botchBand, null);
+});
+
+test("an unimported world reads every trap figure as null", () => {
+  const figures = trapFigures();
+  assert.deepEqual(
+    [figures.searchFeet, figures.poleSearchFeet, figures.poleLeadFeet, figures.triggerFaces, figures.triggerOn, figures.trapbreakReachFeet, figures.botch.hasty, figures.botch.methodical, figures.methodicalBonus],
+    Array(9).fill(null),
+  );
 });
 
 /* -------------------------------------------- */
@@ -272,22 +342,90 @@ test("recording a failure does not edit the lock it was given", () => {
 /*  What it does                                */
 /* -------------------------------------------- */
 
-test("a pit deals a die per ten feet fallen", () => {
-  assert.equal(pitDamageFormula(10), "1d6");
-  assert.equal(pitDamageFormula(30), "3d6");
+test("a pit deals the imported fall's die for each stretch of its feet fallen", () => {
+  assert.equal(pitDamageFormula(6, false, PIT), "1d4");
+  assert.equal(pitDamageFormula(18, false, PIT), "3d4");
+  assert.equal(pitDamageFormula(18, false, { fall: { count: 2, faces: 4, feetPerDie: 6 }, spike: null }), "6d4", "a fall that deals more than one die per stretch");
 });
 
-test("spikes at the bottom are 1d4 of them at 1d6 each", () => {
-  // The nested count is the rule: 1d4 spikes, a d6 apiece. `1d4 * 1d6` would
-  // roll ONE d6 and scale it, which is a different distribution wearing the
-  // same numbers.
-  assert.equal(pitDamageFormula(20, true), "2d6 + (1d4)d6");
+test("spikes at the bottom are the imported count of them, each its own die", () => {
+  // The nested count is the rule: a rolled number of spikes, a die apiece.
+  // `1d3 * 1d5` would roll ONE die and scale it, which is a different
+  // distribution wearing the same numbers.
+  assert.equal(pitDamageFormula(12, true, PIT), "2d4 + (1d3)d5");
 });
 
 test("a trap that is not a pit has no pit damage at all", () => {
   // Not zero damage — no such component. A shallow scrape is not a fall.
-  assert.equal(pitDamageFormula(0), null);
-  assert.equal(pitDamageFormula(5), null);
+  assert.equal(pitDamageFormula(0, false, PIT), null);
+  assert.equal(pitDamageFormula(5, false, PIT), null);
+  assert.deepEqual(pitDamage(0, true, PIT), { formula: null, unknown: [] });
+});
+
+test("a pit with no fall imported has no formula and names the fall as unknown", () => {
+  assert.deepEqual(pitDamage(12, false, { fall: null, spike: PIT.spike }), { formula: null, unknown: ["fall"] });
+  assert.deepEqual(pitDamage(12, true, { fall: null, spike: PIT.spike }), { formula: null, unknown: ["fall"] });
+});
+
+test("a spiked pit with no spike dice imported deals the fall alone and names the spikes as unknown", () => {
+  assert.deepEqual(pitDamage(12, true, { fall: PIT.fall, spike: null }), { formula: "2d4", unknown: ["spikes"] });
+  assert.deepEqual(pitDamage(12, false, { fall: PIT.fall, spike: null }), { formula: "2d4", unknown: [] }, "an unspiked pit owes no spike dice");
+});
+
+test("an unimported world answers no pit figures", () => {
+  assert.deepEqual(pitDamage(12, true), { formula: null, unknown: ["fall"] });
+});
+
+test("a firing plan carries what its pit lacks, and only where the pit derives the damage", () => {
+  const noSpikes = { fall: PIT.fall, spike: null };
+  assert.deepEqual(firingPlan({ pitDepthFeet: 12, spiked: true, pit: noSpikes }).pitUnknown, ["spikes"]);
+  assert.equal(firingPlan({ pitDepthFeet: 12, spiked: true, pit: PIT }).formula, "2d4 + (1d3)d5");
+  assert.deepEqual(firingPlan({ damageFormula: "5d6", pitDepthFeet: 12, spiked: true, pit: noSpikes }).pitUnknown, [], "a typed formula owes nothing");
+});
+
+/* -------------------------------------------- */
+/*  Who searches, and how far                   */
+/* -------------------------------------------- */
+
+test("a searcher's reach is its own, less the ground between it and the front of the party", () => {
+  const front = row("a", 0, 0);
+  const second = row("b", 1, 0);
+  const pole = row("c", 1, 0, ["pole"]);
+  assert.equal(searcherReachFeet(front, { ...SEARCH, rankFeet: DEPTH }), 3);
+  assert.equal(searcherReachFeet(second, { ...SEARCH, rankFeet: DEPTH }), 1.5);
+  assert.equal(searcherReachFeet(pole, { ...SEARCH, rankFeet: DEPTH }), 5.5);
+  assert.equal(searcherReachFeet(row("d", 0, 0, ["pole"]), { ...SEARCH, rankFeet: DEPTH }), 7);
+});
+
+test("a pole with no reach of its own searches as the bare reach does", () => {
+  assert.equal(searcherReachFeet(row("c", 1, 0, ["pole"]), { searchFeet: 3, poleSearchFeet: null, rankFeet: DEPTH }), 1.5);
+});
+
+test("with no search reach imported nobody's reach is stated", () => {
+  assert.equal(searcherReachFeet(row("a", 0, 0), { searchFeet: null, poleSearchFeet: 7, rankFeet: DEPTH }), null);
+});
+
+test("a searcher behind the front rank has no stated reach where no depth is known", () => {
+  assert.equal(searcherReachFeet(row("b", 1, 0), { ...SEARCH, rankFeet: null }), null);
+  assert.equal(searcherReachFeet(row("a", 0, 0), { ...SEARCH, rankFeet: null }), 3, "the front rank needs no depth");
+});
+
+test("the searchers are those whose reach passes the front of the party", () => {
+  const order = [row("a", 0, 0), row("b", 1, 0), row("c", 2, 0), row("d", 2, 1, ["pole"]), row("e", 4, 0, ["pole"])];
+  const who = (figures) => autoSearchers(order, figures).map((r) => r.actorId);
+  // Reach 3 or 7 against ranks 1.5 deep: b has 1.5 left, c none, d's pole 4, e's 1.
+  assert.deepEqual(who({ ...SEARCH, rankFeet: DEPTH }), ["a", "b", "d", "e"]);
+  assert.deepEqual(who({ ...SEARCH, rankFeet: 3 }), ["a", "d"], "deeper ranks leave fewer in reach");
+});
+
+test("with no search reach imported only the front rank searches", () => {
+  const order = [row("a", 0, 0), row("b", 1, 0), row("c", 1, 0, ["pole"])];
+  assert.deepEqual(autoSearchers(order, { searchFeet: null, poleSearchFeet: 7, rankFeet: DEPTH }).map((r) => r.actorId), ["a"]);
+});
+
+test("with no rank depth only the front rank searches", () => {
+  const order = [row("a", 0, 0), row("b", 1, 0), row("c", 1, 0, ["pole"])];
+  assert.deepEqual(autoSearchers(order, { ...SEARCH, rankFeet: null }).map((r) => r.actorId), ["a"]);
 });
 
 test("a crude trap attacks at -2 and lets its victim save at +2", () => {
@@ -568,12 +706,57 @@ test("a trap with no stored rows still comes back with six", () => {
 /*  Reaching a trap                             */
 /* -------------------------------------------- */
 
-test("the automatic search reaches a square, and two with a pole", () => {
-  // RAW: "within 5' of a hidden feature (within 10' if equipped with a pole)".
-  assert.equal(SEARCH_REACH_FEET, 5);
-  assert.equal(POLE_REACH_FEET, 10);
-  // And a thief kneels at the trap they are working on.
-  assert.equal(TRAPBREAK_REACH_FEET, 5);
+/** Run `fn` with the invented figures registered the way an import registers them. */
+const withFormation = (figures, fn) => {
+  tables.registerTable({ id: FORMATION_DOC, tables: figures }, { priority: tables.PRIORITY.WORLD });
+  try {
+    return fn();
+  } finally {
+    tables.unregisterTable(FORMATION_DOC);
+  }
+};
+
+test("the trap figures are read from the registered formation document", () => {
+  const imported = {
+    searchReachFeet: 3,
+    poleSearchReachFeet: 7,
+    poleLeadFeet: LEAD,
+    trapTriggerDie: "1d8",
+    trapTriggerOn: 3,
+    trapbreakReachFeet: 4,
+    trapbreakHastyBotch: 2,
+    trapbreakMethodicalBotch: 1,
+    trapbreakMethodicalBonus: 3,
+    fall: { die: "1d4", feetPerDie: 6 },
+    pitSpikeCount: "1d3",
+    pitSpikeDie: "1d5",
+  };
+  withFormation(imported, () => {
+    assert.deepEqual(trapFigures(), FIG);
+    assert.deepEqual(pitDamage(12, true), { formula: "2d4 + (1d3)d5", unknown: [] });
+  });
+});
+
+test("a figure that is not a usable number or die reads as not imported", () => {
+  withFormation(
+    { searchReachFeet: 0, poleSearchReachFeet: "x", poleLeadFeet: -2, trapTriggerDie: "2d6", trapTriggerOn: "", trapbreakReachFeet: null, trapbreakHastyBotch: 0, trapbreakMethodicalBonus: 1.5, pitSpikeCount: "1d3", pitSpikeDie: "2d5", fall: { die: "1d4", feetPerDie: 6 } },
+    () => {
+      const figures = trapFigures();
+      assert.equal(figures.searchFeet, null);
+      assert.equal(figures.poleSearchFeet, null);
+      assert.equal(figures.poleLeadFeet, null);
+      assert.equal(figures.triggerFaces, null, "a die that is not a single die has no faces to roll");
+      assert.equal(figures.triggerOn, null);
+      assert.equal(figures.trapbreakReachFeet, null);
+      assert.equal(figures.botch.hasty, null);
+      assert.equal(figures.methodicalBonus, null);
+      assert.deepEqual(pitDamage(12, true), { formula: "2d4", unknown: ["spikes"] }, "a spike die that is not a single die is not imported");
+    },
+  );
+});
+
+test("a Judge's band of nothing is read, not mistaken for no figure", () => {
+  withFormation({ trapTriggerOn: 0 }, () => assert.equal(trapFigures().triggerOn, 0));
 });
 
 test("a point measures to a segment's nearer END, not to its infinite line", () => {

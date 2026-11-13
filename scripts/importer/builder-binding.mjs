@@ -143,6 +143,9 @@ export function assembleBuilderTables(raw) {
   if (raw.xpRules && [raw.xpRules.crusaderThief, raw.xpRules.fighter, raw.xpRules.mage].every(isNum)) {
     budget.postEight = { crusaderThief: raw.xpRules.crusaderThief, fighter: raw.xpRules.fighter, mage: raw.xpRules.mage };
   }
+  // The level those increments start after is a read of its own: missing it
+  // costs the schedule past the 2nd level, never the increments.
+  if (isNum(raw.xpRules?.afterLevel)) budget.xpFlatAfter = raw.xpRules.afterLevel;
   // The HIT-POINT rates past the last die level pair the chassis differently from the
   // post-8th XP increments above — crusader+mage and fighter+thief, not
   // crusader+thief / fighter / mage — so the two cannot share keys. The

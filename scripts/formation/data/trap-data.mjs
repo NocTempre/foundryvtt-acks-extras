@@ -1,15 +1,7 @@
 /* global foundry */
 import { SAVE_KEYS } from "../constants.mjs";
 import { saveKindOf } from "../../lib/actor-compat.mjs";
-import {
-  ON_SUCCESS,
-  RESOLUTIONS,
-  SCOPES,
-  TRAP_LEVELS,
-  TRIGGER_DEFAULT,
-  TRIGGER_DIE,
-  emptyTier,
-} from "../trap-rules.mjs";
+import { ON_SUCCESS, RESOLUTIONS, SCOPES, TRAP_LEVELS, emptyTier } from "../trap-rules.mjs";
 
 /**
  * Data model for the `acks-extras.trap` Item subtype — one trap, as the
@@ -57,12 +49,16 @@ export default class TrapData extends foundry.abstract.TypeDataModel {
         initial: () => Array.from({ length: TRAP_LEVELS }, () => emptyTier()),
       }),
 
-      /** 1d6 at or under this springs it — widened or narrowed per the book. */
+      /**
+       * The secret die at or under this springs it. Null reads the imported
+       * band (`trapFigures().triggerOn`); a figure typed here wins over it.
+       * Not bounded above: the die is imported, so the schema does not know it.
+       */
       triggerOn: new fields.NumberField({
         required: true,
-        initial: TRIGGER_DEFAULT,
+        nullable: true,
+        initial: null,
         min: 0,
-        max: TRIGGER_DIE,
         integer: true,
       }),
       /** How it is set off, in the Judge's words: tripwire, pressure plate, rune. */

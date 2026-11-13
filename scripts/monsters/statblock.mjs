@@ -15,6 +15,7 @@
 import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
 import { convertedDie } from "./kits.mjs";
 import { parseRung } from "./leader-derive.mjs";
+import { loadStanding } from "./load-rule.mjs";
 
 /**
  * The glyph a body form puts on the band. A form with no glyph of its own
@@ -108,18 +109,19 @@ export function sensesReading({ vision = [], lightlessRange = null, otherSenses 
 /**
  * The load bar's readings for a creature: what it carries against its
  * normal load and its maximum, the normal-load tick, the tone past it. A
- * creature with no normal load recorded shows an empty bar and says so.
+ * creature with no normal load recorded shows an empty bar and says so. The
+ * maximum is the creature's own, else `maxMultiple` times its normal load
+ * (`load-rule.mjs`); with neither, `max` is null and no tone reads red.
  */
-export function loadReading({ stone = 0, normal = null, max = null } = {}) {
+export function loadReading({ stone = 0, normal = null, max = null, maxMultiple = null } = {}) {
   const carried = Math.max(0, num(stone));
   if (normal == null) return { pct: 0, tick: null, tone: null, unset: true, carried, normal: null, max: null };
   const n = num(normal);
-  const m = max != null ? num(max) : n * 2;
-  const denom = m > 0 ? m : n || 1;
+  const { ceiling, denom, state } = loadStanding({ stone: carried, normal: n, max: max != null ? num(max) : null, maxMultiple });
   const pct = clampPct((carried / denom) * 100);
   const tick = clampPct((n / denom) * 100);
-  const tone = carried > m ? "bad" : carried > n ? "warn" : null;
-  return { pct, tick, tone, unset: false, carried, normal: n, max: m };
+  const tone = state === "overloaded" ? "bad" : state === "encumbered" ? "warn" : null;
+  return { pct, tick, tone, unset: false, carried, normal: n, max: ceiling };
 }
 
 /** An attack's damage text with the creature's own modifier after it, where it has one. */
@@ -405,7 +407,9 @@ export function statblockColumns(snap, loc) {
     name: loc("statblock.group.load"),
     note: load.unset
       ? loc("statblock.note.loadUnset")
-      : loc("statblock.note.load", { stone: load.carried, normal: load.normal, max: load.max }),
+      : load.max == null
+        ? loc("statblock.note.loadNoMax", { stone: load.carried, normal: load.normal })
+        : loc("statblock.note.load", { stone: load.carried, normal: load.normal, max: load.max }),
     bar: load,
     rows: snap.load?.rider
       ? [{ label: loc("statblock.row.rider"), line: loc("statblock.row.riderLine", snap.load.rider), value: `${snap.load.rider.stone} st` }]

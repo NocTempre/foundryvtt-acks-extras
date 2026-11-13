@@ -13,8 +13,12 @@
     <div class="form-group">
       <label>{{localize 'ACKS-FORMATION.traps.field.triggerOn'}}</label>
       <input type="number" name="system.triggerOn" value="{{system.triggerOn}}"
-             data-dtype="Number" min="0" max="6" {{#unless editable}}disabled{{/unless}}/>
+             placeholder="{{triggerOnPlaceholder}}" data-dtype="Number" min="0"
+             {{#if triggerMax}}max="{{triggerMax}}"{{/if}} {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.triggerOn'}}</p>
+      {{#if triggerNotImported}}
+        <p class="hint">{{localize 'ACKS-FORMATION.traps.triggerNotImportedSheet'}}</p>
+      {{/if}}
     </div>
 
     <div class="form-group">
@@ -106,7 +110,7 @@
     <div class="form-group">
       <label>{{localize 'ACKS-FORMATION.traps.field.pitDepthFeet'}}</label>
       <input type="number" name="{{tierPath}}.pitDepthFeet" value="{{tier.pitDepthFeet}}"
-             data-dtype="Number" min="0" max="500" step="10" {{#unless editable}}disabled{{/unless}}/>
+             data-dtype="Number" min="0" max="500" {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.pitDepthFeet'}}</p>
     </div>
 
@@ -123,6 +127,9 @@
       <p class="hint acks-extras-trap-derived">
         {{localize 'ACKS-FORMATION.traps.derivedDamage' formula=derivedDamage}}
       </p>
+    {{/if}}
+    {{#if pitUnknown}}
+      <p class="hint acks-extras-trap-derived">{{pitUnknown}}</p>
     {{/if}}
   </fieldset>
 
@@ -141,7 +148,7 @@
       <div class="form-group">
         <label>{{localize 'ACKS-FORMATION.traps.field.radiusFeet'}}</label>
         <input type="number" name="{{tierPath}}.radiusFeet" value="{{tier.radiusFeet}}"
-               data-dtype="Number" min="0" max="200" step="5" {{#unless editable}}disabled{{/unless}}/>
+               data-dtype="Number" min="0" max="200" {{#unless editable}}disabled{{/unless}}/>
         <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.radiusFeet'}}</p>
       </div>
     {{/if}}

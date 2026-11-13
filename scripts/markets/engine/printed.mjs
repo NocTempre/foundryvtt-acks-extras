@@ -19,6 +19,7 @@ import { optTable } from "../../henchmen/rules/tables.mjs";
 import { numOrNull } from "../../lib/util.mjs";
 import { tiersNamed } from "../rules/identification.mjs";
 import { stepFractionOf } from "../rules/pricing.mjs";
+import { HUBS, parseHubWait } from "../rules/imports.mjs";
 import { diceRange, parseStayFee } from "../rules/arbitrage.mjs";
 import { parseMiles } from "../rules/routes.mjs";
 import { findRow, isMissingRow } from "../../lib/tables.mjs";
@@ -61,10 +62,22 @@ export const printedError = (tableId) => ({ error: "printedMissing", table: tabl
 /**
  * Named whole numbers from the market rules (`crowdSize`, `crowdMultiplier`,
  * `marketTotalMultiplier`, `localHubShift`, `regionalHubShift`, `lostOnRoll`).
+ * A hub's wait is a phrase, not a number: `hubWait`.
  * @param {string[]} names - only the ones the caller needs
  * @returns {Record<string, number>|null}
  */
 export const marketRules = (names) => numbersOf(optTable("availability", "marketRulesProse"), names);
+
+/**
+ * How long an order from a hub waits, as the page prints it: `{dice, unit,
+ * seconds}`, or null when the market rules are not imported or hold no wait
+ * for that hub.
+ * @param {string} hub - a key of `HUBS`
+ */
+export const hubWait = (hub) => {
+  const key = Object.hasOwn(HUBS, hub) ? HUBS[hub].waitKey : null;
+  return key ? parseHubWait(flat(optTable("availability", "marketRulesProse"))?.[key]) : null;
+};
 
 /** The Bargaining proficiency's printed swing: `{buyPct, sellPct, rankBonus}`, or null. */
 export const bargaining = () => numbersOf(optTable("availability", "bargainingProse"), ["buyPct", "sellPct", "rankBonus"]);
@@ -107,13 +120,14 @@ export const priceShifts = () =>
 
 /**
  * The spot-price negotiation's printed figures: the typical merchant per tier,
- * the extra ranks a well-served market adds, the per-rank step and the five
- * result bands. Null when any is absent.
- * @returns {{common: {cha: number, ranks: number}, precious: {cha: number, ranks: number}, extraRanks: number, rankStep: number, bands: {min: number|null, max: number|null}[]}|null}
+ * the extra ranks a well-served market adds, the per-rank step, how many
+ * price steps an agreement moves the price, and the five result bands. Null
+ * when any is absent.
+ * @returns {{common: {cha: number, ranks: number}, precious: {cha: number, ranks: number}, extraRanks: number, rankStep: number, priceSteps: number, bands: {min: number|null, max: number|null}[]}|null}
  */
 export function negotiation() {
   const table = optTable("mercantile", "negotiationProse");
-  const n = numbersOf(table, ["commonCha", "commonRanks", "preciousCha", "preciousRanks", "extraRanks", "rankStep"]);
+  const n = numbersOf(table, ["commonCha", "commonRanks", "preciousCha", "preciousRanks", "extraRanks", "rankStep", "priceSteps"]);
   const bands = bandsOf(table);
   if (!n || !bands) return null;
   return {
@@ -121,6 +135,7 @@ export function negotiation() {
     precious: { cha: n.preciousCha, ranks: n.preciousRanks },
     extraRanks: n.extraRanks,
     rankStep: n.rankStep,
+    priceSteps: n.priceSteps,
     bands,
   };
 }

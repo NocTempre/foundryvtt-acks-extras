@@ -218,6 +218,12 @@ turns that state into a PLAN:
   `maximumLevel` and no level rows, names `missingHumanMaxLevel` (or
   `missingRacialCap`), and the attack bands and traditions keep every row the
   imported grids hold.
+- **XP thresholds** — `xpSchedule`: the 2nd level costs the base, each level
+  through the imported level `budget.xpFlatAfter` (read from the JJ
+  custom-class chapter beside the three increments, in the `xpRules` recipe)
+  doubles, and each level past it adds the saves chassis's flat increment. A
+  world without that level names `missingPostEight` and writes no level rows,
+  since no threshold past the 2nd is known.
 - **Hit-dice cells** — one die per level up to the last die level, then the
   printed flat accumulating at the chassis's per-level rate. Both the level and
   the rates are read from the JJ custom-class chapter into
@@ -583,7 +589,7 @@ together, and the chat card lists each level's roll.
 (`flags["acks-extras"].classes.hpRolls`, built by `hitpoints.mjs`
 `hpRollStep`). A step holds the level, its kind (`roll`, the level's whole
 pool rolled, every level past the last die level included; `none`, a level
-whose class prints no hit dice, which takes the previous maximum plus one),
+whose class prints no hit dice, which takes a fixed amount over the previous maximum),
 the formula, the faces as they fell (null where the roll reported none), the
 Constitution modifier applied, the printed flat, the 1st-level floor used
 (present on a step rolled under it: the figure, or null where none was
@@ -785,14 +791,21 @@ the frame's resize handle is built once, from the option, before that hook's
 successor runs.
 
 **The campaign's attribute rule is enforced on the page** (`METHODS`, world
-setting `chargenAttributeMethod`). `standard` is the printed method (RR Ch. 1
-§I.2) held as an ALLOWANCE rather than an order, because the book lets the
-player choose which attribute gets which dice: one 5d6-drop-two raised to 13,
-two 4d6-drop-one raised to 9, three 3d6. A spent formula's buttons are struck
-through, and a row that claims a different formula gives its old one back. The
-other three are the Judges Journal's options (JJ Ch. 16) — one formula for every
-attribute, no minimum. The formulas themselves are core's, carried on its own
-buttons; nothing here decides how dice are thrown, only how many times.
+setting `chargenAttributeMethod`). `standard` is the printed method (RR ch. 1,
+Attributes) held as an ALLOWANCE rather than an order, because the book lets the
+player choose which attribute gets which dice. A spent formula's buttons are
+struck through, and a row that claims a different formula gives its old one
+back. The other three are the Judges Journal's options (JJ ch. 16) — one
+formula for every attribute, no minimum. The formulas themselves are core's,
+carried on its own buttons; nothing here decides how dice are thrown, only how
+many times. The counts, floors and formulas in `METHODS` are printed values
+held in source and are not yet imported (docs/classes/ROADMAP.md); the method
+hints in `lang/` name the page and no figure.
+
+**The page's other dice are read from core's buttons at render**
+(`formulaOf`): the template die the automatic roll throws
+(`state.templateFormula`) and the gold button's tooltip. A page whose button
+carries no formula rolls nothing automatically and shows the plain label.
 
 A score raised to its floor re-derives the modifier beside it by asking a
 detached clone of the actor (`computeModifiers`), never by carrying a copy of
@@ -838,8 +851,8 @@ is never asked to pay it a second time.
 
 **A build with no package** is the Judges Journal's option (JJ Ch. 16), reachable
 only under the Judge unlock: no equipment and no spellbook, every level-1 choice
-asked rather than answered, and the character's coin rolled on the gold row —
-3d6×10, the formula core's own button already carries. That row is the only
+asked rather than answered, and the character's coin rolled on the gold row,
+with the formula core's own button already carries. That row is the only
 thing on the page whose die a package silences.
 
 **Generating a character replaces the last attempt**, so a class rerolled is a

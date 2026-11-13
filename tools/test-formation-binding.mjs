@@ -22,6 +22,7 @@ import * as services from "../scripts/lib/services.mjs";
 import { registerTable, unregisterTable, getLayer, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
   FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, WATER_KEYS, assembleFall, assembleFormationTables,
+  assembleTrapFigures, parseBandTop, parseBotchBand,
   assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterModifiers, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
@@ -210,9 +211,11 @@ const engine = assembleFormationTables(raw);
 // The jumping, fall and Spelunking tables are fed their own windows above; the
 // invented pages here carry only the swimming and rest passages.
 const FRONTAGE_KEYS = ["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"];
+const TRAP_PROSE = ["searchProse", "trapProse", "actionProse", "pitSpikeProse"];
+const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PROSE.includes(PRODUCES[FORMATION_DOC_ID][k]));
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
-    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS].includes(k)).sort());
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS].includes(k)).sort());
 eq("the water penalties", engine.swimWaterModifiers, { rough: -6, cold: -11 });
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -244,6 +247,49 @@ eq("a drifted window costs its own figure and nothing beside it",
   Object.keys(assembleFormationTables({ frontageProse: { ...frontageRaw.frontageProse, wide: " a little more." } })).sort(),
   ["marchFrontageFeet", "rankIntervalFeet"]);
 eq("nothing is assembled from an absent passage", FRONTAGE_KEYS.filter((k) => k in assembleFormationTables({ restProse: raw.restProse })), []);
+
+/* --- the trap passages: invented prose through the recipes ------------------ */
+// One window per figure, each opened by the words right before it, so a figure
+// that sits beside another one in a sentence (the search reach bare and with a
+// stick) or in a paragraph (the two botch bands, the bonus) is read from its own.
+const SEARCH_PAGE = [
+  "Sprites can automatically attempt to hastily search while flying. Anytime the sprite moves within 3’ of a hidden feature (within 7’ if holding a twig), the Judge rolls.",
+];
+const TRAP_PAGE = [
+  "Traps and Trapbreaking",
+  "When a sprite acts, the Judge will secretly roll 1d8. On a roll of 1-3, it springs. On a roll of 4-8, it does not.",
+  "A pole is probed ahead; the pole is treated as an adventurer moving 2.5’ ahead of its bearer for purposes of activation.",
+  "A sprite who tries to hastily disable a trap requires one round and a throw. If it fails on a natural roll of 1-2, it springs. Else nothing.",
+  "A sprite who tries to methodically disable a trap requires one turn and a throw with a +3 bonus. If it fails on a natural roll of 1, it springs.",
+];
+const ACTION_PAGE = ["Hastily Trapbreak: A gnome works at a trap within 4’ of itself."];
+const PIT_PAGE = ["Creatures that fall are impaled on 1d3 spikes dealing 1d5 damage each."];
+const trapRaw = {
+  searchProse: extractTable(leftPage(SEARCH_PAGE), recipes.searchProse),
+  trapProse: extractTable(leftPage(TRAP_PAGE), recipes.trapProse),
+  actionProse: extractTable(leftPage(ACTION_PAGE), recipes.actionProse),
+  pitSpikeProse: extractTable(leftPage(PIT_PAGE), recipes.pitSpikeProse),
+};
+eq("every trap figure is produced from one of the four passages",
+  TRAP_KEYS.sort(), ["pitSpikeCount", "pitSpikeDie", "poleLeadFeet", "poleSearchReachFeet", "searchReachFeet",
+    "trapTriggerDie", "trapTriggerOn", "trapbreakHastyBotch", "trapbreakMethodicalBonus", "trapbreakMethodicalBotch", "trapbreakReachFeet"]);
+eq("each trap figure reads from its own window", assembleFormationTables(trapRaw), {
+  searchReachFeet: 3, poleSearchReachFeet: 7, poleLeadFeet: 2.5, trapTriggerDie: "1d8", trapTriggerOn: 3,
+  trapbreakHastyBotch: 2, trapbreakMethodicalBotch: 1, trapbreakMethodicalBonus: 3, trapbreakReachFeet: 4,
+  pitSpikeCount: "1d3", pitSpikeDie: "1d5",
+});
+eq("a band reads as its top, a lone count as itself", [parseBandTop(" 1-3, it"), parseBandTop(" 1–4,"), parseBandTop("1 only"), parseBotchBand(" if it fails on a natural roll of 1-2, ok"), parseBotchBand(" natural roll of 1.")],
+  [3, 4, 1, 2, 1]);
+eq("a band that does not start at one is not read", [parseBandTop(" 3-6, it"), parseBandTop(" none"), parseBandTop(""), parseBotchBand(" no clause"), parseBotchBand(undefined)],
+  [null, null, null, null, null]);
+check("a trigger die that is not a single die is not read",
+  !("trapTriggerDie" in assembleTrapFigures({ trapProse: { die: " 2d6. On" } })) && !("pitSpikeDie" in assembleTrapFigures({ pitSpikeProse: { each: " 2d5 damage" } })));
+check("a figure with no feet mark is not read", Object.keys(assembleTrapFigures({ searchProse: { reach: " 3 of a hidden", poleReach: " 7 if" }, actionProse: { reach: " within 4 of" } })).length === 0);
+eq("a drifted window costs its own figure and nothing beside it",
+  Object.keys(assembleTrapFigures({ ...trapRaw, trapProse: { ...trapRaw.trapProse, lead: " somewhat ahead" } })).sort(),
+  Object.keys(assembleTrapFigures(trapRaw)).filter((k) => k !== "poleLeadFeet").sort());
+eq("a bonus of nothing is not a bonus", "trapbreakMethodicalBonus" in assembleTrapFigures({ trapProse: { methodical: " one turn and a throw." } }), false);
+eq("nothing assembles from an absent passage", Object.keys(assembleTrapFigures({})), []);
 
 /* --- absent input is absent output, never a default ------------------------ */
 eq("nothing assembles from nothing", assembleFormationTables({}), {});

@@ -124,6 +124,8 @@ check("the budget carries the precedence as read, and each caster type its mappe
 
 check("post-8 increments read as three positive integers, carried unchanged", [raw.xpRules?.crusaderThief, raw.xpRules?.fighter, raw.xpRules?.mage].every(isPosInt) && asm.budget.postEight.mage === raw.xpRules.mage && asm.budget.postEight.fighter === raw.xpRules.fighter && asm.budget.postEight.crusaderThief === raw.xpRules.crusaderThief);
 check("smoothing reads a level and a rounding step, both positive integers", isPosInt(raw.smoothing?.level) && isPosInt(raw.smoothing?.nearest) && asm.budget.smoothing.level === raw.smoothing.level && asm.budget.smoothing.nearest === raw.smoothing.nearest);
+check("the level the post-8 increments start after reads as an integer, from the same sentence", isInt(raw.xpRules?.afterLevel) && raw.xpRules.afterLevel > 1);
+check("budget carries that level beside the increments", asm.budget.xpFlatAfter === raw.xpRules.afterLevel);
 check("post-9 hit points per level read as their own table", isInt(raw.hpAfterNine?.crusaderMage) && isInt(raw.hpAfterNine?.fighterThief) && raw.hpAfterNine.fighterThief > raw.hpAfterNine.crusaderMage);
 check("the level the post-9 rates begin after reads as an integer, from the same table", isInt(raw.hpAfterNine?.afterLevel) && raw.hpAfterNine.afterLevel > 1);
 check("the post-9 level falls inside the grids' level range", raw.hpAfterNine.afterLevel < allGrids[0].length);

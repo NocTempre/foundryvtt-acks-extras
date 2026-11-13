@@ -7,7 +7,7 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performPurchase, availabilityFor, buyQuote } from "../engine/trade.mjs";
 import { performImportOrder } from "../engine/imports.mjs";
-import { marketRules } from "../engine/printed.mjs";
+import { hubWait, marketRules } from "../engine/printed.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { magicBasisOf } from "../rules/goods.mjs";
 import { partySize, partyOf } from "../engine/parties.mjs";
@@ -74,6 +74,12 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     context.tableNote = preview.error ? game.i18n.format(`${LANG}.trade.error.printedMissing`, { table: preview.table }) : "";
     const crowd = marketRules(["crowdSize"]);
     context.partyLarge = !!(first && crowd && partySize(partyOf(first).id) >= crowd.crowdSize);
+    // A hub's wait shows only as imported; unread, the option names the hub alone.
+    const waitText = (hub) => {
+      const wait = hubWait(hub);
+      return wait ? game.i18n.format(`${LANG}.imports.${wait.unit === "week" ? "waitWeeks" : "waitDays"}`, { dice: wait.dice }) : "";
+    };
+    context.hubWaits = { local: waitText("local"), regional: waitText("regional") };
     return context;
   }
 

@@ -8,7 +8,7 @@
  * in — and `writeRolls()` the only write. Targets resolve against the
  * CHARACTER (rank or level); a shared world item shows the ladder instead.
  */
-import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
+import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure, ITEM_TYPE, capabilityForId, satisfies } from "../lib/vocab.mjs";
 import { cookbookId } from "../lib/library.mjs";
@@ -515,21 +515,35 @@ function messageModeFor(item) {
 }
 
 /**
- * A throw's formula, or "1d20" when it is blank or unparseable. An unparseable
- * one also warns, naming the throw — Foundry's parser would otherwise throw
- * inside this async roller as an unhandled rejection.
+ * The die core's ability model starts a throw at: the initial value of its
+ * `roll` field, read from the registered data model. "1d20" stands in only
+ * where the model is not registered (a bare test harness).
+ */
+export function coreThrowDie() {
+  const initial = globalThis.CONFIG?.Item?.dataModels?.[ABILITY_TYPE]?.schema?.fields?.roll?.initial;
+  const die = typeof initial === "function" ? initial() : initial;
+  return typeof die === "string" && die.trim() ? die.trim() : "1d20";
+}
+
+/**
+ * A throw's formula, or core's own throw die when it is blank or unparseable.
+ * An unparseable one also warns, naming the throw and the die used — Foundry's
+ * parser would otherwise throw inside this async roller as an unhandled
+ * rejection.
  */
 function rollableFormula(roll, item) {
   const formula = String(roll?.formula ?? "").trim();
-  if (!formula) return "1d20";
+  const fallback = coreThrowDie();
+  if (!formula) return fallback;
   if (Roll.validate(formula)) return formula;
   ui.notifications.warn(
     game.i18n.format("ACKS-ABILITIES.roll.badFormula", {
       name: [item?.name, roll?.label].filter(Boolean).join(" — ") || labelOf(roll),
       formula,
+      fallback,
     }),
   );
-  return "1d20";
+  return fallback;
 }
 
 /**

@@ -870,17 +870,47 @@ drawn and inert, so nothing answers a mis-aimed token drag.
 The **sequence** is the sequence of play's, not §7's own order:
 
 1. **Searchers throw first**, and not only against the trap in the way. A thief
-   at exploration speed automatically hasty-searches everything he passes within
-   5' of, 10' with a pole — measured against the ground the party WALKED, not
-   where it stopped, so a pit beside the corridor gets its throw. The reach is
-   the character's and the distance is the party token's, so a searcher's own
-   rank is subtracted from it. Each searcher gets ONE throw per trap per level,
-   because the automatic throw is a hasty search and carries the hasty search's
-   price; without that ledger a party finds every trap in the dungeon by
-   shuffling back and forth over it. The sweep is silent — it posts nothing
-   unless something is spotted.
-2. **The pole probes**, one rank ahead of its bearer, with its own secret 1d6.
-3. **The party walks in**, rank by rank, each with its own secret 1d6.
+   at exploration speed automatically hasty-searches everything he passes
+   within the imported reach (`searchReachFeet`, and `poleSearchReachFeet` for
+   a pole-bearer, RR ch. 6 Searching) — measured against the ground the party
+   WALKED, not where it stopped, so a pit beside the corridor gets its throw.
+   The reach is the character's and the distance is the party token's, so a
+   searcher's own rank, at the rank depth below, is subtracted from it:
+   `searcherReachFeet`, and `autoSearchers` keeps those whose reach is left
+   over. Each searcher gets ONE throw per trap per level, because the
+   automatic throw is a hasty search and carries the hasty search's price;
+   without that ledger a party finds every trap in the dungeon by shuffling
+   back and forth over it. The sweep is silent — it posts nothing unless
+   something is spotted.
+2. **The pole probes** `poleLeadFeet` ahead of its bearer (RR ch. 6 Traps and
+   Trapbreaking), converted to ranks by the rank depth (`poleLeadRanks`, which
+   can be a part of a rank), with its own secret die.
+3. **The party walks in**, rank by rank, each with its own secret die.
+
+**The figures are imported and each says what happens without it.** They are
+keys of the `formation` document, read through `trapFigures` and `pitFigures`
+(`trap-rules.mjs`): `searchReachFeet` and `poleSearchReachFeet` (a window each
+of `searchProse`), `poleLeadFeet`, `trapTriggerDie`, `trapTriggerOn`,
+`trapbreakHastyBotch`, `trapbreakMethodicalBotch` and `trapbreakMethodicalBonus`
+(`trapProse`), `trapbreakReachFeet` (`actionProse`), and `pitSpikeCount` and
+`pitSpikeDie` (`pitSpikeProse`, JJ ch. 8), with the pit's per-depth die the
+existing `fall` table (`fallFigures`). A Judge edits any of them in the Ruledata
+Browser; the trigger band is also a field on the trap, and a cell's size is in
+Scene config → Grid. Not imported:
+- **no search reach**: only the front rank searches, and only the trap the
+  party crossed; the card says so. A pole with no reach of its own searches as
+  a bare searcher does.
+- **no pole lead, or no rank depth**: no pole probes, and the card says so.
+- **no trigger die, or no band** (the trap's own `triggerOn` is null to read
+  the imported one): nothing is rolled and nothing springs; the card says to
+  resolve the crossing by hand (`runTrapCheck` answers `byHand`).
+- **no trapbreak reach**: only a trap the party's token touches is offered, and
+  the dialog says so.
+- **no botch band**: that mode never botches. **No methodical bonus**: it
+  adds nothing.
+- **no `fall` table**: a pit derives no damage and the sheet and card say so;
+  **no spike dice**: a spiked pit deals the fall alone, with the same line.
+  A typed damage formula owes no figure.
 
 **Ranks are the column's as it stands on the map.** `runTrapCheck` and
 `sweepForTraps` read the sequence from `laidOrder` (`formation-model.mjs`), not
@@ -891,10 +921,15 @@ the sequence and farther from an area effect. With no party token on the map, or
 on a scene that lays no column, `laidOrder` answers `marchingOrder`
 unchanged. `marchingOrder` is the published contract and is not read for this.
 A rank's depth in feet is the imported `rankIntervalFeet` where the scene is
-spaced (`columnFor`'s `rankFeet`), and `FEET_PER_RANK` where it is not: it sets
-how many ranks a searcher's reach is cut by (`searcherReachFeet`) and how many
-ranks either side an area effect takes (`victimsOf`'s `rankFeet`). The reach
-itself and an area's radius are not rank figures and are read as before.
+spaced (`columnFor`'s `rankFeet`), and the scene's own cell in feet where it is
+not (an unspaced column lays one body to a cell), and null where the scene says
+no cell size: `laidOrder`'s `rankFeet`. It sets how far a searcher's rank takes
+from its reach (`searcherReachFeet`), how many ranks a pole's lead is, and which
+bodies an area effect takes: those whose distance from where it went off, in
+ranks of that depth, is within the radius (`victimsOf`). With no depth an area
+effect stays on the rank it sprang in, and only the front rank searches.
+Distances to a trap are measured in the scene's feet (`sceneFeetPerCell`); a
+scene with no cell size measures none.
 
 The first throw inside the trigger band ends the sequence. At combat speed the
 party loses both the pole and the hasty search, which is exactly what RR p. 263
@@ -919,7 +954,9 @@ bash returns its point of damage and leaves the writing to a human.
 **Trapbreaking is a dialog, and its target is chosen.** `trapbreak-app.mjs` asks
 three questions — who is working on it, which trap, and by which column of the
 table — and shows the throw before anyone spends a round or a turn on it. The
-target list holds only traps within 5' that the party has FOUND, because
+target list holds only traps within the imported reach (`trapbreakReachFeet`,
+RR ch. 6 combat actions; applied to both columns by this module) that the party
+has FOUND, because
 offering an unfound one announces it; a Judge additionally sees the unfound ones
 in reach, with a control to mark one spotted for a discovery made some other way
 than a throw. Players open the same dialog from the party sheet whenever one of

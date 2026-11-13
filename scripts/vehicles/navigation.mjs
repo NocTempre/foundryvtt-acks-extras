@@ -9,7 +9,7 @@
  * STRUCTURE ships here; the printed numbers do not. What ships: which waters
  * exist, which modifiers exist and when each applies (one navigational art
  * helps, both together help more; slowing for a hazard helps the throw AND
- * halves the damage — the rule rewarding caution twice for one decision; a
+ * reduces the damage — the rule rewarding caution twice for one decision; a
  * shallow-draft hull helps over sandbar and shoal), which hazards exist and
  * each one's SHAPE (kelp holds her, ground strands her, rock simply tears).
  * Every target, bonus, die and rate reads from the `voyages` registered
@@ -67,14 +67,27 @@ export function navigationThrow({ terrain = "openSea", pathfinding = false, navi
 }
 
 /**
+ * The slowed-passage rule's two figures from the `voyages` document: the share
+ * of her speed a vessel must be making to earn the hazard throw's bonus, and
+ * the share of a hazard's damage she takes at that speed. Each is null where it
+ * was not imported or is no share between none and all.
+ */
+export function reducedSpeed() {
+  const table = readTable(VOYAGES_DOC, "hazardThrow");
+  const share = (v) => (Number(v) > 0 && Number(v) < 1 ? Number(v) : null);
+  return { speedShare: share(table?.speedShare), damageShare: share(table?.damageShare) };
+}
+
+/**
  * The captain's Seafaring throw on entering a hex that holds a hazard.
  *
- * Slowing down is the universally available answer — half speed or less
- * helps the throw AND halves the damage if she strikes anyway.
+ * Slowing down is the universally available answer — a slowed passage
+ * (`reducedSpeed`) helps the throw AND reduces the damage if she strikes
+ * anyway. A slowed part carries the imported `share` where one was read.
  *
  * @param {object} o
  * @param {boolean} [o.masterMariner] Seafaring taken three times
- * @param {boolean} [o.halfSpeed] making half her speed or less
+ * @param {boolean} [o.halfSpeed] making the slowed passage's share of her speed or less
  * @param {boolean} [o.shallowDraft] a galley or longship, over sandbar or shoal
  * @returns {{target, bonus, effective, parts: object[], missing: boolean}}
  */
@@ -85,17 +98,17 @@ export function hazardThrow({ masterMariner = false, halfSpeed = false, shallowD
   let missing = !Number.isFinite(target);
   if (!missing) parts.push({ key: masterMariner ? "masterMariner" : "captain", value: target });
   let bonus = 0;
-  const add = (on, key) => {
+  const add = (on, key, share = null) => {
     if (!on) return;
     const v = Number(table?.[key]);
     if (Number.isFinite(v)) {
       bonus += v;
-      parts.push({ key, value: v });
+      parts.push({ key, value: v, ...(share != null ? { share } : {}) });
     } else {
       missing = true;
     }
   };
-  add(halfSpeed, "halfSpeed");
+  add(halfSpeed, "halfSpeed", reducedSpeed().speedShare);
   add(shallowDraft, "shallowDraft");
   if (missing) parts.push({ key: "tablesMissing", missing: true, note: true });
   return {

@@ -24,7 +24,9 @@ export const BUILDER_DOC_ID = "acks.classBuilder";
  *
  * - `budget` — { basePoints, savesPrecedence: [magic-or-category keys…],
  *   smoothing: { level, nearest }, postEight: { crusaderThief, fighter,
- *   mage }, racialCaps: [{ points, maxLevel }], humanMaxLevel, tradeInXp }
+ *   mage }, xpFlatAfter (the level past which a threshold adds the flat
+ *   increment instead of doubling), racialCaps: [{ points, maxLevel }],
+ *   humanMaxLevel, tradeInXp }
  * - `hd` — [{ value, die ("d6"), mortalWounds, cost }]
  * - `fighting` — [{ value, sub (""|"a"|"b"), label, cost, attackAs (chassis
  *   key), attack: { step, every }, damage: { step, every } | null, cleaves
@@ -53,22 +55,29 @@ export const roundToStep = (value, step) => (step > 0 ? Math.round(value / step)
  * The cumulative XP thresholds of levels 1..maxLevel from the class's base
  * cost (the XP its build values sum to for 2nd level).
  *
- * Structure per JJ "Experience Points per Level" + "Experience Point
- * Smoothing": 2nd level costs the base; each level through 8th doubles the
- * previous threshold, with the smoothing level's threshold rounded to the
- * printed nearest before doubling continues; each level past 8th adds the
- * flat increment of the class's saving-throw progression (plus any racial
- * increase).
+ * Structure per JJ ch. 12 (Experience Points per Level, Experience Point
+ * Smoothing): 2nd level costs the base; each level through `flatAfter` doubles
+ * the previous threshold, with the smoothing level's threshold rounded to the
+ * printed nearest before doubling continues; each level past `flatAfter` adds
+ * the flat increment of the class's saving-throw progression (plus any racial
+ * increase). `flatAfter` is the imported level the rule changes at
+ * (`budget.xpFlatAfter`); without it only the 2nd level's cost is known, so the
+ * schedule stops there.
+ * @param {number} base - the XP its build values sum to for 2nd level
+ * @param {number} maxLevel
+ * @param {{smoothing?: {level: number, nearest: number}, flatIncrement?: number,
+ *   flatAfter?: number}} [options]
  */
-export function xpSchedule(base, maxLevel, { smoothing, postEightIncrement } = {}) {
+export function xpSchedule(base, maxLevel, { smoothing, flatIncrement, flatAfter } = {}) {
   const out = [0];
   if (!isNum(base) || base < 0 || !isNum(maxLevel)) return out;
+  const last = isNum(flatAfter) ? maxLevel : Math.min(maxLevel, 2);
   let prev = 0;
-  for (let level = 2; level <= maxLevel; level++) {
+  for (let level = 2; level <= last; level++) {
     let next;
     if (level === 2) next = base;
-    else if (level <= 8) next = prev * 2;
-    else next = prev + (isNum(postEightIncrement) ? postEightIncrement : 0);
+    else if (level <= flatAfter) next = prev * 2;
+    else next = prev + (isNum(flatIncrement) ? flatIncrement : 0);
     if (smoothing && level === smoothing.level) next = roundToStep(next, smoothing.nearest ?? 0);
     out.push(next);
     prev = next;
@@ -491,7 +500,7 @@ export function derivePlan({
     ladders.push({ key: "mortalWounds", label: "Mortal Wounds Bonus", values: [{ atLevel: 1, value: hdRow.mortalWounds, text: "" }] });
   }
 
-  // --- saves chassis first: the post-8 increment keys on it ---
+  // --- saves chassis first: the flat XP increment keys on it ---
   const chassis = savesChassis(builder, tables, race, issues);
   update.saveChassis = chassis;
   update.saves = [];
@@ -502,8 +511,12 @@ export function derivePlan({
   const post = budget.postEight ?? {};
   if (chassis === "crusader" || chassis === "thief") increment = post.crusaderThief ?? null;
   else increment = post[chassis] ?? null;
-  if (increment == null) issues.push({ key: "missingPostEight", chassis });
-  // A race may increase the post-8 climb (dwarf by chassis, elf flat) —
+  // The level the doubling stops at is a printed figure of its own; without it
+  // no threshold past the 2nd is known, which is the same gap in the same
+  // sentence of the book and is named by the same issue.
+  const flatAfter = isNum(budget.xpFlatAfter) ? budget.xpFlatAfter : null;
+  if (increment == null || flatAfter == null) issues.push({ key: "missingPostEight", chassis });
+  // A race may increase the flat climb (by chassis or flat) —
   // only when the class actually spends a racial value.
   if (racialValue > 0) {
     for (const extra of race?.postEight ?? []) {
@@ -534,7 +547,10 @@ export function derivePlan({
 
   // Rows run to the cap, so a class with none gets none: no number of rows is
   // known, and a short table written as if it were whole would read as one.
-  const thresholds = maxLevel != null ? xpSchedule(baseXp, maxLevel, { smoothing: budget.smoothing, postEightIncrement: increment ?? 0 }) : null;
+  const thresholds =
+    maxLevel != null && flatAfter != null
+      ? xpSchedule(baseXp, maxLevel, { smoothing: budget.smoothing, flatIncrement: increment ?? 0, flatAfter })
+      : null;
   if (thresholds) update.levels = thresholds.map((xp, i) => {
     const level = i + 1;
     // The printed cell carries the CUMULATIVE flat, not the per-level rate:

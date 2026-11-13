@@ -2,7 +2,7 @@
 /**
  * Character generation, on the page that was already doing half of it.
  *
- * The system's Scores Generator rolls the six attributes, a 3d6 template die
+ * The system's Scores Generator rolls the six attributes, a template die
  * and starting gold. Three things were wrong with that: nothing could be taken
  * back once rolled, the dice were offered without the rule that governs them —
  * every row carried all three formulas, unlimited, with no minimums — and the
@@ -77,12 +77,13 @@ const ROLLED = 'input[data-kind="score"], input[name="scores.template"], input[n
 /**
  * How a campaign rolls attributes.
  *
- * `standard` is the printed method (RR Ch. 1 §I.2): one attribute on 5d6 drop
- * two — raised to 13 if it comes up short — two more on 4d6 drop one, raised to
- * 9, and 3d6 for the remaining three. The player chooses WHICH attribute gets
- * which, so the rule is an allowance rather than a fixed order. The other three
- * are the Judges Journal's options (JJ Ch. 16, Generating Attributes): one
- * formula for every attribute, and no minimum.
+ * `standard` is the printed method (RR ch. 1, Attributes): a count of rolls per
+ * formula, with a floor under the results of two of them. The player chooses
+ * WHICH attribute gets which, so the rule is an allowance rather than a fixed
+ * order. The other three are the Judges Journal's options (JJ ch. 16,
+ * Generating Attributes): one formula for every attribute, and no minimum.
+ * The counts, floors and formulas in this table are printed values held in
+ * source; core's roll buttons carry the same formulas as `data-formula`.
  *
  * The formulas are core's own — the page's buttons carry them as `data-formula`
  * — so nothing here decides how dice are thrown, only how many times.
@@ -121,6 +122,13 @@ function templateRollOn(root) {
   return Number.isNaN(value) ? null : value;
 }
 
+/**
+ * The dice formula core's own button for `action` carries, or "" where the page
+ * has no such button. Core's template names every die the page rolls, so the
+ * module reads them from it rather than holding a copy.
+ */
+export const formulaOf = (root, action) => root.querySelector(`button[data-action="${action}"]`)?.dataset?.formula ?? "";
+
 /** The campaign's generation rule, falling back to the printed one. */
 const currentMethod = () => {
   const key = game.settings?.get?.(MODULE_ID, METHOD_SETTING);
@@ -154,13 +162,16 @@ export function unmetRequirements(classItem, scores) {
  * that reaches no printed band still yields one: the lowest, so a character is
  * never handed an empty package as the price of a low roll.
  *
+ * @param {object} cls - the chosen class item
+ * @param {string} formula - the template die, as core's roll button carried it
+ *   (`state.templateFormula`); nothing is rolled where the page held none
  * @returns {Promise<{template: object|null, roll: number|null}>} null when the
  *   class prints no packages at all, which is not a skipped step.
  */
-async function autoTemplate(cls) {
+async function autoTemplate(cls, formula) {
   const templates = cls?.system?.templates ?? [];
-  if (!templates.length) return { template: null, roll: null };
-  const roll = await new Roll("3d6").evaluate();
+  if (!templates.length || !formula) return { template: null, roll: null };
+  const roll = await new Roll(formula).evaluate();
   const legal = legalTemplates(templates, roll.total);
   const lowest = [...templates].sort((a, b) => a.rollMin - b.rollMin)[0];
   return { template: legal[legal.length - 1] ?? lowest ?? null, roll: roll.total };
@@ -261,6 +272,7 @@ function refresh(root, state) {
   // only reachable behind the override.
   const manual = judge && state.manual;
   const method = currentMethod();
+  state.templateFormula = formulaOf(root, "rollTemplate");
 
   const all = classItems().sort(byBookOrder);
   const qualified = all.filter((c) => !unmetRequirements(c, scores).length);
@@ -420,12 +432,17 @@ function refresh(root, state) {
 
   // Coin is the package's to pay, so it is not rolled beside it. Building
   // WITHOUT a package is the one case the book has a character roll for their
-  // own money (3d6×10), which is the formula core's own button already carries.
+  // own money (RR ch. 1), with the formula core's own button already carries.
   const goldButton = root.querySelector('button[data-action="rollGold"]');
   if (goldButton) {
     goldButton.disabled = !judge;
     goldButton.classList.toggle(SPENT, !judge);
-    goldButton.dataset.tooltip = judge ? loc("chargen.goldRoll") : loc("chargen.goldFromTemplate");
+    const goldFormula = goldButton.dataset.formula ?? "";
+    goldButton.dataset.tooltip = !judge
+      ? loc("chargen.goldFromTemplate")
+      : goldFormula
+        ? loc("chargen.goldRoll", { formula: goldFormula })
+        : loc("chargen.goldRollPlain");
   }
 
   applyRule(root, state, judge);
@@ -687,7 +704,7 @@ function inject(app, root, state) {
         state.gold = Number.isNaN(gold) ? null : gold;
         // Core's own submit hands the gold field to the system's coin
         // bookkeeping. Whatever is about to pay this character — a package or a
-        // 3d6×10 roll — would then pay them twice, so the field is cleared and
+        // gold roll — would then pay them twice, so the field is cleared and
         // chargen stays the single writer.
         if (field && state.cls && (state.template || state.manualInForce)) field.value = "";
       },
@@ -773,6 +790,7 @@ export function registerChargenPage() {
           gold: null,
           html: {},
           templateStamp: "",
+          templateFormula: "",
           wrapped: false,
         };
         states.set(app, state);
@@ -806,7 +824,7 @@ export function registerChargenPage() {
       // alone spent the whole build: a player who chose their class and pressed
       // save walked away with six numbers, no class and no starting package.
       if (state.cls && !template && !state.manualInForce) {
-        const auto = await autoTemplate(state.cls);
+        const auto = await autoTemplate(state.cls, state.templateFormula);
         if (auto.template) {
           template = auto.template;
           roll = auto.roll;

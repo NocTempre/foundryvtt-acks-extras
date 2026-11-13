@@ -23,6 +23,12 @@
  * each obstacle, as the cell's words and whether they name a fall. The
  * Combatant Frontage and Interval passage (RR ch. 6) gives three distances in
  * feet: the march and wide frontages and the rank interval, one window each.
+ * The trap passages (RR ch. 6 Searching, Traps and Trapbreaking, the combat
+ * actions; JJ ch. 8 the pit) give eleven more, one window per figure
+ * (`assembleTrapFigures`): the search reach bare and with a pole, the pole's
+ * lead, the secret die and the band that springs it, the botch band of each
+ * Trapbreaking mode, the methodical bonus, the trapbreak reach, and the spiked
+ * pit's two dice.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -60,6 +66,17 @@ export const PRODUCES = Object.freeze({
     marchFrontageFeet: "frontageProse",
     wideFrontageFeet: "frontageProse",
     rankIntervalFeet: "frontageProse",
+    searchReachFeet: "searchProse",
+    poleSearchReachFeet: "searchProse",
+    poleLeadFeet: "trapProse",
+    trapTriggerDie: "trapProse",
+    trapTriggerOn: "trapProse",
+    trapbreakHastyBotch: "trapProse",
+    trapbreakMethodicalBotch: "trapProse",
+    trapbreakMethodicalBonus: "trapProse",
+    trapbreakReachFeet: "actionProse",
+    pitSpikeCount: "pitSpikeProse",
+    pitSpikeDie: "pitSpikeProse",
   },
 });
 
@@ -378,6 +395,61 @@ export function assembleSpelunkingOutcomes(grid = {}) {
   return out;
 }
 
+/**
+ * The top of the band a window opens on: `1-2` is 2, a lone `1` is 1. Null for
+ * a window that does not start on a count. The band is the die faces that
+ * spring a trap, so only a range that starts at 1 reads.
+ */
+export function parseBandTop(window) {
+  const m = /^\s*(\d+)(?:\s*[-–−]\s*(\d+))?/.exec(String(window ?? ""));
+  if (!m || Number(m[1]) !== 1) return null;
+  const top = Number(m[2] ?? m[1]);
+  return Number.isInteger(top) && top >= 1 ? top : null;
+}
+
+/**
+ * The unmodified die at or below which a throw goes wrong: the top of the band
+ * the first "natural roll of" in the window opens on. The window is one
+ * paragraph's, so its first such clause is that mode's own.
+ */
+export function parseBotchBand(window) {
+  const m = /natural\s+roll\s+of\s+(\d+(?:\s*[-–−]\s*\d+)?)/.exec(String(window ?? "").toLowerCase().replace(/\s+/g, " "));
+  return m ? parseBandTop(m[1]) : null;
+}
+
+/**
+ * The trap passages' figures, each on its own so a window that drifted costs
+ * that figure and nothing beside it: the automatic search's reach bare and with
+ * a pole (`searchProse`), the pole's lead, the secret die and its band and the
+ * Trapbreaking figures (`trapProse`, `actionProse`), and the spiked pit's dice
+ * (`pitSpikeProse`).
+ */
+export function assembleTrapFigures(raw = {}) {
+  const out = {};
+  const search = raw.searchProse ?? {};
+  const trap = raw.trapProse ?? {};
+  const set = (key, value) => {
+    if (value != null) out[key] = value;
+  };
+  set("searchReachFeet", parseFeet(search.reach));
+  set("poleSearchReachFeet", parseFeet(search.poleReach));
+  set("poleLeadFeet", parseFeet(trap.lead));
+  const die = parseDie(firstSentence(trap.die));
+  if (die && /^1d/.test(die)) out.trapTriggerDie = die;
+  set("trapTriggerOn", parseBandTop(firstSentence(trap.band)));
+  set("trapbreakHastyBotch", parseBotchBand(trap.hasty));
+  set("trapbreakMethodicalBotch", parseBotchBand(trap.methodical));
+  const bonus = parseBonusMagnitude(trap.methodical);
+  if (bonus != null && bonus > 0) out.trapbreakMethodicalBonus = bonus;
+  set("trapbreakReachFeet", parseFeet(raw.actionProse?.reach));
+  const spikes = raw.pitSpikeProse ?? {};
+  const count = parseDie(firstSentence(spikes.count));
+  if (count) out.pitSpikeCount = count;
+  const each = parseDie(firstSentence(spikes.each));
+  if (each && /^1d/.test(each)) out.pitSpikeDie = each;
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -431,6 +503,8 @@ export function assembleFormationTables(raw = {}) {
     const feet = parseFeet(window);
     if (feet != null) out[key] = feet;
   }
+
+  Object.assign(out, assembleTrapFigures(raw));
 
   return out;
 }

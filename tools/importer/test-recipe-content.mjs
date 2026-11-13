@@ -89,8 +89,9 @@ const TABLES = {
     "settlementInvestment", "settlementRevenue", "settlementExpenses",
   ],
   // The frontage a monster size category occupies on a battle grid, and what
-  // one of its squares is worth in feet.
-  monsters: ["sizeFrontage", "sizeSquare"],
+  // one of its squares is worth in feet; the load rule's two figures and the
+  // default attribute score.
+  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
   // The jumping and fall figures, the Spelunking grids' stretch and targets
@@ -500,6 +501,18 @@ VERIFY["monsters.sizeSquare"] = (out, recipe, fail) => {
   const row = out?.[recipe.rows[0].key];
   if (!row || isMissingRow(row)) return fail("squares: row not read");
   if (!(Number(row.feet) > 0)) fail("feet: the label's unit is not read as a positive figure");
+};
+// The load rule: a multiple above one and a share between none and all, each a
+// figure `loadRule` accepts. Shape only; no figure is named.
+VERIFY["monsters.loadRule"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.maxMultiple) && !(out.maxMultiple > 1)) fail("maxMultiple: not above one");
+  if (isNum(out?.speedShare) && !(out.speedShare > 0 && out.speedShare < 1)) fail("speedShare: not a share between none and all");
+};
+// The default attribute score: a whole figure above zero. Shape only.
+VERIFY["monsters.defaultScore"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.score) && !(Number.isInteger(out.score) && out.score > 0)) fail("score: not a whole figure above zero");
 };
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape
