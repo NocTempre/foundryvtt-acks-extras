@@ -7,7 +7,8 @@
  * system's own attack throw with no Non-proficient row, and its Training
  * pill for swords is lit; with the pick moved to another class the pill goes
  * dark and the same attack carries the row; with the pick back the row is
- * gone again. Only presence is asserted, never the row's size. Machine
+ * gone again. Only presence is asserted, never the row's size. The walk
+ * awaits `rowsReady()` before it reads a weapon class. Machine
  * values arrive through ./_env.mjs.
  *
  * Fixture, kept and found by marker: `equipment/ability-training`, a
@@ -54,6 +55,7 @@ const P = {
     const H = (globalThis.__at = globalThis.__at ?? {});
     H.L = await import("/modules/acks-extras/scripts/equipment/loadout.mjs");
     H.S = await import("/modules/acks-extras/scripts/lib/proficiency-strip.mjs");
+    await (await import("/modules/acks-extras/scripts/equipment/weapon-rows.mjs")).rowsReady();
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     if (!H.patched) {
       H.patched = true;

@@ -54,7 +54,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
-import { seats, PORTS, shotDir } from "./_env.mjs";
+import { seats, PORTS, shotDir, books } from "./_env.mjs";
 
 const MOD = "acks-extras";
 const SHOTS = process.env.SHOTS === "1";
@@ -189,6 +189,39 @@ const P = {
   setSetting: async ({ mod, key, value }) => {
     await game.settings.set(mod, key, value);
     return { set: game.settings.get(mod, key) === value };
+  },
+
+  /** Open a staged book for this session only, the import the Rules tables step reads from. */
+  connectBook: async ({ id, path }) => {
+    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    if (CB.cookbookSessionDoc(id)) return { already: true };
+    globalThis.__dBook = { done: false };
+    acksExtras.importer.connectBookUrl(id, path, { remember: false, bridge: false })
+      .then(() => { globalThis.__dBook = { done: true, ok: true }; })
+      .catch((e) => { globalThis.__dBook = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  bookState: async ({ id }) => {
+    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    return { ...(globalThis.__dBook ?? {}), open: !!CB.cookbookSessionDoc(id) };
+  },
+  /** The Rules tables import for the named documents, fired into a global; `importJob` reads its end. */
+  importTables: async ({ only }) => {
+    globalThis.__dImport = { done: false };
+    acksExtras.importer.cookbookImportTables(only)
+      .then((r) => { globalThis.__dImport = { done: true, ok: !!r }; })
+      .catch((e) => { globalThis.__dImport = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  importJob: async () => globalThis.__dImport ?? { done: false },
+
+  /** Whether the `travel` document's `expedition` table holds all five figures, as booleans: the figures stay on the page. */
+  expeditionHeld: async () => {
+    const t = acksExtras.lib.tables;
+    const KEYS = ["feetPerMilePerDay", "dedicatedHours", "forcedHours", "ancillaryHours", "wildernessFactor"];
+    const e = t.hasDoc("travel") ? t.getDoc("travel")?.tables?.expedition : null;
+    const held = Object.fromEntries(KEYS.map((k) => [k, Number(e?.[k]) > 0]));
+    return { hasTravel: t.hasDoc("travel"), held, all: KEYS.every((k) => held[k]), cited: !!t.citeOf("travel", "expedition") };
   },
 
   cellXY: async ({ sceneId, i, j }) => {
@@ -1033,6 +1066,32 @@ try {
     note(`setting ${key} for the walk`, await run(gm, P.setSetting, { mod: MOD, key, value }));
   };
   await flip("travelEncounters", false);
+
+  // The day's hours, the ancillary slots and the pace ratios come from the
+  // Judge's import. A world holding none gets the `travel` document as a Judge
+  // would bring it: the staged books opened for this session, then Rules tables
+  // for `travel`. The import stays, like any corpus fixture.
+  section("The expedition figures, imported (Rules tables for travel)");
+  let expedition = await run(gm, P.expeditionHeld);
+  note("expedition held before (booleans)", expedition);
+  if (!expedition.all) {
+    const staged = books(["rr", "jj"]);
+    note("staged books", staged.map((b) => b.id));
+    for (const book of staged) {
+      note(`connect ${book.id}`, await run(gm, P.connectBook, book));
+      let state = await run(gm, P.bookState, { id: book.id });
+      for (let n = 0; n < 90 && !state.open && !state.done; n++) { await sleep(2000); state = await run(gm, P.bookState, { id: book.id }); }
+      note(`book ${book.id}`, { open: state.open, error: state.error ?? null });
+    }
+    if (staged.length === 2) {
+      await run(gm, P.importTables, { only: ["travel"] });
+      let job = await run(gm, P.importJob);
+      for (let n = 0; n < 150 && !job.done; n++) { await sleep(2000); job = await run(gm, P.importJob); }
+      note("rules tables import", { only: ["travel"], done: job.done, ok: job.ok ?? null, error: job.error ?? null });
+      for (let n = 0; n < 10; n++) { expedition = await run(gm, P.expeditionHeld); if (expedition.all) break; await sleep(1000); }
+    }
+  }
+  check("travel.expedition arrived: the GM seat's registry holds all five figures and a page for them after the Rules tables import", expedition.all && expedition.cited, expedition);
 
   /* ---------------------------------------------------------------- */
   section("Steps 13: the door dialog");

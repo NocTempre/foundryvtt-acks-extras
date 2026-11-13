@@ -76,7 +76,10 @@ const P = {
       CONFIG.Dice.randomUniform = () => 0.975;
       out.probe = (await new Roll("1d8").evaluate()).total;
       const hp = await import("/modules/acks-extras/scripts/classes/hitpoints.mjs");
-      out.servesFix = hp.rollHitDice.toString().includes("i === 0");
+      out.servesFix = typeof hp.hitPointsFromFaces === "function"
+        && hp.hitPointsFromFaces([1, 1], 0, { dieMinimum: 3 }) === 4
+        && hp.hitPointsFromFaces([1, 1], -1, { dieMinimum: 3 }) === 3
+        && hp.hitPointsFromFaces([1, 1, 1], 0, { dieMinimum: 3 }) === 5;
       const cell = { dice: 2, sides: 8, flat: 0 };
       const plain = await hp.rollHitDice(cell, 0, { dieMinimum: 3 });
       const penalty = await hp.rollHitDice(cell, -1, { dieMinimum: 3 });
@@ -149,7 +152,7 @@ try {
   // The bound figures carry the imported floor, so they are compared in the walk and printed as booleans.
   note("rolled", { probe: r.probe, servesFix: r.servesFix, direct: r.direct, applied: r.applied.ok, floorAbove1: r.applied.floorAbove1, restored: r.restored });
   check("the rig throws a 1", r.probe === 1, { probe: r.probe });
-  check("the page serves the floor that raises the first face only", r.servesFix);
+  check("the page's face arithmetic raises the first face to the floor and leaves the others as they fell", r.servesFix);
   check("two dice falling 1 at an invented floor of 3 sum 4, and 3 with a Constitution of -1", r.direct.perDie && r.direct.plain === 4 && r.direct.penalty === 3, r.direct);
   check(
     "bound at 1st level, hit points are the floor plus Constitution and one plus Constitution",
