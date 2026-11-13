@@ -390,6 +390,10 @@ Hooks.once("init", () => {
     // obstacles, and what a missed throw costs at each. Printed, so none of
     // them ship.
     "jumping", "fall", "spelunking", "spelunkingOutcomes",
+    // The column's spacing: the frontage a combatant takes on the battlemap
+    // (marching, and with a wide weapon) and the interval between ranks, in
+    // feet. Printed, so none of them ship.
+    "marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet",
   ]);
   // The delve's wandering throw: its die, the turns between throws, the throw
   // that meets a monster, and the encounter distance's dice

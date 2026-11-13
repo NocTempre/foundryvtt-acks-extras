@@ -20,7 +20,9 @@
  * give the `spelunking` table: the stretch one throw covers and the target an
  * adventurer with no climbing proficiency throws against, or that none may try;
  * and the `spelunkingOutcomes` table: what a failed and a botched throw cost at
- * each obstacle, as the cell's words and whether they name a fall.
+ * each obstacle, as the cell's words and whether they name a fall. The
+ * Combatant Frontage and Interval passage (RR ch. 6) gives three distances in
+ * feet: the march and wide frontages and the rank interval, one window each.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -55,6 +57,9 @@ export const PRODUCES = Object.freeze({
     fall: "jumpingLandingProse",
     spelunking: "spelunkingGrid",
     spelunkingOutcomes: "spelunkingOutcomeGrid",
+    marchFrontageFeet: "frontageProse",
+    wideFrontageFeet: "frontageProse",
+    rankIntervalFeet: "frontageProse",
   },
 });
 
@@ -416,6 +421,16 @@ export function assembleFormationTables(raw = {}) {
   if (Object.keys(spelunking).length) out.spelunking = spelunking;
   const outcomes = assembleSpelunkingOutcomes(raw.spelunkingOutcomeGrid);
   if (Object.keys(outcomes).length) out.spelunkingOutcomes = outcomes;
+
+  const frontage = raw.frontageProse ?? {};
+  for (const [key, window] of [
+    ["marchFrontageFeet", frontage.march],
+    ["wideFrontageFeet", frontage.wide],
+    ["rankIntervalFeet", frontage.interval],
+  ]) {
+    const feet = parseFeet(window);
+    if (feet != null) out[key] = feet;
+  }
 
   return out;
 }

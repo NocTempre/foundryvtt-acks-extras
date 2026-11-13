@@ -23,6 +23,9 @@
  *       fuel hands over the largest stack its pattern matches.
  *   "The delve's wandering cadence" 1-5.
  *   "The rest switch" 1-4.
+ *   The column's frontage figures: the three `formation` keys the Rules tables
+ *       import reads from RR ch. 6 are present and cited, and an override of
+ *       them (invented figures) is what the reader returns.
  *
  * Every fixture and figure is invented; an imported figure is compared in the
  * page and printed as a boolean. Fixtures, kept and found again by marker
@@ -37,7 +40,7 @@
  * Each section brings what it reads to shape at its start.
  * Writes outside the ledger, each restored in a finally: the world settings
  * `partyTokenShape`, `encounterEvery`, `encounterTarget`, `restRequired` and
- * `advanceWorldTime`; the `light` and `delveEncounters` overrides in the
+ * `advanceWorldTime`; the `light`, `delveEncounters` and `formation` overrides in the
  * imported-tables store (put back as found); the client-side unregister of the
  * light document (reloaded from the store). The combat, the pasted copy, the
  * hand-lit token, the supplied items and the cards the run's own actions
@@ -191,7 +194,15 @@ const P = {
       lightOverride: H.store.hasOverride("light", "lightSources"),
       delveOverride: ["die", "every", "target", "distance"].filter((k) => H.store.hasOverride("delveEncounters", k)),
       formation: H.t.hasDoc("formation"),
+      frontage: Object.fromEntries(["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"].map((k) => [k, H.k.formationValue(k) != null])),
+      frontageCite: Object.fromEntries(["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"].map((k) => [k, !!H.t.citeOf("formation", k)])),
     };
+  },
+
+  /** Whether each frontage key reads as the figure given, for an override of invented figures. */
+  frontageIs: async ({ want }) => {
+    const H = globalThis.__col;
+    return { same: Object.entries(want).every(([k, v]) => H.k.formationValue(k) === v) };
   },
 
   /** Open a staged book for this session only, the import the Rules tables step reads from. */
@@ -1066,7 +1077,10 @@ try {
   // The figures this walk compares come from the Judge's import. Where the world
   // holds none, the walk runs Rules tables for the three documents from the
   // staged books, as a Judge would; the import stays, like any corpus fixture.
-  const wanted = [["light", tables.light], ["delveEncounters", tables.delve], ["formation", tables.formation]].filter(([, has]) => !has).map(([id]) => id);
+  // A `formation` document imported before the frontage passage was read lacks
+  // its three keys; it is imported again, as a Judge reruns Rules tables.
+  const frontageThere = Object.values(tables.frontage).every(Boolean);
+  const wanted = [["light", tables.light], ["delveEncounters", tables.delve], ["formation", tables.formation && frontageThere]].filter(([, has]) => !has).map(([id]) => id);
   if (wanted.length) {
     section("rules tables");
     const staged = books(["rr", "jj"]);
@@ -1086,6 +1100,17 @@ try {
       note("tables after the import (booleans)", tables);
     }
   }
+  section("the column's frontage figures");
+  note("frontage keys (booleans)", { present: tables.frontage, cited: tables.frontageCite });
+  check("S1: the Rules tables import brought the march frontage, the wide frontage and the rank interval", Object.values(tables.frontage).every(Boolean), tables.frontage);
+  check("S1: each of the three is cited to its page", Object.values(tables.frontageCite).every(Boolean), tables.frontageCite);
+  const FRONTAGE_OVERRIDE = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
+  for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) restore.overrides.push({ docId: "formation", tableId, data: (await run(gm, P.overrideGet, { docId: "formation", tableId })).data });
+  for (const [tableId, data] of Object.entries(FRONTAGE_OVERRIDE)) await run(gm, P.overrideSet, { docId: "formation", tableId, data });
+  check("S1: a Ruledata Browser override of the three keys is what the reader returns", (await run(gm, P.frontageIs, { want: FRONTAGE_OVERRIDE })).same);
+  for (const _ of Object.keys(FRONTAGE_OVERRIDE)) await run(gm, P.overrideSet, restore.overrides.pop());
+  const frontBack = await run(gm, P.tables);
+  check("S1: the overrides cleared, the three imported keys are back and still cited", Object.values(frontBack.frontage).every(Boolean) && Object.values(frontBack.frontageCite).every(Boolean), { present: frontBack.frontage, cited: frontBack.frontageCite });
   const SETTINGS = ["partyTokenShape", "encounterEvery", "encounterTarget", "restRequired", "advanceWorldTime"];
   restore.settings = await run(gm, P.settings, { keys: SETTINGS });
   note("settings as found", restore.settings);

@@ -838,8 +838,25 @@ export const TABLE_RECIPES = {
   // figure; formation-binding.mjs parses them into the engine shape
   // acks-extras declares via expectTables.
   formation: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 268, 270-271" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 268, 270-271, 288" },
     tables: {
+      // RR ch. 6 "Combatant Frontage and Interval": prose only. One sentence
+      // names the wide frontage and the march frontage together, so each
+      // window opens on the words right before its own figure and the binding
+      // takes the first feet figure of the window's first sentence. The
+      // interval is the third window. The passage is in the page's left column.
+      frontageProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 288,
+        locate: "Combatant Frontage and Interval",
+        column: { xMin: 40, xMax: 300 },
+        values: [
+          { key: "wide", find: "requires a full", take: "window", span: 30 },
+          { key: "march", find: "only requires", take: "window", span: 30 },
+          { key: "interval", find: "organize into ranks at", take: "window", span: 25 },
+        ],
+      },
       swimmingProse: {
         shape: "proseValues",
         book: "rr",

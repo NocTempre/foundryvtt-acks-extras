@@ -209,8 +209,10 @@ const raw = {
 const engine = assembleFormationTables(raw);
 // The jumping, fall and Spelunking tables are fed their own windows above; the
 // invented pages here carry only the swimming and rest passages.
+const FRONTAGE_KEYS = ["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"];
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
-  Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes"].includes(k)).sort());
+  Object.keys(PRODUCES[FORMATION_DOC_ID])
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS].includes(k)).sort());
 eq("the water penalties", engine.swimWaterModifiers, { rough: -6, cold: -11 });
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -219,6 +221,29 @@ check("the breath's base", engine.breathRounds === 7);
 check("the body's weight", engine.carriedBodyStone === 9.25);
 check("the kit's share", near(engine.carriedGearShare, 2 / 3));
 check("the rest interval", engine.restInterval === 4);
+
+/* --- the column's frontage and interval: invented prose through the recipe -- */
+// The passage sits in the page's left column. The wide and the march figure
+// share one sentence, wide first, so a reader that takes the sentence's first
+// figure for both fails; the interval sentence follows a figure of its own.
+const leftPage = (lines) => lines.map((str, i) => ({ x: 60, y: 100 + i * 12, str }));
+const FRONTAGE_PAGE = [
+  "Gnomes line up in a 9’ file on parade.",
+  "A hammer gnome requires a full 4’ square frontage, but a gnome with a pin only requires a 2’ frontage.",
+  "Gnomes can actually organize into ranks at 1.5’ intervals. Then 8’ more.",
+];
+const frontageRaw = { frontageProse: extractTable(leftPage(FRONTAGE_PAGE), recipes.frontageProse) };
+eq("the three keys are produced from the frontage prose",
+  FRONTAGE_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), ["frontageProse", "frontageProse", "frontageProse"]);
+eq("each figure reads from its own window of the recipe",
+  assembleFormationTables(frontageRaw),
+  { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 });
+eq("a figure with no feet mark is not read",
+  assembleFormationTables({ frontageProse: { march: " a 2 frontage.", wide: " 4 square.", interval: " 1.5 intervals." } }), {});
+eq("a drifted window costs its own figure and nothing beside it",
+  Object.keys(assembleFormationTables({ frontageProse: { ...frontageRaw.frontageProse, wide: " a little more." } })).sort(),
+  ["marchFrontageFeet", "rankIntervalFeet"]);
+eq("nothing is assembled from an absent passage", FRONTAGE_KEYS.filter((k) => k in assembleFormationTables({ restProse: raw.restProse })), []);
 
 /* --- absent input is absent output, never a default ------------------------ */
 eq("nothing assembles from nothing", assembleFormationTables({}), {});
