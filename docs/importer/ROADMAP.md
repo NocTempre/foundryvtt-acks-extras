@@ -1007,8 +1007,9 @@ what is left is listed under "Left out of AX1's minor" below.
   first, as a journey does. Today the delve reads the first zone, which
   would be the level's (formation DECISIONS 2026-10-09). The fort's rooms
   that throw on entering, by day and by night (pp. 12, 13, 17), are a
-  settlement's shape and wait for the fort's plans. The forest's rule and a
-  hex's crossing throw (pp. 34, 35) wait for the region map.
+  settlement's shape and wait for the fort's plans. The forest's zone carries
+  its list and its chance but not its hourly interval, and one hex's crossing
+  throw (p. 35) is a throw on entering, a trigger no zone has.
 
 What each book still owes, in the order it is worth doing:
 
@@ -1132,6 +1133,10 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 - **AX1's region encounter area as a zone.** The region map stands its
   places, but the area the book keys its wilderness encounters to is no
   zone over it yet, and neither is AX3's over its own region map.
+
+- **A region place that holds nothing.** The places step makes a book's
+  region place whenever its region rows import, so a book whose every site
+  pairs onto another book's gets a region place holding only its map.
 - **One AX3 site's paragraph split at a column turn** (`ax3.site35`). Its
   block breaks mid-sentence where the column turns; AX1's pair keeps none of
   its own paragraphs, so the place reads AX3's text as split.
@@ -1141,13 +1146,14 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 - **The rest of AX1's ways between maps.** The first link rows join the
   region to the fort and to the first level, the two levels by two stairs,
   the fort's four towers to the tower plan, and the tower's storeys
-  (DECISIONS 2026-10-25). Left:
-  - the fort's gates to the gatehouse plans, and its blocks and buildings to
-    theirs;
-  - the wall walks between the towers' and the gatehouses' upper storeys,
-    the only way to a gatehouse's upper storey;
-  - the shaft from the first level's key 42 to the second level's key 20,
-    and the way between the first level's key 75 and the second's key 1;
+  (DECISIONS 2026-10-25), then the fort's three gates to the gatehouse plans,
+  the wall walks between the towers' and the gatehouses' upper storeys, the
+  shaft from the first level's key 42 to the second level's key 20 (down
+  only), and the way between the first level's key 75 and the second's key 1.
+  The plans do not draw which tower a gatehouse's walk meets, so a tower's
+  end offers every gatehouse's and the token is asked. Left:
+  - the fort's blocks and buildings to their plans, which mark no single
+    entrance;
   - the later book's site that is the first level (`ax3.site27`), on that
     book's region map, to the first level's plan.
 

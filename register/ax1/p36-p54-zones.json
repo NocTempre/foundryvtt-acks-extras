@@ -30,5 +30,19 @@
       "outline": [36.48, 36.48, 575.52, 36.48, 575.52, 756, 36.48, 756],
       "note": "The second level's encounter rule over the whole of its plan, the crop on p.55; figures as the first level's."
     }
+  },
+  {
+    "id": "ax1.zone3",
+    "kind": "kind.sceneZone",
+    "book": "ax1",
+    "name": "Zone 3",
+    "pages": [34],
+    "zone": {
+      "scene": "ax1.regionMap",
+      "table": "ax1.forestEncounters",
+      "chanceAt": { "page": 34, "x0": 305, "x1": 580, "y0": 99, "y1": 108 },
+      "outline": [322.3, 267, 338.7, 276.5, 355.1, 267, 371.5, 276.5, 371.5, 295.4, 387.9, 304.9, 387.9, 323.9, 404.3, 333.3, 420.7, 323.9, 437.1, 333.3, 437.1, 352.3, 453.5, 361.8, 470, 352.3, 486.4, 361.8, 486.4, 380.7, 502.8, 390.2, 519.2, 380.7, 535.6, 390.2, 535.6, 409.1, 519.2, 418.6, 519.2, 437.6, 502.8, 447, 502.8, 466, 486.4, 475.5, 470, 466, 453.6, 475.5, 453.6, 494.4, 437.1, 503.9, 420.7, 494.4, 404.3, 503.9, 387.9, 494.4, 387.9, 475.5, 371.5, 466, 371.5, 447, 355.1, 437.6, 355.1, 418.6, 338.7, 409.1, 338.7, 390.2, 322.3, 380.7, 322.3, 361.8, 305.9, 352.3, 305.9, 333.3, 289.4, 323.9, 289.4, 304.9, 305.9, 295.4, 305.9, 276.5],
+      "note": "The forest the adventure's wilderness rule covers, on its own region map: the hexes drawn as forest between the marsh and the river, outlined cell by cell in that page's points. Its list is the forest's encounter table and its target the paragraph's throw."
+    }
   }
 ]

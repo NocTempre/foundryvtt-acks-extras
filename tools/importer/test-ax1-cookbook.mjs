@@ -243,15 +243,26 @@ t("every area inside a plan's place that holds no other is pinned on it, once", 
 /* ---------------- zones ---------------- */
 
 t("each dungeon level is one zone over its plan, reading its chance, interval and dungeon level off the page with its level's list", () => {
-  const zones = Object.entries(cb.scenes).filter(([, row]) => row.zone);
-  const want = { "ax1.level1Map": "ax1.wanderingLevel1", "ax1.level2Map": "ax1.wanderingLevel2" };
-  assert.deepEqual(Object.fromEntries(zones.map(([, row]) => [row.zone.scene, row.zone.table])), want);
+  const all = Object.entries(cb.scenes).filter(([, row]) => row.zone);
+  const want = { "ax1.regionMap": "ax1.forestEncounters", "ax1.level1Map": "ax1.wanderingLevel1", "ax1.level2Map": "ax1.wanderingLevel2" };
+  assert.deepEqual(Object.fromEntries(all.map(([, row]) => [row.zone.scene, row.zone.table])), want);
+  const zones = all.filter(([, row]) => row.zone.scene !== "ax1.regionMap");
   for (const [id, { zone }] of zones) {
     const patterns = Object.fromEntries(Object.entries(zone.fields).map(([field, f]) => [field, f.pattern]));
     assert.deepEqual(patterns, { target: "rollTarget", every: "countWord", dungeonLevel: "int" }, id);
     const { crop } = cb.scenes[zone.scene].scene;
     assert.deepEqual(zone.outline, [crop.x, crop.y, crop.x + crop.w, crop.y, crop.x + crop.w, crop.y + crop.h, crop.x, crop.y + crop.h].map((n) => +n.toFixed(2)), `${id} covers its plan`);
   }
+});
+
+t("the forest is a zone over part of the region map, reading its chance off the page with the forest's list", () => {
+  const [[id, { zone }]] = Object.entries(cb.scenes).filter(([, row]) => row.zone?.scene === "ax1.regionMap");
+  const patterns = Object.fromEntries(Object.entries(zone.fields).map(([field, f]) => [field, f.pattern]));
+  assert.deepEqual(patterns, { target: "rollTarget" }, id);
+  const { crop } = cb.scenes[zone.scene].scene;
+  const xs = zone.outline.filter((_, i) => i % 2 === 0);
+  const ys = zone.outline.filter((_, i) => i % 2 === 1);
+  assert.ok(xs.length > 4 && xs.every((x) => x >= crop.x && x <= crop.x + crop.w) && ys.every((y) => y >= crop.y && y <= crop.y + crop.h), `${id} lies inside the region map`);
 });
 
 /* ---------------- prose boxes ---------------- */

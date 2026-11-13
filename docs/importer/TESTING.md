@@ -2177,7 +2177,9 @@ What a scripted walk meets:
      its level's zone once, drawn on the Regions layer alone (a fill over
      the whole plan would hide it), its list the level's table where the
      library holds it, and its target, interval and dungeon
-     level within the encounter zone's schema. The walk logs the figures;
+     level within the encounter zone's schema. The region map carries the
+     forest's zone once, over the forest's hexes (p.34), its list the forest
+     table and its target alone. The walk logs the figures;
      check them against the page by eye;
    - framed on its first pin, relit and tinted, each plan that stands pins
      shows a red pin on the key or letter its page prints. An entry keyed to a

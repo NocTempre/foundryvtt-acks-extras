@@ -131,5 +131,140 @@
       ],
       "note": "The tower's spiral stair: the cell above it on each storey, one region over the three, so a token stepping on it is asked which storey."
     }
+  },
+  {
+    "id": "ax1.link10",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 10",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fortMap", "box": { "x0": 200.3, "x1": 224.3, "y0": 193.7, "y1": 215.7 }, "place": "ax1.fort1", "note": "The west gatehouse." },
+        { "scene": "ax1.fort1Map", "box": { "x0": 437.09, "x1": 471.84, "y0": 362.59, "y1": 379.96 }, "place": "ax1.fort1", "note": "The gate passage, the middle of the passage between the two pairs of gate leaves." }
+      ],
+      "note": "The west gatehouse and its plan, both ways."
+    }
+  },
+  {
+    "id": "ax1.link11",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 11",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fortMap", "box": { "x0": 295.4, "x1": 319.4, "y0": 148, "y1": 170 }, "place": "ax1.fort2-3", "note": "The north gatehouse." },
+        { "scene": "ax1.fort2-3Map", "box": { "x0": 437.09, "x1": 471.84, "y0": 362.59, "y1": 379.96 }, "place": "ax1.fort2-3", "note": "The gate passage; links 11 and 12 share it, so it offers both gatehouses." }
+      ],
+      "note": "One gatehouse of the two the plan on p.10 draws once."
+    }
+  },
+  {
+    "id": "ax1.link12",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 12",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fortMap", "box": { "x0": 295.8, "x1": 319.8, "y0": 255.2, "y1": 277.2 }, "place": "ax1.fort2-3", "note": "The south gatehouse." },
+        { "scene": "ax1.fort2-3Map", "box": { "x0": 437.09, "x1": 471.84, "y0": 362.59, "y1": 379.96 }, "place": "ax1.fort2-3" }
+      ]
+    }
+  },
+  {
+    "id": "ax1.link13",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 13",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fort1Map", "box": { "x0": 350.21, "x1": 367.59, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort1", "note": "The upper storey's wall-walk, its left end." },
+        { "scene": "ax1.fort5-8Map", "box": { "x0": 298.08, "x1": 315.46, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort5-8", "note": "The second storey's wall-walk to the right; links 13 and 15 share it, so it offers both gatehouse plans' upper storeys." }
+      ],
+      "note": "A wall-walk between the west gatehouse and a tower. The plan does not draw which tower, so the shared tower end offers each."
+    }
+  },
+  {
+    "id": "ax1.link14",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 14",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fort1Map", "box": { "x0": 541.35, "x1": 558.73, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort1", "note": "The upper storey's wall-walk, its right end." },
+        { "scene": "ax1.fort5-8Map", "box": { "x0": 245.96, "x1": 263.33, "y0": 171.45, "y1": 188.83 }, "level": 1, "place": "ax1.fort5-8", "note": "The second storey's wall-walk leaving above; links 14 and 16 share it." }
+      ],
+      "note": "The west gatehouse's other wall-walk, to a tower."
+    }
+  },
+  {
+    "id": "ax1.link15",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 15",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fort2-3Map", "box": { "x0": 350.21, "x1": 367.59, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort2-3", "note": "The upper storey's wall-walk, its left end." },
+        { "scene": "ax1.fort5-8Map", "box": { "x0": 298.08, "x1": 315.46, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort5-8" }
+      ],
+      "note": "A wall-walk between the north or south gatehouse and a tower."
+    }
+  },
+  {
+    "id": "ax1.link16",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 16",
+    "pages": [6, 10],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.fort2-3Map", "box": { "x0": 541.35, "x1": 558.73, "y0": 206.2, "y1": 223.6 }, "level": 1, "place": "ax1.fort2-3", "note": "The upper storey's wall-walk, its right end." },
+        { "scene": "ax1.fort5-8Map", "box": { "x0": 245.96, "x1": 263.33, "y0": 171.45, "y1": 188.83 }, "level": 1, "place": "ax1.fort5-8" }
+      ],
+      "note": "The other wall-walk of the north or south gatehouse, to a tower."
+    }
+  },
+  {
+    "id": "ax1.link17",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 17",
+    "pages": [38, 55],
+    "link": {
+      "mode": "teleport",
+      "both": false,
+      "ends": [
+        { "scene": "ax1.level1Map", "box": { "x0": 426.87, "x1": 453.85, "y0": 404.82, "y1": 431.82 }, "place": "ax1.l1-42", "note": "The four cells around the well drawn in the courtyard." },
+        { "scene": "ax1.level2Map", "box": { "x0": 439.66, "x1": 469.68, "y0": 320.76, "y1": 350.78 }, "place": "ax1.l2-20", "note": "The four cells around the room's key." }
+      ],
+      "note": "A shaft from the first level to the second. It leads down only."
+    }
+  },
+  {
+    "id": "ax1.link18",
+    "kind": "kind.sceneLink",
+    "book": "ax1",
+    "name": "Link 18",
+    "pages": [38, 55],
+    "link": {
+      "mode": "teleport",
+      "ends": [
+        { "scene": "ax1.level1Map", "box": { "x0": 157.12, "x1": 184.1, "y0": 202.35, "y1": 229.35 }, "place": "ax1.l1-75", "note": "The two cells of the drawn shrine on the ziggurat, and the row beside them." },
+        { "scene": "ax1.level2Map", "box": { "x0": 199.49, "x1": 229.51, "y0": 230.68, "y1": 245.69 }, "place": "ax1.l2-1", "note": "The two cells of the stair drawn under the key." }
+      ],
+      "note": "A third way between the two levels, both ways."
+    }
   }
 ]
