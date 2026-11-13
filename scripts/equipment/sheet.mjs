@@ -45,6 +45,7 @@ import {
 } from "./containers.mjs";
 import { pickLock, bashOpen, canPick, canBash } from "./locks.mjs";
 import { annotateItem } from "./api.mjs";
+import { ROWS_CHANGED_HOOK } from "./weapon-rows.mjs";
 import { capacityTip } from "./printed-layers.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 
@@ -901,6 +902,36 @@ function onRenderCharacterSheet(app, element) {
   }
 }
 
+/**
+ * Does this window draw an answer read from the weapon rows? An actor's sheet
+ * does (the weapon pills, the proficiency strip, the stats and roll panels), and
+ * so does a weapon's own sheet (its snapshot, damage type, rolls and
+ * construction panels).
+ */
+function readsWeaponRows(app) {
+  const doc = app?.document;
+  if (doc?.documentName === "Actor") return true;
+  return doc?.documentName === "Item" && doc.type === ITEM_TYPE.weapon;
+}
+
+/**
+ * Re-render every OPEN window that reads weapon rows, once. The publisher
+ * announces `ROWS_CHANGED_HOOK` once per burst of publications, so a sheet
+ * drawn before the first publication (a seat's first seconds after load)
+ * answers from the rows afterwards without being reopened. Only a rendered
+ * window is touched, and the render does not force a closed one open.
+ */
+export function redrawWeaponReaders() {
+  for (const app of [...foundry.applications.instances.values()]) {
+    if (!app?.rendered || !readsWeaponRows(app)) continue;
+    try {
+      Promise.resolve(app.render()).catch((err) => console.error(`${MODULE_ID} | weapon-row redraw failed`, err));
+    } catch (err) {
+      console.error(`${MODULE_ID} | weapon-row redraw failed`, err);
+    }
+  }
+}
+
 export function registerSheet() {
   // v13/v14 ApplicationV2 fires render hooks across the inheritance chain; the
   // base-class names fire regardless of the system sheet's class name, and the
@@ -908,5 +939,6 @@ export function registerSheet() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("renderActorSheetV2", onRenderCharacterSheet);
   Hooks.on("renderACKSCharacterSheetV2", onRenderCharacterSheet);
+  Hooks.on(ROWS_CHANGED_HOOK, redrawWeaponReaders);
   console.debug(`${MODULE_ID} | inventory wear buckets registered.`);
 }

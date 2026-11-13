@@ -919,9 +919,12 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
 - `ready` awaits `rowsReady()` before the first loadout sync. Before the first
   publication every reader answers as above, so an action is never started
   from that state (see "A reader waits"); what is drawn on screen before then
-  (a sheet opened in the load window) shows the same answers until it is
-  redrawn, and nothing redraws it on `acksExtras.weaponRowsChanged` yet.
-  Core's own equip toggle in `veto` mode is judged in `preUpdateItem`, which
+  (a sheet opened in the load window) shows the same answers until the
+  publication lands, and then `sheet.mjs` `redrawWeaponReaders` redraws it:
+  on `acksExtras.weaponRowsChanged` it renders every window that is open
+  (`rendered`) and whose document is an actor, or a weapon item, once per
+  announcement, which the publisher has already debounced. A closed window is
+  never opened by it, and nothing is stored. Core's own equip toggle in `veto` mode is judged in `preUpdateItem`, which
   cannot wait.
 - A container that declares `gear.holds` and no capacity is a container with no
   limit: `holdsGear` is true, `capacityStated` false, `containerReport` says

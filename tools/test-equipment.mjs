@@ -1607,6 +1607,45 @@ const { registerSheet } = await import(new URL("sheet.mjs", S));
 registerSheet();
 check("registerSheet() runs without throwing", true);
 
+// The weapon rows publish after a seat's first sheets may be open: the announced
+// change redraws each OPEN window that reads weapon classes, once, and no other.
+{
+  const { ROWS_CHANGED_HOOK } = await import(new URL("weapon-rows.mjs", S));
+  const hooksBefore = globalThis.Hooks;
+  const listeners = {};
+  globalThis.Hooks = { on: (name, fn) => (listeners[name] ??= []).push(fn), once() {}, callAll() {} };
+  registerSheet();
+  globalThis.Hooks = hooksBefore;
+  check("registerSheet listens for the rows-changed announcement", listeners[ROWS_CHANGED_HOOK]?.length === 1);
+
+  const renders = {};
+  const win = (key, doc, rendered) => ({ document: doc, rendered, render() { renders[key] = (renders[key] ?? 0) + 1; return Promise.resolve(this); } });
+  const windows = {
+    pc: win("pc", { documentName: "Actor", type: "character" }, true),
+    npc: win("npc", { documentName: "Actor", type: "monster" }, true),
+    sword: win("sword", { documentName: "Item", type: "weapon" }, true),
+    armour: win("armour", { documentName: "Item", type: "armor" }, true),
+    closedPc: win("closedPc", { documentName: "Actor", type: "character" }, false),
+    closedSword: win("closedSword", { documentName: "Item", type: "weapon" }, false),
+    foreign: win("foreign", undefined, true),
+  };
+  for (const [id, app] of Object.entries(windows)) foundry.applications.instances.set(id, app);
+  listeners[ROWS_CHANGED_HOOK][0]();
+  await new Promise((r) => setTimeout(r, 0));
+  check("an open actor sheet and an open weapon sheet are each redrawn once", renders.pc === 1 && renders.npc === 1 && renders.sword === 1);
+  check("an open armour sheet and a window with no document are left alone", renders.armour === undefined && renders.foreign === undefined);
+  check("a window that is not rendered is never redrawn", renders.closedPc === undefined && renders.closedSword === undefined);
+  windows.pc.render = () => Promise.reject(new Error("render refused"));
+  const errored = [];
+  const errorsBefore = console.error;
+  console.error = (...a) => errored.push(a);
+  listeners[ROWS_CHANGED_HOOK][0]();
+  await new Promise((r) => setTimeout(r, 0));
+  console.error = errorsBefore;
+  check("a window whose redraw fails is logged and the others still redraw", errored.length === 1 && renders.sword === 2);
+  foundry.applications.instances.clear();
+}
+
 // Overlay toggles with NO implementation behind them must not appear in the
 // settings UI — a switch that silently does nothing is worse than no switch.
 for (const dead of ["overlayBeastman"]) {

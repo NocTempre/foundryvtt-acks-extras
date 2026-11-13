@@ -148,6 +148,19 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    loaded, with `weapons` unregistered and no figure invented. `equipment`
    (`tools/live/equipment.mjs`, step 2b) is the post-load half; the window half
    is by hand until a walk drives the reload.
+2g. A sheet opened in the load window redraws when the rows land. Reload the
+   seat (`location.reload()`) and from the first poll that sees `game.ready`,
+   with `hasDoc("weapons")` still false, open a character sheet with a weapon
+   carried and a weapon item's sheet, and read a weapon pill and the
+   proficiency answer on each (the Equipment tab's weapon rows and the
+   proficiency strip; the item sheet's snapshot). Do not reopen, touch or
+   re-render either. *Observable:* once `hasDoc("weapons")` turns true, within
+   about a second both windows redraw by themselves (a render counter on each
+   `app.render`, or the DOM node replaced) and the pill and the proficiency
+   answer now read as they do long after load, where they read the undecided
+   state before. A sheet closed before the rows land is not drawn: its
+   `rendered` stays false and no render fires on it. A world with no weapons
+   imported publishes nothing, so nothing redraws.
 3. Proficiency enforcement: set the enforcement setting to its strict mode and
    attack with a weapon the character is not proficient in.
    *Observable:* the violation is reported, and the setting genuinely gates it
