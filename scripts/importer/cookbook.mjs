@@ -86,8 +86,6 @@ import { sizeSquares } from "../monsters/sizes.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 
-/** A class or race key: the name with everything but letters and digits gone. */
-const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 import { progressBar } from "./progress.mjs";
 import * as services from "../lib/services.mjs";
 import { libraryPackLabel, judgeLine, findLibraryPack, cookbookId } from "../lib/library.mjs";
@@ -100,7 +98,7 @@ import {
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
 import { adventureItemShape, priceStatedIn } from "./adventure-item-binding.mjs";
 import { ensureSceneThumb } from "./book-adventure.mjs";
-import { nameKeys, creatureKeys, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { nameKeys, creatureKeys, slug, ABILITY_CATEGORIES, DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { materializeTemplates, TEMPLATE_PART } from "../classes/template-packages.mjs";
 import { CLASS_TYPE, RACE_TYPE } from "../classes/constants.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
@@ -131,7 +129,7 @@ import { limitRowsFor } from "../equipment/armour-limits.mjs";
 import { declaresSlots } from "../lib/item-model.mjs";
 import { ANIMAL_TYPE, TEMPLATE_TYPE, FLAG_GEAR } from "../lib/constants.mjs";
 import { acksExtras } from "../namespace.mjs";
-import { elementOf, unset } from "../lib/util.mjs";
+import { elementOf, escape as esc, unset } from "../lib/util.mjs";
 
 const FOLDER_NAME = "ACKS Cookbook";
 /**
@@ -278,8 +276,6 @@ export const cookbookContentFile = (name) => data.content.get(name) ?? null;
 export const cookbookRegisters = () => data.registers;
 export const cookbookSessionDoc = (bookId) => ctx?.sessionDocs?.get(bookId)?.doc ?? null;
 export const cookbookBookFile = (bookId) => data.books.get(bookId) ?? null;
-/** The seat-side art importer, injected by the module. Null outside Foundry. */
-export const cookbookArtImporter = () => ctx?.importArtForPage ?? null;
 
 /** "mm.griffon#combat" -> { id, section } (section null when absent). */
 const splitId = (full) => {
@@ -344,7 +340,7 @@ const diceOf = (v) => /\d+d\d+(?:[+-]\d+)?/.exec(String(v ?? ""))?.[0] ?? "";
 const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /* -------------------------------------------- */
-/*  Full Monster Sheet extras (acks-monsters)   */
+/*  Full Monster Sheet extras                   */
 /* -------------------------------------------- */
 
 const SAVE_CLASS_BY_ABBR = { F: "fighter", C: "crusader", M: "mage", T: "thief", D: "dwarvenVaultguard", E: "elvenSpellsword" };
@@ -352,12 +348,6 @@ const AGE_KEYS = ["baby", "juvenile", "adolescent", "adult", "middleAged", "old"
 const TRAINED_ROLE_MAP = {
   "war mount": "warMount", "work beast": "workbeast", workbeast: "workbeast", guard: "guard",
   mount: "mount", hunter: "hunter", herald: "herald",
-};
-const DAMAGE_WORDS = {
-  acid: "acidic", acidic: "acidic", arcane: "arcane", bludgeoning: "bludgeoning", cold: "cold",
-  electrical: "electrical", electricity: "electrical", lightning: "electrical", fire: "fire",
-  luminous: "luminous", necrotic: "necrotic", piercing: "piercing", poison: "poisonous",
-  poisonous: "poisonous", seismic: "seismic", slashing: "slashing",
 };
 
 /**
@@ -877,7 +867,7 @@ const ourPacksOfType = (type) =>
 
 /**
  * The sidebar documents this module stamped — the other half of the library in
- * any world old enough to have imported before imports went to compendia.
+ * a world that holds imports outside the packs.
  * Reads world-then-pack, matching the actor side (`importedIdsOfType`,
  * `importedActor`). Recognised by the cookbook flag, same as
  * `cookbookRemoveImports`; never the class templates' skinned copies, which
@@ -1155,8 +1145,8 @@ const blockDigestIn = (html, id) => {
 /**
  * Whether a Judge edited inside the page's own stamped block: the page records
  * the digest of the block the import wrote (`pageStamp`), and the stored block
- * no longer reads as it did. A page with no digest (written before it was
- * recorded) or none left of the block is not an edit of this kind.
+ * no longer reads as it did. A page with no recorded digest, or none left of
+ * the block, is not an edit of this kind.
  */
 function editedInBlock(page, stored) {
   const { id, sum } = pageStamp(page);
@@ -1395,7 +1385,7 @@ export async function createDocs(cls, dataList, opts = {}) {
 
 /**
  * Every Item this module has imported, indexed by cookbook id — the packs a
- * write lands on, and the sidebar ones a sidebar-era release left behind (see
+ * write lands on, and the sidebar ones that carry the cookbook flag (see
  * `sidebarImports`). Excludes the skinned template copies, which inherit the
  * definition's cookbook id. Cached, since dedup is asked once per id across a
  * whole-corpus import; `rememberImported` keeps the cache honest as new ones
@@ -1477,8 +1467,7 @@ async function claimed(id, present, remember, build) {
     return await pending;
   } finally {
     // The claim covers the in-flight window only, never past resolution — see
-    // docs/importer/DECISIONS.md, "Amended 2026-08-06 (2.4.2): a claim is a
-    // window, not a cache."
+    // docs/importer/DECISIONS.md, "a claim is a window, not a cache."
     inflightImports.delete(id);
   }
 }
@@ -1653,8 +1642,8 @@ async function importedActor(id, { copies = true } = {}) {
   const world = game.actors.find((a) => answersFor(a.getFlag(MODULE_ID, "cookbook"), id) && (copies || !isWorldCopy(a)));
   if (world) return world;
   // Its OWN shelf first — that is where `createDoc` put it — then the others.
-  // A creature re-shelved by a release that changed its line is still found,
-  // which is what keeps a Judge from importing a second copy of it.
+  // A creature shelved under another line is still found, which is what keeps
+  // a Judge from importing a second copy of it.
   const own = findLibraryPack("Actor", lineOf(bookOfCookbookId(id)));
   const others = ourPacksOfType("Actor").filter((p) => p !== own);
   const collections = own ? [own, ...others] : others;
@@ -1850,12 +1839,6 @@ function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
   if (isAnimalEntry(found?.entry)) return ensureFolderPath("Actor", ["Animals"], lineOfClaim(id, bookOf(found)));
   return targetFolder("Actor", bookOf(found), actorGroupOf(found, id, opts));
 }
-
-/**
- * The folder an import from this book belongs in — its book's shelf, inside
- * its line's pack.
- */
-export const importFolderFor = (type, bookId, group = null) => targetFolder(type, bookId, group);
 
 /** Pre-create every folder a batch will need, before the workers fan out. */
 async function prepareFolders(type, ids) {
@@ -2065,40 +2048,6 @@ function passedOver() {
       return this.lines.map((l) => `; ${l}`).join("");
     },
   };
-}
-
-/**
- * Whether this seat can read `fullId` now, asked before anything is read:
- * `{ok, name}`, or a `reason` — `no-entry` when the cookbook does not know the
- * id, `book-closed` (with `book`, the label of the book to connect) when its
- * book is not open here. `name` is the entry's own name, or the bare id.
- */
-export function entryReadable(fullId) {
-  const found = cookbookEntry(fullId);
-  if (!found) return { ok: false, reason: "no-entry", name: splitId(fullId).id };
-  const name = found.entry?.name ?? found.id;
-  const bookId = bookOf(found);
-  if (!ctx?.sessionDocs?.get(bookId)) return { ok: false, reason: "book-closed", book: bookLabel(bookId), name };
-  return { ok: true, name };
-}
-
-/**
- * One entry read fresh, as the materialized book text an import writes today.
- * A `#section` on `fullId` keeps that section's paragraphs; `cited` false
- * leaves the page reference off. The reference is the entry's current one,
- * never one stored beside an older copy. Resolves to `{html}`, or to a
- * `reason` nothing was written for: `entryReadable`'s, or `no-match` when the
- * page no longer matches.
- */
-export async function freshEntryText(fullId, { cited = true } = {}) {
-  const readable = entryReadable(fullId);
-  if (!readable.ok) return { reason: readable.reason };
-  const found = cookbookEntry(fullId);
-  const session = ctx.sessionDocs.get(bookOf(found));
-  const node = await executeEntry(session.doc, found.cb, data.registers, found.id).catch(() => null);
-  if (!node?.ok) return { reason: "no-match" };
-  const section = splitId(fullId).section ?? "";
-  return { html: entryText(node, found.id, cited ? (found.entry.cite ?? "") : "", { section }) };
 }
 
 /**
@@ -2740,7 +2689,6 @@ export async function cookbookReimportShelf(shelf = null, { mode, ask = null, de
   ignoredMode(mode, "cookbookReimportShelf");
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes over imported documents).`);
   if (!shelf) {
-    const esc = foundry.utils.escapeHTML ?? ((x) => x);
     const groups = rebuildOptions();
     const optionsOf = (rows) => rows.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("");
     return foundry.applications.api.DialogV2.prompt({
@@ -2825,7 +2773,6 @@ export async function cookbookReimportEverything(mode, { decision = null, choose
   ignoredMode(mode, "cookbookReimportEverything");
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes over imported documents).`);
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const adventures = new Set();
   const adventureList = await adventureBooks();
   const partsUnder = (tally) => [
@@ -3829,7 +3776,6 @@ function wireEntryPicker(root, listEl) {
  */
 export async function cookbookReimportEntries() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (deletes and creates documents).`);
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const docs = { Actor: await importedDocs("Actor"), Item: await importedDocs("Item") };
   const have = claimedEntryIds([...docs.Actor, ...docs.Item]);
   const onlyTip = game.i18n.localize(`${LANG_PREFIX}.ui.repairMergedRebuildTip`);
@@ -3958,8 +3904,8 @@ export async function cookbookRemoveImports() {
     ["Folder", game.folders.filter(mine)],
   ];
   // The packs themselves, found by LABEL rather than through `packFor` — a
-  // world upgraded from a sidebar-importing release has packs this session has
-  // never opened, and a clean slate has to reach those too.
+  // world can hold packs this session has never opened, and a clean slate has
+  // to reach those too.
   const ourPacks = game.packs.filter(
     (p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(`${FOLDER_NAME} — `),
   );
@@ -4084,8 +4030,8 @@ async function importOne(bookId, id, folderId) {
     flags: {
       ...(flags ?? {}),
       // The stat block's TYPE rides on OUR flag, not only the Full Monster
-      // Sheet's extras: it is the axis monsters are filed by, and a world
-      // without acks-monsters would otherwise have nothing to group on.
+      // Sheet's extras: it is the axis monsters are filed by, and a monster
+      // with no extras would otherwise have nothing to group on.
       [MODULE_ID]: {
         ...((flags ?? {})[MODULE_ID] ?? {}),
         cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
@@ -4993,7 +4939,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
     // The creature's leaders are rebuilt from the same read, and minted where
-    // a world imported it before its leaders were.
+    // a world holds the creature without them.
     await mintLeaderTemplate({
       id, found, node, bound: { system, items, flags, prototypeToken }, extras,
       folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "",
@@ -5408,7 +5354,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
         const journalId = journalCookbookId(bookId, group);
         let journal = journals.find((j) => j.getFlag(MODULE_ID, "cookbook")?.group === group && j.getFlag(MODULE_ID, "cookbook")?.book === bookId);
         if (journal) {
-          // Re-file, re-title and stamp a journal made by an earlier release.
+          // Re-file, re-title and stamp a journal whose folder, name or id is not the book's current one.
           const move = {};
           if (journal.name !== group) move.name = group;
           if ((journal.folder?.id ?? null) !== folder.id) move.folder = folder.id;
@@ -5495,8 +5441,8 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
  * location ACTORS nested quarter → city, rather than as journal pages. Each
  * point is `poiLocationData`, named by the heading the Judge's page prints
  * under its key number (the cookbook ships only the number). Presence is
- * asked by cookbook id before the page is read. A world that imported these
- * as pages under an earlier release keeps its pages: nothing here deletes.
+ * asked by cookbook id before the page is read. A journal page already
+ * holding a point stays: nothing here deletes.
  * See docs/importer/DECISIONS.md, "A settlement's keyed places are actors,
  * nested quarter → city" and "A quarter's overview is the notes of the
  * quarter's place".
@@ -5555,8 +5501,8 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
       const held = overview || block || isRewriting(id) ? null : await importedActor(id, { copies: false });
       if (held) {
         // A role is structural (which kind of place), not a page value, so a
-        // place imported before the cookbook named it is stamped without a page
-        // read; a role the Judge already set is left standing.
+        // held place with no role is stamped without a page read; a role the
+        // Judge already set is left standing.
         if (isPlaceRole(e.meta?.role) && !held.system?.role) {
           await held.update({ "system.role": e.meta.role });
           stamped++;
@@ -6809,8 +6755,7 @@ async function bringAcross(bookId, plan, created) {
  * passed as already present, and written over in place where a `repair`
  * tally is given (`REPAIR.adventureItem`: the slot, the mark and the cost are
  * rewritten, a description a Judge wrote and the quantity stay), which is
- * how an item imported before the binding read its paragraph takes its
- * shape. Quiet when no open book prints any, since the step runs in every
+ * how a held item without that shape takes it. Quiet when no open book prints any, since the step runs in every
  * Import Everything.
  * @returns {Promise<{made: number, already: number, refused: number, created: {items: string[]}}>}
  */
@@ -8230,12 +8175,12 @@ export function bindAbility(entry, node, id, opts = {}) {
   // EVERY throw the extract classified becomes a roll, not just the first. The
   // recipe's own `rolls` wins when present; otherwise the classified `throw`
   // effects are lifted in order. Ladders are carried WHOLE, resolved by
-  // acks-abilities at render time rather than flattened here.
-  // These go to the acks-abilities flag and NOT to `system.roll` /
+  // the abilities feature at render time rather than flattened here.
+  // These go to the abilities flag and NOT to `system.roll` /
   // `system.rollTarget`: the core item can hold exactly one roll, so writing
   // there too would mean two stores for the same thing.
-  // acks-abilities owns ability rolls and folds core's fields in on read for
-  // items it has not written.
+  // The abilities feature owns ability rolls and folds core's fields in on read
+  // for items it has not written.
   // Throws from a class's published TABLE lead the list: the books
   // cross-reference the table first and roll whatever follows second.
   const fromLadders = (entry.fields?.rolls?.specs ?? []).filter((sp) => sp?.fromLadders);
@@ -8357,8 +8302,7 @@ const shelfKeyOf = (id) => String(id ?? "").split(".").slice(0, 2).join(".");
 const itemShelfFor = (id) => {
   const key = shelfKeyOf(id);
   const shelf = ITEM_SHELF[key] ?? null;
-  // An unmapped namespace used to land silently at the top level, which is how
-  // 178 priced, race and conversion-constant items came to sit loose above the
+  // An unmapped namespace would land silently at the top level, loose above the
   // shelves. It is a missing ITEM_SHELF row every time, so say which one.
   if (!shelf && key) console.warn(`${MODULE_ID} | no item shelf for id namespace "${key}" — filing at the top level.`);
   return shelf;
@@ -8448,7 +8392,7 @@ async function prepareItemShelves() {
   const groups = new Set();
   for (const id of cookbookEquipmentIds()) {
     const entry = cookbookEntry(id)?.entry;
-    // Animals file under Actors when ACKS Extras is present, so their item shelf
+    // Animals file under Actors when the world can hold them (`canImportAnimals`), so their item shelf
     // would stand empty — the one thing this loop exists to avoid.
     if (isAnimalEntry(entry) && canImportAnimals()) continue;
     const g = entry?.meta?.group;
@@ -8909,7 +8853,7 @@ export function abilitySurfaceIndex(entries = null) {
     }
     const surfaces = [e.name, ...(e.aliases ?? [])];
     surfaces.forEach((surface, i) => {
-      const key = nameKey(surface);
+      const key = slug(surface);
       if (!key) return;
       const held = candidates.get(key) ?? { ids: new Set(), name: e.name, surface, alias: i > 0 };
       held.ids.add(defId);
@@ -9413,7 +9357,7 @@ export function liftBookSpells(items, { known = null } = {}) {
         uuid: "",
         name: "",
         offer: true,
-        choice: { from: "spellList", filter: "any", count: 1, refs: [], label: "", key: `${nameKey(m[1])}:spell:${offered}` },
+        choice: { from: "spellList", filter: "any", count: 1, refs: [], label: "", key: `${slug(m[1])}:spell:${offered}` },
       });
     }
   }
@@ -9705,7 +9649,7 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
  * Bind one executed class entry to `acks-extras.class` item data. Everything
  * numeric or listed comes from `node` (the reader's own book). An import
  * never calls this with a null node (`readForImport` passes the entry over);
- * a stub a world imported before that rule the constructor sheet explains.
+ * a stub already in a world is what the constructor sheet explains.
  * `opts.gains` is this class's Proficiencies-Gained-per-Level row — each C
  * becomes a class-proficiency ChoiceSpec award, each G a general one.
  * `opts.gear` is the grid-materialized half of the equipment menu (see
@@ -9888,7 +9832,7 @@ export function bindClass(
   const listText = String(f.profList ?? "").replace(/^.*?Proficiency\s*List:\s*/i, "");
   for (const name of splitList(listText)) {
     const bare = name.replace(/\([^)]*\)/g, "");
-    const hit = surfaces.byKey.get(nameKey(bare)) ?? surfaces.byPrintKey.get(printKey(bare));
+    const hit = surfaces.byKey.get(slug(bare)) ?? surfaces.byPrintKey.get(printKey(bare));
     if (hit) classProfs.push(hit.ref);
     else unresolvedProfs.push(name);
   }
@@ -10032,7 +9976,7 @@ export function bindClass(
     type: CLASS_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
     system: {
-      key: entry.meta?.key ?? foldKey(entry.name),
+      key: entry.meta?.key ?? slug(entry.name),
       source: { book: entry.book ?? "rr", cite, ref: id },
       description: entryText(node, id, cite),
       requirements,
@@ -10505,26 +10449,25 @@ export function readTrainingCells(cells = {}) {
  * The PATH GROUPS a class offers: its printed variant table where it has one,
  * and its starting templates, which are a group like any other.
  *
- * ACKS Extras owns the shape (`system.paths`, DECISIONS 2026-08-22); this side
+ * The class model owns the shape (`system.paths`, DECISIONS 2026-08-22); this side
  * fills it from the reader's own page. A templates group carries NO options —
  * its `source` points at `system.templates`, which stays exactly where it is.
  */
 export function buildPaths(trainingRows, labelHeader, hasTemplates) {
-  const key0 = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const paths = [];
   const rows = (trainingRows ?? []).filter((r) => {
     // The grid's own header line arrives as a row; it names the columns rather
     // than a variant, and every cell it holds is a column title.
-    const key = key0(r.label);
-    return key && key !== key0(labelHeader || "") && !/proficiencies/i.test(String(r.cells?.weapons ?? "").slice(0, 24));
+    const key = slug(r.label);
+    return key && key !== slug(labelHeader || "") && !/proficiencies/i.test(String(r.cells?.weapons ?? "").slice(0, 24));
   });
   if (rows.length) {
     paths.push({
-      key: key0(labelHeader) || "variant",
+      key: slug(labelHeader) || "variant",
       label: labelHeader || "Variant",
       source: "",
       options: rows.map((r) => ({
-        key: r.key || key0(r.label),
+        key: r.key || slug(r.label),
         label: r.label,
         note: "",
         training: readTrainingCells(r.cells),
@@ -10697,9 +10640,9 @@ async function inheritRaceTongues(classDocs) {
 async function syncRaceTongues(classDocs) {
   const items = await importedDocs("Item");
   const raceOf = (label) => {
-    const key = foldKey(label);
+    const key = slug(label);
     return items.find(
-      (i) => i.type === RACE_TYPE && (foldKey(i.system?.key) === key || foldKey(i.name) === key),
+      (i) => i.type === RACE_TYPE && (slug(i.system?.key) === key || slug(i.name) === key),
     );
   };
   for (const doc of classDocs ?? []) {
@@ -10727,7 +10670,7 @@ export async function importClasses({ only = null } = {}) {
   // player browsing for a class to play does first.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[CLASS_ITEM_TYPE]) {
-    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the class item type is unavailable.`);
+    ui.notifications?.warn(`${MODULE_ID} | the class item type is not registered in this world.`);
     return [];
   }
   const made = [];
@@ -11014,7 +10957,7 @@ export function* vehicleEntries() {
 export async function importVehicles({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   if (!CONFIG.Actor.dataModels?.[VEHICLE_ACTOR_TYPE]) {
-    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the vehicle actor type is unavailable.`);
+    ui.notifications?.warn(`${MODULE_ID} | the vehicle actor type is not registered in this world.`);
     return [];
   }
   const made = [];
@@ -11099,7 +11042,7 @@ async function readEntryGrids(id) {
 export async function importMerchandise({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[MERCHANDISE_TYPE]) {
-    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the merchandise item type is unavailable.`);
+    ui.notifications?.warn(`${MODULE_ID} | the merchandise item type is not registered in this world.`);
     return [];
   }
   const made = [];
@@ -11294,8 +11237,8 @@ export function* variationEntries() {
  * Import the published variations, one document per purchasable difference.
  *
  * Guarded twice for the same two reasons the traps are: a player pressing a GM
- * macro would mint a second set, and a world without acks-extras has no
- * variation data model to put them in.
+ * macro would mint a second set, and a world that has not registered the
+ * variation sub-type has no data model to put them in.
  *
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place (`REPAIR.variation`) instead of passing over it.
@@ -11303,7 +11246,7 @@ export function* variationEntries() {
 export async function importVariations({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[VARIATION_ITEM_TYPE]) {
-    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the variation item type is unavailable.`);
+    ui.notifications?.warn(`${MODULE_ID} | the variation item type is not registered in this world.`);
     return [];
   }
   const made = [];
@@ -11420,8 +11363,8 @@ export function* trapEntries() {
  * Import the printed traps, one document per trap, all six levels on it.
  *
  * Guarded twice, for the two ways this fails without one: a player pressing a
- * GM macro would mint a second set of thirteen, and a world without acks-extras
- * has no trap data model to put them in.
+ * GM macro would mint a second set of thirteen, and a world that has not
+ * registered the trap sub-type has no data model to put them in.
  *
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place (`REPAIR.trap`) instead of passing over it.
@@ -11429,7 +11372,7 @@ export function* trapEntries() {
 export async function importTraps({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[TRAP_ITEM_TYPE]) {
-    ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the trap item type is unavailable.`);
+    ui.notifications?.warn(`${MODULE_ID} | the trap item type is not registered in this world.`);
     return [];
   }
   const made = [];
@@ -11722,10 +11665,10 @@ export function bindEquipment(entry, node, id) {
   const f = { ...(node?.fields ?? {}), ...locatedValues(node) };
   let type = equipmentTypeOf(entry);
 
-  // EQUIPMENT ROOT (acks-extras, optional). That module owns the rule mapping a
-  // gear NAME to the core item type and stats it should carry; the rules live
-  // there and are never baked here. Absent the module, the register's own type
-  // stands. See acks-extras docs/equipment/DECISIONS.md § The equipment root.
+  // EQUIPMENT ROOT. The equipment feature owns the rule mapping a gear NAME to
+  // the core item type and stats it should carry; the rules live there and are
+  // never baked here. With no class for the name, the register's own type
+  // stands. See docs/equipment/DECISIONS.md, "The equipment root".
   const klass = equipmentClass(entry.name) ?? null;
   if (klass?.type) type = klass.type;
 
@@ -11749,7 +11692,7 @@ export function bindEquipment(entry, node, id) {
     if (f.range) typed.range = f.range;
     // NB: a weapon-torch is a SINGLE wielded torch — core weapons carry no
     // `quantity` field, so it cannot be a stack. It is "consumable" only in that
-    // it burns out on its timer (acks-formation). A supply of torches is a
+    // it burns out on its timer (the formation feature). A supply of torches is a
     // stackable `item`, which keeps its quantity and decrements when lit.
   } else if (type === "armor") {
     // The recipe's field is still spelled `aac`; the system's is `ac`.
@@ -11761,7 +11704,7 @@ export function bindEquipment(entry, node, id) {
     else if (f.armorType) typed.type = f.armorType;
   }
 
-  // What acks-extras is told about the document, in ITS scope (see the flags
+  // What the extras layer is told about the document, in ITS scope (see the flags
   // block below). A shield FORM is one of these: the register names which form
   // the entry is, the overlay owns what the form does, and the item carries the
   // ordinary AC its own page states so the overlay has something to correct.
@@ -11807,7 +11750,7 @@ export function bindEquipment(entry, node, id) {
  * The RR prices animals BY ROLE, a species followed by a comma and a
  * qualifier (RR p. 130), so the qualifier in the name the book
  * printed IS its statement of training, and the words it uses are the same
- * set acks-extras' `ANIMAL_TRAINING` enumerates. Reading a qualifier out of a
+ * set `ANIMAL_TRAINING` enumerates. Reading a qualifier out of a
  * name the seat's own book supplied is extraction like any other: no roster of
  * animals and no rate is shipped here, only the name-form rule.
  */
@@ -11887,8 +11830,8 @@ export function loadedAnimalEntries() {
  * creature fights, can be attacked, has morale and can be ridden, none of
  * which an inventory item has.
  *
- * Requires ACKS Extras, which supplies the `acks-extras.animal` sub-type.
- * Without it there is nowhere for a creature to go, so the entry stays an
+ * Needs the `acks-extras.animal` sub-type. Where the world has no actor
+ * collection there is nowhere for a creature to go, so the entry stays an
  * item rather than failing the import; the caller decides.
  */
 export function bindAnimal(entry, node, id, { ridable = null } = {}) {
@@ -11962,9 +11905,9 @@ const isAnimalEntry = (entry) => entry?.meta?.group === "animal";
  * Import one equipment entry, deduped by cookbook id.
  *
  * Most entries become world ITEMS. An animal becomes an ACTOR — a mule is a
- * creature you buy, not a thing you carry — provided ACKS Extras is present to
- * supply the sub-type. Without it the animal falls back to an item rather than
- * failing the import, because a lib-less seat should still get the shop list.
+ * creature you buy, not a thing you carry — provided the world can hold
+ * actors (`canImportAnimals`). Where it cannot, the animal falls back to an item
+ * rather than failing the import, so the shop list still arrives.
  *
  * An entry whose book is not open on this seat, or whose page no longer
  * matches, is passed over (`readForImport`) and counted into `passed`, a
@@ -12040,8 +11983,8 @@ async function importEquipmentItem(found, id, folderId, node) {
         }
       : {}),
   });
-  // acks-equipment owns the RAW annotation layer (container capacities, the
-  // harness, the bowquiver). Its profiles key off the printed name, so a
+  // The equipment feature owns the RAW annotation layer (container capacities,
+  // the harness, the bowquiver). Its profiles key off the printed name, so a
   // generated item annotates exactly like a core one. Reuse, never restate.
   try {
     await annotateItem(item);
@@ -12198,8 +12141,8 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     const cite = citeFor(WEAPON_TABLE.book, WEAPON_TABLE.page);
     // Whether an ammunition row names a carrying device is the equipment root's
     // question — it owns the gear profiles that answer it — so it is asked, not
-    // restated here. Absent the module every ammunition row is a bare stack,
-    // which is the shape that needs nothing of it.
+    // restated here. A row the equipment root names no device for is a bare
+    // stack, which is the shape that needs nothing of it.
     const build = () =>
       row.ammunition
         ? bindAmmoRow(row, id, cite, { device: !!gearProfileFor(row.name) })
@@ -12211,7 +12154,7 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     }
     const doc = build();
     const item = rememberImported(id, await createDoc(Item, { ...doc, folder }));
-    // The RAW annotation layer belongs to acks-equipment, exactly as the gear
+    // The RAW annotation layer belongs to the equipment feature, exactly as the gear
     // cookbook defers to it: a case rides on the belt and is free to draw from.
     if (row.ammunition) {
       try {
@@ -12249,11 +12192,10 @@ const pricedId = (name) =>
  * See docs/importer/DECISIONS.md, "A grid row is what the SECTION above it says, not what its name looks like".
  */
 function subtypeForSection(section) {
-  const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const want = fold(section);
+  const want = slug(section);
   if (!want) return "item";
   for (const [key, label] of Object.entries(CONFIG.ACKS?.item_subtypes ?? {})) {
-    if (fold(key) === want || fold(game.i18n?.localize?.(label) ?? label) === want) return key;
+    if (slug(key) === want || slug(game.i18n?.localize?.(label) ?? label) === want) return key;
   }
   return "item";
 }
@@ -12275,8 +12217,8 @@ async function rewriteRow(held, build, policy, repair) {
  */
 export function pricedDoc(row, id, cite) {
   // The equipment root owns the rule mapping a NAME to the item type it should
-  // be, exactly as bindEquipment defers to it; absent the module a priced row
-  // is plain inventory.
+  // be, exactly as bindEquipment defers to it; a row it has no class for is
+  // plain inventory.
   const klass = equipmentClass(row.name) ?? null;
   const type = klass?.type ?? "item";
   const subtype = subtypeForSection(row.section);
@@ -12345,8 +12287,7 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
       const held = await importedItem(id);
       if (!held) continue;
       await rewriteRow(held, () => pricedDoc(row, id, cite0), REPAIR.priced, repair);
-      // A row made before price rows were annotated declares no place to be
-      // worn; one that declares any — a Judge's, or Annotate's — keeps it.
+      // A row that declares no place to be worn is annotated; one that declares any — a Judge's, or Annotate's — keeps it.
       if (!declaresSlots(held)) await annotatePriced(held);
     }
   }
@@ -12405,8 +12346,8 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     seen.add(id);
     if (await importedItem(id)) continue;
     // The equipment root owns the rule mapping a NAME to the item type it
-    // should be, exactly as bindEquipment defers to it; absent the module a
-    // priced row is plain inventory.
+    // should be, exactly as bindEquipment defers to it; a row it has no class
+    // for is plain inventory.
     const item = rememberImported(id, await createDoc(Item, { ...pricedDoc(row, id, cite), folder }));
     await annotatePriced(item);
     created++;
@@ -12556,9 +12497,9 @@ export async function cookbookFillCompanions() {
 /**
  * Every ability item the library holds — loose in the pack and on actors alike.
  *
- * Async because the pack has to be loaded; it used to walk `game.items` only,
- * so Update walked an empty library and reported that it had nothing to do.
- * Actors stay a world read: a character is not an import.
+ * Async because the pack has to be loaded; `game.items` alone would leave an
+ * empty library for Update to walk. Actors stay a world read: a character is
+ * not an import.
  */
 async function allAbilities() {
   const extrasOf = (doc) => doc.getFlag(MODULE_ID, "extras") ?? {};
@@ -12574,8 +12515,6 @@ async function allAbilities() {
   return out;
 }
 
-/** Names vary by punctuation and case between sources, so match folded. */
-const nameKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
  * Folded printed name -> the definition it means, from the `powerSource`
@@ -12595,7 +12534,7 @@ function printedNameIndex() {
   for (const rows of Object.values(data.registers?.tables?.powerSource ?? {})) {
     for (const row of rows ?? []) {
       if (!row?.ref) continue;
-      for (const key of [nameKey(row.name), row.nameKey ? `#${row.nameKey}` : ""]) {
+      for (const key of [slug(row.name), row.nameKey ? `#${row.nameKey}` : ""]) {
         if (!key) continue;
         const seen = index.get(key);
         if (seen && seen !== row.ref) ambiguous.add(key);
@@ -12623,7 +12562,7 @@ function printedNameIndex() {
 export const refForPrintedName = (name) => {
   const index = printedNameIndex();
   const keyed = printKey(name);
-  return index.get(nameKey(name)) ?? (keyed ? index.get(`#${keyed}`) : undefined) ?? null;
+  return index.get(slug(name)) ?? (keyed ? index.get(`#${keyed}`) : undefined) ?? null;
 };
 
 /**
@@ -12634,10 +12573,10 @@ export const refForPrintedName = (name) => {
  * proficiency fails to match and never gets adopted.
  */
 function idForName(index, name, present) {
-  let ids = index.get(nameKey(name));
+  let ids = index.get(slug(name));
   if (!ids) {
     const bare = String(name ?? "").replace(/\s*\d+\s*\+?\s*$/, "");
-    ids = bare && bare !== name ? index.get(nameKey(bare)) : undefined;
+    ids = bare && bare !== name ? index.get(slug(bare)) : undefined;
   }
   if (!ids?.length) return null;
   return preferredId(ids, present);
@@ -12654,7 +12593,7 @@ function idForName(index, name, present) {
 function abilityNameIndex() {
   const index = new Map();
   const add = (name, id) => {
-    const key = nameKey(name);
+    const key = slug(name);
     if (!key) return;
     const list = index.get(key) ?? index.set(key, []).get(key);
     if (!list.includes(id)) list.push(id);
@@ -12752,7 +12691,6 @@ export async function cookbookImportAbilitiesDialog() {
   if (!rows.length) return ui.notifications.warn(`${MODULE_ID} | no abilities in the shipped cookbook.`);
   rows.sort((a, b) => a.name.localeCompare(b.name));
 
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   // The present marks have to name the shelf the import writes to, or a
   // compendium-mode world shows every ability as missing and the GM ticks a
   // list they already hold.
@@ -12947,7 +12885,6 @@ function asideName(index, present, name) {
  * then left exactly as it was, because a closed dialog is not consent.
  */
 async function askAboutAdoptedProse(rows) {
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const label = {
     rename: game.i18n.localize(`${LANG_PREFIX}.ui.collideRename`),
     overwrite: game.i18n.localize(`${LANG_PREFIX}.ui.collideOverwrite`),
@@ -13029,8 +12966,7 @@ async function placeGeneratedBeside(holder, id, built) {
  * copies embedded on actors — against the current cookbook.
  *
  * Matched by cookbook id first, then by folded NAME, so abilities made by
- * hand or imported by an older version get adopted and repaired rather than
- * duplicated. Only the generated surface is rewritten; the item's name and
+ * hand or imported earlier get adopted and repaired rather than duplicated. Only the generated surface is rewritten; the item's name and
  * the system fields a GM may have tuned are left alone.
  *
  * An item this module FLAGGED is rewritten outright. An item matched only by
@@ -13277,14 +13213,13 @@ export async function danglingAbilities() {
 
 /**
  * GM: remove those items, after showing exactly what will go. Never silent —
- * deleting documents out of someone's world on a version bump is not a thing to
- * do quietly, even when they are certainly stale.
+ * deleting documents out of someone's world is not a thing to do quietly, even
+ * when they are certainly stale.
  */
 export async function cookbookPruneAbilities() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
   const stale = await danglingAbilities();
   if (!stale.length) return ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.pruneNone`));
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const rows = stale
     .map((i) => `<li>${esc(i.name)} <code>${esc(i.getFlag(MODULE_ID, "cookbook").id)}</code></li>`)
     .join("");
@@ -13360,7 +13295,6 @@ export function registerAbilityDirectoryButtons() {
  */
 export async function cookbookDebug(entryId) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
 
   if (!entryId) {
     const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
@@ -13470,7 +13404,6 @@ export async function cookbookImport() {
       `${MODULE_ID} | no cookbook book is open this session — connect one first (PoC 2 / unlock dialog).`,
     );
   }
-  const esc = foundry.utils.escapeHTML ?? ((x) => x);
   const have = await importedIdSet();
   const { rows: entryRows } = actorEntriesAcrossBooks();
   // One list across every connected book, with a heading per book so a long
@@ -13634,7 +13567,7 @@ export async function cookbookImportMonsters() {
 }
 
 /**
- * `ability-provider` (ACKS Extras' lib service contract v1): resolve proficiency name
+ * `ability-provider` (the lib service contract, v1): resolve proficiency name
  * tokens into embeddable ability ItemData. Tier 1 reuses the world's own
  * imported items (the same name index the monster import uses, including its
  * proficiency-vs-class-power disambiguation); tier 2 imports the definition
@@ -13651,7 +13584,7 @@ export async function resolveAbilities(tokens) {
   for (const raw of tokens ?? []) {
     const printed = String(raw).trim();
     if (!printed) continue;
-    const token = rebracket(printed, (name) => nameIndex.has(nameKey(name)));
+    const token = rebracket(printed, (name) => nameIndex.has(slug(name)));
     const m = token.match(/^(.*?)\s*\(([^)]+)\)\s*\d*$/);
     const base = (m ? m[1] : token.replace(/\s*\d+$/, "")).trim();
     const specialty = m?.[2] ?? null;

@@ -1,0 +1,1 @@
+- **An import that cannot find a document type names the missing type.** When a world lacks the class, merchandise, variation or trap item type, or the vehicle actor type, the warning an import raises from `Settings tab → Game Settings → ACKS II — Extras → Manage imports` says that type is not registered in this world.
