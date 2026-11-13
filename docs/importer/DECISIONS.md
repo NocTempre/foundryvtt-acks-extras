@@ -36,7 +36,7 @@ pointer — book, page, heading, citation — and nothing else. The 7.0.0
 changelog entry that had described the payload's change type was reduced to
 the class path it also covered. Cost: none; nothing ever read the field.
 
-### The barbarian's column is declared elected (2026-09-04)
+### The barbarian's column is declared elected (2026-09-04) — SUPERSEDED IN PART 2026-11-13 (the re-key of a barbarian imported before the declaration: `docs/DECISIONS.md` §29)
 
 **Problem.** The barbarian's damage-bonus column is headed exactly like the
 fighter's, so the header-driven key could not tell the column the player
@@ -270,7 +270,7 @@ whose rows are minted from the page and take `DEFAULT_IMG.WEAPON`/`.ARMOR`/
 shipped code, which is the IP structure-vs-content line and wants its own
 ruling.
 
-### A shield form is a shield, not a difference applied to one (2026-09-01)
+### A shield form is a shield, not a difference applied to one (2026-09-01) — SUPERSEDED IN PART 2026-11-13 (`repairShieldVariations`: `docs/DECISIONS.md` §29)
 
 **Ruled.** The six Judges Journal shield forms — auxiliary, buckler, crescent,
 heater, kite, phalanx — import as core `armor` items of type `shield`, one base
@@ -541,7 +541,7 @@ That was never intended and the reads all filter for our own flag anyway.
 
 ---
 
-### A column key carries every qualification its printed header carries (2026-08-27)
+### A column key carries every qualification its printed header carries (2026-08-27) — SUPERSEDED IN PART 2026-11-13 (`repairClassLadderKeys`: `docs/DECISIONS.md` §29)
 
 **Problem.** The paladin's progression column is headed *Melee Damage Bonus* and
 was keyed `damageBonus`. The header is a LOCATOR — it finds the column and is
@@ -628,7 +628,7 @@ folios, sampled the length of each book, before being declared.
 
 ---
 
-### A grid row is what the SECTION above it says, not what its name looks like (2026-08-26)
+### A grid row is what the SECTION above it says, not what its name looks like (2026-08-26) — SUPERSEDED IN PART 2026-11-13 (`repairPricedSubtypes`: `docs/DECISIONS.md` §29)
 
 **Problem.** A vaultguard's leather belt arrived as ordinary inventory. Core
 files a `clothing` item on its own part of the character sheet and leaves it
@@ -3120,7 +3120,7 @@ journal behind with no pages. That is honest — the shelf says nothing was
 imported — and a later good run fills it. A page of wrong prose was the defect;
 an empty journal is not.
 
-### The weapons grid prints three types, and ammunition is not a weapon (2026-08-30)
+### The weapons grid prints three types, and ammunition is not a weapon (2026-08-30) — SUPERSEDED IN PART 2026-11-13 (`repairAmmoWeapons`: `docs/DECISIONS.md` §29)
 
 The grid on RR ch.4's weapons page files four rows under **Ammunition** — the
 bolt case, the arrow quiver, the silver arrow, the sling stones — each with an
@@ -4830,7 +4830,7 @@ indistinguishable from classes that grant none. Before the sentence reader,
 all ten classes of the book that writes its training as plain sentences read
 as having no training at all.
 
-### History the source comments carried, recorded (2026-09-22)
+### History the source comments carried, recorded (2026-09-22) — SUPERSEDED IN PART 2026-11-13 (`repairAnimalItems` and `repairEquipmentAbilities`: `docs/DECISIONS.md` §29)
 
 These were written into code comments as the reason a guard exists. The
 comments now state the guard; the story is here.
@@ -8733,7 +8733,7 @@ blamed the system update; the cause predates it.
 it and run the items step again to take the slot, the price and the mark.
 The live record: the typography walk's step 2, extended.
 
-## 2026-10-29 — Nothing is imported without the book
+## 2026-10-29 — Nothing is imported without the book — SUPERSEDED IN PART 2026-11-13 (the three equipment sweeps: `docs/DECISIONS.md` §29)
 
 **Ruled.** Every importer that builds a document from one cookbook entry
 reads the entry off the seat's own copy of its book first (`cookbook.mjs`

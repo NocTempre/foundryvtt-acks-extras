@@ -1125,11 +1125,7 @@ cookbook id and `cookbook.merged` flags are in `flags["acks-extras"]`.
 
 ### Fixtures
 
-The Revised Rulebook connected, and the equipment import run. To exercise the
-repair as well as the create, first make the pre-fix shape on purpose: import
-equipment, then set one materialized clothing row back by hand —
-`game.items.getName("Belt/Sash, Leather").update({"system.subtype":"item"})` —
-and run the import again.
+The Revised Rulebook connected, and the equipment import run.
 
 ### Steps
 
@@ -1150,16 +1146,10 @@ and run the import again.
    *Observable:* it sits in the sheet's clothing band, not among the gear, and
    the character's encumbrance does not move when it is added — core exempts a
    clothing item, which is the whole reason the subtype matters.
-3. Re-run the import after hand-setting one row back (fixture above).
-   *Observable:* the console warns that it corrected N priced item(s), the
-   document's subtype is `clothing` again, and NOTHING was created — the
-   `created` count is 0. A repair that re-creates instead of correcting shows
-   up here as a duplicate.
-4. Apply a class template package that names a belt (any vaultguard or explorer
+3. Apply a class template package that names a belt (any vaultguard or explorer
    template).
    *Observable:* the skinned "leather belt" on the character carries the base's
-   subtype. A skin copied BEFORE this fix keeps the old one — re-apply the
-   package to refresh it; the importer does not reach onto characters.
+   subtype.
 
 ### Teardown
 
@@ -1169,20 +1159,7 @@ Delete the fixtures you created; the imported library is the world's.
 
 ### Fixtures
 
-The Revised Rulebook connected. To exercise the repair as well as the create,
-build the pre-upgrade shape on purpose — recover the old binder and mint the
-four rows the way they used to arrive:
-
-```
-git show v5.4.1:scripts/weapon-tables.mjs > /tmp/old-weapon-tables.mjs
-```
-
-then, in the world, re-create one by hand with the old shape and our own stamp,
-so the repair has something to find:
-
-```
-await Item.create({name:"Case, 20 Bolts", type:"weapon", system:{damage:"1d6", weight6:1, cost:2}, flags:{"acks-extras":{cookbook:{id:"def.weapon.case20Bolts", cite:"RR p. 128"}, minted:true}}})
-```
+The Revised Rulebook connected.
 
 ### Steps
 
@@ -1226,16 +1203,6 @@ await Item.create({name:"Case, 20 Bolts", type:"weapon", system:{damage:"1d6", w
    *Observable:* it is filed as gear, not under Weapons; it carries no damage
    die and offers no attack; and it rides on the belt, free to draw from — the
    annotation acks-extras stamps at import. It is NOT a 1d6 line.
-4. Re-run the import over the hand-made pre-upgrade document (fixture above).
-   *Observable:* the console warns that it removed N ammunition row(s) imported
-   as weapons, and the world afterwards holds exactly ONE "Case, 20 Bolts",
-   typed `item`. Two documents means the repair ran after the claim rather than
-   before it; zero means the delete found nothing to re-create from.
-5. Make a Judge's own weapon with the same name and no importer stamp, then
-   re-import.
-   *Observable:* it is untouched. The repair only ever deletes documents
-   carrying our `generated` flag.
-
 The device actually holding its bolts, and choosing between stacks at the roll,
 are acks-extras' surfaces — its `docs/equipment/TESTING.md` owns those steps.
 
@@ -1248,14 +1215,7 @@ Delete the fixtures you created; the imported library is the world's.
 ### Fixtures
 
 The Judges Journal connected — the six forms are the only thing that reads
-pp.409–410. ACKS Extras active, for the overlay and for the variation type the
-repair looks for. To exercise the repair as well as the create, build the
-pre-upgrade shape: mint one form the way it used to arrive, under the id it
-used to carry.
-
-```
-await Item.create({name:"Kite Shield", type:"acks-extras.variation", system:{key:"shield.kite", kind:"form", appliesTo:["shield"]}, flags:{"acks-extras":{cookbook:{id:"def.variation.shieldKite", cite:"JJ p.408"}}}})
-```
+pp.409–410. ACKS Extras active, for the overlay.
 
 ### Steps
 
@@ -1284,19 +1244,9 @@ await Item.create({name:"Kite Shield", type:"acks-extras.variation", system:{key
    bonus goes away (the overlay corrects downward from the item's own value),
    and cycling back to hand restores it. A form that never moves the AC either
    way means the flag did not reach the overlay.
-4. Re-run the import over the hand-made pre-upgrade document (fixture above).
-   *Observable:* the console warns that it removed N shield form(s) imported as
-   variations, and the world afterwards holds exactly ONE "Kite Shield", typed
-   `armor`. Two documents means the repair ran after the claim rather than
-   before it.
-5. Apply a masterwork variation to a shield, then re-import.
-   *Observable:* the applied variation is untouched. The repair reads the
-   sidebar and our own packs; a variation living on an item is an embedded copy
-   it never sees.
-6. Make a Judge's own "Kite Shield" with no importer stamp, then re-import.
+4. Make a Judge's own "Kite Shield" with no importer stamp, then re-import.
    *Observable:* it is untouched, and a second, generated Kite Shield stands
-   beside it. The repair matches on the cookbook id it imported under, which a
-   hand-made document does not carry.
+   beside it.
 
 What a form does once it is on a character — the carry states, the mounted
 rules, the specialization gate — is acks-extras' surface; its
@@ -1312,7 +1262,7 @@ Every importer that builds a document from one entry reads it off the seat's
 own book first; with the book not open, the entry is passed over and counted,
 and nothing is created (MODEL, "What an import reads"). Walk:
 `tools/live/importer-bookless.mjs`, steps 1–4. Offline, the same for spells,
-abilities, equipment and the shield sweep: `tools/importer/test-bookless-import.mjs`.
+abilities and equipment: `tools/importer/test-bookless-import.mjs`.
 
 ### Fixtures
 

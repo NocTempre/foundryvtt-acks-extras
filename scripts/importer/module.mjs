@@ -92,7 +92,7 @@ import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
   cookbookCount, refillMonster, resolveAbilities, proficiencyResolver,
-  importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
+  importEquipment, importAllEquipment, cookbookEquipmentIds,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
@@ -183,20 +183,9 @@ const locationClear = () => idbOp("readwrite", (s) => s.clear());
 /** The record kinds this module writes. Anything else is not ours to read. */
 const LOCATION_KINDS = new Set(["handle", "url", "file"]);
 
-/**
- * Records written before the shape existed are the bare handle itself. Read
- * them as the handle they are rather than discarding them — a seat that has
- * had its book remembered for weeks must not lose it to an upgrade.
- *
- * The handle is identified by BEHAVIOUR, and before anything else, because
- * `FileSystemHandle.kind` is a real property whose value is the string "file"
- * — the same word this module uses for a record it cannot reopen. Trusting
- * `kind` first read every legacy handle as "re-pick this by hand", which is
- * precisely the regression the migration exists to prevent.
- */
+/** A stored value as a location record, or null when it is not one of the kinds this module writes. */
 function asLocation(value) {
   if (!value) return null;
-  if (typeof value.getFile === "function") return { kind: "handle", handle: value, name: value.name ?? null };
   return LOCATION_KINDS.has(value.kind) ? value : null;
 }
 
@@ -1211,12 +1200,11 @@ async function cookbookImportTables(only = null, { repair = null } = {}) {
   if (report.imported.some((d) => d.docId === LANGUAGES_DOC_ID)) {
     try {
       const table = getDoc(LANGUAGES_DOC_ID)?.tables?.tree;
-      const made = table ? await applyLanguageImport(table, { repair }) :{ created: 0, present: 0, adopted: 0, retyped: 0 };
-      // Adoptions and retypes are work the seat should hear about too: a run
-      // that creates nothing — because every tongue was already there under a
-      // Judge's own name, or was minted as an ability by an older version —
-      // has still changed the world.
-      const landed = made.created + made.adopted + made.retyped;
+      const made = table ? await applyLanguageImport(table, { repair }) : { created: 0, present: 0, adopted: 0 };
+      // Adoptions are work the seat should hear about too: a run that creates
+      // nothing, because every tongue was already there under a Judge's own
+      // name, has still changed the world.
+      const landed = made.created + made.adopted;
       if (landed) {
         ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.tables.languagesApplied`, { created: landed }));
       }
@@ -2819,7 +2807,7 @@ Hooks.once("ready", async () => {
     importStep: runImportStep,
     /** The import manager window, on `tab` when given. */
     openImportManager,
-    importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
+    importEquipment, importAllEquipment, cookbookEquipmentIds,
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
     gettingStarted: () => openBooksDialog({ firstRun: true }),

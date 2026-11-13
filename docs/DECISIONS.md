@@ -1166,6 +1166,16 @@ produces stays, under whatever name it carries.
   with a tag), the `thrown`, `handy` and `hands` item flags nothing writes, a
   named item's stored `max`, and the `equipment.railClothing` repair check for
   garments written before the clothing hooks.
+- The importer's repairs of what an earlier importer wrote wrong: the four
+  equipment sweeps (`repairEquipmentAbilities`, `repairAnimalItems`,
+  `repairShieldVariations`, `repairPricedSubtypes`), `repairAmmoWeapons` and
+  `repairClassLadderKeys`; the language import's retype of an ability-typed
+  language; the location store's read of a bare handle; and an ability with
+  no `effectsFrom` stamp read as unverified for its `unaudited` tick. The
+  current importer writes none of these shapes, so each was a fix of a
+  previous version's import, which the owner's 2026-11-11 words set apart from
+  the repair of a broken one. Prune (`danglingAbilities`) stays: it reads the
+  world against the cookbook as it stands.
 
 **Kept, as current-version paths:**
 

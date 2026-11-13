@@ -17,7 +17,6 @@
 import assert from "node:assert";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { libraryPackLabel } from "../../scripts/lib/library.mjs";
-import { ARMOR_TABLE } from "../../scripts/importer/armor-tables.mjs";
 import {
   initCookbook,
   loadCookbook,
@@ -26,7 +25,6 @@ import {
   cookbookImportAbilities,
   importedItemFor,
   forgetImportedIndex,
-  repairShieldVariations,
 } from "../../scripts/importer/cookbook.mjs";
 
 let pass = 0;
@@ -236,20 +234,6 @@ const CLOSED = /passed over — their book is not open on this seat/;
   sessions.set("zz", { doc: {} });
   forgetImportedIndex();
   ok("the shelf answers that it holds no such item", (await importedItemFor("def.equip.epsilon")) === null);
-}
-
-/* --- the shield sweep keeps what the import would pass over ------------------------------- */
-{
-  const wrong = await MockItem.create(
-    { name: "a form", type: "variation", flags: { [MODULE_ID]: { minted: true, cookbook: { id: "def.variation.shieldForm" } } } },
-    { pack: ITEM_PACK },
-  );
-  forgetImportedIndex();
-  sessions.delete(ARMOR_TABLE.book);
-  ok("with the armour book closed the sweep removes nothing", (await repairShieldVariations()) === 0 && shelf.docs.has(wrong.id));
-  sessions.set(ARMOR_TABLE.book, { doc: {} });
-  ok("with it open the sweep removes the form", (await repairShieldVariations()) === 1 && !shelf.docs.has(wrong.id));
-  sessions.delete(ARMOR_TABLE.book);
 }
 
 delete globalThis.foundry;

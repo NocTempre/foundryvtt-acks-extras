@@ -10732,47 +10732,6 @@ async function syncRaceTongues(classDocs) {
   }
 }
 
-/** The label `bindClass` derives for a ladder key, so a hand edit is visible. */
-const ladderLabelFor = (key) => key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
-
-/**
- * Re-key a class ladder whose column has since been QUALIFIED. Document-driven
- * like `importTemplatePackages`: compares each imported class against the
- * column keys the cookbook declares NOW, and re-keys only where exactly one
- * declared key is that same name behind a qualifier. The label moves with the
- * key only where it still reads as the one import derived.
- * See docs/importer/DECISIONS.md, "A column key carries every qualification its printed header carries".
- *
- * @returns {Promise<number>} how many classes were corrected
- */
-async function repairClassLadderKeys() {
-  let repaired = 0;
-  for (const [id, entry] of classEntries()) {
-    const doc = await importedItem(id);
-    if (doc?.type !== CLASS_ITEM_TYPE) continue;
-    const ladders = doc.system?.ladders ?? [];
-    if (!ladders.length) continue;
-    const declared = (entry.fields?.progression?.cols ?? []).map((c) => String(c.key ?? ""));
-    if (!declared.length) continue;
-    let changed = false;
-    const next = ladders.map((l) => {
-      const key = String(l.key ?? "");
-      if (!key || declared.includes(key)) return l;
-      const lower = key.toLowerCase();
-      const matches = declared.filter((d) => d.length > key.length && d.toLowerCase().endsWith(lower));
-      if (matches.length !== 1) return l;
-      changed = true;
-      const label = l.label === ladderLabelFor(key) ? ladderLabelFor(matches[0]) : l.label;
-      return { ...l, key: matches[0], label };
-    });
-    if (!changed) continue;
-    await doc.update({ "system.ladders": next });
-    repaired++;
-  }
-  if (repaired) console.warn(`${MODULE_ID} | re-keyed a qualified ladder on ${repaired} class(es) imported before the column carried its qualifier.`);
-  return repaired;
-}
-
 /**
  * GM: import every class the cookbook holds that this world does not.
  *
@@ -10791,10 +10750,6 @@ export async function importClasses({ only = null } = {}) {
     ui.notifications?.warn(`${MODULE_ID} | ACKS Extras is not active — the class item type is unavailable.`);
     return [];
   }
-  // Correct what an earlier run keyed wrong BEFORE the loop below: a class this
-  // world already holds is skipped there, so a repair written inside it would
-  // never reach one.
-  const repaired = await repairClassLadderKeys();
   const made = [];
   let skipped = 0;
   const passed = passedOver();
@@ -10829,7 +10784,7 @@ export async function importClasses({ only = null } = {}) {
   await syncRaceTongues(made);
   await materializeClassTemplates(made);
   ui.notifications?.info(
-    `${MODULE_ID} | classes: ${made.length} imported, ${skipped} already present${repaired ? `, ${repaired} corrected` : ""}${passed.clause}.`,
+    `${MODULE_ID} | classes: ${made.length} imported, ${skipped} already present${passed.clause}.`,
   );
   return made;
 }
@@ -12171,109 +12126,6 @@ export const cookbookEquipmentIds = () =>
     .map(([id]) => id);
 
 /**
- * Remove `ability` items mis-created from equipment entries. An item's type
- * cannot be changed in place, so they are deleted and re-created properly by
- * the equipment import. Only OUR generated documents are touched; a
- * hand-made item is never deleted, and neither is one nothing loaded here can
- * put back (`rebuildable`): the import that would re-create it passes it
- * over, so the delete would leave nothing in its place.
- * @returns {Promise<number>} how many were removed
- */
-export async function repairEquipmentAbilities() {
-  const wrong = (await importedDocs("Item")).filter(
-    (i) =>
-      i.type === ITEM_TYPE.ABILITY &&
-      i.getFlag(MODULE_ID, "minted") &&
-      String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.equip.") &&
-      rebuildable(claimedId(i)),
-  );
-  if (!wrong.length) return 0;
-  await deleteImported("Item", wrong);
-  console.warn(`${MODULE_ID} | removed ${wrong.length} equipment entr(ies) mis-imported as abilities (v0.26.0 defect).`);
-  return wrong.length;
-}
-
-/**
- * Remove `item`-typed documents that should now be ANIMAL ACTORS, so the
- * equipment import can re-create them as actors. Exactly the
- * repairEquipmentAbilities pattern: only OUR generated documents are touched
- * (the `minted` flag + a `def.equip.` cookbook id whose entry is an animal).
- *
- * A no-op before `game.actors` exists — without the animal sub-type reachable
- * yet, removing the items would delete data with nothing to replace it. An
- * item nothing loaded here can put back (`rebuildable`) is kept for the same
- * reason: the import passes it over instead of re-creating it.
- *
- * @returns {Promise<number>} how many were removed
- */
-export async function repairAnimalItems() {
-  if (!canImportAnimals()) return 0;
-  const animalIds = new Set(
-    [...data.content.values()]
-      .flatMap((cb) => Object.entries(cb.entries))
-      .filter(([, e]) => e.kind === "kind.equipment" && e.meta?.group === "animal")
-      .map(([id]) => id),
-  );
-  const wrong = (await importedDocs("Item")).filter(
-    (i) => i.getFlag(MODULE_ID, "minted") && animalIds.has(i.getFlag(MODULE_ID, "cookbook")?.id) && rebuildable(claimedId(i)),
-  );
-  if (!wrong.length) return 0;
-  await deleteImported("Item", wrong);
-  console.warn(`${MODULE_ID} | removed ${wrong.length} animal(s) mis-imported as items; re-import to recreate them as actors.`);
-  return wrong.length;
-}
-
-/**
- * Remove the JJ shield forms an earlier version imported as VARIATIONS, so
- * the equipment import can re-create them as the `armor` shield items they
- * now are. Only the LIBRARY copies go, matched on the id they were imported
- * under; a variation a Judge already applied to a shield is an embedded copy
- * on that document and is never touched. Nothing goes while the book that
- * prints the armour table is not open on this seat: `importArmor` reads the
- * shields off that table and imports none without it.
- * See docs/importer/DECISIONS.md, "A shield form is a shield, not a difference applied to one".
- *
- * @returns {Promise<number>} how many were removed
- */
-export async function repairShieldVariations() {
-  if (!ctx?.sessionDocs?.has(ARMOR_TABLE.book)) return 0;
-  const wrong = (await importedDocs("Item")).filter((i) =>
-    String(i.getFlag(MODULE_ID, "cookbook")?.id ?? "").startsWith("def.variation.shield"),
-  );
-  if (!wrong.length) return 0;
-  await deleteImported("Item", wrong);
-  console.warn(`${MODULE_ID} | removed ${wrong.length} shield form(s) imported as variations; they import as shields now.`);
-  return wrong.length;
-}
-
-/**
- * Correct the SUBTYPE of priced items an earlier run filed as plain
- * inventory. Corrected in place rather than re-created: an item's subtype is
- * mutable, so there is nothing here of the delete `repairAnimalItems` needs,
- * and re-creating would mint a duplicate. Only documents carrying our
- * `minted` flag are touched, and only that one field, so a Judge's own
- * "Belt" is never rewritten. Skins already copied onto a character belong to
- * the template package, which re-derives them.
- * See docs/importer/DECISIONS.md, "A grid row is what the SECTION above it says, not what its name looks like".
- *
- * @param {{name:string, section:string}[]} rows the grid as this seat read it
- * @returns {Promise<number>} how many were corrected
- */
-async function repairPricedSubtypes(rows) {
-  let repaired = 0;
-  for (const row of rows) {
-    const want = subtypeForSection(row.section);
-    const doc = await importedItem(pricedId(row.name));
-    if (!doc || doc.type !== "item" || !doc.getFlag(MODULE_ID, "minted")) continue;
-    if (doc.system?.subtype === want) continue;
-    await doc.update({ "system.subtype": want });
-    repaired++;
-  }
-  if (repaired) console.warn(`${MODULE_ID} | corrected the subtype of ${repaired} priced item(s) imported before their section was read.`);
-  return repaired;
-}
-
-/**
  * Bulk import: every equipment entry, shared folder, dedup via importEquipment.
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place instead of passing over it (`importEquipment`), and
@@ -12284,17 +12136,6 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   // Same reason as importClasses: the macro says "(GM)" but every seat can run
   // it, and a player who does adds a second shop list to the world.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
-  // The three repairs each delete what the loop below is trusted to rebuild, so
-  // a pass narrowed by `only` makes none of them: it would rebuild only its
-  // own entries and leave the rest deleted. A repair in place deletes nothing.
-  const sweep = !only && !repair;
-  const repaired = sweep ? await repairEquipmentAbilities() : 0;
-  // A world imported by an earlier version holds animals as items; drop them so
-  // the loop below recreates them as actors (no-op without ACKS Extras).
-  const repairedAnimals = sweep ? await repairAnimalItems() : 0;
-  // And the shield forms it holds as variations; the loop below imports them as
-  // the shields they are.
-  const repairedShields = sweep ? await repairShieldVariations() : 0;
   const ids = cookbookEquipmentIds().filter((id) => !only || only.has(id));
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressEquipment`), ids.length);
   let created = 0;
@@ -12335,7 +12176,7 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   // to run after they have had their chance at them.
   const priced = tables.has("priced") ? await importPricedGear(undefined, { repair }) : null;
   reportOverlaps();
-  return { total: ids.length, created, animals, passed: over, repaired, repairedAnimals, repairedShields, weapons, armor, priced };
+  return { total: ids.length, created, animals, passed: over, weapons, armor, priced };
 }
 
 /* -------------------------------------------- */
@@ -12344,31 +12185,6 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
 
 /** camelCase cookbook id for a table-materialized weapon. */
 const weaponId = (name) => `def.weapon.${slugLabel(name).replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())}`;
-
-/**
- * Remove ammunition the grid's third type was read as a WEAPON, so the run
- * re-creates them as inventory. The `repairAnimalItems` pattern and guard:
- * only documents carrying our own `minted` flag are touched. A class
- * template's copy carries no importer stamp and is not reached from here.
- * See docs/importer/DECISIONS.md, "The weapons grid prints three types, and ammunition is not a weapon".
- *
- * @param {string[]} ids the cookbook ids of this seat's ammunition rows
- * @returns {Promise<number>} how many were removed
- */
-async function repairAmmoWeapons(ids) {
-  const want = new Set(ids);
-  if (!want.size) return 0;
-  const wrong = (await importedDocs("Item")).filter(
-    (i) =>
-      i.type === ITEM_TYPE.WEAPON &&
-      i.getFlag(MODULE_ID, "minted") &&
-      want.has(i.getFlag(MODULE_ID, "cookbook")?.id),
-  );
-  if (!wrong.length) return 0;
-  await deleteImported("Item", wrong);
-  console.warn(`${MODULE_ID} | removed ${wrong.length} ammunition row(s) imported as weapons; re-imported as inventory.`);
-  return wrong.length;
-}
 
 /**
  * Materialize the RR weapons TABLE into `weapon` items from the reader's own
@@ -12395,10 +12211,6 @@ export async function importWeapons(folderId, { repair = null } = {}) {
   }
   if (!rows.length) return { table: 0, created: 0, reason: "table not found in book" };
   const folder = folderId ?? (await ensureItemFolder("def.weapon."))?.id ?? null;
-  // BEFORE anything claims an id — a row this world already holds claims itself
-  // on the next run, and a repair written after the claim reports zero forever
-  // while the wrong documents stand (the lesson importPricedGear records).
-  const repaired = await repairAmmoWeapons(rows.filter((r) => r.ammunition).map((r) => weaponId(r.name)));
   let created = 0;
   // Which kind each row is cannot be asked here: the weapon rows are published
   // from the documents this loop makes, so before it ends every row would read
@@ -12433,7 +12245,7 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     }
     created++;
   }
-  return { table: rows.length, created, repaired };
+  return { table: rows.length, created };
 }
 
 /** camelCase cookbook id for a table-materialized armour item. */
@@ -12547,13 +12359,6 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
   }
   if (!rows.length) return { rows: 0, created: 0, reason: "grid not found in book" };
 
-  // Correct what an earlier run got wrong, BEFORE anything is claimed. A row
-  // this world already holds claims itself on the next run — the library check
-  // below matches the document against the row it was made from — so nothing
-  // downstream of the claim can ever reach one, and a repair written there
-  // reports zero forever while the wrong documents stand.
-  const repaired = await repairPricedSubtypes(rows);
-
   // A repair writes the rows this world already made items of; the loop below
   // then passes those over as claimed.
   if (repair) {
@@ -12629,7 +12434,7 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     await annotatePriced(item);
     created++;
   }
-  return { rows: rows.length, created, repaired };
+  return { rows: rows.length, created };
 }
 
 /**

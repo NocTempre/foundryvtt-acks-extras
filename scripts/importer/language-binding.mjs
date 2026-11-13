@@ -73,7 +73,7 @@ export function languageId(name) {
 /** The cookbook id stamped on a document, or "". */
 export const cookbookIdOf = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
 
-/** Is this document one of the taxonomy's, whatever type it was minted as? */
+/** Is this document one of the taxonomy's, by its cookbook id? */
 export const isImportedLanguage = (doc) => cookbookIdOf(doc).startsWith("def.language.");
 
 /**
@@ -119,21 +119,17 @@ export function languageItems(table) {
  * The imported documents that already stand for a language, indexed twice: by
  * the derived id, and by lowercased name.
  *
- * Both indexes span EVERY type, not just `language`. An earlier import minted
- * these as abilities, and a library holding those must be recognised as already
- * having the tongue — otherwise the fix that switches the type is also the
- * change that doubles everyone's language list.
+ * Only `language` items count: a document of any other type is not a tongue.
  */
 async function libraryIndex() {
   const byId = new Map();
   const byName = new Map();
   for (const item of await importedDocs("Item")) {
+    if (item.type !== LANGUAGE_TYPE) continue;
     const id = cookbookIdOf(item);
     if (id.startsWith("def.language.") && !byId.has(id)) byId.set(id, item);
-    if (item.type === LANGUAGE_TYPE) {
-      const key = item.name.toLowerCase();
-      if (!byName.has(key)) byName.set(key, item);
-    }
+    const key = item.name.toLowerCase();
+    if (!byName.has(key)) byName.set(key, item);
   }
   return { byId, byName };
 }
@@ -154,16 +150,10 @@ async function systemLanguages() {
 
 /**
  * Materialize the taxonomy: adopt what the world already has, mint only what
- * is genuinely missing, and retype anything an earlier import left as an
- * ability.
+ * is genuinely missing.
  *
  * Idempotent on the derived id, so importing twice does not double the world's
  * languages — the same guard every other importer path uses.
- *
- * THE RETYPE DELETES, so it is ordered to survive a failure at any point: the
- * replacement is created first and the stale ability is removed only once its
- * successor exists. A run that dies halfway leaves a duplicate, which the next
- * run adopts — never a world that has lost a language.
  *
  * `repair`, a tally (`repairTally`), writes each language this world already
  * holds over its document in place: its place in the taxonomy is re-read, and
@@ -171,18 +161,17 @@ async function systemLanguages() {
  *
  * @param {{rows: object[]}} table the extracted taxonomy
  * @param {{repair?: object|null}} [opts]
- * @returns {Promise<{created: number, present: number, adopted: number, retyped: number}>}
+ * @returns {Promise<{created: number, present: number, adopted: number}>}
  */
 export async function applyLanguageImport(table, { repair = null } = {}) {
   const wanted = languageItems(table);
-  if (!wanted.length) return { created: 0, present: 0, adopted: 0, retyped: 0 };
+  if (!wanted.length) return { created: 0, present: 0, adopted: 0 };
 
   const { byId, byName } = await libraryIndex();
   const fromSystem = await systemLanguages();
 
   const creates = [];
   const stamps = [];
-  const retyped = [];
   let present = 0;
   let adopted = 0;
   let created = 0;
@@ -191,23 +180,14 @@ export async function applyLanguageImport(table, { repair = null } = {}) {
     const id = data.flags[MODULE_ID].cookbook.id;
     const existing = byId.get(id);
 
-    if (existing?.type === LANGUAGE_TYPE) {
+    if (existing) {
       present++;
       if (repair && unrepaired(repair, existing)) countRepair(repair, await repairWrite(existing, data, REPAIR.language, repair));
       continue;
     }
 
-    if (existing) {
-      // An earlier import's ability. A document's type cannot be updated, so
-      // the language is re-created carrying the ability's own description and
-      // the ability is retired once the replacement is in hand.
-      creates.push({ ...data, system: { description: existing.system?.description ?? "" } });
-      retyped.push(existing);
-      continue;
-    }
-
-    // A tongue the LIBRARY already knows under this name — an earlier import
-    // that predates the derived id. Adopt it and stamp the id so the next run
+    // A tongue the LIBRARY already knows under this name without the derived
+    // id. Adopt it and stamp the id so the next run
     // finds it. A Judge's own world language is deliberately not adopted: the
     // pack is the library, and stamping a sidebar document into it would leave
     // the taxonomy with a hole the pack's ownership does not cover.
@@ -234,15 +214,10 @@ export async function applyLanguageImport(table, { repair = null } = {}) {
   const opts = await packOptsFor("Item");
   if (creates.length) {
     const folder = (await ensureItemFolder(creates[0].flags[MODULE_ID].cookbook.id))?.id ?? null;
-    // A retype's replacement is written while the ability it replaces still
-    // stands, so `itemIds` passes over an id that ability holds.
     const rows = itemIds(creates.map((d) => ({ ...d, folder })), { pack: opts.pack ?? null });
     await Item.createDocuments(rows, { ...opts, keepId: true });
   }
   if (stamps.length) await Item.updateDocuments(stamps, opts);
-  // Only now — every replacement is committed, so nothing is lost by removing
-  // what it replaced.
-  if (retyped.length) await Item.deleteDocuments(retyped.map((i) => i.id), opts);
 
-  return { created, present, adopted, retyped: retyped.length };
+  return { created, present, adopted };
 }

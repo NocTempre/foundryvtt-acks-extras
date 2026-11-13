@@ -156,17 +156,15 @@ one changes what a class item carries, so neither is a patch.
 ## A priced livestock row is still a thing, not a creature
 
 `importEquipment` has ruled since the animals work that a mule is a creature —
-a described `animal` entry becomes an ACTOR, and `repairAnimalItems` removes
-the ones an older import left as items. The price grid's own livestock section
-never got the same treatment: 26 rows, and seventeen class templates name a
-riding horse.
+a described `animal` entry becomes an ACTOR. The price grid's own livestock
+section never got the same treatment: 26 rows, and seventeen class templates
+name a riding horse.
 
-Doing it needs three things a patch cannot carry: the actor-side dedup
-`importEquipment` uses, `repairAnimalItems` extended to `def.priced.*` ids, and
-an answer for `resolveBase`, which searches items — a template naming a horse
-would stop resolving to one and fall back to a bare named item. The rows now
-carry the section they were printed under, so the fact needed to decide is
-already there.
+Doing it needs two things a patch cannot carry: the actor-side dedup
+`importEquipment` uses, and an answer for `resolveBase`, which searches items —
+a template naming a horse would stop resolving to one and fall back to a bare
+named item. The rows carry the section they were printed under, so the fact
+needed to decide is already there.
 
 ## A variant group is labelled from the register, which never reaches it
 

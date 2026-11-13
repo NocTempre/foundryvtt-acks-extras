@@ -34,7 +34,7 @@ writer (`docs/equipment/MODEL.md`). What this feature owns:
 - **The origin stamp.** `extras.effectsFrom` is `"recipe"` when the import read
   the row through a register recipe and `"scan"` when the vocabulary scan
   produced it. A scan's rows still apply; every surface that shows them marks
-  them unverified. A copy with no stamp reads its `unaudited` flag instead.
+  them unverified. A copy with no stamp is not marked.
 - **The Mechanics tab** labels each modifier row with its disposition
   (applied, applied when met, at the roll, situational, read elsewhere, not
   applied) and adds "unverified" on a scan's. A row scoped to one of the

@@ -238,14 +238,10 @@ const definitionKey = (item) => cookbookId(item) || `name:${abilitySlug(item)}`;
 
 /**
  * Whether an ability's mechanics came from the prose scan rather than a
- * recipe: its import says so, or, on a copy imported before the import said,
- * it is unaudited.
+ * recipe: its import's `effectsFrom` stamp says "scan".
  */
 export function isUnverified(item) {
-  const extras = extrasOf(item) ?? {};
-  if (extras.effectsFrom === "scan") return true;
-  if (extras.effectsFrom === "recipe") return false;
-  return !!extras.unaudited;
+  return (extrasOf(item) ?? {}).effectsFrom === "scan";
 }
 
 /** The paths an item's own enabled Active Effects write. */

@@ -202,9 +202,9 @@ check("a recipe-backed spec is not unverified, audited or not", () => {
   const recipe = ability("Recipe", [mod()], { extras: { effectsFrom: "recipe", unaudited: true } });
   assert.equal(parts(character([recipe]))[0].unverified, false);
 });
-check("an unstamped unaudited copy reads unverified until stamped", () => {
-  assert.equal(isUnverified(ability("Old", [mod()], { extras: { unaudited: true } })), true);
-  assert.equal(isUnverified(ability("Old", [mod()], { extras: { unaudited: false } })), false);
+check("a copy with no stamp is not unverified, audited or not", () => {
+  assert.equal(isUnverified(ability("Plain", [mod()], { extras: { unaudited: true } })), false);
+  assert.equal(isUnverified(ability("Plain", [mod()], { extras: { unaudited: false } })), false);
 });
 
 /* --- Gates ----------------------------------------------------------- */

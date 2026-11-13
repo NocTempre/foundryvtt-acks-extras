@@ -218,7 +218,7 @@ is not a lie. Every other library consumer still degrades silently and recovers
 on its next render — this ruling fixes the surfaces that can never recover, not
 the pattern.
 
-## 2026-09-04 — only a class that leaves the choice to the player asks for it
+## 2026-09-04 — only a class that leaves the choice to the player asks for it — SUPERSEDED IN PART 2026-11-13 (`repairClassLadderKeys`: `docs/DECISIONS.md` §29)
 
 **Problem.** Every class whose damage-bonus column is printed unqualified —
 the fighter, the bard, the assassin, the explorer, the vaultguard — asked each
