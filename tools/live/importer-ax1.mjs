@@ -56,7 +56,10 @@
  * the book's Adventure
  * carries the places, their tree and their rosters beside the maps, whose
  * scenes state the dark map's sight and carry their zones and every way
- * between them, each leading to Regions of its own. Section 3b deletes
+ * between them, each leading to Regions of its own. The Adventure is read
+ * fresh from the server: its stamp counts what it holds, a second run holds it
+ * with its server write time unmoved, and neither run writes to a world
+ * document of the book. Section 3b deletes
  * the world's AX1 places and every plan but one, and presses the Adventure
  * sheet's own Import: it brings each deleted plan back with its pins and its
  * zone, and the places 2c found and no other, and the plan it held names its
@@ -926,6 +929,36 @@ const P = {
       roster: (x.system?.roster ?? []).map((r) => r.uuid),
     }));
   },
+  /**
+   * A stored Adventure read from the server, never the pack's cache: its write
+   * time, whether its stamp carries a sources hash and write time, and whether
+   * the contents the stamp counts equal what the fresh read holds.
+   */
+  adventureRead: async ({ uuid }) => {
+    const { collection, documentId } = foundry.utils.parseUuid(uuid);
+    const [doc] = await collection.getDocuments({ _id: documentId });
+    if (!doc) return null;
+    const o = doc.toObject();
+    const stamp = o.flags?.["acks-extras"]?.cookbook ?? {};
+    const n = stamp.contents ?? {};
+    return {
+      modifiedTime: doc._stats?.modifiedTime ?? null,
+      stamped: typeof stamp.sourcesHash === "string" && stamp.sourcesHash.length > 0 && stamp.writtenAt > 0,
+      contentsMatch: !!stamp.contents && n.scenes === o.scenes.length && n.tables === o.tables.length &&
+        n.journals === o.journal.length && n.items === o.items.length && n.places + n.factions + n.actors === o.actors.length,
+      counts: { scenes: o.scenes.length, actors: o.actors.length, tables: o.tables.length, journal: o.journal.length, items: o.items.length },
+    };
+  },
+  /** Every world document of the book, by uuid, with its modified time: what the walk proves a held run did not write to. */
+  worldStamps: async ({ book }) => {
+    const out = {};
+    for (const type of ["Actor", "Scene", "RollTable", "JournalEntry", "Item"]) {
+      for (const doc of game.collections.get(type) ?? []) {
+        if (doc.getFlag("acks-extras", "cookbook")?.book === book) out[doc.uuid] = doc._stats?.modifiedTime ?? null;
+      }
+    }
+    return out;
+  },
   packEmpty: async ({ collection }) => {
     const pack = game.packs.get(collection);
     if (!pack) return { gone: true };
@@ -1752,6 +1785,7 @@ try {
   check("3: the journals step writes a page for each passage and none for a keyed area, and the journals the library held stay",
     (js?.made ?? 0) + (js?.updated ?? 0) === PASSAGES && !(js?.refused > 0) && mid.journals.length === before.journals.length + (js?.created?.journals?.length ?? 0),
     { made: js?.made ?? 0, updated: js?.updated ?? 0, passages: PASSAGES, held: before.journals.length, now: mid.journals.length });
+  const stamps3 = await run(gm, P.worldStamps, { book: BOOK });
   const as = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
   for (const uuid of as?.created?.adventures ?? []) gm.track(uuid, "Adventure");
   fogLeft.packs.push(...(as?.created?.packs ?? []).filter((c) => !before.packs.includes(c)));
@@ -1788,6 +1822,20 @@ try {
   const ways3 = adv ? await run(gm, P.adventureLinks, { uuid: adv.uuid }) : null;
   check("3: the Adventure carries every way between its maps once, each leading to the ends its rows name, all of them its own",
     adventureWaysRight(ways3), { ends: ways3?.ends.length, unresolved: ways3?.unresolved });
+  // A second run over the Adventure just written holds it: the server's own
+  // write time proves nothing wrote to it, and the book's world documents stay
+  // as the first run left them.
+  const read3 = adv ? await run(gm, P.adventureRead, { uuid: adv.uuid }) : null;
+  check("3: the stored Adventure, read fresh from the server, is stamped with a sources hash and a write time, and holds what its stamp counts",
+    !!read3?.stamped && !!read3.contentsMatch, read3);
+  const again3 = await step(gm, "cookbookImportAdventures", [{ books: [BOOK] }]);
+  const reread3 = adv ? await run(gm, P.adventureRead, { uuid: adv.uuid }) : null;
+  check("3: a second run holds the Adventure, writing nothing: its server write time is the first run's",
+    again3?.books?.[BOOK] === "held" && !(again3?.created?.adventures ?? []).includes(adv?.uuid) && !!read3?.modifiedTime && reread3?.modifiedTime === read3.modifiedTime,
+    { outcome: again3?.books?.[BOOK] ?? null, unchanged: reread3?.modifiedTime === read3?.modifiedTime });
+  const stampsAfter3 = await run(gm, P.worldStamps, { book: BOOK });
+  const written3 = Object.keys(stamps3).filter((u) => u in stampsAfter3 && stampsAfter3[u] !== stamps3[u]);
+  check("3: neither run wrote to a world document of the book", !written3.length, { written: written3.length, held: Object.keys(stamps3).length });
 
   section("3b. an Adventure import brings each plan with its rooms, inside the places they sit in");
   // The world loses its AX1 places and every plan but one; the import is what

@@ -11,9 +11,8 @@ geometry with no Foundry at all. They gate the arithmetic; only a live run
 gates that anything reaches a document.
 
 Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
-rules tables (`node tools/live/run.mjs formation-day`) and
-`tools/live/importer-adventure.mjs` drives "A book lands in the library as one
-Adventure", `tools/live/importer-characters.mjs` drives "A person the page
+rules tables (`node tools/live/run.mjs formation-day`),
+`tools/live/importer-characters.mjs` drives "A person the page
 prints in full becomes a character" and `tools/live/importer-typography.mjs`
 drives "A community book, read through its declared typography"
 (`tools/live/README.md` is the contract); the rest is walked by hand.
@@ -2218,8 +2217,12 @@ connected and the map step already run, so the world holds AX3's maps. Step 9
 also needs the Player seat. The Adventure sheet's own **Import** button is
 the real trigger for steps 6 to 8. A scripted `adventure.import()` proves the
 hook and not the sheet, so script it only to read back.
-`tools/live/importer-adventure.mjs` walks it. `tools/live/importer-ax1.mjs`
-walks the places case on AX1: its Adventure carries every AX1 place, each in
+`tools/importer/test-book-adventure.mjs` pins the ids, references, fill and
+staleness logic behind steps 1 to 7 offline; steps 4 to 7, 9 and 10 are walked
+by hand. `tools/live/importer-ax1.mjs` walks, on AX1, step 2's stamp counting
+what a fresh server read holds, step 3 (the second run holds, the server write
+time unmoved, and no world document of the book is written), step 8 and the
+places case: its Adventure carries every AX1 place, each in
 the carried place its row names in world form, and each roster row names a
 carried person or creature in world form or another book's creature where the
 library holds it. What an import of it brings is "A plan is the place it

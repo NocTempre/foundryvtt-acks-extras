@@ -254,6 +254,18 @@ const sourceWorld = (drop = []) => ({
   check("with no world scene, the scene's id comes from the seed", fresh._id, stableDocId("zz.map.adventure|scene"));
   const twice = withWorldIds({ ...built, tokens: [{ actorId: I.p1 }, { actorId: I.p1 }] }, null, "s");
   ok("two tokens of one actor take two ids", twice.tokens[0]._id !== twice.tokens[1]._id);
+
+  // A map's grid and hidden tokens ride through unchanged; a wall is matched by its coordinates and door type.
+  const walled = {
+    ...built, grid: { type: 1, size: 100 }, tokens: [{ actorId: I.p1, hidden: true }],
+    walls: [{ c: [0, 0, 10, 0], door: 0 }, { c: [0, 0, 10, 0], door: 1 }],
+  };
+  const heldWalled = { _id: id16("sw"), walls: [{ _id: id16("w1"), c: [0, 0, 10, 0], door: 1 }] };
+  const wallOut = withWorldIds(walled, heldWalled, "zz.map.adventure");
+  check("a wall drawn in the world keeps its id, matched by its coordinates and door", wallOut.walls[1]._id, id16("w1"));
+  ok("a wall the world lacks takes a derived id, the same on every rebuild",
+    wallOut.walls[0]._id !== id16("w1") && wallOut.walls[0]._id === withWorldIds(walled, null, "zz.map.adventure").walls[0]._id);
+  check("the rebuilt map's own grid, and its token still hidden", [wallOut.grid, wallOut.tokens[0].hidden], [walled.grid, true]);
 }
 
 // --- the ways between a book's maps, however few the world holds ----------------------------------
@@ -527,6 +539,8 @@ const sourceWorld = (drop = []) => ({
   check("what a write stamps is not content", withoutStats(a), { _id: "x", actors: [{ _id: "a", name: "A" }] });
   check("so it does not move the hash", sourcesHashOf(a), sourcesHashOf(b));
   ok("content does", sourcesHashOf(a) !== sourcesHashOf({ ...a, actors: [{ _id: "a", name: "B" }] }));
+  const itemed = (name) => ({ _id: "x", items: [{ _id: "i", name, _stats: { modifiedTime: 1 } }] });
+  ok("a carried item's new name is content too", sourcesHashOf(itemed("Test Item 3")) !== sourcesHashOf(itemed("Test Item 4")));
 
   const at = 1_000_000;
   check("no stored Adventure: written", bookAdventureState({ stamp: null, sourcesHash: "h" }), "absent");
@@ -609,6 +623,11 @@ const sourceWorld = (drop = []) => ({
   ok("the made map is built by mapCreateData", scene.includes("mapCreateData(") && !scene.includes("districtRegionData("));
   const source = body(cookbook, "async function bookAdventureSource(");
   ok("the Adventure's maps are built by the same code, on the same plan", ["mapCreateData(", "gridScenePlan(", "withWorldIds("].every((s) => source.includes(s)));
+  ok("a map in the Adventure carries no thumbnail", /scene\.thumb = null;/.test(source));
+  const carriedBody = body(cookbook, "function carriedSource(");
+  ok("every carried document is owned by nobody", /source\.ownership = \{ default: 0 \};/.test(carriedBody));
+  ok("a carried list's rows are undrawn", /drawn: false/.test(carriedBody));
+  ok("a map's tokens are set down hidden", /hidden: true/.test(body(cookbook, "export async function mapCreateData(")));
   ok("the Adventure lays its ways on its own scenes before their references are rewritten",
     source.includes("withAdventureLinks(") && source.indexOf("withAdventureLinks(") < source.indexOf('adventureRefs("Scene"'));
   const ensure = body(cookbook, "async function ensureBookAdventure(");
