@@ -2916,4 +2916,31 @@ await atest("a legacy ledger write re-renders the open sheets of that player's c
   }
 });
 
+await atest("a class with no bands of its own takes its throws from the chassis class it names, at every level, and its own bands win when it has them", async () => {
+  const { saveBandAt, attackBandAt, effectiveSaves, effectiveAttack } = await import("../scripts/classes/registry.mjs");
+  const save = (minLevel, maxLevel, n) => ({ minLevel, maxLevel, paralysis: n, death: n + 1, blast: n + 2, implements: n + 3, spells: n + 4 });
+  const chassis = { type: CLASS_TYPE, name: "Chassis Class", system: { key: "fighter", saves: [save(1, 3, 12), save(4, 6, 10)], attack: [{ minLevel: 1, maxLevel: 3, throw: 10 }, { minLevel: 4, maxLevel: 6, throw: 8 }] } };
+  const borrower = { type: CLASS_TYPE, name: "Borrowing Class", system: { key: "borrower", saveChassis: "fighter", attackChassis: "fighter", saves: [], attack: [] } };
+  const own = { type: CLASS_TYPE, name: "Own Class", system: { key: "own", saveChassis: "fighter", attackChassis: "fighter", saves: [save(1, 9, 5)], attack: [{ minLevel: 1, maxLevel: 9, throw: 6 }] } };
+  const items = globalThis.game.items;
+  globalThis.game.items = [chassis, borrower, own];
+  try {
+    for (const level of [1, 3, 4, 6]) {
+      assert.deepEqual(saveBandAt(borrower, level), saveBandAt(chassis, level), `level ${level} save band`);
+      assert.equal(attackBandAt(borrower, level).throw, attackBandAt(chassis, level).throw, `level ${level} attack throw`);
+    }
+    assert.equal(saveBandAt(borrower, 1).paralysis, 12);
+    assert.equal(attackBandAt(borrower, 4).throw, 8);
+    assert.equal(saveBandAt(borrower, 7), null, "past the chassis's last band the class has none");
+    assert.equal(saveBandAt(own, 4).paralysis, 5, "a class's own band outranks the chassis");
+    assert.equal(attackBandAt(own, 4).throw, 6);
+    globalThis.game.items = [borrower];
+    assert.deepEqual([effectiveSaves(borrower), effectiveAttack(borrower)], [[], []], "no chassis class held, nothing is lent");
+    assert.equal(saveBandAt(borrower, 1), null);
+    assert.equal(attackBandAt(borrower, 1), null);
+  } finally {
+    globalThis.game.items = items;
+  }
+});
+
 console.log(`test-classes: ${passed} assertion groups passed.`);

@@ -3186,8 +3186,9 @@ how far step 10 moved it.
 
 The pace line, the five tiles, Fastest for all and Undo, a member's own pick
 through the relay, the join and the dawn. The walk is
-`node tools/live/run.mjs formation-conveyance`, on the GM and Player seats, under
-a recorder added before reload. An arrangement runs on the primary GM's client,
+`tools/live/formation-conveyance.mjs` (`node tools/live/run.mjs
+formation-conveyance`), on the GM and Player seats, under a recorder added
+before reload. An arrangement runs on the primary GM's client,
 so the GM seat must be it.
 
 Fixtures, each found again by its marker or built carrying one:
@@ -3262,8 +3263,9 @@ the relay posted are swept by id. The nine fixtures stay.
 
 A player's way into a party and out of it, from a seat that begins with no member
 and so cannot open the sheet at all. The walk is
-`node tools/live/run.mjs formation-membership`, on the GM and Player seats, under a
-recorder added before reload. A declaration runs on the primary GM's client, so
+`tools/live/formation-membership.mjs` (`node tools/live/run.mjs
+formation-membership`), on the GM and Player seats, under a recorder added
+before reload. A declaration runs on the primary GM's client, so
 the GM seat must be it.
 
 Fixtures, each found again by its marker or built carrying one:
@@ -3648,54 +3650,19 @@ fixtures stay.
 ## The party check resolves through the abilities (added with T-0481)
 
 The party card, the Rolls tab, the skill sheet and the disarm dialog read one
-figure for a character's throw. Walked by `tools/live/formation-party-skills.mjs`
-on the GM seat with the RR and JJ connected; offline,
-`tools/test-skill-audit-roll.mjs`, `test-adventuring-throw.mjs`,
-`test-throw-modifiers.mjs` and `test-skill-ladders.mjs` pin the figures.
-
-**Fixtures** (kept; found by marker): `formation/skills-party` holding
-`formation/skills-thief` (level 6, the library's Searching, Trapbreaking and
-Eavesdropping), `skills-alert` (the library's Alertness proficiency),
-`skills-elf` (Attunement to Nature and the Alertness power), `skills-handmade`
-(three hand-made abilities, rebuilt at the section's start: one named
-Alertness with no import behind it, one bound to Search with a flat throw, one
-whose throw borrows a ladder no import holds). Every member's stored Adventuring figures are set to
-an invented value at the start. Update Abilities runs first for the walk's
-library ids: a library copy older than the recipes holds the old rows.
-
-1. **Four surfaces, one figure.** For each member and throw, read the party
-   check's resolved target (`resolveCheck`), the Rolls tab row
-   (`rollInventory`: the `abl:` row, or the `adv:` row where the Adventuring row
-   stands behind the skill), the skill sheet's row (`_prepareContext().rollRows`)
-   and the item's own `throwOutcome` without conditions. *Observable:* the
-   three surfaces print the same integer and the party figure is the throw's
-   own.
-2. **Alertness is a stand-in, not a bonus.** On `skills-alert` and `skills-elf`
-   the Adventuring figure's source is the stand-in and lower than the stored
-   figure, on the card and the Rolls tab alike.
-3. **A hand-made item is not the printed one.** The hand-made Alertness leaves
-   the stored figure standing; the flat Search throw is the card's target with
-   no part; the throw naming a ladder nothing imported has no figure on the
-   sheet or the Rolls tab and the party check passes it over for the member's
-   Adventuring figure.
-4. **A condition counts once.** Put a status that moves proficiency throws on
-   the thief (found by trying each of `CONFIG.statusEffects` and reading
-   `rollMath("throw", ...)`). *Observable:* the card's target is the throw's own
-   moved by the condition, named once in its parts; the hasty row on the Rolls
-   tab and the skill sheet agree; the methodical row, which is the Adventuring
-   one, is the figure before conditions. Toggle the status off.
-5. **The disarm dialog.** Build `TrapbreakApp` (`formationId`, `actorId`) and
-   read `_prepareContext()`. *Observable:* its resolved check equals the audit's
-   for the thief in both modes; a member with no Trapbreaking skill has the
-   methodical attempt on the Adventuring figure and no hasty one.
-6. **The real card.** `rollPartyCheck(formation, "listen")` posts one card,
-   whispered to the Judges, one row per member who can listen, each target with
-   a tooltip. Open the thief's Searching sheet: it renders. Open the Skill audit
-   from the party sheet's Order tab: its roster lists abilities and has no
-   Progression or Factor column.
-
-Teardown: the card is tracked by id the moment it posts and swept; the status
-the condition step turned on is turned off by the run; the fixtures stay.
+figure for a character's throw. `tools/test-party-skills.mjs` pins it offline
+with invented ladders and abilities: a held skill, an ability that stands in
+for the stored Adventuring figure, an item that only carries a printed
+ability's name, a throw bound to a check by a flag, a throw naming a ladder
+nothing registers, a condition counted once, the disarm dialog's two checks
+and the card `rollPartyCheck` posts. `test-skill-audit-roll.mjs`,
+`test-adventuring-throw.mjs`, `test-throw-modifiers.mjs` and
+`test-skill-ladders.mjs` pin the figures beneath it. The Skill audit opened
+from the party sheet's Order tab, and the card its row posts, are walked in
+"The audit roll" above by
+`tools/live/formation-audit.mjs`. Two things are read by eye on a live pass of
+that window: the thief's skill sheet renders, and the audit's roster has no
+Progression or Factor column.
 
 ## The turn plan (added with T-0487)
 
@@ -4206,70 +4173,6 @@ newest `game.messages` entry, or the message the probe returns) and
 `api.track(id, "ChatMessage")` it at once; the sweep then takes the cards with
 the rest. Never find them by content or name.
 
-## The mapper is vulnerable
-
-Walked by `tools/live/formation-mapper-vulnerable.mjs`. Covers
-`scripts/formation/mapper-kit.mjs`, `mapper-kit-logic.mjs`,
-`lib/held-condition.mjs`, the `mapper kit` step of `runEnvironmentSync`, and
-the hooks in `module.mjs`. The Gamemaster seat is the active GM and its window
-must run the automation (read `primaryGMSettled()` first).
-
-**Fixtures**, kept and found by marker (`api.fixture`): a scene
-`formation/mapper-scene`; two characters, `formation/mapper` and
-`formation/mapper-foe`, each with a linked token on it
-(`formation/mapper-token`, `formation/mapper-foe-token`); the party actor
-`formation/mapper-party`, whose formation holds `formation/mapper` as its only
-member. The step 0 shape: the member in the record with no role, no status
-effect of the walk's on the mapper (a leftover is tracked by uuid and swept),
-no combat holding them.
-
-**Drive mechanics.**
-- The member is added with the model's `addMember(formation, actor, null,
-  {scene: null})`, so no token is deleted. The role is the model's
-  `patchFormation` write beneath the party sheet's control, because the
-  sheet's `toggleRole` equips a kit onto the actor.
-- A combat is made with `api.create("Combat", {scene, active: false})` and two
-  `Combatant`s, initiatives written, and the tracker is moved with
-  `combat.update({round, turn})` where `turn` is the index of a combatant in
-  `combat.turns`, which is what core's own turn update writes. `startCombat`
-  opens dialogs and is not used. Each combat is tracked.
-- The system lifts surprise as a round turns over; the walk lifts it
-  with `toggleStatusEffect("surprised", {active: false})` while the foe is up.
-- A status by hand is `toggleStatusEffect(id, {active})`; the effect it leaves
-  is tracked by uuid.
-
-1. **The role held outside a fight.** Set the role.
-   **Observable:** one effect on the mapper under the fixed id
-   `heldMapperKit001`, marker `heldCondition = "mapperKit"`, carrying the
-   `vulnerable` status; the actor and its token both show it. A later sync
-   writes nothing new.
-2. **Surprised, then the first free turn.** Combat with the foe first and the
-   mapper surprised. Round 1 on the foe, then on the mapper (still surprised),
-   then lift the surprise with the foe up, round 2 on the foe, round 2 on the
-   mapper, then round 3 on both.
-   **Observable:** held on every step up to round 2 on the foe, with no stash
-   mark on the Combat; on round 2 with the mapper up the effect is gone from the
-   actor and the token and `flags["acks-extras"].kitStashed[<mapper id>]` is
-   set; round 3 leaves it gone.
-3. **The combat ends.** Delete the combat. **Observable:** the effect returns,
-   one, under the fixed id.
-4. **No combatant.** A combat holding only the foe, rounds 1 and 2.
-   **Observable:** held throughout, and after that combat's end.
-5. **A death.** Toggle `dead` on the mapper. **Observable:** the effect is gone;
-   lifting `dead` brings it back.
-6. **The role set down.** **Observable:** the effect is gone from the actor and
-   the token.
-7. **A hand's Vulnerable.** With the role down, toggle `vulnerable` by hand.
-   **Observable:** an effect with no marker stands; a sync leaves it; taking the
-   role adds the marked one beside it; setting the role down removes only the
-   marked one and the status stays on.
-- Boot recorder: attach one before a reload, as `lib-cast-seam` does, and read
-  that `init`, `setup` and `ready` recorded no error naming the feature.
-
-**Teardown.** `api.sweepTracked({only})` over the combats and the status
-effects the run tracked. The fixtures stay. The party's name and the member's
-role are put back.
-
 ## The mapper (added with the mapping verdict)
 
 Whether a party is mapping: `docs/formation/MODEL.md`, "Mapping". Walked by
@@ -4278,7 +4181,12 @@ Offline, `tools/test-mapper.mjs` pins the verdict and `tools/test-strip.mjs` the
 warnings. The walk never calls the environment sync: each step is a real write
 (an effect, an item, a status, a setting, the scene), and what the sync reads
 afterward is the observable, so a write the hooks in `module.mjs` do not catch
-shows as a verdict that never moves.
+shows as a verdict that never moves. Step 10 holds the mapper's Vulnerable
+condition (`scripts/formation/mapper-kit.mjs`, `mapper-kit-logic.mjs`,
+`lib/held-condition.mjs`, the `mapper kit` step of `runEnvironmentSync`)
+against the real tracker; `tools/test-mapper-vulnerable.mjs` pins its verdicts
+and the held-effect writes. The GM seat is the active GM and its window must
+run the automation (read `primaryGMSettled()` first).
 
 **Fixtures** (kept; found by marker): scene `formation/mapper-lit-scene` (5 ft
 cells, dark, fog on its own mode), party `formation/mapper-lit-party` with its
@@ -4288,8 +4196,9 @@ The walk's own ledger holds the magic-light effect, the Mapping ability, the
 status effect, the Map item a session opens and the cards the sync posts; the
 Map item and the cards are found afterward by the mapper and by the scene's name
 inside the run's window, and swept by those ids. Built where absent: the party
-token (`api.create`, tracked). The party's `mapSession` is set to null at the
-start and the end.
+token (`api.create`, tracked). Step 10 builds, per run, a linked token on the
+scene for each character and one Combat, all `api.create`d and tracked. The
+party's `mapSession` is set to null at the start and the end.
 
 **Settings** the walk flips, each read first and put back in a `finally`:
 `manageFog`, `fuzzMeasurement`, `mapperNeedsLight`. It also writes the scene's
@@ -4327,14 +4236,40 @@ darkness and fog mode and the mapper's role, and puts them back.
    the original mode, the cards naming the scene went to the GMs alone and none
    to the table; the light open again, the fog is back. Close the session the
    sync opened (`mapSession` null) and track the Map item.
+10. **The role held through a fight.** With the mapper's role on, a linked token
+    for the mapper and one for the bearer on the scene, and a Combat holding
+    both (the bearer's initiative above the mapper's; `api.create` for the
+    Combat and the two Combatants, initiatives written). The tracker moves with
+    `combat.update({round, turn})`, where `turn` is the index of a combatant in
+    `combat.turns`, which is what core's own turn update writes; `startCombat`
+    opens dialogs and is not used. Statuses by hand are
+    `toggleStatusEffect(id, {active})`, and the effects they leave are tracked.
+    Surprise is lifted by hand while the bearer is up, since the system lifts it
+    as a round turns over. The role is the model's `patchFormation` write
+    beneath the party sheet's control, because the sheet's `toggleRole` equips
+    a kit onto the actor.
+    **Observable:** one effect on the mapper under the fixed id
+    `heldMapperKit001`, marker `heldCondition = "mapperKit"`, carrying the
+    `vulnerable` status, shown by the actor and its token. Mapper surprised:
+    held on round 1 with the mapper up, with no stash mark on the Combat.
+    Surprise lifted, round 2 on the bearer: still held, no stash mark. Round 2
+    on the mapper: the effect is gone from the actor and the token and
+    `flags["acks-extras"].kitStashed[<mapper id>]` is set; round 3 leaves it
+    gone. Delete the Combat: the effect returns, one, under the fixed id.
+    Toggle `dead`: the effect is gone; lifted, it returns. Role set down: gone
+    from the actor and the token. A Vulnerable toggled by hand with the role
+    down stands with no marker; taking the role adds the marked effect beside
+    it; setting the role down removes only the marked one and the status stays
+    on.
 - Console: a recorder attached before the GM seat's reload reads `init`,
   `setup` and `ready` clean of any error naming mapping, the mapper or the
-  environment sync, and the page's own error listener sees none across the walk.
+  environment sync, and the page's own error listener sees none across the walk
+  (a message naming the held condition or the stash counts).
 
 **Teardown.** `api.sweepTracked({only})` over the run's effect, ability, status
-effect, Map items, cards and party token. The fixtures stay. The settings, the
-scene's darkness and fog mode and its management flag, and the mapper's role are
-put back.
+effects, Combat, step 10's tokens, Map items, cards and party token. The
+fixtures stay. The settings, the scene's darkness and fog mode and its
+management flag, and the mapper's role are put back.
 
 ## Jumping, the fall, the Spelunking table and the street's dice (imported)
 
@@ -4456,8 +4391,9 @@ miss and a natural 1.
 
 The clock bills a party token's wall-constrained displacement, and a party
 that is in the dark with no light travels at the dark rate (`isPartyInDark`
-into `effectiveSpeed` into `turnDistance`). `tools/live/formation-live-findings.mjs`
-walks this section and the next.
+into `effectiveSpeed` into `turnDistance`). No walk drives this section or the
+next: both are by-hand passes, run when a change touches the dark-rate billing
+or the light's reach to a second seat.
 
 **Fixtures** (kept, by marker): `formation/t0361-delve@t0363`, an own-tag
 copy of the delve replica (a second ledger connected with `own: "t0363"`

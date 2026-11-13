@@ -12,7 +12,10 @@
  * leaving the count where it was; a spell-less Summon… refused to the Player
  * and still working from the GM seat; a forged request (a creature the spell
  * does not name, with and without the shelf open) refused by the GM's client
- * with nothing made. Prints booleans and counts, never a name or an id.
+ * with nothing made; and, last, a claimant's `spend` called after its cast has
+ * returned (read, and left bare), which libWrapper's invalidated chain would
+ * throw on and the seam answers false and logs once. Prints booleans and
+ * counts, never a name or an id.
  * Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
@@ -25,7 +28,8 @@
  * (the field, which both seats view). The run's own documents (summoned tokens,
  * the creature's world copy where none stood, the cast cards and the caster
  * records) are tracked by uuid and swept alone. A paused world is unpaused for
- * the run and paused again in the finally.
+ * the run and paused again in the finally. The last section clears the spell's
+ * summon rows; every run's shape step writes them back.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
@@ -278,6 +282,54 @@ const P = {
   },
   /** Every caster record on the actor, as cast ids. */
   recordIds: async ({ casterId }) => game.actors.get(casterId).effects.map((e) => e.getFlag("acks-extras", "spellEffect")?.castId).filter(Boolean),
+  /**
+   * A claimant on the cast seam whose `spend` is called after its `cast` has returned, as a careless feature would: from a timer, its answer read (`caught`) or not (`bare`). The spell's summon rows are cleared so no summoning claimant takes the cast first. Reads what libWrapper's invalidated chain did on this seat: the late answer, the count, the cards, the seam's logged lines, Foundry's module-error notices and uncaught errors.
+   */
+  lateSpend: async ({ casterId, spellId, mode }) => {
+    const H = globalThis.__mc;
+    const seam = acksExtras.lib.spellUse;
+    const item = game.actors.get(casterId).items.get(spellId);
+    await item.unsetFlag("acks-extras", "spell");
+    await item.update({ "system.cast": 0 });
+    const key = `${H.key}-late`;
+    const late = { fired: false, answer: null, threw: false, rejected: false };
+    const cardsBefore = H.cards(casterId).length;
+    const errorsBefore = H.errors.length;
+    const uncaughtBefore = H.uncaught.length;
+    const notices = [];
+    const notify = ui.notifications.error;
+    ui.notifications.error = function (msg, ...rest) { notices.push(String(msg)); return notify.call(this, msg, ...rest); };
+    seam.addClaimant({
+      key,
+      claims: (it) => it.id === spellId,
+      cast: async (it, o, spend) => {
+        setTimeout(() => {
+          late.fired = true;
+          try {
+            const answer = spend();
+            if (mode === "caught") Promise.resolve(answer).then((v) => { late.answer = v; }, () => { late.rejected = true; });
+          } catch { late.threw = true; }
+        }, 300);
+      },
+    });
+    try {
+      await item._useSpell({});
+      await H.poll(() => late.fired, { tries: 20, every: 100 });
+      await H.sleep(700);
+    } finally {
+      seam.removeClaimant(key);
+      ui.notifications.error = notify;
+    }
+    return {
+      ...late,
+      cast: item.system.cast,
+      cards: H.cards(casterId).length - cardsBefore,
+      logged: H.errors.slice(errorsBefore).filter((e) => /called spend after its cast returned; the cast was not counted/u.test(e)).length,
+      notices: notices.length,
+      uncaught: H.uncaught.length - uncaughtBefore,
+      libWrapper: !!game.modules.get("lib-wrapper")?.active && typeof globalThis.libWrapper?.register === "function",
+    };
+  },
   /** The API's own answer to a spell-less placement on a creature this seat can read. */
   bareApi: async ({ casterId, sourceUuid }) => {
     const r = await acksExtras.lib.summons.placeSummons(game.actors.get(casterId), { sourceUuid, count: 1 });
@@ -629,6 +681,14 @@ try {
   const gEnd = await run(gm, P.drain);
   check("no console error or uncaught error on the Player seat over the rest of the walk", !pEnd.errors.length && !pEnd.uncaught.length, { errors: pEnd.errors.length, uncaught: pEnd.uncaught.length });
   check("no console error or uncaught error on the GM seat over the walk", !gEnd.errors.length && !gEnd.uncaught.length, { errors: gEnd.errors.length, uncaught: gEnd.uncaught.length });
+
+  // Last, because the seam logs a late spend on purpose and the drain above has already judged the console.
+  section("6. a spend after the claimant's cast has returned, under libWrapper's invalid chain");
+  const lateCaught = await run(gm, P.lateSpend, { casterId, spellId, mode: "caught" });
+  note("libWrapper is the wrapper on the GM seat", lateCaught.libWrapper);
+  check("6: a late spend the claimant reads resolves false, throws nothing, counts nothing and posts nothing, the seam logs it once, and Foundry raises no module-error notice", lateCaught.fired && lateCaught.answer === false && !lateCaught.threw && !lateCaught.rejected && lateCaught.cast === 0 && lateCaught.cards === 0 && lateCaught.logged === 1 && lateCaught.notices === 0 && lateCaught.uncaught === 0, lateCaught);
+  const lateBare = await run(gm, P.lateSpend, { casterId, spellId, mode: "bare" });
+  check("6: a late spend nobody reads or catches counts nothing and posts nothing, the seam logs it once, and Foundry raises no module-error notice and no uncaught error", lateBare.fired && !lateBare.threw && lateBare.cast === 0 && lateBare.cards === 0 && lateBare.logged === 1 && lateBare.notices === 0 && lateBare.uncaught === 0, lateBare);
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);

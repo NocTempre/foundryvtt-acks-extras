@@ -1,19 +1,25 @@
 /**
- * Live walk, classes-hp-record: the per-level hit point record and the
- * character sheet's Stats tab reading it. Walks docs/classes/TESTING.md "The
- * wizard's kept roll", step 12, on the GM and Player seats: the class picker's
- * bind, the level-up wizard's Apply and the sheet's Hit dice roll each leave
- * their steps; the maximum's tooltip and the line under it render from a real
- * sheet; a hand edit of the maximum, a character with no record, a level
- * lowered by hand and an effect on the maximum each read as the record says;
- * the sheet's Hit dice roll applies Constitution with a class and without and
- * never calls the system's own roll; and a character above 10th level keeps
- * the line inside its column at the sheet's default width. Machine values
- * arrive through ./_env.mjs.
+ * Live walk, classes-hp-record: the level-up wizard's kept roll, and the
+ * per-level hit point record with the character sheet's Stats tab reading it.
+ * Walks docs/classes/TESTING.md "The wizard's kept roll" on the GM and Player
+ * seats. The wizard's roll is made once and survives a closed wizard and the
+ * page reload both seats take to attach the boot recorder; a temporary effect
+ * on Constitution rolls nothing again; Apply clears the roll; a class printing
+ * no hit dice rolls no dice and says so; Game Settings offers no other
+ * procedure; the Intellect bonus picks are the system's own modifier; and the
+ * class picker keeps the hit points when it re-binds the class held at the
+ * level held. The class picker's bind, the wizard's Apply and the sheet's Hit
+ * dice roll each leave their steps; the maximum's tooltip and the line under
+ * it render from a real sheet; a hand edit of the maximum, a character with no
+ * record, a level lowered by hand and an effect on the maximum each read as
+ * the record says; the sheet's Hit dice roll applies Constitution with a class
+ * and without and never calls the system's own roll; and a character above
+ * 10th level keeps the line inside its column at the sheet's default width.
+ * Machine values arrive through ./_env.mjs.
  *
- * Fixtures, kept and found by marker: two classes with INVENTED level rows
+ * Fixtures, kept and found by marker: three classes with INVENTED level rows
  * (`classes/hp-record-class`, four levels; `classes/hp-record-long-class`,
- * twelve) and five characters the Player seat owns
+ * twelve; `classes/hp-record-nohd-class`, rows with no hit dice) and five characters the Player seat owns
  * (`classes/hp-record-character`, `classes/hp-record-high-character`,
  * `classes/hp-record-blank-character`, and `classes/hp-record-con-character`
  * and `classes/hp-record-con-classless-character` with a Constitution
@@ -39,6 +45,8 @@ const LONG_ROWS = Array.from({ length: 12 }, (_, i) => {
   const level = i + 1;
   return { level, xp: i * 1000, title: "", hd: `${Math.min(level, 9)}d6${level > 9 ? `+${(level - 9) * 2}` : ""}` };
 });
+/** Rows that print no hit dice at all. */
+const NOHD_ROWS = [1, 2].map((level) => ({ level, xp: (level - 1) * 1000, title: "", hd: "" }));
 const CON = 10;
 /** A score whose modifier, from the system's own table, is above zero: the roll's Constitution part shows. */
 const TOUGH_CON = 18;
@@ -150,7 +158,7 @@ const P = {
     H.root(app).querySelector('footer button[type="submit"]')?.click();
     await H.poll(() => !foundry.applications.instances.has(app.id), { tries: 60 });
     await H.sleep(800);
-    return { opened: true, onClass, level: actor.system.details.level };
+    return { opened: true, onClass, level: actor.system.details.level, storedMax: actor._source.system.hp.max };
   },
   /** Give the character its next level's experience. */
   readyNext: async ({ actorId, classId }) => {
@@ -180,7 +188,92 @@ const P = {
     // write, record step included, follows the grants. Wait for that step.
     await H.poll(() => actor.system.details.level !== before && (actor.getFlag("acks-extras", "classes")?.hpRolls ?? []).some((s) => s.level === before + 1), { tries: 75 });
     await H.sleep(800);
-    return { button: true, dialog: true, keptFaces: kept?.faces ?? null, level: actor.system.details.level };
+    return { button: true, dialog: true, keptFaces: kept?.faces ?? null, keptAfter: actor.getFlag("acks-extras", "classes")?.levelUpRoll ?? null, level: actor.system.details.level };
+  },
+  /** The Class tab's Level up, clicked as a user would; answers what the wizard shows and holds, and leaves it open. */
+  openWizard: async ({ actorId }) => {
+    const H = globalThis.__hr;
+    const actor = game.actors.get(actorId);
+    for (const app of foundry.applications.instances.values()) if (H.root(app)?.querySelector(".acks-extras-classes-levelup-body")) await app.close({ animate: false });
+    let sheet = H.sheetOf(actor);
+    if (!sheet) sheet = new (H.sheetCls())({ document: actor });
+    sheet.tabGroups.primary = "class";
+    await sheet.render({ force: true });
+    await H.sleep(600);
+    const button = H.root(sheet)?.querySelector('[data-action="levelUp"]');
+    if (!button) return { button: false };
+    button.click();
+    const dialog = await H.poll(() => [...foundry.applications.instances.values()].find((a) => H.root(a)?.querySelector(".acks-extras-classes-levelup-body")));
+    if (!dialog) return { button: true, dialog: false };
+    const body = H.root(dialog).querySelector(".acks-extras-classes-levelup-body");
+    const line = [...body.querySelectorAll("p")].find((p) => /→/.test(p.textContent))?.textContent.trim() ?? "";
+    const m = /(\d+)\s*→\s*(\d+)/.exec(line);
+    return {
+      button: true,
+      dialog: true,
+      line,
+      oldMax: m ? Number(m[1]) : null,
+      newMax: m ? Number(m[2]) : null,
+      rolled: !!body.querySelector(".acks-extras-classes-refname"),
+      hint: body.querySelector(".hint")?.textContent.trim() ?? null,
+      kept: actor.getFlag("acks-extras", "classes")?.levelUpRoll ?? null,
+      conMod: actor.system.scores.con.mod,
+    };
+  },
+  /** Close the open wizard without answering it. */
+  closeWizard: async () => {
+    const H = globalThis.__hr;
+    const dialog = [...foundry.applications.instances.values()].find((a) => H.root(a)?.querySelector(".acks-extras-classes-levelup-body"));
+    if (!dialog) return false;
+    await dialog.close({ animate: false });
+    await H.sleep(500);
+    return true;
+  },
+  /** A temporary effect raising the Constitution score by `by`, as a potion's would. */
+  addConBoost: async ({ actorId, by }) => {
+    const actor = game.actors.get(actorId);
+    const before = actor.system.scores.con.mod;
+    const [effect] = await actor.createEmbeddedDocuments("ActiveEffect", [
+      { name: "QA Hearty Tonic", changes: [{ key: "system.scores.con.value", mode: CONST.ACTIVE_EFFECT_MODES.ADD, value: String(by) }] },
+    ]);
+    await new Promise((r) => setTimeout(r, 400));
+    return { uuid: effect?.uuid ?? null, raised: actor.system.scores.con.mod !== before };
+  },
+  /** Put a stored maximum no roll of the invented class can make, so a rebuild cannot hide behind a coincidence. */
+  setSentinel: async ({ actorId, max }) => {
+    const actor = game.actors.get(actorId);
+    await actor.update({ "system.hp.max": max, "system.hp.value": max });
+    return actor._source.system.hp.max;
+  },
+  /** Settings tab → Game Settings, rendered: is a level-up hit point setting registered or listed? */
+  hpSetting: async () => {
+    const H = globalThis.__hr;
+    const key = "acks-extras.levelUpHpMode";
+    const app = new foundry.applications.settings.SettingsConfig();
+    await app.render({ force: true });
+    const root = await H.poll(() => H.root(app));
+    await H.sleep(500);
+    const listed = !!root?.querySelector(`[name="${key}"]`);
+    const sectionShown = !!root?.querySelector('[name^="acks-extras."]');
+    await app.close({ animate: false });
+    return { registered: game.settings.settings.has(key), listed, rendered: !!root, sectionShown };
+  },
+  /** The Intellect bonus picks over every score, against the system's own modifier function. */
+  intPicks: async ({ actorId }) => {
+    const actor = game.actors.get(actorId);
+    const model = CONFIG.Actor.dataModels.character;
+    const picks = acksExtras.classes.intBonusPicks;
+    const ladder = [];
+    for (let s = 3; s <= 18; s++) ladder.push(picks(s));
+    return {
+      coreFunction: typeof model?.getAttributeModifier === "function",
+      zeroAtLowest: ladder[0] === 0,
+      neverNegative: ladder.every((n) => n >= 0),
+      nonDecreasing: ladder.every((n, i) => i === 0 || n >= ladder[i - 1]),
+      positiveAtTop: ladder.at(-1) > 0,
+      matchesCore: ladder.every((n, i) => n === Math.max(0, Number(model.getAttributeModifier(i + 3)) || 0)),
+      actorFigure: picks(0, actor) === Math.max(0, Number(actor.system.scores.int.mod) || 0),
+    };
   },
   /**
    * The Stats tab as rendered for this seat: the maximum's tooltip, the line under the field, what core's
@@ -360,7 +453,10 @@ const P = {
     if (!H?.patched) return "never installed";
     console.error = H.consoleError;
     Hooks.off("createChatMessage", H.hook);
-    for (const app of [...foundry.applications.instances.values()]) if (app.constructor === H.sheetCls() && app.document?.getFlag?.("world", "fixture")?.startsWith("classes/hp-record")) await app.close({ animate: false });
+    for (const app of [...foundry.applications.instances.values()]) {
+      if (app.constructor === H.sheetCls() && app.document?.getFlag?.("world", "fixture")?.startsWith("classes/hp-record")) await app.close({ animate: false });
+      else if (H.root(app)?.querySelector(".acks-extras-classes-levelup-body")) await app.close({ animate: false });
+    }
     H.patched = false;
     return "restored";
   },
@@ -416,7 +512,7 @@ let player = null;
 /** The uuids of what this run made: its cards and its effect. The only documents teardown deletes. */
 const own = [];
 const actorIds = [];
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 520_000);
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 570_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -427,6 +523,37 @@ try {
   section("seats");
   gm = await connect({ browser, origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own });
   player = await connect({ browser, origin, user: MACHINE.player, port: PORTS.player, own: MACHINE.own });
+
+  section("fixtures");
+  const playerId = await run(gm, P.userId, { name: MACHINE.player });
+  const cls = await gm.fixture("classes/hp-record-class", "Item", { name: "QA Record Class", type: `${MOD}.class`, system: { levels: ROWS, hitDie: "1d6" } });
+  const long = await gm.fixture("classes/hp-record-long-class", "Item", { name: "QA Long Record Class", type: `${MOD}.class`, system: { levels: LONG_ROWS, hitDie: "1d6" } });
+  const nohd = await gm.fixture("classes/hp-record-nohd-class", "Item", { name: "QA Diceless Class", type: `${MOD}.class`, system: { levels: NOHD_ROWS } });
+  const owned = { default: 0, [playerId]: 3 };
+  const hero = await gm.fixture("classes/hp-record-character", "Actor", { name: "QA Recorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
+  const high = await gm.fixture("classes/hp-record-high-character", "Actor", { name: "QA Veteran Recorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
+  const blank = await gm.fixture("classes/hp-record-blank-character", "Actor", { name: "QA Unrecorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
+  const tough = await gm.fixture("classes/hp-record-con-character", "Actor", { name: "QA Tough Recorded", type: "character", ownership: owned, system: { scores: { con: { value: TOUGH_CON } } } });
+  const toughBare = await gm.fixture("classes/hp-record-con-classless-character", "Actor", { name: "QA Tough Classless", type: "character", ownership: owned, system: { scores: { con: { value: TOUGH_CON } } } });
+  actorIds.push(hero.id, high.id, blank.id, tough.id, toughBare.id);
+  const fmt =(key, data) => run(player, P.localize, { key: `ACKS-CLASSES.hpAudit.${key}`, data });
+
+  section("the wizard keeps its roll through a closed wizard and a real page reload");
+  // The pages are driven before the recorder's reload, so that reload is the one the kept roll has to survive.
+  await ready(gm, "gm");
+  await ready(player, "player");
+  await run(player, P.install);
+  const kShaped = await run(gm, P.shape, { actorId: hero.id, classId: cls.id, level: 2, con: CON });
+  const kReady = await run(gm, P.readyNext, { actorId: hero.id, classId: cls.id });
+  check("shape: bound at 2nd with the next level's experience, no kept roll", kShaped.applied && kShaped.level === 2 && kReady, { applied: kShaped.applied, level: kShaped.level, ready: kReady });
+  const first = await run(player, P.openWizard, { actorId: hero.id });
+  check("the Player's Class tab offers Level up and it opens the wizard", first.button && first.dialog, { button: first.button, dialog: first.dialog });
+  check("the wizard shows a roll and keeps it for 3rd, full mode, the dice of 3rd and the Constitution modifier", first.rolled && first.kept?.level === 3 && first.kept?.mode === "full" && first.kept?.hd === "3d6" && first.kept?.con === first.conMod, first.kept);
+  await run(player, P.closeWizard);
+  const second = await run(player, P.openWizard, { actorId: hero.id });
+  check("a closed and reopened wizard shows the same roll", second.dialog && second.line === first.line && JSON.stringify(second.kept) === JSON.stringify(first.kept), { sameLine: second.line === first.line });
+  await run(player, P.closeWizard);
+  await player.eval(`globalThis.__hrOldPage = true`);
   note("gm ready after (s)", await record(PORTS.gm, "gm", gm));
   note("player ready after (s)", await record(PORTS.player, "player", player));
   const installed = await run(gm, P.install);
@@ -436,19 +563,10 @@ try {
     const phases = c.boot?.phases ?? [];
     check(`${key}: init, setup and ready ran with no error recorded from before the first script`, ["init", "setup", "ready"].every((p) => phases.includes(p)) && (c.boot?.errors ?? []).length === 0, { phases, errors: (c.boot?.errors ?? []).length });
   }
-
-  section("fixtures");
-  const playerId = await run(gm, P.userId, { name: MACHINE.player });
-  const cls = await gm.fixture("classes/hp-record-class", "Item", { name: "QA Record Class", type: `${MOD}.class`, system: { levels: ROWS, hitDie: "1d6" } });
-  const long = await gm.fixture("classes/hp-record-long-class", "Item", { name: "QA Long Record Class", type: `${MOD}.class`, system: { levels: LONG_ROWS, hitDie: "1d6" } });
-  const owned = { default: 0, [playerId]: 3 };
-  const hero = await gm.fixture("classes/hp-record-character", "Actor", { name: "QA Recorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
-  const high = await gm.fixture("classes/hp-record-high-character", "Actor", { name: "QA Veteran Recorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
-  const blank = await gm.fixture("classes/hp-record-blank-character", "Actor", { name: "QA Unrecorded", type: "character", ownership: owned, system: { scores: { con: { value: CON } } } });
-  const tough = await gm.fixture("classes/hp-record-con-character", "Actor", { name: "QA Tough Recorded", type: "character", ownership: owned, system: { scores: { con: { value: TOUGH_CON } } } });
-  const toughBare = await gm.fixture("classes/hp-record-con-classless-character", "Actor", { name: "QA Tough Classless", type: "character", ownership: owned, system: { scores: { con: { value: TOUGH_CON } } } });
-  actorIds.push(hero.id, high.id, blank.id, tough.id, toughBare.id);
-  const fmt =(key, data) => run(player, P.localize, { key: `ACKS-CLASSES.hpAudit.${key}`, data });
+  check("the Player page is a fresh one, not the page that kept the roll", String(await player.eval(`!globalThis.__hrOldPage`)) === "true", "reloaded");
+  const third = await run(player, P.openWizard, { actorId: hero.id });
+  check("after the real page reload the wizard shows the same roll", third.dialog && third.line === first.line && JSON.stringify(third.kept) === JSON.stringify(first.kept), { sameLine: third.line === first.line });
+  await run(player, P.closeWizard);
 
   section("the class picker's bind records each level it rolls");
   const shaped = await run(gm, P.shape, { actorId: hero.id, classId: cls.id, level: 1, con: CON });
@@ -478,6 +596,7 @@ try {
   r = await run(gm, P.read, { actorId: hero.id });
   const rolls3 = r.rolls ?? [];
   check("a third step whose faces are the wizard's kept roll and whose maximum is the applied one", climbed.dialog && climbed.level === 3 && rolls3.length === 3 && rolls3[2].level === 3 && JSON.stringify(rolls3[2].faces) === JSON.stringify(climbed.keptFaces) && rolls3[2].max === r.stored, { dialog: climbed.dialog, level: climbed.level, steps: rolls3.length, faces: JSON.stringify(rolls3[2]?.faces) === JSON.stringify(climbed.keptFaces), stored: rolls3[2]?.max === r.stored });
+  check("Apply clears the wizard's kept roll", climbed.keptFaces !== null && climbed.keptAfter === null, { held: climbed.keptFaces !== null, cleared: climbed.keptAfter === null });
   check("the earlier steps are untouched", rolls3.slice(0, 2).every((s, i) => JSON.stringify(s) === JSON.stringify(rolls2[i])), { untouched: rolls3.slice(0, 2).every((s, i) => JSON.stringify(s) === JSON.stringify(rolls2[i])) });
 
   section("a maximum typed by hand");
@@ -610,6 +729,45 @@ try {
   check("the sheet opened at its default width", view.defaultWidth != null && Math.abs(view.width - view.defaultWidth) <= 2, { atDefault: view.defaultWidth != null && Math.abs(view.width - view.defaultWidth) <= 2 });
   check("the line, its row and its column do not overflow", view.lineVisible && view.lineFits === true && view.rowFits === true && view.colFits === true, { line: view.lineFits, row: view.rowFits, col: view.colFits, content: view.contentFits });
 
+  section("a temporary effect on Constitution rolls nothing again");
+  await run(gm, P.shape, { actorId: hero.id, classId: cls.id, level: 2, con: CON });
+  await run(gm, P.readyNext, { actorId: hero.id, classId: cls.id });
+  const baseline = await run(player, P.openWizard, { actorId: hero.id });
+  await run(player, P.closeWizard);
+  const boost = await run(gm, P.addConBoost, { actorId: hero.id, by: TOUGH_CON - CON });
+  if (boost.uuid) { await gm.track(boost.uuid, "ActiveEffect"); own.push(boost.uuid); }
+  const boosted = await run(player, P.openWizard, { actorId: hero.id });
+  await run(player, P.closeWizard);
+  check("an effect raising the Constitution score leaves the kept dice as they were", baseline.dialog && boosted.dialog && boost.raised && baseline.kept?.faces?.length > 0 && JSON.stringify(boosted.kept?.faces) === JSON.stringify(baseline.kept?.faces), { raised: boost.raised, sameFaces: JSON.stringify(boosted.kept?.faces) === JSON.stringify(baseline.kept?.faces) });
+  // A uuid swept here leaves `own`: the driver untracks what it sweeps, and refuses a teardown sweep naming it.
+  if (boost.uuid) { note("boost swept", await gm.sweepTracked({ only: [boost.uuid] })); own.splice(own.indexOf(boost.uuid), 1); }
+
+  section("a class printing no hit dice");
+  await run(gm, P.shape, { actorId: hero.id, classId: nohd.id, level: 1, con: CON, maxHp: 6 });
+  await run(gm, P.readyNext, { actorId: hero.id, classId: nohd.id });
+  const diceless = await run(player, P.openWizard, { actorId: hero.id });
+  const noHdHint = await run(player, P.localize, { key: "ACKS-CLASSES.levelup.noHd" });
+  await run(player, P.closeWizard);
+  check("the wizard rolls nothing, offers one point more, names the gap and keeps no record", diceless.dialog && !diceless.rolled && diceless.newMax === diceless.oldMax + 1 && diceless.hint === noHdHint && diceless.kept === null, { rolled: diceless.rolled, plusOne: diceless.newMax === diceless.oldMax + 1, hint: diceless.hint === noHdHint, kept: diceless.kept });
+
+  section("the rules' procedure is the only one");
+  const hpSetting = await run(gm, P.hpSetting);
+  check("Game Settings renders the module's section and lists no level-up hit point setting, and none is registered", hpSetting.rendered && hpSetting.sectionShown && !hpSetting.listed && !hpSetting.registered, hpSetting);
+
+  section("the class picker keeps hit points when it re-binds the class held");
+  await run(gm, P.shape, { actorId: hero.id, classId: cls.id, level: 3, con: CON });
+  const SENTINEL = 999;
+  const sentinel = await run(gm, P.setSentinel, { actorId: hero.id, max: SENTINEL });
+  const rebound = await run(player, P.pickerApply, { actorId: hero.id, classId: cls.id, level: 3 });
+  check("a re-bind of the class held, at the level held, keeps the stored maximum", sentinel === SENTINEL && rebound.opened && rebound.onClass && rebound.level === 3 && rebound.storedMax === SENTINEL, { opened: rebound.opened, onClass: rebound.onClass, level: rebound.level, kept: rebound.storedMax === SENTINEL });
+  const moved = await run(player, P.pickerApply, { actorId: hero.id, classId: cls.id, level: 4 });
+  check("a bind of the same class at another level sets that level and rolls its hit points", moved.opened && moved.level === 4 && moved.storedMax !== SENTINEL && moved.storedMax > 0, { level: moved.level, rebuilt: moved.storedMax !== SENTINEL });
+
+  section("the Intellect bonus picks are the system's modifier");
+  const picks = await run(player, P.intPicks, { actorId: hero.id });
+  check("the system serves the modifier, and the picks follow it: none at the lowest score, never negative, rising with the score", picks.coreFunction && picks.zeroAtLowest && picks.neverNegative && picks.nonDecreasing && picks.positiveAtTop && picks.matchesCore, picks);
+  check("a character's picks are its own prepared modifier, clamped at zero", picks.actorFigure, picks.actorFigure);
+
   const drained = await run(player, P.drain);
   const gmDrained = await run(gm, P.drain);
   check("no console error on either seat over the walk", !drained.errors.length && !gmDrained.errors.length, { player: drained.errors.length, gm: gmDrained.errors.length });
@@ -637,7 +795,7 @@ try {
   }
   // The ledger also holds any fixture `fixture` built this run; only the run's own cards and effect go.
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  console.log("fixtures kept: classes/hp-record-class, classes/hp-record-long-class, classes/hp-record-character, classes/hp-record-high-character, classes/hp-record-blank-character, classes/hp-record-con-character, classes/hp-record-con-classless-character");
+  console.log("fixtures kept: classes/hp-record-class, classes/hp-record-long-class, classes/hp-record-nohd-class, classes/hp-record-character, classes/hp-record-high-character, classes/hp-record-blank-character, classes/hp-record-con-character, classes/hp-record-con-classless-character");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

@@ -8,7 +8,11 @@
  * the GM seat and the Player seat: the scene's measurement flag and the
  * warnings strip's sentences. The walk never calls the environment sync by
  * hand: what moves the verdict is a real write (an effect, an item, a status, a
- * setting, the scene), and the hooks in `module.mjs` must pick it up. A boot
+ * setting, the scene), and the hooks in `module.mjs` must pick it up. The last
+ * section holds the mapper's Vulnerable condition (`mapper-kit.mjs`) against
+ * the real tracker: a turn update by the tracker's own write lifts it on the
+ * mapper's first free turn, the combat's delete returns it, a death and the
+ * role set down take it off, and a Vulnerable a hand set is never touched. A boot
  * recorder is attached before the GM seat's reload, so `init`, `setup` and
  * `ready` are in the console record. Prints booleans and counts, never a name.
  * Machine values arrive through ./_env.mjs.
@@ -19,7 +23,8 @@
  * two characters, `formation/mapper-lit` (the mapper) and
  * `formation/mapper-lit-bearer` (carries the light), both members. Built and
  * swept by the run's own ledger: the magic-light effect, the Mapping ability, a
- * status effect, the Map item a session opens, and the chat cards the sync
+ * status effect, the two combats and the linked tokens of the mapper and the
+ * bearer the last section makes, the Map item a session opens, and the chat cards the sync
  * posts (found afterwards by the speaker and the fixture's scene name, in the
  * run's window). Writes outside the ledger, each restored in a finally: the
  * world settings `manageFog`, `fuzzMeasurement` and `mapperNeedsLight`, the
@@ -102,6 +107,23 @@ const P = {
         warnProficiency: strip.includes(game.i18n.localize("ACKS-FORMATION.warnings.mapperNoProficiency")),
         noMapperWarn: strip.includes(game.i18n.localize("ACKS-FORMATION.warnings.noMapper")),
         isGM: game.user.isGM,
+      };
+    };
+    /** The effects on the mapper that bear on the held condition, as booleans and counts. */
+    H.kitRead = ({ mapperId, tokenId, sceneId }) => {
+      const actor = game.actors.get(mapperId);
+      const mine = [...actor.effects].filter((e) => e.getFlag("acks-extras", "heldCondition") === "mapperKit");
+      const vuln = [...actor.effects].filter((e) => e.statuses.has("vulnerable"));
+      const token = game.scenes.get(sceneId)?.tokens.get(tokenId);
+      return {
+        marked: mine.length,
+        fixedId: mine.length === 1 && mine[0].id === "heldMapperKit001",
+        markedHasStatus: mine.every((e) => e.statuses.has("vulnerable")),
+        unmarked: vuln.filter((e) => !e.getFlag("acks-extras", "heldCondition")).length,
+        actorStatus: actor.statuses.has("vulnerable"),
+        tokenShows: !!token?.hasStatusEffect?.("vulnerable"),
+        dead: actor.statuses.has("dead"),
+        surprised: actor.statuses.has("surprised"),
       };
     };
     if (!H.patched) {
@@ -260,6 +282,54 @@ const P = {
     return { matched, ...H.read({ partyId, sceneId }) };
   },
   read: async (args) => globalThis.__mm.read(args),
+
+  /** Wait until the mapper holds (or does not hold) the marked effect, then a beat more so a late second write would show. */
+  kitSettle: async ({ mapperId, held, tokenId, sceneId, tries = 70 }) => {
+    const H = globalThis.__mm;
+    const actor = game.actors.get(mapperId);
+    const has = () => [...actor.effects].some((e) => e.getFlag("acks-extras", "heldCondition") === "mapperKit");
+    const matched = !!(await H.poll(() => has() === held, { tries, every: 150 }));
+    await H.sleep(900);
+    return { matched, ...H.kitRead({ mapperId, tokenId, sceneId }) };
+  },
+
+  /** Toggle a status on the mapper the way a token HUD does; returns the uuids of the effects carrying it that the module did not make. */
+  kitStatus: async ({ mapperId, status, on }) => {
+    const actor = game.actors.get(mapperId);
+    await actor.toggleStatusEffect(status, { active: on });
+    await globalThis.__mm.sleep(300);
+    return [...actor.effects].filter((e) => e.statuses.has(status) && !e.getFlag("acks-extras", "heldCondition")).map((e) => e.uuid);
+  },
+
+  /** Write the initiatives of the combat's rows; returns the turn order and the combatant ids by actor. */
+  kitRows: async ({ combatId, inits }) => {
+    const combat = game.combats.get(combatId);
+    const ids = {};
+    for (const c of combat.combatants) ids[c.actorId] = c.id;
+    await combat.updateEmbeddedDocuments("Combatant", Object.entries(inits).map(([actorId, initiative]) => ({ _id: ids[actorId], initiative })));
+    return { order: combat.turns.map((c) => c.actorId), ids };
+  },
+
+  /** Move the tracker to `round` with `who` (a combatant id) up, as core's own turn update does. */
+  kitTurn: async ({ combatId, round, who }) => {
+    const combat = game.combats.get(combatId);
+    const turn = combat.turns.findIndex((c) => c.id === who);
+    await combat.update({ round, turn });
+    await globalThis.__mm.sleep(400);
+    return { round: combat.round, up: combat.combatant?.id === who };
+  },
+
+  /** Has the combat marked this member's kit stashed? */
+  kitStashed: async ({ combatId, mapperId }) => {
+    const flag = game.combats.get(combatId)?.getFlag("acks-extras", "kitStashed");
+    return { marked: !!flag?.[mapperId], marks: Object.keys(flag ?? {}).length };
+  },
+
+  /** A combat's end, by the tracker's own delete. */
+  endCombat: async ({ combatId }) => {
+    await game.combats.get(combatId)?.delete();
+    return !game.combats.has(combatId);
+  },
 
   /** The scene's measurement flag, nothing else (a plain read, for a "stays unset" check). */
   flagOnly: async ({ sceneId }) => game.scenes.get(sceneId)?.getFlag("acks-extras", "measure")?.mode ?? null,
@@ -479,9 +549,68 @@ try {
   for (const uuid of left.cards) await track(uuid, "ChatMessage");
   note("what the run's window left, tracked for the sweep (map items, cards)", { items: left.items.length, cards: left.cards.length });
 
+  section("10. the role held through a fight");
+  const mapperTok = await gm.create("Token", { name: "QA Mapper Lit", actorId: ids.mapperId, actorLink: true, x: 15 * GS, y: 2 * GS }, { parent: scene.uuid });
+  const bearerTok = await gm.create("Token", { name: "QA Mapper Lit Bearer", actorId: ids.bearerId, actorLink: true, x: 17 * GS, y: 2 * GS }, { parent: scene.uuid });
+  await track(mapperTok.uuid, "Token");
+  await track(bearerTok.uuid, "Token");
+  const kit = { mapperId: ids.mapperId, tokenId: idOf(mapperTok), sceneId: ids.sceneId };
+  const kitHeld = await run(gm, P.kitSettle, { ...kit, held: true });
+  check("the role held outside a fight: one marked effect under the fixed id carrying Vulnerable, shown on the actor and its token", kitHeld.matched && kitHeld.marked === 1 && kitHeld.fixedId && kitHeld.markedHasStatus && kitHeld.actorStatus && kitHeld.tokenShows, kitHeld);
+  const combat = await gm.create("Combat", { scene: ids.sceneId, active: false });
+  await track(combat.uuid, "Combat");
+  await gm.create("Combatant", { tokenId: idOf(mapperTok), sceneId: ids.sceneId, actorId: ids.mapperId }, { parent: combat.uuid });
+  await gm.create("Combatant", { tokenId: idOf(bearerTok), sceneId: ids.sceneId, actorId: ids.bearerId }, { parent: combat.uuid });
+  const combatId = idOf(combat);
+  const rows = await run(gm, P.kitRows, { combatId, inits: { [ids.bearerId]: 15, [ids.mapperId]: 10 } });
+  const mine = rows.ids[ids.mapperId];
+  const theirs = rows.ids[ids.bearerId];
+  check("the combat holds both bodies, the bearer first", Object.keys(rows.ids).length === 2 && rows.order[0] === ids.bearerId, { count: Object.keys(rows.ids).length });
+  const surprised = await run(gm, P.kitStatus, { mapperId: ids.mapperId, status: "surprised", on: true });
+  for (const uuid of surprised) await track(uuid, "ActiveEffect");
+  const r1me = await run(gm, P.kitTurn, { combatId, round: 1, who: mine });
+  const r1meRead = await run(gm, P.kitSettle, { ...kit, held: true });
+  const r1stash = await run(gm, P.kitStashed, { combatId, mapperId: ids.mapperId });
+  check("round 1, the mapper's own turn while surprised: held, and no stash is marked", surprised.length === 1 && r1me.up && r1meRead.marked === 1 && !r1stash.marked, { marked: r1meRead.marked, stash: r1stash.marked });
+  await run(gm, P.kitTurn, { combatId, round: 1, who: theirs });
+  const lifted = await run(gm, P.kitStatus, { mapperId: ids.mapperId, status: "surprised", on: false });
+  const r2foe = await run(gm, P.kitTurn, { combatId, round: 2, who: theirs });
+  const r2foeRead = await run(gm, P.kitSettle, { ...kit, held: true });
+  const r2foeStash = await run(gm, P.kitStashed, { combatId, mapperId: ids.mapperId });
+  check("the surprise lifted, round 2 just before the mapper's turn: held, no stash marked", lifted.length === 0 && r2foe.up && r2foeRead.marked === 1 && !r2foeRead.surprised && !r2foeStash.marked, { marked: r2foeRead.marked, stash: r2foeStash.marked });
+  const r2me = await run(gm, P.kitTurn, { combatId, round: 2, who: mine });
+  const r2meRead = await run(gm, P.kitSettle, { ...kit, held: false });
+  const r2meStash = await run(gm, P.kitStashed, { combatId, mapperId: ids.mapperId });
+  check("round 2, onto the mapper's own turn: the tracker's turn update lifts the condition from the actor and its token, and the stash is marked", r2me.up && r2meRead.matched && r2meRead.marked === 0 && !r2meRead.actorStatus && !r2meRead.tokenShows && r2meStash.marked, { marked: r2meRead.marked, stash: r2meStash.marked, token: r2meRead.tokenShows });
+  await run(gm, P.kitTurn, { combatId, round: 3, who: theirs });
+  await run(gm, P.kitTurn, { combatId, round: 3, who: mine });
+  const r3Read = await run(gm, P.kitSettle, { ...kit, held: false });
+  check("the hands stay free for the rest of that combat", r3Read.marked === 0 && !r3Read.actorStatus, { marked: r3Read.marked });
+  check("the tracker deletes the combat", await run(gm, P.endCombat, { combatId }));
+  const back = await run(gm, P.kitSettle, { ...kit, held: true });
+  check("the combat ended, the role resumes: the condition returns, one marked effect under the fixed id", back.matched && back.marked === 1 && back.fixedId && back.actorStatus && back.tokenShows, { marked: back.marked });
+  const dying = await run(gm, P.kitStatus, { mapperId: ids.mapperId, status: "dead", on: true });
+  for (const uuid of dying) await track(uuid, "ActiveEffect");
+  const deadRead = await run(gm, P.kitSettle, { ...kit, held: false });
+  check("a dead mapper is never vulnerable: the effect is gone", deadRead.matched && deadRead.marked === 0 && deadRead.dead, { marked: deadRead.marked, dead: deadRead.dead });
+  const raised = await run(gm, P.kitStatus, { mapperId: ids.mapperId, status: "dead", on: false });
+  const raisedRead = await run(gm, P.kitSettle, { ...kit, held: true });
+  check("with the death lifted the role's condition returns", raised.length === 0 && raisedRead.matched && raisedRead.marked === 1, { marked: raisedRead.marked });
+  await run(gm, P.role, { partyId: ids.partyId, mapperId: ids.mapperId, on: false });
+  const downRead = await run(gm, P.kitSettle, { ...kit, held: false });
+  check("the role set down: the condition is gone, and so is the status on the actor and its token", downRead.matched && downRead.marked === 0 && !downRead.actorStatus && !downRead.tokenShows, { marked: downRead.marked, actor: downRead.actorStatus, token: downRead.tokenShows });
+  const hand = await run(gm, P.kitStatus, { mapperId: ids.mapperId, status: "vulnerable", on: true });
+  for (const uuid of hand) await track(uuid, "ActiveEffect");
+  await run(gm, P.role, { partyId: ids.partyId, mapperId: ids.mapperId, on: true });
+  const beside = await run(gm, P.kitSettle, { ...kit, held: true });
+  check("a Vulnerable a hand set stands unmarked, and the role's effect stands beside it", hand.length === 1 && beside.marked === 1 && beside.unmarked === 1, { marked: beside.marked, unmarked: beside.unmarked });
+  await run(gm, P.role, { partyId: ids.partyId, mapperId: ids.mapperId, on: false });
+  const kept = await run(gm, P.kitSettle, { ...kit, held: false });
+  check("the role set down takes the module's effect and leaves the hand's: the status stays on", kept.marked === 0 && kept.unmarked === 1 && kept.actorStatus, { marked: kept.marked, unmarked: kept.unmarked });
+
   section("console");
   const errors = await run(gm, P.drain);
-  const own = errors.errors.filter((e) => /mapping|mapper|environment sync|light/iu.test(e));
+  const own = errors.errors.filter((e) => /mapping|mapper|environment sync|light|held-condition|stash/iu.test(e));
   check("no console error naming mapping, the mapper or the environment sync over the walk", own.length === 0 && errors.uncaught === 0, { own: own.length, uncaught: errors.uncaught, all: errors.errors.length });
   walkDone();
 } catch (err) {
@@ -511,7 +640,7 @@ try {
           note("scene put back (dark, own fog mode, no management flag)", await run(gm, P.sceneShape, { sceneId: ids.sceneId, darkness: 1 }));
         } catch (err) { console.error("scene put back:", err?.message ?? err); }
       }
-      note("swept (the run's own effect, ability, status, map item, cards and party token)", await gm.sweepTracked({ only: swept }));
+      note("swept (the run's own effect, ability, statuses, combat, tokens, map item, cards and party token)", await gm.sweepTracked({ only: swept }));
     } catch (err) { console.error("sweep:", err?.message ?? err); }
     try { note("restored", await run(gm, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
     console.log(`fixtures kept: ${SCENE}, ${PARTY}, ${MAPPER}, ${BEARER}`);

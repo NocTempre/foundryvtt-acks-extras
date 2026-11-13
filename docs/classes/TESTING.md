@@ -549,7 +549,8 @@ the picker and confirm the total is a full reroll of two dice, unfloored.
    below). Fixtures, kept: a class
    item `classes/two-die-first-level` (a world copy of an imported class with
    its level-1 HD cell typed as `2d8` on the class sheet's Levels table) and a
-   character `classes/hp-floor-character` with known Constitution. Rig every
+   character `classes/hp-floor-character` with known Constitution; the walker
+   builds both by hand, no walk does. Rig every
    die to fall 1 (`CONFIG.Dice.randomUniform = () => 0.975` on core 14; probe
    one roll first), then bind the class at 1st level through
    `acksExtras.classes.applyClass(actor, cls, {level: 1, confirm: false,
@@ -563,8 +564,9 @@ the picker and confirm the total is a full reroll of two dice, unfloored.
 
 ## The sheet's hit dice roll, and a refused chargen
 
-**Fixtures.** Kept: the class item `classes/two-die-first-level` and the
-character `classes/hp-floor-character` (above). Built and swept: a character
+**Fixtures.** Kept, built by hand in step 5 above: the class item
+`classes/two-die-first-level` and the character `classes/hp-floor-character`.
+Built and swept: a character
 with no class, and for step 4 a class item whose ladders hold
 `electedDamageBonus` with a character carrying one plain item.
 
@@ -1023,15 +1025,19 @@ and `api.sweepTracked({only: [those uuids]})`.
 
 ## The wizard's kept roll
 
-`tools/live/classes-levelup-roll.mjs` walks this section on the GM and Player
-seats.
+`tools/live/classes-hp-record.mjs` walks steps 1 to 4 (the Constitution effect
+and not the changed score), 7, 9, 10, 11 and 12 of this section on the GM and Player seats; the walk builds or finds every fixture
+named here and under step 12. Steps 5, 6 and 8 are pinned offline in
+`tools/test-classes.mjs` ("the kept roll is cleared when the level moves, and
+by nothing else"; "the stored maximum, not the prepared one, is what a
+hit-point change starts from"; "the last die level is read off the class's own
+rows, and a missing row follows it").
 
-**Fixtures (kept; found by marker, built when none carries it).** Three
-classes with invented level rows, so no figure the walk prints is a book's:
-`classes/levelup-roll-class` (a die more at each of four levels),
-`classes/levelup-roll-gap-class` (no cell at 2nd, between two that print one)
-and `classes/levelup-roll-nohd-class` (no cell at all). The character
-`classes/levelup-roll-character` is owned by the Player seat. Each step brings
+**Fixtures (kept; found by marker, built when none carries it).** Classes with
+invented level rows, so no figure the walk prints is a book's:
+`classes/hp-record-class` (a die more at each of four levels) and
+`classes/hp-record-nohd-class` (no cell at all). The character
+`classes/hp-record-character` is owned by the Player seat. Each step brings
 it to a known shape from the GM seat first: its effects deleted,
 `flags["acks-extras"].classes` unset, level 1 and experience 0, Constitution
 set, then `applyClass(actor, cls, {level: START, confirm: false,
@@ -1045,7 +1051,8 @@ point line is the paragraph holding `→`, and closing the dialog without
 answering is a cancel. A reload is a real `Page.reload` over the seat's CDP
 target, never a navigation; mark the old page first and wait for a page
 without the mark, since the old one answers *ready* until the reload takes it
-down.
+down. The walk opens the wizard twice before the page reload it makes to attach
+the boot recorder, and once after it.
 
 **Steps → observable.**
 1. START 2, open the wizard. *A roll is shown, and
@@ -1056,7 +1063,9 @@ down.
    *The same line and the same record each time.*
 3. Raise Constitution to a score with another modifier and open it. *The
    record's faces are the same; the offer is those faces with the new
-   modifier on each, none below one.* Put Constitution back, add an effect
+   modifier on each, none below one* (pinned offline in `tools/test-classes.mjs`,
+   "a changed Constitution keeps the kept dice and recomputes only its own
+   part, per die"). Put Constitution back, add an effect
    that ADDs to `system.scores.con.value`, and open it. *The same faces again;
    nothing is rolled.* Sweep the effect.
 4. Open it and press Apply. *Level 3; the stored maximum is the figure the
@@ -1129,10 +1138,9 @@ down.
     open it again on the Stats tab. *At the sheet's default width the line,
     its row and its column each have `scrollWidth <= clientWidth`.*
 
-    `tools/live/classes-hp-record.mjs` walks this step. Fixtures (kept, by
-    marker): `classes/hp-record-class` and `classes/hp-record-long-class`
-    (invented rows), and the Player-owned characters
-    `classes/hp-record-character`, `classes/hp-record-high-character`,
+    The walk's further fixtures (kept, by marker): the class
+    `classes/hp-record-long-class` (invented rows), and the Player-owned
+    characters `classes/hp-record-high-character`,
     `classes/hp-record-blank-character`, `classes/hp-record-con-character`
     and `classes/hp-record-con-classless-character`. The watch on `rollHP` is
     an own property on each actor, deleted in teardown. The bind of step 12 goes through the
@@ -1142,8 +1150,8 @@ down.
     `game.tooltip.activate(input)`.
 
 **Teardown.** The fixtures are kept. The cards the climbs post (made by the
-Player's client, spoken by the fixture) and the step 6 effect are tracked by
-id and swept with `api.sweepTracked({only})`.
+Player's client, spoken by the fixture) and the effects of steps 3 and 12 are
+tracked by id and swept with `api.sweepTracked({only})`.
 
 ## Experience follows a set level; tracking; leaving 0th level
 

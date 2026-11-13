@@ -11,11 +11,10 @@ geometry with no Foundry at all. They gate the arithmetic; only a live run
 gates that anything reaches a document.
 
 Of these recipes, `tools/live/formation-day.mjs` drives Reimport One Shelf's
-rules tables (`node tools/live/run.mjs formation-day`),
-`tools/live/importer-characters.mjs` drives "A person the page
-prints in full becomes a character" and `tools/live/importer-typography.mjs`
-drives "A community book, read through its declared typography"
-(`tools/live/README.md` is the contract); the rest is walked by hand.
+rules tables (`node tools/live/run.mjs formation-day`) and
+`tools/live/importer-typography.mjs` drives "A community book, read through
+its declared typography" (`tools/live/README.md` is the contract); the rest is
+walked by hand.
 
 ## The Books tab
 
@@ -2366,8 +2365,14 @@ them. The walk needs the GM seat with AX1 connected and the library holding
 the core books' classes. Some pregens print a class no core book defines;
 the walk reads which against the library, so a Judge who has built one with
 the class builder sees it bound. Steps 3 and 4 also need the Player seat.
-`tools/live/importer-characters.mjs` walks steps 1 to 4; `ROWS=people` or
-`ROWS=pregens` limits it to one set.
+No walk drives it. `tools/importer/test-character-binding.mjs` pins the binding
+on invented lines (the boxes a stat line fills, the as-printed block's lines,
+the alignment word, a class read behind a qualifier, who owns a character), and
+the local-only `tools/rules-tests/test-characters-book.mjs` reads AX1's
+characters off the Judge's own copy and holds each box to the page's figures
+(class and level, the six scores, hit points, alignment, morale). The steps
+below are walked by hand, for what only a world shows: the stamp under the
+stable id, the bound class, the rebuild and the Player seat.
 
 What a scripted walk meets:
 
@@ -2391,7 +2396,7 @@ What a scripted walk meets:
 
 ### Fixtures
 
-Every step is setup, and nothing the walk makes is kept: what it makes is
+Every step is setup, and nothing a run makes is kept: what it makes is
 what the next import's presence check needs absent (DECISIONS, 2026-10-28).
 First retire `importer/claimant` (`api.retire`), the claimant a run that died
 before its sweep left standing.
@@ -2399,11 +2404,11 @@ before its sweep left standing.
 Then read, write nothing: every world Actor shelf and the world, for a
 document under any row's stable id. Where one stands and this run did not
 make it, stop: it is another session's. The one exception is a library its
-owner imported and handed over (the walk's `REBUILD_OK=1`), holding every
-row once. Step 1 then rebuilds all of them through the entry picker, ticking
-every row. Each keeps its id, so read each one's `_stats.createdTime` before
-and after, and track none of them. Where a library stands for one set
-only, `ROWS=` walks the other set beside it.
+owner imported and handed over, holding every row once. Step 1 then rebuilds
+all of them through the entry picker, ticking every row. Each keeps its id, so
+read each one's `_stats.createdTime` before and after, and track none of them.
+Where a library stands for one set only (the inhabitants or the pregens),
+step 1 imports the other set beside it.
 
 - The rebuild's fixture is a world `character` claiming the first row's
   entry (`flags.acks-extras.cookbook: {id, book: "ax1", kind: "kind.npc"}`),
@@ -2947,9 +2952,13 @@ holding the text a reader expects.
 
 AX1's passages (`kind.prose`), roll tables, appendix item and gear rows
 become documents, each holding what the executor reads off its page.
-`tools/live/importer-ax1-text.mjs` walks it on the GM seat. Every comparison
-runs in the page against `executeEntry`'s read and is printed as a boolean or
-an id, never as text.
+No walk drives the whole recipe: the local-only `tools/rules-tests/test-ax1-text.mjs`
+runs the executor over every one of those rows and holds the read to the
+shape the steps build from (counts and booleans, never text), and
+`tools/importer/test-prose.mjs` pins the text block on invented rows. The
+steps below are walked by hand, in the page against `executeEntry`'s read,
+for what only a world shows: the journals' ids, order and in-place refresh,
+the tables' documents and their roll, the item's folder and the gear's stamps.
 
 What a scripted walk meets:
 
@@ -2977,13 +2986,13 @@ Read first, write nothing:
 - every world shelf of those three types and the folders on it, and the
   sidebar's folders of those types.
 
-The walk stops when a journal stands under a passage group's id
+Stop when a journal stands under a passage group's id
 (`journalCookbookId(book, group)`). A table, item or gear row that stands
-is the owner's: the walk proves it through the executor's read, never as a
+is the owner's: prove it through the executor's read, never as a
 document. The gear step does not run while an item carries a gear entry's
 printed name.
 
-Every step is setup, and nothing the walk makes is kept. The run's ledger is
+Every step is setup, and nothing a run makes is kept. The run's ledger is
 what each step returns (`created.journals`, `created.items`) or, where it
 returns counts, the uuids the library did not hold before it. It also covers
 the folders and shelves found by difference.
@@ -3175,64 +3184,29 @@ restored by step 7.
 
 A class whose spread states its levels in sentences imports with rows, its
 throws lent by its chassis, and a held one is repaired in place (MODEL, "A
-class stated in sentences"). Walk: `tools/live/importer-class-rows.mjs`,
-steps 1–4 on `cat`. Offline, the readers and the repair's keep:
-`tools/importer/test-class-prose-levels.mjs`.
+class stated in sentences"). Offline, on invented pages and classes: the
+readers, the experience priced from the build, the repair's keep, a held stub
+refilled and a priced figure replacing a typed one in
+`tools/importer/test-class-prose-levels.mjs`; the class sheet's stub,
+unread-experience and unread-title notices and its build tooltip on a class
+read from sentences, one priced, one typed over, a stub and a filled one in
+`tools/test-class-sheet.mjs`; the throws a chassis lends in
+`tools/test-classes.mjs`. Live: `tools/live/importer-typography.mjs` imports
+the book's classes through `importClasses({ only })`, and
+`tools/live/classes-level-cap.mjs` opens a class sheet.
 
-### Fixtures
+### By hand, with the book open
 
-One is kept: `classes/titled-sheet`, a world class with a title and an
-experience figure on every level, built where nothing carries the marker. Its
-sheet is the control for the notices and the build tooltip: it renders with
-neither. Step 1 imports the book's classes where the world lacks them
-and tracks what it made; a class the world holds under another hand is read,
-never driven, and the walk stops if every one is held. The chassis check
-needs the core fighter class imported from the Judge's own core book; where
-the world holds none the walk names the check not reached. Step 4 is a book
-repair, which takes no `only`: it writes over every document the world holds
-from the book, its items and abilities too. Run it only when no peer is
-walking that book's other surfaces, and report the count it replaced beside
-the run's own.
-
-### Steps
-
-1. On the GM seat with the book open, run the class step for the classes the
-   world lacks (`acksExtras.importer.importClasses({ only })`).
-   *Observable:* it imports each one it was given.
-2. Read each class. *Observable:* one level row per level to its maximum,
-   each with its hit dice — a die per level to the cap, then the flat step;
-   where the world holds the JJ builder tables (`acks.classBuilder`), each
-   class this run imported priced from its build — level 2 at the base its
-   `xpBuild` flag records, every level above the last — and otherwise
-   experience unread on every level past the first; a damage ladder under
-   the key its row declares, rising at each rung; a cleave per level; the
-   fighter chassis for saves and attack, and at 1st level the save band and
-   attack throw equal the fighter class's own; its proficiency picks as
-   choice awards. No class carries a partial price. The class sheet renders
-   without the *no progression rows yet* notice, with the notice naming the
-   page to copy experience from where a level is unread, and with a
-   tooltip naming the build on a priced experience cell. Compare the priced
-   column with the printed table by eye, off the repo: the differences are
-   the errata DECISIONS 2026-10-30 reports, not a failed read.
-3. Write the run's classes into the stub shape (no levels, no ladder, no
-   cleave), then run `cookbookUpdateClasses({ only, confirm: false, repair })`
-   with a `repairTally()`.
-   *Observable:* each class reads as a stub before; after, the step rewrote
-   each, the tally replaced each and refused none, and each is back in the
-   step-2 shape under the uuid it had.
-4. Type an experience figure and a title of the walk's own into level 2 of
-   the first class, stub the others again, and run the book repair
-   (`cookbookReimportBook(book)`, its confirm answered yes by the walk).
-   *Observable:* one confirm; the refill names the class step and the
-   replaced count covers the run's classes; the typed title stands on level 2
-   with the build's hit dice, and so does the typed figure where the class is
-   unpriced — a priced class takes its price back; the stubbed classes are
-   back in the step-2 shape.
-
-### Teardown
-
-The sweep removes the ledger's classes; a shelf the run opened and left empty
-is deleted. The notice patch is restored.
+Offline suites run on invented pages, so the printed column is the one thing
+only a Judge's copy can answer. Import the book's classes, open each class
+sheet, and compare the priced experience column with the printed table by eye,
+off the repo: the differences are the errata DECISIONS 2026-10-30 reports, not
+a failed read. Where the world holds no builder tables (`acks.classBuilder`),
+each imported class leaves experience unread past the first level and its sheet
+names the page to copy it from. A book repair (`cookbookReimportBook(book)`)
+takes no `only` and writes over every document the world holds from the book,
+its items and abilities too: run it when no peer is walking that book's other
+surfaces.
 
 ## A community book, read through its declared typography
 

@@ -166,4 +166,22 @@ const read = refreshPlan(held, { type: "acks-extras.class", system: { levels: [{
 ok("a figure the build does read replaces the typed one", read.update.system.levels[0].xp === 99 && read.update.system.levels[0].title === "Read");
 ok("planning leaves the stored rows as they were", held.system.levels[1].xp === 1234 && held.system.levels.length === 2);
 
+/* --- a held stub is repaired into the shape a fresh import gives --------------------------- */
+
+const stubHeld = { type: "acks-extras.class", name: "Held Stub", system: { levels: [], ladders: [], cleaves: {}, awards: [], saveChassis: "", attackChassis: "" } };
+const refilled = refreshPlan(stubHeld, bindClass(entry, node, "def.class.inventedWarden"), REPAIR.class);
+const refilledSystem = refilled.update.system;
+ok("a stub takes the build's rows whole, one per level", refilled.refused === undefined && JSON.stringify(refilledSystem.levels) === JSON.stringify(built.levels) && refilledSystem.levels.length === 9);
+ok("and its damage ladder, cleave and chassis", refilledSystem.ladders.length === 1 && refilledSystem.ladders[0].key === spec.damageBonus.key && refilledSystem.cleaves.kind === "perLevel" && refilledSystem.saveChassis === "fighter" && refilledSystem.attackChassis === "fighter");
+ok("and its proficiency gains as awards", refilledSystem.awards.filter((a) => a.kind === "choice").length === 6);
+ok("and the build's name", refilled.update.name === "Invented Warden");
+
+// A Judge's typed figure gives way to the build's price where the build prices the level; the typed title stays where the build reads none.
+const typedHeld = {
+  type: "acks-extras.class",
+  system: { levels: [{ level: 1, xp: 0, title: "", hd: "1d4" }, { level: 2, xp: 4321, title: "Typed", hd: "2d4" }] },
+};
+const pricedRepair = refreshPlan(typedHeld, pricedClass, REPAIR.class).update.system.levels;
+ok("a priced class takes its price back over a typed figure, keeps the typed title, and takes the build's dice", pricedRepair[1].xp === 1406 && pricedRepair[1].title === "Typed" && pricedRepair[1].hd === "2d10", JSON.stringify(pricedRepair[1]));
+
 console.log(`test-class-prose-levels: ${pass} checks passed.`);

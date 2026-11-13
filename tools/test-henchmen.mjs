@@ -1144,4 +1144,31 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- an identity drawn from a location's demographics carries the culture's label and a name from its list ----
+// Cultures, labels and names are invented; the table is whatever the registry
+// holds, so the label is read from the entry and the neutral fallback is the id.
+{
+  const { generateIdentity, raceOfCulture } = await import(new URL("../scripts/henchmen/rules/identity.mjs", import.meta.url));
+  const ns = (globalThis.acksExtras ??= {});
+  const saved = ns.lib;
+  const cultures = {
+    alpha: { label: "Test Culture A", male: ["Aldo", "Brem"], female: ["Cira", "Dena"] },
+    beta: { label: "Test Culture B", race: "reptile", male: ["Ezk"], female: ["Fyl"] },
+    gamma: { male: ["Gor"], female: ["Hel"] },
+  };
+  try {
+    ns.lib = { tables: { hasDoc: (doc) => doc === "people", getTable: (doc, id) => (id === "cultures" ? { list: cultures } : null) } };
+    const only = (culture) => generateIdentity({ rand: () => 0, demographics: [{ culture, weight: 1 }], level: 1 });
+    const drawn = only("alpha");
+    assert.strictEqual(drawn.culture, "alpha", "the one weighted culture is the one drawn");
+    assert.strictEqual(drawn.cultureLabel, "Test Culture A", "the label is the entry's own");
+    assert.ok(cultures.alpha.male.includes(drawn.name.split(" ")[0]), "the given name comes from the culture's list");
+    assert.strictEqual(only("gamma").cultureLabel, "gamma", "an entry with no label falls to its id, never a stand-in word");
+    assert.strictEqual(raceOfCulture("beta"), "reptile", "a culture's declared race is read from its entry");
+    assert.strictEqual(raceOfCulture("alpha"), "human", "an entry that declares none is human");
+  } finally {
+    ns.lib = saved;
+  }
+}
+
 console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);

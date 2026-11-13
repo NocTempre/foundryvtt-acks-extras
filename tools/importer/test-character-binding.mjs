@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { parseStatline, parseWriteup } from "../../scripts/importer/executor.mjs";
 import { stripBookText } from "../../scripts/importer/prose.mjs";
 import { buildPlan } from "../../scripts/character-sheet/pdf/plan.mjs";
-import { sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier, AS_PRINTED_CLASS } from "../../scripts/importer/character-binding.mjs";
+import { sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier, AS_PRINTED_CLASS, ALIGN_WORD } from "../../scripts/importer/character-binding.mjs";
 
 let n = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => {
@@ -136,6 +136,26 @@ await t("the block carries the line, the differences and the rows", () => {
   assert.ok(html.includes("<p>AC 6 &lt;scale&gt;</p>"), "the line is text, never markup");
   assert.ok(html.includes("<p><strong>Attack throw:</strong> 9+ / 8+</p>"));
   assert.ok(html.includes("<p><strong>Spell:</strong> ember wheel</p>"));
+});
+
+await t("the block holds one line for the printed line, then one per difference and one per row", () => {
+  const html = asPrintedBlock(
+    {
+      id: "zz.npc2",
+      statline: "AC 6",
+      differences: [{ label: "Attack throw", sheet: "9+", inForce: "8+" }, { label: "Saving throw", sheet: "7+", inForce: "6+" }],
+      rows: [{ label: "Spell", text: "ember wheel" }, { label: "Class", text: "Lampwright" }, { label: "Proficiency", text: "Kiln Lore" }],
+    },
+    WORDS,
+  );
+  assert.equal((html.match(/<p>/g) ?? []).length, 1 + 2 + 3);
+  assert.equal((html.match(new RegExp(AS_PRINTED_CLASS, "g")) ?? []).length, 1, "one stamped block");
+});
+
+await t("an alignment letter reads as the system's word", () => {
+  assert.deepEqual(Object.entries(ALIGN_WORD), [["L", "Lawful"], ["N", "Neutral"], ["C", "Chaotic"]]);
+  const plan = buildPlan(sheetValuesFromStatline(parseStatline("Lampwright 1; MV 90’, AC 0, HD 1, hp 4, #AT 1, D 1d4, ML 0, AL C")).values);
+  assert.equal(plan.alignment, "Chaotic");
 });
 
 await t("the block is the import's own writing, which a rebuild strips", () => {

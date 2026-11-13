@@ -39,6 +39,10 @@ ok("the page reference closes the block", /<p class="acks-extras-importer-cite">
 ok("exactly one page reference", (full.match(/acks-extras-importer-cite/g) ?? []).length === 1);
 ok("the block is stamped with its entry", full.includes('data-acks-entry="mm.griffon"'));
 
+eq("reading the same node twice writes the same text, so a refresh finds nothing to change", entryText(node, "mm.griffon", "MM p.171"), full);
+ok("a passage with no reference writes its paragraphs and no reference line", !/acks-extras-importer-cite/.test(entryText(node, "mm.griffon", "")) && (entryText(node, "mm.griffon", "").match(/<p>/g) ?? []).length === 3);
+ok("a node of blank paragraphs reads as no paragraph at all", nodeParagraphs({ fields: { description: [{ text: "" }, { text: "" }] } }).length === 0);
+
 /* --- sections --- */
 const combat = entryText(node, "mm.griffon", "MM p.171", { section: "combat" });
 ok("a section keeps only its own paragraphs", (combat.match(/<p>/g) ?? []).length === 2 && !combat.includes("griffon is"));

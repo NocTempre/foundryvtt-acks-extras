@@ -3279,9 +3279,9 @@ among it. The band's token and the rest stay for the next walk.
 
 ## Automated Animations
 
-Covers `animations.mjs` and `diceSettled`. `node tools/live/run.mjs animations`
-walks all of it on both seats; the walk's header lists its fixtures and what it
-restores.
+Covers `animations.mjs` and `diceSettled`. `tools/live/animations.mjs`
+(`node tools/live/run.mjs animations`) walks all of it on both seats; the
+walk's header lists its fixtures and what it restores.
 
 **Needs on the server:** Automated Animations, Sequencer, JB2A and Dice So Nice
 installed. A module folder added by hand is found at the next world launch, and
@@ -3588,12 +3588,17 @@ stays as the world's `senses` document.
 ## The cast seam claims a cast
 
 Covers `patches/spell-use.mjs`, the wrapper on `Item#_useSpell`. Offline mocks
-cannot show libWrapper taking the method on the installed system, so this is the
-walk that does. The seats are a GM and, for step 9, a Player.
-`tools/live/lib-cast-seam.mjs` walks every step below: it presses the Magic
-tab's cast button where this recipe calls `_useSpell()` from the console, and
-it registers its one claimant under a key of its own and removes it in a
-`finally` on both seats.
+cannot show libWrapper taking the method on the installed system, so this
+recipe is the by-hand pass that does. The seats are a GM and, for step 9, a
+Player. `tools/test-lib.mjs` runs steps 1 to 8's claimant behaviour against a
+stand-in class and a stand-in libWrapper (the system's cast with no claimant, a
+declining and a throwing `claims`, a claimant that never spends, spends twice or
+throws, a spend after `cast` returned, and the claimants' order).
+`tools/live/magic-cast-summon.mjs` walks the real path on both seats: its boot
+recorder reads that `init`, `setup` and `ready` recorded no `no Item#_useSpell
+to wrap` warning and no error naming `spell-use`; the Magic tab's cast button
+reaches the summoning claimant through the wrapper; and its last section is
+step 8 under the installed libWrapper.
 
 **Fixtures, kept and found by marker.**
 - `lib/cast-seam-caster`, a character with `system.spells.enabled` true (the
@@ -3605,7 +3610,7 @@ it registers its one claimant under a key of its own and removes it in a
 
 **Drive mechanics.**
 - Step 1's "no warning" proof needs a recorder that exists before `init`. The
-  capture driver exposes no CDP session, so the walk opens a second DevTools
+  capture driver exposes no CDP session, so `magic-cast-summon` opens a second DevTools
   connection to the GM seat's page (`Cdp`, from the driver's exports, over the
   browser's websocket from `/json/version`), attaches to the `/game` target,
   registers `Page.addScriptToEvaluateOnNewDocument` and calls `Page.reload`.
@@ -3615,13 +3620,11 @@ it registers its one claimant under a key of its own and removes it in a
   from the old page's.
 - A cast's two effects arrive at different times: the count when the server
   answers, the card when the card's template has loaded (the first cast of a
-  session is the slow one). A press that expects a spend waits on the count and
-  then the card, and a beat more for a second one; a press that expects none
-  waits a fixed 2.5 s. A fixed one-and-a-half-second sleep read 0 and left the
-  count to land in the next step.
-- A card is the walk's when it speaks as one of the two casters
-  (`message.speaker.actor`) and was made inside the run's own time window; the
-  walk tracks each by id and removes them with `sweepTracked({only})`.
+  session is the slow one). Wait on the count and then the card, and a beat more
+  for a second one; where none is expected, wait a fixed 2.5 s.
+- A card is the run's when it speaks as one of the two casters
+  (`message.speaker.actor`) and was made inside the run's own time window;
+  track each by id and remove them with `sweepTracked({only})`.
 
 **Steps and what proves each.**
 
@@ -3665,14 +3668,16 @@ it registers its one claimant under a key of its own and removes it in a
    holds one `called spend after its cast returned; the cast was not counted`
    from `spell-use`, no uncaught error reached the window, and Foundry raised no
    "Error detected in module" notice. Without the guard libWrapper throws
-   `LibWrapperInvalidWrapperChainError` into the timer's callback.
+   `LibWrapperInvalidWrapperChainError` into the timer's callback. Section 6 of
+   `tools/live/magic-cast-summon.mjs` runs this step on the GM seat, once with
+   the spend's answer read and once with it left bare.
 9. **A Player seat.** As the Player, with no claimant, press the cast button on
    `lib/cast-seam-spell-player` after the GM resets its count. *Observable:*
    the count rises by exactly one and one card posts, with no console error on
    the Player's seat.
 
 **Teardown.** Remove the claimant (step 7) and delete `window.__cast` and
-`window.__late`. The fixtures stay; the cards the walk made are swept by id.
+`window.__late`. The fixtures stay; the cards the run made are swept by id.
 
 ## Teardown
 

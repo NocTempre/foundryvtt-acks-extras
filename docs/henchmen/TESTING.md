@@ -34,9 +34,7 @@ a step it does not name is walked by hand.
   `henchmen/paymaster` and `henchmen/second`. The GM's posting dialog offers
   player characters only, and step 13's Player seat must own neither
   employer. Step 17: `henchmen/blocked-classes-place` and
-  `henchmen/blocked-classes-employer`, built as that step says. Step 18:
-  `henchmen/search-steps-place` and `henchmen/search-steps-employer`, built
-  the same way.
+  `henchmen/blocked-classes-employer`, built as that step says.
 - **Bring each kept actor to its creation shape at the stage's start,
   before any step reads a roster:** delete its embedded items and effects,
   write its `flags.acks-extras` scope as the data's, its system as the
@@ -738,52 +736,31 @@ a step it does not name is walked by hand.
       *Observable:* `{error: "class-blocked"}` and no posting written; in both
       seats' dialogs the class is listed disabled, its label saying it is never
       offered here.
+    - A Player's commissioned search, under a registry layer of the walk's
+      own, at a priority no import or override uses and on the GM seat only,
+      holding the search modifiers table empty (no commission step): the
+      Player seat's dialog filled with the employer, **Henchman by class**, a
+      second offerable class with a rarity tier and **Commissioned search**
+      ticked, and submitted.
+      *Observable:* the Player seat's notice is the `tables-missing` refusal
+      (not "submitted", no raw key) and no posting is written. The relay is
+      the route the refusal takes: the GM's `createPosting` answers the Player
+      seat with `{error}`; the dialog itself checks no step.
+    - The place's Demographics block, under a second layer of the walk's own
+      on the GM seat holding the `people` document's `cultures` table with two
+      invented cultures: the sheet on GM Settings, **Add** pressed.
+      *Observable:* one row stored on the first culture and shown in its
+      select, whose options are the table's cultures by label in the table's
+      order. The layer is lifted and the place's demographics emptied
+      afterwards.
     Walked by `tools/live/henchmen-blocked-classes.mjs`.
-18. A directed search's steps, on `henchmen/search-steps-place` (a location
-    built carrying `system.market: emptyMarket()`, the Player seat an
-    observer) and `henchmen/search-steps-employer` (a character the Player
-    seat owns). At the step's start the place's candidates, postings and
-    classes never offered are emptied. The staged Judges Journal must be
-    named in `ACKS_TEST_BOOKS`.
-    - Connect the staged book on the GM seat and run
-      `cookbookImportTables(["rarity"])`: the import a Judge runs, and the
-      only way the commission step reaches a world.
-      *Observable:* no missing book; `searchSteps()` holds an integer for
-      each of the three steps on the GM seat, and the commission step
-      reaches the Player seat.
-    - Read `rarity.randomHenchmanLevel` from the same import and call
-      `rollRandomLevel` with a recording roller.
-      *Observable:* the rows are contiguous bands, the first open below, with
-      no `formula` stored beside them; the roller is asked once, for
-      `tables.bandDie(rows)`, which is `1d` the highest edge, and the level
-      returned is one of the rows'.
-    - `openPostingDialog(place)` on both seats.
-      *Observable:* the level hint under **Level** and the tooltip on
-      **Commissioned search** (`data-tooltip-text`) are the lang strings
-      formatted with the imported steps, with no raw key.
-    - Under a registry layer of the walk's own, at a priority no import or
-      override uses and on the GM seat only, holding the search modifiers
-      less the commission step: the GM's dialog, then a commissioned search
-      for a class the step can move, filled and submitted in the Player
-      seat's dialog.
-      *Observable:* the GM's tooltip says the step is not imported while the
-      level hint still names its step; the Player seat's notice is the
-      `tables-missing` refusal (not "submitted", no raw key) and no posting
-      is written. The relay is the route the refusal takes: the GM's
-      `createPosting` answers the Player seat with `{error}`.
-    - Remove the layer and submit the same search from the Player seat.
-      *Observable:* "submitted", and the posting is written active and
-      commissioned. Then set the posting's `monthStartTime` to 0 and call
-      `processLocation(place, game.time.worldTime)` on the GM seat.
-      *Observable:* the posting renews, and its `rollDetail` opens with the
-      expression of the commissioned tier for the stored spec, not the plain
-      one (both read from the served `rollMonthlyPool` with a die of 1, and
-      the walk first checks they differ).
-    The general-proficiency level with no imported die or band is checked
-    offline only (`tools/test-henchmen.mjs`), and so is the die of the level
-    table's world roll table (`tools/test-table-docs.mjs`), since exporting
-    it writes a document every seat shares. Walked by
-    `tools/live/henchmen-search-steps.mjs`.
+18. A directed search's steps are checked offline: the level, rank and
+    commission steps read from the imported search modifiers, the level
+    table's bands and the die a roll on it throws, the refusal where a step is
+    not imported, and a stored spec renewing as a commission are
+    `tools/test-henchmen.mjs`; the level table's world roll table is
+    `tools/test-table-docs.mjs`. The Player seat's relayed
+    refusal is step 17's commissioned-search bullet.
 19. A search fee the purse refuses, on `henchmen/fee-place` (a location with
     `emptyMarket()`, the Player seat an observer) and `henchmen/fee-employer`
     (a character the Player seat owns). At the step's start write the place's
@@ -991,29 +968,20 @@ walked in docs/lib/TESTING.md, "The repair tool".
       roster: the hireling's row is unaffected.
     The Deal XP half is formation's TESTING.md, "Deal XP". The recipes' shape
     against the real book is `tools/importer/test-recipe-content.mjs`.
-24. The cultures a Judge's book names, on `henchmen/cultures-place` (a
-    location with a market) with the staged rulebook open, and the supplement
-    that prints the dwarves' name list where one is staged. Run Rules tables
-    for `people` (Settings tab → Game Settings → ACKS II — Extras → Manage
-    imports; the walk calls `acksExtras.importer.cookbookImportTables`), then
-    read `acksExtras.lib.tables.getTable("people", "cultures").list`. Open
-    the place's sheet on its GM Settings tab, press Add on Demographics, and
-    generate an identity with `rules/identity.mjs > generateIdentity` from
-    one culture. Walked by `tools/live/henchmen-cultures.mjs`.
-    *Observable:* every culture whose book is open is in the list, its id
-    `culture1` to `culture12`, `dwarven`, `elven`, `lizardman` or `people2`;
-    each label is the heading the book prints, never the neutral
-    `Culture N` stand-in; every culture has male and female name lists, and
-    every culture the appearance recipe declares has a palette. The
-    Demographics select lists those labels in the list's order, Add stores a
-    row on the first imported culture and the select shows it. A candidate
-    drawn from one culture reads that culture's label in `cultureLabel` and a
-    given name from its list; `pickCulture` for race `people1` returns the
-    culture that lists it in `alsoRaces`; the lizard people's culture has
-    race `lizardman`. A world with nothing imported lists no cultures and the
-    row Add writes carries no culture until the Judge picks one (not walked: it
-    needs the `people` document absent). The class half — a class's race,
-    its culture and its age column — is `tools/test-henchmen.mjs`, offline.
+24. The cultures a Judge's book names are checked offline. The import's reading
+    (a culture written under an ordinal id, its label read off its heading
+    and the neutral `Culture N` stand-in where the page prints none, its name
+    lists, its palette and its name template) is
+    `tools/importer/test-culture-keys.mjs`. What the identity rules do with
+    the table (a candidate drawn from one culture reads that culture's label
+    in `cultureLabel` and a given name from its list, a declared race,
+    `pickCulture` for race `people1` returning the culture that lists it in
+    `alsoRaces`, a class's race, its culture and its age column, a name made
+    from a culture's template) is `tools/test-henchmen.mjs`. The Location
+    sheet's Demographics select listing the table's cultures, Add storing the
+    first, is step 17's Demographics bullet. A world with nothing imported lists
+    no cultures and the row Add writes carries no culture until the Judge
+    picks one (not walked: it needs the `people` document absent).
 25. An Irrefusable Offer to a captured monster, through the influence-hosted
     page, on `henchmen/bonus-employer` raised to a level above the captives'
     hit dice and three disposable `monster` actors of 1d8 (tracked as they are

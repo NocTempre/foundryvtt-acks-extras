@@ -7,7 +7,13 @@
  * hired with no class bound and its Service tab offering the Judge Pick class
  * (the class picker opening on it) and the Player seat none, a player's
  * directed search refused, and the posting dialog listing the class disabled
- * with its reason. Machine values arrive through ./_env.mjs.
+ * with its reason. Two relay and sheet checks run under registry layers of the
+ * walk's own, holding invented figures and no imported book: the GM seat lacking
+ * the commission step, where a Player's commissioned search for another class
+ * is refused `tables-missing` over the relay, and the GM seat holding two
+ * invented cultures, where the Demographics block's Add makes a row whose
+ * select lists them and starts on the first. Machine values arrive through
+ * ./_env.mjs.
  *
  * Fixtures, kept and found by marker: `henchmen/blocked-classes-place`, a
  * location with a market the Player seat observes, and
@@ -18,8 +24,10 @@
  * swept; the candidates and the placement posting the walk writes live on
  * the place's own market. The world
  * must hold the imported class tables: the walk reads which class a die of 1
- * draws and prints only whether it found one. Every figure printed is a count
- * or a boolean; no class name leaves the page.
+ * draws and prints only whether it found one. The walk's layers sit at a
+ * registry priority no import or override uses, on the GM seat only, and are
+ * removed in teardown. Every figure printed is a count or a boolean; no class
+ * name leaves the page.
  */
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
@@ -29,6 +37,10 @@ import { walkDone, blocked } from "./_walk.mjs";
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
+/** Between the world's import layer and the Judge's override: nothing else registers here. */
+const WALK_LAYER = 25;
+/** Marks the layers this walk registered, so teardown lifts only its own. */
+const WALK_SOURCE = "walk:henchmen-blocked-classes";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -301,16 +313,120 @@ const P = {
     return out;
   },
   x0: async () => globalThis.__bc.x0,
+  /**
+   * The class a commissioned search is posted for: the first offerable class
+   * with a rarity tier other than the blocked one.
+   */
+  searchClass: async () => {
+    const H = globalThis.__bc;
+    const c = H.AV.offerableClasses().find((k) => k !== H.x0 && H.AV.classRarity(k, "default"));
+    return { found: !!c, cls: c ?? null };
+  },
+  /**
+   * The walk's layer lacking the commission step: the search modifiers table
+   * registered empty, so no step is imported on this seat. Booleans only.
+   */
+  stepsLayer: async ({ on, priority, source }) => {
+    const T = acksExtras.lib.tables;
+    if (!on) return { removed: T.unregisterTable("rarity", { priority }) };
+    if (T.getLayer("rarity", priority)) return { placed: false, reason: "the priority is in use" };
+    T.registerTable({ id: "rarity", tables: { specificQualificationMods: {} } }, { priority, source });
+    return { placed: true, noStep: globalThis.__bc.AV.searchSteps().eased === null };
+  },
+  /**
+   * A commissioned search for the class, filled and submitted in this seat's
+   * dialog. On the Player seat it goes to the GM over the relay, and the GM's
+   * answer comes back as this seat's notice.
+   */
+  submitCommissioned: async ({ placeId, employerId, cls }) => {
+    const H = globalThis.__bc;
+    const place = game.actors.get(placeId);
+    const before = new Set(foundry.applications.instances.keys());
+    const postings = (place.system.market.postings ?? []).length;
+    H.notes.length = 0;
+    H.PD.openPostingDialog(place);
+    const app = await H.poll(() => [...foundry.applications.instances.values()].find((a) => !before.has(a.id) && a.rendered && H.root(a)?.querySelector("[name='commissioned']")), { tries: 40 });
+    if (!app) return { opened: false };
+    const form = H.root(app);
+    const set = (name, value) => {
+      const el = form.querySelector(`[name='${name}']`);
+      if (!el) return false;
+      if (el.type === "checkbox") el.checked = !!value;
+      else el.value = value;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return el.type === "checkbox" ? el.checked === !!value : el.value === String(value);
+    };
+    const filled = set("employerId", employerId) && set("kind", "henchmanByClass") && set("classKey", cls) && set("commissioned", true);
+    await H.sleep(200);
+    form.requestSubmit();
+    await H.poll(() => H.notes.some((n) => n.kind === "error" || n.kind === "info"), { tries: 60 });
+    await H.sleep(500);
+    if (app.rendered) await app.close({ animate: false });
+    const missing = game.i18n.localize("ACKS-HENCHMEN.posting.error.tables-missing");
+    return {
+      opened: true, filled,
+      refusedMissing: H.notes.some((n) => n.kind === "error" && n.text === missing),
+      submittedSaid: H.notes.some((n) => n.kind === "info" && n.text === game.i18n.localize("ACKS-HENCHMEN.posting.submitted")),
+      rawKeyShown: H.notes.some((n) => /ACKS-HENCHMEN\./.test(n.text)),
+      postingsUnchanged: (place.system.market.postings ?? []).length === postings,
+    };
+  },
+  /**
+   * The Demographics block's Add, pressed under a layer of two invented
+   * cultures: the select's options and the row stored. Booleans and counts only.
+   */
+  demographics: async ({ placeId, priority, source }) => {
+    const H = globalThis.__bc;
+    const T = acksExtras.lib.tables;
+    if (T.getLayer("people", priority)) return { placed: false, reason: "the priority is in use" };
+    const list = { walk1: { label: "Walk Culture 1" }, walk2: { label: "Walk Culture 2" } };
+    T.registerTable({ id: "people", tables: { cultures: { list } } }, { priority, source });
+    const ids = Object.keys(list);
+    const place = game.actors.get(placeId);
+    try {
+      const read = T.getTable("people", "cultures").list;
+      if (JSON.stringify(Object.keys(read)) !== JSON.stringify(ids)) return { placed: true, shadowed: true };
+      await place.update({ "system.market.demographics": [] });
+      const app = place.sheet;
+      await app.render(true);
+      await H.poll(() => app.rendered && H.root(app)?.querySelector("[data-tab='gmSettings']"));
+      app.changeTab("gmSettings", "primary");
+      await H.sleep(300);
+      const add = H.root(app).querySelector("button[data-action='addDemographic'], a[data-action='addDemographic']");
+      const before = (place.system.market?.demographics ?? []).length;
+      add?.click();
+      await H.poll(() => (place.system.market?.demographics ?? []).length === before + 1 && H.root(app)?.querySelector("[data-demographic-index] select"));
+      await H.sleep(300);
+      const select = H.root(app).querySelector("[data-demographic-index] select");
+      const options = [...(select?.options ?? [])];
+      const stored = (place.system.market?.demographics ?? [])[0];
+      const out = {
+        placed: true, shadowed: false,
+        add: !!add,
+        rows: (place.system.market?.demographics ?? []).length,
+        optionsAreTheLayer: options.length === ids.length && options.every((o, i) => o.value === ids[i] && o.textContent.trim() === list[ids[i]].label),
+        storedFirst: stored?.culture === ids[0],
+        shownFirst: select?.value === ids[0],
+      };
+      await app.close({ animate: false });
+      return out;
+    } finally {
+      T.unregisterTable("people", { priority });
+      await place.update({ "system.market.demographics": [] });
+    }
+  },
   closeSheet: async ({ placeId }) => {
     const app = game.actors.get(placeId)?.sheet;
     if (app?.rendered) await app.close({ animate: false });
     return true;
   },
-  restore: async () => {
+  restore: async ({ priority, source }) => {
     const H = globalThis.__bc;
     if (!H) return { notes: "never installed" };
+    const T = acksExtras.lib.tables;
+    const lifted = ["rarity", "people"].filter((id) => T.getLayer(id, priority)?._registeredBy === source && T.unregisterTable(id, { priority })).length;
     if (H.notesPatched) { for (const k of Object.keys(H.orig)) ui.notifications[k] = H.orig[k]; H.notesPatched = false; }
-    return { notes: "restored" };
+    return { notes: "restored", layersLifted: lifted };
   },
 };
 
@@ -445,6 +561,21 @@ try {
   note("posting dialog", { gm: gmList, player: playerList });
   check("17: the GM's posting dialog lists the class disabled, saying it is never offered here", gmList.opened && gmList.listed && gmList.disabled && gmList.says, gmList);
   check("17: the Player seat's posting dialog lists it the same way", playerList.opened && playerList.listed && playerList.disabled && playerList.says, playerList);
+
+  section("17: a Player's commissioned search refused over the relay (walk-only layer, no commission step on the GM seat)");
+  const searchClass = await run(gm, P.searchClass);
+  check("17: an offerable class other than the blocked one has a rarity tier to search for", searchClass.found, searchClass);
+  if (!searchClass.found) throw new Error("no second offerable class with a rarity tier");
+  const layered = await run(gm, P.stepsLayer, { on: true, priority: WALK_LAYER, source: WALK_SOURCE });
+  check("17: the walk's layer stands and the GM seat reads no commission step", layered.placed && layered.noStep, layered);
+  const missingStep = await run(player, P.submitCommissioned, { placeId: place.id, employerId: employer.id, cls: searchClass.cls });
+  check("17: the Player's commissioned search comes back refused with the tables-missing message, no raw key, no posting", missingStep.opened && missingStep.filled && missingStep.refusedMissing && !missingStep.submittedSaid && !missingStep.rawKeyShown && missingStep.postingsUnchanged, missingStep);
+  note("layer removed", await run(gm, P.stepsLayer, { on: false, priority: WALK_LAYER }));
+
+  section("17: the Demographics block lists the cultures a table holds (walk-only layer of invented cultures)");
+  const demo = await run(gm, P.demographics, { placeId: place.id, priority: WALK_LAYER, source: WALK_SOURCE });
+  note("demographics", demo);
+  check("17: Add makes one row whose select lists the table's cultures by label in its order, and the row starts on the first", demo.placed && !demo.shadowed && demo.add && demo.rows === 1 && demo.optionsAreTheLayer && demo.storedFirst && demo.shownFirst, demo);
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
@@ -452,7 +583,7 @@ try {
 } finally {
   section("teardown");
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
-    try { if (seat) note(`restored (${label})`, await run(seat, P.restore)); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
+    try { if (seat) note(`restored (${label})`, await run(seat, P.restore, { priority: WALK_LAYER, source: WALK_SOURCE })); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }
   console.log("fixtures kept: henchmen/blocked-classes-place, henchmen/blocked-classes-employer");
   try { if (gm && own.length) note("sweep", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
