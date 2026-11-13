@@ -201,7 +201,7 @@ export const BOTCH_BANDS = Object.freeze({ hasty: 3, methodical: 1 });
  * in file 0 spring every trap in the dungeon. The shuffle is per rank, so ranks
  * still meet the trap front to back.
  *
- * @param {object[]} order rows from `marchingOrder()`
+ * @param {object[]} order rows in `marchingOrder()`'s shape
  * @param {object} [opts]
  * @param {boolean} [opts.pole] may poles probe at all? False at combat speed,
  *   which loses the 10' pole along with mapping and the hasty search.
@@ -247,6 +247,12 @@ export function probeSequence(order, { pole = true, random = Math.random } = {})
     .flatMap(([, group]) => group);
 }
 
+/** The depth of one rank in feet: `rankFeet` where it is a length, else `FEET_PER_RANK`. */
+export function rankDepth(rankFeet) {
+  const feet = Number(rankFeet);
+  return rankFeet != null && Number.isFinite(feet) && feet > 0 ? feet : FEET_PER_RANK;
+}
+
 /**
  * Who the trap catches, given which probe set it off.
  *
@@ -266,9 +272,12 @@ export function probeSequence(order, { pole = true, random = Math.random } = {})
  * @param {object} [opts]
  * @param {string} [opts.scope] one of `SCOPES`
  * @param {number} [opts.radiusFeet] how far an area effect reaches
+ * @param {number} [opts.rankFeet] how deep one rank stands, in feet: the
+ *   imported rank interval where the column is laid by it. A figure that is no
+ *   length reads as `FEET_PER_RANK`.
  * @returns {object[]} the probes' bodies that are caught, front to back
  */
-export function victimsOf(probes, index, { scope = SCOPES.triggerer, radiusFeet = 0 } = {}) {
+export function victimsOf(probes, index, { scope = SCOPES.triggerer, radiusFeet = 0, rankFeet = FEET_PER_RANK } = {}) {
   const sprung = probes?.[index];
   if (!sprung) return [];
   const bodies = (probes ?? []).filter((p) => p.kind === "body");
@@ -279,7 +288,7 @@ export function victimsOf(probes, index, { scope = SCOPES.triggerer, radiusFeet 
     return bodies.filter((p) => p.actorId === sprung.actorId && p.rank === sprung.rank);
   }
 
-  const ranksReached = Math.floor(Math.max(0, radiusFeet) / FEET_PER_RANK);
+  const ranksReached = Math.floor(Math.max(0, radiusFeet) / rankDepth(rankFeet));
   return bodies.filter((p) => Math.abs(p.rank - sprung.reach) <= ranksReached);
 }
 

@@ -882,6 +882,20 @@ The **sequence** is the sequence of play's, not §7's own order:
 2. **The pole probes**, one rank ahead of its bearer, with its own secret 1d6.
 3. **The party walks in**, rank by rank, each with its own secret 1d6.
 
+**Ranks are the column's as it stands on the map.** `runTrapCheck` and
+`sweepForTraps` read the sequence from `laidOrder` (`formation-model.mjs`), not
+from `marchingOrder`: each member's rank and file are the seat of its first body
+in `columnFor`, so a blank square and every body of a stack take their ground,
+and a file a wall squeezes out stands a rank back, which puts it a rank later in
+the sequence and farther from an area effect. With no party token on the map, or
+on a scene that lays no column, `laidOrder` answers `marchingOrder`
+unchanged. `marchingOrder` is the published contract and is not read for this.
+A rank's depth in feet is the imported `rankIntervalFeet` where the scene is
+spaced (`columnFor`'s `rankFeet`), and `FEET_PER_RANK` where it is not: it sets
+how many ranks a searcher's reach is cut by (`searcherReachFeet`) and how many
+ranks either side an area effect takes (`victimsOf`'s `rankFeet`). The reach
+itself and an area's radius are not rank figures and are read as before.
+
 The first throw inside the trigger band ends the sequence. At combat speed the
 party loses both the pole and the hasty search, which is exactly what RR p. 263
 says it loses. A pole-sprung trap catches nobody within its own square — that is

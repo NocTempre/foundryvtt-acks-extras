@@ -30,6 +30,13 @@
  *       gather re-forming the party on a cell corner. Steps 1 to 16 are walked
  *       with the figures read as not imported on both seats (a client-side
  *       unregister), which is the one-per-cell column they describe.
+ *   "The column and its lights" 20, an area trap reading the column as it is
+ *       laid: a march figure too wide for three abreast between the corridor's
+ *       walls squeezes the third body a rank back where the head ends the move,
+ *       a Player seat drags the party token into an armed trap zone, and the
+ *       trap's card names the bodies within its radius by laid depth, at two
+ *       radii that tell the laid ranks and the rank interval apart from the
+ *       readings they replace.
  *   "The delve's wandering cadence" 1-5.
  *   "The rest switch" 1-4.
  *   The column's frontage figures: the three `formation` keys the Rules tables
@@ -45,7 +52,9 @@
  * with no party whose token stands in for an unmanaged light; the parties
  * `formation/cadence-party` and `formation/rest-party` with their members
  * `formation/cadence-member` (who carries no fuel, for the supply check) and
- * `formation/rest-member`.
+ * `formation/rest-member`; step 20's trap `formation/column-trap-item` and its
+ * zone `formation/column-trap` on the corridor scene, which the walk re-shapes
+ * at each use and switches off at its end.
  * Each section brings what it reads to shape at its start.
  * Writes outside the ledger, each restored in a finally: the world settings
  * `partyTokenShape`, `encounterEvery`, `encounterTarget`, `restRequired` and
@@ -480,6 +489,49 @@ const P = {
     await acksExtras.lib.services.get("ruledata-import").reload();
     await H.sleep(600);
     return { back: H.t.hasDoc("formation"), spaced: !!H.column.columnSpacing(canvas.scene) };
+  },
+
+  /** The order a trap reads (`laidOrder`) and the marching order beside it, as rank and file per member, with the depth a rank has where nothing sets one. */
+  laidRows: async ({ fid }) => {
+    const H = globalThis.__col;
+    const f = H.model.getFormation(fid);
+    const laid = await H.model.laidOrder(f);
+    const rows = (order) => order.map((r) => ({ id: r.actorId, rank: r.rank, file: r.file }));
+    const rules = await import("/modules/acks-extras/scripts/formation/trap-rules.mjs");
+    return { laid: rows(laid.order), rankFeet: laid.rankFeet, marching: rows(H.model.marchingOrder(f)), defaultDepth: rules.FEET_PER_RANK };
+  },
+
+  /** The walk's trap zone: the one trap item made an area trap that always springs, with a level-1 radius of `radius` feet, and the zone armed (`on`) or switched off. */
+  trapArm: async ({ sceneId, regionId, itemId, radius, on }) => {
+    const region = game.scenes.get(sceneId).regions.get(regionId);
+    const behavior = region.behaviors.find((b) => b.type === "acks-extras.trapZone");
+    if (!on) {
+      await behavior.update({ disabled: true });
+      return { disabled: behavior.disabled };
+    }
+    const item = game.items.get(itemId);
+    const base = item.system.toObject().levels[0];
+    await item.update({ "system.level": 1, "system.triggerOn": 6, "system.scope": "area", "system.crude": false, "system.levels": Array.from({ length: 6 }, () => ({ ...base, resolution: "none", radiusFeet: radius })) });
+    await behavior.update({ disabled: false, "system.trapUuid": item.uuid, "system.state": "armed", "system.known": false, "system.repeatLock": {}, "system.searchLock": {} });
+    return { state: behavior.system.state, disabled: behavior.disabled, radius: item.system.tier.radiusFeet, scope: item.system.scope, triggerOn: item.system.triggerOn };
+  },
+
+  /** The trap zone's one shape made `shape`, so a kept zone fixture stands where the step needs it; the shape read back. */
+  trapShape: async ({ sceneId, regionId, shape }) => {
+    const region = game.scenes.get(sceneId).regions.get(regionId);
+    await region.update({ shapes: [shape] });
+    const read = region.shapes[0];
+    return { x: read.x, y: read.y, width: read.width, height: read.height, count: region.shapes.length };
+  },
+
+  /** The names in the Caught section of a trap's card (null where the card has none). */
+  trapCard: async ({ id }) => {
+    const box = document.createElement("div");
+    box.innerHTML = game.messages.get(id)?.content ?? "";
+    const title = game.i18n.localize("ACKS-FORMATION.traps.victimSection");
+    const head = [...box.querySelectorAll("h4")].find((n) => n.textContent.trim() === title);
+    if (!head?.nextElementSibling) return { rows: null };
+    return { rows: [...head.nextElementSibling.querySelectorAll("tbody tr")].map((tr) => { const td = tr.querySelector("td"); td.querySelectorAll(".acks-extras-roll-detail").forEach((n) => n.remove()); return td.textContent.trim(); }) };
   },
 
   /** `columnFor` and the deploy's spots as they stand, for the spaced section; `weapon` puts a large slashing weapon on the first member for the wide read. */
@@ -1126,14 +1178,23 @@ try {
   for (const [k, c] of Object.entries(census)) {
     check(`${k} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot?.errors);
   }
+  // A run that died before its put-back leaves this walk's own invented figures in the store; they are cleared before any read of the figures, so "as found" is the Judge's.
+  const FRONTAGE_OVERRIDE = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
+  for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) {
+    const left = (await run(gm, P.overrideGet, { docId: "formation", tableId })).data;
+    if ([2, 4, 1.5, 2.8, 3.5].includes(left)) {
+      await run(gm, P.overrideSet, { docId: "formation", tableId, data: null });
+      note(`a leftover invented override of ${tableId} cleared`, true);
+    }
+  }
   let tables = await run(gm, P.tables);
   const tablesAtLoad = tables;
   note("tables (booleans)", tables);
   // The figures this walk compares come from the Judge's import. Where the world
   // holds none, the walk runs Rules tables for the three documents from the
   // staged books, as a Judge would; the import stays, like any corpus fixture.
-  // A `formation` document imported before the frontage passage was read lacks
-  // its three keys; it is imported again, as a Judge reruns Rules tables.
+  // A `formation` document that lacks the three frontage keys is imported
+  // again, as a Judge reruns Rules tables.
   const frontageThere = Object.values(tables.frontage).every(Boolean);
   const wanted = [["light", tables.light], ["delveEncounters", tables.delve], ["formation", tables.formation && frontageThere]].filter(([, has]) => !has).map(([id]) => id);
   if (wanted.length) {
@@ -1159,15 +1220,6 @@ try {
   note("frontage keys (booleans)", { present: tables.frontage, cited: tables.frontageCite });
   check("S1: the Rules tables import brought the march frontage, the wide frontage and the rank interval", Object.values(tables.frontage).every(Boolean), tables.frontage);
   check("S1: each of the three is cited to its page", Object.values(tables.frontageCite).every(Boolean), tables.frontageCite);
-  const FRONTAGE_OVERRIDE = { marchFrontageFeet: 2, wideFrontageFeet: 4, rankIntervalFeet: 1.5 };
-  // A run that died before its put-back leaves this walk's own invented figures in the store; they are cleared, so "as found" is the Judge's.
-  for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) {
-    const left = (await run(gm, P.overrideGet, { docId: "formation", tableId })).data;
-    if ([2, 4, 1.5, 2.8].includes(left)) {
-      await run(gm, P.overrideSet, { docId: "formation", tableId, data: null });
-      note(`a leftover invented override of ${tableId} cleared`, true);
-    }
-  }
   for (const tableId of Object.keys(FRONTAGE_OVERRIDE)) restore.overrides.push({ docId: "formation", tableId, data: (await run(gm, P.overrideGet, { docId: "formation", tableId })).data });
   for (const [tableId, data] of Object.entries(FRONTAGE_OVERRIDE)) await run(gm, P.overrideSet, { docId: "formation", tableId, data });
   check("S1: a Ruledata Browser override of the three keys is what the reader returns", (await run(gm, P.frontageIs, { want: FRONTAGE_OVERRIDE })).same);
@@ -1666,6 +1718,94 @@ try {
   const g18b = await run(gm, P.deployed, { fid, sceneId: scene.id, combatId: dep18.combatId });
   const ts18 = await run(gm, P.tokenState, { tokenId, sceneId: scene.id });
   check("19: ending the fight gathers the party, and the party token re-forms on a cell corner", end18.gone && !g18b.partyHidden && g18b.members.every((m) => !m.token) && ts18.x % GS === 0 && ts18.y % GS === 0, { gone: end18.gone, x: ts18.x, y: ts18.y });
+
+  // Step 20: an area trap reads the column as it is laid. The march figure is made wide enough that three abreast do not all fit between the
+  // corridor's walls where the head ends the move, so the third body stands a rank back, and a rank is the imported interval deep.
+  // A real Player seat drags the party token one cell into the zone; the trap's card names who it caught.
+  const SQUEEZED = { ...SPACED, marchFrontageFeet: 3.5 };
+  await setFigures(SQUEEZED);
+  const sp20 = await run(gm, P.spacingOf);
+  const into = { x: START.x + GS, y: START.y };
+  // Where the head ends the move, the distance to the corridor's wall on each hand (facing east: south the right, north the left), read off WALLS.
+  const ahead = centre(into);
+  const acrossAhead = WALLS.filter(([x1, y1, x2, y2]) => y1 === y2 && Math.min(x1, x2) <= ahead.x && ahead.x <= Math.max(x1, x2));
+  const toSouth = Math.min(...acrossAhead.filter(([, y]) => y > ahead.y).map(([, y]) => y - ahead.y));
+  const toNorth = Math.min(...acrossAhead.filter(([, y]) => y < ahead.y).map(([, y]) => ahead.y - y));
+  // A file stands a march frontage past the one before it and is open while its far edge stays short of the wall.
+  const filesFit = (room, march) => Math.max(0, Math.floor((room - march / 2) / march));
+  const FRONTAGE20 = 3;
+  const abreast20 = Math.min(FRONTAGE20, 1 + filesFit(toSouth, sp20.px.march) + filesFit(toNorth, sp20.px.march));
+  const TRAP_NAME = "QA Column Trap";
+  const trapItem = await gm.fixture("formation/column-trap-item", "Item", { name: TRAP_NAME, type: `${SCOPE}.trap` });
+  const trapZone = await gm.fixture("formation/column-trap", "Region", {
+    name: "QA Column Trap Zone", color: "#aa3333",
+    shapes: [{ type: "rectangle", x: into.x, y: GS, width: GS, height: 2 * GS, rotation: 0, hole: false }],
+    behaviors: [{ type: `${SCOPE}.trapZone`, name: TRAP_NAME, system: { trapUuid: trapItem.uuid, state: "armed" } }],
+  }, { parent: scene.uuid });
+  // A kept zone fixture carries whatever shape its last use left; it is set to the cell the head ends on.
+  const zoneShape = await run(gm, P.trapShape, { sceneId: scene.id, regionId: trapZone.id, shape: { type: "rectangle", x: into.x, y: GS, width: GS, height: 2 * GS, rotation: 0, hole: false } });
+  check("20: the trap zone is the one cell the head ends the move on and the cell beside it across the corridor", zoneShape.count === 1 && zoneShape.x === into.x && zoneShape.y === GS && zoneShape.width === GS && zoneShape.height === 2 * GS, zoneShape);
+  const names20 = new Map([[lead.id, "QA Column Lead"], [torch.id, "QA Column Torch"], [lantern.id, "QA Column Lantern"]]);
+  const caught20 = async (radius) => {
+    // From the head at the corridor's west end, the zone ahead of it armed with this radius, frontage 3.
+    await run(gm, P.columnStart, { fid, torchId: torch.id, lanternId: lantern.id, at: START });
+    await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "order" });
+    await run(gm, P.walled, { fid, tokenId, frontage: FRONTAGE20, box: { x0: 0, y0: 0, x1: -1, y1: -1 } });
+    const armed = await run(gm, P.trapArm, { sceneId: scene.id, regionId: trapZone.id, itemId: trapItem.id, radius, on: true });
+    const since = await run(gm, P.nowMs);
+    restore.paused = await gm.eval(`game.paused`);
+    if (restore.paused) await gm.eval(`(async () => { game.togglePause(false, { broadcast: true }); await new Promise((r) => setTimeout(r, 1000)); return game.paused; })()`);
+    const input20 = await rawInput(PORTS.player);
+    try {
+      await player.compose();
+      await run(player, P.sidebarBack);
+      const aim20 = await run(player, P.aim, { tokenId, points: [centre(START), centre(into)] });
+      if (!aim20.owner) throw new Error("the Player seat does not own the party token");
+      await input20.click(aim20.points[0]);
+      await sleep(2500);
+      await input20.drag(aim20.points[0], aim20.points[1]);
+      await sleep(4500);
+    } catch (err) {
+      note("20: the drag did not run", String(err?.message ?? err));
+    } finally {
+      input20.close();
+      if (restore.paused) { await gm.eval(`(async () => { game.togglePause(true, { broadcast: true }); await new Promise((r) => setTimeout(r, 800)); return game.paused; })()`); restore.paused = false; }
+    }
+    let card = null;
+    for (let n = 0; n < 20 && !card; n++) {
+      for (const c of await run(gm, P.cards, { since, names: [TRAP_NAME] })) {
+        const read = await run(gm, P.trapCard, { id: c.id });
+        if (read.rows) card = { id: c.id, rows: read.rows };
+      }
+      if (!card) await sleep(500);
+    }
+    for (const c of await run(gm, P.cards, { since, names: [TRAP_NAME, "QA Column Party"] })) tracked.push(gm.track(c.id, "ChatMessage"));
+    const stood = await run(gm, P.tokenState, { tokenId, sceneId: scene.id });
+    // The column as the trap read it: laid with the head where the move ended.
+    const laid = await run(gm, P.laidRows, { fid });
+    await run(gm, P.trapArm, { sceneId: scene.id, regionId: trapZone.id, itemId: trapItem.id, radius, on: false });
+    const caught = card ? order20.filter((id) => card.rows.some((r) => r === names20.get(id))) : null;
+    return { laid, armed, caught, stood: { x: stood.x, y: stood.y } };
+  };
+  const order20 = [lead.id, torch.id, lantern.id];
+  const reach20 = (rows, depth, radius) => {
+    const sprung = Math.min(...rows.map((r) => r.rank));
+    return order20.filter((id) => Math.abs(rows.find((r) => r.id === id).rank - sprung) <= Math.floor(radius / depth));
+  };
+  const sameIds = (a, b) => Array.isArray(a) && a.length === b.length && a.every((id, i) => id === b[i]);
+  for (const [radius, against] of [[1, "marching"], [2, "depth"]]) {
+    const r20 = await caught20(radius);
+    const rows = r20.laid;
+    check(`20: radius ${radius}: the walls leave room for fewer than three abreast where the head ends the move`, abreast20 >= 1 && abreast20 < FRONTAGE20, { abreast: abreast20, toSouth, toNorth, march: sp20.px.march });
+    check(`20: radius ${radius}: three abreast, the column stands as many to a rank as the walls leave room for, at the rank interval, and the marching order stands them in one rank`, order20.map((id) => rows.laid.find((r) => r.id === id)?.rank).join() === order20.map((_, i) => Math.floor(i / abreast20)).join() && rows.rankFeet === SQUEEZED.rankIntervalFeet && rows.marching.every((r) => r.rank === 0), rows);
+    check(`20: radius ${radius}: the zone is armed as an area trap that springs on any throw`, r20.armed.state === "armed" && !r20.armed.disabled && r20.armed.scope === "area" && r20.armed.triggerOn === 6 && r20.armed.radius === radius, r20.armed);
+    check(`20: radius ${radius}: a Player's drag brought the party token into the zone`, r20.stood.x === into.x && r20.stood.y === into.y, r20.stood);
+    const want = reach20(rows.laid, rows.rankFeet, radius);
+    // The step tells the laid reading from the two it replaces: the marching order's ranks (one rank of three), and the laid ranks at the default square's depth.
+    const old = against === "marching" ? reach20(rows.marching, rows.rankFeet, radius) : reach20(rows.laid, rows.defaultDepth, radius);
+    check(`20: radius ${radius}: the reading this step tells apart gives another set of victims than the laid column does`, !sameIds(old, want), { want: want.length, old: old.length });
+    check(`20: radius ${radius}: the card names the bodies within the radius by laid depth`, sameIds(r20.caught, want), { caught: r20.caught && r20.caught.map((id) => names20.get(id)), want: want.map((id) => names20.get(id)) });
+  }
   await run(gm, P.walled, { fid, tokenId, frontage: 1, box: { x0: 0, y0: 0, x1: -1, y1: -1 } });
   await run(gm, P.orderField, { partyId: party.id, name: "tokenShape", value: "" });
   for (const _ of Object.keys(SPACED)) await run(gm, P.overrideSet, restore.overrides.pop());
@@ -1841,7 +1981,7 @@ try {
     }
     // Every card this client posted under the run's nonce that speaks as or names one of the run's parties: the turn cards its moves billed included.
     try {
-      const own = await run(gm, P.cards, { since: 0, names: ["QA Column Party", "QA Cadence Party", "QA Rest Party"] });
+      const own = await run(gm, P.cards, { since: 0, names: ["QA Column Party", "QA Cadence Party", "QA Rest Party", "QA Column Trap"] });
       for (const c of own) tracked.push(gm.track(c.id, "ChatMessage"));
     } catch (err) { console.error("cards:", err?.message ?? err); }
     try { if (tracked.length) note("swept", await gm.sweepTracked({ only: tracked.filter((u, i, a) => a.indexOf(u) === i) })); } catch (err) { console.error("sweep:", err?.message ?? err); }

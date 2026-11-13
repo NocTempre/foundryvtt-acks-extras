@@ -1472,13 +1472,34 @@ export function partyDepth(formation, count = formationBodies(formation)) {
 }
 
 /**
- * The frontage actually marched. Today it IS the declared frontage; the
- * squeeze mechanic (docs/formation/ROADMAP.md) will narrow it in confined
- * passages. Every face-width consumer reads this, so the squeeze lands by
- * changing one body.
+ * The marching order as the column lays it on the party token's scene: the
+ * rows `marchingOrder` gives, with each member's rank and file taken from the
+ * seat of the member's first body (`columnFor`), so a blank square and every
+ * body of a stack take their ground and a file a wall squeezes out stands a
+ * rank back. Internal: the trap sequence reads it, and `marchingOrder`, the
+ * published contract, stays as it is.
+ *
+ * Where no column is laid (no party token on its scene, or a scene that lays
+ * none) the answer is `marchingOrder`. `rankFeet` is the imported rank
+ * interval, or null where the scene is not spaced.
+ * @param {object} formation
+ * @returns {Promise<{order: object[], rankFeet: number|null}>}
  */
-export function effectiveFrontage(formation) {
-  return getFrontage(formation);
+export async function laidOrder(formation) {
+  const token = getPartyToken(formation);
+  // column.mjs imports this file; loaded here, after both have evaluated.
+  const laid = token ? (await import("./column.mjs")).columnFor(formation, token) : null;
+  if (!laid?.column) return { order: marchingOrder(formation), rankFeet: null };
+  const order = [];
+  let body = 0;
+  for (const member of formation.members ?? []) {
+    if (member && !member.blank && member.actorId) {
+      const seat = laid.seats[body] ?? { rank: 0, file: 0 };
+      order.push({ actorId: member.actorId, name: getMemberActor(member)?.name ?? null, roles: [...(member.roles ?? [])], rank: seat.rank, file: seat.file });
+    }
+    body += cellBodies(member);
+  }
+  return { order, rankFeet: laid.rankFeet };
 }
 
 /**

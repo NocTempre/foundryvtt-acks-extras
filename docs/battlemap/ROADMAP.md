@@ -1,8 +1,9 @@
 # Battlemap — roadmap
 
-1. **Formation auto-squeeze.** The face-width seam (`effectiveFrontage()`)
-   ships; the wall-probing squeeze that narrows it in tight passages is
-   formation work — staged in `docs/formation/ROADMAP.md` §3.
+1. **Formation auto-squeeze.** Built in the formation column: a file a wall
+   shuts out goes to the other hand or the next rank (`docs/formation/MODEL.md`,
+   "The column"), and the trap sequence reads the squeezed ranks. What remains
+   of it is staged in `docs/formation/ROADMAP.md` §3.
 2. **Hex token behaviour.** Hex OUTPUT ships (DECISIONS 2026-08-30): the family
    is chosen, one drawn hex is pitched to one Foundry hex, and the shift lands
    the drawn hex on a real one. What is not built is the token half of the

@@ -5589,3 +5589,38 @@ then nothing changes. Spaced tokens stand between cells until a user moves one,
 and a drag snaps it to the grid. The `columnLights` and `columnPlacement`
 shapes change (points and `{point, cell}`), both internal. `effectiveFrontage`
 and the trap readers of rank depth are left to the trap-ranks slice.
+
+## 2026-11-13 — Trap ranks read the laid column
+
+**New evidence.** The column is laid by the book's frontage and interval
+(the entry above), so the rank a body stands in is not its member's index
+over the frontage: a blank square and every body of a stack take ground, a file
+a wall squeezes out stands a rank back, and a rank is the imported interval
+deep. The owner's rulings: 2026-11-05 "follow RAW not the grid"; for this phase,
+"Fixes in, new features out."
+
+**Ruled.**
+- `runTrapCheck` and `sweepForTraps` read `laidOrder` (`formation-model.mjs`):
+  the marching order's rows with rank and file taken from the seat of each
+  member's first body in `columnFor`. It answers `marchingOrder` where no column
+  is laid (no party token on the map, a hex, a gridless or mile-scale scene).
+  `marchingOrder` stays the published contract and no trap reads it.
+- A rank's depth is `rankFeet`: the imported `rankIntervalFeet` where the scene
+  is spaced, else `FEET_PER_RANK`, so a world with nothing imported reads the
+  depth it always did. `victimsOf` takes it as an option and `searcherReachFeet`
+  as an argument; a figure that is no length reads as the default. The probe
+  sequence is unchanged.
+- `effectiveFrontage`, the seam the squeeze was to arrive through, is deleted. It
+  had no caller; the squeeze is the column's own wall test, which reaches the
+  trap through `laidOrder`.
+
+**Rejected.** A second walk of the column inside the trap code: `columnFor` is
+the one place that knows which file a wall refused. Measuring a victim by the
+distance between laid points: an area's radius is read in ranks as it always
+was, and only the depth of a rank changes.
+
+**Cost.** A column with blanks or stacks now meets a trap in a different rank
+order than the per-member count gave, which is the fix. The search, pole and
+trap-breaking reaches and the other readers of `FEET_PER_RANK` stay constants
+for the trap-ranks slice (T-0419). A trap check reads the party token's stored
+position and trail.

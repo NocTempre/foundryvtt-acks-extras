@@ -309,8 +309,17 @@ function rankSlots(cell, heading, frontage, gs, open) {
  * @param {number} [opts.count] bodies to place; the whole formation by default
  * @returns {{x: number, y: number}[]}
  */
-export function columnCells(formation, { anchor, trail = null, heading = "south", gs, bounds = null, blocked = null, count } = {}) {
-  if (!(gs > 0) || !anchor) return [];
+export function columnCells(formation, opts = {}) {
+  return layCells(formation, opts).cells;
+}
+
+/**
+ * `columnCells` with each body's seat: the rank it stands in and its file
+ * within that rank, in laying order.
+ * @returns {{cells: {x: number, y: number}[], seats: {rank: number, file: number}[]}}
+ */
+function layCells(formation, { anchor, trail = null, heading = "south", gs, bounds = null, blocked = null, count } = {}) {
+  if (!(gs > 0) || !anchor) return { cells: [], seats: [] };
   const facing = HEADINGS[heading] ? heading : snapHeading(heading);
   const bodies = count ?? formationBodies(formation);
   const frontage = getFrontage(formation);
@@ -321,14 +330,17 @@ export function columnCells(formation, { anchor, trail = null, heading = "south"
   // rank per body; the spine is laid that deep and read as far as it is used.
   const ranksAt = spine(walked, Math.max(1, bodies), facing, gs, open);
   const out = [];
+  const seats = [];
   for (let r = 0; out.length < bodies; r++) {
     const { cell, heading: local } = ranksAt[Math.min(r, ranksAt.length - 1)];
+    let file = 0;
     for (const slot of rankSlots(cell, local, frontage, gs, open)) {
       if (out.length >= bodies) break;
       out.push(slot);
+      seats.push({ rank: r, file: file++ });
     }
   }
-  return out;
+  return { cells: out, seats };
 }
 
 /**
@@ -417,8 +429,17 @@ function lineAlong(spineCellsList, gs, fallback) {
  * @param {number} [opts.count] bodies to place; the whole formation by default
  * @returns {{x: number, y: number}[]}
  */
-export function columnPoints(formation, { anchor, trail = null, heading = "south", gs, bounds = null, blocked = null, walls = [], spacing, wide = [], count } = {}) {
-  if (!(gs > 0) || !anchor || !spacing) return [];
+export function columnPoints(formation, opts = {}) {
+  return layPoints(formation, opts).points;
+}
+
+/**
+ * `columnPoints` with each body's seat: the rank it stands in and its file
+ * within that rank, in laying order.
+ * @returns {{points: {x: number, y: number}[], seats: {rank: number, file: number}[]}}
+ */
+function layPoints(formation, { anchor, trail = null, heading = "south", gs, bounds = null, blocked = null, walls = [], spacing, wide = [], count } = {}) {
+  if (!(gs > 0) || !anchor || !spacing) return { points: [], seats: [] };
   const facing = HEADINGS[heading] ? heading : snapHeading(heading);
   const bodies = count ?? formationBodies(formation);
   const frontage = getFrontage(formation);
@@ -429,10 +450,12 @@ export function columnPoints(formation, { anchor, trail = null, heading = "south
   const line = lineAlong(spine(walked, spineCells(bodies, spacing, gs), facing, gs, open), gs, facing);
   const half = (body) => (wide[body] ? spacing.widePx : spacing.marchPx) / 2;
   const out = [];
+  const seats = [];
   for (let rank = 0; out.length < bodies; rank++) {
     const { point, heading: local } = line(rank * spacing.intervalPx);
     const right = HEADINGS[local].right;
     out.push(point);
+    seats.push({ rank, file: 0 });
     let inRank = 1;
     for (const side of [1, -1]) {
       let from = point;
@@ -444,12 +467,13 @@ export function columnPoints(formation, { anchor, trail = null, heading = "south
         if (!onScene(far) || stepCrosses(walls, from, far)) break;
         from = { x: point.x + side * right.x * along, y: point.y + side * right.y * along };
         out.push(from);
+        seats.push({ rank, file: inRank });
         inRank += 1;
         edge = along + h;
       }
     }
   }
-  return out;
+  return { points: out, seats };
 }
 
 /* -------------------------------------------- */
@@ -570,10 +594,13 @@ export function liveTrail(stored, { path = null, head, sceneId, gs, bound }) {
  *   drawing the move) instead of its stored one
  * @param {{x: number, y: number}[]|null} [opts.path] the move's cells (`liveTrail`)
  * @returns {{head: {x: number, y: number}, cells: {x: number, y: number}[],
- *   points: {x: number, y: number}[], sizes: number[], column: boolean}|null}
+ *   points: {x: number, y: number}[], sizes: number[],
+ *   seats: {rank: number, file: number}[], rankFeet: number|null, column: boolean}|null}
  *   `cells` is the one-per-cell layout; `points` the centres the bodies stand
  *   on and `sizes` the width of the square each is drawn in, which are the
  *   cells' centres and one cell while the scene is not spaced (`columnSpacing`).
+ *   `seats` is each body's rank and file in the layout that `points` follows;
+ *   `rankFeet` the rank interval in feet where the scene is spaced, else null.
  *   `column` false where the scene lays no column (`sceneHasColumn`): every
  *   body then stands at the head.
  */
@@ -585,18 +612,18 @@ export function columnFor(formation, tokenDoc, { live = false, path = null } = {
   const head = cellUnder(src, gs);
   if (!sceneHasColumn(scene)) {
     const cells = Array.from({ length: formationBodies(formation) }, () => head);
-    return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), column: false };
+    return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), seats: cells.map(() => ({ rank: 0, file: 0 })), rankFeet: null, column: false };
   }
   const spacing = columnSpacing(scene);
   const trail = liveTrail(tokenDoc.getFlag?.(MODULE_ID, FLAG_TRAIL) ?? null, { path, head, sceneId: scene.id, gs, bound: trailBound(formation, scene) });
   const { close, blocked } = columnWalls(formation, scene, tokenDoc, head, gs, spacing);
   const heading = snapHeading(src.rotation);
   const bounds = sceneBounds(scene);
-  const cells = columnCells(formation, { anchor: head, trail, heading, gs, bounds, blocked });
-  if (!spacing) return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), column: true };
+  const { cells, seats: cellSeats } = layCells(formation, { anchor: head, trail, heading, gs, bounds, blocked });
+  if (!spacing) return { head, cells, points: cells.map((c) => cellCentre(c, gs)), sizes: cells.map(() => gs), seats: cellSeats, rankFeet: null, column: true };
   const wide = bodyWides(formation);
-  const points = columnPoints(formation, { anchor: head, trail, heading, gs, bounds, blocked, walls: close, spacing, wide });
-  return { head, cells, points, sizes: points.map((_, i) => (wide[i] ? spacing.widePx : spacing.marchPx)), column: true };
+  const { points, seats } = layPoints(formation, { anchor: head, trail, heading, gs, bounds, blocked, walls: close, spacing, wide });
+  return { head, cells, points, sizes: points.map((_, i) => (wide[i] ? spacing.widePx : spacing.marchPx)), seats, rankFeet: spacing.interval, column: true };
 }
 
 /**

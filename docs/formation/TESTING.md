@@ -3786,7 +3786,7 @@ walk them with the figures read as not imported: on each seat, unregister the
 document's layers client-side (`acksExtras.lib.tables.unregisterTable("formation",
 {priority})` for the world and override priorities), after every reload of that
 seat and every mirror of the store, which bring them back. Nothing persists.
-Steps 17 to 19 set invented figures as a Judge's override in the Ruledata
+Steps 17 to 20 set invented figures as a Judge's override in the Ruledata
 Browser (`Settings tab → Game Settings → ACKS II — Extras → Imported Rules
 Tables → Open Ruledata Browser`) and put them back.
 
@@ -3805,6 +3805,9 @@ Fixtures, each found by its marker or built carrying it:
 - A character with Night Vision on `formation/column-scene`, off the
   corridor's line but within the torch's reach of its corner
   (`formation/column-watcher`).
+- `formation/column-trap-item` and `formation/column-trap` (step 20): an area
+  trap Item and a Trap Zone over the corridor's cell one east of the head that names it, each
+  re-shaped at the start of every use.
 
 At the start, assert: the party's frontage is 1, both lights are lit and
 unshuttered, nobody is deployed, the `partyTokenShape` world setting and the
@@ -3936,6 +3939,31 @@ unset. A kept fixture carries what the last walk left.
     Off-grid readers: the leash and the mapper read token centres and distances
     and take an off-grid token as it stands; no module code reads a token's cell
     by `x / gridSize`.
+20. **An area trap reads the column as it is laid.** With step 17's figures
+    but a march frontage wide enough that three abreast do not all fit between
+    the corridor's walls where the head ends the move (the walk reads the
+    room on each hand off the walls and the figure's pixels, and asserts fewer
+    than three fit), make an area Trap Zone on the corridor (marker
+    `formation/column-trap`, a rectangle over the cell one east of the head and
+    the cell beside it across the corridor; a kept zone's shape is set again at
+    the step's start) naming a trap Item (`formation/column-trap-item`:
+    `scope` area, `triggerOn` 6 so any throw springs it, resolution none so the
+    card holds one row per victim, level-1 `radiusFeet` the case's radius). Put
+    the head at the west end facing east, set the frontage to 3, and have a real
+    Player seat drag the party token one cell east into the zone. Read the trap's
+    card in the GM's chat after the drag and `laidOrder` (`formation-model.mjs`)
+    with the head where the move ended: the zone is the corridor's only part where
+    the squeeze holds, since the open ground at the corner seats all three abreast.
+    Walk two radii in feet, 1 and 2, re-arming the zone and putting the head back
+    between them.
+    *Observable:* `laidOrder` ranks the three bodies as many to a rank as the
+    walls leave room for (the walk derives it: 0, 0 and 1 where two fit) with
+    `rankFeet` the interval, where `marchingOrder` ranks all three 0. The card's Caught
+    section names the bodies whose laid rank is within `floor(radius / interval)`
+    of the sprung rank (the walk computes it from the rows): at radius 1 the
+    first two, which `marchingOrder` would have made all three; at radius 2 all
+    three, which the default depth would have made two. Switch the zone off
+    after each case and track each card by id; the kept zone and trap stay.
 
 A plate shot from the Player seat composes that seat, and compose closes its
 sidebar. Core's token pan reads the sidebar's width, so the next move of a
@@ -3946,8 +3974,8 @@ hotbar, so the other order throws too.
 
 Teardown: the kept fixtures stay. Gather anyone deployed, set the shape and
 colour back to unset, the frontage to 1, and relight both sources, so the next
-walk's assertions hold. Clear the frontage overrides steps 17 to 19 set, and
-sweep the weapon step 17 gave the lead. A token pasted in step 9 and the hand-lit token in step 13 are this
+walk's assertions hold. Clear the frontage overrides steps 17 to 20 set, and
+sweep the weapon step 17 gave the lead and the cards step 20's trap posted. A token pasted in step 9 and the hand-lit token in step 13 are this
 run's: `api.track` each id as it is made and `api.sweepTracked()` them. The
 lantern bearer's token edited in step 14 is the deployed token, which the
 gather removes; if it stands, reclaim it as step 14 says.

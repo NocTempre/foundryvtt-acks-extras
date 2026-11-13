@@ -1,6 +1,6 @@
 /* global game, foundry, fromUuid, CONFIG, Roll, ui */
 import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
-import { getPartyToken, isDown, isHurried, marchingOrder, updateFormation } from "./formation-model.mjs";
+import { getPartyToken, isDown, isHurried, laidOrder, updateFormation } from "./formation-model.mjs";
 import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
@@ -23,6 +23,7 @@ import {
   isBotch,
   lockAfterFailure,
   probeSequence,
+  rankDepth,
   repeatLocked,
   triggerFires,
   victimsOf,
@@ -388,11 +389,11 @@ const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.acto
  * The reach belongs to the CHARACTER and the distance is measured from the
  * party token, so the searcher's own place in the column is subtracted: a
  * pole-bearer in the second rank probes 10' from himself, which is 5' from the
- * front of the party.
+ * front of the party. `rankFeet` is how deep a rank stands (`rankDepth`).
  */
-function searcherReachFeet(row) {
+function searcherReachFeet(row, rankFeet) {
   const own = (row.roles ?? []).includes(ROLES.POLE) ? POLE_REACH_FEET : SEARCH_REACH_FEET;
-  return own - row.rank * FEET_PER_RANK;
+  return own - row.rank * rankDepth(rankFeet);
 }
 
 /**
@@ -428,7 +429,8 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   const empty = { found: new Set(), rows: [], rolls: [] };
   if (hurried) return empty;
 
-  const searchers = autoSearchers(marchingOrder(formation)).filter((row) => {
+  const { order, rankFeet } = await laidOrder(formation);
+  const searchers = autoSearchers(order).filter((row) => {
     const actor = game.actors.get(row.actorId);
     return actor && !isDown(actor, memberOf(formation, row.actorId));
   });
@@ -437,7 +439,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   const path = partyPath(formation, { from, to });
   if (!path) return empty;
 
-  const reach = Math.max(...searchers.map(searcherReachFeet));
+  const reach = Math.max(...searchers.map((row) => searcherReachFeet(row, rankFeet)));
   const candidates = allPlacements(path.scene)
     .map((p) => ({ ...p, distanceFeet: placementDistanceFeet(p, path) }))
     .filter((p) => p.state === STATES.armed && !p.known && p.distanceFeet <= reach);
@@ -458,7 +460,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
 
     for (const row of searchers) {
       if (spotted) break;
-      if (placement.distanceFeet > searcherReachFeet(row)) continue;
+      if (placement.distanceFeet > searcherReachFeet(row, rankFeet)) continue;
       const actor = game.actors.get(row.actorId);
       const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
       if (!check) continue; // no Searching skill: no automatic search to make
@@ -508,7 +510,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
 export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   const { placement, haltAt, approach } = await livePlacement(formation, { from, to });
 
-  const order = marchingOrder(formation);
+  const { order, rankFeet } = await laidOrder(formation);
   if (!order.length) return null;
 
   // At combat speed the party loses its pole and its hasty searching together
@@ -600,7 +602,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   }
 
   // Scope is the trap's; how far it reaches is the level's.
-  const caught = victimsOf(probes, sprungAt, { scope: cfg.scope, radiusFeet: cfg.tier.radiusFeet });
+  const caught = victimsOf(probes, sprungAt, { scope: cfg.scope, radiusFeet: cfg.tier.radiusFeet, rankFeet });
   await haltParty(formation, haltAt, approach);
   return fireTrap(formation, placement, trap, caught, {
     preface: [

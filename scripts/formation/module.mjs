@@ -760,6 +760,12 @@ Hooks.once("init", () => {
      * `fail`/`botch` keys of `OBSTACLES`: `readThrow` returns the imported
      * outcome as `{text, falls}` or null, beside `ends`.
      *
+     * 23 drops `mergeFogCopies`. `traps.victimsOf` takes `rankFeet`, how deep
+     * a rank stands in feet, and `runTrapCheck` and `sweepForTraps` read each
+     * body's rank from the column as it is laid on the map (a blank square and
+     * a stack's bodies counted, a file a wall squeezes out one rank back) and
+     * measure ranks by the imported rank interval where the scene is spaced.
+     * `marchingOrder` is as it was.
      */
     apiVersion: 23,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },

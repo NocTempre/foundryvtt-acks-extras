@@ -630,4 +630,98 @@ test("a table listener hears each change once, and a throwing one blocks nobody"
   tables.unregisterTable("invented-doc");
 });
 
+/* -------------------------------------------- */
+/*  The laid order a trap reads                 */
+/* -------------------------------------------- */
+
+const testAsync = async (name, fn) => {
+  try {
+    await fn();
+    passed++;
+  } catch (err) {
+    console.error(`FAIL ${name}`);
+    throw err;
+  }
+};
+/** The record `laidOrder` reads: `members` on a party token standing on `onScene` (registered with the world). */
+const placed = (onScene, tok, members, frontage) => {
+  onScene.tokens = new Map([["tk", tok]]);
+  globalThis.game.scenes = new Map([[onScene.id, onScene]]);
+  return { frontage, sceneId: onScene.id, tokenId: "tk", members };
+};
+// The view's table listener, installed above, reads a canvas that is not up.
+globalThis.canvas = { ready: false };
+const seatsOf = (order) => order.map((r) => `${r.actorId}:${r.rank}/${r.file}`);
+const { laidOrder, marchingOrder } = await import("../scripts/formation/formation-model.mjs");
+
+await testAsync("laidOrder with no party token on the map is the marching order", async () => {
+  const f = party(5, 2);
+  const out = await laidOrder(f);
+  assert.deepEqual(out.order, marchingOrder(f));
+  assert.equal(out.rankFeet, null);
+});
+
+await testAsync("laidOrder on a scene that lays no column is the marching order", async () => {
+  const hex = scene("h", { type: 2 });
+  const f = placed(hex, partyToken(hex, 2, 2), party(5, 2).members, 2);
+  assert.deepEqual((await laidOrder(f)).order, marchingOrder(f));
+});
+
+await testAsync("laidOrder in the open without figures ranks as the marching order does and keeps the default depth", async () => {
+  const sq = spaced("s");
+  const f = placed(sq, partyToken(sq, 7, 7), party(5, 2).members, 2);
+  const out = await laidOrder(f);
+  assert.deepEqual(seatsOf(out.order), ["a0:0/0", "a1:0/1", "a2:1/0", "a3:1/1", "a4:2/0"]);
+  assert.deepEqual(out.order, marchingOrder(f), "the same rows, names and roles included");
+  assert.equal(out.rankFeet, null, "nothing imported: no rank interval");
+});
+
+await testAsync("laidOrder counts a blank square and every body of a stack, which the marching order does not", async () => {
+  globalThis.game.actors = new Map([["g", { id: "g", type: "acks-extras.group", system: { stacks: [{ size: { current: 2 } }] }, items: [] }]]);
+  try {
+    const sq = spaced("s");
+    const members = [{ actorId: "a" }, { blank: true }, { actorId: "g" }, { actorId: "b" }];
+    const f = placed(sq, partyToken(sq, 7, 7), members, 2);
+    // Bodies: a, blank | g, g | b. A stack stands where its first body does.
+    assert.deepEqual(seatsOf((await laidOrder(f)).order), ["a:0/0", "g:1/0", "b:2/0"]);
+    assert.deepEqual(seatsOf(marchingOrder(f)), ["a:0/0", "g:0/1", "b:1/0"], "the old reading counts one body per member");
+  } finally {
+    globalThis.game.actors = new Map();
+  }
+});
+
+await testAsync("laidOrder puts a body its passage squeezes out into the next rank", async () => {
+  const cut = { ...spaced("s"), walls: [wallX(7), wallX(8)] };
+  const f = placed(cut, partyToken(cut, 7, 7), party(3, 2).members, 2);
+  assert.deepEqual(seatsOf((await laidOrder(f)).order), ["a0:0/0", "a1:1/0", "a2:2/0"], "walls on both hands leave single file");
+  assert.deepEqual(seatsOf(marchingOrder(f)), ["a0:0/0", "a1:0/1", "a2:1/0"]);
+});
+
+await testAsync("laidOrder reads the imported spacing: ranks, and the interval a trap measures them by", async () => {
+  tables.registerTable({ id: FORMATION_DOC, tables: FIGURES }, { priority: tables.PRIORITY.WORLD });
+  try {
+    const cut = { ...spaced("s"), walls: [wallX(7), wallX(8)] };
+    const squeezed = placed(cut, partyToken(cut, 7, 7), party(3, 2).members, 2);
+    const out = await laidOrder(squeezed);
+    assert.deepEqual(seatsOf(out.order), ["a0:0/0", "a1:1/0", "a2:2/0"]);
+    assert.equal(out.rankFeet, 1.5);
+    const sq = spaced("s");
+    const wide = placed(sq, partyToken(sq, 7, 7), party(4, 2).members, 2);
+    assert.deepEqual(seatsOf((await laidOrder(wide)).order), ["a0:0/0", "a1:0/1", "a2:1/0", "a3:1/1"]);
+  } finally {
+    tables.unregisterTable(FORMATION_DOC);
+  }
+});
+
+await testAsync("columnFor seats each body by rank and file in laid order", async () => {
+  const f = party(5, 2);
+  const sq = spaced("s");
+  const tok = partyToken(sq, 7, 7);
+  assert.deepEqual(column.columnFor(f, tok).seats, [{ rank: 0, file: 0 }, { rank: 0, file: 1 }, { rank: 1, file: 0 }, { rank: 1, file: 1 }, { rank: 2, file: 0 }]);
+  assert.equal(column.columnFor(f, tok).rankFeet, null);
+  withFigures(FIGURES, () => assert.equal(column.columnFor(f, tok).rankFeet, 1.5));
+});
+
+delete globalThis.canvas;
+
 console.log(`test-formation-column: ${passed} passed`);

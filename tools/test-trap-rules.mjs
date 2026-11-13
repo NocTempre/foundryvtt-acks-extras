@@ -159,6 +159,23 @@ test("a 10' radius catches two ranks either side of where it went off", () => {
   assert.deepEqual(caught.map((p) => p.actorId), ["b", "c", "d", "e", "f"]);
 });
 
+test("a rank interval narrower than the default square puts more ranks inside the radius", () => {
+  // Invented: ranks 1.5' apart, so a 4' radius spans two ranks either side.
+  const probes = probeSequence(column("a", "b", "c", "d", "e", "f"));
+  const caught = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4, rankFeet: 1.5 });
+  assert.deepEqual(caught.map((p) => p.actorId), ["b", "c", "d", "e", "f"]);
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 4 }).map((p) => p.actorId), ["d"], "the default depth reaches no second rank");
+  assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 1, rankFeet: 1.5 }).map((p) => p.actorId), ["d"], "a radius short of one interval stays on the sprung rank");
+});
+
+test("a rank interval that is no length reads as the default depth", () => {
+  const probes = probeSequence(column("a", "b", "c", "d", "e", "f"));
+  const expected = victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 10 }).map((p) => p.actorId);
+  for (const rankFeet of [0, -2, NaN, null, undefined, "x"]) {
+    assert.deepEqual(victimsOf(probes, 3, { scope: SCOPES.area, radiusFeet: 10, rankFeet }).map((p) => p.actorId), expected, String(rankFeet));
+  }
+});
+
 test("an area effect with no radius still takes the man who sprang it", () => {
   const probes = probeSequence(column("a", "b", "c"));
   const caught = victimsOf(probes, 1, { scope: SCOPES.area, radiusFeet: 0 });
