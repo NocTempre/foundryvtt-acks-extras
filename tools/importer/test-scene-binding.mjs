@@ -298,6 +298,8 @@ ok("an import built from the system's own compendium is not", !isWorldCopy({ ...
   ok("the strength grid is written onto the library's body, not a copy", /importedActor\(orgId, \{ copies: false \}\)/.test(orgs));
   ok("the links an organisation carries still find a copy", /importedActor\(placeId\)/.test(orgs) && /importedActor\(r\.to\)/.test(orgs));
   ok("a roll table's forced repair writes onto the library's table", /rewriteTable\(await importedTable\(id, \{ copies: false \}\)/.test(body("cookbookImportRollTables")));
+  // A book's Rebuild runs the step narrowed to a book that may print no table.
+  ok("a narrowed roll-table run with nothing to write returns before the warning", /if \(books\) return \{ made, skipped \};[\s\S]*no roll-table entries/.test(body("cookbookImportRollTables")));
   ok("the table lookup leaves a copy out when asked", /\(copies \|\| !isWorldCopy\(t\)\)/.test(body("importedTable")));
   const picker = body("repairEntries");
   ok("the picker's rebuild of a kind with no in-place write leaves a copy out", /!isWorldCopy\(doc\)/.test(picker));

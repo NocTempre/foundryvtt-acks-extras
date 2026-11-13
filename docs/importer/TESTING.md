@@ -3481,10 +3481,11 @@ minted one, and a recipe declaring no travel.
   carrying the family stamp (`flags["acks-extras"].cookbook.id`
   `mm.familyBeastman`) and `_stats.compendiumSource` naming a library
   template, so `isWorldCopy` answers true: what a Judge's drag out of the
-  library leaves. Built from the library template's `toObject()` with the
-  Role axis in the pre-11.14.0 shape (no default, a combined drudge-and-whelp
-  role, two-part cells only), so a write to it shows. `_stats.compendiumSource`
-  is accepted in the create data.
+  library leaves. Built from the library template's `toObject()` with no Kit
+  axis, no kit cell and no default on the Role axis, so a write to it shows.
+  A kept copy's `_stats.compendiumSource` is not trusted: each walk writes it
+  with an update and asserts it equals the library template's uuid before the
+  step that needs it.
 
 ### Steps
 
@@ -3507,9 +3508,8 @@ kills the run part-way.
    ACKS II — Extras → Manage imports), answered No. *The one confirm lists the
    bestiary's part with its own-rows line; the observer holds no create, update
    or delete.*
-3. The library's template of the family written to the pre-Kit shape (no Kit
-   axis, no kit cell, the Role axis without its default) and the sidebar copy
-   the same. Manage imports → Rebuild → the bestiary's pick → Go. *The confirm
+3. The library's template of the family written with no Kit axis, no kit cell
+   and the Role axis without its default, and the sidebar copy the same. Manage imports → Rebuild → the bestiary's pick → Go. *The confirm
    is titled Repair in place and carries the own-rows line once.* Answer Yes,
    and Keep every edit of mine where the choice opens. A bestiary repair
    refills every held creature of the book: minutes, so poll the manager for

@@ -6593,6 +6593,8 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
     bar.finish();
   }
   if (!made && !skipped) {
+    // Narrowed to books that print no roll table, the step has nothing to say.
+    if (books) return { made, skipped };
     // Which books carry roll tables is derived, not recited: naming AX2/AX3 in
     // the message went stale the moment the Judges Journal grew a table.
     const carriers = [...data.books.keys()]
