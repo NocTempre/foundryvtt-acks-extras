@@ -43,7 +43,7 @@ export function inferRace(actor) {
 }
 
 const DEMI_HUMAN_RACES = new Set(["dwarf", "elf", "gnome"]);
-// Races of men (count as human for Inhumanity-style "humans and demi-humans").
+// Races of men: they count as human where a rule tells men from demi-humans.
 const HUMAN_RACES = new Set(["human", "people1", "people2"]);
 // Specific beastman kinds recognisable from a monster's name/subtype.
 const BEASTMAN_KINDS = ["hobgoblin", "goblin", "kobold", "orc", "gnoll", "bugbear", "ogre", "troll"];

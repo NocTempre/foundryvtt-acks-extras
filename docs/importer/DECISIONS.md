@@ -10201,3 +10201,48 @@ record that is not one of these does not resolve, and Rules tables for
 `people` must be read again to write them. A heading joined from more than
 eight display runs is not found. A culture whose book is not open shows its
 neutral label.
+
+## 2026-11-13 — A culture's patronym is read from its section (T-0511)
+
+Nine cultures shipped their name template (the form that follows a given
+name, with the father's name in it) as `meta.patronym` in `CULTURES`: the
+affixes the book prints, written into source. The owner's rulings: "Fix
+backed values to imports and also expose somewhere as editable (this is a
+global rule applying here, fix whenever caught)", and "there is no need for
+even references to previous versions in the public release". The template is
+now read from the culture's own section by the `patronym` take on the
+appearance blocks (`takePatronym`, importer MODEL, "A name read by its key"):
+the page's example, a given name glossed with its parent beside the quoted
+full name, gives the template, so the recipe holds none of the affixes. It is
+stored as `people.cultureAppearance.cultures[id].patronym` and read by
+`generateName`; a Judge edits it in the Tables browser, and with nothing
+imported a name is the given name alone. `meta.patronym` is gone from the
+recipe.
+
+Two readings the examples alone do not carry are rules of the take. A pair
+with a relation other than son or daughter (a house or a clan) is the
+template of both sexes only where the section teaches no son or daughter
+example, because one section prints such a pair beside its son example as a
+noble form, and reading it as the daughters' template changed the result. The
+female template, where only the male example is printed, is read from what
+sits beside the relation words (a word glossed "daughter of", or the second
+affix of an `-X or -Y` pair), else the male template stands. A scratch
+comparison over the reference books of this read with the nine templates
+`meta.patronym` held agrees on all nine, and the seven other cultures store
+none.
+
+Two paragraphs are cut by a page break (their section is the last on its
+page), so the block reads on: `section` bounds the search to the heading's
+own paragraph and `runOn` hands the block the next page, which it reads up
+to its first heading. Widening every appearance read to the next page was
+rejected, since a hair or eye sentence could then be matched in the wrong
+section; only a value that asks (`runOn`) does.
+
+**Rejected:** reading a template from every culture. One culture prints a
+father's-name form beside a village form as alternatives; it stores none, and
+the recipe lists the nine whose section teaches one. A template per sex typed into the recipe as a fallback: it is
+the printed value this ruling removes.
+
+*Cost:* a culture whose section is worded outside the shapes the take reads
+ships no template until a Judge sets one. The nine are read from the Revised
+Rulebook; a supplement's culture would need its own block.

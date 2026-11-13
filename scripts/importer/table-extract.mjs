@@ -62,7 +62,7 @@ export const joinRuns = (runs, gapMin = null) => {
  * Stable camelCase key for a printed row/column label, shared by the grid
  * executor, the template compiler and the importer so the same label always
  * yields the same key. Parentheticals carrying digits or no letters are
- * dropped ("Old (101-200 years)" → "old", "Poison (*)" → "poison"); purely
+ * dropped ("Name (12-14 years)" → "name", "Poison (*)" → "poison"); purely
  * alphabetic ones are kept ("Speed (Land)" → "speedLand", which must not
  * collide with "Speed (Fly)"). Trailing colons and XP-star marks never
  * contribute ("8*****" → "8").
@@ -110,7 +110,7 @@ export function applyCellPattern(text, pattern = "raw") {
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
     }
     case "refListLower": {
-      // "Crusader, Mage, Thief, Venturer" -> ["crusader","mage",...]
+      // A comma list of class names (JJ 118) -> lowercased entries.
       return t.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
     }
     case "wordList": {
@@ -195,9 +195,9 @@ export function applyCellPattern(text, pattern = "raw") {
       return ROMAN[m[1].toUpperCase()] ?? null;
     }
     case "milesBand": {
-      // A distance band label, the shape the Wilderness Search ladder prints:
-      // "11 miles or less" -> {min:0,max:11}; "12 - 23 miles" -> {min:12,max:23};
-      // "192 miles or more" -> {min:192,max:null} (open top).
+      // A distance band label of the ladder RR 274 prints: "N miles or less"
+      // -> {min:0,max:N}; "A - B miles" -> {min:A,max:B}; "N miles or more"
+      // -> {min:N,max:null} (open top).
       const n = (v) => Number(String(v).replace(/,/g, ""));
       const less = t.match(/(\d[\d,]*)\s*miles?\s*or\s*less/i);
       if (less) return { min: 0, max: n(less[1]) };
@@ -207,8 +207,9 @@ export function applyCellPattern(text, pattern = "raw") {
       return range ? { min: n(range[1]), max: n(range[2]) } : null;
     }
     case "costBand": {
-      // "1gp or less" -> {minCost:0,maxCost:1}; "2 – 10gp" -> {minCost:2,maxCost:10};
-      // "10,001gp or more" -> {minCost:10001,maxCost:null} (open top)
+      // A price band label (RR 124): "Ngp or less" -> {minCost:0,maxCost:N};
+      // "A – Bgp" -> {minCost:A,maxCost:B}; "Ngp or more" or "Ngp+" ->
+      // {minCost:N,maxCost:null} (open top)
       const n = (s) => Number(s.replace(/,/g, ""));
       const less = t.match(/(\d[\d,]*)\s*gp\s*or\s*less/i);
       if (less) return { minCost: 0, maxCost: n(less[1]) };
@@ -218,7 +219,8 @@ export function applyCellPattern(text, pattern = "raw") {
       return range ? { minCost: n(range[1]), maxCost: n(range[2]) } : null;
     }
     case "familiesBand": {
-      // "Large city (5,000 – 9,999)" -> {min,max}; "(40,000+)" -> open top
+      // A settlement row's family-count band in parentheses (RR 352): "(A – B)"
+      // -> {min,max}; "(N+)" -> open top
       const range = t.match(/\((\d[\d,]*)\s*[–-]\s*(\d[\d,]*)\)/);
       if (range) return { min: Number(range[1].replace(/,/g, "")), max: Number(range[2].replace(/,/g, "")) };
       const open = t.match(/\((\d[\d,]*)\s*\+\)/);
@@ -773,9 +775,9 @@ export function extractHarvestPairs(items, recipe) {
     const label = joinRuns(labelRuns);
     const value = valueRuns.map((r) => r.str).join("").replace(/\s+/g, " ").trim();
     if (label && value) {
-      // Keys normalize to lowercase alphanumerics: drop-cap gluing makes raw
-      // labels unstable ("Bath a ttendant/Masseuse"), and consumers look up
-      // with the same normalization.
+      // Keys normalize to lowercase alphanumerics: drop-cap gluing splits a
+      // label's first word with a stray space (JJ 229), which makes raw labels
+      // unstable, and consumers look up with the same normalization.
       openKey = label.toLowerCase().replace(/[^a-z0-9]/g, "");
       out[`__label:${openKey}`] = label.replace(/\s+/g, " ").trim();
       push(openKey, value);
@@ -887,9 +889,9 @@ export function extractBandList(items, recipe) {
 const WORD_INTS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 
 /**
- * Shape/texture/filler words that share a colour sentence's comma list
- * ("eyes are large, round, and black"; "hair is straight or wavy, and
- * colored…"). English descriptor vocabulary — module config, not book data.
+ * Shape/texture/filler words that share a colour sentence's comma list with
+ * the colours (the hair and eye sentences of RR 495-503). English descriptor
+ * vocabulary — module config, not book data.
  */
 const NON_COLOUR =
   /^(?:the|with|of|in|a|an|and|or|either|usually|sometimes|seen|colou?r(?:ed|ation)?|shaped?|set|deep|deep-set|large|small|round|round-shaped|oval|almond|almond-shaped|wide|narrow|open|straight|wavy|curly|tightly curled|curled|ringlets?|ringleted|glossy|thick|fine|very deep set|men|women)$/i;
@@ -980,6 +982,73 @@ function takeRunins(cased) {
   return out.length ? out : undefined;
 }
 
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The name template a culture's description teaches by example
+ * (`take: "patronym"`), read from the section's text AS PRINTED (RR 495-503).
+ * An example is a given name and its parent, glossed ("G, … of P") beside a
+ * quoted full name that opens with the same given name ("G <rest>"); the
+ * template is what follows the given name, with the parent's name in it
+ * replaced by `{parent}` and every later token dropped: the word that places
+ * the parent in the name is the page's, and `{parent}` is the module's.
+ * Several pairs in a section are tried in reading order; a pair whose parent
+ * the quoted name does not hold is no patronym example and is skipped, so a
+ * toponymic or a family-name example beside it reads as nothing. The relation
+ * word in the gloss names the sex: "son" is the male template, "daughter" the
+ * female. A pair with any other relation (a house, a clan) is the template of
+ * both sexes only when the section teaches no son or daughter example.
+ *
+ * A section that prints only the male example gives the female template from
+ * what it prints beside the relation words (a word glossed "daughter of", or
+ * a second affix of an "-X or -Y" pair that the male template holds as its
+ * own), else the male template stands for both. Undefined when no pair is
+ * read, so a culture the page does not teach by example ships none.
+ * @param {string} cased the section's text with its case, whitespace collapsed
+ * @returns {{male?: string, female?: string}|undefined}
+ */
+function takePatronym(cased) {
+  const out = {};
+  let neutral;
+  for (const q of cased.matchAll(/[“"]([^”"]+)[”"]/g)) {
+    const full = q[1].trim().match(/^(\S+)\s+(\S.*)$/);
+    if (!full || full[2].includes(",")) continue;
+    const [, given, rest] = full;
+    const glosses = cased.matchAll(new RegExp(`(?<![\\p{L}-])${escapeRe(given)},\\s+([^,“”"()]+)`, "gu"));
+    for (const g of glosses) {
+      const relation = g[1].trim();
+      const parent = relation.match(/\bof\s+(?:\S+\s+)*?(\p{Lu}[\p{L}'’-]*)$/u)?.[1];
+      if (!parent) continue;
+      const tokens = rest.split(/\s+/);
+      const at = tokens.findIndex((t) => t.toLowerCase().includes(parent.toLowerCase()));
+      if (at < 0) continue;
+      tokens[at] = tokens[at].replace(new RegExp(escapeRe(parent), "i"), "{parent}");
+      const template = tokens.slice(0, at + 1).join(" ");
+      if (/\bdaughters?\b/i.test(relation)) out.female ??= template;
+      else if (/\bsons?\b/i.test(relation)) out.male ??= template;
+      else neutral ??= template;
+      break;
+    }
+  }
+  if (!out.male && !out.female && neutral) return { male: neutral, female: neutral };
+  if (!out.male) return Object.keys(out).length ? out : undefined;
+  if (!out.female) {
+    const wordBefore = (kin) => cased.match(new RegExp(`(\\S+)\\s*\\(\\s*[“"]\\s*${kin}\\s+of\\s*[”"]\\s*\\)`, "i"))?.[1];
+    const maleWord = wordBefore("sons?");
+    const femaleWord = wordBefore("daughters?");
+    const tail = out.male.replace("{parent}", "").trim().toLowerCase();
+    const pair = cased.match(/-([\p{L}]+)\s+or\s+-([\p{L}]+)/iu);
+    if (maleWord && femaleWord && out.male.split(/\s+/).includes(maleWord)) {
+      out.female = out.male.split(/\s+/).map((t) => (t === maleWord ? femaleWord : t)).join(" ");
+    } else if (pair && tail === pair[1].toLowerCase()) {
+      out.female = out.male.replace(new RegExp(`${escapeRe(pair[1])}$`, "i"), pair[2]);
+    } else {
+      out.female = out.male;
+    }
+  }
+  return out;
+}
+
 function takeProse(window, take, spec = {}) {
   const num = (s) => Number(s.replace(/,/g, ""));
   switch (take) {
@@ -1048,10 +1117,10 @@ function takeProse(window, take, spec = {}) {
       return m ? m[1] : undefined;
     }
     case "sizeList": {
-      // The weapon-size words a clause names, in reading order, up to the
-      // word that ends the list ("tiny, small, or medium melee weapons" reads
-      // up to "weapons"). The size vocabulary is the module's own
-      // (`equipment/config.mjs` `SIZE`); which sizes a rule names is the page's.
+      // The weapon-size words a clause names (RR 121), in reading order, up to
+      // the word that ends the list ("weapons"). The size vocabulary is the
+      // module's own (`equipment/config.mjs` `SIZE`); which sizes a rule names
+      // is the page's.
       const head = window.split(/\bweapons?\b/)[0];
       const sizes = [...new Set([...head.matchAll(/\b(tiny|small|medium|large)\b/g)].map((m) => m[1]))];
       return sizes.length ? sizes : undefined;
@@ -1117,23 +1186,19 @@ function takeProse(window, take, spec = {}) {
       return out.length ? out : undefined;
     }
     case "colorList": {
-      // "…are deep-set and round, with coloration varying between blue-grey,
-      // grey, …, and dark brown." → the COLOUR clause only. The sentence
-      // opens with shape/texture words ("straight or wavy", "almond-shaped")
-      // — the colour list starts at the LAST colour lead-in
-      // (colored / coloration / colour of / with), so cut there, then split
-      // on commas and the trailing and/or.
+      // The COLOUR clause of a hair or eye sentence (RR 495-503) only. The
+      // sentence opens with shape/texture words and then a colour lead-in
+      // (colored / coloration / colour of / with); the list starts at that
+      // lead-in, so cut there, then split on commas and the trailing and/or.
       const sentence = window.split(".")[0];
-      // FIRST lead-in: a trailing "…but sometimes colored a striking green"
-      // must extend the list, not replace it. Sentences with no lead-in at
-      // all ("eyes are large, round, and black") keep the whole predicate —
-      // the shape/texture words drop out in the filter below.
+      // FIRST lead-in: a trailing clause that opens with its own lead-in (RR
+      // 495) must extend the list, not replace it. A sentence with no lead-in at all keeps the
+      // whole predicate — the shape/texture words drop out in the filter below.
       const LEAD = /\b(?:colou?red|colou?ration|varying|between|colou?rs?|of|with|either|usually|sometimes|but|occasionally|seen|a|an|striking|to)\b/gi;
       const lead = sentence.match(/\b(?:colou?red|colou?ration|colou?rs?\s+of|with)\b/i);
       const body = lead ? sentence.slice(lead.index) : sentence.replace(/^\s*(?:are|is)\b/i, "");
       // Split on commas and every connective, then strip lead-in vocabulary
-      // from EACH part — a clause can carry its own ("…but sometimes colored
-      // a striking green", "…with coloration of blue").
+      // from EACH part — a clause can carry a lead-in of its own (RR 495, 500).
       const parts = body
         .split(/,|\band\b|\bor\b|\bbut\b/)
         .map((s) =>
@@ -1159,7 +1224,7 @@ function takeProse(window, take, spec = {}) {
       return s || undefined;
     }
     case "sexWord": {
-      // class-description opening: "…are human women who…" / "…are men…"
+      // The sex word of a class description's opening clause (RR 56).
       const m = window.match(/\b(women|woman|female|men|man|male)\b/);
       if (!m) return undefined;
       return /wom|female/.test(m[1]) ? "female" : "male";
@@ -1227,6 +1292,16 @@ function sectionRuns(its, section) {
 }
 
 /**
+ * Whether a section's text goes on past the page: the heading is on the page
+ * and no run at `section.headH` or taller follows it, so its last paragraph can
+ * be cut off at the foot and finished at the head of the next page.
+ */
+function sectionRunsOn(its, section) {
+  const heading = findHeading(its, section.headH, section.key);
+  return !!heading && !its.some((it, i) => i > heading.to && it.h >= section.headH);
+}
+
+/**
  * Where `find` (a phrase) or `findRe` (a pattern, for a phrase that carries a
  * word the page sets and the recipe does not name) first stands in `text` at or
  * after its `occurrence`th place: `{idx, len}`, or null.
@@ -1253,22 +1328,45 @@ function findIn(text, v) {
  * follows the heading whose `printKey` is `key` (`sectionRuns`), so a phrase
  * shared by several headings' paragraphs is read from the paragraph under the
  * one asked for. Phrases are matched on the lowercased page.
+ *
+ * A value with `take: "patronym"` names no phrase: it reads the whole
+ * section's text (`takePatronym`). With `runOn: true` on the value and the
+ * following page's items in `recipe.runOn`, a section that is still open at the
+ * foot of its page (`sectionRunsOn`) also reads that page's runs up to its
+ * first heading, so a paragraph the print breaks across the page is read whole.
  */
 export function extractProseValues(items, recipe) {
   const split = recipe.colSplit ?? 300;
   const { xMin = 20, xMax = 600 } = recipe.column ?? {};
-  let its = items
+  const readingOrder = (pageItems) => pageItems
     .filter((i) => i.x >= xMin && i.x < xMax && i.y >= (recipe.yMin ?? 55) && i.y <= (recipe.yMax ?? 765))
     .sort((a, b) => ((a.x < split ? 0 : 1) - (b.x < split ? 0 : 1)) || (a.y - b.y) || (a.x - b.x));
-  if (recipe.section) its = sectionRuns(its, recipe.section);
-  const printed = its.map((i) => i.str).join(" ").replace(/\s+/g, " ");
+  const flat = (runs) => runs.map((i) => i.str).join(" ").replace(/\s+/g, " ");
+  let its = readingOrder(items);
+  let tail = [];
+  if (recipe.section) {
+    if (recipe.runOn && sectionRunsOn(its, recipe.section)) {
+      const later = readingOrder(recipe.runOn);
+      const stop = later.findIndex((it) => it.h >= recipe.section.headH);
+      tail = later.slice(0, stop < 0 ? undefined : stop);
+    }
+    its = sectionRuns(its, recipe.section);
+  }
+  const printed = flat(its);
   const text = printed.toLowerCase();
   // Anchors are found in the lowercased text and a label is cut from the page
   // as printed, so the two must index alike; a glyph whose lowercase form is
   // longer breaks that, and the label is then cut from the lowercased text.
   const cased = printed.length === text.length ? printed : text;
+  const runOnPrinted = flat([...its, ...tail]);
+  const runOnCased = runOnPrinted.length === runOnPrinted.toLowerCase().length ? runOnPrinted : runOnPrinted.toLowerCase();
   const out = {};
   for (const v of recipe.values) {
+    if (v.take === "patronym") {
+      const got = takePatronym(v.runOn ? runOnCased : cased);
+      if (got) out[v.key] = got;
+      continue;
+    }
     const found = findIn(text, v);
     if (!found) continue; // absent, not undefined: page-span merges keep earlier pages' captures
     const { idx, len } = found;

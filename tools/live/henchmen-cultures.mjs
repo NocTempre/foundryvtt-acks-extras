@@ -5,7 +5,9 @@
  * wrote is read back; the Location sheet's Demographics block (GM Settings
  * tab) lists those labels and its Add row writes the first imported culture;
  * and a generated candidate carries the label of the culture it drew, with a
- * name from that culture's list. Machine values arrive through ./_env.mjs.
+ * name from that culture's list; every culture whose section teaches a name
+ * template has one imported, and a name generated from it carries a patronym.
+ * Machine values arrive through ./_env.mjs.
  *
  * Fixture, kept and found by marker: `henchmen/cultures-place`, a location
  * with a market. The step that needs a shape writes it at its start (the
@@ -127,6 +129,30 @@ const P = {
       palettesExpected: recipe.cultureAppearance.valueBlocks.filter((b) => b.id in list).length,
       namesRead: ids.every((id) => (list[id].male ?? []).length > 0 && (list[id].female ?? []).length > 0),
       firstId: ids[0] ?? null,
+    };
+  },
+  /**
+   * The name templates the import read beside the palettes, and a male and a female name generated from each:
+   * counts and booleans only, no template or name leaves the page.
+   */
+  patronyms: async () => {
+    const H = globalThis.__hc;
+    const T = acksExtras.lib.tables;
+    const list = T.getTable("people", "cultures").list;
+    const palettes = T.getTable("people", "cultureAppearance")?.cultures ?? {};
+    const wanted = H.RECIPES.people.tables.cultureAppearance.valueBlocks.filter((b) => b.values.some((v) => v.key === "patronym") && b.id in list).map((b) => b.id);
+    const withTemplate = Object.keys(palettes).filter((id) => typeof palettes[id].patronym?.male === "string" && typeof palettes[id].patronym?.female === "string");
+    const draws = () => { const v = [0, 0.99]; return () => v.shift() ?? 0; };
+    const longer = (id, sex) => {
+      const n = H.ID.generateName(draws(), id, sex);
+      return n.full.startsWith(`${n.given} `) && n.full !== n.given && !n.full.includes("{parent}");
+    };
+    return {
+      wanted: wanted.length,
+      templates: withTemplate.length,
+      everyWantedRead: wanted.every((id) => withTemplate.includes(id)),
+      namedMale: withTemplate.filter((id) => longer(id, "male")).length,
+      namedFemale: withTemplate.filter((id) => longer(id, "female")).length,
     };
   },
   /** The place sheet on GM Settings, the Demographics add pressed, the select and the stored row read back. */
@@ -262,6 +288,10 @@ try {
   check("24: every culture whose book is open was written, under an ordinal id or a race word", read.doc && read.allExpectedWritten && read.cultures === read.expected && read.idsAreOrdinal && read.humanOrdinals, read);
   check("24: every written culture carries the label its heading prints, none the neutral fallback", read.labelsRead && read.neutralLabels === 0, { labelsRead: read.labelsRead, neutralLabels: read.neutralLabels });
   check("24: every culture has name lists, and every palette the recipe declares was read", read.namesRead && read.palettes === read.palettesExpected && read.palettes > 0, { namesRead: read.namesRead, palettes: read.palettes, expected: read.palettesExpected });
+
+  const patronyms = await run(gm, P.patronyms);
+  note("patronyms", patronyms);
+  check("24: every culture whose section teaches a name template was read one, and a name made from it carries a patronym after the given name", patronyms.wanted > 0 && patronyms.everyWantedRead && patronyms.namedMale === patronyms.templates && patronyms.namedFemale === patronyms.templates, patronyms);
 
   section("24: the Location sheet's Demographics block lists those labels");
   const sheet = await run(gm, P.sheet, { placeId: place.id });

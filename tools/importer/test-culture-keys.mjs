@@ -9,7 +9,9 @@
  * `holdsKey`, `headingGroups` and `findHeading` (printed-name), `startAfterKey`
  * and `section` (table-extract), the hash locates of `locatePageNumber`, and a
  * whole `importTables` run over a two-page invented book. The shipped recipe is
- * held to its shape: ordinal ids, neutral labels, keys and no printed words.
+ * held to its shape: ordinal ids, neutral labels, keys and no printed words. A
+ * culture's name template (`takePatronym`) is read from an invented example,
+ * across a page break where the paragraph runs on.
  *
  * Every name below is invented; the keys are computed from them in the test.
  */
@@ -219,6 +221,73 @@ const PAGES = [
   }
 }
 
+/* --- patronym: a name template taught by an example, on the page or running onto the next --- */
+{
+  // Every name and affix below is invented. Page A ends inside a paragraph; page B finishes it.
+  const pageA = [
+    run("Tarnic", 45, 100, HEAD),
+    run("Their hair is wavy and colored red, grey, or black.", 45, 120),
+    run("Tarnic sons take the father's name with a tail (e.g. Pell, son of Garran, would be", 45, 132),
+  ];
+  const pageB = [
+    run("“Pell Garranvik”) and daughters take another (e.g. Mira, daughter of Garran, would be “Mira Garranvika”).", 45, 70),
+    run("Wend", 45, 200, HEAD),
+    run("The Wend say Vek (“son of ”) or Vel (“daughter of ”) before the father's name (e.g. “Dov Vek Hask” is “Dov, son of Hask”).", 45, 220),
+    run("Haver", 45, 300, HEAD),
+    run("Haver line descent with a prefix (e.g. “Ilsa Lom-Morn Lom-Dray” would be “Ilsa, of the clan of Morn, of the clan of Dray,” and so on).", 45, 320),
+    run("Quill", 45, 400, HEAD),
+    run("A Quill man, such as Mera, son of Tolk, might be “Mera of Fenwick”.", 45, 420),
+    run("Dunn", 45, 500, HEAD),
+    run("The Dunn add -sen or -dal to the father's name (e.g. Orm, son of Tave, would be “Orm Tavesen”).", 45, 520),
+    run("Fell", 45, 600, HEAD),
+    run("The Fell append the father's name (e.g. Jo, son of Rin, would be “Jo Rin”). Nobles add a clan (e.g. Jo, of Clan Vale, would be “Jo Zu Vale”).", 45, 620),
+  ];
+  const PATRONYM = { key: "patronym", take: "patronym", runOn: true };
+  const recipe = (key, extra = {}, value = PATRONYM) => ({ shape: "proseValues", values: [value], column: { xMin: 25, xMax: 590 }, section: { key: printKey(key), headH: 11 }, ...extra });
+  const read = (key, items = pageB) => extractTable(items, recipe(key));
+  eq("a son and a daughter example each give their template", extractTable(pageA, recipe("Tarnic", { runOn: pageB })), { patronym: { male: "{parent}vik", female: "{parent}vika" } });
+  eq("a paragraph cut at the foot of the page is not read without the next page", extractTable(pageA, recipe("Tarnic")), {});
+  eq("a value that does not ask to run on does not read the next page", extractTable(pageA, recipe("Tarnic", { runOn: pageB }, { key: "patronym", take: "patronym" })), {});
+  eq("a section a heading closes on its own page does not run on", extractTable([...pageA, run("Wend", 45, 200, HEAD)], recipe("Tarnic", { runOn: pageB })), {});
+  eq("the next page is read only up to its first heading", extractTable(pageA, recipe("Tarnic", { runOn: pageB })).patronym.male, "{parent}vik");
+  eq("a word glossed son of and one glossed daughter of give the two templates", read("Wend"), { patronym: { male: "Vek {parent}", female: "Vel {parent}" } });
+  eq("a relation that is neither sex gives the one template to both", read("Haver"), { patronym: { male: "Lom-{parent}", female: "Lom-{parent}" } });
+  eq("a pair whose quoted name does not hold the parent is no example", read("Quill"), {});
+  eq("a pair of affixes the male template holds gives the female one", read("Dunn"), { patronym: { male: "{parent}sen", female: "{parent}dal" } });
+  eq("a house example does not displace a son example, and the male template stands for both", read("Fell"), { patronym: { male: "{parent}", female: "{parent}" } });
+  eq("a heading the page does not print reads nothing", read("Absent"), {});
+  // The import hands a block that reads on its next page.
+  const saved = TABLE_RECIPES.people;
+  let imported = null;
+  services.register("ruledata-import", { async importDoc(doc) { imported = doc; } });
+  try {
+    TABLE_RECIPES.people = {
+      source: saved.source,
+      tables: {
+        cultureAppearance: {
+          shape: "proseValues",
+          book: "rr",
+          valueBlocks: [
+            { id: "culture1", printedPage: 0, column: { xMin: 25, xMax: 590 }, section: { key: printKey("Tarnic"), headH: 11 }, values: [{ key: "hair", find: "hair is", take: "colorList", span: 240 }, PATRONYM] },
+            { id: "culture2", printedPage: 0, column: { xMin: 25, xMax: 590 }, section: { key: printKey("Wend"), headH: 11 }, values: [PATRONYM] },
+            { id: "culture3", printedPage: 0, column: { xMin: 25, xMax: 590 }, section: { key: printKey("Fell"), headH: 11 }, values: [PATRONYM] },
+          ],
+          emit: { path: ["cultures"] },
+        },
+      },
+    };
+    const sessions = new Map([["rr", { doc: await bookOf([[], pageA, pageB]) }]]);
+    await importTables(sessions, { only: ["people"] });
+    eq("the import reads the paragraph across the page break, and a block on the last page reads its own", imported.tables.cultureAppearance.cultures, {
+      culture1: { hair: ["red", "grey", "black"], patronym: { male: "{parent}vik", female: "{parent}vika" } },
+      culture2: { patronym: { male: "Vek {parent}", female: "Vel {parent}" } },
+      culture3: { patronym: { male: "{parent}", female: "{parent}" } },
+    });
+  } finally {
+    TABLE_RECIPES.people = saved;
+  }
+}
+
 /* --- the shipped recipe: ordinal ids, neutral labels, keys, no words ---------------------- */
 {
   const cultures = TABLE_RECIPES.people.tables.cultures;
@@ -238,7 +307,7 @@ const PAGES = [
     ok(`${at}: a heading key and a page`, /^[0-9a-z]{1,8}$/.test(b.heading?.key ?? "") && b.heading.printedPage > 0);
     const neutral = /^culture\d+$/.test(b.cultureId) ? `Culture ${b.cultureId.slice("culture".length)}` : null;
     ok(`${at}: a neutral label`, neutral ? b.meta.label === neutral : /^(Dwarven|Elven|Lizardman|People \d+)$/.test(b.meta.label), b.meta.label);
-    ok(`${at}: no unused naming style`, !("surnameStyle" in b.meta));
+    ok(`${at}: no name template in the recipe`, !("patronym" in b.meta));
   }
   // A phrase is generic when its only words are the copulas and the nouns of the colours' own sentences.
   const GENERIC = new Set(["hair", "eyes", "is", "are", "of", "the"]);
@@ -250,8 +319,12 @@ const PAGES = [
     ok(`${at}: a culture of the name lists`, !!own);
     ok(`${at}: no printed locate`, !("locate" in b));
     ok(`${at}: sectioned by its heading`, b.section?.key === own?.heading.key && b.printedPage === own?.heading.printedPage);
-    ok(`${at}: phrases name no people`, b.values.every((v) => /^(hair|eyes)$/.test(v.key) && generic(v.find ?? v.findRe)), JSON.stringify(b.values.map((v) => v.key)));
+    const phrased = b.values.filter((v) => v.key !== "patronym");
+    ok(`${at}: phrases name no people`, phrased.every((v) => /^(hair|eyes)$/.test(v.key) && generic(v.find ?? v.findRe)), JSON.stringify(b.values.map((v) => v.key)));
+    ok(`${at}: a name template names no phrase and reads on to the next page`, b.values.filter((v) => v.key === "patronym").every((v) => v.take === "patronym" && v.runOn === true && !("find" in v) && !("findRe" in v)));
   }
+  const withTemplate = appearance.valueBlocks.filter((b) => b.values.some((v) => v.key === "patronym")).length;
+  ok("the cultures that teach a name template by example read one", withTemplate > 0 && withTemplate < appearance.valueBlocks.length, String(withTemplate));
   eq("the people-1 race draws from exactly one culture", cultures.blocks.filter((b) => b.meta.alsoRaces?.includes("people1")).length, 1);
 }
 

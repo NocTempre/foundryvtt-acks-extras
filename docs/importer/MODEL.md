@@ -1362,8 +1362,33 @@ places of an adventure.
   phrase shared by several cultures' paragraphs is read from the right one,
   and a phrase that holds a word the page sets is a `findRe`. Structural
   meta (`race`, `alsoRaces` for the culture another race draws its names
-  from, `patronym`) rides in the block. The ordinal-to-people pairing is
+  from) rides in the block. The ordinal-to-people pairing is
   kept LOCAL-ONLY with the decoder rings.
+- **A culture's patronym, read from its section.** A culture whose section
+  teaches a name template by example lists the value `{key: "patronym", take:
+  "patronym", runOn: true}` among its appearance values, and
+  `takePatronym` (`table-extract.mjs`) reads the section's text on the page's
+  own case, with no phrase to find. An example is a given name glossed with
+  its parent (`G, … of P`) beside a quoted full name that opens with the same
+  given name; the template is the full name after the given name, `P` in it
+  replaced by `{parent}` and every token after the one holding `P` dropped.
+  The relation word in the gloss names the sex (a "son" gloss is the male
+  template, a "daughter" gloss the female); a pair with another relation is
+  both sexes' template only where the section teaches no son or daughter
+  example. A pair whose quoted name does not hold the parent is no example
+  and is skipped. With a male template and no female example, the female one
+  is the male's with the word glossed "son of" swapped for the word glossed
+  "daughter of", else with its affix swapped for the second of an `-X or -Y`
+  pair the male template holds as its own, else the male's; with neither sex
+  taught, the section stores none. The result is `cultureAppearance.cultures
+  [id].patronym = {male, female}`, strings holding `{parent}`. A paragraph the
+  print breaks across a page is read whole: a value with `runOn` is handed the
+  next page's items (`recipe.runOn`, which `runValueBlocks` fetches with a
+  two-page span), and a section still open at its page's foot also reads that
+  page up to its first heading (`sectionRunsOn`). `generateName` reads the
+  template from that table, or inline on the culture entry, and the name is
+  the given name alone where none is imported; a Judge edits it in the Tables
+  browser like any imported table.
 
 ## A book's page bands
 

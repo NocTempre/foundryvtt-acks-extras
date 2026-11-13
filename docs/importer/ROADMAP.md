@@ -741,27 +741,6 @@ exists. What the Judge then gets is the declined kinds named beside the count
 of what was already present — the two silences that currently look identical,
 told apart.
 
-## The culture anchors the generator matches on
-
-8.0.0 brought a settlement's register under the name rule: a person, a place or
-a body ships as a neutral label, an ordinal id, and a locator. One shipped
-surface is still outside it. The character generator's culture recipes carry a
-people's printed name three times over — as the `cultureId` a world stores, as
-the `label` a player picks from, and as the `anchor` the compiler matches a page
-on — and the naming tables beneath them are keyed the same way.
-
-The settlement's answer transfers whole: an ordinal id, a locator in place of
-the anchor, and a label the importer reads off the page at import time, exactly
-as a person's name now arrives. What does not transfer is the cost. A
-`cultureId` is stored on every character ever generated, so changing it is a
-migration and not a rename, and the label is a pick a player made rather than a
-document's title — a world whose characters name a people has to keep naming it
-after the change. That is the work: a migration that rewrites stored ids and a
-label that survives having been chosen, on top of the aliasing itself.
-
-Until it lands, the audit that reads the decoder ring reports these sites every
-run, and they are the report's only true positives.
-
 ## NPC proficiency tokens the index cannot resolve
 
 An AX3 NPC import logs its statline tokens that match no definition. Three of
@@ -801,9 +780,9 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    monster-level flag the delve draw reads, the level matrix as a setting
    table, and the dungeon chapter's stocking and treasure charts.
 4. **Settlement and NPC completions** for the henchmen consumers that already
-   exist. The appearance-by-people tables wait on a hash or ordinal locate for
-   table recipes, since every title is a people's name (see *The culture
-   anchors the generator matches on*).
+   exist. The appearance-by-people tables are not yet read; every title is a
+   people's name, so a recipe locates it by key (`locateHeadingKey`,
+   DECISIONS 2026-11-13).
 5. **The sea chain**, which wants a voyage encounter consumer that no feature
    owns yet.
 6. **The Judge-only d-tables**: each a small cookbook RollTable.
@@ -1258,18 +1237,3 @@ than on authoring:
   tier's cost line as a value with the tier's power, the history as its
   description. A content kind end to end — row, compiler, binding — rather
   than a row for a kind that exists.
-
-## Time phrases inside compiled roll specs
-
-Some roll specs carry a printed time cost inside their condition string, some
-notes paraphrase the page, and `def.prof.armorTraining` carries a literal. The
-fix is a duration locator read at compile, with the armour-training step
-imported.
-
-## The culture registry's printed names
-
-The culture registry in `table-recipes.mjs` carries ids, labels, and
-appearance and name-list anchors that are printed names, and one more
-people word sits in `identity.mjs` and `racial.mjs`. The name rule
-(`.claude/rules/ip-doctrine.md`) wants a neutral label, an ordinal id and a
-locator for each, with the words imported.

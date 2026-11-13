@@ -186,27 +186,36 @@ const RARITY_TIER_ROWS = [
 // `proseValues`) — a copula with no people word, or `findRe` where the sentence
 // carries the culture's noun in the middle. A culture whose sentence is not
 // matched by a phrase has none.
+//
+// `PATRONYM` is the name template the section teaches by example (a given name,
+// its parent, and the full name that results; `takePatronym`), stored beside the
+// colours as `{male, female}` strings holding `{parent}`. A culture lists it
+// where its section prints such an example; the paragraph can run onto the next
+// page, so the block reads on past its page (`runOn`). A section whose example
+// does not parse stores none, and the Judge's own edit to the table stands in
+// its place.
 const CULTURE_HEAD_H = 11;
 const HAIR = { key: "hair", find: "hair is" };
 const EYES = { key: "eyes", find: "eyes are" };
+const PATRONYM = { key: "patronym", take: "patronym", runOn: true };
 const CULTURES = [
-  { id: "culture1", label: "Culture 1", headingKey: "ivpuv4", headingPage: 495, anchorKey: "1065lmh", anchorPage: 496, values: [HAIR, EYES], meta: { patronym: { male: "{parent}apur", female: "{parent}adar" } } },
+  { id: "culture1", label: "Culture 1", headingKey: "ivpuv4", headingPage: 495, anchorKey: "1065lmh", anchorPage: 496, values: [HAIR, EYES, PATRONYM], meta: {} },
   { id: "dwarven", label: "Dwarven", headingKey: "1m7yn3i", headingPage: 496, anchorBook: "bta", anchorKey: "1reqnkv", anchorPage: 22, values: [HAIR, EYES], meta: { race: "dwarf" } },
-  { id: "elven", label: "Elven", headingKey: "8ymv64", headingPage: 496, anchorKey: "n9rd5g", anchorPage: 497, values: [HAIR, EYES], meta: { patronym: { male: "Mag {parent}", female: "Ni {parent}" }, race: "elf" } },
-  { id: "culture2", label: "Culture 2", headingKey: "6eji6p", headingPage: 497, anchorKey: "1pz6pit", anchorPage: 497, values: [HAIR, EYES], meta: { patronym: { male: "{parent}sson", female: "{parent}dottir" } } },
+  { id: "elven", label: "Elven", headingKey: "8ymv64", headingPage: 496, anchorKey: "n9rd5g", anchorPage: 497, values: [HAIR, EYES, PATRONYM], meta: { race: "elf" } },
+  { id: "culture2", label: "Culture 2", headingKey: "6eji6p", headingPage: 497, anchorKey: "1pz6pit", anchorPage: 497, values: [HAIR, EYES, PATRONYM], meta: {} },
   { id: "culture3", label: "Culture 3", headingKey: "11xmgrr", headingPage: 497, anchorKey: "1y7yn0x", anchorPage: 498, values: [EYES], meta: {} },
-  { id: "culture4", label: "Culture 4", headingKey: "o18ozw", headingPage: 498, anchorKey: "zrmrmw", anchorPage: 498, values: [HAIR, EYES], meta: { patronym: { male: "{parent}", female: "{parent}" } } },
+  { id: "culture4", label: "Culture 4", headingKey: "o18ozw", headingPage: 498, anchorKey: "zrmrmw", anchorPage: 498, values: [HAIR, EYES, PATRONYM], meta: {} },
   { id: "culture5", label: "Culture 5", headingKey: "d8561", headingPage: 498, anchorKey: "1ql9zpk", anchorPage: 498, values: [HAIR, EYES], meta: {} },
-  { id: "culture6", label: "Culture 6", headingKey: "1lvob1n", headingPage: 499, anchorKey: "1yjk5wk", anchorPage: 499, values: [HAIR, EYES], meta: { patronym: { male: "{parent}ides", female: "{parent}ides" } } },
-  { id: "culture7", label: "Culture 7", headingKey: "6ypst4", headingPage: 499, anchorKey: "os7kxc", anchorPage: 499, values: [HAIR, EYES], meta: { patronym: { male: "Bar {parent}", female: "Bat {parent}" } } },
-  { id: "culture8", label: "Culture 8", headingKey: "12ww7vi", headingPage: 500, anchorKey: "1uxocl2", anchorPage: 500, values: [HAIR, EYES], meta: { patronym: { male: "{parent}", female: "{parent}" } } },
-  { id: "culture9", label: "Culture 9", headingKey: "1w2cr94", headingPage: 500, anchorKey: "e0sjjw", anchorPage: 500, values: [HAIR, EYES], meta: { patronym: { male: "Ibn {parent}", female: "Bint {parent}" } } },
+  { id: "culture6", label: "Culture 6", headingKey: "1lvob1n", headingPage: 499, anchorKey: "1yjk5wk", anchorPage: 499, values: [HAIR, EYES, PATRONYM], meta: {} },
+  { id: "culture7", label: "Culture 7", headingKey: "6ypst4", headingPage: 499, anchorKey: "os7kxc", anchorPage: 499, values: [HAIR, EYES, PATRONYM], meta: {} },
+  { id: "culture8", label: "Culture 8", headingKey: "12ww7vi", headingPage: 500, anchorKey: "1uxocl2", anchorPage: 500, values: [HAIR, EYES, PATRONYM], meta: {} },
+  { id: "culture9", label: "Culture 9", headingKey: "1w2cr94", headingPage: 500, anchorKey: "e0sjjw", anchorPage: 500, values: [HAIR, EYES, PATRONYM], meta: {} },
   { id: "culture10", label: "Culture 10", headingKey: "1o4ow49", headingPage: 501, anchorKey: "1fobk7k", anchorPage: 501, values: [{ key: "hair", findRe: "hair of the \\S+ is" }], meta: {} },
   { id: "culture11", label: "Culture 11", headingKey: "m93zbr", headingPage: 501, anchorKey: "ykfzq", anchorPage: 501, values: [HAIR, EYES], meta: {} },
   { id: "lizardman", label: "Lizardman", headingKey: "1wm4c0u", headingPage: 502, anchorKey: "wgaiha", anchorPage: 502, values: [], meta: { race: "lizardman" } },
   // The culture the people-1 race draws its names from.
   { id: "culture12", label: "Culture 12", headingKey: "hththt", headingPage: 502, anchorKey: "zco3ru", anchorPage: 502, values: [HAIR, EYES], meta: { alsoRaces: ["people1"] } },
-  { id: "people2", label: "People 2", headingKey: "bjsxms", headingPage: 503, anchorKey: "1ivm55z", anchorPage: 503, values: [EYES], meta: { patronym: { male: "Bet-{parent}", female: "Bet-{parent}" }, race: "people2" } },
+  { id: "people2", label: "People 2", headingKey: "bjsxms", headingPage: 503, anchorKey: "1ivm55z", anchorPage: 503, values: [EYES, PATRONYM], meta: { race: "people2" } },
 ];
 
 const CULTURE_APPEARANCE_BLOCKS = CULTURES.filter((c) => c.values.length).map((c) => ({
@@ -216,7 +225,7 @@ const CULTURE_APPEARANCE_BLOCKS = CULTURES.filter((c) => c.values.length).map((c
   // the print columns are bounded.
   column: { xMin: 25, xMax: 590 },
   section: { key: c.headingKey, headH: CULTURE_HEAD_H },
-  values: c.values.map((v) => ({ ...v, take: "colorList", span: 240 })),
+  values: c.values.map((v) => (v.take ? v : { ...v, take: "colorList", span: 240 })),
 }));
 
 const CULTURE_NAME_BLOCKS = CULTURES.map((c) => ({
@@ -1978,8 +1987,8 @@ export const TABLE_RECIPES = {
         ],
       },
       // Wilderness Frequency of Encounters (JJ ~41): activity rows × the four
-      // territory classifications, cells raw ("once per attempt", "none");
-      // travel-binding parses them onto the engine's frequency kinds. Labels
+      // territory classifications, cells raw (a frequency phrase or "none", JJ
+      // 41); travel-binding parses them onto the engine's frequency kinds. Labels
       // arrive as split small-caps runs, hence the \s* seams.
       encounterFrequencyRaw: {
         shape: "gridRows",
@@ -2177,8 +2186,9 @@ export const TABLE_RECIPES = {
           { key: "wind", x: 481, w: 95, pattern: "raw", row: true },
         ],
       },
-      // 30 Köppen rows × four season cells, each a compound
-      // "T +3 (day), +0 (night), P -3, W +2" kept raw for the binding.
+      // 30 Köppen rows × four season cells, each a compound of signed
+      // temperature (day and night), precipitation and wind figures (JJ 41),
+      // kept raw for the binding.
       // The table's own TITLE also appears in the facing page's prose ("…
       // table, opposite") over the Climate by Terrain grid, whose rows carry
       // the same codes — so the anchor is the polar rows' "(day and night)"
@@ -2909,8 +2919,8 @@ export const TABLE_RECIPES = {
       },
       // 0th-level occupation → proficiency packages (JJ "Occupations and
       // Proficiencies", four consecutive pages). Row keys are page content
-      // (occupation names, lowercased); values are comma token lists like
-      // "Profession (merchant), Craft (scribe), Bargaining, Folkways".
+      // (occupation names, lowercased); values are comma token lists of
+      // proficiency names, some with a parenthesized specialty (JJ 254).
       occupationPackages: {
         shape: "harvestPairs",
         book: "jj",
@@ -2922,7 +2932,8 @@ export const TABLE_RECIPES = {
         minTokens: 2,
       },
       // Culture APPEARANCE palettes (RR pp. 495-503): each culture's
-      // description gives its hair and eye colours in one sentence each. A
+      // description gives its hair and eye colours in one sentence each, and
+      // its name template in an example. A
       // block locates its page by the key of its heading and reads inside that
       // heading's section, so a page carrying several cultures cannot
       // cross-match. See `CULTURES`.
@@ -2932,8 +2943,8 @@ export const TABLE_RECIPES = {
         valueBlocks: CULTURE_APPEARANCE_BLOCKS,
         emit: { path: ["cultures"] },
       },
-      // Per-class RESTRICTIONS from the class descriptions' opening lines
-      // ("Bladedancers are human women who…"). Each block self-locates its
+      // Per-class RESTRICTIONS from the class descriptions' opening clauses
+      // (RR 56 for the first). Each block self-locates its
       // class page; the capture reads the restriction word, never a list of
       // classes. bucket/rarity/race are DERIVED by consumers from the
       // already-imported distribution/rarity tables + class-key adjectives,
@@ -2957,8 +2968,8 @@ export const TABLE_RECIPES = {
       // page, the print column and the start row, so stacked two-column culture
       // blocks never cross-match. NAMES are extracted data; the label is the
       // culture's heading as printed, read by its key and falling back to the
-      // block's neutral label; patronym templates and race are structural
-      // assists; appearance PROSE is never touched. See `CULTURES`.
+      // block's neutral label; race is a structural assist; appearance PROSE is
+      // never touched. See `CULTURES`.
       cultures: {
         shape: "nameList",
         book: "rr",

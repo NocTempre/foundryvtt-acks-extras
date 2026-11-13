@@ -117,7 +117,13 @@ export function pickCulture(rand, demographics, race = null, cultureWhitelist = 
   return ids[Math.floor(rand() * ids.length)];
 }
 
-/** Full name per the culture's naming customs (patronym or surname). */
+/**
+ * Full name per the culture's naming customs (patronym or surname). The
+ * patronym is the template the culture's section teaches by example, imported
+ * beside its colours (`people.cultureAppearance`, `{male, female}` strings
+ * holding `{parent}`) or set inline on the culture entry; with none, the name
+ * is the given name alone.
+ */
 export function generateName(rand, cultureId, gender) {
   const culture = getTable("people", "cultures").list[cultureId];
   if (!culture) return { given: "Nameless", full: "Nameless" };
@@ -126,12 +132,15 @@ export function generateName(rand, cultureId, gender) {
   let full = given;
   if (culture.surnames?.length) {
     full = `${given} ${pick(rand, culture.surnames)}`;
-  } else if (culture.patronym) {
-    const pattern = gender === "female" ? culture.patronym.female : culture.patronym.male;
-    let parent = pick(rand, culture.male); // patronyms derive from the father
-    if (parent === given) parent = pick(rand, culture.male);
-    const patronym = pattern.replace("{parent}", parent);
-    if (patronym && patronym !== given) full = `${given} ${patronym}`;
+  } else {
+    const templates = culture.patronym ?? optTable("people", "cultureAppearance")?.cultures?.[cultureId]?.patronym;
+    const pattern = gender === "female" ? templates?.female : templates?.male;
+    if (typeof pattern === "string" && pattern.includes("{parent}")) {
+      let parent = pick(rand, culture.male); // patronyms derive from the father
+      if (parent === given) parent = pick(rand, culture.male);
+      const patronym = pattern.replace("{parent}", () => parent);
+      if (patronym && patronym !== given) full = `${given} ${patronym}`;
+    }
   }
   return { given, full };
 }

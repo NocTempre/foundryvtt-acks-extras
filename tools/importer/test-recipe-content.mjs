@@ -924,7 +924,13 @@ Object.assign(VERIFY, {
     for (const b of recipe.valueBlocks) {
       for (const v of b.values) {
         const got = out[b.id]?.[v.key];
-        if (!Array.isArray(got) || !got.length) fail(`culture ${b.id}: ${v.key} is absent or empty`);
+        if (v.take === "patronym") {
+          // A name template: a string holding one `{parent}`, for each sex.
+          for (const sex of ["male", "female"]) {
+            const t = got?.[sex];
+            if (typeof t !== "string" || t.split("{parent}").length !== 2) fail(`culture ${b.id}: the ${sex} name template is absent or holds no single {parent}`);
+          }
+        } else if (!Array.isArray(got) || !got.length) fail(`culture ${b.id}: ${v.key} is absent or empty`);
         else if (!got.every(isText)) fail(`culture ${b.id}: ${v.key} holds a non-text entry`);
       }
     }
@@ -976,7 +982,9 @@ for (const [docId, ids] of Object.entries(TABLES)) {
             if (page == null) { fail(`block ${id}: page not found`); continue; }
             const block = recipe.valueBlocks.find((b) => b.id === id);
             const { items } = await pageItems(doc, page);
-            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, section: block.section });
+            // A value that reads on past its page is handed the next page, as the import does.
+            const runOn = block.values.some((v) => v.runOn) && page < doc.numPages ? (await pageItems(doc, page + 1)).items : undefined;
+            out[id] = extractTable(items, { ...recipe, valueBlocks: null, emit: null, values: block.values, column: block.column ?? recipe.column, section: block.section, runOn });
           }
           VERIFY[name](out, recipe, fail);
         } else {

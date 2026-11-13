@@ -1098,4 +1098,50 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- a name from a culture's imported template: the patronym rides beside the colours ----
+// Cultures, names and templates are invented. A culture's template is read from
+// `people.cultureAppearance`; with none imported the name is the given name alone.
+{
+  const { generateName } = await import(new URL("../scripts/henchmen/rules/identity.mjs", import.meta.url));
+  const ns = (globalThis.acksExtras ??= {});
+  const saved = ns.lib;
+  const cultures = {
+    fen: { male: ["Aldo", "Brem"], female: ["Cira", "Dena"] },
+    moor: { male: ["Aldo", "Brem"], female: ["Cira", "Dena"], surnames: ["Holt"] },
+    reed: { male: ["Aldo", "Brem"], female: ["Cira", "Dena"], patronym: { male: "Zul {parent}", female: "Zel {parent}" } },
+    bare: { male: ["Aldo", "Brem"], female: ["Cira", "Dena"] },
+  };
+  const palettes = { fen: { patronym: { male: "{parent}vik", female: "Vel {parent}" } }, moor: { patronym: { male: "{parent}vik", female: "{parent}vika" } }, bare: { hair: ["red"] } };
+  /** A rand that returns the given draws in order, then 0. */
+  const seq = (...draws) => () => draws.shift() ?? 0;
+  const install = (appearance) => {
+    ns.lib = {
+      tables: {
+        hasDoc: () => true,
+        getTable: (doc, id) => {
+          if (id === "cultures") return { list: cultures };
+          if (id === "cultureAppearance" && appearance) return { cultures: palettes };
+          throw new Error(`no table ${id}`);
+        },
+      },
+    };
+  };
+  try {
+    install(true);
+    assert.deepStrictEqual(generateName(seq(0, 0.99), "fen", "male"), { given: "Aldo", full: "Aldo Bremvik" }, "the male template with a parent drawn from the male names");
+    assert.deepStrictEqual(generateName(seq(0.99, 0), "fen", "female"), { given: "Dena", full: "Dena Vel Aldo" }, "the female template, the parent still the father's");
+    assert.deepStrictEqual(generateName(seq(0), "moor", "male"), { given: "Aldo", full: "Aldo Holt" }, "a surname list takes precedence over a template");
+    assert.deepStrictEqual(generateName(seq(0, 0.99), "reed", "male"), { given: "Aldo", full: "Aldo Zul Brem" }, "a template set on the culture entry itself stands");
+    assert.deepStrictEqual(generateName(seq(0), "bare", "male"), { given: "Aldo", full: "Aldo" }, "a culture with no template makes the given name alone");
+    install(false);
+    assert.deepStrictEqual(generateName(seq(0, 0.99), "fen", "male"), { given: "Aldo", full: "Aldo" }, "with the appearance table not imported there is no patronym");
+    assert.deepStrictEqual(generateName(seq(0, 0.99), "reed", "female"), { given: "Cira", full: "Cira Zel Brem" }, "an inline template needs no imported table");
+    palettes.fen.patronym = { male: "no placeholder", female: "" };
+    install(true);
+    assert.deepStrictEqual(generateName(seq(0, 0.99), "fen", "male"), { given: "Aldo", full: "Aldo" }, "a template that holds no {parent} is ignored");
+  } finally {
+    ns.lib = saved;
+  }
+}
+
 console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);
