@@ -285,7 +285,7 @@ function stageStartPages() {
   page(
     "what-this-is.md",
     "What this is",
-    "What ACKS II — Extras adds to Foundry VTT: the shared primitives and the seven feature areas built on them.",
+    "What ACKS II — Extras adds to Foundry VTT: the shared primitives and the feature areas built on them.",
     required("Features"),
     `${sections.get("__intro__")}\n\n:::tip\nSeeing is quicker than reading — the [feature gallery](../../gallery/) shows every one of these working.\n:::\n`,
   );
@@ -293,7 +293,7 @@ function stageStartPages() {
   page(
     "install.md",
     "Install",
-    "Installing ACKS II — Extras in Foundry VTT: the manifest URL, what it requires, and upgrading from the eight separate modules.",
+    "Installing ACKS II — Extras in Foundry VTT: the manifest URL, what it requires, and building it from source.",
     required("Installation"),
     "",
   );
