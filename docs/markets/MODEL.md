@@ -27,7 +27,7 @@ writer. One writer path: the GM-routed socket handlers in
 ## Data pipeline
 
 No availability value, price step, or transaction count ships in this repo.
-Tables arrive per world through acks-importer (`availability.
+Tables arrive per world through the importer (`availability.
 equipmentAvailability`, `mercantile.merchandiseTypes`,
 `magicItems.transactionsByMarketClass`, `demand.rangeOfTrade`) and are read at runtime through the
 lib tables registry; `expectTables` declarations generate fillable
@@ -455,19 +455,19 @@ those fields ships as a value; the importer writes them.
   written nowhere. The Getting Started chain runs the step, and the Books
   dialog offers it as a re-import.
 - **The reader** (`engine/merchandise.mjs`): `merchandiseCatalog()` merges per
-  key, world item over compendium item over legacy table row.
+  key, world item over compendium item over imported table row.
   `merchandiseFor(key)` reads one. The compendium is read from the pack index
   at `ready` (`primeMerchandiseCatalog`). A world merchandise item created,
   edited or deleted drops the cached snapshot; a compendium one re-reads the
   packs, once per burst of writes.
-- **Migration:** `buildMerchandiseFromTables()` (GM only; a button on
+- **Build from tables:** `buildMerchandiseFromTables()` (GM only; a button on
   Manage Imports' Tools tab) creates a world item for every key the imported
-  legacy tables answer and no item does yet. It is idempotent.
+  tables answer and no item does yet. It is idempotent.
 
 Pricing's demand-step fraction (`stepFractionFor`), the ventures (assessment,
 solicitation, the month's price, merchandise trades), the Trade tab's goods
 list and the Demand Generator read the catalogue, so a Judge's own good takes
-part in all of them. The legacy table is only the catalogue's lowest layer;
+part in all of them. The imported table is only the catalogue's lowest layer;
 its rows take their label from the module's own `ACKS-MARKETS.merch.*` keys.
 
 ## Demand

@@ -408,9 +408,8 @@ export async function grantLanguages(actor, classItem, log = []) {
 /**
  * Bring the character's one open-slot carrier up to what they are owed.
  *
- * Only ever ONE carrier: the tongues a character was handed are documents now,
- * so the pair of carriers this model used to keep has nothing left to hold
- * apart.
+ * Only ever ONE carrier: the tongues a character was handed are documents of
+ * their own, so there is no second carrier to hold apart.
  */
 async function refreshOpenSlots(actor, grant, log) {
   const existing = actor.items.find((i) => i.type === "ability" && isLanguageSlots(i));

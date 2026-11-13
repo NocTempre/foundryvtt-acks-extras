@@ -95,35 +95,6 @@ async function drawClass(rollDice, variant, level) {
 }
 
 /**
- * 0th-level class trajectory: the BUCKET rolls from the JJ 247 level-0
- * archetype weights, then the class resolves on the same bucket ladder.
- * @returns {Promise<{classKey: string, bucket: string, rolls: [number, number]}>}
- */
-export async function rollTrajectoryFromDistribution(rollDice, variant = "default") {
-  const distribution = optTable("rarity", "classDistribution");
-  if (!distribution) return rollCoreClass(rollDice, 0);
-  const variants = getTable("rarity", "classRarityTables").variants;
-  const buckets = variants[variant]?.buckets ?? distribution.buckets;
-  const weights = distribution.trajectoryBucketWeights?.weights;
-  if (!weights) return rollCoreClass(rollDice, 0); // JJ 247 weights not imported yet
-  const total = Object.values(weights).reduce((s, w) => s + w, 0);
-  const bucketRoll = await rollDice(`1d${total}`);
-  let running = 0;
-  let bucketId = Object.keys(weights)[0];
-  for (const [id, w] of Object.entries(weights)) {
-    running += w;
-    if (bucketRoll <= running) {
-      bucketId = id;
-      break;
-    }
-  }
-  const bucket = buckets.find((b) => b.id === bucketId) ?? buckets[0];
-  const rowRoll = await rollDice("1d100");
-  const row = bracketRow(bucket.rows, rowRoll);
-  return { classKey: row?.class ?? "special", bucket: bucket.id, rolls: [bucketRoll, rowRoll] };
-}
-
-/**
  * Random Henchman Level (JJ ch. 3, "Random Henchman Level"): one die on the
  * imported table's own bands, with the imported Class VI penalty in a Class VI
  * market. Throws, as `getTable` does, where the bands reach no die.

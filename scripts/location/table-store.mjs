@@ -1,7 +1,7 @@
 /**
- * The `ruledata-import` provider (acks-lib contract v1, see acks-lib
- * docs/API.md): persists imported rules-table documents as world data and
- * mirrors them into `acksLib.tables` on every client. Consumers (content
+ * The `ruledata-import` provider (lib service contract, see docs/lib/API.md):
+ * persists imported rules-table documents as world data and
+ * mirrors them into the lib tables registry on every client. Consumers (content
  * import flows) call the contract; sibling modules read the registry —
  * nobody names this module. No table values ship here (extraction-program
  * ruling 1): everything in the store arrived via a GM's own-book import.
@@ -73,7 +73,7 @@ export const ruledataImport = {
     const persisted = game.settings.get(MODULE_ID, SETTING);
     if (!persisted?.[`${doc.id}:${p}`]) {
       ui.notifications.error(`acks-extras | "${doc.id}" did not persist to world data — check the world's storage and re-import.`);
-      throw new Error(`acks-location: persist verification failed for "${doc.id}"`);
+      throw new Error(`${MODULE_ID}: persist verification failed for "${doc.id}"`);
     }
     // Imported tables become FOUNDRY documents too (prefilled RollTables /
     // JSON journal pages) — the audit-and-tweak surface. Best-effort.

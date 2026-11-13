@@ -6,11 +6,11 @@
  *
  *   1. **Identity and nesting** — a name, a region, notes, and the place it is
  *      inside of. Every location has this, from a duchy to a chest.
- *   2. **Contents** — goods (real embedded items, stamped by acks-lib's storage
+ *   2. **Contents** — goods (real embedded items, stamped by the lib storage
  *      primitive) and a ROSTER of the living things kept here, which items
  *      cannot represent because Foundry has no actor-inside-an-actor.
  *   3. **A stack count** — eight identical warehouse bays are one actor until
- *      one of them becomes interesting (acks-lib place-logic.mjs, `planSplit`).
+ *      one of them becomes interesting (`lib/place-logic.mjs`, `planSplit`).
  *   4. **A market**, optionally — the henchmen recruitment domain and the
  *      markets feature's goods trade.
  *
@@ -22,9 +22,8 @@
  *
  * There is deliberately NO `hasMarket` boolean. The presence of the subtree IS
  * the flag, so the two can never disagree — the failure mode a separate boolean
- * would have introduced is a location whose flag says "market" and whose data
- * says otherwise, which is exactly the class of bug the storage/bank split was
- * retired for.
+ * would introduce is a location whose flag says "market" and whose data says
+ * otherwise.
  *
  * DESIGNED FOR EXTENSION: another module stores its own data in its own flag
  * namespace on the same location actor, so this schema stays minimal.
@@ -34,9 +33,9 @@
  */
 import { marketClassFromFamilies, clampMarketClass } from "../../henchmen/rules/availability.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
-// num/str/int are the family's leaf field-builders — one definition in acks-lib
-// (this file and henchman-record.mjs each had a verbatim copy). `fields` is
-// still needed locally for the non-leaf types (SchemaField, ArrayField, HTMLField).
+// num/str/int are the leaf field-builders — one definition in lib, shared with
+// henchman-record.mjs. `fields` is still needed locally for the non-leaf types
+// (SchemaField, ArrayField, HTMLField).
 // `occupantField` is the roster row a place and a faction share.
 import { num, str, int, occupantField } from "../../lib/fields.mjs";
 import { goodsSchema } from "../../markets/data/goods-schema.mjs";
@@ -187,7 +186,7 @@ function candidateField() {
 function marketSchema() {
   return {
     // Market-class derivation inputs: explicit override wins, then urban
-    // families (local bracket table), then acks-domains courtesy read,
+    // families (local bracket table), then a linked domain's courtesy read,
     // then default IV.
     marketClassOverride: num({ integer: true, min: 1, max: 6 }),
     // The Judge's word on denomination exchange here, outranking the derived
@@ -400,9 +399,9 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       // AcksActor.prepareDerivedData runs for EVERY actor type and touches
       // isNew / attack / initiative / movement / saves
       // unguarded; without them every location update logs a failed-data-
-      // preparation error. ONE definition of that set now lives in acks-lib
-      // (its setup sweep reads these world-wide, so it is a family concern, not
-      // a per-module one). Values are meaningless for a settlement.
+      // preparation error. ONE definition of that set lives in lib
+      // (its setup sweep reads these world-wide, so it is a shared concern, not
+      // a per-feature one). Values are meaningless for a settlement.
       ...acksCompatStubs(),
 
       // --- identity ------------------------------------------------------
@@ -423,9 +422,9 @@ export class LocationData extends foundry.abstract.TypeDataModel {
 
       // --- nesting -------------------------------------------------------
       // The place this place is inside of. A uuid, not an id, because a parent
-      // may be a location actor OR any other provider — acks-lib's place layer
+      // may be a location actor OR any other provider — lib's place layer
       // resolves all of them the same way, and a bare id could not say which.
-      // Cycles are refused at the write (acks-lib place-logic `wouldCycle`),
+      // Cycles are refused at the write (`lib/place-logic.mjs` `wouldCycle`),
       // never merely tolerated by the readers.
       parentUuid: str(),
 
@@ -451,7 +450,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       }),
 
       // --- occupancy -----------------------------------------------------
-      // The living things kept here. Goods are embedded items (acks-lib
+      // The living things kept here. Goods are embedded items (lib
       // storage); these cannot be, so they are references (lib `occupantField`).
       roster: new fields.ArrayField(occupantField()),
 
@@ -540,7 +539,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
         /* tables not loaded yet */
       }
     }
-    // Courtesy read of a linked acks-domains domain (heavy WIP — guarded).
+    // Courtesy read of a linked domain, when a separate domains module is active (guarded).
     try {
       const domains = game?.modules?.get?.("acks-domains");
       if (domains?.active && market.domainUuid) {

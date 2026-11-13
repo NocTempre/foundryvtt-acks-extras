@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Overlay: scavenged equipment (RR p. 160; acks-rules/acks-equipment/RULES.md §11).
+ * Overlay: scavenged equipment (RR p. 160; equipment RULES.md §11).
  * Gated by the `overlayScavenged` world setting.
  *
  * Reuse first: every RAW result is expressible in fields core already has —
@@ -55,7 +55,7 @@ export const SCAVENGED_TABLES = Object.freeze({
 export const SCAVENGED_CAPS = Object.freeze({ attack: -5, ac: -5, minDamage: 1 });
 
 /* -------------------------------------------------------------------------- */
-/*  The IMPORTED table (importer extraction → acks-lib ruledata registry)  */
+/*  The IMPORTED table (importer extraction → lib ruledata registry)  */
 /* -------------------------------------------------------------------------- */
 
 /** Our table keys → the ruledata table ids the importer extracts (RR p160). */
@@ -70,7 +70,7 @@ export const RULEDATA_TABLES = Object.freeze({
 /**
  * The GM's OWN imported condition table for this key, or null.
  *
- * Read through acks-lib's ruledata registry, which is where the importer lands
+ * Read through the lib's ruledata registry, which is where the importer lands
  * the table it extracted from the reader's own book. No values ship here — this
  * is the seat's own page — so when it is present it OUTRANKS the built-in table.
  * @returns {object|null} rows keyed by d20 band max: {category, effect, value, min, max}

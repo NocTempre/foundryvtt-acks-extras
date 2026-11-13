@@ -74,8 +74,8 @@ function wholeWordIn(candidateName, descriptor) {
  * The best base candidate a printed descriptor names, from a candidate list
  * (`{name}` objects). An exact folded match wins at any length; containment
  * requires a folded length of 6, or 4–5 as a whole word of the raw descriptor
- * — never a bare substring, which is how "mace" used to find nothing and
- * "grimace" would find too much. Every variant of the candidate's name is
+ * — never a bare substring, which would find nothing for "mace" and too much
+ * for "grimace". Every variant of the candidate's name is
  * tried (`nameVariants`), including its paren-stripped form: an embellished
  * instance contains "spellbook", never "(blank)".
  *
@@ -177,7 +177,7 @@ export function templateItemName(entry) {
 const GEAR_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item];
 
 /** Index fields every pack lookup needs: the type, the importer's stamp, and
- *  this module's own part stamp — a shelf now holds the parts it built beside
+ *  this module's own part stamp — a shelf holds the parts it built beside
  *  the imports they were built from, and a row must say which it is. */
 const INDEX_FIELDS = ["type", `flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`];
 
@@ -600,8 +600,8 @@ export function stripRepresented(row, bundle) {
 
 /**
  * Detach every package from a class: the rows' `bundle` links and the
- * table's cleared, so the class applies from its own printed entries again —
- * exactly as it did before packages existed. The documents are left on their
+ * table's cleared, so the class applies from its own printed entries again,
+ * with no package standing between them. The documents are left on their
  * shelf unless `deleteDocuments`, because they may hold a Judge's repairs.
  *
  * **A package never consumes what it points at.** `deleteDocuments` removes
@@ -625,9 +625,8 @@ export async function detachTemplatePackages(classItem, { deleteDocuments = fals
     const part = partOf(doc);
     return part && (part.classUuid === classItem.uuid || part.classKey === classKey);
   };
-  // The whole library, because the parts sit wherever the class does — and a
-  // world upgraded from a sidebar-writing release still holds its old ones in
-  // the directory beside the shelf's.
+  // The whole library, because the parts sit wherever the class does: the
+  // sidebar directory or a pack shelf.
   for (const doc of libraryItems().filter(mine)) {
     removed.push(doc.name);
     await doc.delete();
@@ -722,8 +721,7 @@ function stampPart(data, part, stamp) {
 /**
  * Materialize a class's template rows into bundle documents, their contents
  * into items, and the class's 3d6 RollTable — idempotent, and driven by the
- * class DOCUMENT alone, so a world imported long ago upgrades with no book
- * connected.
+ * class DOCUMENT alone, so it runs with no book connected.
  *
  * A row whose bundle already resolves is left alone (gear still flagged
  * unresolved is retried when it is unedited); a row with none gets one. Gear
@@ -756,9 +754,9 @@ export async function materializeTemplates(
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
   // A class ROW in a compendium builds its package on that same shelf. The
   // registry reads the library's packs (`lib/library.mjs` spans the sidebar
-  // and the importer's world packs), and since importer 3.0.0 every imported
-  // class IS a pack document — refusing one would make template packages a
-  // permanent no-op for exactly the classes that ship with them.
+  // and the importer's world packs), and every imported class IS a pack
+  // document — refusing one would make template packages a permanent no-op
+  // for exactly the classes that ship with them.
   const classKey = classItem.system.key || fold(classItem.name);
   const identity = { classUuid: classItem.uuid, classKey };
   const isMine = (doc) => {
@@ -768,8 +766,7 @@ export async function materializeTemplates(
   const shelves = await shelvesFor(classItem, { pack, tablePack });
   const itemOpts = shelves.items ? { pack: shelves.items } : {};
   // Read across the WHOLE library, never one collection: the parts sit
-  // wherever the class does, and a world upgraded from a sidebar-writing
-  // release still holds its earlier parts in the directory beside the shelf's.
+  // wherever the class does, in the sidebar directory or on a pack shelf.
   const ownGear = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "gear");
   const ownAbilities = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "ability");
   const shelf = folder ?? (await defaultFolder(classItem, shelves.items));

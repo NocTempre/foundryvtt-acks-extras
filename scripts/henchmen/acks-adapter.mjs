@@ -1,7 +1,7 @@
-/* global game, ui, ChatMessage, Folder */
+/* global game, ui, ChatMessage */
 /**
  * THE ONLY file that reads or writes the acks system's actor schema
- * (acks-domains adapter pattern). Everything degrades gracefully: a missing
+ * Everything degrades gracefully: a missing
  * field returns 0/null rather than throwing, so a system update breaks only
  * this file.
  *
@@ -83,10 +83,6 @@ export function getMorale(actor) {
 /** The score ranges are `lib/score-bounds.mjs`'s; the adapter re-exports them for its callers. */
 export { loyaltyBounds, moraleBounds };
 
-export function getAlignment(actor) {
-  return actor?.system?.details?.alignment ?? "";
-}
-
 export function getRetainer(actor) {
   const r = actor?.system?.retainer ?? {};
   return {
@@ -113,103 +109,7 @@ export function getHenchmenIds(actor) {
   return Array.isArray(actor?.system?.henchmenList) ? [...actor.system.henchmenList] : [];
 }
 
-/**
- * Organize hirelings into a Folder named after their employer in the Actors
- * sidebar, raising each henchman's ownership to match the employer's. Chains
- * nest — a henchman who is itself an employer gets its own sub-folder inside
- * its manager's.
- * GM-only. Idempotent: the per-employer folder is found by its
- * `flags.acks-extras.employerId` and reused, so re-running re-homes moved
- * actors instead of making duplicates.
- * @param {Actor[]} [actors] - the pool to organize; default = every actor
- * @returns {Promise<{folders:number, moved:number}>} counts of folders created
- *          and actors moved
- */
-export async function organizeHenchmenFolders(actors = null) {
-  if (!game.user?.isGM) return { folders: 0, moved: 0 };
-  const list = (actors ?? game.actors.contents).filter(Boolean);
-  const present = new Set(list.map((a) => a.id));
-  const managerIn = (a) => {
-    const id = a?.system?.retainer?.managerid;
-    return id && present.has(id) ? id : null;
-  };
-  const byName = (a, b) => String(a?.name ?? "").localeCompare(String(b?.name ?? ""));
-
-  // henchmen grouped under their in-list employer's id
-  const henchByManager = new Map();
-  for (const a of list) {
-    const mid = managerIn(a);
-    if (!mid) continue;
-    if (!henchByManager.has(mid)) henchByManager.set(mid, []);
-    henchByManager.get(mid).push(a);
-  }
-  for (const arr of henchByManager.values()) arr.sort(byName);
-
-  // Every user who owns the employer at some level should own the henchman at
-  // least as much — never lower an existing grant, never touch `default`.
-  const raiseOwnership = (member, employer) => {
-    const out = { ...(member.ownership ?? {}) };
-    let changed = false;
-    for (const [uid, lvl] of Object.entries(employer.ownership ?? {})) {
-      if (uid === "default") continue;
-      if ((out[uid] ?? 0) < lvl) {
-        out[uid] = lvl;
-        changed = true;
-      }
-    }
-    return changed ? out : null;
-  };
-
-  const findOrCreateFolder = async (employer, parentId) => {
-    let folder = game.folders.find((f) => f.type === "Actor" && f.getFlag(MODULE_ID, "employerId") === employer.id);
-    if (folder) {
-      const upd = {};
-      if (folder.name !== employer.name) upd.name = employer.name;
-      if ((folder.folder?.id ?? null) !== (parentId ?? null)) upd.folder = parentId ?? null;
-      if (Object.keys(upd).length) await folder.update(upd);
-      return { folder, created: false };
-    }
-    folder = await Folder.create({
-      name: employer.name,
-      type: "Actor",
-      folder: parentId ?? null,
-      flags: { [MODULE_ID]: { employerId: employer.id } },
-    });
-    return { folder, created: true };
-  };
-
-  let folders = 0;
-  let moved = 0;
-  const seen = new Set();
-  const fold = async (employer, parentId, includeEmployer) => {
-    if (seen.has(employer.id)) return; // circular-chain guard (not expected)
-    seen.add(employer.id);
-    const hench = henchByManager.get(employer.id) ?? [];
-    const { folder, created } = await findOrCreateFolder(employer, parentId);
-    if (created) folders++;
-    // The root employer joins its own folder; a chained one already sits in its
-    // manager's folder, so only its henchmen move here.
-    for (const m of includeEmployer ? [employer, ...hench] : hench) {
-      const upd = {};
-      if ((m.folder?.id ?? null) !== folder.id) upd.folder = folder.id;
-      const own = raiseOwnership(m, employer);
-      if (own) upd.ownership = own;
-      if (Object.keys(upd).length) {
-        await m.update(upd);
-        moved++;
-      }
-    }
-    // Chains: a henchman that is itself an employer gets a nested folder.
-    for (const h of hench) if (henchByManager.has(h.id)) await fold(h, folder.id, false);
-  };
-
-  // Roots = employers with henchmen that are not themselves someone's henchman.
-  const roots = list.filter((a) => henchByManager.has(a.id) && !managerIn(a)).sort(byName);
-  for (const root of roots) await fold(root, null, true);
-  return { folders, moved };
-}
-
-/** A monster's HD rating from `system.hp.hd` — acks-lib's union parser. */
+/** A monster's HD rating from `system.hp.hd` (lib's union parser). */
 export const getMonsterHd = monsterHd;
 
 /**

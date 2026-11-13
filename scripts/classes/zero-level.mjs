@@ -20,6 +20,7 @@ import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { cookbookId } from "../lib/library.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { earnsExperience } from "../lib/actor-read.mjs";
+import { escape as esc } from "../lib/util.mjs";
 
 /** The item flag a proficiency marked to erode carries: `{since}`, the world time it was marked. */
 export const FLAG_ERODES = "erodes";
@@ -91,7 +92,6 @@ export async function settleAdvance(actor, classItem, before) {
   const { rows, general, over } = settleProficiencies({ held, powers, classList, limit });
 
   const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.zero.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.zero.${key}`));
-  const esc = foundry.utils.escapeHTML;
   const bucketLabel = (bucket) => game.i18n.localize(`${LANG_PREFIX}.cattabs.${bucket}`);
   const options = (answer) =>
     Object.values(SETTLE)

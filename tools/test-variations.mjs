@@ -85,7 +85,7 @@ test("a picker offers only what the document can be", () => {
   assert.ok(baseTypesFor("armor").includes(BASE_TYPE.shield));
 });
 
-test("declared and inferred are distinguishable, so a migration can find the gaps", () => {
+test("declared and inferred are distinguishable, so the gaps can be found", () => {
   assert.equal(baseTypeIsDeclared(item("item", BASE_TYPE.gem)), true);
   assert.equal(baseTypeIsDeclared(item("item")), false);
 });
@@ -102,7 +102,7 @@ test("gear is the floor: anything physical may be gear", () => {
 });
 
 /* -------------------------------------------- */
-/*  The legacy guess, still standing in         */
+/*  The name guess, standing in for a declaration */
 /* -------------------------------------------- */
 
 const named = (name, type, system = {}) => inferBaseType({ name, type, system });

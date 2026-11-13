@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Overlay: JJ shield variants (Judges Journal pp. 407–408; acks-rules/acks-equipment/RULES.md §4).
+ * Overlay: JJ shield variants (Judges Journal pp. 407–408; equipment RULES.md §4).
  * Gated by the `overlayShieldVariants` world setting; off → every shield is the
  * standard +1 AC shield core already models.
  *
@@ -18,20 +18,19 @@
  * `system.ac.mod` — cancelling core's bonus rather than fighting it.
  *
  * MOUNTED. A phalanx shield cannot be used from horseback, which is a flat RAW
- * fact rather than a situational one — so now that acks-lib records who is
- * riding what, it is enforced: mounted, that shield grants no ordinary AC.
+ * fact rather than a situational one — the lib records who is riding what, so
+ * it is enforced: mounted, that shield grants no ordinary AC. A kite shield's
+ * mounted encumbrance (`mountEnc`) is read by `shieldEnc6`.
  *
- * Still not automated, and deliberately:
- *  - the loss of a shield's benefit while vulnerable — needs per-attack context
- *    the system has no model for;
- *  - the mounted self-or-mount choice (`mountAlternates`, `mountShares`) — that
- *    is a PLAYER'S choice each round, not a derivable fact, so automating it
- *    would be choosing for them;
- *  - `mountEnc` (a kite shield encumbers less mounted) — shield encumbrance is
- *    not implemented at all yet, so there is nothing for the mounted value to
- *    modify;
- *  - the phalanx shield counting for the Defend action.
- * Those are surfaced in the item descriptions for the Judge.
+ * The variant table holds what the code reads: `handAC`, `frontAC`, `specOnly`,
+ * `spec`, `noBack`, `noMount` and the encumbrance figures `enc`, `encItem`,
+ * `frontEnc`, `mountEnc`.
+ *
+ * Not automated, and deliberately: the loss of a shield's benefit while
+ * vulnerable, which needs per-attack context the system has no model for, and
+ * the mounted self-or-mount protection choice, which is a PLAYER'S choice each
+ * round, not a derivable fact. Those are surfaced in the item descriptions for
+ * the Judge.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
@@ -94,9 +93,9 @@ export function occupiesHand(item) {
 }
 
 /**
- * Is this actor on a mount? Answered by acks-lib, which owns the binding.
- * Absent the library the answer is "no", so every mounted rule below simply
- * does not fire — the same behaviour as before the binding existed.
+ * Is this actor on a mount? Answered by the lib, which owns the binding.
+ * With no mount binding the answer is "no", so every mounted rule below simply
+ * does not fire.
  */
 export function mounted(actor) {
   return !!globalThis.acksExtras?.lib?.mount?.isMounted?.(actor);
@@ -140,11 +139,9 @@ export function shieldACCorrection(loadout, hasShieldSpec, actor = null) {
 /**
  * A shield's RAW encumbrance in `weight6`, given how it is being carried.
  *
- * The variant table has carried `enc`, `encItem`, `frontEnc` and `mountEnc`
- * since it was written, with nothing reading them — so every shield weighed
- * whatever its item said, and a kite shield encumbered a rider exactly as much
- * as a man on foot. The table's values are in STONE; a buckler is instead rated
- * as a single ITEM (`encItem`), which is 1/6 stone.
+ * The variant table's `enc`, `encItem`, `frontEnc` and `mountEnc` give the
+ * rating. The table's values are in STONE; a buckler is instead rated as a
+ * single ITEM (`encItem`), which is 1/6 stone.
  *
  * Front-strapping a crescent shield makes it HEAVIER (frontEnc 2 against enc 1)
  * — not a typo in the table: it is strapped across the body rather than slung.
@@ -192,15 +189,6 @@ export function specApplies(loadout) {
   if (!shield) return true;
   const v = variantOf(shield);
   return strapOf(shield) === "hand" && v.spec !== false;
-}
-
-/** Does the loadout's shield count for the Defend action (phalanx)? RR p. 294. */
-export function countsForDefend(loadout) {
-  const shield = loadout?.shield;
-  if (!shield) return false;
-  if (!overlayEnabled()) return true;
-  const v = variantOf(shield);
-  return v.defendCounts === true || v.key === "standard" || v === SHIELD_VARIANTS.standard;
 }
 
 void STYLE;

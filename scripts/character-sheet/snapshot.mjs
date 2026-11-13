@@ -1,4 +1,4 @@
-/* global game, canvas, fromUuidSync */
+/* global game, canvas */
 /**
  * Reading a character into the plain snapshot the frame's view-model consumes.
  *
@@ -28,6 +28,7 @@ import { isLanguageSlots, freeSlots } from "../classes/languages.mjs";
 import { FLAG_MONSTER_LIST } from "../henchmen/constants.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { docOf } from "../lib/util.mjs";
 
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 
@@ -40,9 +41,6 @@ export { sheetFlag };
  * book key for Spells is the plural.
  */
 export const saveSystemKey = (bookKey) => BOOK_TO_RELEASED_SAVES[bookKey === "spell" ? "spells" : bookKey] ?? bookKey;
-
-/** The book key a released save key answers to, or null for one the sheet does not show. */
-export const saveBookKey = (systemKey) => SAVE_KEYS.find((k) => saveSystemKey(k) === systemKey) ?? null;
 
 /** A save's printed name: the system's own label under either key, else the sheet's. */
 export function saveLabel(bookKey) {
@@ -131,12 +129,7 @@ export function saveRiders(actor) {
     const statuses = [...(effect.statuses ?? [])];
     let save = statuses.map((s) => CONDITION_SAVES[s]).find(Boolean) ?? null;
     if (!save && effect.origin) {
-      let origin = null;
-      try {
-        origin = fromUuidSync(effect.origin);
-      } catch {
-        origin = null;
-      }
+      const origin = docOf(effect.origin);
       // Only a condition rides: an origin item names a save, but the effect
       // must also be a status or a timer, or every buff a spell grants would
       // sit on the rail as a harm.

@@ -13,8 +13,12 @@
  */
 import { EFFECT_PREFIX, EFFECT_DOMAINS, INFLUENCE_REACTION_KEY, MODULE_ID } from "./constants.mjs";
 import { NAME_PRESENCE } from "./config.mjs";
-import { localizeKey as localize, makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers, abilityModifiers } from "../lib/effect-scan.mjs";
+import { makeEffectMeta, activeNumericChanges, csvFlagSet, sumModifiers, abilityModifiers } from "../lib/effect-scan.mjs";
+import { locOr } from "../lib/util.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+
+/** A lang key localized where the active translation has it, else passed through unchanged. */
+const localize = (key) => locOr(key, key);
 
 /**
  * The domains whose value the importer locates on the page, each to the

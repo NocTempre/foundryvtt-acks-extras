@@ -61,12 +61,6 @@ export function signed(n) {
   return v < 0 ? `−${Math.abs(v)}` : `+${v}`;
 }
 
-/** A multiplier as the ledger prints it: a `×` and the number, rounded to hundredths. */
-export function timesLabel(mult) {
-  const m = Math.round(Number(mult) * 100) / 100;
-  return `× ${m}`;
-}
-
 /** A whole percentage, clamped to 0–100. */
 export function pctLabel(ratio) {
   const r = Number(ratio);

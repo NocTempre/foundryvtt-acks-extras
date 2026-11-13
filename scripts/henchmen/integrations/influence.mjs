@@ -252,7 +252,7 @@ export function registerInfluenceIntegration() {
       console.warn(`${MODULE_ID} | acksExtras.influenceRollComplete handling failed`, err);
     }
   });
-  console.log(`${MODULE_ID} | acks-influence integration active (hostsModes: ${hostsModes()})`);
+  console.log(`${MODULE_ID} | influence integration active (hostsModes: ${hostsModes()})`);
 }
 
 /**

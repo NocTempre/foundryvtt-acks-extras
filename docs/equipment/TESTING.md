@@ -30,7 +30,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 - **`annotateItem(item)` writes flags at the item's own root**, not under an
   `equipment` sub-object: read `item.flags["acks-extras"]` and expect
   the `profileKey` of a weapon a row names (no size, damage type, `handy` or
-  `thrown` since 2026-11-11: those are read from the row), and a `gear` block
+  `thrown`: those are read from the row), and a `gear` block
   with `slots`.
   Reading `getFlag(MODULE_ID, "equipment")` finds nothing and reads as a
   no-op.
@@ -630,8 +630,7 @@ Fixtures to create and destroy: one disposable `character`, one disposable
 1. **Entry is sixths.** Open a plain item's sheet. The band's weight field is
    labelled `1/6 st` and steps by 1. Type `1`.
    *Observable:* `item.system.weight6 === 1`, and the label beside the field
-   reads `¹⁄₆`. Typing `6` reads `1`. (Before 5.7.0 this field took decimal
-   stone — a Judge who typed `1` got a whole stone.)
+   reads `¹⁄₆`. Typing `6` reads `1`.
 2. **No unrelated submit moves it.** Rename the item through the UI.
    *Observable:* `weight6` unchanged. There is no derived weight control left
    to write it, which is what makes this structural rather than guarded.
@@ -709,7 +708,7 @@ drag makes. Read encumbrance on the character sheet's bar as well as the API.
    compendium onto the character.
    *Observable:* both carry the `clothing` flag as created, and weigh nothing.
 5. **A disagreement already stored is left alone, then settled.** Build the
-   pre-upgrade shape with the hook skipped:
+   disagreeing shape with the hook skipped:
    `Item.create({name, type: "item", system: {subtype: "item", weight6: 6},
    flags: {"acks-extras": {baseType: "clothing"}}}, {noHook: true})`. Rename it.
    *Observable:* the subtype stays `item`; an unrelated edit repairs nothing.
@@ -754,8 +753,8 @@ does not dereference them.
    bug, inverted.
 2. **Nothing to read is still nothing.** The same on `Francisca (bare)`.
    *Observable:* `key: null`, `cat: "other"`, proficient **false**. This is the
-   control: it is what every skinned weapon used to do.
-3. **The loose match no longer beats a recorded base.**
+   control: a weapon with no recorded base has no identity to read.
+3. **The loose match does not beat a recorded base.**
    `weaponIdentity(sword)`. *Observable:* `twohandedsword`, and
    `classifyWeapon().damage2h` is `null` — the sword stops offering a
    two-handed figure at a smaller die than its own.
@@ -1121,13 +1120,11 @@ gear flag's storage row).
 The fixture stays, with its Player ownership. The importer step's writes are
 the import's, not the run's: they are neither tracked nor swept.
 
-## Grants a pack wrote as overrides
+## Grants written as overrides
 
 Every CSV grant an item's effect states counts, whatever its change type,
 beside the class training's own (MODEL §3). The shape under test is a world
-that still holds items from the retired equipment-training pack, whose
-effects are all `override` at priority 50
-(`git show 741cdff^:packs/_source/equipment-training/`).
+that holds items whose effects are all `override` at priority 50.
 
 ### Fixtures
 
@@ -1136,11 +1133,9 @@ effects are all `override` at priority 50
   `flags.world.fixturePart`:
   - six `ability` items, each with one transfer effect whose one change is
     `type: "override"`, `priority: 50`: `weaponProf` `axe` (`grant-a`) and
-    `bowcrossbow` (`grant-b`; a fixture built before the merge still holds
-    `bow`, which reads as unknown, so re-set it), `styleProficient` `weaponShield` (`style-a`) and
+    `bowcrossbow` (`grant-b`), `styleProficient` `weaponShield` (`style-a`) and
     `twoHanded` (`style-b`), `armourProficiency` `light` (`armour-a`) and
-    `medium` (`armour-b`). Names are neutral (`QA pre-upgrade <part>`); the
-    pack's own are in git;
+    `medium` (`armour-b`). Names are neutral (`QA override grant <part>`);
   - four bare `weapon` items: Sword, Hand Axe, Short Bow, Spear (`w-sword`,
     `w-axe`, `w-bow`, `w-spear`);
   - an actor effect (`hand-override`) overriding `weaponProf` with `crossbow`;

@@ -2,7 +2,7 @@ import { usableSpecs } from "../lib/field-spec.mjs";
 
 /**
  * What a BASE TYPE records, from the GM's own books by way of the importer
- * and acks-lib's ruledata registry.
+ * and the lib's ruledata registry.
  *
  * Variations themselves are documents and carry their own numbers
  * (`data/variation-data.mjs`) — they arrive as a compendium, not as a table.
@@ -26,7 +26,7 @@ export const RULEDATA_DOC = "variations";
 /** The table inside it. */
 export const TABLES = Object.freeze({ baseTypeFields: "baseTypeFields" });
 
-/** The registry, or null when acks-lib is not up yet. */
+/** The registry, or null when the lib is not up yet. */
 const registry = () => globalThis.acksExtras?.lib?.tables ?? null;
 
 /** Has base-type metadata been imported at all? */

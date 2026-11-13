@@ -1,6 +1,6 @@
 /* global globalThis */
 /**
- * The acks-abilities bridge — proficiency facts read FROM the abilities model.
+ * The abilities bridge — proficiency facts read FROM the abilities model.
  *
  * A character carries generic `ability` items — one per definition, identified
  * by `flags["acks-extras"].cookbook.id`, picks recorded in
@@ -33,7 +33,7 @@ import { CATEGORY_TOKENS, canonicalGrant, grantTokens } from "./training-view.mj
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
-// The definition slug an ability is known by is acks-lib's `abilitySlug` — one
+// The definition slug an ability is known by is the lib's `abilitySlug` — one
 // identity, so the vocabulary a sheet offers and the picks resolved here are
 // keyed alike. It reads the importer's cookbook id where there is one and falls
 // back to the item's own name with any trailing "(X)" pick suffix removed.
@@ -231,7 +231,7 @@ const PRESENCE_DOMAINS = Object.freeze({
  * The slug tables key on a definition id's LAST segment, which does not
  * identify a class power granting the same mechanic under its own name. The
  * typed specs in `flags["acks-extras"].extras.effects` (the same shape
- * acks-lib's `effectField()` declares) are read first for that reason; the
+ * the lib's `effectField()` declares) are read first for that reason; the
  * name tables stay only for mechanics the typed model does not yet express
  * (fighting styles, weapon groups). See docs/equipment/DECISIONS.md,
  * "2026-08-11 — the abilities bridge reads the typed effect model, not the
@@ -252,8 +252,8 @@ function typedEffects(item) {
 const raisesArmour = (spec) => spec?.type === "modifies" && spec.domain === "armor";
 
 /**
- * The step one armour-raising spec carries: its `value`, a bare number (an
- * import made before the step was read off the page) or a LevelValue (read
+ * The step one armour-raising spec carries: its `value`, a bare number (a
+ * spec whose step was not read off the page) or a LevelValue (read
  * at import, or set by a Judge on the row). Null when it resolves to no number.
  */
 function armourStep(spec) {

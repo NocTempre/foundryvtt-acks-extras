@@ -2,8 +2,8 @@
 
 How this feature stores data, the Active-Effect contract it reads, the API it
 exposes, and where its responsibilities end. Companion to
-`acks-rules/acks-equipment/RULES.md` (the RAW source of truth behind the code
-enums; local-only, never in the repo).
+the equipment `RULES.md` extract on the local rules shelf (the RAW source of
+truth behind the code enums; local-only, never in the repo).
 
 ## 1. Design rules
 
@@ -119,7 +119,7 @@ An imported ability raises the wearable armour category through its typed
 `modifies` row on the `armor` domain (`abilities-bridge.mjs`
 `addTypedEffects`): the row's `value`, a LevelValue read off the page at
 import (RR ch. 3 and JJ ch. 12, Armor Training) or a bare number on a copy
-imported before the step was located, times the ability's rank, whatever the
+whose step was not located, times the ability's rank, whatever the
 ability is called. Nothing is keyed on the name, so a copy with no such row,
 hand-made or imported without its book, adds nothing. `armourTrainingRows`
 lists every ability that carries the row or is named Armour Training (either
@@ -436,7 +436,7 @@ Pack document `_id`s carry the prefix declared in `module.json` at
 ## The mounted overlay
 
 `overlays/mounted.mjs`, gated by `overlayMounted` — the overlay §15's
-research waited on, live now that acks-lib records who rides what. It
+research describes, resting on the lib's record of who rides what. It
 automates the STRUCTURE: **staying-mounted save prompts** (after every
 attack by a mounted rider or a ridden mount, unless the rider holds Riding
 or Mounted Combat — the lib's `POST_ATTACK_HOOK` seam; and whenever either
@@ -620,9 +620,9 @@ the Judge and, for an owner identifying a magical item, under Details.
 
 ## 2026-07-24 — containers live on the sheet; locks roll the character's own proficiency
 
-The Container Manager popout is retired. It existed only because there was
-nowhere to put its controls; the equipment tab is that place, and a container
-opened next to the gear it holds matches the gesture at the table.
+Containers have no window of their own: the equipment tab holds their controls,
+and a container opened next to the gear it holds matches the gesture at the
+table.
 
 **Gear moves by drag, both ways.** A container's bucket is a drop target that
 stows what lands on it; every one of core's inventory lists — Weapons, Armor,
@@ -706,9 +706,9 @@ container; a `fragile` one takes its contents with it.
 
 ## 2026-08-01 — never re-fire another application's hooks
 
-The doll's header button used to obtain its click handler by re-firing core's
+The doll's header button does not obtain its click handler by re-firing core's
 `getHeaderControlsActorSheetV2` into a scratch array and reading the entry Paper
-Doll pushed. That looked like reuse. It was not: `Hooks.callAll` runs *every*
+Doll pushed. That looks like reuse and is not: `Hooks.callAll` runs *every*
 registered listener, so borrowing one module's entry ran all the others'
 side effects too — dice-so-nice dereferenced `app.document` unguarded and threw,
 and Paper Doll's own listener re-armed its auto-open timer. **A hook belongs to
@@ -780,8 +780,8 @@ would be a guess rather than an answer.
   Nothing is authored, so nothing can be authored wrong. A printed cross-family
   rule is a definition's `supersedes` and is enforced in both directions.
 - **Definitions are imported**, never shipped. They arrive as a compendium of
-  variation documents from `acks-importer`; what a base TYPE records arrives
-  separately as field specs in acks-lib's ruledata registry
+  variation documents from the importer; what a base TYPE records arrives
+  separately as field specs in the lib's ruledata registry
   (`variation-defs.mjs`). A world that has imported nothing has no variations to
   drag, and a Judge can still make one by hand on the Items tab — the same
   first-class path a trap has.
@@ -796,9 +796,9 @@ would be a guess rather than an answer.
   `audience` is a Judge-read string, not a structured vocabulary — a market
   surface offers the claim and never matches it automatically.
 
-`layerDeltas` sums applied variations alongside the three legacy flags into one
-delta set, sharing the cost order documented above. Until those flags retire, a
-flag OWNS its family: applying a `masterwork.*` variation to an item whose
+`layerDeltas` sums applied variations alongside the flag layers (masterwork,
+silvered, scavenged) into one delta set, sharing the cost order documented
+above. A flag OWNS its family: applying a `masterwork.*` variation to an item whose
 masterwork flag is set is refused by name, because the two would otherwise both
 count.
 
@@ -825,8 +825,8 @@ Net row all read one answer.
   document with no import stamp (a Judge's own), "edited by hand" with the page
   on a minted document whose figures differ from the ones its stamp records as
   read (`cookbook.read`), or "not imported" naming the variation key to import
-  or make. A document minted before the stamp carried its figures has nothing
-  to compare and cites its page. A Judge's edit to the document is the
+  or make. A document whose stamp records no figures has nothing to compare
+  and cites its page. A Judge's edit to the document is the
   override; the registry's override layer holds tables and these are items. A
   repair rewrites the figures and the stamp together.
 - **The weapon-table tag stays structural.** `SILVER.quality` is the tag the
@@ -853,8 +853,8 @@ of the row's name and block.
   module knows about weapons, so no table of names has to exist for a row to be
   found, and renaming an item does not move its row. Where two items carry one
   mint id, library order decides.
-- A row is exactly what the item carries. An import from before the importer
-  wrote the structured fields yields no row: such an item holds the system's
+- A row is exactly what the item carries. An item whose structured fields were
+  never written yields no row: it holds the system's
   defaults, which a live document always has, so the mark is shape (a melee
   weapon with no size, or a quality word kept as a custom tag while its special
   property is unlit). An item the importer did not mint yields no row either.
@@ -956,7 +956,7 @@ reader's own book gave them. Nothing falls back to a shipped number.
   declaration (`holdsGear`, `setGearHolds`), not `isContainer`: a container
   record (a lock, its keys) makes an item a container with the toggle
   unticked. Unticking clears `holds`, the capacity and the record's
-  `HOLDING_KEYS` (`accepts`, `refusal`, a legacy `capacity`), and drops the
+  `HOLDING_KEYS` (`accepts`, `refusal`, a `capacity` stated on the record), and drops the
   record only when nothing else is in it. The sheet's submit writes the
   record's fields (the lock's quality, its modifier, fragile, the refusal) only
   when one of them fired it (`containerFieldsOnlyWhenFired`), so the toggle's
@@ -1123,8 +1123,7 @@ carries core's Two-handed tag, whatever its size. Weapon Finesse reads its
 eligible sizes from the imported `weaponFinesse` table (below), and refuses
 only a size the list states is not eligible.
 
-`annotateItem` is the only writer of a weapon flag that depended on the old
-table, and writes the identity alone (above).
+`annotateItem` writes a weapon's identity alone (above).
 
 ## Training units and organisations — `training-view.mjs`
 

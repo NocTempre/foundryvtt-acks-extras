@@ -52,7 +52,7 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
  * Scope: this toggles the PENALTIES (the non-proficient use package, RR p. 15:
  * attacks as a 0th-level fighter, no attribute bonus to attack or AC), not the
  * module. Equip limits, containers, wear buckets, the loadout effect, and
- * bridged acks-abilities bonuses are unaffected.
+ * bridged abilities bonuses are unaffected.
  */
 export function enforcementActive() {
   let mode = "on";

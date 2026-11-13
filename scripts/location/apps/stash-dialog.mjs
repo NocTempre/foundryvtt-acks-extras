@@ -1,22 +1,21 @@
 /* global game, ui, foundry */
 /**
- * "What do you want to leave here?" — the picker in front of `acksLib.storage.stash`.
+ * "What do you want to leave here?" — the picker in front of the lib storage `stash`.
  *
  * Stackables get a quantity box (blank means the whole stack); a container is
  * flagged so nobody is surprised that its contents travel with it. Everything
  * picked moves in ONE transfer call, because a single move that fails halfway is
  * far easier to reason about than twenty that each might.
  */
-import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
+import { makeLoc, libStorage as storage, escape as esc } from "../../lib/util.mjs";
 import { LANG_PREFIX } from "../constants.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
-const esc = (text) => foundry.utils.escapeHTML(String(text ?? ""));
 
 /** Worth offering: things, and coin (which the system does not call "physical"). */
 const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.lib.itemModel.isGoods(i));
 
-/** Can gear go inside this? acks-lib owns the answer, so a coat with hidden
+/** Can gear go inside this? lib owns the answer, so a coat with hidden
  * pockets counts as much as a sack does. */
 const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerItem(item);
 

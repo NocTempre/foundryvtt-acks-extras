@@ -10,8 +10,8 @@
  *
  * TEMPLATES ARE POINTED AT, NOT MOVED. A group whose `source` is `"templates"`
  * draws its options from the class's own `system.templates` rows, which stay
- * exactly where they have been since 4.14.0 — bundles, roll table and all. That
- * is why a world upgrades into a selector with nothing to migrate.
+ * where they are — bundles, roll table and all — so the selector needs no copy
+ * of them.
  *
  * The resolution here is pure: it takes a class's `system` object and a
  * selection map, and answers what was chosen and what it grants. Walking

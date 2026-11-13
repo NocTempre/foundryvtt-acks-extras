@@ -3,12 +3,11 @@
  * The boxes a character-building surface is made of, built once and used by
  * both surfaces that show them.
  *
- * The Scores Generator page (stat-page.mjs) grew these first, and the class
- * picker asked a poorer version of the same questions in a dialog of its own —
- * no package, no Intellect picks, a different rendering of the same rung. So
- * the markup lives here and both call it: the picker IS the generator's middle
- * and right columns, with the attribute rolls it has no use for replaced by the
- * level it is setting (assign-app.mjs).
+ * The Scores Generator page (stat-page.mjs) and the class picker ask the same
+ * questions — class, package, Intellect picks, each rung. The markup lives here
+ * and both call it: the picker IS the generator's middle and right columns,
+ * with the attribute rolls it has no use for replaced by the level it is
+ * setting (assign-app.mjs).
  *
  * Pure string builders. Nothing here reads the DOM, holds state or writes to an
  * actor — a caller passes what it has decided and gets markup back, which is
@@ -19,9 +18,8 @@ import { coinLine, templateItemName } from "./chargen.mjs";
 import { templateContents } from "./template-packages.mjs";
 import { findByRef } from "./registry.mjs";
 import { rungSelectHtml } from "./picks.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { escape as esc, makeLoc } from "../lib/util.mjs";
 
-const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 const loc = makeLoc(LANG_PREFIX);
 
 /** What a template's ability entry is called on the page. */

@@ -47,18 +47,6 @@ export function mercenaryMorale(troopType, demiHuman = false) {
   return row.morale + (demiHuman ? 1 : 0);
 }
 
-/** Base morale for a specialist type (RR 166 role groups — the imported
- *  prose values; which TYPE keys fall in which group is code glue). */
-export function specialistMorale(specialistType) {
-  const t = optTable("wages", "baseMorale");
-  if (!t) return 0; // neutral until the wages tables are imported
-  const k = String(specialistType ?? "");
-  if (/^mariner(Rower|Sailor)$/.test(k)) return t.rowersSailors ?? t.specialistDefault ?? 0;
-  if (/^(marinerNavigator|marinerCaptain|scout)$/.test(k)) return t.navigatorsCaptainsScouts ?? 0;
-  if (/^(marshal|mercOfficer|marinerMaster)/.test(k)) return t.marshalsMastersOfficers ?? 0;
-  return t.specialistDefault ?? 0;
-}
-
 /**
  * The henchman limit's imported base, before the Charisma modifier and the
  * powers (RR 168), or null until the Rules tables are imported. A blank or
@@ -126,8 +114,7 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   const table = optTable("wages", "signingBonus");
   if (!table) return null; // dialog omits signing-bonus tiers until imported
   const side = briberyProficient ? table.proficient : table.nonProficient;
-  // Imported shape is a tier→period map ({"1":"day"…}); the legacy reference
-  // shape was an array of {bonus, wages}. Accept both.
+  // The side is a tier→period map ({"1":"day"…}) or an array of {bonus, wages}.
   const period = Array.isArray(side) ? side.find((r) => r.bonus === tier)?.wages : side?.[String(tier)];
   if (!period) return null;
   const row = { wages: period };
@@ -138,15 +125,14 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   return { gp: Math.ceil(gp), wages: row.wages };
 }
 
-/** The two shares a henchman takes, each a table of the `wages` document: found treasure (RR 162) and an adventure's experience (RR ch. 6). */
-export const SHARE_KINDS = Object.freeze(["treasure", "xp"]);
-
 /** A share as a fraction of a full one: a finite number from zero up. Anything else is no figure, never zero. */
 const isShare = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
 
 /**
- * The imported share a henchman takes of `kind` (`SHARE_KINDS`), or null
- * where its table is unread, blank or holds anything but a number.
+ * The imported share a henchman takes of `kind`, found treasure (`"treasure"`,
+ * RR 162) or an adventure's experience (`"xp"`, RR ch. 6), each a table of the
+ * `wages` document; null where its table is unread, blank or holds anything but
+ * a number.
  */
 export function importedShare(kind) {
   const share = optTable("wages", `${kind}Share`)?.share;
@@ -176,19 +162,4 @@ export function resolveShare(own, imported) {
 /** The page the signing bonus ladder was read from, or null where none is recorded. */
 export function signingBonusCite() {
   return optCite("wages", "signingBonus");
-}
-
-/** Expected monthly living expenses of an adventurer = same-level henchman wage. */
-export function expectedLivingExpenses(level) {
-  return henchmanWage(level);
-}
-
-/** Apparent level implied by a monthly spend (largest level whose wage ≤ spend). */
-export function apparentLevelFromSpend(gpPerMonth) {
-  const byLevel = optTable("wages", "henchmanWageByLevel")?.byLevel ?? {};
-  let apparent = 0;
-  for (const [lvl, wage] of Object.entries(byLevel)) {
-    if (gpPerMonth >= wage) apparent = Math.max(apparent, Number(lvl));
-  }
-  return apparent;
 }

@@ -12,16 +12,9 @@
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
 import { RARITIES, MAGIC_KINDS, ID_STATES } from "../config.mjs";
 import { availableMethods, methodGaps, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
-import { makeLoc } from "../../lib/util.mjs";
+import { makeLoc, el } from "../../lib/util.mjs";
 
 const loc = makeLoc(LANG);
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 function labeled(labelKey, input) {
   const row = el("div", "form-group");

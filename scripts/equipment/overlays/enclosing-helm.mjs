@@ -11,7 +11,7 @@
  *  - **Surprise** is a real actor field (`system.surprise.avoidsurprise`, read
  *    by the surprise matrix), so it is folded into the managed loadout effect.
  *  - **Listening** is a proficiency THROW with no actor field to modify, so it
- *    is surfaced as a note/flag for the Judge (and for acks-abilities to consume).
+ *    is surfaced as a note/flag for the Judge (and for the abilities feature to consume).
  *
  * "Enclosing" is the same fact core keys Mortal Wounds off — a heavy helmet — so
  * the recommended way to get the full RAW effect is a helmet named with "heavy"

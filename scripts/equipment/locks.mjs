@@ -3,7 +3,7 @@
  * Defeating a container's lock — by picking it, or by breaking the container.
  *
  * Rolls the character's own Lockpicking or Dungeon Bashing item through
- * acks-abilities; invents no target of its own (see docs/equipment/MODEL.md,
+ * the abilities feature; invents no target of its own (see docs/equipment/MODEL.md,
  * "2026-07-24 — containers live on the sheet; locks roll the character's own
  * proficiency"). RAW constraint enforced: gloves block lockpicking (RR p. 145).
  */
@@ -59,7 +59,7 @@ export function wearingGloves(actor) {
 }
 
 /**
- * Roll one of an actor's abilities through acks-abilities.
+ * Roll one of an actor's abilities through the abilities feature.
  *
  * Returns `{ rolled: false }` when the roll cannot be made here — no ability,
  * no roller, or the ability carries no throw. The caller reports that rather

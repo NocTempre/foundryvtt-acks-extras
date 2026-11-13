@@ -59,7 +59,7 @@ export const EFFECT_DOMAINS = Object.freeze({
   REACTION_TWICE: "reactionRollTwice", // "better" | "worse" (White Luck Presence)
 });
 
-/** acks-influence Active Effect reaction key, honored on hiring rolls. */
+/** The influence feature's Active Effect reaction key, honored on hiring rolls. */
 export const INFLUENCE_REACTION_KEY = "flags.acks-extras.reaction";
 
 /** camelCased module id — the namespace custom hooks fire under (TOOLCHAIN §5b). */

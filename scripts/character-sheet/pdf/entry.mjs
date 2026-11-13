@@ -2,8 +2,7 @@
 /**
  * Where the official-sheet window is opened from: a control in a character's
  * window menu (an owner's), and a button in the Actors directory for a seat
- * that may create characters. Also points pdf.js at its worker, which the
- * importer's own boot skips when the legacy importer is active.
+ * that may create characters. Also points pdf.js at its worker.
  */
 import { MODULE_ID } from "../../lib/constants.mjs";
 import { elementOf } from "../../lib/util.mjs";

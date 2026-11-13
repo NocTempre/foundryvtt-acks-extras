@@ -88,24 +88,9 @@ export function registerSettings() {
   // already core (AcksActor#hasHeavyHelm), name-based.
   overlay(SETTINGS.OVERLAY_ENCLOSING_HELM);
   // Mounted combat (RR p. 308): the staying-mounted save prompts and the
-  // action-economy card — overlays/mounted.mjs, riding acks-lib's mounted
-  // state (the blocker this key waited on).
+  // action-economy card — overlays/mounted.mjs, riding the lib's mounted
+  // state. A toggle is registered only for an overlay with rules behind it.
   overlay(SETTINGS.OVERLAY_MOUNTED);
-
-  // NOT REGISTERED — deliberately. OVERLAY_BEASTMAN has no implementation
-  // behind it: no code reads the key. It was showing in the settings UI as a
-  // working toggle that silently did nothing. The key and its localised
-  // strings are kept so wiring it up is a one-line change once the overlay
-  // exists.
-  //
-  // MOUNTED is no longer BLOCKED — acks-lib records who is riding what, and the
-  // one flat mounted rule the module already had authored (a phalanx shield is
-  // unusable from horseback) is now enforced under the shield-variant overlay
-  // that owns it. What is still missing is a mounted overlay's worth of rules
-  // to put behind a toggle of its own: shield encumbrance is not implemented at
-  // all, and the self-or-mount protection choice is a player's decision each
-  // round rather than a derivable fact. Registering an empty toggle would put
-  // the silently-does-nothing switch back.
 }
 
 /** Convenience getter. */

@@ -3,14 +3,12 @@
  * One owner for the question every class surface asks: of the abilities this
  * rung of the ladder offers, which does the character take?
  *
- * Chargen, the level-up wizard and the class picker all ask it, and each grew
- * its own `<select>` — which drifted, because three copies of a question is
- * three places to answer it differently. Only one of them ever considered what
- * the character already owns, and it considered it by DELETING those options,
- * which is what left a rung with no truthful answer for a character who had
- * already taken the proficiency it was asking about.
+ * Chargen, the level-up wizard and the class picker all ask it, and the rule
+ * lives here once so the three cannot answer it differently. Dropping the
+ * options a character already owns would leave a rung with no truthful answer
+ * for a character who has already taken the proficiency it asks about.
  *
- * So the rule lives here, once: an option the character already holds is shown
+ * So: an option the character already holds is shown
  * and SELECTABLE — picking it closes the rung and grants nothing, because
  * `grantAbility` already declines to double what `ownsRef` recognises. Beside
  * them is a plain "already on the sheet" answer for the proficiency that came
@@ -22,7 +20,7 @@
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { optionsForChoice, ownsRef } from "./grants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { escape as esc, makeLoc } from "../lib/util.mjs";
 
 /**
  * The answer meaning "this rung is already satisfied by what the character
@@ -42,7 +40,6 @@ export const closesRung = (answer) => !!answer;
 /** Answers that should be granted, deduped and with the markers removed. */
 export const grantableRefs = (answers) => [...new Set((answers ?? []).filter(grantsFrom))];
 
-const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 const loc = makeLoc(LANG_PREFIX);
 
 /**
@@ -168,8 +165,3 @@ export const rungLabel = (award, fallbackKey = "apply.pick") => award?.choice?.l
  *  holds its place as an empty string rather than vanishing. */
 export const readRungs = (form, prefix, count) =>
   Array.from({ length: count }, (_, index) => form?.elements?.[`${prefix}${index}`]?.value ?? "");
-
-/** The same read off a root element rather than a form, for a surface whose
- *  controls are injected into a page it does not own. */
-export const readRungsFrom = (root, prefix) =>
-  Array.from(root.querySelectorAll(`select[name^="${prefix}"]`), (el) => el.value);

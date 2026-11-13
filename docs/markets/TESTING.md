@@ -37,7 +37,7 @@ walked by hand.
   marked `markets/card-<n>` at teardown, and the next run retires the series
   before it builds anything.
 - The world's `availability` tables document must hold the arrival schedule.
-  One imported before that recipe existed lacks it, `arrivalShares()` reads
+  A document imported without it lacks it, `arrivalShares()` reads
   null, and every month roll defers ("arrivals-missing") with nothing posted.
   `tools/live/markets.mjs` and `tools/live/henchmen.mjs` re-import
   `availability` where `arrivalShares()` is null. A hiring market behind the
@@ -426,7 +426,7 @@ folder, so track what it made through the run's claim ids, never by name.
    *Observable:* the world item's values win for that key; deleting the world
    item returns the compendium's values on the next read (the cache is
    invalidated by the delete).
-5. With the legacy `mercantile.merchandiseTypes` table imported, press
+5. With the `mercantile.merchandiseTypes` table imported, press
    Build merchandise items from imported tables on Manage Imports' Tools tab, twice.
    *Observable:* the first run creates world items only for keys no item
    answers; the second creates none. From a player seat the call answers the
@@ -448,7 +448,7 @@ compendium equivalents, and `api.track` each one.
    class-conflict warning appears (`ax3.mkt6` declares its grid class a
    misprint); the unmapped warning lists the goods with no ACKS II match. The book's city actor gains `system.market` and is not
    duplicated. **This city branch has not been walked live**: the test
-   world's city actor belongs to another session, so the 9.2.0 walk removed
+   world's city actor belongs to another session, so the walk removed
    `meta.place` from the entry in memory
    (`cookbookEntry("ax3.mkt5").entry.meta`) and let that row land as a
    `Market N` actor instead. Walk it on a world whose city is yours.
@@ -466,10 +466,10 @@ compendium equivalents, and `api.track` each one.
    *Observable:* that market's base now includes the aliased good, and the
    unmapped list no longer names it.
 
-## AX3's printing errata walk (a world imported before the correction)
+## AX3's printing errata walk (a world imported without the correction)
 
 `docs/importer/ERRATA.md` `ax3-p223-offset` and `ax3-p222-class`, over the shape an
-11.10.1 world holds. The world's AX3 markets are the library's and carry no
+uncorrected import holds. The world's AX3 markets are the library's and carry no
 marker, so the walk drives places of its own and steers the step onto them in
 memory.
 
@@ -484,7 +484,7 @@ marker finds nothing. AX3 open on a GM seat (Assistant GM will do).
    *Observable:* each shelf original of `mkt21`–`mkt25` holds the figures the
    page now reads under the key one step earlier (`mkt26` for `mkt21`).
    Without that, the world was not imported as printed, and the walk proves
-   nothing about migration.
+   nothing about the correction.
 2. Snapshot `_stats.modifiedTime` of every document answering for
    `ax3.mkt1`–`ax3.mkt26`, `ax3.site29`, `ax1.fort` and `ax1.mkt1`–`ax1.mkt6`.
    Steer every key of `ax3.marketGrid1`, `ax3.marketGrid2` and
@@ -1097,7 +1097,7 @@ Steps M0–M11 of `tools/live/markets.mjs`, in the order below;
 and moorage walks in order and stops, the full run's sequence through M11.
 
 **The table.** Every entry that brings a vehicle reads `moorageRates`. A
-world whose Mercantile document was imported before the table's recipe holds
+world whose Mercantile document was imported without the table holds
 none, and the walk does not re-import over the world's document. The rules
 step reads the table off the connected book through the shipped recipe
 (`TABLE_RECIPES.mercantile.tables.moorageRates`, `locatePageNumber`,
@@ -1215,7 +1215,7 @@ next run, and the cards are marked; the roster is removed by its id, and
 ## The Range of Trade reader
 
 Walked by hand. Nothing is written to the world: a world whose `demand`
-document was imported before the table's recipe holds no `rangeOfTrade`, and
+document was imported without the table holds no `rangeOfTrade`, and
 this walk reads the table off the connected book instead of re-importing over
 the world's document, as the moorage walk does.
 
@@ -1239,7 +1239,7 @@ false, bridge: false})`). `acksExtras.importer` attaches a few seconds after
    `rangeOfTradeFor(0)` and `rangeOfTradeFor(7)` answer `null`.
 3. Unregister the layer (`unregisterTable("demand", {priority: 31})`).
    *Observable:* the reader answers what the world holds again: `null` for
-   every class in a world imported before the recipe.
+   every class in a world imported without the table.
 
 **Teardown:** the layer, if step 3 did not run; it never persists past a
 reload.

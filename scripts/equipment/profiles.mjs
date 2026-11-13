@@ -143,9 +143,8 @@ export function inferredGearFlag(item) {
 /**
  * The places an item may be worn: its declaration where it has one, else the
  * inferred guess. Gear that was never annotated — every price-list row an
- * import before the fix made, and every template copy cut from one — declares
- * nothing, and reading the declaration alone left a leather belt with no Wear
- * control at all. A declaration of nowhere (`[]`) stays nowhere.
+ * import writes, and every template copy cut from one — declares nothing, so
+ * the declaration alone would leave a leather belt with no Wear control at all. A declaration of nowhere (`[]`) stays nowhere.
  */
 export function wearableSlots(item) {
   return declaresSlots(item) ? slotsOf(item) : inferGear(item).slots;
@@ -588,9 +587,4 @@ export function inferStyle(weapons, hasShield) {
   if (melee.length === 1) return STYLE.SINGLE;
   if (missileOnly.length >= 1) return STYLE.MISSILE;
   return STYLE.SINGLE;
-}
-
-/** Deep-clone-safe helper for foundry environments. */
-export function cloneProfile(p) {
-  return foundry.utils.deepClone(p);
 }

@@ -14,7 +14,8 @@
  *
  * A template bound to a materialized bundle grants the bundle's linked world
  * documents instead — the repairable layer template-packages.mjs owns, which
- * also owns base resolution and the skinning payloads for the legacy path.
+ * also owns base resolution and the skinning payloads for a template with no
+ * bundle.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";

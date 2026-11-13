@@ -57,8 +57,7 @@ export async function rollDice(formula) {
   return roll.total;
 }
 
-/** Kinds that draw on the shared location pool vs. private JJ searches. */
-export const GENERIC_KINDS = ["henchman", "mercenary", "specialist"];
+/** Directed-search kinds, which draw on private searches rather than the shared location pool. */
 export const PRIVATE_KINDS = ["henchmanByClass", "henchmanByClassProficiency", "henchmanByProficiency"];
 
 /**

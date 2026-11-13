@@ -2,8 +2,7 @@
 /**
  * Re-skin the core character sheet's Hirelings tab as a grid of Follower Cards.
  *
- * Pure runtime DOM augmentation of the SYSTEM sheet (the same injection
- * pattern acks-domains and the influence feature use) — no core files are
+ * Pure runtime DOM augmentation of the SYSTEM sheet — no core files are
  * touched. The grid is built from the employer's DATA (not core's rendered
  * rows) so it can include BOTH the core character henchmen (`henchmenList`,
  * via getHirelings) and this module's monster henchmen (`FLAG_MONSTER_LIST`)

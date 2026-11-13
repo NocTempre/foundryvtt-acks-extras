@@ -2,7 +2,7 @@
  * Wear locations — resolving "where is this piece of gear?".
  *
  * The answer comes from the item's own DECLARATION where it has one
- * (`flags.acks-extras.gear`, read through acks-lib's `wornSlotOf`), and is
+ * (`flags.acks-extras.gear`, read through the lib's `wornSlotOf`), and is
  * DERIVED where it does not: core's `system.equipped` plus flags this module
  * already sets (helmet, worn hand, shield strap, containedIn) and the loadout's
  * two-handed inference. So the sheet, the loadout summary and the container UI
@@ -11,7 +11,7 @@
  * A declaration, once present, wins outright — deriving afterwards would let a
  * name heuristic overrule a Judge who set the slot deliberately.
  *
- * @see acks-lib vocab.mjs WEAR_SLOTS for the canonical slot list; config.mjs
+ * @see lib/vocab.mjs WEAR_SLOTS for the canonical slot list; config.mjs
  *      WEAR adds the two buckets that are states rather than places.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";

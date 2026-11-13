@@ -464,7 +464,7 @@ a step it does not name is walked by hand.
     the candidate's level, class, hit die (read from the `hitDice` line) and
     scores, and the prototype holds no items. Track the group and the
     prototype from those two reads; the dialog reports counts, not ids.
-11. A unit hired before 9.3.3, rebuilt on purpose: a disposable
+11. Re-pointing a unit's stack at an edited troop, built on purpose: a disposable
     `acks-extras.group`, a troop actor made with
     `Actor.implementation.create` (it comes back first-level, classless, 1d8,
     carrying coins), and `acksExtras.lib.groups.addStack(group, troop, {count})`.

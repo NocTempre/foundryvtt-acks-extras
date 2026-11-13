@@ -234,7 +234,7 @@ gear the world does not hold. A disposable character.
    *Observable:* the placeholder is still flagged `unresolved` and still
    named in `report.unresolved`. A placeholder silently becoming "resolved"
    here is it answering its own name search — the defect this step exists to
-   catch, found in the 4.14.0 live gate.
+   catch.
 4. Repair-once: hand-edit the bare item (set a type/damage), re-run
    `materializeTemplates` and `importTemplatePackages()` (importer side).
    *Observable:* the repaired document untouched, counted in
@@ -330,8 +330,7 @@ character does not own the class document. Assert on the ACTOR.
    *Observable:* `getLoadout(actor).armorProficient === false` and the
    violations include `armorNotProficient`. A Fighter in the same plate is
    `true`. If BOTH are true the effect never reached the actor — which is the
-   defect this step exists to catch, and it stood in every version through
-   4.14.4.
+   defect this step exists to catch.
 3. Apply a second class over the first, then a third.
    *Observable:* still exactly one `fromClass` effect — a re-apply replaces
    rather than stacks, and a change of class removes the previous class's
@@ -362,13 +361,13 @@ from what is loaded, and a cold shelf answers empty.
 
 ### Where the difference is VISIBLE (unfinished — read before shooting it)
 
-4.15.1 owed a release snapshot for the training fix and did not get one, because
-nothing found renders the difference on the character sheet. What was
+The training layer's difference has no release snapshot, because nothing found
+renders it on the character sheet. What was
 established, so the next attempt starts here rather than repeating it:
 
 - The violations are real and computed. A Mage in Plate Armor holding a Sword
-  reports `weaponNotProficient`, `armorNotProficient`, `nonProficientUse` — none
-  of which existed before 4.15.1.
+  reports `weaponNotProficient`, `armorNotProficient`, `nonProficientUse`, each
+  computed from the class's training.
 - `proficiencyEnforcement` is `"on"` in the test world, so display is NOT gated
   behind a setting.
 - The Worn & Wielded panel shows only the STYLE note
@@ -409,7 +408,7 @@ template rows whose annotations name authored options. It must not be a stub
    *Observable:* one block per group, options listed with their training, and
    the templates group marked as drawing its options from the rows.
 
-### A lang/en.json hazard this release walked into
+### A lang/en.json hazard: nested keys under a flat root
 
 Adding the paths strings as a NESTED `"ACKS-CLASSES": { … }` object, in a file
 where that root is written as flat dotted keys, made every
@@ -532,8 +531,8 @@ levels table. Nothing else.
 1. With no book imported, check `acksExtras.classes.firstLevelDieMinimum()` in
    the console. Expect 1 — the world has read no floor and applies none.
 2. Generate the character through the Scores Generator on a low-Constitution
-   score and note the hit points. This is the pre-import behaviour and must be
-   unchanged from before this release.
+   score and note the hit points. This is the pre-import behaviour: no floor
+   is applied.
 3. Import the hit-point table (Reimport One Shelf → Rules tables, with the
    rulebook connected). `firstLevelDieMinimum()` now returns the printed floor.
 4. Delete the character and generate a fresh one on the same scores.
@@ -888,7 +887,7 @@ guessing.
 picks carry the hint naming the picker. After step 2 `awardsTaken` holds the
 keys of the rungs that were closed and nothing for the open one. Step 4's wizard
 offers no choice at all — the open rung is **not** re-asked, which is the
-behaviour the label used to contradict. Step 5's picker lists it with its level
+behaviour the label states. Step 5's picker lists it with its level
 beside the label. Step 6 grants the ability, appends the key to `awardsTaken`,
 and leaves the re-opened picker with no rungs — read off the ACTOR, not off the
 dialog's return value. The button reaching that seat at all is the point: it
@@ -1234,7 +1233,7 @@ imported after them (the getting-started chain's order).
 **Fixtures.** Through the driver's ledger: one disposable `character` bound
 to an imported class whose page prints its own repertoire (a Casting row that
 shows a spell-list count), and a second bound to a class the book gives a
-whole tradition. For the relink, the pre-9.1.0 shape is built on purpose: a
+whole tradition. For the relink, the unresolved-spell shape is built on purpose: a
 disposable class (`api.create("Item", …)` from an imported class's
 `toObject()` with a new name and no id) whose starting template's `spells`
 row names an invented title nothing in the world answers; *Build packages*

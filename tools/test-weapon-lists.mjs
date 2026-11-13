@@ -546,7 +546,7 @@ eq("withdrawing the import leaves none", weaponOptions(), []);
   eq("each answers to its nouns and to the category keys that resolve to it", entries().map(([, def]) => def.aliases), [["zorks", "zork"], ["blorps", "flibs", "blorpFlib"], [], ["dorbs", "quuxes", "other"]]);
   check("the entries are exact, so a pick that names no option stays as typed", vocabOf().exact === true && matchSelectionKey(vocabOf(), "sword") === null);
   const same = (pick) => matchSelectionKey(vocabOf(), pick) === martialOption(pick);
-  check("every legacy category key and noun ticks the box of the option the resolver reaches", ["zork", "blorpFlib", "other", "zorks", "flibs", "quuxes", "martial.3"].every(same));
+  check("every bare category key and noun ticks the box of the option the resolver reaches", ["zork", "blorpFlib", "other", "zorks", "flibs", "quuxes", "martial.3"].every(same));
 
   const named = nameWithSelections("Martial Training", ["martial.2"], vocabOf());
   eq("the name carries the label", named, "Martial Training (blorps, flibs)");

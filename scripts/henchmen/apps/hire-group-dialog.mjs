@@ -1,29 +1,27 @@
 /* global game, foundry, ui */
 /**
  * "Hire as Group" — assemble a unit from the location's available market and
- * hire it as ONE acks-lib.group: pick troop rows (with quantities) and an
+ * hire it as ONE lib group: pick troop rows (with quantities) and an
  * optional officer, and the engine turns troops into counted merc stacks and
  * links the officer as commander (see engine/hire-group.mjs). Troops = the
  * mercenary rows; officers = the mercOfficer/marshal leader specialists.
  */
 import { hireAsGroup } from "../engine/hire-group.mjs";
 import { pickEmployer } from "./recruit-dialog.mjs";
-import { elementOf } from "../../lib/util.mjs";
+import { elementOf, escape as esc, locOr } from "../../lib/util.mjs";
 
 const isOfficer = (c) => /^(mercOfficer|marshal)/i.test(c.specialistType ?? "");
 const isTroop = (c) => c.kind === "mercenary" || !!c.troopType;
 
 /** Localised troop-type name, falling back to the raw key. */
 function troopLabel(c) {
-  const key = `ACKS-HENCHMEN.troop.${c.troopType}`;
-  return game.i18n.has(key) ? game.i18n.localize(key) : c.troopType || c.name || "Trooper";
+  return locOr(`ACKS-HENCHMEN.troop.${c.troopType}`, c.troopType || c.name || "Trooper");
 }
 
 /** Localised officer label, disambiguated by the officer's own name (several
  *  of a type can be on the market — a bare type label repeats in a dropdown). */
 function officerLabel(c) {
-  const key = `ACKS-HENCHMEN.specialist.${c.specialistType}`;
-  const base = game.i18n.has(key) ? game.i18n.localize(key) : c.specialistType || "Officer";
+  const base = locOr(`ACKS-HENCHMEN.specialist.${c.specialistType}`, c.specialistType || "Officer");
   return c.name && c.name !== c.specialistType ? `${base} — ${c.name}` : base;
 }
 
@@ -79,7 +77,6 @@ export async function openHireGroupDialog(location) {
   const officers = available.filter(isOfficer);
   if (!troops.length && !officers.length) return ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.group.noneAvailable"));
 
-  const esc = foundry.utils.escapeHTML;
   // Each troop type is a stepper capped at what the market has (0 = not taken).
   const cap = (c) => Math.max(0, Number(c.quantity ?? 1));
   const troopCells = troops

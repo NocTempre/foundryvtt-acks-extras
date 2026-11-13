@@ -1,4 +1,4 @@
-/* global game, ui, foundry, Actor, Hooks, fromUuidSync */
+/* global game, ui, foundry, Actor, Hooks */
 /**
  * Scene ↔ place linking.
  *
@@ -20,7 +20,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
-import { elementOf, isUnset } from "../lib/util.mjs";
+import { elementOf, isUnset, docOf } from "../lib/util.mjs";
 
 /* -------------------------------------------- */
 /*  Reading the link                             */
@@ -38,12 +38,7 @@ export function locationOfScene(scene) {
 export function sceneOfLocation(location) {
   const uuid = location?.system?.sceneUuid;
   if (!uuid) return null;
-  let scene = null;
-  try {
-    scene = fromUuidSync(uuid);
-  } catch {
-    return null;
-  }
+  const scene = docOf(uuid);
   if (scene?.documentName !== "Scene") return null;
   // A mirror that the scene no longer agrees with is stale — trust the flag.
   return scene.getFlag(MODULE_ID, SCENE_LINK_FLAG) === location.uuid ? scene : null;
@@ -74,12 +69,7 @@ export function locationOfRegion(region) {
 export function regionOfLocation(location) {
   const uuid = location?.system?.regionUuid;
   if (!uuid) return null;
-  let region = null;
-  try {
-    region = fromUuidSync(uuid);
-  } catch {
-    return null;
-  }
+  const region = docOf(uuid);
   if (region?.documentName !== "Region") return null;
   return region.getFlag(MODULE_ID, SCENE_LINK_FLAG) === location.uuid ? region : null;
 }
@@ -230,7 +220,7 @@ export function registerSceneLinkSync() {
   Hooks.on("updateScene", async (scene, changes, _options, userId) => {
     if (userId !== game.userId || !game.user.isGM) return;
     const flag = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${SCENE_LINK_FLAG}`);
-    // Cleared as core's unsetFlag writes it, or as the legacy key spells it.
+    // Cleared as core's unsetFlag writes it, or as the `-=` deletion key spells it.
     const cleared = isUnset(flag) || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.-=${SCENE_LINK_FLAG}`);
     if (flag === undefined && !cleared) return;
     for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE)) {

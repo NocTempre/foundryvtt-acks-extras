@@ -4,7 +4,7 @@ How this module applies the family doctrine **reuse → extend → enhance →
 invent**. It is the location-domain **binding target** of the table
 extraction program (`acks-module-template/docs/CONTENT-EXTRACTION.md`): the
 home of the settlement actor and of the per-world imported rules tables that
-sibling modules (henchmen today; domains later) read through acks-lib.
+sibling features (henchmen today; domains later) read through lib.
 
 - **Reuse**: the core `acks` system's actor framework and money/inventory
   documents; the lib subsystem's tables registry and service contracts (`requires
@@ -40,16 +40,17 @@ sibling modules (henchmen today; domains later) read through acks-lib.
     distribution grids, wages, availability, followers, slavery, monstrous
     recruitment, settlement scale). The schemas ship; the **values never
     do**.
-  - World-imported table documents, registered into `acksLib.tables` at
+  - World-imported table documents, registered into the lib tables registry at
     priority 20 (world) via the lib's `ruledata-import` contract; the
-    acks-importer binding writes through that contract, never through this
-    module's name. Materialization mirrors rollable tables into RollTables on
+    importer's binding writes through that contract, never through this
+    feature's name. Materialization mirrors rollable tables into RollTables on
     the ACKS library's RollTable shelf — reader-facing names, filed per
     ruledata doc under "ACKS Imported Tables", identity in a `tableKey` flag —
     and everything else into JSON journal pages named by raw key (the
     drop-override match) on its JournalEntry shelf; a shelf is opened by the
-    first pass that needs it (`lib/library-target.mjs`), and a sidebar tree an
-    earlier release wrote is retired then and rebuilt on the shelf. The
+    first pass that needs it (`lib/library-target.mjs`), and a sidebar tree
+    (the fallback when no shelf can be opened) is retired then and rebuilt on
+    the shelf. The
     contract's `countMaterializedDocs`/`removeMaterializedDocs` remove the
     documents without touching the imported data.
   - Two generic projections, keyed by a descriptor table in

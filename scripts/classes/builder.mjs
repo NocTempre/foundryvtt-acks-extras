@@ -13,6 +13,7 @@ import { BUILDER_DOC_ID, BUILDER_TABLE_IDS, derivePlan } from "./builder-logic.m
 import { classByKey, classNamed, findByRef, effectiveAttack } from "./registry.mjs";
 import { LANG_PREFIX, MODULE_ID, RACE_TYPE, CHASSIS_KEYS } from "./constants.mjs";
 import { libraryItems } from "../lib/library.mjs";
+import { escape as esc } from "../lib/util.mjs";
 
 /** Every race Item the library holds — the sidebar's and the imported pack's. */
 export function raceItems() {
@@ -160,7 +161,6 @@ export async function applyBuilder(classItem) {
   const plan = planFor(classItem);
   const lines = planLines(plan);
   const issues = plan.issues.map(issueLabel);
-  const esc = foundry.utils.escapeHTML;
   const content = [
     `<p>${esc(game.i18n.localize(`${LANG_PREFIX}.builder.confirmIntro`))}</p>`,
     `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`,

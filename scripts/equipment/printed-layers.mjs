@@ -45,8 +45,8 @@ const says = (t) =>
 
 /**
  * Does a minted document hold figures other than the ones its import stamped
- * as read? A document minted before the stamp carried them has nothing to
- * compare and reads as unedited.
+ * as read? A document with no stamp has nothing to compare and reads as
+ * unedited.
  */
 function editedSinceRead(doc) {
   const read = doc?.flags?.[MODULE_ID]?.cookbook?.read;

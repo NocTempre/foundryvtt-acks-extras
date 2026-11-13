@@ -1,6 +1,6 @@
 /* global game, ui, foundry, Actor, Hooks, ChatMessage */
 /**
- * Hire a whole unit from the market as ONE `acks-lib.group` (skirmish scale).
+ * Hire a whole unit from the market as ONE lib group (skirmish scale).
  *
  * Troop rows become counted merc STACKS — per-body HP and casualties, no
  * `retainer.quantity` label and no actor-per-body — and an optional officer is
@@ -10,7 +10,7 @@
  * platoon of 30 is then one prototype + one stack of 30, not 30 actors.
  *
  * Scope: this is the skirmish-scale unit. Domain-scale command (how many units
- * an officer leads across an army) and Battles integration are acks-troops.
+ * an officer leads across an army) and Battles integration belong to the army scale, not this one.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
@@ -153,7 +153,7 @@ async function findOrCreateGroup(employer, location) {
  */
 export async function hireAsGroup(location, employer, { troops = [], officerCandidateId = null } = {}) {
   const groups = acksGroups();
-  if (!groups?.addStack) return { error: "no-acks-lib-groups", stacks: [] };
+  if (!groups?.addStack) return { error: "no-lib-groups", stacks: [] };
   if (!employer) return { error: "no-employer", stacks: [] };
   if (!troops.length && !officerCandidateId) return { error: "empty", stacks: [] };
 
@@ -204,8 +204,8 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
   }
 
   // RR 169: warn if the unit is larger than its commander can personally lead
-  // (needs a higher-rank officer, or past a platoon the army command structure
-  // that is acks-troops). Advisory — the hire still stands.
+  // (needs a higher-rank officer, or past a platoon the army command structure).
+  // Advisory — the hire still stands.
   const settled = game.actors.get(group.id) ?? group;
   if (settled.system.overCommand) {
     ui.notifications?.warn(

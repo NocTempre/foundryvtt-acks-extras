@@ -31,7 +31,7 @@ import { locOr } from "./util.mjs";
 import { resolveLevelValue, scopeApplies } from "./vocab.mjs";
 
 /** Localize a key when the active translation has it; otherwise the text passes through unchanged (`locOr` with the key as its own fallback). */
-export const localizeKey = (key) => (key ? locOr(key, key) : (key ?? ""));
+const localizeKey =(key) => (key ? locOr(key, key) : (key ?? ""));
 
 /** The change types Foundry applies itself, by the string each carries. */
 export const CHANGE = Object.freeze({

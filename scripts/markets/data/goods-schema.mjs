@@ -11,9 +11,9 @@
  * integer copper (1 gp = 100 cp), matching the coin adapter's math.
  *
  * Non-nullable with empty defaults: every ACKS market can trade goods, so
- * the presence of `system.market` is the only gate. Existing worlds need no
- * migration — `clean()` fills a missing `goods` key with these defaults on
- * load (verified live; the offline harness has no DataField mock).
+ * the presence of `system.market` is the only gate. `clean()` fills a missing
+ * `goods` key with these defaults on load (verified live; the offline harness
+ * has no DataField mock).
  */
 import { num, str, int } from "../../lib/fields.mjs";
 import { DEMAND_WATER, DEMAND_BIOMES, DEMAND_ELEVATIONS } from "../rules/demand.mjs";
@@ -123,7 +123,7 @@ export function goodsSchema() {
         itemKey: str(),
         itemName: str(),
         // The document the order was placed for, which delivery takes
-        // (engine/catalog-sources.mjs); "" on an order placed before it was kept.
+        // (engine/catalog-sources.mjs); "" on an order that names no document.
         sourceUuid: str(),
         qty: int(0),
         unitPriceCp: int(0),
@@ -200,7 +200,7 @@ export function goodsSchema() {
         // enter: how the party's solicitations use a mercantile network this visit.
         networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
         // enter: what the gate took when the day was posted (engine/gate.mjs) —
-        // the toll (null on a row posted before it was stored), the tariff, and
+        // the toll (null on a row that stores none), the tariff, and
         // the domain whose ruler's privilege waived both.
         tollCp: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         tariffCp: int(0),
@@ -242,7 +242,7 @@ export function goodsSchema() {
         entered: new f.BooleanField({ initial: false }),
         // When the entry that opened this visit was posted: the day a known
         // market's earlier visits are counted back from (rules/known.mjs).
-        // 0 on a row written before it was stored.
+        // 0 on a row that stores none.
         enteredTime: int(0),
         // What a mercantile network's options are built from at each
         // solicitation (rules/arbitrage.mjs networkOptions): the impact earned
@@ -253,7 +253,7 @@ export function goodsSchema() {
         networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
         // The visit's moorage and stabling (engine/ventures.mjs): where it
         // waits, the daily fee the gate figured (0 where waived, and on a row
-        // written before it was stored, which is never charged), whose purse
+        // that stores none, which is never charged), whose purse
         // pays it at the month's end, and, once settled on leaving or at the
         // month's end, the days charged and the coppers paid.
         stayAt: new f.StringField({ required: true, initial: "berth", choices: STAY_AT }),

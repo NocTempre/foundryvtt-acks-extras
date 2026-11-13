@@ -27,7 +27,7 @@ const loc = makeLoc(LANG_PREFIX);
 /**
  * GM tool for goods held across every provider in the world: which actor holds
  * what, whose it is, and the reassign / release actions for attribution that has
- * gone stale (a deleted owner, goods stored before attribution existed).
+ * gone stale (a deleted owner, goods stored with no owner).
  */
 export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   static DEFAULT_OPTIONS = {
@@ -331,9 +331,8 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
    * Stop an actor being a place that holds goods.
    *
    * The counterpart to #onEnableStorage, and the only way back: `setProvider`
-   * has always taken `false`, but until now nothing called it with one, so an
-   * actor flagged by mistake — the "Enable Storage Here" macro used to accept a
-   * selected CHARACTER token — stayed a warehouse forever.
+   * takes `false`, and this is the one caller that passes it, so an actor
+   * flagged by mistake (a CHARACTER made a warehouse) is not one forever.
    *
    * GOODS BLOCK IT. Clearing the flag does not move anything: the items stay
    * embedded on the actor, still stamped with whose they are, but the place

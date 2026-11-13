@@ -51,7 +51,7 @@ export async function cycleGrip(item) {
  * the light sources this actor bears that are burning (lib's `bearerLights`,
  * which reads the party sheet's record for a member and the actor's own flag
  * for anyone else), and the mapper's kit when the party sheet has them
- * drawing the map (acks-formation, optional; zero when nothing tracks the
+ * drawing the map (the formation feature; zero when nothing tracks the
  * actor). `kit` is the kit the sheet can list: the quill and parchment the
  * mapper carries, in the order they take the hands, less any piece stowed in
  * a container.
@@ -341,8 +341,8 @@ export function getLoadout(actor, opts = {}) {
   // the shield's AC, and the advisory below says so.
   const shieldStyled = !hasShield || !enforcementActive() || canUseShieldStyle(actor, trained);
   // Style training reads the same module-owned flags as weapon/armour
-  // proficiency, so it falls under the same kill switch: with acks-abilities
-  // installed those flags are absent on a correctly built character and every
+  // proficiency, so it falls under the same kill switch: with the abilities
+  // feature active those flags are absent on a correctly built character and every
   // style would read as untrained, triggering Non-Proficient Use.
   const styleProficient = !enforcementActive() || trained.has(styleKey(activeStyle));
 
@@ -439,7 +439,7 @@ export function getLoadout(actor, opts = {}) {
     handsSpare: Math.max(0, budget - handsCommitted),
     heldLights, // hands occupied by burning lights no drawn source accounts for
     lightsInHand, // the drawn light sources, each with the burning record it absorbed
-    mappingHands, // hands occupied by the mapper's kit (acks-formation)
+    mappingHands, // hands occupied by the mapper's kit (formation)
     mappingKit, // the kit items listed at the hands, main hand first
     mappingUnlisted: mappingHands - mappingKit.length, // kit hands no listed row explains
     weapons,

@@ -229,8 +229,8 @@ export function companionIds(actor) {
 
   // Foundry's party actor (v13+): a `group` actor listing its members. Read
   // defensively, because the shape is core's and this module does not own it.
-  // Consulted ONLY for a character no formation claims — a world mid-migration,
-  // or one that never built a formation at all.
+  // Consulted ONLY for a character no formation claims — a world that
+  // never built a formation at all.
   if (!inFormation) {
     for (const candidate of game.actors ?? []) {
       if (candidate.type !== "group") continue;

@@ -21,12 +21,6 @@ export const FORM_KEYS = Object.freeze(Object.fromEntries(Object.values(FORM_FIE
 /** How many of the form's keys a file must carry to be read as the form. */
 export const FINGERPRINT_SHARE = 0.9;
 
-/** The module key a field name maps to, or null for a field the form does not have. */
-export const keyOfField = (name) => FORM_FIELDS[hash36(name)]?.[0] ?? null;
-
-/** Whether a key names a box that holds text rather than a tick. */
-export const isTextKey = (key) => FORM_KEYS[key] === KIND.text || FORM_KEYS[key] === KIND.multiLine;
-
 /**
  * Every widget on every page that maps to a key: its annotation id (what a
  * write addresses), its key and kind, and what it holds now — text with its

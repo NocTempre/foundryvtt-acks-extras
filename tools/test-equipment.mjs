@@ -581,7 +581,7 @@ const phalAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system
 check("phalanx on foot → core's shield AC stands", phalAC === WS_SPEC);
 
 // MOUNTED: a phalanx shield cannot be used from horseback (config `noMount`),
-// which the mount binding in acks-lib finally makes answerable. Stub the lib
+// which the lib's mount binding makes answerable. Stub the lib
 // the way the runtime reaches it — through globalThis.acksExtras.lib.
 const priorLib = globalThis.acksExtras.lib;
 globalThis.acksExtras.lib = { mount: { isMounted: (a) => a?.id === phal.id } };
@@ -593,10 +593,10 @@ const kite = wsActor([weapon("Sword", { melee: true, id: "s6" }), shieldItem("Ki
 const kiteMountedAC = buildLoadoutChanges(kite, getLoadout(kite)).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
 check("kite MOUNTED → unaffected, still grants AC", kiteMountedAC === WS_SPEC);
 
-// Without acks-lib nothing mounted fires, so behaviour is exactly as before.
+// Without the lib's mount binding nothing mounted fires.
 globalThis.acksExtras.lib = undefined;
 const phalNoLibAC = buildLoadoutChanges(phal, phalLo).filter((c) => c.key === "system.ac.mod").reduce((n, c) => n + Number(c.value), 0);
-check("no acks-lib → mounted rules dormant, phalanx AC stands", phalNoLibAC === WS_SPEC);
+check("no mount binding → mounted rules dormant, phalanx AC stands", phalNoLibAC === WS_SPEC);
 globalThis.acksExtras.lib = priorLib;
 
 // --- no style, no shield (RR ch.3) -------------------------------------------
@@ -1043,7 +1043,7 @@ check("...with a real capacity", capacityStone(pocketCoat) === 0.5);
 check("...and reports its load", contentsWeight6(coatActor, "coat") === 1);
 // The garment itself is weightless to core (clothing is excluded from
 // encumbrance) but WHAT IS IN IT is not — contents are ordinary items on the
-// actor, so acks-formation keeps reading a load that includes them.
+// actor, so the formation feature keeps reading a load that includes them.
 check("gear in a pocket still weighs on the carrier", encumbering6(hiddenBlade) === 1 && encumbering6(pocketCoat) === 0);
 check("a plain garment is still not a container", isContainer(gear("Chiton", 1, { id: "ch", subtype: "clothing" })) === false);
 check("garments land on the body part they name", inferGear(clothing("Cloak, Silk, Hooded")).slots.join() === "shoulders" && inferGear(clothing("Boots, Leather, High")).slots.join() === "feet" && inferGear(clothing("Gloves, Leather or Wool, Long")).slots.join() === "hands" && inferGear(clothing("Belt/Sash, Leather")).slots.join() === "belt" && inferGear(clothing("Skullcap")).slots.join() === "head");
@@ -1543,8 +1543,8 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
     const r = await untick(gearFlag, null);
     check(`untick on ${label}: the declaration and the capacity go, no record is written`, r.w[`${GEAR_KEY}.holds`] === false && r.w[`${GEAR_KEY}.capacity`] === null && r.recWrites.length === 0, r.recWrites);
   }
-  const legacy = await untick(null, { capacity: 3 });
-  check("untick on a capacity stated only on the old record: the record, holding nothing else, goes", legacy.unset(REC) && legacy.recWrites.length === 1, legacy.recWrites);
+  const recordOnly = await untick(null, { capacity: 3 });
+  check("untick on a capacity stated only on the container record: the record, holding nothing else, goes", recordOnly.unset(REC) && recordOnly.recWrites.length === 1, recordOnly.recWrites);
   const acceptsOnly = await untick({ holds: true }, { accepts: ["weapon"], refusal: "Invented refusal" });
   check("untick after the accept chips were set: the record, holding only what goes in, goes", acceptsOnly.unset(REC) && acceptsOnly.recWrites.length === 1, acceptsOnly.recWrites);
   const lockedDeclared = await untick({ holds: true }, { ...LOCK, accepts: ["tool"], refusal: "Invented", capacity: 1 });
@@ -1646,11 +1646,8 @@ check("registerSheet() runs without throwing", true);
   foundry.applications.instances.clear();
 }
 
-// Overlay toggles with NO implementation behind them must not appear in the
-// settings UI — a switch that silently does nothing is worse than no switch.
-for (const dead of ["overlayBeastman"]) {
-  check(`${dead} is not registered (no implementation exists)`, !registered.includes(dead));
-}
+// Every overlay toggle in the settings UI gates real code — a switch that
+// silently does nothing is worse than no switch.
 for (const live of ["overlayShieldVariants", "overlayManeuvers", "overlayItemLoss", "overlayNamed", "overlayScavenged", "overlayEnclosingHelm", "overlayMounted"]) {
   check(`${live} is registered and gates real code`, registered.includes(live));
 }
@@ -1873,13 +1870,14 @@ check("an un-annotated helm falls back to its name", isHelmetOf(namedHelm) === t
 check("a helm declared to sit nowhere stays nowhere", isHelmetOf(disownedHelm) === false);
 
 /* ---------------------------------------------------------------------- */
-/*  Proficiency kill switch (acks-abilities interop)                        */
+/*  Proficiency kill switch (abilities feature interop)                     */
 /* ---------------------------------------------------------------------- */
 
-// This module infers proficiency from its OWN actor flags. acks-abilities owns
-// a richer model of the same facts, so a character built with it carries none
-// of these flags and would read as non-proficient — triggering the full RR
-// p. 15 package on a legal PC. Enforcement must default OFF while it is active.
+// The equipment feature infers proficiency from its OWN actor flags. The
+// abilities feature owns a richer model of the same facts, so a character built
+// with it carries none of these flags and would read as non-proficient —
+// triggering the full RR p. 15 package on a legal PC. Enforcement must default
+// OFF while it is active.
 const { enforcementActive } = await import(new URL("proficiency.mjs", S));
 
 // A bare unconfigured actor with a weapon its (absent) flags don't cover: a
@@ -1935,7 +1933,7 @@ setMode("auto");
 globalThis.acksExtras.abilities = priorAbilities;
 
 /* ---------------------------------------------------------------------- */
-/*  Abilities bridge — proficiency facts FROM the acks-abilities model      */
+/*  Abilities bridge — proficiency facts FROM the abilities model           */
 /* ---------------------------------------------------------------------- */
 
 const { hasEffectFlag, sumEffectModifiers, collectStringFlags, stringFlagValue } = await import(new URL("effects.mjs", S));
@@ -2204,8 +2202,8 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     check("a phrase naming one option's nouns resolves the same way", pick("quuxes and dorbs") === "dorb,hurl,quux" && pick("Hurl") === "dorb,hurl,quux");
     check("an option holding a whole category collapses to its category token", pick("martial.1") === "axe" && pick("zorgs") === "axe");
     check("an option over two categories is both tokens", pick("martial.2") === "sworddagger,bowcrossbow" && pick("blorps") === "sworddagger,bowcrossbow");
-    check("a legacy category key resolves through the one option whose weapons all carry it, and never to the category's other weapons", pick("other") === "dorb,hurl,quux" && pick("axe") === "axe");
-    check("a legacy key no single option holds stays the key itself", pick("bowcrossbow") === "bowcrossbow" && pick("crossbow") === "bowcrossbow" && pick("sworddagger") === "sworddagger");
+    check("a bare category key resolves through the one option whose weapons all carry it, and never to the category's other weapons", pick("other") === "dorb,hurl,quux" && pick("axe") === "axe");
+    check("a category key no single option holds stays the key itself", pick("bowcrossbow") === "bowcrossbow" && pick("crossbow") === "bowcrossbow" && pick("sworddagger") === "sworddagger");
     check("a combination grants nothing, and so does an id no option has", pick("martial.3") === "" && pick("martial.9") === "" && resolveWeaponGroupPick("martial.3").length === 0);
     check("a pick no option names is the weapon, else the category named, else the pick", pick("Stray") === "stray" && pick("Crossbows") === "bowcrossbow" && pick("Zorgle") === "zorgle");
     const grants = (...selections) => [...collectStringFlags(withItems([abil("Martial Training", "def.prof.martialTraining", { selections })]), "martialWeapons")].sort().join();
@@ -2362,7 +2360,7 @@ const bola = trackItem("Bola", { missile: true, melee: false, quantity: { value:
 await consumeForAttack(withItems([bola]), bola, classifyWeapon(bola), { type: "missile" });
 check("a single reusable thrown weapon (bola) is marked thrown-away", isThrownAway(bola));
 
-// consumeItem: the shared decrement primitive acks-formation reuses.
+// consumeItem: the shared decrement primitive the formation feature reuses.
 const torchStack = trackItem("Torch", { quantity: { value: 6 } });
 check("consumeItem decrements a stack and returns the remainder", (await consumeItem(torchStack, 1)) === 5 && torchStack._sys.quantity.value === 5);
 check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quantity: { value: 0 } }), 1)) === 0);
@@ -2422,7 +2420,7 @@ check("weaponGrip defaults to auto", weaponGrip({ getFlag: () => undefined }) ==
 check("weaponGrip reads 2h", weaponGrip({ getFlag: (_m, k) => (k === "grip" ? "2h" : undefined) }) === "2h");
 
 /* ---------------------------------------------------------------------- */
-/*  Held-light hand cost (acks-formation two-way hook)                       */
+/*  Held-light hand cost (formation two-way hook)                            */
 /* ---------------------------------------------------------------------- */
 
 // No formation module → held lights are 0, loadout unaffected.
@@ -2829,7 +2827,7 @@ check("setShieldVariant standard clears the flag", shieldVar._flags.shieldVarian
 SETTINGS_STATE.overlayShieldVariants = false;
 
 /* ---------------------------------------------------------------------- */
-/*  The IMPORTED scavenged table (the importer → acks-lib ruledata)        */
+/*  The IMPORTED scavenged table (the importer → lib ruledata)             */
 /* ---------------------------------------------------------------------- */
 
 const { rowToEffects, importedTable, accumulateImported } = await import(new URL("overlays/scavenged.mjs", S));
@@ -2847,7 +2845,7 @@ check("imported row: 'Serviceable' at 100% → no effects, full value", (() => {
 check("imported row: 'Roll again twice' flags a reroll", rte("Roll again twice", "-", "-").reroll === true);
 check("imported row: an unrecognised effect is kept as a note (vessels)", rte("Faulty", "-30’ max speed", "-33%").notes[0] === "-30’ max speed");
 
-// With no acks-lib registry present the module falls back to the baked table.
+// With no lib registry present the built-in table stands.
 check("importedTable is null without the ruledata registry", importedTable("piercingSlashing") === null);
 check("scavengedOptions falls back to the built-in rows", scavengedOptions("piercingSlashing").length === 6);
 

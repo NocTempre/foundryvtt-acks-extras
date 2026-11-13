@@ -4,10 +4,9 @@
  * `game.time.worldTime` seconds so any worldTime-driven clock (the core
  * combat tracker, Simple Timekeeping, manual advance buttons) moves it.
  * Month length is the `daysPerMonth` world setting (v14's calendar month
- * component advances 0 seconds — acks-domains module/time.mjs documents the
- * bug — so months are day-counted here).
+ * component advances 0 seconds, so months are day-counted here).
  */
-import { SECONDS_PER_DAY, SECONDS_PER_WEEK } from "./constants.mjs";
+import { SECONDS_PER_DAY } from "./constants.mjs";
 import { getSetting } from "./settings.mjs";
 import { mayAdvanceWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 
@@ -29,8 +28,7 @@ export function secondsPerMonth() {
  * day-counted via the `daysPerMonth` setting.
  *
  * All reads go through timeToComponents/month lengths — NEVER
- * componentsToTime, which ignores the month component (family-documented
- * v14 bug, see acks-domains module/time.mjs).
+ * componentsToTime, which ignores the month component (a v14 bug).
  */
 
 function calendarOf() {
@@ -111,10 +109,6 @@ export function nextMarketRollTime(monthAnchorTime, t = now()) {
   return monthAnchorTime + secondsPerMonth();
 }
 
-export function daysBetween(t0, t1) {
-  return Math.floor((t1 - t0) / SECONDS_PER_DAY);
-}
-
 /**
  * A world-time reading as a date a Judge recognises: the calendar's month
  * name and day of the month where the world runs one, else the day count
@@ -139,14 +133,6 @@ export function dateLabel(t) {
 /** Days from `t0` until `t1`, a part day counted as a whole one: 1 at the least. */
 export function daysUntil(t1, t0 = now()) {
   return Math.max(1, Math.ceil((t1 - t0) / SECONDS_PER_DAY));
-}
-
-export function weeksBetween(t0, t1) {
-  return Math.floor((t1 - t0) / SECONDS_PER_WEEK);
-}
-
-export function monthsBetween(t0, t1) {
-  return Math.floor((t1 - t0) / secondsPerMonth());
 }
 
 /**

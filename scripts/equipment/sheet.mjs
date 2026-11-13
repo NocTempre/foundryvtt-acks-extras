@@ -27,6 +27,7 @@ import { STONE, isWorn, isEquippable, isCurrency } from "../lib/item-model.mjs";
 import { wearableSlots } from "./profiles.mjs";
 import { armourLimitSource } from "./armour-limits.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { el } from "../lib/util.mjs";
 import { lightTypeOf } from "../lib/light.mjs";
 import { profileStripElement } from "../lib/proficiency-strip.mjs";
 import { cycleStrap, strapOf, overlayEnabled as shieldOverlayEnabled } from "./overlays/shield-variants.mjs";
@@ -52,13 +53,6 @@ import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilit
 /** Stone display shared with the container app. */
 function st(weight6) {
   return String(Number(weight6 / STONE).toFixed(2)).replace(/\.?0+$/, "") || "0";
-}
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
 }
 
 /** A bucket header: icon, label, and an optional right-aligned note. */
@@ -275,7 +269,7 @@ function injectLightControls(list, actor) {
     if (containedIn(item)) continue;
     // A TORCH carried as a STACK (an `item`, not a wielded weapon) gets a "Ready"
     // control instead — but that is a pure equipment action, so it lives in
-    // injectTorchReady (which runs without acks-formation). Skip it here so a
+    // injectTorchReady (which runs without the formation feature). Skip it here so a
     // torch bundle never also picks up a formation Light control.
     if (type === "torch" && item.type === ITEM_TYPE.item) continue;
     const lit = mine.find((l) => l.type === type && l.lit);
@@ -366,7 +360,7 @@ function rowControls(li) {
 /**
  * "Ready" control on every torch STACK (a light `item` bundle). Pulls one torch
  * out as a wieldable light-weapon (prepareTorch) and decrements the bundle.
- * Independent of acks-formation — readying a torch is a pure equipment action —
+ * Independent of the formation feature — readying a torch is a pure equipment action —
  * so unlike the light/douse controls it renders whether or not the actor is in a
  * party formation.
  */
@@ -530,11 +524,9 @@ function ctrl(icon, tooltipKey, onClick, extraClass = "") {
 }
 
 /**
- * One container's header: name, load, and every control that used to live in
- * the popout window.
+ * One container's header: name, load, and its controls.
  *
- * The popout existed because there was nowhere else to put these. There is now:
- * the container sits on the equipment tab next to the gear it holds, and
+ * The container sits on the equipment tab next to the gear it holds, and
  * "opening" it here is the same gesture as opening it at the table.
  */
 function containerHeader(actor, c, onRerender) {

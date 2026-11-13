@@ -44,7 +44,7 @@ import { choosableGenerals, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
 import { templateGrantKeys } from "./template-packages.mjs";
-import { elementOf, makeLoc } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { whenReady } from "../lib/library.mjs";
 
@@ -95,7 +95,6 @@ export const METHODS = {
   legendary: { only: "5d6kh3" },
 };
 
-const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 const loc = makeLoc(LANG_PREFIX);
 
 /* -------------------------------------------- */
@@ -502,8 +501,8 @@ function layout(root) {
 
   const middle = box(`standard-form ${COLUMN}`);
   const panel = box("standard-form panel");
-  // Two rows now stand together where one used to: the die, and the package it
-  // reaches. Only one of them can be called "Template".
+  // Two rows stand together: the die, and the package it reaches. Only one of
+  // them can be called "Template".
   const dieLabel = templateGroup.querySelector("label");
   if (dieLabel) dieLabel.textContent = loc("chargen.templateDie");
   panel.append(box(CLASSBOX), templateGroup, box(TPLBOX));

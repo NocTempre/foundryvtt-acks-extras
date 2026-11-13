@@ -49,7 +49,7 @@ export const ARMOR_LADDER = Object.freeze(["unarmored", "veryLight", "light", "m
  * the shield-variant overlay is enabled. enc in stone; ac is the granted bonus.
  * `spec` = whether Fighting Style Specialization (Weapon & Shield) applies.
  *
- * WIRED: handAC, frontAC, specOnly, spec, defendCounts, noBack, noMount,
+ * WIRED: handAC, frontAC, specOnly, spec, noBack, noMount,
  * enc, encItem, frontEnc, mountEnc (see overlays/shield-variants.mjs).
  *
  * The situational cover a shield gives (from behind, while vulnerable, and the
@@ -63,7 +63,7 @@ export const SHIELD_VARIANTS = Object.freeze({
   crescent: { label: "Crescent Shield", handAC: 1, frontAC: 1, enc: 1, frontEnc: 2, spec: true },
   heater: { label: "Heater Shield", handAC: 1, enc: 1, spec: true },
   kite: { label: "Kite Shield", handAC: 1, enc: 2, mountEnc: 1, spec: true, noBack: true },
-  phalanx: { label: "Phalanx Shield", handAC: 1, enc: 1, spec: true, noBack: true, noMount: true, defendCounts: true },
+  phalanx: { label: "Phalanx Shield", handAC: 1, enc: 1, spec: true, noBack: true, noMount: true },
 });
 
 /**

@@ -199,7 +199,7 @@ export function assessmentPageBands(bands) {
   });
 }
 
-/** The character whose own venture a row belongs to: "" for a party entered as one, and on a row stored before entrants were. */
+/** The character whose own venture a row belongs to: "" for a party entered as one, and on a row that stores no entrant. */
 const entrantOf = (row) => row?.entrantUuid ?? "";
 
 /**

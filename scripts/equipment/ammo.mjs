@@ -49,8 +49,8 @@ async function setRounds(item, n) {
 
 /**
  * Consume `n` of a stackable/consumable item (a lit torch, a flask of lamp oil).
- * The shared decrement primitive other modules reuse instead of hand-rolling an
- * `item.update` — acks-formation calls this via `globalThis.acksExtras?.equipment` so the
+ * The shared decrement primitive other features reuse instead of hand-rolling an
+ * `item.update` — formation calls this via `globalThis.acksExtras?.equipment` so the
  * torch/oil burn-down and the ammunition tracker stay one code path. Degrades to
  * a no-op count of 1 for a single non-stackable item.
  * @returns {Promise<number>} the remaining count after consumption.

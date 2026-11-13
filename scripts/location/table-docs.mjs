@@ -5,7 +5,7 @@
  * Every imported ruledata table can be EXPORTED as a Foundry document
  * (prefilled with the imported default) for audit and tweaking, and such a
  * document can be dropped back to OVERRIDE the table (registry priority 30,
- * above world imports — see acks-lib tables.mjs). Two shapes:
+ * above world imports — see `lib/tables.mjs`). Two shapes:
  *
  *  - ROLLABLE tables (a single d-range → entry list) round-trip through a
  *    native RollTable — tweak weights/entries in the RollTable UI.
@@ -16,9 +16,8 @@
  * JournalEntry packs the importer keeps for everything imported
  * (`lib/library-target.mjs`) — so a Judge finds them beside the books they
  * came from and one ownership setting covers the lot. The sidebar is the
- * fallback when no shelf can be opened, and the place an earlier release
- * wrote to: what it left there is retired the first time a shelf opens and
- * rebuilt on the shelf from the same registry data.
+ * fallback when no shelf can be opened: what it holds is retired the first
+ * time a shelf opens and rebuilt on the shelf from the same registry data.
  *
  * No table values ship in this module: exports read whatever the WORLD
  * imported from the GM's own books.
@@ -593,7 +592,7 @@ function materializedIn({ tables, folders, journals }) {
   };
 }
 
-/** Materialized documents the SIDEBAR holds — an earlier release's, or a world with no shelf. */
+/** Materialized documents the SIDEBAR holds — what the fallback wrote when no shelf could be opened. */
 const sidebarMaterialized = () =>
   materializedIn({ tables: [...game.tables], folders: [...game.folders], journals: [...game.journal] });
 
@@ -839,7 +838,7 @@ export async function exportEntry(entry) {
  * Materialize EVERY imported table as a Foundry document (user directive:
  * imported tables are saved as Foundry tables and journals, not just stored
  * in the module). Prefilled exports reuse/update matching existing documents;
- * tables that consumers EXPECT (acksLib.tables.expectedTables) but that no
+ * tables that consumers EXPECT (lib's `tables.expectedTables`) but that no
  * import provided get an EMPTY placeholder — first of its kind only — which
  * the GM can fill by hand or replace by drag-drop.
  *
@@ -859,8 +858,8 @@ export async function exportEntry(entry) {
  * list, the writes and the sweep on one reading of the registry.
  *
  * A shelf is opened only when the pass has something for it, or when the
- * sidebar holds what an earlier release wrote there and the shelf is where
- * it is rebuilt — never for an empty registry, so a world with no JSON tables
+ * sidebar holds materialized documents and the shelf is where
+ * they are rebuilt — never for an empty registry, so a world with no JSON tables
  * gains no empty JournalEntry pack.
  * @returns {{exported: number, placeholders: number}}
  */
@@ -870,12 +869,12 @@ export async function materializeAll() {
   const t = lib()?.tables;
   let exported = 0;
   let placeholders = 0;
-  const legacy = sidebarMaterialized();
+  const onSidebar = sidebarMaterialized();
 
   /* --- RollTables: one folder pass, one create, one update, rebuilds only
      where the results actually moved. --- */
   const rollable = entries.filter((e) => e.rollable);
-  const tablePack = rollable.length || legacy.tables.length || legacy.folders.length ? await openTableShelf() : null;
+  const tablePack = rollable.length || onSidebar.tables.length || onSidebar.folders.length ? await openTableShelf() : null;
   const folders = await ensureFolders([...new Set(rollable.map((e) => e.docId))], tablePack);
   const creates = [];
   const updates = [];
@@ -929,11 +928,11 @@ export async function materializeAll() {
   // "ACKS Ruledata (Imported)" is clutter a world with no JSON tables never
   // asked for. An existing one is still picked up when there is nothing to
   // write, because its pages have all just become stale and the sweep below
-  // is what retires them; a sidebar journal an earlier release left behind is
-  // retired outright, every page of it being stale.
+  // is what retires them; a sidebar journal is retired outright, every page of
+  // it being stale.
   const wantJournal = pageEntries.length > 0 || expected.length > 0;
   const journalPack =
-    wantJournal || legacy.journals.length || findLibraryPack("JournalEntry") ? await openJournalShelf() : null;
+    wantJournal || onSidebar.journals.length || findLibraryPack("JournalEntry") ? await openJournalShelf() : null;
   const journal = wantJournal ? await ensureJournal(journalPack) : findJournal(journalPack);
   if (journal) {
     const pageCreates = [];

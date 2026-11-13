@@ -1,11 +1,11 @@
-/* global game, fromUuidSync */
+/* global game */
 /**
  * Location's repair checks: a place's map or region link that no longer holds,
  * banked coin a sweep has not moved, and storage whose owner is gone. The last
  * reports only: the storage manager is where goods change hands.
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { makeLoc, docOf as resolve } from "../lib/util.mjs";
 import { fixEach, registerRepairCheck } from "../lib/repair.mjs";
 import { providers, resolveActorSync, storesByOwner, vaultOwnerUuid } from "../lib/storage.mjs";
 import { locationOfRegion, locationOfScene, regionOfLocation, sceneOfLocation } from "./scene-link.mjs";
@@ -13,15 +13,6 @@ import { planVaultSweep, runVaultSweep } from "./vault-sweep.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
-
-/** The document a stored uuid names, or null. */
-function resolve(uuid) {
-  try {
-    return uuid ? fromUuidSync(uuid) : null;
-  } catch {
-    return null;
-  }
-}
 
 /** A place's mirror of a link, when the scene or region it names does not name it back. */
 function staleMirror(place, field, reads, documentName) {

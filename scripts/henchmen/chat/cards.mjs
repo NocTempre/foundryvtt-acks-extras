@@ -8,14 +8,13 @@
 import { MODULE_ID } from "../constants.mjs";
 import { gmIds } from "../acks-adapter.mjs";
 import { postToJudges } from "../../lib/roll-audience.mjs";
-import { elementOf } from "../../lib/util.mjs";
+import { elementOf, locOr } from "../../lib/util.mjs";
 
 const T = `modules/${MODULE_ID}/templates/henchmen/chat`;
 
 function outcomeText(outcome) {
   if (!outcome) return null;
-  const key = `ACKS-HENCHMEN.outcome.${outcome}`;
-  return game.i18n.has(key) ? game.i18n.localize(key) : outcome;
+  return locOr(`ACKS-HENCHMEN.outcome.${outcome}`, outcome);
 }
 
 /**
@@ -32,9 +31,7 @@ export async function postThrowCard(o) {
     parts: (o.parts ?? []).map((p) => ({ ...p, display: p.value >= 0 ? `+${p.value}` : `${p.value}` })),
     outcome: o.outcome,
     outcomeText: outcomeText(o.outcome),
-    outcomeHint: game.i18n.has(`ACKS-HENCHMEN.outcomeHint.${o.outcome}`)
-      ? game.i18n.localize(`ACKS-HENCHMEN.outcomeHint.${o.outcome}`)
-      : null,
+    outcomeHint: locOr(`ACKS-HENCHMEN.outcomeHint.${o.outcome}`, null),
     secret: !!o.secret,
   });
   const message = {
@@ -72,7 +69,7 @@ export async function postEventCard(o) {
     body: o.bodyKey ? game.i18n.format(o.bodyKey, o.data ?? {}) : null,
     buttons: (o.buttons ?? []).map((b) => ({
       ...b,
-      label: game.i18n.has(b.label) ? game.i18n.localize(b.label) : b.label,
+      label: locOr(b.label, b.label),
       tooltip: b.tooltip ?? null,
       payload: JSON.stringify(b.payload ?? {}),
     })),

@@ -89,12 +89,11 @@ export function applyRefusal(base, variation) {
 }
 
 /**
- * The families the three shipped flags still speak for, and what they hold.
+ * The families the item's flag layers speak for, and what they hold.
  *
  * `layerDeltas` sums the flags and the variations together, so an item carrying
  * a masterwork FLAG and a masterwork variation would count masterwork twice.
- * Until the importer can publish these as documents and the flags retire, a
- * flag owns its family and the variation is refused by name.
+ * A flag owns its family, and the variation is refused by name.
  *
  * @returns {string|null} what the flag holds, for the refusal to quote
  */
@@ -172,7 +171,7 @@ export async function removeVariation(variation) {
  * Edit one in place.
  *
  * Every write recomputes the base item, so its numbers are always the sum of
- * what is on it now and never a residue of what used to be.
+ * what is on it now and never a residue of an earlier edit.
  */
 export async function updateVariation(variation, patch = {}) {
   await variation.update(patch);

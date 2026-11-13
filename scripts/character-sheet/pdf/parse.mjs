@@ -116,5 +116,11 @@ export function abilityEntry(text) {
   return t ? { name: t, selection, rank: Math.max(1, rank || 1) } : null;
 }
 
+/** Whether a value states a finite number: null, undefined and a blank string do not. */
+export const finite = (n) => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n));
+
+/** A stated number as plain text, or "" for a value that states none. */
+export const numText = (n) => (finite(n) ? String(Number(n)) : "");
+
 /** Signed text for a number: "+2", "-1", "0". */
 export const signedText = (n) => (Number(n) > 0 ? `+${Number(n)}` : String(Number(n) || 0));

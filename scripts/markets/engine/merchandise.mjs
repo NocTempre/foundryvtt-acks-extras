@@ -2,7 +2,7 @@
 /**
  * The merchandise catalogue: the goods the markets trade, read from the
  * `acks-extras.merchandise` Items and, where a world holds none, from the
- * legacy imported `mercantile.merchandiseTypes` table.
+ * imported `mercantile.merchandiseTypes` table.
  *
  * Three layers merge per key, the last winning: the table rows, the library's
  * compendium items, then the world's own Items. A Judge adds or overrides a
@@ -67,7 +67,7 @@ function rowOfItem(doc, source) {
   };
 }
 
-/** The catalogue row of one legacy `merchandiseTypes` table row. */
+/** The catalogue row of one imported `merchandiseTypes` table row. */
 function rowOfTable(row) {
   const key = String(row.type ?? "").trim();
   const staple = key === STAPLE_KEY;
@@ -92,7 +92,7 @@ function rowOfTable(row) {
   };
 }
 
-/** The legacy table's rows that hold a key, placeholders for unread rows dropped. */
+/** The imported table's rows that hold a key, placeholders for unread rows dropped. */
 const tableRows = (table = optTable("mercantile", "merchandiseTypes")) => (table?.rows ?? []).filter((r) => r && !isMissingRow(r) && r.type);
 
 /** The compendium items' rows, set by `primeMerchandiseCatalog`; null until then. */
@@ -148,7 +148,7 @@ function ordered(rows) {
  * column), racial ({raceKey: modifier}), random {table, min, max, special},
  * tariffExempt, seasonalPrice, lootKinds, itemCategories, aliases, uuid,
  * source}`, `source` being "world", "compendium" or "table". A world Item wins
- * over a compendium Item of the same key, which wins over the legacy table.
+ * over a compendium Item of the same key, which wins over the imported table.
  * The returned array is the cached snapshot: read it, never write it.
  * @returns {object[]}
  */
@@ -176,7 +176,7 @@ export function merchandiseCatalog() {
 export const merchandiseFor = (key) => merchandiseCatalog().find((row) => row.key === key) ?? null;
 
 /**
- * GM: make a world merchandise Item for every good the imported legacy table
+ * GM: make a world merchandise Item for every good the imported table
  * holds that no Item stands for yet, so the Judge can edit them and the
  * catalogue reads them as world goods. Idempotent by key: a key that a world
  * or compendium Item already answers for is skipped. Reports what it made and

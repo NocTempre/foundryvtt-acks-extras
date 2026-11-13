@@ -2,7 +2,7 @@
 /**
  * HenchmanRecord — module-owned data for one hireling, persisted at
  * `actor.flags["acks-extras"].record` (standalone DataModel serialized into
- * a flag, the acks-monsters MonsterExtras pattern). The core `retainer.*`
+ * a flag, as the monster extras are). The core `retainer.*`
  * schema keeps what it already owns (enabled/loyalty/wage/managerid/category/
  * quantity — written through the adapter); this record holds everything the
  * core does not: rolled-up results, hire terms, the loyalty/morale ledgers,

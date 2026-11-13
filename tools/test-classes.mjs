@@ -1047,7 +1047,7 @@ await atest("chargen asks for the rebuild, so a generated character's hit points
 });
 
 await atest("chargen settles what the class apply refuses on before it clears the sheet, and stops on a refusal", () => {
-  // A dismissed damage-bonus election used to leave a wiped character with a
+  // A dismissed damage-bonus election must not leave a wiped character with a
   // template and no class.
   const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
   const body = src.slice(src.indexOf("export async function applyChargen("));
@@ -1508,7 +1508,7 @@ test("applyTemplate is bundle-first with the row path as fallback", () => {
   const src = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
   assert.match(src, /expandTemplate\(template\)/, "the bundle is expanded before any row entry is read");
   assert.match(src, /grantRowEntries\(actor, \{ abilities, items: template\.items \?\? \[\], spells \}, report, offerCtx\)/,
-    "the legacy row path survives for un-upgraded worlds");
+    "a template with no bundle still grants its printed row entries");
 });
 
 /* --------------------- class damage bonus --------------------- */

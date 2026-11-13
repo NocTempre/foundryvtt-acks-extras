@@ -1,7 +1,7 @@
 /**
  * The merchandise catalogue: the label vocabulary, the binding of the
  * register's printed grids to items, the demand append, the catalogue's
- * merge order, and the migration action.
+ * merge order, and the build-from-tables action.
  *
  * Every figure and label in a grid below is invented: the tests prove the
  * binding reads the cells it is handed and maps names through the module's
@@ -386,13 +386,13 @@ globalThis.Item = {
     return doc;
   },
 };
-let legacy = { rows: tableRows };
-globalThis.acksExtras = { lib: { tables: { hasDoc: () => true, getTable: () => legacy } } };
+let imported = { rows: tableRows };
+globalThis.acksExtras = { lib: { tables: { hasDoc: () => true, getTable: () => imported } } };
 
 const engine = await import(new URL("../scripts/markets/engine/merchandise.mjs", import.meta.url));
 const { merchandiseCatalog, merchandiseFor, primeMerchandiseCatalog, invalidateMerchandiseCatalog, buildMerchandiseFromTables } = engine;
 
-// Table only: the legacy rows answer, the placeholder row is dropped.
+// Table only: the imported rows answer, the placeholder row is dropped.
 let rows = merchandiseCatalog();
 check("the table alone yields its readable rows", rows.map((r) => r.key).join() === "grainVegetables,salt,beerAle");
 check("a table row is marked as such", rows.every((r) => r.source === "table"));
@@ -428,16 +428,16 @@ check("a row carries a full environment and six stones", Object.keys(winner.envi
 check("a row carries its uuid", winner.uuid === "Item.World grain");
 
 // A changed table re-merges without an explicit invalidation.
-legacy = { rows: [...tableRows, { type: "silk", container: "bolt", pricePerStone: 9, priceStep: 1, byMarketClass: [], tier: "precious" }] };
+imported = { rows: [...tableRows, { type: "silk", container: "bolt", pricePerStone: 9, priceStep: 1, byMarketClass: [], tier: "precious" }] };
 check("a re-read table shows up", merchandiseFor("silk")?.source === "table");
 
-// Migration: idempotent by key.
+// Build from tables: idempotent by key.
 worldItems.length = 0;
 worldItems.push(item("salt", "Existing salt"));
 invalidateMerchandiseCatalog({ pack: true });
 const first = await buildMerchandiseFromTables();
-check("the migration skips a key an item already answers for", first.skipped.includes("salt") && !first.made.includes("salt"));
-check("the migration makes the goods no item stands for", first.made.slice().sort().join() === "beerAle,silk");
+check("the build skips a key an item already answers for", first.skipped.includes("salt") && !first.made.includes("salt"));
+check("the build makes the goods no item stands for", first.made.slice().sort().join() === "beerAle,silk");
 check("a compendium good is skipped too", first.skipped.includes("grainVegetables"));
 check("a compendium good is not remade as a world item", !first.made.includes("ivory"));
 const madeBeer = created.find((d) => d.system.key === "beerAle");

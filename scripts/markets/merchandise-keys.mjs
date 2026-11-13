@@ -6,7 +6,7 @@
  * Module configuration, not book content: the keys are this module's own
  * identifiers and the patterns are English spellings of them. Every figure
  * arrives from the Judge's own copy through the importer. The importer's
- * binding and the legacy table recipe both read this one module, so a label
+ * binding and the table recipe both read this one module, so a label
  * maps to the same key on every path. Pure — importable from Node tooling and
  * tests.
  */

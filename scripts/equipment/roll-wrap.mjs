@@ -69,7 +69,7 @@ function onAttackResolved(actor, ctx, outcome) {
 /**
  * WRAPPER around AcksActor#computeEncumbrance.
  *
- * FLAGGED: this wraps a core method that acks-formation depends on (it reads the
+ * FLAGGED: this wraps a core method that the formation feature depends on (it reads the
  * resulting system.encumbrance / movementacks for party speed). It is an
  * ENHANCE, not a replacement — core's own sum runs untouched and we adjust the
  * total afterwards, so formation keeps reading one consistent number and the two

@@ -16,7 +16,7 @@
  * three characters' gear is three inventories in one actor, not one shared
  * pile. Retrieval is offered on the rows a user can actually claim — their own
  * characters' goods, or everything for a GM. That is a UI convention, not a
- * security boundary (acks-lib's storage header makes the same ruling): anything
+ * security boundary (the lib storage header makes the same ruling): anything
  * that must genuinely stay private belongs on a GM-owned actor.
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
@@ -43,9 +43,9 @@ import { PicksMixin, spendPicks } from "../../lib/picks.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
-/* Storage-tab helpers. `loc` resolves under ACKS-LOCATION.*, which is where the
- * storage half's strings were authored; the market half localizes under
- * ACKS-HENCHMEN.* inline. Both roots live in the one merged lang file. */
+/* Storage-tab helpers. `loc` resolves under ACKS-LOCATION.*, which holds the
+ * storage half's strings; the market half localizes under ACKS-HENCHMEN.*
+ * inline. Both roots live in the one lang file. */
 const loc = makeLoc(LANG_PREFIX);
 
 /** The tabs that exist only where there is a market. */
@@ -167,9 +167,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       // are true of every place; a market is not.
       initial: "contents",
       // Every tab label resolves under one prefix, so the storage tab's label
-      // is ACKS-HENCHMEN.location.tab.storage even though the storage half was
-      // authored under ACKS-LOCATION.*. Adding the one key beats overriding
-      // label resolution to support two prefixes.
+      // is ACKS-HENCHMEN.location.tab.storage even though the storage strings
+      // live under ACKS-LOCATION.*. Adding the one key beats overriding label
+      // resolution to support two prefixes.
       labelPrefix: "ACKS-HENCHMEN.location.tab",
     },
   };
@@ -860,7 +860,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (candidate) openRecruitDialog(this.actor, candidate.id);
   }
 
-  /** Assemble available troops + an officer into one acks-lib.group. */
+  /** Assemble available troops + an officer into one group. */
   static async #onHireGroup() {
     await openHireGroupDialog(this.actor);
   }
@@ -868,8 +868,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   /**
    * Dropping an actor: WHERE it lands decides what it means.
    *
-   * On the recruitment tab a dropped NPC is somebody the party can hire — the
-   * behaviour this sheet has always had. Anywhere else it is somebody who is
+   * On the recruitment tab a dropped NPC is somebody the party can hire.
+   * Anywhere else it is somebody who is
    * simply HERE: the innkeeper, the garrison, the stabled mule. Both readings
    * are obviously right in their own tab and obviously wrong in the other, so
    * the drop target arbitrates rather than a modifier key nobody would find.

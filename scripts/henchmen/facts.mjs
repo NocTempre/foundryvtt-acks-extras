@@ -4,8 +4,7 @@
  *   1. owning module's API, when it exists and is active
  *   2. actor flag
  *   3. INVENTORY MARKER ITEM — a plain Item whose name declares the fact,
- *      e.g. "Stronghold: Border Fort" (cost = gp value),
- *      "Domain Income: 350gp/month", "Syndicate Member: <boss>"
+ *      e.g. "Stronghold: Border Fort" (cost = gp value), "Rank: 3 (Baron)"
  *   4. null → callers fall back to asking the GM
  *
  * A module that owns one of these facts supersedes the markers transparently by
@@ -38,62 +37,6 @@ export function getStronghold(actor) {
       name: item.name.replace(/^stronghold\s*[:\-]\s*/i, ""),
       value: Number(item.system?.cost ?? 0) || null,
     };
-  }
-  return null;
-}
-
-/** One console line per session when acks-domains' shape stops matching the probe. */
-let domainShapeWarned = false;
-function warnDomainShape(detail) {
-  if (domainShapeWarned) return;
-  domainShapeWarned = true;
-  console.warn(`${MODULE_ID} | acks-domains is active but its domain shape no longer matches; domain income falls back to flag/marker.`, detail ?? "");
-}
-
-/**
- * Monthly domain income in gp (vassal-wage waiver, RR 168).
- *
- * acks-domains stores no income field — income is derived — so the probe finds
- * the domain the actor rules (`system.ruler` UUID) and asks the module's own
- * published arithmetic (`api.rules.monthlyStatement`) for the net, feeding it
- * the domain's schema fields. A shape mismatch warns once and falls through to
- * the flag/marker chain rather than silently returning null.
- * @returns {number|null}
- */
-export function getDomainIncome(actor) {
-  const domains = game.modules.get("acks-domains");
-  if (domains?.active) {
-    try {
-      const domain = game.actors.find(
-        (a) => a.type === "acks-domains.domain" && a.system?.ruler === actor.uuid
-      );
-      if (domain) {
-        const s = domain.system;
-        const statement = domains.api?.rules?.monthlyStatement?.({
-          families: s.families?.peasant ?? 0,
-          urbanFamilies: s.families?.urban ?? 0,
-          landValue: s.landValue,
-          taxGpPerFamily: s.rates?.taxGpPerFamily,
-          garrisonGpPerFamily: s.garrison?.gpPerFamily,
-          liturgyGpPerFamily: s.rates?.liturgyGpPerFamily,
-          tithesPaid: s.rates?.payTithes,
-        });
-        const income = Number(statement?.net);
-        if (Number.isFinite(income)) return income;
-        warnDomainShape(statement);
-      }
-    } catch (err) {
-      warnDomainShape(err);
-    }
-  }
-  const flag = Number(actor?.getFlag?.(MODULE_ID, "domainIncome"));
-  if (Number.isFinite(flag) && flag > 0) return flag;
-  const item = markerItems(actor, /^domain income\s*[:\-]/i)[0];
-  if (item) {
-    const m = (item.name ?? "").match(/([\d,]+)\s*gp/i);
-    if (m) return Number(m[1].replace(/,/g, ""));
-    const cost = Number(item.system?.cost);
-    if (Number.isFinite(cost) && cost > 0) return cost;
   }
   return null;
 }
@@ -133,16 +76,4 @@ export function getSocialRank(actor) {
     return m ? { rank: Number(m[1]), title: (m[2] ?? "").trim() } : { rank: null, title: rest };
   }
   return null;
-}
-
-/** Is the actor a member of the employer's crime syndicate (ruffian loyalty)? */
-export function isSyndicateMember(actor, bossActor = null) {
-  const flag = actor?.getFlag?.(MODULE_ID, "syndicateBoss");
-  if (flag) return !bossActor || flag === bossActor.uuid || flag === bossActor.name;
-  const item = markerItems(actor, /^syndicate member/i)[0];
-  if (item) {
-    if (!bossActor) return true;
-    return (item.name ?? "").toLowerCase().includes((bossActor.name ?? "").toLowerCase());
-  }
-  return false;
 }

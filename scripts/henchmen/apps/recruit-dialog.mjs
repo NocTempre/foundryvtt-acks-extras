@@ -18,6 +18,7 @@ import { henchmanWage } from "../rules/wages.mjs";
 import { hire, updateCandidate, hireExistingActor, updateSpecialHire } from "../engine/hire.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM, registerHandler } from "../../lib/sockets.mjs";
+import { escape as esc } from "../../lib/util.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
 import { now } from "../time.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
@@ -172,7 +173,6 @@ async function launchOffer({ location, employer, offer }) {
  */
 async function askHeads(candidate) {
   const max = Math.max(1, Number(candidate.quantity) || 1);
-  const esc = foundry.utils.escapeHTML;
   const label = esc(game.i18n.format("ACKS-HENCHMEN.recruit.headsLabel", { n: max }));
   const value = await foundry.applications.api.DialogV2.prompt({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],

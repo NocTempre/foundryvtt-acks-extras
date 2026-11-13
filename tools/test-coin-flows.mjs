@@ -369,7 +369,7 @@ await test("a row a payment empties is kept only while it carries a banked balan
   const hero = makeActor({ id: "hero", items: [gold(2, { _id: "g", bank: 40 }), silver(5, { _id: "s" })] });
   assert.equal((await sinkCoin(hero, 2.5)).ok, true);
   assert.deepEqual(purse(hero), ["Gold ×0"]);
-  assert.equal(hero.items.get("g").system.quantitybank, 40, "the balance is still there for the migration to move");
+  assert.equal(hero.items.get("g").system.quantitybank, 40, "the balance is still there for the vault sweep to move");
 });
 await test("small coin the larger coin makes unnecessary never leaves the purse, and none comes back as another kind", async () => {
   const hero = makeActor({ id: "hero", items: [silver(6), coin("Electrum", 50, 0), gold(10)] });
@@ -1372,7 +1372,7 @@ await test("a coin row with a banked balance is emptied by a join, never removed
   await joinStacks(hero.items.get("g2"), hero.items.get("g1"));
   assert.equal(hero.items.get("g1").system.quantity, 12);
   assert.equal(hero.items.get("g2").system.quantity, 0);
-  assert.equal(hero.items.get("g2").system.quantitybank, 30, "the balance is still there for the migration to move");
+  assert.equal(hero.items.get("g2").system.quantitybank, 30, "the balance is still there for the vault sweep to move");
 });
 await test("at a place two owners' coin never joins", async () => {
   const stamp = (uuid) => ({ "acks-extras": { storage: { ownerUuid: uuid, ownerName: uuid } } });

@@ -39,7 +39,7 @@ import { clampScore, moraleBounds } from "../../lib/score-bounds.mjs";
 import { LANG, PDF_RECORD_FLAG as RECORD_FLAG } from "../constants.mjs";
 import { saveLabel } from "../snapshot.mjs";
 import { filledValues } from "./form.mjs";
-import { diceText, numbers } from "./parse.mjs";
+import { diceText, finite, numbers } from "./parse.mjs";
 import { sheetDomain, weaponThrow } from "./export.mjs";
 import { domainChecks, domainPagePlan, domainUpdate } from "./domain-page.mjs";
 import { DOMAIN_TYPE } from "../../domains/constants.mjs";
@@ -62,7 +62,6 @@ const PLACE_CONTAINER = Object.freeze({ backpack: ["backpack", "rucksack", "pack
 /** The item types a gear line can name. */
 const GEAR_TYPES = [ITEM_TYPE.item, ITEM_TYPE.weapon, ITEM_TYPE.armor];
 
-const finite = (n) => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n));
 const same = (a, b) => String(a ?? "").replace(/\s+/g, "").toLowerCase() === String(b ?? "").replace(/\s+/g, "").toLowerCase();
 
 /** A label for a field of the sheet, in this module's words. */

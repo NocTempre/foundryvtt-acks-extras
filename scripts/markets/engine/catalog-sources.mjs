@@ -57,8 +57,8 @@ export async function listedSource({ sourceUuid = "", itemName = "" } = {}) {
 /**
  * The item a paid order delivers: the document it was placed for while it
  * still exists, else the first of its name among the sources the shop lists,
- * else the first of its name anywhere. An order placed before orders stored
- * their source has only the name.
+ * else the first of its name anywhere. An order that stores no
+ * source has only the name.
  * @param {{sourceUuid?: string, itemName?: string}} order
  * @returns {Promise<{data: object, uuid: string, inCompendium: boolean}|null>}
  */

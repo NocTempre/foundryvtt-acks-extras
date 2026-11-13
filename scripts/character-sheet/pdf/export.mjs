@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuidSync */
+/* global game, foundry */
 /**
  * A character written into the Judge's own blank copy of the official form.
  *
@@ -25,14 +25,13 @@ import { containedIn, isConcealed, isContainer } from "../../equipment/container
 import { WEAR } from "../../equipment/config.mjs";
 import { PDF_RECORD_FLAG as RECORD_FLAG } from "../constants.mjs";
 import { saveSystemKey, henchmanIds } from "../snapshot.mjs";
-import { signedText } from "./parse.mjs";
+import { finite, numText, signedText } from "./parse.mjs";
+import { docOf } from "../../lib/util.mjs";
 import { ADVENTURING_KEYS, COIN_KEYS, GEAR_PLACES, MOVE_KEYS, SAVE_BOOK_KEYS, SCORE_KEYS, SHEET_ROWS, buildPlan } from "./plan.mjs";
 import { coinsHeld, nameSlug } from "./match.mjs";
 import { FORM_KEYS, fillForm, readForm } from "./form.mjs";
 import { domainPageValues } from "./domain-page.mjs";
 
-const finite = (n) => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n));
-const numText = (n) => (finite(n) ? String(Number(n)) : "");
 const throwOf = (n) => (finite(n) ? `${Number(n)}+` : "");
 
 /** The wear places the sheet's gear boxes gather, by sheet place. */
@@ -143,15 +142,6 @@ function abilityBox(item, recordedClass) {
  */
 export function recordedFields(actor) {
   return foundry.utils.flattenObject(actor.getFlag(MODULE_ID, RECORD_FLAG)?.fields ?? {});
-}
-
-/** The document a uuid names, or null; never throws on a uuid into an unloaded compendium. */
-function docOf(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
 }
 
 /**

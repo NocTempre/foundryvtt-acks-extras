@@ -2,8 +2,7 @@
 /**
  * ACKS II — Henchmen & Hirelings. Entry point.
  *
- *  init:  location data model + sheet (module sub-types register safely at
- *         init — acks-domains precedent), settings, template preload.
+ *  init:  settings, repair guards, template preload.
  *  setup: ruledata load (fetch), public API.
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
@@ -40,7 +39,7 @@ import { bindCardListeners, registerCardAction } from "./chat/cards.mjs";
 
 import { registerEventEngine, installWagePayment, openLoyaltyRoll, openObedienceRoll, recordCalamity, payWagesFor, wageBill, enrollNewcomers, forgiveWageDebts, setPermanentCompensated, allEmployers, effectiveLoyaltyFor, effectiveMoraleFor } from "./engine/events.mjs";
 import { openRosterApp } from "./apps/roster-app.mjs";
-import { elementOf, ownsSheet, primaryGMSettled } from "../lib/util.mjs";
+import { elementOf, findActor, ownsSheet, primaryGMSettled } from "../lib/util.mjs";
 import { installHirelingsGrid } from "./apps/hirelings-grid.mjs";
 import { recruitMonster, hireMonster, validateMonsterRecruit } from "./engine/monster.mjs";
 import { openFollowersDialog } from "./apps/followers-dialog.mjs";
@@ -87,17 +86,17 @@ Hooks.once("init", () => {
     console.warn(`${MODULE_ID} | template preload skipped`, err);
   }
 
-  // Re-skin the core character sheet's Hirelings tab as a grid of acks-lib
-  // Follower Cards (degrades to the stock list if acks-lib is too old).
+  // Re-skin the core character sheet's Hirelings tab as a grid of Follower
+  // Cards (degrades to the stock list where the lib card is absent).
   installHirelingsGrid();
 });
 
 Hooks.once("setup", async () => {
   // Book tables are NOT shipped and NOT fetched here. Every rules function
-  // reads through rules/tables.mjs, which delegates to the acks-lib registry
-  // (acksLib.tables). Tables arrive per world via importer extraction →
-  // the ruledata-import contract → acks-lib at world priority; acks-location
-  // mirrors the persisted set into the registry before this module's `ready`.
+  // reads through rules/tables.mjs, which delegates to the lib table registry
+  // (`acksExtras.lib.tables`). Tables arrive per world via importer extraction
+  // → the ruledata-import contract → the registry at world priority, and the
+  // location feature mirrors the persisted set into it before `ready`.
   //
   // The exception is `throws`: this module's own social-roll automation config
   // (module vocabulary, not book data), shipped and registered at SAMPLE
@@ -326,8 +325,7 @@ Hooks.on("renderActorSheetV2", (app, element) => {
   }
 });
 
-/* Roster button on acks character sheets (additive DOM only — the
- * acks-domains/acks-influence injection pattern, dedupe-guarded). */
+/* Roster button on acks character sheets (additive DOM only, dedupe-guarded). */
 Hooks.on("renderActorSheetV2", (app, element) => {
   if (game.system?.id !== "acks") return;
   const actor = app.actor ?? app.document;
@@ -354,11 +352,6 @@ Hooks.on("renderActorSheetV2", (app, element) => {
  * the Combat Morale page; see docs/henchmen/DECISIONS.md, "A hired unit
  * rolls morale on the Combat Morale page". */
 Hooks.on("getActorContextOptions", (_directory, options) => {
-  const findActor = (li) => {
-    const el = elementOf(li);
-    const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
-    return id ? game.actors.get(id) : null;
-  };
   options.push({
     label: "ACKS-HENCHMEN.unitMorale.menu",
     icon: '<i class="fas fa-flag"></i>',

@@ -1,9 +1,9 @@
 /* global game, globalThis */
 /**
- * Public API — exposed on `game.modules.get("acks-equipment").api` and mirrored
- * on `globalThis.acksExtras?.equipment`. Lets sibling modules read the loadout the way
- * they read each other's data today (formation reads equipped weapons; henchmen
- * reads gear), and lets macros drive equip/annotate/purchase.
+ * Public API — exposed as `acksExtras.equipment` on `globalThis`, the same
+ * object `game.modules.get("acks-extras").api.equipment` reaches. Lets sibling features read the
+ * loadout (formation reads equipped weapons; henchmen reads gear), and lets
+ * macros drive equip/annotate/purchase.
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, HOOKS, EFFECT_DOMAINS, ITEM_FLAGS } from "./constants.mjs";
@@ -204,11 +204,11 @@ export function buildApi() {
     // Model
     getLoadout,
     handBudget,
-    // Free hands right now — read by acks-formation before it lights a source
+    // Free hands right now — read by the formation feature before it lights a source
     // (a light needs a hand to hold). The write half of the two-way hook.
     freeHands: (actor) => getLoadout(actor).handsFree,
     // Room for one more thing (see docs/equipment/MODEL.md, "Hands: free,
-    // committed, spare"); acks-formation asks this before lighting a torch.
+    // committed, spare"); the formation feature asks this before lighting a torch.
     spareHands: (actor) => getLoadout(actor).handsSpare,
     // Whether a light of this type can be struck without a further hand: one
     // already drawn and unlit is lit where it is. lib's `prepareToLight` asks
@@ -288,7 +288,7 @@ export function buildApi() {
     consumeForAttack,
     recoverThrown,
     isThrownAway,
-    consumeItem, // shared decrement primitive (acks-formation burns torches/oil through this)
+    consumeItem, // shared decrement primitive (the formation feature burns torches/oil through this)
     // "The silver ones, now": declare which ammunition stack the next shot
     // comes from, ahead of the plain-first default. Exclusive per actor.
     nockAmmo,
@@ -382,7 +382,7 @@ export function buildApi() {
     sumEffectModifiers,
     collectStringFlags,
     hasEffectFlag,
-    bridgeContributions, // proficiency facts read from the acks-abilities model
+    bridgeContributions, // proficiency facts read from the abilities model
     EFFECT_DOMAINS,
     // Uninstall: strip every flag/effect this module wrote, so disabling it
     // leaves no orphaned loadout effects or masked item identities behind.

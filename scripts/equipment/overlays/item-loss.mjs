@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Overlay: item loss from damage (JJ p. 398; acks-rules/acks-equipment/RULES.md §11).
+ * Overlay: item loss from damage (JJ p. 398; equipment RULES.md §11).
  * Gated by the `overlayItemLoss` world setting.
  *
  * When an area attack drops a creature past the loss threshold (no save, or a

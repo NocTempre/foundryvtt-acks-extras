@@ -64,7 +64,7 @@ import { openDemandGenerator, DemandGenerator } from "./apps/demand-generator.mj
 import { buildMagicPanel } from "./apps/magic-panel.mjs";
 // Registers the merchandise Item sub-type, its sheet and its setting at init.
 import "./merchandise-module.mjs";
-// Registers the market report Item sub-type, its sheet and the belief migration.
+// Registers the market report Item sub-type, and its sheet.
 import "./report-module.mjs";
 import { merchandiseCatalog, merchandiseFor, primeMerchandiseCatalog, buildMerchandiseFromTables } from "./engine/merchandise.mjs";
 import * as tradeObjects from "./engine/trade-objects.mjs";

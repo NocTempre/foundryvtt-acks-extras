@@ -14,7 +14,7 @@
  * whisper offers [Pay] / [Mark missed]; missed wages are calamities (RR 166).
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED } from "../constants.mjs";
-import { isPrimaryGM } from "../../lib/util.mjs";
+import { isPrimaryGM, locOr } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import {
   effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty,
@@ -148,9 +148,7 @@ export async function setPermanentCompensated(actor, { track = "loyalty", index,
     type: "adjustment",
     note: game.i18n.format(compensated ? "ACKS-HENCHMEN.ledger.compensatedNote" : "ACKS-HENCHMEN.ledger.restoredNote", {
       delta: entry.delta > 0 ? `+${entry.delta}` : String(entry.delta ?? 0),
-      reason: game.i18n.has(reasonKey(track, entry.reason))
-        ? game.i18n.localize(reasonKey(track, entry.reason))
-        : entry.reason || "",
+      reason: locOr(reasonKey(track, entry.reason), entry.reason || ""),
     }),
   });
   Hooks.callAll(HOOKS.LOYALTY_EVENT, { actor, delta: entry.delta, reason: entry.reason, compensated: !!compensated });
@@ -200,7 +198,7 @@ export async function applyLoyaltyOutcome(actor, { outcome, total = null, note =
 
 /**
  * Open the secret Hireling Loyalty roll for a hireling — as an influence-
- * hosted page when acks-influence hosts the modes (consistent UI, tones
+ * hosted page when the influence feature hosts the modes (consistent UI, tones
  * hidden), else the module's own ThrowDialog. Outcome bookkeeping applies
  * automatically either way.
  * @param {Actor} actor - the hireling

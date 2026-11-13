@@ -450,8 +450,8 @@ export async function leaveVentureMarket(location, { actorUuid, requestUserId = 
   const result = leaveMarket(state, { ...key, monthStart });
   if (result.error) return err(result.error);
   const row = state.ventures.find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
-  // A visit the gate recorded no fee for (waived, or entered before the stay
-  // was charged) settles nothing.
+  // A visit the gate recorded no fee for (waived, or stored with no stay
+  // charge) settles nothing.
   let stay = null;
   if (row && Number(row.stayCpPerDay) > 0 && !row.staySettled) {
     stay = stayOwed({ cpPerDay: row.stayCpPerDay, arrivalDay: dayOfWorldTime(row.enteredTime), departureDay: dayOfWorldTime(t) });
@@ -585,7 +585,7 @@ export async function processVentureActions(location, log, t) {
         continue;
       }
       // A character entering separately is the venture's entrant; an entry
-      // posted before entrants were stored entered as the party.
+      // that stores no entrant entered as the party.
       const key = { partyId: action.partyId, entrantUuid: action.entrantUuid ?? "" };
       const entrants = key.entrantUuid ? Math.max(0, Math.floor(Number(action.entrants) || 0)) : 0;
       const { impact, effectiveClass, rawImpact, cap } = marketImpact({
@@ -629,8 +629,8 @@ export async function processVentureActions(location, log, t) {
       row.impact = impact;
       row.effectiveClass = effectiveClass;
       // The gate was paid when the action was posted; the row records what it
-      // took. An entry posted before the action carried its toll is figured
-      // again from its capacity.
+      // took. An entry that carries no toll is figured
+      // from its capacity.
       row.tollCp = Number.isInteger(action.tollCp) ? action.tollCp : Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
       row.tariffCp = Math.max(0, Number(action.tariffCp) || 0);
       row.privilegeUuid = action.privilegeUuid ?? "";

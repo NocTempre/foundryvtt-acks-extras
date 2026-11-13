@@ -2,7 +2,7 @@
 
 How this feature stores data, how proficiencies/powers plug in, and how other
 features extend it. Companion to the local rules extract
-(`acks-rules/acks-henchmen/RULES.md`, kept outside the repo).
+(the henchmen entry on the local rules shelf, kept outside the repo).
 
 ## 1. Design rules
 
@@ -35,7 +35,7 @@ features extend it. Companion to the local rules extract
   sub-type** (locations). Rules math is pure (`scripts/henchmen/rules/`), fed by
   table documents read through `acksExtras.lib.tables`. **No table ships**: a
   world gets its numbers by importing them from the GM's own book through
-  `acks-importer`, and the feature shows a stub plus an import pointer until it
+  the importer feature, and the feature shows a stub plus an import pointer until it
   has them.
 
 ## 2. The `acks-extras.location` actor sub-type
@@ -44,7 +44,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 
 | Field | Meaning |
 |---|---|
-| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → acks-domains courtesy read → default IV. Derived getter: `system.marketClass`. |
+| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → a linked domain's courtesy read → default IV. Derived getter: `system.marketClass`. |
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, or setting-specific additions). |
 | `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
 | `blockedClasses[]` | Class keys THIS market never offers (`classBlocked`). Every class draw here passes them to `rollClassFromDistribution`, which draws again on one and ends on `special` after `BLOCKED_CLASS_DRAWS` draws; `rollMonthlyPool` refuses a search directed at one `class-blocked`. A GM-placed candidate's named class is placed. |
@@ -654,9 +654,8 @@ Facts owned by WIP/future modules resolve through a chain, so those modules
 supersede transparently later: **module API (if active) → actor flag →
 inventory marker item → GM dialog.** Marker items are plain Items on the
 actor whose name declares the fact with its value, e.g. `Stronghold: Border
-Fort` (cost 15,000 gp), `Domain Income: 350gp/month`, `Syndicate Member:
-<boss>`. Used for: follower stronghold prerequisites, vassal-domain wage
-waivers, ruffian syndicate loyalty, urban families.
+Fort` (cost 15,000 gp). Used for: follower stronghold prerequisites and
+social rank.
 
 **Social rank** rides the same chain (`getSocialRank`): a domains module's
 answer, then the actor flag `socialRank` (a number, or `{rank, title}`), then

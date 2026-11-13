@@ -1,20 +1,15 @@
 /* global game, CONFIG, Hooks, CONST */
 /**
- * acks-location — location primitives for the ACKS II module family.
+ * The location feature: location primitives for the module.
  *
  * Scope:
  *  - the `ruledata-import` provider (world-persisted rules tables mirrored into
- *    acksLib.tables on every client) and the Ruledata Browser — the GM's
+ *    the lib tables registry on every client) and the Ruledata Browser — the GM's
  *    audit-and-tweak surface;
- *  - the `acks-location.location` actor and the STORAGE experience built on
- *    acks-lib's storage primitives: the location sheet, the character sheet's
+ *  - the `acks-extras.location` actor and the STORAGE experience built on
+ *    the lib storage primitives: the location sheet, the character sheet's
  *    Storage tab, the retirement of the system's banked-coin column, the vault
- *    sweep that moves old balances somewhere real, and the GM storage manager.
- *
- * The location actor here is deliberately LEAN (identity + storage). The market
- * schema on acks-henchmen's own location sub-type keeps working untouched;
- * moving that data is its own program, and doing it as a side effect of the
- * storage work would put a migration between a player and their belongings.
+ *    sweep that moves banked balances somewhere real, and the GM storage manager.
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
@@ -108,8 +103,8 @@ Hooks.once("init", () => {
    *
    * This has to happen at init, before any index is built: a pack indexed
    * without the field answers `undefined` for every row until something calls
-   * `getIndex` again with it. Since importer 3.0.0 every imported place
-   * lands in a compendium, so without this an imported adventure's rooms are
+   * `getIndex` again with it. Every imported place lands in a
+   * compendium, so without this an imported adventure's rooms are
    * invisible on the adventure's own sheet — the rooms name their parent
    * correctly and nothing can see that they do.
    */

@@ -16,7 +16,7 @@
  * nothing.
  */
 import { LANG } from "./constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { makeLoc, escape as esc } from "../lib/util.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { damageTypeLabel } from "../lib/damage-type.mjs";
 import { STONE } from "../lib/item-model.mjs";
@@ -31,9 +31,6 @@ const loc = makeLoc(LANG);
 
 /** The classes every window of this module names, so it is held to the scroll contract and gets its drag corner. */
 const CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
-
-/** Text safe to put inside markup or an attribute. */
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 /** Stones with at most two decimals ("0.33", "2"). */
 const stones = (weight6) => Math.round((weight6 / STONE) * 100) / 100;

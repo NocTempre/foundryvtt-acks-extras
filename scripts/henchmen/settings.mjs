@@ -65,14 +65,6 @@ export function registerSettings() {
     },
     default: "owned",
   });
-  reg("enableExpectedLiving", {
-    name: "ACKS-HENCHMEN.setting.enableExpectedLiving",
-    hint: "ACKS-HENCHMEN.setting.enableExpectedLivingHint",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: false,
-  });
   reg("enableSlavery", {
     name: "ACKS-HENCHMEN.setting.enableSlavery",
     hint: "ACKS-HENCHMEN.setting.enableSlaveryHint",

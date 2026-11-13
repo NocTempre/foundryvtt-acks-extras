@@ -22,6 +22,7 @@ import { saveBandAt, attackBandAt, resolveLevelValue, findByRef } from "./regist
 import { HP_ROLLS_KEY, closeHpRolls, normalizeHd, rebuildHitPoints, storedMaxHp, xpForLevel } from "./hitpoints.mjs";
 import { clampLevel } from "./level-cap.mjs";
 import { grantLanguages } from "./languages.mjs";
+import { slotRowAt } from "./casting.mjs";
 import { adventuringDoc, awardsThrough, grantAbility, grantAdventuring, ownsRef, refOf, rungProficiencyType } from "./grants.mjs";
 import { closesRung, grantsFrom, readRungs, rungLabel, rungOptions, rungSelectHtml } from "./picks.mjs";
 
@@ -29,13 +30,6 @@ export { normalizeHd };
 
 /** Where a character's experience is stored. */
 export const XP_PATH = "system.details.xp.value";
-
-/** The vancian slot row for `level`: exact rung, else the highest below it. */
-function slotRowAt(tradition, level) {
-  const rows = (tradition?.slots ?? []).filter((r) => r.atLevel <= level);
-  if (!rows.length) return null;
-  return rows.reduce((best, r) => (r.atLevel > best.atLevel ? r : best));
-}
 
 /**
  * The class's damage-bonus ladder, and who the bonus applies to. A class

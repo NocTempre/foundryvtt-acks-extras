@@ -169,7 +169,7 @@ Hooks.once("ready", async () => {
   }
 
   // Rebuild loadout effects for owned characters on load (repairs after config
-  // changes, migrations, an update that changed what the effect writes, or a
+  // changes, an update that changed what the effect writes, or a
   // session where enforcement was off). This pass and the next write only from
   // the window `primaryResponder` names, which a window still joining its
   // seat's election is not, so both wait for the election to settle.

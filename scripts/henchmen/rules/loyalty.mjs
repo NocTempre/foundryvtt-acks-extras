@@ -84,8 +84,8 @@ export function sumPermanents(permanents = []) {
 
 /**
  * i18n key labelling a ledger entry's reason. The two tracks have separate
- * vocabularies (config LOYALTY_REASONS / MORALE_REASONS) — a level bump is a
- * morale reason, a calamity a loyalty one.
+ * vocabularies (`ACKS-HENCHMEN.loyaltyReason.*` / `moraleReason.*`) — a level
+ * bump is a morale reason, a calamity a loyalty one.
  */
 export function reasonKey(track, reason) {
   return `ACKS-HENCHMEN.${track === "morale" ? "morale" : "loyalty"}Reason.${reason}`;

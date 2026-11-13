@@ -1,4 +1,4 @@
-/* global game, ui, Roll, ChatMessage, CONFIG */
+/* global game, ui, CONFIG */
 /**
  * The Rolls tab: every throw the character can make, gathered into groups,
  * and the one function that makes one of them.
@@ -20,7 +20,7 @@
  * kind, so a throw added later can never take its id.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { makeLoc, plainRoll } from "../lib/util.mjs";
 import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
@@ -197,13 +197,6 @@ export function rollInventory(actor) {
   }
 
   return { groups, ids: groups.flatMap((g) => g.rows.map((r) => r.id)) };
-}
-
-/** A plain die to chat: the character's own modifier, no threshold stated. */
-async function plainRoll(actor, formula, data, flavor) {
-  const roll = await new Roll(formula, data).evaluate();
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor });
-  return roll;
 }
 
 /**

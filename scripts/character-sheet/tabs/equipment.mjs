@@ -375,7 +375,4 @@ export function buildEquipmentTab(actor) {
   };
 }
 
-/** The container an item is in, or the loose zone — what a drop on a row resolves to. */
-export const containerOfItem = (actor, item) => (containedIn(item) ? actor.items.get(containedIn(item)) ?? null : null);
-
 export { contentsOf };

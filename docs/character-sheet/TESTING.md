@@ -51,7 +51,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   append `.acks-extras-frame__menu` to their rail; a pointerdown
   outside closes it.
 - **The system's save keys are `blast` and `implements`** (acks 14.1.0; the
-  lib's `saveKindOf` still reads a `breath`/`wand` key off an older effect).
+  lib's `saveKindOf` also reads a `breath`/`wand` key).
   Assert against `system.saves.blast`, and roll through
   `rollById(actor, "save:blast")`.
 - **An effect's duration is `{value, units}` and its start is `start`**:
@@ -375,19 +375,19 @@ absent state, the Judge's override, the player and observer seats, and
 **Fixtures** (kept; found by marker, built when none carries it):
 - The world's own import: the weapons grid and the `weaponLists` document with
   its `options` table, read from the Judge's copy
-  (docs/importer/MODEL.md, "The weapon lists"). A world imported before the options
-  table was read has none until the weapon-list step is run again: with the
+  (docs/importer/MODEL.md, "The weapon lists"). A world whose import has not read
+  the options table has none until the weapon-list step is run again: with the
   Rulebook and the Judges Journal connected,
   `acksExtras.importer.cookbookImportTables(["weaponProse"])` — the RAW
   document; naming the assembled `weaponLists` reads nothing. Read what is
   in with `(await import("/modules/acks-extras/scripts/lib/weapons.mjs")).weaponOptions().length`.
   The grid's sub-headers (`flags.acks-extras.weapon.block` on the minted
   weapons of the world's cookbook item pack) arrive only with the weapon items
-  themselves: a world whose weapons were imported before the sub-header was
-  recorded carries none, and the sub-header and mates tiers place nothing
+  themselves: a world whose weapons import did not record the sub-header
+  carries none, and the sub-header and mates tiers place nothing
   until the Weapons shelf is repaired
   (`acksExtras.importer.cookbookReimportShelf("Weapons", {ask: async () => true})`,
-  the merged repair the Import Manager's *Reimport a shelf or a book* runs for
+  the repair the Import Manager's *Reimport a shelf or a book* runs for
   the Weapons shelf). It is minutes long, past a page-script call's budget:
   start it and count again from a later call. Count them before reading a
   tier's placements.

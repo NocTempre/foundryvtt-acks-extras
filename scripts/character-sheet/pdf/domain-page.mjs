@@ -22,7 +22,7 @@ import {
   normalizeOtherLine, normalizeStructure, normalizeTerritoryRow, normalizeVassalRow, peasantFamiliesOf,
   strongholdValueOf, urbanFamiliesOf,
 } from "../../domains/domain-logic.mjs";
-import { clean, countAndName, lastNumber, listEntries, signedText } from "./parse.mjs";
+import { clean, countAndName, finite, lastNumber, listEntries, numText, signedText } from "./parse.mjs";
 
 /** The region boxes, left to right, as the classification each one ticks. */
 export const REGION_KEYS = Object.freeze(["outlands", "borderlands", "civilized"]);
@@ -42,8 +42,6 @@ export const UNMODELLED_KEYS = Object.freeze([
 ]);
 
 const defaultLabel = (key, data) => (data ? `${key}${JSON.stringify(data)}` : key);
-const finite = (n) => n !== null && n !== undefined && n !== "" && Number.isFinite(Number(n));
-const numText = (n) => (finite(n) ? String(Number(n)) : "");
 const whole = (n) => (finite(n) ? Math.max(0, Math.floor(Number(n))) : null);
 const int = (n) => (finite(n) ? Math.trunc(Number(n)) : null);
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));

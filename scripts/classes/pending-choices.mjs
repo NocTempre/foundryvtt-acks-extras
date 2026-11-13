@@ -68,9 +68,6 @@ function settledKeys(actor) {
   return new Set([...(Array.isArray(redeemed) ? redeemed : []), ...open].filter(Boolean));
 }
 
-/** Has this offer already been minted for, or answered by, this character? */
-export const alreadySettled = (actor, key) => settledKeys(actor).has(key);
-
 /**
  * The item data for one pending choice.
  *

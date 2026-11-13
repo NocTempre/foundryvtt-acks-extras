@@ -121,9 +121,7 @@ by hand.
    (`acks.class.<key>`) carry the Cite field of the class's sheet, and a class
    whose Cite is empty carries none. Save a row's own **Edit** unchanged (Export
    is no fixture: it writes to the library shelf): its line goes and the
-   override badge stands instead. **Revert**: the line returns. A document last
-   imported before 8.6.0 shows its whole page list on every row until it is
-   re-read, which is the upgrade shape; check it before the re-read. Shoot from
+   override badge stands instead. **Revert**: the line returns. Shoot from
    a capture session holding no book (one holding two PDFs timed out on
    `Page.captureScreenshot`); the browser scrolls in `.ruledata-browser-body`,
    not `.window-content`.
@@ -139,7 +137,7 @@ by hand.
    matches the tree plus the journal; after removal the tree and journal are
    gone while the browser still lists every imported table, and a second
    `materializeDocs()` rebuilds the documents without re-importing.
-   *The upgrade shape:* build the pre-upgrade sidebar by hand — a RollTable
+   *The sidebar-fallback shape:* build the sidebar tree by hand — a RollTable
    folder "ACKS Imported Tables" flagged `ruledataDocs`, a child folder, one
    table in it flagged `tableKey` with a real entry key, and a journal "ACKS
    Ruledata (Imported)" flagged `ruledataDocs` — then `materializeDocs()`.
@@ -204,7 +202,7 @@ by hand.
    directly skips that shape. The drop is a `DragEvent("drop")` whose
    `DataTransfer` holds `{type: "RollTable", uuid}` as `text/plain`,
    dispatched on the row `[data-entry-key="…"]`.
-7. Vault sweep. Build the pre-upgrade shape: on a disposable `character`,
+7. Vault sweep. Build the banked-coin shape: on a disposable `character`,
    on a disposable `monster`, and on an unlinked token of that monster
    (`tokenDoc.actor`'s own row), a `money` row with a carried count and a
    nonzero `system.quantitybank` (a plain `item.update`). Build it and run
@@ -407,7 +405,7 @@ by hand.
     (`node tools/live/run.mjs location-storage-intent`) on a GM seat and the
     Player seat, both reloaded under a load recorder, on fixtures it keeps:
     `location/intent-place` (switched off and on), `location/intent-legacy`
-    (an empty location holding goods, the shape an upgrading world carries),
+    (an empty location holding goods),
     `location/intent-stocked` (one holding a row kept for the house),
     `location/intent-hero` (a character the Player seat owns, carrying a rope)
     and `location/intent-rope` (a world item). Each location also carries a
@@ -417,7 +415,7 @@ by hand.
     again each run: the create hook is its subject.
     With `REPLAY_CLEARING=1` the walk unsets the `storageByIntent` marker
     before the GM seat's reload, which is a world-wide write: find out who is
-    seated first. *Observable:* the reload's ready turns the legacy place's
+    seated first. *Observable:* the reload's ready turns `location/intent-legacy`'s
     storage off and sets the marker, and the stocked place keeps its storage.
     *Observable:* the new location carries no storage flag.
     `openStorageManager(stocked)`. *Observable:* the list is exactly the
@@ -438,8 +436,8 @@ by hand.
     house. Run the clearing and the prune dry
     (`clearDefaultStorage({dryRun: true})` from
     `scripts/location/storage-intent.mjs`, `pruneEmptyLocations({dryRun:
-    true})`; neither writes). *Observable:* the clearing names the legacy
-    place alone of the three; the prune spares every provider and takes the
+    true})`; neither writes). *Observable:* the clearing names
+    `location/intent-legacy` alone of the three; the prune spares every provider and takes the
     new empty location. *Observable:* both seats' recorders saw init, setup
     and ready and no error. `SHOTS=1` takes `location-storage-off.png` (the
     Storage tab with storage off) and `location-storage-manager.png`.

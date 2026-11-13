@@ -1,10 +1,8 @@
 /* global game, Hooks, ChatMessage, foundry */
 /**
- * Overlay: mounted combat (RR p. 308; acks-rules/acks-equipment/RULES.md §15).
- * Gated by the `overlayMounted` world setting. The blocker that section
- * recorded — "nothing models a mounted state" — is gone: acks-lib's
- * attachment layer knows who rides what, and this overlay hangs the RULES'
- * bookkeeping off it.
+ * Overlay: mounted combat (RR p. 308; equipment RULES.md §15).
+ * Gated by the `overlayMounted` world setting. The lib's attachment layer
+ * knows who rides what, and this overlay hangs the RULES' bookkeeping off it.
  *
  * What it automates is the STRUCTURE — the triggers and the action economy:
  *

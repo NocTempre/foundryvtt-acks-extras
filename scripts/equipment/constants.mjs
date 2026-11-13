@@ -1,7 +1,7 @@
 /**
- * Shared identifiers for acks-equipment.
+ * Shared identifiers for the equipment feature.
  *
- * Design note (mirrors acks-henchmen): mechanics live as Active Effect changes
+ * Design note: mechanics live as Active Effect changes
  * keyed `flags.acks-extras.<domain>` on `ability`/`weapon`/`armor` items, not
  * as hardcoded name lists. The effect collector in effects.mjs reads them.
  */
@@ -40,7 +40,7 @@ export const EFFECT_DOMAINS = Object.freeze({
   // String / CSV domains.
   WEAPON_FOCUS: "weaponFocus", // CSV of Weapon Focus categories
   // Declared as the seam for a creature-kind-scoped modifier through the
-  // abilities effect model (acks-lib's `scopeApplies`/`vsKinds`); not yet
+  // abilities effect model (the lib's `scopeApplies`/`vsKinds`); not yet
   // read. See ROADMAP.md.
   SLAYER: "slayer", // CSV of "group:bonus" slayer entries (goblin, vermin)
   MARTIAL_WEAPONS: "martialWeapons", // CSV weapon categories added to proficiency
@@ -94,7 +94,7 @@ export const ITEM_FLAGS = Object.freeze({
   // weapon no row identifies count as trained.
   CATEGORY: "category",
   STYLE: "style", // required fighting style key
-  DAMAGE_TYPE: "damageType", // aligns with acks-monsters DAMAGE_TYPES
+  DAMAGE_TYPE: "damageType", // aligns with the monsters feature's DAMAGE_TYPES
   THROWN_STATE: "thrownAway", // runtime STATE: this weapon has been thrown and awaits recovery (weight removed)
   SHIELD_VARIANT: "shieldVariant", // JJ overlay: buckler|auxiliary|crescent|heater|kite|phalanx
   STRAP: "strap", // JJ overlay: "hand" | "back" | "front"
@@ -140,9 +140,9 @@ export const ACTOR_FLAGS = Object.freeze({
 export const SETTINGS = Object.freeze({
   ENFORCE_MODE: "enforceMode", // "resolve" | "veto" | "advisory"
   // Kill switch for proficiency-derived penalties: "auto" | "on" | "off".
-  // "auto" disables them while acks-abilities is active — it owns a richer
-  // model of the same facts, and this module's flags are absent on characters
-  // built with it. See proficiency.mjs enforcementActive().
+  // "auto" disables them while the abilities feature is active — it owns a
+  // richer model of the same facts, and this feature's flags are absent on
+  // characters built with it. See proficiency.mjs enforcementActive().
   PROFICIENCY_ENFORCEMENT: "proficiencyEnforcement",
   ROLL_AUTOMATION: "rollAutomation", // the per-weapon rows on the system's attack throw
   AMMO_TRACKING: "ammoTracking", // consume ammunition / mark thrown weapons on a missile attack
@@ -158,7 +158,6 @@ export const SETTINGS = Object.freeze({
   OVERLAY_MOUNTED: "overlayMounted",
   OVERLAY_NAMED: "overlayNamed",
   OVERLAY_SCAVENGED: "overlayScavenged",
-  OVERLAY_BEASTMAN: "overlayBeastman",
   OVERLAY_ENCLOSING_HELM: "overlayEnclosingHelm",
 });
 
@@ -201,9 +200,8 @@ export const LOADOUT_PARTS_FLAG = "loadoutParts";
  * The `_id` every actor's loadout effect is created under. One id per actor
  * makes the effect one DOCUMENT however many clients write it: the server
  * refuses a second create of an id the actor already holds, so two clients
- * that both pass `primaryResponder` (two owners with no GM online, a window
- * still running code from before the seat election) cannot each add their
- * own. An effect made before this id keeps its own and is found by its flag.
+ * that both pass `primaryResponder` (two owners with no GM online) cannot each
+ * add their own. An effect created under another id is found by its flag.
  */
 export const LOADOUT_EFFECT_ID = "acksExtLoadout00";
 

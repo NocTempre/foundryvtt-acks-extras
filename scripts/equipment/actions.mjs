@@ -252,25 +252,6 @@ export async function setWeaponCategory(item, category) {
   return true;
 }
 
-/**
- * Declare which slot a piece of gear occupies, from the item sheet's control.
- *
- * THREE STATES, and the difference between the last two matters: `auto` DELETES
- * the declaration so the name/type inference resumes, while `none` STORES an
- * empty list, which is a Judge saying this is carried and must stop the name
- * heuristics putting it back on the body.
- */
-export async function setGearSlots(item, value) {
-  if (!item) return false;
-  if (value === SLOT_AUTO) {
-    await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: unset() });
-    return true;
-  }
-  const slots = value === SLOT_NONE ? [] : [value];
-  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.slots`]: slots });
-  return true;
-}
-
 /** What it costs to take something out of this container (RR pp. 293-294). */
 export async function setGearAccess(item, value) {
   if (!item) return false;
@@ -329,22 +310,6 @@ export function containerFieldsOnlyWhenFired(data, firedName) {
 }
 
 /**
- * Declare how much this holds, in stone. Blank clears the figure back to
- * unstated — a container with no limit, "not imported" — distinct from 0, a
- * stated capacity of nothing. Any gear may be given one (see
- * docs/equipment/DECISIONS.md, "Capacity lives on the gear flag, not the
- * container record (2026-09-22)").
- */
-export async function setGearCapacity(item, value) {
-  if (!item) return false;
-  const raw = String(value ?? "").trim();
-  const capacity = raw === "" ? null : Math.max(0, Number(raw));
-  if (raw !== "" && !Number.isFinite(capacity)) return false;
-  await item.update({ [`flags.${MODULE_ID}.${FLAG_GEAR}.capacity`]: capacity });
-  return true;
-}
-
-/**
  * Declare the weight of ordinary equipment this harness secures, in stone —
  * the book's figure, read from the item's own text by the annotate pass or
  * typed here. Blank is unstated, and an unstated harness secures nothing.
@@ -361,7 +326,7 @@ export async function setGearRelief(item, value) {
 /**
  * Wear or remove a piece of gear that core cannot equip.
  *
- * Routed through acks-lib's `setWorn`, which writes whichever store the item's
+ * Routed through the lib's `setWorn`, which writes whichever store the item's
  * type uses, so this never has to know that core owns `system.equipped` for
  * weapon and armour and nothing else.
  *

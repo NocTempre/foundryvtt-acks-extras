@@ -1,6 +1,6 @@
 /* global game */
 /**
- * Overlay: special maneuvers (RR pp. 305–306; acks-rules/acks-equipment/RULES.md §10).
+ * Overlay: special maneuvers (RR pp. 305–306; equipment RULES.md §10).
  * Gated by the `overlayManeuvers` world setting.
  *
  * Core models no maneuvers at all, so this is genuinely new rules code rather

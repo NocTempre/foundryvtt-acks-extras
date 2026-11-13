@@ -4,7 +4,7 @@
  * Active Effect.
  *
  * Mechanics live as Active Effect changes keyed `flags.acks-extras.<domain>`
- * on `ability`/`weapon`/`armor` items (mirrors acks-henchmen). The collector
+ * on `ability`/`weapon`/`armor` items. The collector
  * below reads them. The loadout AE translates the applicable ones — plus the
  * abilities' typed modifiers and the style and helmet figures the import
  * holds — into changes on the real

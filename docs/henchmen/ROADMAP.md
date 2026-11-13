@@ -79,3 +79,9 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   result's printed text from the Judge's own copy, shown beside the name when
   imported. The influence roller's result labels are the matching row in
   [../influence/ROADMAP.md](../influence/ROADMAP.md) §6.
+- **Apparent level from an adventurer's spending.** Not built: an optional
+  world rule, off by default, under which a hireling's loyalty checks read the
+  level an employer's monthly spending implies (RR 173) beside the level the
+  employer holds. It wants a setting that gates a read of the imported wage
+  ladder in the loyalty roll, and a tooltip on the roll naming which level
+  answered.

@@ -19,8 +19,8 @@
  * The day the trader's current visit began. A party entered this month is on
  * the visit its earliest standing entry opened — one row where it entered as
  * one, a row per character where they entered separately. A row's entry
- * opened on the day it was posted (`enteredTime`), or on a row written before
- * that was stored, the day of its latest entry posted this month, else the
+ * opened on the day it was posted (`enteredTime`), or on a row that stores
+ * none, the day of its latest entry posted this month, else the
  * month's start. A party not entered is on a visit of one day, the day of
  * `at`.
  * @param {{ventures?: object[], actions?: object[], partyId?: string|null, monthStart: number, at: number, dayOf: (t: number) => number}} state

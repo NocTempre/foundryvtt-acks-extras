@@ -20,7 +20,7 @@
  * here writes until the sheet is armed (`editing`).
  */
 import { MODULE_ID, ITEM_FLAGS, LANG } from "../constants.mjs";
-import { makeLoc } from "../../lib/util.mjs";
+import { makeLoc, el, escape } from "../../lib/util.mjs";
 import { SHIELD_VARIANTS, SIZE } from "../config.mjs";
 import {
   setMasterwork, masterworkTiersFor, scavengeItem, clearScavenged, setScavengedRow, scavengedOptions,
@@ -52,15 +52,6 @@ const loc = makeLoc(LANG);
 
 /** The class a chip wears in each state. */
 const CHIP_CLASS = Object.freeze({ [CHIP.ON]: "acks-tag--solid", [CHIP.AUTO]: "is-auto", [CHIP.OFF]: "acks-tag--ghost" });
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-const escape = (s) => foundry.utils.escapeHTML?.(String(s)) ?? String(s);
 
 /**
  * The qualities a weapon's strip offers: its two uses, then every special

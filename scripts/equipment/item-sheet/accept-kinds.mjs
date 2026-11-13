@@ -16,9 +16,6 @@ export const ACCEPT_KINDS = Object.freeze([
   "liquids", "coin", "gems", "rations", "ammunition", "tools",
 ]);
 
-/** The fallback refusal, used when the container has no wording of its own. */
-export const DEFAULT_REFUSAL_KEY = "refusalDefault";
-
 const NAME = {
   keys: /\bkeys?\b/i,
   scrolls: /\bscrolls?\b/i,

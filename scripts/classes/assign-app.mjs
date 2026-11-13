@@ -17,12 +17,11 @@ import { answeredByTemplate, grantableRefs, isGranted, rungLabel, rungOptions } 
 import { templateGrantKeys } from "./template-packages.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
 import { heldProficiencies, isZeroLevel, settleAdvance } from "./zero-level.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { escape as esc, makeLoc } from "../lib/util.mjs";
 import { whenReady } from "../lib/library.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
-const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 const loc = makeLoc(LANG_PREFIX);
 
 /** The pickers OFFER core classes (plus whatever the actor is already bound

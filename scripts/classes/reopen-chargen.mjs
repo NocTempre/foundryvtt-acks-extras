@@ -14,7 +14,7 @@
  * run of the page, so re-opening it on a character who owns anything is a
  * destructive act and is confirmed as one.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { LANG_PREFIX } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
 
@@ -74,6 +74,3 @@ function onRenderCharacterSheet(app, element) {
 export function registerReopenChargen() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
 }
-
-/** Published so a macro can send a character back without the sheet. */
-export const CHARGEN_FLAG = `${MODULE_ID}.reopen`;

@@ -112,9 +112,8 @@ dedupes it, and one **nothing defines yet stays on the class row** and is
 reported unresolved — it is not minted (DECISIONS 2026-08-24). A row that is
 an OFFER rather than a grant also stays on the row and becomes a marker on the
 character instead; see *Open picks*. Spells resolve the same way.
-`upgradeUnresolved` runs before any row is read — it is the repair path for
-worlds still holding parts materialized before 4.20.0, not something a
-materialize run now produces: a
+`upgradeUnresolved` runs before any row is read — it repairs a part minted
+with nothing behind it: a
 placeholder the world can now answer for is replaced (the `type` must
 change), every bundle row repointed and the old document deleted, unless it
 was edited — a Judge's repair is skipped and reported; an upgrade to a
@@ -158,8 +157,8 @@ Judge's own, keeps its parts in the sidebar under the same path, where Remove
 Imports (which deletes the library's packs whole) cannot reach them. The
 shelves are opened through `lib/library-target.mjs`; the importer passes its
 own cookbook folders and packs. Parts are read across the whole library, so a
-world upgraded from a release that wrote them to the sidebar keeps its earlier
-parts linked where they are. `findSource` answers `linkable` — a sidebar
+part in the sidebar and a part on a pack shelf both stay linked where they
+are. `findSource` answers `linkable` — a sidebar
 document or one on a library shelf may be pointed at; a definition in any
 other compendium is copied onto the class's shelf.
 
@@ -171,8 +170,8 @@ Every created document carries an `asImported` snapshot; a pass that would
 replace one compares live against snapshot first and skips-and-reports an
 edited document, so a repair survives re-import. The importer calls the
 materializer after class import/update and ships a standalone
-`importTemplatePackages()` macro as the upgrade path for worlds imported
-before packages existed.
+`importTemplatePackages()` macro that builds packages for classes already in
+the world.
 
 `applyTemplate` is bundle-first: a bound bundle grants its LINKED documents
 (then whatever printed entries the row still holds — the disjoint remainder)
@@ -180,8 +179,8 @@ before packages existed.
 Judge placed in the bundle IS the coin and the row's `gp`/`sp` is skipped),
 with the Intellect shortfall taken on the bundle's own order and a missing
 linked document reported, never silently dropped. No bundle — or one that
-resolves to nothing — is the unchanged legacy row path, so an un-upgraded
-world behaves exactly as before. The sheet's Templates tab shows the bound
+resolves to nothing — applies the row's printed entries directly, so a class
+with no package still grants its template. The sheet's Templates tab shows the bound
 package with its contents read-only (Build packages / open / unbind / drop a
 bundle to rebind); core's own actor sheet also explodes a dragged bundle, so
 the packages work even without chargen.
@@ -458,7 +457,7 @@ ladder is asked — the picker, `awardsThrough` — and **not** at the next
 level-up, which asks `awardsAt`, the rung of the level being climbed. The
 wizard says so beside its picks, because the shared control cannot: the picker
 renders the same one and would be naming itself.
-`grantsFrom` and `closesRung` are the two halves that used to be conflated:
+`grantsFrom` and `closesRung` are two separate halves:
 what a rung grants and what closes it are different questions. A rung is
 asked FOR a level — `rungOptions(choice, classItem, actor, granted,
 {level})`: the level-up wizard passes the one it climbs to, the picker the
@@ -487,7 +486,7 @@ one window and handed to `applyClass` as `{answers}`, so nothing is asked
 twice.
 
 **The picker never wipes.** A starting package is offered here — the gap a
-character bound from their sheet used to fall into — but it is opt-in,
+character bound from their sheet falls into otherwise — but it is opt-in,
 defaults to none, and is applied through `applyTemplate`, the merging half of
 chargen. `applyChargen`'s wipe belongs to generating a character, which is the
 opposite act.
@@ -514,10 +513,9 @@ level. The class sheet's field shows "not set" with a tooltip saying the class
 sets no maximum, and the tooltip of a set field names the class's citation
 (`source.cite`), or says it was set on the sheet.
 
-A class document made before the field lost its initial figure keeps what it
-stored; no migration rewrites it, so a hand-made class that never typed a cap
-and was saved under the old schema still carries the old stored figure until
-its owner clears the field.
+A class document keeps the cap figure it stored; nothing rewrites it, so a
+hand-made class that never typed a cap but stores a figure carries it until its
+owner clears the field.
 
 ## Hit points
 
@@ -882,7 +880,7 @@ re-importing and re-running chargen never mint a second marker and never bring a
 settled pick back.
 
 Nothing here is ever written to the world library — that is the line between
-this and the placeholder minting 4.20.0 removed (DECISIONS 2026-08-29).
+this and minting a placeholder into the library (DECISIONS 2026-08-29).
 
 ## Casting
 
@@ -1004,8 +1002,8 @@ the group, in `options`, and an option may carry its own `training` — the same
 three parts a class states, for a class whose training differs per option and
 which therefore states none of its own. `"templates"` means the options ARE the
 class's `system.templates` rows, POINTED AT: the rows, their bundles and the 3d6
-table stay exactly where they were, and a world gained the selector with nothing
-migrated. Folding them in is ROADMAP's.
+table stay exactly where they are, so the selector needs no copy of them.
+Folding them in is ROADMAP's.
 
 A character's choices live on the class ledger flag (`paths`, keyed by group).
 `applyClass` asks for any group with options, pre-selecting what the character

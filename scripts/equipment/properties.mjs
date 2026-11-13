@@ -4,11 +4,11 @@
  *
  * Masterwork (RR p159) and a scavenged condition (RR p160) both express
  * themselves in the SAME core fields: `system.bonus.attack`, the base damage
- * formula, `system.ac.value`, `system.weight6`. Each used to stamp those fields and
- * snapshot its own "base" to restore later — which is wrong the moment both are
- * present: clearing one restores a baseline that already contains the other's
- * delta, leaving residue (a "pristine" item still reading 1d6-1) or silently
- * discarding the other layer.
+ * formula, `system.ac.value`, `system.weight6`. A layer that stamped those
+ * fields and snapshotted its own "base" to restore later would be wrong the
+ * moment both are present: clearing one restores a baseline that already
+ * contains the other's delta, leaving residue (a "pristine" item still reading
+ * 1d6-1) or silently discarding the other layer.
  *
  * So there is exactly ONE snapshot — `flags.acks-extras.pristine`, captured
  * the first time any layer is applied — and every change RECOMPUTES the fields
@@ -142,12 +142,11 @@ export function layerDeltas(
   }
   d.ac -= itemLossAc;
 
-  // The open-ended half. The three legacy flags above are closed and shipped;
-  // a variation is a DOCUMENT applied to this one and carries its own numbers,
-  // so a new kind of difference needs no change here. Both halves share one
-  // delta set and one cost order, which is what keeps a masterwork flag and a
-  // masterwork variation from double-counting the day the migration moves one
-  // onto the other.
+  // The open-ended half. The flag layers above are a closed set; a variation
+  // is a DOCUMENT applied to this one and carries its own numbers, so a new
+  // kind of difference needs no change here. Both halves share one delta set
+  // and one cost order, which is what keeps a masterwork flag and a masterwork
+  // variation from double-counting.
   const applied = variationItemsOf(item);
   if (applied.length) {
     const byKey = new Map(applied.map((v) => [v.system?.key, definitionFrom(v)]));

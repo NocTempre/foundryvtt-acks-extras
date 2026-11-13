@@ -17,7 +17,7 @@ import {
 import * as adapter from "./acks-adapter.mjs";
 import { now, secondsPerMonth, dateLabel } from "./time.mjs";
 import { SECONDS_PER_DAY } from "./constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { locOr, makeLoc } from "../lib/util.mjs";
 import { signed } from "../lib/frame-model.mjs";
 import { classLevel } from "../lib/actor-read.mjs";
 import { creditedExperience, keepsExperienceOnFlag } from "../lib/experience.mjs";
@@ -30,7 +30,7 @@ const loc = makeLoc(SERVICE_LANG_PREFIX);
 /** How many events the panel lists, newest first; the record itself keeps more. */
 export const EVENTS_SHOWN = 50;
 
-const localizeIf = (key, fallback = "") => (key && game.i18n.has(key) ? game.i18n.localize(key) : fallback);
+const localizeIf = (key, fallback = "") => (key ? locOr(key, fallback) : fallback);
 
 /** The words for a share kind from `shareKind`, or "not imported" for the null a missing figure leaves. */
 const shareLabel = (share) => (share == null ? loc("shareUnimported") : share.kind === "pct" ? loc("shareKind.pct", { pct: share.pct }) : loc(`shareKind.${share.kind}`));
