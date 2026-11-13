@@ -1083,8 +1083,7 @@ document by timestamp.
 1. Viewing A, press **They strayed…** in The episode section of the party
    sheet's Judge tab and pick a face.
    *Observable:* `lost.phase` is `astray`, `lost.sceneId` is A's id,
-   `lost.level` is A's viewed level, `lost.fogSnapshotComplete` is true, and
-   the snapshot's entry for the player hashes equal to the player's server
+   `lost.level` is A's viewed level, and the snapshot's entry for the player hashes equal to the player's server
    document. A hidden shadow token stands at the true hex. **No "duplicate
    party token" warning** appears: the adoption hook skips shadows.
 2. `walkAstray(f, {believedOffset, trueOffset})` twice, diverging.
@@ -1139,15 +1138,6 @@ document by timestamp.
 10. **The player's next session.** Reload the player seat and view A.
     *Observable:* `canvas.fog.exploration.id` is the earlier-session document,
     showing the earlier ground and step 5's credited hex.
-11. **Recovery.** With both seats viewing B, create a NEWER FogExploration
-    for the player on B from the GM seat (`{loadFog: false}`), holding a
-    different corner: the shape an earlier build left behind. Run the
-    compendium macro **Merge Fog Copies on This Scene (GM)**.
-    *Observable:* an info toast counts one merged record; the player has one
-    document on B, the newer `_id`, holding both corners; the player's seat
-    re-points at it without a reload. A second run reports nothing to merge,
-    `mergeFogCopies()` from the player seat returns null, and with a party
-    astray on the viewed scene it refuses with a warning and writes nothing.
 
 **Teardown.** `api.sweepTracked()` for the scenes, actors and any token still
 standing, with the player's fog documents tracked from the player's ledger.
@@ -3561,7 +3551,6 @@ the run tracked through `api.sweepTracked()`. The kept fixtures stay.
 
 The repair tool's `formation.partyTokens` and `formation.partyActors` checks.
 Fixtures are the three markers above; the run also tracks everything it builds.
-`tools/live/formation-audit.mjs` walks step 6.
 
 1. **A same-scene copy.** Build the copy as in *A party in a combat* step 5.
    `scanRepairs({only: "formation.partyTokens"})` through the repair window or
@@ -3590,29 +3579,6 @@ Fixtures are the three markers above; the run also tracks everything it builds.
    remove its record from the world setting. `scanRepairs({only:
    "formation.partyActors"})`. *Observable:* a fixable finding; fixing creates
    the record naming the actor.
-6. **A member held by two parties.** Fixtures: the kept party and its member from
-   the markers above, plus two more `acks-extras.party` actors marked
-   `formation/shared-rival-a` and `formation/shared-rival-b`, each with its record.
-   Build the double membership by patching the member's `actorId` into each
-   rival's `members` (the Order tab refuses it through `addMember`), and give a
-   rival a light the member bears, a spell they cast and a role on that entry.
-   Give one rival a stash for them (a `tokenData` snapshot on the entry) and count
-   the tokens on every scene before the fix. With only the kept party's token on a scene, `scanRepairs({only:
-   "formation.partyActors"})`. *Observable:* one fixable `shared:<actorId>`
-   finding whose detail names the kept party and the two it drops. Fix it.
-   *Observable:* the rescan is empty, the member, their light and their role stand
-   in the kept party only, and each rival keeps its other members and has lost
-   the light, the spell and the role, and the token count is unchanged on every
-   scene: the stash is discarded, not put back. Rebuild the double membership, then stand a
-   rival's own token on the scene (the `createToken` hook links it): *Observable:*
-   the finding is listed, not fixable, its detail counting two parties on a map,
-   and Fix selected changes nothing. Delete both tokens: the same, with the
-   detail saying no party is on a map. For the guard, scan with one party on the
-   map, then stand a rival's token on the scene before pressing fix:
-   *Observable:* the fix is refused (the report names the refusal) and both
-   parties still list the member. `api.track` the tokens and any rebuilt rival
-   records; the rival actors are kept.
-
 Teardown as above; the repair report whisper is the module's, tracked by id.
 
 ## The audit roll (added with the skill audit's roll control)

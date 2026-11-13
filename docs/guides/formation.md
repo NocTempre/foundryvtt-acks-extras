@@ -609,17 +609,6 @@ with **Move the party onto it** and **Remove the marker**.
 
 ![](../releases/v8.1.0/formation-lost-leftover.png)
 
-**If a player's map lost ground they had explored** after a lost episode or an
-anchored map on an earlier version, view that scene and run **Merge Fog Copies
-on This Scene (GM)** from the macro compendium. The ground was still stored,
-in an older copy of the player's fog that their map no longer showed. The macro
-folds every older copy into the one the map shows and says how many it merged.
-It refuses while a party on that scene is lost and does not know it yet.
-
-![](../releases/v8.1.0/formation-fog-merge.png)
-
-*The macro's report after folding one older copy into a player's current fog.*
-
 ### In the city
 
 **In the city**, picked in the mode selector in the title bar, swaps the
@@ -1379,8 +1368,5 @@ member's own saves.
 
 ## Macros
 
-The *ACKS Extras* macro compendium carries two formation macros.
-
-- **Party Sheet** opens the exploration party sheet (above).
-- **Merge Fog Copies on This Scene (GM)** folds each seat's older fog copies
-  on the viewed scene into its newest ([Seeing in the dark](#seeing-in-the-dark)).
+The *ACKS Extras* macro compendium carries one formation macro, **Party Sheet**,
+which opens the exploration party sheet (above).

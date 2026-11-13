@@ -84,15 +84,9 @@ release zip.
 
 ### Upgrading from the eight separate modules
 
-1. Install this module, **disable all eight old ones**, and reload.
-2. Run the **Clean Up After the Merge (GM)** macro from the *ACKS Extras*
-   compendium folder.
-
-Nothing is migrated — this is a clean break, and the old modules' data is not
-carried across. The macro removes what they left behind, which matters because a
-document whose sub-type came from a now-absent module cannot load at all and
-throws on every world load. It shows you everything it found before removing
-anything, and it is safe to run twice.
+Install this module, **disable all eight old ones**, and reload. Nothing is
+migrated — this is a clean break, and the old modules' data is not carried
+across.
 
 ### Upgrading from the separate Importer module
 
@@ -105,8 +99,7 @@ anything, and it is safe to run twice.
    any registered OSE sources, this seat's importer settings, and any imported
    macros still addressing the old module. It runs once, and the notice
    reports what moved. Per-seat book locations need nothing.
-3. Uninstall the old module when convenient. Nothing is left behind for the
-   cleanup macro to find.
+3. Uninstall the old module when convenient.
 
 ---
 

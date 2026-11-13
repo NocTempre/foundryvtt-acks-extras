@@ -1,8 +1,7 @@
 /**
- * Live walk: docs/formation/TESTING.md "The audit roll", "A party in a combat"
- * and "Extra party tokens" step 6 (a member held by two parties). The GM seat
- * is the active GM and drives the Skill audit, the token HUD and the repair
- * check; the Player seat proves the audit card is whispered past it.
+ * Live walk: docs/formation/TESTING.md "The audit roll" and "A party in a
+ * combat". The GM seat is the active GM and drives the Skill audit and the
+ * token HUD; the Player seat proves the audit card is whispered past it.
  *
  * Covers:
  *   "The audit roll" 1, 2, 4, 5, 6. Not walked: 3 (a stored proficiency-throw
@@ -10,18 +9,14 @@
  *       walk does not build.
  *   "A party in a combat" 1-7. Step 6 creates the second token through the
  *       same create a sidebar drop ends in, not a pointer drop.
- *   "Extra party tokens" 6, but for the sub-step that deletes both party
- *       tokens (the kept party's own token is a fixture).
  *
  * Every fixture and figure is invented. Fixtures, kept and found again by marker
  * (`api.fixture`): `formation/audit-party` with `formation/audit-member-1`..`-3`
  * (members 1 and 2 hold an ability named `Audit Search` with a flat throw);
  * `formation/combat-scene`, `formation/combat-party` with
- * `formation/combat-member-1`..`-3` and its token `formation/combat-party-token`;
- * `formation/shared-rival-a` and `-b`, parties each holding one member of its
- * own (`formation/shared-rival-a-member`, `-b-member`). Each section brings
- * what it reads to shape at its start. The combats, the pasted copy, the rival
- * tokens and the cards the run's own actions posted are tracked by id and
+ * `formation/combat-member-1`..`-3` and its token `formation/combat-party-token`.
+ * Each section brings what it reads to shape at its start. The combats, the
+ * pasted copy and the cards the run's own actions posted are tracked by id and
  * swept; the audit items step 5 deletes are the fixture's and are rebuilt.
  */
 import path from "node:path";
@@ -75,7 +70,6 @@ const P = {
       return null;
     };
     H.model = await import(`${base}formation/formation-model.mjs`);
-    H.repair = await import(`${base}lib/repair-logic.mjs`);
     H.F = acksExtras.formation;
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0]) ?? null;
     if (!H.notes) {
@@ -374,54 +368,6 @@ const P = {
   },
   takeNotes: async () => globalThis.__aud.notes.splice(0),
 
-  /* --- the shared member --- */
-  memberEntry: async ({ fid, actorId }) => {
-    const m = globalThis.__aud.model.getFormation(fid).members.find((x) => x.actorId === actorId);
-    return m ? foundry.utils.deepClone(m) : null;
-  },
-  /** Put the member into a rival's record, with a light they bear, a spell they cast, a role, and optionally a stashed token. */
-  share: async ({ rivalFid, entry, extras, stash }) => {
-    const H = globalThis.__aud;
-    await H.model.patchFormation(rivalFid, (r) => {
-      r.members = r.members.filter((m) => m.actorId !== entry.actorId);
-      const e = { actorId: entry.actorId, roles: extras ? ["scout"] : [], tokenData: stash ?? null };
-      r.members.push(e);
-      if (extras) {
-        r.lights = [...(r.lights ?? []), { id: foundry.utils.randomID(), type: "torch", bearerId: entry.actorId, remaining: null, lit: false }];
-        r.spells = [...(r.spells ?? []), { name: "QA Ward", casterId: entry.actorId, remaining: 5 }];
-      }
-    });
-    await H.sleep(500);
-    return true;
-  },
-  holders: async ({ actorId, fids }) => {
-    const H = globalThis.__aud;
-    return Object.fromEntries(fids.map((id) => {
-      const f = H.model.getFormation(id);
-      return [id, { has: f.members.some((m) => m.actorId === actorId), members: f.members.length, lights: (f.lights ?? []).filter((l) => l.bearerId === actorId).length, spells: (f.spells ?? []).filter((s) => s.casterId === actorId).length, role: (f.members.find((m) => m.actorId === actorId)?.roles ?? []).length }];
-    }));
-  },
-  tokenCount: async () => game.scenes.reduce((n, s) => n + s.tokens.size, 0),
-  scanShared: async ({ actorId }) => {
-    const H = globalThis.__aud;
-    const check = H.repair.getRepairCheck("formation.partyActors");
-    const scan = await H.repair.scanCheck(check);
-    const f = scan.findings.find((x) => x.key === `shared:${actorId}`) ?? null;
-    return { error: scan.error, finding: f ? { fixable: f.fixable, detail: f.detail, reason: f.reason, keeperId: f.keeperId ?? null, dropIds: f.dropIds ?? [] } : null, raw: f };
-  },
-  fixShared: async ({ finding }) => {
-    const H = globalThis.__aud;
-    const check = H.repair.getRepairCheck("formation.partyActors");
-    const out = await H.repair.fixCheck(check, [finding]);
-    return { fixed: out.fixed.length, failed: out.failed.map((f) => ({ why: f.why, error: f.error })), still: out.rescan.findings.some((x) => x.key === finding.key) };
-  },
-  rivalToken: async ({ partyId, fid, sceneId, x, y }) => {
-    const H = globalThis.__aud;
-    const doc = await game.actors.get(partyId).getTokenDocument({ x, y });
-    const [t] = await game.scenes.get(sceneId).createEmbeddedDocuments("Token", [{ ...doc.toObject(), actorLink: true }]);
-    await H.poll(() => H.model.getFormation(fid).tokenId === t.id, { tries: 40, every: 200 });
-    return { uuid: t.uuid, linked: H.model.getFormation(fid).tokenId === t.id };
-  },
   boot: async () => globalThis.__audBoot ?? null,
 };
 
@@ -554,7 +500,6 @@ try {
   });
 
   /* ---------------- a party in a combat ---------------- */
-  const shared = {};
   await guarded("a party in a combat", async () => {
     const scene = await gm.fixture("formation/combat-scene", "Scene", { name: "QA Combat Ground", active: false, navigation: false, width: 1600, height: 1000, padding: 0, grid: { type: 1, size: 100, distance: 5, units: "ft" }, ownership: { default: 2 } });
     const party = await gm.fixture("formation/combat-party", "Actor", { name: "QA Combat Party", type: `${SCOPE}.party` });
@@ -566,7 +511,6 @@ try {
     await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
     const pt = await run(gm, P.partyToken, { fid, partyId: party.id, sceneId: scene.id, x: 500, y: 400 });
     if (pt.made) await gm.mark(pt.made, "formation/combat-party-token");
-    Object.assign(shared, { scene, party, fid, members, tokenId: pt.tokenId });
     note("leavings: this scene's combatants in other encounters, removed", await run(gm, P.leavings, { sceneId: scene.id, remove: true }));
     const start = await run(gm, P.combatStart, { fid, sceneId: scene.id });
     note("start", start);
@@ -672,60 +616,6 @@ try {
     check("teardown: the party is gathered", !r.active && r.partyVisible && r.deployed.every((d) => !d), { active: r.active, visible: r.partyVisible });
     const tail = await run(gm, P.cardsSince, { since: 0, names });
     for (const c of tail) tracked.push(gm.track(c.uuid, "ChatMessage"));
-  });
-
-  /* ---------------- extra party tokens, step 6: a member held by two parties ---------------- */
-  await guarded("extra party tokens: a member held by two parties", async () => {
-    if (!shared.fid) throw new Error("the combat section did not seat the kept party");
-    const { scene, fid, members } = shared;
-    const target = members[0];
-    const rivals = [];
-    for (const k of ["a", "b"]) {
-      const actor = await gm.fixture(`formation/shared-rival-${k}`, "Actor", { name: `QA Rival ${k.toUpperCase()}`, type: `${SCOPE}.party` });
-      const own = await gm.fixture(`formation/shared-rival-${k}-member`, "Actor", character(`QA Rival ${k.toUpperCase()} Member`));
-      const rec = await run(gm, P.formationOf, { partyId: actor.id });
-      if (rec.error) throw new Error(rec.error);
-      await run(gm, P.seat, { partyId: actor.id, fid: rec.fid, actorIds: [own.id] });
-      rivals.push({ actor, own, fid: rec.fid });
-    }
-    const fids = [fid, rivals[0].fid, rivals[1].fid];
-    const entry = await run(gm, P.memberEntry, { fid, actorId: target.id });
-    const share = async () => {
-      await run(gm, P.share, { rivalFid: rivals[0].fid, entry, extras: true, stash: null });
-      await run(gm, P.share, { rivalFid: rivals[1].fid, entry, extras: false, stash: { name: "QA stash", x: 0, y: 0, actorId: target.id, actorLink: true } });
-    };
-    await share();
-    const count0 = await run(gm, P.tokenCount);
-    let s = await run(gm, P.scanShared, { actorId: target.id });
-    check("6: one fixable shared finding naming the kept party and the two it drops", !!s.finding && s.finding.fixable && s.finding.keeperId === fid && s.finding.dropIds.length === 2 && ["QA Combat Party", "QA Rival A", "QA Rival B"].every((n) => s.finding.detail.includes(n)), s.finding && { fixable: s.finding.fixable, keeper: s.finding.keeperId === fid, drops: s.finding.dropIds.length });
-    let fx = await run(gm, P.fixShared, { finding: s.raw });
-    let h = await run(gm, P.holders, { actorId: target.id, fids });
-    const count1 = await run(gm, P.tokenCount);
-    check("6: fixed, the rescan is empty and the member stands in the kept party only", fx.fixed === 1 && !fx.still && h[fid].has && !h[rivals[0].fid].has && !h[rivals[1].fid].has, { fx, held: Object.values(h).map((x) => x.has) });
-    check("6: each rival keeps its own member and has lost the light, the spell and the role", rivals.every((rv) => h[rv.fid].members === 1 && h[rv.fid].lights === 0 && h[rv.fid].spells === 0), Object.values(h));
-    check("6: the stash is discarded, not put back: no token count changed on any scene", count1 === count0, { before: count0, after: count1 });
-
-    await share();
-    const rt = await run(gm, P.rivalToken, { partyId: rivals[0].actor.id, fid: rivals[0].fid, sceneId: scene.id, x: 1200, y: 200 });
-    tracked.push(gm.track(rt.uuid, "Token"));
-    s = await run(gm, P.scanShared, { actorId: target.id });
-    check("6: with two parties on a map, the finding is listed, not fixable, its detail counting two", !!s.finding && !s.finding.fixable && s.finding.detail.includes("2"), s.finding && { fixable: s.finding.fixable });
-    fx = await run(gm, P.fixShared, { finding: s.raw });
-    h = await run(gm, P.holders, { actorId: target.id, fids });
-    check("6: Fix selected changes nothing", fx.fixed === 0 && h[fid].has && h[rivals[0].fid].has && h[rivals[1].fid].has, { fx, held: Object.values(h).map((x) => x.has) });
-    note("rival token swept", await sweepNow(gm, [rt.uuid]));
-    s = await run(gm, P.scanShared, { actorId: target.id });
-    const scanned = s.raw;
-    const rt2 = await run(gm, P.rivalToken, { partyId: rivals[0].actor.id, fid: rivals[0].fid, sceneId: scene.id, x: 1200, y: 200 });
-    tracked.push(gm.track(rt2.uuid, "Token"));
-    fx = await run(gm, P.fixShared, { finding: scanned });
-    h = await run(gm, P.holders, { actorId: target.id, fids });
-    check("6: a rival token stood up between scan and fix: the fix is refused and both parties still list the member", !!scanned?.fixable && fx.fixed === 0 && fx.failed.length === 1 && h[fid].has && h[rivals[0].fid].has, { scannedFixable: !!scanned?.fixable, fx });
-    note("rival token swept", await sweepNow(gm, [rt2.uuid]));
-    s = await run(gm, P.scanShared, { actorId: target.id });
-    if (s.finding?.fixable) await run(gm, P.fixShared, { finding: s.raw });
-    h = await run(gm, P.holders, { actorId: target.id, fids });
-    check("teardown: the member is back in the kept party alone", h[fid].has && !h[rivals[0].fid].has && !h[rivals[1].fid].has, Object.values(h).map((x) => x.has));
   });
 
   if (SHOTS && plateCard) {

@@ -7,22 +7,14 @@
  * here keep their mounted-combat names; only the storage moved. See
  * docs/lib/MODEL.md, "Carrying: mounts, teams and everything aboard".
  *
- * Legacy symmetric MOUNT_FLAG/RIDER_FLAG pairs are still read; every write
- * converges them to the attachment flag and clears them.
- *
  * A mount need not be an `acks-extras.animal` — a character can ride a
  * monster.
  */
 import { resolveActorSync, handOver } from "./storage.mjs";
-import { MODULE_ID, ANIMAL_TYPE } from "./constants.mjs";
+import { ANIMAL_TYPE } from "./constants.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { isGoods, isCurrency } from "./item-model.mjs";
 import { attachmentOf, attachedTo, attach, detach } from "./attachment.mjs";
-import { isPrimaryGM } from "./util.mjs";
-
-/** Legacy flag keys. Both ends stored the OTHER actor's uuid; read-only now. */
-export const MOUNT_FLAG = "mount";
-export const RIDER_FLAG = "rider";
 
 /** Custom hooks other modules key off. Namespaced per the family convention. */
 export const MOUNT_HOOKS = Object.freeze({
@@ -40,27 +32,12 @@ const uuidOf = (actor) => actor?.uuid ?? null;
  */
 export function mountOf(actor) {
   const at = attachmentOf(actor);
-  if (at) return at.role === "rider" ? resolveActorSync(at.uuid) : null;
-  // Legacy pair: the far end must still point back, or this is a stale half.
-  const uuid = actor?.getFlag?.(MODULE_ID, MOUNT_FLAG);
-  if (!uuid) return null;
-  const mount = resolveActorSync(uuid);
-  if (!mount || mount.getFlag(MODULE_ID, RIDER_FLAG) !== uuidOf(actor)) return null;
-  return mount;
+  return at?.role === "rider" ? resolveActorSync(at.uuid) : null;
 }
 
 /** The actor riding this one, or null. */
 export function riderOf(actor) {
-  const viaAttachment = attachedTo(actor, "rider")[0] ?? null;
-  if (viaAttachment) return viaAttachment;
-  const uuid = actor?.getFlag?.(MODULE_ID, RIDER_FLAG);
-  if (!uuid) return null;
-  const rider = resolveActorSync(uuid);
-  if (!rider || rider.getFlag(MODULE_ID, MOUNT_FLAG) !== uuidOf(actor)) return null;
-  // A rider whose attachment says something else (boarded a wagon since) is
-  // not on this horse, whatever the stale pair claims.
-  if (attachmentOf(rider)) return null;
-  return rider;
+  return attachedTo(actor, "rider")[0] ?? null;
 }
 
 /** Is this actor on a mount? */
@@ -98,9 +75,6 @@ export async function mountActor(rider, mount) {
     warn(res.reason === "circular" ? "circular" : "selfMount");
     return false;
   }
-  // Converge: the pair is replaced by the attachment, never kept beside it.
-  if (rider.getFlag(MODULE_ID, MOUNT_FLAG)) await rider.unsetFlag(MODULE_ID, MOUNT_FLAG);
-  if (mount.getFlag(MODULE_ID, RIDER_FLAG)) await mount.unsetFlag(MODULE_ID, RIDER_FLAG);
   Hooks.callAll(MOUNT_HOOKS.MOUNTED, rider, mount);
   return true;
 }
@@ -153,26 +127,14 @@ export function registerMountDrop() {
 }
 
 /**
- * Take `rider` off whatever it is riding. Clears the attachment or the legacy
- * pair, whichever holds the binding, so neither survives a dismount.
+ * Take `rider` off whatever it is riding.
  * @returns {Promise<boolean>} whether anything changed
  */
 export async function dismount(rider) {
   const at = attachmentOf(rider);
-  if (at?.role === "rider") {
-    const mount = resolveActorSync(at.uuid);
-    await detach(rider);
-    if (rider.getFlag(MODULE_ID, MOUNT_FLAG)) await rider.unsetFlag(MODULE_ID, MOUNT_FLAG);
-    Hooks.callAll(MOUNT_HOOKS.DISMOUNTED, rider, mount ?? null);
-    return true;
-  }
-  const uuid = rider?.getFlag?.(MODULE_ID, MOUNT_FLAG);
-  if (!uuid) return false;
-  const mount = resolveActorSync(uuid);
-  await rider.unsetFlag(MODULE_ID, MOUNT_FLAG);
-  if (mount?.getFlag(MODULE_ID, RIDER_FLAG) === uuidOf(rider) && mount.isOwner) {
-    await mount.unsetFlag(MODULE_ID, RIDER_FLAG);
-  }
+  if (at?.role !== "rider") return false;
+  const mount = resolveActorSync(at.uuid);
+  await detach(rider);
   Hooks.callAll(MOUNT_HOOKS.DISMOUNTED, rider, mount ?? null);
   return true;
 }
@@ -180,35 +142,7 @@ export async function dismount(rider) {
 /** Take whoever is riding `mount` off it. The mirror of dismount(). */
 export async function unseat(mount) {
   const rider = attachedTo(mount, "rider")[0] ?? null;
-  if (rider) return dismount(rider);
-  const uuid = mount?.getFlag?.(MODULE_ID, RIDER_FLAG);
-  if (!uuid) return false;
-  const legacyRider = resolveActorSync(uuid);
-  if (legacyRider) return dismount(legacyRider);
-  await mount.unsetFlag(MODULE_ID, RIDER_FLAG); // stale half-pair; clear it
-  return true;
-}
-
-/**
- * Clean up LEGACY pairs when an actor is deleted, so the survivor is not left
- * pointing at a document that no longer exists. The attachment store has its
- * own cleanup (attachment.mjs); this one only tends the old flags. Registered
- * by module.mjs.
- */
-export function registerMountCleanup() {
-  Hooks.on("deleteActor", async (actor) => {
-    if (!isPrimaryGM()) return; // the window that automates writes, not every GM window
-    try {
-      const riderUuid = actor?.getFlag?.(MODULE_ID, RIDER_FLAG);
-      const rider = resolveActorSync(riderUuid);
-      if (rider?.getFlag(MODULE_ID, MOUNT_FLAG) === uuidOf(actor)) await rider.unsetFlag(MODULE_ID, MOUNT_FLAG);
-      const mountUuid = actor?.getFlag?.(MODULE_ID, MOUNT_FLAG);
-      const mount = resolveActorSync(mountUuid);
-      if (mount?.getFlag(MODULE_ID, RIDER_FLAG) === uuidOf(actor)) await mount.unsetFlag(MODULE_ID, RIDER_FLAG);
-    } catch (err) {
-      console.warn(`${MODULE_ID} | mount cleanup failed for "${actor?.name}"`, err);
-    }
-  });
+  return rider ? dismount(rider) : false;
 }
 
 /** Localised warning; falls back to the key when unlocalised. */

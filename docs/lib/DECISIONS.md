@@ -1639,7 +1639,8 @@ step 12; a second window can still acquire the same pin without anything failing
 
 
 - **2026-08-28 — one carry model: attachment absorbs mounting, and the mount
-  API becomes a permanent facade.** Three stores answered "who is on what" —
+  API becomes a permanent facade.** *Superseded in part 2026-11-13: the legacy
+  pair read and its convergence (`docs/DECISIONS.md` §29).* Three stores answered "who is on what" —
   `mount.mjs`'s symmetric rider↔mount pair, `attachment.mjs`'s one-way flag
   (only ever written for passengers), and vehicles' `team.animals[]` rows — and
   they disagreed by construction: the draft bucket read attachment roles no
@@ -1908,7 +1909,7 @@ never on `system`. Nothing in the sense or light derivation reads `system`,
 so matching on it would re-sweep every scene's tokens on every ordinary stat
 change — a hit-point loss included — for an answer that cannot have changed.
 
-### The monster type default migrates its own former pin, once (2026-09-22)
+### The monster type default migrates its own former pin, once (2026-09-22) — SUPERSEDED 2026-11-13 (`docs/DECISIONS.md` §29)
 
 Recorded from the ready-hook sheet-migration comment in `scripts/lib/module.mjs`.
 
@@ -4429,7 +4430,7 @@ and a window nobody reads fails its binding test); a world that imported the
 conditions document before this keeps the two raw keys, and nothing reads
 them.
 
-### A hireling opens on its type's sheet; the card is picked (2026-10-22)
+### A hireling opens on its type's sheet; the card is picked (2026-10-22) — SUPERSEDED IN PART 2026-11-13 (the one-time release: `docs/DECISIONS.md` §29)
 
 Supersedes the character half of "A monster's type default is the Follower
 Card, met before it is read up on" (2026-09-22). The new evidence: a Judge
@@ -4770,7 +4771,7 @@ awaits its removal before it moves the turn. Where the player does not own
 that combatant, the refused delete would abort their End Turn. That is the
 system's, and goes upstream with this report.
 
-### The merge residue check removes what it lists (2026-10-28)
+### The merge residue check removes what it lists (2026-10-28) — SUPERSEDED 2026-11-13 (`docs/DECISIONS.md` §29)
 
 **Ruled.** `lib.mergeResidue` has a fix: a ticked row is removed the way *Clean
 Up After the Merge (GM)* removed it, and a region behaviour of a retired

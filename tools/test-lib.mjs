@@ -7,10 +7,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
-import { cleanDelta, isDerivedEffect, memberName, migrateGroupSource, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
+import { cleanDelta, isDerivedEffect, memberName, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, csvFlagValue, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
-import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, retainerCardsToRelease, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
+import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
 import {
   buildTransferPayload,
   coinTotalGC,
@@ -625,22 +625,6 @@ t("platoonCapacity: RR 169 personally-led limit by commander level", () => {
   assert.equal(platoonCapacity(2), 15, "2nd = a half-platoon");
   assert.equal(platoonCapacity(1), 7, "1st = a squad (interpretation)");
   assert.equal(platoonCapacity(0), 0, "0th cannot lead mercenaries into danger");
-});
-
-t("migrateGroupSource: v0 single-stack folds into stacks[0], v1 is left alone", () => {
-  // v0: template/size/roster at the top level → stacks[0] with a stable key.
-  const v0 = { template: { label: "Kobold", uuid: "Actor.x" }, size: { current: 30 }, roster: [{ key: "m1", ordinal: 1 }] };
-  const out = migrateGroupSource(v0);
-  assert.equal(out.stacks.length, 1);
-  assert.equal(out.stacks[0].key, "primary");
-  assert.equal(out.stacks[0].template.label, "Kobold");
-  assert.equal(out.stacks[0].size.current, 30);
-  assert.equal(out.stacks[0].roster[0].key, "m1");
-  // Idempotent: a doc that already has stacks is untouched (no double-wrap).
-  const v1 = { stacks: [{ key: "a" }, { key: "b" }] };
-  assert.equal(migrateGroupSource(v1).stacks.length, 2);
-  // A bare/new source with no legacy fields gets no stacks injected.
-  assert.equal("stacks" in migrateGroupSource({}), false);
 });
 
 t("isDerivedEffect: a module-managed effect is derived, an authored one is not", () => {
@@ -2776,23 +2760,6 @@ t("withoutLadderPins drops the pins naming a ladder sheet, keeps a stranger's, a
   assert.equal(stored.Actor.character, "acks-extras.AcksCharacterSheet");
   assert.deepEqual(withoutLadderPins({ Actor: { character: "other.Sheet" } }, rungOf, ["Actor", "Item"]), { stored: { Actor: { character: "other.Sheet" } }, unpinned: false });
   assert.deepEqual(withoutLadderPins(undefined, rungOf, ["Actor"]), { stored: {}, unpinned: false });
-});
-
-t("retainerCardsToRelease lists a serving hireling on the card and no other actor", () => {
-  const card = "acks-extras.FollowerCardSheet";
-  const types = new Set(["character", "monster"]);
-  const actor = (id, type, enabled, sheetClass) => ({ id, type, system: { retainer: { enabled } }, flags: sheetClass ? { core: { sheetClass } } : {} });
-  const actors = [
-    actor("hench", "character", true, card),
-    actor("merc", "monster", true, card),
-    actor("own", "character", true, "acks.AcksActorSheetCharacter"),
-    actor("unset", "character", true, null),
-    actor("pc", "character", false, card),
-    actor("party", "acks-extras.party", true, card),
-  ];
-  assert.deepEqual(retainerCardsToRelease(actors, types, card), ["hench", "merc"]);
-  assert.deepEqual(retainerCardsToRelease(new Map(actors.map((a) => [a.id, a])).values(), types, card), ["hench", "merc"]);
-  assert.deepEqual(retainerCardsToRelease(undefined, types, card), []);
 });
 
 t("chooseDefault falls through to a rung with a sheet, keeps a rung's own choice, stands down for a stranger", () => {

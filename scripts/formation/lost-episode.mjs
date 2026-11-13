@@ -41,7 +41,7 @@ export async function beginEpisode(formation, { day, anchor, trueOffset, judgeNo
     const t = storedTravelOf(record);
     record.travel = {
       ...t,
-      lost: beginLost(t.lost, { day, anchor, fogSnapshot, fogSnapshotComplete: true, judgeNote, sceneId: scene.id, level }),
+      lost: beginLost(t.lost, { day, anchor, fogSnapshot, judgeNote, sceneId: scene.id, level }),
     };
   });
   return { snapshotted: !!fogSnapshot };
@@ -68,7 +68,7 @@ export async function walkAstray(formation, { believedOffset, trueOffset, paint 
     faked = next.faked;
     record.travel = { ...t, lost: next };
   });
-  if (paint && faked.length) await paintFakeReveal(scene.id, faked, lost.level, { complete: lost.fogSnapshotComplete });
+  if (paint && faked.length) await paintFakeReveal(scene.id, faked, lost.level);
   return { faked };
 }
 
@@ -91,7 +91,7 @@ export async function walkAstrayPath(formation, steps = []) {
   if (!last) return null;
   const lost = lostOf(travelOf(getFormation(formation.id) ?? formation));
   const scene = episodeScene(formation, lost);
-  if (scene && last.faked.length) await paintFakeReveal(scene.id, last.faked, lost.level, { complete: lost.fogSnapshotComplete });
+  if (scene && last.faked.length) await paintFakeReveal(scene.id, last.faked, lost.level);
   return { faked: last.faked, walked: steps.length };
 }
 
@@ -107,7 +107,7 @@ export async function discoverEpisode(formation) {
   const { lost, revert, discovered } = discoverLost(t.lost);
   if (!discovered) return null;
   const scene = episodeScene(formation, t.lost);
-  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level, { complete: revert.complete });
+  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level);
   await patchFormation(formation.id, (record) => {
     const cur = storedTravelOf(record);
     record.travel = { ...cur, lost };
@@ -162,10 +162,9 @@ export async function reanchorEpisode(formation, { moveToTruth = true } = {}) {
     ui.notifications?.warn(loc("lost.viewScene"));
     return null;
   }
-  const complete = lostOf(t).fogSnapshotComplete;
-  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level, { complete });
+  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level);
   // Now, and only now, the ground the party really crossed becomes theirs.
-  if (commit.length) await paintFakeReveal(scene.id, commit, t.lost.level, { complete });
+  if (commit.length) await paintFakeReveal(scene.id, commit, t.lost.level);
   const moved = moveToTruth ? await moveToShadow(getFormation(formation.id) ?? formation, scene) : false;
   const cleared = await clearShadows(formation.id);
   if (reanchored) {
@@ -188,7 +187,7 @@ export async function endEpisode(formation) {
   const t = travelOf(formation);
   const scene = episodeScene(formation, t.lost);
   const { lost, revert, ended } = endLost(t.lost);
-  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level, { complete: revert.complete });
+  if (revert?.fogSnapshot && scene) await restoreFog(scene.id, revert.fogSnapshot, t.lost.level);
   const cleared = await clearShadows(formation.id);
   if (ended) {
     await patchFormation(formation.id, (record) => {

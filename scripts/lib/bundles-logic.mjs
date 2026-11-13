@@ -121,14 +121,3 @@ export function planEmbeddedUnpack(bundleId, goods, actorItems, { coinInto = nul
   const journal = { _id: bundleId, [`flags.${LIB_ID}.${UNPACK_JOURNAL}`]: { merged: true, creates: stamped } };
   return { updates: [...targetUpdates, journal], creates: stamped };
 }
-
-/**
- * Whether a bundle has the shape a market purchase gave one before purchases
- * arrived as goods: one row, named for that row and its count.
- */
-export function isPurchaseBundle(bundle) {
-  const rows = bundleRows(bundle);
-  if (rows.length !== 1) return false;
-  const name = String(bundle?.name ?? "");
-  return !!rows[0].name && name.startsWith(rows[0].name) && name.endsWith(`×${rows[0].count}`);
-}

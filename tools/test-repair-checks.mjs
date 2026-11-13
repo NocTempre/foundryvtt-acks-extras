@@ -1,9 +1,8 @@
 /**
- * Lib's two invalid-document repair checks (scripts/lib/repair-checks.mjs):
- * what `lib.strandedCoin` lists and the reason it gives, the documents that
- * cannot load which `lib.mergeResidue` lists, and what its fix writes for
- * each kind of row. Both read `game` when they scan and nothing as the module
- * loads, so one stand-in world is the whole mock.
+ * Lib's invalid-document repair check (scripts/lib/repair-checks.mjs): what
+ * `lib.strandedCoin` lists and the reason it gives. It reads `game` when it
+ * scans and nothing as the module loads, so one stand-in world is the whole
+ * mock.
  *
  * A collection here answers only what a scan asks of one: its loaded documents
  * by iteration, `invalidDocumentIds` and `getInvalid`. Whether core hands over
@@ -93,24 +92,18 @@ const ABSENT = "ghost-press.wanderer";
 const DISABLED = "loose-leaf.courier";
 /** A sub-type of a module the world has, switched on. */
 const ACTIVE = "wide-margin.clerk";
-/** A sub-type of one of the retired acks-* modules. */
-const RETIRED = "acks-henchmen.former";
 /** The modules the stand-in world has installed, unless a test says otherwise. */
 const MODULES = { "loose-leaf": { active: false, title: "Loose Leaf" }, "wide-margin": { active: true, title: "Wide Margin" } };
 /** One money row: seven carried, none banked. */
 const PURSE = [coin("Brass Bit", 7, 0)];
 
-// The lang keys the two scans answer with.
+// The lang keys the scan answers with.
 const DETAIL = "ACKS-LIB.repair.check.strandedCoin.detail";
 const REPORT_ONLY = "ACKS-LIB.repair.check.strandedCoin.reportOnly";
 const ENABLE = "ACKS-LIB.repair.enablePackage";
-const INVALID = "ACKS-LIB.repair.check.mergeResidue.invalid";
-const HOLDS_COIN = "ACKS-LIB.repair.check.mergeResidue.holdsCoin";
-const REMOVED = "ACKS-LIB.repair.check.mergeResidue.removed";
 
 registerLibRepairChecks();
 const COIN = getRepairCheck("lib.strandedCoin");
-const RESIDUE = getRepairCheck("lib.mergeResidue");
 
 /* -------------------------------------------------------------------- */
 /*  lib.strandedCoin                                                    */
@@ -119,7 +112,6 @@ const RESIDUE = getRepairCheck("lib.mergeResidue");
 t("a world with nothing it could not load lists nothing", async () => {
   world({ modules: MODULES });
   assert.deepEqual(await COIN.scan(), []);
-  assert.deepEqual(await RESIDUE.scan(), []);
 });
 
 t("an actor of a package that is not installed is listed, with its coin and the report-only reason", async () => {
@@ -142,27 +134,18 @@ t("an actor of a disabled module is listed with the reason that names the module
   assert.deepEqual(await keyed(COIN, "reason"), [["Actor.a1", said(ENABLE, { title: "loose-leaf" })]], "a module with no title is named by its id");
 });
 
-t("a retired acks-* module is never named, installed or not", async () => {
-  const actors = { a1: actor("Shut Out", RETIRED, PURSE) };
-  for (const modules of [{}, { "acks-henchmen": { active: false, title: "Old Henchmen" } }]) {
-    world({ modules, actors });
-    assert.deepEqual(await keyed(COIN, "reason"), [["Actor.a1", said(REPORT_ONLY)]]);
-  }
-});
-
 t("an actor of a core type, of the system's namespace or of an active module is not listed", async () => {
   world({
-    modules: { ...MODULES, "acks-henchmen": { active: true, title: "Old Henchmen" } },
+    modules: MODULES,
     actors: {
       a1: actor("Core", "character", PURSE),
       a2: actor("No type", undefined, PURSE),
       a3: actor("System", "acks.clerk", PURSE),
       a4: actor("Active", ACTIVE, PURSE),
-      a5: actor("Retired and active", RETIRED, PURSE),
-      a6: actor("Shut Out", ABSENT, PURSE),
+      a5: actor("Shut Out", ABSENT, PURSE),
     },
   });
-  assert.deepEqual(await keys(COIN), ["Actor.a6"]);
+  assert.deepEqual(await keys(COIN), ["Actor.a5"]);
 });
 
 t("an actor with no money rows is not listed", async () => {
@@ -221,212 +204,11 @@ t("a source the collection cannot hand over is skipped, and the scan goes on", a
 t("the coin check has no fix, and none of its findings is offered", async () => {
   world({ modules: MODULES, actors: { a1: actor("Shut Out", ABSENT, PURSE), a2: actor("Shut Out Too", DISABLED, PURSE) } });
   assert.equal(COIN.fix, null);
-  assert.equal(typeof RESIDUE.fix, "function");
   assert.ok((await COIN.scan()).every((f) => f.uuid === null && !("fixable" in f)));
   const { findings, error } = await scanCheck(COIN);
   assert.equal(error, null);
   assert.deepEqual(findings.map((f) => [f.key, f.uuid, f.fixable]), [["Actor.a1", null, false], ["Actor.a2", null, false]]);
   await assert.rejects(() => fixCheck(COIN, findings), /report-only/);
-});
-
-/* -------------------------------------------------------------------- */
-/*  lib.mergeResidue: the documents that cannot load                    */
-/* -------------------------------------------------------------------- */
-
-t("an Actor or Item of a retired module's sub-type is residue, listed with no reason and offered", async () => {
-  world({ actors: { a1: actor("Old Hand", RETIRED, []) }, items: { i1: { name: "Old Ledger", type: "acks-equipment.former" } } });
-  assert.deepEqual(await RESIDUE.scan(), [
-    { key: "invalid:Actor:a1", uuid: null, name: "Old Hand", detail: said(INVALID, { doc: "Actor", type: RETIRED }) },
-    { key: "invalid:Item:i1", uuid: null, name: "Old Ledger", detail: said(INVALID, { doc: "Item", type: "acks-equipment.former" }) },
-  ]);
-  assert.deepEqual((await scanCheck(RESIDUE)).findings.map((f) => [f.key, f.fixable, f.reason]), [
-    ["invalid:Actor:a1", true, null],
-    ["invalid:Item:i1", true, null],
-  ]);
-});
-
-t("a residue actor that holds coin says so, and is still offered", async () => {
-  world({ actors: { a1: actor("Old Hand", RETIRED, [coin("Brass Bit", 4, 9)]) } });
-  assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", said(HOLDS_COIN, { coin: "13 × Brass Bit" })]]);
-  assert.deepEqual((await scanCheck(RESIDUE)).findings.map((f) => f.fixable), [true]);
-});
-
-t("a residue actor whose money rows count nothing carries no coin warning, and the coin check does not list it", async () => {
-  world({ actors: { a1: actor("Old Hand", RETIRED, [coin("Brass Bit", 0, 0)]) } });
-  assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", undefined]]);
-  assert.deepEqual(await COIN.scan(), []);
-});
-
-t("a residue document with no name is listed under its id", async () => {
-  world({ items: { i1: { type: "acks-equipment.former" } } });
-  assert.deepEqual(await keyed(RESIDUE, "name"), [["invalid:Item:i1", "i1"]]);
-});
-
-t("a region behaviour of a retired sub-type is residue, keyed by its region", async () => {
-  const behaviors = new Coll({ b1: { name: "Old Trigger", type: "acks-location.former" }, b2: { name: "Stray Trigger", type: "ghost-press.trigger" } });
-  const yard = { name: "Yard", tokens: new Coll(), regions: new Coll({}, [{ uuid: "Scene.s1.Region.r1", behaviors }]) };
-  world({ scenes: [yard, { name: "Lane", tokens: new Coll() }] });
-  assert.deepEqual(await RESIDUE.scan(), [
-    {
-      key: "invalid:Scene.s1.Region.r1:b1",
-      uuid: null,
-      name: "Old Trigger",
-      detail: said(INVALID, { doc: "RegionBehavior", type: "acks-location.former" }),
-    },
-  ]);
-});
-
-/* -------------------------------------------------------------------- */
-/*  lib.mergeResidue: the fix                                           */
-/* -------------------------------------------------------------------- */
-
-/**
- * A world whose residue the fix removes, recording each write. A document
- * that cannot load answers `delete` by leaving its collection; a region
- * answers `deleteEmbeddedDocuments` by dropping the behaviour; a loaded
- * document answers `update` and `unsetFlag` by recording the payload and
- * applying it to its flags or changes; a setting answers `delete` by leaving
- * the store. `fromUuid` resolves the loaded documents and the region.
- */
-function residueWorld() {
-  const writes = [];
-  const invalidActor = { toObject: () => ({ name: "Old Hand", type: RETIRED, items: [] }) };
-  const invalidItem = { toObject: () => ({ name: "Old Ledger", type: "acks-equipment.former" }) };
-  const actors = new Coll({ a1: () => invalidActor });
-  const items = new Coll({ i1: () => invalidItem });
-  invalidActor.delete = async () => {
-    writes.push(["delete", "Actor.a1"]);
-    actors.invalidDocumentIds.delete("a1");
-  };
-  invalidItem.delete = async () => {
-    writes.push(["delete", "Item.i1"]);
-    items.invalidDocumentIds.delete("i1");
-  };
-  const behaviors = new Coll({ b1: { name: "Old Trigger", type: "acks-location.former" } });
-  const region = {
-    uuid: "Scene.s1.Region.r1",
-    behaviors,
-    deleteEmbeddedDocuments: async (name, ids) => {
-      writes.push(["deleteEmbedded", name, ids]);
-      for (const id of ids) behaviors.invalidDocumentIds.delete(id);
-    },
-  };
-  const loaded = (uuid, name, flags, { effects = [], changes = null } = {}) => {
-    const doc = { uuid, name, flags, effects, items: [], tokens: new Coll(), changes };
-    doc.update = async (patch) => {
-      writes.push(["update", uuid, patch]);
-      if (patch.flags) for (const [scope, value] of Object.entries(patch.flags)) if (value instanceof foundry.data.operators.ForcedDeletion) delete doc.flags[scope];
-      if (patch.changes) doc.changes = patch.changes;
-    };
-    doc.unsetFlag = async (scope, key) => {
-      writes.push(["unsetFlag", uuid, scope, key]);
-      delete doc.flags[scope]?.[key];
-    };
-    return doc;
-  };
-  const hero = loaded("Actor.h1", "Hero", { "acks-henchmen": { x: 1 }, "acks-lib": {}, "acks-extras": { keep: true }, core: { sheetClass: "acks-henchmen.OldSheet" } });
-  const fx = loaded("Actor.h1.ActiveEffect.e1", "Blessing", { "acks-formation": { y: 2 } }, {
-    changes: [{ key: "flags.acks-equipment.z", value: "1" }, { key: "flags.acks-extras.w", value: "2" }],
-  });
-  hero.effects = [fx];
-  const setting = { id: "st1", key: "acks-location.sweep", delete: async () => writes.push(["delete", "Setting.st1"]) };
-  const store = new Coll({}, [setting]);
-  const byUuid = new Map([
-    [hero.uuid, hero],
-    [fx.uuid, fx],
-    [region.uuid, region],
-  ]);
-  globalThis.fromUuid = async (uuid) => byUuid.get(uuid) ?? null;
-  globalThis.game = {
-    system: { id: "acks" },
-    modules: new Map(),
-    i18n: { format: said, localize: (k) => k },
-    actors: Object.assign(actors, { [Symbol.iterator]: () => [hero][Symbol.iterator]() }),
-    items,
-    scenes: new Coll({}, [{ name: "Yard", tokens: new Coll(), regions: new Coll({}, [region]) }]),
-    journal: new Coll(),
-    tables: new Coll(),
-    settings: { storage: { get: () => store } },
-  };
-  store.get = (id) => (id === "st1" && [...store.values()].includes(setting) ? setting : undefined);
-  setting.delete = async () => {
-    writes.push(["delete", "Setting.st1"]);
-    store.delete("d0");
-  };
-  return { writes, hero, fx };
-}
-
-t("the residue fix removes every kind of row, and the rescan finds none of them", async () => {
-  const { writes, hero, fx } = residueWorld();
-  const before = (await scanCheck(RESIDUE)).findings;
-  assert.deepEqual(before.map((f) => f.key).sort(), [
-    "effect:Actor.h1.ActiveEffect.e1",
-    "flags:Actor.h1",
-    "flags:Actor.h1.ActiveEffect.e1",
-    "invalid:Actor:a1",
-    "invalid:Item:i1",
-    "invalid:Scene.s1.Region.r1:b1",
-    "setting:acks-location.sweep",
-    "sheet:Actor.h1",
-  ]);
-  const outcome = await fixCheck(RESIDUE, before);
-  assert.deepEqual(outcome.failed, []);
-  assert.deepEqual(outcome.fixed.map((f) => [f.key, f.summary]).sort(), before.map((f) => [f.key, said(REMOVED)]).sort());
-  assert.deepEqual(outcome.rescan.findings, []);
-  // The retired scopes went as forced deletions in one update per document, and nothing else was touched.
-  const flagWrites = writes.filter(([kind, , patch]) => kind === "update" && patch?.flags);
-  assert.deepEqual(flagWrites.map(([, uuid, patch]) => [uuid, Object.keys(patch.flags).sort()]), [
-    ["Actor.h1", ["acks-henchmen", "acks-lib"]],
-    ["Actor.h1.ActiveEffect.e1", ["acks-formation"]],
-  ]);
-  assert.ok(flagWrites.every(([, , patch]) => Object.values(patch.flags).every((v) => v instanceof foundry.data.operators.ForcedDeletion)));
-  assert.deepEqual(hero.flags, { "acks-extras": { keep: true }, core: {} });
-  assert.deepEqual(fx.changes, [{ key: "flags.acks-extras.w", value: "2" }]);
-  assert.ok(writes.some(([kind, name, ids]) => kind === "deleteEmbedded" && name === "RegionBehavior" && ids[0] === "b1"));
-  assert.ok(writes.some(([kind, what]) => kind === "delete" && what === "Setting.st1"));
-});
-
-t("a residue row whose document is gone before the fix is refused, and the rest are removed", async () => {
-  const { writes } = residueWorld();
-  const before = (await scanCheck(RESIDUE)).findings;
-  globalThis.fromUuid = async () => null;
-  const outcome = await fixCheck(RESIDUE, before);
-  assert.deepEqual(outcome.failed.map((f) => f.key).sort(), [
-    "effect:Actor.h1.ActiveEffect.e1",
-    "flags:Actor.h1",
-    "flags:Actor.h1.ActiveEffect.e1",
-    "invalid:Scene.s1.Region.r1:b1",
-    "sheet:Actor.h1",
-  ]);
-  assert.ok(outcome.failed.every((f) => f.why === "refused" && f.error === said("ACKS-LIB.repair.subjectGone")));
-  assert.deepEqual(outcome.fixed.map((f) => f.key).sort(), ["invalid:Actor:a1", "invalid:Item:i1", "setting:acks-location.sweep"]);
-  assert.equal(writes.filter(([kind]) => kind === "update").length, 0);
-});
-
-t("a document of any other sub-type is not residue", async () => {
-  world({
-    modules: MODULES,
-    actors: {
-      a1: actor("Shut Out", ABSENT, PURSE),
-      a2: actor("Shut Out Too", DISABLED, PURSE),
-      a3: actor("Core", "character", PURSE),
-      a4: actor("Old Hand", RETIRED, []),
-    },
-    items: { i1: { name: "Stray", type: "ghost-press.trinket" } },
-  });
-  assert.deepEqual(await keys(RESIDUE), ["invalid:Actor:a4"]);
-});
-
-t("the residue scan skips a source the collection cannot hand over", async () => {
-  world({ actors: { a1: unreadable, a2: actor("Old Hand", RETIRED, []) }, items: { i1: () => undefined } });
-  assert.deepEqual(await keys(RESIDUE), ["invalid:Actor:a2"]);
-});
-
-t("a retired module's actor that holds coin is on both lists, and both name the same coin", async () => {
-  world({ actors: { a1: actor("Old Hand", RETIRED, [coin("Brass Bit", 4, 9), coin("Tin Chit", 2, 0)]) } });
-  const held = "13 × Brass Bit, 2 × Tin Chit";
-  assert.deepEqual(await keyed(COIN, "detail"), [["Actor.a1", said(DETAIL, { type: RETIRED, coin: held })]]);
-  assert.deepEqual(await keyed(RESIDUE, "reason"), [["invalid:Actor:a1", said(HOLDS_COIN, { coin: held })]]);
 });
 
 /* -------------------------------------------------------------------- */
@@ -444,9 +226,8 @@ class ForcedReplacement {
     return new ForcedReplacement(value);
   }
 }
-let minted = 0;
 globalThis.foundry = {
-  utils: { randomID: () => `minted${++minted}`, deepClone: (v) => structuredClone(v) },
+  utils: { deepClone: (v) => structuredClone(v) },
   data: {
     operators: { ForcedReplacement, ForcedDeletion: class {} },
     fields: new Proxy({}, { get: () => class {} }),
@@ -497,7 +278,7 @@ const point = (id, found = {}) => ({ id, kind: "lair", name: "QQ Prowler", found
 const sound = () => ({ stocked: true, points: [point("p1", { f1: 5 })], searches: { f1: 1 }, assessments: { f1: { told: 1 } } });
 const broken = () => ({
   stocked: true,
-  points: [point("p1", { f1: 5, gone: 9 }), { kind: "lair", name: "QQ Stalker", found: {} }],
+  points: [point("p1", { f1: 5, gone: 9 }), { id: "p2", kind: "lair", name: "QQ Stalker", found: {} }],
   searches: { f1: 1, gone: 2 },
   assessments: { gone: { told: 3 } },
 });
@@ -507,7 +288,7 @@ t("a scene whose hex stock is sound, or absent, is not listed", async () => {
   assert.deepEqual(await HEX_STOCK.scan(), []);
 });
 
-t("a record with a point lacking an id, or naming a party that is gone, is listed once per scene with its count", async () => {
+t("a record naming a party that is gone is listed once per scene with its count", async () => {
   stockWorld([stockScene("s1", { "2:3": broken(), "4:4": sound(), "5:5": broken() }), stockScene("s2", { "1:1": sound() })]);
   assert.deepEqual(await HEX_STOCK.scan(), [
     {
@@ -519,7 +300,7 @@ t("a record with a point lacking an id, or naming a party that is gone, is liste
   ]);
 });
 
-t("the fix mints the missing ids and drops the dead parties' entries in one update, leaving sound hexes alone", async () => {
+t("the fix drops the dead parties' entries in one update, leaving sound hexes alone", async () => {
   const scene = stockScene("s1", { "2:3": broken(), "4:4": sound() });
   stockWorld([scene]);
   const outcome = await fixCheck(HEX_STOCK, (await scanCheck(HEX_STOCK)).findings);
@@ -530,7 +311,7 @@ t("the fix mints the missing ids and drops the dead parties' entries in one upda
   assert.ok(Object.values(scene.updates[0])[0] instanceof ForcedReplacement, "a merge would keep the dead entries");
   const mended = scene.getFlag("acks-extras", "hexStock")["2:3"];
   assert.equal(mended.points[0].id, "p1");
-  assert.match(mended.points[1].id, /^minted[0-9]+$/);
+  assert.equal(mended.points[1].id, "p2");
   assert.deepEqual(mended.points[0].found, { f1: 5 });
   assert.deepEqual(mended.searches, { f1: 1 });
   assert.deepEqual(mended.assessments, {});

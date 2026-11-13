@@ -33,20 +33,6 @@ api.open();`,
     ownership: { default: 0 },
     _stats: { coreVersion: "13", createdTime: 1785551134915, modifiedTime: 1785551134915 },
   },
-  {
-    _id: "acksfmMacroFogCp",
-    _key: "!macros!acksfmMacroFogCp",
-    name: "Merge Fog Copies on This Scene (GM)",
-    type: "script",
-    scope: "global",
-    img: "icons/svg/eye.svg",
-    command: `// Fold each seat's older fog copies on the viewed scene into its newest — GM only.
-${guard("Merge Fog Copies", "mergeFogCopies")}
-if (!game.user.isGM) return ui.notifications.warn("Merging fog copies is a GM tool.");
-await api.mergeFogCopies();`,
-    ownership: { default: 0 },
-    _stats: { coreVersion: "14", createdTime: 1790182800000, modifiedTime: 1790182800000 },
-  },
   ];
 }
 

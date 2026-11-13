@@ -2203,7 +2203,7 @@ paraphrase into an uncited one (ip-doctrine, "What a citation does not do").
 
 *Cost:* the hints say less. A Judge who wants a figure turns to the cited page.
 
-### Fog is read from the server, newest record per seat (2026-09-23)
+### Fog is read from the server, newest record per seat (2026-09-23) — SUPERSEDED IN PART 2026-11-13 (`mergeFogCopies` and the complete-snapshot flag: `docs/DECISIONS.md` §29)
 
 **Found**, walking the Lost recipe with a player whose fog predates the
 Judge's session (T-0192). The Judge's client holds its own FogExploration
@@ -4814,7 +4814,7 @@ unbound row keeps the ability's own throw.
   Adventuring fallback) is named in the footnote, not rolled on its own throw: the
   table shows nothing for that member either.
 
-## 2026-11-03 — Only the token the record links acts for the party
+## 2026-11-03 — Only the token the record links acts for the party — SUPERSEDED IN PART 2026-11-13 (the report of a member held by two parties: `docs/DECISIONS.md` §29)
 
 **Asked.** The owner, same report: old and duplicate party exploration tokens in a
 live world, "these should be repairable".
@@ -4880,7 +4880,7 @@ party actor on a scene, which may be a copy.
   rescan.
 - The live recipe is TESTING, "A party in a combat" and "Extra party tokens".
 
-## 2026-11-03 — A member held by two parties stays with the party on the map
+## 2026-11-03 — A member held by two parties stays with the party on the map — SUPERSEDED 2026-11-13 (`docs/DECISIONS.md` §29)
 
 **New evidence.** The entry above left `formation.partyActors` report-only
 until the owner said which party keeps a member. The owner chose: "The party

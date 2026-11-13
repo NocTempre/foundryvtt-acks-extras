@@ -100,7 +100,7 @@ import {
   listTemplates,
   pickMarchingOrder,
 } from "./marching-templates.mjs";
-import { anchorMap, archiveSession, mergeFogCopies, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
+import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerLostSocket } from "./lost-fog.mjs";
 import { registerFuzzyRulers } from "./measure-fuzz.mjs";
 import { PARTY_TYPE, PartyData, PartySheet } from "./party-actor.mjs";
@@ -759,8 +759,9 @@ Hooks.once("init", () => {
      * answers null with nothing imported, and drops `obstacles.OUTCOME` and the
      * `fail`/`botch` keys of `OBSTACLES`: `readThrow` returns the imported
      * outcome as `{text, falls}` or null, beside `ends`.
+     *
      */
-    apiVersion: 22,
+    apiVersion: 23,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -869,7 +870,6 @@ Hooks.once("init", () => {
     archiveSession,
     anchorMap,
     saveFogAsMapItem,
-    mergeFogCopies,
     requestPartyAction,
     // Hand integration (acks-equipment). handsOccupied tells equipment how many
     // hands the mapper's kit has filled and kitInHand which items it lists at

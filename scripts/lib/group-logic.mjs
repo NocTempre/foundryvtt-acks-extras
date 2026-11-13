@@ -180,30 +180,6 @@ export function platoonCapacity(level) {
 }
 
 /**
- * v0 → v1 group reshape (pure, idempotent): a single-stack group carried
- * `template`/`size`/`roster` at the top level; fold them into `stacks[0]`. A
- * fixed key ("primary") keeps the migration stable across the reloads before it
- * is next saved. GroupData.migrateData wraps this and then defers to super; the
- * pure half is here so it is offline-testable (the model needs Foundry to
- * construct). Mutates and returns `source`.
- */
-export function migrateGroupSource(source) {
-  if (source && typeof source === "object" && !Array.isArray(source.stacks)) {
-    if (source.template || source.roster || source.size) {
-      source.stacks = [
-        {
-          key: "primary",
-          template: source.template ?? {},
-          size: source.size ?? {},
-          roster: Array.isArray(source.roster) ? source.roster : [],
-        },
-      ];
-    }
-  }
-  return source;
-}
-
-/**
  * Is this effect DERIVED state that must not survive a recall (vs. an authored
  * effect, kept)? See docs/lib/GROUPS.md, "Derived effects do not survive
  * recall".

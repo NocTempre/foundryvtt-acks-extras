@@ -95,7 +95,7 @@ All paths are under `scripts/formation/` unless noted.
 - The **party token** belongs to a dedicated actor of the module's own `party` type (`PARTY_TYPE`, one per formation) whose `system.movement.base` mirrors the party's exploration speed (min over members' `system.movementacks.exploration`, which the acks system derives from encumbrance). `updateActor`/`create|update|deleteItem` hooks keep it in sync.
 - **The party token sees.** A party actor made anywhere, the module's own creation or core's Create Actor in the sidebar, gives its prototype token sight unless the creation data says otherwise (`PartyData#_preCreate`, `party-actor.mjs`). The first environment sync to read a party token that the vision pass has never claimed (lib's `visionClaimed`) switches its sight on where it is off and stamps it (`FLAG_PARTY_SIGHT`), so a token placed before that rule is mended at the primary GM's next sync; after the stamp or the claim, sight a hand turns off stays off. Whose eyes it then borrows is `syncPartyTokenVision`, under the vision setting (§Detaching a member).
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
-- **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03). A member two parties list stays with the one whose record links a token that stands on a scene (`isLinkedPartyToken`), and `formation.partyActors` takes them out of every other through `removeMember` with `restore: false`, which drops the lights they bear, the spells they cast and their roles, discards a token that party had stashed for them (none is put on any scene) and leaves a token it had deployed for them standing; where no party or more than one is on a map the finding is listed and not fixable. The fix reads the formations again first and is refused unless the same parties still hold the member and the same single party is on the map.
+- **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03).
 - The **party token's size** follows the party's shape (`tokenShape` on the record, set by the Order tab's On the map control; unset, the `partyTokenShape` world setting, read by `partyTokenShape`). In `order` the token is the one-cell head of its column (§The column) at every frontage and scale, and a hand resize goes back. In `fixed` the size is the Judge's: a token still at the size the module last stamped (`flags.acks-extras.partySize`) goes to one cell once, and one resized since is never written. The footprint lock (`flags.acks-extras.footprintLock`) means never resize, in both shapes. `partySizeTarget` in `scene-sync.mjs` decides, pure; `syncPartyTokenSize` writes through `TokenDocument#resize`, which holds the token's **centre** still and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor on the top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), reads the stored size (`_source`), carries `RESIZE_OPTION` so neither the movement hook nor the trail treats it as a walk, and re-baselines `clock.lastPosition`, since holding the centre still moves the corner the clock measures from. A width/height hook resyncs on a hand resize; a turn writes no size. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
 - **The party token itself sheds no light.** Every carried light shines from its bearer's cell in the column (§The column, Lights), so `syncPartyTokenLight` only ever clears a light the module once wrote on the token, unconditionally.
 
@@ -1630,8 +1630,8 @@ Points of interest section on the Wilderness tab shows Stock or Restock always a
 the hex is stocked, the summary, the points with Found / Make it a place /
 Remove, Add a point, Clear, and Survey the hex while a surveyor is in the
 order. `api.formation.hexStock` publishes the readers and writers; a
-`formation.hexStock` repair check (order 30) mints missing point ids and drops
-the finds, credit and assessments of formations that no longer exist. Climate
+`formation.hexStock` repair check (order 30) drops the finds, credit and
+assessments of formations that no longer exist. Climate
 by terrain, a hex-click tool on the map and carrying the stock into a promoted
 place's notes are [ROADMAP](ROADMAP.md).
 
@@ -1805,11 +1805,6 @@ seat that has none. A seat told to reload fog first points its cached copy at
 the server's newest, because core loads a cached copy in preference to asking.
 
 An older copy is never shown and never deleted by these writes.
-`mergeFogCopies`, run by the compendium macro *Merge Fog Copies on This Scene
-(GM)*, folds every older copy on the viewed scene into each seat's newest as a
-union of explored pixels, and deletes the older ones. It refuses while a party
-is astray on that scene, because the episode's revert writes its snapshot over
-whatever the merge produced.
 
 ## Lost
 
@@ -1846,10 +1841,7 @@ the credit — goes to that scene and level, wherever the Judge happens to be
 looking. A Judge who re-anchors from another scene is told to open the
 episode's scene when there is ground to credit, and nothing is written.
 
-The snapshot is read from the server (see *Stored exploration*), and the
-ledger's `fogSnapshotComplete` says so. An episode without it was opened by a
-build that read only the Judge's client; its snapshot recorded no player, so
-it finishes on that client's documents and never deletes one it did not see.
+The snapshot is read from the server (see *Stored exploration*).
 
 The ledger's `phase` is `astray` (the party does not know), then `aware` (it
 knows, and still does not know where), then closed. `active` is kept on the

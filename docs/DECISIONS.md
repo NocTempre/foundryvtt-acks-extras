@@ -226,7 +226,7 @@ bodies go through the feature key.
 Live-verified: all 45 macros across both modules compile under Foundry's own
 async wrapper, and none references a stale identifier.
 
-## 11. The cleaner macro — why it is not a migration
+## 11. The cleaner macro — why it is not a migration — SUPERSEDED 2026-11-13 (§29)
 
 Nothing is carried across from the old modules; that was the decision. But a
 world that ran them keeps what they wrote, and one part of that is not merely
@@ -1176,6 +1176,21 @@ produces stays, under whatever name it carries.
   previous version's import, which the owner's 2026-11-11 words set apart from
   the repair of a broken one. Prune (`danglingAbilities`) stays: it reads the
   world against the cookbook as it stands.
+- Lib: the `lib.mountPairs` check and the read of the rider and mount pair
+  from before mounts were attachments, with the cleanup that converged it;
+  the `lib.mergeResidue` check and its macro, Clean Up After the Merge (GM),
+  which §11 ruled for the separate modules' leavings; the `embeddedBundles`
+  check's market purchase from before purchases unpacked; the group data
+  model's fold of a single-stack group into `stacks`; this module's earlier
+  status id for Hidden; and the two ready-time sheet sweeps, the monster
+  landing-sheet pin and the one-time release of hirelings from the Follower
+  Card, with its `retainerCardsReleased` setting.
+- Formation: `mergeFogCopies` with its macro, Merge Fog Copies on This Scene
+  (GM), and the complete-snapshot flag a lost party's fog restore read for
+  snapshots taken before it; the `hexStock` check's ids for stocked points
+  written without one; and the `partyActors` check's report and fix of a member
+  held by two parties, which the current membership writers refuse. The
+  formation api is version 23.
 
 **Kept, as current-version paths:**
 

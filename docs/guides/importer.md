@@ -1004,17 +1004,6 @@ carries three Judge macros for the world's data as a whole.
   alternate damage is not the one their row in your weapon table names: ticking
   one writes the row's die there, or leaves it blank where the row names none.
   A weapon you built yourself has no row and is never listed.
-- **Clean Up After the Merge (GM)** opens the same window on what the old
-  acks-* modules left behind — their flag scopes, effect keys, sheet choices
-  and settings, and documents of their sub-types that cannot load — already
-  scanned. Nothing is migrated: tick the rows and fix them, and the residue
-  is removed.
 - **Restore the Compendium Library (GM)** puts every ACKS compendium back in
   the folder its package's manifest names.
-
-![](../releases/v11.12.0/lib-merge-cleaner.png)
-
-*The repair window as Clean Up After the Merge opens it: the stranded-coin
-check with nothing found, and the residue check listing each leftover with
-where it is and what was found, a tick per row and Fix selected beneath.*
 

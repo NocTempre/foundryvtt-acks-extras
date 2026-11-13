@@ -1337,10 +1337,7 @@ and are passed over.
 model, not a second one: it keeps the mounted-combat vocabulary
 (`mountActor`/`dismount`/`mountOf`/`riderOf` and the `acksLibMounted` /
 `acksLibDismounted` hooks) that acks-equipment's overlay was promised, and
-implements it as a `rider` attachment. Worlds written before the
-unification still read: a legacy symmetric mount/rider pair answers
-`mountOf`, and every write converges it to the single flag. A rider whose
-attachment exists is never also read from a stale pair.
+implements it as a `rider` attachment.
 
 The binding is made by a gesture, and the lib answers two drops for it ahead of
 the sheet they land on (`registerMountDrop`, on `dropActorSheetData`). An
@@ -2516,9 +2513,7 @@ It opens from the restricted settings menu **Repair this world**, from the
 *Repair This World (GM)* macro, and from
 `acksExtras.lib.repair.open({only, scan})` (`apps/repair-app.mjs`). `only`
 limits the window to the named checks; `scan` scans them as the window opens,
-or at once when it is already open. *Clean Up After the Merge (GM)* is that
-call on `lib.mergeResidue` and `lib.strandedCoin` with `scan` set
-(`tools/pack-data/cleanup.mjs`).
+or at once when it is already open.
 
 **A check is registered where its knowledge lives.** Each feature's
 `repair-checks.mjs` registers its checks at `init` through
@@ -2551,11 +2546,9 @@ it does not.
 |---|---|---|
 | `lib.twoHandedRow` | A weapon, in the world or on a world actor, whose stored alternate damage differs from the one its imported row names ("A weapon's two-handed die follows its imported row") | Writes the row's die, or a blank where it names none. A weapon with no imported row is never listed. |
 | `lib.missingImages` | A world document whose image is a local file the server answers 404 or 410 for: an actor's `img` and its prototype token's art, an actor's or world item's `img`, an embedded item's, an effect's on either, a macro's, a roll table's, and the texture of each token on a scene. Also listed: a scene's thumbnail, a level's background, foreground and fog image, a journal page's `src` and a roll-table result's `img`. See the paragraph below the table. | Writes the kind's `DEFAULT_ICON` (`CONFIG.<Document>.documentClass`) into each missing field, one update per document. Token art takes its actor's image instead when that file is present (an actor's own new default counts). A scene, level, journal page or table result has no default image, so its finding is report-only. |
-| `lib.embeddedBundles` | A bundle embedded on a world actor or an unlinked token's actor, named as a market purchase when it has that shape, and as partial when an unpack stopped part-way | `unpackEmbeddedBundle` ("Goods handed to an actor, and bundles"). A bundle with an unresolved row is unfixable, and the finding names the rows. |
+| `lib.embeddedBundles` | A bundle embedded on a world actor or an unlinked token's actor, named as partial when an unpack stopped part-way | `unpackEmbeddedBundle` ("Goods handed to an actor, and bundles"). A bundle with an unresolved row is unfixable, and the finding names the rows. |
 | `lib.attachments` | An actor attached to a carrier that is gone | Unsets the attachment |
-| `lib.mountPairs` | A legacy rider or mount flag naming an actor that is gone or does not name it back | Unsets that flag |
-| `lib.strandedCoin` | An actor that cannot load because its sub-type's package is absent or disabled, holding coin. Only a money row whose carried and banked figures come to more than nothing is coin | Report only. A disabled package is named so it can be enabled, unless it is one of the retired acks-* modules. |
-| `lib.mergeResidue` | What the retired acks-* modules left: Actors, Items and region behaviours of their sub-types that cannot load, their flag scopes, AE change keys into them, sheet choices naming their sheets, and their world settings | Removes the row: an Actor or Item that cannot load is deleted through the collection's `getInvalid` handle, a region behaviour through its region's `deleteEmbeddedDocuments`, the retired scopes go as deletion operators in one `flags` update per document, the retired change keys are filtered out of the effect's `changes`, the sheet choice is unset, and the setting document is deleted. An actor row that holds coin, counted as `lib.strandedCoin` counts it, says so: fixing it deletes the coin with the actor ([DECISIONS §11](../DECISIONS.md#11-the-cleaner-macro--why-it-is-not-a-migration)). |
+| `lib.strandedCoin` | An actor that cannot load because its sub-type's package is absent or disabled, holding coin. Only a money row whose carried and banked figures come to more than nothing is coin | Report only. A disabled package is named so it can be enabled. |
 | `henchmen.references` | An employer's hireling or monster list, or a hireling's employer, naming a deleted actor, or a hireling listed twice | `repairActor` (henchmen `repair.mjs`) |
 | `location.links` | A place's map or region link naming a scene or region that is gone or names another place, and a scene or region naming a place that is gone | Clears the stale link. The place, scene and region stay. |
 | `location.vaultSweep` | Coin in an actor's bank column, on a world actor or an unlinked token's own, or owed to a vault by a sweep that stopped part-way (the `acks` system only) | `runVaultSweep` for the chosen actors: a character's balance goes into their vault, and anyone else's joins the coin they carry |

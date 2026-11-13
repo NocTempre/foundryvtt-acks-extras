@@ -12,7 +12,7 @@
  */
 import { acksCompatStubs, creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
-import { migrateGroupSource, platoonCapacity } from "../group-logic.mjs";
+import { platoonCapacity } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
 import { ACTOR_TYPE } from "../vocab.mjs";
 
@@ -175,16 +175,11 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
   }
 
   /**
-   * v0 → v1: a single-stack group carried `template`/`size`/`roster` at the top
-   * level. Fold them into `stacks[0]` (a fixed key so the migration is stable
-   * across the reloads before it is next saved). The representative block
-   * (hp/ac/saves/details) stayed at the top level and needs no move — it still
-   * mirrors what is now the first stack. A source stored under the system's
-   * earlier combat field names is read onto the current ones first.
+   * A source stored under the system's earlier combat field names is read onto
+   * the current ones.
    * @override
    */
   static migrateData(source) {
-    migrateGroupSource(source);
     migrateLegacyCombatSource(source);
     return super.migrateData(source);
   }

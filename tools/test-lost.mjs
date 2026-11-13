@@ -239,25 +239,6 @@ ok("turning back closes an aware episode, and is a no-op with none open", () => 
   assert.equal(endLost(freshLost()).ended, false);
 });
 
-ok("a snapshot read from every seat says so, and its revert carries it", () => {
-  let l = beginLost(freshLost(), { day: 9, anchor: A, fogSnapshot: SNAP, fogSnapshotComplete: true });
-  assert.equal(lostOf({ lost: l }).fogSnapshotComplete, true);
-  l = walkBelieving(l, B, T1);
-  assert.equal(endLost(l).revert.complete, true, "turning back restores it whole");
-  assert.equal(reanchorLost(l).revert.complete, true, "so does finding the landmark");
-  const { lost: aware, revert } = discoverLost(l);
-  assert.equal(revert.complete, true, "and so does discovery");
-  assert.equal(aware.fogSnapshotComplete, false, "the spent snapshot claims nothing");
-});
-
-ok("a snapshot from the Judge's client alone, or a junk flag, is not complete", () => {
-  const older = lostOf({ lost: { phase: "astray", fogSnapshot: SNAP, faked: ["1:1"] } });
-  assert.equal(older.fogSnapshotComplete, false, "a ledger without the field reads as the Judge's client alone");
-  assert.equal(endLost(older).revert.complete, false);
-  assert.equal(lostOf({ lost: { phase: "astray", fogSnapshotComplete: "yes" } }).fogSnapshotComplete, false);
-  assert.equal(beginLost(freshLost(), { day: 1, anchor: A }).fogSnapshotComplete, false, "not claimed unless passed");
-});
-
 ok("lostOf takes the TRAVEL object, not the lost object", () => {
   // Handing it the lost object reads `.lost` off a ledger, finds undefined,
   // and answers a confident "not lost". That shipped once and only the live

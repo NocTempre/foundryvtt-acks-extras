@@ -31,13 +31,6 @@ per instance via `flags.core.sheetClass` rather than a new type.
   sheet, which the world's preset decides. The card is an alternative a user
   picks per actor, through any of the routes below; nothing picks it on its
   own. Picking it writes `flags.core.sheetClass`, which outranks the preset.
-- **The one-time release.** Hirelings used to adopt the card on hire, and a
-  world that upgrades holds those flags. The `ready` sweep in the window that
-  automates (MODEL.md, "Which window automates") drops the card flag from every
-  serving character or monster hireling (`retainerCardsToRelease`,
-  `ui-preset-logic.mjs`) and records `retainerCardsReleased`, so it runs once
-  per world; a card picked after it stays. A dismissed hireling is not in
-  service and keeps its card.
 
 **Switching an actor's face** (everything the card omits — items, effects, deep
 monster stats — lives on the full sheet):

@@ -3,14 +3,12 @@ import { makeLoc } from "../lib/util.mjs";
 import { announce } from "./announce.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
-  getFormations,
   getMapperActor,
   getMemberActor,
   getPartyActor,
   mapperIsProficient,
   patchFormation,
 } from "./formation-model.mjs";
-import { lostOf } from "./lost.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 
 /**
@@ -213,59 +211,6 @@ async function refreshOwnExploration(sceneId, level) {
   const cached = collection.get(fresh.id);
   if (cached) cached.updateSource({ explored: fresh.explored, timestamp: fresh.timestamp });
   else collection.set(fresh.id, fresh);
-}
-
-/**
- * Fold each seat's older exploration copies of the viewed scene level into its
- * newest, and delete the older ones. A client loads only a seat's newest
- * document, so ground held in an older copy is stored and never shown; the
- * union keeps every explored pixel of every copy. Judge-only, on the viewed
- * scene, where the fog texture exists. Refused while a party is astray there:
- * its episode's revert writes a snapshot over the newest copy, and the older
- * ones would be gone.
- *
- * @returns {Promise<{seats: number, merged: number}|null>} seats with any
- *   exploration, and older copies folded away; null when refused.
- */
-export async function mergeFogCopies({ notify = true } = {}) {
-  if (!game.user?.isGM) return null;
-  const scene = canvas?.scene;
-  if (!scene) {
-    if (notify) ui.notifications.warn(loc("map.mergeNeedsScene"));
-    return null;
-  }
-  const astray = Object.values(getFormations()).some((f) => {
-    const lost = lostOf(f.travel);
-    return lost.phase === "astray" && (lost.sceneId ?? f.sceneId) === scene.id;
-  });
-  if (astray) {
-    if (notify) ui.notifications.warn(loc("map.mergeWhileAstray"));
-    return null;
-  }
-  const level = scene._view ?? null;
-  const bySeat = new Map();
-  for (const doc of await storedExploration(scene.id, level)) {
-    if (!bySeat.has(fogUserOf(doc))) bySeat.set(fogUserOf(doc), []);
-    bySeat.get(fogUserOf(doc)).push(doc);
-  }
-  const dims = fogTextureDims();
-  let merged = 0;
-  for (const copies of bySeat.values()) {
-    if (copies.length < 2) continue;
-    copies.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
-    const layers = [];
-    for (const doc of copies) if (doc.explored) layers.push({ texture: await textureFromBase64(doc.explored), destroy: true });
-    await writeExplored(copies[0], await compositeToBase64(layers, dims));
-    await deleteExplored(copies.slice(1));
-    merged += copies.length - 1;
-  }
-  if (merged) {
-    const socket = getSocket();
-    if (socket) await socket.executeForEveryone("reloadFog", scene.id);
-    else await reloadFog(scene.id);
-  }
-  if (notify) ui.notifications.info(merged ? loc("map.mergedCopies", { count: merged }) : loc("map.noCopies"));
-  return { seats: bySeat.size, merged };
 }
 
 /* -------------------------------------------- */

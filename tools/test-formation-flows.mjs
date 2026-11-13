@@ -4229,207 +4229,29 @@ await scenario("the repair tool links a flagged party token the record lost, and
   }
 });
 
-await scenario("the repair tool gives a party actor a record, and reports a member held by two parties", async () => {
+await scenario("the repair tool gives a party actor a record", async () => {
   const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
   const check = getRepairCheck("formation.partyActors");
   assert.ok(check, "the check is registered");
   const party = await fightingParty("Roster Party", "Twice");
-  const { id, actors } = party;
   try {
     const bare = await ActorMock.create({ name: "Bare Party", type: `${MODULE_ID}.party` });
     await drain();
     // Its record is lost: the world holds the actor and no party names it.
     await game.settings.set(MODULE_ID, "formations", Object.fromEntries(Object.entries(readFormations()).filter(([, f]) => f.actorId !== bare.id)));
-    const second = await model.createFormation("Second Roster");
-    await model.patchFormation(second.id, (rec) => {
-      rec.members.push({ actorId: actors[0].id, roles: [] });
-    });
     await drain();
 
     const scan = await scanCheck(check);
     const bareFinding = scan.findings.find((f) => f.uuid === bare.uuid);
-    const shared = scan.findings.find((f) => f.key === `shared:${actors[0].id}`);
     assert.ok(bareFinding?.fixable, "a party actor with no record is fixable");
-    assert.ok(shared?.fixable && shared.keeperId === id, "a member in two parties is mended when one is on the map");
-    assert.ok(shared.detail.includes("Roster Party") && shared.detail.includes("Second Roster"), "naming both parties");
-    assert.deepEqual([...shared.formationIds].sort(), [id, second.id].sort(), "and carrying both ids");
 
     const done = await fixCheck(check, scan.findings);
-    assert.equal(done.fixed.length, 2, "both are fixed");
+    assert.equal(done.fixed.length, 1, "it is fixed");
     assert.ok(Object.values(readFormations()).some((f) => f.actorId === bare.id), "the party actor has a record");
     assert.deepEqual(done.rescan.findings, [], "the rescan finds nothing");
-    assert.equal(model.getFormation(id).members.length, 1, "the party on the map keeps its members");
-    assert.equal(model.getFormation(second.id).members.length, 0, "and the other lost the shared one");
-    await model.deleteFormationRecord(second.id);
+    assert.equal(model.getFormation(party.id).members.length, 1, "and the party keeps its members");
     await bare.delete();
   } finally {
-    await dismissFighting(party);
-  }
-});
-
-/**
- * A second party that also lists `actor`, with a light they bear, a spell they
- * cast and a role, and a bystander of its own. `onMap` stands its party token
- * on the scene, which links it. Returns the party's id, the token (or null) and
- * the bystander.
- */
-async function rivalHolding(name, actor, { onMap = false, stash = false } = {}) {
-  // A party actor the world creates is given its record by the create hook; one
-  // that arrived without is adopted, as the repair tool would.
-  const partyActor = await ActorMock.create({ name, type: `${MODULE_ID}.party` });
-  await drain();
-  const rival = Object.values(readFormations()).find((f) => f.actorId === partyActor.id) ?? (await model.adoptPartyActor(partyActor));
-  const bystander = await member(`${name} Bystander`);
-  await model.patchFormation(rival.id, (rec) => {
-    // A stash is the token the party took off the map for them; the party's scene
-    // is where a removal would put it back.
-    const tokenData = stash ? { name: actor.name, actorId: actor.id, actorLink: false, x: 1500, y: 1500, delta: null } : null;
-    if (stash) rec.sceneId = scene.id;
-    rec.members.push({ actorId: actor.id, roles: ["mapper"], tokenData }, { actorId: bystander.id, roles: [], tokenData: null });
-    rec.lights = [{ id: `lamp-${rival.id}`, type: "torch", bearerId: actor.id, remaining: 6, lit: true, shielded: false }];
-    rec.spells = [{ id: `ward-${rival.id}`, casterId: actor.id, name: "Ward" }];
-  });
-  let token = null;
-  if (onMap) token = await bannerFor(rival.id, `${name} Banner`);
-  await drain();
-  return { id: rival.id, token, bystander, partyActor };
-}
-
-/** Stand a party's token on the scene by hand and wait for the record to link it. */
-async function bannerFor(formationId, name, at = 2400) {
-  const [token] = await scene.createEmbeddedDocuments("Token", [{ name, actorId: model.getFormation(formationId).actorId, x: at, y: at }]);
-  await until(() => model.getFormation(formationId)?.tokenId === token?.id);
-  assert.equal(model.getFormation(formationId)?.tokenId, token?.id, `${name} is linked (token ${token?.id ?? "refused"})`);
-  return token;
-}
-
-/** Take a rival from `rivalHolding` out of the world. */
-async function retireRival({ id, token, bystander, partyActor }) {
-  if (token && scene.tokens.get(token.id)) await token.delete();
-  await drain();
-  await model.deleteFormationRecord(id);
-  await bystander.delete();
-  await partyActor.delete();
-}
-
-const holdersOf = (actor) => onlyFormationHolding(actor).map((f) => f.id).sort();
-
-await scenario("a member held by two parties stays with the one on the map, and loses the lights, spells and roles elsewhere", async () => {
-  const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
-  const check = getRepairCheck("formation.partyActors");
-  const party = await fightingParty("Banner Party", "Wearer");
-  const { id, actors } = party;
-  const [wearer] = actors;
-  await model.patchFormation(id, (rec) => {
-    rec.members.find((m) => m.actorId === wearer.id).roles = ["mapper"];
-    rec.lights = [{ id: "own-lamp", type: "torch", bearerId: wearer.id, remaining: 6, lit: true, shielded: false }];
-  });
-  const one = await rivalHolding("Quiet Party One", wearer, { stash: true });
-  const two = await rivalHolding("Quiet Party Two", wearer);
-  const tokensEverywhere = () => [...game.scenes].reduce((n, s) => n + [...s.tokens].length, 0);
-  try {
-    assert.ok(model.getFormation(one.id).members.find((m) => m.actorId === wearer.id).tokenData, "the first rival holds a stash for them");
-    const standing = tokensEverywhere();
-    const scan = await scanCheck(check);
-    const shared = scan.findings.find((f) => f.key === `shared:${wearer.id}`);
-    assert.ok(shared?.fixable, "one party on the map makes the finding fixable");
-    assert.equal(shared.keeperId, id, "the party on the map keeps the member");
-    assert.deepEqual([...shared.dropIds].sort(), [one.id, two.id].sort(), "and both others lose them");
-    for (const name of ["Banner Party", "Quiet Party One", "Quiet Party Two"]) assert.ok(shared.detail.includes(name), `the detail names ${name}`);
-
-    const done = await fixCheck(check, scan.findings);
-    assert.equal(done.fixed.length, 1, "fixed");
-    assert.equal(done.failed.length, 0, "none fails");
-    assert.deepEqual(done.rescan.findings, [], "the rescan shows the member gone from the others");
-    assert.equal(tokensEverywhere(), standing, "the dropped party's stash is discarded: no token is created on any scene");
-    assert.equal(scene.tokens.filter((t) => t.actorId === wearer.id && t.x === 1500).length, 0, "and none stands where the stash would have been put back");
-    assert.deepEqual(holdersOf(wearer), [id], "only the party on the map still lists them");
-    const kept = model.getFormation(id);
-    assert.deepEqual(kept.members.find((m) => m.actorId === wearer.id).roles, ["mapper"], "the keeper keeps their role");
-    assert.equal(kept.lights.length, 1, "and their light");
-    for (const rival of [one, two]) {
-      const left = model.getFormation(rival.id);
-      assert.deepEqual(left.members.map((m) => m.actorId), [rival.bystander.id], "a dropping party keeps its other members");
-      assert.equal(left.lights.length, 0, "the light they bore goes");
-      assert.equal((left.spells ?? []).length, 0, "the spell they cast goes");
-    }
-  } finally {
-    await retireRival(two);
-    await retireRival(one);
-    await dismissFighting(party);
-  }
-});
-
-await scenario("a member held by two parties is only listed where no party is on a map, or where two are", async () => {
-  const { getRepairCheck, scanCheck, fixCheck } = await import("../scripts/lib/repair-logic.mjs");
-  const check = getRepairCheck("formation.partyActors");
-  const party = await fightingParty("Roadside Party", "Sharer");
-  const { id, actors, partyToken } = party;
-  const [sharer] = actors;
-  const rival = await rivalHolding("Roadside Rival", sharer);
-  const key = `shared:${sharer.id}`;
-  try {
-    await partyToken.delete();
-    await drain();
-    const none = (await scanCheck(check)).findings.find((f) => f.key === key);
-    assert.ok(none && !none.fixable && none.reason, "no party on a map: listed, not fixable");
-    assert.ok(none.detail.includes("sharedNoMap"), "and the detail says no party is on a map");
-    assert.deepEqual((await fixCheck(check, [none])).fixed, [], "nothing is fixed");
-    assert.deepEqual(holdersOf(sharer), [id, rival.id].sort(), "both parties still list them");
-
-    const again = await bannerFor(id, "Roadside Banner", 1800);
-    rival.token = await bannerFor(rival.id, "Rival Banner");
-    assert.ok(model.getFormation(id).tokenId === again.id && model.getFormation(rival.id).tokenId === rival.token.id, "both parties link a token on the scene");
-    const both = (await scanCheck(check)).findings.find((f) => f.key === key);
-    assert.ok(both && !both.fixable && both.reason, "two parties on a map: listed, not fixable");
-    assert.ok(both.detail.includes("sharedManyMaps") && both.detail.includes('"count":2'), "and the detail counts them");
-    assert.deepEqual((await fixCheck(check, [both])).fixed, [], "nothing is fixed");
-    assert.deepEqual(holdersOf(sharer), [id, rival.id].sort(), "both parties still list them");
-    assert.equal(model.getFormation(rival.id).lights.length, 1, "and the lights stay");
-    await again.delete();
-  } finally {
-    await retireRival(rival);
-    await dismissFighting(party);
-  }
-});
-
-await scenario("a shared member's fix is refused when the parties changed since the scan", async () => {
-  const { getRepairCheck, scanCheck } = await import("../scripts/lib/repair-logic.mjs");
-  const check = getRepairCheck("formation.partyActors");
-  const party = await fightingParty("Steady Party", "Drifter");
-  const { id, actors, partyToken } = party;
-  const [drifter] = actors;
-  const rival = await rivalHolding("Steady Rival", drifter);
-  try {
-    const stale = (await scanCheck(check)).findings.find((f) => f.key === `shared:${drifter.id}`);
-    assert.ok(stale?.fixable && stale.keeperId === id, "the scan offers the fix");
-    const refused = async (why) => {
-      const [result] = await check.fix([stale]);
-      assert.equal(result.ok, false, `${why}: refused`);
-      assert.ok(result.error.includes("sharedChanged") || result.error.includes("sharedGone"), `${why}: with its reason`);
-      assert.deepEqual(holdersOf(drifter), [id, rival.id].sort(), `${why}: both parties still list them`);
-      return result;
-    };
-
-    // A second party reaches the map: the keeper is no longer unique.
-    rival.token = await bannerFor(rival.id, "Steady Banner");
-    assert.ok((await refused("two parties on a map")).error.includes("sharedChanged"));
-
-    // The other party takes the map and the first leaves it: the keeper changed.
-    await partyToken.delete();
-    await drain();
-    assert.ok((await refused("the keeper changed")).error.includes("sharedChanged"));
-
-    // The member leaves the other party: no longer shared.
-    await model.patchFormation(rival.id, (rec) => {
-      rec.members = rec.members.filter((m) => m.actorId !== drifter.id);
-    });
-    const gone = await check.fix([stale]);
-    assert.equal(gone[0].ok, false, "a member no longer shared: refused");
-    assert.ok(gone[0].error.includes("sharedGone"), "with its reason");
-    assert.deepEqual(holdersOf(drifter), [id], "and nobody is dropped");
-  } finally {
-    await retireRival(rival);
     await dismissFighting(party);
   }
 });
@@ -5321,25 +5143,20 @@ await scenario("a lost episode reads every seat's fog from the server", async ()
     const snap = await lostFog.snapshotFog("S1", "L0");
     assert.equal(snap.PL1, "seen", "the snapshot holds the player's fog the Judge never loaded");
     server.get("newest").explored = "seen+faked";
-    await lostFog.restoreFog("S1", snap, "L0", { complete: true });
+    await lostFog.restoreFog("S1", snap, "L0");
     assert.equal(server.get("newest").explored, "seen", "the restore writes onto the player's own document");
     assert.ok(server.has("older"), "an older copy is not touched");
     assert.equal([...server.values()].filter((d) => d.user === "PL1" && d.scene === "S1").length, 2, "and nothing is created");
     assert.equal(held.size, 0, "the seat a write took in the collection is given back");
 
-    // A snapshot taken from the Judge's client alone cannot tell a seat with no
-    // fog from one it never saw: the player's document survives its restore.
-    await lostFog.restoreFog("S1", { GM1: "judge-view", PL1: null }, "L0", { complete: false });
-    assert.ok(server.has("newest"), "an incomplete snapshot deletes no document it never saw");
-
     await writeExplored(new FogDoc(server.get("judge")), "judge-view-2");
     assert.equal(server.get("judge").explored, "judge-view-2", "a direct write lands on the server copy");
 
-    // A seat the complete snapshot recorded as empty loses the document the
-    // episode made for it, though a reload since means this client never held it.
+    // A seat the snapshot recorded as empty loses the document the episode made
+    // for it, though a reload since means this client never held it.
     put({ _id: "faked", scene: "S1", user: "PL2", level: "L0", explored: "faked-only", timestamp: 7 });
-    await lostFog.restoreFog("S1", { GM1: "judge-view", PL1: "seen" }, "L0", { complete: true });
-    assert.ok(!server.has("faked"), "a complete restore deletes a document this client never loaded");
+    await lostFog.restoreFog("S1", { GM1: "judge-view", PL1: "seen" }, "L0");
+    assert.ok(!server.has("faked"), "a restore deletes a document this client never loaded");
     assert.equal(server.get("newest").explored, "seen", "and still writes the recorded seats");
     assert.equal(held.size, 0, "every seat taken for the delete is given back");
 

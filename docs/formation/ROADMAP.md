@@ -572,12 +572,6 @@ a fight that is over").
 |---|---|---|
 | The scene's travel system taken from the linked token only | The `createToken` hook adopts the scene's travel system for any flagged party token it creates, so a flagged copy pasted onto another scene can switch the party's travel mode from a scene the party is not on. The token the party is about to be linked to (a new party token, a teleport's replacement) is also created flagged before the record names it, which is why the hook is not gated on the linkage yet. | a test that tells a copy from a token about to be linked, such as a teleport's `replacements` option. |
 
-## A member held by two parties
-
-| Not built | What it is | What it needs first |
-|---|---|---|
-| ~~The double membership, mended~~ | BUILT. The `formation.partyActors` repair check keeps a member with the party whose token is on a map and takes them out of the others (MODEL, "Only the linked token acts for the party"; DECISIONS 2026-11-03). | ~~the owner saying which party keeps the member~~ |
-
 ## The turn plan
 
 The column, storage, relay and resolution are built (MODEL, "The turn plan";

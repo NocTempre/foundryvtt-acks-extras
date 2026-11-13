@@ -2,20 +2,18 @@
 /**
  * The repair checks lib owns: records the system stamped as migrated while
  * keeping their old field names, bundles embedded where no sheet lists them,
- * carry and mount links to actors that are gone, a weapon's two-handed die
- * that disagrees with its imported row, images whose file the server no longer
- * has, and what packages no longer installed left in the world. The
+ * carry links to actors that are gone, a weapon's two-handed die that
+ * disagrees with its imported row, images whose file the server no longer has,
+ * and the coin of actors a package no longer installed left unloadable. The
  * stranded-coin check reports only: it lists what it finds and writes nothing.
- * The merge-residue check removes what it lists.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { makeLoc, unset } from "./util.mjs";
+import { makeLoc } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 import { danglingRefCheck, fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { resolveBundleRow, unpackEmbeddedBundle } from "./bundles.mjs";
-import { bundleRows, isPurchaseBundle, unpackStage } from "./bundles-logic.mjs";
+import { bundleRows, unpackStage } from "./bundles-logic.mjs";
 import { ATTACH_FLAG, ATTACH_ROLES, attachmentOf } from "./attachment.mjs";
-import { MOUNT_FLAG, RIDER_FLAG } from "./mount.mjs";
 import { resolveActorSync } from "./storage.mjs";
 import { isLegacyChangeKey, migrateChangeKey } from "./actor-compat.mjs";
 import { forgetRescue, rescuedFields } from "./patches/legacy-source.mjs";
@@ -23,14 +21,6 @@ import { distinctPaths, missingPaths, planRepair } from "./missing-images.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 const key = (name) => `${LANG_PREFIX}.repair.check.${name}`;
-
-/** The acks-* modules the merge retired, and the patterns their residue matches. */
-const OLD_MODULES = Object.freeze([
-  "acks-lib", "acks-abilities", "acks-equipment", "acks-formation",
-  "acks-henchmen", "acks-influence", "acks-location", "acks-monsters", "acks-content",
-]);
-const OLD_TYPE = /^acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters|content)\./;
-const OLD_CHANGE_KEY = /^flags\.acks-(lib|abilities|equipment|formation|henchmen|influence|location|monsters|content)\./;
 
 /** Whether the package a sub-type names is active, installed but off, or absent. */
 function packageState(type) {
@@ -68,87 +58,6 @@ function strandedCoin(src) {
   const count = (i) => (Number(i.system?.quantity) || 0) + (Number(i.system?.quantitybank) || 0);
   const coin = (Array.isArray(src?.items) ? src.items : []).filter((i) => i?.type === ITEM_TYPE.money && count(i) > 0);
   return { rows: coin.length, text: coin.map((i) => `${count(i)} × ${i.name ?? "?"}`).join(", ") };
-}
-
-/** Every document the cleaner walks, labelled as it prints them. */
-function* residueDocs() {
-  for (const a of game.actors) {
-    yield [a, a.name];
-    for (const i of a.items) yield [i, `${a.name} → ${i.name}`];
-  }
-  for (const i of game.items) yield [i, i.name];
-  for (const j of game.journal) yield [j, j.name];
-  for (const t of game.tables) yield [t, t.name];
-  for (const s of game.scenes) {
-    yield [s, s.name];
-    for (const tk of s.tokens) yield [tk, `${s.name} → ${tk.name}`];
-  }
-}
-
-/** Old flag scopes on one document, and old change keys and scopes on its effects. */
-function residueOn(doc, label, out) {
-  const scopes = OLD_MODULES.filter((s) => doc.flags?.[s] !== undefined);
-  if (scopes.length) out.push({ key: `flags:${doc.uuid}`, uuid: doc.uuid, name: label, detail: loc("repair.check.mergeResidue.flags", { scopes: scopes.join(", ") }) });
-  const sheet = doc.flags?.core?.sheetClass;
-  if (typeof sheet === "string" && OLD_MODULES.some((s) => sheet.startsWith(`${s}.`))) {
-    out.push({ key: `sheet:${doc.uuid}`, uuid: doc.uuid, name: label, detail: loc("repair.check.mergeResidue.sheet", { sheet }) });
-  }
-  for (const fx of doc.effects ?? []) {
-    const fxLabel = `${label} → ${fx.name}`;
-    const bad = (fx.changes ?? []).map((c) => String(c.key ?? "")).filter((k) => OLD_CHANGE_KEY.test(k));
-    if (bad.length) out.push({ key: `effect:${fx.uuid}`, uuid: fx.uuid, name: fxLabel, detail: loc("repair.check.mergeResidue.changeKeys", { keys: bad.join(", ") }) });
-    const fxScopes = OLD_MODULES.filter((s) => fx.flags?.[s] !== undefined);
-    if (fxScopes.length) out.push({ key: `flags:${fx.uuid}`, uuid: fx.uuid, name: fxLabel, detail: loc("repair.check.mergeResidue.flags", { scopes: fxScopes.join(", ") }) });
-  }
-}
-
-/**
- * Remove one residue finding, by the kind its key names. A document that
- * cannot load is reached through its collection's invalid-document accessor
- * and deleted; a region behaviour through its region. A retired flag scope is
- * a forced deletion in the document's own update, since `unsetFlag` refuses a
- * scope that is no active package. A sheet choice is unset, an effect keeps
- * only the changes keyed elsewhere, and a world setting document is deleted.
- * @returns {Promise<string>} the summary the outcome prints
- */
-async function removeResidue(f) {
-  const kind = f.key.slice(0, f.key.indexOf(":"));
-  const removed = loc("repair.check.mergeResidue.removed");
-  if (kind === "invalid") {
-    const rest = f.key.slice("invalid:".length);
-    const at = rest.lastIndexOf(":");
-    const where = rest.slice(0, at);
-    const id = rest.slice(at + 1);
-    if (where === "Actor" || where === "Item") {
-      const coll = where === "Actor" ? game.actors : game.items;
-      await coll.getInvalid(id, { strict: false }).delete();
-      return removed;
-    }
-    const region = await fromUuid(where);
-    if (!region) throw new Error(loc("repair.subjectGone"));
-    await region.deleteEmbeddedDocuments("RegionBehavior", [id]);
-    return removed;
-  }
-  if (kind === "setting") {
-    const store = game.settings.storage.get("world");
-    const doc = store?.get?.(f.settingId) ?? [...(store ?? [])].find((s) => s.key === f.name) ?? null;
-    if (!doc) throw new Error(loc("repair.subjectGone"));
-    await doc.delete();
-    return removed;
-  }
-  const doc = await fromUuid(f.uuid);
-  if (!doc) throw new Error(loc("repair.subjectGone"));
-  if (kind === "flags") {
-    const scopes = OLD_MODULES.filter((s) => doc.flags?.[s] !== undefined);
-    await doc.update({ flags: Object.fromEntries(scopes.map((s) => [s, unset()])) });
-  } else if (kind === "sheet") {
-    await doc.unsetFlag("core", "sheetClass");
-  } else if (kind === "effect") {
-    await doc.update({ changes: (doc.changes ?? []).map((c) => c.toObject?.() ?? c).filter((c) => !OLD_CHANGE_KEY.test(String(c.key ?? ""))) });
-  } else {
-    throw new Error(`repair: unknown residue "${f.key}"`);
-  }
-  return removed;
 }
 
 /** Every effect a world actor or its items carry, labelled as the findings print them. */
@@ -470,7 +379,7 @@ export function registerLibRepairChecks() {
           if (stage === "fresh") {
             for (const row of bundleRows(plain)) if (!(await resolveBundleRow(row))) missing.push(row.name || row.uuid);
           }
-          const shape = stage !== "fresh" ? "partial" : isPurchaseBundle(plain) ? "purchase" : "other";
+          const shape = stage !== "fresh" ? "partial" : "other";
           out.push({
             key: bundle.uuid,
             uuid: bundle.uuid,
@@ -516,33 +425,6 @@ export function registerLibRepairChecks() {
   );
 
   registerRepairCheck({
-    id: "lib.mountPairs",
-    label: key("mountPairs.label"),
-    hint: key("mountPairs.hint"),
-    order: 30,
-    scan: () => {
-      const out = [];
-      for (const actor of worldActors()) {
-        for (const [flag, back] of [[MOUNT_FLAG, RIDER_FLAG], [RIDER_FLAG, MOUNT_FLAG]]) {
-          const uuid = actor.getFlag(MODULE_ID, flag);
-          if (!uuid) continue;
-          const other = resolveActorSync(uuid);
-          if (other?.getFlag(MODULE_ID, back) === actor.uuid) continue;
-          out.push({
-            key: `${actor.uuid}#${flag}`,
-            uuid: actor.uuid,
-            name: actor.name,
-            flag,
-            detail: other ? loc(`repair.check.mountPairs.${flag}OneSided`, { other: other.name }) : loc(`repair.check.mountPairs.${flag}Gone`),
-          });
-        }
-      }
-      return out;
-    },
-    fix: (findings) => fixEach(findings, async (f) => (await fromUuid(f.uuid))?.unsetFlag(MODULE_ID, f.flag)),
-  });
-
-  registerRepairCheck({
     id: "lib.legacyEffectKeys",
     label: key("legacyEffectKeys.label"),
     hint: key("legacyEffectKeys.hint"),
@@ -586,52 +468,10 @@ export function registerLibRepairChecks() {
           uuid: null,
           name: src?.name ?? id,
           detail: loc("repair.check.strandedCoin.detail", { type: src?.type ?? "?", coin: coin.text }),
-          // A retired acks-* module is never the answer, installed or not.
-          reason: pkg.state === "disabled" && !OLD_TYPE.test(src.type) ? loc("repair.enablePackage", { title: pkg.title }) : loc("repair.check.strandedCoin.reportOnly"),
+          reason: pkg.state === "disabled" ?loc("repair.enablePackage", { title: pkg.title }) : loc("repair.check.strandedCoin.reportOnly"),
         });
       }
       return out;
     },
-  });
-
-  registerRepairCheck({
-    id: "lib.mergeResidue",
-    label: key("mergeResidue.label"),
-    hint: key("mergeResidue.hint"),
-    order: 50,
-    scan: () => {
-      const out = [];
-      // The fix deletes an unloadable actor whole, so one holding coin says so
-      // before the Judge ticks it.
-      const invalid = (doc, id, src, where) => {
-        if (!OLD_TYPE.test(String(src?.type ?? ""))) return;
-        const coin = doc === "Actor" ? strandedCoin(src) : { rows: 0 };
-        out.push({
-          key: `invalid:${where}:${id}`,
-          uuid: null,
-          name: src.name ?? id,
-          detail: loc("repair.check.mergeResidue.invalid", { doc, type: src.type }),
-          ...(coin.rows ? { reason: loc("repair.check.mergeResidue.holdsCoin", { coin: coin.text }) } : {}),
-        });
-      };
-      for (const [doc, coll] of [["Actor", game.actors], ["Item", game.items]]) {
-        for (const { id, src } of invalidSources(coll)) invalid(doc, id, src, doc);
-      }
-      // A behaviour hangs off a Region inside a Scene: no world collection holds it.
-      for (const scene of game.scenes) {
-        for (const region of scene.regions ?? []) {
-          for (const { id, src } of invalidSources(region.behaviors)) invalid("RegionBehavior", id, src, region.uuid);
-        }
-      }
-      for (const [doc, label] of residueDocs()) residueOn(doc, label, out);
-      for (const s of game.settings.storage.get("world") ?? []) {
-        const k = String(s.key ?? "");
-        if (OLD_MODULES.includes(k.split(".")[0])) {
-          out.push({ key: `setting:${k}`, uuid: null, name: k, settingId: s.id ?? null, detail: loc("repair.check.mergeResidue.setting") });
-        }
-      }
-      return out;
-    },
-    fix: (findings) => fixEach(findings, removeResidue),
   });
 }

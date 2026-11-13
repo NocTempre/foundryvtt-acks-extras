@@ -51,12 +51,6 @@ export function freshLost() {
     faked: [],
     /** Per-user fog, captured once when the lie began. `{userId: base64}`. */
     fogSnapshot: null,
-    /**
-     * Whether the snapshot was read from every seat's stored fog, so a null
-     * entry means that seat had none. A snapshot taken from the Judge's client
-     * alone leaves it false, and its restore touches only what it saw.
-     */
-    fogSnapshotComplete: false,
   };
 }
 
@@ -82,7 +76,6 @@ export function lostOf(travel) {
       ? l.observations.filter((o) => o && typeof o.at === "string" && typeof o.shown === "string")
       : [],
     fogSnapshot: l.fogSnapshot && typeof l.fogSnapshot === "object" ? l.fogSnapshot : null,
-    fogSnapshotComplete: l.fogSnapshotComplete === true,
   };
 }
 
@@ -99,7 +92,7 @@ export const hexKey = (offset) => `${offset?.i}:${offset?.j}`;
  * phase, is returned unchanged.
  */
 export function beginLost(lost, {
-  day, anchor, fogSnapshot = null, fogSnapshotComplete = false, judgeNote = "", sceneId = null, level,
+  day, anchor, fogSnapshot = null, judgeNote = "", sceneId = null, level,
 } = {}) {
   const l = lostOf({ lost });
   if (l.phase) return l;
@@ -115,7 +108,6 @@ export function beginLost(lost, {
     faked: [],
     observations: [],
     fogSnapshot,
-    fogSnapshotComplete: fogSnapshotComplete === true,
     judgeNote: String(judgeNote ?? ""),
   };
 }
@@ -145,7 +137,7 @@ export function walkBelieving(lost, believedOffset, trueOffset = null) {
 /** The revert instruction for an astray ledger, or null when nothing was faked. */
 function revertOf(l, discard) {
   return (l.faked.length || l.fogSnapshot)
-    ? { faked: l.faked, fogSnapshot: l.fogSnapshot, complete: l.fogSnapshotComplete, anchor: l.anchor, discard }
+    ? { faked: l.faked, fogSnapshot: l.fogSnapshot, anchor: l.anchor, discard }
     : null;
 }
 
@@ -169,7 +161,7 @@ export function discoverLost(lost) {
   const l = lostOf({ lost });
   if (l.phase !== "astray") return { lost: l, revert: null, discovered: false };
   const aware = {
-    ...l, phase: "aware", active: false, believed: null, faked: [], observations: [], fogSnapshot: null, fogSnapshotComplete: false,
+    ...l, phase: "aware", active: false, believed: null, faked: [], observations: [], fogSnapshot: null,
   };
   return { lost: aware, revert: revertOf(l, l.observations), discovered: true };
 }

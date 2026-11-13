@@ -197,20 +197,10 @@ report the same symptom.
    system's character sheet opens, not this module's; flip `default` back and
    the module's opens. A card whose type has no other default still opens this
    module's full sheet. A reload undoes the flip either way.
-9b. No card on hire, and the one-time release. Make a `character` and set
+9b. No card on hire. Make a `character` and set
    `system.retainer.enabled: true` on it, once at create and once by update
    on a second one. *Observable:* neither carries `flags.core.sheetClass` and
-   both open on the character type's default. For the release, build the
-   pre-upgrade shape: two serving hirelings (a character and a monster) and
-   one non-serving character, each given
-   `flags.core.sheetClass = "acks-extras.FollowerCardSheet"`. List the world's
-   serving hirelings on the card first — the sweep releases every one, so a
-   peer's fixture in that list means waiting. Then
-   `game.settings.set("acks-extras", "retainerCardsReleased", false)` and
-   reload the window that automates (the REAL ready is the trigger).
-   *Observable:* the two hirelings lose the flag and the console logs the
-   count; the non-serving one keeps its card; the setting reads `true`.
-   Re-pick the card on one hireling and reload again: it keeps it.
+   both open on the character type's default.
 9a. Design-canvas geometry survives a ratio it cannot read. On an open character
    sheet, `element.classList.remove("acks-extras")` — the one class that
    publishes `--acks-extras-k`.
@@ -861,10 +851,8 @@ that the formations setting no longer holds the run's record.
 
 ## A load's sweeps run in one window
 
-Covers the gates at the `ready` sweeps and at the legacy mount cleanup: the
-retainer sheet sweep and the monster landing-sheet rewrite (`module.mjs`), the
-compendium filing (`compendium-folders.mjs`), the defence-band migration
-(`monsters/module.mjs`), and `mount.mjs`'s `deleteActor` cleanup.
+Covers the gates at the `ready` sweeps: the compendium filing
+(`compendium-folders.mjs`) and the defence-band migration (`monsters/module.mjs`).
 Walked on core 14.369 with the capture driver: three browsers, about 3
 minutes.
 
@@ -876,13 +864,7 @@ hook and the document's id, or its name for a create.
 
 **Fixtures**, all through A's ledger:
 - a `monster` whose `flags.acks-extras.extras.defenses.immunities.effects` is
-  a string;
-- a `character` created with `system.retainer.enabled: true`, then
-  `unsetFlag("core", "sheetClass")`. Its create pins the card, and an update
-  that leaves the retainer flag alone does not pin it again;
-- a `character` rider and a `monster` steed paired by the legacy flags:
-  `flags.acks-extras.mount` on the rider names the steed's uuid, and
-  `flags.acks-extras.rider` on the steed names the rider's.
+  a string.
 
 **Steps.**
 1. **One window sweeps.** Install the recorder in all three windows, then
@@ -890,21 +872,14 @@ hook and the document's id, or its name for a create.
    lead to the other, and the reloaded window follows, so neither sweeps on
    that load: reload every window, or a lone one.
    **Observable:** the band's `effects` is an array with the string kept
-   in its note, and the retainer carries `flags.core.sheetClass`. The lead's
-   tally alone holds both actors' `preUpdateActor`. The other GM window's tally and the
-   Assistant's hold none of them, and no recorder caught an error.
-2. **One cleanup per deletion.** Delete the rider from the GM window that
-   does not lead.
-   **Observable:** the steed's `rider` flag is gone, and only the lead's tally
-   holds the steed's `preUpdateActor`.
+   in its note. The lead's tally alone holds the monster's `preUpdateActor`.
+   The other GM window's tally and the Assistant's hold none of it, and no
+   recorder caught an error.
 
-The landing-sheet rewrite needs a `core.sheetClasses` pin naming
-`acks-extras.FullMonsterSheet`, and the compendium filing a pack with no
-folder. Both are world settings a shared test world's other sessions rely on,
-so these two stay offline here.
+The compendium filing needs a pack with no folder, a world setting a shared
+test world's other sessions rely on, so it stays offline here.
 
-**Teardown.** `api.sweepTracked()` from A, quoted. It reports the rider
-missing.
+**Teardown.** `api.sweepTracked()` from A, quoted.
 
 ## A dropped bundle arrives as its goods
 
@@ -1390,14 +1365,11 @@ by the ids read back from `game.messages`.
 
 Covers `repair-logic.mjs` and `repair.mjs` (the registry, scan → fix → rescan,
 the report), `apps/repair-app.mjs`, the settings menu and the macro, and every
-shipped check a create-and-destroy fixture can reach. `lib.strandedCoin`, and
-the rows `lib.mergeResidue` lists for a document of a removed sub-type, need a
-document the world cannot load, which no fixture here can make. Walk them only
-in a scratch world, and otherwise report them as not exercised; offline,
-`tools/test-repair-checks.mjs` holds what both scans list for such a document,
-and what the residue fix writes for every kind of row, against stand-in
-collections. The rows `lib.mergeResidue` lists for documents that do load, and
-their fix, are walked in docs/TESTING.md, "The merge cleaner macro".
+shipped check a create-and-destroy fixture can reach. `lib.strandedCoin` needs
+an actor the world cannot load, which no fixture here can make. Walk it only
+in a scratch world, and otherwise report it as not exercised; offline,
+`tools/test-repair-checks.mjs` holds what its scan lists for such an actor,
+against stand-in collections.
 
 The scan reads the whole world, so a shared world shows other sessions' rows.
 **Tick only the rows that name your own fixtures.**

@@ -15,7 +15,7 @@ import {
   resetRepairChecks,
   scanCheck,
 } from "../scripts/lib/repair-logic.mjs";
-import { UNPACK_JOURNAL, arrivalOf, isPurchaseBundle, planEmbeddedUnpack, unpackStage } from "../scripts/lib/bundles-logic.mjs";
+import { UNPACK_JOURNAL, arrivalOf, planEmbeddedUnpack, unpackStage } from "../scripts/lib/bundles-logic.mjs";
 import { LIB_ID, UNPACKED_FROM, planStackMerge, stackSignature } from "../scripts/lib/storage-logic.mjs";
 
 let n = 0;
@@ -285,12 +285,6 @@ t("the provenance stamp never splits a stack, and does not travel with the goods
   assert.deepEqual(creates, []);
   assert.deepEqual(targetUpdates, [{ _id: "arrows3", "system.quantity.value": 5 }]);
   assert.equal(arrivalOf(stamped).flags[LIB_ID][UNPACKED_FROM], undefined);
-});
-
-t("a market purchase's bundle is recognised by its one row and its count", () => {
-  assert.equal(isPurchaseBundle(bundle("B1")), true);
-  assert.equal(isPurchaseBundle({ ...bundle("B1"), name: "Kit" }), false);
-  assert.equal(isPurchaseBundle({ name: "Two ×2", system: { itemList: [{ name: "Two", quantity: 2 }, { name: "More", quantity: 1 }] } }), false);
 });
 
 for (const [name, fn] of tests) {

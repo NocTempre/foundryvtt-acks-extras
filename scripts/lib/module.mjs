@@ -29,7 +29,6 @@ import * as movementScales from "./movement-scales.mjs";
 import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
-import { retainerCardsToRelease } from "./ui-preset-logic.mjs";
 import * as vocab from "./vocab.mjs";
 import * as wallGeometry from "./wall-geometry.mjs";
 import * as wallLayers from "./wall-layers.mjs";
@@ -72,7 +71,7 @@ import * as groupEncounter from "./group-encounter.mjs";
 import * as templateLogic from "./template-logic.mjs";
 import { GroupSheet } from "./apps/group-sheet.mjs";
 import { TemplateSheet } from "./apps/template-sheet.mjs";
-import { registerMountCleanup, registerMountDrop } from "./mount.mjs";
+import { registerMountDrop } from "./mount.mjs";
 import { registerStorageCleanup, registerStorageRelay, DELETE_POLICY_SETTING } from "./storage.mjs";
 import { registerGroupCleanup, registerStackDrop } from "./group.mjs";
 import { registerEncounterTokens } from "./group-encounter.mjs";
@@ -141,9 +140,6 @@ export { ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE };
  */
 const FOLLOWER_TYPES = new Set([vocab.ACTOR_TYPE.character, vocab.ACTOR_TYPE.monster]);
 const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
-
-/** The world setting recording that the cards once set on hire were released. */
-const CARD_RELEASE_SETTING = "retainerCardsReleased";
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
@@ -493,7 +489,6 @@ Hooks.once("init", () => {
   installTokenLightPaddingPatch();
   installSpellUsePatch();
 
-  registerMountCleanup();
   registerMountDrop();
   attachment.registerAttachmentIndex();
   registerStorageCleanup();
@@ -539,14 +534,6 @@ Hooks.once("init", () => {
     icon: "fa-solid fa-table-cells",
     type: StatusPaletteMenu,
     restricted: true,
-  });
-
-  // Read by the ready sweep below, which releases the cards once and sets it.
-  game.settings.register(MODULE_ID, CARD_RELEASE_SETTING, {
-    scope: "world",
-    config: false,
-    type: Boolean,
-    default: false,
   });
 
   // Warm the Follower Card template so the hirelings-tab grid (rendered by
@@ -1035,39 +1022,6 @@ Hooks.once("ready", () => {
     label: "ACKS-LIB.sheet.follower",
   });
   console.log(`${MODULE_ID} | FollowerCardSheet registered (character; default for monster).`);
-
-  // Two one-time sweeps, in the window that automates.
-  primaryGMSettled()
-    .then((primary) => {
-      if (!primary) return;
-      // A world's OWN former default migrates (see docs/lib/DECISIONS.md, "The
-      // monster type default migrates its own former pin, once (2026-09-22)").
-      // Rewrites only the one exact string this module's own past
-      // registration wrote.
-      const stored = game.settings.get("core", "sheetClasses") ?? {};
-      if (stored?.Actor?.monster === `${MODULE_ID}.FullMonsterSheet`) {
-        const next = foundry.utils.deepClone(stored);
-        next.Actor.monster = FOLLOWER_SHEET_KEY;
-        game.settings
-          .set("core", "sheetClasses", next)
-          .then(() => console.log(`${MODULE_ID} | monsters now open on the Follower Card; expand for the full block.`))
-          .catch((err) => console.error(`${MODULE_ID} | monster landing-sheet migration failed`, err));
-      }
-
-      // The cards this module once set on every hire are released, once, so a
-      // serving hireling opens on its type's sheet (docs/lib/DECISIONS.md, "A
-      // hireling opens on its type's sheet; the card is picked (2026-10-22)").
-      // Only once: a card on a hireling after this run is someone's pick.
-      if (game.settings.get(MODULE_ID, CARD_RELEASE_SETTING)) return;
-      const ids = retainerCardsToRelease(game.actors, FOLLOWER_TYPES, FOLLOWER_SHEET_KEY);
-      const unset = foundry.data.operators.ForcedDeletion.create();
-      const updates = ids.map((_id) => ({ _id, flags: { core: { sheetClass: unset } } }));
-      (updates.length ? Actor.updateDocuments(updates) : Promise.resolve())
-        .then(() => game.settings.set(MODULE_ID, CARD_RELEASE_SETTING, true))
-        .then(() => ids.length && console.log(`${MODULE_ID} | ${ids.length} hireling(s) released from the Follower Card to their type's sheet.`))
-        .catch((err) => console.error(`${MODULE_ID} | releasing hirelings from the Follower Card failed`, err));
-    })
-    .catch((err) => console.error(`${MODULE_ID} | the ready-time sheet sweeps failed`, err));
 });
 
 /* -------------------------------------------- */

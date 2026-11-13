@@ -59,8 +59,7 @@ verification, not as drive-by edits:
   an actor the Judge picks, with the fixed keys kept in a hidden
   `repairLedger` world setting so that a rescan cannot mint the coin twice
   (the unloadable actor cannot record that it was emptied), and a per-check
-  forget. Until then `lib.mergeResidue`'s fix deletes such an actor with its
-  coin, and its row says so before the tick.
+  forget.
 - **Vaults and stored goods whose owner is gone.** `location.orphanVaults`
   points at the place's Storage tab. A fix that moves them to an actor the
   Judge picks is the same picker the coin fix wants.

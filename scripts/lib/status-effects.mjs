@@ -22,7 +22,7 @@ import { expectTables } from "./tables.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { getMonsterExtras } from "./senses.mjs";
-import { STATUS_HIDDEN, STATUS_RUNNING } from "./perception.mjs";
+import { STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import {
@@ -51,10 +51,9 @@ const STATES = Object.freeze([
 
 /**
  * Status ids other packages wrote, each with the condition it stood for:
- * Foundry's generic list, and this module's earlier id for Hidden.
+ * Foundry's generic list.
  */
 const LEGACY_STATUS_IDS = Object.freeze({
-  [`${MODULE_ID}.hiding`]: STATUS_HIDDEN,
   blind: "blinded",
   deaf: "deafened",
   fear: "frightened",
