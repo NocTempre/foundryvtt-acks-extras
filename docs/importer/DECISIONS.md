@@ -9628,7 +9628,7 @@ Prune Abilities removes such abilities, after listing them; on any other shelf
 they stay until a Judge deletes them. The picker's refusal now runs under
 repair as well, where it changes nothing while every loaded book is offered.
 
-## 2026-11-10 — The books statted for OSE are switched off, and their code kept
+## 2026-11-10 — The books statted for OSE are switched off, and their code kept — SUPERSEDED IN PART 2026-11-13 (the code kept, the switch and the suspension: "The books statted for OSE leave `main` for a parked branch")
 
 **Ruled by the owner.** The non-ACKS books are deactivated "for now": the
 code stays, and the module stops shipping them, allowing their import,
@@ -9666,7 +9666,7 @@ code reaches shared importer files at a dozen points (the import module's
 settings, API and dialogs; the cookbook's source labels and refill run; the
 place binding), so it cannot leave the zip until those are untangled.
 
-## 2026-11-10 — Book-specific code lives in a silo, and a gate keeps it there
+## 2026-11-10 — Book-specific code lives in a silo, and a gate keeps it there — SUPERSEDED IN PART 2026-11-13 (the `ose` silo's members: "The books statted for OSE leave `main` for a parked branch")
 
 **Ruled by the owner.** "Let this be a lesson learned to keep specific book
 content silo'd in the code base for proper hygiene." The OSE-statted books are
@@ -10057,3 +10057,37 @@ documents (a reversal of its contract, so a new behaviour); driving
 *Cost:* a bestiary repair refills every held creature of it, minutes where a
 shelf repair took seconds. Repair everything's book rows gain the bestiary's,
 the rules' and the Judge's book's own-rows lines.
+
+## 2026-11-13 — The books statted for OSE leave `main` for a parked branch
+
+**Ruled by the owner** (2026-11-12, for the Public Beta release): "Git
+branches will return as development tool." The OSE-statted books live on a
+parked git branch and leave `main`. Asked whether that branch is pushed, the
+owner answered "Yes, push it once".
+
+**New evidence for superseding an entry under seven days old.** The
+2026-11-10 ruling kept the code on `main` behind a switch because the owner
+wanted the decision reversible, and a branch was not then a tool this family
+used. The 2026-11-12 ruling brought branches back, and a parked branch keeps
+the decision reversible without the code shipping: `parked/ose` holds
+`main` as it stood with the eleven books, their cookbooks, registers, kinds,
+converter, Source tool, suites and recipes, and restoring them is a merge of
+that branch.
+
+**Ruled.** The eleven books' `REGISTRY` rows, `OSE_BOOKS_ACTIVE` and every
+file and line written only for them leave `main`. What stays is what a
+world that imported them still carries and what other books use: the
+adventure place's `ose` flag and the `kind.oseAdventure` stamp, and the
+System Compatibility Guide's row, register and constants (the owner: "Keep it
+listed"), inert. `BOOKS` stays a copy of `REGISTRY`, so a book can still be
+withdrawn from what is offered. The silo gate stays on its one declared silo,
+with no members and an empty baseline, so an `ose` id or kind cannot creep
+back into `scripts/`.
+
+**Rejected:** keeping the switch, because code that never runs still ships in
+a public zip and still has to pass every gate.
+
+*Cost:* a world that imported one of these books keeps what it made, and
+nothing on `main` can import, rebuild or convert it again. The monster
+sheet's Source tool goes with the converter. `UNLINED_LINE` stays exported,
+because the docs site reads it, while no book routes to that shelf.

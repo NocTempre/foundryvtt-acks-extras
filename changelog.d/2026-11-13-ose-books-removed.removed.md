@@ -1,0 +1,1 @@
+- **The eleven books statted for Old-School Essentials are no longer offered or imported**, and the monster sheet's Source tool goes with them. What a world already imported from them stays where it is. The System Compatibility Guide is still listed in Settings tab → Game Settings → ACKS II — Extras → Manage imports.
