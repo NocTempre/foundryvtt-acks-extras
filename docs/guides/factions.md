@@ -128,8 +128,8 @@ them as ever.
 
 **It sets the hunt.** A **Wanted** row marks its subject hunted in every
 quarter the organisation controls. When the party enters the city inside one,
-or crosses into one, the settlement board's **Hunted here** ticks itself and
-names who is hunting; the district's hunted table then answers in place of its
+or crosses into one, the party sheet's **Hunted here** ticks itself on the City tab
+([in the city](formation.md#in-the-city)) and names who is hunting; the district's hunted table then answers in place of its
 ordinary one. Untick it and your word stands for as long as the party stays in
 that quarter: the ledger is asked again only when they cross into another or
 come back to the city.
@@ -139,18 +139,18 @@ lists the rolling character as a member, the roller says **Legal authority
 here** and names it. The note adds nothing. Whether authority applies to this
 conversation is still the tick on the dialog.
 
-**It can move a market, if you want it to.** **Settings tab → Game Settings → ACKS
-II — Extras → Standing per market step** is 0 by default, which leaves hiring untouched. Set it to a number and
-that much standing, held by the organisations seated at or holding a market's
-place (or a place it is inside) or controlling its quarter, moves that market one class
-for that recruiter: larger for goodwill, smaller for ill will. The town's own
+**It can move a market, if you want it to.** **Settings tab → Game Settings →
+ACKS II — Extras → Standing per market step** is 0 by default, which leaves
+hiring untouched. Set it to a number and that much standing, held by the
+organisations seated at or holding a market's place (or a place it is inside) or
+controlling its quarter, moves that market one class for that recruiter: larger for goodwill, smaller for ill will. The town's own
 monthly pool is never moved, only what this recruiter finds in it.
 
 ## Status
 
 The reaction roller's social status row fills itself with how many ranks the
 speaker stands above the target, when both have a rank. A rank comes from the
-domains module if it is installed, or from an item on the actor named like
+separate `acks-domains` module if it is installed, or from an item on the actor named like
 `Rank: 2 (Harbourmaster)` — the number is the rank and is yours to set, the
 words in brackets are the title. Nobody ranked, nothing filled.
 

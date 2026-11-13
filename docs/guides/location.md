@@ -16,7 +16,7 @@ A new place opens on the **Contents** tab with nothing but a name. That is the
 whole of the minimum: identity, and what it sits inside.
 
 - **Parent** — the place this one is in. Set it and a breadcrumb appears
-  (Duchy of Harrowmere › Rusty Anchor › cellar).
+  (Duchy › Inn › cellar).
 - **Stack count** — for eight identical warehouse bays, keep one actor and set
   the count to 8. Split one off when it becomes interesting.
 - **Roster** — the living things kept here: a garrison, a stabled horse, a
@@ -43,8 +43,9 @@ locations** clears empty places at world start.
 *A place's private record, beside the shared one and readable only by the
 Judge.*
 
-If the place is a map you already have, link it: **Scene config → Location**, or
-right-click the scene in the sidebar. The link is never made automatically —
+If the place is a map you already have, link it: **Scene config → Place**, or
+right-click the scene in the Scenes sidebar → **Create Place for Scene** (or
+**Open Place**, once it is linked). The link is never made automatically —
 most scenes are battle maps and lighting tests, and forty auto-created actors on
 first load is not a favour.
 
@@ -56,17 +57,19 @@ district's sheet.
 
 ## Mark a place's role
 
-Some places have a **Role** — today, marking one as a gate. Pick it on the
-identity line under **Role**. The Judge sees the picker; players see a tag
-instead. The points-of-interest step of a settlement import marks a book's
-gates for you, on a fresh import and on places a world already holds. Nothing
-reads the marking yet; the gate action that will is a future release.
+A place can have a **Role**; **City gate** is the one offered. Pick it
+on the **Contents** tab, on the line with **Region**. The Judge sees the
+picker; players see a tag instead. The points-of-interest step of a settlement
+import marks a book's gates for you. The marking is recorded; nothing in the
+module acts on it.
 
 ![](../releases/v9.7.0/location-role.png)
 
 ## Store goods there
 
-Drag an item onto the sheet's **Storage** tab, or use **Deposit here**.
+Drag an item onto the place's sheet, or press **Leave something here** — on the
+**Storage** tab of the place's sheet (the Judge's seat) or of your own
+character's sheet.
 
 **Drag it from a character's sheet, not from the Items sidebar.** Goods are
 filed under whose they are, and an item in the sidebar or a compendium belongs
@@ -76,8 +79,8 @@ a character first (or to the party's pack mule) and stow it from there.
 
 Goods are grouped by **whose they are**, because a warehouse holding three
 characters' gear is three inventories in one actor, not a shared pile. Each
-character sees a **Retrieve** button on their own rows; the GM sees it on all of
-them. A player does not have to own the place to leave goods there or take
+character sees a **Take it back** button on their own rows; the GM sees it on
+all of them. A player does not have to own the place to leave goods there or take
 their own back.
 
 ![](../releases/v11.1.0/location-storage-player.png)
@@ -136,10 +139,11 @@ pouch, or pick it in **Deposit here**. To leave part of a purse, divide the
 stack first ([the character sheet](character-sheet.md#coin-and-stacks)) and
 stow the pile.
 
-There is no **bank** column any more, on any sheet. Coin that is safe is coin
-kept at a place. A balance an older world still holds there is moved out when
-the world next loads: a character's into their vault, and anyone else's (a
-monster, a hired unit, a token) into the coin they carry.
+Coin that is safe is coin kept at a place; the module shows no **bank** column
+on any sheet. The system's money rows carry a bank figure of their own, and any
+balance found there is moved out when the world loads: a character's into their
+vault, and anyone else's (a monster, a hired unit, a token) into the coin they
+carry.
 
 ## Paying with coin kept elsewhere
 
@@ -148,8 +152,8 @@ stores in the order your sheet states
 ([where coin is paid from](character-sheet.md#where-coin-is-paid-from-and-where-it-lands)),
 and coin that arrives can be sent to a place keeping coin for you.
 
-How far that reaches is the Judge's, in **Game Settings → ACKS II — Extras → Paying
-with coin kept elsewhere**. It answers for every payment that does not itself say
+How far that reaches is the Judge's, in **Settings tab → Game Settings → ACKS II —
+Extras → Paying with coin kept elsewhere**. It answers for every payment that does not itself say
 where it happens — a wage, a bribe, a fee:
 
 - **All of it, wherever it is kept** — the default. A vault three days' ride
@@ -213,26 +217,27 @@ something NEW that asks where you are standing.
 ## Give a character a vault
 
 A vault is a place of one character's own: only they and their players can reach
-it. You are given one automatically the first time a banked balance is swept out
-of the retired bank column, or an estate is settled on you.
+it. One is made automatically the first time a balance is moved out of the
+system's bank figure (above), or an estate is settled on the character.
 
-That sweep only visits a character who still has a balance to move, so a vault
-that is **deleted does not come back on its own** — by then there is nothing left
-to sweep. **Give a character a vault**, in the Storage Manager (Game Settings →
-ACKS II — Extras → Storage manager), makes one on demand.
+A vault that is **deleted does not come back on its own**. **Give a character a
+vault**, in the Storage manager (Settings tab → Game Settings → ACKS II —
+Extras → Storage manager → **Open Storage Manager**), makes one on demand.
 
-This is not the same as **Let an actor hold goods**, which makes a *shared*
+This is not the same as the manager's **Add a place**, which makes a *shared*
 place — a wagon, a stronghold, an inn — that anyone with access can reach.
 
 ## Add a market
 
-Most places have no market. **Add market**, on the place sheet's **GM Settings**
-tab, creates one, and four extra tabs appear.
+Most places have no market. **Add a market**, in the place sheet's header or on
+its **GM Settings** tab, creates one, and six extra tabs appear: **Recruitment**,
+**Henchmen**, **Mercenaries**, **Specialists**, **Trade** and **Ventures**.
 
-Removing a market removes the data with it, not just the tabs.
+**Remove the market**, on the same GM Settings tab, removes the data with it,
+not just the tabs.
 
-A market can disagree with the book about who is common here. Under **GM
-Settings**, the rarity overrides take a class and a tier, one row each: a
+A market can disagree with the book about who is common here. On the **GM
+Settings** tab, **Class rarity here** takes a class and a tier, one row each: a
 directed search for that class then rolls on the tier you picked, whatever the
 rarity table says. A university town where mages are easy to find is one row.
 
@@ -256,7 +261,8 @@ Who holds the town can matter too: see
 
 ## Macros
 
-The *ACKS Extras* macro compendium carries four storage macros.
+The **ACKS Extras Macros** compendium (Compendium Packs sidebar tab) carries
+four storage macros.
 
 - **Open Storage Manager** opens the storage manager (GM only): every place
   that holds goods, whose the goods are, and the controls to move them.
@@ -268,8 +274,9 @@ The *ACKS Extras* macro compendium carries four storage macros.
 
 ## Common problems
 
-**The market tabs aren't there.** The place has no market. Add one from the
-place sheet's GM Settings tab — they are opt-in per place.
+**The market tabs aren't there.** The place has no market. Press **Add a
+market** in the place sheet's header or on its GM Settings tab — they are opt-in
+per place.
 
 **A roster row is struck through.** Its actor was deleted. The row stays so you
 can act on it; remove it when you have.
@@ -277,13 +284,13 @@ can act on it; remove it when you have.
 **The breadcrumb stops short.** A parent points at a place you cannot see, or
 one in an unloaded compendium. The chain renders as far as it resolves.
 
-**Retrieve isn't offered.** The goods are attributed to a character you do not
-own. A GM can reassign attribution in the **Storage Manager** (Game Settings →
-ACKS II — Extras → Storage manager).
+**Taking goods back isn't offered.** The goods are attributed to a character you
+do not own. A GM can reassign attribution in the **Storage manager** (Settings
+tab → Game Settings → ACKS II — Extras → Storage manager → **Reassign owner**).
 
-**"Nothing was moved."** The stack you picked is empty. A balance still in the
-retired bank column is not coin anyone carries — it is moved out at the next
-world load, a character's into their vault.
+**"Nothing was moved."** The stack you picked is empty. A balance in the system's
+bank figure is not coin anyone carries — it is moved out at the next world
+load, a character's into their vault.
 
 **"… carries no goods, so nothing can be handed to it."** The sheet you dropped
 something on lists no goods — an organisation, a party, or a hired unit for
@@ -299,17 +306,8 @@ with whoever held it.*
 touches a place your seat cannot write to, and the Judge's seat carries those
 out. Nothing was taken; try again once the Judge is connected.
 
-**My character has no vault any more.** Deleting one does not regenerate it. A GM
-makes a new one with **Storage Manager → Give a character a vault**.
+**My character has no vault.** Deleting one does not regenerate it. A GM makes a
+new one with **Storage manager → Give a character a vault**.
 
-**My character has become a warehouse.** Something turned storage on for them —
-most likely the **Enable Storage Here** macro run with their token selected. Open
-**Storage Manager**, pick them in the list, and use **Stop holding goods**; the
-Disable Storage Here macro does the same for a selected token. If anything is
-stored on them, return it to its owners first — the button is on that same
-screen. Clearing the flag moves nothing, so goods left behind would sit on an
-actor that no longer appears as a place to anyone.
-
-A character can no longer be made a place by accident: the macro refuses one and
-points at **Give a character a vault**, which is the thing you almost certainly
-wanted. A place is somewhere goods are left; a character is who leaves them.
+A character is who leaves goods, not a place: **Enable Storage Here** refuses a
+character and points at the vault instead.

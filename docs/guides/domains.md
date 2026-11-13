@@ -8,7 +8,7 @@ folder.
 
 This is the **record**. Every figure on it is one you or an imported adventure
 enters; the module adds them up and says where something is missing, and
-works nothing out from the rules yet. A line you have not filled in is
+works nothing out from the rules. A line you have not filled in is
 **unset**, not zero, and every total that leaves one out says so.
 
 ## Make a domain
@@ -90,8 +90,8 @@ domain lists it, and the place's own sheet names the domain.
   refused, with that domain's name — release it there first.
 - **Hidden** keeps a holding off the sheet for players. A place that has been deleted stays on
   the list, marked, until you remove the row.
-- A held place is never removed by the empty-place cleanup, even when nothing
-  is kept in it.
+- A held place is never removed by **Clean up empty locations** (Settings tab →
+  Game Settings → ACKS II — Extras), even when nothing is kept in it.
 
 **Stronghold** lists the structures: count, AC, unit capacity, SHP and the
 row's whole cost. Their costs add up to the stronghold value.
@@ -110,7 +110,7 @@ this domain pays its liege; a domain with no liege owes nothing.
 
 When a line is blank, or a rate meets families nobody has counted, the totals
 count only what is set and say how many lines they left out. The
-**Treasury** row stays empty for now.
+**Treasury** row stays empty: the domain keeps no treasury.
 
 ## Realm
 
@@ -136,8 +136,7 @@ a place, or set a liege, from the domain's own sheet.
 
 **Notes** are the domain's own; **Judge's notes** are for you alone.
 
-## Coming next
+## What the record does not work out
 
-The rules: the standard revenue and expense figures, morale, the treasury, the
-month's turn and territory painted on the map. Each arrives without changing
-what you have entered.
+The standard revenue and expense figures, morale, the treasury and the month's
+turn are not computed: each is a figure you or an imported adventure enters.

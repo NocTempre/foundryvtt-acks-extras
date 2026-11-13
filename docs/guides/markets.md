@@ -14,19 +14,23 @@ cost, its availability and its buy and order controls.*
 
 ## Setup
 
-1. Import the rules tables from your books via **the importer** (Getting
-   Started, or Reimport One Shelf → Rules tables): equipment availability,
+1. Import the rules tables from your books via **the importer** (Settings tab →
+   Game Settings → ACKS II — Extras → **Manage imports**, or the **Import
+   Everything (GM)** and **Reimport One Shelf (GM)** macros → Rules tables, in
+   the **ACKS Extras Macros** compendium): equipment availability,
    market characteristics, magic-item transactions, wages and construction,
    and the market chapter's prose figures. Every number the market applies is
    read from these; an action whose table is missing refuses and names it.
    A table the extractor could not fill completely is reported at import and
    shows as incomplete rather than as "unavailable".
 2. Import **merchandise** (the same step): each trade good becomes a
-   Merchandise Item in the cookbook compendium. A world Item of the same key
+   Merchandise Item in a compendium the importer makes. A world Item of the same key
    overrides it, and a good you make yourself joins every roll and window.
-3. Give a location a market (its market class derives from urban families,
-   or set the override). The location sheet grows a **Trade** tab for the
-   shop and a **Ventures** tab for mercantile ventures.
+3. Give a location a market: **Add a market** in the place sheet's header
+   ([Add a market](location.md#add-a-market)); its market class derives from
+   urban families, or set the override on the GM Settings tab. The location
+   sheet grows a **Trade** tab for the shop and a **Ventures** tab for
+   mercantile ventures.
 4. Optional: **Settings tab → Game Settings → ACKS II — Extras → Market
    parties → Configure parties** if more than one group trades separately;
    otherwise the whole table is one party.
@@ -66,7 +70,7 @@ it was listed from, even where another source holds one of the same name.
 Sell offers your own priced goods at their condition-reduced value; sold
 goods leave play.
 
-A **search day** (button on the toolbar) spends another dedicated day
+A **search day** (**Spend a search day**, on the Trade tab's toolbar) spends another dedicated day
 looking: your party's caps rise by one base increment and scarce goods get
 a fresh look.
 
@@ -149,12 +153,10 @@ coin moves only when both sides of it do.
 The equipment sheet's Construction tab carries the magic panel: the GM
 marks an item magical with its kind, rarity, apparent value, and base cost.
 
-Unidentified items trade at apparent value. Identification runs the JJ
-ladder (JJ 130) through any qualified character or henchman; failures wait
-for a level. Fully identified items sell at base cost (more for their
-maker) and buy at the Tower's premium (JJ 131). Availability and the
-purchase preview band a magic item on the magic grid, never the equipment
-one. A magic item sold to a market stays on its shelf — a **held** row on
+Unidentified items trade at apparent value. Identification (JJ 130) runs
+through any qualified character or henchman; what a fully identified item sells
+and buys for is the book's (JJ 131). Availability and the purchase preview band
+a magic item on the magic grid, never the equipment one. A magic item sold to a market stays on its shelf — a **held** row on
 the Trade tab — and can be bought back.
 
 ## Merchandise
@@ -285,13 +287,13 @@ resolve as game time passes:
      pay it when you leave, for every day you stayed, the day you arrived
      and the day you leave both included. A stay still running when the
      month ends is charged then, to the day the month ends. Sneaking in does
-     not escape it; the character who rules the domain stays free. After
-     upgrading, re-import the Mercantile rules tables so the rates arrive:
-     until then an entry with anything to stable is refused.
+     not escape it; the character who rules the domain stays free. The rates
+     arrive with the Mercantile rules tables: until they are imported an entry
+     with anything to stable is refused.
    - **Judge's options.** The Judge may have the tariff thrown at each entry
-     (the **Randomize the market tariff** setting); the dialog then shows
-     the span it can come to. After upgrading, re-import the Rules tables
-     so the dice arrive. The module charges nothing the book does not. A
+     (Settings tab → Game Settings → ACKS II — Extras → **Randomize the market
+     tariff**); the dialog then shows the span it can come to. The dice arrive
+     with the Rules tables. The module charges nothing the book does not. A
      Judge who wants more, such as a bribe at the gate or a guild fee, adds
      it with a world script on the `acksExtras.marketGateQuote` hook (see
      below).

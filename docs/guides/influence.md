@@ -31,8 +31,10 @@ it, the line marking the risk, and the modifiers that were in force.*
 
 ## Make a roll
 
-Select a character → **Influence** (actor context menu, or the API). Pick a
-target actor if there is one, and a **tone**.
+Open a character's sheet and press the speech-bubbles button in its header,
+**Roll Influence** (on the module's sheet, the **Influence** entry on the rail),
+or run the **Influence Roller** macro ([Macros](#macros)). Pick a target actor
+if there is one, and a **tone**.
 
 The dialog fills in what it can detect: alignment relationship, level gap, age,
 relevant proficiencies. Everything else defaults to neutral — `false` for
@@ -50,8 +52,8 @@ for you.
 
 **The Diplomacy, Intimidation and Seduction pages show your book's figures.**
 Each row's figure is read from your Judges Journal when you import the rules
-tables (Settings tab → Game Settings → ACKS II — Extras → Manage imports →
-Import tab); hover a row's name to see the page it came from. A row whose
+tables (Settings tab → Game Settings → ACKS II — Extras → **Manage imports** →
+**Import** tab); hover a row's name to see the page it came from. A row whose
 figure has not been imported is greyed out with a badge saying so, adds
 nothing to the roll, and a notice above the rows says the page is waiting on
 its import ([importing from your books](importer.md)).
@@ -146,16 +148,16 @@ Game Settings → ACKS II — Extras → Morale rolls open the modifier page**.
 
 ## Badged rows
 
-A row marked **unaudited** (amber, not red) is a mechanic that has not been read
-against the printed page. It is probably right and is genuinely offered — it is
-just not asserted as the book's ruling. Treat it as a suggestion until you have
-checked it.
+A row with the warning triangle (**Unverified** on hover) is a mechanic the
+importer classified automatically from your book's text, not one checked against
+the page. It is offered unticked. Treat it as a suggestion until you have
+checked it against the page.
 
 ## Macros
 
-**Influence Roller**, in the *ACKS Extras* macro compendium, opens the roller
-on the selected token's actor, or on your own character when nothing is
-selected.
+**Influence Roller**, in the **ACKS Extras Macros** compendium (Compendium
+Packs sidebar tab), opens the roller on the selected token's actor, or on your
+own character when nothing is selected.
 
 ## Common problems
 

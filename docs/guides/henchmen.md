@@ -10,40 +10,49 @@ found.
 
 ## Post a search
 
-Open a location with a market → **Recruitment** tab → **New posting**.
+Open a location's sheet (Actors sidebar → the place) → **Recruitment** tab →
+**New Posting**. The tab is there once the place has a market
+([Add a market](location.md#add-a-market)). The **Post Recruitment Notice**
+window opens; **Post & Roll Availability** sends it.
 
-Choose what you are looking for:
+Choose what you are looking for under **Searching for**:
 
-- **Adventuring henchmen** — the general post; covers the whole henchman market.
-- **By level** — 0th to 4th. Capped by your character's level (RR 168).
-- **By class**, optionally at a level — a directed search (JJ 118).
-- **By proficiency**, optionally with a class — also directed.
-- **Mercenaries** / **Specialists** — by troop or specialist type.
+- **Adventuring henchmen (general)** — the general post; covers the whole
+  henchman market.
+- **Henchmen by level** — offered to the Judge only; the level is capped by
+  the employer's (RR 168).
+- **Henchman of a specific class**, optionally at a level — a directed search
+  (JJ 118).
+- **Henchman with a proficiency** and **Recruit: by class proficiency** —
+  also directed; the second adds a class.
+- **Mercenaries** / **Specialist** — by troop or specialist type.
 
-Set the employer, and the **presented level** if your character is passing
-themselves off as more important than they are. That is a real option with a
-real cost: if it is discovered later, the loyalty throw takes −1 per level of
-difference.
+Set the **Hiring character**, and the **presented level** if your character is
+passing themselves off as more important than they are. A henchman hired from
+the posting keeps the presented level on their record, and the loyalty roll
+weighs it against the true level (RR 168).
 
 **A mercantile network searches wider.** An employer holding the Mercantile
-Network power is offered **Search with the mercantile network** on the
-posting, ticked where the market counts as one the holder has visited before
-(RR ch. 2, Mercantile Network). The search fee is the larger market's, and a
+Network power is offered **Search with the mercantile network** in the
+window, ticked where the market is one the holder has visited before
+(RR ch. 2, Mercantile Network); the note under it says which. The search fee is the larger market's, and a
 general posting adds whoever a search at the larger class finds beyond the
 town's pool; those candidates are the holder's alone to see and to hire.
 
 ![](../releases/v11.4.0/henchmen-network-posting.png)
 
-**No GM needs to be online.** A location defaults to OWNER, so players can post,
-process and hire on their own.
+**No GM needs to be online.** A location's ownership defaults to OWNER, so
+players can post, process and hire on their own. A seat that cannot write to the
+place hands its posting to the Judge's seat instead.
 
 ## Let time pass
 
 Availability belongs to the town, not to you (RR 162): a market rolls a monthly
 pool and candidates arrive across weeks 1, 2 and 3.
 
-Advance the world clock, or press **Process now** — it is idempotent, so
-pressing it twice costs nothing.
+Advance the world clock, or press **Process time** in the location sheet's
+header — it is idempotent, so pressing it twice costs nothing. The Judge's
+**Advance 1 week** beside it moves the clock itself.
 
 **Directed searches behave differently.** A directed result is available
 immediately, for the whole month, and is private to the recruiter. It appears in
@@ -51,7 +60,9 @@ the Recruitment tab's directed bucket, not the shared walk-in tabs.
 
 ## Hire someone
 
-**Henchmen** tab → **Recruit** on a candidate.
+Location sheet → **Henchmen** tab (or **Mercenaries** or **Specialists**) → the
+handshake on a candidate's row, **Attempt to recruit (Reaction to Hiring
+Offer)**.
 
 The throw dialog shows every modifier that applies, with the situational ones as
 toggles so you decide what is really in play. Roll, and on success the candidate
@@ -87,10 +98,11 @@ hundreds of them, and creating hundreds of actors would be unusable.
 
 ## Keep a retinue
 
-**Roster** (from the character sheet, or the actor's context menu) shows every
-hireling with its loyalty, morale and wage standing, filtered by kind, under
-the henchman limit and the month's wage bill. Drop a character on it to take
-them into service.
+**Roster** shows every hireling with its loyalty, morale and wage standing,
+filtered by kind, under the henchman limit and the month's wage bill. Drop a
+character on it to take them into service. Open it from an employer's sheet: on
+the module's sheet, the **Roster** chip on the **Followers** tab; on the
+system's sheet, the people icon in the window header.
 
 ![](../releases/v11.9.0/henchmen-roster.png)
 
@@ -156,16 +168,17 @@ value the importer located on each power's page, or an Active Effect the Judge
 gives the power; the module supplies no figure for a power it knows only by
 name. A power held with no value is named where it would apply: on the roster,
 in the henchman-limit refusal, and on the hiring and obedience pages.
-Characters holding powers imported before 11.4.0 refresh them with **Update
-Abilities** at the top of the Items sidebar, with the books open.
+The Judge's **Update Abilities** button, at the top of the Items sidebar,
+refreshes every ability in the world, the copies on characters included,
+against the current import.
 
 ![](../releases/v11.9.0/henchmen-powers-values.png)
 
 **The limit starts from your book's figure and the employer's Charisma, or
-not at all.** The base arrives with the Rules tables. A world that imported
-them before 11.8.0 runs **Rules tables** in **Reimport One Shelf** (ACKS Extras
-Macros) once; until then no limit is counted, and the roster's tooltip says
-so. An employer with no Charisma score, such as a monster leading henchmen,
+not at all.** The base arrives with the Rules tables, imported in Getting
+Started or by **Rules tables** in the **Reimport One Shelf (GM)** macro (*ACKS
+Extras Macros* compendium). Until they are imported no limit is counted, and
+the roster's tooltip says so. An employer with no Charisma score, such as a monster leading henchmen,
 shows no limit on its roster, and none is enforced on its hires.
 
 ![](../releases/v11.9.0/henchmen-limit-none.png)
@@ -199,7 +212,8 @@ the hireling's card listing the coin they hold.*
 ![](../releases/v11.12.0/henchmen-wages-due.png)
 
 *The card the Judge is whispered once for each month an employer owes, with
-Monthly wage reminders on: who is owed and the total, and the buttons that pay
+**Monthly wage reminders** on (Settings tab → Game Settings → ACKS II — Extras):
+who is owed and the total, and the buttons that pay
 the wages or mark the month missed.*
 
 ![](../releases/v10.2.0/henchmen-next-due.png)
@@ -234,8 +248,9 @@ The Judge adds permanents (a rescue, a betrayal), and can mark an entry
 
 ## Macros
 
-The *ACKS Extras* macro compendium carries five henchmen macros. Each acts on
-the selected token's actor, or on your own character when nothing is selected.
+The **ACKS Extras Macros** compendium (Compendium Packs sidebar tab) carries
+five henchmen macros. The first four act on the selected token's actor, or on
+your own character when nothing is selected.
 
 - **Loyalty Check (Selected)** rolls a loyalty check for the selected hireling,
   with its employer's modifiers, the way the retinue's own button does.
@@ -250,7 +265,8 @@ the selected token's actor, or on your own character when nothing is selected.
 
 ## Common problems
 
-**"No market at this place."** Add one from the location sheet's GM Settings tab.
+**"No market at this place."** Press **Add a market** in the location sheet's
+header, or on its GM Settings tab.
 
 **Nobody arrived.** Time has not passed, or the month's pool was rolled and came
 up empty. Check the posting's roll detail.
@@ -258,8 +274,8 @@ up empty. Check the posting's roll detail.
 **A candidate says "reserved".** They accepted with no GM online and nobody
 present could create the actor. It materializes at the next GM connect.
 
-**The level cap rejected the posting.** RR 168 caps henchman level against the
-employer's level — the level you *presented*, if you set one.
+**The level cap refused the posting.** The cap reads the employer's level, or
+the level you *presented* if you set one (RR 168).
 
 **Two actors appeared for one hire.** This should not happen; hiring is
 exactly-once even across duplicate GM sockets. If you see it, it is a bug worth
