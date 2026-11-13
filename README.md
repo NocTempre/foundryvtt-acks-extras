@@ -85,7 +85,7 @@ so a tag is enough to get that release running, with or without its zip.
    toggles are grouped by feature; the optional-rule *overlays* are all off
    unless the rule is already core.
 3. Open a character. It opens on the module's own sheet, and the system's is
-   one **Sheet Config** away. See
+   one **Configure Sheet** away. See
    [The character sheet](https://noctempre.github.io/foundryvtt-acks-extras/guides/character-sheet/).
 4. If you own the books, open the **Compendium Packs tab → ACKS II — Extras →
    Macros → ACKS Extras Macros** compendium, run **Your ACKS Books (this
@@ -119,8 +119,9 @@ recipes run against that file, in the browser, and write real world documents.
   and the rules tables the henchmen market, travel, weather and encounters run
   on; By This Axe's dwarven classes; and the adventure line's books, each as
   one Adventure.
-- **Nothing is imported twice, and everything can be removed.** Re-running an
-  import updates what the page changed, and **Delete Everything Imported (GM)**
+- **Nothing is imported twice, and everything can be removed.** An import
+  steps over what the world already holds, a repair brings an imported
+  document back in line with the page, and **Delete Everything Imported (GM)**
   takes it all back.
 
 Guide: [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
@@ -130,7 +131,7 @@ Guide: [Importing from your books](https://noctempre.github.io/foundryvtt-acks-e
 Every character opens on the module's own sheet: a band across the window
 header, the portrait between two rails, and tabs organised by what you do at
 the table. Every throw is a row, and the whole row is the button. The system's
-sheet stays one **Sheet Config** away; the two read and write the same fields.
+sheet stays one **Configure Sheet** away; the two read and write the same fields.
 
 Guide: [The character sheet](https://noctempre.github.io/foundryvtt-acks-extras/guides/character-sheet/).
 

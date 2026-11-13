@@ -12,8 +12,8 @@ found.
 
 Open a location's sheet (Actors sidebar → the place) → **Recruitment** tab →
 **New Posting**. The tab is there once the place has a market
-([Add a market](location.md#add-a-market)). The **Post Recruitment Notice**
-window opens; **Post & Roll Availability** sends it.
+([Add a market](location.md#add-a-market)). The posting window opens, titled
+with the place's name; **Post & Roll Availability** sends it.
 
 Choose what you are looking for under **Searching for**:
 
