@@ -77,3 +77,13 @@ target's standing rows. The code comment calls the re-read deliberate. Not
 built: a dialog that keeps the target it was opened for, or a Reset that
 re-fires the hook for the new one. That needs a ruling first, since the re-read
 is how a newly selected token is picked up.
+
+## 6. Result text arrives through the importer (T-0512)
+
+A roll's result shows its name and a page reference and nothing else: the
+reaction tones' attitude names, the Hireling Loyalty results, the Irrefusable
+Offer results, and the intimidation notes. Not built: a recipe that captures
+each result's printed text from the Judge's own copy, and a card that shows it
+beside the name when it is imported. Owner ruling on T-0512 ("Name now, import
+text later"). The henchmen strings that name the same
+results are the matching row in [../henchmen/ROADMAP.md](../henchmen/ROADMAP.md).

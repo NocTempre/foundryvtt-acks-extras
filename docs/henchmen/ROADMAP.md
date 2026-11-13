@@ -71,3 +71,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   officer straight onto the employer's books, where an offer through the Hire
   button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk
   rows"). The unit's heads would answer the same way before the stack is made.
+- **Result hints name the result and cite the page, and show no text
+  (T-0512).** The throw card's `outcomeHint` strings for the hiring,
+  Irrefusable Offer and Hireling Loyalty results carry the result's name and
+  its page reference only. Not built: an importer recipe that captures each
+  result's printed text from the Judge's own copy, shown beside the name when
+  imported. The influence roller's result labels are the matching row in
+  [../influence/ROADMAP.md](../influence/ROADMAP.md) §6.

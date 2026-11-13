@@ -144,7 +144,7 @@ const CATEGORIES = [
   ["flailHammerMace", "Flails, hammers &amp; maces"],
   ["swordDagger", "Swords &amp; daggers"],
   ["spearPolearm", "Spears &amp; pole arms"],
-  ["other", "Bolas, cestus, nets, saps, slings, staff-slings &amp; whips"],
+  ["other", "Other weapons"],
 ];
 const ARMOURS = [["unarmored", "None"], ["veryLight", "Very light"], ["light", "Light"], ["medium", "Medium"], ["heavy", "Heavy"]];
 

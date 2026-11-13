@@ -1324,9 +1324,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #rawNotes(tone, newIndex, diceResult) {
     const notes = [];
     if (tone === INFLUENCE_TONE.INTIMIDATION) {
-      notes.push(game.i18n.localize("ACKS-INFLUENCE.note.intimTemporary"));
-      if (newIndex === 3) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.intimidated"));
-      else if (newIndex === 4) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.overawed"));
+      const cite = TONE_PAGES[tone].cite;
+      notes.push(game.i18n.format("ACKS-INFLUENCE.note.intimTemporary", { cite }));
+      if (newIndex === 3) notes.push(game.i18n.format("ACKS-INFLUENCE.note.intimidated", { cite }));
+      else if (newIndex === 4) notes.push(game.i18n.format("ACKS-INFLUENCE.note.overawed", { cite }));
     }
     if (this.#system.bribeUnpaid) {
       notes.push(game.i18n.format("ACKS-INFLUENCE.note.bribeUnpaid", { name: this.#system.bribeUnpaid }));
@@ -1411,7 +1412,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       total,
       activeModifiers,
       outcome,
-      outcomeLabel: outcome ? game.i18n.localize(this.#mode.bandLabels[outcome] ?? outcome) : "",
+      outcomeLabel: outcome ? game.i18n.format(this.#mode.bandLabels[outcome] ?? outcome, { cite: this.#mode.cite }) : "",
       noResult: outcome ? "" : game.i18n.format("ACKS-INFLUENCE.mode.noResult", { cite: this.#mode.cite }),
       secret: !!this.#mode.secret,
     };
@@ -1524,7 +1525,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       modifier,
       total,
       activeModifiers,
-      bandLabel: band ? game.i18n.localize(INFLUENCE_BAND_LABELS[tone][band.key]) : "",
+      bandLabel: band ? game.i18n.format(INFLUENCE_BAND_LABELS[tone][band.key], { cite: TONE_PAGES[tone].cite }) : "",
       noResult: band ? "" : game.i18n.format("ACKS-INFLUENCE.tone.noResult", { cite: TONE_PAGES[tone].cite }),
       startAttitude: game.i18n.localize(labels[startIndex]),
       resultAttitude: game.i18n.localize(labels[newIndex]),
