@@ -3,7 +3,7 @@
  * just exploration pace, so a monster party member marches at its own speed
  * rather than a human default.
  *
- * Senses moved to `lib/senses.mjs`: standalone actors and token vision ask the
+ * Senses live in `lib/senses.mjs`: standalone actors and token vision ask the
  * same questions, and lib is the deepest level at which they are all true.
  */
 

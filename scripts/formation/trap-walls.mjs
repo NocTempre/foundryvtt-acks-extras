@@ -53,9 +53,9 @@ export const TRAP_FLAG = "trap";
 /**
  * A wall's trap layer, resolved, or null when it carries none.
  *
- * Every field is defaulted here rather than at each reader: a trap written by
- * an older release is missing keys the current rules consult, and a reader
- * guessing its own default is a second answer to drift from.
+ * Every field is defaulted here rather than at each reader: a stored trap may
+ * lack keys the current rules consult, and a reader guessing its own default
+ * is a second answer to drift from.
  */
 export function wallTrap(wall) {
   const f = wallLayer(wall, TRAP_FLAG);
@@ -86,11 +86,11 @@ export async function setWallTrap(wall, patch) {
 /**
  * Take the trap layer off a wall, leaving the wall itself exactly as it was.
  *
- * `restore` is honoured for walls trapped by 4.9.0, which briefly opened a wall
- * up when it was trapped. Nothing writes that key any more — a trap no longer
- * touches its wall's own properties at all — but a world that upgraded through
- * that release still holds walls carrying it, and dropping the trap has to put
- * back what was suppressed rather than leave a silent hole in a corridor.
+ * `restore` is honoured for a wall whose trap recorded what trapping it
+ * suppressed. Nothing writes that key — a trap does not touch its wall's own
+ * properties at all — but a stored trap may still carry it, and dropping the
+ * trap has to put back what was suppressed rather than leave a silent hole in
+ * a corridor.
  */
 export async function clearWallTrap(wall) {
   const restore = wallTrap(wall)?.restore;

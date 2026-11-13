@@ -19,7 +19,7 @@
  * target, marks a lone find, lists several for the Judge to pick from, and
  * tries a Land Surveying attempt when the order holds the proficiency.
  */
-import { makeLoc, gmIds } from "../lib/util.mjs";
+import { makeLoc, gmIds, escape as esc } from "../lib/util.mjs";
 import { paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { travelOf } from "./travel.mjs";
 import { expeditionMiles } from "./formation-view.mjs";
@@ -36,7 +36,6 @@ import {
 } from "./hex-stock-run.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
-const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 
 /** The three answers to "is there anything here": the stock's, or the Judge's yes or no. */
 const PRESENT_MODES = Object.freeze(["stock", "yes", "no"]);

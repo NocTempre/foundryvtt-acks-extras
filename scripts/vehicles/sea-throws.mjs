@@ -223,10 +223,3 @@ export async function tickSinkingClock(vehicleActor) {
   }
   return rounds;
 }
-
-/** A refloated hull clears its clock (the Judge healed shp above zero). */
-export async function clearSinkingClock(vehicleActor) {
-  if (vehicleActor.getFlag(MODULE_ID, SINKING_FLAG) != null) {
-    await vehicleActor.unsetFlag(MODULE_ID, SINKING_FLAG);
-  }
-}

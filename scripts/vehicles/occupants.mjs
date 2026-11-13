@@ -122,10 +122,6 @@ function isNonMotiveStation(sys, station) {
 /*  Qualifications                                                      */
 /* -------------------------------------------------------------------- */
 
-/** Rank counting is the capability module's question now; re-exported so the
- *  published vehicles surface keeps its shape. */
-export { abilityRank } from "../lib/capabilities.mjs";
-
 /**
  * Whether this actor is qualified for the seat it occupies, or null when the
  * seat asks nothing (passengers, the team, cargo, non-motive crew such as

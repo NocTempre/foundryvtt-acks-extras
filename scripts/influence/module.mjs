@@ -29,6 +29,7 @@ import { expectTables } from "../lib/tables.mjs";
 import { MORALE_ROLL_CONTRACT } from "../lib/patches/morale-roll.mjs";
 import { MORALE_DOC } from "./printed.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { signed } from "../lib/frame-model.mjs";
 
 const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 
@@ -71,14 +72,12 @@ function openInfluenceApp(actor = null, options = {}) {
   return new InfluenceApp({ actor, ...options, targetActor, modifiers }).render(true);
 }
 
-const signedFigure = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
-
 /** One conditions entry as the wording of its row. */
 function conditionLabel(entry) {
   return game.i18n.format(`ACKS-INFLUENCE.condition.${entry.kind}`, {
     condition: game.i18n.localize(conditionNameKey(entry.condition)),
     when: entry.when ? game.i18n.localize(`ACKS-LIB.conditionRoll.when.${entry.when}`) : "",
-    figure: entry.value == null ? "" : signedFigure(entry.value),
+    figure: entry.value == null ? "" : signed(entry.value),
   });
 }
 

@@ -1,11 +1,10 @@
 /**
  * The GM's one-click import chain, and the per-seat first-run flag.
  *
- * This used to own a dialog of its own — a walkthrough that opened on join and
- * carried its own "Connect a book…" button beside the Books tab's. The
- * walkthrough is now the first band of the import manager's Books tab (module.mjs), so what
- * is left here is the part that was never about presentation: WHICH importers
- * run, in WHAT order, and how a failure in one is kept from silencing the rest.
+ * The walkthrough is the first band of the import manager's Books tab
+ * (module.mjs); this file holds the part that is not presentation: WHICH
+ * importers run, in WHAT order, and how a failure in one is kept from silencing
+ * the rest.
  *
  * All work happens through the importer's own api (acksExtras.importer), the
  * same surface the shipped macro uses — this file adds no import machinery,
@@ -51,8 +50,8 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  *                   link can only be made once 4 has run;
  *  6. journals + roll tables — reference the creatures imported in 4;
  *  7. rules tables — they warn by themselves if the provider is absent;
- *  8. placeholders — book text an earlier version left as a tag, wherever a
- *                   copy carried it, read from the books this seat has open;
+ *  8. placeholders — book text held as an `@PdfText` tag, wherever a copy
+ *                   carried it, read from the books this seat has open;
  *  9. adventures  — each open adventure book as one Adventure on its line's
  *                   shelf, carrying what every step above made of it.
  *
@@ -100,9 +99,8 @@ export const GM_STEPS = [
   ["stepClasses", (api) => api.importClasses()],
   // Template packages resolve their gear against the equipment imported above
   // and their rows against the classes just landed — so they follow both.
-  // Also the upgrade path for a world whose classes were imported before
-  // packages existed (importClasses skips classes already present, so it
-  // alone never revisits them).
+  // It also reaches classes a world already holds (importClasses skips classes
+  // already present, so it alone never revisits them).
   ["stepTemplatePackages", (api) => api.importTemplatePackages()],
   ["stepMonsters", (api) => api.cookbookImportMonsters()],
   ["stepCompanions", (api) => api.cookbookFillCompanions()],

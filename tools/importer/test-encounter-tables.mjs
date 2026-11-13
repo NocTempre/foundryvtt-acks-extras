@@ -18,12 +18,12 @@ import {
   parseSettledShares,
   parseSizeEdges,
   parseSubstitutionBands,
-  parseTarget,
   repairName,
   sentenceCell,
   signedCell,
   treasureLetters,
 } from "../../scripts/importer/encounters-binding.mjs";
+import { parseTargetPlus } from "../../scripts/importer/binding-parse.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -41,7 +41,7 @@ check("parentheticals stay lowercase", repairName("camel (single-humped)") === "
 check("an empty cell is null", repairName(" - ") === null);
 check("a distance cell splits three ways",
   JSON.stringify(parseDistanceCell("3d8 × 15’ (203’)")) === JSON.stringify({ dice: "3d8", mult: 15, avg: 203 }));
-check("a throw target parses", parseTarget("11+") === 11);
+check("a throw target parses", parseTargetPlus("11+") === 11);
 check("the size header's edges read out",
   JSON.stringify(parseSizeEdges("t errain t ype 5- 6 to 12 13 to 25 26 to 50 51+")) === JSON.stringify([5, 12, 25, 50]));
 

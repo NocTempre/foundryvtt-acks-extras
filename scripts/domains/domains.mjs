@@ -1,4 +1,4 @@
-/* global game, fromUuidSync, Actor */
+/* global game, Actor */
 /**
  * Domains, asked of the world: which domain holds a place, which ones a
  * character rules, which ones answer to a liege — and the Judge's writers for
@@ -14,6 +14,7 @@ import {
 } from "./domain-logic.mjs";
 import { ancestorUuids, indexPlaces } from "../lib/place-logic.mjs";
 import { allPlaces, packIdOf } from "../lib/place.mjs";
+import { docOf } from "../lib/util.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
 
 /** The picture a founded settlement is made with: core's village. */
@@ -25,18 +26,6 @@ export const isDomain = (doc) => doc?.documentName === "Actor" && doc?.type === 
 /** Every domain in the world. Compendium domains are not consulted: a realm is the world's. */
 export function allDomains() {
   return (game.actors ?? []).filter((a) => a.type === DOMAIN_TYPE);
-}
-
-/**
- * The document a uuid names, or null. Never throws: `fromUuidSync` raises on a
- * uuid into an unloaded compendium.
- */
-function docOf(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
 }
 
 const uuidOf = (docOrUuid) => (typeof docOrUuid === "string" ? docOrUuid : (docOrUuid?.uuid ?? ""));

@@ -38,8 +38,8 @@ print is [DECISIONS.md](DECISIONS.md); what is not built is
   loop-guarded), `members` (roster rows), `strength` (the unnamed people,
   counted), `relations` (its stance toward each other organisation), `controls`
   (district Region uuids) and `standing` (the ledger). Every array defaults to
-  empty and the strength block to an empty table, so an actor written before
-  them loads unchanged and nothing migrates. Its prototype token draws as a
+  empty and the strength block to an empty table, so an actor with none of
+  them stored loads with the defaults. Its prototype token draws as a
   marker: hover name, neutral, no bars, no sight.
 - **Enhance**: the faction sheet; a listener on the reaction roll; a feed onto
   the settlement board's `wanted`; a market-class seam the henchmen engine

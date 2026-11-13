@@ -79,7 +79,7 @@ export function gridTypeFor(family, even = false) {
 /**
  * Grid types the SQUARE fit can be applied over: SQUARE and GRIDLESS. A
  * gridless scene is the ordinary state of a freshly imported map and is given
- * a square grid by the apply. A hex scene is refused a square fit — but is now
- * calibratable in its own right, by choosing a hex family.
+ * a square grid by the apply. A hex scene is refused a square fit and is
+ * calibrated in its own right, by choosing a hex family.
  */
 export const CALIBRATABLE_GRIDS = new Set([GRID_TYPE.GRIDLESS, GRID_TYPE.SQUARE]);

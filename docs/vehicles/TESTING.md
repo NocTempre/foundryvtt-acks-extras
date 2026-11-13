@@ -160,15 +160,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    hold bar's marines'-gear share while its bodies charge nothing.
 9. Mount and chain: `acksExtras.lib.mount.mountActor(rider, horse)`, then
    attach the horse to the wagon as draft.
-   *Observable:* the rider's flag is a `rider` ATTACHMENT (no legacy
-   mount/rider pair left behind); `acksExtras.lib.attachment.rootCarrierOf`
+   *Observable:* the rider's flag is a `rider` ATTACHMENT (no separate
+   mount/rider pair is written); `acksExtras.lib.attachment.rootCarrierOf`
    on the rider answers the WAGON; a formation containing the rider moves at
    the wagon's pace. Attaching the wagon to its own canoe refuses with the
    circular warning.
 10. Re-board after a ford (`reboardLast`).
     *Observable:* passengers are restored; the TEAM is untouched — putting an
     arrangement back never unharnesses the horses.
-11. The sea's registry reads (added with the voyages migration). On a
+11. The sea's registry reads. On a
     disposable VESSEL with `shp.max` set: damage her below zero with NO
     `voyages` tables registered, open the sheet.
     *Observable:* the hull block renders the UNPRICED sinking line (no
@@ -180,7 +180,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     targets with a `tablesMissing` part before registration and the
     invented figures after; `damageToVessel(20, "personal").dealt` is 0
     either way and `("lightArtillery").dealt` is null before, priced after.
-12. Seamanship (added with the surfaces). On the sea fixture with the
+12. Seamanship. On the sea fixture with the
     invented `voyages` doc registered:
     - a crew role short of its complement shows the trade line under the
       hold bar ("N hand(s) short — … free M st") and the hold's capacity

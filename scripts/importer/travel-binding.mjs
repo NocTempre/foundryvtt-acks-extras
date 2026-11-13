@@ -14,6 +14,7 @@ import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount } from "./survival-binding.mjs";
+import { parseTargetPlus } from "./binding-parse.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const TRAVEL_DOC_ID = "travel";
@@ -64,12 +65,6 @@ export function parseRoadCell(cell) {
     multiplier: parseMultiplier(paren ? s.slice(0, paren.index) : s),
     drivingMultiplier: paren ? parseMultiplier(paren[1]) : null,
   };
-}
-
-/** "11+" → 11; junk → null. */
-export function parseThrow(cell) {
-  const m = /(\d+)\s*\+/.exec(String(cell ?? ""));
-  return m ? Number(m[1]) : null;
 }
 
 /**
@@ -237,7 +232,7 @@ export function assembleTravelTables(raw = {}) {
   if (lost) {
     const gettingLost = {};
     for (const [key, rowValue] of Object.entries(lost)) {
-      const v = parseThrow(rowValue?.navigation);
+      const v = parseTargetPlus(rowValue?.navigation);
       if (v != null) gettingLost[key] = v;
     }
     if (Object.keys(gettingLost).length) out.gettingLost = gettingLost;

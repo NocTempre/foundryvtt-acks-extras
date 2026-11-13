@@ -2,7 +2,7 @@
  * Static rules data for ACKS II dungeon delves (exploration formations).
  * Sourced from the Revised Rulebook "Adventures" chapter (pp. 263–271), the
  * Judges Journal sequence of play (pp. 35–37), and the Dungeon Delves I/II
- * reference sheets. See acks-rules/acks-formation/RULES.md for the exhaustive rules summary.
+ * reference sheets. See the formation RULES.md on the local rules shelf for the exhaustive rules summary.
  *
  * All user-facing labels are localization keys resolved via game.i18n; see
  * lang/en.json.

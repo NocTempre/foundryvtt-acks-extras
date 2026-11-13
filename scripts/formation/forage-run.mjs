@@ -161,10 +161,5 @@ async function whisperForage(results) {
   });
 }
 
-/** Items this feature deposited, for a caller that wants to clean up. */
-export function foragedItems(actor) {
-  return (actor?.items ?? []).filter((i) => i.getFlag?.(MODULE_ID, "foraged"));
-}
-
 /** Rations pattern re-export, so callers need not reach into constants. */
 export { RATION_PATTERN };

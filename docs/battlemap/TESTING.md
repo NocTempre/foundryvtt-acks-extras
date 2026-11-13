@@ -272,7 +272,7 @@ with it), and the baked `-aligned.webp` file. Confirm the scenes directory and
 the setup tool WRITES to whichever scene is being viewed.
 
 
-## Terrain painting (added with the hex journey)
+## Terrain painting
 
 Fixtures: a disposable HEX-gridded scene (any hex type) and a disposable
 square-gridded scene; a disposable party with one member (for the journey
@@ -309,9 +309,9 @@ read).
    names it without counting), and `travel.map` holds the hex's reading:
    the ground and the encounter table of a hex painted at the book's grain,
    `source` "map" for each. A region flagged with a bare ground key
-   (`terrain: forest`, written by hand for the check — the brush no longer
-   lays one) reads that ground and the ground's default table; a river hex
-   painted before rivers were lines reads the river's table and leaves the
+   (`terrain: forest`, written by hand for the check — the brush does not
+   lay one) reads that ground and the ground's default table; a hex region
+   flagged as river reads the river's table and leaves the
    ground to the next source; an unpainted hex reads nothing from the
    terrain layer. The record's own `travel.ground` and
    `travel.encounterTerrain` are never written. The panel's ×-factor lines
@@ -356,7 +356,7 @@ walked is `update(..., { ["acks-extras.lostTruth"]: true })` followed by
 unawaited, and read or pressed in the next — an evaluate that awaits a
 dialog's promise waits for a hand that never comes and times the driver out.
 
-## Roads (added with the settlement layer)
+## Roads
 
 Fixtures: three disposable scenes — gridless, square, and hex; a disposable
 party with one member.
@@ -479,7 +479,7 @@ the run on the browser profile that drove it while disturbing no other seat, and
 it is the one thing here a sweep cannot delete. The walk takes step 11 on the
 formation recipe's "The country" fixtures, which it keeps.
 
-## The country's layers and water (added with the party-sheet redesign's phase 2a)
+## The country's layers and water
 
 Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
 square-gridded scene `battlemap/layers-square` with a scale in miles, kept and
@@ -587,7 +587,7 @@ bubbling `change`.
     `climateHexes`, one climate on two hexes and a second on one, and no
     climate of its own; on the second, one such region and a scene default
     climate. Make each region with `scene.createEmbeddedDocuments("Region",
-    …)` (the brush can no longer write one) and track its id. View the
+    …)` (the brush does not write one) and track its id. View the
     first as a GM.
     *Observable:* its setup record's climate is the one painted on two hexes,
     `climateFolded` is true, and a notification names that climate; its two
@@ -601,7 +601,7 @@ Teardown: none of the scenes; the next run retires the hex maps. The wall
 preset is client state: arm core's ordinary wall once more if the run left a
 water preset armed, so this seat's next wall is not a river.
 
-## Map modes (added with the map modes)
+## Map modes
 
 Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
 HEX-gridded scene `battlemap/modes-hex` whose scene default names a territory
@@ -678,7 +678,7 @@ a weighted side and a redraw on `paintLayerChanged` need a registrant's data,
 and are walked with the Domains mode (`docs/domains/TESTING.md`, "Territory
 on the map").
 
-## The navigation card's system icon (added with the scene-nav icon)
+## The navigation card's system icon
 
 The walk is `tools/live/battlemap-nav.mjs` (`node tools/live/run.mjs
 battlemap-nav`), steps 1-7 below.

@@ -18,6 +18,7 @@
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
 import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText } from "./ability-rolls.mjs";
 import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
+import { escape as esc } from "../lib/util.mjs";
 
 /**
  * Route an ability's roll through the multi-roll roller, with the gesture that
@@ -47,7 +48,6 @@ function onGetTags(wrapped) {
   const rolls = rollsOf(this);
   if (!rolls.length) return wrapped();
 
-  const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
   const tag = (text) => (text ? `<li class='tag'>${esc(text)}</li>` : "");
   const current = defaultKeyOf(this);
 

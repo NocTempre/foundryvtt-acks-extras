@@ -6,13 +6,12 @@
 import assert from "node:assert";
 import {
   assembleVoyageTables,
-  parseBonus,
   parseDice,
   parseHalved,
   parseShare,
   parseSigned,
-  parseTargetPlus,
 } from "../../scripts/importer/voyages-binding.mjs";
+import { parseSignedClause, parseTargetPlus } from "../../scripts/importer/binding-parse.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -20,7 +19,7 @@ const check = (label, cond) => { assert.ok(cond, label); pass++; };
 /* --- parsers -------------------------------------------------------------- */
 check("a signed cell parses", parseSigned("+3") === 3 && parseSigned("-1") === -1 && parseSigned("0") === 0);
 check("a target reads its plus", parseTargetPlus("of 9+ (5+ if") === 9);
-check("a bonus keeps its sign until the caller decides", parseBonus("gains a +6 bonus") === 6);
+check("a bonus keeps its sign until the caller decides", parseSignedClause("gains a +6 bonus") === 6 && parseSignedClause("a - 8 penalty") === -8 && parseSignedClause("none") === null);
 check("dice read from a window", parseDice("suffers 3d12  structural") === "3d12");
 check("a share reads fraction or number", parseShare("1/5 damage to") === 0.2);
 

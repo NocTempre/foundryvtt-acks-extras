@@ -11,8 +11,8 @@
  * IP posture: parsed NUMBERS from the seat's own PDF are persisted into the
  * WORLD actor (actor data must be shared and playable — equivalent to typing
  * the stat block in by hand at your own table). Nothing here ships content:
- * the save LUT below is derived game math, identical to the one acks-monsters
- * publishes (scripts/config.mjs MONSTER_SAVES_LUT).
+ * the monster saves grid is the `acks` system's own (`CONFIG.ACKS.monster_saves`),
+ * read when asked for and never copied into this module.
  */
 
 /** The fractions the books set as single glyphs. */
@@ -47,26 +47,30 @@ export function parseHitDice(text) {
   return null;
 }
 
-const SAVES_LUT = {
-  0: { paralysis: 14, death: 15, blast: 16, implements: 17, spell: 18 },
-  1: { paralysis: 13, death: 14, blast: 15, implements: 16, spell: 17 },
-  2: { paralysis: 12, death: 13, blast: 14, implements: 15, spell: 16 },
-  4: { paralysis: 11, death: 12, blast: 13, implements: 14, spell: 15 },
-  5: { paralysis: 10, death: 11, blast: 12, implements: 13, spell: 14 },
-  7: { paralysis: 9, death: 10, blast: 11, implements: 12, spell: 13 },
-  8: { paralysis: 8, death: 9, blast: 10, implements: 11, spell: 12 },
-  10: { paralysis: 7, death: 8, blast: 9, implements: 10, spell: 11 },
-  11: { paralysis: 6, death: 7, blast: 8, implements: 9, spell: 10 },
-  13: { paralysis: 5, death: 6, blast: 7, implements: 8, spell: 9 },
-  14: { paralysis: 4, death: 5, blast: 6, implements: 7, spell: 8 },
-};
+/** The system grid's one-letter save keys → this module's save keys, in the order a row lists them. */
+const SYSTEM_SAVE_KEYS = Object.freeze({ p: "paralysis", d: "death", b: "blast", w: "implements", s: "spell" });
 
+/**
+ * The monster save row for a save-as level: the system's own grid
+ * (`CONFIG.ACKS.monster_saves`, keyed by the lowest level of each band) read at
+ * call time, floored to the band the level falls in and returned under this
+ * module's save keys as `{paralysis, death, blast, implements, spell}`. An
+ * empty row where the system exposes no grid, so no figure is written in its
+ * place.
+ */
 export function savesForLevel(level) {
-  let chosen = 0;
-  for (const band of Object.keys(SAVES_LUT).map(Number).sort((a, b) => a - b)) {
-    if (level >= band) chosen = band;
+  const grid = globalThis.CONFIG?.ACKS?.monster_saves;
+  if (!grid || typeof grid !== "object") return {};
+  let chosen = null;
+  for (const band of Object.keys(grid).map(Number).sort((a, b) => a - b)) {
+    if (chosen === null || level >= band) chosen = band;
   }
-  return SAVES_LUT[chosen];
+  const row = grid[chosen] ?? {};
+  return Object.fromEntries(
+    Object.entries(SYSTEM_SAVE_KEYS)
+      .filter(([sys]) => Number.isFinite(row[sys]))
+      .map(([sys, key]) => [key, row[sys]]),
+  );
 }
 
 const LABEL_RE = /^[A-Z][A-Za-z ()'/]{0,28}:$/;

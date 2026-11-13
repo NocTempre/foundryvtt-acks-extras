@@ -9,6 +9,7 @@
  * the book prints gp/sp/cp (1gp = 10sp = 100cp — verified against core).
  */
 import { rowsByY, joinRuns } from "./table-extract.mjs";
+import { encToWeight6 } from "./weapon-tables.mjs";
 
 /**
  * Drop only footnote marks — NOT the weapon module's stripNoise, which also
@@ -129,16 +130,6 @@ export function labelCapacity(name) {
  */
 export function capacityFor(priced, name) {
   return priced?.capacity != null && priceKey(priced.name) === priceKey(name) ? priced.capacity : null;
-}
-
-/** Encumbrance (stone) → weight6. "1/6"→1, "2"→12; "-"/blank→null. */
-function encToWeight6(enc) {
-  const s = String(enc ?? "").trim();
-  if (!s || s === "-") return null;
-  const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
-  if (frac) return Math.round((Number(frac[1]) / Number(frac[2])) * 6);
-  const n = Number(s);
-  return Number.isFinite(n) ? Math.round(n * 6) : null;
 }
 
 /**

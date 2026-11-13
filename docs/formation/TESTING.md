@@ -457,7 +457,7 @@ Teardown by the run's own ids: `api.sweepTracked()` removes the scenes, the
 trap Item and the actors (the party actor dissolves its formation). Track
 each chat card id as it lands.
 
-## Mounts and the train (added with the stations release)
+## Mounts and the train
 
 1. Mount a member on a disposable animal
    (`acksExtras.lib.mount.mountActor(rider, horse)`), open the party sheet.
@@ -1152,8 +1152,7 @@ end of the run, so it can disagree with a boolean captured beside it.
 
 **The trap this recipe exists for:** `lostOf` takes the TRAVEL object and reads
 `.lost` from it. Handing it the lost object directly answers a confident "not
-lost", which is what `isAstray` did on its first outing — every offline caller
-happened to wrap correctly, so only the live run caught it.
+lost" — offline callers wrap correctly, so only the live run shows it.
 
 Markers left outside an episode, and members whose actor is gone, are walked
 as the repair tool's formation checks in docs/lib/TESTING.md, "The repair
@@ -1254,8 +1253,7 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
 4. Change the pace select and dispatch `change`; read `travel.settlement.pace`
    back. **This is the check that matters for the pickers**: they deliberately
    do NOT use `data-action`, because an ApplicationV2 action fires on click and
-   a select bound to one silently never writes. The first version of this panel
-   shipped that bug and the live check is what caught it.
+   a select bound to one silently never writes, and only the live check shows it.
 5. **The tracker, with no block size declared.** Park the token with an
    ordinary move first (the clock reads `clock.lastPosition` from the world
    setting, so a halt leaves it stale and the next move measures zero), then
@@ -1324,8 +1322,8 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    **Watch the console on this step.** The watcher sweeps every formation, and
    the sweep is registered inside a `.catch()` — an exception there is logged
    and nothing else happens, which reads exactly like a clock that was never
-   watched. `getFormations()` returns an OBJECT keyed by id, not an array; the
-   first version of the sweep iterated it directly and failed silently that way.
+   watched. `getFormations()` returns an OBJECT keyed by id, not an array; a
+   sweep that iterates it directly fails silently.
 
 9b. **A stay draws what found it, day by day, and leaves no marker.** Rides
    the city scene, a city list named in Scene Configuration (the `1d10` list
@@ -1416,8 +1414,7 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
     turn with no measurement line means the two roads never joined into one
     network — the graph nodes segments at their ENDPOINTS, so a contact partway
     along a span makes no shared node and the streets are separate islands.
-    Neither this recipe nor `docs/battlemap/TESTING.md` walked that shape
-    before 7.6.0 shipped, and the network does not survive it.
+    The network does not survive that shape, so a fixture builds it on purpose.
 13. **The street underfoot beats the picker.** Mark one of the two walls as an
     `alley` (its own wall sheet), leave the panel's `where` on avenues, stand
     the party token on the alley, and take a turn.
@@ -1448,13 +1445,13 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
 14c. **A board does not follow the party into the next city.** With blocks and
     turns on the board and `Hunted here` ticked, place the party token on a
     SECOND scene that also declares `mapSystem: "settlement"` — directly, with
-    no wilderness or delve in between, which is the hop that used to keep
-    everything.
+    no wilderness or delve in between, which is the hop a carried board
+    would survive.
     *Observable:* the panel opens on 0 blocks over 0 turns, `Hunted here` is
     clear, and a party that left while holed up is not charged the journey as a
     stay on the next clock advance. Then walk back to the first city and
     confirm it too resets rather than restoring what it held. **Also walk the
-    upgrade shape**: `patchSettlement` a board with tallies and no `sceneId`,
+    unstamped shape**: `patchSettlement` a board with tallies and no `sceneId`,
     reload the world so the ready pass claims it, and hop again — a board that
     was never stamped must reset on arrival, not be adopted by the city it
     arrives in.
@@ -1562,10 +1559,10 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
 20. **The panel shows what the tick will use.** With the party in the overlap,
     read the panel WITHOUT taking a turn.
     *Observable:* the panel prints the same interval and target the next turn
-    will throw at, and names the layer. **Before this phase the panel could
-    never show a zone override at all** — it called the street's reader
-    directly — so a panel still reading the bare street here is a regression,
-    not a cosmetic gap.
+    will throw at, and names the layer. **The panel must show a zone
+    override** — a panel calling the street's reader directly never does — so
+    a panel still reading the bare street here is a regression, not a cosmetic
+    gap.
 21. **The district's list answers, and being hunted changes which list.** Put
     one RollTable on the district's `tableUuid` and the other on
     `wantedTableUuid`. Force a met throw.
@@ -1589,11 +1586,11 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
     them.
     *Observable:* the dialog shows a read-only row naming the district and the
     SIGNED figure, the subtotal includes it, and the posted card lists it. All
-    three, and the row is the one that regresses: before this phase an external
-    modifier moved the total and the card with **nothing on screen to explain
-    it**, which is how acks-henchmen's slander penalty has been arriving.
-    Verify the henchmen route still works at the same time if that module is
-    installed — two sources must add, not replace.
+    three, and the row is the one that regresses: an external modifier that
+    moves the total and the card with **nothing on screen to explain it** is
+    the failure, and the henchmen feature's slander penalty arrives that way.
+    Verify the henchmen route still works at the same time — two sources must
+    add, not replace.
 24. **`Where it applies` is honoured.** Set `reactionWhere` to `Alleys`.
     *Observable:* the figure is owed while the party stands on a drawn alley
     inside the district and NOT while it stands on the avenue, following the
@@ -1615,8 +1612,8 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
     and that readout is walked in "Points of interest" below.
 26. **No district changes nothing.** Delete the district regions and walk steps
     3–14 again.
-    *Observable:* identical to before this phase. An unmarked city is one where
-    the question has not been asked.
+    *Observable:* identical to steps 3–14 with the districts present, minus their
+    figures. An unmarked city is one where the question has not been asked.
 
 ## Points of interest (added with the POI phase)
 
@@ -1837,7 +1834,7 @@ is what the panel and the tick read.
 - The settings window is `game.settings.sheet`; the two fields are
   `[name="acks-extras.dawnHour"]` and `[name="acks-extras.duskHour"]`, number
   inputs whose blank value reads back as `""`.
-- A legacy board is written with `patchFormation` from
+- A board with no `hour` is written with `patchFormation` from
   `scripts/formation/formation-model.mjs` imported in page context: delete
   `hour` from the record's `travel.settlement` and set `night` on it.
 
@@ -1941,7 +1938,7 @@ no token, no canvas — every call is API-level.
    `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `unknown: []` with a
    `parts` entry `{key: "water.rough", value: -55}` and the target built from
    it. A `parts` array that still lacks the water row means the throw is
-   reading the constant it used to hold rather than the document.
+   reading a constant rather than the document.
 7. **Exercise the removal**, not only the registration:
    `t.unregisterTable("formation", { priority: t.PRIORITY.OVERRIDE })`, then
    re-read one accessor. It returns `null` again and `hasDoc("formation")` is
@@ -2356,7 +2353,7 @@ registered at WORLD priority for the check and unregistered after.
 
 Drive mechanics: set the declarations through the sheet's own controls (set
 the value, dispatch a bubbling `change`) and re-render the sheet after any
-`patchTravel` first, because every change submits the whole form and a stale
+record write first, because every change submits the whole form and a stale
 field writes its old value back; a disabled field submits nothing and reads
 as zero. Make the throws certain with the fixtures: a death save target above
 20 always fails and one of 1 always saves, and armour heavier than 20 stone
@@ -2837,7 +2834,7 @@ off the world while the walk runs. A hand select is
    nothing, and the two set carry a clear. Press the Ground chip's clear: the
    card reads the map again, with no chip. Set the hand's ground to the map's
    own: provenance "override" and no chip. Clear both rows from the hand:
-   `travel.override` is gone from the record. Write a declaration an older
+   `travel.override` is gone from the record. Write a declaration the
    record holds (`patchFormation(f.id, (r) => { r.travel.road = "earth"; })`
    from `formation-model.mjs`): the Road card reads it, sourced "Declared on
    the sheet", with the pen mark and its clear (`clearDeclared`). Press the
@@ -3961,9 +3958,8 @@ gather removes; if it stands, reclaim it as step 14 says.
 The encounter throw's die, the turns between throws, the target and the
 encounter distance's dice arrive with the `delveEncounters` import (MODEL,
 "The delve's wandering throw"). `tools/live/formation-column.mjs`
-walks it. A world mapped before this release holds no
-such document until Rules tables is run again in Reimport One Shelf with the
-books open; read what arrived in the Ruledata Browser and use those figures
+walks it. A world where Rules tables has not been run holds no
+such document until it is run in Reimport One Shelf with the books open; read what arrived in the Ruledata Browser and use those figures
 below.
 
 Fixtures: `formation/cadence-party`, a party of one member on any dungeon
@@ -4276,8 +4272,8 @@ management flag, and the mapper's role are put back.
 The figures arrive with the tables import: `jumping`, `fall` and `spelunking`
 in the `formation` document from the Revised Rulebook (RR pp. 268, 270, 271),
 and `dice` in the `cityTravel` document from the Judges Journal (JJ pp. 80,
-81). MODEL, "The delve's printed figures" and "The city". A world mapped before
-this release holds none of them until Rules tables is run again in Reimport One
+81). MODEL, "The delve's printed figures" and "The city". A world where Rules
+tables has not been run holds none of them until it is run in Reimport One
 Shelf with both books open. Read what arrived in the Ruledata Browser
 (`Settings tab → Game Settings → ACKS II — Extras → Open Ruledata Browser`) and
 use those figures below, never a number from memory.

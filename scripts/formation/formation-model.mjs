@@ -139,8 +139,8 @@ export function heldLightCount(actorId) {
 /**
  * Every hand the party sheet says this actor already has full, and why.
  *
- * TWO SOURCES, one answer, because acks-equipment reads the total in a single
- * question:
+ * TWO SOURCES, one answer, because the equipment feature reads the total in a
+ * single question:
  *  - **lights** — a source is in hand while it burns, and while a lantern is
  *    shuttered but still carried. A fully doused one is stowed and gives the
  *    hand back.
@@ -602,7 +602,7 @@ export function realMembers(formation) {
 }
 
 /**
- * Is this cell held by a STACK — one `acks-lib.group` actor standing for the
+ * Is this cell held by a STACK — one `group` actor standing for the
  * bodies it counts, rather than for itself?
  *
  * A formation occupant is either an individual or a stack, and that is the only
@@ -714,10 +714,6 @@ export function isDead(actor, member = null) {
  * being left where they fell.
  */
 export const isPerson = (actor) => actor?.type === "character" || actor?.type === "monster";
-
-/** Down, alive, and not going anywhere on their own. */
-export const isIncapacitated = (actor, member = null) =>
-  isPerson(actor) && isDown(actor, member) && !isDead(actor, member);
 
 /**
  * Dead or unconscious: either way these legs are worth nothing, and the party
@@ -943,9 +939,6 @@ export function isPartyInDark(formation) {
 export function missingRoleGear(actor, role) {
   return (ROLE_GEAR[role] ?? []).filter((spec) => !carriesItem(actor, spec.pattern));
 }
-
-/** Is this actor carrying everything the role needs? */
-export const hasRoleGear = (actor, role) => missingRoleGear(actor, role).length === 0;
 
 /**
  * Is the party hurrying (exploring at combat speed)? RR p. 263: exploration
@@ -1935,7 +1928,7 @@ export async function toggleRole(formation, actorId, role, { override = false } 
         spare = globalThis.acksExtras?.equipment?.spareHands?.(actor) ?? null;
         held = globalThis.acksExtras?.equipment?.heldHandsClause?.(actor) ?? "";
       } catch (err) {
-        console.error(`${MODULE_ID} | acks-equipment hand count failed`, err);
+        console.error(`${MODULE_ID} | hand count failed`, err);
       }
       if (Number.isFinite(spare) && spare < needed) {
         ui.notifications.warn(
@@ -1955,8 +1948,8 @@ export async function toggleRole(formation, actorId, role, { override = false } 
   }
 
   await updateFormation(formation);
-  // A role can fill hands (the mapper's kit), so acks-equipment recomputes the
-  // loadout off this exactly as it does off a light being struck.
+  // A role can fill hands (the mapper's kit), so the equipment feature recomputes
+  // the loadout off this exactly as it does off a light being struck.
   announceChange("acksExtras.roleChanged", getMemberActor(member), {
     actorId,
     role,

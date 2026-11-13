@@ -16,7 +16,7 @@
  * way (`location/here.mjs` reads this feature's `partyPoint`).
  */
 import { MODULE_ID, TURN_SECONDS } from "./constants.mjs";
-import { elementOf, makeLoc, gmIds } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc, gmIds } from "../lib/util.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
 import { partyPoint, regionOutlines } from "./zones.mjs";
@@ -191,7 +191,6 @@ async function promoteFromCard(button) {
 }
 
 async function askName(initial) {
-  const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
   const name = await foundry.applications.api.DialogV2.prompt({
     window: { title: loc("settlement.poi.promoteTitle") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
@@ -288,8 +287,7 @@ export async function pickAndTravel(formationId) {
   const formation = getFormation(formationId);
   const targets = formation ? poiTargets(formation) : [];
   if (!targets.length) return void ui.notifications.warn(loc("settlement.poi.noTargets"));
-  const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
-  const options = targets.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+  const options =targets.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
   const tokenId = await foundry.applications.api.DialogV2.prompt({
     window: { title: loc("settlement.poi.travelTitle") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],

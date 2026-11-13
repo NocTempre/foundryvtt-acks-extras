@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuid, fromUuidSync, Actor, Hooks */
+/* global game, ui, foundry, fromUuid, Actor, Hooks */
 /**
  * DomainSheet — ActorSheetV2 for the `acks-extras.domain` sub-type, in the
  * character sheet's frame as the party sheet takes it. The band — the
@@ -36,7 +36,7 @@ import {
 } from "../domains.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../../lib/sheet-rows.mjs";
 import { isLocation, isMarkerActor } from "../../lib/place.mjs";
-import { atTypeScale, makeLoc } from "../../lib/util.mjs";
+import { atTypeScale, docOf, escape, makeLoc, refOf } from "../../lib/util.mjs";
 import { isGoods } from "../../lib/item-model.mjs";
 import { refuseGoods } from "../../lib/bundles.mjs";
 import { moveBandIntoHeader } from "../../lib/header-band.mjs";
@@ -62,24 +62,6 @@ const VIEW_ACTIONS = new Set(["tab", "goTab", "openDoc"]);
 
 /** The classes a dialog this sheet opens wears: the design system's, and the scroll contract. */
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
-
-const escape = (s) => foundry.utils.escapeHTML(String(s ?? ""));
-
-/** The document a uuid names, or null. Never throws on a uuid into an unloaded compendium. */
-function docOf(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** A `{uuid, name, missing}` reference for a stored uuid, or null for none. */
-function refOf(uuid) {
-  if (!uuid) return null;
-  const doc = docOf(uuid);
-  return { uuid, name: doc?.name ?? uuid, missing: !doc };
-}
 
 const opt = (value, label, selected) => ({ value, label, selected });
 

@@ -34,7 +34,7 @@ import { ACTOR_TYPE } from "../lib/vocab.mjs";
  * The dungeon-turn engine. Implements step 5 of the Judges Journal sequence of
  * play (marking off the turn) plus the periodic wandering monster throw:
  * spell-duration expiry, rest & winded tracking, light-source
- * burn, and elapsed-time bookkeeping for rations. See acks-rules/acks-formation/RULES.md §9, §14.
+ * burn, and elapsed-time bookkeeping for rations. See the formation RULES.md on the local rules shelf, §9, §14.
  *
  * Everything here runs on a (the) GM client only.
  */
@@ -838,7 +838,7 @@ export async function addLight(formation, type, bearerId, { override = false } =
   // stack — asked and spent in lib, because a character lighting a lamp from
   // their own sheet with no formation in sight must clear the same bar.
   // BLOCKING BY DESIGN for a player: sheathe or stow something first, through
-  // acks-equipment's own draw/sheathe controls.
+  // the equipment feature's own draw/sheathe controls.
   if (!(await prepareToLight(bearer, type, { override }))) return;
 
   // The burn time is imported (RR p. 265); with none the light never burns down.
@@ -885,8 +885,8 @@ export async function toggleShield(formation, lightId) {
 }
 
 /**
- * Announce a light-state change so companion modules can react (acks-equipment
- * recomputes hands — a held light occupies one). Namespaced per the family rule.
+ * Announce a light-state change so companion modules can react (the equipment
+ * feature recomputes hands — a held light occupies one). Namespaced per the family rule.
  */
 function lightChanged(bearerId, light, state) {
   announceChange("acksExtras.lightChanged", game.actors.get(bearerId) ?? null, { bearerId, light, state });

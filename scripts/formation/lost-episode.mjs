@@ -197,13 +197,3 @@ export async function endEpisode(formation) {
   }
   return { ended, cleared };
 }
-
-/**
- * Whether this formation is astray.
- *
- * `lostOf` takes the TRAVEL object and reads `.lost` off it — handing it the
- * lost object directly reads `undefined` and answers a confident "not lost".
- */
-export function isAstray(formation) {
-  return lostOf(travelOf(formation)).active;
-}

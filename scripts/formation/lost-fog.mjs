@@ -10,7 +10,6 @@
  * documents are reachable anywhere, but its fog TEXTURE only exists where it
  * is drawn.
  */
-import { MODULE_ID } from "../lib/constants.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { fogTextureDims, textureFromBase64, compositeToBase64, exploredDocs, writeExplored, deleteExplored } from "./map-items.mjs";
@@ -177,6 +176,3 @@ export function canFake(sceneId, level) {
   if (!game.user?.isGM || !sceneId || canvas?.scene?.id !== sceneId) return false;
   return level === undefined || (canvas.scene._view ?? null) === level;
 }
-
-/** The flag a scene carries while a formation is astray on it. */
-export const ASTRAY_FLAG = `${MODULE_ID}.astray`;

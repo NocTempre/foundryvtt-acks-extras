@@ -1,6 +1,6 @@
 /* global foundry */
 /**
- * Data model for the `acks-influence.attitude` Item subtype — a stored
+ * Data model for the `acks-extras.attitude` Item subtype — a stored
  * relationship: a target, the current attitude (ladder index 0-4), and the
  * number of influence attempts used per tone.
  */

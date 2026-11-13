@@ -10,7 +10,7 @@ import { DISTRICT_TYPE } from "./district-zone.mjs";
 import { controlledWalls, regionFromWalls } from "../lib/wall-layers.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, escape as esc } from "../lib/util.mjs";
 
 /**
  * A "Place" row on the District behaviour's sheet: the location actor the
@@ -33,7 +33,6 @@ export function installDistrictPlaceRow() {
     // Under the behaviour's own fields, which core renders as the last fieldset.
     const host = root.querySelector("fieldset:last-of-type") ?? root.querySelector("form") ?? root;
 
-    const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
     const say = (key) => game.i18n.localize(`ACKS-FORMATION.DISTRICT.place.${key}`);
     const linked = scenes.locationOfRegion(region);
     const places = game.actors.filter((a) => a.type === LOCATION_TYPE).sort((a, b) => a.name.localeCompare(b.name));

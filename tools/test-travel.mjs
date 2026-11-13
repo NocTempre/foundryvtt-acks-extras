@@ -155,14 +155,14 @@ assert.equal(t.road, "none");
 assert.equal(t.dayCount, 0);
 assert.deepEqual(t.log, []);
 t = travelOf({ ground: "swamp" });
-assert.equal(t.ground, "swamp", "the legacy ground field still answers before a journey begins");
-/* A record from before the day counted miles reads as a day with nothing walked. */
+assert.equal(t.ground, "swamp", "the record's ground field still answers before a journey begins");
+/* A record whose day carries no miles reads as a day with nothing walked. */
 t = travelOf({ travel: { day: { hexesEntered: 2 } } });
 assert.equal(t.hour, "clock", "the day-or-night source follows the clock unless told otherwise");
-assert.equal(t.day.hexesEntered, 2, "what the legacy day did record stays");
+assert.equal(t.day.hexesEntered, 2, "what the day did record stays");
 assert.equal(t.day.miles, 0);
 assert.equal(t.day.hours, 0);
-assert.deepEqual(t.day.done, Array(SLOTS).fill(false), "a legacy day has resolved no slots");
+assert.deepEqual(t.day.done, Array(SLOTS).fill(false), "a day with no `done` list has resolved no slots");
 assert.equal(t.day.activities.length, SLOTS);
 assert.equal(travelOf({ travel: { hour: "night" } }).hour, "night");
 assert.equal(travelOf({ travel: { hour: "constructor" } }).hour, "clock", "a prototype name is not an hour source");
@@ -282,7 +282,7 @@ const declaredRecord = {
 };
 t = travelOf(declaredRecord);
 for (const key of KEYS) {
-  assert.equal(valueOf(t, key), valueOf(declaredRecord.travel, key), `a record from before the map was read keeps its ${key}`);
+  assert.equal(valueOf(t, key), valueOf(declaredRecord.travel, key), `a record with no map reading keeps its ${key}`);
   assert.equal(t.provenance[key], "declared", `and says the ${key} was declared`);
 }
 t = travelOf({ travel: { territory: "borderlands", road: "none", following: "none" } });
@@ -423,11 +423,11 @@ assert.equal(nonsense.movement.hoursAloft, 0, "a negative span is no span");
 assert.equal(nonsense.movement.load, "normal", "an unknown load band falls back too");
 
 /* --- a board belongs to the city it was counted in --------------------------
-   The writers, against a ledger of two settings calls. Mode alone used to
-   decide whether a settlement board started fresh, so a party placed straight
-   from one city into the next stayed "in settlement mode" and kept the first
-   city's blocks, its turns, its hunted flag and — worst — the stay stamp the
-   clock watcher charges days against. */
+   The writers, against a ledger of two settings calls. Mode alone cannot
+   decide whether a settlement board starts fresh: a party placed straight
+   from one city into the next would stay "in settlement mode" and keep the
+   first city's blocks, its turns, its hunted flag and — worst — the stay stamp
+   the clock watcher charges days against. */
 globalThis.foundry ??= { utils: {} };
 globalThis.foundry.utils.deepClone ??= (v) => structuredClone(v);
 const settings = { formations: {} };
@@ -491,9 +491,9 @@ assert.equal(boardOf("f1").pace, "commuting", "and coming back up keeps it too")
 assert.equal(boardOf("f1").route, "route");
 assert.equal(boardOf("f1").sceneId, "Scene.hillfort");
 
-/* --- the UPGRADE path ------------------------------------------------------
-   A world whose board was written before boards carried a stamp, with the party
-   already standing in a city. Nothing places a token there, so no arrival ever
+/* --- the unstamped board ---------------------------------------------------
+   A world whose board carries no stamp, with the party already standing in a
+   city. Nothing places a token there, so no arrival ever
    runs; the startup claim is the only thing that can name that board's city,
    and if it does not, the very next hop is the FIRST arrival — and misses. */
 globalThis.game.scenes = {
@@ -528,7 +528,7 @@ assert.equal(await adopt("f2", cityScene("Scene.hillfort")), null,
   "the city it was claimed for is not an arrival");
 assert.equal(boardOf("f2").blocks, 17, "so the tally the party is standing in the middle of stays");
 
-/* The hop the upgrade used to lose. */
+/* The hop between two cities: the board resets on arrival. */
 assert.equal(await adopt("f2", cityScene("Scene.riverport")), "settlement");
 const hopped = boardOf("f2");
 assert.equal(hopped.sceneId, "Scene.riverport");
@@ -814,10 +814,10 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
     label: "ACKS-FORMATION.travel.activity.traps", frequency: "perAttempt", declared: true,
   }, "traps are an attempt-cadence activity the day form declares rather than a slot pick");
 
-  const legacy = travelOf({ travel: { day: { traps: "7.9", noSleep: "yes" }, trapsCarry: -3 } });
-  assert.equal(legacy.day.traps, 7, "a declared count is a whole number");
-  assert.equal(legacy.day.noSleep, true);
-  assert.equal(legacy.trapsCarry, 0, "a negative carry reads as none");
+  const loose = travelOf({ travel: { day: { traps: "7.9", noSleep: "yes" }, trapsCarry: -3 } });
+  assert.equal(loose.day.traps, 7, "a declared count is a whole number");
+  assert.equal(loose.day.noSleep, true);
+  assert.equal(loose.trapsCarry, 0, "a negative carry reads as none");
   assert.equal(travelOf({ travel: { day: { traps: "x" } } }).day.traps, 0, "and a non-number as none");
   assert.deepEqual(travelOf({}).camp, { steal: false, water: false, sleepInArmour: false, present: null, target: "anything" },
     "no camp word is all noes, nothing said of the search");
@@ -945,7 +945,7 @@ assert.equal(settings.formations.g3.travel.map, undefined, "and has no country u
   assert.equal("override" in stored(), false, "and a submit naming none of the six leaves the group alone");
 }
 
-/* --- clearDeclaredCountry: an older record's word is retired -------------------
+/* --- clearDeclaredCountry: a record's declared word is retired -------------------
    The key's default is written over the declaration, which reads as nothing
    declared; the climate in its own place; the Judge's word is never touched. */
 {

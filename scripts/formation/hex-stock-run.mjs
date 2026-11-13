@@ -17,7 +17,7 @@
  * token when an episode keeps one, else from its own token.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { makeLoc, gmIds, elementOf, unset } from "../lib/util.mjs";
+import { makeLoc, gmIds, elementOf, escape as esc, unset } from "../lib/util.mjs";
 import { calendarDayOf, clockReading } from "../lib/world-time.mjs";
 import { hexLabelFromOffset, isHexScene, paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
@@ -47,7 +47,6 @@ const DIALOG_TEMPLATE = `modules/${MODULE_ID}/templates/formation/hex-stock-dial
 
 const worldNow = () => Number(game.time?.worldTime) || 0;
 const hasOwn = (obj, key) => !!obj && Object.hasOwn(obj, key);
-const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const flagPath = (key) => `flags.${MODULE_ID}.${STOCK_FLAG}.${key}`;
 
 /* -------------------------------------------- */

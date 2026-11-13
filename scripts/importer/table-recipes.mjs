@@ -12,7 +12,7 @@
  * against the real books.
  *
  * `docs` groups recipes by ruledata document id; the binding assembles each
- * document from its tables and imports it via the acks-lib ruledata-import
+ * document from its tables and imports it via the lib ruledata-import
  * contract at world priority.
  */
 
@@ -166,11 +166,6 @@ const RARITY_TIER_ROWS = [
   { key: "extremelyRare", labelRe: "^extremely\\s*rare" },
   { key: "legendary", labelRe: "^legendary" },
 ];
-
-// The Judge's Screen grid abbreviated demihuman classes ("Craftpriest") and
-// needed a short-name → registry-key map. The JJ's own NPC Class table prints
-// them in full ("dwarven craftpriest"), so reading the book instead of the
-// cheatsheet retired the map along with the screen (0.38.0).
 
 // The cultures of RR pp. 495-503 (and the dwarves' name list, BTA p. 22): ONE
 // table feeds both the name lists and the appearance palettes. A culture is
@@ -2795,25 +2790,6 @@ export const TABLE_RECIPES = {
               { key: "3", find: "provides a +2 bonus, and a", take: "wagePeriod" },
             ],
           },
-        ],
-      },
-      // Hireling base morale by role (RR ~166, all prose): specialists
-      // default, the named exception groups, spellcaster minimum, and the
-      // crusader/bladedancer follower score. Which specialist TYPE keys map to
-      // which group is consumer code (type-key glue), not page data.
-      baseMorale: {
-        shape: "proseValues",
-        book: "rr",
-        printedPage: 166,
-        locate: "but rowers and sailors have morale",
-        locateBare: true,
-        values: [
-          { key: "specialistDefault", find: "most specialists have a morale score of", take: "signedInt" },
-          { key: "rowersSailors", find: "rowers and sailors have morale of", take: "signedInt" },
-          { key: "navigatorsCaptainsScouts", find: "captains, and scouts have morale", take: "signedInt" },
-          { key: "marshalsMastersOfficers", find: "mercenary officers have morale", take: "signedInt" },
-          { key: "spellcasterMinimum", find: "their minimum morale score is", take: "signedInt" },
-          { key: "followerCrusaderBladedancer", find: "followers have a morale score of", take: "signedInt" },
         ],
       },
       // The permanent morale bonuses a level gain earns (RR 166 prose), two

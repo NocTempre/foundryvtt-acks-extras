@@ -16,11 +16,10 @@ import { createFullMonsterSheet, MONSTER_SHEET_TEMPLATES } from "./monster-sheet
 import MonsterExtras from "./monster-extras.mjs";
 import { registerItemAnnotations } from "./item-annotations.mjs";
 import * as config from "./config.mjs";
-import { elementOf, primaryGMSettled } from "../lib/util.mjs";
+import { escape, findActor, makeLoc, primaryGMSettled } from "../lib/util.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
-import { makeLoc } from "../lib/util.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
@@ -104,8 +103,7 @@ Hooks.once("init", () => {
   // written.
   Hooks.on(TEMPLATE_HOOKS.RESOLVED, ({ resolved }) => {
     try {
-      const esc = (text) => foundry.utils.escapeHTML?.(String(text)) ?? String(text);
-      applyGeneratedKit(resolved, { kits: importedKits(), noteLine: (kit) => `<p>${loc("kit.note", { label: esc(kit.label ?? ""), note: esc(kit.note || "—"), cite: esc(kit.cite || "—") })}</p>` });
+      applyGeneratedKit(resolved, { kits: importedKits(), noteLine: (kit) => `<p>${loc("kit.note", { label: escape(kit.label ?? ""), note: escape(kit.note || "—"), cite: escape(kit.cite || "—") })}</p>` });
     } catch (err) {
       console.warn(`${MODULE_ID} | kit not applied`, err);
     }
@@ -138,9 +136,7 @@ Hooks.once("ready", () => {
     return;
   }
   FullMonsterSheet = createFullMonsterSheet(Base);
-  // The `animal` sub-type belongs to lib; read it off the published API rather
-  // than importing lib here, so an absent library degrades to monsters alone
-  // instead of throwing.
+  // The `animal` sub-type belongs to lib; its id is read off the published API.
   const animalType = acksExtras.lib?.ANIMAL_TYPE;
   sheetTypes = animalType ? [MONSTER_TYPE, animalType] : [MONSTER_TYPE];
   const label = game.i18n.localize("ACKS-MONSTERS.sheet.full");
@@ -161,17 +157,18 @@ Hooks.once("ready", () => {
   }
   console.log(`${MODULE_ID} | Full Monster sheet registered for ${sheetTypes.join("/")} (default for ${animalType ?? "none"}).`);
 
-  // One-time sweep in the window that automates: shape-gated on a band whose
-  // `effects` is still a STRING, so a later load finds nothing to do. See
-  // docs/monsters/DECISIONS.md, "Defence bands adopt the shared shape; capacity
-  // answers once".
+  // The import writes a band's `effects` as a joined string; the sweep turns
+  // each into the closed sets the data model stores. Run by the one seat that
+  // automates, shape-gated on a band whose `effects` is still a STRING, so a
+  // later load finds nothing to do. See docs/monsters/DECISIONS.md, "Defence
+  // bands adopt the shared shape; capacity answers once".
   primaryGMSettled()
     .then((primary) => primary && migrateDefenseBands())
-    .catch((err) => console.error(`${MODULE_ID} | defence-band migration failed`, err));
+    .catch((err) => console.error(`${MODULE_ID} | defence-band effects sweep failed`, err));
 });
 
-/** Parse one legacy free-prose effects string into the closed sets. */
-function parseLegacyEffects(prose) {
+/** Parse one comma-joined effects string into the closed sets. */
+function parseEffectsText(prose) {
   const effects = new Set();
   const conditions = new Set();
   const leftovers = [];
@@ -186,6 +183,7 @@ function parseLegacyEffects(prose) {
   return { effects: [...effects], conditions: [...conditions], leftover: leftovers.join(", ") };
 }
 
+/** Convert every actor's string-valued band `effects` into sets; unmatched words go to the band's note. */
 async function migrateDefenseBands() {
   const updates = [];
   for (const actor of game.actors) {
@@ -193,16 +191,16 @@ async function migrateDefenseBands() {
     if (!defenses) continue;
     const patch = {};
     for (const band of ["immunities", "resistances", "susceptibilities"]) {
-      const old = defenses[band];
-      if (typeof old?.effects !== "string" || old.effects === "") {
-        // An empty-string legacy field still needs its type moved.
-        if (typeof old?.effects === "string") patch[`${band}.effects`] = [];
+      const stored = defenses[band];
+      if (typeof stored?.effects !== "string" || stored.effects === "") {
+        // An empty string still needs its type moved.
+        if (typeof stored?.effects === "string") patch[`${band}.effects`] = [];
         continue;
       }
-      const { effects, conditions, leftover } = parseLegacyEffects(old.effects);
+      const { effects, conditions, leftover } = parseEffectsText(stored.effects);
       patch[`${band}.effects`] = effects;
       patch[`${band}.conditions`] = conditions;
-      if (leftover) patch[`${band}.note`] = old.note ? `${leftover}; ${old.note}` : leftover;
+      if (leftover) patch[`${band}.note`] = stored.note ? `${leftover}; ${stored.note}` : leftover;
     }
     if (Object.keys(patch).length) {
       const flat = {};
@@ -212,7 +210,7 @@ async function migrateDefenseBands() {
   }
   if (!updates.length) return;
   await Actor.updateDocuments(updates);
-  console.log(`${MODULE_ID} | defence bands migrated on ${updates.length} actor(s): prose effects became sets, remainders kept in notes.`);
+  console.log(`${MODULE_ID} | defence-band effects read into sets on ${updates.length} actor(s); remainders kept in notes.`);
 }
 
 /* The Follower Card asks what a feature knows of the actor: a creature's
@@ -228,11 +226,6 @@ Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
 
 /* Actor-directory convenience: open the Full Monster sheet directly. */
 Hooks.on("getActorContextOptions", (_directory, options) => {
-  const findActor = (li) => {
-    const el = elementOf(li);
-    const id = el?.dataset?.entryId ?? el?.dataset?.documentId;
-    return id ? game.actors.get(id) : null;
-  };
   options.push({
     label: "ACKS-MONSTERS.context.openFull",
     icon: '<i class="fa-solid fa-dragon"></i>',

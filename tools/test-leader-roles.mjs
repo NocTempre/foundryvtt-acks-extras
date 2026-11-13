@@ -62,8 +62,25 @@ const ok = (name, fn) => {
   console.log("ok   " + name);
 };
 
+/**
+ * A stand-in for the system's monster saves grid (`CONFIG.ACKS.monster_saves`):
+ * invented figures, three bands apart, in the system's own one-letter keys.
+ */
+globalThis.CONFIG = {
+  ACKS: {
+    monster_saves: {
+      0: { label: "0", d: 41, w: 42, p: 43, b: 44, s: 45 },
+      2: { label: "2", d: 31, w: 32, p: 33, b: 34, s: 35 },
+      4: { label: "4", d: 21, w: 22, p: 23, b: 24, s: 25 },
+      6: { label: "6", d: 11, w: 12, p: 13, b: 14, s: 15 },
+    },
+  },
+};
+
 const savesAt = (level) =>
-  Object.fromEntries(Object.entries(savesForLevel(level)).filter(([k]) => k !== "band").map(([k, v]) => [k, { value: v }]));
+  Object.fromEntries(Object.entries(savesForLevel(level)).map(([k, v]) => [k, { value: v }]));
+assert.notDeepEqual(savesAt(3), savesAt(5), "the stand-in grid gives different bands different rows");
+assert.deepEqual(Object.keys(savesAt(3)), ["paralysis", "death", "blast", "implements", "spell"]);
 
 /** A member option the way importFamily builds one: a complete preset. */
 const member = (key, { hd, count, bonus = null, thr, save, xp, mod = 0 }) => ({

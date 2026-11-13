@@ -76,8 +76,8 @@ const endsFor = (combat) => (f) =>
 
 /**
  * The combats the record ties the party to: the one its flag names, and every
- * one that took a member over. An old record's takeover with no combat to name
- * (`""`) ties nothing.
+ * one that took a member over. A takeover with no combat to name (`""`) ties
+ * nothing.
  */
 function partyCombats(formation) {
   const ids = new Set();
@@ -361,7 +361,7 @@ async function reform(formation, combat, { inPlace = false } = {}) {
   /* --- Any rounds not yet ticked live feed the clock now --- */
   const rounds = Math.max(0, (combat.round ?? 0) - (formation.combat?.roundsCounted ?? 0));
 
-  // Read while the flag still stands: an old record's takeover is read off it.
+  // Read while the flag still stands: a takeover is read off it.
   const takenOver = formation.members.filter((m) => gatheredBy(formation, m, combat));
   formation.combat = null;
   // The fallen come back with the party: assign Carriers, or remove them from

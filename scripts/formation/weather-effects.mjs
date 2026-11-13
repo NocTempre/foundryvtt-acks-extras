@@ -29,9 +29,6 @@ export const WEATHER_THROWS = Object.freeze([
 /** The forage kinds a condition can tax. */
 export const WEATHER_FORAGE = Object.freeze(["firewood", "water"]);
 
-/** The table this reads; declared on the `weather` document by `module.mjs`. */
-export const CONDITION_EFFECTS_TABLE = "conditionEffects";
-
 const emptyEffects = (ok) => ({
   ok,
   throws: {},

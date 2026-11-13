@@ -28,6 +28,7 @@ import {
   RUNG_OUTCOMES,
 } from "../lib/vocab.mjs";
 import { classItems, laddersOf } from "../classes/registry.mjs";
+import { escape } from "../lib/util.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -338,7 +339,7 @@ async function deleteRoll(event, target) {
   const ok = await foundry.applications.api.DialogV2.confirm({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize("ACKS-ABILITIES.roll.deleteTitle") },
-    content: `<p>${game.i18n.format("ACKS-ABILITIES.roll.deleteConfirm", { name: foundry.utils.escapeHTML(name) })}</p>`,
+    content: `<p>${game.i18n.format("ACKS-ABILITIES.roll.deleteConfirm", { name: escape(name) })}</p>`,
   });
   if (!ok) return;
   rolls.splice(index, 1);

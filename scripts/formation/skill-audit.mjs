@@ -1,5 +1,5 @@
 /* global game, foundry, fromUuidSync, Hooks, document */
-import { elementOf, makeLoc } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
@@ -340,7 +340,6 @@ function injectSkillUI(app, root, item) {
 }
 
 function buildSkillTabHTML(item, gm) {
-  const esc = foundry.utils.escapeHTML;
   const checkKey = item.getFlag(MODULE_ID, "checkKey") ?? "";
   const targetMod = item.getFlag(MODULE_ID, "targetMod") ?? 0;
   const dis = gm ? "" : "disabled";

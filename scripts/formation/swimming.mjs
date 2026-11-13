@@ -70,9 +70,8 @@ export const breathRounds = () => formationValue("breathRounds");
  * A drowning swimmer being hauled up counts as their own weight plus a share of
  * what their kit weighs — a rescuer takes the body whole and only some of its
  * baggage, because the rest is what is pulling them both down. That IS the
- * procedure and it stays; the two figures it needs are printed, and used to sit
- * here as a second copy of the same numbers `constants.mjs` already held. One
- * owner now: `carriedBody()`.
+ * procedure and it stays; the two figures it needs are printed, and are read
+ * through `carriedBody()`, the one owner of those numbers.
  */
 
 /**

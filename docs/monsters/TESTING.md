@@ -221,7 +221,7 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
    *Generate* is absent. Pin the second kind: the Role select marks the
    disabled role, a `preUpdateActor` hook on the seat sees no write, and the
    actor's `system` is unchanged.
-7. Write the old parser's shape on each kept entry actor (a stale noun and die on
+7. Write a stale shape on each kept entry actor (a stale noun and die on
    both sides, a die in core's field) and call `refillMonster(actor, {whole:
    true})`.
    *Observable:* the stale noun is gone from every side. The units entry keeps a
@@ -438,9 +438,8 @@ and 15's observer pin is walked on an invented template by
 - **A pin is the select's `change`, and it re-renders the sheet.** The
   availability marks are recomputed against the other axes' pins on that
   render, so read the Role select again after pinning the kind.
-- **A family imported before this release has no Role axis to repair from.**
-  A repair or a re-import writes it; reading the old template's cells as a
-  regression is reading pre-upgrade data.
+- **A template with no Role axis is repaired, or re-imported, to gain one.**
+  Its cells are not a regression of the sheet.
 
 **Teardown.** `api.sweepTracked()` for the generated creatures; quote it. The
 template stays.
@@ -519,7 +518,7 @@ the real books: a pass over it is by hand.
 **Fixtures.**
 
 - `monsters/family-roles` (above), repaired in place after the tables are
-  imported, since a template built before them has no Kit axis. A walk that
+  imported, since a template built without them has no Kit axis. A walk that
   changed the kit builder repairs it first; the repair is not the subject, so
   the fixture is kept.
 - `monsters/standalone-derived` (above), repaired the same way, for a kind

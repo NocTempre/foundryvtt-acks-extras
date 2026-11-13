@@ -1,8 +1,8 @@
 /**
  * Table import binding: materialize ruledata tables from the seat's connected
- * PDFs and hand them to the acks-lib `ruledata-import` contract (provider:
- * acks-location) at world priority. Sibling modules (acks-henchmen) then read
- * them from `acksLib.tables`. No values ship — they are read here, live, from
+ * PDFs and hand them to the lib `ruledata-import` contract (provider: the
+ * location feature) at world priority. Other features then read them from
+ * the lib's tables registry. No values ship — they are read here, live, from
  * the reader's book and persist only in their world.
  *
  * Tables MERGE into any doc already imported, so coverage can grow one book /
@@ -211,7 +211,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
   const pick = only ? new Set(only) : null;
   const svc = services.get("ruledata-import");
   if (!svc) {
-    throw new Error(`${MODULE_ID}: no ruledata-import provider — enable acks-location (the table host).`);
+    throw new Error(`${MODULE_ID}: the ruledata-import service is not registered. The location feature registers it when the world starts; reload the world, and read the console for the error that stopped it if it is still missing.`);
   }
   const P = priority ?? PRIORITY.WORLD;
   const report = { imported: [], missingBooks: new Set(), missingTables: [], incomplete: [] };

@@ -11,6 +11,7 @@
  * Polyglot provider both read.
  */
 import { slotsOf, fillSlot, clearSlot, freeSlots, worldLanguages, LANGUAGE_TYPE } from "../classes/languages.mjs";
+import { escape } from "../lib/util.mjs";
 
 export { slotsOf };
 
@@ -23,7 +24,7 @@ export { slotsOf };
 async function pickLanguage() {
   if (!freeSlots(this.item)) return;
   const options = worldLanguages()
-    .map((i) => `<option value="${i.uuid}">${foundry.utils.escapeHTML(i.name)}</option>`)
+    .map((i) => `<option value="${i.uuid}">${escape(i.name)}</option>`)
     .join("");
   const form = await foundry.applications.api.DialogV2.prompt({
     window: { title: game.i18n.localize("ACKS-ABILITIES.languages.pickTitle") },
@@ -59,8 +60,8 @@ async function clearLanguage(_event, target) {
  */
 export async function onDropLanguage(item) {
   if (item?.type !== LANGUAGE_TYPE) {
-    // A language stored as an ability item (the older shape a world may still
-    // hold) is refused with a warning. Anything else declines quietly and goes
+    // A language dropped as an ability item is refused with a warning, since a
+    // slot holds language items only. Anything else declines quietly and goes
     // to the sheet's normal drop handling.
     if (item?.type === "ability") {
       ui.notifications?.warn(game.i18n.localize("ACKS-ABILITIES.languages.refuse.notALanguage"));

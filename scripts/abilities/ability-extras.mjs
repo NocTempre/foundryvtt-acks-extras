@@ -42,11 +42,11 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       powerValue: num(), // custom-power cost; powers only
       deprecated: bool(), // "removed from ACKS II" — still ingested, just flagged
       replacedBy: str(), // what supersedes it (a def id), so references can redirect
-      // Set when the ability arrived from a converted/legacy source: `deleted`
+      // Set when the ability is carried over from the game's previous edition: `deleted`
       // (removed on purpose) reads as a caution, `absent` (merely omitted) as
       // info, `renamed` as a note. All three are surfaced.
       conversionStatus: choice(CONVERSION_STATUS),
-      conversionFrom: str(), // the PRE-conversion name — what the older source called it
+      conversionFrom: str(), // the name before conversion — what the previous edition called it
       // The def id of the entry whose text this alias shares. An alias is a real
       // ability item (pickable, grantable, shown), not a redirect, and does not
       // stack with its target.
@@ -79,7 +79,7 @@ export default class AbilityExtras extends foundry.abstract.DataModel {
       // card's Roll button, `item.use()`, a hotbar macro). Blank, or naming a
       // deleted throw, reads as the first. Per item, not per definition.
       defaultRoll: str(),
-      // --- The structured, level-aware effects (acks-lib vocabulary) ---
+      // --- The structured, level-aware effects (the lib effect vocabulary) ---
       effects: effectsField(),
       // --- Immunities / resistances / susceptibilities (mostly monster abilities) ---
       defenses: defensesField(),

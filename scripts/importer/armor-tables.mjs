@@ -6,7 +6,7 @@
  * own book. Reuses the weapon module's row primitives (stripNoise, bindRowCells).
  */
 import { rowsByY, joinRuns } from "./table-extract.mjs";
-import { stripNoise, bindRowCells } from "./weapon-tables.mjs";
+import { stripNoise, bindRowCells, encToWeight6 } from "./weapon-tables.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 import { bookText } from "./prose.mjs";
 
@@ -80,16 +80,6 @@ function acValue(ac) {
   const m = String(ac ?? "").match(/[+-]?\d+/);
   const n = m ? Number(m[0]) : 0;
   return n < 0 ? 0 : n; // "-" (helmets) grants no AC
-}
-
-/** Enc (stone) → weight6. "1/6"→1, "1"→6; "Varies"/"-"→null. */
-function encToWeight6(enc) {
-  const s = String(enc ?? "").trim();
-  if (!s || s === "-" || /var/i.test(s)) return null;
-  const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
-  if (frac) return Math.round((Number(frac[1]) / Number(frac[2])) * 6);
-  const n = Number(s);
-  return Number.isFinite(n) ? Math.round(n * 6) : null;
 }
 
 /** Cost cell → gp. First number only; "Varies"/"+50%"→null. */

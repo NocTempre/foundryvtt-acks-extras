@@ -47,20 +47,6 @@ export const COMPLEMENT_MEANS = Object.freeze({
 });
 
 /**
- * Every bucket a vehicle can have, and what each one holds.
- *
- * `pooled` names the buckets that draw on the cargo hold's stone. `slots`
- * names the ones counted in people rather than weight.
- */
-export const BUCKETS = Object.freeze({
-  draft: { role: "draft", counts: "animals", pooled: false },
-  driver: { role: "crew", counts: "people", pooled: false },
-  crew: { role: "crew", counts: "people", pooled: false },
-  passengers: { role: "passenger", counts: "people", pooled: true },
-  cargo: { role: null, counts: "stone", pooled: true },
-});
-
-/**
  * Which buckets THIS vehicle has, in the order a sheet should show them.
  *
  * A land vehicle is pulled and driven; a vessel is crewed. Offering a wagon a

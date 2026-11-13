@@ -13,7 +13,7 @@ with each other; it proves nothing about a window.
 
 ## The vocabulary (foundation)
 
-The one runtime surface the vocabulary changes before the spell sheet exists
+The one runtime surface the vocabulary changes outside the spell sheet
 is the frequency select on a monster-owned ability.
 
 ### Fixtures
@@ -44,7 +44,7 @@ is the frequency select on a monster-owned ability.
 `api.sweepTracked()`; quote its result. The actor and its ability are the
 only documents the run created.
 
-## The spell primitive and the spell import (1a)
+## The spell primitive and the spell import
 
 Every step below needs the seat's own RR PDF connected (the *Your ACKS Books
 (this seat)* macro); nothing here is a fixture document.
@@ -127,7 +127,7 @@ Every step below needs the seat's own RR PDF connected (the *Your ACKS Books
 own world content and stay; the hand-made spell and the actor are the only
 documents the run created.
 
-## Printed names and repertoires (9.1.0)
+## Printed names and repertoires
 
 Needs the RR and MM PDFs connected, the spells imported and the classes
 imported after them. The surfaces are the classes' and the monsters', so the

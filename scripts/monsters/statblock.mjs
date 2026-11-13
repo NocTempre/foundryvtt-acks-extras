@@ -130,8 +130,8 @@ const modded = (damage, mod) => (damage && mod ? `${damage} ${signed(mod)}` : da
 /**
  * The leader tooltip's clause for how the member's hit-point bonus came along:
  * carried whole, or multiplied by the factor the leader record holds. A record
- * written before the factor was recorded (`carried: "doubled"`) names the
- * factor its own two ratings imply, and none where they imply none.
+ * with no factor (including `carried: "doubled"`) names the factor its own two
+ * ratings imply, and none where they imply none.
  */
 function carriedTip(leader, loc) {
   if (leader.carried === "carried") return loc("statblock.tip.leaderCarried");

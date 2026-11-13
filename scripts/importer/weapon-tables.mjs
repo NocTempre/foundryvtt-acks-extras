@@ -276,8 +276,12 @@ export async function extractWeaponsFromDoc(doc, readPage, recipe = WEAPON_TABLE
 /*  Binding — row → core-shaped `weapon` item                          */
 /* -------------------------------------------------------------------- */
 
-/** Encumbrance in stone → core weight6 (sixths of a stone). "1/6"→1, "1"→6. */
-function encToWeight6(enc) {
+/**
+ * An encumbrance cell in stone → core weight6 (sixths of a stone). "1/6"→1,
+ * "1"→6; blank, "-" or any non-numeric cell ("Varies") → null. Shared by the
+ * weapon, armor and gear readers.
+ */
+export function encToWeight6(enc) {
   const s = String(enc ?? "").trim();
   if (!s || s === "-") return null;
   const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);

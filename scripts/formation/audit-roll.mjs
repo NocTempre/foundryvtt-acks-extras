@@ -1,5 +1,6 @@
 /* global game */
 import { makeLoc } from "../lib/util.mjs";
+import { signed } from "../lib/frame-model.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { auditLine } from "../lib/roll-dialog.mjs";
@@ -31,9 +32,6 @@ const loc = makeLoc("ACKS-FORMATION");
 
 /** What follows a target on a throw of each kind. */
 const SUFFIX = Object.freeze({ above: "+", below: "-", result: "" });
-
-/** A bonus as written: signed, with a true minus. */
-const signed = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
 
 /**
  * Where a rolled target came from: the throw it is the ability's, the base the

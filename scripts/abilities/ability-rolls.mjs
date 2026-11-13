@@ -15,6 +15,7 @@ import { cookbookId } from "../lib/library.mjs";
 import { resolveStacking } from "../lib/typed-modifiers.mjs";
 import { hasCapability } from "../lib/capabilities.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { escape as esc } from "../lib/util.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { auditLine, rollDetailsDialog, situationalTerm, skipDialogFor } from "../lib/roll-dialog.mjs";
 // The classes registry, not lib: lib cannot see the world's class documents,
@@ -565,9 +566,6 @@ function measuredFormula(roll, item, actor) {
  * proficiency throw wears the system's own chat card".
  */
 const CARD_TEMPLATE = "systems/acks/templates/chat/roll-result.hbs";
-
-/** Text safe to drop into the card's `{{{triple-stashed}}}` details slot. */
-const esc = (text) => foundry.utils.escapeHTML?.(text) ?? text;
 
 /**
  * Why a scored throw has no target — a shared world item (no character to read

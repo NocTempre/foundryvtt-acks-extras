@@ -207,7 +207,7 @@ the reader's own book); with nothing imported every such factor is ×1 and one
 counting. A land vehicle's tier is chosen by the hold's `used` (above).
 Active weather conditions (the formation feature derives them —
 `docs/formation/MODEL.md` §The weather) each multiply by their imported
-factor, a road row's `ineffectiveIf` may name any of them (the legacy
+factor, a road row's `ineffectiveIf` may name any of them (the manual
 raining/snowing flags feed the same vocabulary), and mud alone yields to
 pavement. `canEnter` asks the footing too: wheels stop in snow anywhere and
 in mud off pavement, and a carried vehicle (`carriage` hand- or back-borne)
@@ -244,7 +244,7 @@ grows by the imported berth apiece — no switch to flip, because the room
 physically exists whenever the hands do not; unpriced, the freed hands are
 named and nothing grows. The UNNAMED non-motive complement charges its
 gear too, at each role's typed per-head rate (`gearStone`, filled from the
-Judge's own book), so an abstract contingent of marines is no longer
+Judge's own book), so an abstract contingent of marines is not
 weightless freight beside the named ones' weighed inventories.
 
 - **Damage** ([vessel-damage.mjs](../../scripts/vehicles/vessel-damage.mjs)):

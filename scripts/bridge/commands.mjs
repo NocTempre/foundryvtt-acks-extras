@@ -33,6 +33,7 @@ import { flagsFor } from "./provenance.mjs";
 import { rollInventory, rollById } from "../character-sheet/rolls.mjs";
 import { snapshotFrame } from "../character-sheet/snapshot.mjs";
 import { purseGp } from "../lib/money.mjs";
+import { toNum as num } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
 
@@ -47,7 +48,6 @@ const SAY_MAX = 2000;
 const FORMULA_MAX = 200;
 const DICE_MAX = 1000;
 
-const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 const str = (v, what) => {
   const s = String(v ?? "").trim();
   if (!s) throw new BridgeError(ERR.invalid, `${what} is required`);

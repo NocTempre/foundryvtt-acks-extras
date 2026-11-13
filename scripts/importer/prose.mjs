@@ -32,12 +32,12 @@ export const CITE_LINK_CLASS = "acks-extras-importer-cite-link";
 export const BOOK_TABLE_CLASS = "acks-extras-importer-table";
 
 /**
- * Matches a stamped block, and the legacy `@PdfText` tag it replaced. A tag
+ * Matches a stamped block, and the `@PdfText` tag form of the same text. A tag
  * captures its paragraph's opening, the entry id (with any `#section`), the
  * page reference, and its paragraph's closing.
  */
 const BOOK_TEXT_BLOCK = /<div\b[^>]*\bdata-acks-entry=[^>]*>[\s\S]*?<\/div>/gi;
-const LEGACY_TAG = /(<p>\s*)?@PdfText\[([^\]]*)\](?:\{([^}]*)\})?(\s*<\/p>)?/gi;
+const PDF_TEXT_TAG = /(<p>\s*)?@PdfText\[([^\]]*)\](?:\{([^}]*)\})?(\s*<\/p>)?/gi;
 
 /** Extracted text is never markup. */
 export const escapeText = (value) =>
@@ -80,8 +80,8 @@ export function bookText(paragraphs, cite, { id = "", book = "", page = null } =
 
 /**
  * The closing line. With a book and a PDF page it is a link that opens the
- * shelved book there; without them it is the plain reference — a seat that
- * imported before the pages were recorded reads the same words either way.
+ * shelved book there; without them it is the plain reference, which reads the
+ * same words either way.
  */
 function citeLine(cite, book, page) {
   const reference = String(cite ?? "").trim();
@@ -159,11 +159,10 @@ export const entryTable = (node, id, cite, columns = []) =>
  * The same description with everything this module wrote removed.
  *
  * What is left is the Judge's own work, and callers that overwrite descriptions
- * ask this before they do. Legacy `@PdfText` tags count as ours: a world
- * imported before the text was materialized holds tags where it now holds
- * text, and both are this module's writing.
+ * ask this before they do. `@PdfText` tags count as ours: a description that
+ * holds a tag holds this module's writing exactly as one that holds the text.
  */
-export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(LEGACY_TAG, " ");
+export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(PDF_TEXT_TAG, " ");
 
 const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 

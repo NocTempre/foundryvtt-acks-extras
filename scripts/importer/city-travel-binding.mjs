@@ -34,6 +34,7 @@ import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
 import { parseDie } from "./formation-binding.mjs";
+import { parseThrowTarget, parseTargetPlus, parseSignedClause } from "./binding-parse.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const CITY_TRAVEL_DOC_ID = "cityTravel";
@@ -68,18 +69,6 @@ const TURNS_PER_HOUR = 6;
 /** The walk clause's block count, spelled or numeric, singular or plural → the count (JJ p. 79). */
 export function parseBlocks(text) {
   return countFrom(String(text ?? ""), /walk\s+(\S+)\s+city\s+blocks?/i);
-}
-
-/** The throw clause's target number before its trailing "+" → that number (JJ p. 79). */
-export function parseTarget(text) {
-  const m = /throw\s+of\s+(\d+)\s*\+/i.exec(String(text ?? ""));
-  return m ? Number(m[1]) : null;
-}
-
-/** The first signed figure in the throw-modifier clause → that figure (JJ p. 79). */
-export function parseSigned(text) {
-  const m = /([+-]\s*\d+)/.exec(String(text ?? ""));
-  return m ? Number(m[1].replace(/\s+/g, "")) : null;
 }
 
 /** The first dice expression, kept as it reads ("1d4+1"). */
@@ -132,12 +121,6 @@ export function parseCadenceTurns(text) {
     if (n != null) return n * TURNS_PER_HOUR;
   }
   return null;
-}
-
-/** "6+" → 6. */
-export function parseThrow(text) {
-  const m = /(\d+)\s*\+/.exec(String(text ?? ""));
-  return m ? Number(m[1]) : null;
 }
 
 /**
@@ -279,7 +262,7 @@ export function assembleCadence(rows = {}) {
     const where = CADENCE_ROWS[key];
     if (!where || !cells || cells.__missing) continue;
     const everyTurns = parseCadenceTurns(cells.frequency);
-    const target = parseThrow(cells.throw);
+    const target = parseTargetPlus(cells.throw);
     if (everyTurns == null || target == null) continue;
     const [place, when] = where;
     out[place] = { ...(out[place] ?? {}), [when]: { everyTurns, throw: target } };
@@ -307,10 +290,10 @@ export function assembleCityTravelTables(raw = {}) {
   // known-route modifier is; either window will do. Both windows are read as
   // they stand — prefixing one with the phrase the pattern looks for only
   // matches prose that happens to OPEN with the figure, which is the one
-  // shape neither window has.
-  const target = parseTarget(prose.commuting) ?? parseTarget(prose.navigation);
+  // shape neither window has (JJ p. 79).
+  const target = parseThrowTarget(prose.commuting) ?? parseThrowTarget(prose.navigation);
   if (target != null) navigation.target = target;
-  const known = parseSigned(prose.navigation);
+  const known = parseSignedClause(prose.navigation);
   if (known != null) navigation.knownDestination = known;
   const stray = parseDice(prose.stray);
   if (stray != null) navigation.strayBlocks = stray;
@@ -328,7 +311,7 @@ export function assembleCityTravelTables(raw = {}) {
   // What making a nuisance of yourself is worth. Kept as a positive bonus to
   // the THROW; the engine subtracts it from the target, because that is the
   // direction the rule moves in and a reader should not have to know the sign.
-  const trouble = parseSigned(raw.intentProse?.trouble);
+  const trouble = parseSignedClause(raw.intentProse?.trouble);
   if (trouble != null) out.encounterIntent = { trouble: Math.abs(trouble) };
 
   // The shift the dark puts on the incident roll — a bare figure, not a row.

@@ -69,7 +69,7 @@ log, then read the log; a browser walk takes about a minute.
    (`users`) answers `forbidden`.
 8. **The active character.** `use` sets it; `sheet` answers hp, ac, the
    purse in gp and the five saves; `rolls` lists ids by group, `save:death`
-   among them. **`dice`** now answers `actor` and a `messageId`: the message
+   among them. **`dice`** answers `actor` and a `messageId`: the message
    has the character as `speaker.alias` and `speaker.actor`, its first
    roll's total is the answer's, and its stamp reads `command: "dice"` with
    the identity's user.
@@ -194,7 +194,7 @@ owner is a Judge without being listed anywhere. Setup is the
    settings, remove and reinvite the bot (or, cheaper, delete one command by
    hand from the picker) without changing anything the bot itself runs on,
    then restart it: the journal's registration line does not say "nothing to
-   register" — the application and guild id are part of the digest now, so a
+   register" — the application and guild id are part of the digest, so a
    guild with no memory of an earlier registration always reads as one that
    needs it. Reinvite the bot to a **second** server while the first stays
    configured: nothing changes, because a guild is already chosen. Remove the

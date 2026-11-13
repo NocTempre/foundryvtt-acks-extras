@@ -89,7 +89,7 @@ export const ROAD_KINDS = Object.freeze(["none", "earth", "gravel", "paved"]);
  * @param {string} o.terrain a key of TERRAIN
  * @param {string} o.road a ROAD_KINDS key
  * @param {boolean} o.driverProficient the reins are held by someone with Driving
- * @param {boolean} o.raining / @param {boolean} o.snowing the legacy manual
+ * @param {boolean} o.raining / @param {boolean} o.snowing the manual
  *   flags; a road row naming them in `ineffectiveIf` is nulled by them
  * @param {string[]} [o.conditions] active weather-condition keys (the
  *   formation's `conditionsOf`); each multiplies by its imported factor, and
@@ -111,7 +111,7 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
     missing = true;
   }
 
-  // The words a road row's `ineffectiveIf` can match: the legacy manual
+  // The words a road row's `ineffectiveIf` can match: the manual
   // flags and every active condition key, one vocabulary.
   const active = new Set(conditions ?? []);
   if (raining || active.has("rainy")) active.add("raining");
@@ -366,8 +366,8 @@ export function draftEquivalent(kind) {
 
 /** Heavy-horse equivalents in harness, from plain data (no document needed). */
 export function draftPull(vehicle, equivalents = null) {
-  // A row stands for `count` animals of its kind — see the model. An older
-  // row carries no count and is one animal, which is what it always was. A
+  // A row stands for `count` animals of its kind — see the model. A row
+  // with no count is one animal. A
   // kind the registry cannot price contributes nothing and is COUNTED as
   // unpriced, so a caller can say which animals it could not weigh.
   const rate = (kind) => (equivalents ? Number(equivalents[kind]) : draftEquivalent(kind));

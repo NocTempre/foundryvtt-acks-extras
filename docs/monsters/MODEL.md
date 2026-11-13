@@ -87,9 +87,10 @@ Read raw: `actor.getFlag("acks-extras", "extras")`.
 
 ## Enums
 
-All enumerations live in `scripts/config.mjs` (pure data, English labels). See
-`acks-rules/acks-monsters/RULES.md` for the rules behind them. The body-form table carries BME/CCF/
-AC/training/lair metadata for downstream calculators.
+All enumerations live in `scripts/monsters/config.mjs` (pure data, English
+labels: MM ch. 1 Monster Overview, Monster Creation and Monster Rules). A row
+carries its label and no printed figure; the tables the sheet reads figures
+from are imported.
 
 ## The sheet
 
@@ -114,7 +115,7 @@ and the XP award as a plain reading in the bar's place.
 
 **The rails.** Left: the reaction roll, then the five saves with their
 targets (a click rolls through the system's `rollSave`, resolving `blast` and
-`implements` onto the `breath` and `wand` keys a legacy actor stores). Right:
+`implements` onto the `breath` and `wand` keys the system stores). Right:
 the heart (the current total inside, filled to the fraction, red at zero; a
 Judge opens the hit-point tool, a player goes to Classification), the shield
 with the armour class, the map with the speed row in force (a menu picks
@@ -151,7 +152,7 @@ folded card's bar shows the starred rows.
 the identity fields, the rating (count and range, bonus, asterisks, die, the
 roll formula core keeps in `system.hp.hd`), saves-as, the five save targets
 with their roll glyphs, the normal and maximum load, the attributes, and the
-**Figures** rule holding the core fields the system's header used to carry:
+**Figures** rule holding the core fields the system's own header shows:
 hit points, armour class, attack throw, morale, initiative, surprise, XP
 award, alignment, movement base and details. The senses and the speed rows
 have their + chip and bin on the rule. Loyalty and the wage live on Service
@@ -159,7 +160,7 @@ alone, which holds core's retainer fields and the manager picker, and under
 them, while the actor serves, the henchmen feature's Service panel
 ([henchmen MODEL](../henchmen/MODEL.md) §4d) with its actions bound to this
 sheet's `service*` and `toggleCompensated` handlers. The number appearing
-stays on Ecology, mirrored into core's `appearing.d/.w` on submit as before.
+stays on Ecology, mirrored into core's `appearing.d/.w` on submit.
 
 **On the Follower Card.** A monster hired opens on the lib's card, and its
 compact card on an employer's sheet reads the saves-as line in the saves row:
@@ -286,8 +287,8 @@ hit-point bonus carried where the member qualifies: whole for a champion and a
 sub-chieftain, for which the page prints no factor, and multiplied by the
 imported factor for a chieftain (`BONUS_FACTOR_ROLES`). The leader record
 keeps `carried` (`"carried"` or `"multiplied"`) and `bonusFactor`; a record
-generated before the factor was kept says `"doubled"` and no factor, and its
-tooltip names the factor its own two ratings imply. AC and the damage total add
+with no factor (one that says `"doubled"`, or holds no `bonusFactor`) has a
+tooltip that names the factor its own two ratings imply. AC and the damage total add
 the role's figures to the member's.
 Throw and saves move by the attack-throw ladder and the save rule above, from
 the member's figures to the derived rating. A derived leader's hit points are

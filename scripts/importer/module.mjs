@@ -105,6 +105,7 @@ import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
 import { getDoc } from "../lib/tables.mjs";
+import { escape as esc } from "../lib/util.mjs";
 import { registerBookAdventureHooks } from "./book-adventure.mjs";
 
 const SETTING_DYNAMIC = "dynamicRecipes";
@@ -152,8 +153,8 @@ function idb() {
     rq.onupgradeneeded = () => {
       const db = rq.result;
       // Additive, and each store guarded: this runs for a fresh seat AND for
-      // one upgrading from v1, where bookHandles already exists and must
-      // survive untouched — its records are the whole point of the store.
+      // one whose database already holds bookHandles, which must survive
+      // untouched — its records are the whole point of the store.
       for (const name of [IDB_STORE, IDB_BYTES, IDB_META]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
       }
@@ -209,14 +210,14 @@ async function locations() {
     if (key === DIR_KEY) return; // the remembered folder is not a book record
     const record = asLocation(values[i]);
     if (!record) return;
-    // A book this build no longer reads (the Judge's Screen inserts, whose
-    // tables moved into the JJ and RR in 0.38.0) must not be offered for
-    // reconnect: there is nothing left for it to unlock, and every downstream
+    // A record for a book with no REGISTRY entry (the Judge's Screen inserts,
+    // whose tables are read from the JJ and RR) must not be offered for
+    // reconnect: there is nothing for it to unlock, and every downstream
     // caller would have to defend itself against a book id with no entry in
     // REGISTRY. The record is left in place rather than deleted — harmless, and a
     // withdrawn book that ever comes back finds its location still remembered.
     if (!REGISTRY[key]) {
-      console.log(`${MODULE_ID} | remembered location for "${key}" ignored — this build no longer reads that book.`);
+      console.log(`${MODULE_ID} | remembered location for "${key}" ignored — no book of that id is read.`);
       return;
     }
     out.set(key, record);
@@ -372,8 +373,8 @@ export async function openBookPage(bookId, pdfPage) {
 
 /**
  * The book and PDF page a citation element names: a link carries its own
- * target; a plain reference from an earlier import still names the book and
- * folio, which `parseCite` turns back into a page.
+ * target; a plain reference names the book and folio only, which `parseCite`
+ * turns back into a page.
  */
 function citeTarget(el) {
   const book = el.dataset?.book;
@@ -696,8 +697,8 @@ async function restoreShelf() {
 /**
  * A Foundry client reloads constantly — a module toggled, a macro saved, a
  * dropped connection — and on an insecure origin (any remote seat on plain
- * http, and every Firefox seat) each of those reloads used to cost the reader
- * a fresh trip through the file picker for every book they own. The location
+ * http, and every Firefox seat) each of those reloads costs the reader a
+ * fresh trip through the file picker for every book they own. The location
  * was remembered; the FILE could not be reopened from it, because no browser
  * hands a picked file back from storage and the File System Access API that
  * would is absent outside a secure context.
@@ -712,7 +713,7 @@ async function restoreShelf() {
  *   • outside it, the bytes are deleted before anything else happens, and the
  *     seat goes through the normal reconnect gesture — that is a new session.
  *
- * Two details are load-bearing, and the first release of this got both wrong:
+ * Two details are load-bearing:
  *
  *   The stamp lives in localStorage, not IndexedDB, because it is written from
  *   `pagehide` and an async IndexedDB transaction started there NEVER COMMITS —
@@ -775,8 +776,8 @@ function stampClear() {
   } catch {
     /* nothing to do */
   }
-  // The 0.61.0 stamp lived here and could not survive pagehide. Clear it so an
-  // upgrading seat is not carrying a dead record around forever.
+  // A stamp kept in this store cannot survive pagehide (see above). Clear the
+  // store so a seat is not carrying a dead record around forever.
   return idbOp("readwrite", (s) => s.clear(), IDB_META).catch((err) =>
     console.debug(`${MODULE_ID} | refresh-bridge stamp store could not be cleared`, err),
   );
@@ -1034,9 +1035,9 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
 
 /**
  * Import ACKS rules TABLES (availability, wages, rarity, …) from the connected
- * books into the world, via the acks-lib ruledata-import contract. GM-only
- * (it writes world data). Sibling modules (acks-henchmen) read the result from
- * acksLib.tables; markets, wages and hiring light up as coverage grows.
+ * books into the world, via the lib ruledata-import contract. GM-only
+ * (it writes world data). Other features read the result from the lib's tables
+ * registry; markets, wages and hiring light up as coverage grows.
  *
  * @param {string[]} [only] ruledata document ids to read; omitted, every one.
  *        A full run locates pages for all 138 recipes, so re-reading ONE
@@ -1316,8 +1317,8 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
  * Reopen ONE remembered book. Returns whether this seat can now read it.
  *
  * Each kind fails differently and each failure is logged as itself — "it did
- * not reconnect" and "there was nothing to reconnect" used to be indis-
- * tinguishable from the outside, and they are not the same problem.
+ * not reconnect" and "there was nothing to reconnect" are not the same
+ * problem, and the log tells them apart.
  *
  * `interactive` is the caller promising it holds a fresh user gesture, which
  * is the only state in which a browser will re-grant file permission.
@@ -1499,7 +1500,6 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const dir = fsaAvailable() ? await dirGet() : null;
   const isGM = game.user.isGM;
   const fsa = fsaAvailable();
-  const esc = foundry.utils.escapeHTML ?? ((s) => s);
   const L = (key, data) =>
     data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
   const G = (key, data) =>
@@ -1508,8 +1508,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const pending = Object.keys(BOOKS).filter((id) => records.has(id) && !sessionDocs.has(id));
   const closed = Object.keys(BOOKS).filter((id) => !sessionDocs.has(id));
 
-  // What a connection unlocks — the scope figures Book Status used to print to
-  // the console, on the row they describe.
+  // What a connection unlocks — the scope figures of a book, on the row they
+  // describe.
   const scopeOf = (id) => {
     const entries = cookbookCount(id);
     const recipes = allRecipes().filter((r) => r.book === id).length;
@@ -1625,7 +1625,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     if (staged[id]) return ""; // the server answers for it; nothing to ask this seat
     if (!record) {
       // Never connected here. The row names the book, so a picker on it needs
-      // no guessing at all — this is what the select used to be for.
+      // no guessing at which book a file is.
       return fsa
         ? `<button type="button" data-pick="${esc(id)}">${L("booksConnectGo")}</button>`
         : `<input type="file" name="pdf-${esc(id)}" data-book="${esc(id)}" accept="application/pdf">`;
@@ -2287,7 +2287,6 @@ async function pickHeadings(bookId, page) {
   const heads = listHeadings(pageData);
   if (!heads.length) return ui.notifications.warn(`${MODULE_ID} | no extraction anchors detected on PDF p. ${page}.`);
 
-  const esc = foundry.utils.escapeHTML ?? ((s) => s);
   const rows = heads
     .map(
       (h, i) => `<label class="acks-extras-importer-browse-row">
@@ -2377,11 +2376,11 @@ const ART_DIR = "acks-extras-art";
  * Filename → full path for everything already in the art directory, listed
  * ONCE per session.
  *
- * The reuse check used to browse the whole directory per actor. That is a
+ * A reuse check that browsed the whole directory per actor would be a
  * server round trip whose response grows with every import, taken hundreds of
  * times in a bulk run and serialized behind the other three import workers —
- * so a world whose art was entirely cached still spent minutes proving it. The
- * listing changes only when this seat uploads, and every upload updates the
+ * so a world whose art was entirely cached would still spend minutes proving
+ * it. The listing changes only when this seat uploads, and every upload updates the
  * map, so one listing is the whole truth for the run.
  */
 let artListing = null;
@@ -2564,11 +2563,10 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
   // — never a parent object plus a dotted leaf of it in the same update() (that
   // ambiguity clobbered the write).
   const update = { [`flags.${MODULE_ID}.statPairs`]: pairs };
-  // The Full Monster Sheet is acks-extras' own sheet, so the stat-block
-  // channel is always available. The old fallback wrote the same prose to
-  // system.details.biography instead; it can no longer be reached, and two
-  // possible homes for one description is exactly what the channel split
-  // existed to prevent.
+  // The Full Monster Sheet is this module's own sheet, so the stat-block
+  // channel is always available. The prose has one home, never also
+  // system.details.biography: two possible homes for one description is what
+  // the channel split exists to prevent.
   const prose = await extractRecipe(doc, recipe).catch(() => null);
   extras.description = {
     ...(extras.description ?? {}),

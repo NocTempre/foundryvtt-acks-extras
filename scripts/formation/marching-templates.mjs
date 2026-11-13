@@ -275,8 +275,8 @@ function roleIsAvailable(actorId, role) {
  * Put the formation into a saved arrangement: order, roles and frontage.
  *
  * Role changes are announced one by one exactly as `toggleRole` announces them,
- * because a role can fill hands (the mapper's kit) and acks-equipment recomputes
- * a loadout off that hook. Restoring four members' roles in one write and
+ * because a role can fill hands (the mapper's kit) and the equipment feature
+ * recomputes a loadout off that hook. Restoring four members' roles in one write and
  * telling nobody would leave every one of those loadouts stale.
  *
  * WRITES the formation — not a dry run. Ask `reconcile` what an order would do.

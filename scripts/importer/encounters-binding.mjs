@@ -13,6 +13,7 @@ import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
+import { parseTargetPlus } from "./binding-parse.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const ENCOUNTERS_DOC_ID = "encounters";
@@ -139,12 +140,6 @@ export function parseDistanceCell(cell) {
   const m = /(\d+\s*d\s*\d+)\s*[×x]\s*(\d+)[^(]*\(\s*([\d,]+)/.exec(s);
   if (!m) return null;
   return { dice: m[1].replace(/\s+/g, ""), mult: Number(m[2]), avg: Number(m[3].replace(/,/g, "")) };
-}
-
-/** "12+" → 12; junk → null. */
-export function parseTarget(cell) {
-  const m = /(\d+)\s*\+/.exec(String(cell ?? ""));
-  return m ? Number(m[1]) : null;
 }
 
 /** The size-band header window (a run of ascending ranges ending open-ended) → the upper edges of the closed bands, e.g. [6,14,30,60] (RR p. 284). */
@@ -396,7 +391,7 @@ export function assembleEncounterTables(raw = {}) {
       for (const [terrain, cells] of Object.entries(raw.evasionRaw)) {
         const bands = [];
         ["s1", "s2", "s3", "s4", "s5"].forEach((k, i) => {
-          const target = parseTarget(cells?.[k]);
+          const target = parseTargetPlus(cells?.[k]);
           if (target != null) bands.push({ ...bounds[i], target });
         });
         if (bands.length) evasion[terrain] = bands;

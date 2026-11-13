@@ -53,9 +53,6 @@ export const DRAFT_KINDS = Object.freeze({
   donkey: { label: "ACKS-VEHICLES.draft.donkey" },
 });
 
-/** Terrains a wheeled vehicle enters only where a road runs (RR ch. 4). */
-export const ROAD_ONLY_TERRAIN = Object.freeze(["desert", "mountains", "forest", "swamp"]);
-
 /**
  * HOW a land vehicle is carried — the discriminator the vehicle-combat rule
  * turns on (RR ch. 6: a back-carrier may fight where a puller may only join

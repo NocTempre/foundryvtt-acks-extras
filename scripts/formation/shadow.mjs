@@ -1,4 +1,4 @@
-/* global game, canvas, CONST */
+/* global game, CONST */
 /**
  * The shadow token: where the party really is, while it believes otherwise.
  *
@@ -127,30 +127,4 @@ export function truePositionToken(scene, formation, { open = true } = {}) {
   // actor's token elsewhere is not where the party stands.
   // `getPartyToken`'s read, inlined: formation-model imports this file.
   return formation?.tokenId && formation.sceneId === scene?.id ? (scene.tokens.get(formation.tokenId) ?? null) : null;
-}
-
-/**
- * Which other lost parties are close enough to stumble into this one.
- *
- * Measured between SHADOWS, because two lost parties are both somewhere real
- * and neither knows it. Distance is the grid's own — a hex count on a hex
- * scene — so the answer is in the units the wilderness rules already speak.
- */
-export function nearbyLost(scene, formationId, { within = 1 } = {}) {
-  const mine = shadowFor(scene, formationId);
-  if (!mine) return [];
-  const out = [];
-  for (const other of shadowsOn(scene)) {
-    const id = other.getFlag(MODULE_ID, SHADOW_FLAG);
-    if (id === formationId) continue;
-    const path = canvas?.grid?.measurePath?.([
-      { x: mine.x, y: mine.y },
-      { x: other.x, y: other.y },
-    ]);
-    const distance = path?.distance ?? null;
-    const spaces = path?.spaces ?? null;
-    const gap = spaces ?? distance;
-    if (gap != null && gap <= within) out.push({ formationId: id, token: other, distance, spaces });
-  }
-  return out;
 }

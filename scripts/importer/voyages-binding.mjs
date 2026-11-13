@@ -14,6 +14,7 @@ import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseMultiplier } from "./travel-binding.mjs";
+import { parseTargetPlus, parseSignedClause } from "./binding-parse.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
 export const VOYAGES_DOC_ID = "voyages";
@@ -46,18 +47,6 @@ export const PRODUCES = Object.freeze({
 export function parseSigned(cell) {
   const m = /([+-]?\d+)/.exec(String(cell ?? ""));
   return m ? Number(m[1]) : null;
-}
-
-/** "11+" (in a short window) → 11; junk → null. */
-export function parseTargetPlus(window) {
-  const m = /(\d+)\s*\+/.exec(String(window ?? ""));
-  return m ? Number(m[1]) : null;
-}
-
-/** A signed bonus out of a prose window (a bonus clause; RR p. 27, JJ p. 68, MM p. 19). */
-export function parseBonus(window) {
-  const m = /([+-]\s*\d+)/.exec(String(window ?? ""));
-  return m ? Number(m[1].replace(/\s+/g, "")) : null;
 }
 
 /** The first NdM in a window; junk → null. */
@@ -151,8 +140,9 @@ export function assembleVoyageTables(raw = {}) {
     const targets = [...String(flat.captain ?? "").matchAll(/(\d+)\s*\+/g)].map((m) => Number(m[1]));
     if (targets[0] != null) throwTable.captain = targets[0];
     if (targets[1] != null) throwTable.masterMariner = targets[1];
-    const half = parseBonus(flat.halfSpeed);
-    const shallow = parseBonus(flat.shallowDraft);
+    // A bonus clause (RR p. 27, JJ p. 68, MM p. 19).
+    const half = parseSignedClause(flat.halfSpeed);
+    const shallow = parseSignedClause(flat.shallowDraft);
     if (half != null) throwTable.halfSpeed = Math.abs(half);
     if (shallow != null) throwTable.shallowDraft = Math.abs(shallow);
     // The speed share that earns the bonus, and the share of a hazard's damage

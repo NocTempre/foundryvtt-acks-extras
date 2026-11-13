@@ -897,7 +897,7 @@ Hooks.once("init", () => {
     anchorMap,
     saveFogAsMapItem,
     requestPartyAction,
-    // Hand integration (acks-equipment). handsOccupied tells equipment how many
+    // Hand integration (the equipment feature). handsOccupied tells equipment how many
     // hands the mapper's kit has filled and kitInHand which items it lists at
     // them (lights it reads through lib's bearerLights); getFormationForActor
     // + the light mutators let equipment's sheet controls light/douse/shutter

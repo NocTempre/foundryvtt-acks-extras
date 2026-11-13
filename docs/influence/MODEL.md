@@ -210,7 +210,7 @@ the `acksExtras.influenceRollComplete` payload carries `band: null` and
 `newAttitude` equal to `startAttitude`. A rung's tooltip names the modifier it
 adds and where it was read, that the page prints none for it, or that the table
 is not imported. The `band` of that payload is the result's position key
-(`result1` to `result5`), where it was once the roll edges.
+(`result1` to `result5`).
 
 The Seduction page's age row counts categories between the two actors, which
 the `characterAging` table (RR 19) draws: `ageCategoryIndex` takes the last

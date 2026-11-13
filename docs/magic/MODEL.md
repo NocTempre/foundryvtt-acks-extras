@@ -1,7 +1,7 @@
 # Magic — Design Model
 
 The magic feature is the spell primitive on the acks system's `spell` Item,
-the vocabulary every magic surface shares, and, as the releases land, the
+the vocabulary every magic surface shares, and, as each part lands, the
 spell builder, the cast engine and the tracking of what a cast leaves behind.
 Two sibling features build on it: `magic-items` and `research`. The design of
 the whole program stays in [wip/20260924-scoping.md](wip/20260924-scoping.md)
@@ -223,4 +223,4 @@ recipient's record is never announced, since it carries the same cast. Combat
 does not move this system's clock, so a combat's rounds do not age a record.
 
 Nothing prices yet, and a cast of any other spell is still the system's own;
-those are the releases in [ROADMAP.md](ROADMAP.md).
+those are in [ROADMAP.md](ROADMAP.md).

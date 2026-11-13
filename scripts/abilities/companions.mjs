@@ -29,6 +29,7 @@ import { ANIMAL_TYPE } from "../lib/constants.mjs";
 import { monsterHitDice } from "../lib/actor-read.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
+import { docOf, escape as esc } from "../lib/util.mjs";
 
 /** Flag on a companion actor and its folder: which character's slot it fills. */
 export const FLAG_COMPANION = "companion";
@@ -37,15 +38,6 @@ const CREATE_HANDLER = "companionCreate";
 
 /** The raw effects array on an ability — the shape a slot is written back in. */
 const effectsOf = (item) => foundry.utils.deepClone(item?.getFlag?.(MODULE_ID, FLAG_EXTRAS)?.effects ?? []);
-
-/** A world document by uuid, or null — never a throw for a stale pointer. */
-function resolveSync(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Every companion slot an actor's abilities confer, in item order. The
@@ -62,7 +54,7 @@ export function companionSlots(actor) {
     effects.forEach((effect, index) => {
       if (effect?.type !== "companion") return;
       const actorUuid = String(effect.actorUuid ?? "");
-      out.push({ item, index, effect, actorUuid, companion: resolveSync(actorUuid) });
+      out.push({ item, index, effect, actorUuid, companion: docOf(actorUuid) });
     });
   }
   return out;
@@ -118,7 +110,6 @@ const L = (key, data) =>
 export async function openCompanionPicker(actor, item, index) {
   if (!actor?.isOwner || !item) return null;
   const { eligible, other } = await companionCandidates();
-  const esc = foundry.utils.escapeHTML;
   const option = (a) => {
     const hd = a.system?.hp?.hd;
     return `<option value="${esc(a.uuid)}">${esc(a.name)}${hd ? ` (${esc(String(hd))})` : ""}</option>`;
@@ -160,7 +151,7 @@ export async function bindCompanion(actor, item, index, { uuid = "", name = "" }
   effects[index] = { ...effects[index], actorUuid: made.uuid };
   await item.update({ [`flags.${MODULE_ID}.${FLAG_EXTRAS}.effects`]: effects });
   ui.notifications.info(L("chosen", { name: made.name, actor: actor.name }));
-  return resolveSync(made.uuid);
+  return docOf(made.uuid);
 }
 
 /** Empty a slot: the pointer is cleared; the creature stays in the world. */

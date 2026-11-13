@@ -1,4 +1,4 @@
-/* global game, foundry, ChatMessage, Hooks, fromUuidSync */
+/* global game, ChatMessage, Hooks, fromUuidSync */
 /**
  * When a summoning's cast runs out. A cast leaves a record on its caster
  * (`spell-effect.mjs`) whose duration is the spell's imported one
@@ -26,6 +26,7 @@ import { spellEffectOf } from "./spell-effect.mjs";
 import { TURN_SECONDS, ROUNDS_PER_TURN } from "../lib/constants.mjs";
 import { summonerOf, summonRecordOf, summonOwnership } from "../lib/summons-logic.mjs";
 import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
+import { docOf, escape as esc } from "../lib/util.mjs";
 
 /** Seconds in one combat round on the world clock: a dungeon turn's seconds over its rounds, both structural. */
 export const ROUND_SECONDS = TURN_SECONDS / ROUNDS_PER_TURN;
@@ -182,13 +183,8 @@ const stampEnded = (effect, worldTime) => effect.update({ [`flags.${MODULE_ID}.$
 /** The whispered card: the spell, the count still standing, and Dismiss. */
 async function postEnded({ effect, record, tokens }) {
   const caster = effect.parent;
-  let spellName = effect.name;
-  try {
-    spellName = fromUuidSync(record.spellUuid)?.name ?? spellName;
-  } catch {
-    // a spell since deleted reads by the name its record was made with
-  }
-  const esc = foundry.utils.escapeHTML;
+  // A spell since deleted reads by the name its record was made with.
+  const spellName = docOf(record.spellUuid)?.name ?? effect.name;
   const isGM = (id) => !!game.users.get(id)?.isGM;
   const content =
     `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length }))}</p>` +

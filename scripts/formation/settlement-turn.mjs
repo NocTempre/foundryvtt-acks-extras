@@ -368,11 +368,6 @@ export function incidentRowsOf(table) {
     .filter((r) => Number.isFinite(r.min) && Number.isFinite(r.max));
 }
 
-/** The city's own incident rows. Kept as one call because the api exports it. */
-export async function findIncidentRows() {
-  return incidentRowsOf(await findCityIncidentTable());
-}
-
 /**
  * The document a candidate's uuid names, or null when the promise is broken.
  *
@@ -760,6 +755,3 @@ async function whisperTurn(
     rolls: rolls.filter(Boolean),
   });
 }
-
-/** The module id, for callers that key their own flags off this feature. */
-export const SETTLEMENT_TURN_OWNER = MODULE_ID;

@@ -3,11 +3,11 @@
  * The sky is a function of the day and the ground's climate, not a value a
  * party carries around.
  *
- * Weather used to live on the formation and refresh when a Judge pressed End
- * day. Three things follow from that and all three are wrong: advancing the
- * calendar any other way leaves yesterday's sky standing; two parties in the
- * same weather roll independently; and there is no per-day identity at all, so
- * nothing can ask "what was the sky like when we were there".
+ * A sky stored on the formation and refreshed when a Judge pressed End day
+ * would go wrong three ways: advancing the calendar any other way leaves
+ * yesterday's sky standing; two parties in the same weather roll
+ * independently; and there is no per-day identity at all, so nothing can ask
+ * "what was the sky like when we were there".
  *
  * Here the sky is CACHED against `(day, climate, season)`, the day being the
  * calendar day the world clock stands in (the End-day counter only where the

@@ -1,7 +1,6 @@
 /* global game, canvas, ui, Hooks, foundry, document, fromUuid */
 /**
- * acks-battlemap — map alignment and token scaling for the ACKS II module
- * family: a GM assistant that best-fits the scene grid to a battlemap image
+ * The battlemap feature — map alignment and token scaling: a GM assistant that best-fits the scene grid to a battlemap image
  * from canvas samples, converts the confirmed scale into grid.distance, and
  * sizes tokens to their real footprints.
  */
@@ -74,7 +73,7 @@ import { installRoadMarkers } from "./road-markers.mjs";
 import { installSceneNavigation, sessionFollowsScene } from "./scene-nav.mjs";
 import { installMapModes, mapModes, mapView, openMapModes, registerMapMode, registerMapViewSetting, setMapView } from "./map-modes.mjs";
 import { derivedRoutesOf, nodePoint, routesOf, stepBetweenHexes } from "./hex-routes.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, escape as esc } from "../lib/util.mjs";
 
 const TEMPLATES = [
   `modules/${MODULE_ID}/templates/battlemap/assistant-body.hbs`,
@@ -442,7 +441,6 @@ function installSceneConfigRow() {
  */
 function incidentsRow(scene) {
   const say = (key) => game.i18n.localize(`${LANG_PREFIX}.sceneConfig.${key}`);
-  const esc = foundry.utils.escapeHTML;
   const held = scene.getFlag(MODULE_ID, FLAG_BATTLEMAP)?.incidents ?? {};
   const figure = (v) => (Number.isFinite(Number(v)) && Number(v) !== 0 ? Number(v) : "");
   const row = document.createElement("div");

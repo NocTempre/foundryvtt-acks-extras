@@ -12,7 +12,7 @@
  * See docs/battlemap/DECISIONS.md, "A road is a wall, on every grid."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { elementOf, makeLoc, locOr } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc, locOr } from "../lib/util.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { joinSegments, pathLengthAlong } from "../lib/wall-geometry.mjs";
 import {
@@ -367,7 +367,6 @@ function installRoadRow(app, element) {
   // Assembled as markup, so everything interpolated is escaped — a name
   // holding a quote character must not close the attribute early. Imported
   // surface keys and their labels are no more trusted than a typed name.
-  const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
   const option = (value, label, selected) =>
     `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`;
   const row = document.createElement("div");

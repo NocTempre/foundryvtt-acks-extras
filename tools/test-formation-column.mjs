@@ -692,7 +692,7 @@ await testAsync("laidOrder counts a blank square and every body of a stack, whic
     const f = placed(sq, partyToken(sq, 7, 7), members, 2);
     // Bodies: a, blank | g, g | b. A stack stands where its first body does.
     assert.deepEqual(seatsOf((await laidOrder(f)).order), ["a:0/0", "g:1/0", "b:2/0"]);
-    assert.deepEqual(seatsOf(marchingOrder(f)), ["a:0/0", "g:0/1", "b:1/0"], "the old reading counts one body per member");
+    assert.deepEqual(seatsOf(marchingOrder(f)), ["a:0/0", "g:0/1", "b:1/0"], "the marching order counts one body per member");
   } finally {
     globalThis.game.actors = new Map();
   }

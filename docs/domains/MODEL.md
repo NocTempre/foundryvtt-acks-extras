@@ -34,7 +34,7 @@ read but not yet used. The automation (the derivations, the month) is
   placed settlement's families and market class; lib's alignment vocabulary
   and the formation feature's territory keys.
 - **Extend**: the `acks-extras.domain` sub-type (TypeDataModel). Every field
-  defaults, so a field a later wave adds needs no migration.
+  defaults.
 - **Enhance**: the domain sheet; a paint layer and a map mode registered into
   battlemap's registries; one clause in the location feature's
   empty-location prune; the location sheet's Domain line, and the location
@@ -125,8 +125,8 @@ beside the totals, which read as "at least". A domain with no lord owes no
 tribute and is not partial for its absence.
 
 Tribute in sums each vassal row's `tributeGp` plus its `extraTaxGp`, and each
-vassal domain's own `tributeGp`. Wave 3 replaces the second with the vassal's
-last month's tribute out.
+vassal domain's own `tributeGp`. The [ROADMAP](ROADMAP.md) replaces the second
+with the vassal's last month's tribute out.
 
 ## Holdings and the map of places
 
@@ -170,7 +170,7 @@ never both. `promoteVassalRow` decides where each of the row's figures lands:
 | `realmFamilies`, `realmHexes`, `realmGarrisonGp`, `revenueGp`, `extraTaxGp`, `note` | the notes, one labelled line each |
 
 The liege's tribute in is the same before and after: it counted the row's
-tribute and its additional tax, and now counts the new domain's tribute out.
+tribute and its additional tax, and counts the new domain's tribute out.
 
 **A settlement is founded.** `foundSettlement(domain, {name, market})` makes a
 world location with a market — the location model's empty one unless a
@@ -313,7 +313,7 @@ sheet (PDF)".
 The month's tables arrive through the importer from the Judge's own book, as
 the recipes of the `domain` ruledata document
 (`scripts/importer/table-recipes.mjs`, each with its printed page). Nothing
-reads them yet; wave 3 does ([ROADMAP.md](ROADMAP.md)). Each is stored in the
+reads them yet; the reader is on the [ROADMAP](ROADMAP.md). Each is stored in the
 shape its reader takes, so no reader parses a cell:
 
 - a count band (families, realm families, vassals, a tribute inefficiency

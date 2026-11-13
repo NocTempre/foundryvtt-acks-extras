@@ -1,0 +1,1 @@
+- **Dropping an ability item on an ability's Languages box refuses with a plain message.** On an ability's sheet, Mechanics tab, the Languages box takes language items only; an ability dropped there is refused with "Only a language goes in a language slot. This is an ability."

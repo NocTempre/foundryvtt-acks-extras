@@ -1,4 +1,4 @@
-/* global foundry, game, ui, canvas, Roll, ChatMessage, CONFIG, fromUuid */
+/* global foundry, game, ui, canvas, CONFIG, fromUuid */
 /**
  * The Full Monster sheet, created at ready as a SUBCLASS of the system's own
  * registered monster sheet (resolved from CONFIG.Actor.sheetClasses) drawn on
@@ -14,8 +14,7 @@
  * Statblock is the dashboard: every throw with its target and what it is made
  * of, and the readings — movement, senses, the load, the defences, the spell
  * slots. Classification is the pen for what the band, the rails and Statblock
- * read. The importer's provenance (once the Source tab) is a dialog from the
- * tools rail. The frame's mechanics are docs/lib/MODEL.md, "The sheet frame";
+ * read. The importer's provenance is a dialog from the tools rail. The frame's mechanics are docs/lib/MODEL.md, "The sheet frame";
  * this sheet's are docs/monsters/MODEL.md, "The sheet".
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
@@ -36,7 +35,7 @@ import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model
 import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
 import { importedKits } from "./kits.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { makeLoc, plainRoll } from "../lib/util.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
@@ -163,13 +162,6 @@ function choices() {
     alignment: { Lawful: "Lawful", Neutral: "Neutral", Chaotic: "Chaotic" },
     category: { henchman: "Henchman", mercenary: "Mercenary", specialist: "Specialist" },
   };
-}
-
-/** A plain roll posted to chat under the actor's name. */
-async function plainRoll(actor, formula, data, flavor) {
-  const roll = await new Roll(formula, data).evaluate();
-  await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor }), flavor });
-  return roll;
 }
 
 /** The uuid inside a stored content link, or null. */

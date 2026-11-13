@@ -25,8 +25,8 @@ export { PARTY_TYPE };
  * A party actor holds almost NO data of its own — the formation record does.
  * Its schema is the compatibility stub every non-character sub-type needs so
  * the acks system's unguarded per-actor compute (isNew, attack, initiative,
- * movement, saves) does not error on it. That set has one home
- * now: acks-lib's acksCompatStubs().
+ * movement, saves) does not error on it. That set has one home:
+ * the lib's acksCompatStubs().
  *
  * A party does not save on its own — rollPartySave reads each MEMBER's saves —
  * so the stub carries no saves of its own beyond the compat set.

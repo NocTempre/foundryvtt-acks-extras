@@ -25,7 +25,7 @@ import {
   DAMAGE_TYPES,
 } from "./config.mjs";
 // Leaf field-builders and the movement / senses / vision shapes come from
-// acks-lib now (single source across the family). num()/str()/choice() are
+// lib (one source across the features). num()/str()/choice() are
 // nullable — a blank field means "unspecified", never a real 0. Monster-specific
 // shapes (defenses, hd, mass, …) stay defined below with `fields`.
 import {
@@ -84,8 +84,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
 
       // --- Defenses: immunities/resistances/susceptibilities, using lib's
       //     shared defensesField (same bands the ability model stores).
-      //     `damage` is a set of damage types; unparsed legacy prose lands in
-      //     each band's `note`. See docs/monsters/DECISIONS.md, "Defence
+      //     `damage` is a set of damage types; text the closed sets cannot
+      //     hold lands in each band's `note`. See docs/monsters/DECISIONS.md, "Defence
       //     bands adopt the shared shape; capacity answers once". ---
       defenses: defensesField(),
 
@@ -180,10 +180,10 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         cha: num({ integer: true }),
       }),
 
-      // --- Multi-row speed table (acks-lib speedsField: type / combat / run / hover) ---
+      // --- Multi-row speed table (lib speedsField: type / combat / run / hover) ---
       speeds: speedsField(),
 
-      // --- Senses (acks-lib visionField / sensesField) ---
+      // --- Senses (lib visionField / sensesField) ---
       vision: visionField(),
       lightlessRange: num({ integer: true }),
       otherSenses: sensesField(),

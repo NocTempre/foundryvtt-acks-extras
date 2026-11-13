@@ -1,8 +1,8 @@
 /**
- * Static identifiers for the ACKS II Full Monster Sheet module.
+ * Static identifiers for the Full Monster Sheet feature.
  *
  * Kept free of any `foundry` references so this file (and config.mjs, which it
- * pairs with) can be imported by the Node build tooling as well as at runtime.
+ * pairs with) can be imported by the Node tooling as well as at runtime.
  */
 
 export { MODULE_ID } from "../lib/constants.mjs";
@@ -12,10 +12,3 @@ export const MONSTER_TYPE = "monster";
 
 /** Flag scope + the single object holding all extended stat-block data. */
 export const FLAG_EXTRAS = "extras";
-
-/**
- * `system._schemaVersion` written into sample documents so the acks system's
- * migration runner treats them as current. Keep in sync with the system's
- * CURRENT_SCHEMA_VERSION (migration/migration.mjs).
- */
-export const ACKS_SCHEMA_VERSION = 3;

@@ -290,7 +290,7 @@ const DECLARED_MODES = Object.freeze(["flying", WATER_BORNE]);
 
 /**
  * The Judge's word on how the whole party moves (`movement.set`), a mode key,
- * or null for the automatic reading. A record older than the word holds the
+ * or null for the automatic reading. A record with no word holds the
  * `mode` its select wrote: a declared mode reads as the word, and the rest said
  * nothing the attachments do not, the default `foot` above all.
  */
@@ -320,7 +320,7 @@ function mapReadingOf(formation, t) {
  * the Judge's override (`travel.override`), the map's reading of the party's
  * hex (`travel.map`, whose own `source` says whether the hex, the scene's
  * default or a layer deriving the key answered), the declared record (the six
- * keys as an older record stores them), then the module's default. A declared
+ * keys as a record stores them), then the module's default. A declared
  * value equal to the default reads as the default: a stored default says
  * nothing about what was declared.
  *
@@ -665,7 +665,7 @@ const logCap = () => {
  *
  * @param {string} formationId
  * @param {string|boolean} journey the mode to adopt (a bare boolean is the
- *   older journey/delve switch)
+ *   journey/delve switch)
  * @param {string|null} [opts.sceneId] the scene a settlement board is being
  *   counted on; the board is stamped with its city (`cityStampOf`). Naming
  *   none leaves whatever stamp the board carries — a
@@ -950,28 +950,7 @@ export function patchSettlement(formationId, patch = {}) {
 }
 
 /**
- * The record's own declarations: ground, road, territory, pace, weather flags,
- * hex note. The country keys written here are the DECLARED record — the
- * fallback under the map and the scene default — not the Judge's override,
- * which is `applyTravelForm`'s `override` group.
- */
-export function patchTravel(formationId, patch = {}) {
-  return patchFormation(formationId, (record) => {
-    const t = storedTravelOf(record);
-    const next = { ...t };
-    if (patch.ground !== undefined) next.ground = String(patch.ground);
-    if (patch.road !== undefined && ROAD_KINDS.includes(patch.road)) next.road = patch.road;
-    if (patch.territory !== undefined && TERRITORY_KEYS.includes(patch.territory)) next.territory = patch.territory;
-    if (patch.pace !== undefined && TRAVEL_PACE[patch.pace]) next.pace = patch.pace;
-    if (patch.hour !== undefined && Object.hasOwn(HOUR_MODES, patch.hour)) next.hour = patch.hour;
-    if (patch.weather !== undefined) next.weather = { ...t.weather, ...patch.weather };
-    if (patch.hex !== undefined) next.hex = { ...t.hex, ...patch.hex };
-    record.travel = next;
-  });
-}
-
-/**
- * Retire an older record's declaration of one country key: the key's default
+ * Retire a record's declaration of one country key: the key's default
  * is written over it (`travel.weather.climate` for the climate), so the map
  * or the module's default answers again. The Judge's override is cleared by
  * `applyTravelForm` with a blank; this never touches it. Null for a key that
@@ -1169,20 +1148,6 @@ export function traceStep(travel, { label = "", i = null, j = null, map = null, 
         : travel.day,
     },
   };
-}
-
-/**
- * Write one step of the hex trace (`traceStep`) to the record, alone — no
- * miles, no clock. A step traced by hand is read on the party's own scene.
- * Writes nothing when the step changes nothing.
- */
-export function autoEnterHex(formationId, step = {}) {
-  return patchFormation(formationId, (record) => {
-    const t = storedTravelOf(record);
-    const { travel } = traceStep(t, { sceneId: record.sceneId ?? null, ...step });
-    if (travel === t) return false;
-    record.travel = travel;
-  });
 }
 
 /**

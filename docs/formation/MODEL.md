@@ -56,7 +56,7 @@ All paths are under `scripts/formation/` unless noted.
 | `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
 | `trapbreak-app.mjs` | The Trapbreaking dialog — who, which trap, which column — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
-| `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag), the party token's size, and clearing a light the module once wrote on it. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
+| `scene-sync.mjs` | Mapper-gated fog (`scene.fog.exploration`, original value stashed in a scene flag), the party token's size, and clearing a light the module wrote on it. Reconciled by the primary GM after every formation change (idempotent, compare-before-write). |
 | `deployment.mjs` | Putting members on the map and gathering them back: the combat deploy, the deliberate detach, and the movement leash on a detached member. |
 | `column.mjs` | Pure: the marching column (§The column) — where each body stands along the party token's trail, how a move changes the trail, and which scenes lay a column. |
 | `column-trail.mjs` | The primary GM's write of the party token's trail (`flags.acks-extras.trail`), from the token's own update. |
@@ -97,7 +97,7 @@ All paths are under `scripts/formation/` unless noted.
 - The **party token** is the record's `sceneId` + `tokenId`. Placing a party actor's token adopts it (`createToken`, `module.mjs`); deleting it outside a disband unlinks it (`deleteToken`), unless the deletion names a **replacement**: core's move to another scene, by a `teleportToken` Region or a cut and paste, and the rules a record that follows one keeps (docs/lib/MODEL.md, "A token moved to another scene"). A replacement still flagged for the formation takes over `sceneId`, `tokenId` and `clock.lastPosition` (DECISIONS 2026-10-17).
 - **Only the linked token acts for the party.** `isLinkedPartyToken(record, token)` is the one test, id and scene both. The movement and rotation hooks, the deletion that unlinks, and the combat deploy all run it, so a flagged copy of the party token (a paste, a duplicated scene) bills no turn, turns nothing, seats nobody and deploys nobody. The flag alone is evidence of a copy's origin, not of its standing. A copy is never adopted over a live link. `preCreateToken` refuses an UNFLAGGED token of a party actor while the record links a live token (the Judge is warned); a flagged creation stands, since a teleport creates the replacement before the deletion hands the linkage over. `adoptPartyToken` is the one adoption, shared by the `createToken` hook and the repair tool, and `adoptPartyActor` is the one for a party actor no record names. `truePositionToken` reads the record's own token, on its own scene, never the first token of the party actor on a scene. `addMember` refuses an actor another formation holds, for the Judge's drop and HUD button as a player's request is refused (`membership.bringInRefusal`). The repair checks `formation.partyTokens` and `formation.partyActors` find what disagrees and mend what is safe (DECISIONS 2026-11-03).
 - The **party token's size** follows the party's shape (`tokenShape` on the record, set by the Order tab's On the map control; unset, the `partyTokenShape` world setting, read by `partyTokenShape`). In `order` the token is the one-cell head of its column (§The column) at every frontage and scale, and a hand resize goes back. In `fixed` the size is the Judge's: a token still at the size the module last stamped (`flags.acks-extras.partySize`) goes to one cell once, and one resized since is never written. The footprint lock (`flags.acks-extras.footprintLock`) means never resize, in both shapes. `partySizeTarget` in `scene-sync.mjs` decides, pure; `syncPartyTokenSize` writes through `TokenDocument#resize`, which holds the token's **centre** still and ignores walls and movement cost — width and height are Foundry movement fields, so a raw `update` would anchor on the top-left corner, be constrained by walls, and be measured as travel. The resize waits out the token's `movementAnimationPromise` first (an unanimated write mid-move cancels the move), reads the stored size (`_source`), carries `RESIZE_OPTION` so neither the movement hook nor the trail treats it as a walk, and re-baselines `clock.lastPosition`, since holding the centre still moves the corner the clock measures from. A width/height hook resyncs on a hand resize; a turn writes no size. Generic tokens are sized by the battlemap feature (`docs/battlemap/MODEL.md`), which exempts party tokens — one owner per token, each side skipping the other's.
-- **The party token itself sheds no light.** Every carried light shines from its bearer's cell in the column (§The column, Lights), so `syncPartyTokenLight` only ever clears a light the module once wrote on the token, unconditionally.
+- **The party token itself sheds no light.** Every carried light shines from its bearer's cell in the column (§The column, Lights), so `syncPartyTokenLight` only ever clears a light the module wrote on the token, unconditionally.
 
 ## Movement → turns
 
@@ -233,7 +233,7 @@ it, the 640px `min-width` floor does not.
 without a formation write, so the sheet watches `updateActor` and
 `updateToken` for a member's hit points and re-renders, debounced.
 
-## The player surface (v0.22)
+## The player surface
 
 One sheet, two capability tiers — never two UIs. Formation state lives in a
 world setting only GMs can write, so every player mutation is a **declaration**:
@@ -653,8 +653,7 @@ the importer into the `formation` document: `marchFrontageFeet`,
 `wideFrontageFeet` and `rankIntervalFeet`. The column is spaced when all three
 are above nothing and the scene says what a cell is worth
 (`columnSpacing(scene)`, pixels from feet at the scene's scale); otherwise every
-body stands one to a cell, exactly as before the figures existed, with no notice
-and no setting. Spaced, `columnPoints` lays the bodies:
+body stands one to a cell, with no notice and no setting. Spaced, `columnPoints` lays the bodies:
 
 - Rank *r* stands *r* × interval along the line through the spine cells'
   centres from the head (the spine is the same cells the one-per-cell layout
@@ -802,8 +801,8 @@ ground `toggleDetachMember` is — the fight owns who is on the field — and it
 re-anchors `clock.lastPosition` *before* the party token moves to the reform
 point, or the jump would read as the party having walked there and spend dungeon
 turns nobody took. Role changes are announced one at a time exactly as
-`toggleRole` announces them, since a role can fill hands and acks-equipment
-recomputes a loadout off that hook.
+`toggleRole` announces them, since a role can fill hands and the equipment
+feature recomputes a loadout off that hook.
 
 The party sheet saves and loads orders; the party token's HUD carries a **form
 up** button, which appears only once at least one order is saved and skips the
@@ -819,7 +818,7 @@ who it catches, and — as six rows on `levels` — how it resolves and what it 
 at each of the six levels the books print it at. `level` is not a fact about the
 trap but the row in force, and `tier` is how everything reads it; a scything
 blade is one trap whether it is laid at 1st or 4th. It is shared — one blade, laid
-in four corridors — and `acks-importer` materializes the Judge's own book into
+in four corridors — and the importer materializes the Judge's own book into
 it, one document per printed trap with all six rows filled. Nothing here holds a
 printed trap.
 
@@ -945,8 +944,7 @@ made save is worth is a field on the trap, because the book's traps disagree: a
 collapsing ceiling halves, a deadfall is dodged outright, a portcullis grants a
 choice of side and no mitigation at all. An attack that missed deals nothing
 regardless. The card carries the number the victim actually took — reporting a
-damage line beside a missed attack, which 4.9.0 and 4.9.1 did, is worse than
-saying nothing.
+damage line beside a missed attack is worse than saying nothing.
 
 Applying it is still the Judge's, on the precedent the door helper set: a botched
 bash returns its point of damage and leaves the writing to a human.
@@ -1029,7 +1027,7 @@ to the arrival, since the leash measures walking and a teleport is none.
 - What a combat and the environment sync read (`deployedTokens`) is the
   party's scene alone. A combat leaves a detached member on another scene
   out ("The leash", below).
-- A record from before the scene was kept is read as standing on the party's
+- A record that names no scene for a deployed member is read as standing on the party's
   scene (`deployedSceneIdOf`). `memberOwnToken` and the reach check look for
   it on every scene.
 - A stack's bodies are the group's (docs/lib/GROUPS.md, "A deleted body, and
@@ -1068,7 +1066,7 @@ deployed or took over (`combat-bridge.mjs`). Its end gathers those members and
 no one else (`gatheredBy`), with or without the record's `combat` flag, and
 another combat's end gathers none of them. A member taken over by a combat no
 longer in the world is gathered by any combat's end, since no client heard its
-own, and at the party's next move or deploy. A record from before the field
+own, and at the party's next move or deploy. A record without the field
 reads a member on the map with no detach and no leave as taken over by the
 party's running combat (`takeoverOf`).
 
@@ -1125,7 +1123,7 @@ declaration means to a map is `docs/battlemap/MODEL.md`.
 Delve is everything above; **journey** is the same drag billed in miles. The
 record is a `travel` subtree ([travel.mjs](../../scripts/formation/travel.mjs))
 holding the country the party is crossing (§The country: the map's reading,
-the Judge's word over it, and what an older record declared), the day's
+the Judge's word over it, and what the record declared), the day's
 weather, the hex it believes it is in, where the hour comes from
 (`travel.hour`: the clock, or the Judge's word for day or night), the DAY
 BOARD — one day-kind (dedicated march, forced march, camp) plus the ancillary
@@ -1207,8 +1205,8 @@ stays the trace-only writer. `hexContext`, read at the party's true position
 
 **Pause is live on a journey.** `clock.pausedBy === "judge"` is the Judge's
 own flag, separate from the mode; a paused party's drag re-anchors
-`clock.lastPosition` and bills nothing. A record from before this release
-that carries `clock.paused` without `pausedBy` reads as unpaused on a
+`clock.lastPosition` and bills nothing. A record that carries
+`clock.paused` without `pausedBy` reads as unpaused on a
 journey. `setJourneyMode` clears the pause and re-anchors the token position
 on every mode change, so a change never bills the distance walked under the
 old mode. On a mile-scale scene the party token is one cell square
@@ -1291,7 +1289,7 @@ carries the members on the march: `vessel` with every one of them aboard one,
 anything else, otherwise `foot`. `movementModeOf` is the word where one stands
 and that reading where none does, and `travelOf` serves it as
 `movement.mode`, so the country, the readout and the flight rules read one
-answer. `storedTravelOf` drops the key. An older record's `movement.mode` of
+answer. `storedTravelOf` drops the key. A stored `movement.mode` of
 `flying` or `vessel` reads as the word it was (`movementSetOf`, `DECLARED_MODES`);
 `foot`, `mounted` and `vehicle` said nothing the attachments do not say, and read
 as no word.
@@ -1376,7 +1374,7 @@ one place, as the first of four sources that answers it:
    hex's paint, the deriving layer or the scene's default answered. It counts only while
    its `sceneId` is the party's scene and the party has a token; anywhere else
    the map says nothing and the next source answers.
-3. **The declared record**: the six keys as an older record stores them. A
+3. **The declared record**: the six keys as the record stores them. A
    declared value equal to the module's default reads as the default: a
    stored default says nothing about what was declared.
 4. **The module's default** (`COUNTRY_DEFAULTS`).
@@ -1401,7 +1399,7 @@ compare.
 other key defaulted and the six keys, `map` and `override` exactly as stored.
 A patch built on the resolved view would write the map's reading back as a
 declaration that outlives the paint. No declared key is migrated; a writer
-carries an old record's through untouched, and the pen chip's clear
+carries the record's through untouched, and the pen chip's clear
 (`clearDeclaredCountry`) writes the key's default over one, which is how a
 declaration is retired.
 
@@ -1460,7 +1458,7 @@ provenance earns against the map's own value (`countryChip`):
 |---|---|---|
 | override | a different value | **Override**, with a clear (`clearOverride`) |
 | override | the same value | none |
-| override or declared | nothing | the pen mark, with a clear (`clearOverride` for the Judge's word, `clearDeclared` for an older record's) |
+| override or declared | nothing | the pen mark, with a clear (`clearOverride` for the Judge's word, `clearDeclared` for the record's) |
 | map, scene, a deriving layer or default | — | none |
 
 A card on a layer the brush paints (ground, territory) offers **Paint this
@@ -1475,7 +1473,7 @@ toolbar's own path. Nothing is written until the Judge clicks the map.
 (`travel.override.<key>`), blank for no word, with what the map reads under it
 written beside it and a clear where a word is held. `applyTravelForm` routes
 the six keys into `travel.override` — and the same keys named at the form's
-top level, the shape the form had before the hand — with a blank clearing the
+top level, outside that group — with a blank clearing the
 key and an invalid value changing nothing. A held word no longer in its
 vocabulary stays an option, so a submit cannot clear it unasked. A known
 route is a word only the Judge gives: nothing on the map draws one.
@@ -1688,11 +1686,10 @@ place's notes are [ROADMAP](ROADMAP.md).
 
 ## Living off the country
 
-The day board has carried `forage` and `hunt` as pickable slots since the
-journey shipped and nothing ever resolved them.
+The day board's `forage` and `hunt` are pickable slots.
 [foraging.mjs](../../scripts/formation/foraging.mjs) resolves them, and what it
-produces goes into the same pool the order eats from — which is the only reason
-the slots were ever worth picking.
+produces goes into the same pool the order eats from — which is the reason the
+slots are worth picking.
 
 The three kinds are NOT one shape, and that is why this needs structure rather
 than one function. **Firewood** is per forager and may be tried as often as
@@ -1870,8 +1867,7 @@ the order they move in:
 - **[shadow.mjs](../../scripts/formation/shadow.mjs)** — the true position, as
   a hidden, sightless token flagged to its formation. A token rather than a
   coordinate because every question worth asking about a lost party is a
-  distance, and `nearbyLost` answers "do two lost parties risk meeting" with
-  the grid's own measurement.
+  distance, and Foundry already answers distance questions about tokens.
 - **[lost-fog.mjs](../../scripts/formation/lost-fog.mjs)** — the faked reveal
   and its undoing. Uncovers the GROUND for the players and nothing else; the
   Judge's own fog is never touched. The snapshot is taken once before the first
@@ -1917,8 +1913,8 @@ stands, and the shadows retire.
 Shadows are cleared from EVERY scene on each ending and when a formation is
 dissolved. A shadow is a token of the party actor, so the party-token adoption
 hook skips it. At `ready`, the primary GM deletes shadows whose formation no
-longer exists. A shadow whose formation exists with no episode open was left by
-an earlier build's discovery. The Judge tab's episode section says so and offers the same two
+longer exists. A shadow whose formation exists with no episode open is a discovery's
+leftover. The Judge tab's episode section says so and offers the same two
 closing buttons, which move the party onto it or remove it. The repair tool's
 `formation.shadows` check lists every such marker across the world, with the
 spares and the members whose actor is gone (`formation.members`)
@@ -2003,8 +1999,8 @@ stands in. End day throws nothing.
 throw; `lastResult`, that throw; and `history`, the last `NAVIGATION_HISTORY`
 (ten), newest first, each `{day, count, hexLabel, target, total, natural,
 success, by}`. `count` is the End-day counter the throw fell in, which the
-Judge tab's row shows as the band's day number (`count + 1`); an entry an
-earlier build wrote has none, and its row shows a dash. `by` is `step` for the
+Judge tab's row shows as the band's day number (`count + 1`); an entry
+without one shows a dash. `by` is `step` for the
 day's first step and `judge` for the Judge's
 press (`NAVIGATION_BY`); `success` is null for a throw that could not be made,
 its target unimported. `navigationOf` normalizes it, `withNavigationThrow` is
@@ -2035,9 +2031,7 @@ river, a road or a route it knows from the lost throw (RR ch. 6). A road
 answers through `road`, and `following` carries the other two. A navigable
 water line under the token reads as `river` by itself (§The country);
 `knownRoute` is deliberately vague because the book is, and what counts as a
-route the party knows is the Judge's call, given in the Judge's hand. The branch existed before the field did, so the exemption was
-unreachable: a check that reads a value nothing writes is dead code wearing a
-rule's clothes.
+route the party knows is the Judge's call, given in the Judge's hand.
 
 The throw itself is `rollLandNavigation` — a d20 against the terrain's imported
 target plus the marching order's competence, with an unmodified 1 failing
@@ -2521,7 +2515,7 @@ it; the cache is written once and the formation patched once. A mark that is
 absent is stamped with today and settles nothing, so no formation is paid back
 from the world's beginning; a day at or below the mark is a no-op, so a
 dragged clock or a re-fired hook pays once. A formation not journeying is
-stamped only. End day no longer settles the weather where the clock keeps a
+stamped only. End day does not settle the weather where the clock keeps a
 calendar: its jump to dawn crosses the day change, and with *Advance the
 world clock* off it fakes no day, so the sky follows the real clock, moved by
 whoever moves it. Where the clock keeps no calendar there is no watcher, and
@@ -2669,7 +2663,7 @@ or blank states nothing. The delve takes the first zone under the party token
   both, `acksExtras.hexEntered` still fires per unit, with `throwOwed: false`.
 - The card names the zones that supplied a field on a line of its own.
 
-## Deliberate non-features (v0.1)
+## Deliberate non-features
 
 - Combat rounds are not auto-counted toward rest (10 rounds = 1 turn); the GM uses the manual Turn button after fights.
 - ~~No socket layer: players never mutate formation state directly~~ — superseded: socketlib relays player declarations (see *The player surface*); token drags are still processed by the GM client's hook.
@@ -2680,4 +2674,4 @@ or blank states nothing. The delve takes the first zone under the party token
 
 Superseded by [ROADMAP.md](ROADMAP.md), which tracks the full rules gap analysis and
 the phased mapping plan ([FOG.md](FOG.md)). Combat-round counting
-shipped in v0.4.0 (on combat end, 10 rounds = 1 turn with carry).
+is built (on combat end, 10 rounds = 1 turn with carry).

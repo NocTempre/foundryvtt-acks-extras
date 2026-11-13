@@ -9,7 +9,7 @@
  * walked reach it (`marchIsSpent`).
  *
  * Every function returns new objects; a day record passed in is never changed,
- * and a field a legacy record lacks reads as zero. The caller (travel.mjs)
+ * and a field a record lacks reads as zero. The caller (travel.mjs)
  * writes the returned day back to the formation and advances the clock by the
  * returned seconds.
  */

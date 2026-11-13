@@ -304,9 +304,8 @@ character `abilities/typed-character`, a level-3 `character` actor):
     → it returns. Add a hand-made row `{type: "modifier", target: "ac", value:
     {kind: "flat", flat: 1}, gate: {kind: "lightlyEquipped", loadMax: 4}}`
     (no rung) → the tooltip lists it as not applied under every loadout, never
-    applied by a default rung. A row stamped before the rung was read keeps
-    its old literal until **Update Abilities** rewrites it; compare a copy
-    made before this change.
+    applied by a default rung. A row stamped without a rung keeps its stamped
+    literal until **Update Abilities** rewrites it.
 
 This walk is also the Stats tab's first live pass.
 

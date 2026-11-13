@@ -220,7 +220,7 @@ lines: a run after the first builds only the settlement, the promoted
 domain, the founded location and the scene, and where the prune setting is
 on, the three empty places.
 
-## Territory on the map (added with the domain layer)
+## Territory on the map
 
 Walked by hand from a browser pane; not yet in `tools/live/domains.mjs`.
 "Before anything else" above holds here too.

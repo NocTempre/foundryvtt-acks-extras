@@ -20,7 +20,7 @@
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
 import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText } from "./ability-rolls.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, escape as esc } from "../lib/util.mjs";
 
 /** Marks a tag in the strip as one of an ability's throws (carries its key). */
 export const THROW_TAG_CLASS = "acks-extras-abilities-throw";
@@ -30,8 +30,6 @@ export const THROW_DEFAULT_CLASS = "acks-extras-abilities-throw-default";
 const CYCLE_CLASS = "acks-extras-abilities-default-cycle";
 const FAV_CLASS = "acks-extras-abilities-fav-throw";
 const BOUND = "acksAbilitiesRolls";
-
-const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
 
 /** A throw's name for a tooltip: its label and what it reads as, or just that. */
 const throwLabel = (roll, actor, item) => [roll.label, throwText(roll, actor, item)].filter(Boolean).join(" ");

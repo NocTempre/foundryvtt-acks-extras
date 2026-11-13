@@ -39,7 +39,7 @@ import {
 import { acksExtras } from "../../namespace.mjs";
 import { indexPlaces } from "../../lib/place-logic.mjs";
 import { isLocation, occupantRow } from "../../lib/place.mjs";
-import { makeLoc } from "../../lib/util.mjs";
+import { docOf, escape as esc, makeLoc, refOf } from "../../lib/util.mjs";
 import { isGoods } from "../../lib/item-model.mjs";
 import { refuseGoods } from "../../lib/bundles.mjs";
 import { DISTRICT_TYPE } from "../../formation/district-zone.mjs";
@@ -51,26 +51,6 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
 const loc = makeLoc(LANG_PREFIX);
-const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
-
-/**
- * The document a uuid names, or null. Never throws: `fromUuidSync` raises on a
- * uuid into an unloaded compendium, and a render path cannot afford it.
- */
-function docOf(uuid) {
-  try {
-    return uuid ? (fromUuidSync(uuid) ?? null) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** A `{uuid, name, missing}` reference for a stored uuid, or null for none. */
-function refOf(uuid) {
-  if (!uuid) return null;
-  const doc = docOf(uuid);
-  return { uuid, name: doc?.name ?? uuid, missing: !doc };
-}
 
 /**
  * Every quarter drawn as a District in the world, as picker options:

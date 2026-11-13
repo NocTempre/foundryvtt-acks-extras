@@ -50,8 +50,7 @@ function setPath(node, keys, value) {
  * Does this description hold something this module cannot prove it wrote?
  *
  * The test is never "is this worth keeping", it is "is this ours": a stamped
- * block of imported book text, or the legacy `@PdfText` tag that preceded it,
- * and nothing else. Structure-only markup (the empty paragraph an editor leaves
+ * block of imported book text, or its `@PdfText` tag form, and nothing else. Structure-only markup (the empty paragraph an editor leaves
  * behind) is empty; an image, a heading or a word of text is someone's work and
  * is never overwritten without being offered first.
  *

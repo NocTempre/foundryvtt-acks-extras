@@ -55,7 +55,7 @@ const ability = (id, name, effects = [], extra = {}) => ({
   flags: { "acks-extras": { extras: { effects, ...extra } } },
 });
 
-/** A flat reaction bonus in the acks-lib effect vocabulary. */
+/** A flat reaction bonus in the lib effect vocabulary. */
 const reactionMod = (flat, extra = {}) => ({
   type: "modifier",
   target: ROLL_FAMILY.REACTION,

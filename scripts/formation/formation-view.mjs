@@ -1684,8 +1684,8 @@ function countrySwatch(key, value, t) {
 
 /**
  * The chip a reading earns: "override" where the Judge's word stands over a
- * different reading of the map, "declared" where a word — the Judge's, or an
- * older record's — stands with no reading under it, and none where the map,
+ * different reading of the map, "declared" where a word — the Judge's, or a
+ * record's own — stands with no reading under it, and none where the map,
  * the scene or a deriving layer answered, or where the Judge's word says what
  * the map says.
  */

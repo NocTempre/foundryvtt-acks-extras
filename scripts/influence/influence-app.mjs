@@ -46,6 +46,7 @@ import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } 
 import { ageRow, attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
+import { signed } from "../lib/frame-model.mjs";
 import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -61,14 +62,11 @@ const ATTITUDE_TYPE = `${MODULE_ID}.attitude`;
 const TARGET_AUTO_SOURCES = new Set(["targetWill", "alignment", "levelGap", "age"]);
 const TARGET_KEYS = new Set(["targetMorale", "bribeFee"]);
 
-/** A figure as a page prints it: always signed, zero included. */
-const signedText = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
-
-/** A row's wording with the figure it is worth beside it. */
-const withFigure = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigure", { label, figure: signedText(figure) });
+/** A row's wording with the figure it is worth beside it, always signed. */
+const withFigure = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigure", { label, figure: signed(figure) });
 
 /** A counted row's wording with the figure each count is worth. */
-const withFigureEach = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigureEach", { label, figure: signedText(figure) });
+const withFigureEach = (label, figure) => game.i18n.format("ACKS-INFLUENCE.mod.withFigureEach", { label, figure: signed(figure) });
 
 /**
  * Resolves the three kinds of ACKS II influence rolls (Diplomacy, Intimidation,
@@ -823,7 +821,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       // none: the table is not imported, or the page prints nothing for it.
       const tip =
         modifier !== null
-          ? `${heading}: ${signedText(modifier)}. ${this.#figureTip({ docId: INFLUENCE_DOC, tableId: table }, tone)}`
+          ? `${heading}: ${signed(modifier)}. ${this.#figureTip({ docId: INFLUENCE_DOC, tableId: table }, tone)}`
           : `${heading}: ${game.i18n.format(origin.state === "missing" ? "ACKS-INFLUENCE.tracker.notImported" : "ACKS-INFLUENCE.tracker.nonePrinted", { cite: TONE_PAGES[tone].cite })}`;
       return { index, label: game.i18n.localize(label), modifier, tip, isActive: index === this.#system.currentAttitude };
     });
@@ -865,7 +863,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
             return withFigure(name, opt.figure);
           }
           if (opt.label) return L(opt.label);
-          return opt.printedLabel ? withFigure(opt.printedLabel, opt.figure) : signedText(opt.figure);
+          return opt.printedLabel ? withFigure(opt.printedLabel, opt.figure) : signed(opt.figure);
         };
         // A value computed from a proficiency the character has (e.g. Bribery
         // scaling the bribe fee) is flagged so it gets the proficiency badge.
@@ -952,7 +950,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       .filter((m) => !(m.note && m.itemId && this.#heldItems.has(m.itemId)))
       .map((m) => ({ label: m.label, value: m.value, note: m.note }));
     const rungFigure = this.#mode ? null : this.#rungFigure(this.#system.tone, this.#system.currentAttitude);
-    context.relationshipText = rungFigure === null ? game.i18n.localize("ACKS-INFLUENCE.tracker.none") : signedText(rungFigure);
+    context.relationshipText = rungFigure === null ? game.i18n.localize("ACKS-INFLUENCE.tracker.none") : signed(rungFigure);
     context.finalModifier = this.#finalModifier;
     context.targetHidden = this.#targetHidden();
     context.targetKindOverridden = this.#system.targetKindOverridden;

@@ -131,8 +131,8 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * with nothing on screen to suggest it happened.
    *
    * So the array is rebuilt from the document and exactly ONE index is taken
-   * from the submit. Testing whether the submitted value is an array is what
-   * this used to do and is not a guard at all — it always is one.
+   * from the submit. Testing whether the submitted value is an array is not a
+   * guard at all — it always is one.
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);

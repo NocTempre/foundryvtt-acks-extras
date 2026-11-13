@@ -514,7 +514,7 @@ being a wall:
   offers the vertices, side midpoints and centres the topology already
   addresses, a square grid its vertices and midpoints, a gridless map the free
   hand. Nothing here reimplements any of it, and a road can be drawn on every
-  grid — which the node tool it replaced could not.
+  grid.
 - **A bend is measured along its legs.** `roadDistance` measures over the road
   GRAPH, so a party that follows a curving street pays for the street and not
   for the chord across the block it went round. It answers null when EITHER end

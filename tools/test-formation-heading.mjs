@@ -218,16 +218,16 @@ test("span and depth swap axes for an east-west heading", () => {
 
   // Turn the party west and the two measures exchange axes: only the one square
   // of DEPTH is horizontal now (so x barely moves), while the ten-wide line runs
-  // up the map and has to be pushed nine squares clear of the top edge. Under
-  // the old clamp, which took span for horizontal and depth for vertical, y was
-  // never moved at all and nine ranks marched off the top of the scene.
+  // up the map and has to be pushed nine squares clear of the top edge. A
+  // clamp that took span for horizontal and depth for vertical would never move
+  // y, and nine ranks would march off the top of the scene.
   assert.deepEqual(west, { x: 1800, y: 900 });
 });
 
 test("a block reaching up and left is held off those edges, not the far ones", () => {
   // Marching south the block extends up and to the LEFT, so the top-left corner
-  // is the one it cannot start in — the exact case the old clamp never checked,
-  // because it only ever pushed blocks away from the right and bottom edges.
+  // is the one it cannot start in — the case a clamp that only pushes blocks
+  // away from the right and bottom edges never checks.
   const block = party(9, 3);
   const map = scene(20, 20);
   const origin = blockOrigin(block, map, { x: 0, y: 0 }, { heading: "south" });

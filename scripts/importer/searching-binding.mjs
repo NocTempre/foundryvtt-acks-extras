@@ -17,8 +17,10 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
+import { numOrNull } from "../lib/util.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount } from "./survival-binding.mjs";
+import { parseTargetPlus, parseSignedClause } from "./binding-parse.mjs";
 import { terrainKeys } from "./terrain-vocab.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
@@ -47,18 +49,6 @@ export const PRODUCES = Object.freeze({
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
 /* ------------------------------------------------------------------ */
-
-/** "18+" anywhere in a window → 18. */
-export function parseTargetPlus(text) {
-  const m = /(\d+)\s*\+/.exec(String(text ?? ""));
-  return m ? Number(m[1]) : null;
-}
-
-/** The first signed modifier, sign preserved ("-8 penalty" → -8). */
-export function parseSigned(text) {
-  const m = /([+-]\s*\d+)/.exec(String(text ?? ""));
-  return m ? Number(m[1].replace(/\s+/g, "")) : null;
-}
 
 /**
  * A cadence in TURNS: a throws-per-turn-count clause, or an hour with its turn
@@ -113,20 +103,16 @@ export function parseTerrainList(text) {
  */
 export function assembleLadder(rows = {}) {
   const out = [];
-  // `Number(null)` is 0 and 0 is finite, so a finiteness test alone turns the
-  // open top row into one that ends at zero miles — a ladder that then covers
-  // nothing above its last bounded band.
-  const num = (v) => {
-    if (v == null || v === "") return null;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  };
+  // `numOrNull` reads null and "" as absent: `Number(null)` is 0 and 0 is
+  // finite, so a finiteness test alone turns the open top row into one that
+  // ends at zero miles — a ladder that then covers nothing above its last
+  // bounded band.
   for (const cells of Object.values(rows)) {
     if (!cells || cells.__missing) continue;
     const target = parseTargetPlus(cells.target);
-    const min = num(cells.min);
+    const min = numOrNull(cells.min);
     if (target == null || min == null) continue;
-    out.push({ min, max: num(cells.max), target });
+    out.push({ min, max: numOrNull(cells.max), target });
   }
   if (!out.length) return null;
   out.sort((a, b) => a.min - b.min);
@@ -149,15 +135,15 @@ export function assembleSearchingTables(raw = {}) {
 
   const prose = raw.searchProse ?? {};
 
-  const specific = parseSigned(prose.specific);
+  const specific = parseSignedClause(prose.specific);
   if (specific != null) out.specificTarget = specific;
 
   // A quarry that is itself moving is the lost-party rule, and is printed with
   // the rendezvous rules rather than here.
-  const moving = parseSigned(prose.moving ?? raw.lostSearchProse?.moving ?? "");
+  const moving = parseSignedClause(prose.moving ?? raw.lostSearchProse?.moving ?? "");
   if (moving != null) out.movingQuarry = moving;
 
-  const tracking = parseSigned(prose.tracking);
+  const tracking = parseSignedClause(prose.tracking);
   if (tracking != null) out.trackingBonus = tracking;
 
   const hour = parseTurns(raw.cadenceProse?.hour);
@@ -166,7 +152,7 @@ export function assembleSearchingTables(raw = {}) {
   const aerial = parseTurns(prose.cadence);
   if (aerial != null) out.aerialTurnsPerThrow = aerial;
 
-  const canopy = parseSigned(prose.canopy);
+  const canopy = parseSignedClause(prose.canopy);
   if (canopy != null) out.canopyPenalty = canopy;
   const closed = parseTerrainList(prose.canopy);
   if (closed) out.canopyTerrains = terrainKeys(closed);

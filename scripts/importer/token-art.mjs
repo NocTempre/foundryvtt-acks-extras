@@ -18,7 +18,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE } from "./constants.mjs";
 import { libraryActors, cookbookId, whenReady } from "../lib/library.mjs";
-import { unset } from "../lib/util.mjs";
+import { unset, escape } from "../lib/util.mjs";
 import { ART_FIT, indexSource, planApply, planRestore, planPlaced, isWildcardPath } from "./token-art-logic.mjs";
 
 const FLAG = "tokenArt";
@@ -104,7 +104,7 @@ async function confirmApply(source, counts, placedCount) {
   const result = await foundry.applications.api.DialogV2.wait({
     window: { title: loc("tokenArt.confirmTitle") },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-importer-dialog"],
-    content: `<p>${foundry.utils.escapeHTML(loc("tokenArt.confirmBody", { title: source.title }))}</p><ul>${countLines(counts).join("")}</ul>
+    content: `<p>${escape(loc("tokenArt.confirmBody", { title: source.title }))}</p><ul>${countLines(counts).join("")}</ul>
       <label class="acks-extras-importer-tick"><input type="checkbox" name="placed"> ${loc("tokenArt.placedTick", { n: placedCount })}</label>`,
     buttons: [
       { action: "apply", label: loc("tokenArt.apply"), default: true, callback: (_event, button) => ({ placed: !!button.form?.elements?.placed?.checked }) },

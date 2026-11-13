@@ -1721,7 +1721,7 @@ await scenario("a player lights their own lamp from the character sheet", async 
   await drain();
   const id = onlyFormation().id;
 
-  // The grant API stands in for acks-equipment, which is what makes "no
+  // The grant API stands in for the equipment feature, which is what makes "no
   // override" PROVABLE: with it installed a Judge's click conjures the kit, so
   // a player's click conjuring nothing is the authority gate holding rather
   // than the grant simply being absent.
@@ -2200,9 +2200,9 @@ await scenario("template renders live controls for a member-owner", async () => 
 });
 
 await scenario("turn + light state survive the equipment feedback loop", async () => {
-  // Reproduces the live break: acks-equipment listens to acksExtras.formation.
-  // lightChanged and refreshes the bearer's loadout (an actor update). That
-  // fires acks-formation's own updateActor hook, which calls
+  // Reproduces the live break: the equipment feature listens to
+  // acksExtras.formation.lightChanged and refreshes the bearer's loadout (an
+  // actor update). That fires the formation feature's own updateActor hook, which calls
   // syncPartyActorSpeed with a formation copy read BEFORE the turn's writes.
   // If that path writes the whole stale record, it reverts the turn clock and
   // the light burn-down that just happened.
@@ -2219,7 +2219,7 @@ await scenario("turn + light state survive the equipment feedback loop", async (
   await drain();
   assert.equal(onlyFormation().lights.length, 1, "torch lit");
 
-  // Stand in for acks-equipment's listener: a light change updates the actor.
+  // Stand in for the equipment feature's listener: a light change updates the actor.
   const equipmentListener = (actor) => {
     if (actor) actor.update({ "system.loadoutStamp": (actor.system.loadoutStamp ?? 0) + 1 });
   };
@@ -2245,7 +2245,7 @@ await scenario("turn + light state survive the equipment feedback loop", async (
   await drain();
 });
 
-await scenario("lighting works with acks-equipment installed (hand accounting)", async () => {
+await scenario("lighting works with the equipment feature's hand accounting", async () => {
   const hero = await member("Handy");
   await drain();
   await game.settings.set(MODULE_ID, "formations", {}); // isolate
@@ -2258,8 +2258,8 @@ await scenario("lighting works with acks-equipment installed (hand accounting)",
     { name: "Torch", type: "item", system: { quantity: { value: 10 } } },
   ]);
 
-  // Stand in for acks-equipment 0.31: hands = 2 budget, minus equipped
-  // weapons/shields, minus lights already held (its heldLightHands read half).
+  // Stand in for the equipment feature: hands = 2 budget, minus equipped
+  // weapons/shields, minus lights already held.
   globalThis.acksExtras.equipment = {
     freeHands: (actor) => {
       const held = globalThis.acksExtras.formation?.heldLightCount?.(actor?.id) ?? 0;
@@ -2282,7 +2282,7 @@ await scenario("lighting works with acks-equipment installed (hand accounting)",
 
     console.log(`      [probe] hands-full lit=${blocked}, one-hand-free lit=${allowed}`);
     // Blocking with no free hand is INTENDED: a light is held in hand, and
-    // acks-equipment's own draw/sheathe controls are where a hand is freed.
+    // the equipment feature's own draw/sheathe controls are where a hand is freed.
     assert.equal(blocked, 0, "no free hand blocks lighting (by design)");
     assert.ok(
       notices.some(([lvl, m]) => lvl === "warn" && /noFreeHand/i.test(String(m))),
@@ -2317,7 +2317,7 @@ await scenario("the Judge's override supplies gear and empties a hand", async ()
   await game.settings.set(MODULE_ID, "lightItemEnforcement", "require");
   pauper.system.__handsUsed = 2;
 
-  // Stand in for acks-equipment's grant API: create what is missing, and put
+  // Stand in for the equipment feature's grant API: create what is missing, and put
   // held gear away until there is room. Faithful enough to prove the formation
   // side calls both, with the right specs, BEFORE it tests anything.
   const spare = (actor) =>
@@ -2757,7 +2757,7 @@ await scenario("a hand turn writes no size and bills nothing", async () => {
   const partyToken = scene.tokens.get(onlyFormation().tokenId);
   try {
     assert.ok(partyToken, "party token placed");
-    // Six abreast: under the old block this was a six-cell-wide token.
+    // Six abreast: a block-sized token would be six cells wide.
     await model.updateFormation({ ...model.getFormation(id), frontage: 6 });
     await partyToken.update({ rotation: 0 });
     await drain();
@@ -2899,7 +2899,7 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
   const id = onlyFormation().id;
   await game.settings.set(MODULE_ID, "lightItemEnforcement", "off");
 
-  // acks-equipment present and reacting to lightChanged, as it does live.
+  // The equipment feature present and reacting to lightChanged, as it does live.
   globalThis.acksExtras.equipment = { freeHands: () => 2 };
   const equipmentListener = (actor) => {
     if (actor) actor.update({ "system.loadoutStamp": (actor.system.loadoutStamp ?? 0) + 1 });
@@ -3692,7 +3692,7 @@ await scenario("a combat's takeover outlasts a whole write and the loss of the c
   await drain();
 });
 
-await scenario("a combat deploy from before the takeover was recorded is read as before", async () => {
+await scenario("a deployed member with no combat id recorded is read as the running combat's takeover", async () => {
   // See docs/formation/DECISIONS.md, "A combat records whom it took over".
   const { id, actors } = await isolatedParty("Veteran Party", "Elder", "Squire");
   const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);
@@ -5666,7 +5666,7 @@ await scenario("a forced march is barred by a marcher's survival state; only the
   await drain();
 });
 
-// The hand counts the two scenarios below read stand in for acks-equipment's;
+// The hand counts the two scenarios below read stand in for the equipment feature's;
 // the loadout's own reading of lights and the kit is tools/test-equipment.mjs.
 await scenario("taking the mapper role needs the hands, and the kit is listed at them", async () => {
   const scribe = await member("Scribe");
@@ -5683,7 +5683,7 @@ await scenario("taking the mapper role needs the hands, and the kit is listed at
   const roles = () => onlyFormation().members.find((m) => m.actorId === scribe.id)?.roles ?? [];
   const nameOf = (itemId) => scribe.items.find((i) => i.id === itemId)?.name ?? null;
 
-  // Stand in for acks-equipment's room count: two hands less what is drawn.
+  // Stand in for the equipment feature's room count: two hands less what is drawn.
   globalThis.acksExtras.equipment = {
     spareHands: (actor) => Math.max(0, 2 - (actor.system.__handsUsed ?? 0)),
     heldHandsClause: () => "",

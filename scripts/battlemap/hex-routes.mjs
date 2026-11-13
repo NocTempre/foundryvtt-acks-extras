@@ -9,7 +9,7 @@
  */
 import { isHexScene } from "./terrain-paint.mjs";
 import {
-  nodeId, parseNode, onRoad, routeCost, hubs, linksFromRoadSegments,
+  nodeId, parseNode, onRoad, routeCost, linksFromRoadSegments,
 } from "./hex-topology.mjs";
 import { roadGraph, roadSegmentsOf } from "./roads.mjs";
 
@@ -171,11 +171,6 @@ export function stepOnRoad(scene, from, to) {
 /** The cost of a route across this scene, or null if it is not connected. */
 export function costOf(scene, path) {
   return routeCost(routesOf(scene), path);
-}
-
-/** The separate networks on a scene — a bridge and a ford are two. */
-export function networksOf(scene) {
-  return hubs(routesOf(scene));
 }
 
 /** The scene the Judge is looking at, for the tool handlers. */

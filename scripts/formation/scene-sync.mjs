@@ -193,7 +193,7 @@ async function syncPartyActorOwnership(formation) {
  * The party token sheds no light of the module's: each bearer's light shines
  * from that bearer's cell in the column, drawn on every client
  * (`column-light.mjs`). Writing 0/0 through `applyTokenLight` clears a light
- * the module wrote here before and leaves one the Judge set by hand, which
+ * the module wrote here and leaves one the Judge set by hand, which
  * the `managedLight` flag tells apart. A member who has deployed or detached
  * burns their light on their own token (`syncDeployedMemberTokens`).
  */

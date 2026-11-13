@@ -128,10 +128,10 @@ const anchorOf = (key) => FREQ.find(([, k]) => k === key)[0];
 const PRINTED = Object.keys(SPELL_LIKE_FREQ).filter((k) => SPELL_LIKE_FREQ[k].printed);
 const printedPhrase = (key) => phrasesOf(anchorOf(key))[0];
 
-t("the monsters USAGE table is the shared frequency vocabulary and keeps every key it stored", () => {
+t("the monsters USAGE table is the shared frequency vocabulary and carries every frequency key", () => {
   assert.equal(USAGE, SPELL_LIKE_FREQ);
   for (const k of ["atWill", "perRound", "perTurn", "perHour", "perDay", "perWeek", "perMonth", "perSeason", "perYear", "byLevel"]) {
-    assert.ok(k in USAGE, `former USAGE key ${k}`);
+    assert.ok(k in USAGE, `USAGE carries key ${k}`);
   }
   for (const [k, m] of Object.entries(SPELL_LIKE_FREQ)) assert.equal("factor" in m, false, `${k} carries no printed factor`);
 });

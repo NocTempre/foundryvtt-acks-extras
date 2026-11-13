@@ -1,11 +1,12 @@
 /**
  * Mapping: stat-block labels -> acks core system patch + Full Monster Sheet
- * extras (acks-monsters MonsterExtras schema) + embedded items (weapons from
+ * extras (the monster extras schema) + embedded items (weapons from
  * Attacks/Damage, abilities from Proficiencies).
  *
  * Unknown labels stay raw (stored on the actor by the caller) — one-off
- * recipe directions come later, per the recipe philosophy. Enum keys mirror
- * acks-monsters scripts/config.mjs (public shipped data).
+ * recipe directions come later, per the recipe philosophy. Enum keys are the
+ * monster feature's and lib's vocabularies (`scripts/monsters/config.mjs`,
+ * `scripts/lib/vocab.mjs`).
  */
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
@@ -23,7 +24,7 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const PUA_RE = /[\uE000-\uF8FF]/g;
 const clean = (v) => (v ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
-// Damage-type icon glyph -> acks-monsters DAMAGE_TYPES enum key, decoded from
+// Damage-type icon glyph -> the lib DAMAGE_TYPES enum key, decoded from
 // the MM Damage-table legend (verified against the real Monstrous Manual by
 // codepoint). The legend prints the SAME codepoint in the Mundane and
 // Extraordinary columns — they differ only by COLOUR (red = extraordinary),
@@ -58,10 +59,10 @@ export const damageTypeOf = (segment) => {
   return null;
 };
 
-// Natural-weapon name -> acks-monsters NATURAL_WEAPONS enum key + that key's
+// Natural-weapon name -> the lib NATURAL_WEAPONS enum key + that key's
 // default damage type (MM Damage table: Bludgeoning = Constriction/Hoof/Tail/
 // Tentacle/Tongue; Piercing = Bite/Stinger; Slashing = Claw/Talon; remaining
-// keys from acks-monsters config.mjs NATURAL_WEAPONS). Ordered so a more
+// keys from lib's NATURAL_WEAPONS). Ordered so a more
 // specific stem wins (stinger before sting).
 const NATURAL_WEAPON_KEYS = [
   ["bite", /^bit/, "piercing"],

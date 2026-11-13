@@ -1,5 +1,6 @@
 import { ROLES, diceFormula, formationValue } from "./constants.mjs";
 import { fallFigures } from "./jumping.mjs";
+import { positiveFigure } from "../lib/util.mjs";
 
 /**
  * Traps, as arithmetic — no dice, no documents, no Foundry.
@@ -25,12 +26,6 @@ import { fallFigures } from "./jumping.mjs";
  * reads null and each consumer says what it does without it. A rank's depth
  * is the laid column's (`laidOrder`), else the scene's cell.
  */
-
-/** A figure as a positive length or count, or null. */
-const positive = (value) => {
-  const n = Number(value);
-  return value != null && value !== "" && Number.isFinite(n) && n > 0 ? n : null;
-};
 
 /** A figure as a whole number of at least zero, or null. */
 const whole = (value) => {
@@ -66,12 +61,12 @@ const faces = (value) => {
  */
 export function trapFigures() {
   return {
-    searchFeet: positive(formationValue("searchReachFeet")),
-    poleSearchFeet: positive(formationValue("poleSearchReachFeet")),
-    poleLeadFeet: positive(formationValue("poleLeadFeet")),
+    searchFeet: positiveFigure(formationValue("searchReachFeet")),
+    poleSearchFeet: positiveFigure(formationValue("poleSearchReachFeet")),
+    poleLeadFeet: positiveFigure(formationValue("poleLeadFeet")),
     triggerFaces: faces(formationValue("trapTriggerDie")),
     triggerOn: whole(formationValue("trapTriggerOn")),
-    trapbreakReachFeet: positive(formationValue("trapbreakReachFeet")),
+    trapbreakReachFeet: positiveFigure(formationValue("trapbreakReachFeet")),
     botch: {
       hasty: wholePositive(formationValue("trapbreakHastyBotch")),
       methodical: wholePositive(formationValue("trapbreakMethodicalBotch")),
@@ -259,7 +254,7 @@ export const CRUDE = Object.freeze({ find: 4, remove: 4, attack: -2, save: 2 });
  */
 export function probeSequence(order, { pole = true, poleRanks = null, random = Math.random } = {}) {
   const probes = [];
-  const lead = positive(poleRanks);
+  const lead = positiveFigure(poleRanks);
   for (const row of order ?? []) {
     const base = { actorId: row.actorId, name: row.name ?? null, rank: row.rank, file: row.file };
     probes.push({ ...base, kind: "body", reach: row.rank });
@@ -297,7 +292,7 @@ export function probeSequence(order, { pole = true, poleRanks = null, random = M
 
 /** The depth of one rank in feet: `rankFeet` where it is a length, else null (nothing says how deep a rank stands). */
 export function rankDepth(rankFeet) {
-  return positive(rankFeet);
+  return positiveFigure(rankFeet);
 }
 
 /**
@@ -305,7 +300,7 @@ export function rankDepth(rankFeet) {
  * deep a rank stands. Null when either is not known.
  */
 export function poleLeadRanks(poleLeadFeet, rankFeet) {
-  const lead = positive(poleLeadFeet);
+  const lead = positiveFigure(poleLeadFeet);
   const depth = rankDepth(rankFeet);
   return lead !== null && depth !== null ? lead / depth : null;
 }
@@ -328,9 +323,9 @@ export function poleLeadRanks(poleLeadFeet, rankFeet) {
  * @returns {number|null}
  */
 export function searcherReachFeet(row, { searchFeet = null, poleSearchFeet = null, rankFeet = null } = {}) {
-  const bare = positive(searchFeet);
+  const bare = positiveFigure(searchFeet);
   if (bare === null) return null;
-  const own = (row.roles ?? []).includes(ROLES.POLE) ? (positive(poleSearchFeet) ?? bare) : bare;
+  const own = (row.roles ?? []).includes(ROLES.POLE) ? (positiveFigure(poleSearchFeet) ?? bare) : bare;
   if (!row.rank) return own;
   const depth = rankDepth(rankFeet);
   return depth === null ? null : own - row.rank * depth;

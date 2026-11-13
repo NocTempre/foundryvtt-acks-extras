@@ -10,7 +10,7 @@
  * See docs/battlemap/DECISIONS.md, "A river or a coast is a line."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
-import { elementOf, makeLoc } from "../lib/util.mjs";
+import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
 import { pointSegmentDistance } from "../lib/wall-geometry.mjs";
 import {
   armWallPreset,
@@ -188,7 +188,6 @@ function installWaterRow(app, element) {
   if (root.querySelector(".acks-extras-water-row")) return;
 
   const water = wallWater(wall);
-  const esc = (s) => foundry.utils.escapeHTML?.(String(s ?? "")) ?? String(s ?? "");
   const option = (value, label, selected) =>
     `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`;
   const row = document.createElement("div");

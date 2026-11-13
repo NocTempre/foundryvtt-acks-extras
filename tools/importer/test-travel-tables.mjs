@@ -13,10 +13,10 @@ import {
   parseHours,
   parseMultiplier,
   parseRoadCell,
-  parseThrow,
   PRODUCES,
   TERRAIN_GROUP_KEYS,
 } from "../../scripts/importer/travel-binding.mjs";
+import { parseTargetPlus, parseThrowTarget } from "../../scripts/importer/binding-parse.mjs";
 import { EXPEDITION_KEYS, EXPEDITION_TABLE, TRAVEL_DOC } from "../../scripts/lib/movement-scales.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 
@@ -31,8 +31,10 @@ check("junk is null, never zero", parseMultiplier("By creature") === null);
 const road = parseRoadCell("×5/4 (×7/4 for drivers)");
 check("the road cell splits its two rates", road.multiplier === 1.25 && road.drivingMultiplier === 1.75);
 check("a road cell without the parens has no driver rate", parseRoadCell("×5/4").drivingMultiplier === null);
-check("a throw target parses", parseThrow("9+") === 9);
-check("a throw without its mark is null", parseThrow("9") === null);
+check("a throw target parses", parseTargetPlus("9+") === 9);
+check("a throw without its mark is null", parseTargetPlus("9") === null);
+check("a throw clause reads only after its introducing words",
+  parseThrowTarget("a throw of 14+ finds it") === 14 && parseThrowTarget("14+") === null);
 
 /* --- the assembly -------------------------------------------------------- */
 const raw = {

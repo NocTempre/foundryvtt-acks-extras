@@ -73,9 +73,6 @@ export function languageId(name) {
 /** The cookbook id stamped on a document, or "". */
 export const cookbookIdOf = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
 
-/** Is this document one of the taxonomy's, by its cookbook id? */
-export const isImportedLanguage = (doc) => cookbookIdOf(doc).startsWith("def.language.");
-
 /**
  * Turn extracted rows into language items.
  *

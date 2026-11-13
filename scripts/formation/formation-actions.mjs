@@ -67,7 +67,7 @@ import { applyTravelForm, clearDeclaredCountry, setJourneyMode, rollWeatherNow, 
 import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { forcedMarchBar, confirmBarOverride } from "./march-bar.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { escape as esc, makeLoc } from "../lib/util.mjs";
 import SkillAuditApp from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import {
@@ -463,7 +463,7 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /** The Judge retires an older record's declaration of one country key; the map or the default answers again. */
+  /** The Judge retires a record's declaration of one country key; the map or the default answers again. */
   async clearDeclared(_event, target) {
     const formation = gmFormation(this);
     const key = target?.dataset?.key ?? "";
@@ -858,7 +858,6 @@ export const SHARED_ACTIONS = {
   async tweaks() {
     const formation = gmFormation(this);
     if (!formation) return;
-    const esc = foundry.utils.escapeHTML;
     const options = [
       `<option value="">${esc(loc("app.tableNone"))}</option>`,
       ...game.tables.contents.map(

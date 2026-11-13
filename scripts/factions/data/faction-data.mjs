@@ -122,8 +122,8 @@ export class FactionData extends foundry.abstract.TypeDataModel {
       // Its seat: the place it is found at. A uuid, so a place in a
       // compendium serves as readily as one in the world.
       seatUuid: str(),
-      // The other places it holds. Empty by default, so an actor written
-      // before the field existed loads with none rather than migrating.
+      // The other places it holds. Empty by default, so an actor with
+      // none stored loads with none.
       holdings: new fields.ArrayField(holdingField()),
       // How it regards other organisations. One row per other faction.
       relations: new fields.ArrayField(relationField()),
@@ -136,7 +136,7 @@ export class FactionData extends foundry.abstract.TypeDataModel {
       // inn's list are one shape.
       members: new fields.ArrayField(occupantField()),
       // Its unnamed people, counted by kind and level. Empty by default, so
-      // an actor written before the field existed loads with none.
+      // an actor with none stored loads with none.
       strength: strengthField(),
       // The scene Regions it controls — quarters drawn as Districts. Uuids of
       // Region documents; a quarter with no faction over it is simply absent.

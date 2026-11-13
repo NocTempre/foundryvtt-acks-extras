@@ -8,6 +8,7 @@
 import { ancestorUuids, indexPlaces } from "../lib/place-logic.mjs";
 import { ALIGNMENTS } from "../lib/vocab.mjs";
 import { hashedColor, lighten } from "../lib/color.mjs";
+import { numOrNull } from "../lib/util.mjs";
 import { CLASSIFICATIONS, EXPENSE_LINES, HOLDING_ROLES, LINE_FIELDS, REVENUE_LINES } from "./constants.mjs";
 
 const ALIGNMENT_KEYS = Object.freeze(Object.keys(ALIGNMENTS));
@@ -15,12 +16,8 @@ const ALIGNMENT_KEYS = Object.freeze(Object.keys(ALIGNMENTS));
 const isRecord = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const isIndex = (key) => /^\d+$/.test(key);
 
-/** A finite number, or null for a blank, a non-number or nothing at all. */
-export function figure(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+/** A finite number, or null for a blank, a non-number or nothing at all: lib's `numOrNull`. */
+export const figure = numOrNull;
 
 /** A whole count of at least zero, or null where `figure` gives none. */
 function countOrNull(v) {

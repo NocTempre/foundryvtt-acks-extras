@@ -13,6 +13,7 @@
  * and reads the answer, so it runs without Foundry.
  */
 import { LANG_PREFIX } from "../constants.mjs";
+import { escape as esc } from "../../lib/util.mjs";
 import { PREGEN_ANSWERS, pregenDefault } from "../held-edits.mjs";
 
 const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`));
@@ -73,7 +74,6 @@ export function decisionFrom({ take = [], pregens = [] } = {}) {
 
 /** One value cell: its view, with a tooltip saying where the figure came from. */
 function valueCell(value, tip) {
-  const esc = foundry.utils.escapeHTML;
   const view = valueView(value);
   const face = view.kind === "empty" ? loc("repairMergedChooseEmpty") : view.kind === "rows" ? loc("repairMergedChooseRows", { n: view.n }) : view.text;
   const full = view.kind === "text" && view.tip !== view.text ? `${tip} — ${view.tip}` : tip;
@@ -82,7 +82,6 @@ function valueCell(value, tip) {
 
 /** The rows of one document's edits. */
 function groupHtml(group) {
-  const esc = foundry.utils.escapeHTML;
   const rows = group.edits
     .map((edit) => {
       const pageTip = edit.cite ? loc("repairMergedChoosePageTip", { cite: edit.cite }) : loc("repairMergedChoosePageNoCite");
@@ -108,7 +107,6 @@ export const pregenNoteKey = (pregen) =>
 
 /** The rows of the pregenerated characters, each with its note and its answer, `pregenDefault`'s chosen. */
 function pregensHtml(pregens) {
-  const esc = foundry.utils.escapeHTML;
   if (!pregens.length) return "";
   const labels = { restore: loc("repairMergedPregenRestore"), leave: loc("repairMergedPregenLeave"), rewrite: loc("repairMergedPregenRewrite") };
   const options = (chosen) =>
@@ -139,7 +137,7 @@ function formAnswers(form, take) {
 export async function chooseHeldEditsDialog(edits, { pregens = [] } = {}) {
   const groups = editGroups(edits);
   const content = `
-    ${edits.length ? `<p class="notes">${foundry.utils.escapeHTML(loc("repairMergedChooseIntro", { n: edits.length }))}</p>` : ""}
+    ${edits.length ? `<p class="notes">${esc(loc("repairMergedChooseIntro", { n: edits.length }))}</p>` : ""}
     <div class="acks-extras-held-list">${groups.map(groupHtml).join("")}${pregensHtml(pregens)}</div>`;
   const answered = await foundry.applications.api.DialogV2.wait({
     window: { title: loc("repairMergedChooseTitle"), resizable: true },

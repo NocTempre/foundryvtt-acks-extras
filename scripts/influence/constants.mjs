@@ -5,7 +5,7 @@
  * here: each row's figure is read from the `influence` document (`TONE_PAGES`).
  *
  * All user-facing labels are localization keys resolved via game.i18n; see
- * lang/en.json. See acks-rules/acks-influence/ACKS-Reactions-Reference.md for the rules reference.
+ * lang/en.json. The rules are at JJ 85-87.
  */
 
 import { MODULE_ID } from "../lib/constants.mjs";

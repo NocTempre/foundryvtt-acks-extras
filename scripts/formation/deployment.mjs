@@ -391,11 +391,6 @@ export async function toggleMemberLeft(formation, actorId) {
   return leaving;
 }
 
-/** Is any member currently out of the party token? */
-export function anyDeployed(formation) {
-  return formation.members.some(isMemberDeployed);
-}
-
 /** The members currently out on a deliberate detach (not a combat deploy). */
 export function detachedMembers(formation) {
   return formation.members.filter((m) => m?.detached && m.deployedTokenId);

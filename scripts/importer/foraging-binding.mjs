@@ -19,6 +19,7 @@ import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
+import { parseThrowTarget, parseSignedClause } from "./binding-parse.mjs";
 import { terrainKeys, keyTerrainMap } from "./terrain-vocab.mjs";
 
 /** The engine doc both halves agree on (acks-extras `expectTables`). */
@@ -97,18 +98,6 @@ export function targetsFromClauses(text, { fallback = null } = {}) {
   // Two clauses with no "other" leave the commoner one as the fallback.
   if (out.any == null && fallback != null) out.any = fallback;
   return Object.keys(out).length ? out : null;
-}
-
-/** A bare "throw of 18+" target. */
-export function parseThrowTarget(text) {
-  const m = /throw\s+of\s+(\d+)\s*\+/i.exec(String(text ?? ""));
-  return m ? Number(m[1]) : null;
-}
-
-/** The first signed modifier in a window (a bonus clause; RR p. 27, JJ p. 68, MM p. 19). */
-export function parseSigned(text) {
-  const m = /([+-]\s*\d+)/.exec(String(text ?? ""));
-  return m ? Number(m[1].replace(/\s+/g, "")) : null;
 }
 
 /**
@@ -228,8 +217,8 @@ export function assembleForagingTables(raw = {}) {
   if (foodTerritory) forageTerritory.food = foodTerritory;
 
   // The proficiency is worth the same on every forage the page describes, so
-  // it is one figure rather than one per kind.
-  const survival = parseSigned(wood.survival ?? food.yield ?? water.yield ?? "");
+  // it is one figure rather than one per kind (RR p. 27, JJ p. 68, MM p. 19).
+  const survival = parseSignedClause(wood.survival ?? food.yield ?? water.yield ?? "");
   if (survival != null) out.survivalBonus = survival;
 
   // Hunting is two paragraphs: its own throw and yield, then how settled
