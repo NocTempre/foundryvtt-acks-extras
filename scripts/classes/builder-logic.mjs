@@ -143,7 +143,7 @@ export function powerSummary(builder, tables) {
 /**
  * The racial rung a builder state stands on, with the race's magic stacking:
  * `{ rung, stacksWith, stackValue }`. An elf's racial points add to the
- * arcane value (JJ: "stack with points allocated to the Arcane Value").
+ * arcane value (JJ p. 301).
  */
 export function racialStacking(builder, race) {
   const value = builder?.race?.value ?? 0;

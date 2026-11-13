@@ -372,8 +372,8 @@ function refresh(root, state) {
 
   const awards = (cls?.system?.awards ?? []).filter((a) => a.atLevel === 1 && a.kind === "choice");
   const asked = template ? awards.filter((a) => !answeredByTemplate(a)) : awards;
-  // The Intellect picks are chosen "on top of those listed for the template"
-  // (RR Ch. 2), so the rungs stay — but an ability the package itself hands
+  // The Intellect picks are chosen in addition to the template's own list
+  // (RR p. 23), so the rungs stay — but an ability the package itself hands
   // over is not something to spend one of them on.
   const granted = template ? templateGrantKeys(template) : null;
   const generalOptions = choosableGenerals()

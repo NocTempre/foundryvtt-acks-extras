@@ -113,7 +113,8 @@ const matchSynonym = (token, table) => {
   if (!t) return null;
   for (const [key, list] of Object.entries(table)) {
     if (key === t || list.includes(t)) return key;
-    // "swords & daggers" folds to swordsdaggers; also accept a contained word.
+    // A two-word group written with an ampersand folds to its letters run
+    // together; also accept a contained word.
     if (list.some((s) => t === s || t.startsWith(s) || s.startsWith(t))) return key;
   }
   return null;

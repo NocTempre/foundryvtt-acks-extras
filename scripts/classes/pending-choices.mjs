@@ -3,16 +3,15 @@
  * A pick the character owes, as something they can see and act on.
  *
  * A printed package does not only hand over things; sometimes it hands over a
- * CHOICE — "and one spell of character's choice", a proficiency cell offering
- * a pick rather than naming one. Recorded as a sentence on a note, that choice
+ * CHOICE — a spell left to the character's pick, a proficiency cell offering
+ * a pick rather than naming one (RR p. 35). Recorded as a sentence on a note, that choice
  * is invisible on the character sheet and is simply never made: the player
  * never learns they were owed it. So the offer is minted as an owned item that
  * says what it is and opens a chooser when clicked, and is REPLACED by the
  * document the player picks.
  *
- * WHY THIS IS NOT THE PLACEHOLDER MINTING 4.20.0 REMOVED. That ruling
- * (lib/DECISIONS.md) was about names a world could not resolve YET: an
- * unresolved name has a right answer, so a placeholder for it is a duplicate
+ * WHY THIS IS NOT PLACEHOLDER MINTING FOR UNRESOLVED NAMES (lib/DECISIONS.md):
+ * an unresolved name has a right answer, so a placeholder for it is a duplicate
  * waiting to happen — it answers its own name search, reads as real, and gets
  * dragged onto a character beside the real thing when the import finally
  * arrives. An open CHOICE has no right answer until a player makes one. The

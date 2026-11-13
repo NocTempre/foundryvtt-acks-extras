@@ -83,7 +83,7 @@ export { isMasterwork };
 
 /**
  * Merchandise category for demand pricing: explicit per-item flag override,
- * else weapons and armor are the book's "armor & weapons"; clothing subtype
+ * else weapons and armor fall in the book's weapons-and-armor demand category (RR p. 371); clothing subtype
  * maps to clothing; other mundane gear has no category and no demand step.
  */
 export function categoryOf(itemData) {

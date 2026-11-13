@@ -156,8 +156,8 @@ export function applyShortfall(rows, short = { profs: 0, spells: 0 }) {
 /**
  * What one template equipment entry is CALLED.
  *
- * The count lives on the quantity field — "2 flasks of holy water" is two of
- * an item called "Flasks of holy water", never one item with a numeral in its
+ * The count lives on the quantity field — an entry printed "2 lanterns" is two
+ * of an item called "Lanterns" (RR p. 46), never one item with a numeral in its
  * name. The page that lists a package and the grant that materializes it read
  * this one rule, so neither says "3 javelins ×3".
  */
@@ -363,7 +363,7 @@ export async function buildGearData(entry, { exclude = [] } = {}) {
     // A SKIN IS NOT THE IMPORT IT COPIES. `toObject` brings the base's whole
     // flag set with it, importer stamp included, so an unstripped skin
     // advertises itself as the definition and answers ref lookups meant for
-    // the base — one template's "aged and dusty staff" standing in for Staff.
+    // the base — one template's reworded staff (RR p. 66) standing in for Staff.
     // Only the importer's own keys under `flags[MODULE_ID]` are stripped
     // (`cookbook`, `minted`); this feature's own keys there, including the
     // `skin` flag below, stay.
@@ -437,7 +437,7 @@ function copyOf(source) {
 
 /**
  * Build the specialized ability copy a template entry with a printed
- * selection needs ("Fighting Style Spec. (weapon & shield)"): the source's
+ * selection needs (an entry such as "Ability (Pick)", RR p. 25): the source's
  * data with the selection written where every consumer reads it and stamped
  * `grantedFrom`, so `ownsRef` recognises the copy against the base ref.
  * Null when the entry has no selection, or when neither the passed source nor
@@ -814,8 +814,8 @@ export async function materializeTemplates(
    * made "because a Judge cannot fix a pack document" buys nothing and costs a
    * duplicate of every granted ability.
    *
-   * A printed SELECTION still becomes its own copy — "Weapon Focus (spear)" is
-   * a different document from the definition it specializes, and writing the
+   * A printed SELECTION still becomes its own copy — an "Ability (Pick)" entry
+   * (JJ p. 450) is a different document from the definition it specializes, and writing the
    * selection onto the shared one would specialize it for everybody.
    *
    * A name nothing defines yields NULL. The caller keeps the entry on the row,

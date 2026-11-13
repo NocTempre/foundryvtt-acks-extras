@@ -139,7 +139,7 @@ export async function annotateItem(item) {
     key ??= gear.holds ? "container" : "gear";
   }
 
-  // A device sold with its load — "Quiver, 20 Arrows" — is the ammunition;
+  // A device sold with its load — a quiver priced with its arrows (RR p. 126) — is the ammunition;
   // re-running annotate clears a capacity or holds declaration an earlier
   // pass mistakenly stamped, the two keys this pass takes back.
   //

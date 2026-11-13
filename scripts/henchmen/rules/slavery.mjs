@@ -104,7 +104,7 @@ export function slaveLoyalty({ enslavedAsAdult = true, servingTrainer = false } 
 }
 
 /**
- * The liberation rule (JJ ~410, "Mother of Dragons Memorial Rule"): a
+ * The liberation rule (JJ p. 410, the memorial rule on liberation): a
  * fanatic-loyalty result on liberation by a BUYER (not their enslaver)
  * sets base loyalty and reduces pay to basic upkeep.
  */

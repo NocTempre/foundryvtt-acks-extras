@@ -278,8 +278,8 @@ function refKey(ref) {
  * A DECLARATION OUTRANKS AN INFERENCE, and the name is an inference. It is the
  * only source that can be wrong about an item everything else describes
  * correctly: a starting template renames the gear it grants to the words its
- * own page printed, so a hand axe arrives called "Francisca" and a two-handed
- * sword called "Two-handed iron sword". Reading those gives no axe at all and
+ * own page printed, so a hand axe can arrive under a regional name and a
+ * sword under a descriptive one (RR p. 50). Reading those gives no axe at all and
  * the wrong sword — and the answer is not a longer alias list, because the
  * descriptor is a Judge's or a book's prose and there is no end to it.
  *
@@ -446,7 +446,7 @@ export function classifyWeapon(item) {
   // `mflag`, not `getFlag`: the classifier is asked about payload OBJECTS as
   // well as documents — a template's build data is checked before it is created
   // — and a `getFlag`-only read answers undefined for every one of them, which
-  // reads as "no overrides declared" rather than as "cannot see them".
+  // reads as "no overrides declared" rather than as an unreadable flag.
   const flag = (k) => mflag(item, k);
   const key = weaponKey(item);
   const base = key ? weaponRow(key) : null;

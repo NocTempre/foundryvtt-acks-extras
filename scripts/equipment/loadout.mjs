@@ -138,7 +138,7 @@ export function handBudget(actor) {
 /**
  * Fold a style token to its comparison key: lowercase, letters only. Canonical
  * keys are already letters-only, so this is a no-op for them and only bites
- * hand-written values — a `styles` flag typed "Weapon & Shield" has to land on
+ * hand-written values — a `styles` flag typed with capitals and an ampersand has to land on
  * the same key `STYLE.WEAPON_SHIELD` folds to, or the Training pill lights while
  * the enforcement gate stays shut. Every style comparison here folds both sides;
  * the Training strip folds identically, and the two must not drift apart.

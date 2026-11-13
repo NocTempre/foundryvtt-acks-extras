@@ -34,10 +34,10 @@ const singularKey = (name) =>
  * `resolve(name)` returns its key, or null.
  *
  * Three readings, in order: the name whole; the name with each word's plural
- * dropped, since a list prints "cure serious injuries" for a title in the
- * singular; and a name closing on a stop, an abbreviation, as the one title
- * it opens — a narrow column prints "Repair Disfigurement & Dis." for a
- * title too long for it.
+ * dropped, since a list can print a plural for a title in the singular (MM
+ * p. 179); and a name closing on a stop, an abbreviation, as the one title
+ * it opens — a narrow column prints a clipped title for one too long for it
+ * (RR p. 189).
  */
 export function titleIndex(pairs) {
   const whole = new Map();

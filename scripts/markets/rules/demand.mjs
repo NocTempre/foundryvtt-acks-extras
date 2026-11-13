@@ -166,7 +166,7 @@ export function baseDemand({ environment = null, ageBand = null, water = [], bio
     for (const column of environmentColumns({ ageBand, water, biome, elevation })) b += parseHalfPoint(environment[column]) ?? 0;
   }
   const rolled = Number(a) || 0;
-  // The book's "drop any fractions": truncate toward zero after the environment
+  // The fractions are dropped (JJ p. 201): truncate toward zero after the environment
   // step, so the half a negative total carries is discarded, never rounded down.
   const afterB = Math.trunc(rolled + (b ?? 0)) + 0;
   const c = Number(landDelta) || 0;

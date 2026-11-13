@@ -182,7 +182,7 @@ export async function classForActorAsync(actor) {
  * package skins its gear and specializes its proficiencies by copying, and a
  * copy carries the original's flags — so a world holds many documents stamped
  * `def.weapon.staff`, only one of which is the Staff. Answered with the copy,
- * a lookup for the base returned one template's "aged and dusty staff", and
+ * a lookup for the base returned one template's reworded staff (RR p. 66), and
  * the next template skinned itself over that. A part is identified by its own
  * flag, never by name, so a Judge who renames one loses nothing.
  *

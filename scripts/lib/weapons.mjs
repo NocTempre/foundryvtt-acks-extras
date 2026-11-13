@@ -4,7 +4,7 @@
  *
  * The weapons grid prints a row's figures and nothing about which proficiency
  * category, Weapon Focus group or damage type it belongs to; the book states
- * those as lists of kinds in its prose ("axes", "bows and crossbows"). The
+ * those as lists of kinds in its prose (RR p. 121, JJ p. 290). The
  * importer reads each list into the `weaponLists` ruledata document, as nouns
  * in the printing's own words (`importer/weapon-binding.mjs`):
  *

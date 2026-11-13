@@ -93,7 +93,7 @@ export function countAndName(line) {
 
 /**
  * A proficiency as a sheet writes one: a name, a pick in brackets, a rank.
- * "Weapon Focus (Swords)" is a pick; "Alchemy (2)", "Alchemy x2" and
+ * "Name (Pick)" is a pick; "Alchemy (2)", "Alchemy x2" and
  * "Alchemy 2" are a rank; a bracket holding a throw ("Alchemy (11+)") is
  * neither, and is dropped.
  * @returns {{name: string, selection: string|null, rank: number}|null}

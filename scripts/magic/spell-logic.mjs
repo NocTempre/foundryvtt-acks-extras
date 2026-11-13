@@ -318,7 +318,7 @@ const STAT_LABELS = ["Type", "Range", "Duration"];
 
 /**
  * A printed stat block as its parts. The block opens with the magic types and
- * the level the spell holds on each ("Arcane 3, Divine 4"), then labelled
+ * the level the spell holds on each (a source name and a number per magic type; RR p. 215), then labelled
  * runs: `Type:` the spell types, `Range:` and `Duration:` as printed. Each
  * part comes back as printed text (`lists` as `{source, level}` pairs,
  * `types` as a list); a label the block lacks leaves its part empty.

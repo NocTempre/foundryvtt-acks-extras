@@ -198,7 +198,7 @@ export function gearProfileFor(name) {
  * shoulders without anyone listing it.
  *
  * ORDERED: the first hit wins. The bulk-material rule comes first because the
- * clothing pack prices cloth by the pound ("Linen, Cheap (1 lb)") alongside the
+ * clothing pack prices cloth by the pound (RR p. 130) alongside the
  * garments made from it, and a bolt of linen is goods rather than something you
  * put on.
  *
@@ -230,8 +230,8 @@ export const CLOTHING_SLOT_PATTERNS = Object.freeze([
  * it. An empty list is a real answer: cloth sold by weight is goods.
  *
  * Only the name's head is read — what comes before "with". A garment that
- * names what it carries is still that garment: "Grey cassock with hood" is a
- * cassock, worn on the body, where reading the whole name let the hood claim
+ * names what it carries is still that garment: a "<garment> with hood" entry
+ * (RR p. 46) is the garment, worn on the body, where reading the whole name let the hood claim
  * the head ahead of the garment row.
  */
 export function clothingSlotsFor(name) {

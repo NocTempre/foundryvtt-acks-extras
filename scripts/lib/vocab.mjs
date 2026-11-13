@@ -49,9 +49,11 @@ export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "
  * document for a thing that already exists. The conventions are the
  * catalogue's, not any one entry's:
  *
- * - **Head first, qualifier after a comma.** The price list writes "Oil,
- *   Military"; every other page writes "Military Oil".
- * - **A parenthetical unit or note.** "Oil, Military (1 pint)" is that flask.
+ * - **Head first, qualifier after a comma.** The price list writes the head
+ *   noun first and the qualifier after (RR p. 129); every other page writes
+ *   the qualifier first.
+ * - **A parenthetical unit or note.** A trailing "(1 pint)" names the unit,
+ *   not another item.
  * - **A slash offering either word.** "Waterskin/Wineskin" is one row naming
  *   two things.
  *
@@ -383,8 +385,8 @@ export const abilitySlug = (item) => {
  * cleared back to nothing can always be typed by hand.
  *
  * `aliases` carry the phrasings a template or an import actually writes, so a
- * cell reading "Fighting Style Spec. (weapon & shield)" ticks the box the
- * mechanics read rather than landing in free text where nothing matches it.
+ * cell reading an abbreviated ability name with a parenthetical pick (RR p. 25)
+ * ticks the box the mechanics read rather than landing in free text where nothing matches it.
  *
  * Fighting styles list the five the mechanics understand (`equipment/config.mjs`
  * STYLE) and no more: an unresolvable style is silently worth nothing, so
@@ -568,7 +570,7 @@ export function selectionLabel(vocab, pick) {
 }
 
 /**
- * An ability's name carrying its own picks — "Weapon Focus (Swords & Daggers)".
+ * An ability's name carrying its own picks — "Ability (Pick, Pick)" (JJ p. 451).
  *
  * The "(X)" suffix is the family's display convention for a specialization, and
  * it is DERIVED: a pick is chosen once, and the name follows it. Any existing

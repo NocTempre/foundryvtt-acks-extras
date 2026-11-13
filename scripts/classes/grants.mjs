@@ -122,8 +122,8 @@ export function rankedCopies(source, { rank = 1, selection = null, ref = null } 
     // both read `extras.selections`, and a pick recorded only in the name is
     // one each of them has to parse back out of it.
     data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...mine, extras: { ...(mine.extras ?? {}), selections: [selection] } } };
-    // The suffix is derived from the pick, so a template's own phrasing
-    // ("weapon & shield") arrives written the way the shortlist names it.
+    // The suffix is derived from the pick, so a template's own phrasing of
+    // the pick arrives written the way the shortlist names it.
     const vocab = selectionVocabFor(source, mine.extras?.category);
     data.name = vocab ? nameWithSelections(data.name, [selection], vocab) : `${data.name} (${selection})`;
   }

@@ -81,7 +81,7 @@ function categoryOf(item) {
 /**
  * Style picks for a fighting-style ability, in the shape the Training strip
  * resolves: an explicit pick where there is one, else the tail of the item's own
- * name ("Fighting Style: Dual Weapon" -> "Dual Weapon"). A generic name resolves
+ * name (a "Prefix: Pick" name yields "Pick"; JJ p. 456). A generic name resolves
  * to nothing, so the fallback cannot invent training.
  */
 function stylePicksOf(item) {
