@@ -1386,14 +1386,6 @@ notes paraphrase the page, and `def.prof.armorTraining` carries a literal. The
 fix is a duration locator read at compile, with the armour-training step
 imported.
 
-## Book-level Rebuild and Repair never reach a rulebook's actors
-
-A library template rebuilt from its own row comes back in the current shape,
-and a sidebar copy no longer absorbs the family's rebuild. Book-level Rebuild,
-Repair and Import Everything still never reach a rulebook's actors, nor some
-other kinds, so a template imported before 11.14.0 keeps its old roles until
-it is rebuilt from its own row.
-
 ## The culture registry's printed names
 
 The culture registry in `table-recipes.mjs` carries ids, labels, and

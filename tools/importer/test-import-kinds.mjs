@@ -12,10 +12,11 @@
  * a recording api in place of the importers.
  *
  * Where the commands answer differently from one another, the pins say which.
- * A book rebuild names the entry-backed shelves only; a book repair also names
- * a book's own items and the printed tables, and the price list rides the
- * equipment run; neither reaches a creature, a vehicle or a place of a plain
- * book. `viaBook` declares the first of these, and `cookbookRunSet` answers it.
+ * A book repair names the entry-backed shelves and the vehicles, a book's own
+ * items and the printed tables, and the price list rides the equipment run; a
+ * book with a cookbook of its own has its own rows (creatures, pages, places,
+ * tables) written by one more run. `viaBook` declares the first of these, and
+ * `cookbookRunSet` answers it.
  */
 import assert from "node:assert";
 import fs from "node:fs";
@@ -78,13 +79,13 @@ const same = (label, a, b) => {
     kind("D", "runC", { viaBook: true, readFrom: "y", chain: "stepD" }),
     kind("E", "runE", { own: true, chain: "stepE", make: { run: "runE", takes: [], whole: "runWhole" } }),
   ];
-  const world = { kinds, isAdventureBook: (book) => book === "x", order: { book: ["runB", "runA"], all: ["stepE", "stepD", "stepC", "stepB", "stepA"] } };
+  const world = { kinds, order: { book: ["runB", "runA"], all: ["stepE", "stepD", "stepC", "stepB", "stepA"] } };
   check("two kinds that share a shelf share one run each", runSetFor({ shelf: "S" }, world).runs.map((r) => r.run).join() === "runA,runB");
   check("a shelf no kind files on has no run", runSetFor({ shelf: "none" }, world).runs.length === 0);
   const book = runSetFor({ book: "x" }, world);
   check("a book scope runs what its viaBook kinds name, in the order given", book.runs.map((r) => r.run).join() === "runB,runA,runAdventureBookSteps");
   check("and an adventure book's own rows are one run, not their own", book.runs.at(-1).kinds.join() === "C" &&book.runs.at(-1).book === "x");
-  check("a plain book's own rows are not named", runSetFor({ book: "x" }, { ...world, isAdventureBook: () => false }).runs.every((r) => r.run !== ADVENTURE_BOOK_RUN));
+  check("every book's own rows are named, whatever the book is", runSetFor({ book: "x" }, world).runs.some((r) => r.run === ADVENTURE_BOOK_RUN && r.kinds.join() === "C"));
   check("a kind read from another book is left out of this one", !book.runs.some((r) => r.kinds.includes("D")));
   const picked = runSetFor({ entries: ["A.1", "B.9", "C.2", "ghost.1"] }, world);
   check("a ticked claim goes to its kind's run, carrying its id", picked.runs.map((r) => `${r.run}:${r.ids}`).join() === "runA:A.1,runB:B.9,runC:C.2");
@@ -101,13 +102,11 @@ const same = (label, a, b) => {
   check("no owner is null", kindOf(kinds, "ghost.1") === null);
   check("a scope of no known shape throws", (() => { try { runSetFor({ x: 1 }, world); return false; } catch { return true; } })());
   check("booksOfKind reads a kind's own books first, else its claims'", booksOfKind({ books: () => ["q"] }).join() === "q" && booksOfKind(kinds[3]).join() === "y");
-  // A kind that is both a book's own rows and named by a book scope: on an
-  // adventure book its claims ride the book's own run alone, never twice.
+  // A kind that is both a book's own rows and named by a book scope: on any
+  // book its claims ride the book's own run alone, never twice.
   const both = [kind("F", "runF", { own: true, bookSteps: ["stepF"], viaBook: true, chain: "stepF" })];
-  const onAdventure = runSetFor({ book: "x" }, { kinds: both, isAdventureBook: () => true });
-  same("an adventure book's own kind runs under the book's own run only", onAdventure.runs.map((r) => `${r.run}:${r.kinds}`), [`${ADVENTURE_BOOK_RUN}:F`]);
-  const onPlain = runSetFor({ book: "x" }, { kinds: both, isAdventureBook: () => false });
-  same("on a plain book the same kind runs as its own run", onPlain.runs.map((r) => `${r.run}:${r.ids}`), ["runF:F.1"]);
+  const onBook = runSetFor({ book: "x" }, { kinds: both });
+  same("a book's own kind runs under the book's own run only", onBook.runs.map((r) => `${r.run}:${r.kinds}`), [`${ADVENTURE_BOOK_RUN}:F`]);
   void books;
 }
 
@@ -582,10 +581,14 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same(
     "which are the shelves its entries file on, in the refill table's order",
     names(made).slice(0, set.runs.length),
-    ["cookbookImportAbilities", "importAllEquipment", "importVariations", "importMerchandise", "importTraps", "importSpells", "importClasses"],
+    ["cookbookImportAbilities", "importAllEquipment", "importVariations", "importMerchandise", "importTraps", "importSpells", "importClasses", "importVehicles"],
   );
-  check("a printed table's row and a vehicle are not named by a book scope", !set.runs.some((r) => r.kinds.some((k) => ["Weapons", "PriceList", "Vehicles", "Monsters"].includes(k))));
+  check("a printed table's row is not named by a book scope", !set.runs.some((r) => r.kinds.some((k) => ["Weapons", "PriceList"].includes(k))));
   same("each run carries the book's claims of its kinds", set.runs.find((r) => r.run === "importClasses").ids, ["def.class.alpha"]);
+  same("the vehicles are a book's, and the book repair hands the run the book's vehicle entries", [
+    set.runs.find((r) => r.run === "importVehicles").ids,
+    [...made.find((c) => c.run === "importVehicles").arg.only],
+  ], [["def.vehicle.cart"], ["def.vehicle.cart"]]);
 
   // The adventure book's content is the shelves above; its own rows are one run.
   emptyShelves();
@@ -603,7 +606,88 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     IMPORT_KINDS.filter((k) => k.own && k.bookSteps?.length && booksOfKind(k).includes("ax1")).map((k) => k.key),
   );
   check("a content kind of the book is not also in the adventure run", !adventure.runs.some((r) => r.run !== ADVENTURE_BOOK_RUN && r.kinds.includes("Monsters")));
-  check("a plain book has no adventure run", !cookbookRunSet({ book: "rr" }).runs.some((r) => r.run === ADVENTURE_BOOK_RUN));
+  check("a book with no cookbook of its own has no own-rows run", !cookbookRunSet({ book: "rr" }).runs.some((r) => r.run === ADVENTURE_BOOK_RUN));
+
+  // A book that is no Judge's but has a cookbook of its own (a bestiary): its own rows are the one run too.
+  const bestiary = cookbookRunSet({ book: "mm" });
+  check("a bestiary names its own rows as the one own-rows run", bestiary.runs.at(-1).run === ADVENTURE_BOOK_RUN && bestiary.runs.at(-1).book === "mm");
+  same("which names the creatures kind", bestiary.runs.at(-1).kinds, ["Monsters"]);
+  check("and the book is no Judge's", !bookIsJudges("mm"));
+
+  /** An imported Actor as the library holds it, claiming `id`. */
+  const stockCreature = (id) => {
+    const _id = mint();
+    const doc = {
+      id: _id,
+      _id,
+      name: id,
+      type: "npc",
+      pack: actors.shelf.collection,
+      documentName: "Actor",
+      flags: claim(id),
+      system: {},
+      items: [],
+      get uuid() {
+        return `Compendium.${actors.shelf.collection}.Actor.${this.id}`;
+      },
+      getFlag(scope, key) {
+        return this.flags?.[scope]?.[key] ?? null;
+      },
+      toObject() {
+        return structuredClone({ name: this.name, type: this.type, flags: this.flags, system: this.system, items: this.items });
+      },
+      async update() {
+        return this;
+      },
+    };
+    actors.shelf.docs.set(_id, doc);
+    actors.shelf.index.set(_id, { _id });
+  };
+  /** The arguments the confirm's lines are formatted with, keyed by lang key tail. */
+  const formatted = async (fn) => {
+    const asked = {};
+    const was = game.i18n.format;
+    game.i18n.format = (key, data) => {
+      asked[String(key).split(".").pop()] = data;
+      return "";
+    };
+    try {
+      await drive(fn);
+    } finally {
+      game.i18n.format = was;
+    }
+    return asked;
+  };
+
+  emptyShelves();
+  stockCreature("mm.fam");
+  let repaired = null;
+  await drive(async () => {
+    repaired = await cookbookReimportBook("mm");
+  });
+  const own = repaired?.refill?.own;
+  const ownKeys = [...(own?.steps ?? []), ...(own?.errors ?? [])].map((s) => s.key);
+  check("a bestiary repair walks its own rows", ownKeys.includes("stepMonsters"));
+  check("without its items, which the book repair wrote, or an Adventure, which is a Judge's book's", !ownKeys.includes("stepAdventureItems") && !ownKeys.includes("stepAdventures"));
+  const asked = await formatted(() => cookbookReimportBook("mm"));
+  check("the confirm names the book's own rows", "repairMergedBookOwn" in asked);
+  const judged = await formatted(() => cookbookReimportBook("ax1"));
+  check("a Judge's book confirms none, its own repair writes them", !("repairMergedBookOwn" in judged));
+  await drive(async () => {
+    repaired = await cookbookReimportBook("ax1");
+  });
+  check("and its book repair holds no own-rows pass", !("own" in repaired.refill));
+  await drive(async () => {
+    repaired = await cookbookReimportBook("rr");
+  });
+  check("a book with no cookbook of its own holds none", !("own" in repaired.refill));
+
+  // A vehicle is an Actor filed beneath its entry; the confirm counts it, and the census finds its book.
+  emptyShelves();
+  const none = await formatted(() => cookbookReimportBook("rr"));
+  stockCreature("def.vehicle.cart.row");
+  const some = await formatted(() => cookbookReimportBook("rr"));
+  same("a vehicle row the library holds is counted in the book's confirm", [none.repairMergedConfirmBook.n, some.repairMergedConfirmBook.n], [0, 1]);
 
   // The adventure rebuild walks the steps; each api call it makes is a step kind's run.
   emptyShelves();
@@ -1549,7 +1633,9 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   same("every row the picker lists is owned by some kind", real.cookbookRunSet({ entries: picked }).unowned, []);
   check("every adventure book's own rows are walked by its one run", real.IMPORT_KINDS.filter((k) => k.bookSteps?.length).every((k) => k.own));
   const adventure = index.books.filter((id) => real.cookbookRunSet({ book: id }).runs.some((r) => r.run === ADVENTURE_BOOK_RUN));
-  same("the books given the adventure run are the shipped Judge's books", adventure.sort(), index.books.filter((id) => bookIsJudges(id)).sort());
+  check("every shipped Judge's book is given the own-rows run", index.books.filter((id) => bookIsJudges(id)).every((id) => adventure.includes(id)));
+  same("and so is each rulebook that prints rows of its own: the bestiary's creatures, the rules' journal, the Judge's roll table",
+    adventure.filter((id) => !bookIsJudges(id)).sort(), ["jj", "mm", "rr"]);
 }
 
 namespace.importer = importerWas;

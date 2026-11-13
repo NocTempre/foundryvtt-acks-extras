@@ -4097,6 +4097,9 @@ lint never looks at its categories.
 > **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
 > chooses what it writes over": a book's run repairs in place and deletes
 > nothing first. The book as a repair unit stands.
+>
+> **Superseded in part 2026-11-13** by "Book repair reaches a book's own rows
+> and vehicles": a book run is no longer shelf Items alone.
 
 **Ruled.** The reimport picker offers every book open on this seat beside the
 shelves, and `cookbookReimportBook(bookId)` deletes every document imported
@@ -8491,6 +8494,10 @@ mostly launch other windows.
 > Repair everything replaces the Mode select": *Rebuild* is gone, and an
 > adventure book offers Repair alone, which deletes nothing. The book as one
 > unit, the maps kept and Repair forcing the Adventure stand.
+>
+> **Superseded in part 2026-11-13** by "Book repair reaches a book's own rows
+> and vehicles": the clause that `cookbookReimportBook` takes shelf Items alone
+> no longer holds.
 
 The owner asked for "a reimport and repair option" for adventure imports
 specifically. A shelf rebuild could not reach an adventure book: its
@@ -10002,3 +10009,51 @@ Imports is the clean slate. A world setting or record holding the old race
 keys (a race relation, a culture id on a hireling) no longer matches them.
 Builds now stamp 21 classes, not 12. The people races' attribute floors and
 the max-level power are read as names only (classes ROADMAP).
+
+## 2026-11-13 — Book repair reaches a book's own rows and vehicles (T-0458)
+
+**Reported.** The owner's 11.14.4 report: Rebuild on a bestiary left a
+beastman template as the old card, and the owner's ruling of 2026-11-10 put it
+where it belongs: "no back-compat for the old card; it is an importer issue."
+Book Rebuild and book Repair are one function (`cookbookReimportBook`,
+`repairBook`), and it never wrote the Monsters kind, nor the vehicles, nor the
+one journal and one roll table the rules and the Judge's book print. A Judge
+whose library's beastman template predates the Kit axis presses Rebuild on
+the bestiary and gets the current-shape template under the same id; the
+sidebar copy is untouched.
+
+**New evidence, superseding in part "A book is a reimport unit too"
+(2026-09-16) and the clause of "An adventure book is a reimport unit"
+(2026-10-28) that said `cookbookReimportBook` takes shelf Items alone.** Both
+reasons for the limit are gone. The 2026-09-16 book run deleted first, and an
+actor had no in-place writer; "Every kind gets an in-place write" (2026-11-04)
+gave every kind one, and "One repair, in place" (2026-11-11) made every
+rebuild control write in place and delete nothing. `repairBook` was never
+widened to match. The owner's report is the case that shows it.
+
+**Ruled.**
+
+- **A book repair writes a book's own rows.** On a book with a cookbook of its
+  own that is no Judge's book, `repairBook` runs the book's own steps after its
+  shelf runs, under the same tally (`runAdventureBookSteps` with `items: false`,
+  since the shelf run wrote the items, and `adventure: false`). Its confirm
+  names them (`ui.repairMergedBookOwn`). A Judge's book keeps
+  `cookbookReimportAdventure` alone, so no row is written twice.
+- **The vehicles are a book's.** The vehicle run joins the book scope
+  (`viaBook`) and `repairBook` takes a source that names no shelf whole
+  (`!src.shelves`, which retires `bookOwn`). The census counts a document by the
+  entry its claim names or sits beneath (`ancestorsOf`), so a vehicle's rows and
+  a merchandise row are counted as written, where the merchandise rows were
+  counted as left.
+- **`runSetFor` names a book's own rows as one run on every book**; the
+  `isAdventureBook` condition goes.
+
+**Rejected:** the own rows on a Judge's book (the adventure repair already
+walks them, twice over); re-reading the rules tables in a book repair
+(Repair everything already does); Import everything writing over held
+documents (a reversal of its contract, so a new behaviour); driving
+`repairBook` from `cookbookRunSet` (nothing calls the derivation yet).
+
+*Cost:* a bestiary repair refills every held creature of it, minutes where a
+shelf repair took seconds. Repair everything's book rows gain the bestiary's,
+the rules' and the Judge's book's own-rows lines.

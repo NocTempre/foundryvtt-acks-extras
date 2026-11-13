@@ -278,12 +278,27 @@ keyed areas and adventure place are left so while those books are switched
 off. `runSetFor`
 (`import-kinds.mjs`, `cookbookRunSet` over the live table) derives the runs a
 scope needs: a shelf, a book, a list of entries or everything. A book scope
-names the kinds a book rebuild names (`viaBook`), in `SHELF_REFILL`'s order, and
-an adventure book's own rows as one `runAdventureBookSteps`, so no document is
-counted by two runs. No command calls it yet; `test-import-kinds.mjs` holds each
+names the kinds a book repair names (`viaBook`, the vehicles among them), in
+`SHELF_REFILL`'s order, and the book's own rows, on every book that has a
+cookbook, as one `runAdventureBookSteps`, so no document is counted by two
+runs. No command calls it yet; `test-import-kinds.mjs` holds each
 scope's answer to what the shelf, book, adventure and entry rebuilds call.
 
 ## An adventure book, repaired
+
+**A book repair reaches a book's own rows.** `cookbookReimportBook` (`repairBook`)
+writes the shelf runs, the vehicles (`importVehicles`: an Actor filed beneath its
+entry as `<entry>.<row>`, counted by `ancestorsOf` and read from the entry's book
+by `bookOfFlag`) and the printed tables a book prints. Where the book has a
+cookbook of its own and is no Judge's book (the bestiary, the rules, the Judge's
+book), it then runs the book's own steps (`runAdventureBookSteps` with
+`items: false`, since the shelf run wrote the items, and `adventure: false`)
+under the same tally, so its creatures, templates and families, journal pages and
+roll tables are written over in place like an adventure book's, and its confirm
+names them (`ui.repairMergedBookOwn`, counted by `adventureForceCensus`). A
+Judge's book takes them from `cookbookReimportAdventure` alone, so no row is
+written twice. `cookbookRunSet({book})` names the same: the book's own rows are one
+`ADVENTURE_BOOK_RUN` on every book with a cookbook.
 
 `cookbookReimportAdventure(bookId)` repairs one Judge's book as a unit, as
 `cookbookReimportBook` repairs a book's shelf items, through the merged
@@ -903,8 +918,8 @@ already present, and written over in place where the run carries a repair
 tally (`REPAIR.adventureItem`: slot, mark and cost rewritten, a Judge's
 description and the quantity kept); the entry picker lists the items under
 "A book's items", and a book repair takes them with the book's shelves
-(`bookOwn` on the source, since the items stand in the book's folder and on
-no cookbook shelf). Beside the prose, three things
+(a source that names no `shelves`, since the items stand in the book's folder
+and on no cookbook shelf). Beside the prose, three things
 are read from the paragraph (`adventure-item-binding.mjs`): the place it
 says the item is worn, declared as the item's one slot
 (`flags.acks-extras.gear.slots`, the earliest body place the paragraph

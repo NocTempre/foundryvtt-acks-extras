@@ -3910,7 +3910,22 @@ kills the run part-way.
    Standard); no "already covers" notice; the copy's `system` is
    byte-identical before and after.* Where *Your edits and the book* opens,
    the copy is not among its rows.
+2. Repair everything pressed on the Import tab (Settings tab → Game Settings →
+   ACKS II — Extras → Manage imports), answered No. *The one confirm lists the
+   bestiary's part with its own-rows line; the observer holds no create, update
+   or delete.*
+3. The library's template of the family written to the pre-Kit shape (no Kit
+   axis, no kit cell, the Role axis without its default) and the sidebar copy
+   the same. Manage imports → Rebuild → the bestiary's pick → Go. *The confirm
+   is titled Repair in place and carries the own-rows line once.* Answer Yes,
+   and Keep every edit of mine where the choice opens. A bestiary repair
+   refills every held creature of the book: minutes, so poll the manager for
+   its busy line to clear in short page calls. *One library template stands
+   under the same id (no twin), with the current Role axis and a Kit axis and
+   its cells; the sidebar copy's `system` is byte-identical before and after;
+   the notice reads Repaired in place.* Walked by `importer-book-actors`; its
+   wall clock is its own (`WALK_WALL_MS`).
 
 ### Teardown
 
-The fixture is kept.
+The fixture is kept. The library template is left in the current shape.

@@ -23,7 +23,7 @@
  *  - `viaBook`   a book scope names the kind's claims
  */
 
-/** The run that walks one adventure book's own steps; a book scope names it for the book's own rows. */
+/** The run that walks one book's own steps (its creatures, pages, places, tables); a book scope names it for the book's own rows. */
 export const ADVENTURE_BOOK_RUN = "runAdventureBookSteps";
 
 /**
@@ -154,8 +154,9 @@ const ranked = (runs, rank) => {
  *  - `{shelf}`    the run that refills the shelf, whole
  *  - `{book}`     the runs of the kinds a book scope names (`viaBook`), each
  *                 carrying the book's claims of that kind, in `order.book`;
- *                 for an adventure book its own rows are one
- *                 `ADVENTURE_BOOK_RUN` instead, so nothing is counted twice
+ *                 a book's own rows (its creatures, pages, places, tables)
+ *                 are one `ADVENTURE_BOOK_RUN` instead, so nothing is counted
+ *                 twice
  *  - `{entries}`  the runs of the ticked ids' kinds, each carrying its ids
  *  - `{all}`      every kind's whole run once, in the order of `order.all`
  *
@@ -165,12 +166,11 @@ const ranked = (runs, rank) => {
  * @param {{shelf: string}|{book: string}|{entries: string[]}|{all: true}} scope
  * @param {object} world
  * @param {object[]} world.kinds the kind declaration
- * @param {(book: string) => boolean} [world.isAdventureBook] whether a book's own rows are walked by `ADVENTURE_BOOK_RUN`
  * @param {{book?: string[], all?: string[]}} [world.order] `book`: the run names in the order a book scope runs them;
  *   `all`: the import chain's step keys in order
  * @returns {{runs: {run: string, kinds: string[], ids?: string[], book?: string}[], unowned: string[]}}
  */
-export function runSetFor(scope, { kinds, isAdventureBook = () => false, order = {} }) {
+export function runSetFor(scope, { kinds, order = {} }) {
   const keyed = (key) => kinds.find((kind) => kind.key === key);
   if ("shelf" in scope) {
     const owners = kinds.filter((kind) => kind.shelves?.includes(scope.shelf));
@@ -179,7 +179,7 @@ export function runSetFor(scope, { kinds, isAdventureBook = () => false, order =
   if ("book" in scope) {
     const { book } = scope;
     const named = kinds.filter((kind) => booksOfKind(kind).includes(book));
-    const steps = isAdventureBook(book) ? named.filter((kind) => kind.own && kind.bookSteps?.length) : [];
+    const steps = named.filter((kind) => kind.own && kind.bookSteps?.length);
     const plain = named.filter((kind) => kind.viaBook && !steps.includes(kind));
     const grouped = groupRuns(plain, (kind) => kind.make.run);
     for (const run of grouped) {

@@ -2435,9 +2435,13 @@ async function repairShelf(shelf, { tally, quiet = false, ask = null }) {
 
 /**
  * One pass of a merged repair over everything imported from ONE book, in
- * place, over the shelves that have a run, and the printed tables the book
- * prints. Each run takes only this book's entries, so repairing one book never
- * writes over another book's documents. A document no run writes in place is
+ * place, over the shelves that have a run, the vehicles, and the printed
+ * tables the book prints. Each run takes only this book's entries, so
+ * repairing one book never writes over another book's documents. A book with
+ * a cookbook of its own that is no Judge's book (a rulebook, a bestiary) also
+ * has its own rows written over, by `runAdventureBookSteps` without the items
+ * and the Adventure; a Judge's book does that in `cookbookReimportAdventure`.
+ * A document no run writes in place is
  * left, and its shelf named. A book the module no longer offers is out of
  * scope: nothing is asked or written, and its documents are counted in
  * `notOffered`. Its options are `repairShelf`'s.
@@ -2445,20 +2449,23 @@ async function repairShelf(shelf, { tally, quiet = false, ask = null }) {
 async function repairBook(bookId, label, { tally, quiet = false, ask = null }) {
   const runs = new Map();
   for (const src of ENTRY_SOURCES) {
-    if (src.type !== "Item" || !REPAIR_RUNS[src.refill]) continue;
+    if (!REPAIR_RUNS[src.refill]) continue;
     for (const [id] of src.entries()) {
-      if (bookOf(cookbookEntry(id)) !== bookId || !(src.bookOwn || refillShelfOf(id))) continue;
+      // A source that names no shelf (a book's own items, the vehicles) is taken whole.
+      if (bookOf(cookbookEntry(id)) !== bookId || (src.shelves && !refillShelfOf(id))) continue;
       if (!runs.has(src.refill)) runs.set(src.refill, new Set());
       runs.get(src.refill).add(id);
     }
   }
   const touched = new Set([...runs.values()].flatMap((ids) => [...ids]));
+  // A document a run writes claims its entry's id or a row filed beneath it (a vehicle's `<entry>.<row>`).
+  const touchedBy = (id) => ancestorsOf(id).some((a) => touched.has(a));
   const ofBook = (d) => {
     if (d.flags?.[MODULE_ID]?.templatePart) return false;
     const flag = d.getFlag(MODULE_ID, "cookbook");
-    return !!flag?.id && bookOfFlag(flag) === bookId && !!(refillShelfOf(flag.id) || bookOwnEntry(flag.id));
+    return !!flag?.id && bookOfFlag(flag) === bookId && !!(refillShelfOf(flag.id) || touchedBy(flag.id));
   };
-  // Actors too: an animal is an equipment entry filed as a creature.
+  // Actors too: an animal is an equipment entry filed as a creature, and a vehicle is an actor.
   const docs = [...(await importedDocs("Item")), ...(await importedDocs("Actor"))].filter(ofBook);
   // A book's own item names its folder for a shelf, the group `targetFolder` files it under.
   const shelfOf = (d) => refillShelfOf(claimedId(d)) ?? "Items";
@@ -2473,10 +2480,14 @@ async function repairBook(bookId, label, { tally, quiet = false, ask = null }) {
   });
   // A book the module no longer offers is out of scope: nothing is written and its documents are counted.
   if (!BOOKS[bookId]) return { book: bookId, notOffered: docs.length, ...repairCounts(tally), refill: {} };
-  const over = [...docs.filter((d) => touched.has(claimedId(d))), ...rowDocs];
+  const over = [...docs.filter((d) => touchedBy(claimedId(d))), ...rowDocs];
   const overIds = new Set(over.map((d) => d.uuid));
   const left = docs.filter((d) => !overIds.has(d.uuid));
   const shelves = [...new Set(over.map(shelfOf))].sort();
+  // A book with a cookbook of its own: its own rows (creatures, people, pages, tables) are written over too. A Judge's
+  // book does that through its own repair (`cookbookReimportAdventure`).
+  const own = data.books.has(bookId) && !bookIsJudges(bookId);
+  const ownCounts = own && !quiet ? (await adventureForceCensus(bookId)).written : "";
   const ok = quiet || await confirmRepair(
     [
       game.i18n.format(`${LANG_PREFIX}.ui.repairMergedConfirmBook`, {
@@ -2484,6 +2495,11 @@ async function repairBook(bookId, label, { tally, quiet = false, ask = null }) {
         book: label,
         shelves: shelves.join(", ") || "—",
       }),
+      own
+        ? game.i18n.format(`${LANG_PREFIX}.ui.repairMergedBookOwn`, {
+            counts: ownCounts || game.i18n.localize(`${LANG_PREFIX}.ui.reimportAdventureNothing`),
+          })
+        : "",
       left.length
         ? game.i18n.format(`${LANG_PREFIX}.ui.repairSkipsShelves`, {
             n: left.length,
@@ -2511,6 +2527,8 @@ async function repairBook(bookId, label, { tally, quiet = false, ask = null }) {
   for (const shelf of rowShelves) {
     if (TABLE_REPAIRS[shelf]) refill[shelf] = (await mergedStep(tally, shelf, () => TABLE_REPAIRS[shelf](tally))) ?? null;
   }
+  // The items ran above, so the steps leave them be; the Adventure is a Judge's book's alone.
+  if (own) refill.own = await runAdventureBookSteps(bookId, { tally, adventure: false, items: false });
   return { book: bookId, notOffered: 0, ...repairCounts(tally), refill };
 }
 
@@ -2881,8 +2899,11 @@ const refillShelfOf = (id) => {
   return shelf && SHELF_REFILL[shelf] ? shelf : null;
 };
 
-/** The book an imported document was read from: its entry's own book, else what its id spells. */
-const bookOfFlag = (flag) => bookOf(cookbookEntry(flag.id)) ?? bookOfCookbookId(flag.id, flag.book);
+/**
+ * The book an imported document was read from: the book of the entry its claim
+ * names (itself or the entry a row is filed beneath), else what its id spells.
+ */
+const bookOfFlag = (flag) => entryBookOf(flag.id) ?? bookOfCookbookId(flag.id, flag.book);
 
 /**
  * Every book open on this seat with something in the cookbook to rebuild,
@@ -3060,12 +3081,13 @@ async function heldById(ids) {
  * which under a decision is an edit (`writeJournalPage`), and a map is refreshed
  * by its own step; on a merged repair's second pass (`secondPass`) only the steps
  * whose first pass held an edit run (`mergedStep`). `adventure: false` leaves
- * the Adventure step to the caller.
+ * the Adventure step to the caller, and `items: false` the book's own items,
+ * which a book repair has already written.
  * @param {string} bookId
- * @param {{force?: boolean, tally?: object|null, adventure?: boolean}} [opts]
+ * @param {{force?: boolean, tally?: object|null, adventure?: boolean, items?: boolean}} [opts]
  * @returns {Promise<{steps: {key: string, result: unknown}[], errors: {key: string, message: string}[]}>}
  */
-async function runAdventureBookSteps(bookId, { force = false, tally = null, adventure = true } = {}) {
+async function runAdventureBookSteps(bookId, { force = false, tally = null, adventure = true, items = true } = {}) {
   const a = api();
   const steps = [];
   const errors = [];
@@ -3125,7 +3147,7 @@ async function runAdventureBookSteps(bookId, { force = false, tally = null, adve
   await run("stepFactions", () => scoped(ids.factions, ["relations", "strength"], () => a.cookbookImportFactions(only)));
   await run("stepMarkets", () => a.cookbookImportMarketProfiles({ ...only, repair: tally }));
   await run("stepRollTables", () => a.cookbookImportRollTables({ ...only, repair: tally }));
-  await run("stepAdventureItems", () => a.cookbookImportAdventureItems({ ...only, repair: tally }));
+  if (items) await run("stepAdventureItems", () => a.cookbookImportAdventureItems({ ...only, repair: tally }));
   if (!second && Object.keys(data.books.get(bookId)?.scenes ?? {}).length) {
     await run("stepScenes", () => a.cookbookImportScenes(only));
     await run("stepLinks", () => a.cookbookImportLinks({ quiet: true }));
@@ -3373,13 +3395,12 @@ export const ENTRY_SOURCES = [
     chain: "stepTraps",
     viaBook: true,
   },
-  // A book's own items stand in its folder, on no cookbook shelf: `bookOwn`
-  // lets a book repair take them where `refillShelfOf` answers nothing.
+  // A book's own items stand in its folder, on no cookbook shelf: a source
+  // with no `shelves` is one a book repair takes where `refillShelfOf` answers nothing.
   {
     key: "BookItems",
     type: "Item",
     refill: "cookbookImportAdventureItems",
-    bookOwn: true,
     entries: () => adventureItemEntries(),
     owns: ownsEntry(true, ofKinds("kind.adventureItem")),
     book: entryBookOf,
@@ -3421,6 +3442,7 @@ export const ENTRY_SOURCES = [
     book: entryBookOf,
     make: { run: "importVehicles", takes: ["only"] },
     chain: "stepVehicles",
+    viaBook: true,
   },
   // The demand entry is no row of its own: it appends onto the goods, and the
   // goods' run reads it, so only the merchandise table is offered; the kind
@@ -3685,15 +3707,15 @@ export const IMPORT_KINDS = Object.freeze([...ENTRY_SOURCES, ...TABLE_SHELF_KIND
 /**
  * The importer runs a scope of work needs, derived from `IMPORT_KINDS`
  * (`runSetFor`): `{shelf}`, `{book}`, `{entries: [claim, ...]}` or `{all: true}`.
- * A book scope names what a book rebuild names today, in `SHELF_REFILL`'s order,
- * and an adventure book's own rows as one `runAdventureBookSteps`; `all` is in
- * the import chain's order. Nothing calls it yet.
+ * A book scope names what a book repair writes, in `SHELF_REFILL`'s order, and
+ * the book's own rows, wherever the book has a cookbook, as one
+ * `runAdventureBookSteps`; `all` is in the import chain's order. Nothing calls
+ * it yet.
  * @returns {{runs: {run: string, kinds: string[], ids?: string[], book?: string}[], unowned: string[]}}
  */
 export const cookbookRunSet = (scope) =>
   deriveRunSet(scope, {
     kinds: IMPORT_KINDS,
-    isAdventureBook: (book) => bookIsJudges(book) && data.books.has(book),
     order: { book: Object.values(SHELF_REFILL), all: GM_STEPS.map(([key]) => key) },
   });
 
