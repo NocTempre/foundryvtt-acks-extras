@@ -11,6 +11,8 @@
  *     applied, then Yes with nothing held), and every kind's confirm answered No;
  *   - "Rebuild or repair an adventure book", its Repair answered No, and the
  *     manager holding no mode select;
+ *   - "The import manager", step 3 (the Import tab's bar, and Repair everything
+ *     pressed, its one confirm read and answered No with the observer armed);
  *   - "Overhead token art from an installed compendium", steps 1, 4 (Make
  *     Encounter from a wildcard monster) and 8.
  * Machine values arrive through ./_env.mjs; `cat` must be open on the GM seat
@@ -25,7 +27,8 @@
  * by its own buttons; a No path is proved by a create/update/delete observer
  * that holds nothing. A Yes is pressed only over the run's own items, so the
  * choice lists nothing but their edits. The group Make Encounter builds is
- * tracked. Teardown sweeps the ledger and empties a shelf this run opened.
+ * tracked. Import everything is found in the bar and not pressed: it runs the
+ * chain, which writes. Teardown sweeps the ledger and empties a shelf this run opened.
  * Every id printed is a cookbook id or a uuid; no book word leaves the page.
  */
 import fs from "node:fs";
@@ -318,6 +321,99 @@ const P = {
     const app = foundry.applications.instances.get("acks-extras-import-manager");
     if (app) await app.close({ animate: false });
     return !foundry.applications.instances.get("acks-extras-import-manager")?.rendered;
+  },
+  /** The manager on its Import tab: the controls of its bar and whether any select stands on the Import or Rebuild tab. */
+  importBar: async () => {
+    const H = globalThis.__fr;
+    const BAR = "section[data-tab='import'] .acks-extras-importer-manager-bar";
+    const app = acksExtras.importer.openImportManager({ tab: "import" });
+    await H.poll(() => app.rendered && app.tabGroups?.primary === "import" && H.root(app)?.querySelector(BAR));
+    await H.sleep(300);
+    const buttons = [...(H.root(app)?.querySelector(BAR)?.querySelectorAll("button") ?? [])];
+    return {
+      bar: buttons.length > 0,
+      actions: buttons.map((b) => b.dataset.action),
+      labelled: buttons.every((b) => b.textContent.trim().length > 0),
+      selects: H.root(app).querySelectorAll("section[data-tab='import'] select, section[data-tab='rebuild'] select:not([name='pick'])").length,
+    };
+  },
+  /**
+   * The journals, keyed-places and maps steps narrowed to a book no seat holds open, as a book's
+   * rebuild narrows them: each has nothing to write, and the notices raised meanwhile are counted.
+   */
+  quietSteps: async () => {
+    const H = globalThis.__fr;
+    const api = acksExtras.importer;
+    const said = H.notes.length;
+    const only = { books: ["qa-no-such-book"] };
+    const results = [await api.cookbookImportJournals(only), await api.cookbookImportPoiPlaces(only), await api.cookbookImportScenes(only)];
+    return { results, notes: H.notes.slice(said) };
+  },
+  /**
+   * Repair everything pressed on the open Import tab. Returns at once: the asking pass can outlast
+   * one evaluation, so `everythingConfirm` waits for its confirm in rounds.
+   */
+  pressRepairAll: async () => {
+    const H = globalThis.__fr;
+    H.notes.splice(0);
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    H.pressed = {
+      before: H.dialogs().map((a) => a.id),
+      at: performance.now(),
+      parts: H.CB.reimportableBooks().length + ((await H.CB.adventureBooks?.())?.length ?? 0),
+    };
+    H.root(app).querySelector("section[data-tab='import'] button[data-action='repairAll']").click();
+    return true;
+  },
+  /** One round of waiting for the press's confirm; `{waiting: true}` until it stands, then what it shows. */
+  everythingConfirm: async () => {
+    const H = globalThis.__fr;
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    const { before, at, parts: offered } = H.pressed;
+    const dlg = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
+    if (!dlg) return H.root(app)?.querySelector(".acks-extras-importer-manager-busy") ? { waiting: true, seconds: Math.round((performance.now() - at) / 1000) } : { dialog: null, notes: H.notes.map((n) => n.kind) };
+    const seconds = Math.round((performance.now() - at) / 1000);
+    await H.poll(() => H.root(app)?.querySelector(".acks-extras-importer-manager-busy"), { tries: 20 });
+    await H.sleep(300);
+    const flat = (s) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const text = (H.root(dlg).querySelector(".dialog-content, .window-content")?.textContent ?? "").replace(/\s+/g, " ").trim();
+    // The count is read off the opening line, which states it; a part's own lines may carry bold too.
+    const [head, tail] = flat(game.i18n.format("ACKS-IMPORTER.ui.repairMergedEverything", { n: "\u0000" })).split("\u0000");
+    const quote = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parts = Number(text.match(new RegExp(`^${quote(head)}(\\d+)${quote(tail.slice(0, 12))}`))?.[1] ?? 0);
+    const opening = flat(game.i18n.format("ACKS-IMPORTER.ui.repairMergedEverything", { n: parts }));
+    const closing = flat(game.i18n.localize("ACKS-IMPORTER.ui.everythingClosed"));
+    // The confirm stands inside the manager's frame, below the bar, for the plate; held to the frame's floor too.
+    const r = H.root(app).getBoundingClientRect();
+    const bar = H.root(app).querySelector("section[data-tab='import'] .acks-extras-importer-manager-bar")?.getBoundingClientRect();
+    const top = Math.round((bar?.bottom ?? r.top + 150) + 12);
+    dlg.setPosition({ left: Math.round(r.left + 40), top, width: Math.min(560, Math.round(r.width - 80)), height: Math.max(240, Math.round(r.bottom - top - 16)) });
+    await H.sleep(400);
+    return {
+      dialog: dlg.id,
+      parts,
+      offered,
+      seconds,
+      opens: text.startsWith(opening.slice(0, 30)),
+      closes: text.includes(closing.slice(0, 30)),
+      title: (dlg.options?.window?.title ?? "") === game.i18n.localize("ACKS-IMPORTER.ui.repairMergedTitle"),
+      dialogs: H.dialogs().filter((a) => !before.includes(a.id)).length,
+    };
+  },
+  /** The open Repair everything confirm answered No by its own button; what the window and the notices read after. */
+  everythingNo: async ({ dialog }) => {
+    const H = globalThis.__fr;
+    const dlg = foundry.applications.instances.get(dialog);
+    H.root(dlg).querySelector("button[data-action='no']").click();
+    await H.poll(() => !dlg.rendered);
+    const app = foundry.applications.instances.get("acks-extras-import-manager");
+    await H.poll(() => !H.root(app)?.querySelector(".acks-extras-importer-manager-busy"), { tries: 40 });
+    await H.sleep(1500);
+    return {
+      closed: !dlg.rendered,
+      idle: !H.root(app)?.querySelector(".acks-extras-importer-manager-busy"),
+      notes: H.notes.filter((n) => n.kind !== "info").map((n) => n.kind),
+    };
   },
   bookStatus: async () => {
     const H = globalThis.__fr;
@@ -667,6 +763,35 @@ try {
     writes = await run(gm, P.observe, { on: false });
     check("and its No writes nothing", writes.length === 0, writes.length);
   }
+  await run(gm, P.closeManager);
+
+  section("The Import tab's bar and Repair everything, answered No (step 3)");
+  await gm.compose();
+  const bar = await run(gm, P.importBar);
+  note("import tab", bar);
+  check("3: the bar holds Import everything then Repair everything, each with a label, and no other control", bar.bar && same(bar.actions, ["importAll", "repairAll"]) && bar.labelled, bar.actions);
+  check("3: no mode select on the Import or Rebuild tab", bar.selects === 0, bar.selects);
+  const nothing = await run(gm, P.quietSteps);
+  check("3: narrowed to a book with nothing of theirs, the journals, keyed-places and maps steps resolve null and raise no notice", nothing.results.every((r) => r === null) && nothing.notes.length === 0, nothing);
+  const worldPacks = await run(gm, P.packs);
+  await run(gm, P.observe, { on: true });
+  await run(gm, P.pressRepairAll);
+  let everything = { waiting: true };
+  for (let round = 0; everything.waiting && round < 10; round++) everything = await run(gm, P.everythingConfirm);
+  note("confirm", { found: !!everything.dialog, seconds: everything.seconds, parts: everything.parts, offered: everything.offered, title: everything.title, opens: everything.opens, closes: everything.closes, dialogs: everything.dialogs });
+  check("3: Repair everything puts ONE confirm, the merged repair's, opening on its count of parts and closing on what is not touched", !!everything.dialog && everything.dialogs === 1 && everything.title && everything.opens && everything.closes && everything.parts > 0, everything);
+  check("3: no more parts than the open books and adventure books offer", everything.parts > 0 && everything.parts <= everything.offered, { parts: everything.parts, offered: everything.offered });
+  if (process.env.SHOTS === "1" && everything.dialog) note("plate", await gm.shot(plate("importer-repair-everything.png"), "#acks-extras-import-manager"));
+  if (everything.dialog) {
+    const refused = await run(gm, P.everythingNo, { dialog: everything.dialog });
+    writes = await run(gm, P.observe, { on: false });
+    note("No", { closed: refused.closed, idle: refused.idle, warnings: refused.notes.length, writes: writes.length });
+    check("3: answered No, the observer holds nothing and nothing warned", refused.closed && writes.length === 0 && refused.notes.length === 0, { writes: writes.slice(0, 5), notes: refused.notes });
+    check("3: the window is idle again", refused.idle, { idle: refused.idle });
+  } else {
+    await run(gm, P.observe, { on: false });
+  }
+  check("3: no compendium was made or removed", same(worldPacks, await run(gm, P.packs)), { before: worldPacks.length });
   await run(gm, P.closeManager);
 
   section("Overhead token art (steps 1, 4, 8)");

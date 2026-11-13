@@ -1209,3 +1209,57 @@ produces stays, under whatever name it carries.
 **Cost.** A world built on an earlier version and never repaired or
 re-imported keeps whatever shape that version left; the release notes say so
 once, and a repair or a re-import is how such a world catches up.
+
+## 30. A major's gate is 47 walks, and the rest are suites (2026-11-13)
+
+**Problem.** A major requires every walk in `tools/live/` (§28), and the set
+had grown to 69 walks, about 265 seat-minutes of one world, with no recorded
+reason for most of them to be walks. The owner, on seeing the audit: "I am
+skeptical these test walks are necessary or doing more than proving import
+value = import value." Most of what the retired walks asserted was a value
+read back from a document the same code had just written.
+
+**Ruled.** The owner took the audit in two steps, "B in prep for A" and then
+"A: full apply". A check stays a walk only where a real server, a real seat or
+a real browser is the thing under test. Everything else runs offline on
+invented values, and a check that needs the Judge's own copy of a book lives in
+the local-only `tools/rules-tests/` and never in a repo.
+
+- **Retired with nothing carried:** `importer-bookless`,
+  `importer-item-repair`, `location-judge-owner`, `formation-live-findings`.
+- **Retired after a fold into a kept walk:** `classes-hit-points` into
+  `classes-level-cap`; `location-house-spoil` into `location-storage-intent`;
+  `importer-adventure` and the AX1 table roll into `importer-ax1` §3;
+  `lib-cast-seam` into `magic-cast-summon`; `lib-missing-images` into
+  `window-contract`.
+- **Merged:** `formation-mapper-vulnerable` into `formation-mapper-mapping`;
+  `henchmen-search-steps` into `henchmen-blocked-classes`;
+  `classes-levelup-roll` into `classes-hp-record`; `importer-everything` into
+  `importer-force-repair`.
+- **Moved offline onto invented values:** the equipment layer and weapon-row
+  walks, `importer-ax1-markets`, `henchmen-cultures`, `formation-party-skills`
+  (`tools/test-party-skills.mjs`), `importer-class-rows`
+  (`tools/test-class-sheet.mjs`), `monsters-leaders` (the generated-repertoire
+  and leader suites; the Player's pin without a write folded into
+  `monsters-encounter`), and the bindings of `importer-characters` and
+  `importer-ax1-text`.
+- **The smoke walk grew.** `window-contract` re-reads its recorder after the
+  windows open, fails on a logged error, lists warnings, and opens every
+  registered settings menu, the storage manager and one compendium.
+
+**Rejected.** Keeping a walk for each recipe section: a section whose steps no
+check drives stays a by-hand pass in its recipe, which says so, since a walk
+that only repeats an offline suite costs a seat-minute per run and proves
+nothing the suite does not. Trimming the kept walks' redundant checks in the
+same change: each trim is a live-surface edit nobody can verify without a
+world, so it waits for whoever next touches that walk.
+
+**Cost.** Coverage the audit judged redundant is no longer checked by any
+walk or suite: a Player seat's hand-out and shelf visibility of imported
+characters, the Books-tab census row, a deleted carried item coming back under
+its id, and the system's own cast with no claimant. Every edited walk is a
+live-surface edit that nothing offline ran; the first major's gate walks them,
+and a red result there is a finding, not a regression of the retirement.
+`equipment-weapon-nulls` and `location-notes-tab` are red and stay on the
+ledger (T-0531, T-0532), unfixed here; T-0533 and T-0534 carry two IP notes
+the audit found in walks.

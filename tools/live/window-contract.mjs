@@ -8,9 +8,17 @@
  * built it. Machine values arrive through ./_env.mjs; nothing here names a
  * port, a world, a seat or a book. Every figure typed in is invented.
  *
+ * The walk is also the smoke pass. Each seat reloads under a boot recorder
+ * that keeps recording, and the walk reads it again once the windows have
+ * opened: an error logged under any window fails, a warning is listed and
+ * never fails. Every settings menu the module registers is opened through its
+ * registered type, the storage manager through the opener the location sheet
+ * calls, and one declared compendium is opened and read for what it lists.
+ * The player's seat opens the attitude sheet and the ability sheet.
+ *
  * Fixtures, kept and found again by marker (`api.fixture`): the items
  * `lib/window-variation`, `lib/window-trap`, `lib/window-attitude` (observed
- * by every seat), `lib/window-ability`, `lib/window-spell`, the character
+ * by every seat), `lib/window-ability` (raised to observer at the player's step),`lib/window-spell`, the character
  * `lib/window-trader` holding a stack of three, the monster
  * `lib/window-monster`, the domain `lib/window-domain`, the scene
  * `lib/window-scene` holding one door, and one `lib/window-sheet-<type>` of
@@ -39,12 +47,23 @@ const check = (label, ok, detail) => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
 
-/** In the page before it loads, so `init`, `setup` and `ready` are all recorded. */
+/**
+ * In the page before it loads, so `init`, `setup` and `ready` are all recorded.
+ * It keeps recording for the life of the page: `step` names the walk's section
+ * a line was logged in, set by `P.step`. Errors are kept whole; warnings are
+ * counted and the first 200 kept.
+ */
 const RECORDER = `(() => {
-  const R = (globalThis.__wcBoot = { phase: "load", phases: [], errors: [] });
-  const push = (kind, text) => R.errors.push({ phase: R.phase, kind, text: String(text).slice(0, 300) });
+  const R = (globalThis.__wcBoot = { phase: "load", step: "boot", phases: [], errors: [], warnings: [], warned: 0 });
+  const push = (kind, text) => R.errors.push({ phase: R.phase, step: R.step, kind, text: String(text).slice(0, 300) });
   const error = console.error.bind(console);
   console.error = (...args) => { push("console", args.map((a) => a?.message ?? a).join(" ")); error(...args); };
+  const warn = console.warn.bind(console);
+  console.warn = (...args) => {
+    R.warned++;
+    if (R.warnings.length < 200) R.warnings.push({ phase: R.phase, step: R.step, text: args.map((a) => a?.message ?? a).join(" ").slice(0, 300) });
+    warn(...args);
+  };
   addEventListener("error", (e) => push("error", e.message));
   addEventListener("unhandledrejection", (e) => push("rejection", e.reason?.message ?? e.reason));
   const arm = setInterval(() => {
@@ -64,8 +83,24 @@ const P = {
     module: game.modules.get(mod)?.version ?? null,
     role: game.user.role,
     activeGMIsSelf: !!game.users.activeGM?.isSelf,
-    boot: globalThis.__wcBoot ?? null,
+    boot: globalThis.__wcBoot ? { phase: globalThis.__wcBoot.phase, phases: globalThis.__wcBoot.phases, errors: globalThis.__wcBoot.errors } : null,
   }),
+
+  /** The recorder as it stands, whole. */
+  recorder: async () => globalThis.__wcBoot ?? null,
+
+  /** Names the section the recorder files what it logs under next. */
+  step: async ({ title }) => {
+    if (globalThis.__wcBoot) globalThis.__wcBoot.step = title;
+    return true;
+  },
+
+  /** Raises a fixture to observer for everyone, only where it stands lower, so a player's seat can open it. */
+  observe: async ({ uuid }) => {
+    const doc = await fromUuid(uuid);
+    if ((doc.ownership?.default ?? 0) < CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER) await doc.update({ "ownership.default": CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER });
+    return doc.ownership.default;
+  },
 
   install: async () => {
     const H = (globalThis.__wc = {});
@@ -212,6 +247,55 @@ const P = {
     };
     await open[key]();
     return H.track(await H.newWindow(before));
+  },
+
+  /** The keys of every settings menu this module registers. */
+  menuKeys: async ({ mod }) => [...game.settings.menus.keys()].filter((key) => key.startsWith(`${mod}.`)),
+
+  /** A settings menu the way the Settings screen opens it: a fresh instance of its registered type, rendered. */
+  menu: async ({ key }) => {
+    const H = globalThis.__wc;
+    const before = H.live();
+    const entry = game.settings.menus.get(key);
+    if (!entry) return { opened: false, why: "no such menu" };
+    const app = new entry.type();
+    try { await app.render(true); } catch (err) { return { opened: false, why: String(err?.message ?? err).slice(0, 160) }; }
+    return H.track(app.rendered ? app : await H.newWindow(before));
+  },
+
+  /** The storage manager through the opener the location sheet calls, focused on the kept market town. */
+  storage: async ({ townUuid }) => {
+    const H = globalThis.__wc;
+    const before = H.live();
+    const open = globalThis.acksExtras?.location?.openStorageManager;
+    if (typeof open !== "function") return { opened: false, why: "no storage manager opener" };
+    open(await fromUuid(townUuid));
+    return H.track(await H.newWindow(before, "StorageManager"));
+  },
+
+  /**
+   * A compendium this module declares that holds a document. Core gives a
+   * compendium window no module class and no corner, so it is read for what
+   * it lists and not held to the window contract.
+   */
+  pack: async ({ mod }) => {
+    const H = globalThis.__wc;
+    const pack = game.packs.find((p) => p.metadata.packageName === mod && p.index.size > 0);
+    if (!pack) return { opened: false, why: "no declared pack holds a document" };
+    pack.render(true);
+    let app = null;
+    for (let n = 0; n < 80; n++) {
+      app = pack.apps.find((a) => a.rendered) ?? null;
+      if (app?.element.querySelector(".directory-item[data-entry-id]")) break;
+      await H.sleep(100);
+    }
+    H.current = app;
+    return {
+      opened: !!app,
+      collection: pack.collection,
+      indexed: pack.index.size,
+      listed: app?.element.querySelectorAll(".directory-item[data-entry-id]").length ?? 0,
+    };
   },
 
   goodsUuid: async ({ traderId }) => game.actors.get(traderId).items.getName("Window walk goods").uuid,
@@ -415,6 +499,35 @@ async function walkWindow(gm, input, label, opened, { drag = true, short = 150 }
   await run(gm, P.closeCurrent);
 }
 
+/** A section heading, and the name the recorder files what the page logs next under. */
+async function stage(api, title) {
+  section(title);
+  await run(api, P.step, { title });
+}
+
+/**
+ * Reads the recorder again. An error, an uncaught error or an unhandled
+ * rejection logged since the page loaded fails the walk, with the section it
+ * was logged in. Warnings are listed by distinct text and never fail it: core
+ * and other modules log some on every load, so a count would be a constant of
+ * the install and not of this module.
+ */
+async function readRecorder(api, label, when) {
+  const boot = await run(api, P.recorder);
+  const errors = boot?.errors ?? [];
+  check(`${label}: no error logged ${when}`, !!boot && errors.length === 0, errors.slice(0, 5).map((e) => `[${e.step}] ${e.kind}: ${e.text}`));
+  const distinct = new Map();
+  for (const w of boot?.warnings ?? []) {
+    const seen = distinct.get(w.text);
+    distinct.set(w.text, { n: (seen?.n ?? 0) + 1, step: seen?.step ?? w.step });
+  }
+  note(`${label}: console warnings ${when} (listed, not failures)`, {
+    logged: boot?.warned ?? 0,
+    distinct: distinct.size,
+    first: [...distinct].slice(0, 10).map(([text, { n, step }]) => `${n}x [${step}] ${text.slice(0, 120)}`),
+  });
+}
+
 /**
  * The platform facts `lib.missingImages` stands on, true only of a real core
  * and server (docs/lib/TESTING.md, "An image whose file is gone"): a HEAD for
@@ -454,7 +567,7 @@ try {
   if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install", await run(gm, P.install));
 
-  section("fixtures");
+  await stage(gm, "fixtures");
   const item = (marker, type, extra = {}) => gm.fixture(marker, "Item", { name: `Window walk ${type}`, type, ...extra });
   const variation = await item("lib/window-variation", "acks-extras.variation");
   const trap = await item("lib/window-trap", "acks-extras.trap");
@@ -471,7 +584,7 @@ try {
   const townUuid = await run(gm, P.town);
   check("the kept market town stands (tools/live/markets.mjs builds it)", !!townUuid, townUuid);
 
-  section("sheets a Judge opens on a document");
+  await stage(gm, "sheets a Judge opens on a document");
   // A tabbed sheet's body takes what its header leaves, so it is held at a height a display can be.
   for (const [label, doc, cls, short] of [
     ["variation sheet", variation, "VariationSheet", 150],
@@ -485,7 +598,7 @@ try {
     await walkWindow(gm, input, label, opened, { short });
   }
 
-  section("a corner that holds across a re-render");
+  await stage(gm, "a corner that holds across a re-render");
   {
     const opened = await run(gm, P.sheet, { uuid: variation.uuid, name: "VariationSheet" });
     await input.drag(opened.at, { x: opened.at.x + 60, y: opened.at.y + 70 });
@@ -496,24 +609,24 @@ try {
     await run(gm, P.closeCurrent);
   }
 
-  section("windows with no document of their own");
+  await stage(gm, "windows with no document of their own");
   await walkWindow(gm, input, "map modes", await run(gm, P.map, { which: "modes", cls: "MapModesApp" }));
   await walkWindow(gm, input, "terrain palette", await run(gm, P.map, { which: "palette", cls: "TerrainPaletteApp" }));
   await walkWindow(gm, input, "door", await run(gm, P.door, { sceneId: scene.id, cls: "DoorApp" }));
   await walkWindow(gm, input, "trapbreak", await run(gm, P.trapbreak, { cls: "TrapbreakApp" }));
 
-  section("market dialogs");
+  await stage(gm, "market dialogs");
   for (const [kind, cls] of [["purchase", "PurchaseDialog"], ["commission", "CommissionDialog"], ["sell", "SellDialog"], ["venture", "VentureTradeDialog"]]) {
     await walkWindow(gm, input, `market ${kind}`, await run(gm, P.market, { kind, cls, townUuid, traderId: trader.id }));
   }
 
-  section("dialogs");
+  await stage(gm, "dialogs");
   await walkWindow(gm, input, "Divide prompt", await run(gm, P.divide, { traderId: trader.id }));
   await walkWindow(gm, input, "importer contract", await run(gm, P.importerDialog));
   await walkWindow(gm, input, "pack macro", await run(gm, P.macro, { name: "Uninstall — Strip Equipment Data" }));
   await walkWindow(gm, input, "restock confirm", await run(gm, P.restock));
 
-  section("frames that scroll at a part root");
+  await stage(gm, "frames that scroll at a part root");
   await walkWindow(gm, input, "character sheet", await run(gm, P.sheet, { uuid: trader.uuid, name: "AcksCharacterSheet" }), { short: 300 });
   await walkWindow(gm, input, "monster sheet", await run(gm, P.sheet, { uuid: monster.uuid, name: "FullMonsterSheet" }), { short: 300 });
   await walkWindow(gm, input, "domain sheet", await run(gm, P.sheet, { uuid: domain.uuid, name: "DomainSheet" }), { short: 300 });
@@ -521,7 +634,7 @@ try {
   const goodsUuid = await run(gm, P.goodsUuid, { traderId: trader.id });
   await walkWindow(gm, input, "item sheet", await run(gm, P.sheet, { uuid: goodsUuid, name: "AcksItemSheet" }), { short: 300 });
 
-  section("every other sheet this module draws");
+  await stage(gm, "every other sheet this module draws");
   const SHEETS = [
     ["Actor", "acks-extras.faction"],
     ["Actor", "acks-extras.vehicle"],
@@ -540,31 +653,58 @@ try {
     await walkWindow(gm, input, `${short} sheet`, await run(gm, P.sheet, { uuid: doc.uuid }), { short: 300 });
   }
 
-  section("tool windows");
+  await stage(gm, "tool windows");
   for (const key of ["palette", "hp", "repair", "roster", "posting"]) {
     await walkWindow(gm, input, `${key} tool`, await run(gm, P.tool, { key, traderId: trader.id, townUuid }), { short: 300 });
   }
 
-  section("the control: a window no module class claims");
+  // Each menu is opened the way the Settings screen opens it, through its registered type.
+  await stage(gm, "settings menus");
+  const menuKeys = await run(gm, P.menuKeys, { mod: MOD });
+  note("settings menus registered", menuKeys);
+  const named = ["ruledataBrowser", "importManager", "marketCatalogMenu", "storageManager"];
+  check("the menus the Settings screen lists include the Ruledata Browser, the import manager, Shop sources and the storage manager", named.every((key) => menuKeys.includes(`${MOD}.${key}`)), menuKeys);
+  for (const key of menuKeys) {
+    await walkWindow(gm, input, `settings menu ${key.slice(MOD.length + 1)}`, await run(gm, P.menu, { key }), { short: 300 });
+  }
+
+  await stage(gm, "the storage manager and a compendium");
+  await walkWindow(gm, input, "storage manager (opened on a place)", await run(gm, P.storage, { townUuid }), { short: 300 });
+  const packOpened = await run(gm, P.pack, { mod: MOD });
+  note("compendium", packOpened);
+  check("a compendium this module declares opens", packOpened.opened === true, packOpened.why);
+  check("the compendium window lists the documents its pack holds", packOpened.listed > 0 && packOpened.listed <= packOpened.indexed, { indexed: packOpened.indexed, listed: packOpened.listed });
+  await run(gm, P.closeCurrent);
+
+  await stage(gm, "the control: a window no module class claims");
   {
     const opened = await run(gm, P.foreign);
     check("core's dialog with no module class keeps no corner", opened.opened === true && opened.option === false && opened.shown === false, { option: opened.option, handle: opened.handle });
     await run(gm, P.closeCurrent);
   }
 
-  section("image platform facts");
-  await walkImagePlatformFacts(gm);
+  await readRecorder(gm, "the GM seat", "while its windows opened");
 
-  section("a player's seat");
+  await stage(gm, "image platform facts");
+  await walkImagePlatformFacts(gm);
+  await readRecorder(gm, "the GM seat", "by the end of its walk");
+
+  await stage(gm, "a player's seat");
+  await run(gm, P.observe, { uuid: ability.uuid });
   const playerSeat = await seat("player");
   const player = playerSeat.api;
   const pCensus = await run(player, P.census, MOD);
   note("player census", pCensus);
   check("init, setup and ready all ran on the player's seat with no error", pCensus.boot?.phases?.length === 3 && pCensus.boot.errors.length === 0, pCensus.boot);
   await run(player, P.install);
+  await run(player, P.step, { title: "a player's seat" });
   const seen = await run(player, P.sheet, { uuid: attitude.uuid, name: "AttitudeSheet" });
   check("the observed attitude sheet shows the player a corner", seen.opened === true && seen.shown === true, { option: seen.option, hidden: seen.hidden });
   await run(player, P.closeCurrent);
+  const seenAbility = await run(player, P.sheet, { uuid: ability.uuid, name: "AcksAbilitySheet" });
+  check("the observed ability sheet opens for the player on this module's sheet, with a corner", seenAbility.cls === "AcksAbilitySheet" && seenAbility.shown === true, { cls: seenAbility.cls, option: seenAbility.option, hidden: seenAbility.hidden });
+  await run(player, P.closeCurrent);
+  await readRecorder(player, "the player's seat", "while its sheets opened");
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);

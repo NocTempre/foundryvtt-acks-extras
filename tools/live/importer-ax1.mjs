@@ -665,6 +665,22 @@ const P = {
   },
   /** What the empty-location prune would remove; it removes nothing. */
   pruneDry: async () => (await import("/modules/acks-extras/scripts/location/module.mjs")).pruneEmptyLocations({ dryRun: true }),
+  /**
+   * One imported table of the book rolled with `roll()`, which posts no card
+   * where `draw()` would: whether it returned results whose bands hold the
+   * total, or null when the world and the stored Adventures carry no such table.
+   */
+  rollOneTable: async ({ book }) => {
+    const MID = "acks-extras";
+    const isOurs = (t) => t.flags?.[MID]?.cookbook?.book === book && String(t.formula ?? "").trim();
+    let table = game.tables.find(isOurs);
+    for (const pack of game.packs.filter((p) => !table && p.documentName === "Adventure")) {
+      for (const adv of await pack.getDocuments()) table ??= adv.tables.find(isOurs);
+    }
+    if (!table) return null;
+    const draw = await table.roll();
+    return draw.results.length >= 1 && draw.results.every((x) => x.range[0] <= draw.roll.total && draw.roll.total <= x.range[1]);
+  },
   /** The viewed scene centred on one token at a scale, with the interface hidden for a shot. */
   // A pin is a half-alpha white icon, lit like the white floor it stands on:
   // at the plan's darkness it is lost, and in daylight it shows only where it
@@ -1899,6 +1915,9 @@ try {
     !linkProblems(linked3b).length, linkProblems(linked3b));
   const dry3b = await run(gm, P.pruneDry);
   check("3b: the empty-location prune, run dry, would remove none of them", doomedOf(dry3b, world3b) === 0, { doomed: doomedOf(dry3b, world3b) });
+  const rolled3b = await run(gm, P.rollOneTable, { book: BOOK });
+  if (rolled3b === null) note("3b: table roll not run", "no table of the book in the world or a stored Adventure");
+  else check("3b: a table the Adventure carries rolls one result whose band holds the roll", rolled3b === true);
 
   section("3c. an Adventure built where the world lacks two plans lays their ways, and its import joins them to the maps the world holds");
   // The plan of the way several ends share and the plan of an end leading

@@ -461,8 +461,11 @@ page. Portable Battering Ram and Personal Automaton read as separate words.
 **Manage Imports (GM)** — `acksExtras.importer.openImportManager({tab})`.
 One AppV2 window, five tabs; it runs nothing of its own, so the walk is each
 tab's primary action reaching the run it names.
-`tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat included;
-`tools/live/importer-everything.mjs` walks step 3's bar and its Repair everything, answered No.
+`tools/live/importer-force-repair.mjs` walks steps 1 and 2, the Player seat
+included, and step 3's bar and its Repair everything, answered No. The Import
+everything / Repair everything handlers' routing, and the merged repair's
+counting, run offline in `tools/importer/test-import-manager.mjs` and
+`tools/importer/test-reimport-everything.mjs`.
 
 ### Fixtures
 
@@ -3026,8 +3029,9 @@ the folders and shelves found by difference.
    - its description is `entryText` of the read;
    - its name is `printedNameOf(node, name)`. `ax1.whereabouts` keeps its
      row's own name, since its header check is a key (`names: false`);
-   - `table.roll()` returns one result whose band holds the total. `draw()`
-     would post a chat message.
+   - `table.roll()` returns one result whose band holds the total
+     (`importer-ax1` section 3b runs it on one AX1 table). `draw()` would
+     post a chat message.
 4. For each AX1 table the library already held, read it through the executor.
    *Observable:* it reads, and its bands run without a gap. `ax1.rumors` and
    `ax1.motivations` each read a paragraph above their grid. A table an earlier

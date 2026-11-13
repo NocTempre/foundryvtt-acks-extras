@@ -3364,11 +3364,15 @@ configuration and the message mode, and reports all three. The fixtures stay.
 ## Every window has a drag corner and reaches its controls
 
 `tools/live/window-contract.mjs` walks this section on both seats, with a
-recorder in the page before it loads.
+recorder in the page before it loads. It is also the family's smoke pass: the
+recorder stays attached and is read again after the windows have opened, every
+settings menu the module registers is opened, and so are the storage manager and
+one declared compendium.
 
 **Fixtures,** kept and found by marker: `lib/window-variation`,
 `lib/window-trap`, `lib/window-attitude` (observed by every seat),
-`lib/window-ability`, `lib/window-spell`, the character `lib/window-trader`
+`lib/window-ability` (raised to observer for every seat at the player's step, and
+left so), `lib/window-spell`, the character `lib/window-trader`
 holding a stack of three, `lib/window-monster`, `lib/window-domain`, the scene
 `lib/window-scene` holding one door, and one `lib/window-sheet-<type>` for each
 remaining sheet type. Read and never driven: `markets/gate-town`, and the first
@@ -3388,6 +3392,15 @@ formation standing on a map.
 - A window opened through a macro or a dialog call returns no application, so
   the walk takes the first new instance of its class from
   `foundry.applications.instances`.
+- A settings menu is opened the way the Settings screen does: `new
+  game.settings.menus.get(key).type()` and `render(true)`. The walk takes the
+  keys from `game.settings.menus` under `acks-extras`, so a menu added later is
+  walked without an edit here.
+- A compendium window carries no module class and core gives it no corner, so it
+  is not held to the corner and reach steps. The walk renders the pack, waits for
+  `.directory-item[data-entry-id]` rows, and reads them against the pack's index.
+- The recorder files each line it records under the section the walk is in
+  (`P.step`), so a failure names the window group that logged it.
 
 **Steps.** For each window: open it, read the corner, drag it with a real
 pointer, shorten it, and bring every visible control into view.
@@ -3403,12 +3416,32 @@ pointer, shorten it, and bring every visible control into view.
    lands inside the frame, or for one taller than the view, at least 20px of it.
 5. **The control.** Open `DialogV2.confirm` with no `classes`. *Observable:* no
    corner: core's dialog is left as core built it.
-6. **A player's seat.** Open `lib/window-attitude`. *Observable:* the corner shows.
+6. **A player's seat.** Open `lib/window-attitude` and `lib/window-ability`.
+   *Observable:* each opens on its own sheet class with the corner shown, and the
+   player's recorder holds no error afterwards.
+7. **Every settings menu.** Open each menu registered under `acks-extras`
+   (Settings tab → Game Settings → ACKS Extras, each menu's button) and walk it
+   as steps 1, 2 and 4. *Observable:* the key list names the ruledata browser, the
+   import manager, the market catalog and the storage manager, and each window
+   passes the corner, drag and reach checks.
+8. **The storage manager on a place.** Call `acksExtras.location.openStorageManager`
+   with the kept market town, and walk the window as steps 1, 2 and 4.
+   *Observable:* the same three checks pass.
+9. **A compendium.** Render a declared pack that holds a document.
+   *Observable:* the window opens and lists at least one row and no more rows than
+   the pack's index holds.
+10. **The recorder, read again.** After the last window and again after the image
+    platform facts on the GM seat, and after the player's sheets on that seat,
+    read the recorder. *Observable:* no error, uncaught error or rejection since
+    the page loaded. Warnings are listed by distinct text with their section and
+    never fail the walk, since core and other modules log some on every load.
 
 **Observable throughout:** `init`, `setup` and `ready` each ran, and the recorder
 holds no error.
 
-Teardown: nothing. No window is submitted, and the fixtures stay.
+Teardown: nothing. No window is submitted, and the fixtures stay. The one write
+the walk makes to a kept fixture is raising `lib/window-ability` to observer, and
+only where it stands lower.
 
 ## Tied initiative sorts the same on every seat
 
