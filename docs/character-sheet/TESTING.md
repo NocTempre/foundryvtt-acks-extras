@@ -375,8 +375,7 @@ absent state, the Judge's override, the player and observer seats, and
 **Fixtures** (kept; found by marker, built when none carries it):
 - The world's own import: the weapons grid and the `weaponLists` document with
   its `options` table, read from the Judge's copy
-  (docs/importer/MODEL.md, "The weapon lists"; `tools/live/equipment-weapon-rows.mjs`
-  skips and says so when they are absent). A world imported before the options
+  (docs/importer/MODEL.md, "The weapon lists"). A world imported before the options
   table was read has none until the weapon-list step is run again: with the
   Rulebook and the Judges Journal connected,
   `acksExtras.importer.cookbookImportTables(["weaponProse"])` — the RAW

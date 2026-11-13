@@ -299,6 +299,60 @@ const forcedCounts = repairTally({ force: true });
 forcedCounts.handMade = 2;
 check("a forced tally's counts carry handMade, an ordinary one's do not", repairCounts(forcedCounts).handMade === 2 && !("handMade" in repairCounts(repairTally())));
 
+/* --- a variation: a repair puts the page's figures and the stamp back ------- */
+{
+  const { bindVariation } = await import("../../scripts/importer/cookbook.mjs");
+  const { sourceOf } = await import("../../scripts/equipment/printed-layers.mjs");
+  const ID = "def.variation.testLayer";
+  const entry = { name: "Test Layer 1", book: "xx", cite: "XX p.7", meta: { key: "test.layer", variationKind: "quality", appliesTo: ["weapon"], supersedes: [] } };
+  const read = (cost, bonus) => ({ fields: { variation: [{ field: "cost.add", amount: cost }, { field: "deltas.bonus", amount: bonus }], description: [{ text: "Invented text." }] } });
+  const built = bindVariation(entry, read(9, 2), ID);
+  // The document as a world holds it: the build's data, written by the import.
+  const world = structuredClone(built);
+  // Applies a plan's update the way Foundry merges one: objects merge, scalars and arrays replace.
+  const merge = (into, from) => {
+    for (const [key, value] of Object.entries(from)) {
+      const plain = value && typeof value === "object" && !Array.isArray(value);
+      into[key] = plain ? merge(into[key] && typeof into[key] === "object" ? into[key] : {}, value) : structuredClone(value);
+    }
+    return into;
+  };
+  const apply = (doc, plan) => merge(doc, plan.update);
+  const where = (doc) => sourceOf(doc);
+
+  check("a minted variation reads as read from its page: stamped, cited, not edited", (() => {
+    const s = where(world);
+    return !s.byHand && !s.edited && s.cite === "XX p.7";
+  })());
+
+  world.system.cost.add += 1;
+  check("a Judge's edit to one figure reads as edited by hand, the page the import read still named", (() => {
+    const s = where(world);
+    return s.edited && !s.byHand && s.cite === "XX p.7";
+  })());
+
+  const plan = refreshPlan(world, built, REPAIR.variation);
+  check("the repair writes the page's figures", plan.update.system.cost.add === 9 && plan.update.system.deltas.bonus === 2);
+  check("and the stamp's record of them", plan.update.flags[M].cookbook.read.cost.add === 9 && plan.update.flags[M].cookbook.read.deltas.bonus === 2);
+  check("and the stamp's page", plan.update.flags[M].cookbook.cite === "XX p.7");
+  check("the key that names the variation is the build's", plan.update.system.key === "test.layer");
+  check("the stamp's identity is never written", !("id" in plan.update.flags[M].cookbook));
+  apply(world, plan);
+  check("a repaired document reads from its page again, with the id it was minted under", (() => {
+    const s = where(world);
+    return !s.edited && !s.byHand && world.system.cost.add === 9 && world.flags[M].cookbook.id === ID;
+  })());
+
+  // A page that now reads other figures: the repair carries the new reading and the stamp follows it.
+  const reread = bindVariation(entry, read(12, 3), ID);
+  const next = refreshPlan(world, reread, REPAIR.variation);
+  apply(world, next);
+  check("a changed page's figures replace the stored ones and the stamp records them, so the document is not an edit", (() => {
+    const s = where(world);
+    return world.system.cost.add === 12 && world.system.deltas.bonus === 3 && world.flags[M].cookbook.read.cost.add === 12 && !s.edited;
+  })());
+}
+
 /* --- the tally ------------------------------------------------------------ */
 const tally = repairTally();
 countRepair(tally, trap);

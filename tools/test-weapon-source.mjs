@@ -85,6 +85,24 @@ unregisterTable(LISTS.id, { priority: PRIORITY.WORLD });
 check("without the lists the rows stay and nothing is placed", weaponRow("zorgle").cat === null && weaponRow("zorgle").type === null && weaponFocusGroup("zorgle") === null);
 registerTable(LISTS, layer);
 
+// --- a declaration on the item outranks its row; taking it off returns the row ------
+{
+  const { ITEM_FLAGS } = await import(new URL("../scripts/equipment/constants.mjs", import.meta.url));
+  const { WEAPON_CATEGORY } = await import(new URL("../scripts/equipment/config.mjs", import.meta.url));
+  const flagged = (name, flags = {}) => ({ name, type: "weapon", system: {}, flags: { "acks-extras": flags } });
+  const read = (item) => { const p = profiles.classifyWeapon(item); return { key: p.key, cat: p.cat, size: p.size, type: p.type }; };
+  const row = weaponRow("zorgle");
+  const plain = read(flagged("Zorgle Axe"));
+  check("a weapon named for a row reads that row's key, class, size and damage type", plain.key === "zorgle" && plain.cat === row.cat && plain.size === row.size && plain.type === row.type);
+  const stamped = read(flagged("Zorgle Axe", { [ITEM_FLAGS.SIZE]: "tiny", [ITEM_FLAGS.DAMAGE_TYPE]: "stamped-type" }));
+  check("a size and a damage type declared on the item outrank the row's, and the key and class stay the row's", stamped.size === "tiny" && stamped.type === "stamped-type" && stamped.key === "zorgle" && stamped.cat === row.cat);
+  const keyed = read(flagged("Unlisted Thing 1", { [ITEM_FLAGS.PROFILE_KEY]: "quib" }));
+  check("a profile key declared on the item outranks its name, and the row it names answers", keyed.key === "quib" && keyed.size === weaponRow("quib").size);
+  check("a class declared on the item outranks the row's", read(flagged("Zorgle Axe", { [ITEM_FLAGS.CATEGORY]: WEAPON_CATEGORY.BOW_CROSSBOW })).cat === WEAPON_CATEGORY.BOW_CROSSBOW);
+  check("a class that names no category is no declaration: the row answers", read(flagged("Zorgle Axe", { [ITEM_FLAGS.CATEGORY]: "no-such-class" })).cat === row.cat);
+  check("with the declarations taken off, the item reads its row again", JSON.stringify(read(flagged("Zorgle Axe", {}))) === JSON.stringify(plain));
+}
+
 // --- what the table does not name -------------------------------------------------
 check("an unknown key has no row", weaponRow("zorglub") === null);
 check("a key inherited from Object has no row", weaponRow("constructor") === null && weaponRow("toString") === null);
