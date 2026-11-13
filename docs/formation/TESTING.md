@@ -1515,13 +1515,10 @@ Two spellings, one sub-type, and confusing them is the other silent failure:
   `createEmbeddedDocuments("TableResult", [{type: "text", text, range: [a, b]}])`
   with the type as a STRING. A table with no rows draws nothing, which reads
   as the district's table never being consulted.
-- **A GM owns every document they create, and `depositReach` asks the users who
-  own the CHARACTER (`ownersShare`), so a place the Judge made is reached from
-  the Gamemaster seat by ownership before the ground branch ever runs.** Step
-  25 cannot be walked from that seat at all — it answers `can: true, scene:
-  null` for a place that is nowhere, which looks like a pass. Give the member
-  actor to the Player seat, drop the places to default ownership, and join as
-  that player.
+- A Judge's creator stamp no longer reaches a place: `depositReach` asks the
+  character's owners and skips a Judge
+  ([../location/TESTING.md](../location/TESTING.md), Core drive mechanics).
+  Give the member actor to the Player seat and join as that player for step 25.
 - **Do not `close()` every open application before driving the token HUD.**
   Sweeping `foundry.applications.instances` to compose a clean frame takes the
   core UI with it, and the HUD then renders without the module's **Add to

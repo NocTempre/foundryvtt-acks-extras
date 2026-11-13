@@ -98,9 +98,14 @@ in a wagon's traces — is at it wherever it is, on a map or on none
 Places come in two shapes and the rule has two halves to match. A place with a
 **linked scene** IS a map, and being on that map — not the *active* map — is
 what reaches it. A place with **no linked scene** answers to a claim (your own
-vault, a place you own, a place pinned to your sheet, a place someone you march
-with owns) or to standing at its own token, because a market cart or a shrine
-can stand on a map without being one.
+vault, a place one of your character's players owns, a place pinned to your
+sheet, a place someone you march with has a player owning) or to standing at its
+own token, because a market cart or a shrine can stand on a map without being
+one. A Judge named as an owner is no one's player: Foundry stamps the creating
+user on everything they make, so `ownersShare` skips an owner whose user is a
+Judge (assistants included), reading the role of the user the map names and not
+the seat. A pair a Judge made reaches by pin, by standing there, or by a
+player's ownership (see [DECISIONS.md](DECISIONS.md), 2026-11-13).
 
 Both halves ask the same question first — **where is this character actually
 standing** — and `standingSpots` (`reach.mjs`) is the only reader of it. A

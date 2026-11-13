@@ -664,7 +664,8 @@ belongs at the surface where a Judge can see they are using it.
 **Cost, and it is a real one:** a Judge-owned NPC no longer reaches a
 Judge-owned unlinked place by ownership alone, because the ordinary ownership
 shape names no user at OWNER. They reach it by standing at it, like anyone else.
-*(Not what holds where one Judge created both: see 2026-10-10.)*
+*(Not what held where one Judge created both: see 2026-10-10, and 2026-11-13,
+which closed it.)*
 
 **One token is one body.** `reachScan` matched the subject with
 `token.actorId === actor.id`, and a synthetic token actor's `id` IS its base
@@ -827,7 +828,7 @@ what it held.
 character's balance is swept. A monster or a unit that had coin banked now
 carries it, and it weighs.
 
-## 2026-10-10 — A Judge named as an owner counts as one, for now
+## 2026-10-10 — A Judge named as an owner counts as one, for now — SUPERSEDED 2026-11-13
 
 **Asked.** A deposit walked from a player's seat reached a place the
 character shared nothing with: no pin, no token on it, no linked scene, no
@@ -1024,3 +1025,39 @@ timed choice, not a permission).
 *Cost:* until the Harvest action lands, a spoil is released by hand, the Judge
 deciding who earned it. Supersedes in part the spoil throw named in
 docs/lib/DECISIONS.md, "2026-08-14 — Money is physical".
+
+## 2026-11-13 — A Judge named as an owner is not one
+
+**Asked** (owner, 2026-11-13): "should a GM listed as an owner stop counting
+toward deposit/coin reach in this release?" **Answer, verbatim:** "Fix now
+(Recommended)". This reverses 2026-10-10, which ruled that it stays and that
+leaving Judges out of `ownersShare` is roadmap work. For example: a Judge
+creates a character and a warehouse; both carry that Judge at OWNER by
+Foundry's own stamp; the character, standing nowhere near it, no longer reaches
+the warehouse until it is pinned, stood at, or a player is given OWNER on it.
+
+**Ruled.** `ownersShare` skips an owner whose user is a Judge (core's `isGM`,
+which includes the assistant role), read from the user the ownership map names
+and never from the seat. An id that names no user counts for nobody. A Judge
+stands for no character, so sharing one says nothing about whose a place is.
+
+**Evidence (what 2026-10-10 did not weigh).** The answer depended on who pressed
+Create: the same character and place were in reach or not by which seat made
+them, with no pin, token, link or vault in play. The stamp also widened through
+`companionOwns`: a player's character marching beside a Judge-made NPC reached
+every place that Judge made.
+
+**Rejected:** a `game.user.isGM` bypass (the seat then decides, 2026-09-15's
+defect again). **Rejected:** counting `GAMEMASTER` only, which keeps the stamp
+alive for an assistant who creates. **Rejected:** stripping the stamp at create,
+which reaches no document made before the release and fights core's own rule.
+**Rejected:** a setting (a toggle on a gate whose right answer is not in
+dispute). **Rejected:** auto-pinning what a Judge makes (writes player-facing
+state nobody asked for).
+
+*Cost:* a Judge-made character stops reaching an unlinked, non-pinned place a
+Judge also made, and a Judge-only NPC stops reaching any unlinked place on
+ownership alone, so deposits and coin acts that passed on the stamp now answer
+`notYours` or `outOfReach` in a running campaign. The way back is a Judge's act:
+pin the place to the character, stand at it, or give the player OWNER on it.
+Retrieval stays ungated, and a Judge's own coin acts still pass.

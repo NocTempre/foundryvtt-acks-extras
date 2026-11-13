@@ -44,6 +44,10 @@ class Coll extends Map {
 const PLAYER = "u1";
 /** A second player, for a claim this character's owners do not share. */
 const STRANGER = "u2";
+/** A Judge: Foundry stamps this user as OWNER of everything they create. */
+const JUDGE = "gm1";
+/** An assistant Judge, whose role core's `isGM` also counts. */
+const ASSISTANT = "gm2";
 /** Ownership map naming one user as OWNER. */
 const owned = (userId = PLAYER) => ({ ownership: { [userId]: 3 } });
 
@@ -64,6 +68,12 @@ globalThis.game = {
   scenes,
   actors,
   user: { isGM: false, id: PLAYER },
+  users: new Coll([
+    [PLAYER, { id: PLAYER, isGM: false }],
+    [STRANGER, { id: STRANGER, isGM: false }],
+    [JUDGE, { id: JUDGE, isGM: true }],
+    [ASSISTANT, { id: ASSISTANT, isGM: true }],
+  ]),
   settings: { get: (_module, key) => (key === "formations" ? formations : undefined) },
   i18n: { localize: (k) => k, format: (k) => k },
 };
@@ -607,6 +617,105 @@ ok("ownersShare asks the users who own the CHARACTER, and only the place's defau
     "nor does a user who merely observes the character");
   assert.equal(ownersShare(null, makePlace("Mine", owned())), false);
   assert.equal(ownersShare(hero, null), false);
+});
+
+/* -------------------------------------------- */
+/*  A Judge named as an owner is not one        */
+/*  ------------------------------------------  */
+/*  Foundry stamps the creating user as OWNER   */
+/*  on everything they make, so a Judge-made    */
+/*  pair shares an owner no player stands for.  */
+
+/** Both seats' answer to one question, so a case states it once. */
+function readBothSeats(hero, place) {
+  const asPlayer = depositReach(hero, place);
+  const seat = game.user;
+  try {
+    game.user = { isGM: true, id: "gm" };
+    return { asPlayer, asJudge: depositReach(hero, place) };
+  } finally {
+    game.user = seat;
+  }
+}
+
+ok("a Judge named on both is no one's player: not shared, notYours on either seat", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned(JUDGE));
+  const stash = makePlace("The Warehouse", owned(JUDGE));
+  march(road, [hero]);
+
+  assert.equal(ownersShare(hero, stash), false);
+  const { asPlayer, asJudge } = readBothSeats(hero, stash);
+  assert.equal(asPlayer.can, false);
+  assert.equal(asPlayer.reason, "notYours");
+  assert.equal(asJudge.can, false, "the Judge's seat is told what the player's seat is told");
+  assert.equal(asJudge.reason, "notYours");
+});
+
+ok("an assistant Judge named on both is no one's player either", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned(ASSISTANT));
+  const stash = makePlace("The Warehouse", owned(ASSISTANT));
+  march(road, [hero]);
+
+  assert.equal(ownersShare(hero, stash), false, "core's isGM counts the assistant role too");
+  assert.equal(depositReach(hero, stash).reason, "notYours");
+});
+
+ok("a Judge-only NPC does not reach a place the world left open to everyone", () => {
+  const road = makeScene("The North Road");
+  const npc = makeActor("Sellsword", "npc", owned(JUDGE));
+  const commons = makePlace("The Common Granary", { ownership: { default: 3 } });
+  march(road, [npc]);
+
+  assert.equal(ownersShare(npc, commons), false, "the place's default is read for the character's owners, and the Judge stands for none");
+  assert.equal(depositReach(npc, commons).reason, "notYours");
+});
+
+ok("a Judge-only companion does not carry a place's reach to a player's character", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned());
+  const mate = makeActor("Sellsword", "npc", owned(JUDGE));
+  const stash = makePlace("The Warehouse", owned(JUDGE));
+  march(road, [hero, mate]);
+
+  const reach = depositReach(hero, stash);
+  assert.equal(reach.can, false, "marching beside a Judge-made body is not owning what the Judge made");
+  assert.equal(reach.reason, "notYours");
+});
+
+ok("an owner id naming no user counts for nobody", () => {
+  const road = makeScene("The North Road");
+  const hero = makeHero("Balas", owned("ghost"));
+  const stash = makePlace("The Warehouse", owned("ghost"));
+  march(road, [hero]);
+
+  assert.equal(ownersShare(hero, stash), false, "a role that cannot be read is not a player");
+  assert.equal(depositReach(hero, stash).reason, "notYours");
+});
+
+ok("a Judge-made pair still reaches once pinned, owned by a player, or stood beside", () => {
+  const road = makeScene("The North Road");
+  const pins = [];
+  const hero = makeHero("Balas", { ownership: { [JUDGE]: 3 }, getFlag: (_ns, key) => (key === "places" ? pins : null) });
+  const stash = makePlace("The Warehouse", owned(JUDGE));
+  march(road, [hero]);
+
+  pins.push(stash.uuid);
+  assert.equal(depositReach(hero, stash).can, true, "a pin is the Judge's way to put a place in reach");
+
+  const owner = makeHero("Dolf", { ownership: { [JUDGE]: 3, [PLAYER]: 3 } });
+  const granted = makePlace("The Cellar", { ownership: { [JUDGE]: 3, [PLAYER]: 3 } });
+  march(road, [owner]);
+  assert.equal(ownersShare(owner, granted), true, "a player at OWNER on both still shares");
+  assert.equal(depositReach(owner, granted).can, true, "and the deposit answers yes without a map");
+
+  const town = makeScene("Town Square");
+  const walker = makeHero("Eadric", owned(JUDGE));
+  const cart = makePlace("The Cart", owned(JUDGE));
+  drop(town, cart, { x: 500, y: 500 });
+  march(town, [walker], { x: 600, y: 600 });
+  assert.equal(depositReach(walker, cart).can, true, "a token beside the place is presence, whoever made it");
 });
 
 /* -------------------------------------------- */

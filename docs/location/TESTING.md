@@ -65,19 +65,16 @@ by hand.
   which answered, delete the place's token and ask again: only a ground answer
   flips to a refusal.
 - **`update()` MERGES an ownership object, so `{default: 0}` strips nothing.**
-  Foundry stamps whoever creates a document at OWNER, so a fixture built from
-  the Judge's seat is owned by them, `ownersShare` answers for it before the
-  ground is ever consulted, and every reach step passes no matter where the
-  tokens stand. Name every user explicitly —
-  `Object.fromEntries(game.users.map((u) => [u.id, 0]))` — when a place is
-  meant to be reachable only by standing beside it.
+  Foundry stamps whoever creates a document at OWNER. `ownersShare` skips a
+  Judge, so a fixture built from the Judge's seat no longer passes reach on
+  that stamp, and the ground is consulted. Set the shape at the step's start
+  with `update({ownership}, {diff: false, recursive: false})`, which replaces
+  the map, and name the Player seat's level in it (step 26).
 
-- **What a sheet LISTS is a different question from what reach ALLOWS, and a
-  fixture built from the Judge's seat cannot tell them apart by reading
-  `canReach`.** The listing rule (`listsWhenEmpty`) ignores ownership, so an
-  empty fixture place the Judge created is absent from the list while
-  `depositReach` still says `can: true` about it from the row it is not in.
-  Probe the list itself: `buildEquipmentTab(actor).elsewhere` under
+- **What a sheet LISTS is a different question from what reach ALLOWS.** The
+  listing rule (`listsWhenEmpty`) ignores ownership, so an empty fixture place
+  is absent from the list whatever `depositReach` says about it from a row it
+  is not in. Probe the list itself: `buildEquipmentTab(actor).elsewhere` under
   `await import("/modules/acks-extras/scripts/character-sheet/tabs/equipment.mjs")`
   in page context returns exactly what the Equipment tab will draw, which is
   reachable in a backgrounded pane where the rendered rows are awkward.
@@ -492,6 +489,30 @@ by hand.
     since a higher-role GM seat that joins mid-walk takes the relay.
     *Observable:* both seats' recorders saw init, setup and ready and no error.
     The fixtures are kept; the walk builds nothing a sweep removes.
+
+26. **A Judge named as an owner is no one's player.**
+    `tools/live/location-judge-owner.mjs` walks it
+    (`node tools/live/run.mjs location-judge-owner`) on a GM seat and the Player
+    seat, both reloaded under a load recorder, on three kept fixtures:
+    `location/judge-owner-place` (a location that holds goods),
+    `location/judge-owner-hero` (a character the Player seat owns) and
+    `location/judge-owner-npc` (a character only a Judge owns). Every shape is
+    set at the sub-step's start with `update({ownership}, {diff: false,
+    recursive: false})`, and the hero's pin is cleared and the walk's one item
+    put on it. The decisive reads are the Player seat's, since a GM seat is
+    OWNER of every document. With the Judge at OWNER on both and the player at
+    OWNER on the hero only. *Observable:* `depositReach` reads `notYours` on the
+    Player seat and the GM seat alike, `coinReach` is false, and a stash from the
+    Player seat resolves `{ok: false, reason: "outOfReach", why: "notYours"}`
+    with the item still on the hero. With an assistant Judge named in the Judge's
+    place, where the world has an assistant user. *Observable:* the same
+    refusal; with no such user the walk prints NOT CHECKED. Pin the place to the
+    hero. *Observable:* `can: true` on both reads, the stash lands, a retrieval
+    brings the item back, and the pin comes off. Give the player OWNER on the
+    place. *Observable:* `can: true`. With the Judge-only character and a place
+    whose `default` is OWNER. *Observable:* `notYours`. *Observable:* both
+    seats' recorders saw init, setup and ready and no error. The fixtures are
+    kept; the walk builds nothing a sweep removes.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

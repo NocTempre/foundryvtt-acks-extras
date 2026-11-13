@@ -920,13 +920,11 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
 - Give the party a roster. Without one the implicit party is every player
   character in the world, and each one at G brings its packs' loads through
   the gate with the run's.
-- Presence: G is on no map, so a member is at G where one of its explicit
-  owners at OWNER owns G as well, G's `default` counting
-  (`location/reach.mjs` `ownersShare`). A new actor can carry the world's
-  default and its creator as an explicit owner: G read `default: 3`, and NP,
-  created with `default: 0`, read as at G. Set G's and A's ownership exactly
-  (`update({ownership}, {diff: false, recursive: false})`), then read every
-  member's `coinReach(member, G)` on the Player seat before relying on it.
+- Presence: G is on no map, so a member is at G through a player's OWNER on
+  both, a pin or a token beside it. A Judge's creator stamp does not count:
+  [../location/TESTING.md](../location/TESTING.md), Core drive mechanics
+  and step 26. Set G's and A's ownership exactly, then read every member's
+  `coinReach(member, G)` on the Player seat before relying on it.
 - A's owner is a second player where the world has one: role PLAYER or above
   and not a Judge, since core gives a banned (role NONE) user no permission
   on anything. The roster makes A a member either way.

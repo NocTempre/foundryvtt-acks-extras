@@ -258,10 +258,19 @@ export function companionIds(actor) {
  * open to the subject's owners too. The SUBJECT's does not: the users it stands
  * for are not knowable from the document, and reading it as "everyone" would
  * make any character the world left open reach every place anyone owns.
+ *
+ * A Judge named as an owner is not counted. Foundry stamps the creating user as
+ * OWNER on everything they make, so a Judge appears on every character and
+ * place they have created, and a Judge stands for no character: sharing that
+ * owner says nothing about which character belongs to which place. The role is
+ * read from the user the ownership map NAMES, never from the seat looking, so
+ * the answer is the same on every client; an id that names no user counts for
+ * nobody.
  */
 export function ownersShare(subject, place) {
   for (const [userId, level] of Object.entries(subject?.ownership ?? {})) {
     if (userId === "default" || level < 3) continue;
+    if (game.users?.get(userId)?.isGM !== false) continue;
     if ((place?.ownership?.[userId] ?? place?.ownership?.default ?? 0) >= 3) return true;
   }
   return false;

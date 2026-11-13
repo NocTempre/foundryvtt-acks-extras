@@ -2639,11 +2639,9 @@ PLAYER seat.
   lists under *Kept elsewhere* and is within reach.
 
 **Drive mechanics.**
-- **Foundry stamps the creating user at OWNER on every document it makes**,
-  whatever `ownership` the create states. A character and a place the GM
-  created therefore share an owner, and `depositReach` answers yes for the
-  pair by ownership. For the out-of-reach step take the GM off the place
-  (`place.update({ownership: {[game.user.id]: 0}})`) and unpin it.
+- The creating user is stamped at OWNER on everything the GM makes, and reach
+  skips a Judge's ownership: [../location/TESTING.md](../location/TESTING.md),
+  Core drive mechanics. For the out-of-reach step unpin the place.
 - **Let both pages go quiet before timing anything.** For about a minute after
   `ready` each page reads the library's books, and a relayed move resolves
   seconds late while it does. Poll for the state a step expects; a fixed wait
@@ -2696,7 +2694,7 @@ PLAYER seat.
    targetUuid: <abbey>, spec: [{id: <its item>}], requestUserId: null})`.
    **Observable:** `{ok: false, reason: "permission"}`, and the item still on
    Relay Other.
-7. **Out of reach.** With the GM off the place's owners and the pin removed,
+7. **Out of reach.** With the pin removed,
    `acksExtras.location.reach.depositReach(depositor, abbey)` reads
    `notYours` on both seats. Call `storage.stash(depositor, abbey, [{id:
    <coin>, quantity: 10}])` from the player's console.
