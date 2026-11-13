@@ -659,11 +659,18 @@ function applyLines(walls, L, lines, outline) {
  * grid mode
  * ------------------------------------------------------------------------- */
 
+/** The most ink a label ring's band just inside its stroke may hold, as a share of the band's angles. */
+const RING_CLEAR = 0.3;
+
 /**
  * The circled room labels, as centres and radii: a ring about one cell
  * across, dark nearly all the way round and light just inside. A ring that
  * touches a wall or a grid crossing is kept too; it is used only to mask its
- * ink, so a label in a one-cell room is not read as a door.
+ * ink, so a label in a one-cell room is not read as a door. A circled label
+ * leaves its inside clear to the stroke, so a ring whose inner band is inked
+ * (`RING_CLEAR`) is no label: a door's box between two walls, hatching or a
+ * flight of steps closes a ring of its own round the same point, and masking
+ * its ink would read the throat open.
  */
 function labelRings(gray, w, h, pitch) {
   const K = 48;
@@ -699,6 +706,7 @@ function labelRings(gray, w, h, pitch) {
         const R = Rf * pitch;
         const ring = around(cx, cy, R, 2);
         if (ring < 0.85 || around(cx, cy, R - 0.14 * pitch, 0) > 0.3 || around(cx, cy, R + 0.08 * pitch, 0) > 0.6) continue;
+        if (around(cx, cy, R - 0.08 * pitch, 0) > RING_CLEAR) continue;
         hits.push([cx, cy, R, ring]);
         break;
       }
@@ -1294,7 +1302,11 @@ function traceContour(gray, w, h, threshold, L, corr, { close = 0, speck = 0 } =
 
   // A door asserted on a cell lies across it, perpendicular to the axis whose
   // two neighbours hold more floor; a secret door lies on both mouths of the
-  // cell instead, so the wall reads whole from either side.
+  // cell instead, so the wall reads whole from either side. A cell that is
+  // itself rock (a door drawn as dark ink) has the outline running along both
+  // its mouths: the outline is cut there, over the cell's width alone, and
+  // the cell's flanks stand as walls where rock lies beyond them, so the
+  // passage is closed at its sides. The outline elsewhere is left as traced.
   let unplaced = 0;
   const floorShare = (i, j) => {
     let f = 0, n = 0;
@@ -1316,6 +1328,15 @@ function traceContour(gray, w, h, threshold, L, corr, { close = 0, speck = 0 } =
     const x0 = L.cellX(i), y0 = L.cellY(j), x1 = L.cellX(i + 1), y1 = L.cellY(j + 1);
     const inCell = ({ c }) => c[0] >= x0 && c[0] <= x1 && c[2] >= x0 && c[2] <= x1 && c[1] >= y0 && c[1] <= y1 && c[3] >= y0 && c[3] <= y1;
     walls = walls.filter((s) => !(s.door && inCell(s)));
+    if (floorShare(i, j) < 0.5) {
+      const band = 0.1 * L.pitch;
+      const mouths = ns ? [[x0, y0 - band, x1, y0 + band], [x0, y1 - band, x1, y1 + band]] : [[x0 - band, y0, x0 + band, y1], [x1 - band, y0, x1 + band, y1]];
+      for (const m of mouths) walls = walls.flatMap((s) => (s.door ? [s] : cutBox(s, ...m)));
+      const flanks = ns
+        ? [[i - 1, j, [x0, y0, x0, y1]], [i + 1, j, [x1, y0, x1, y1]]]
+        : [[i, j - 1, [x0, y0, x1, y0]], [i, j + 1, [x0, y1, x1, y1]]];
+      for (const [fi, fj, c] of flanks) if (floorShare(fi, fj) < 0.5) walls.push({ c, door: DOOR.none });
+    }
     const cx = x0 + L.ppx / 2, cy = y0 + L.ppy / 2;
     const across = state === "secret"
       ? (ns ? [[x0, y0, x1, y0], [x0, y1, x1, y1]] : [[x0, y0, x0, y1], [x1, y0, x1, y1]])
@@ -1514,6 +1535,12 @@ const polyLength = (pts) => {
   return n;
 };
 
+/** The least area, in cells squared, of a paper component that is a drawn door's box alone. */
+const BOX_AREA = 0.012;
+
+/** The least area of one leaf of a split box, in cells squared; a leaf this small stands only beside its other. */
+const LEAF_AREA = 0.004;
+
 /**
  * The doors a stroke plan draws: a box of paper closed by its outline, set
  * across a wall line. A paper component (at the stroke's own cut) is a box
@@ -1521,7 +1548,9 @@ const polyLength = (pts) => {
  * half cells long and under half a cell across; an elongated one is read
  * along its principal axis, so a box drawn at an angle stands at its angle,
  * and a near-square one along each axis of the page. Two shapes end to end
- * on one line, a bar's width apart, are one box split by its bar. A box
+ * on one line, a bar's width apart, are one box split by its bar, and a half
+ * of such a pair may be smaller than a shape alone may be: a double door's
+ * leaf drawn as a sliver of paper reads only beside its other leaf. A box
  * stands as a door when a wall lies within a third of a cell beyond both of
  * its ends and floor beyond both of its long sides: a bed, a bench or a table
  * against a wall has the wall along a long side, and an archway is floor that
@@ -1556,8 +1585,8 @@ function drawnBoxes(gray, thick, w, h, cut, L) {
   const sums = new Map();
   for (const c of comps) {
     const bw = c.maxx - c.minx + 1, bh = c.maxy - c.miny + 1;
-    if (Math.max(bw, bh) < 0.15 * pitch || Math.max(bw, bh) > 2.6 * pitch || c.area > 1.2 * pitch * pitch || c.area < 0.012 * pitch * pitch) continue;
-    sums.set(c.id, { id: c.id, n: 0, sx: 0, sy: 0, sxx: 0, syy: 0, sxy: 0, px: [] });
+    if (Math.max(bw, bh) < 0.15 * pitch || Math.max(bw, bh) > 2.6 * pitch || c.area > 1.2 * pitch * pitch || c.area < LEAF_AREA * pitch * pitch) continue;
+    sums.set(c.id, { small: c.area < BOX_AREA * pitch * pitch, id: c.id, n: 0, sx: 0, sy: 0, sxx: 0, syy: 0, sxy: 0, px: [] });
   }
   for (let i = 0; i < lab.length; i++) {
     const m = sums.get(lab[i]);
@@ -1592,7 +1621,7 @@ function drawnBoxes(gray, thick, w, h, cut, L) {
       const len = a1 - a0 + 3, wid = b1 - b0 + 3;
       if (len < 0.2 * pitch || len > 2.5 * pitch || wid < 0.06 * pitch || wid > 0.5 * pitch || m.n < 0.6 * (len - 2) * (wid - 2)) continue;
       const c = [cx + u[0] * (a0 + a1) / 2 - u[1] * (b0 + b1) / 2, cy + u[1] * (a0 + a1) / 2 + u[0] * (b0 + b1) / 2];
-      shapes.push({ c, u, hl: len / 2, hw: wid / 2, split: false, comps: [m.id] });
+      shapes.push({ c, u, hl: len / 2, hw: wid / 2, split: false, small: m.small, comps: [m.id] });
     }
   }
   const merged = [];
@@ -1631,7 +1660,7 @@ function drawnBoxes(gray, thick, w, h, cut, L) {
   };
   const used = new Set();
   const boxes = [];
-  for (const b of [...merged, ...shapes]) {
+  for (const b of [...merged, ...shapes.filter((s) => !s.small)]) {
     if (b.comps.some((id) => used.has(id)) || !stands(b)) continue;
     for (const id of b.comps) used.add(id);
     boxes.push({ c: b.c, u: b.u, hl: b.hl, hw: b.hw, split: b.split, bar: b.bar });

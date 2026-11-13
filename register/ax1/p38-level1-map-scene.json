@@ -107,8 +107,6 @@
           { "cell": [0, 19], "is": "secret" },
           { "cell": [1, 30], "is": "secret" },
           { "cell": [1, 33], "is": "secret" },
-          { "cell": [2, 15], "is": "door" },
-          { "cell": [27, 12], "is": "door" },
           { "cell": [32, 42], "is": "door" },
           { "cell": [32, 43], "is": "door" },
           { "cell": [5, 39], "is": "open" },

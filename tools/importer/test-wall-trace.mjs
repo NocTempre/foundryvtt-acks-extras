@@ -711,6 +711,85 @@ check("grid: a door asserted open is gone", opened.digest.doors, 0);
   ok("an opening is a small share of the cell", wallsProblems({ ...rec, opening: 0.5 }, recipeOf(fine)).some((p) => /walls.opening/.test(p)));
 }
 
+{
+  // A double door drawn as two slivers of paper in a thin outline, set in a gap
+  // of the top wall: each leaf is under the area a box alone may have, so it is
+  // read only beside its other leaf across the bar. A lone sliver of the same
+  // size in a second gap is no door.
+  const P = TRACE_PITCH;
+  const t = 9;
+  const house = canvas(235);
+  const pen = (c0, r0, c1, r1) => house.rect(c0 * P - t / 2, r0 * P - t / 2, c1 * P + t / 2, r1 * P + t / 2, 40);
+  pen(3, 10, 12, 10);
+  pen(3, 3, 3, 10);
+  pen(12, 3, 12, 10);
+  pen(3, 3, 7.9, 3);
+  pen(8.9, 3, 12, 3);
+  pen(10.4, 3, 10.4, 3);
+  const leaf = (x0, x1) => house.rect(x0, 3 * P - 2, x1, 3 * P + 2, 235);
+  const rim = (x0, x1) => {
+    house.rect(x0, 3 * P - 4, x1, 3 * P - 2, 40);
+    house.rect(x0, 3 * P + 2, x1, 3 * P + 4, 40);
+  };
+  rim(7.9 * P, 8.9 * P);
+  leaf(7.9 * P + 2, 7.9 * P + 17);
+  leaf(7.9 * P + 21, 7.9 * P + 36);
+  house.rect(7.9 * P + 17, 3 * P - 4, 7.9 * P + 21, 3 * P + 4, 40);
+  const sliver = traceWalls(house, recipeOf({ mode: "stroke", threshold: 80 }), scale);
+  const topDoors = sliver.walls.filter((s) => s.door && Math.abs((s.c[1] - crop.y) / CELL - 3) < 0.3);
+  ok("stroke: two slivers under a box's area, a bar apart, are one split door",
+    sliver.digest.boxes.split === 1 && topDoors.length === 2, JSON.stringify([sliver.digest.boxes, topDoors.length]));
+}
+
+{
+  // A door asserted on a rock cell between two rooms: the outline walls both
+  // its mouths, and the door would sit on a wall. The mouths are cut over the
+  // cell's width, its flanks stand, and the outline elsewhere is as traced.
+  const rooms = canvas(50);
+  rooms.cells(3, 3, 8, 6, 250);
+  rooms.cells(3, 8, 8, 11, 250);
+  const rec = { mode: "contour", threshold: 160 };
+  const closed = traceWalls(rooms, recipeOf(rec), scale);
+  const opened = traceWalls(rooms, recipeOf({ ...rec, corrections: [{ cell: [5, 7], is: "door" }] }), scale);
+  const plain = (o) => o.walls.filter((s) => !s.door);
+  const covers = (walls, u, v) => walls.some(({ c }) => {
+    const [ax, ay, bx, by] = [(c[0] - crop.x) / CELL, (c[1] - crop.y) / CELL, (c[2] - crop.x) / CELL, (c[3] - crop.y) / CELL];
+    return Math.abs(ay - v) < 0.05 && Math.abs(by - v) < 0.05 && Math.min(ax, bx) <= u && Math.max(ax, bx) >= u;
+  });
+  ok("contour: a door asserted on a rock cell is walled on both mouths before it opens", covers(plain(closed), 5.5, 7) && covers(plain(closed), 5.5, 8));
+  ok("contour: its two mouths are open", !covers(plain(opened), 5.5, 7) && !covers(plain(opened), 5.5, 8));
+  check("contour: the outline beside the mouths is kept", [covers(plain(opened), 4.5, 7), covers(plain(opened), 7.5, 8)], [true, true]);
+  const door = opened.walls.filter((s) => s.door);
+  ok("contour: the door lies across the cell, closed against its flanks", door.length === 1 && near(door[0].c, [crop.x + 5 * CELL, crop.y + 7.5 * CELL, crop.x + 6 * CELL, crop.y + 7.5 * CELL], 0.5), JSON.stringify(door.map((s) => s.c)));
+  ok("contour: the outline's length is its old length less two mouths plus two flanks", Math.abs(lengthOf(plain(opened)) - lengthOf(plain(closed))) < 1e-6,
+    `${lengthOf(plain(opened))} vs ${lengthOf(plain(closed))}`);
+  const secret = traceWalls(rooms, recipeOf({ ...rec, corrections: [{ cell: [5, 7], is: "secret" }] }), scale);
+  check("contour: a secret door on a rock cell is its two halves, with the mouths cut under them",
+    [secret.walls.filter((s) => s.door === 2).length, covers(plain(secret), 5.5, 7), covers(plain(secret), 5.5, 8)], [2, false, false]);
+}
+
+{
+  // A door's box in a corridor cell, its outline heavy, can close a ring of
+  // its own about its centre; a ring that holds ink just inside its stroke is
+  // no label, and masking it would read the throat open. A circled label in a
+  // room beside it keeps its ring.
+  const P = TRACE_PITCH;
+  const p = canvas(60);
+  p.cells(2, 2, 6, 6, 255);
+  p.cells(7, 4, 9, 4, 255);
+  p.cells(10, 2, 14, 6, 255);
+  const mx = 8.5 * P, my = 4.5 * P;
+  p.rect(mx - 21, my - 21, mx + 21, my + 21, 0); // the box's outline
+  p.rect(mx - 15, my - 15, mx + 15, my + 15, 255); // the box's paper
+  const lx = 12.5 * P, ly = 4.5 * P;
+  for (let y = Math.round(ly - 30); y < ly + 30; y++) {
+    for (let x = Math.round(lx - 30); x < lx + 30; x++) if (Math.abs(Math.hypot(x - lx, y - ly) - 24) < 2.2) p.gray[y * W + x] = 0;
+  }
+  const out = traceWalls(p, recipeOf({ mode: "grid", threshold: 95 }), scale);
+  check("grid: a door box's ring is no label and a circled label's is", out.digest.labels, 1);
+  check("grid: the throat in a box that closes a ring of its own is read as a door", out.digest.throats.door, 1);
+}
+
 /* ---------------- a plan of storeys ---------------- */
 
 {

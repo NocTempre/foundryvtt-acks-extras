@@ -1072,28 +1072,16 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 
 ## Left out of AX1's minor (ruled 2026-10-17)
 
-- **Double doors the box reader misses** (AX1 p12). Of the plan's eighteen
-  corrections, past its budget of twelve and under its ceiling of
-  twenty-five, sixteen restate eight drawn double doors as two leaves each.
-  Four close the corners of the corridor ring, each a box between pilasters
-  with foliage beyond, so the floor test fails. Two between the corridor and
-  the courtyard are drawn in ink lighter than the threshold. The east gate
-  and the east passage are each read as one leaf, and a door line replaces a
-  traced leaf within half a cell, so each takes two lines. A box reader that
-  took those boxes would bring the plan under its budget.
+- **Double doors the box reader misses** (AX1 p12). The plan weighs
+  fourteen corrections against its budget of twelve. Twelve restate double
+  doors as two leaves each: three corner arcades (two whose leaves are
+  slivers of a pixel or two, one read at some render offsets and lost at
+  another), the two passages between corridor and courtyard (drawn in ink
+  lighter than the threshold; a second box pass at a lighter cut reads one
+  and adds a false door on a bench) and the east gate, whose upper leaf is
+  not found. The fourth corner arcade and the east passage are read.
 - **Walls on AX3's plans.** The building plans have no tracer run yet. The
   city map's streets and gates stay shelved.
-- **Label rings found on door boxes.** `labelRings` can find a ring on a door
-  box and mask its ink, so the throat reads open. On AX1 p38 at its recipe's
-  threshold this happens to two doors, and each is asserted as a correction.
-  Whether it happens depends on how the box falls on the render's pixels. A
-  ring test that keeps every real label and refuses a box would free those
-  corrections; loosening the ring's dark share dropped real labels.
-- **A door asserted on a rock cell in `contour`.** The cell stays rock, so
-  the outline still walls both its mouths and the door, or a secret door's
-  two halves, sits on a wall. Opening the cell as `floor` does reshaped AX1
-  p55's outline around its three asserted door cells, whose doors already
-  stand in their passages, so an asserted cell is left as traced.
 - **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
   exists, the record's market fields could ride the market-record path: the
   fort is the second market of AX1's demand grid.

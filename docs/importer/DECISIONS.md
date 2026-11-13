@@ -10691,3 +10691,33 @@ already orders every other pair, and a list would restate it.
 
 *Cost:* `seriesOrder` is a second field a new adventure must carry to join
 the order; one that lacks it ties as before.
+
+## 2026-11-13 — The wall tracer reads a sliver leaf in a pair, refuses an inked ring and opens a rock door cell (K1, K3, K4)
+
+**Ruled**, under the owner's "Looser: reader fixes in too" (2026-11-12), with
+every walled AX1 plan re-traced before and after:
+- **A double door's leaf may be a sliver** (`drawnBoxes`): a box down to
+  `LEAF_AREA` of a cell is admitted as one half of a collinear pair across a
+  bar; alone a box still needs `BOX_AREA`. AX1 p12 drops four corrections
+  (one corner arcade's and the east passage's leaves).
+- **A label ring is clear paper inside** (`labelRings`): a ring whose band
+  just inside it holds more than `RING_CLEAR` of ink is refused. Real labels
+  measured at most half that on AX1 p38; the refused rings (door boxes,
+  hatching, steps, foliage, a symbol) measured more. AX1 p38 drops its two
+  asserted doors, and keeps them at every render offset tried.
+- **A door asserted on a rock cell in `contour`** cuts the outline over the
+  cell's width on both mouths and walls its flanks where rock lies beyond. No
+  shipped plan asserts one today; the suite's invented plan is the proof.
+
+**Measured**, offline, rendering each crop as the import does: all fifteen
+walled scenes trace the same walls before and after at a quarter-cell
+tolerance; only p12's freed leaves move, onto their box centres.
+
+**Rejected:** loosening the ring's dark share (it dropped real labels); a
+second box pass at a lighter ink cut for p12's passages (it read one door and
+added a false one on a bench); and removing six corrections a leave-one-out
+sweep marks redundant on other plans, which no render offset was tried on.
+
+*Cost:* p12 stays over its correction budget at fourteen of twelve, and AX1
+p55's three asserted door cells were never rock, so K4 changes no shipped
+plan.

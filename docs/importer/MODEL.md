@@ -671,7 +671,9 @@ What every mode does with a plan:
   (`drawnBoxes`): the wall through it is cut, and the door runs along its
   axis from wall end to wall end, at whatever angle the box is drawn. Two
   boxes end to end a bar apart are one split box, two leaves meeting at the
-  bar. The digest counts both kinds (`boxes`), the stroke paths kept
+  bar. A box under `BOX_AREA` of a cell, down to `LEAF_AREA`, is read only
+  as one half of such a pair, so a leaf drawn as a sliver of paper is a door
+  beside its other leaf and nothing alone. The digest counts both kinds (`boxes`), the stroke paths kept
   (`paths`), and the corner tines pruned (`spurs`). A short path that runs
   along a box's axis into its end is the wall the door hangs in and is never
   pruned, so the door meets a wall at both ends. A door dropped by its point
@@ -684,6 +686,13 @@ What every mode does with a plan:
   at the throat alone; the flanks are wall. `windows` in the digest counts
   them. A drawn door box covers the gap it hangs in and stays a door. A
   window dropped by its point leaves its gap as drawn.
+- **A circled label is masked before the throats are read** (`labelRings`,
+  `grid`), so a label in a one-cell room is no door. A ring whose band just
+  inside it holds more than `RING_CLEAR` of ink is no label (a door's box,
+  hatching, a flight of steps) and is left as drawn.
+- **A door or secret asserted on a rock cell in `contour`** cuts the outline
+  over the cell's width on both its mouths, and the cell's flanks stand as
+  walls where rock lies beyond them. The outline elsewhere stays as traced.
 - **A line is laid last.** A door or secret line replaces every traced door
   whose middle lies within half a cell of it (`doorsReplaced` in the
   digest), and in `contour` closes against the outline like a traced door.
