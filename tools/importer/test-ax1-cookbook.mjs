@@ -162,8 +162,8 @@ t("an occupant is read by its quick-stat label: a creature, a count and its stat
 
 const people = Object.entries(entries).filter(([, e]) => e.kind === "kind.npc");
 
-t("the book's 10 inhabitants are NPC 1 to NPC 10, read off the page by key", () => {
-  assert.deepEqual(people.map(([id]) => id).sort(), Array.from({ length: 10 }, (_, i) => `ax1.npc${i + 1}`).sort());
+t("the book's 11 inhabitants are NPC 1 to NPC 11, read off the page by key", () => {
+  assert.deepEqual(people.map(([id]) => id).sort(), Array.from({ length: 11 }, (_, i) => `ax1.npc${i + 1}`).sort());
   const wrong = people.filter(([id, e]) => {
     const name = e.fields?.name;
     return e.name !== `NPC ${id.slice(7)}` || name?.op !== "heading" || !/^[0-9a-z]+$/.test(name.hash ?? "") ||

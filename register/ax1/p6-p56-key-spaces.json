@@ -16,7 +16,12 @@
     "assists": {
       "headingLines": {
         "minH": 13
-      }
+      },
+      "skips": [
+        { "page": 6, "box": { "x0": 32, "x1": 92, "y0": 669, "y1": 677 }, "reason": "section-heading" },
+        { "page": 9, "box": { "x0": 308, "x1": 371, "y0": 40, "y1": 48 }, "reason": "section-heading" },
+        { "page": 9, "box": { "x0": 32, "x1": 92, "y0": 203, "y1": 211 }, "reason": "section-heading" }
+      ]
     }
   },
   {
@@ -79,6 +84,11 @@
           "y0": 35,
           "y1": 190
         }
+      ],
+      "skips": [
+        { "page": 36, "box": { "x0": 358, "x1": 451, "y0": 235, "y1": 243 }, "reason": "section-heading" },
+        { "page": 36, "box": { "x0": 306, "x1": 352, "y0": 329, "y1": 337 }, "reason": "section-heading" },
+        { "page": 36, "box": { "x0": 306, "x1": 491, "y0": 591, "y1": 599 }, "reason": "section-heading" }
       ]
     }
   },

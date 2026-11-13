@@ -14,7 +14,10 @@
       "actor": "character"
     },
     "assists": {
-      "statLabelKey": "dxjg5v"
+      "statLabelKey": "dxjg5v",
+      "skips": [
+        { "page": 29, "box": { "x0": 79, "x1": 261, "y0": 52, "y1": 60 }, "reason": "chapter-title" }
+      ]
     }
   },
   {
@@ -180,7 +183,10 @@
       "actor": "character"
     },
     "assists": {
-      "statLabelKey": "xaudah"
+      "statLabelKey": "xaudah",
+      "skips": [
+        { "page": 32, "box": { "x0": 306, "x1": 440, "y0": 40, "y1": 48 }, "reason": "section-heading" }
+      ]
     }
   }
 ]

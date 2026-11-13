@@ -7,6 +7,25 @@
     "anchor": { "display": "ABOMINATION" },
     "pages": [67],
     "meta": { "group": "New Monsters" },
-    "assists": { "columns": [40, 320] }
+    "assists": {
+      "columns": [40, 320],
+      "skips": [
+        { "page": 67, "box": { "x0": 51, "x1": 289, "y0": 52, "y1": 60 }, "reason": "chapter-title" },
+        { "page": 67, "box": { "x0": 97, "x1": 244, "y0": 86, "y1": 94 }, "reason": "chapter-title" },
+        { "page": 68, "box": { "x0": 24, "x1": 120, "y0": 21, "y1": 29 }, "reason": "running-head" },
+        { "page": 68, "box": { "x0": 596, "x1": 608, "y0": 416, "y1": 424 }, "reason": "page-tab" },
+        { "page": 68, "box": { "x0": 36, "x1": 284, "y0": 52, "y1": 60 }, "reason": "chapter-title" },
+        { "page": 68, "box": { "x0": 71, "x1": 249, "y0": 86, "y1": 94 }, "reason": "chapter-title" },
+        { "page": 71, "box": { "x0": 75, "x1": 265, "y0": 52, "y1": 60 }, "reason": "chapter-title" },
+        { "page": 71, "box": { "x0": 63, "x1": 278, "y0": 86, "y1": 94 }, "reason": "chapter-title" },
+        { "page": 71, "box": { "x0": 82, "x1": 258, "y0": 119, "y1": 127 }, "reason": "chapter-title" },
+        { "page": 71, "box": { "x0": 34, "x1": 205, "y0": 349, "y1": 357 }, "reason": "section-heading" },
+        { "page": 71, "box": { "x0": 36, "x1": 580, "y0": 603, "y1": 714 }, "reason": "summary-grid" },
+        { "page": 72, "box": { "x0": 24, "x1": 120, "y0": 21, "y1": 29 }, "reason": "running-head" },
+        { "page": 72, "box": { "x0": 596, "x1": 608, "y0": 416, "y1": 424 }, "reason": "page-tab" },
+        { "page": 74, "box": { "x0": 24, "x1": 120, "y0": 21, "y1": 29 }, "reason": "running-head" },
+        { "page": 74, "box": { "x0": 596, "x1": 608, "y0": 416, "y1": 424 }, "reason": "page-tab" }
+      ]
+    }
   }
 ]

@@ -1,0 +1,81 @@
+[
+  {
+    "id": "ax1.banquetAppetizers",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Appetizers",
+    "anchor": { "hash": "1lelkr6" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 88, "x1": 140, "y0": 58, "y1": 70 }, "hash": "1lelkr6" },
+      "grid": { "page": 18, "y0": 72, "y1": 224, "dieX0": 58, "dieX1": 78, "cellX0": 88, "cellX1": 275, "claimDie": true, "headerSkip": [58, 70] },
+      "skips": [{ "page": 18, "box": { "x0": 222, "x1": 381, "y0": 44, "y1": 56 }, "reason": "table-caption" }]
+    }
+  },
+  {
+    "id": "ax1.banquetDrinks",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Drinks",
+    "anchor": { "hash": "1am4kw6" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 279, "x1": 313, "y0": 58, "y1": 70 }, "hash": "1am4kw6" },
+      "grid": { "page": 18, "y0": 72, "y1": 224, "dieX0": 58, "dieX1": 78, "cellX0": 280, "cellX1": 585, "headerSkip": [58, 70] }
+    }
+  },
+  {
+    "id": "ax1.banquetMain",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Main Course",
+    "anchor": { "hash": "1ftnl19" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 88, "x1": 145, "y0": 226, "y1": 238 }, "hash": "1ftnl19" },
+      "grid": { "page": 18, "y0": 240, "y1": 392, "dieX0": 58, "dieX1": 78, "cellX0": 88, "cellX1": 275, "claimDie": true, "headerSkip": [226, 238] }
+    }
+  },
+  {
+    "id": "ax1.banquetSides",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Accompaniments",
+    "anchor": { "hash": "re8stt" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 280, "x1": 356, "y0": 226, "y1": 238 }, "hash": "re8stt" },
+      "grid": { "page": 18, "y0": 240, "y1": 392, "dieX0": 58, "dieX1": 78, "cellX0": 280, "cellX1": 585, "headerSkip": [226, 238] }
+    }
+  },
+  {
+    "id": "ax1.banquetDessert",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Dessert",
+    "anchor": { "hash": "1evi889" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 88, "x1": 128, "y0": 396, "y1": 408 }, "hash": "1evi889" },
+      "grid": { "page": 18, "y0": 410, "y1": 562, "dieX0": 58, "dieX1": 78, "cellX0": 88, "cellX1": 275, "claimDie": true, "headerSkip": [396, 408] }
+    }
+  },
+  {
+    "id": "ax1.banquetEntertainment",
+    "kind": "kind.rolltable",
+    "book": "ax1",
+    "name": "Banquet — Entertainment",
+    "anchor": { "hash": "1qdxvd" },
+    "pages": [18],
+    "meta": { "group": "Adventure Tables" },
+    "assists": {
+      "nameExpect": { "page": 18, "box": { "x0": 280, "x1": 346, "y0": 396, "y1": 408 }, "hash": "1qdxvd" },
+      "grid": { "page": 18, "y0": 410, "y1": 562, "dieX0": 58, "dieX1": 78, "cellX0": 280, "cellX1": 585, "headerSkip": [396, 408] }
+    }
+  }
+]

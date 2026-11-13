@@ -1,0 +1,21 @@
+[
+  {
+    "id": "ax1.npc11",
+    "kind": "kind.npc",
+    "book": "ax1",
+    "name": "NPC 11",
+    "anchor": {
+      "hash": "slinpd",
+      "as": "display"
+    },
+    "pages": [
+      65
+    ],
+    "meta": {
+      "actor": "character"
+    },
+    "assists": {
+      "statLabelKey": "gafk1p"
+    }
+  }
+]
