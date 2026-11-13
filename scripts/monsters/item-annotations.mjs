@@ -82,6 +82,9 @@ async function writeFlag(item, field, target) {
       .filter(Boolean);
   } else value = target.value;
 
+  // A picked frequency is the Judge's own, so the phrase the importer read
+  // for the previous one no longer describes it.
+  if (field === "usage" && item.getFlag(MODULE_ID, "usageText") !== undefined) await item.unsetFlag(MODULE_ID, "usageText");
   const empty = value === "" || value === false || (Array.isArray(value) && value.length === 0);
   if (empty) await item.unsetFlag(MODULE_ID, field);
   else await item.setFlag(MODULE_ID, field, value);

@@ -427,3 +427,21 @@ read from its source and has not been observed in a world.
 The convention that a magic family's displayed label comes from
 `ACKS-LIB.enum.<family>.<key>` is lib's ruling: `docs/lib/DECISIONS.md`,
 "Vocabulary labels live in lang, keyed by family".
+
+### A printed frequency shows the page's words (2026-11-13)
+
+**Ruled.** Three members of `SPELL_LIKE_FREQ` named a specific printed
+frequency by their ids and labels, which is content (`ip-doctrine.md`: a
+closed list of printed options is registered, not shipped). The owner took the
+recommended answer: render the imported phrase. The members stay, since the
+enum is what lets the module act on a frequency; their ids are `printedFreq1`
+to `printedFreq3`, their labels say the frequency is taken from the book, and
+the frequency scan stores the page's words beside the key (`frequencyText` on
+an effect row, `usageText` on a monster item).
+
+**Rejected.** Dropping the three members, so the importer could not read a
+frequency the module acts on; and a label read from a register, since the scan
+already holds the words it matched.
+
+**What it cost.** A key an earlier import stored no longer resolves; no
+migration is built (owner ruling: no tools for earlier versions' data).

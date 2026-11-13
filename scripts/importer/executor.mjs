@@ -16,6 +16,7 @@ import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { levelFraction } from "../lib/vocab.mjs";
+import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
 
 /**
@@ -923,25 +924,54 @@ export function rollScan(paras) {
  * Per-entry assists remain the fallback for shapes this cannot classify.
  */
 /**
- * A frequency phrase's key — "once per week" → `perWeek`. Every key is a
- * `SPELL_LIKE_FREQ` member (`lib/magic-vocab.mjs`); `tools/test-magic.mjs`
- * holds the table to that vocabulary. "" when the text carries no phrase.
+ * The anchors a frequency phrase is read by, each paired with the key it
+ * reads to. Every key is a `SPELL_LIKE_FREQ` member (`lib/magic-vocab.mjs`);
+ * `tools/test-magic.mjs` holds the table to that vocabulary. A `printed`
+ * member's anchor reads a phrase the module names only as the key: the
+ * words are the book's, and the row keeps them as text.
  */
-const FREQ = [
+export const FREQ = [
   [/\bat will\b/i, "atWill"],
   [/\bonce per round\b/i, "perRound"],
-  [/\bonce (?:per|every) (?:three|3) turns\b/i, "per3Turns"],
+  [/\bonce (?:per|every) (?:three|3) turns\b/i, "printedFreq1"],
   [/\bonce per turn\b/i, "perTurn"],
-  [/\bonce per 8 hours\b/i, "per8Hours"],
+  [/\bonce per 8 hours\b/i, "printedFreq2"],
   [/\bonce per hour\b/i, "perHour"],
-  [/\b(?:three|3) times per day\b|\bthrice (?:per|a) day\b/i, "thricePerDay"],
+  [/\b(?:three|3) times per day\b|\bthrice (?:per|a) day\b/i, "printedFreq3"],
   [/\bonce per day\b/i, "perDay"],
   [/\bonce per week\b/i, "perWeek"],
   [/\bonce per month\b/i, "perMonth"],
   [/\bonce (?:per|every) season\b/i, "perSeason"],
   [/\bonce per year\b/i, "perYear"],
 ];
+
+/** A frequency phrase's key; "" when the text carries no phrase. */
 export const frequencyOf = (s) => FREQ.find(([re]) => re.test(String(s ?? "")))?.[1] ?? "";
+
+/** The words of the first anchor `frequencyOf` reads, as the page prints them; "" when none matches. */
+export const frequencyPhraseOf = (s) => {
+  const text = String(s ?? "");
+  for (const [re] of FREQ) {
+    const hit = re.exec(text);
+    if (hit) return hit[0];
+  }
+  return "";
+};
+
+/** The page's words for a frequency the module names only as a key (a `printed` member); "" for any other. */
+export const frequencyTextOf = (s) => printedFrequencyText(frequencyOf(s), frequencyPhraseOf(s));
+
+/**
+ * The frequency fields a row takes from text: `{frequency}` and, for a
+ * `printed` member, `{frequencyText}` holding the phrase the page printed.
+ * `{}` when the text carries no frequency.
+ */
+export function frequencyFieldsOf(s) {
+  const frequency = frequencyOf(s);
+  if (!frequency) return {};
+  const frequencyText = frequencyTextOf(s);
+  return { frequency, ...(frequencyText ? { frequencyText } : {}) };
+}
 
 export function effectScan(paras, registers) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
@@ -1165,13 +1195,11 @@ export function effectScan(paras, registers) {
   if (armour) push({ type: "limitation", condition: "armor", note: armour[1].toLowerCase() });
 
   /* --- Spell-like abilities: "can cast X (as the spell) once per week".
-   * The frequency read is `frequencyOf`, above. --- */
-  const freqOf = frequencyOf;
+   * The frequency read is `frequencyFieldsOf`, above. --- */
   for (const m of text.matchAll(
     /can (?:cast|bestow|perform|use) ([a-z][a-z' -]{2,40}?)\s*(?:\(as the (?:\d+(?:st|nd|rd|th)? level )?(?:divine |arcane )?spell\)|as a spell-like ability)([^.]{0,60})/gi,
   )) {
-    const frequency = freqOf(m[2] ?? "");
-    push({ type: "spellLike", spell: m[1].trim(), ...(frequency ? { frequency } : {}) });
+    push({ type: "spellLike", spell: m[1].trim(), ...frequencyFieldsOf(m[2] ?? "") });
   }
 
   /* --- Prerequisite: a "must have the <name> power" clause, or a "requires
@@ -1187,8 +1215,8 @@ export function effectScan(paras, registers) {
    * limit itself is a clean mechanical fact worth surfacing, so it ships as a
    * capability carrying only the frequency. --- */
   if (!out.some((e) => e.type === "spellLike")) {
-    const frequency = freqOf(text);
-    if (frequency) push({ type: "capability", frequency });
+    const read = frequencyFieldsOf(text);
+    if (read.frequency) push({ type: "capability", ...read });
   }
 
   /* --- Resource spend/gain: Fate Points, spell slots, stigma --- */

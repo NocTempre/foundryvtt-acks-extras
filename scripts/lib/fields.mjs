@@ -284,6 +284,8 @@ export function effectField() {
     spell: str(),
     spellRef: spellRefField(),
     frequency: choice(SPELL_LIKE_FREQ),
+    // The phrase the importer read for a `printed` frequency, as the Judge's copy prints it.
+    frequencyText: str(),
     castingTime: str(),
     school: str(),
     casterLevelDelta: num({ integer: true }),

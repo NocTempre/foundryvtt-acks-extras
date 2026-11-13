@@ -25,6 +25,7 @@ import * as CFG from "./config.mjs";
 import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
+import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { appearingChanges, countText } from "../lib/encounter-line.mjs";
 import { lairChanceOf } from "../lib/group-encounter-logic.mjs";
 import { makeEncounter } from "../lib/group-encounter.mjs";
@@ -501,7 +502,12 @@ export function createFullMonsterSheet(Base) {
           name: a.name,
           rollable: !!a.system?.roll,
           target: a.system?.rollTarget ?? null,
-          line: [flagsOf(a).abilityCategory ? String(flagsOf(a).abilityCategory) : "", flagsOf(a).usage ? localize(CFG.USAGE?.[flagsOf(a).usage]?.label ?? "") : ""].filter(Boolean).join(" · "),
+          line: [
+            flagsOf(a).abilityCategory ? String(flagsOf(a).abilityCategory) : "",
+            flagsOf(a).usage ? printedFrequencyText(flagsOf(a).usage, flagsOf(a).usageText) || localize(CFG.USAGE?.[flagsOf(a).usage]?.label ?? "") : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
         })),
         speeds: (extras.speeds ?? []).map((s) => ({ type: s.type, label: labelOf(CFG.MOVEMENT_TYPES, s.type), combat: s.combat, run: s.run, hover: !!s.hover })),
         vision: Array.from(extras.vision ?? []).map((k) => ({ key: k, label: labelOf(CFG.VISION_TYPES, k) })),

@@ -214,16 +214,19 @@ export const SUMMON_FORMATS = Object.freeze({
  * How often a spell-like ability or an item power may be used. One
  * vocabulary for abilities, monster powers and item activation: the monsters
  * feature's `USAGE` is this table, and the importer's frequency scan emits
- * these keys.
+ * these keys. A `printed` member names a frequency the module acts on but
+ * whose wording is the book's: its label is neutral, and a row carries the
+ * phrase the importer read from the Judge's copy beside the key
+ * (`printedFrequencyText`).
  */
 export const SPELL_LIKE_FREQ = Object.freeze({
   atWill: { label: "At will" },
   perRound: { label: "Once per round" },
   perTurn: { label: "Once per turn" },
-  per3Turns: { label: "Once per three turns" },
+  printedFreq1: { label: "Printed frequency 1 (from the book)", printed: true },
   perHour: { label: "Once per hour" },
-  per8Hours: { label: "Once per eight hours" },
-  thricePerDay: { label: "Three times per day" },
+  printedFreq2: { label: "Printed frequency 2 (from the book)", printed: true },
+  printedFreq3: { label: "Printed frequency 3 (from the book)", printed: true },
   perDay: { label: "Once per day" },
   perWeek: { label: "Once per week" },
   perMonth: { label: "Once per month" },
@@ -267,6 +270,15 @@ export function vocabLabel(family, key) {
   const i18n = globalThis.game?.i18n;
   if (i18n?.has?.(full)) return i18n.localize(full);
   return MAGIC_VOCAB[family]?.[key]?.label ?? String(key);
+}
+
+/**
+ * The phrase to show for a frequency: the text the importer read from the
+ * Judge's copy, when `key` is a `printed` member and the row holds one, else
+ * "". A caller falls back to the member's label.
+ */
+export function printedFrequencyText(key, phrase) {
+  return SPELL_LIKE_FREQ[key]?.printed ? String(phrase ?? "").trim() : "";
 }
 
 /** `{ key: label }` for one magic family, labelled through `vocabLabel` — what a `<select>` renders. */

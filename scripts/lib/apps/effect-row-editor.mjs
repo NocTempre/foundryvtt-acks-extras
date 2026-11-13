@@ -285,6 +285,9 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const form = this.#fromForm() ?? {};
     const next = { ...current, ...form };
     if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
+    // A frequency picked here is the Judge's own: the phrase the importer read
+    // for the previous one no longer describes it.
+    if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
     // The gate's fields arrive as a fragment: merged into the row's gate, never
     // over it, and the row keeps its kind or takes the armour limit's once a
     // field of it is set; a row that sets none stays a plain limitation.

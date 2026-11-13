@@ -9,9 +9,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as V from "../scripts/lib/vocab.mjs";
-import { MAGIC_VOCAB, SPELL_LIKE_FREQ, vocabChoices, vocabLabel } from "../scripts/lib/magic-vocab.mjs";
+import { MAGIC_VOCAB, SPELL_LIKE_FREQ, printedFrequencyText, vocabChoices, vocabLabel } from "../scripts/lib/magic-vocab.mjs";
 import { USAGE } from "../scripts/monsters/config.mjs";
-import { effectScan, frequencyOf } from "../scripts/importer/executor.mjs";
+import { effectScan, frequencyOf, frequencyTextOf, frequencyFieldsOf, FREQ } from "../scripts/importer/executor.mjs";
 import { splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf, levelUnder } from "../scripts/magic/spell-names.mjs";
 import { slotsFromCells, coreSlotsPatch, slotsOfSystem, drawRepertoire } from "../scripts/magic/repertoire.mjs";
 import {
@@ -106,22 +106,47 @@ t("vocabLabel falls back to the inline label under Node and to the client's stri
 /*  One frequency vocabulary                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Every phrase one frequency anchor reads, spelled out from the anchor
+ * itself: `\b` dropped, each `(?:a|b)` group fanned out, the top-level
+ * alternatives split. The printed wordings this file feeds the scan are the
+ * anchors' own, so no phrase is written here.
+ */
+const phrasesOf = (re) => {
+  let forms = [re.source.replace(/\\b/g, "")];
+  for (;;) {
+    const next = forms.flatMap((f) => {
+      const g = /\(\?:([^()]*)\)/.exec(f);
+      return g ? g[1].split("|").map((alt) => f.slice(0, g.index) + alt + f.slice(g.index + g[0].length)) : [f];
+    });
+    if (next.length === forms.length && next.every((f, i) => f === forms[i])) break;
+    forms = next;
+  }
+  return forms.flatMap((f) => f.split("|"));
+};
+const anchorOf = (key) => FREQ.find(([, k]) => k === key)[0];
+const PRINTED = Object.keys(SPELL_LIKE_FREQ).filter((k) => SPELL_LIKE_FREQ[k].printed);
+const printedPhrase = (key) => phrasesOf(anchorOf(key))[0];
+
 t("the monsters USAGE table is the shared frequency vocabulary and keeps every key it stored", () => {
   assert.equal(USAGE, SPELL_LIKE_FREQ);
-  for (const k of ["atWill", "perTurn", "per3Turns", "perHour", "thricePerDay", "perDay", "perWeek", "perMonth", "perSeason", "perYear"]) {
+  for (const k of ["atWill", "perRound", "perTurn", "perHour", "perDay", "perWeek", "perMonth", "perSeason", "perYear", "byLevel"]) {
     assert.ok(k in USAGE, `former USAGE key ${k}`);
   }
-  for (const k of ["perRound", "per8Hours", "byLevel"]) assert.ok(k in SPELL_LIKE_FREQ, `former SPELL_LIKE_FREQ key ${k}`);
   for (const [k, m] of Object.entries(SPELL_LIKE_FREQ)) assert.equal("factor" in m, false, `${k} carries no printed factor`);
 });
 
-t("the importer's frequency scan emits shared keys, including the three the monsters table added", () => {
+t("the three printed frequencies are neutral members whose wording is the book's", () => {
+  assert.deepEqual(PRINTED, ["printedFreq1", "printedFreq2", "printedFreq3"]);
+  for (const k of PRINTED) {
+    assert.match(SPELL_LIKE_FREQ[k].label, /^Printed frequency \d \(from the book\)$/);
+    assert.equal(lang[`${ENUM_PREFIX}spellLikeFreq.${k}`], SPELL_LIKE_FREQ[k].label, `${k} lang label matches`);
+  }
+});
+
+t("the importer's frequency scan emits shared keys, each anchor to the member it names", () => {
   const freqOf = (text) => effectScan([{ text }], {}).find((e) => e.type === "spellLike")?.frequency;
   const cases = {
-    "It can cast glimmer (as the spell) once per three turns.": "per3Turns",
-    "It can cast glimmer (as the spell) once every 3 turns.": "per3Turns",
-    "It can cast glimmer (as the spell) three times per day.": "thricePerDay",
-    "It can cast glimmer (as the spell) thrice per day.": "thricePerDay",
     "It can cast glimmer (as the spell) once per season.": "perSeason",
     "It can cast glimmer (as the spell) once per day.": "perDay",
     "It can cast glimmer (as the spell) once per turn.": "perTurn",
@@ -131,7 +156,29 @@ t("the importer's frequency scan emits shared keys, including the three the mons
     assert.equal(freqOf(text), key, text);
     assert.ok(key in SPELL_LIKE_FREQ, `${key} is a member`);
   }
+  for (const [re, key] of FREQ) {
+    assert.ok(key in SPELL_LIKE_FREQ, `${key} is a member`);
+    for (const phrase of phrasesOf(re)) assert.equal(freqOf(`It can cast glimmer (as the spell) ${phrase}.`), key, `${key}: ${phrase}`);
+  }
   assert.equal(freqOf("It can cast glimmer (as the spell) whenever it likes."), undefined, "no phrase, no frequency");
+});
+
+t("a printed frequency keeps the page's words beside its key; any other keeps none", () => {
+  for (const key of PRINTED) {
+    for (const phrase of phrasesOf(anchorOf(key))) {
+      assert.deepEqual(frequencyFieldsOf(`It can cast glimmer (as the spell) ${phrase.toUpperCase()}.`), { frequency: key, frequencyText: phrase.toUpperCase() }, `${key}: ${phrase}`);
+    }
+    const spellLike = effectScan([{ text: `It can cast glimmer (as the spell) ${printedPhrase(key)}.` }], {}).find((e) => e.type === "spellLike");
+    assert.deepEqual([spellLike.frequency, spellLike.frequencyText], [key, printedPhrase(key)]);
+    const capability = effectScan([{ text: `It may be used ${printedPhrase(key)}.` }], {}).find((e) => e.type === "capability");
+    assert.deepEqual([capability.frequency, capability.frequencyText], [key, printedPhrase(key)]);
+  }
+  assert.deepEqual(frequencyFieldsOf("It can cast glimmer at will."), { frequency: "atWill" });
+  assert.deepEqual(frequencyFieldsOf("whenever it likes"), {});
+  assert.equal(frequencyTextOf("once per week"), "");
+  assert.equal(printedFrequencyText("perWeek", "a stray phrase"), "", "a structural member never shows a stored phrase");
+  assert.equal(printedFrequencyText("printedFreq1", "  the printed words "), "the printed words");
+  assert.equal(printedFrequencyText("printedFreq1", undefined), "");
 });
 
 /* ------------------------------------------------------------------ */
@@ -366,14 +413,16 @@ t("a creature's spells are read off its prose four ways, each with the frequency
     ["d", "Loud Bang"],
     ["e", "Dim Lantern"],
   ]).has;
+  const P3 = printedPhrase("printedFreq3");
+  const reads = { known, freqOf: frequencyOf, phraseOf: frequencyTextOf };
   const prose =
-    "It can perform quiet step (as the spell) three times per day. Once per day it may cause a loud bang (as the spell loud bang). " +
+    `It can perform quiet step (as the spell) ${P3}. Once per day it may cause a loud bang (as the spell loud bang). ` +
     "It also possesses the following spell-like abilities: cure minor scrape, mend pot and pan (at will); and dim lantern (once per week). " +
     "A chieftain has the following spells in its repertoire: 1st - quiet step, mend pot and pan; 2nd – loud bang.";
-  const scan = scanMonsterSpells(prose, { known, freqOf: frequencyOf });
+  const scan = scanMonsterSpells(prose, reads);
   assert.deepEqual(scan.named, [
     { name: "loud bang", frequency: "perDay" },
-    { name: "quiet step", frequency: "thricePerDay" },
+    { name: "quiet step", frequency: "printedFreq3", frequencyText: P3 },
     { name: "cure minor scrape", frequency: "atWill" },
     { name: "mend pot and pan", frequency: "atWill" },
     { name: "dim lantern", frequency: "perWeek" },
@@ -388,17 +437,20 @@ t("a creature's spells are read off its prose four ways, each with the frequency
   assert.deepEqual(scanMonsterSpells("It has no magic.").named, []);
   // A list may open on its frequency, and a creature may print several lists.
   const opened = scanMonsterSpells(
-    "It has the following spell-like abilities thrice per day: quiet step, loud bang. It has the following spell-like abilities once per week: dim lantern. " +
-      "Its kin have several spell-like abilities, each of which can be used thrice per day: cure minor scrape, mend pot and pan. All function at caster level 9.",
-    { known, freqOf: frequencyOf },
+    `It has the following spell-like abilities ${P3}: quiet step, loud bang. It has the following spell-like abilities once per week: dim lantern. ` +
+      `Its kin have several spell-like abilities, each of which can be used ${P3}: cure minor scrape, mend pot and pan. All function at caster level 9.`,
+    reads,
   );
+  const printed = { frequency: "printedFreq3", frequencyText: P3 };
   assert.deepEqual(opened.named, [
-    { name: "quiet step", frequency: "thricePerDay" },
-    { name: "loud bang", frequency: "thricePerDay" },
+    { name: "quiet step", ...printed },
+    { name: "loud bang", ...printed },
     { name: "dim lantern", frequency: "perWeek" },
-    { name: "cure minor scrape", frequency: "thricePerDay" },
-    { name: "mend pot and pan", frequency: "thricePerDay" },
+    { name: "cure minor scrape", ...printed },
+    { name: "mend pot and pan", ...printed },
   ]);
+  // A scan given no phrase reader keeps the key alone.
+  assert.deepEqual(scanMonsterSpells(`It can perform quiet step (as the spell) ${P3}.`, { known, freqOf: frequencyOf }).named, [{ name: "quiet step", frequency: "printedFreq3" }]);
 });
 
 t("what a creature casts as: the class and level, or the tradition", () => {
@@ -456,7 +508,7 @@ t("a repertoire is drawn to its slots, distinct per level, never past what exist
 });
 
 t("a frequency phrase reads to its key", () => {
-  assert.equal(frequencyOf("usable thrice a day"), "thricePerDay");
+  for (const key of PRINTED) assert.equal(frequencyOf(`usable ${printedPhrase(key)}`), key);
   assert.equal(frequencyOf("once per week"), "perWeek");
   assert.equal(frequencyOf("at will"), "atWill");
   assert.equal(frequencyOf("whenever it likes"), "");

@@ -57,6 +57,13 @@ check("a capability shows its condition after its face", () => {
   assert.equal(describeEffect({ type: "capability" }, V).text, "see description", "no condition adds nothing");
 });
 
+check("a printed frequency shows the words the importer read; a structural one shows its label", () => {
+  assert.equal(describeEffect({ type: "spellLike", spell: "glimmer", frequency: "printedFreq1", frequencyText: "every so often" }, V).text, "glimmer — every so often");
+  assert.equal(describeEffect({ type: "capability", frequency: "printedFreq2", frequencyText: "when the moon is up" }, V).text, "when the moon is up");
+  assert.equal(describeEffect({ type: "spellLike", spell: "glimmer", frequency: "perDay", frequencyText: "ignored" }, V).text, "glimmer — Per Day", "a stored phrase never overrides a structural member");
+  assert.equal(describeEffect({ type: "spellLike", spell: "glimmer", frequency: "printedFreq1" }, V).text, "glimmer — printedFreq1", "no phrase falls back to the label");
+});
+
 check("a sense, a reroll and a companion show their condition", () => {
   assert.equal(describeEffect({ type: "sense", sense: "acuteHearing", range: 30, condition: "by speed" }, V).text, "Acute Hearing 30' (by speed)");
   assert.equal(describeEffect({ type: "reroll", forWhat: "Tumbling", keep: "better", condition: "for an ally" }, V).text, "Tumbling 2× — Keep the Better (for an ally)");

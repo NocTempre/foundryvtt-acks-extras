@@ -28,9 +28,12 @@ is the frequency select on a monster-owned ability.
    *Observable:* the Usage select lists the thirteen shared frequencies, at
    will first and by caster level last, as English labels; no option reads as
    a raw `ACKS-LIB.enum` key.
-2. Pick "Once per three turns" and let the sheet submit.
-   *Observable:* `item.getFlag("acks-extras", "usage")` reads `per3Turns`,
-   and reopening the sheet shows that option selected.
+2. Pick "Printed frequency 1 (from the book)" and let the sheet submit.
+   *Observable:* `item.getFlag("acks-extras", "usage")` reads `printedFreq1`,
+   `usageText` is unset, and reopening the sheet shows that option selected.
+   On an imported creature whose ability prints such a frequency, `usageText`
+   holds the page's words and the monster sheet's ability line shows them in
+   place of the label.
 3. Pick "By caster level (scheduled)", one of the three members the monsters
    table did not have.
    *Observable:* the flag reads `byLevel` and the sheet re-renders without a

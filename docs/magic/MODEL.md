@@ -16,7 +16,13 @@ duration line take; distance and time units; the two kinds of concentration;
 casting-time shapes; target models and area geometries; the creature filters
 a spell applies; save categories and what a passed save does; heal kinds;
 control dispositions; summoning formats; and the one frequency table shared
-with abilities and monster powers. Each family is a descriptor map with an
+with abilities and monster powers. Three of its members are `printed`
+(`printedFreq1` to `printedFreq3`): the module acts on the frequency and the
+book words it, so each has a neutral label and the importer's frequency scan
+(`frequencyFieldsOf`) keeps the page's phrase beside the key, as an effect
+row's `frequencyText` or a monster item's `usageText` flag. A window shows
+that phrase through `printedFrequencyText` and falls back to the label; a
+frequency a Judge picks by hand clears the phrase. Each family is a descriptor map with an
 inline label. The label a window shows comes from
 `ACKS-LIB.enum.<family>.<key>` through `vocabLabel` (`vocabChoices` builds a
 select's options the same way), and `tools/test-magic.mjs` proves the lang

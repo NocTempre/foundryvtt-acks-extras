@@ -642,7 +642,7 @@ function ashDrake() {
       weapon("acksmDrkBite0000", "Bite", { damage: "2d8", natural: "bite", dmgType: "piercing", extra: true, img: "icons/svg/pawprint.svg" }),
       ability("acksmDrkBreath00", "Cinder Breath", {
         category: "breathWeapon",
-        usage: "thricePerDay",
+        usage: "perDay",
         desc: "A cone of burning ash dealing 9d6 extraordinary fire damage (Blast save for half). Invented test ability.",
         img: "icons/svg/fire.svg",
       }),

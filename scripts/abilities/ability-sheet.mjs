@@ -14,6 +14,7 @@ import { libraryItems } from "../lib/library.mjs";
 import AbilityExtras, { storedSelections } from "./ability-extras.mjs";
 import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
+import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { PROGRESSION_CLASSES, levelFactorLabel, nameWithSelections, capabilityForId, isCapabilityToken } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
 import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
@@ -145,6 +146,8 @@ export function rollScopeChip(e, rolls) {
 /** Human-readable one-liner for an effect row: `{kind, text}`. */
 export function describeEffect(e, V) {
   const label = (enumObj, key) => enumObj?.[key]?.label ?? key ?? "";
+  // A printed frequency shows the words the importer read; any other, its label.
+  const frequencyFace = (row) => printedFrequencyText(row.frequency, row.frequencyText) || label(V.SPELL_LIKE_FREQ, row.frequency);
   const lv = (v) => {
     if (!v) return null;
     if (v.kind === "perLevel" && v.base != null) {
@@ -258,7 +261,7 @@ export function describeEffect(e, V) {
       };
     }
     case "spellLike":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: [e.spell, label(V.SPELL_LIKE_FREQ, e.frequency)].filter(Boolean).join(" — ") };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: [e.spell, frequencyFace(e)].filter(Boolean).join(" — ") };
     case "sense":
       return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(`${label(V.SENSE_TYPES, e.sense) || e.vision}${e.range ? ` ${e.range}'` : ""}`) };
     case "movement":
@@ -290,7 +293,7 @@ export function describeEffect(e, V) {
       return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(`${e.amount > 1 ? `${e.amount}× ` : ""}${who}${state}`) };
     }
     case "capability":
-      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(label(V.SPELL_LIKE_FREQ, e.frequency) || e.note || "see description") };
+      return { kind: label(V.EFFECT_TYPES, e.type), text: withCondition(frequencyFace(e) || e.note || "see description") };
     default:
       // An immunity, resistance or susceptibility row may hold both: the note
       // names what it covers and the condition when it holds.

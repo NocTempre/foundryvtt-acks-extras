@@ -4,7 +4,7 @@
  * ability's row would. Foundry-free.
  */
 import * as V from "../lib/vocab.mjs";
-import { vocabLabel } from "../lib/magic-vocab.mjs";
+import { vocabLabel, printedFrequencyText } from "../lib/magic-vocab.mjs";
 
 const label = (enumObj, key) => enumObj?.[key]?.label ?? key ?? "";
 const signed = (x) => (x == null ? "" : `${x >= 0 ? "+" : ""}${x}`);
@@ -91,7 +91,7 @@ export function describeSpellEffect(e, { nameOf } = {}) {
     case "movement":
       return { kind, text: `${subject(e)}${label(V.MOVEMENT_TYPES, e.movementMode)}${n ? ` ${n}'` : ""}${qualifier(e)}` };
     case "spellLike":
-      return { kind, text: [e.spellRef?.name || e.spell, label(V.SPELL_LIKE_FREQ, e.frequency)].filter(Boolean).join(" — ") || "—" };
+      return { kind, text: [e.spellRef?.name || e.spell, printedFrequencyText(e.frequency, e.frequencyText) || label(V.SPELL_LIKE_FREQ, e.frequency)].filter(Boolean).join(" — ") || "—" };
     case "resource":
       return { kind, text: `${e.action || ""} ${label(V.RESOURCE_KINDS, e.resource)}${e.amount ? ` ×${e.amount}` : ""}`.trim() || "—" };
     case "throw":

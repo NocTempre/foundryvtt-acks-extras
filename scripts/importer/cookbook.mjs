@@ -121,7 +121,7 @@ import { SPELL_TYPE, FLAG_SPELL } from "../magic/constants.mjs";
 import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../magic/spell-logic.mjs";
 import { spellNameKey, splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf } from "../magic/spell-names.mjs";
 import { slotsFromCells, slotsOfClass, coreSlotsPatch, repertoireFor, spellPayload, spellsByName, classNamed } from "../magic/repertoire.mjs";
-import { frequencyOf } from "./executor.mjs";
+import { frequencyOf, frequencyTextOf } from "./executor.mjs";
 import { warmSpellPacks } from "../classes/grants.mjs";
 import { equipmentClass } from "../equipment/profiles.mjs";
 import { gearProfileFor } from "../equipment/config.mjs";
@@ -602,16 +602,20 @@ function bindMonsterSpells(paras) {
   const out = { items: [], spells: null };
   if (!/\bspell/i.test(prose)) return out;
   const world = spellsByName();
-  const scan = scanMonsterSpells(prose, { known: world.has, freqOf: frequencyOf });
+  const scan = scanMonsterSpells(prose, { known: world.has, freqOf: frequencyOf, phraseOf: frequencyTextOf });
   const carried = new Set();
-  const carry = (doc, usage = "") => {
+  const carry = (doc, usage = "", usageText = "") => {
     if (!doc || carried.has(doc.uuid)) return;
     carried.add(doc.uuid);
     const payload = spellPayload(doc);
-    if (usage) ((payload.flags ??= {})[MODULE_ID] ??= {}).usage = usage;
+    if (usage) {
+      const flags = ((payload.flags ??= {})[MODULE_ID] ??= {});
+      flags.usage = usage;
+      if (usageText) flags.usageText = usageText;
+    }
     out.items.push(payload);
   };
-  for (const { name, frequency } of scan.named) carry(world.resolve(name), frequency);
+  for (const { name, frequency, frequencyText } of scan.named) carry(world.resolve(name), frequency, frequencyText);
   const cast = castsAsClass(prose);
   const cls = cast ? classNamed(cast.className) : null;
   let slots = cls ? slotsOfClass(cls, cast.level) : null;

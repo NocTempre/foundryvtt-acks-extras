@@ -105,24 +105,30 @@ const sentenceAround = (text, at) => {
  * `known` trims a paraphrase to the title it closes on — "… objects within
  * 60' (as the spell)" names the title its last words are — and without it
  * the words after "can cast" stand; `freqOf` reads a frequency phrase to its
- * key. Returns `{named: [{name, frequency?}], repertoire: [{level, names}]}`,
+ * key, and `phraseOf` reads the words to keep beside a key whose wording is
+ * the book's (empty for any other). Returns
+ * `{named: [{name, frequency?, frequencyText?}], repertoire: [{level, names}]}`,
  * names as printed, each once.
  */
-export function scanMonsterSpells(text, { known = null, freqOf = null } = {}) {
+export function scanMonsterSpells(text, { known = null, freqOf = null, phraseOf = null } = {}) {
   const prose = String(text ?? "").replace(/\s+/g, " ");
   const named = [];
   const seen = new Set();
-  const add = (name, frequency = "") => {
+  const add = (name, frequency = "", frequencyText = "") => {
     const n = String(name ?? "")
       .trim()
       .replace(/^(?:the|an?)\s+/i, "");
     const k = spellNameKey(n);
     if (!k || seen.has(k)) return;
     seen.add(k);
-    named.push({ name: n, ...(frequency ? { frequency } : {}) });
+    named.push({ name: n, ...(frequency ? { frequency } : {}), ...(frequency && frequencyText ? { frequencyText } : {}) });
   };
   const freq = (s) => (typeof freqOf === "function" ? freqOf(s) || "" : "");
-  for (const m of prose.matchAll(/\(as the spell ([a-z][a-z'’ -]+?)\)/gi)) add(m[1], freq(sentenceAround(prose, m.index)));
+  const phrase = (s) => (typeof phraseOf === "function" ? phraseOf(s) || "" : "");
+  for (const m of prose.matchAll(/\(as the spell ([a-z][a-z'’ -]+?)\)/gi)) {
+    const around = sentenceAround(prose, m.index);
+    add(m[1], freq(around), phrase(around));
+  }
   const AS_THE_SPELL = /((?:[a-z][a-z'’-]*\s+){0,7}[a-z][a-z'’-]*)\s+\(as the (?:\d+(?:st|nd|rd|th)?[- ]?level )?(?:divine |arcane )?spell\)/gi;
   for (const m of prose.matchAll(AS_THE_SPELL)) {
     const words = m[1].split(/\s+/);
@@ -136,7 +142,10 @@ export function scanMonsterSpells(text, { known = null, freqOf = null } = {}) {
       const v = /\b(?:casts?|uses?|bestows?|performs?)\s+(.+)$/i.exec(m[1]);
       title = v ? v[1] : null;
     }
-    if (title) add(title, freq(sentenceAround(prose, m.index)));
+    if (title) {
+      const around = sentenceAround(prose, m.index);
+      add(title, freq(around), phrase(around));
+    }
   }
   // A list may open on its frequency — "spell-like abilities thrice per
   // day:", "spell-like abilities, each of which can be used thrice per
@@ -145,11 +154,14 @@ export function scanMonsterSpells(text, { known = null, freqOf = null } = {}) {
   // several such lists.
   for (const list of prose.matchAll(/spell-like abilities([^:.]{0,80}):\s*([^.]+)\./gi)) {
     const opening = freq(list[1] ?? "");
+    const openingText = phrase(list[1] ?? "");
     for (const group of list[2].split(/;\s*(?:and\s+)?/i)) {
       const g = /^(.*?)\s*(?:\(([^)]*)\))?\s*$/.exec(group.trim());
       if (!g?.[1]) continue;
-      const frequency = freq(g[2] ?? "") || opening;
-      for (const name of splitSpellNames(g[1], known)) add(name, frequency);
+      const own = freq(g[2] ?? "");
+      const frequency = own || opening;
+      const frequencyText = own ? phrase(g[2] ?? "") : openingText;
+      for (const name of splitSpellNames(g[1], known)) add(name, frequency, frequencyText);
     }
   }
   const repertoire = [];
