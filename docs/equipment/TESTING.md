@@ -132,6 +132,22 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    beside the two kit rows. Taking the role with a weapon drawn and no
    override is refused with a notice naming the hands. Set the role down:
    *Observable:* both rows return to Carried and the badge reads 0 / 2.
+2f. The load window: the weapon rows publish a few seconds after `ready` (about
+   20 s in the test world), and a draw or an attack in that window waits for
+   them. Reload the seat (`location.reload()`), and from the first poll that
+   sees `game.ready` — before `acksExtras.lib.tables.hasDoc("weapons")` is
+   true — press the Draw control on a two-handed weapon's row on the
+   Equipment tab, and roll an attack from the sheet with a weapon the
+   character is not proficient in under the strict enforcement of 3.
+   *Observable:* the draw's write lands only after the `weapons` document is
+   registered, `getLoadout(actor).weapons[0].wieldTwoHanded` is true,
+   `handsUsed` is 2 and `wearLocation` answers `bothHands` (the same as 2b,
+   long after load); the attack's card carries the Non-proficient row, as in 3d.
+   Log the order of the first `hasDoc` read and the write to see the wait. In a
+   world with no weapons imported the draw still lands, after the library has
+   loaded, with `weapons` unregistered and no figure invented. `equipment`
+   (`tools/live/equipment.mjs`, step 2b) is the post-load half; the window half
+   is by hand until a walk drives the reload.
 3. Proficiency enforcement: set the enforcement setting to its strict mode and
    attack with a weapon the character is not proficient in.
    *Observable:* the violation is reported, and the setting genuinely gates it

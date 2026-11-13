@@ -12,6 +12,7 @@ import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
 import { equipmentClass, classifyWeapon, GRIPS, WEAPON_CATEGORY_VALUES, inferredGearFlag } from "./profiles.mjs";
 import { consumeItem, roundsOf } from "./ammo.mjs";
+import { rowsSettled } from "./weapon-rows.mjs";
 import { unarmedStrikeDie } from "./attack-mods.mjs";
 import {
   tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
@@ -84,6 +85,7 @@ export function readiedWeaponData(item) {
  * @returns {Promise<Item|null>} the created weapon, or null.
  */
 export async function prepareTorch(actor, item, { draw = false } = {}) {
+  await rowsSettled();
   const data = readiedWeaponData(item);
   if (!data) {
     notify("notReadiable", { item: item?.name ?? "" });
@@ -154,18 +156,25 @@ export function rollUnarmed(actor, options = {}) {
 export async function sheatheItem(item) {
   return item?.update?.({ "system.equipped": false, [`flags.${MODULE_ID}.${ITEM_FLAGS.WORN_HAND}`]: unset() });
 }
-/** Draw a carried weapon (equip it); the wear resolver places it. */
+/**
+ * Draw a carried weapon (equip it); the wear resolver places it. The draw
+ * waits for the weapon rows (`rowsSettled`): the equip limit and the hand it
+ * lists in are weighed from the weapon's size, which the rows state.
+ */
 export async function drawItem(item) {
+  await rowsSettled();
   return item?.update?.({ "system.equipped": true });
 }
 /**
  * Draw a weapon INTO a named hand, "main" or "off" — what a drop on that
  * place means. One write, so the equip limit weighs the draw once. The name
  * is where the sheet lists it; the hand count is the loadout's and never
- * reads it. Any other name is a plain draw.
+ * reads it. Any other name is a plain draw. Waits for the weapon rows like
+ * `drawItem`.
  */
 export async function drawInto(item, hand) {
   if (hand !== "main" && hand !== "off") return drawItem(item);
+  await rowsSettled();
   return item?.update?.({ "system.equipped": true, [`flags.${MODULE_ID}.${ITEM_FLAGS.WORN_HAND}`]: hand });
 }
 

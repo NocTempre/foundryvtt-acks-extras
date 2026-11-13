@@ -863,7 +863,18 @@ of the row's name and block.
   the collection still lists it. With no row left the document is withdrawn.
 - **A reader waits with `rowsReady()`**, which resolves when the first
   publication has landed (also where it failed, which is logged), and at once
-  where the publisher was never registered. **A reader that redraws listens
+  where the publisher was never registered. **An action a user starts waits
+  with `rowsSettled()`**, the same wait bounded at `ROWS_WAIT_MS`: it holds
+  until the publication lands, which it does with zero rows in a world that
+  imported none, and a publication that never lands releases it with a warning.
+  The actions that wait are the draw (`drawItem`, `drawInto`), readying a torch
+  (`prepareTorch`), every loadout write (`onUpdateItem`'s resolve step and
+  `refreshLoadout`, inside the per-actor queue) and the attack throw, through
+  the attack contributor's `ready` (`lib/patches/attack-throw.mjs` awaits every
+  contributor's `ready()` before it builds the throw, so the kinds of attack,
+  the grips, the proficiency gate and every row are answered once, from the
+  rows). An action started in the load window therefore reads what one started
+  long after it reads. **A reader that redraws listens
   for `acksExtras.weaponRowsChanged`**, fired once, 50 ms after the last
   publication or withdrawal of a burst. Neither is exposed on the module api
   yet; no consumer reads the document.
@@ -905,7 +916,13 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
 - `annotateItem` writes a weapon's identity (`profileKey`) and the item's two
   attack booleans from a row that states a use; no size, damage type, `handy`
   or `thrown` is stamped, since the row is read at every use.
-- `ready` awaits `rowsReady()` before the first loadout sync.
+- `ready` awaits `rowsReady()` before the first loadout sync. Before the first
+  publication every reader answers as above, so an action is never started
+  from that state (see "A reader waits"); what is drawn on screen before then
+  (a sheet opened in the load window) shows the same answers until it is
+  redrawn, and nothing redraws it on `acksExtras.weaponRowsChanged` yet.
+  Core's own equip toggle in `veto` mode is judged in `preUpdateItem`, which
+  cannot wait.
 - A container that declares `gear.holds` and no capacity is a container with no
   limit: `holdsGear` is true, `capacityStated` false, `containerReport` says
   `capacityUnimported`, and the equipment tab's header says so.

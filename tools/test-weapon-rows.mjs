@@ -225,6 +225,112 @@ rows.publish();
 await sleep(rows.ROWS_DEBOUNCE_MS * 3);
 check("a withdrawal of nothing announces nothing", fired.length === 0);
 
+// --- an action waits for the first publication, and never hangs ----------------------------
+{
+  const warned = [];
+  const savedWarn = console.warn;
+  console.warn = (...a) => warned.push(a);
+  const publishAtReady = () => handlers["once:ready"].at(-1)();
+  const raced = (p) => Promise.race([p.then(() => "settled"), sleep(30).then(() => "pending")]);
+
+  // Started before the publication: the action holds, then answers with the rows in.
+  reg.unregisterTable("weapons");
+  game.items = [zorgle, twin];
+  rows.registerWeaponRows();
+  let held = null;
+  rows.rowsSettled().then(() => (held = reg.hasDoc("weapons")));
+  await sleep(10);
+  check("an action started before the first publication is still waiting, with no rows registered", held === null && !reg.hasDoc("weapons"));
+  await publishAtReady();
+  await sleep(5);
+  check("and it resumes once the rows are in, so it reads the answer a later action reads", held === true && grid().zorgle != null);
+  check("an action started after the publication does not wait", (await raced(rows.rowsSettled())) === "settled");
+
+  // A world that imported no weapon rows settles with nothing registered.
+  reg.unregisterTable("weapons");
+  game.items = [handMade];
+  rows.registerWeaponRows();
+  const bare = rows.rowsSettled();
+  check("an action waits while the library has not loaded, even for a world with no rows", (await raced(bare)) === "pending");
+  await publishAtReady();
+  check("a world with no weapon rows settles at the publication, with no document", (await raced(bare)) === "settled" && !reg.hasDoc("weapons"));
+
+  // A publication that never lands releases the action at its bound, and says so.
+  rows.registerWeaponRows();
+  const started = Date.now();
+  await rows.rowsSettled({ timeoutMs: 25 });
+  check("a publication that never lands releases the action after its bound", Date.now() - started >= 20 && Date.now() - started < 2000);
+  check("and the release is reported", warned.length === 1 && String(warned[0][0]).includes("not published within 25 ms"));
+  check("the default bound is long enough for a library that loads in tens of seconds", rows.ROWS_WAIT_MS >= 30000);
+
+  // A failed publisher settles the action too.
+  const savedErr = console.error;
+  console.error = () => {};
+  const items = Object.getOwnPropertyDescriptor(game, "items");
+  Object.defineProperty(game, "items", { configurable: true, get() { throw new Error("library unreadable"); } });
+  rows.registerWeaponRows();
+  const failing = rows.rowsSettled();
+  await publishAtReady();
+  check("a failed publication releases an action waiting on it", (await raced(failing)) === "settled");
+  Object.defineProperty(game, "items", items ?? { configurable: true, writable: true, value: [zorgle, twin] });
+  console.error = savedErr;
+  console.warn = savedWarn;
+  game.items = [zorgle, twin];
+  for (const hook of ["createItem", "updateItem", "deleteItem"]) handlers[hook].length = 1;
+  handlers["once:ready"].length = 1;
+  await publishAtReady();
+  await sleep(rows.ROWS_DEBOUNCE_MS * 3);
+}
+
+// --- the actions that classify a weapon start only once the rows are in -----------------------
+{
+  const acts = await import("../scripts/equipment/actions.mjs");
+  const { equipmentContributor } = await import("../scripts/equipment/roll-wrap.mjs");
+  const publishAtReady = () => handlers["once:ready"].at(-1)();
+  reg.unregisterTable("weapons");
+  game.items = [zorgle, twin];
+  rows.registerWeaponRows();
+
+  // A draw and a draw into a hand, started in the load window: each writes only after the publication.
+  const writes = [];
+  const blade = { update: async (u) => writes.push({ u, published: reg.hasDoc("weapons") }) };
+  const drawing = [acts.drawItem(blade), acts.drawInto(blade, "main")];
+  // The attack throw's own wait, as the seam asks it before it builds the throw.
+  let gate = "pending";
+  equipmentContributor.ready().then(() => (gate = reg.hasDoc("weapons") ? "rows in" : "rows out"));
+  await sleep(10);
+  check("a draw started before the publication has written nothing", writes.length === 0);
+  check("the attack contributor holds the throw until the rows are in", gate === "pending");
+  await publishAtReady();
+  await Promise.all(drawing);
+  await sleep(5);
+  check("both draws write after the publication, with the rows in the registry", writes.length === 2 && writes.every((w) => w.published));
+  check("the main-hand draw still names its hand in the one write", writes.some((w) => w.u["system.equipped"] === true && w.u["flags.acks-extras.hand"] === "main"));
+  check("and the throw is released with the rows in", gate === "rows in");
+
+  // Long after load the same calls do not wait.
+  writes.length = 0;
+  await acts.drawItem(blade);
+  check("a draw after the publication writes at once", writes.length === 1 && writes[0].published);
+
+  // A world with nothing imported: the draw settles at the publication and writes.
+  reg.unregisterTable("weapons");
+  game.items = [handMade];
+  rows.registerWeaponRows();
+  writes.length = 0;
+  const bareDraw = acts.drawItem(blade);
+  await sleep(10);
+  check("with no weapon rows imported the draw also waits for the library", writes.length === 0);
+  await publishAtReady();
+  await bareDraw;
+  check("and then writes with nothing registered: undecided, never a hang", writes.length === 1 && writes[0].published === false);
+
+  await sleep(rows.ROWS_DEBOUNCE_MS * 3);
+  game.items = [zorgle, twin];
+  for (const hook of ["createItem", "updateItem", "deleteItem"]) handlers[hook].length = 1;
+  handlers["once:ready"].length = 1;
+}
+
 globalThis.Hooks = savedHooks;
 console.error = savedConsole;
 delete game.items;

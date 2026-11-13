@@ -1910,7 +1910,12 @@ Follower Card override — is a labelled row the system's dialog and card
 already show. Contributors register through `lib.attack.addContributor` and
 answer `attack`, `damage`, `attackTypes`, `damageModes` and `damageFormula`,
 each returning the list it was given with its own entries added; a
-contributor that throws is logged and skipped. A caller passes what the
+contributor that throws is logged and skipped. A contributor whose answers
+read something that loads after `ready` also declares `ready()`: the wrapper on
+`makeAttackThrow` awaits every contributor's before it builds the throw, and a
+`ready()` that rejects is logged and stops holding the attack (equipment's is
+the weapon rows' wait, [equipment MODEL](../equipment/MODEL.md), "Weapon rows").
+A caller passes what the
 system's call cannot carry in `options.acksLib` — `terms`, `damageTerms`, a
 wanted `damageMode` (honoured by listing it first, since the system opens on
 the first mode), a `maneuver` — and `PRE_ATTACK_HOOK` / `POST_ATTACK_HOOK`

@@ -121,7 +121,8 @@ const P = {
     };
     H.read = (actorId) => ({ tab: H.tab(actorId), model: H.model(game.actors.get(actorId)) });
     // Press one row control and wait for the sheet to re-render behind the write.
-    H.press = async (actorId, re, action, filter = {}) => {
+    // `tries` bounds the wait for the tab to change: a draw pressed in the load window waits for the weapon rows (about 20 s after ready), so the walk's first draw allows it.
+    H.press = async (actorId, re, action, filter = {}, { tries = 20 } = {}) => {
       const actor = game.actors.get(actorId);
       const item = typeof re === "string" ? actor.items.get(re) : H.byName(actor, re);
       const root = H.root(H.sheet(actorId));
@@ -129,7 +130,7 @@ const P = {
       if (!btn) return { found: false, item: item?.name ?? null, action };
       const before = H.tab(actorId);
       btn.click();
-      await H.poll(() => { const t = H.tab(actorId); return t.rendered && JSON.stringify(t) !== JSON.stringify(before) ? true : null; }, { tries: 20, every: 150 });
+      await H.poll(() => { const t = H.tab(actorId); return t.rendered && JSON.stringify(t) !== JSON.stringify(before) ? true : null; }, { tries, every: 150 });
       await H.sleep(600);
       return { found: true, item: item.name, action, ...H.read(actorId) };
     };
@@ -178,7 +179,7 @@ const P = {
     return H.read(actorId);
   },
 
-  press: async ({ actorId, re, action, filter }) => globalThis.__eqh.press(actorId, re ? new RegExp(re, "i") : undefined, action, filter),
+  press: async ({ actorId, re, action, filter, tries }) => globalThis.__eqh.press(actorId, re ? new RegExp(re, "i") : undefined, action, filter, tries ? { tries } : undefined),
   pressId: async ({ actorId, itemId, action, filter }) => globalThis.__eqh.press(actorId, itemId, action, filter),
   read: async ({ actorId }) => globalThis.__eqh.read(actorId),
   rerender: async ({ actorId }) => globalThis.__eqh.rerender(actorId),
@@ -314,7 +315,8 @@ try {
   const opened = await run(gm, P.openSheet, { actorId });
   check("the sheet opens on the Equipment tab with the hands badge and both hand places", opened.tab?.rendered && "mainHand" in (opened.tab.places ?? {}) && "offHand" in (opened.tab.places ?? {}), hands(opened));
   check("at rest the badge reads 0 / 2 with no clause and empty places", opened.tab?.badge === "0 / 2" && opened.tab.clause === "" && !opened.tab.places.mainHand.rows.length && !opened.tab.places.offHand.rows.length, hands(opened));
-  const gsOn = await run(gm, P.press, { actorId, re: "two-handed", action: "toggleEquip" });
+  // The first draw after the seat's load: it waits for the weapon rows, so it reads both hands as a draw long after load does (T-0521).
+  const gsOn = await run(gm, P.press, { actorId, re: "two-handed", action: "toggleEquip", tries: 300 });
   check("drawing the two-handed sword by its row fills both places, badge 2 / 2", gsOn.found && gsOn.tab.badge === "2 / 2" && gsOn.tab.places.mainHand.span && gsOn.tab.places.mainHand.rows.some((r) => /two-handed/i.test(r.name)) && gsOn.model.hands["Sword, Two-Handed"].where === "bothHands", hands(gsOn));
   const gsOff = await run(gm, P.press, { actorId, re: "two-handed", action: "toggleEquip" });
   check("sheathing it by its row releases both: badge 0 / 2, no hand flag, empty places, no violation", gsOff.found && gsOff.tab.badge === "0 / 2" && gsOff.tab.clause === "" && !gsOff.tab.places.mainHand.rows.length && !gsOff.tab.places.offHand.rows.length && noHandFlags(gsOff) && gsOff.model.violations.length === 0, { ...hands(gsOff), hands: gsOff.model.hands });

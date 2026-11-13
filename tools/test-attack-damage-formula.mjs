@@ -6,7 +6,8 @@
  * that does not parse is answered as none, so the system's builder makes no
  * damage roll, and that the Judge is told once per weapon and text. That a hit
  * then posts its card without damage is the live recipe's to prove
- * (docs/lib/TESTING.md).
+ * (docs/lib/TESTING.md). The same stand-ins pin the seam's wait for a
+ * contributor's `ready()` before an attack is built.
  */
 import assert from "node:assert/strict";
 
@@ -53,5 +54,34 @@ ok("another weapon with the same text is told about on its own", () => {
   assert.equal(ask(weapon("spear", "x y")), "");
   assert.equal(warnings.length, 2);
 });
+
+// A contributor that declares `ready()` holds the attack until it settles, so the
+// throw is built once, from what the contributor has loaded.
+{
+  const { addAttackContributor, attackInFlight } = await import("../scripts/lib/patches/attack-throw.mjs");
+  globalThis.Hooks = { callAll: () => {} };
+  let release;
+  const loading = new Promise((resolve) => (release = resolve));
+  addAttackContributor({ ready: () => loading });
+  addAttackContributor({ ready: () => Promise.reject(new Error("never loads")) });
+  const quiet = console.error;
+  console.error = () => {};
+  const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
+  const actor = { name: "attacker" };
+  const built = [];
+  const attack = makeAttackThrow.call(actor, async () => {
+    built.push(attackInFlight(actor) !== null);
+    return null;
+  }, {});
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(built, [], "the throw is not built while a contributor is still loading");
+  release();
+  await attack;
+  console.error = quiet;
+  assert.deepEqual(built, [true], "it is built once the contributor is ready, with the attack in flight");
+  assert.equal(attackInFlight(actor), null, "and the attack is released afterwards");
+  passed++;
+  console.log("ok   an attack waits for a contributor that is still loading, and a failed wait does not hold it");
+}
 
 console.log(`\n${passed} passed`);

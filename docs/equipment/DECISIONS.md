@@ -2451,3 +2451,36 @@ Judge's control.
 
 **What it cost.** Nothing is recorded of a restore; a Judge who wants the log
 keeps it by hand.
+
+## 2026-11-13 — The draw and the attack wait for the weapon rows
+
+**Ruled** (owner, on T-0521 and T-0522): the load window, in which the weapon
+rows are not yet published, is "A defect; fix it" — "The draw and attack paths
+wait for the weapon rows. T-0521 and T-0522 are fixes in P3b; the ability-training
+walk waits too". An example: a two-handed weapon drawn a second after a reload
+takes both hands, as one drawn a minute later does, and an attack thrown then
+carries the Non-proficient row the same attack carries later.
+
+**Decided.** `rowsSettled()` (`weapon-rows.mjs`) is the wait an action takes, and
+it is bounded (`ROWS_WAIT_MS`): the publication lands with zero rows in a world
+that imported none, so that world settles at the load, and one that never lands
+releases the action with a warning rather than hanging it. The wait is placed
+where the action starts, not at each reader: the draw writes (`drawItem`,
+`drawInto`), `prepareTorch`, the loadout writes in `enforce.mjs` inside the
+per-actor queue, and the attack throw. The attack's wait is a `ready()` a
+contributor to `lib/patches/attack-throw.mjs` may declare, awaited by the one
+existing `makeAttackThrow` wrapper before the throw is built; equipment declares
+`rowsSettled`. No second wrapper was added, so the one owner of that core method
+stays the lib seam.
+
+**Rejected.** A guard in each reader (`classifyWeapon`, `isWeaponProficient`)
+that answers "wait" for the load window: they are synchronous and read at every
+render, and a third answer between "stated" and "not imported" is what the
+undecided rule exists to avoid. A second wrapper on the attack path from
+equipment: one owner per wrapped core method. An unbounded wait: a library that
+never loads would freeze every draw and attack.
+
+**What it cost.** A draw or an attack in the load window answers a few seconds
+late instead of early and wrong. Core's own equip toggle in `veto` mode is
+judged in `preUpdateItem`, which cannot wait, and a sheet opened in the window
+shows the early answers until it redraws.

@@ -16,12 +16,18 @@ import { MODULE_ID } from "./constants.mjs";
 import { classifyWeapon } from "./profiles.mjs";
 import { encumbranceDelta6 } from "./containers.mjs";
 import { consumeForAttack } from "./ammo.mjs";
+import { rowsSettled } from "./weapon-rows.mjs";
 import { attackThrowRows, damageRows, attackTypesFor, damageModesFor, damageFormulaFor, ATTACK_TYPE } from "./attack-mods.mjs";
 import { addAttackContributor, attackInFlight, POST_ATTACK_HOOK } from "../lib/patches/attack-throw.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
-/** The attack seam's contributor for this feature; each answer fails safe to the list it was given. */
+/**
+ * The attack seam's contributor for this feature; each answer fails safe to the
+ * list it was given. Its `ready` is the wait for the weapon rows, which every
+ * answer below classifies the weapon from.
+ */
 export const equipmentContributor = Object.freeze({
+  ready: rowsSettled,
   attack(ctx, attackType, modifiers) {
     return [...modifiers, ...attackThrowRows(ctx.actor, ctx.weapon, attackType, { maneuver: ctx.maneuver })];
   },

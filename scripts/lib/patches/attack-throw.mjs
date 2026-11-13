@@ -65,6 +65,9 @@ export const attackInFlight = (actor) => (actor ? (inFlight.get(actor) ?? null) 
  *   attackTypes(item, types)                → the kinds of attack a weapon offers
  *   damageModes(item, attackType, modes)    → the grips a weapon offers, first is the default
  *   damageFormula(item, mode, formula)      → the die a grip deals
+ *   ready()                                 → a promise the attack waits for before
+ *                                              it is built: what the contributor
+ *                                              answers from must have loaded
  *
  * Each receives the list so far and returns the list to go on with, so a
  * contributor may add rows, drop rows, or reorder. A row is `{label, value}`,
@@ -90,6 +93,23 @@ function ask(question, args, initial) {
     }
   }
   return out;
+}
+
+/**
+ * Resolves once every contributor that declares `ready()` says it can answer.
+ * A contributor whose wait throws is reported and no longer holds the attack.
+ */
+async function contributorsReady() {
+  await Promise.all(
+    contributors.map(async (c) => {
+      if (typeof c.ready !== "function") return;
+      try {
+        await c.ready();
+      } catch (err) {
+        console.error(`${MODULE_ID} | an attack contributor failed to get ready; the attack does not wait for it`, err);
+      }
+    }),
+  );
 }
 
 /** `{label, value}` rows from a hook's term list, dropping what carries no number or formula. */
@@ -152,8 +172,13 @@ export function attackContext(actor, options = {}) {
   };
 }
 
-/** WRAPPER around `AcksActor#makeAttackThrow`: hold the context, fire the hooks. */
+/**
+ * WRAPPER around `AcksActor#makeAttackThrow`: wait for the contributors to be
+ * ready, hold the context, fire the hooks. The wait comes first, so the kinds
+ * of attack, the grips and every row are answered once, from what has loaded.
+ */
 async function onMakeAttackThrow(wrapped, options = {}) {
+  await contributorsReady();
   const ctx = attackContext(this, options);
   try {
     Hooks.callAll(PRE_ATTACK_HOOK, this, ctx);

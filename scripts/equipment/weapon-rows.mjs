@@ -22,8 +22,9 @@
  * in for it. The row's citation is the item's stored one, so a figure's
  * tooltip can name the page.
  *
- * Readers that must wait for the first publication await `rowsReady()`; one
- * that redraws on a change listens for `ROWS_CHANGED_HOOK`. Every reader of a
+ * Readers that must wait for the first publication await `rowsReady()`, and an
+ * action a user starts awaits `rowsSettled()`, which is bounded; one that
+ * redraws on a change listens for `ROWS_CHANGED_HOOK`. Every reader of a
  * weapon asks the weapon seam, whose registered source (`weapon-source.mjs`)
  * reads this document.
  */
@@ -179,6 +180,12 @@ let _announce = null;
 /** The first publication after load; resolved at once where none is awaited. */
 let _first = Promise.resolve();
 
+/** Whether the first publication has settled; true where no publisher was ever registered. */
+let _settled = true;
+
+/** The longest an action waits for the first publication, in milliseconds. */
+export const ROWS_WAIT_MS = 60000;
+
 /** Fire `ROWS_CHANGED_HOOK` once, `ROWS_DEBOUNCE_MS` after the last change in a burst. */
 function announceRowsChanged() {
   clearTimeout(_announce);
@@ -195,6 +202,35 @@ function announceRowsChanged() {
  * never registered it resolves at once.
  */
 export const rowsReady = () => _first;
+
+/**
+ * `rowsReady` for an ACTION a user starts: a draw, a readied torch, a loadout
+ * rebuild, an attack throw. It classifies a weapon from the rows, so it waits
+ * for the first publication and its answer equals the one given long after load.
+ * A world with no weapon rows imported settles too (the publication lands with
+ * zero rows, and every reader then answers "not imported"); a publication that
+ * never lands releases the action after `timeoutMs`, with a warning, so no
+ * action hangs.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.timeoutMs] the longest to wait, in milliseconds
+ * @returns {Promise<void>}
+ */
+export async function rowsSettled({ timeoutMs = ROWS_WAIT_MS } = {}) {
+  if (_settled) return;
+  let timer;
+  const bound = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`${MODULE_ID} | the weapon rows were not published within ${timeoutMs} ms; the action answers from the rows in hand.`);
+      resolve();
+    }, timeoutMs);
+  });
+  try {
+    await Promise.race([_first, bound]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Rebuild the `weapons` document from the library and register it at WORLD
@@ -245,6 +281,7 @@ const isLibraryWeapon = (item) =>
  * can fire while the collection still lists it.
  */
 export function registerWeaponRows() {
+  _settled = false;
   _first = new Promise((resolve) => {
     Hooks.once("ready", async () => {
       try {
@@ -254,6 +291,7 @@ export function registerWeaponRows() {
       } catch (err) {
         console.error(`${MODULE_ID} | the weapon rows could not be published`, err);
       } finally {
+        _settled = true;
         resolve();
       }
     });

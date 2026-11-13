@@ -3239,6 +3239,30 @@ check("four concurrent syncs leave exactly one loadout effect", managedCount(rac
 check("and it carries the bonus once, not four times",
   racer.effects[0].changes.filter((c) => c.key === "system.initiative.mod").reduce((s, c) => s + Number(c.value), 0) === 1);
 
+// A rebuild started before the weapon rows publish waits for them: the loadout
+// weighs each weapon from the rows, so one written earlier would carry the
+// answer of a world that has none.
+{
+  const wr = await import(new URL("weapon-rows.mjs", S));
+  const hooksBefore = globalThis.Hooks;
+  const onceReady = [];
+  globalThis.Hooks = { on() {}, once: (_name, fn) => onceReady.push(fn), callAll() {} };
+  wr.registerWeaponRows();
+  const early = effectActor([quick(), weapon("Sword", { melee: true, id: "esw" })]);
+  early.getFlag = (_m, k) => (k === "styles" ? "single,twoHanded" : undefined);
+  const rebuilding = refreshLO(early);
+  await new Promise((r) => setTimeout(r, 30));
+  check("a loadout rebuild started before the weapon rows publish has written nothing", managedCount(early) === 0);
+  const quietErr = console.error;
+  console.error = () => {};
+  await onceReady[0]();
+  console.error = quietErr;
+  await rebuilding;
+  check("and it writes its effect once they have", managedCount(early) === 1);
+  await new Promise((r) => setTimeout(r, wr.ROWS_DEBOUNCE_MS * 3));
+  globalThis.Hooks = hooksBefore;
+}
+
 // A world that already has duplicates is repaired on the next ordinary sync,
 // so nobody has to be told to go looking for them.
 const dupes = effectActor([quick(), weapon("Sword", { melee: true, id: "dsw" })]);

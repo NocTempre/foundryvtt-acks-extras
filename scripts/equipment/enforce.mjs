@@ -13,6 +13,7 @@
 import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
 import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
 import { syncLoadoutEffect } from "./effects.mjs";
+import { rowsSettled } from "./weapon-rows.mjs";
 import { isEquippable } from "../lib/item-model.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
@@ -116,7 +117,10 @@ export async function onUpdateItem(item, changes) {
   // Serialised with every other sync on this actor — see queueSync. The loadout
   // is READ INSIDE the queued step, not before it: a loadout computed while an
   // earlier sync was still settling describes a state that has already moved on.
+  // The weapon rows are awaited first, so a draw in the first seconds after load
+  // is weighed from the sizes the rows state.
   return queueSync(actor, async () => {
+    await rowsSettled();
     const loadout = getLoadout(actor);
     const blocking = blockingViolations(loadout);
 
@@ -201,6 +205,7 @@ function queueSync(actor, run) {
 export async function refreshLoadout(actor) {
   if (!managesLoadout(actor) || !primaryResponder(actor)) return;
   return queueSync(actor, async () => {
+    await rowsSettled();
     const loadout = getLoadout(actor);
     await syncLoadoutEffect(actor, loadout);
     Hooks.callAll(HOOKS.LOADOUT_CHANGED, actor, loadout);
