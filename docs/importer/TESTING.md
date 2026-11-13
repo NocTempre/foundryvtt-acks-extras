@@ -1261,52 +1261,13 @@ Delete the fixtures you created; the imported library is the world's.
 
 Every importer that builds a document from one entry reads it off the seat's
 own book first; with the book not open, the entry is passed over and counted,
-and nothing is created (MODEL, "What an import reads"). Walk:
-`tools/live/importer-bookless.mjs`, steps 1–4. Offline, the same for spells,
-abilities and equipment: `tools/importer/test-bookless-import.mjs`.
-
-### Fixtures
-
-None are kept. The walk needs a content book that is **not** open on the GM
-seat (step 1 reads which off the seat: `cookbookSessionDoc(book)` for every
-book the content cookbooks name) and entries of it the library does not hold
-(`importedItemFor(id)` null). Where the shelf has opened every content book
-on the seat, step 1 closes them on that seat alone (`api.forgetBooks()`
-forgets this browser's copies and leaves the shelf; the walk's browser is a
-throwaway profile) and reopens one shelf book with `{remember: false}` as the
-control. Never unstage a book from the shared shelf for this. "Held" is asked
-of both sides of the library (`importedItemFor`, then `importedActorFor` for
-an animal). A world that holds every entry of every book cannot walk steps
-2–3: the walk prints GAP for them, since a library document is nobody's
-fixture and is never deleted to make one, and the create path is then the
-offline suite's.
-
-### Steps
-
-1. On the GM seat, list the content books and which are open; pick up to four
-   entries of a closed book, not held, per importer: abilities, equipment,
-   classes, spells, traps, variations.
-   *Observable:* at least one book is closed, and at least one importer has a
-   pick or the walk prints GAP for steps 2–3. Arm a `createItem` observer: it
-   proves what the steps create, and is never a delete list.
-2. Run each importer narrowed to its picks (`{only}`).
-   *Observable:* the step imports nothing (`made`/`created` 0, an empty
-   array); the abilities and equipment results count the picks as `closed`;
-   a notice reads "N passed over — their book is not open on this seat" with
-   N the number of picks; the observer saw no document under any pick's id.
-3. Ask the library again for every pick.
-   *Observable:* every one is still unheld. A document appearing here, named
-   and iconed with no description, is the stub this recipe exists to refuse.
-4. Control: one ability of an **open** book the library does not hold, run
-   the same way.
-   *Observable:* `made` 1, the document held, no passed-over count and no
-   such notice. Where every open book's ability is already held, the open
-   path is the offline suite's and the walk says so.
-
-### Teardown
-
-Nothing was built unless the control ran; its document is tracked and swept
-by the walk's own ledger. The notice patch and the observer come off.
+and nothing is created (MODEL, "What an import reads"). Offline, for spells,
+abilities and equipment: `tools/importer/test-bookless-import.mjs`. A drive of
+the same on a seat is a closed book's entries run narrowed with `{only}`:
+nothing is created, a notice reads "N passed over — their book is not open on
+this seat", and the library still holds nothing under those ids. A document
+appearing there, named and iconed with no description, is the stub this
+behaviour refuses.
 
 ## Class template packages
 
@@ -3087,47 +3048,11 @@ the folders and shelves found by difference.
 
 An item a book introduces that the world already holds is passed as already
 present by the items step and written over in place by a repair (MODEL, "An
-item a book introduces"). Walk: `tools/live/importer-item-repair.mjs`, steps
-1–4 on `cat`. Offline, the policy and the step's repair branch:
-`tools/importer/test-adventure-item-repair.mjs`.
-
-### Fixtures
-
-None are kept. Step 1 imports the book's items where the world lacks them and
-tracks what it made; the walk strips only its own. Where another hand holds
-every one, the walk stops: a library document is read, never driven. Step 4
-is the exception the recipe cannot avoid: a book repair takes no `only`, so
-it writes over every document the world holds from the book — its classes
-and abilities too, under their own policies. Run it only when no peer is
-walking that book's other surfaces, and report the count it replaced beside
-the run's own.
-
-### Steps
-
-1. On the GM seat with the book open, run the items step for the book.
-   *Observable:* it imports what the world lacked, passes the rest as already
-   present, refuses none; each fresh item is worn at one slot and marked
-   magic, or a dose with neither, priced, with the binder's one paragraph.
-2. Write the run's own items into the pre-binding shape (no `gear` flag, no
-   `markets` flag, cost 0) with a quantity of 3, then run the plain items
-   step again.
-   *Observable:* every item reads stripped; the plain step passes them all
-   as already present, imports nothing and rewrites nothing.
-3. Run the items step narrowed to the run's ids with a repair tally
-   (`repairTally()` from `refresh.mjs`).
-   *Observable:* already present N, made 0, the tally replaced N and refused
-   0; the notice says "repaired in place"; each item has its slot, mark and
-   price back exactly as the fresh import gave them; the quantity of 3 and
-   the binder's one paragraph stay.
-4. Strip them again and run the book repair (`cookbookReimportBook(book)`,
-   its confirm answered yes by the walk).
-   *Observable:* one confirm, the result's refill names the items step, the
-   replaced count covers the run's items, and each is back in the fresh shape.
-
-### Teardown
-
-The sweep removes the ledger's items; a shelf the run opened and left empty
-is deleted. The notice patch is restored.
+item a book introduces"). Offline, the policy, the plain step's pass over a
+stripped item, the tally's repair and the book repair's confirm:
+`tools/importer/test-adventure-item-repair.mjs`. The book repair through the
+real dialogs, on the run's own items, is "An adventure book's repair, edits
+taken" below (`tools/live/importer-force-repair.mjs`).
 
 ## An adventure book's repair, edits taken
 

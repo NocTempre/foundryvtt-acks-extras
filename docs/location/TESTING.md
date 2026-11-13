@@ -490,28 +490,14 @@ by hand.
     The fixtures are kept; the walk builds nothing a sweep removes.
 
 26. **A Judge named as an owner is no one's player.**
-    `tools/live/location-judge-owner.mjs` walks it
-    (`node tools/live/run.mjs location-judge-owner`) on a GM seat and the Player
-    seat, both reloaded under a load recorder, on three kept fixtures:
-    `location/judge-owner-place` (a location that holds goods),
-    `location/judge-owner-hero` (a character the Player seat owns) and
-    `location/judge-owner-npc` (a character only a Judge owns). Every shape is
-    set at the sub-step's start with `update({ownership}, {diff: false,
-    recursive: false})`, and the hero's pin is cleared and the walk's one item
-    put on it. The decisive reads are the Player seat's, since a GM seat is
-    OWNER of every document. With the Judge at OWNER on both and the player at
-    OWNER on the hero only. *Observable:* `depositReach` reads `notYours` on the
-    Player seat and the GM seat alike, `coinReach` is false, and a stash from the
-    Player seat resolves `{ok: false, reason: "outOfReach", why: "notYours"}`
-    with the item still on the hero. With an assistant Judge named in the Judge's
-    place, where the world has an assistant user. *Observable:* the same
-    refusal; with no such user the walk prints NOT CHECKED. Pin the place to the
-    hero. *Observable:* `can: true` on both reads, the stash lands, a retrieval
-    brings the item back, and the pin comes off. Give the player OWNER on the
-    place. *Observable:* `can: true`. With the Judge-only character and a place
-    whose `default` is OWNER. *Observable:* `notYours`. *Observable:* both
-    seats' recorders saw init, setup and ready and no error. The fixtures are
-    kept; the walk builds nothing a sweep removes.
+    `tools/test-location-reach.mjs` carries it offline: a Judge and an assistant
+    Judge named as owner on both the character and the place read `notYours`
+    from `depositReach` on a player's seat and a Judge's seat alike; a pin, or
+    a player at OWNER on both, reaches; a Judge-only character at a place whose
+    `default` is OWNER reads `notYours`. A live read from a GM seat cannot tell
+    the shapes apart, since it is OWNER of every document, so any drive of this
+    step sets the ownership map as described under Core drive mechanics and
+    reads from the Player seat.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin
