@@ -189,6 +189,9 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
   `monsters/encounter-literal`, `monsters/encounter-percent`: a bare monster
   carrying a cookbook id in its `cookbook` flag, for an entry of that shape. A
   repair fills it from the open book.
+- `monsters/pin-template`: an invented generator template (a Variant axis of
+  two kinds, a Role axis defaulting to Standard, one cell naming a role for the
+  first kind only). Its axes and cells are written at the step's start.
 
 **Steps.**
 
@@ -213,7 +216,11 @@ Walked by `tools/live/monsters-encounter.mjs`, with `mm` and `ax2` on
    *Observable:* core's field holds the count again and the row rolls it.
 6. Join as the Player seat, granted Observer on the typed monster, and open its
    Ecology tab.
-   *Observable:* every line field shows and none can be edited.
+   *Observable:* every line field shows and none can be edited. Grant Observer
+   on `monsters/pin-template` and open it: the axis selects carry no `name` and
+   *Generate* is absent. Pin the second kind: the Role select marks the
+   disabled role, a `preUpdateActor` hook on the seat sees no write, and the
+   actor's `system` is unchanged.
 7. Write the old parser's shape on each kept entry actor (a stale noun and die on
    both sides, a die in core's field) and call `refillMonster(actor, {whole:
    true})`.
@@ -303,8 +310,12 @@ Needs the MM PDF connected and the rulebook's tables imported (Manage Imports,
 Tables) before the family is, with spells and classes imported for the caster
 step. What a role cell writes is MODEL, "Family templates: the Role axis".
 
-Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 2; steps 11-14 in
-stages 4-6), with `rr`, `mm` and `axc` on `ACKS_TEST_BOOKS`.
+The generator's arithmetic on invented figures is `tools/test-leader-roles.mjs`,
+`tools/test-leader-derive.mjs` and `tools/test-generated-repertoire.mjs` (steps
+1-8 and 11-14). No walk drives this recipe against the real books: a pass over
+it is by hand, with `rr`, `mm` and `axc` mapped on `ACKS_TEST_BOOKS`. Steps 9
+and 15's observer pin is walked on an invented template by
+`tools/live/monsters-encounter.mjs` (the Encounter lines recipe, step 6).
 
 **Fixtures.**
 
@@ -441,7 +452,10 @@ leaders (MODEL, "Leaders outside a family"). Needs the MM connected and the
 rulebook's tables imported; the AXIOMS steps also need the compendium
 connected and its tables imported.
 
-Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3; step 5 in stage 7).
+The template's shape on invented figures is `tools/test-leader-template.mjs` and
+`tools/test-kit-presets.mjs`. No walk drives this recipe against the real
+books: a pass over it is by hand. Step 8's observer pin is walked on an
+invented template by `tools/live/monsters-encounter.mjs`.
 
 **Fixtures.**
 
@@ -498,8 +512,9 @@ imported (`monsters` / `beastmanTroops`), and for the unarmoured and
 die-conversion steps the AXIOMS Compendium connected with its tables imported
 (`beastmenByType`, `damageDieConversion`).
 
-Walked by `tools/live/monsters-leaders.mjs` (stages 1 and 3; the Kit axis a
-repair adds is stage 1's, steps 6-8 stage 7's).
+The kit cells and the armour class worked out at generation, on invented
+figures, are `tools/test-kit-presets.mjs`. No walk drives this recipe against
+the real books: a pass over it is by hand.
 
 **Fixtures.**
 

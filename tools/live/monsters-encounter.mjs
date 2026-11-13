@@ -4,7 +4,8 @@
  * and unit reach core's number-appearing field by the sheet's own submit; the
  * statblock, the follower card and the group read a count of units as no body
  * count; a count fits the line fields at the narrowest window and the largest
- * type, and an observer can edit none of them;
+ * type, and an observer can edit none of them; an observer pins a generator
+ * template's axes and the client attempts no write;
  * and a repair in place turns a monster holding the old parser's shape
  * into what the page prints. Machine values arrive through ./_env.mjs, the book
  * through ACKS_TEST_BOOKS ("mm", "ax2"). A check prints ids, shapes and booleans, never
@@ -14,9 +15,11 @@
  * monster `monsters/encounter-typed`, and `monsters/encounter-units`,
  * `monsters/encounter-times`, `monsters/encounter-literal` and
  * `monsters/encounter-percent`, each an actor
- * standing for one cookbook entry by its `cookbook` flag. Each section writes the
- * shape it needs first: the typed monster's lines blank, and on the three the
- * old parser's writes. The cards the run posts are tracked by id and swept in
+ * standing for one cookbook entry by its `cookbook` flag, and the invented
+ * generator template `monsters/pin-template` (two variants, one role cell).
+ * Each section writes the shape it needs first: the typed monster's lines
+ * blank, the template's axes and cells, and on the three the old parser's
+ * writes. The cards the run posts are tracked by id and swept in
  * the finally. Writes outside the ledger: none. The book opens on this seat only
  * (`remember: false`).
  */
@@ -307,6 +310,59 @@ const P = {
     };
   },
 
+  /** Write the template's axes and cells, so a kept fixture starts every run in one shape. */
+  shapeTemplate: async ({ actorId, axes, cells }) => {
+    const actor = game.actors.get(actorId);
+    await actor.update({ "system.output": { actorType: "monster", nameFormat: "{variant} {role}" }, "system.axes": axes, "system.cells": cells });
+    return { axes: actor.system.axes.length, cells: actor.system.cells.length };
+  },
+
+  /** Open a template's builder sheet fresh on this seat and wait for its body. */
+  openTemplate: async ({ actorId }) => {
+    const H = globalThis.__el;
+    const actor = game.actors.get(actorId);
+    const app = actor.sheet;
+    H.opened.push(app);
+    H.tsheet = app;
+    await app.render(true);
+    const body = await H.poll(() => H.root(app)?.querySelector(".acks-lib-template-body"));
+    return { rendered: !!body };
+  },
+
+  /** The axis selects as this seat draws them, and whether a Generate button is offered. */
+  templateSelects: async () => {
+    const H = globalThis.__el;
+    const root = H.root(H.tsheet);
+    return {
+      generate: !!root?.querySelector("[data-action='generate']"),
+      selects: [...(root?.querySelectorAll("select.acks-lib-template-pin") ?? [])].map((s) => ({
+        axis: s.dataset.axis,
+        named: !!s.getAttribute("name"),
+        marked: [...s.options].some((o) => o.disabled && /\(.+\)$/.test(o.textContent.trim())),
+      })),
+    };
+  },
+
+  /** Pin axes the way a hand does (the select's value, then its change) and count every actor write this client attempts. */
+  observePin: async ({ actorId, pins }) => {
+    const H = globalThis.__el;
+    const attempted = [];
+    const hook = Hooks.on("preUpdateActor", (doc) => { if (doc.id === actorId) attempted.push(doc.id); });
+    const before = JSON.stringify(game.actors.get(actorId).toObject().system);
+    let ok = true;
+    for (const [axis, value] of pins) {
+      const s = H.root(H.tsheet)?.querySelector(`select.acks-lib-template-pin[data-axis='${axis}']`);
+      if (!s) { ok = false; break; }
+      s.value = value;
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(500);
+      await H.poll(() => H.root(H.tsheet)?.querySelector(`select.acks-lib-template-pin[data-axis='${axis}']`)?.value === value, { tries: 20, every: 100 });
+    }
+    await H.sleep(800);
+    Hooks.off("preUpdateActor", hook);
+    return { ok, attempted: attempted.length, unchanged: JSON.stringify(game.actors.get(actorId).toObject().system) === before };
+  },
+
   closeAll: async () => {
     const H = globalThis.__el;
     let n = 0;
@@ -418,6 +474,26 @@ try {
   await run(player, P.openSheet, { actorId: typed.id });
   const offered = await run(player, P.lineFields);
   check("an observer sees the line fields and can edit none", offered.inputs === 12 && offered.disabled === 12, offered);
+  note("closed (player)", await run(player, P.closeAll));
+
+  // The pin is per window and writes nothing: the Role select re-marks what the chosen variant has no cell for.
+  const tpl = await gm.fixture("monsters/pin-template", "Actor", { name: "Pin Template", type: "acks-extras.template" });
+  const option = (key, label) => ({ key, label, nameLabel: "", merge: {}, items: [], flags: {}, token: {} });
+  note("template shaped", await run(gm, P.shapeTemplate, {
+    actorId: tpl.id,
+    axes: [
+      { key: "variant", label: "Variant", roll: "", default: "", options: [option("a", "Variant A"), option("b", "Variant B")] },
+      { key: "role", label: "Role", roll: "", default: "standard", options: [option("standard", "Standard"), option("champion", "Champion")] },
+    ],
+    cells: [{ by: ["variant", "role"], key: "a|champion", merge: {}, items: [], flags: {} }],
+  }));
+  note("granted (template)", await run(gm, P.grantObserver, { actorId: tpl.id, name: MACHINE.player }));
+  await run(player, P.openTemplate, { actorId: tpl.id });
+  const before = await run(player, P.templateSelects);
+  check("an observer's template sheet draws its axis selects with no name and no Generate", before.selects.length === 2 && before.selects.every((s) => !s.named) && !before.generate, before);
+  const pin = await run(player, P.observePin, { actorId: tpl.id, pins: [["variant", "b"]] });
+  const after = await run(player, P.templateSelects);
+  check("pinning a variant re-marks the roles it has no cell for, and the client attempts no write", pin.ok && pin.attempted === 0 && pin.unchanged && after.selects.find((s) => s.axis === "role")?.marked, { ...pin, marked: after.selects.find((s) => s.axis === "role")?.marked });
   note("closed (player)", await run(player, P.closeAll));
 
   section("a repair in place");

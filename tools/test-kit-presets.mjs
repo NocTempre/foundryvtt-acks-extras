@@ -27,7 +27,7 @@ import {
   UNARMOURED,
 } from "../scripts/monsters/kits.mjs";
 import { kitPresets, unionKitAxis } from "../scripts/importer/kit-presets.mjs";
-import { proseLeaderRoles, STANDARD_ROLE } from "../scripts/importer/leader-roles.mjs";
+import { proseLeaderRoles, entryLeaderTemplate, STANDARD_ROLE } from "../scripts/importer/leader-roles.mjs";
 import { chooseAxes, optionAvailable, resolveActor } from "../scripts/lib/template-logic.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { applyCellPattern } from "../scripts/importer/table-extract.mjs";
@@ -179,6 +179,38 @@ ok("a kit is offered only where a cell matches the chosen variant and role", () 
   assert.equal(optionAvailable(system, kit, bowmen, { variant: "binder", role: STANDARD_ROLE }), false, "a kind that fields no bowmen is not offered them");
   assert.equal(optionAvailable(system, kit, bowmen, { variant: "printer", role: "champion" }), true, "a leader of the kind may take the kit");
   assert.equal(optionAvailable(system, kit, bowmen, { variant: "binder", role: "champion" }), false);
+});
+
+ok("a dependant is offered the stat block alone: no troop kit, no unarmoured", () => {
+  const { axes, system } = family();
+  const kit = axes.find((a) => a.key === KIT_AXIS);
+  const pinned = { variant: "printer", role: "drudge" };
+  const offered = kit.options.filter((o) => optionAvailable(system, kit, o, pinned)).map((o) => o.key);
+  assert.deepEqual(offered, [OWN_KIT]);
+  const { choices } = chooseAxes(system, { pinned: { ...pinned, [KIT_AXIS]: "bowmen" } });
+  assert.equal(choices[KIT_AXIS], OWN_KIT, "a pin the dependant is not offered falls back to the stat block");
+});
+
+ok("a creature outside a family takes its kind's kits on its leaders template, the lone variant no choice", () => {
+  register();
+  const text = "Each printer gang will be led by a champion with 6 AC, 4 HD, 20 hp, and a +3 damage bonus.";
+  const option = { ...member("printer", { count: 2, bonus: 1, ac: 3, mod: 1 }), nameLabel: "printer", html: "", token: {} };
+  const built = entryLeaderTemplate({ option, text });
+  assert.ok(built);
+  kitPresets({ options: [option], axes: built.axes, cells: built.cells, kits: importedKits() });
+  const kit = built.axes.find((a) => a.key === KIT_AXIS);
+  assert.equal(built.axes.at(-1), kit, "the kit is chosen last");
+  assert.deepEqual(kit.options.map((o) => o.key), [OWN_KIT, "lightInfantry", "bowmen", UNARMOURED]);
+  const system = { axes: built.axes, cells: built.cells, output: { nameFormat: built.out.nameFormat } };
+  const { choices } = chooseAxes(system, {});
+  assert.deepEqual(choices, { variant: "printer", role: STANDARD_ROLE, [KIT_AXIS]: OWN_KIT }, "nothing pinned: the creature as printed");
+  const trooper = resolveActor(system, { ...choices, [KIT_AXIS]: "lightInfantry" }, { templateName: "T" });
+  assert.equal(trooper.system.ac.value, 5);
+  assert.equal(trooper.flags[MID].extras.kit.troop, "lightInfantry");
+  const leader = resolveActor(system, { variant: "printer", role: "champion", [KIT_AXIS]: "lightInfantry" }, { templateName: "T" });
+  applyGeneratedKit(leader);
+  assert.equal(leader.system.ac.value, 8, "the row's 5 plus the leader's 6 over its warrior's 3");
+  assert.deepEqual(leader.system.damage.mod, { melee: 3, missile: 3 }, "the leader's own damage total stands");
 });
 
 ok("a leader in a troop's kit keeps its damage and takes the row's armour class plus its own over its warrior's, at generation", () => {

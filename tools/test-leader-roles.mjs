@@ -96,7 +96,7 @@ const GRIBBLE = [
 ].join(" ");
 const SNARK = "Each snark gang will be led by a champion with AC 6, 2 HD, 11 hp.";
 
-const build = () => {
+const build = (ladder = LADDER, ladderCite = CITE) => {
   const options = [
     member("wobbler", { hd: "2d8+1", count: 2, bonus: 1, thr: 6, save: 2, xp: 13, mod: 2 }),
     member("gribble", { hd: "1d4", count: 0.5, thr: 12, save: 0, xp: 3, mod: -1 }),
@@ -107,7 +107,7 @@ const build = () => {
   const axes = [{ key: "variant", label: "Variant", roll: "", options }];
   const cells = [];
   const out = { nameFormat: "{variant}" };
-  proseLeaderRoles({ options, memberText, memberXp, axes, cells, out, ladder: LADDER, ladderCite: CITE });
+  proseLeaderRoles({ options, memberText, memberXp, axes, cells, out, ladder, ladderCite });
   return { options, axes, cells, out, system: { axes, cells, output: { nameFormat: out.nameFormat } } };
 };
 const cellOf = (cells, key) => cells.find((c) => c.key === key);
@@ -436,6 +436,47 @@ ok("a leader cell stores the parts its throw and saves were worked out from", ()
   assert.deepEqual(d.saves, { level: 3, baseLevel: 2, baseHd: "2+1", hd: "3+2" });
   const r = resolveActor(build().system, { variant: "wobbler", role: "champion" }, { templateName: "T" });
   assert.deepEqual(r.flags[MID].extras.derived.throw, d.throw, "the parts reach the generated actor");
+});
+
+ok("a generated leader holds its cell's figures; XP is the role's where printed, else the member's", () => {
+  const { system } = build();
+  const gen = (variant, role) => resolveActor(system, { variant, role }, { templateName: "T" });
+  const chief = gen("wobbler", "chieftain");
+  assert.equal(chief.system.ac.value, 9);
+  assert.deepEqual({ value: chief.system.hp.value, max: chief.system.hp.max, hd: chief.system.hp.hd }, { value: 33, max: 33, hd: "6d8+1" });
+  assert.equal(chief.system.attack.throw, 2, "the member's 6 moved by the four rows the ladder adds");
+  assert.deepEqual(chief.system.saves, savesAt(6));
+  assert.equal(chief.system.details.xp, 305);
+  assert.deepEqual(chief.system.damage.mod, { melee: -1, missile: -1 }, "the printed bonus replaces the member's +2");
+  assert.equal(gen("wobbler", "subChieftain").system.details.xp, 77);
+  assert.deepEqual(gen("wobbler", "subChieftain").system.damage.mod, { melee: 0, missile: 0 });
+  const snark = gen("snark", "champion");
+  assert.equal(snark.system.details.xp, 8, "a role with no printed XP keeps the member's");
+  assert.equal(snark.system.ac.value, 6);
+  assert.equal(snark.system.hp.max, 11);
+  assert.equal(snark.system.attack.throw, 8, "the member's 10 moved by the one row between 1 HD and 2 HD");
+  assert.equal(gen("snark", STANDARD_ROLE).system.details.xp, 8);
+});
+
+ok("a ladder the Judge overrides moves a leader built from it, and names no page", () => {
+  resetTables();
+  registerTable(
+    { id: MONSTERS_DOC, source: { pages: "XX 9" }, cites: { [THROW_LADDER_TABLE]: CITE }, tables: { [THROW_LADDER_TABLE]: LADDER } },
+    { priority: PRIORITY.WORLD },
+  );
+  const imported = importedThrowLadder();
+  const base = build(imported.rows, imported.cite);
+  const champ = (sys) => resolveActor(sys, { variant: "wobbler", role: "champion" }, { templateName: "T" });
+  assert.equal(champ(base.system).system.attack.throw, 4);
+  assert.equal(champ(base.system).flags[MID].extras.derived.throw.cite, CITE);
+  registerTable({ id: MONSTERS_DOC, tables: { [THROW_LADDER_TABLE]: { ...LADDER, hd4: { throw: 12 } } } }, { priority: PRIORITY.OVERRIDE });
+  const over = importedThrowLadder();
+  assert.equal(over.cite, null);
+  const moved = champ(build(over.rows, over.cite).system);
+  assert.equal(moved.system.attack.throw, -4, "the member's 6 less the ten the overridden row adds");
+  assert.equal(moved.flags[MID].extras.derived.throw.cite, "", "an override is cited to no page");
+  assert.equal(champ(base.system).system.attack.throw, 4, "a template built before the override keeps its figures until it is refilled");
+  resetTables();
 });
 
 ok("with no ladder imported a leader writes no throw and records why", () => {
