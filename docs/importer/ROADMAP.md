@@ -688,10 +688,10 @@ extracted pages in the rules-tables step and the abilities update (DECISIONS,
 2728 s, 2377 s of it in the abilities step: 729 item writes and 4169
 `getDocuments` calls, which the empty-id-list patch in lib and the ladder
 cache's quiet window remove (DECISIONS, 2026-11-13, "An update pass costs a
-write, not a library read"); after both, a run took 168 s, 30 s of it in the
-abilities step with 17 `getDocuments` (that DECISIONS entry). The
-rules-tables step took 149 s with 50 setting writes and 132 `getDocuments`
-before, and 41 s with 13 after. Not built: a skip for an entry whose source and recipe are unchanged
+write, not a library read"). The rules-tables step took 149 s with 132
+`getDocuments` before, and 41 s with 13 after on twice the library writes;
+the abilities step's count under a burst of writes is not yet measured (that
+DECISIONS entry). Not built: a skip for an entry whose source and recipe are unchanged
 since its last import, judged by a stamp on the imported document; one write of
 the imported-tables setting per run instead of one per document, which the
 tables step makes about fifty times; and book Adventures that are assembled

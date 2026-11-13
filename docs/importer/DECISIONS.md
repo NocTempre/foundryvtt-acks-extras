@@ -10194,9 +10194,14 @@ write, so a roll in that second reads the map from before the burst.
 The abilities step took 30 s: 3 item writes and 17 `getDocuments` calls that
 summed 32 s. The rules-tables step took 41 s with 50 setting writes and 13
 `getDocuments` calls. That world already held the earlier run's 729 rewrites,
-so the step's time does not compare with 2377 s. What it shows is that the
-call count falls from thousands to the step's own reads. Whether the count stays flat as writes grow is
-importer TESTING, "Counting reads", which has not been walked.
+so the abilities step does not compare: 4169 calls over 729 writes and 17
+over 3 are the same rate per write, and the count does not separate an
+empty-id call from one that reaches the server. The rules-tables step does
+compare. Before, it made 132 `getDocuments` around 21 library writes (17 item
+updates, 2 item and 2 roll-table creates). After, it made 13 around 42 (15
+roll-table updates, 27 creates). Whether the abilities step's count stays flat
+as its writes grow is importer TESTING, "Counting reads", which has not been
+walked.
 
 ## 2026-11-13 — A time phrase is refused in a row's prose fields (T-0173)
 
