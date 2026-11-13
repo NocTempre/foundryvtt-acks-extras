@@ -4413,3 +4413,112 @@ miss and a natural 1.
    override: the imported words and page return.
 5. **Teardown.** Clear every override; `api.track` each card's id as it posts
    and `api.sweepTracked()` them; the fixture stays.
+
+## Billing at the dark rate
+
+The clock bills a party token's wall-constrained displacement, and a party
+that is in the dark with no light travels at the dark rate (`isPartyInDark`
+into `effectiveSpeed` into `turnDistance`). `tools/live/formation-live-findings.mjs`
+walks this section and the next.
+
+**Fixtures** (kept, by marker): `formation/t0361-delve@t0363`, an own-tag
+copy of the delve replica (a second ledger connected with `own: "t0363"`
+builds it; the plain marker is the importer recipe's, which is neither dark
+nor walled): a square 70 px grid at 10 ft, `tokenVision: true`,
+`environment: {darknessLevel: 1, darknessLock: true, globalLight: {enabled:
+false}}`, one vertical wall across the party's row about four cells east of
+where the party token stands, and the battlemap flag `mapSystem: "delve"`.
+`formation/t0361-party` with `formation/t0361-a` and `-b` are the importer
+recipe's ("A held plan's travel system"). The party token is a create path:
+track it and sweep it.
+
+1. **The imported level, read only.** Find every scene whose
+   `flags["acks-extras"].cookbook.id` is the level's map id, by the id and
+   never by the scene's name, and read `environment.darknessLevel`. Nothing is
+   written. *Observable:* the figure per scene; at 0.5 or more the level is
+   dark for `sceneIsDark`.
+2. **The dark move.** Place the party token on the replica and wait for the
+   record to adopt it (`tokenId`), then zero the clock with its baseline at
+   the token's `_source`, no lights, mode `delve`. View the replica on the GM
+   seat (`tok.object` exists only while the scene is drawn, and core
+   constrains a move on the client that draws it). Update the token 12 cells
+   east with `{animate: false}` and wait for `clock.lastPosition` to follow
+   `_source`. *Observable:* the displacement is above 0 and under what was
+   asked, `isPartyInDark` is true, and the rounds billed (`turnsTotal`
+   times rounds-per-turn plus the change in `roundsPartial`) and `carryFeet`
+   equal what the clock's own loop yields from the displacement at
+   `turnDistance / rounds-per-turn`, both read off the module.
+3. **The lit control.** Light a torch (`acksExtras.formation.addLight(record,
+   "torch", memberId, {override: true})`, which spends a round, so read the
+   snapshot after it) and move the token 4 cells back west. *Observable:* the
+   party is not in the dark, its `effectiveSpeed` is above step 2's, and the
+   billed rounds and carry equal the same computation at the lit round length.
+
+Teardown: sweep the token and the party's cards by their ids; clear the
+party's lights. The replica, the party and the walkers stay.
+
+Walked 2026-11-13: the imported level read darkness 1, locked, so the original
+reading (a lit level billed at the lit rate) did not hold: the party was in the
+dark and the clock billed the constrained displacement at the dark rate, rounds
+and carry equal to the clock's own loop; the torch control billed at the lit
+rate the same way.
+
+## A light change reaches both seats
+
+A shutter, an open, a douse and a relight are one write and one
+`updateSetting` handler on every seat (`column-view.mjs` `installColumnView`
+into `column-light.mjs` `syncColumnLights`); each seat's canvas should drop or
+make the column's source in the same task that handles the broadcast. The
+earlier walk slept after the click and then polled the GM and the Player in
+turn, so it measured neither seat's latency from the click.
+
+**Fixtures:** the column's (above, "The column and its lights"):
+`formation/column-scene`, `formation/column-party`, `formation/column-lead`,
+`formation/column-torch`, `formation/column-lantern`. The party sheet is open
+on the GM seat's Kit tab; the Player seat views the corridor.
+
+**The recorder.** Armed on each seat after its page is ready, it wraps
+`foundry.canvas.sources.PointLightSource.prototype` `add`, `remove` and
+`destroy` for source ids that start `acks-extras.column.`, and logs the
+formations setting's `updateSetting`, long tasks, timer gaps over 400 ms, and
+the page's visibility, each stamped `performance.timeOrigin +
+performance.now()`. Both seats run on one machine, so the stamps share a
+clock; across machines swap in `game.time.serverTime`. The press on the GM
+seat records its own stamp, and a seat's latency is the first matching event's
+stamp minus the click's, so no seat's polling interval enters the figure.
+
+1. **Cold, removal first** (three times). Press the lantern's Open and the
+   torch's Relight until both are lit and open, reload the Player seat through
+   its CDP target (the boot recorder goes in first), view the scene, wait 1.5 s
+   and arm. *Observable:* the Player draws both sources. Then press, 1.5 s
+   after each seat has shown the last: Shutter, Douse, Relight, Open.
+2. **Cold, add first** (three times). With the lantern shuttered and the torch
+   doused, reload and arm as above. *Observable:* the Player draws neither
+   source. Then press Open, Relight, Shutter, Douse.
+3. **Settled.** Both lit, reload, wait 30 s, arm, and press Shutter, Open,
+   Douse, Relight, twice.
+
+*Observable:* per press, the GM's and the Player's latency from the click to
+the source's `add` or `remove`, and the Player's `updateSetting` latency. The
+lag is the Player's landing minus the GM's, since the write's own round trip is
+in both. Each press also records the Player page's age, the long tasks and
+timer gaps around it, and the long animation frames' script sources. The
+medians are tabled by cold (the first press after the reload), later and warm
+(settled), each for removals and adds. Reading them: removals late wherever
+they come and adds prompt is a direction effect (trace `refreshColumn` and
+`syncColumnLights` for the trigger); the cold presses late in both directions
+and the rest prompt is the first action after a reload; late presses in both
+directions that carry long tasks and stop once the page has settled are a busy
+Player main thread, which holds a queued broadcast until the task ends;
+everything prompt means the module lands each change on time. A late Player
+`updateSetting` with no long task or timer gap around it is delivery, outside
+the module.
+
+Walked 2026-11-13: the first press after the reload and every press from about
+35 s of page age on landed within about 20 ms of the GM's; the presses between,
+at 19 to 34 s of page age, trailed by 2.3 to 7.3 s, removals and adds alike,
+each beside 1 to 6 long tasks of 1.4 to 10 s on the Player (their long
+animation frames name only the socket library's event dispatch). So the walk
+should press only once the Player page has gone a second without a long task.
+
+Teardown: both lights lit and open, the sheet closed; the fixtures stay.

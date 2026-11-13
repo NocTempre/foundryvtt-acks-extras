@@ -590,17 +590,3 @@ the abilities' generic throw register later slices.
 | Key and lockpicking at a door | RR ch. 6 names using a key and picking a lock, hasty and methodical, among the turn's activities. The formation has no door-lock procedure: the door helper bashes, batters and spikes, and a container's pick belongs to the equipment feature. | a door-lock resolution (which door, the lockpicking throw through the abilities, what a key is) and the owner's word that the formation owns it. |
 | Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice reads not imported and cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
 | A door within reach | Bashing in the plan is the party's Dungeonbashing check, as the party check rolls it; no door is named, so the Judge opens the door by hand. | a reader of the doors within reach of the party, like `knownPlacementsNear` for traps, that never lists a secret door to a player. |
-
-## Two live findings to settle
-
-- **A drag on a walled level billed less than its length suggested.** The
-  clock bills the wall-constrained displacement, and the round count fits the
-  dark rate. Reading the scene's darkness level settles whether that rate was
-  the right one. No recipe checks billing at the dark rate yet; one belongs in
-  `TESTING.md`.
-- **A Player seat saw a shutter or a douse late, a relight at once.** One
-  write and one `updateSetting` handler serve every seat. Every walk ran the
-  shutter and the douse first after the Player's reload, so order and
-  direction cannot yet be told apart, and the walk's sleep-then-poll measures
-  neither seat's latency. A two-seat recorder run with the order reversed
-  decides it; only a direction effect would need a module change.
