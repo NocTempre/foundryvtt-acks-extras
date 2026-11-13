@@ -4,10 +4,11 @@ The document kinds, the dedup law, the `wip/` lifecycle and the
 comment/docstring rules are the synced `.claude/rules/docs-doctrine.md` —
 this file only indexes what this repo has.
 
-- [DECISIONS.md](DECISIONS.md) — repo-level: the merge, namespacing, flag scope.
+- [DECISIONS.md](DECISIONS.md) — repo-level: namespacing, flag scope, the macro pack,
+  the docs site and its guards.
 - [ROADMAP.md](ROADMAP.md) — repo-level: magic, the domain-module family.
 - [TESTING.md](TESTING.md) — repo-level: the entry point and the namespace load at all,
-  walking a shipped macro, and the merge cleaner macro.
+  and walking a shipped macro.
 - [GALLERY.md](GALLERY.md) — one row per feature: guide, and the release its
   screenshot came from.
 - [guides/](guides/) — user-facing how-to, one per feature area.
@@ -49,7 +50,7 @@ first) stages the content it publishes:
 Every staged path is gitignored and carries a generated header, and each page's
 "Edit page" link points at its real source. **Editing a staged copy is undone by
 the next sync** — change the source instead. Only `index.mdx`, `start/buying.md`,
-`404.md`, the gallery template, the `Footer` override and the theme CSS are
+`start/report-a-bug.md`, `404.md`, the gallery template, the `Footer` override and the theme CSS are
 authored in `site/`.
 
 A guide links another guide by its file, `other.md#section`, which is the form
