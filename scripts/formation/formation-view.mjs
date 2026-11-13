@@ -27,6 +27,7 @@ import {
   getPartyToken,
   hasAbility,
   isDown,
+  blindedSpeedShare,
   isHurried,
   isPartyInDark,
   mapperIsProficient,
@@ -120,6 +121,17 @@ function roleFigures() {
   const figures = trapFigures();
   const feet = (value) => (value === null ? game.i18n.localize("ACKS-FORMATION.traps.notImported") : `${value} ft`);
   return { search: feet(figures.searchFeet), pole: feet(figures.poleSearchFeet ?? figures.searchFeet), lead: feet(figures.poleLeadFeet) };
+}
+
+/**
+ * The tooltip of the blinded badge: the imported speed share a blinded member
+ * keeps, or a line saying it is not imported and the pace is not reduced.
+ */
+function blindTip() {
+  const share = blindedSpeedShare();
+  return share == null
+    ? game.i18n.localize("ACKS-FORMATION.app.blindBadgeUnread")
+    : game.i18n.format("ACKS-FORMATION.app.blindBadge", { share: fractionLabel(share) });
 }
 import { hexStockKey } from "./hex-stock.mjs";
 
@@ -290,6 +302,7 @@ export function buildFormationView(formation) {
       darkSightUnread: sight.seesInDark && sight.sightRange == null,
       down: isDown(actor, member),
       blind: dark && !canSeeInDark(actor),
+      blindTip: blindTip(),
       first: index === 0,
       last: index === formation.members.length - 1,
       roles: ROLE_ORDER.map((role) => ({
@@ -548,7 +561,7 @@ export function buildWarnings(formation, speed) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.inCombat"));
   }
 
-  // A role held without the implement it needs — the 10' pole, or the mapper's
+  // A role held without the implement it needs — the pole, or the mapper's
   // quill and parchment. A Judge can put anyone in any job (judge-override.mjs),
   // so this is the standing reminder of what that job is still missing.
   for (const m of formation.members) {

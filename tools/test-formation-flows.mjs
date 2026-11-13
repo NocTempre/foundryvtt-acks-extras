@@ -865,15 +865,25 @@ await scenario("partySpeed: the dark slows by the scene unless the caller says t
   const formation = model.getFormation(onlyFormation().id);
   const lit = model.partySpeed(formation);
   assert.ok(lit > 0, "a lit scene walks at the party's pace");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
   const was = scene.environment.darknessLevel;
   try {
+    // No blinded share imported: the dark names nobody slower, so the pace stands.
     scene.environment.darknessLevel = 0.9;
-    assert.equal(model.partySpeed(formation), Math.floor(lit / 3), "a dark scene slows members who cannot see in it to a third");
+    assert.equal(model.blindedSpeedShare(), null, "no conditions table, no share");
+    assert.equal(model.partySpeed(formation), lit, "a dark scene does not slow a pace the conditions table does not price");
+
+    // An invented share, registered the way the import registers it.
+    registerTable({ id: CONDITIONS_DOC, tables: { [CONDITIONS_TABLE]: { blinded: { speedFactor: 0.4 } } } }, { priority: PRIORITY.WORLD });
+    assert.equal(model.blindedSpeedShare(), 0.4, "the imported share is what the model reads");
+    assert.equal(model.partySpeed(formation), Math.floor((lit * 2) / 5), "a dark scene slows members who cannot see in it by the imported share");
     assert.equal(model.partySpeed(formation, { dark: false }), lit, "a journey that passes dark:false keeps the full pace");
     scene.environment.darknessLevel = 0;
-    assert.equal(model.partySpeed(formation, { dark: true }), Math.floor(lit / 3), "a lit scene slows when the caller says it is dark");
+    assert.equal(model.partySpeed(formation, { dark: true }), Math.floor((lit * 2) / 5), "a lit scene slows when the caller says it is dark");
     assert.equal(model.partySpeed(formation, { dark: false }), lit);
   } finally {
+    unregisterTable(CONDITIONS_DOC, { priority: PRIORITY.WORLD });
     scene.environment.darknessLevel = was;
   }
 });

@@ -2456,8 +2456,8 @@
           "hint": "Make an encounter throw every N dungeon turns inside this zone. A journey does not read this field. 0 = inherit the module setting."
         },
         "encounterTarget": {
-          "label": "Target value (1d6)",
-          "hint": "Encounter occurs on this value or higher inside this zone. On a journey this d6 replaces the territory throw. 0 = inherit the module setting."
+          "label": "Target value (JJ ch. 2)",
+          "hint": "Encounter occurs on this value or higher inside this zone. On a journey this throw replaces the territory throw. 0 = inherit the module setting."
         },
         "dungeonLevel": {
           "label": "Dungeon level",
@@ -2555,7 +2555,7 @@
       "adjustHp": "Hit points",
       "adjustHpHint": "Adjust the hit points of this party's members.",
       "restTurn": "Rest",
-      "restTurnHint": "Spend one turn resting (resets the rest counter and removes Winded)",
+      "restTurnHint": "Spend a turn resting (RR 271): resets the rest counter and removes Winded",
       "encounterNow": "Check",
       "encounterNowHint": "Make a wandering-monster throw right now (GM-whispered)",
       "rations": "Rations",
@@ -2587,7 +2587,7 @@
       "openFormationHint": "Open the full formation window",
       "deployedBadge": "Deployed for combat",
       "detachedBadge": "Out ahead of the party on their own token",
-      "detachHint": "Detach: step out of the party token onto your own, carrying your own light and seeing with your own eyes. You stay in the formation — turns, rest and encounters keep counting. You may range one round's movement ahead, then must wait for the party to catch up.",
+      "detachHint": "Detach: step out of the party token onto your own, carrying your own light and seeing with your own eyes. You stay in the formation — turns, rest and encounters keep counting.",
       "recallHint": "Rejoin the party token, bringing back everything that happened while you were out",
       "darkSightHint": "How far this character sees with no light at all (lightless vision, or a thief's shadowy senses). Everyone else sees only what a light source reveals.",
       "darkSightNotImported": "This character sees with no light at all, but how far that sense reaches is read from your rulebook on import, or set in the Ruledata Browser. Until then it has no radius.",
@@ -2599,7 +2599,8 @@
       "advanceRound": "Round",
       "advanceRoundHint": "Mark off one bookkeeping round (1 minute; 10 per turn).",
       "downBadge": "Down (0 hp or less): carried, not walking — assign Carriers, or leave them behind to march on",
-      "blindBadge": "Cannot see (darkness, no dark senses): moves at 1/3 speed — RULES §4 blinded",
+      "blindBadge": "Cannot see (darkness, no dark senses): moves at {share} of its speed (RR App. B, Blinded)",
+      "blindBadgeUnread": "Cannot see (darkness, no dark senses): the blinded speed share is not imported, so the pace is not reduced (RR App. B, Blinded)",
       "editImageHint": "Change the party's image (updates the actor, its prototype token, and the placed token)"
     },
     "sheet": {
@@ -3042,7 +3043,7 @@
         "auto": "Roll each new day",
         "autoHint": "When the calendar day changes the sky is rolled from the imported tables.",
         "fronts": "Fronts",
-        "frontsHint": "Each day's rolls drift one step toward yesterday's. Natural 2s and 12s stand.",
+        "frontsHint": "Apply weather fronts to each day's throws (JJ ch. 2, Weather Fronts).",
         "generate": "Roll the sky",
         "generateHint": "Three throws — temperature, precipitation, wind — under this hex's climate and the season.",
         "missing": "Import the weather tables to roll the sky; the picks below work by hand without them.",
@@ -3586,7 +3587,7 @@
         "onSuccess": "Beating the save is worth"
       },
       "hint": {
-        "level": "1st to 6th. Chooses which row is edited below and which one fires when the trap goes off.",
+        "level": "1st to 6th (JJ ch. 8, Trap Level). Chooses which row is edited below and which one fires when the trap goes off.",
         "trigger": "How it is set off, in your own words: a tripwire, a pressure plate, a rune.",
         "triggerOn": "Springs the trap on a secret die at or under this figure (RR ch. 6, Traps and Trapbreaking). Leave it blank to read the imported figure; 0 never springs.",
         "crude": "Crudely built: easier to find and to remove, and feebler when it fires.",
@@ -3908,7 +3909,7 @@
       "both": "Two ways of knowing the country, and they compound.",
       "bonusUnpriced": "What that knowledge is worth has not been imported, so it counted for nothing.",
       "result": "Threw {total} against {target}+.",
-      "botched": "An unmodified 1 — it fails whatever the bonus.",
+      "botched": "The throw failed automatically (RR ch. 6, Navigation).",
       "kept": "They are where they think they are.",
       "lost": "They have strayed, and do not know it.",
       "unpriced": "No navigation target imported for this ground.",
@@ -4356,11 +4357,11 @@
           "hint": "As above, once the board says after dark. 0 = inherit."
         },
         "encounterTargetDay": {
-          "label": "Target value by day (1d6)",
+          "label": "Target value by day (JJ ch. 7)",
           "hint": "Encounter occurs on this value or higher in this district while it is light. 0 = inherit the layer outside this district."
         },
         "encounterTargetNight": {
-          "label": "Target value after dark (1d6)",
+          "label": "Target value after dark (JJ ch. 7)",
           "hint": "As above, once the board says after dark. 0 = inherit."
         },
         "reactionModifier": {
@@ -7825,7 +7826,7 @@
   "ACKS-FORMATION.toll.sunburn.outcome": "Burned",
   "ACKS-FORMATION.toll.heat.title": "Heat and armour",
   "ACKS-FORMATION.toll.heat.detail": "Hours thrown: {hours}",
-  "ACKS-FORMATION.toll.heat.failed": "Failed at hour {hour}, one more fatigue",
+  "ACKS-FORMATION.toll.heat.failed": "Failed at hour {hour}, fatigued",
   "ACKS-FORMATION.toll.frostbite.title": "Frostbite",
   "ACKS-FORMATION.toll.frostbite.detail": "Cold wounds {die}, row {row} (RR 277)",
   "ACKS-FORMATION.toll.frostbite.failed": "Frostbitten",

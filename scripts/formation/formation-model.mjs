@@ -24,6 +24,7 @@ import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
+import { speedMath } from "../lib/conditions.mjs";
 import { carriesItem, findCarried } from "../lib/item-model.mjs";
 import { capacityStone, explorationSpeedBearing } from "../lib/capacity.mjs";
 import { announceChange } from "../lib/util.mjs";
@@ -819,6 +820,15 @@ export function memberPace(formation, member, actor = getMemberActor(member), lo
 }
 
 /**
+ * The share of its speed a blinded creature keeps, as the conditions table
+ * holds it (RR App. B, Blinded); null while the table has no figure for it.
+ */
+export function blindedSpeedShare() {
+  const { factor } = speedMath({ statuses: ["blinded"] });
+  return factor < 1 ? factor : null;
+}
+
+/**
  * The party moves at the pace of its slowest walking member; down members do
  * not walk. `dark` defaults to the scene's reading; a journey passes
  * `dark: false` because daylight is the clock's to say, not the scene's.
@@ -828,6 +838,7 @@ export function memberPace(formation, member, actor = getMemberActor(member), lo
  */
 export function partySpeed(formation, { dark = isPartyInDark(formation) } = {}) {
   const load = carriedLoad(formation);
+  const blindShare = blindedSpeedShare() ?? 1;
   const speeds = [];
   for (const member of realMembers(formation)) {
     const actor = getMemberActor(member);
@@ -843,9 +854,10 @@ export function partySpeed(formation, { dark = isPartyInDark(formation) } = {}) 
     }
     let speed = memberPace(formation, member, actor, load);
     if (typeof speed !== "number") continue;
-    // Blinded creatures move at 1/3 speed (RULES §4) — members who cannot
-    // see in the dark slow the whole party unless they have dark senses.
-    if (dark && !canSeeInDark(actor)) speed = Math.floor(speed / 3);
+    // A member who cannot see in the dark is blinded, so they slow the whole
+    // party by the imported blinded share (RR App. B, Blinded); with none
+    // imported the pace stands.
+    if (dark && !canSeeInDark(actor)) speed = Math.floor(Math.round(speed * blindShare * 1e6) / 1e6);
     speeds.push(speed);
   }
   if (!speeds.length) return 0;
