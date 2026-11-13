@@ -971,10 +971,6 @@ organisation has a row. What has none, by shape:
   counted: eleven blocks in three interiors, two of them persons and nine the
   interior's own ranks (a guard, a burglar, a torturer) with a block each.
   They land with the interiors.
-- **The region's gazetteer**: fifty-three keyed sites in the region chapter,
-  keyed exactly as a quarter's points of interest are. Outside the city
-  scope; the points-of-interest step binds region rows once they are
-  registered (MODEL, "A region's places"), so what is missing is the rows.
 - **The building tables** (size, type and occupants, occupant tables, style,
   treasure): the printed half of the dynamic-buildings row in
   `docs/formation/ROADMAP.md`.
@@ -1147,9 +1143,6 @@ seven classes:
 - **The block plates' section drawings** (AX1 pp.11, 14). Each plate prints
   one section of its block below the plan, at another scale and with no
   grid, and the scene stops above it. It would be a scene of its own.
-- **A delve on a hex plan.** The fort's overview is explored a turn at a
-  time on a hex lattice, so the party's formation is laid on hex cells. No
-  live walk has delved one yet.
 - **The rest of AX1's ways between maps.** The first link rows join the
   region to the fort and to the first level, the two levels by two stairs,
   the fort's four towers to the tower plan, and the tower's storeys
