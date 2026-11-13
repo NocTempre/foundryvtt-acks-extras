@@ -1,9 +1,9 @@
 /**
  * Live walk, typed modifiers and their provenance. Covers:
  *
- *   docs/abilities/TESTING.md, "Typed modifiers apply", steps 1-13
+ *   docs/abilities/TESTING.md, "Typed modifiers apply", steps 1-9 and 11-13
  *     (quick effects, the "{roll} only" chip, conditions read from the page or
- *     labelled, the origin stamp's repair check);
+ *     labelled);
  *   docs/character-sheet/TESTING.md, "The roll modifiers on Stats", and the
  *     Stats tab's light rows;
  *   docs/equipment/TESTING.md, steps 3c (an imported Specialization's pick
@@ -16,7 +16,7 @@
  *
  * Stages: STAGE=1 is the hand-built typed fixtures (abilities steps 1-9, the
  * roll modifiers on Stats, the light rows, the repertoire call); STAGE=2 is
- * what needs the rulebook open and imported (abilities steps 10-13, equipment
+ * what needs the rulebook open and imported (abilities steps 11-13, equipment
  * 3c and 3e, and the three plates), and first maps the RR and JJ, runs Import
  * Tables for the equipment document when its tables are missing, and runs
  * Update Abilities for the Specialization and Armor Training where the
@@ -674,22 +674,6 @@ const P = {
       try { await app.close({ animate: false }); } catch { /* closed */ }
     }
     return out;
-  },
-
-  /** The repair check that stamps an origin, on one copy whose stamp this run unset. */
-  originRepair: async ({ uuid }) => {
-    const H = globalThis.__tm;
-    const item = fromUuidSync(uuid);
-    if (!item) return { found: false };
-    await item.update({ "flags.acks-extras.extras.-=effectsFrom": null });
-    await H.sleep(300);
-    const unset = !item.getFlag("acks-extras", "extras")?.effectsFrom;
-    const [scan] = await acksExtras.lib.repair.scan({ only: "abilities.effectsOrigin" });
-    const finding = scan?.findings?.find((f) => f.key === uuid) ?? null;
-    const fix = finding ? await acksExtras.lib.repair.fix("abilities.effectsOrigin", [uuid], { report: false }) : null;
-    await H.sleep(300);
-    const stamp = fromUuidSync(uuid).getFlag("acks-extras", "extras")?.effectsFrom ?? null;
-    return { found: true, unset, listed: !!finding, origin: finding?.origin ?? null, fixed: fix?.fixed?.length ?? 0, failed: fix?.failed?.length ?? 0, stamp };
   },
 
   /** The loadout parts that name a table, with the figures they should carry. */
@@ -1381,10 +1365,6 @@ try {
     check("the owning Player sees the same Lockpicking rows", plMech.found && JSON.stringify(plMech.rows.map((r) => r.text)) === JSON.stringify((await run(gm, P.mech, { uuid: lib.uuids[LIBRARY.lockpicking] })).rows.map((r) => r.text)), { rows: plMech.rows?.length });
     await run(player, P.closeAll);
     await run(gm, P.closeAll);
-
-    section("abilities 10. the origin stamp's repair check");
-    const rep = await run(gm, P.originRepair, { uuid: lib.uuids[LIBRARY.lockpicking] });
-    check("an imported copy with no stamp is listed with its origin, and the fix writes that stamp", rep.found && rep.unset && rep.listed && !!rep.origin && rep.fixed === 1 && rep.failed === 0 && rep.stamp === rep.origin, rep);
 
     section("equipment 3c. an imported Specialization's pick made after the kit is drawn");
     const sp = await gm.fixture("equipment/style-pick", "Actor", {

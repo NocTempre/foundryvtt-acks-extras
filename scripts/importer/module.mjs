@@ -103,18 +103,12 @@ import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
 import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from "./token-art.mjs";
 import { registerOseSourceSetting } from "./ose-source.mjs";
-import { registerLegacyTextCheck, resolveLegacyText } from "./legacy-text.mjs";
-import { registerEffectsOriginCheck } from "./effects-origin.mjs";
-import { cookbookEntry } from "./cookbook.mjs";
 import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
 import { oseManualDialog } from "./ose-manual.mjs";
 import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
-import { primaryGMSettled } from "../lib/util.mjs";
 import { getDoc } from "../lib/tables.mjs";
-import { LEGACY_ID, LEGACY_LOCAL_KEYS, LEGACY_SHELF_DIR, LEGACY_ART_DIR, legacyImporterActive } from "./legacy.mjs";
-import { migrateLegacyScope } from "./migrate.mjs";
 import { registerBookAdventureHooks } from "./book-adventure.mjs";
 
 const SETTING_DYNAMIC = "dynamicRecipes";
@@ -309,33 +303,18 @@ async function dirGet() {
  * journal is created for the GM alone, and sharing it is the Judge's gesture —
  * but the shelf makes a book undiscoverable, not inaccessible.
  *
- * `SETTING_SHELF` is where the shelf lived before it was journals: a world
- * setting mapping bookId → {path, name, size}. It is still registered so a
- * world upgraded past that reads it once — `migrateShelfSetting` turns each
- * entry into a journal and empties it — and nothing else reads it.
  */
-const SETTING_SHELF = "shelf";
 const SHELF_FLAG = "shelf";
 const SHELF_DIR = "acks-extras-books";
 
-/**
- * Every PDF in a shelf directory, this module's and the retired module's.
- * A book staged under the old name is still a staged book; only new uploads
- * go to `SHELF_DIR`. Resolves null when neither directory exists.
- */
+/** Every PDF in the shelf directory. Resolves null when the directory does not exist. */
 async function shelfListing(FP) {
-  const files = [];
-  let any = false;
-  for (const dir of [SHELF_DIR, LEGACY_SHELF_DIR]) {
-    try {
-      const listing = await FP.browse("data", dir);
-      any = true;
-      files.push(...(listing?.files ?? []));
-    } catch {
-      /* not there — the other may be */
-    }
+  try {
+    const listing = await FP.browse("data", SHELF_DIR);
+    return [...(listing?.files ?? [])];
+  } catch {
+    return null;
   }
-  return any ? files : null;
 }
 
 const filePicker = () => foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
@@ -527,38 +506,6 @@ async function shelfPut(bookId, record) {
     ...(bookIsForm(bookId) ? { ownership: { default: OBSERVER, [game.user.id]: OWNER } } : {}),
   });
   return shelf();
-}
-
-/**
- * Carry a shelf recorded the old way — the world setting — into journals,
- * once, on the first GM seat to arrive. Every entry the setting holds was
- * fingerprinted when it was written, so none is re-read here; the join-time
- * restore reads each one anyway and refuses a file that no longer answers.
- *
- * The setting is emptied only after every entry landed: a write that fails
- * midway leaves the rest for the next load rather than losing them.
- */
-async function migrateShelfSetting() {
-  const legacy = game.settings.get(MODULE_ID, SETTING_SHELF) ?? {};
-  const entries = Object.entries(legacy);
-  if (!entries.length || !(await primaryGMSettled())) return 0;
-  let moved = 0;
-  for (const [bookId, record] of entries) {
-    if (!REGISTRY[bookId] || !record?.path) {
-      console.warn(`${MODULE_ID} | the shelf setting named "${bookId}" with no book or no path; dropped.`);
-      continue;
-    }
-    try {
-      await shelfPut(bookId, record);
-      moved++;
-    } catch (err) {
-      console.error(`${MODULE_ID} | the shelf could not be carried into journals at ${REGISTRY[bookId].label}; it tries again on the next load.`, err);
-      return moved;
-    }
-  }
-  await game.settings.set(MODULE_ID, SETTING_SHELF, {});
-  console.log(`${MODULE_ID} | shelf: ${moved} book(s) carried from the world setting into journals under "${game.i18n.localize(`${LANG_PREFIX}.ui.shelfFolder`)}".`);
-  return moved;
 }
 
 /**
@@ -1734,8 +1681,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     const held = census.get(id);
     if (!held) return "";
     const said = held.adventure?.contents ? L("booksAdventure", held.adventure.contents) : L(held.adventure ? "booksAdventureHeld" : "booksAdventureNone");
-    const legacy = held.legacy ? ` ${L("booksAdventureLegacy", { n: held.legacy })}` : "";
-    return `<p class="notes" data-adventure="${esc(id)}">${said}${legacy}</p>`;
+    return `<p class="notes" data-adventure="${esc(id)}">${said}</p>`;
   };
   const row = (id, book) => {
     const record = records.get(id);
@@ -2460,15 +2406,11 @@ function artIndex(FP) {
   // would otherwise each fire the listing this exists to fire once.
   artListing ??= (async () => {
     const map = new Map();
-    // The retired module's directory first, so a picture re-extracted under
-    // this module's name wins over the old copy of the same file.
-    for (const dir of [LEGACY_ART_DIR, ART_DIR]) {
-      try {
-        const listing = await FP.browse("data", dir);
-        for (const f of listing?.files ?? []) map.set(f.split("/").pop(), f);
-      } catch {
-        /* directory does not exist yet — an empty map, not a failure */
-      }
+    try {
+      const listing = await FP.browse("data", ART_DIR);
+      for (const f of listing?.files ?? []) map.set(f.split("/").pop(), f);
+    } catch {
+      /* directory does not exist yet — an empty map, not a failure */
     }
     return map;
   })();
@@ -2802,15 +2744,6 @@ async function applyStats() {
 /* -------------------------------------------- */
 
 Hooks.once("init", () => {
-  // Two importers writing one library race each other, so the merged one
-  // yields: while the separate legacy module is still installed and enabled,
-  // the built-in importer registers nothing and stays inert.
-  if (legacyImporterActive()) {
-    console.error(
-      `${MODULE_ID} | the separate ${LEGACY_ID} module is still active; the built-in importer stays off until it is disabled.`,
-    );
-    return;
-  }
   game.settings.register(MODULE_ID, SETTING_DYNAMIC, { scope: "world", config: false, type: Object, default: {} });
   // Judge-registered OSE sources. World-scoped rather than shipped: these are
   // other publishers' books, fingerprinted against the copy the Judge owns.
@@ -2837,13 +2770,7 @@ Hooks.once("init", () => {
       }
     },
   });
-  // The shelf's former home: books the SERVER holds were a world setting
-  // before they were journals. Still registered so an upgraded world can be
-  // read once and emptied (`migrateShelfSetting`); nothing else touches it.
-  game.settings.register(MODULE_ID, SETTING_SHELF, { scope: "world", config: false, type: Object, default: {} });
   registerGettingStartedSettings();
-  registerLegacyTextCheck();
-  registerEffectsOriginCheck(cookbookEntry);
   // The GM's way in from settings to every import control.
   game.settings.registerMenu(MODULE_ID, "importManager", {
     name: `${LANG_PREFIX}.manager.menuName`,
@@ -2860,30 +2787,6 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
-  // Same yield as the init guard: a world still running the separate
-  // legacy module keeps that module as the one writer of the library.
-  if (legacyImporterActive()) {
-    ui.notifications.error(game.i18n.localize(`${LANG_PREFIX}.ui.legacyActive`), { permanent: true });
-    return;
-  }
-
-  // Possession model: a seat caches nothing of a book it read. Imported text
-  // lives in the world documents the GM created, never in this browser.
-  for (const key of LEGACY_LOCAL_KEYS) {
-    if (localStorage.getItem(key) !== null) {
-      localStorage.removeItem(key);
-      console.log(`${MODULE_ID} | purged a legacy per-seat prose cache (${key}).`);
-    }
-  }
-
-  // A world that ran the standalone module may still hold data under its
-  // old flag scope; converge it onto this module's before anything reads
-  // the shelf or the library.
-  await migrateLegacyScope();
-  // Then the shelf's own move: a world that recorded its staged books in the
-  // setting gets a journal per book, once, before the restore below reads it.
-  await migrateShelfSetting();
-
   initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap, traceSceneWalls });
   registerAbilityDirectoryButtons();
   await loadCookbook();
@@ -2917,8 +2820,6 @@ Hooks.once("ready", async () => {
     /** The import manager window, on `tab` when given. */
     openImportManager,
     importEquipment, importAllEquipment, cookbookEquipmentIds, repairEquipmentAbilities,
-    /** Book-text placeholders an earlier version left, replaced where this seat can read their books. */
-    resolveLegacyText,
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
     gettingStarted: () => openBooksDialog({ firstRun: true }),

@@ -6,13 +6,12 @@
  * edit is a scripted update of the stored Adventure, the write its sheet's save
  * makes. Machine values arrive through ./_env.mjs, the book through
  * ACKS_TEST_BOOKS ("ax3"). Every fixture is invented: a world Item stamped to
- * the book under a salted id, and a per-map Adventure carrying the retired stamp
- * and no content. A check prints ids, counts and booleans, never a book's words.
+ * the book under a salted id. A check prints ids, counts and booleans, never a
+ * book's words.
  *
  * Every step is setup (`.claude/rules/live-testing.md` step 4): the book's
- * Adventure is written, held, rebuilt, deleted and written again, the per-map
- * fixture is retired by the step itself, and the carried Item is deleted and
- * comes back. Nothing the run makes is kept: a carried Item left standing rides
+ * Adventure is written, held, rebuilt, deleted and written again, and the
+ * carried Item is deleted and comes back. Nothing the run makes is kept: a carried Item left standing rides
  * into the next Adventure of the book, the owner's included, and a written
  * Adventure is what the next run's step 1 needs absent (docs/importer/
  * DECISIONS.md, 2026-10-28). The sweep at teardown takes all of it by the run's
@@ -30,9 +29,8 @@
  *   - every book Adventure the step writes, any book's (its
  *     `created.adventures`, tracked), and a shelf it opens (`created.packs`,
  *     deleted at teardown when empty);
- *   - the per-map Adventures the step retires. The walk stops before the step
- *     when any Judge book's shelf, open or not, holds a book or per-map
- *     Adventure it did not make; SHELF_OK=1 is that shelf's owner's go-ahead
+ *   - the walk stops before the step when any Judge book's shelf, open or not,
+ *     holds a book Adventure it did not make; SHELF_OK=1 is that shelf's owner's go-ahead
  *     to run over it. An Adventure standing before the run is the owner's and
  *     is never tracked, even where step 5 deletes it and the step writes it
  *     again under its id; once the sweep has taken the run's fixture Item,
@@ -126,14 +124,6 @@ const P = {
       };
     }
     return out;
-  },
-  makeLegacy: async ({ collection, book, nonce }) => {
-    const Adventure = foundry.utils.getDocumentClass("Adventure");
-    const doc = await Adventure.create({
-      name: `QA per-map Adventure ${nonce}`,
-      flags: { "acks-extras": { cookbook: { id: `${book}.qaMap${nonce}.adventure`, book, kind: "kind.settlementAdventure", scene: `${book}.qaMap${nonce}` } } },
-    }, { pack: collection });
-    return doc ? { uuid: doc.uuid, id: doc.id } : null;
   },
   step: async () => {
     const H = globalThis.__ba;
@@ -330,9 +320,8 @@ const P = {
       await new Promise((r) => setTimeout(r, 250));
     }
     const prefix = game.i18n.localize("ACKS-IMPORTER.ui.booksAdventure").split(":")[0];
-    const legacy = game.i18n.localize("ACKS-IMPORTER.ui.booksAdventureLegacy").split(";")[0].replace(/\{n\}\s*/, "");
     const text = row?.textContent.trim() ?? "";
-    return { row: !!row, census: text.startsWith(prefix), legacyLine: !!legacy && text.includes(legacy) };
+    return { row: !!row, census: text.startsWith(prefix) };
   },
   closeAll: async () => {
     let n = 0;
@@ -411,7 +400,7 @@ async function runStep(label) {
   const c = st.counts ?? {};
   for (const uuid of c.created?.adventures ?? []) if (!stoodBefore.has(uuid.split(".").pop())) gm.track(uuid, "Adventure");
   for (const collection of c.created?.packs ?? []) createdPacks.push(collection);
-  note(`${label}`, { books: c.books, written: c.written, rebuilt: c.rebuilt, kept: c.kept, held: c.held, failed: c.failed, retired: (c.retired ?? []).map((r) => r.uuid), notes: st.notes });
+  note(`${label}`, { books: c.books, written: c.written, rebuilt: c.rebuilt, kept: c.kept, held: c.held, failed: c.failed, notes: st.notes });
   return c;
 }
 /** One import through the sheet: what it created is tracked from its own result; the observer only proves nothing else was made. */
@@ -465,11 +454,11 @@ try {
 
   section("the shelves, read before anything is written");
   // Every Judge book's shelf, open or not: a book the seat opens later is
-  // written, and its per-map Adventures retired, by the same step.
+  // written by the same step.
   const before = await run(gm, P.shelves, { judges: census.everyJudge });
-  const theirs = Object.entries(before).flatMap(([book, s]) => s.rows.filter((r) => r.book === book && (r.kind === "kind.bookAdventure" || r.kind === "kind.settlementAdventure")).map((r) => ({ book, ...r })));
+  const theirs = Object.entries(before).flatMap(([book, s]) => s.rows.filter((r) => r.book === book && r.kind === "kind.bookAdventure").map((r) => ({ book, ...r })));
   note("shelves", Object.fromEntries(Object.entries(before).map(([b, s]) => [b, { pack: s.pack, rows: s.rows.length }])));
-  note("book and per-map Adventures this run did not make", theirs);
+  note("book Adventures this run did not make", theirs);
   if (theirs.length && !SHELF_OK) {
     check("the shelves hold no Adventure of a Judge book that this run did not make (SHELF_OK=1 is the owner's go-ahead)", false, theirs);
     throw new Error("stopped before the step: a shelf holds Adventures this run did not make");
@@ -482,23 +471,15 @@ try {
   // A carried Item a dead run left standing would ride into this run's Adventure; it goes first.
   note("retired importer/carried-item", await gm.retire("importer/carried-item", "Item"));
   const item = await gm.fixture("importer/carried-item", "Item", { name: `QA carried item ${NONCE}`, type: "item", flags: { "acks-extras": { cookbook: { id: `${BOOK}.fixture~${NONCE}`, book: BOOK } } } });
-  let legacy = null;
-  const shelfBefore = before[BOOK]?.pack ?? null;
-  if (shelfBefore) {
-    legacy = await run(gm, P.makeLegacy, { collection: shelfBefore, book: BOOK, nonce: NONCE });
-    if (legacy) gm.track(legacy.uuid, "Adventure");
-  }
-  note("fixtures", { item: item.uuid, legacy: legacy?.uuid ?? "(no shelf yet: retirement is not exercised)" });
+  note("fixtures", { item: item.uuid });
   const stampsBefore = await run(gm, P.worldStamps, { book: BOOK });
 
-  section("1. the step writes the book's Adventure and retires the per-map one");
+  section("1. the step writes the book's Adventure");
   const c1 = await runStep("run 1");
   // The fixture Item is carried, so an Adventure that stood is stale and rebuilt.
   check(ownersBook ? "1: the owner's Adventure of the book is rebuilt for the carried fixture" : "1: the book's Adventure is written", c1.books?.[BOOK] === (ownersBook ? "rebuilt" : "written"), c1.books);
-  if (legacy) check("1: the per-map fixture is retired and named", (c1.retired ?? []).some((r) => r.uuid === legacy.uuid && !!r.name), (c1.retired ?? []).map((r) => r.uuid));
   const after1 = await run(gm, P.shelves, { judges: [BOOK] });
-  check("1: the shelf holds the book's Adventure and no per-map one of the book", after1[BOOK].rows.some((r) => r.kind === "kind.bookAdventure") &&
-    !after1[BOOK].rows.some((r) => r.kind === "kind.settlementAdventure" && r.book === BOOK), after1[BOOK].rows.length);
+  check("1: the shelf holds the book's Adventure", after1[BOOK].rows.some((r) => r.kind === "kind.bookAdventure"), after1[BOOK].rows.length);
 
   section("2. what it carries");
   const s1 = await run(gm, P.stored, { book: BOOK, fixtureItemId: item.id });
@@ -569,7 +550,7 @@ try {
 
   section("10. the Books tab of Manage Imports");
   const bw = await run(gm, P.booksWindow, { book: BOOK });
-  check("10: the book's row reads its census, with no per-map line", bw.row && bw.census && !bw.legacyLine, bw);
+  check("10: the book's row reads its census", bw.row && bw.census, bw);
   note("closed (gm)", await run(gm, P.closeAll));
 
   section("9. the player seat");

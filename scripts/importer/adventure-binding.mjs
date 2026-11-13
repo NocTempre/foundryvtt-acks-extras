@@ -25,20 +25,12 @@ export const ADVENTURE_TYPE = "Adventure";
 /** The cookbook kind a book's Adventure carries. */
 export const BOOK_ADVENTURE_KIND = "kind.bookAdventure";
 
-/**
- * The cookbook kind the retired per-map Adventure carried. Still steered: a
- * copy can outlive its retirement in a shelf no one re-ran, a moved pack or a
- * backup, and its import must fill like any other.
- */
-export const SETTLEMENT_ADVENTURE_KIND = "kind.settlementAdventure";
-
 /** Every kind the import hooks steer; any other Adventure imports as core imports it. */
-export const ADVENTURE_KINDS = Object.freeze([BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND]);
+export const ADVENTURE_KINDS = Object.freeze([BOOK_ADVENTURE_KIND]);
 
 /**
- * The seed a map's parts take their ids from where the world lacks them, and
- * the cookbook id the retired per-map Adventure was stamped with. The map's
- * own id stays the first segment, so the book stays first.
+ * The seed a map's parts take their ids from where the world lacks them. The
+ * map's own id stays the first segment, so the book stays first.
  */
 export const adventureCookbookId = (recipeId) => `${recipeId}.adventure`;
 
@@ -51,9 +43,6 @@ export function stableDocId(seed) {
   const part = (salt) => hash36(`${salt}|${seed}`).padStart(7, "0");
   return (part("a") + part("b") + part("c")).slice(0, 16);
 }
-
-/** The retired per-map Adventure's id for one map. */
-export const settlementAdventureId = (recipeId) => stableDocId(adventureCookbookId(recipeId));
 
 /** A book's Adventure's cookbook id: the book is the unit, so no register row names it. */
 export const bookAdventureCookbookId = (book) => `${book}.book`;
@@ -671,10 +660,3 @@ export function adventureDropRows(rows, bookId, { ownerOf, isWorldCopy, isPlayer
   }
   return out;
 }
-
-/** One book's retired per-map Adventures among a shelf's index rows, read with the cookbook flag. */
-export const legacyAdventuresOf = (rows, book) =>
-  [...(rows ?? [])].filter((r) => {
-    const flag = r?.flags?.[MODULE_ID]?.cookbook;
-    return flag?.kind === SETTLEMENT_ADVENTURE_KIND && flag.book === book;
-  });

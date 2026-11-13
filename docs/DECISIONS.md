@@ -1126,6 +1126,19 @@ produces stays, under whatever name it carries.
 
 **Removed:**
 
+- The carry-over from the retired standalone importer (`migrate.mjs`,
+  `legacy.mjs`, the `importerScopeMigrated` and `shelf` settings and the
+  guard that kept the built-in importer off while the old module was
+  enabled); `module.json` still declares the conflict, since the two would
+  write one library.
+- The `@PdfText` placeholder repair (`legacy-text.mjs`, its step in Import
+  Everything and its api key): no current writer makes the tag. Ledger row
+  T-0368, a placeholder that step left, closes with it.
+- The `effectsFrom` stamp's repair check; `effectsOriginOf`, which every
+  current writer calls, stays.
+- The retirement of per-map Adventures (`retireMapAdventures`,
+  `kind.settlementAdventure`): nothing has written one since the book
+  Adventure replaced them.
 - The location data model's fold of the standalone module's loose market
   fields into `market` (`location-migrate.mjs`), and the henchmen ready-time
   sweep that cleared market postings on a location below schema version 2,

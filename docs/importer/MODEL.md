@@ -456,16 +456,12 @@ The stamp counts what it carries (`contents`), and records `sourcesHash`
 document's modified time read back after the write. Each run decides by
 `bookAdventureState`: a shelf without it writes it; a modified time more than
 `WRITE_SLACK_MS` past `writtenAt` is a Judge's edit and is kept; a changed
-hash rebuilds it; anything else is held. Once the book's Adventure stands, the
-retired per-map Adventures of the same book on the same shelf
-(`kind.settlementAdventure`, `legacyAdventuresOf`) are deleted and named in
-the step's summary. A run that fails writes nothing and retires nothing. The
+hash rebuilds it; anything else is held. A run that fails writes nothing. The
 Books tab reads each open Judge's book's census off the shelf's index
 (`bookCensus`).
 
 Core's `Adventure#import` is steered, not replaced. For an Adventure whose
-`flags.acks-extras.cookbook.kind` is one of `ADVENTURE_KINDS` (a book's, and
-the retired per-map one, which a backup or an unrun shelf can still hold), a
+`flags.acks-extras.cookbook.kind` is one of `ADVENTURE_KINDS` (a book's), a
 `preImportAdventure` hook (`book-adventure.mjs`) empties `toUpdate` and
 narrows `toCreate` to the fill (`fillPlan`), synchronously. The fill reads the
 library, and a cold shelf (`libraryCold`) reads every library document as

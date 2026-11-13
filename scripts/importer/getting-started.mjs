@@ -133,12 +133,6 @@ export const GM_STEPS = [
   // and wires in the lists, so it follows all three.
   ["stepScenes", (api, o) => api.cookbookImportScenes(o)],
   ["stepTables", (api) => api.cookbookImportTables()],
-  // Import steps over a document it already holds, the repair passes walk the
-  // library, and only the abilities pass walks a character. A placeholder on
-  // any other copy — gear on a character, a template's skin, which carries no
-  // importer flag at all — is reached only by looking for the placeholder
-  // itself, so the chain closes on that.
-  ["stepLegacyText", (api) => api.resolveLegacyText()],
   // A book's Adventure is a copy of what the world holds of it, so it is
   // written last, once nothing above has more to add or to bring over.
   ["stepAdventures", (api) => api.cookbookImportAdventures()],

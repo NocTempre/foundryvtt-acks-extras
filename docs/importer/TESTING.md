@@ -1402,9 +1402,9 @@ be reached by rule goes in `tools/importer/register/_refs/equipmentPhrase.json`.
 
 ## Imported text is in the document, not resolved at render
 
-The change that retired the `@PdfText` enricher. Everything here is about what a
-document CONTAINS after import, so every check is worth more from a seat that
-cannot read the book than from the one that imported it. Flags are stored in
+Everything here is about what a document CONTAINS after import, so every check
+is worth more from a seat that cannot read the book than from the one that
+imported it. Flags are stored in
 `flags["acks-extras"]`.
 
 ### Fixtures
@@ -1434,19 +1434,7 @@ cannot read the book than from the one that imported it. Flags are stored in
    hand, then run *Update abilities*. The edited one keeps its prose and takes
    the mechanics; an untouched one is rewritten. Reversing that pair is the
    failure this stamp exists to prevent.
-8. **The accepted cost, verified deliberately.** Hand-set a document's
-   description to `<p>@PdfText[mm.ghoul]{MM p.112}</p>` — the pre-upgrade shape —
-   and confirm it renders as that literal string, with no enricher left to hide
-   it, and that *Remove ALL Imports* + a fresh import replaces it with real text.
-   A world upgraded from an older build looks like this until it is re-imported,
-   and the report should say so rather than implying otherwise.
-9. **The same shape ON AN ACTOR — the case step 8 cannot see.** Put the
-   placeholder on an ability item owned by a character, not in a world
-   collection. *Remove ALL Imports* walks world collections and the library
-   packs and never descends into an actor, so this copy survives the gesture
-   step 8 proves; only the update pass reaches it. Confirm *Import Everything*
-   clears it, and that deleting the imports and importing again does not.
-10. **A book left disconnected must cost nothing.** Import an entry and confirm
+8. **A book left disconnected must cost nothing.** Import an entry and confirm
     its prose. Corrupt two of its flags by hand — one that comes from the
     register (`extras.category`) and one that comes from the extracted text
     (`extras.effects`) — then disconnect that book on this seat and run the
@@ -1459,37 +1447,10 @@ cannot read the book than from the one that imported it. Flags are stored in
     everywhere, not just in its prose. Reconnect the book, run it again, and
     confirm both flags now repair. This is invisible on a seat that happens to
     have every book open.
-11. **A placeholder on a copy no repair walks.** Build the pre-upgrade shapes
-    on purpose — the test world holds none. A character carrying: a template
-    skin (`flags["acks-extras"].skin.base` set, no `cookbook` flag) whose
-    description is exactly `<p>@PdfText[def.equip.herbComfrey]{RR p.145}</p>`;
-    an item with a paragraph of your own before an RR tag; an item tagged with
-    an MM entry; an item tagged with an id the cookbook lacks; and an uncited
-    tag (`@PdfText[<id>]`, no braces) in its own biography. Beside it, a loose
-    world item holding a tag in its description and in a module flag that is
-    an ARRAY, and a journal page holding one. A seat opens every shelved book
-    on load, so close MM by `api.forgetBooks()` then
-    `api.connectBookUrl("rr", …, { remember: false })`. Open Repair This World
-    (`acksExtras.lib.repair.open({ only: ["importer.legacyText"] })`) and press
-    its Scan, then select every fixable finding and Fix selected. In a
-    backgrounded pane a coordinate click times out; `element.click()` on the
-    button runs the same action handler. *Observable:* exactly the fixtures are
-    listed, the MM one says to connect the Monstrous Manual and the unknown id
-    says the library has no entry, and neither offers a checkbox; after the fix
-    the panel reports each fixed and those two still listed. Read back: each
-    fixed field holds a block stamped with its entry and no `@PdfText`; the
-    cite is the entry's CURRENT reference, not the tag's p.145; your own
-    paragraph is still first; the uncited tag got no cite line; the array kept
-    its other element. Then reconnect MM and call
-    `api.resolveLegacyText()` — Import Everything's closing step — and confirm
-    the MM item is fixed and the unknown id is counted as left. The fix posts a
-    whispered report naming the fixtures: delete it by the fixture ids it
-    contains, with them.
 
 ### Teardown
 
-12. Delete the folder and everything created, and the hand-made fixtures from
-    steps 8, 9 and 11.
+9. Delete the folder and everything created.
 
 ## A citation opens the shelved page
 
@@ -2785,10 +2746,9 @@ Read first, write nothing:
   Adventure`);
 - that shelf's index, read with `flags.acks-extras.cookbook`.
 
-Note any row with `kind.bookAdventure` and `book: "ax3"`, and any with
-`kind.settlementAdventure`. The step writes over the first and deletes the
-second. When the shelf holds either and this run did not make it, get its
-owner's go-ahead before step 1 (the walk's `SHELF_OK=1`). Then:
+Note any row with `kind.bookAdventure` and `book: "ax3"`. The step writes
+over it. When the shelf holds one this run did not make, get its owner's
+go-ahead before step 1 (the walk's `SHELF_OK=1`). Then:
 
 - Keep every Adventure id the shelves hold before the run. Step 5 deletes the
   owner's AX3 Adventure, and the step writes it again under the same id and
@@ -2798,14 +2758,6 @@ owner's go-ahead before step 1 (the walk's `SHELF_OK=1`). Then:
 - After the sweep, run the step once more. The owner's Adventure still
   carries the swept fixture Item, and that run rebuilds it from the world as
   it stands. Track and sweep anything that run writes afresh.
-
-**The pre-upgrade shape.** Where the shelf holds no per-map Adventure of
-AX3, make one. The shape is the stamp the per-map step wrote (`git show
-v11.5.1:scripts/importer/cookbook.mjs`, `settlementAdventureSource`). Create
-`Adventure.create({ name, flags: { "acks-extras": { cookbook: { id:
-"ax3.cityMap.adventure", book: "ax3", kind: "kind.settlementAdventure",
-scene: "ax3.cityMap" } } } }, { pack: shelf.collection })` and `api.track`
-it.
 
 **A carried source of your own.** Make one world Item stamped `{ id:
 "ax3.fixture~<salt>", book: "ax3" }` with `api.fixture` under
@@ -2826,9 +2778,7 @@ it by that collection id, and only if its index is empty by then.
 1. `const c = await api.cookbookImportAdventures()`.
    *Observable:*
    - `c.books.ax3 === "written"`, and the notification says so;
-   - `c.retired` names the per-map Adventure;
-   - the shelf's index has a row under `bookAdventureId("ax3")` and no
-     `kind.settlementAdventure` row of AX3;
+   - the shelf's index has a row under `bookAdventureId("ax3")`;
    - the shelf is Judge-owned and filed under the line.
 2. Probe it with `const o = (await pack.getDocument(id)).toObject()`.
    *Observable:*
@@ -2852,7 +2802,7 @@ it by that collection id, and only if its index is empty by then.
    - after a reload, `o.actors.length` still equals the count. Core empties
      an Adventure's actors silently when its pack lacks `metadata.system`.
 3. Run the step again.
-   *Observable:* `c.books.ax3 === "held"`; nothing is retired; every
+   *Observable:* `c.books.ax3 === "held"`; every
    `created` list is empty; the Adventure's `_stats.modifiedTime` is
    unchanged.
 4. Rename the fixture Item, then run the step.
@@ -2886,7 +2836,7 @@ it by that collection id, and only if its index is empty by then.
    *Observable:* no Adventure shelf in the Compendium tab.
 10. Open Manage Imports on its Books tab on the GM seat.
     *Observable:* the AX3 row reads "In the library as one Adventure:", with
-    the stamp's counts and no per-map line.
+    the stamp's counts.
 
 The fill's own cases (a deleted map or place coming back under its id, a
 twin pointed at, people kept in the library) are pinned offline by

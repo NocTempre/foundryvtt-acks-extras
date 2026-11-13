@@ -23,10 +23,10 @@ import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { LOCATION_TYPE } from "../../scripts/location/constants.mjs";
 import { FACTION_TYPE } from "../../scripts/factions/constants.mjs";
 import {
-  ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND, adventureCookbookId, stableDocId,
-  settlementAdventureId, bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
+  ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, adventureCookbookId, stableDocId,
+  bookAdventureCookbookId, bookAdventureId, refsOf, adventureRefs, withWorldIds, linkFields,
   seatsLeft, isRoot, isShelvedKind, fillPlan, includedKeys, applyFill, adventureFolderSources, withoutStats,
-  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, legacyAdventuresOf, journalCookbookId, standInsByClaim, withAdventureLinks,
+  sourcesHashOf, WRITE_SLACK_MS, bookAdventureState, journalCookbookId, standInsByClaim, withAdventureLinks,
   adventureDropRows,
 } from "../../scripts/importer/adventure-binding.mjs";
 import { linkRegionData, linkQuestion, LINK_ASK } from "../../scripts/importer/scene-binding.mjs";
@@ -176,7 +176,6 @@ const sourceWorld = (drop = []) => ({
   const many = new Set(Array.from({ length: 10000 }, (_, i) => stableDocId(`seed-${i}`)));
   check("ten thousand seeds, ten thousand ids", many.size, 10000);
   check("a map's seed keeps the book first", adventureCookbookId("zz.map"), "zz.map.adventure");
-  check("the retired per-map id is still its seed's", settlementAdventureId("zz.map"), a);
   check("a book's Adventure keeps the book first", bookAdventureCookbookId("zz"), "zz.book");
   check("a book's Adventure's id is its cookbook id's", bookAdventureId("zz"), stableDocId("zz.book"));
   ok("two books, two Adventures", bookAdventureId("zz") !== bookAdventureId("yy"));
@@ -185,7 +184,7 @@ const sourceWorld = (drop = []) => ({
     journal.startsWith("zz.journal-") && !/Lower|Vaults/.test(journal), journal);
   check("a journal's id is the same every time", journalCookbookId("zz", "B. Lower Vaults"), journal);
   ok("two groups, two journals", journalCookbookId("zz", "C. Upper Vaults") !== journal);
-  check("both kinds are steered, the retired one included", ADVENTURE_KINDS, [BOOK_ADVENTURE_KIND, SETTLEMENT_ADVENTURE_KIND]);
+  check("a book's Adventure is the kind steered", ADVENTURE_KINDS, [BOOK_ADVENTURE_KIND]);
   ok("the kinds are cookbook kinds", ADVENTURE_KINDS.every((x) => x.startsWith("kind.")));
 }
 
@@ -360,7 +359,7 @@ const sourceWorld = (drop = []) => ({
   check("an actor with no stamp stands under no id", standInsByClaim([{ _id: I.n1 }], (a) => a).size, 0);
 }
 
-// --- what an import creates: the retired per-map Adventure ------------------------------------
+// --- what an import creates ------------------------------------
 {
   const content = adventure();
   const all = keysOf(content);
@@ -541,14 +540,6 @@ const sourceWorld = (drop = []) => ({
   check("forced: held is rewritten", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at, sourcesHash: "h", force: true }), "stale");
   check("forced: the Judge's edit is rewritten", bookAdventureState({ stamp: { sourcesHash: "h", writtenAt: at }, modifiedTime: at + WRITE_SLACK_MS + 1, sourcesHash: "g", force: true }), "stale");
   check("forced: no stored Adventure is still absent", bookAdventureState({ stamp: null, sourcesHash: "h", force: true }), "absent");
-
-  const rows = [
-    { _id: "1", flags: stamp("zz.map.adventure", SETTLEMENT_ADVENTURE_KIND) },
-    { _id: "2", flags: stamp("zz.book", BOOK_ADVENTURE_KIND) },
-    { _id: "3", flags: { [MODULE_ID]: { cookbook: { id: "yy.map.adventure", book: "yy", kind: SETTLEMENT_ADVENTURE_KIND } } } },
-    { _id: "4", flags: {} },
-  ];
-  check("a book's retired per-map Adventures, and nothing else", legacyAdventuresOf(rows, "zz").map((r) => r._id), ["1"]);
 }
 
 // What a book's rebuild deletes: every document of the book's own, the
@@ -623,16 +614,13 @@ const sourceWorld = (drop = []) => ({
   const ensure = body(cookbook, "async function ensureBookAdventure(");
   ok("a failed Adventure is counted, never thrown at the run", /catch \(err\) \{\s*counts\.failed\+\+/.test(ensure));
   const tryPart = ensure.slice(0, ensure.indexOf("} catch"));
-  ok("the retired Adventures go only once the book's stands", tryPart.indexOf("retireMapAdventures(") > tryPart.indexOf("writeAdventure("));
   ok("a write records its own time", /writtenAt/.test(tryPart));
 
   const binding = read("scripts/importer/adventure-binding.mjs");
   ok("the binding stays Foundry-free", !/\bgame\.|\bfoundry\.|\bHooks\./.test(binding));
 
   const boot = read("scripts/importer/module.mjs");
-  const guard = boot.indexOf("legacyImporterActive()) {");
-  const hooks = boot.indexOf("registerBookAdventureHooks();");
-  ok("the import hooks register after the legacy guard", guard > 0 && hooks > guard);
+  ok("the import hooks register at init", boot.indexOf("registerBookAdventureHooks();") > boot.indexOf('Hooks.once("init"'));
 
   const steps = read("scripts/importer/getting-started.mjs");
   const chain = steps.slice(steps.indexOf("const GM_STEPS = ["), steps.indexOf("\n];", steps.indexOf("const GM_STEPS = [")));
@@ -642,8 +630,8 @@ const sourceWorld = (drop = []) => ({
   const keys = [
     ...["caption", "intro", "contents", "fillRule", "resetRule", "seatsLeft", "filled", "nothingToAdd", "fillFailed", "libraryLoading", "libraryWarming"]
       .map((x) => `adventure.${x}`),
-    ...["Written", "Rebuilt", "Kept", "Held", "Empty", "Retired", "Failed"].map((x) => `ui.adventures${x}`),
-    "ui.progressAdventures", "gs.stepAdventures", "ui.booksAdventure", "ui.booksAdventureHeld", "ui.booksAdventureNone", "ui.booksAdventureLegacy",
+    ...["Written", "Rebuilt", "Kept", "Held", "Empty", "Failed"].map((x) => `ui.adventures${x}`),
+    "ui.progressAdventures", "gs.stepAdventures", "ui.booksAdventure", "ui.booksAdventureHeld", "ui.booksAdventureNone",
   ];
   for (const key of keys) ok(`lang has ACKS-IMPORTER.${key}`, typeof lang[`ACKS-IMPORTER.${key}`] === "string");
 }

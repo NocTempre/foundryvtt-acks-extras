@@ -292,38 +292,13 @@ check("a monster's abilities write nothing and list nothing", () => {
   assert.deepEqual(r, { parts: [], listed: [] });
 });
 
-// The origin stamp: what a held copy shows, not what the cookbook says today.
-const { effectsOriginOf, heldOrigin } = await import("../scripts/importer/effects-origin.mjs");
+// The origin stamp: what the cookbook entry says about its effects.
+const { effectsOriginOf } = await import("../scripts/importer/effects-origin.mjs");
 const recipeEntry = { fields: { effects: { op: "effects", specs: [{ type: "modifier", target: "initiative", from: { pattern: "x" } }] } } };
 check("origin: an entry with a recipe reads recipe, one without reads scan", () => {
   assert.equal(effectsOriginOf(recipeEntry), "recipe");
   assert.equal(effectsOriginOf({ fields: {} }), "scan");
   assert.equal(effectsOriginOf(null), "scan");
-});
-check("origin: a copy holding the recipe's shape is stamped recipe", () => {
-  assert.equal(heldOrigin([{ type: "modifier", target: "initiative", value: { kind: "flat", flat: 1 } }], recipeEntry), "recipe");
-});
-check("origin: a copy still holding the scan's effects is stamped scan, though the entry now has a recipe", () => {
-  assert.equal(heldOrigin([{ type: "modifier", target: "surprise", value: { kind: "flat", flat: 1 } }], recipeEntry), "scan");
-  assert.equal(heldOrigin([], recipeEntry), "scan");
-});
-check("origin: an alias's capability effect does not count against the shape", () => {
-  assert.equal(heldOrigin([{ type: "capability", ref: "def.x", notStacksWith: ["def.x"] }, { type: "modifier", target: "initiative" }], recipeEntry), "recipe");
-});
-check("origin: a condition counts by its presence, so a copy holding older words for it still reads recipe", () => {
-  const labelled = { fields: { effects: { op: "effects", specs: [{ type: "modifier", target: "initiative", condition: "situational (QQ p.4)" }] } } };
-  assert.equal(heldOrigin([{ type: "modifier", target: "initiative", condition: "an older phrase for the same clause" }], labelled), "recipe");
-  assert.equal(heldOrigin([{ type: "modifier", target: "initiative" }], labelled), "scan", "a copy with no condition where the recipe has one is not the recipe's");
-});
-
-check("origin: a copy holding an older reading of a `modifies` row is stamped scan, by type or by mode", () => {
-  const row = (extra = {}) => ({ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], from: { pattern: "x" }, ...extra });
-  const entry = { fields: { effects: { op: "effects", specs: [row({ mode: "add" })] } } };
-  const held = (extra = {}) => [{ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], ...extra }];
-  assert.equal(heldOrigin(held({ mode: "add" }), entry), "recipe");
-  assert.equal(heldOrigin(held(), entry), "recipe", "an absent mode is additive");
-  assert.equal(heldOrigin(held({ mode: "replace" }), entry), "scan", "the replacing row is the older reading");
-  assert.equal(heldOrigin([{ type: "modifier", target: "proficiencyThrow", forWhat: "Searching and Listening", condition: "situational" }], entry), "scan", "the conditioned modifier that stated the bonus without applying it");
 });
 
 console.log(`test-typed-modifiers: ${pass} passed`);

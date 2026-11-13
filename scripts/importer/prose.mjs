@@ -308,26 +308,3 @@ export function keepParagraphs(block, ordinals) {
   const kept = paras.filter((p) => p.startsWith(cite) || keep.has(++n));
   return `${m[1]}${kept.join("")}</div>`;
 }
-
-/**
- * The legacy `@PdfText` tags in a stored string, in order.
- *
- * @returns {{id: string, cited: boolean}[]} `id` keeps any `#section`;
- *   `cited` is whether the tag carried a page reference
- */
-export const legacyTags = (html) =>
-  [...String(html ?? "").matchAll(LEGACY_TAG)].map((m) => ({ id: m[2].trim(), cited: m[3] !== undefined }));
-
-/**
- * The same string with each legacy tag replaced by `replace(tag)`, a tag as
- * `legacyTags` lists it; a null answer keeps that tag. A tag that is a whole
- * paragraph gives up its paragraph to the replacement, which is a block of its
- * own; one inside a paragraph leaves the paragraph's markup standing. Every
- * other character of the string is kept, so writing beside a tag survives.
- */
-export const replaceLegacyTags = (html, replace) =>
-  String(html ?? "").replace(LEGACY_TAG, (whole, open, id, cite, close) => {
-    const block = replace({ id: id.trim(), cited: cite !== undefined });
-    if (block == null) return whole;
-    return `${open && !close ? open : ""}${block}${close && !open ? close : ""}`;
-  });

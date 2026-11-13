@@ -258,9 +258,6 @@ character `abilities/typed-character`, a level-3 `character` actor):
 9. Join as a Player seat that owns the character → the same figures and
    tooltips. Edit an unrelated field on core's sheet → the stored Avoid
    Surprise does not change.
-10. Repair (Manage Imports → Repair): on a world holding an imported ability
-    with no `effectsFrom`, `abilities.effectsOrigin` lists it with its origin
-    and the fix writes the stamp.
 11. Conditions read off the page: with the rulebook imported, give the
     character the library's Lockpicking skill and a power whose row carries a
     page condition (any row whose cookbook spec has `conditionFrom`), then run

@@ -208,7 +208,7 @@
       {
         "id": "acks-importer",
         "type": "module",
-        "reason": "The importer is part of this module now. With the separate module still active the built-in importer stays off and every load says so; disable acks-importer and reload, and the imported library is carried over."
+        "reason": "The importer is part of this module, and the two write the same library. Disable acks-importer; a library it imported is not carried over, so re-import it with this module."
       }
     ]
   },

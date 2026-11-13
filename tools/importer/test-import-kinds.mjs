@@ -515,7 +515,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     check(`the step ${kind.chain} calls ${kind.key}'s whole run`, recorded[kind.chain].includes(kind.make.whole ?? kind.make.run));
   }
   const all = cookbookRunSet({ all: true });
-  const tail = new Set(["cookbookUpdateAbilities", "importTemplatePackages", "cookbookFillCompanions", "resolveLegacyText"]);
+  const tail = new Set(["cookbookUpdateAbilities", "importTemplatePackages", "cookbookFillCompanions"]);
   const imported = new Set(Object.values(recorded).flat().filter((name) => !tail.has(name)));
   same("everything is what the chain imports, less its tail", new Set(all.runs.map((r) => r.run)), imported);
   const rank = (run) => Math.min(...run.kinds.map((key) => chain.indexOf(IMPORT_KINDS.find((k) => k.key === key).chain)));

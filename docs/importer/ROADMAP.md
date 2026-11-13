@@ -1388,13 +1388,6 @@ notes paraphrase the page, and `def.prof.armorTraining` carries a literal. The
 fix is a duration locator read at compile, with the armour-training step
 imported.
 
-## A placeholder Import Everything leaves
-
-`resolveLegacyText` replaces every `@PdfText` tag the seat can and counts the
-rest: an entry id the cookbook no longer carries, a book not open on the seat,
-or a locked pack. A world was seen holding one; which case it is waits on that
-document's row in Repair This World.
-
 ## Book-level Rebuild and Repair never reach a rulebook's actors
 
 A library template rebuilt from its own row comes back in the current shape,

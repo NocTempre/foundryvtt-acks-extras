@@ -3,9 +3,8 @@
  * A book's Adventure's import, steered: an import adds what this world is
  * missing and writes to nothing it holds. Core's own import runs; this only
  * waits for the library before it, narrows what it was handed, and only for
- * an Adventure carrying one of `ADVENTURE_KINDS`: a book's, or a retired
- * per-map one that outlived its retirement. Every other Adventure imports as
- * core imports it. The arithmetic is `adventure-binding.mjs`; the step that
+ * an Adventure carrying one of `ADVENTURE_KINDS`: a book's. Every other
+ * Adventure imports as core imports it. The arithmetic is `adventure-binding.mjs`; the step that
  * writes the Adventure is `cookbook.mjs` (`ensureBookAdventure`).
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
@@ -198,7 +197,7 @@ function wrapPrepareImport() {
   };
 }
 
-/** Register both import hooks and the wait before them; called once, after the legacy-importer guard. */
+/** Register both import hooks and the wait before them; called once, at `init`. */
 export function registerBookAdventureHooks() {
   Hooks.on("preImportAdventure", steerImport);
   Hooks.on("importAdventure", afterImport);

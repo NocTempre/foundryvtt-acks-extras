@@ -61,14 +61,12 @@ const walk = (d) =>
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
 
 /* 1. No stale pre-rename identity in code. Self-exempt (this regex), the
- * legacy shim and the post-merge cleaner name the retired ids by design, and
+ * post-merge cleaner names the retired ids by design, and
  * CHANGELOG/docs may narrate the old names as history. */
 {
   const STALE = /acks-content|acksContent|ACKS-CONTENT|acks-importer|acksImporter/;
   const SELF = new Set([
     "tools/importer/validate-extra.mjs",
-    "scripts/importer/legacy.mjs",
-    "scripts/importer/migrate.mjs",
     "tools/pack-data/cleanup.mjs",
     // Generated FROM the entry above — same "names the old ids by design".
     "packs/_source/macros/clean-up-after-the-merge-gm.json",

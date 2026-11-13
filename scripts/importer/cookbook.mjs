@@ -95,7 +95,7 @@ import { libraryPackLabel, judgeLine, findLibraryPack, cookbookId } from "../lib
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds, withAdventureLinks,
-  adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, legacyAdventuresOf, stableDocId,
+  adventureRefs, linkFields, seatsLeft, adventureFolderSources, sourcesHashOf, bookAdventureState, stableDocId,
   journalCookbookId, standInsByClaim, adventureDropRows,
 } from "./adventure-binding.mjs";
 import { ALIGN_WORD, sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier } from "./character-binding.mjs";
@@ -2925,7 +2925,7 @@ export async function cookbookReimportBook(bookId, { mode, ask = null, decision 
  * Every adventure book open on this seat with a cookbook, labelled, in label
  * order, each with what the library holds of its Adventure (`bookCensus`).
  * What a control that rebuilds or repairs an adventure book offers.
- * @returns {Promise<{id: string, label: string, census: {adventure: object|null, legacy: number}}[]>}
+ * @returns {Promise<{id: string, label: string, census: {adventure: object|null}}[]>}
  */
 export async function adventureBooks() {
   const rows = [];
@@ -3675,8 +3675,7 @@ const BOOK_STEP_KINDS = [
  * lists the fields): the entry sources, the table shelves and the adventure
  * book's steps. A cookbook claim is owned by at most one kind, and each kind
  * names the run that re-creates it. A claim owned by no kind is one nothing
- * here can re-create: a constant, a class's metadata, the retired per-map
- * Adventures, and an OSE book's keyed areas and adventure place. The OSE
+ * here can re-create: a constant, a class's metadata, and an OSE book's keyed areas and adventure place. The OSE
  * claims stay unowned and get no in-place writer while those books are
  * switched off (docs/importer/DECISIONS.md, "The books statted for OSE are
  * switched off, and their code kept").
@@ -7765,7 +7764,7 @@ export async function cookbookImportLinks({ quiet = false } = {}) {
  * the library as one Adventure". `books` narrows the run to the open books
  * it names.
  * @returns {Promise<object|undefined>} the counts, with `created` naming each
- *   Adventure and shelf this run made, and `retired` each per-map Adventure it deleted
+ *   Adventure and shelf this run made
  */
 export async function cookbookImportAdventures({ books: only = null, force = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes the library).`);
@@ -7773,7 +7772,7 @@ export async function cookbookImportAdventures({ books: only = null, force = fal
   const books = Object.keys(BOOKS).filter((b) => bookIsJudges(b) && ctx.sessionDocs.has(b) && data.books.has(b) && (!wanted || wanted.has(b)));
   const counts = {
     written: 0, rebuilt: 0, kept: 0, held: 0, empty: 0, failed: 0,
-    books: {}, retired: [], created: { adventures: [], packs: [] },
+    books: {}, created: { adventures: [], packs: [] },
   };
   if (!books.length) return counts;
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressAdventures`), books.length);
@@ -7792,7 +7791,6 @@ export async function cookbookImportAdventures({ books: only = null, force = fal
     said("adventuresKept", counts.kept),
     said("adventuresHeld", counts.held),
     said("adventuresEmpty", counts.empty),
-    said("adventuresRetired", counts.retired.length, { names: counts.retired.map((r) => r.name).join(", ") }),
     said("adventuresFailed", counts.failed),
   ].filter(Boolean);
   ui.notifications[counts.failed ? "warn" : "info"](`${MODULE_ID} | adventures: ${parts.join(", ")}.`);
@@ -7804,9 +7802,7 @@ export async function cookbookImportAdventures({ books: only = null, force = fal
  * when the shelf lacks it, kept when the Judge has edited it since its write,
  * rebuilt when what it is assembled from has changed, else held. A write
  * records its own time in the stamp (`writtenAt`), read back from the stored
- * document, which is what the next run tells an edit by. The book's retired
- * per-map Adventures are deleted once its own stands, never after a failure.
- * `force` rebuilds a held or Judge-edited Adventure too: the Judge asked for
+ * document, which is what the next run tells an edit by. `force` rebuilds a held or Judge-edited Adventure too: the Judge asked for
  * it (`cookbookReimportAdventure`).
  * @returns {Promise<string>} what became of it: written, rebuilt, kept, held, empty or failed
  */
@@ -7839,7 +7835,6 @@ async function ensureBookAdventure(bookId, counts, { force = false } = {}) {
       if (state === "absent") counts.created.adventures.push(doc.uuid);
     }
     counts[outcome]++;
-    counts.retired.push(...(await retireMapAdventures(pack, bookId)));
     return outcome;
   } catch (err) {
     counts.failed++;
@@ -7849,38 +7844,19 @@ async function ensureBookAdventure(bookId, counts, { force = false } = {}) {
 }
 
 /**
- * Delete one book's retired per-map Adventures from the shelf its own
- * Adventure stands on, naming each in the console.
- * @returns {Promise<{name: string, uuid: string}[]>} what was deleted
- */
-async function retireMapAdventures(pack, bookId) {
-  const index = await pack.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.kind`, `flags.${MODULE_ID}.cookbook.book`] });
-  const old = legacyAdventuresOf(index, bookId);
-  if (!old.length) return [];
-  const Adventure = foundry.utils.getDocumentClass(ADVENTURE_TYPE);
-  const gone = (await Adventure.deleteDocuments(old.map((r) => r._id), { pack: pack.collection })) ?? [];
-  const out = gone.map((doc) => ({ name: doc.name, uuid: doc.uuid }));
-  for (const { name, uuid } of out) {
-    console.log(`${MODULE_ID} | retired the per-map Adventure "${name}" (${uuid}); ${bookLabel(bookId)}'s Adventure carries its map.`);
-  }
-  return out;
-}
-
-/**
  * What the library holds of one adventure book's Adventure, read off its
  * shelf's index: its contents as the stamp counts them, or null when the
- * shelf lacks it, and how many retired per-map Adventures of the book remain.
- * @returns {Promise<{adventure: {contents: object|null}|null, legacy: number}>}
+ * shelf lacks it.
+ * @returns {Promise<{adventure: {contents: object|null}|null}>}
  */
 export async function bookCensus(bookId) {
-  const out = { adventure: null, legacy: 0 };
+  const out = { adventure: null };
   const pack = bookIsJudges(bookId) ? findLibraryPack(ADVENTURE_TYPE, lineOf(bookId)) : null;
   if (!pack) return out;
   const index = await pack.getIndex({ fields: [`flags.${MODULE_ID}.cookbook`] }).catch(() => null);
   const rows = [...(index ?? [])];
   const row = rows.find((r) => r._id === bookAdventureId(bookId));
   if (row) out.adventure = { contents: row.flags?.[MODULE_ID]?.cookbook?.contents ?? null };
-  out.legacy = legacyAdventuresOf(rows, bookId).length;
   return out;
 }
 

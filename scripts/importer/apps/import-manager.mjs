@@ -167,8 +167,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
       .filter(([, n]) => n)
       .map(([kind, n]) => `${n} ${kind}`)
       .join(", ");
-    const legacy = census.legacy ? ` ${loc("manager.censusLegacy", { n: census.legacy })}` : "";
-    return `${loc("manager.census", { parts: parts || "—" })}${legacy}`;
+    return loc("manager.census", { parts: parts || "—" });
   }
 
   /** @override */
