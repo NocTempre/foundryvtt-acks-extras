@@ -21,8 +21,8 @@ Game Master needs one, and players join for free.
 </ul>
 
 :::note[Version]
-This module needs **Foundry v14 or later**, and the ACKS II game system at v14 or
-later. See [Install](../install/) for the full requirements.
+This module needs **Foundry v14 or later**, and the ACKS II game system at
+14.1.0 or later. See [Install](../install/) for the full requirements.
 :::
 
 ## The ACKS II game system for Foundry
@@ -101,14 +101,15 @@ meantime.
 
 ## Getting the tables into Foundry
 
-The module ships **no book text** — its sample tables are placeholders, and its
-compendium descriptions are authored restatements with page citations.
+The module ships **no book text and no book values**: a table nobody has
+imported is an empty placeholder, and the module points at the page instead
+of quoting it.
 
-To use the real tables, the importer built into the module reads content from
-**your own PDFs** into the structures the rest of it owns — see
-[Importing from your books](../../guides/importer/). Everything works before
-you import; several features simply have more to work with once the tables are
-in.
+The importer built into the module reads content from **your own PDFs** into
+the structures the rest of it owns — see
+[Importing from your books](../../guides/importer/). The sheets, actors and
+controls work before you import; a feature that applies a printed figure says
+it is not imported, and shows no number, until the table is in.
 
 :::caution
 Prices and availability are the publisher's and change without notice — the
