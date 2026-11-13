@@ -119,9 +119,13 @@ mechanics below describe. Without them the roll names no result (step 27).
    `influence/bribe-target` (a character the Player seat cannot observe). The
    staged Revised Rulebook must be named in `ACKS_TEST_BOOKS`.
    - Connect the staged book on the GM seat and run
-     `cookbookImportTables(["wages"])`, the import a Judge runs.
-     *Observable:* no missing book; `henchmanWageImported()` holds and
-     `signingBonusCost(1, …)` answers.
+     `cookbookImportTables(["wages"])` and `cookbookImportTables(["influence"])`,
+     the imports a Judge runs. The influence import brings `bribeTiers`; with
+     it unread the bribe select is disabled and holds only the blank (step 29).
+     *Observable:* the wages import names no missing book (the influence
+     import may, for a table another book prints); `henchmanWageImported()` holds,
+     `signingBonusCost(1, …)` answers, and `influence.bribeTiers` is
+     registered.
    - Open the page on the GM seat against the target and set
      `[name="mod.bribe"]` to the first tier (a `change`).
      *Observable:* `[name="mod.bribeFee"]` holds `signingBonusCost(1,

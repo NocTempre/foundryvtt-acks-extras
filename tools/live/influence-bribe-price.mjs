@@ -1,7 +1,8 @@
 /**
  * Live walk, influence-bribe-price: what a bribe costs. Walks
  * docs/influence/TESTING.md step 8d on the GM and Player seats: the Revised
- * Rulebook's wage tables read from the staged book on the GM seat, the bribe
+ * Rulebook's wage and influence tables read from the staged book on the GM
+ * seat (the bribe select stays disabled until `influence.bribeTiers` is read), the bribe
  * fee the GM's page prices for a tier with its provenance tooltip, and, under
  * a walk-only registry layer on the GM seat that empties the pay periods, the
  * fee saying it is not priced and a Player seat's blind offer buying no bonus,
@@ -130,6 +131,11 @@ const P = {
     return { started: true };
   },
   importState: async () => ({ ...globalThis.__ibImport }),
+  /** Whether the GM seat's registry holds the bribe tier rows: a boolean only. */
+  tiersRead: async () => {
+    const T = acksExtras.lib.tables;
+    return { tiers: T.hasDoc("influence") && !!T.getDoc("influence").tables?.bribeTiers };
+  },
   /**
    * The GM's page with the first bribe tier armed: the fee it fills and the
    * tooltip on it, against the price the imported tables give.
@@ -313,6 +319,12 @@ try {
   check("8d: Rules tables for the wages document runs and names no missing book", imported?.ok && imported.imported.includes("wages") && !imported.missingBooks.length, imported);
   const priced = await run(gm, P.priced);
   check("8d: the GM seat now holds the wage ladder and the pay periods", priced.wage && priced.periods, priced);
+  await run(gm, P.importDoc, { id: "influence" });
+  let influenceImport = null;
+  for (let n = 0; n < 120; n++) { influenceImport = await run(gm, P.importState); if (influenceImport.done) break; await sleep(2000); }
+  // Only the Revised Rulebook is staged here; a table of the document that another book prints is reported missing, and the bribe tiers are the Rulebook's.
+  check("8d: Rules tables for the influence document runs and imports it", influenceImport?.ok && influenceImport.imported.includes("influence"), { ok: influenceImport?.ok, imported: influenceImport?.imported, missingBooks: (influenceImport?.missingBooks ?? []).length });
+  check("8d: the GM seat holds influence.bribeTiers, which the bribe select needs", (await run(gm, P.tiersRead)).tiers, null);
 
   section("8d: the GM's page prices the bribe and says where the figure came from");
   const fee = await run(gm, P.fee, { influencerId: influencer.id, targetId: target.id });

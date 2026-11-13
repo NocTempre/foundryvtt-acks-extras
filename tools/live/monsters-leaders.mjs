@@ -32,8 +32,9 @@
  * and its import brings `leaderLadder`, `leaderSteps`, `beastmenByType` and
  * `damageDieConversion` in with the rulebook's tables. Without it, roles
  * 11-15, standalone 5, kit 6-8 and stages 4-7 print a note each and check
- * nothing they cannot reach. A run stops opening sections after nine
- * minutes, so its teardown fits a ten-minute attempt.
+ * nothing they cannot reach. A run stops opening sections after its time
+ * budget (`WALK_BUDGET_MS`, fifty minutes by default; every stage together
+ * take about half an hour), so a stalled run still ends in its teardown.
  *
  * Fixtures: an import lands in the library compendium, where a marker cannot
  * go (`api.mark` takes world documents only), so the family and the creature
@@ -57,7 +58,7 @@ import { walkDone, blocked } from "./_walk.mjs";
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
 const SHOTS = process.env.SHOTS === "1";
-const STAGES = process.env.STAGE ? String(process.env.STAGE).split(",").map(Number) : [1, 2, 3];
+const STAGES = process.env.STAGE ? String(process.env.STAGE).split(",").map(Number) : [1, 2, 3, 4, 5, 6, 7];
 const BOOKS = Object.fromEntries(books(["rr", "mm", "axc"]).map((b) => [b.id, b]));
 const AXC = !!BOOKS.axc;
 
@@ -75,8 +76,8 @@ const TYPED_AC = 13;
 const OVERRIDE_SHIFT = 5;
 /** An invented chieftain's bonus factor, for the override of step 12b. */
 const INVENTED_FACTOR = 7;
-/** A run stops taking new sections past this, so its teardown fits the attempt. */
-const BUDGET_MS = 540_000;
+/** A run stops taking new sections past this, so a stalled run still ends in its teardown; every stage together takes about half an hour, and the default is fifty minutes. */
+const BUDGET_MS = Number(process.env.WALK_BUDGET_MS ?? 3_000_000);
 const T0 = Date.now();
 let tearing = false;
 
@@ -153,7 +154,7 @@ const P = {
     const has = T.hasDoc("monsters");
     const doc = has ? T.getDoc("monsters") : null;
     const out = {};
-    for (const id of ["attackThrowByHd", "leaderLadder", "leaderSteps", "beastmanTroops", "beastmenByType", "damageDieConversion"]) {
+    for (const id of ["attackThrowByHd", "leaderLadder", "leaderSteps", "beastmanTroops", "beastmenByType", "damageDieConversion", "sizeFrontage"]) {
       const t = doc?.tables?.[id];
       const cite = T.citeOf("monsters", id) ?? "";
       out[id] = t ? { rows: Object.keys(t.rows ?? t).length, cited: !!cite, axioms: /AXIOMS/i.test(cite) } : null;
@@ -340,7 +341,12 @@ const P = {
     if (!cls) return { classHeld: false };
     const want = R.slotsOfClass(cls, sc.level);
     const got = R.slotsOfSystem(a.system?.spells);
+    // The same payload through the draw directly, so a missing slot block is told apart: the hook not reaching the draw, or the draw writing none.
+    const probe = { flags: { "acks-extras": { extras: { spellcasting: { class: sc.class, level: sc.level } } } }, system: {} };
+    let direct = null;
+    try { R.fillGeneratedRepertoire(probe); direct = { enabled: !!probe.system.spells?.enabled, items: (probe.items ?? []).length }; } catch (e) { direct = { error: String(e?.message ?? e) }; }
     return {
+      direct,
       classHeld: true,
       rowAtLevel: !!want,
       enabled: !!a.system?.spells?.enabled,
@@ -983,8 +989,10 @@ async function repairRows(api, rows) {
  * when none does. Two is a fault, and the walk stops on it.
  */
 async function held(api, cbId, type = null) {
-  const hits = (await run(api, P.claimants, { cbId })).filter((a) => !type || a.type === type);
-  if (hits.length > 1) throw new Error(`${hits.length} documents claim ${cbId}`);
+  // A document carrying a fixture marker is another walk's kept fixture (the importer walk's pre-upgrade world
+  // copy claims the family too), not one this walk reads.
+  const hits = (await run(api, P.claimants, { cbId })).filter((a) => (!type || a.type === type) && !a.marker);
+  if (hits.length > 1) throw new Error(`${hits.length} documents claim ${cbId}: ${hits.map((h) => `${h.uuid} (${h.pack ? "library" : "world"}, marker ${h.marker ?? "none"}, created ${h.created})`).join("; ")}`);
   return hits[0] ? { ...hits[0], id: hits[0].uuid } : null;
 }
 
@@ -1065,7 +1073,7 @@ async function stageSetup(gm) {
   let tables = await run(gm, P.tables);
   const AX_TABLES = ["leaderLadder", "leaderSteps", "beastmenByType", "damageDieConversion"];
   // A world that imported the compendium before the chieftain's factor was read holds steps without it.
-  const stale = (t) => !t.tables.attackThrowByHd || !t.tables.beastmanTroops || (AXC && (AX_TABLES.some((id) => !t.tables[id]) || !t.factorListed));
+  const stale = (t) => !t.tables.attackThrowByHd || !t.tables.beastmanTroops || !t.tables.sizeFrontage || (AXC && (AX_TABLES.some((id) => !t.tables[id]) || !t.factorListed));
   if (stale(tables)) {
     await run(gm, P.start, { what: "importTables", args: { only: ["monsters"] } });
     note("tables import", await waitJob(gm, P.job, "tables import", 480));
@@ -1117,7 +1125,7 @@ async function stageSetup(gm) {
   if (done.ok) owed.familyRepair = false;
   const after = await run(gm, P.shape, { actorId: family.id });
   note("family after repair", { axes: after.axes.map((a) => `${a.key}:${a.options.length}`), cells: after.cells.length, throwMissing: after.throwMissing, throwMoved: after.throwMoved });
-  const claim = await run(gm, P.claimants, { cbId: FAMILY_ID });
+  const claim = (await run(gm, P.claimants, { cbId: FAMILY_ID })).filter((c) => !c.marker);
   check("the same id, the one template", claim.length === 1 && claim[0].uuid === family.uuid, { held: claim.length });
   check("the Role axis and its cells as an import writes them, every throw moved by the ladder", after.axes.some((a) => a.key === "role") && after.throwMissing === 0 && after.throwMoved > 0, { missing: after.throwMissing, moved: after.throwMoved });
   check(hasKit(first) ? "the Kit axis stands after the repair, chosen last" : "the family imported before the kit tables gains the Kit axis on Repair in place, chosen last", after.axes.at(-1)?.key === "kit" && after.axes.at(-1).default === "own", { axes: after.axes.map((a) => a.key) });
@@ -1319,7 +1327,7 @@ async function stageRoles(gm) {
     if (!s?.classHeld) note("not checked", "the slot maxes: no imported class document answers the caster's class word in this world");
     else if (!s.rowAtLevel) note("not checked", "the slot maxes: the class prints no slot row at the rolled level");
     else {
-      check("a caster's slots are its class's row at its rolled level, with the slot block on", s.enabled && s.match, { enabled: s.enabled, match: s.match });
+      check("a caster's slots are its class's row at its rolled level, with the slot block on", s.enabled && s.match, { enabled: s.enabled, match: s.match, direct: s.direct });
       check("its spells are drawn from the imported ones within its slots", s.spells > 0 && s.spells <= s.slotTotal, { spells: s.spells, slots: s.slotTotal });
     }
   } else {

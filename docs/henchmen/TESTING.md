@@ -3,9 +3,9 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
-The walk that drives this recipe is `tools/live/henchmen.mjs`, in two stages
-(`STAGE=1` and `STAGE=2` before `node tools/live/run.mjs henchmen`;
-`tools/live/README.md` is the contract). Its header names the steps it covers;
+The walk that drives this recipe is `tools/live/henchmen.mjs`, in two stages,
+both run in order unless `STAGE=1` or `STAGE=2` narrows the run (which the
+runner records as partial; `tools/live/README.md` is the contract). Its header names the steps it covers;
 a step it does not name is walked by hand.
 
 ## Fixtures
@@ -595,12 +595,15 @@ a step it does not name is walked by hand.
       *Observable:* the throw dialog's refusal and slander steppers show the
       page's figure per step and the card names the imported band; with the
       document gone, the warning names the table and no dialog opens.
-16. The apparent-level figure and the level-gain morale bonuses, each first
-    unread and then read. Unread is a priority-30 layer holding an empty
-    table where the world's import holds one; read is the world's own, or
-    the table read off the connected book through the shipped recipe
-    (`TABLE_RECIPES.influence.tables.apparentLevel`,
-    `TABLE_RECIPES.wages.tables.levelMorale`) into that layer. Fixtures: on
+16. The loyalty page's result column and apparent-level figure, and the
+    level-gain morale bonuses, each first unread and then read. Unread is a
+    priority-30 layer holding an empty table where the world's import holds
+    one; read is the world's own, or the table read off the connected book
+    through the shipped recipe (`TABLE_RECIPES.influence.tables.apparentLevel`,
+    `TABLE_RECIPES.wages.tables.levelMorale`) into that layer. The result
+    column (`influence.hirelingLoyalty`) is read by importing the `influence`
+    document, as a Judge does (`cookbookImportTables(["influence"])`), when
+    the world holds none; check it arrived. Fixtures: on
     employer A from step 14, a henchman linked through core's confirm whose
     record's `terms.claimedEmployerLevel` is A's level + 2, and two
     `character` actors created one level below the first rung that stands
@@ -612,11 +615,13 @@ a step it does not name is walked by hand.
     - `openLoyaltyRoll(henchman)`, read the `InfluenceApp`'s
       `_prepareContext({})`, and press **Roll** under a dice rig.
       *Observable:* unread, the apparent-level row is a typed field with the
-      unread badge under its bare name, the page shows no notice, and the roll
-      names one of the page's bands with no line for the row in the
-      roll-complete payload's `parts`. Read, the row's value is 2, its
-      contribution two times the figure, the figure is beside its name, and
-      the payload's line for it carries that contribution.
+      unread badge under its bare name, the page shows its notice, and the
+      roll names no band (the roll-complete payload's `outcome` is null) with
+      no line for the row in the payload's `parts`. Read, the row's value is
+      2, its contribution two times the figure, the figure is beside its
+      name, there is no notice, the roll names one of the page's bands, and
+      the payload's line for the row carries that contribution
+      (docs/influence/TESTING.md step 20).
     - The same with the integration swapped (step 14's `ns`).
       *Observable:* the throw dialog's apparent-level stepper reads 2; unread,
       `context.stepValues` holds no figure for it and the info line names the
@@ -645,10 +650,11 @@ a step it does not name is walked by hand.
     henchman (`henchmen/doubter`), and two disposable `monster` actors of
     HD below employer A's level as captives, marked
     `henchmen/captive-<n>` as their ids are read back. The influence-hosted
-    Irrefusable page names a result but does not hire (no roll-complete
-    branch handles it), so the starts are driven through
+    Irrefusable page hires through its roll-complete branch (step 25 walks
+    that path), so this step drives the starts directly through
     `applyIrrefusableOutcome(monster, employerA, outcome)`, imported from
-    `/modules/acks-extras/scripts/henchmen/engine/monster.mjs`; the loyalty
+    `/modules/acks-extras/scripts/henchmen/engine/monster.mjs`, with the
+    outcome keys the page's result column names; the loyalty
     changes through `applyLoyaltyOutcome(henchman, {outcome})` from
     `engine/events.mjs`, which both the hosted page and the fallback throw
     call. Every step reads the henchman's `flags.acks-extras.record.loyalty`

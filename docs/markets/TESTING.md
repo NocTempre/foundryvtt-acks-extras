@@ -36,6 +36,13 @@ walked by hand.
   fixed strings, not a run's nonce. A run's chat cards are a create path,
   marked `markets/card-<n>` at teardown, and the next run retires the series
   before it builds anything.
+- The world's `availability` tables document must hold the arrival schedule.
+  One imported before that recipe existed lacks it, `arrivalShares()` reads
+  null, and every month roll defers ("arrivals-missing") with nothing posted.
+  `tools/live/markets.mjs` and `tools/live/henchmen.mjs` re-import
+  `availability` where `arrivalShares()` is null. A hiring market behind the
+  clock rolls on the day advance too, so the markets walk processes every
+  market location before a rigged advance.
 
 ## Core drive mechanics (non-obvious, learned live)
 

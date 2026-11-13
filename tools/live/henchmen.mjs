@@ -1,7 +1,8 @@
 /**
  * Live walk, henchmen: henchmen + influence.
- * STAGE=1: henchmen steps 14, 15, 16 and 5g, influence steps 17–20, on the GM seat.
- * STAGE=2: henchmen steps 10, 12 (player seat), 13, 3b and 3a.
+ * Stage 1: henchmen steps 14, 15, 16 and 5g, influence steps 17–20, on the GM seat.
+ * Stage 2: henchmen steps 10, 12 (player seat), 13, 3b and 3a.
+ * With STAGE unset both run, in that order; STAGE=1 or STAGE=2 narrows the run.
  * Machine values arrive through ./_env.mjs; nothing here names a port, a
  * world, a seat or a book. Every
  * figure typed into a fixture is invented; no imported figure is printed by
@@ -50,7 +51,8 @@ const browser = MACHINE.browser;
 const origin = MACHINE.origin;
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
 const MOD = "acks-extras";
-const STAGE = process.env.STAGE ?? "1";
+/** The stages this run walks: every stage in order, or the one STAGE names (a narrowed run, which the runner records as partial). */
+const STAGES = process.env.STAGE ? [process.env.STAGE] : ["1", "2"];
 const SHOTS = process.env.SHOTS === "1";
 const SHOT_DIR = shotDir();
 const BOOKS = books(["rr","jj"]); // the GM's staged copies, from ACKS_TEST_BOOKS; empty, the walk takes the bookless path
@@ -115,6 +117,16 @@ const P = {
   install: async () => {
     const H = (globalThis.__c1 = globalThis.__c1 ?? {});
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    if (!H.navWatch) {
+      // A navigation the page makes of itself is written to sessionStorage, which outlives the reload that follows.
+      H.navWatch = true;
+      try { globalThis.navigation.addEventListener("navigate", (e) => sessionStorage.setItem("c1nav", `${Math.round(performance.now())} ${e.navigationType} -> ${new URL(e.destination.url).pathname}`)); } catch {}
+      Hooks.on("hotReload", (d) => { sessionStorage.setItem("c1hot", `${Math.round(performance.now())} ${d?.extension} ${d?.path}`); });
+    }
+    if (!H.longTasks) {
+      H.longTasks = [];
+      try { new globalThis.PerformanceObserver((l) => { for (const e of l.getEntries()) H.longTasks.push(`${Math.round(e.startTime)}+${Math.round(e.duration)}`); }).observe({ type: "longtask", buffered: true }); } catch {}
+    }
     H.poll = async (fn, { tries = 40, every = 150 } = {}) => {
       for (let n = 0; n < tries; n++) {
         const v = await fn();
@@ -305,20 +317,31 @@ const P = {
     const employer = game.actors.get(employerId);
     const hireling = game.actors.get(hirelingId);
     let how = "addHenchman";
+    const tr = (H.trace = H.trace ?? []);
+    const mark = (label) => tr.push(`${Math.round(performance.now())} ${document.visibilityState} ${employer.name}: ${label}`);
+    mark("link start");
     if (typeof employer.addHenchman === "function") {
+      // The previous link's confirm is still closing when the next link starts: the next press must find its own.
+      await H.poll(() => !document.querySelector('button[data-action="yes"]'), { tries: 40, every: 150 });
       const p = employer.addHenchman(hirelingId);
-      const yes = await H.poll(() => document.querySelector('button[data-action="yes"]'), { tries: 40, every: 150 });
+      // Core refuses a non-character employer with a notice and no confirm; its wait is short.
+      const yes = await H.poll(() => document.querySelector('button[data-action="yes"]'), { tries: employer.type === "character" ? 40 : 10, every: 150 });
+      mark(yes ? "confirm found" : "no confirm");
       if (yes) yes.click();
       await Promise.race([p, H.sleep(8000)]);
-      await H.poll(() => (employer.system.henchmenList ?? []).includes(hirelingId), { tries: 60, every: 200 });
+      mark("addHenchman settled or bounded");
+      if (employer.type === "character") await H.poll(() => (employer.system.henchmenList ?? []).includes(hirelingId), { tries: 60, every: 200 });
+      mark("list polled");
     } else {
       how = "update";
       await employer.update({ "system.henchmenList": [...(employer.system.henchmenList ?? []), hirelingId] });
       await hireling.update({ "system.retainer.managerid": employerId });
     }
     await hireling.update({ "system.retainer.enabled": true, "system.retainer.wage": wage });
+    mark("hireling updated");
     try { await H.A.enrollNewcomers(employer); } catch (e) { return { how, error: String(e?.message ?? e) }; }
-    return { how, linked: (employer.system.henchmenList ?? []).includes(hirelingId), manager: hireling.system?.retainer?.managerid ?? null, record: !!hireling.getFlag("acks-extras", "record") };
+    mark("enrolled");
+    return { how, trace: tr.splice(0), linked: (employer.system.henchmenList ?? []).includes(hirelingId), manager: hireling.system?.retainer?.managerid ?? null, record: !!hireling.getFlag("acks-extras", "record") };
   },
 
   /**
@@ -481,6 +504,8 @@ const P = {
     return { started: true };
   },
   importState: async ({ id }) => ({ ...globalThis.__c1Import, hasDoc: globalThis.__c1.T.hasDoc(id) }),
+  /** Whether the world holds the arrival schedule a posting's month roll needs. */
+  arrivalsRead: async () => ({ known: globalThis.__c1.m.AV.arrivalShares() !== null }),
   removeDoc: async ({ id }) => {
     const svc = (await import("/modules/acks-extras/scripts/lib/services.mjs")).get("ruledata-import");
     if (!svc?.removeDoc) return { removed: false, reason: "no provider" };
@@ -1137,6 +1162,8 @@ const P = {
     return {
       apparentKnown: H.m.LY.apparentLevelPenalty() !== null,
       apparentWorld: Number.isInteger(H.T.getLayer?.("influence", W)?.tables?.apparentLevel?.perLevel),
+      loyaltyKnown: H.m.LY.hirelingLoyaltyOutcomes() !== null,
+      loyaltyWorld: (H.T.getLayer?.("influence", W)?.tables?.hirelingLoyalty?.bands ?? []).length > 0,
       levelKnown: H.m.WG.levelMoraleRungs().length > 0,
       levelWorld: !!H.T.getLayer?.("wages", W)?.tables?.levelMorale,
     };
@@ -1173,7 +1200,7 @@ const P = {
     const tables = put == null ? rest : { ...rest, [id]: put };
     if (Object.keys(tables).length) H.T.registerTable({ id: doc, tables }, { priority: 30, source: "qa-c1" });
     else H.T.unregisterTable(doc, { priority: 30 });
-    return { apparentKnown: H.m.LY.apparentLevelPenalty() !== null, levelKnown: H.m.WG.levelMoraleRungs().length > 0 };
+    return { apparentKnown: H.m.LY.apparentLevelPenalty() !== null, loyaltyKnown: H.m.LY.hirelingLoyaltyOutcomes() !== null, levelKnown: H.m.WG.levelMoraleRungs().length > 0 };
   },
   /** The employer level a hireling was told at hire: the employer's own plus `over`. */
   claimLevel: async ({ hirelingId, employerId, over }) => {
@@ -1229,6 +1256,7 @@ const P = {
       const part = (parts ?? []).find((p) => p.label === bare);
       out.rolled = parts !== null;
       out.bandKey = ["hostility", "resignation", "grudging", "loyal", "fanatic"].includes(outcome);
+      out.outcomeNull = outcome === null;
       out.partShown = !!part;
       out.partOk = perLevel !== null && part?.value === count * perLevel;
     }
@@ -1322,6 +1350,8 @@ const P = {
   },
 
   closeAll: async () => globalThis.__c1.closeAll(),
+  /** The in-page step marks and long tasks (start+ms) a stalled call left, read once the page answers again. */
+  traceDump: async () => ({ now: Math.round(performance.now()), visible: document.visibilityState, nav: sessionStorage.getItem("c1nav"), hot: sessionStorage.getItem("c1hot"), loaded: performance.getEntriesByType("navigation")[0]?.type ?? null, path: location.pathname, trace: globalThis.__c1?.trace ?? [], longTasks: (globalThis.__c1?.longTasks ?? []).slice(-40) }),
   restore: async () => {
     const H = globalThis.__c1 ?? {};
     const out = {};
@@ -1449,7 +1479,7 @@ try {
     return (limitSource = "invented");
   };
 
-  if (STAGE === "1") {
+  if (STAGES.includes("1")) {
     section("fixtures (stage 1): the hall, employers A and B, a hireling each, a monster, a monster employer");
     // The last run's hire and cards go first: a hire still answers to B.
     const retired = { hires: await retireSeries("henchmen/hire-b", "Actor") };
@@ -1511,8 +1541,7 @@ try {
     check("14: employerLoyaltyMods(A).baseLoyaltyBonus is the baseLoyalty power's value", readA.baseLoyalty.length === 1 && readA.loyaltyMods.baseLoyaltyBonus === readA.baseLoyalty[0].value, { baseLoyalty: readA.baseLoyalty, loyaltyMods: readA.loyaltyMods });
     check("14: B's three powers are held by name only: no modifier, each named as unvalued in its domain", readB.retainBonus.length === 0 && readB.unvalued.retainBonus.includes("Leadership") && readB.unvalued.henchmanMorale.includes("Command") && readB.unvalued.hiring.includes("Diplomacy"), readB.unvalued);
 
-    section("links: a hireling for A, for B and for the beast");
-    note("link A", await run(gm, P.link, { employerId: A.id, hirelingId: hA.id, wage: 5 }));
+    section("links: a hireling for A, for B and for the beast");    note("link A", await run(gm, P.link, { employerId: A.id, hirelingId: hA.id, wage: 5 }));
     note("link B", await run(gm, P.link, { employerId: B.id, hirelingId: hB.id, wage: 5 }));
     note("link beast employer (core's own call)", await run(gm, P.link, { employerId: ME.id, hirelingId: hM.id, wage: 5 }));
     if (SHOTS) {
@@ -1721,10 +1750,11 @@ try {
     note("link the doubter to A", await run(gm, P.link, { employerId: A.id, hirelingId: hD.id, wage: 5 }));
     note("told A's level plus two", await run(gm, P.claimLevel, { hirelingId: hD.id, employerId: A.id, over: 2 }));
     note("unread", await run(gm, P.layerTable, { doc: "influence", id: "apparentLevel", table: printed0.apparentKnown ? {} : null }));
+    note("result column unread", await run(gm, P.layerTable, { doc: "influence", id: "hirelingLoyalty", table: printed0.loyaltyKnown ? {} : null }));
     const l20a = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
     await markSeries("henchmen/card-loyalty-unread", "ChatMessage", l20a.chat);
     note("loyalty page, unread", l20a);
-    check("16: unread, the apparent-level row is a typed field with the unread badge under its bare name, the page shows no notice, and it rolls to one of its own bands with no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.labelBare && l20a.badges >= 1 && !l20a.notice && l20a.rolled && l20a.bandKey && !l20a.partShown, l20a);
+    check("16: unread, the apparent-level row is a typed field with the unread badge under its bare name, the page shows the notice, and it rolls with no result named and no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.labelBare && l20a.badges >= 1 && l20a.notice && l20a.rolled && l20a.outcomeNull && !l20a.bandKey && !l20a.partShown, l20a);
     note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
     const o20a = await run(gm, P.loyaltyOwn, { hirelingId: hD.id, count: 2 });
     note("the feature's own loyalty throw, unread", o20a);
@@ -1733,10 +1763,24 @@ try {
     const apparent = await standFor("influence", "apparentLevel", printed0.apparentWorld, INVENTED_APPARENT);
     note("the apparent-level figure stands", apparent);
     check("changed: the apparent-level figure stands, from the world's import or read off the book through the shipped recipe", apparent.layer.apparentKnown && (apparent.source === "world" || apparent.source === "book"), { source: apparent.source });
+    // The result column stands from the world's import; where the world holds
+    // none, the influence document is imported from the connected book (the
+    // import a Judge runs), and the walk removes it in teardown when it put it there.
+    let loyalty = await run(gm, P.layerTable, { doc: "influence", id: "hirelingLoyalty", table: null });
+    if (!loyalty.loyaltyKnown) {
+      const hadDoc = (await run(gm, P.importState, { id: "influence" })).hasDoc;
+      note("import influence from the book for the result column", await run(gm, P.importDoc, { id: "influence" }));
+      let st = null;
+      for (let n = 0; n < 120; n++) { st = await run(gm, P.importState, { id: "influence" }); if (st.done) break; await sleep(2000); }
+      note("import state", st);
+      if (st?.ok && st.hasDoc && !hadDoc) globalThis.__c1ImportedDoc = true;
+      loyalty = await run(gm, P.layerTable, { doc: "influence", id: "hirelingLoyalty", table: null });
+    }
+    check("changed: influence.hirelingLoyalty stands, from the world's import or arrived with the influence document imported from the book", loyalty.loyaltyKnown, { world: printed0.loyaltyWorld });
     const l20b = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
     await markSeries("henchmen/card-loyalty-read", "ChatMessage", l20b.chat);
     note("loyalty page, read", l20b);
-    check("16: read, the row counts the two levels and adds two times the figure, the figure beside its name and no badge, and the roll's payload carries that line", l20b.opened && l20b.found && !l20b.unread && !l20b.labelBare && l20b.counted && l20b.contributes && l20b.badges === 0 && !l20b.notice && l20b.rolled && l20b.bandKey && l20b.partOk, l20b);
+    check("16: read, the row counts the two levels and adds two times the figure, the figure beside its name and no badge, no notice, the roll names one of the page's bands and its payload carries that line", l20b.opened && l20b.found && !l20b.unread && !l20b.labelBare && l20b.counted && l20b.contributes && l20b.badges === 0 && !l20b.notice && l20b.rolled && l20b.bandKey && l20b.partOk, l20b);
     note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
     const o20b = await run(gm, P.loyaltyOwn, { hirelingId: hD.id, count: 2 });
     note("the feature's own loyalty throw, read", o20b);
@@ -1787,13 +1831,22 @@ try {
     check("5g: two one-second ticks post one wages-due card speaking as A, and A's mark is the month boundary it owes", r5g.mine.length === 1 && r5g.mark === r5g.owedThrough, { mine: r5g.mine.length, mark: r5g.mark, owedThrough: r5g.owedThrough, others: r5g.others });
   }
 
-  if (STAGE === "2") {
+  if (STAGES.includes("2")) {
     section("fixtures (stage 2)");
     const player = await seat("player");
     const pc = await run(player, P.census, MOD);
     note("player census", pc);
     note("install (player)", await run(player, P.install));
     note("rules documents the world holds", await run(gm, P.docs));
+    // A posting's month roll needs the availability document's arrival schedule; a world imported before that
+    // table's recipe holds the document without it, so the Judge's own import runs again from the connected book.
+    if (!(await run(gm, P.arrivalsRead)).known) {
+      note("import availability from the book for the arrival schedule", await run(gm, P.importDoc, { id: "availability" }));
+      let st = null;
+      for (let n = 0; n < 120; n++) { st = await run(gm, P.importState, { id: "availability" }); if (st.done) break; await sleep(2000); }
+      note("import state", st);
+      note("arrival schedule after the import", await run(gm, P.arrivalsRead));
+    }
     // The last run's hires and cards go first: its porters still answer to the
     // paymaster, and the roster read at step 12 counts every one.
     const retired = { company: await retireSeries("henchmen/company", "Actor"), porters: await retireSeries("henchmen/porter", "Actor") };
@@ -2022,6 +2075,7 @@ try {
   walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
+  try { if (gm) note("page trace after the error", await run(gm, P.traceDump)); } catch (e) { console.error("traceDump:", e?.message ?? e); }
 } finally {
   section("teardown");
   try { if (gm) note("closed windows", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }

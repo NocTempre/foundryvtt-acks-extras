@@ -95,6 +95,8 @@ const P = {
     house: String(game.settings.get("acks-extras", "marketsTradeHouse") ?? ""),
   }),
   docs: async () => Object.fromEntries(["mercantile", "availability", "demand", "magicItems"].map((id) => [id, acksExtras.lib.tables.hasDoc(id)])),
+  /** Whether the world's availability document carries the arrival schedule a month roll needs. */
+  arrivalsRead: async () => ({ known: globalThis.__c2.m.AV.arrivalShares() !== null }),
 
   install: async () => {
     const H = (globalThis.__c2 = globalThis.__c2 ?? {});
@@ -131,6 +133,7 @@ const P = {
       AR: await import(base + "markets/rules/arbitrage.mjs"),
       LD: await import(base + "location/data/location-data.mjs"),
       RC: await import(base + "henchmen/engine/recruitment.mjs"),
+      AV: await import(base + "henchmen/rules/availability.mjs"),
       AD: await import(base + "henchmen/acks-adapter.mjs"),
       MO: await import(base + "lib/money.mjs"),
       WT: await import(base + "lib/world-time.mjs"),
@@ -691,14 +694,19 @@ const P = {
     H.takeChat();
     let i = 0;
     H.rig0 = H.rig0 ?? CONFIG.Dice.randomUniform;
-    CONFIG.Dice.randomUniform = () => seq[i++ % seq.length];
+    // Each draw names the module files on its stack, so a draw taken ahead of the assessment's is seen for what it is.
+    const callers = [];
+    CONFIG.Dice.randomUniform = () => {
+      callers.push([...new Set([...(new Error().stack ?? "").matchAll(/acks-extras\/scripts\/([\w/.-]+\.mjs)/g)].map((m) => m[1]))].slice(0, 3).join(" < "));
+      return seq[i++ % seq.length];
+    };
     let resolved = null;
     try {
       await game.time.advance(86400);
       resolved = await H.poll(() => (game.actors.get(locationId)?.system?.market?.goods?.actions ?? []).find((a) => a.id === actionId)?.status === "done" || null, { tries: 60, every: 500 });
       await H.sleep(1500);
     } finally { H.unrig(); }
-    return { draws: i, resolved: !!resolved, day: H.day(), chat: H.takeChat() };
+    return { draws: i, callers, resolved: !!resolved, day: H.day(), chat: H.takeChat() };
   },
   writeDemand: async ({ locationId, category, modifier }) => globalThis.__c2.M.writeDemand(game.actors.get(locationId), { layer: "base", category, modifier }),
   writeReport: async ({ ownerId, marketId, outcome, picks, beliefs = [] }) => {
@@ -753,6 +761,13 @@ const P = {
     const t = game.time.worldTime;
     await loc.update({ "system.market.marketLog": Array.from({ length: n }, (_, i) => ({ time: t - (n - i), type: "note", note: `QA row ${i}` })), "system.market.monthAnchorTime": 1 });
     return { count: loc.system.market.marketLog.length, first: loc.system.market.marketLog[0]?.note ?? null };
+  },
+  /** Every location's hiring market brought to the current month, so a clock step inside the month rolls none of them. */
+  primeMarkets: async () => {
+    const H = globalThis.__c2;
+    let n = 0;
+    for (const loc of game.actors.filter((a) => a.type === "acks-extras.location" && a.system?.hasMarket)) { await H.m.RC.processLocation(loc); n++; }
+    return { processed: n };
   },
   processNow: async ({ locationId }) => {
     const H = globalThis.__c2;
@@ -1186,6 +1201,8 @@ async function markCards() {
 
 /** Thrown to end the walk early at the stage STAGE names; teardown still runs. */
 class StageDone extends Error {}
+/** The walk's end marker, printed by a run that reached its end and by a narrowed run that reached the stage STAGE names. */
+const finish = () => walkDone();
 
 let gm = null;
 let advances = 0;
@@ -1236,7 +1253,8 @@ try {
   }
   for (const id of DOCS) {
     const docs = await run(gm, P.docs);
-    if (docs[id]) continue;
+    // A world imported before the arrival schedule's recipe holds the availability document without it.
+    if (docs[id] && !(id === "availability" && !(await run(gm, P.arrivalsRead)).known)) continue;
     note(`import ${id} from the book`, await run(gm, P.importDoc, { id }));
     let st = null;
     for (let n = 0; n < 150; n++) { st = await run(gm, P.importState, { id }); if (st.done) break; await sleep(2000); }
@@ -1770,7 +1788,9 @@ try {
     const back5 = await run(gm, P.moorageBackdate, { locationId: M.id, partyId: moorageRoster, days: 2 });
     const coin5a = await coinOf(T);
     const l5 = await leave(M.id);
-    const coin5b = await coinOf(T);
+    // The player seat's purse write reaches the GM seat's copy a moment after the leave answers.
+    let coin5b = await coinOf(T);
+    for (let n = 0; n < 10 && near(coin5a, coin5b); n++) { await sleep(500); coin5b = await coinOf(T); }
     const row5 = await row();
     note("M5", { e5: e5.action, error: e5.error, back5, l5, coin: [coin5a, coin5b], row5, expect: exp5 });
     check("M5: anchored outside, every line takes the outside column and the wain is stabled as it remembers; with the arrival two days back, three days are charged at that fee", e5.ok && e5.action?.stayAt === "anchor" && e5.action.stayCpPerDay === exp5 && r5.done && back5.found && back5.today - back5.arrivalDay === 2 && l5.ok && l5.stay?.days === 3 && near(l5.stay.gp, gp(exp5 * 3)) && near(coin5a - coin5b, gp(exp5 * 3)) && row5?.stayDays === 3 && row5.stayPaidCp === exp5 * 3, { e5: e5.action, back5, l5, row5 });
@@ -1783,6 +1803,8 @@ try {
     const l6a = await leave(M.id);
     const row6a = await row();
     note("T's coin again", await run(gm, P.coin, { actorId: T.id, mint: 1000 }));
+    // The GM seat's mint reaches the player seat's copy a moment later, and the leave is made on the player seat.
+    for (let n = 0; n < 10 && !((await run(player, P.coin, { actorId: T.id })).gp > 0); n++) await sleep(500);
     const l6b = await leave(M.id);
     const row6b = await row();
     note("M6", { e6: e6.action, drained, l6a, row6a, l6b, row6b });
@@ -2142,6 +2164,8 @@ try {
       cardsPosted.push(...(skipped.chat ?? []));
       note("clock moved into the next market month before the rigged assessment", { room, skipped });
     }
+    // A location whose hiring market is behind the clock rolls it on the next tick and draws from the rig first.
+    note("every hiring market brought to the current month", await run(gm, P.primeMarkets));
   }
   const fe = await run(player, P.ventureApi, { locationId: M1.id, kind: "enter", actorId: V.id, cargoSt: 0 });
   note("enter M1 (cargo 0)", fe);
@@ -2159,7 +2183,7 @@ try {
   const reportsBefore = (await run(gm, P.reportsOf, { actorId: V.id })).map((r) => r.uuid);
   const rigged = await run(gm, P.advanceRigged, { seq: [u(f1), u(f2), u(2)], locationId: M1.id, actionId: fs.action?.id });
   advances++;
-  note(`advance ${advances} (rigged for a partial band total)`, { draws: rigged.draws, resolved: rigged.resolved, day: rigged.day, chat: rigged.chat?.length, probe: probe.total, faces: [f1, f2] });
+  note(`advance ${advances} (rigged for a partial band total)`, { draws: rigged.draws, callers: rigged.callers, resolved: rigged.resolved, day: rigged.day, chat: rigged.chat?.length, probe: probe.total, faces: [f1, f2] });
   cardsPosted.push(...(rigged.chat ?? []));
   const reportsAfter = await run(gm, P.reportsOf, { actorId: V.id });
   const fresh = reportsAfter.filter((r) => !reportsBefore.includes(r.uuid));
@@ -2179,10 +2203,12 @@ try {
   note("hp tool from the party sheet", hp);
   check("lib: the party sheet's entry point opens the hit-point tool on the enrolled member", hp.enrolled && hp.opened && hp.hpOpen && hp.rows.some((r) => r.name.startsWith("QA Member")), { rows: hp.rows, subtitle: hp.subtitle });
   note("closed (gm)", await run(gm, P.closeAll));
-  walkDone();
+  finish();
 } catch (err) {
-  if (err instanceof StageDone) note("stage", `stopped after the ${err.message} walk`);
-  else {
+  if (err instanceof StageDone) {
+    note("stage", `stopped after the ${err.message} walk`);
+    finish();
+  } else {
     console.error("WALK ERROR:", err?.stack ?? err);
     checks.push(["walk ran to the end", false]);
   }
