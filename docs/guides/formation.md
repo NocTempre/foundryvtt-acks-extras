@@ -11,8 +11,11 @@ warnings it is under, and the Dungeon tab's own actions at its head.*
 
 ## Build one
 
-Select the party's tokens → **Add to party**, or create a **Party Formation**
-actor and add members from its sheet.
+Select the party's tokens on the map, right-click one and press **Add to party**
+on its token HUD, or create a **Party Formation** actor in the Actors sidebar and
+add members from its sheet. The **Party Sheet** macro in *ACKS Extras Macros*
+(`Compendium Packs → ACKS II — Extras → Macros → ACKS Extras Macros`) opens the
+party's sheet.
 
 Members take roles — front, flank, rear, mapper, light-bearer — and the order is
 the marching order. The party actor itself holds almost nothing; the formation
@@ -95,10 +98,8 @@ turns the whole deploy.
 facing.*
 
 An unrotated token faces **south**, so a party whose token has never turned
-deploys its column trailing away to the **north**. (Before v4.8.0 the column
-always trailed south of the token regardless of facing — if your table had
-gotten used to that, turn the party token to face north and the old layout is
-back.)
+deploys its column trailing away to the **north**. To trail the column south,
+turn the party token to face north.
 
 The party token is **the head of a marching column**. It is one square, and the
 rest of the party is drawn behind it on the squares it walked: each member's
@@ -112,17 +113,18 @@ Players see the column only where they can see the squares it stands on.
 
 Once the Revised Rulebook's **Rules tables** have been imported, the column is
 spaced the way the book spaces a marching column: each member stands in a
-square as wide as their frontage (wider for a member with an equipped large
-melee weapon that crushes or cuts and does not pierce), files are set side by
+square as wide as their frontage (wider for a member whose equipped weapon takes
+a wider frontage), files are set side by
 side at the sum of those widths, and ranks stand one rank interval apart along
 the way the party walked, not one grid square apart. A combat deploy then puts a
 member's token on the spot their square marks, even between grid squares, unless
 a wall would touch it there; that member's token takes the grid square the
 one-per-square column gives them. A token standing between squares snaps to the
-grid the first time you move it. A world imported before this was added keeps the
-one-per-square column until **Rules tables** is run again in the **Reimport One
-Shelf (GM)** macro (`Compendium Packs → ACKS II — Extras → Macros → ACKS Extras
-Macros → Import from your books`); read what arrived in the Ruledata Browser
+grid the first time you move it. Until the **Rules tables** are imported the
+column keeps one member to a square. Import them with **Rules tables** in the
+**Reimport One Shelf (GM)** macro (`Compendium Packs → ACKS II — Extras → Macros →
+ACKS Extras Macros → Import from your books`), with your books open on that seat,
+or with Import Everything. Read what arrived in the Ruledata Browser
 (`Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables → Open
 Ruledata Browser`), where the three frontage rows can also be overridden.
 
@@ -162,16 +164,20 @@ Only the party's own token does this. A copy of it (pasted, or left by a
 duplicated scene) keeps its combatant, deploys nobody and whispers you that it is
 not the party's token; the party's real token stays in charge, and a copy moved
 or turned bills no travel. A party actor's token placed by hand while the party
-already has one is refused with a warning. **Repair this world** lists extra party
+already has one is refused with a warning. **Repair this world** (`Settings tab →
+Game Settings → ACKS II — Extras → Repair this world → Open the repair tool`, or
+the **Repair This World (GM)** macro in *ACKS Extras Macros*) lists extra party
 tokens and fixes the ones that are safe to remove.
 
 ## Saved marching orders
 
 The head of the party sheet's Order tab has **Save order**, which keeps the
-current arrangement under a name, and **Load order**, which puts one back; the
-party token's HUD carries a **form up** button that
-applies a saved order and gathers everyone on the map back inside the token.
-With one order saved the button applies it outright; with several it asks.
+current arrangement under a name, and **Load order**, which puts one back or
+deletes one you no longer use. Saving under a name already in use replaces that
+order. The party token's HUD carries a **Form up** button, for the Judge once an
+order is saved, that applies a saved order and gathers everyone on the map back
+inside the token. With one order saved the button applies it outright; with
+several it asks. It is refused during a combat.
 
 ![](../releases/v4.8.0/formation-marching-orders.png)
 
@@ -181,41 +187,16 @@ form-up restores.*
 A saved order records the shape — who stands where, their roles, how many march
 abreast — and nothing else, so restoring one can lose an arrangement but never
 a character. Someone saved but gone is dropped and the line closes up; someone
-new keeps the back rank.
-
-### Calling it from a macro
-
-The same calls the sheet uses. **The formation always comes first**, and none
-of these is a dry run:
-
-- `saveTemplate(formation, name)` — stores the current arrangement. Writes the
-  world setting.
-- `applyTemplate(formation, order)` — rewrites the formation's marching order.
-  `order` is either a saved order (from `getTemplate(id)` or `listTemplates()`)
-  or its **id**; both work.
-- `formUp(formation, order)` — apply, then gather the deployed back in. Writes
-  the formation and moves tokens.
-- `deleteTemplate(order)` — forgets one, by order or by id.
-
-To ask what an order *would* do without doing it, call `reconcile(members,
-cells)` — it is the only call here that computes without writing.
-
-Getting an argument wrong throws immediately and says what it wanted, rather
-than half-working: reversing the pair reports *"arguments are reversed — the
-formation comes first"*, and handing an applying call something that is
-neither an order nor an id names what arrived instead.
-
-Note that `applyTemplate` here is the **formation** one. `acks-extras`
-publishes a second, unrelated `applyTemplate(actor, classItem, template, …)` on
-the classes api for character generation; they share a name and share nothing
-else.
+new keeps the back rank. A role whose gear the character no longer carries is
+not restored, and the chat line names who.
 
 ## Overland travel
 
 The party sheet has one surface for every kind of travel: its first tab, named
 for the mode, with the clock strip at its top. In a dungeon it counts turns; on
 a journey it counts miles and hours; in a city it counts blocks. The mode is
-picked from the selector beside the party's name in the title bar, and a map
+picked from the selector beside the party's name in the title bar (yours alone;
+a player's sheet reads the mode as a word), and a map
 you have set up as a wilderness or a city map
 picks it for you when the party token lands there — as does a map whose cells
 are a mile or more across, which is read as wilderness unless you have said
@@ -242,8 +223,8 @@ the **road**, whether the party is **following** a river or a route it already
 knows, and the **territory** — with the table its encounters draw on beneath
 them; on your seat the **Sky** section reads the **climate** the same way. Each
 answer comes from the hex the token stands in, as the battlemap's **Country
-brush** painted it and the roads and rivers you drew cross it (see the
-battlemap guide); where the map says nothing, from what the scene says of its
+brush** painted it and the roads and rivers you drew cross it (see
+[Painting the country](battlemap.md#painting-the-country)); where the map says nothing, from what the scene says of its
 own country; and on a map that says nothing at all, from whatever the party had
 been given before. Players see the cards. Your seat also shows where each
 answer came from, and a card whose hex the brush has not painted offers
@@ -369,10 +350,8 @@ toll** carries the sun's burn, the heat's save for a body in heavy armour, the
 frostbite save for a hypothermic one and the sickness throw when a run of bad
 days comes due; a body that fails is marked Frostbitten or Diseased, and what
 that does is resolved from your book (RR 277-279). **The night's rest** says
-for each body whether the night was restful and where its fatigue stands: days
-of activity without a rest day, nights without restful sleep and forced marches
-each bring on the Fatigued condition, it deepens every day it lasts, and a day
-in camp with a restful night ends it.
+for each body whether the night was restful and where its fatigue stands, which
+the module keeps as the Fatigued condition on the body.
 
 You rarely have to notice that the day is done. Once the hours the day holds
 have been walked, or the party marches on after dark, moving the token asks:
@@ -382,7 +361,7 @@ have been walked, or the party marches on after dark, moving the token asks:
 It is never answered for you — ending a day spends the provisions, settles the
 ground, rolls tomorrow's sky and moves the calendar, and pushing on into a
 forced march is a real choice with a real price. The question is put once, and
-put again if pushing on bought more road. **Pause**, among the quick tools,
+put again if pushing on bought more road. **Pause the clock**, among the quick tools,
 stops a drag from spending anything, for when the token has to be moved and
 the party has not.
 
@@ -409,16 +388,15 @@ because a full roster would bury the one who is starving.
 **Hours in the weather** is yours to set. A marching day is not automatically a
 day spent unprotected, so the module does not assume one: say how long the
 order actually stood in it, tick **At a fire** if they had one, and tick **Got
-wet** if they did — a soaked body is hypothermic however well dressed. Anyone
-carrying a cloak or furs is sheltered. The same hours count under a burning
-sun and for armour worn in the heat. In mild weather the field is greyed,
-because there is nothing to count.
+wet** if they did. The module reads each member's kit for shelter. The same
+hours count under a burning sun and for armour worn in the heat. In mild
+weather the field is greyed, because there is nothing to count.
 
-Three more declarations sit in the section. **Willing to steal** forages settled
-country without the penalty for leaving the crops alone. **Water at hand**
-takes water with no throw; following a river says so by itself. **Sleeping in
-armour** has each sleeper throw against the weight they bear, and the night's
-rest card says who slept badly and how many rounds each needs to don their kit.
+Three more declarations sit in the section. **Willing to steal** is your word
+for foraging settled country. **Water at hand** is your word that water needs
+no throw; following a river says so by itself. **Sleeping in armour** has each
+sleeper throw, and the night's rest card says who slept badly and how many
+rounds each needs to don their kit.
 
 **Work the country**, at the head of the Wilderness tab, rolls whatever the
 day's hours were spent on: foraging for
@@ -463,7 +441,7 @@ three buttons: **Found**, **Make it a place** (a location actor and a hidden
 token at the hex's centre, revealed when the party has found it) and
 **Remove**. Once the hex is stocked, **Add a point** places one of your own.
 **Survey the hex** throws Land Surveying for the first member of the order who
-holds it; a success tells the true count, a natural 1 tells a confidently
+holds it; a success tells the true count, a botched throw tells a confidently
 wrong one, and anything else
 tells nothing yet. The card shows you the truth beside what the surveyor
 believes, and **Tell the party** posts the surveyor's count publicly in the
@@ -580,7 +558,7 @@ hex the party token stands in. **Unknown country** blanks it: the players'
 picture is an empty frame, no hex is named, and the Country section says
 *Unknown country* and nothing more. Your own sheet shows the same under a gold
 line, and the section previews a player's sheet beside the choice. Encounters
-are thrown as before either way.
+are thrown the same either way.
 
 ![](../releases/v11.4.0/formation-shown-unknown.png)
 
@@ -604,8 +582,8 @@ out, and the field for where they actually are.*
 From then on the Judge's tab offers the two ways out. **They find the
 landmark** credits the ground they really crossed, and can step the party token
 onto its true position. **They turn back** closes the episode and credits
-nothing. A marker left behind by an earlier version is named on the same tab,
-with **Move the party onto it** and **Remove the marker**.
+nothing. A true-position marker still on the map with no episode open is named on
+the same tab, with **Move the party onto it** and **Remove the marker**.
 
 ![](../releases/v8.1.0/formation-lost-leftover.png)
 
@@ -628,13 +606,15 @@ turn in a corridor. Each turn covers the party's blocks, tests its way if the
 pace and the route call for it, and gives the street its own chance at them.
 
 How far a turn carries the party depends on **how big a block is on your map**,
-and only your map can say: set it in **Scene Configuration → A block is** on a
-scene set up as a settlement. Leave it blank and the party is timed by its
+and only your map can say: set it in **Scene Configuration → Basics → Battlemap → A block is**
+on a scene set up as a settlement. Leave it blank and the party is timed by its
 walking speed instead; the panel says which of the two is in force.
 
 Being lost in a city is a wrong turning the party notices at once — a short
-detour, not an episode. A large party straggles and moves slower; splitting it
-is the way out, at the price of each group answering for its own encounters.
+detour, not an episode. With **Crowded streets slow large parties** on (Game
+Settings), a large party moves slower through a settlement; the thresholds and
+the reduction come from your imported book, and splitting the party is the way
+around it, at the price of each group answering for its own encounters.
 
 Somewhere the party is **holed up** is the one place its own movement cannot
 report, so a stay is counted off the calendar: advance world time however you
@@ -649,16 +629,18 @@ the map and the card offers no *Make it a place*: the party was indoors.
 ### Streets, and quarters
 
 **Draw the streets as walls and the city measures itself along them.** The road
-tools are on the **battlemap** control, and each is a preset: pressing one arms
-core's wall tool and hands it to you, so the next wall you draw is that road.
+tools are on the **Battlemap** scene control (*Earthen road*, *Gravel road*,
+*Paved road* and *Alley*), and each is a preset: pressing one arms core's wall
+tool and hands it to you, so the next wall you draw is that road.
 **Alley** is a modifier on whichever surface is armed rather than a road of its
 own — a paved alley and an earthen one are both alleys. For walls that already
-exist the **Walls** control carries a single tool, which marks everything
-selected as a road of the kind a city scene defaults to. In settlement mode a move is
+exist the **Walls** control carries a single tool, *Mark the selected walls as
+roads*, which marks everything selected as a road of the kind a city scene
+defaults to. In settlement mode a move is
 then measured over the streets rather than across the blocks between them, so
 a party that follows a curving avenue pays for the avenue. The panel says
-which way the last move was measured. A map with no streets drawn behaves
-exactly as it did before — the straight line answers, as it always has.
+which way the last move was measured. A map with no streets drawn is measured
+in a straight line.
 
 Either way the wall's own sheet gains a road row, and that is where the surface,
 the street kind and the street's name are changed afterwards — it is the only
@@ -674,9 +656,9 @@ one thing no street overrules is **holed up** — a party inside is not out on
 the street its walls happen to sit on.
 
 **A quarter that keeps its own time is a district.** Draw a Region over part
-of the city and press the district tool on the Regions control, or select a
-closed loop of walls and press the one on the Walls control. Either way the
-Region gains a District behaviour and its sheet opens:
+of the city and press *Mark as a district* on the Regions control, or select a
+closed loop of walls and press *District from walls* on the Walls control. Either
+way the Region gains an **ACKS District** behavior and its sheet opens:
 
 ![](../releases/v7.6.0/district-behaviour.png)
 
@@ -741,19 +723,19 @@ map the way you drop any actor and it arrives as a marker: its name on hover,
 no bars, nobody's side, no eyes, and a house for a picture until you give it
 one. It cannot join a marching order and it is not counted among the map's
 tenants. Stand the party beside it and the City tab says **At** it,
-with a button to open the place — and the deposit rule already knew, so a
-player can leave goods at the shop they are standing outside.
+with a button to open the place, and a player can leave goods at the shop they
+are standing outside.
 
-**A quarter can have a place of its own.** On a district's sheet the **Place**
-row picks the location actor the quarter is — its market, its notes — or makes
-one named after the region with **+**. The panel then names it as the
+**A quarter can have a place of its own.** On a district's sheet **The quarter's
+place** picks the location actor the quarter is — its market, its notes — or
+makes one named after the region. The panel then names it as the
 quarter's own place whenever the party is inside the district, wherever in it
 they stand.
 
 **An incident leaves a marker.** When the street throws something up, the card
 says a marker was left where it happened, and a note only you can see stands
-at the spot. It lasts as long as **Incident markers last** says, in city turns,
-and the calendar takes it away; set it to 0 for no markers at all. If the thing
+at the spot. It lasts as long as **Incident markers last (turns)** says (Game Settings), in
+city turns, and the calendar takes it away; set it to 0 for no markers at all. If the thing
 that happened turns out to be a place — the tavern, the hideout — press **Make
 it a place** on the card: name it, and a location actor appears inside the
 quarter's place with the incident's words as its notes and its token where the
@@ -765,7 +747,7 @@ a neighbouring one — spending the turns like any other turns and moving the
 token for you. Two quarters neighbour each other when their regions touch. A
 walk the book does not price — across quarters that do not touch, from outside
 any quarter, or before the figures are imported — is refused with the reason,
-and dragging the token still works the way it always has.
+and dragging the token still works.
 
 ### Flying
 
@@ -780,19 +762,32 @@ and the readout names which replaced which.
 
 ### Making one
 
-A trap is an **item**. Make one from the Items sidebar (type *Trap*) and fill in what
-it is: its level, what springs it, whether it is crudely built, how it resolves
-— a saving throw, an attack throw, damage with no throw at all, or nothing the
-module rolls — what it deals, and whether it takes only whoever set it off or
-everything within reach.
+A trap is an **item**. Make one with **Create Item** in the Items sidebar (type
+*Trap*), or let the importer make them from your own book, and fill in
+what it is. The sheet reads in five groups: **The trap** (how it is set off, in
+your own words; **Springs on**; **Crudely built**), **This level** (the trap's
+level, a strip marking which of the six levels state something, and the printed
+sentence an imported trap keeps for the level), **How it resolves** (a saving
+throw, an attack throw, damage with no throw at all, or nothing the module
+rolls), **What it deals** and **Who it catches** (whoever set it off, or
+everything within reach, with the reach in feet and an **And also** line for
+riders such as prone or burning). A trap holds a row for each of its six levels,
+and the level you pick decides which row you edit and which one fires.
 
-Two fields are worth a word. **Springs on 1d6 of** is the secret trigger throw;
-widen it for a trap that is easy to set off and narrow it for a hard one. **Attack throw** is the number your own book gives for a fighter
-of the trap's level — the module ships no fighter progression, so you supply the
-answer rather than the level.
+Three fields are worth a word. **Springs on** is the band of the secret trigger
+die: leave it blank and the trap reads the band imported from your books, or
+type a figure to set this trap's own. Raise it for a trap that is easy to set
+off and lower it for a hard one; 0 never springs it. **Attack throw** is the
+number your own book gives for a fighter of the trap's level — the module ships
+no fighter progression, so you supply the answer rather than the level. **Beating
+the save is worth** says what a victim who makes the saving throw avoids: half
+the damage, all of it, or nothing, where the rider is the point.
 
 For a pit, leave the damage blank and set the depth: the fall's dice are filled
-in for you from it, and ticking *Spiked* adds the spikes (JJ p. 238).
+in for you from it, and ticking *Spiked* adds the spikes (RR ch. 6, Jumping and
+Leaping; JJ p. 238). Where the fall table or the spike dice are not imported the
+sheet says so and the pit deals none of that part; a damage formula you type
+needs neither.
 
 ![](../releases/v4.9.0/formation-trap-item.png)
 
@@ -801,13 +796,13 @@ deriving its own damage.*
 
 ### Putting one in the dungeon
 
-Two ways, on the **Walls** layer:
+Two buttons, on the **Walls** scene control:
 
 - **Trap the selected walls** puts a trap layer on whatever you have selected —
   an ordinary wall becomes a tripwire, and a door becomes a trapped door. The
   wall keeps doing its own job: a trap blocks nothing.
 - **With nothing selected, the same button arms the pencil instead.** It works
-  like the *Secret Door* button beside it: press it and every wall you draw from
+  like core's secret-door button beside it: press it and every wall you draw from
   then on is a tripwire — a wall that blocks nothing and carries a trap. The dot
   on the button tells you it is still armed; press any other wall type to stop.
   Draw as many lines as you like in one go.
@@ -815,9 +810,9 @@ Two ways, on the **Walls** layer:
   builds the region they contain — for a pit, a collapsing ceiling, anything
   the party stands *in* rather than crosses.
 
-Then **drag a Trap item onto it**: onto the wall on the map, onto the trap row
-on a wall's configuration sheet, or onto the Trap field of a region's Trap Zone
-behavior. Dragging onto an untrapped wall lays the layer and assigns the trap in
+Then **drag a Trap item onto it**: onto the wall on the map, onto the **ACKS
+trap** row on a wall's configuration sheet, or onto the **Trap** field of a
+region's **Trap Zone** behavior. Dragging onto an untrapped wall lays the layer and assigns the trap in
 one go.
 
 You see a marker on each trap showing its state — armed, spotted, disarmed,
@@ -880,61 +875,83 @@ Each character gets one throw per trap per level, which is what a hasty search
 costs them.
 
 A thief at the front who makes it spots the trap before anyone touches it. Then
-the 10' pole probes a square ahead of its bearer, then the party itself, rank by
-rank, each on its own secret throw. The first throw that comes up inside the
-trigger band springs it, and the party stops there rather than walking on.
+the pole, if someone in the party holds the **Pole** role, probes ahead of its
+bearer, and then the party itself, rank by rank, each on its own secret throw.
+The first throw that comes up inside the trigger band springs it, and the party
+stops there rather than walking on.
 
-At combat speed there is no pole and no searching — the party is moving too
-fast for either, exactly as the book says.
+Every distance in that sequence is imported from your books and can be edited in
+the Ruledata Browser (`Settings tab → Game Settings → ACKS II — Extras → Imported
+Rules Tables → Open Ruledata Browser`): the automatic search's reach bare and
+with a pole, how far the pole probes ahead, the secret die and the band that
+springs it, and the reach at which Trapbreaking is offered (RR ch. 6, Traps and
+Trapbreaking). The **Scout** and **Pole** role chips on the Order tab show the
+figures in force. A figure that is not imported costs only its own step, and the
+card says so: with no search reach only the front rank searches and only the trap
+the party crossed gets a throw; with no pole lead the pole does not probe; with no
+secret die or band nothing is rolled and nothing springs, and the card tells you
+to resolve the crossing by hand.
+
+At combat speed the party has neither the pole nor the hasty search (RR p. 263),
+and the card says so.
 
 Damage is **rolled and reported, not applied** — the card gives you the number
 and the sheets stay yours. The number is already worked out against the throw:
-a missed attack deals nothing, and a made save takes off whatever that trap says
-it takes off (half, all of it, or nothing at all if the save only buys you a
-choice about where you land).
+a missed attack deals nothing, and a made save is worth what the trap's
+**Beating the save is worth** field says (half, all of it, or nothing at all if
+the save only buys you a choice about where you land).
 
 ![](../releases/v4.9.0/formation-trap-card.png)
 
-*The whispered card: who walked in, who sprang it on the secret 1d6, who was
+*The whispered card: who walked in, who sprang it on the secret die, who was
 caught, and what it dealt.*
 
 ### Getting past one
 
-Press **Trapbreaking** at the head of the party sheet's Order tab. It asks the
-three questions the book
-asks — who is working on it, which trap, and by which column of the table — and
-shows you the throw before anyone spends the round or the turn.
+Press **Trapbreaking** at the head of the party sheet's Order tab. It asks three
+questions — who is working on it (**Character**), **Which trap**, and by which
+**Column** — and shows you the throw (what it **Needs**, with each part of the
+figure listed) before anyone spends the time.
 
 ![](../releases/v4.12.0/formation-trapbreaking.png)
 
 *The target is picked, never guessed: a party halted in a corridor can be
-standing at more than one trap. The list holds only traps the party has found —
-offering an unfound one would give it away — and you get a control to mark one
-spotted when they found it some other way than a throw.*
+standing at more than one trap. A player's list holds only traps the party has
+found — offering an unfound one would give it away. Yours also lists the unfound
+traps in reach, tagged *not found*, with **Mark spotted** for a trap they found
+some other way than a throw and **Rebuild it** to make a trap a fresh secret
+again.*
 
-Players see the same dialog whenever one of their characters could actually make
-the throw, and their attempt is declared to you the way every other party action
-is.
+The list holds the traps within the imported Trapbreaking reach, and the dialog
+says which reach it used; where that figure is not imported, only a trap the
+party is touching is listed (RR ch. 6, combat actions). Players see the same
+dialog whenever one of their characters could actually make the throw, and their
+attempt is declared to you the way every other party action is.
 
-A character with thieves' tools can work on a trap the party is standing at:
+A character with thieves' tools can work on a trap the party is standing at. The
+**Column** select offers two, and the dialog shows each one's time, bonus and
+retry limit before you throw (RR p. 267):
 
-- **Hastily** — one round, and the Trapbreaking skill only. A low enough
-  unmodified roll sets it off, and the module refuses that character another
-  hasty try at this trap until they gain a level (RR p. 267).
-- **Methodically** — one full turn. A skilled thief adds the methodical bonus; a
-  non-thief may try through Adventuring. It is harder to set off than a hasty
-  try, and a plain failure can be tried again (RR p. 267).
+- **Hasty Trapbreaking** — the Trapbreaking skill only. A low enough unmodified
+  roll sets it off, and the module refuses that character another hasty try at
+  this trap until they gain a level.
+- **Methodical Trapbreaking** — a skilled thief adds the methodical bonus; a
+  non-thief may try through Adventuring. A plain failure can be tried again. How
+  low an unmodified roll must be to set the trap off, and the size of the
+  bonus, are figures imported from your book for each column.
 
-Beat it and you choose: **disarm** it, which leaves it re-armable, or
-**discharge** it deliberately, which spends it. A disarmed trap can be re-armed
-later on a Trapbreaking throw.
+**Work on it** makes the throw. Beat it and you choose: **Disarm it**, which
+leaves it re-armable, or **Discharge it** deliberately, which spends it. A
+disarmed trap can be re-armed later with **Re-arm it**, on a Trapbreaking throw.
 
-A crude trap is easier to find, to remove and to save against, and attacks at a
-penalty (JJ p. 238).
+**Crudely built** on the trap item marks it crude, and the module applies the
+crude adjustments to finding it, removing it, saving against it and its attack
+throw (JJ p. 238).
 
 ## Doors
 
-A door on the map opens its own window: what it is built of, how many spikes are
+Select a door on the **Walls** scene control and press **ACKS door actions**
+(Judge only). The window shows what the door is built of, how many spikes are
 in it, and the three things a party does to one that will not open. The
 construction and the Judge's two marks, *Evil* and *Lock jammed*, are written
 to the door the moment they are set, for the Judge's record and for anything
@@ -946,8 +963,8 @@ that reads the door's state; the marks change no figure in the window.
 spikes, and the number it needs — and what battering it down with an axe would
 cost in turns.*
 
-- **Spikes** go in one per round, up to the most a door holds, and every spike
-  after the first makes forcing it harder (RR p. 267). Pulling one back out is its own control.
+- **Spikes**: **Hammer a spike** drives one in, up to the most a door holds, and
+  the heave counts every spike (RR p. 267). **Pull one** takes one back out.
 - **Bash it open** is the throw, itemized before you take it: who is heaving,
   whether a second pair of shoulders is on it, a crowbar, how far from man-sized
   the heaver is, and the Judge's own modifier. The number it needs is shown, and
@@ -955,16 +972,16 @@ cost in turns.*
   the card carries the damage line, reported and not applied, as a trap's card
   does.
 - **Batter it down** is the slow certainty instead — the window says how many
-  turns an axe wants for that construction, and a construction an axe cannot
-  beat says so where the button would be. The turns are charged to the clock
+  turns an axe wants for that construction (RR p. 267), and a construction with
+  no axe figure says so where the button would be. The turns are charged to the clock
   of the formation holding the basher, and the notice names them; a basher no
   formation holds spends nothing.
 
 ## Dealing out experience
 
 **Deal XP** divides an adventure's total between the party and shows the
-division before it is given. It is the star among the party sheet's quick
-tools, and only a GM sees it. While *Deal experience from
+division before it is given. It opens from **Deal experience**, the star among the
+party sheet's quick tools, and only a GM sees it. While *Deal experience from
 the formation* is on in Game Settings, the system party sheet's own Deal XP
 button is hidden, so this is the one to use; turn the setting off to go back
 to the system's division.
@@ -1052,11 +1069,11 @@ figure is not imported. You can change any of them in the Ruledata Browser.
 *The Kit tab's light sources, each with the turns its imported burn time
 leaves. Hover the turns to see where the figure came from.*
 
-If your world imported its books before the light figures existed, bring them
-in without a full import: open **ACKS Extras Macros**, run **Reimport One
-Shelf**, and choose **Rules tables**, with your books open on that seat. The
-same run brings in the wandering-monster cadence (below). Until both are in, a
-GM is warned when the world loads.
+The light figures and the wandering-monster cadence (below) arrive with the
+**Rules tables**. Until both are imported, a GM is warned when the world loads.
+To bring them in without a full import, run the **Reimport One Shelf (GM)**
+macro from *ACKS Extras Macros* and choose **Rules tables**, with your books open
+on that seat.
 
 ### Resting
 
@@ -1073,7 +1090,7 @@ off is released on its next turn. The wandering-monster throw has its own switch
 
 The clock also makes the wandering-monster throw and, on an encounter, draws
 from a table only you see. To set the table, how often the throw comes and what
-it needs for one part of a map, draw a Region there and give it an **Encounter
+it needs for one part of a map, draw a Region there and give it an **ACKS Encounter
 Zone** behavior. Everywhere else, the formation's own table applies, with
 **Wandering monster throw frequency (turns)** and **Wandering monster target
 value** in Game Settings. The throw's die, how often it comes, what it needs
@@ -1081,7 +1098,7 @@ and the dice of the encounter distance are read from your Judges Journal by
 the importer, and you can change any of them in the Ruledata Browser. Those
 two settings start blank, which uses the imported frequency and target, and
 a number you type there wins over them. Without the die or the target no throw
-is made, and the Encounter throw tool says why; without the distance dice an
+is made, and the **Encounter check now** quick tool says why; without the distance dice an
 encounter still happens, and its card says no distance was rolled. Hover the
 die, the target or the distance on a card to see where it came from. To stop the automatic throw altogether, set **Wandering
 monster throw frequency (turns)** to 0 in Game Settings; **Require rests in the
@@ -1126,9 +1143,9 @@ drawn. Set the role down and the hands come back.
 
 ## Seeing in the dark
 
-Every token's vision now comes from its own sheet, whether or not it is in a
+Every token's vision comes from its own sheet, whether or not it is in a
 party. Ordinary eyes see **only what a light source reveals** — walk a torchless
-character into a black corridor and they see nothing, which is the rule. A
+character into a black corridor and they see nothing. A
 character with **lightless vision** (or infravision) sees its recorded range,
 and a thief's **shadowy senses** reach their own short radius; both see as dim light — colourless,
 no reading, no fine detail.
@@ -1153,16 +1170,16 @@ as you are.
 > something nearby is lit. If you want it to see in *pitch dark*, that is
 > lightless vision, and it is a different line on the sheet.
 
-Monsters answer from their Full Monster Sheet stat block, so a creature with
+Monsters answer from the stat block of their Full Monster sheet, so a creature with
 lightless vision or echolocation gets it without you configuring anything. The
 member list shows each character's dark-sight range beside their speed.
 
-**Each sense behaves like itself, not like eyes.** That is the part worth
-knowing at the table:
+**Each sense behaves like itself, not like eyes.** The module gives each its own
+detection mode, and that is the part worth knowing at the table:
 
 | Sense | Finds an invisible creature | Works in magical darkness | Reaches through walls | Stopped by |
 |---|---|---|---|---|
-| Lightless vision | no | no | no | blindness; a **hiding** character proficient in Hiding |
+| Lightless vision | no | no | no | blindness; a **Hidden** character proficient in Hiding |
 | Shadowy senses | yes | no | no | deafness, silence, **running** |
 | Echolocation | yes | **yes** | no | deafness, silence |
 | Mechanoreception (terrestrial) | yes | yes | **yes** — but only creatures that *move* | — |
@@ -1173,22 +1190,24 @@ help; a thief creeping on shadowy senses goes blind the moment they break into a
 run; and a burrowing horror feels you through the floor only while you are
 moving.
 
-Two of those need a switch Foundry does not ship, so this module adds them to the
-token HUD: **Hiding** and **Running**. Neither is guessed — toggle them when the
-character declares it.
+Two of those need a switch Foundry does not ship, so this module offers them as
+statuses on the token HUD: **Hidden** and **Running**. Neither is guessed —
+toggle them when the character declares it. A GM arranges which statuses the HUD
+offers under `Settings tab → Game Settings → ACKS II — Extras → Token status
+palette → Arrange the palette`.
 
 If you want a token to see differently, **edit its vision by hand** — from then
 on that token is yours and the module leaves it alone. *Token vision
 from ACKS senses*, in Game Settings, turns the whole thing off.
 
-### Bringing old scenes up to date
+### Re-deriving every scene at once
 
 Tokens are re-derived when you open their scene or change the creature's sheet,
-so a campaign already under way has scenes carrying whatever their tokens were
-last set to. Opening a scene is enough to bring that scene up to date.
+so a scene you have not opened since a token's sheet changed still carries the
+token's last settings. Opening a scene brings that scene up to date.
 
 To do every scene at once without opening them, run the sweep from a script
-macro of your own:
+macro of your own (there is no shipped macro or menu for it):
 
 ```js
 const report = await acksExtras.lib.vision.migrateWorld();
@@ -1205,7 +1224,7 @@ Tokens you edited by hand are normally left alone forever — that is the
 override working. Call `migrateWorld({ reclaim: true })` instead and it drops
 that protection so they follow their sheets again; those edits are not
 recoverable afterwards, so the default is to leave them be. Run it after
-switching the setting on, or after an update that changes how a sense is read.
+switching the setting on.
 
 ## Sending a scout ahead
 
@@ -1229,8 +1248,8 @@ party deploys around the scout as normal and the leash lifts for the combat.
 
 ## Party checks
 
-**Party roll** resolves the check for every member and posts **one GM-whispered
-card**, not a wall of per-member public cards: a table of who rolled, what they
+**Party checks**, among the party sheet's quick tools, asks which check the party
+makes, resolves it for every member and posts **one GM-whispered card**, not a wall of per-member public cards: a table of who rolled, what they
 got, the number they needed and whether it landed, with the modifier stack under
 each name and anyone who could not attempt it named at the foot.
 
@@ -1247,7 +1266,7 @@ module ships no skill ladder. Resolution order:
 
 1. an explicit **Used for** binding on an ability item;
 2. otherwise the ladder the item itself carries, at the owner's factored level;
-3. otherwise the item's cookbook identity naming its skill.
+3. otherwise the item's imported identity naming its skill.
 
 Anything else falls back to the sheet's roll target.
 
@@ -1304,7 +1323,7 @@ It takes effect on the next roll — no reload.
 Creatures that roll the same number stand in one order in the tracker on every
 player's screen, so End Turn and the turn marker agree for everyone. Within a tie,
 a side that outnumbers the other goes last, a hostile creature goes before a friendly
-one, and creatures with neither difference go in a fixed order that you cannot choose yet.
+one, and creatures with neither difference go in a fixed order that you cannot choose.
 
 ## Skill audit
 
@@ -1348,23 +1367,25 @@ encounter card, no navigation card: the party is still in Delve, which counts
 turns and bills nothing on a map whose cells are a mile or more across (you
 are told so once, in a whisper). Pick **Journey** in the selector beside the
 party's name, or declare the map a wilderness map with the icon on its card
-in the navigation bar (click it to pick). The encounter card prints
+in the scene navigation bar (click it to pick; see
+[What kind of map is this?](battlemap.md#what-kind-of-map-is-this)). The
+encounter card prints
 the party's evasion target but does not roll it; surprise, and whether the
 party may evade, are settled by the system's Surprise Matrix when combat starts.
 
 **The party walks a dungeon map and no turns pass.** No turn card, the delve
 clock still: the party is still on a **Journey**, which counts miles and
-hours, and a dungeon's corridors are not many of either. Two maps do this. A
-map that declares nothing leaves the party in whatever mode it arrived in, so
-a party that came off the wilderness map stays on its journey; and a dungeon
-level imported by Extras before 11.10.0 was marked as a wilderness map when
-it was made. The mode selector beside the party's name shows which mode
-the party is in. Pick **Delve** there, or declare the map a dungeon in the
-battlemap setup tool (the party standing on it switches at once); for an
-imported level, running the book's map step again mends the mark.
+hours, and a dungeon's corridors are not many of either. A map that declares
+nothing leaves the party in whatever mode it arrived in, so a party that came
+off the wilderness map stays on its journey. The mode selector beside the
+party's name shows which mode the party is in. Pick **Delve** there, or declare
+the map a dungeon with **Party system here** on the Battlemap scene control's
+**Map setup panel**, or with the icon on the map's card in the scene navigation
+bar (the party standing on it switches at once; see
+[What kind of map is this?](battlemap.md#what-kind-of-map-is-this)).
 
-**Saves look wrong.** The party does not save — `rollPartySave` reads each
-member's own saves.
+**Saves look wrong.** The party actor has no saves of its own: pressing a save
+on the party sheet rolls each member's own saves.
 
 ## Macros
 
