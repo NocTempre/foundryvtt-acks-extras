@@ -5516,3 +5516,39 @@ Revised Rulebook's travel tables prices no march, no day budget and no camp
 search target until it does. `ANCILLARY_SLOTS` (the stored record's slot count)
 and the sailing day's hours (`VOYAGE_HOURS`) still ship and are open on
 the ROADMAPs.
+
+## 2026-11-13 — An empty compendium id list is answered without the server (T-0353)
+
+**Asked.** A timed import's abilities step made 4169 `getDocuments` calls for
+729 item writes (importer DECISIONS, 2026-11-13, "An update pass costs a write,
+not a library read"). Core makes two of them per compendium update, each asking
+`getDocuments({_id__in: ids})` with `ids` empty for a document the pack already
+holds (`ClientDatabaseBackend#loadCompendiumDocuments`, which guards no length),
+and the server answers every compendium query by testing every stored document.
+
+**Ruled.** `patches/compendium-empty-load.mjs` wraps
+`CompendiumCollection#getDocuments` and resolves `[]` when the query's only term
+is an empty `_id__in`, with no server call. Every other query, a `getDocument`'s
+`{_id}` among them, reaches core unchanged. libWrapper `MIXED` where it is
+installed, a plain wrap otherwise, as the token-light patch does. The patch
+holds nothing, so it never answers for a deleted document, and every client runs
+it, which also removes the scans other clients' writes cause. Lib owns it: the
+method is core's and every feature's writes pass through it, so no feature's
+folder is the owner; it is the only wrapper of `getDocuments` in the family.
+
+**Rejected.** *Batching the update pass's writes per pack.* It spares one pass,
+leaves every other bulk write and every other client paying the scans, and needs
+a single-write retry for a chunk holding a document deleted mid-run. It is the
+fallback if the patch is refused. *Skipping the call in the importer.* The call
+is core's, inside `Document#update`.
+
+**The counter-argument (moderate).** The patch changes Foundry for every caller
+in the world, and a later core that gave an empty query a server-side meaning
+would be bypassed without a sign. The match is exact (one key, an empty array),
+the current server's `get` runs a plain scan that returns nothing for it, and
+core can add the guard itself, at which point the patch is deleted.
+
+*Cost:* a core release that changes what an empty `_id__in` returns is not seen
+by the one caller shape this answers; the patch's suite pins the match and the
+passes-through cases, and the live import count in importer TESTING, "Counting
+reads", shows the loads gone.

@@ -344,6 +344,22 @@ these was misdiagnosed once.
    page walk that chooses an image is skipped when the image already exists;
    if the art stops appearing, the gate moved back onto the op's result instead
    of the recipe's own art field.
+4. **Counting reads** (the stack-counting check). Wrap
+   `CompendiumCollection.prototype.getDocuments` from the page with a counter
+   that records the call's query shape, its milliseconds and the top frames of
+   its stack, then run a bulk step that writes many library items:
+   `acksExtras.importer.cookbookUpdateAbilities()` after flipping
+   `flags.acks-extras.extras.unaudited` on a few dozen library abilities whose
+   book is open (the update restores the flag, so each write is a real one).
+   *Observables:* the calls with `_id__in: []` are counted apart and cost about
+   nothing each (the lib patch answers them before the server; one per write
+   per core load is expected); the calls that reach the server are the step's
+   whole-pack reads (the abilities listing, the dangling-ability listing, the
+   imported index on a cold client) plus ONE ladder refresh after the loop and
+   one per quiet second inside it, and no `refreshLadders` frame appears among
+   the stacks while writes are running. A count that grows with the number of
+   writes means one of the two guards moved. Edit an actor's embedded copy of a
+   skill ability while watching: no pack read follows.
 
 ## Nothing is imported twice
 

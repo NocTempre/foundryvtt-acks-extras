@@ -10147,6 +10147,57 @@ book while the world is up).
 194 pages' text for a full rules-tables run. Cached items are shared between
 recipes, which read them and never write them.
 
+## 2026-11-13 — An update pass costs a write, not a library read (T-0353)
+
+**Ruled by the owner** (T-0353): "in this release; measured first". The phase
+ruling is "Fixes in, new features out", and nothing here changes what an import
+writes.
+
+**What was measured, live.** A timed Import Everything (Settings tab → Game
+Settings → ACKS II — Extras → Manage imports → Import Everything) took 2728 s.
+The abilities step took 2377 s of it, wrote 729 items, and made 4169
+`getDocuments` calls that summed 4537 s, so two streams of them overlapped for
+the whole step. Page extraction was 5 s of it. The library pack holds 3383 documents; with the world
+idle, `getDocuments({_id__in: []})` on it takes 297 ms and a whole read 11.5 s.
+Stack samples put the calls in two places.
+
+**Core asks for nothing, and the server scans anyway.** Every update of a
+compendium document makes core call `getDocuments({_id__in: ids})` twice, before
+the write and when it handles the response, with `ids` empty for a document the
+pack already holds (`loadCompendiumDocuments`, no length guard). The server
+answers every compendium query by testing every stored document, so an empty
+list costs a whole-shelf scan, 297 ms here. This is the mechanism under the
+2026-08-24 ruling, "a write costs what the shelf already holds": the write is a
+key lookup and the scans around it are the cost. `lib/patches/compendium-empty-load.mjs`
+answers a query whose only term is an empty id list without the server (lib
+DECISIONS, 2026-11-13).
+
+**The ladder cache re-read the library on every item write.** The skill-ladder
+cache listened to every item hook and, while no refresh was in flight, started
+another, so a 729-write loop ran one whole-library read beside itself back to
+back, and it fired for an actor's embedded copies the cache never holds. It now
+ignores embedded items and reads once after a quiet second (abilities
+DECISIONS, 2026-11-13).
+
+**Rejected:** caching documents further inside `liveCopy` and `importedIndex`,
+which the stacks show are not in the loop; and switching the ladder hooks off
+during an import, which hides the storm for one caller and leaves the lost
+update. Batching the pass's writes per pack is the fallback if the core patch
+is refused: larger, and it needs a single-write retry for a chunk that holds a
+document deleted mid-run.
+
+*Cost:* a step that rewrites hundreds of library documents still waits on one
+server write each, and the final ladder read arrives a second after the last
+write, so a roll in that second reads the map from before the burst.
+
+**Measured after both changes, live.** The same Import Everything took 168 s.
+The abilities step took 30 s: 3 item writes and 17 `getDocuments` calls that
+summed 32 s. The rules-tables step took 41 s with 50 setting writes and 13
+`getDocuments` calls. That world already held the earlier run's 729 rewrites,
+so the step's time does not compare with 2377 s. What it shows is that the
+call count falls from thousands to the step's own reads. Whether the count stays flat as writes grow is
+importer TESTING, "Counting reads", which has not been walked.
+
 ## 2026-11-13 — A time phrase is refused in a row's prose fields (T-0173)
 
 **Ruled.** `condition-labels.mjs` `TIME_PHRASE` matches an amount (a digit, a

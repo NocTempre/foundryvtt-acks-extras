@@ -656,6 +656,7 @@ scout. They live here rather than in a feature because more than one asks.
 | `scripts/lib/light.mjs` | The kinds of light, their imported figures (the light table), and which record holds a given actor's lights. |
 | `scripts/lib/token-sync.mjs` | The guarded writes that put any of it on a token. |
 | `scripts/lib/patches/token-light-padding.mjs` | A managed light's radius on the canvas, with core's token padding taken off. |
+| `scripts/lib/patches/compendium-empty-load.mjs` | A compendium read naming no document (`_id__in: []`), answered without the server call core would otherwise make for it. |
 
 **Sense resolution** runs in one precedence order, so the movement rules and the
 canvas can never disagree: the Full Monster Sheet stat block

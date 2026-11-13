@@ -845,3 +845,31 @@ reads blank, and one that stored `proficiency` keeps it.
 `cookbook.mjs` `abilityCategory` still writes `proficiency` for a register
 entry that declares no category; that default is the importer's and is
 unchanged here.
+
+## 2026-11-13 — The ladder cache re-reads after a burst, and only for library items (T-0353)
+
+**Asked.** Live stacks of a timed import (importer DECISIONS, 2026-11-13, "An
+update pass costs a write, not a library read") showed the skill-ladder cache
+reading every world Item pack whole while 729 item writes ran. `initLadders`
+hooked every item create, update and delete; a hook started a refresh unless
+one was in flight, so a loop of writes kept one whole-library read running
+beside it, and a change that landed after a read had passed its pack was not
+read again.
+
+**Ruled.** The hooks ignore an item with a parent: an actor's copy is read live
+by `importedLadderFor` and the cache holds only `game.items` and world Item
+packs. `invalidateLadders` is a trailing timer, `LADDER_REFRESH_QUIET_MS`, so a
+burst reads once after its last change and a change landing during a read
+schedules the next. Each `refreshLadders` takes a generation number and assigns
+its map only if no later read began, so a slow read never overwrites a newer
+one. The map is still rebuilt without being dropped, since a roll reads it
+synchronously (the 2026-09-23 formation ruling stands).
+
+**Rejected.** *A dirty flag re-running after the read in flight:* it fixes the
+lost update and keeps back-to-back whole reads for any burst longer than one
+read. *Filtering the hooks to `def.skill.*` ids:* an update that removes the
+flag would be missed; the parent test and the quiet window are enough.
+
+**Cost.** A write to a library skill reaches a roll one quiet second after the
+last write of its burst; until then a roll reads the map from before it. A top
+level delete leaves the map holding the skill for that second.

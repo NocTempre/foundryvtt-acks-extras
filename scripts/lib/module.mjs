@@ -98,6 +98,7 @@ import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
 import { installTokenLightPaddingPatch } from "./patches/token-light-padding.mjs";
+import { installCompendiumEmptyLoadPatch } from "./patches/compendium-empty-load.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "./patches/spell-use.mjs";
 import * as senses from "./senses.mjs";
 import * as light from "./light.mjs";
@@ -487,6 +488,8 @@ Hooks.once("init", () => {
   movementScales.declareMovementTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
+  // Before the first write to a compendium document.
+  installCompendiumEmptyLoadPatch();
   installSpellUsePatch();
 
   registerMountDrop();

@@ -25,7 +25,8 @@ globalThis.game = {
   packs: [],
 };
 globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
-globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
+const handlers = {};
+globalThis.Hooks = { on(hook, fn) { (handlers[hook] ??= []).push(fn); }, once() {}, off() {}, call() {}, callAll() {} };
 globalThis.fromUuidSync = () => null;
 globalThis.foundry = {
   abstract: { DataModel: class {}, TypeDataModel: class {} },
@@ -39,7 +40,7 @@ globalThis.foundry = {
 };
 
 const { ladderRungAt, resolveLevelOutcome } = await import("../scripts/classes/registry.mjs");
-const { importedLadderFor, skillLadderRungs, refreshLadders } = await import("../scripts/abilities/skill-ladders.mjs");
+const { importedLadderFor, skillLadderRungs, refreshLadders, initLadders, LADDER_REFRESH_QUIET_MS } = await import("../scripts/abilities/skill-ladders.mjs");
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
@@ -131,4 +132,88 @@ await ok("the owner's own copy of a skill is read before the world's", async () 
   assert.equal(importedLadderFor("climbing", null).breakpoints[0].value, 9);
 });
 
+/* --- the cache under a burst of item writes ---------------------------------- */
+// A pack whose reads are counted and take a moment; the item hooks fire as core fires them.
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const fire = (hook, doc) => { for (const fn of handlers[hook] ?? []) fn(doc, {}, {}, "u1"); };
+const QUIET = LADDER_REFRESH_QUIET_MS ?? 1000;
+let reads = 0;
+let readDelay = 5;
+let shelf = [];
+let duringRead = null;
+const delays = [];
+
+await ok("the hooks are set once and the settled cache holds the shelf", async () => {
+  reset();
+  shelf = [skill("sneaking", [1, 10], [5, 6])];
+  game.packs.push({
+    documentName: "Item", collection: "world.skills", metadata: { packageType: "world" },
+    getDocuments: async () => {
+      reads++;
+      const now = [...shelf];
+      const hook = duringRead;
+      duringRead = null;
+      if (hook) hook();
+      await wait(delays.shift() ?? readDelay);
+      return now;
+    },
+  });
+  initLadders();
+  await wait(QUIET + 300);
+  assert.equal(importedLadderFor("sneaking", null).breakpoints[0].value, 10);
+});
+
+await ok("a burst of changes to an actor's own copies reads no pack", async () => {
+  reads = 0;
+  const owner = actorOf([]);
+  for (let n = 0; n < 60; n++) {
+    fire("updateItem", { ...skill("sneaking", [1, 9]), parent: owner });
+    await wait(2);
+  }
+  await wait(QUIET + 300);
+  assert.equal(reads, 0, `reads ${reads}`);
+});
+
+await ok("a burst of changes to library items reads the packs once, after it ends", async () => {
+  reads = 0;
+  for (let n = 0; n < 60; n++) {
+    fire("updateItem", shelf[0]);
+    await wait(2);
+  }
+  assert.equal(reads, 0, "nothing is read while the burst runs");
+  await wait(QUIET + 300);
+  assert.equal(reads, 1, `reads ${reads}`);
+});
+
+await ok("a change that lands while a read is in flight is read afterwards", async () => {
+  readDelay = 60;
+  fire("updateItem", shelf[0]);
+  duringRead = () => {
+    shelf = [skill("sneaking", [1, 4])];
+    setTimeout(() => fire("updateItem", shelf[0]), 10);
+  };
+  await wait(QUIET + 60 + QUIET + 500);
+  readDelay = 5;
+  assert.equal(importedLadderFor("sneaking", null).breakpoints[0].value, 4);
+});
+
+await ok("a slow read that began first never overwrites the map a later read built", async () => {
+  shelf = [skill("sneaking", [1, 7])];
+  delays.push(80, 5);
+  const slow = refreshLadders();
+  shelf = [skill("sneaking", [1, 3])];
+  await refreshLadders();
+  await slow;
+  assert.equal(importedLadderFor("sneaking", null).breakpoints[0].value, 3);
+});
+
+await ok("a deleted library skill stops answering once the quiet window has passed", async () => {
+  const gone = shelf[0];
+  shelf = [];
+  fire("deleteItem", gone);
+  await wait(QUIET + 300);
+  assert.equal(importedLadderFor("sneaking", null), null);
+});
+
 console.log(`\n${passed} passed`);
+process.exit(0);

@@ -684,8 +684,14 @@ A full import re-runs each recipe over its pages on every run. The caches that
 exist cover folders, packs, the presence of an imported document
 (`importedCache` in `scripts/importer/cookbook.mjs`) and, per call, a book's
 extracted pages in the rules-tables step and the abilities update (DECISIONS,
-2026-11-13, "A bulk import reads each page once"; its live figures are still to
-come). Not built: a skip for an entry whose source and recipe are unchanged
+2026-11-13, "A bulk import reads each page once"). A timed Import Everything took
+2728 s, 2377 s of it in the abilities step: 729 item writes and 4169
+`getDocuments` calls, which the empty-id-list patch in lib and the ladder
+cache's quiet window remove (DECISIONS, 2026-11-13, "An update pass costs a
+write, not a library read"); after both, a run took 168 s, 30 s of it in the
+abilities step with 17 `getDocuments` (that DECISIONS entry). The
+rules-tables step took 149 s with 50 setting writes and 132 `getDocuments`
+before, and 41 s with 13 after. Not built: a skip for an entry whose source and recipe are unchanged
 since its last import, judged by a stamp on the imported document; one write of
 the imported-tables setting per run instead of one per document, which the
 tables step makes about fifty times; and book Adventures that are assembled

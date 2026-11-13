@@ -34,24 +34,31 @@ function ladderOf(item) {
 }
 
 let ladderCache = null;
-let refreshQueued = false;
+/** How long the item hooks wait for quiet before the packs are read again. */
+export const LADDER_REFRESH_QUIET_MS = 1000;
+let pending = null;
+let generation = 0;
 
 /**
- * Schedule a rebuild without dropping the current map. The read is
- * synchronous, so an emptied cache would silently downgrade every borrowed
- * throw to nothing until the rebuild finished; a stale map costs nothing by
- * comparison.
+ * Schedule a rebuild once item changes stop arriving, without dropping the
+ * current map. The read is synchronous, so an emptied cache would silently
+ * downgrade every borrowed throw to nothing until the rebuild finished; a stale
+ * map costs nothing by comparison. A burst of writes (an import, an update
+ * pass) reads the packs once, after its last change; a change that lands during
+ * a read schedules the next one.
  */
 export function invalidateLadders() {
-  if (refreshQueued) return;
-  refreshQueued = true;
-  Promise.resolve()
-    .then(() => refreshLadders())
-    .catch((err) => console.warn("acks-extras | skill ladder refresh failed", err))
-    .finally(() => {
-      refreshQueued = false;
-    });
+  clearTimeout(pending);
+  pending = setTimeout(() => {
+    pending = null;
+    refreshLadders().catch((err) => console.warn("acks-extras | skill ladder refresh failed", err));
+  }, LADDER_REFRESH_QUIET_MS);
 }
+
+/** An item hook: an actor's own copy is read live by importedLadderFor and never cached, so it schedules nothing. */
+const onItemChange = (item) => {
+  if (!item?.parent) invalidateLadders();
+};
 
 function takeLadder(map, item) {
   const id = item?.type === ITEM_TYPE.ability ? cookbookId(item) : "";
@@ -62,6 +69,7 @@ function takeLadder(map, item) {
 
 /** Rebuild the skill-to-ladder map from the item directory AND the world packs. */
 export async function refreshLadders() {
+  const mine = ++generation;
   const map = new Map();
   for (const item of game.items ?? []) takeLadder(map, item);
   for (const pack of game.packs ?? []) {
@@ -72,7 +80,8 @@ export async function refreshLadders() {
       console.warn(`acks-extras | could not read compendium ${pack.collection}`, err);
     }
   }
-  ladderCache = map;
+  // A read that started earlier never overwrites a later one's map.
+  if (mine === generation) ladderCache = map;
   return map;
 }
 
@@ -86,7 +95,7 @@ export function initLadders() {
   if (installed) return;
   installed = true;
   refreshLadders();
-  for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, invalidateLadders);
+  for (const hook of ["createItem", "updateItem", "deleteItem"]) Hooks.on(hook, onItemChange);
   Hooks.on("ready", invalidateLadders);
 }
 

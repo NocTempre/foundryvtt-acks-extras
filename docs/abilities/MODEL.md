@@ -115,6 +115,10 @@ A borrowed throw reads a thief-style ladder from the skill the world imported
 (`skill-ladders.mjs`) when no class document publishes one: the thief's skills
 live on the skill items, so `ladderRungAt` falls back to the imported
 `def.skill.<table>`'s ladder. A cold cache answers no rung, never a wrong one.
+The cache reads the world Item packs whole, once at ready and again
+`LADDER_REFRESH_QUIET_MS` after the last create, update or delete of an item
+that has no parent; an actor's embedded copy is read live and never schedules a
+read, and a read that began earlier never replaces a later one's map.
 The recipe for such a throw ships the class and the skill, and the proportion
 and the rounding are read off the seat's own page (`target.progression`,
 `docs/importer/MODEL.md`); a rounding the page does not state is left to the
