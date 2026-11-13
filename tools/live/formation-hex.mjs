@@ -34,6 +34,7 @@
  *     march recipe's own convention).
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS, shotDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -984,9 +985,9 @@ try {
   note("player census", { role: census.player.role, activeRoles: census.player.activeRoles });
   worldTime0 = census.gm.worldTime;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
-  if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the throw would run there");
+  if (!census.gm.activeGMIsSelf) blocked("another GM client is the active GM; the throw would run there");
   check("the GM seat's window leads its seat's election, so the throw and its card run in it", census.gm.election?.isLead === true, census.gm.election);
-  if (census.gm.election?.isLead !== true) throw new Error("another window on the GM seat leads its election; the throw would run there, outside the run's dice");
+  if (census.gm.election?.isLead !== true) blocked("another window on the GM seat leads its election; the throw would run there, outside the run's dice");
   note("install", { gm: await page(gm, P.install, { nonce: NONCE }), player: await page(player, P.install, { nonce: NONCE }), nonce: NONCE });
   const playerId = census.player.userId;
 
@@ -1394,6 +1395,7 @@ try {
   note("marked cards", cards);
   check("every card the run marked is still standing and speaks as none of another walk's actors", cards.missing === 0 && cards.foreign === 0, cards);
   note("closed", await page(gm, P.closeAll));
+  walkDone();
 } catch (err) {
   console.error("WALK FAILED:", err?.stack ?? err);
   process.exitCode = 1;

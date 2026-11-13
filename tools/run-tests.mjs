@@ -16,19 +16,30 @@
  * They are still worth writing and worth running: checking a derivation against
  * the book's own worked example is how a rule gets read correctly rather than
  * guessed at. They just stay on the machine that owns the books. A checkout
- * without them runs the committed half and says how many it skipped.
+ * without them runs the committed half and says how many it skipped. `--rules`
+ * turns that skip into a failure: it is the working-tree run (`npm run
+ * test:tree`) and refuses to pass when `tools/rules-tests/` is absent or holds
+ * no suite. The commit gate runs `npm test` in a clean clone, where the rules
+ * tests cannot exist, so it never passes the flag.
  *
- * The importer subsystem's own suites live in `tools/importer/`; their names
- * below carry that prefix. The Discord service's suites live in
- * `discord/test/`, beside the service they check, and run from here too, so
- * one `npm test` covers the repo. They resolve `discord.js` from the root's
- * own devDependencies: CI installs only the root package, never
+ * ## Discovery
+ *
+ * A committed suite is found, never listed: `tools/test-*.mjs`,
+ * `tools/importer/test-*.mjs` and `discord/test/*.test.mjs`. A new suite that
+ * matches runs with no edit here. A file that matches and is not a suite goes
+ * on `EXCLUDED`, each entry named in full with its reason, and an entry whose
+ * file is gone throws, so the list cannot rot into names that match nothing.
+ *
+ * The Discord service's suites live beside the service they check and run from
+ * here too, so one `npm test` covers the repo. They resolve `discord.js` from
+ * the root's own devDependencies: CI installs only the root package, never
  * `discord/node_modules`, so a suite that needs the bot's dependency needs it
  * declared here too.
  *
  * The suites run side by side (`side-by-side.mjs`), each a process of its
- * own, and their output is shown in the order below. Every suite runs to its
- * end, and the ones that failed are named after the last.
+ * own, and their output is shown in sorted order: `tools/`, then
+ * `tools/importer/`, then `discord/test/`, each by file name. Every suite runs
+ * to its end, and the ones that failed are named after the last.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -37,225 +48,64 @@ import { sideBySide } from "./side-by-side.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-/** Suites that assert only what this repo's own code does. */
-const COMMITTED = [
-  "test-side-by-side.mjs",
-  "test-lib.mjs",
-  "test-senses.mjs",
-  "test-encounter-line.mjs",
-  "test-automation-client.mjs",
-  "test-window-title.mjs",
-  "test-window-resize.mjs",
-  "test-press-focus.mjs",
-  "test-magic.mjs",
-  "test-repair.mjs",
-  "test-repair-checks.mjs",
-  "test-group-deploy.mjs",
-  "test-hp.mjs",
-  "test-animations.mjs",
-  "test-reference.mjs",
-  "test-group-lifecycle.mjs",
-  "test-group-encounter.mjs",
-  "test-group-move.mjs",
-  "test-group-combat.mjs",
-  "test-battlemap.mjs",
-  "test-battlemap-scene-nav.mjs",
-  "test-equipment.mjs",
-  "test-item-loss.mjs",
-  "test-armour-limits.mjs",
-  "test-weapon-rows.mjs",
-  "test-weapon-lists.mjs",
-  "test-held-grip.mjs",
-  "test-weapon-source.mjs",
-  "test-weapon-nulls.mjs",
-  "test-weapon-shortcuts.mjs",
-  "test-typed-modifiers.mjs",
-  "test-quick-effects.mjs",
-  "test-ability-sheet.mjs",
-  "test-item-sheet.mjs",
-  "test-character-sheet.mjs",
-  "test-monster-sheet.mjs",
-  "test-leader-roles.mjs",
-  "test-leader-derive.mjs",
-  "test-kit-presets.mjs",
-  "test-leader-template.mjs",
-  "test-character-pdf.mjs",
-  "test-bridge.mjs",
-  "test-formation-flows.mjs",
-  "test-formation-heading.mjs",
-  "test-formation-column.mjs",
-  "test-formation-binding.mjs",
-  "test-mapper-vulnerable.mjs",
-  "test-mapper.mjs",
-  "test-light-binding.mjs",
-  "test-delve-encounter-binding.mjs",
-  "test-skill-audit-roll.mjs",
-  "test-marching-templates.mjs",
-  "test-trap-rules.mjs",
-  "test-wall-geometry.mjs",
-  "test-wall-layers.mjs",
-  "test-water.mjs",
-  "test-variations.mjs",
-  "test-influence.mjs",
-  "test-influence-bribe.mjs",
-  "test-classes.mjs",
-  "test-companions.mjs",
-  "test-summons.mjs",
-  "test-henchmen.mjs",
-  "test-henchmen-engine.mjs",
-  "test-service-view.mjs",
-  "test-follower-card.mjs",
-  "test-markets.mjs",
-  "test-merchandise.mjs",
-  "test-manifest.mjs",
-  "test-trade.mjs",
-  "test-reports.mjs",
-  "test-capacity.mjs",
-  "test-mount.mjs",
-  "test-money.mjs",
-  "test-coin-flows.mjs",
-  "test-languages.mjs",
-  "test-xp-shares.mjs",
-  "test-xp-bonus.mjs",
-  "test-experience.mjs",
-  "test-legacy.mjs",
-  "test-zero-level.mjs",
-  "test-table-docs.mjs",
-  "test-judge-shelf.mjs",
-  "test-vehicles.mjs",
-  "test-travel.mjs",
-  "test-march.mjs",
-  "test-journey.mjs",
-  "test-conveyance.mjs",
-  "test-strip.mjs",
-  "test-party-frame.mjs",
-  "test-plate.mjs",
-  "test-weather.mjs",
-  "test-weather-effects.mjs",
-  "test-encounters.mjs",
-  "test-hex-stock.mjs",
-  "test-hex-stock-run.mjs",
-  "test-search-run.mjs",
-  "test-settlement.mjs",
-  "test-jumping.mjs",
-  "test-obstacles.mjs",
-  "test-poi.mjs",
-  "test-factions.mjs",
-  "test-domains.mjs",
-  "test-domain-map.mjs",
-  "test-lost.mjs",
-  "test-sky.mjs",
-  "test-flight.mjs",
-  "test-movement-modes.mjs",
-  "test-survival.mjs",
-  "test-fatigue.mjs",
-  "test-rest.mjs",
-  "test-conditions.mjs",
-  "test-status-palette.mjs",
-  "test-adventuring-roll.mjs",
-  "test-adventuring-throw.mjs",
-  "test-throw-modifiers.mjs",
-  "test-skill-ladders.mjs",
-  "test-stored-inputs.mjs",
-  "test-legacy-source.mjs",
-  "test-surprise-pools.mjs",
-  "test-attack-damage-formula.mjs",
-  "test-combat-round.mjs",
-  "test-turn-activities.mjs",
-  "test-turn-plan.mjs",
-  "test-turn-order.mjs",
-  "test-provisions.mjs",
-  "test-foraging.mjs",
-  "test-searching.mjs",
-  "test-hex-topology.mjs",
-  "test-location-reach.mjs",
-  "test-location-notes.mjs",
-  "test-location-spoil.mjs",
-  "importer/test-prose.mjs",
-  "importer/test-book-match.mjs",
-  "importer/test-book-registry.mjs",
-  "importer/test-offered-set-reads.mjs",
-  "importer/test-shelf-restore.mjs",
-  "importer/test-import-manager.mjs",
-  "importer/test-reimport-everything.mjs",
-  "importer/test-executor.mjs",
-  "importer/test-runins.mjs",
-  "importer/test-typography.mjs",
-  "importer/test-hit-dice.mjs",
-  "importer/test-equipment-binding.mjs",
-  "importer/test-weapon-binding.mjs",
-  "importer/test-weapon-tables.mjs",
-  "importer/test-armor-tables.mjs",
-  "importer/test-gear-prices.mjs",
-  "importer/test-ability-names.mjs",
-  "importer/test-stat-block-proficiencies.mjs",
-  "importer/test-starting-equipment.mjs",
-  "importer/test-hitpoint-tables.mjs",
-  "importer/test-class-builder-tables.mjs",
-  "importer/test-recipe-pages.mjs",
-  "importer/test-recipe-content.mjs",
-  "importer/test-class-tongues.mjs",
-  "importer/test-class-training.mjs",
-  "importer/test-trap-tiers.mjs",
-  "importer/test-variations.mjs",
-  "importer/test-vehicles.mjs",
-  "importer/test-travel-tables.mjs",
-  "importer/test-weather-tables.mjs",
-  "importer/test-encounter-tables.mjs",
-  "importer/test-grid-rows.mjs",
-  "importer/test-voyage-tables.mjs",
-  "importer/test-land-tables.mjs",
-  "importer/test-business-binding.mjs",
-  "importer/test-prose-values.mjs",
-  "importer/test-produces.mjs",
-  "importer/test-conditions-binding.mjs",
-  "importer/test-mount-flags.mjs",
-  "importer/test-item-shelves.mjs",
-  "importer/test-imported-index.mjs",
-  "importer/test-item-ids.mjs",
-  "importer/test-import-kinds.mjs",
-  "importer/test-cookbook-coherence.mjs",
-  "importer/test-printed-name.mjs",
-  "importer/test-poi-binding.mjs",
-  "importer/test-place-pair.mjs",
-  "importer/test-market-profiles.mjs",
-  "importer/test-faction-binding.mjs",
-  "importer/test-strength-grid.mjs",
-  "importer/test-scene-binding.mjs",
-  "importer/test-wall-trace.mjs",
-  "importer/test-book-adventure.mjs",
-  "importer/test-region-import.mjs",
-  "importer/test-refresh.mjs",
-  "importer/test-merged-repair.mjs",
-  "importer/test-held-edits-dialog.mjs",
-  "importer/test-token-art.mjs",
-  "importer/test-register-rules.mjs",
-  "importer/test-ax-statline.mjs",
-  "importer/test-character-binding.mjs",
-  "importer/test-adventure-item-binding.mjs",
-  "importer/test-bookless-import.mjs",
-  "importer/test-adventure-item-repair.mjs",
-  "importer/test-class-prose-levels.mjs",
-  "importer/test-ax1-cookbook.mjs",
-  "importer/test-check-silos.mjs",
-  "../discord/test/config.test.mjs",
-  "../discord/test/format.test.mjs",
-  "../discord/test/seat.test.mjs",
-  "../discord/test/update-watch.test.mjs",
-  "../discord/test/register.test.mjs",
-  "../discord/test/install.test.mjs",
+/** Where committed suites live, as a directory (relative to `tools/`) and the file-name test. */
+const SUITE_GLOBS = [
+  { dir: ".", match: /^test-.*\.mjs$/ },
+  { dir: "importer", match: /^test-.*\.mjs$/ },
+  { dir: "../discord/test", match: /\.test\.mjs$/ },
 ];
+
+/**
+ * Files a glob finds that this runner must not run, relative to `tools/`, each
+ * with its reason. Every entry must exist.
+ */
+const EXCLUDED = new Map([
+  // The OSE gates are run by `importer/validate-extra.mjs` (§5 of
+  // `validate-extra.mjs`) as part of `npm run validate`; running them here too
+  // would do the same work twice per gate.
+  ...[
+    "binding", "blocks", "convert", "lang", "location", "manual", "statline", "template",
+  ].map((name) => [`importer/test-ose-${name}.mjs`, "run by importer/validate-extra.mjs"]),
+]);
+
+for (const file of EXCLUDED.keys()) {
+  if (!fs.existsSync(path.join(HERE, file))) throw new Error(`run-tests: excluded suite missing — ${file}`);
+}
+
+/** Every committed suite the globs find and `EXCLUDED` does not name, as absolute paths. */
+function discover() {
+  const found = [];
+  for (const { dir, match } of SUITE_GLOBS) {
+    const abs = path.join(HERE, dir);
+    if (!fs.existsSync(abs)) throw new Error(`run-tests: suite directory missing — ${dir}`);
+    const names = fs.readdirSync(abs).filter((f) => match.test(f)).sort();
+    for (const f of names) {
+      const rel = path.posix.normalize(path.posix.join(dir.split(path.sep).join("/"), f));
+      if (!EXCLUDED.has(rel)) found.push(path.join(abs, f));
+    }
+  }
+  return found;
+}
+
+const args = process.argv.slice(2);
+const unknown = args.filter((a) => a !== "--rules");
+if (unknown.length) {
+  console.error(`run-tests: unknown argument(s) ${unknown.join(" ")} — the only flag is --rules`);
+  process.exit(2);
+}
+const requireRules = args.includes("--rules");
 
 const RULES_DIR = path.join(HERE, "rules-tests");
 
-const committed = COMMITTED.map((suite) => {
-  const p = path.join(HERE, suite);
-  if (!fs.existsSync(p)) throw new Error(`run-tests: committed suite missing — ${suite}`);
-  return p;
-});
+const committed = discover();
+if (!committed.length) throw new Error("run-tests: no committed suites found");
 const rules = fs.existsSync(RULES_DIR)
   ? fs.readdirSync(RULES_DIR).sort().filter((f) => f.endsWith(".mjs")).map((f) => path.join(RULES_DIR, f))
   : [];
+if (requireRules && !rules.length) {
+  console.error("run-tests: --rules needs this machine's rules tests, and tools/rules-tests/ is absent or holds no .mjs suite");
+  process.exit(1);
+}
 const ran = committed.length;
 const local = rules.length;
 

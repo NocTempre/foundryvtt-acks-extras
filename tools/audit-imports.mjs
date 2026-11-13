@@ -8,7 +8,8 @@
  * re-exporting with `export * from` is treated as opaque and its importers
  * are skipped.
  *
- * Usage: node tools/audit-imports.mjs   (also runs via `npm run validate`)
+ * Usage: node tools/audit-imports.mjs. `tools/validate-extra.mjs` runs it as
+ * part of `npm run validate`, and a non-zero exit fails validation.
  */
 import fs from "node:fs";
 import path from "node:path";

@@ -166,6 +166,22 @@ for (const { file, text } of files) {
   }
 }
 
+/* --- 4b. Every live walk reports its own end ------------------------------
+   The runner reads a walk as passed only where it printed `WALK END`
+   (`tools/walk-results.mjs` `reduce`), so a walk that never calls `walkDone()`
+   from `tools/live/_walk.mjs` reduces to stopped on every run, however green.
+   A walk is every `tools/live/*.mjs` but `run.mjs` and the `_` helpers. */
+{
+  const live = path.join(ROOT, "tools", "live");
+  const walks = fs.existsSync(live) ? fs.readdirSync(live).filter((f) => f.endsWith(".mjs") && !f.startsWith("_") && f !== "run.mjs") : [];
+  for (const f of walks) {
+    const text = fs.readFileSync(path.join(live, f), "utf8");
+    const imports = /import\s*\{[^}]*\bwalkDone\b[^}]*\}\s*from\s*["']\.\/_walk\.mjs["']/.test(text);
+    const calls = (text.match(/\bwalkDone\(\);/g) ?? []).length;
+    if (!imports || calls !== 1) errors.push(`tools/live/${f}: a walk imports walkDone from ./_walk.mjs and calls it once, as the last statement of its try (imports: ${imports}, calls: ${calls})`);
+  }
+}
+
 for (const n of notes) console.log(`  note: ${n}`);
 if (errors.length) {
   for (const e of errors) console.error(`  FAIL: ${e}`);
@@ -225,8 +241,29 @@ apart.push(["--expose-internals", path.join(ROOT, "tools", "validate-macro-names
    with the same bundled acorn as §7, so it re-execs behind `--expose-internals`. */
 apart.push(["--expose-internals", path.join(ROOT, "tools", "importer", "check-silos.mjs")]);
 
+/* --- 11. Every named import exists in the module it names -----------------
+   A wrong name throws at load in the browser and nowhere else; `node --check`
+   (§1) parses an import it cannot resolve and is satisfied. A failure here
+   fails validation. */
+apart.push([path.join(ROOT, "tools", "audit-imports.mjs")]);
+
 {
   const { sideBySide } = await import("./side-by-side.mjs");
+  const { spawnSync } = await import("node:child_process");
+
+  /* --- 12. Style audit: reported, never failing ------------------------------
+     `audit-styles.mjs` finds classes no stylesheet mentions and design tokens
+     read without being declared. It carries open findings, so its exit status
+     is ignored here and only its problem count and where to read them are
+     printed. Run `node tools/audit-styles.mjs` for the list. */
+  {
+    const styles = spawnSync(process.execPath, [path.join(ROOT, "tools", "audit-styles.mjs")], { cwd: ROOT, encoding: "utf8" });
+    const count = /audit-styles: (\d+) problem/.exec(`${styles.stdout}${styles.stderr}`)?.[1];
+    if (count) console.log(`  note: audit-styles reports ${count} problem(s), not failing validation — run \`node tools/audit-styles.mjs\` for the list`);
+    else if (styles.status === 0) console.log("  ok: audit-styles reports no problems");
+    else console.log(`  note: audit-styles did not run to a verdict (status ${styles.status}) — run \`node tools/audit-styles.mjs\``);
+  }
+
   const failed = (await sideBySide(apart, { cwd: ROOT })).filter((check) => check.status !== 0);
   if (failed.length) {
     const name = (check) => path.relative(ROOT, check.args.find((arg) => arg.endsWith(".mjs"))).split(path.sep).join("/");

@@ -42,6 +42,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Cdp, connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -885,6 +886,7 @@ try {
   const ge = await run(gm, P.drain);
   check("no console error on the Player seat over the walk", !pe.errors.length, pe.errors.slice(0, 3));
   check("no console error on the GM seat over the walk", !ge.errors.length, ge.errors.slice(0, 3));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

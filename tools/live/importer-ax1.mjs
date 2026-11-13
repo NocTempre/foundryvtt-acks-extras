@@ -147,6 +147,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connect, sleep, pageSweep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 import {
   GRID_SCENE_PADDING, LINK_ASK, isLinkRow, isRegionRecipe, linkBoxOnFirstStorey, linkEndKey,
 } from "../../scripts/importer/scene-binding.mjs";
@@ -1995,6 +1996,7 @@ try {
       { outcome: re2d?.books?.[BOOK] ?? null, places: adv2d?.contents?.places, held: lib2d.filter((r) => r.type === LOCATION).length });
     note("2d: left stale", { books: laterBooks, why: "each later book's own Adventure carries the deleted place's document id until it is rebuilt" });
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

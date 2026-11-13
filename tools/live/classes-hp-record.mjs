@@ -24,6 +24,7 @@
  * figure printed is a boolean or a count.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -612,6 +613,7 @@ try {
   const drained = await run(player, P.drain);
   const gmDrained = await run(gm, P.drain);
   check("no console error on either seat over the walk", !drained.errors.length && !gmDrained.errors.length, { player: drained.errors.length, gm: gmDrained.errors.length });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

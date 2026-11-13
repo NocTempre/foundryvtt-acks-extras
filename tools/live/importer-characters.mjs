@@ -46,6 +46,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, shotDir } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -558,6 +559,7 @@ try {
     const opens = out.uuid ? await run(player, P.playerOpens, { uuid: out.uuid }) : null;
     check("4: on the player's seat the copy is the player's, and its sheet opens", !!opens?.owner && !!opens?.rendered, opens);
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

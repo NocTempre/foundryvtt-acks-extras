@@ -22,6 +22,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -345,7 +346,7 @@ try {
   const installed = await run(gm, P.install);
   note("install", installed);
   check("the GM seat is the active GM", installed.isGM && installed.activeGMIsSelf, installed.module);
-  if (!installed.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!installed.activeGMIsSelf) blocked("another GM client is the active GM");
 
   section("Roll");
   // Each low and high is what the invented dice can throw.
@@ -444,6 +445,7 @@ try {
   check("a literal count is core's formula, and it rolls", literal.ok && literal.literal && literal.rolled === true && literal.staleGone, literal);
   const percent = repaired["monsters/encounter-percent"];
   check("a lair chance printed as a percent reads as a number", percent.ok && percent.lairChanceReads, percent);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

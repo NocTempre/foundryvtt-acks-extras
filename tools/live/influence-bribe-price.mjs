@@ -17,6 +17,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -333,6 +334,7 @@ try {
   check("8d: no coin left the influencer", after.influencerGp === offered.before, { unchanged: after.influencerGp === offered.before });
   check("8d: the GM seat is told the offer had no price to meet", (await run(gm, P.notes, { key: "ACKS-INFLUENCE.bribe.unpriced" })).said, null);
   note("layer removed", await run(gm, P.layer, { on: false, priority: WALK_LAYER }));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

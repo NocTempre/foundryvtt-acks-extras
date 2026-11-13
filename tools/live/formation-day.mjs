@@ -26,6 +26,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep, Cdp } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS, shotDir, logDir } from "./_env.mjs";
 
 // WALK_PLAN names an optional plan file ({ "sections": [...], "shots": true }); without one every section runs and plates are taken under SHOTS=1.
@@ -3092,7 +3093,7 @@ try {
   ctx.worldTime0 = census.gm.worldTime;
   ctx.census = census;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
-  if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the automation would run there");
+  if (!census.gm.activeGMIsSelf) blocked("another GM client is the active GM; the automation would run there");
   // A dead run's products it never marked, named by the plan from that run's log, go by the ledger alone.
   if ((PLAN.retrack ?? []).length) note("retracked swept", await gm.sweepTracked({ only: PLAN.retrack.map((e) => gm.track(e.uuid, e.kind)) }));
   const retiredCards = [];
@@ -3111,6 +3112,7 @@ try {
   const guarded = async (name, fn) => { try { await fn(); } catch (err) { console.error(`SECTION ${name} FAILED:`, err?.stack ?? err); check(`${name}: the section ran to its end`, false, String(err?.message ?? err)); } };
   if (RUN.has("journey")) await guarded("journey", () => journey(gm, player, census));
   if (RUN.has("daychange")) await guarded("daychange", () => daychange(gm, player, census));
+  walkDone();
 } catch (err) {
   console.error("WALK FAILED:", err?.stack ?? err);
   process.exitCode = 1;

@@ -24,6 +24,7 @@
  * none.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -339,7 +340,7 @@ try {
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
   check("the GM seat is the active GM and the page serves the card with its hook", census.activeGMIsSelf && census.role === 4 && census.card === "function" && typeof census.hook === "string", { role: census.role, module: census.module, hook: census.hook });
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install", await run(gm, P.install));
 
   section("fixtures");
@@ -449,6 +450,7 @@ try {
   check("the observer sees both cards with their readings", !!pBeast?.readonly && !!pHench?.readonly && pBeast.facts === 5 && pHench.facts === 6, { beast: pBeast?.facts, hench: pHench?.facts });
   check("the observer gets the name button but no Dismiss and no throw buttons", !!pBeast?.nameButton && !pBeast.dismiss && pBeast.rolls.length === 0 && !pHench?.dismiss && pHench?.rolls.length === 0, { beast: pBeast?.rolls, hench: pHench?.rolls });
   note("closed (player)", await run(player, P.closeAll));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

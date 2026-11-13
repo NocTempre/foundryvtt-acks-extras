@@ -15,6 +15,7 @@
  * is restored in a `finally` in page context.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -130,7 +131,7 @@ try {
   const census = await run(gm, P.census);
   note("census", census);
   check("the GM seat is the active GM and the page serves applyClass", census.activeGMIsSelf && census.role === 4 && census.applyClass === "function", census);
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
 
   section("fixtures");
   const cls = await gm.fixture("classes/two-die-first-level", "Item", {
@@ -157,6 +158,7 @@ try {
   );
   if (!r.applied.floorAbove1) note("note", "the world imports no floor above 1, so the bound check cannot tell one floored die from two; the direct check carries it");
   check("randomUniform is restored", r.restored);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

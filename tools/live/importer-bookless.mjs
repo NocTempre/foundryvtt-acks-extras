@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, ROOT } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -256,6 +257,7 @@ try {
     check("an open book's ability the world lacked is imported", (st.result.made ?? 0) === 1 && !!held, { made: st.result.made, held: !!held });
     check("and nothing is counted as passed over", (st.result.closed ?? 0) === 0 && !st.notes.some((n) => CLOSED_NOTICE.test(n.text)));
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

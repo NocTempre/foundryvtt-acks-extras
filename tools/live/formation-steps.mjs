@@ -53,6 +53,7 @@
  * reported, not set back.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats, PORTS, shotDir } from "./_env.mjs";
 
 const MOD = "acks-extras";
@@ -1005,9 +1006,9 @@ try {
   note("module", census.gm.module);
   note("settings at start", census.gm.settings);
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role <= 2, { gmRole: census.gm.role, playerRole: census.player.role });
-  if (!census.gm.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!census.gm.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   check("the GM seat's window leads its seat's election, so the world-time automation runs in it", census.gm.election?.isLead === true, census.gm.election);
-  if (census.gm.election?.isLead !== true) throw new Error("another window on the GM seat leads its election; the automation would run there");
+  if (census.gm.election?.isLead !== true) blocked("another window on the GM seat leads its election; the automation would run there");
   note("formations writes watched", await run(gm, P.watchFormations, { mod: MOD, fids: [] }));
   const playerId = census.player.userId;
   const gmIds = census.gm.gmIds;
@@ -1403,6 +1404,7 @@ try {
   // session's, credits a party holed up in settlement mode a stay, so a kept
   // one left in the city would post cards between runs.
   note("the city party out of the city", await run(gm, P.setMode, { partyId: p4.id, mode: "delve" }));
+  walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
   console.error(err?.stack ?? err);

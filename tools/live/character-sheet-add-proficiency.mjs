@@ -18,6 +18,7 @@
  * its own and are swept by uuid.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -239,6 +240,7 @@ try {
   const pe = await run(player, P.drain);
   const ge = await run(gm, P.drain);
   check("no console error on either seat over the walk", !pe.errors.length && !ge.errors.length, { player: pe.errors.slice(0, 3), gm: ge.errors.slice(0, 3) });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

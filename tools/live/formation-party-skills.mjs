@@ -25,6 +25,7 @@
  * party check posts and the conditions' effect are tracked by id and swept.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -410,7 +411,7 @@ try {
   note("installed", await run(gm, P.install, { nonce: NONCE }));
   const census = await run(gm, P.census);
   check("the GM seat is the active GM and its boot recorded no error through init, setup and ready", census.isGM && census.activeGMIsSelf && census.boot?.phases.length === 3 && !census.boot.errors.length, census.boot?.errors);
-  if (!census.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!census.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
 
   section("books and Update Abilities");
   for (const b of BOOKS) {
@@ -549,6 +550,7 @@ try {
   section("errors after ready");
   const boot = await run(gm, P.boot);
   check("nothing thrown over the walk", !boot?.errors.length, boot?.errors?.slice(0, 5));
+  walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
   console.error(err?.stack ?? err);

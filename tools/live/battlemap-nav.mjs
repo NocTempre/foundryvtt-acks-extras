@@ -24,6 +24,7 @@
  *     walk ends; a kept scene).
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -342,7 +343,7 @@ try {
   note("gm census", { ...census.gm, userId: undefined });
   note("player census", { role: census.player.role, activeRoles: census.player.activeRoles });
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role >= 3 && census.player.role < 3, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
-  if (!census.gm.activeGMIsSelf) throw new Error("another GM client is the active GM; the adoption would run there");
+  if (!census.gm.activeGMIsSelf) blocked("another GM client is the active GM; the adoption would run there");
   Object.assign(LABELS, await gm.eval(`JSON.stringify({ delve: game.i18n.localize("ACKS-BATTLEMAP.system.delve"), journey: game.i18n.localize("ACKS-BATTLEMAP.system.journey"), settlement: game.i18n.localize("ACKS-BATTLEMAP.system.settlement"), none: game.i18n.localize("ACKS-BATTLEMAP.setup.systemNone") })`).then(JSON.parse));
 
   section("fixtures");
@@ -428,6 +429,7 @@ try {
     note(`console errors, ${k} seat (recorder installed after ready)`, e);
     check(`N7: no console error on the ${k} seat since the recorder was installed`, e.count === 0, e.list);
   }
+  walkDone();
 } finally {
   section("teardown");
   for (const [k, api] of Object.entries(seats)) {

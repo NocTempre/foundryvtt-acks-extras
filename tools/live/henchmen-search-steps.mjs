@@ -20,6 +20,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -374,7 +375,7 @@ try {
   const seated = await run(player, P.install);
   note("installed", { gm: { module: installed.module, offerable: installed.offerable }, player: { role: seated.role } });
   check("the GM seat is the active GM and the player seat is a player", installed.isGM && installed.activeGMIsSelf && !seated.isGM && seated.role <= 2, { gm: installed.role, player: seated.role });
-  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!installed.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries({ gm: installed, player: seated })) {
     check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   }
@@ -439,6 +440,7 @@ try {
   check("18: submitted through the Player's dialog, the search is written active and commissioned, and says submitted", posted.opened && posted.filled && posted.written && posted.commissioned && posted.active && posted.submittedSaid && !posted.errors, posted);
   const renewed = await run(gm, P.renew, { placeId: place.id, employerId: employer.id });
   check("18: the month turns and the posting renews rolling as a commission", renewed.found && renewed.differ && renewed.renewed && renewed.commissionedRoll && !renewed.plainRoll, renewed);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

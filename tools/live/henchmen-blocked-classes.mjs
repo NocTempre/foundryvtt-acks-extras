@@ -24,6 +24,7 @@
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, logDir, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -376,7 +377,7 @@ try {
   const seated = await run(player, P.install);
   note("installed", { gm: { module: installed.module, offerable: installed.offerable }, player: { role: seated.role } });
   check("the GM seat is the active GM and the player seat is a player", installed.isGM && installed.activeGMIsSelf && !seated.isGM && seated.role <= 2, { gm: installed.role, player: seated.role });
-  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!installed.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries({ gm: installed, player: seated })) {
     check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   }
@@ -444,6 +445,7 @@ try {
   note("posting dialog", { gm: gmList, player: playerList });
   check("17: the GM's posting dialog lists the class disabled, saying it is never offered here", gmList.opened && gmList.listed && gmList.disabled && gmList.says, gmList);
   check("17: the Player seat's posting dialog lists it the same way", playerList.opened && playerList.listed && playerList.disabled && playerList.says, playerList);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

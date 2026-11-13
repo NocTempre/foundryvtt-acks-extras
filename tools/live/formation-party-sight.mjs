@@ -13,6 +13,7 @@
  * hook when the sweep removes the actor; the walk reads that it is gone.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -148,7 +149,7 @@ try {
   const census = await run(gm, P.census);
   note("census", { ...census, primary });
   check("the GM seat is the active GM and this window runs its automation", census.activeGMIsSelf && census.role === 4 && primary === true, { ...census, primary });
-  if (primary !== true) throw new Error("this window is not the primary GM");
+  if (primary !== true) blocked("this window is not the primary GM");
 
   section("fixtures");
   // Found and never built here: the column walk owns its shape.
@@ -182,6 +183,7 @@ try {
   const blinded = await run(gm, P.blind, { formationId: made.formationId, sceneId: scene.id, tokenId: placed.id });
   note("blinded", blinded);
   check("sight a hand turns off after the stamp stays off through a sync", blinded.sight === false, blinded);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

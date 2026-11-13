@@ -31,6 +31,7 @@
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, logDir, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const LOCATION = "acks-extras.location";
@@ -367,7 +368,7 @@ try {
   note("census", census);
   check("the GM seat is the active GM, the page serves the manager, and the storage pin is gone", census.activeGMIsSelf && census.role === 4 && census.manager === "function" && census.pinGone, census);
   check("the once-per-world clearing has run on this world", census.cleared === true, census.cleared);
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   const player = await seat("player");
   const pc = await run(player, P.census);
   note("census (player)", { role: pc.role, isGM: pc.role >= 3 });
@@ -492,6 +493,7 @@ try {
     const boot = await run(api, P.boot);
     check(`${key}: the recorder saw init, setup and ready and no error from load to the walk's end`, boot && ["init", "setup", "ready"].every((p) => boot.phases.includes(p)) && boot.errors.length === 0, boot && { phases: boot.phases, errors: boot.errors });
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

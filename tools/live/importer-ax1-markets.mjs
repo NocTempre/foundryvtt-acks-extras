@@ -47,6 +47,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -527,6 +528,7 @@ try {
   const shown = shownUuid ? await run(gm, P.tradeTab, { uuid: shownUuid }) : null;
   check("5: the sheet opens on its Trade tab with one chip per stored good, each showing its modifier",
     !!shown?.opened && shown.tab && shown.chips === shown.stored && shown.chips > 0 && shown.modifiersShown, shown);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

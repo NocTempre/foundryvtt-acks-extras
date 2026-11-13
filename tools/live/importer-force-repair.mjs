@@ -32,6 +32,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, ROOT, logDir, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -499,7 +500,7 @@ try {
   const seated = await run(player, P.install);
   note("installed", { gm: { user: installed.user, module: installed.module, open: installed.open }, player: { user: seated.user, role: seated.role } });
   check("the GM seat is the active GM with the book open, and the player seat is a player", installed.isGM && installed.activeGMIsSelf && installed.open && !seated.isGM && seated.role <= 2, { gm: installed.role, player: seated.role });
-  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!installed.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries({ gm: installed, player: seated })) {
     check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   }
@@ -685,6 +686,7 @@ try {
   if (made.groupUuid) swept.push(gm.track(made.groupUuid, "Actor"));
   note("make encounter", made);
   check("4: Make Encounter from a wildcard monster: the group's portrait is the monster's portrait, not the wildcard path", made.tool && made.img === PORTRAIT && !String(made.tokenSrc ?? "").includes("*"), made);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

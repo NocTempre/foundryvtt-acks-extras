@@ -43,6 +43,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, shotDir, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -1400,7 +1401,7 @@ try {
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
   check("the GM seat is the active GM, the page runs the working tree (formation apiVersion ≥ 21) and the influence page hosts (apiVersion ≥ 6)", census.activeGMIsSelf && census.role === 4 && census.working >= 21 && census.influenceApi >= 6, { role: census.role, manifest: census.module, working: census.working, influenceApi: census.influenceApi });
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install", await run(gm, P.install));
 
   section("the books, connected on the GM seat");
@@ -2018,6 +2019,7 @@ try {
     }
     note("closed", await run(gm, P.closeAll));
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

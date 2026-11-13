@@ -12,7 +12,9 @@
  *
  * Comments are stripped before either scan.
  *
- * Usage: node tools/audit-styles.mjs   (also runs via `npm run validate`)
+ * Usage: node tools/audit-styles.mjs. It exits 1 on any problem and lists them.
+ * `tools/validate-extra.mjs` runs it as part of `npm run validate` but only
+ * reports the problem count: its exit status does not fail validation.
  */
 import fs from "node:fs";
 import path from "node:path";

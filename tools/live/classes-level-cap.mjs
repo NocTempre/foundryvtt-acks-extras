@@ -35,6 +35,7 @@
  * by uuid. Every figure printed is a boolean or a count.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, books, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -967,6 +968,7 @@ try {
   await claim(player, "player");
   await claim(gm, "gm");
   check("no console error on either seat over the walk", !errorsSeen.length, errorsSeen.slice(0, 3));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

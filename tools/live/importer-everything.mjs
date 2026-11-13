@@ -18,6 +18,7 @@
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, logDir, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -278,7 +279,7 @@ try {
   for (let n = 0; n < 30 && !installed.books; n++) { await sleep(3000); installed = await run(gm, P.install); }
   note("installed", { module: installed.module, books: installed.books, adventures: installed.adventures, open: installed.open });
   check("the seat is the active GM with at least one book open", installed.isGM && installed.activeGMIsSelf && installed.books > 0, { books: installed.books });
-  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!installed.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   check("no error from load through ready", installed.boot?.phases.length === 3 && !installed.boot.errors.length, installed.boot);
 
   section("The Import tab's bar (step 3)");
@@ -317,6 +318,7 @@ try {
   const packsAfter = await run(gm, P.packs);
   check("3: no compendium was made or removed", same(packsBefore, packsAfter), { before: packsBefore.length, after: packsAfter.length });
   await run(gm, P.closeManager);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

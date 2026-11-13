@@ -28,6 +28,7 @@
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, logDir, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -683,7 +684,7 @@ try {
   const census = { gm: await run(gm, P.census), player: await run(player, P.census) };
   note("active", census.gm.active);
   check("the GM seat is the active GM, and the player seat is a player", census.gm.activeGMIsSelf && census.player.role <= 2, { gm: census.gm.role, player: census.player.role });
-  if (!census.gm.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!census.gm.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries(census)) {
     check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   }
@@ -1423,6 +1424,7 @@ try {
     const boot = await run(api, P.boot);
     check(`${key} seat: nothing thrown over the walk`, !boot?.errors.length, boot?.errors);
   }
+  walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
   console.error(err?.stack ?? err);

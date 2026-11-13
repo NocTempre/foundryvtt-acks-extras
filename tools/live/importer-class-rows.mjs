@@ -23,6 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, ROOT } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -250,6 +251,7 @@ try {
   check("2: the class sheet renders with no stub notice, with the unread-experience notice where a level is unread, and names the build on a priced figure", sheet.rendered && !sheet.stubShown && sheet.unreadShown === fresh[all[0]].unreadXp > 0 && sheet.xpTip === fresh[all[0]].priced, sheet);
   if (!mine.length) note("3–4: not reached", "the world holds every class under another hand, and a document with no marker is read, never driven (live-testing.md step 4)");
   else await drive(mine, heldAfter, fresh);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

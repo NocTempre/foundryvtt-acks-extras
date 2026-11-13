@@ -61,6 +61,7 @@
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, shotDir } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const SEATS = { gm: MACHINE.gm, player: MACHINE.player };
@@ -1663,6 +1664,7 @@ try {
     if (q8) note("quick effect swept", await gm.sweepTracked({ only: [q8.uuid] }));
     await run(gm, P.closeAll);
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

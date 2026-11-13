@@ -16,6 +16,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const LOCATION = "acks-extras.location";
@@ -237,6 +238,7 @@ try {
     const boot = await run(api, P.boot);
     check(`${key}: the recorder saw init, setup and ready and no error from load to the walk's end`, boot && ["init", "setup", "ready"].every((x) => boot.phases.includes(x)) && boot.errors.length === 0, boot && { phases: boot.phases, errors: boot.errors });
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

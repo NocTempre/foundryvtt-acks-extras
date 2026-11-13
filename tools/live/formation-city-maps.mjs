@@ -29,6 +29,7 @@
  * movement, which no teleport answers.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats, PORTS } from "./_env.mjs";
 
 const MOD = "acks-extras";
@@ -231,7 +232,7 @@ try {
   if (!inst.fresh) throw new Error("the loaded module has no cityStampOf: the page did not pick up the working tree");
   check("the GM seat is the active GM and its window leads its seat's election, so the formation's hooks run in it",
     inst.role === 4 && inst.activeGMIsSelf && inst.isLead, inst);
-  if (!(inst.activeGMIsSelf && inst.isLead)) throw new Error("another window runs the GM seat's automation");
+  if (!(inst.activeGMIsSelf && inst.isLead)) blocked("another window runs the GM seat's automation");
 
   section("AX1's maps");
   const maps = await run(gm, P.maps, { ids: MAPS });
@@ -340,6 +341,7 @@ try {
   c = await cross(ways.regionToLevel, maps.level.id, "delve");
   check("5: and down into the dungeon's first level, it explores a turn at a time",
     !!c.arrived && c.r.sceneId === maps.level.id && c.r.mode === "delve", c.r);
+  walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
   console.error(err?.stack ?? err);

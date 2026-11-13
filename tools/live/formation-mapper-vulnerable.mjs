@@ -18,6 +18,7 @@
  * or an earlier unfinished run left on the mapper.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -266,7 +267,7 @@ try {
   note("gm reloaded with the boot recorder, ready after (s)", await reloadWithRecorder(gm));
   const installed = await run(gm, P.install, { key: KEY });
   check("the GM seat is the active GM and this window runs its automation", installed.isGM && installed.activeGMIsSelf && installed.role === 4 && installed.primary === true, installed);
-  if (installed.primary !== true) throw new Error("this window is not the primary GM");
+  if (installed.primary !== true) blocked("this window is not the primary GM");
   const boot = await run(gm, P.boot);
   check("the boot recorder ran before Foundry's scripts and saw the load", boot.recorded && boot.preFoundry, { warns: boot.warns, errors: boot.errors });
   check("it saw no warning or error naming the mapper kit, the held condition or the managed-effect registration", boot.ownWarns === 0 && boot.ownErrors === 0, { ownWarns: boot.ownWarns, ownErrors: boot.ownErrors });
@@ -388,6 +389,7 @@ try {
   const errors = await run(gm, P.drain);
   const own = errors.errors.filter((e) => /mapper|held-condition|environment sync|stash/iu.test(e));
   check("no console error naming the mapper kit or the environment sync over the walk", own.length === 0 && errors.uncaught === 0, { own: own.length, uncaught: errors.uncaught, all: errors.errors.length });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

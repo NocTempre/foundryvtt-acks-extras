@@ -52,6 +52,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, ROOT, shotDir } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -810,6 +811,7 @@ try {
     note("plate shelf", frame);
     await plate(player, "importer-open-shelf", frame);
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

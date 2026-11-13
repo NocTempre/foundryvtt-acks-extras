@@ -23,6 +23,7 @@
  */
 import { Cdp, connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -424,7 +425,7 @@ try {
   note("gm census", census);
   check("the GM seat is the active GM", census.activeGMIsSelf);
   check("init, setup and ready all ran under the recorder with no error", census.boot?.phases?.length === 3 && census.boot.errors.length === 0, census.boot);
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install", await run(gm, P.install));
 
   section("fixtures");
@@ -535,6 +536,7 @@ try {
   const seen = await run(player, P.sheet, { uuid: attitude.uuid, name: "AttitudeSheet" });
   check("the observed attitude sheet shows the player a corner", seen.opened === true && seen.shown === true, { option: seen.option, hidden: seen.hidden });
   await run(player, P.closeCurrent);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   check("the walk reached its end", false, err?.message);

@@ -266,7 +266,13 @@ removes what it lists"). The walk and the removals now live in the
 and name and opens the repair window on that check and `lib.strandedCoin`,
 scanned. The ticked rows are the report before anything is touched.
 
-## 12. Single-branch development — RESOLVED (isolation off, guard on)
+## 12. Single-branch development — RESOLVED (isolation off, guard on); SUPERSEDED IN PART 2026-11-12
+
+Superseded in part by the template's 2026-11-12 entry "Topic and parked
+branches return, opened and landed by one tool": `main` is still the one tree
+that is released and walked, and the app's own worktrees stay refused
+(`bgIsolation` stays off); a topic or parked branch now exists, opened and
+closed only by `acks-branch`, and the guard is `branch-guard.mjs`.
 
 The convention was always one branch. It read `Branch `main`; tags `v<semver>`.`
 — true, but stated as a fact about the repo rather than as an instruction, and
@@ -1050,3 +1056,51 @@ call in `tools/rebuild.mjs` and the `reference/` ignore entry are removed,
 and the template drops its release step. `render-reference.mjs` has one
 caller, the site sync. "None of `docs/` ships, and no markdown beside it"
 holds again without an exception.
+
+## 28. The walk runner records every walk; suites are discovered (2026-11-13)
+
+**Problem.** The template's release preflight now refuses a tag while a
+required walk has no current result in `aia-tmp/live/walk-results.json`
+(template DECISIONS, 2026-11-12, "A tag needs a recorded walk result for every
+required walk"). This repo's runner kept no verdict past the console, 52 of
+its 65 walks exited 0 with no check run, and `run-tests.mjs` named its 205
+suites by hand.
+
+**Ruled.** The module's half, built to that entry's contract:
+
+- `tools/live/run.mjs` records each attempt through the synced
+  `tools/walk-results.mjs`, and exits 0 only when every walk it ran reduced to
+  `passed`. Before, a walk that exited 0 with no FAIL read green whether or
+  not it reached its end. `--list` shows each record and whether it is still
+  current; `--classify` puts a ledger row on a non-pass, reading the ledger
+  from `ACKS_BUG_LEDGER`, a machine variable, so no ledger path enters the
+  repo.
+- `partial` is set for every walk of a run whose environment carries a
+  variable that narrows a walk (`PARTIAL_VARS` in `run.mjs`), even a walk that
+  ignores it: a subset recorded as the whole costs more than a whole recorded
+  as a subset.
+- Each walk prints `WALK END` through `tools/live/_walk.mjs` `walkDone()` as
+  the last statement of its `try`, and `WALK BLOCKED:` through `blocked()`
+  where a seat is not its own. Only that condition was converted: a missing
+  seat user, an unimported book and a fixture in the wrong shape stay errors,
+  because each can also be the code's fault. `validate-extra.mjs` §4b fails a
+  walk that does not call `walkDone()` exactly once.
+- `run-tests.mjs` finds its suites by glob (`tools/test-*.mjs`,
+  `tools/importer/test-*.mjs`, `discord/test/*.test.mjs`) beside an exclude
+  list whose entries must name files that exist. Discovery added three
+  discord suites nobody had listed. The eight OSE importer suites are
+  excluded, since `tools/importer/validate-extra.mjs` already runs them.
+- The owner's R17, "The local-only rules tests run once on the working tree
+  after step 5's precheck, by a `run-tests` flag P2 adds": `--rules`, as
+  `npm run test:tree`, fails when `tools/rules-tests/` is absent or empty.
+- `audit-imports.mjs` runs as validate-extra §11 and fails validation.
+  `audit-styles.mjs` runs as §12 and reports its count without failing. It
+  carries 54 open findings, and its header had claimed a validate run that
+  never existed.
+
+**Cost.** A run with `STAGE` set reads partial, and three walks cover less
+than the whole by default: henchmen's second stage and monsters-leaders'
+stages 4–7 run only with `STAGE` set, and markets with `STAGE` set prints no
+`WALK END`. That is ledger row T-0523. Exit 4 is new: the runtime tree could
+not be read or a result could not be recorded. A peer's runtime edit during
+a walk marks it as changed during its run.

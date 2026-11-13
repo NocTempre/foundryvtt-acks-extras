@@ -22,6 +22,7 @@
  * a boolean, or one of the invented classes' own.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -511,6 +512,7 @@ try {
     await gm.track(c.id, "ChatMessage");
     own.push(`ChatMessage.${c.id}`);
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

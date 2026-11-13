@@ -27,6 +27,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -448,7 +449,7 @@ try {
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
   check("S1: the GM seat is the active GM, and the world registers the shop-sources setting and its settings window", census.activeGMIsSelf && census.role === 4 && census.setting && census.menu, { role: census.role, module: census.module, setting: census.setting, menu: census.menu });
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install (gm)", await run(gm, P.install));
   const player = await seat("player");
   const pc = await run(player, P.census, MOD);
@@ -557,6 +558,7 @@ try {
   const viewer = await run(player, P.viewerRead, { locationId: town.id });
   note("viewer", viewer);
   check("V4: the player seat views the town without owning it, and the Ventures tab's Enter and picker stay live", viewer.opened && viewer.ventures && viewer.sees && !viewer.owner && viewer.enterLive && viewer.pickerLive !== false, viewer);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

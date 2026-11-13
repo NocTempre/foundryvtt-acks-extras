@@ -18,6 +18,9 @@
  *                       builds and finds its own fixtures, `<marker>@<tag>`,
  *                       instead of the recipe's, beside a peer driving them
  *   SHOTS=1             take the release plates
+ *   ACKS_BUG_LEDGER     the bug-intake ledger CSV, which `run.mjs --classify`
+ *                       reads one row of; the machine's TEST_ENVIRONMENT.md
+ *                       sets it, and no path to it is written in the repository
  */
 import fs from "node:fs";
 import path from "node:path";

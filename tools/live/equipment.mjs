@@ -20,6 +20,7 @@
  * record, deleted by the walk's own id.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -401,6 +402,7 @@ try {
   const taken = await run(gm, P.toggleRole, { actorId, formationId, role: "mapper" });
   check("with the hands free the role is taken without an override", taken.roles.includes("mapper") && taken.kit === 2, taken);
   note("role off", await run(gm, P.toggleRole, { actorId, formationId, role: "mapper" }));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

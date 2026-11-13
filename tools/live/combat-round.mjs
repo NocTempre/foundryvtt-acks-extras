@@ -26,6 +26,7 @@
  * restored in the finally.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -241,7 +242,7 @@ try {
   const gmCensus = await run(gm, P.census, MOD);
   note("gm census", gmCensus);
   check("the GM seat is the active GM and socketlib carries the module", gmCensus.activeGMIsSelf && gmCensus.role === 4 && gmCensus.socketlib, { role: gmCensus.role, module: gmCensus.module });
-  if (!gmCensus.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!gmCensus.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install (gm)", await run(gm, P.install));
   if (!["reset", "reroll"].includes(gmCensus.persistence)) {
     restorePersistence = gmCensus.persistence;
@@ -282,7 +283,7 @@ try {
   const plCensus = await run(player, P.census, MOD);
   note("player census", plCensus);
   check("the Player seat is a player whose active GM is the walk's GM seat", plCensus.role < 3 && plCensus.activeGM === SEATS.gm, { role: plCensus.role, activeGM: plCensus.activeGM });
-  if (plCensus.activeGM !== SEATS.gm) throw new Error(`the player's active GM is ${plCensus.activeGM}`);
+  if (plCensus.activeGM !== SEATS.gm) blocked(`the player's active GM is ${plCensus.activeGM}`);
   note("install (player)", await run(player, P.install));
 
   section("A player's End Turn starts the next round");
@@ -352,6 +353,7 @@ try {
   if (strays.length === 1) await gm.mark(`ChatMessage.${strays[0]}`, "lib/round-message-out-of-turn");
   else for (const id of strays) gm.track(id, "ChatMessage");
   check("and posts nothing", strays.length === 0, { gm: gmDirect.posted.length, player: plDirect.posted.length });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

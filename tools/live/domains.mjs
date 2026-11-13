@@ -37,6 +37,7 @@
  * Domain line in step 9.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS, shotDir } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -920,6 +921,7 @@ try {
   const n18 = await run(gm, P.take);
   const active18 = await gm.eval(`!!game.scenes.get(${JSON.stringify(scene18.id)})?.active`);
   check("18: the scene stays inactive and placing the tokens errs nothing", active18 === false && n18.errors.length === 0, { active: active18, errors: n18.errors });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

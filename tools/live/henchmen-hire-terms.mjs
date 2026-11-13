@@ -25,6 +25,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -495,7 +496,7 @@ try {
   note("gm ready after (s)", await ready(gm, "gm"));
   const gi = await run(gm, P.install);
   check("the GM seat is the active GM", gi.isGM && gi.activeGMIsSelf, gi);
-  if (!gi.activeGMIsSelf) throw new Error("another client is the active GM; a relayed hire would run there");
+  if (!gi.activeGMIsSelf) blocked("another client is the active GM; a relayed hire would run there");
   const playerId = await run(gm, P.userId, { name: MACHINE.player });
   if (!playerId) throw new Error("no Player user on this world");
 
@@ -643,6 +644,7 @@ try {
   const pe = player ? await run(player, P.drain) : { errors: [] };
   const ge = await run(gm, P.drain);
   check("no console error on either seat from install to the end of the walk", !pe.errors.length && !ge.errors.length, { player: pe.errors.length, gm: ge.errors.length });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

@@ -29,6 +29,7 @@
  */
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { logDir, seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -379,8 +380,8 @@ try {
   const gm = await seat("gm");
   const census = await run(gm, P.census, [...ANIMATION, DICE]);
   note("gm census", census);
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
-  if (census.active.length > 1) throw new Error(`a seat is joined that is not this walk's: ${census.active.length} active`);
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
+  if (census.active.length > 1) blocked(`a seat is joined that is not this walk's: ${census.active.length} active`);
   const missing = [...ANIMATION, DICE].filter((id) => !census.modules[id]);
   if (missing.length) throw new Error(`not installed on this server: ${missing.join(", ")}`);
   restoreMode = census.messageMode;
@@ -588,6 +589,7 @@ try {
     check("the dice are shown on this seat", dice.enabled && dice.done.length >= 1, dice);
     check("the effect starts after the dice finish", effects[0] && dice.done[0] && effects[0].at >= dice.done[0].at, { effect: effects[0]?.at, dice: dice.done[0]?.at });
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
 } finally {

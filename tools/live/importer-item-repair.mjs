@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, ROOT } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -213,6 +214,7 @@ try {
   const again = {};
   for (const u of mine) again[u] = await run(gm, P.shape, { uuid: u });
   check("4: each item is back in the shape the fresh import gave it", mine.every((u) => JSON.stringify({ s: again[u].slots, m: again[u].magic, c: again[u].cost }) === JSON.stringify({ s: fresh[u].slots, m: fresh[u].magic, c: fresh[u].cost })), mine.map((u) => again[u]));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

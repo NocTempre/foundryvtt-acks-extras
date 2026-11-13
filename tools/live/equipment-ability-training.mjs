@@ -18,6 +18,7 @@
  * posts are its own and are swept by id.
  */
 import { connect, sleep } from "./_driver.mjs";
+import { walkDone } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -182,6 +183,7 @@ try {
 
   const drained = await run(gm, P.drain);
   check("no console error over the walk", !drained.errors.length, drained.errors.slice(0, 3));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

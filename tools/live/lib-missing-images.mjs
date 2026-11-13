@@ -21,6 +21,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -365,6 +366,7 @@ try {
 
   const drained = await run(gm, P.drain);
   check("no console.error call over the walk", !drained.errors.length, drained.errors.slice(0, 3));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

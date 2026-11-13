@@ -26,6 +26,7 @@
  * scene's fog mode and darkness, the mapper's role.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 
 const MACHINE = machineSeats();
@@ -359,7 +360,7 @@ try {
   const installed = await run(gm, P.install, { key: "formation-mapper-mapping-walk" });
   const seen = await run(player, P.install, { key: "formation-mapper-mapping-walk" });
   check("the GM seat is the active GM and this window runs its automation; the other seat is a player", installed.isGM && installed.activeGMIsSelf && installed.role === 4 && installed.primary === true && !seen.isGM && seen.role <= 2, { gm: installed.role, primary: installed.primary, player: seen.role });
-  if (installed.primary !== true) throw new Error("this window is not the primary GM");
+  if (installed.primary !== true) blocked("this window is not the primary GM");
   const boot = await run(gm, P.boot);
   check("the boot recorder ran before Foundry's scripts and saw no warning or error naming mapping or the environment sync", boot.recorded && boot.preFoundry && boot.ownWarns === 0 && boot.ownErrors === 0, { warns: boot.warns, errors: boot.errors, ownWarns: boot.ownWarns, ownErrors: boot.ownErrors });
 
@@ -482,6 +483,7 @@ try {
   const errors = await run(gm, P.drain);
   const own = errors.errors.filter((e) => /mapping|mapper|environment sync|light/iu.test(e));
   check("no console error naming mapping, the mapper or the environment sync over the walk", own.length === 0 && errors.uncaught === 0, { own: own.length, uncaught: errors.uncaught, all: errors.errors.length });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

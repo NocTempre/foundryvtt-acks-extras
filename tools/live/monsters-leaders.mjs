@@ -52,6 +52,7 @@
  */
 import { Cdp, connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, shotDir } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -1949,7 +1950,7 @@ try {
   const installed = await run(gm, P.install);
   note("install", { module: installed.module, isGM: installed.isGM, activeGMIsSelf: installed.activeGMIsSelf });
   check("the GM seat is the active GM", installed.isGM && installed.activeGMIsSelf, {});
-  if (!installed.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!installed.activeGMIsSelf) blocked("another GM client is the active GM");
 
   if (STAGES.includes(1)) await stageSetup(gm);
   if (STAGES.includes(2)) {
@@ -1973,6 +1974,7 @@ try {
     if (STAGES.includes(7)) await stageAxiomsKit(gm);
   }
   if (STAGES.some((s) => s >= 2)) await stagePlayer(gm, ctx);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err?.message ?? err);
   checks.push(["the walk ran to its end", false]);

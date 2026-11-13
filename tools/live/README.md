@@ -33,6 +33,36 @@ their owner's go-ahead to run over them (`SHELF_OK`, `REBUILD_OK`,
 `HELD_OK`; the walk's header says what each permits); set one only on the
 owner's word.
 
+## The result file
+
+After each walk the runner records its attempt in `aia-tmp/live/walk-results.json`
+(ignored), through `tools/walk-results.mjs`, which the release preflight reads.
+One entry per walk; the latest attempt replaces the earlier one, and it is
+always the working tree that ran. A walk's state is `passed` only when it
+printed `WALK END`, passed at least one check, printed no FAIL and exited 0;
+`stopped`, `blocked`, `errored` and `failed` are the others, and the runner
+exits 0 only when every walk it ran passed. An entry is stale once the runtime
+tree or the walk's own file changes after it.
+
+A run whose environment carries `STAGE`, `WALK_PLAN`, `FIXTURE_OWN`,
+`ONLY_FIXES=1`, `ROWS` (other than `all`) or `TAKEOVER` is recorded as partial,
+naming them, for every walk in that run; the preflight does not count a partial
+entry, so the walk that backs a release runs without them. A run that never
+starts a walk (an unknown name, busy seats) records nothing.
+
+```bash
+node tools/live/run.mjs --list
+node tools/live/run.mjs --classify <walk> <T-id> <defect|world-state|stale-walk|environment>
+```
+
+`--list` prints each walk's state, how long ago it ran, and whether that result
+is current against the runtime tree and the walk's file. `--classify` puts a bug
+ledger row on a walk's recorded attempt when the walk did not pass, which is
+how the preflight accepts a known red. It reads the one row named from the CSV
+at `ACKS_BUG_LEDGER` (the machine's `TEST_ENVIRONMENT.md` sets it; the ledger
+lives outside the repository) and refuses unless that row's status is new,
+claimed or deferred. A new attempt of the walk drops the classification.
+
 ## A walk
 
 - imports the driver from `./_driver.mjs` and its seats and paths from

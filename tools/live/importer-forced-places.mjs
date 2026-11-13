@@ -23,6 +23,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -258,7 +259,7 @@ try {
   const installed = await run(gm, P.install);
   note("installed", { user: installed.user, module: installed.module });
   check("the GM seat is the active GM", installed.isGM && installed.activeGMIsSelf);
-  if (!installed.activeGMIsSelf) throw new Error("another client is the active GM; the repair would run there");
+  if (!installed.activeGMIsSelf) blocked("another client is the active GM; the repair would run there");
   check("gm seat: no error from load through ready", installed.boot?.phases.length === 3 && !installed.boot.errors.length, installed.boot);
   const staged = books(BOOKS);
   if (staged.length !== BOOKS.length) throw new Error(`ACKS_TEST_BOOKS lists ${staged.map((b) => b.id).join(",") || "none"} of ${BOOKS.join(",")}`);
@@ -403,6 +404,7 @@ try {
     for (const m of rest) if (m.check(await run(gm, P.read, { uuid: m.uuid }))) restored = false;
     check("4: every edit this run made is the page's again", restored);
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

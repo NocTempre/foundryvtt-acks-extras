@@ -37,6 +37,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -519,6 +520,7 @@ try {
     const g2 = await step(gm, "importAllEquipment", [GEAR], 900);
     check("5: a second run makes nothing", !g2.created && g2.total === GEAR.length, counts(g2));
   }
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

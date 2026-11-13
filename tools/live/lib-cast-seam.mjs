@@ -21,6 +21,7 @@
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -403,6 +404,7 @@ try {
   // The seam logs its claimants' throws and late spends on purpose; nothing else may reach the console, Foundry's module-error notice included.
   const stray = ge.errors.filter((e) => !/spell-use claimant/u.test(e));
   check("no console error on the GM seat over the walk but the seam's own logged claimant errors", !stray.length, stray.slice(0, 3));
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

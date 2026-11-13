@@ -23,6 +23,7 @@
 import fs from "node:fs";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
@@ -307,7 +308,7 @@ try {
   const p = await run(player, P.install);
   note("installed", { gm: g.user, player: p.user, libWrapper: g.libWrapper });
   check("the GM seat is the active GM, and the player seat is a player", g.isGM && g.activeGMIsSelf && !p.isGM, { gm: g.role, player: p.role });
-  if (!g.activeGMIsSelf) throw new Error("another client is the active GM; the automation would run there");
+  if (!g.activeGMIsSelf) blocked("another client is the active GM; the automation would run there");
   for (const [key, c] of Object.entries({ gm: g, player: p })) check(`${key} seat: no error from load through ready`, c.boot?.phases.length === 3 && !c.boot.errors.length, c.boot);
   // A run that died before its sweep: LEAVINGS names a JSON file of the uuids its log tracked.
   if (process.env.LEAVINGS) {
@@ -427,6 +428,7 @@ try {
   const p6 = await until(player, P.turns, { combatId: combat.id }, (t) => t.turn === 1);
   check("6: the turn goes from 0 to 1 and both seats name the second row of the shared order", t6.turn === 1 && t6.current === expected[1] && p6.turn === 1 && p6.current === expected[1], { gm: { turn: t6.turn, current: t6.current }, player: { turn: p6.turn, current: p6.current }, expected: expected[1], order: expected });
   await run(gm, P.shapeCombat, { combatId: combat.id });
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

@@ -45,6 +45,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, books, logDir } from "./_env.mjs";
+import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -577,6 +578,7 @@ try {
   const collections = [...new Set(Object.values(shelvesNow).map((s) => s.pack).filter(Boolean))];
   const sees = await run(player, P.playerSees, { collections });
   check("9: no Adventure shelf is visible to the player", !sees.visible.length && !sees.listed.length, sees);
+  walkDone();
 } catch (err) {
   console.error("WALK ERROR:", err?.stack ?? err);
   checks.push(["walk ran to the end", false]);

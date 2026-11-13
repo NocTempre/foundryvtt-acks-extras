@@ -12,6 +12,7 @@
     "validate": "node tools/validate.mjs",
     "prepare": "git config core.hooksPath .githooks",
     "test": "node tools/run-tests.mjs",
+    "test:tree": "node tools/run-tests.mjs --rules",
     "find:dead-config": "node tools/find-dead-config.mjs",
     "lint:register": "node tools/importer/lint-register.mjs",
     "icons": "node tools/importer/icon-ledger.mjs",

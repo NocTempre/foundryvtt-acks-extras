@@ -40,6 +40,7 @@
  */
 import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS, shotDir, books } from "./_env.mjs";
+import { walkDone, blocked } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
 const browser = MACHINE.browser;
@@ -1214,7 +1215,7 @@ try {
   const census = await run(gm, P.census, MOD);
   note("gm census", census);
   check("the GM seat is the active GM, the page runs the working tree (formation apiVersion ≥ 21), and the world declares the report and merchandise item types", census.activeGMIsSelf && census.role === 4 && census.working >= 21 && census.reportType && census.merchType, { role: census.role, manifest: census.module, working: census.working, reportType: census.reportType, merchType: census.merchType });
-  if (!census.activeGMIsSelf) throw new Error("another GM client is the active GM");
+  if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   note("install (gm)", await run(gm, P.install));
   const player = await seat("player");
   const pc = await run(player, P.census, MOD);
@@ -2178,6 +2179,7 @@ try {
   note("hp tool from the party sheet", hp);
   check("lib: the party sheet's entry point opens the hit-point tool on the enrolled member", hp.enrolled && hp.opened && hp.hpOpen && hp.rows.some((r) => r.name.startsWith("QA Member")), { rows: hp.rows, subtitle: hp.subtitle });
   note("closed (gm)", await run(gm, P.closeAll));
+  walkDone();
 } catch (err) {
   if (err instanceof StageDone) note("stage", `stopped after the ${err.message} walk`);
   else {
