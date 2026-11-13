@@ -7,8 +7,7 @@
  * cult or a party group stays on the page path until it is bound as what it
  * is. And the data a place is built from must carry its cookbook identity, so
  * the presence claim finds it on a second run instead of building it twice,
- * and the same `kind.location` stamp the OSE binding uses, so the audit reads
- * both alike.
+ * and the `kind.location` stamp the audit reads.
  *
  * The foot of the file reads the shipped AX3 cookbook: every keyed place it
  * holds must belong to a quarter (or the journal step would write pages beside

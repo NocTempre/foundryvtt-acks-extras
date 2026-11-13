@@ -196,7 +196,7 @@ console.log(`  ok: every registry read is declared (${declared.size} document(s)
 const apart = [];
 
 /* --- 5. The importer subsystem's own gates --------------------------------
-   register lint, icon ledger, OSE tests, cookbook drift — run from its own
+   register lint, icon ledger, cookbook drift — run from its own
    tools directory. Non-zero exit here fails validation the same way. */
 apart.push([path.join(ROOT, "tools", "importer", "validate-extra.mjs")]);
 

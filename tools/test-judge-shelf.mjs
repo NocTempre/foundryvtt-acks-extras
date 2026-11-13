@@ -174,7 +174,7 @@ check("and filing it keeps it closed", filed.ownership, { ...JUDGE_SHELF_OWNERSH
 
 /* ---------------- the registry, held to the data ---------------- */
 
-const JUDGE_KINDS = new Set(["kind.location", "kind.npc", "kind.organisation", "kind.oseLocation"]);
+const JUDGE_KINDS = new Set(["kind.location", "kind.npc", "kind.organisation"]);
 const owed = [];
 for (const file of fs.readdirSync(path.join(ROOT, "cookbook")).filter((n) => n.endsWith(".json"))) {
   const id = file.replace(/\.json$/, "");

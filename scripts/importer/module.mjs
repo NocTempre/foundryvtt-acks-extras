@@ -102,10 +102,6 @@ import {
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
 import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from "./token-art.mjs";
-import { registerOseSourceSetting } from "./ose-source.mjs";
-import { registerOseSourceDialog, oseBrowseDialog, oseCalibrateDialog, oseConvertAll } from "./ose-app.mjs";
-import { oseManualDialog } from "./ose-manual.mjs";
-import { importOseBook, importOseAreas, importAuthoredOse, authoredOseBooks, oseEntryRows, importOseEntries } from "./ose-book.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
 import { getDoc } from "../lib/tables.mjs";
@@ -2733,9 +2729,6 @@ async function applyStats() {
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_DYNAMIC, { scope: "world", config: false, type: Object, default: {} });
-  // Judge-registered OSE sources. World-scoped rather than shipped: these are
-  // other publishers' books, fingerprinted against the copy the Judge owns.
-  registerOseSourceSetting();
   // The refresh bridge (see above). Client scope: how long a seat's own bytes
   // may survive its own reload is that seat's business, and the answer differs
   // between a GM on the host and a player on a phone tether.
@@ -2811,22 +2804,6 @@ Hooks.once("ready", async () => {
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
     gettingStarted: () => openBooksDialog({ firstRun: true }),
-    // Importing another game's books (docs/importer/OSE.md). Separate entry points
-    // because a third-party source is registered by the Judge rather than
-    // shipped, so it never appears in the book list the rest of these use.
-    oseRegister: registerOseSourceDialog,
-    oseImport: oseBrowseDialog,
-    oseCalibrate: oseCalibrateDialog,
-    oseConvertAll,
-    oseManual: oseManualDialog,
-    oseImportBook: importOseBook,
-    oseImportAreas: importOseAreas,
-    /** The entry picker's OSE creature rows, and the narrowed import that rebuilds them. */
-    oseEntryRows,
-    oseImportEntries: importOseEntries,
-    /** Every authored book this seat has open — the OSE step of the import chain. */
-    oseImportAuthored: importAuthoredOse,
-    oseAuthoredBooks: authoredOseBooks,
     RECIPES, BOOKS,
   };
   acksExtras.importer = api;

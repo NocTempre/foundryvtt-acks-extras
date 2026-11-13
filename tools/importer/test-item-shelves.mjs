@@ -74,8 +74,8 @@ check("the shipped cookbooks carry definition namespaces", namespaces.size >= 8)
 /**
  * Namespaces that are deliberately NOT items, with the reason.
  *
- * A conversion constant is a number the OSE converter is handed at run time
- * (`readScgConstants`); it has no document at all. Being absent from this list
+ * A conversion constant is a number handed to a converter at run time
+ * (the Compatibility Guide prints it); it has no document at all. Being absent from this list
  * AND from ITEM_SHELF is the failure this file exists to catch — it is how four
  * of them became `ability` items nothing reads.
  */

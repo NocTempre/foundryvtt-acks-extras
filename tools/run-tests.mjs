@@ -59,14 +59,7 @@ const SUITE_GLOBS = [
  * Files a glob finds that this runner must not run, relative to `tools/`, each
  * with its reason. Every entry must exist.
  */
-const EXCLUDED = new Map([
-  // The OSE gates are run by `importer/validate-extra.mjs` (§5 of
-  // `validate-extra.mjs`) as part of `npm run validate`; running them here too
-  // would do the same work twice per gate.
-  ...[
-    "binding", "blocks", "convert", "lang", "location", "manual", "statline", "template",
-  ].map((name) => [`importer/test-ose-${name}.mjs`, "run by importer/validate-extra.mjs"]),
-]);
+const EXCLUDED = new Map([]);
 
 for (const file of EXCLUDED.keys()) {
   if (!fs.existsSync(path.join(HERE, file))) throw new Error(`run-tests: excluded suite missing — ${file}`);

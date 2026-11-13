@@ -21,7 +21,6 @@
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
-import { oseSourceView } from "./source-view.mjs";
 import * as CFG from "./config.mjs";
 import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
 import { riderOf } from "../lib/mount.mjs";
@@ -59,7 +58,6 @@ export const MONSTER_SHEET_TEMPLATES = Object.freeze([
   `${T}/tab-ecology.hbs`,
   `${T}/tab-henchman.hbs`,
   `${T}/tab-description.hbs`,
-  `${T}/tab-source.hbs`,
   "systems/acks/templates/actors/v2/spells.hbs",
   "systems/acks/templates/actors/v2/effects.hbs",
   "systems/acks/templates/items/v2/common/item-active-effects.hbs",
@@ -86,13 +84,12 @@ const TAB_LIST = Object.freeze([
   { id: "effects", label: "ACKS.category.effects" },
 ]);
 
-/** The tools rail, top to bottom; `source` appears only on an imported creature, `makeEncounter` only to a Judge. */
+/** The tools rail, top to bottom; `makeEncounter` appears only to a Judge. */
 const TOOLS = Object.freeze([
   { key: "editDescription", icon: "fa-solid fa-pen-to-square" },
   { key: "changeArt", icon: "fa-solid fa-image" },
   { key: "editTags", icon: "fa-solid fa-tags" },
   { key: "ownership", icon: "fa-solid fa-user-lock" },
-  { key: "source", icon: "fa-solid fa-book-open", imported: true },
   { key: "makeEncounter", icon: "fa-solid fa-people-group", judge: true },
   { key: "showTweaksDialog", icon: "fa-solid fa-screwdriver-wrench", title: "tweaks" },
 ]);
@@ -209,12 +206,11 @@ export function createFullMonsterSheet(Base) {
         editTags: FullMonsterSheet.#onEditTags,
         ownership: FullMonsterSheet.#onOwnership,
         makeEncounter: FullMonsterSheet.#onMakeEncounter,
-        source: FullMonsterSheet.#onSource,
       },
     };
 
     /** Actions a read-only seat keeps: the frame's, the rolls and the menus, and what only opens or shows. */
-    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "source", "itemShow", "toggleSummary"]);
+    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "itemShow", "toggleSummary"]);
 
     /** The folded card is narrower than a character's: the rails and the portrait alone. */
     static FRAME_WIDTHS = Object.freeze({ open: 900, folded: 348 });
@@ -233,14 +229,6 @@ export function createFullMonsterSheet(Base) {
 
     /** The Statblock of the last render — what the folded bar and the row ids read against. */
     #columns = null;
-
-    /**
-     * The record an importer leaves on a converted creature, or null. A
-     * hand-built monster has none, and gets no Source tool.
-     */
-    get #oseRecord() {
-      return this.actor.flags?.[MODULE_ID]?.ose ?? null;
-    }
 
     /**
      * The `system.animal` subtree, or null on a plain monster; gates the
@@ -282,7 +270,6 @@ export function createFullMonsterSheet(Base) {
       const folded = this.folded;
       const extras = MonsterExtras.fromActor(actor);
       context.extras = extras;
-      context.ose = oseSourceView(this.#oseRecord);
       // Enrich the entry-prose fields the same way core enriches biography.
       // The raw value still drives editing; the enriched HTML is the display.
       // `relativeTo` resolves relative @UUID links; secrets stay hidden from
@@ -419,7 +406,7 @@ export function createFullMonsterSheet(Base) {
         statblock: { columns: statblock.columns, intro: loc("statblock.intro") },
         service: buildServicePanel(actor, { isGM: game.user.isGM, pins: sheetFlag(actor).pins ?? [] }),
         pins: this.#pinBar(statblock.columns),
-        sheetTools: TOOLS.filter((t) => (!t.imported || this.#oseRecord) && (!t.judge || game.user.isGM)).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
+        sheetTools: TOOLS.filter((t) => !t.judge || game.user.isGM).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
       });
     }
 
@@ -870,22 +857,6 @@ export function createFullMonsterSheet(Base) {
       await this.actor.update({
         "system.details.alignment": result.alignment,
         ...(Number.isFinite(result.xp) ? { "system.details.xp": result.xp } : {}),
-      });
-    }
-
-    /** The importer's provenance, in a window of its own. */
-    static async #onSource() {
-      const record = this.#oseRecord;
-      if (!record) return;
-      const content = await foundry.applications.handlebars.renderTemplate(`${T}/tab-source.hbs`, { ose: oseSourceView(record) });
-      await foundry.applications.api.DialogV2.wait({
-        // `monster-v2` carries the sheet's own table styles into the dialog.
-        classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "monster-v2", "acks-extras-monster-source"],
-        window: { title: `${this.actor.name} · ${loc("tab.source")}`, resizable: true },
-        position: { width: 720 },
-        content,
-        buttons: [{ action: "close", label: game.i18n.localize("Close"), default: true }],
-        rejectClose: false,
       });
     }
 

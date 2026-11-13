@@ -12,8 +12,6 @@ concerns:
   frozen instruction set.
 - [RECIPES.md](RECIPES.md) — the offline authoring pipeline that produces it.
 - [BINDING-FOUNDRY.md](BINDING-FOUNDRY.md) — how the Foundry engine consumes it.
-- [OSE.md](OSE.md) — importing another game's books: the Judge-registered
-  source registry, the stat-block grammar, and the conversion instrument.
 - [EXTRACTION.md](EXTRACTION.md) — the map of the extraction engine and
   pipeline operators, and the running ledger of extractor gotchas (double-strikes,
   column starvation, run seams — each row points at its gate).
@@ -25,7 +23,7 @@ concerns:
 
 The importer user guide is [docs/guides/importer.md](../guides/importer.md) —
 it explains how to connect books, import content, set up a settlement's map,
-browse entries and import OSE adventures.
+and browse entries.
 
 ## Not shipped
 

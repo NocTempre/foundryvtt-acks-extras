@@ -173,19 +173,6 @@ targets.
 the pins are the actor's sheet flag, so every unlinked token of one actor
 shares one fold state and one set of pins.
 
-## Source dialog
-
-A creature converted from another game's book carries the importer's whole
-provenance record, and the sheet's tools rail gains a **Source** tool that
-opens it in a dialog: the stat block as printed, a row per converted field
-naming the rule it came from, a row per axis the importer refused to fill and
-why, and anything its grammar did not recognise. A hand-built monster has no
-such flag and no such tool.
-
-The dialog reads only — it recomputes nothing. The flag shape is the
-`import-provenance` contract in [../lib/API.md](../lib/API.md); the vocabulary
-that turns its keys into readable labels is `scripts/monsters/source-view.mjs`.
-
 ## Animal tab
 
 Shown only on an `acks-extras.animal`, whose DEFAULT sheet this is. It carries

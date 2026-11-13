@@ -315,8 +315,7 @@ const RUNS = new Set([
 RUNS.delete("importMany");
 RUNS.add("cookbookImportLinks"); // the adventure book run's links step
 const recorder = () => {
-  // A generator's row and a plain creature's row, as the OSE picker offers them.
-  const api = { oseEntryRows: () => [["mm.group.pack", { name: "Pack" }], ["mm.oserow", { name: "Row" }]] };
+  const api = {};
   for (const run of RUNS) {
     api[run] = async (arg) => {
       calls.push({ run, arg });
@@ -380,9 +379,6 @@ const OWNED = [
   ["mm.fam", "Monsters"],
   ["ax1.npc1", "Monsters"],
   ["ax1.pregen1", "Monsters"],
-  ["mm.group.pack", "OseCreatures"],
-  ["mm.oserow", "OseCreatures"],
-  ["mm.oserow.step", "OseCreatures"],
   ["ax1.area", "Places"],
   ["ax1.room1", "Places"],
   ["ax1.room1-o2", "Places"],
@@ -1538,7 +1534,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
     ["Variations", "def.variation.one"],
     ["Vehicles", "def.vehicle.cart"],
     ["Merchandise", "def.merchandise.goods"],
-    ["OseCreatures", "mm.group.pack"],
     ["Tables", Object.keys(TABLE_RECIPES)[0]],
   ];
   emptyShelves();
@@ -1603,19 +1598,9 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("no shipped row is owned by two kinds", owned().filter((c) => c.owners.length > 1).length === 0);
   check("no shipped row sits under a printed table's namespace", claims.every((c) => !/^def\.(weapon|armor|priced|language|race)\./.test(c.id)));
 
-  // What no kind owns: a constant a converter reads and a class's metadata own
-  // no document, and an entry of another game's book is owned while its picker
-  // offers it, which is while its book is open.
+  // What no kind owns: a constant and a class's metadata own no document.
   const unownedKinds = () => [...new Set(owned().filter((c) => c.owners.length === 0).map((c) => c.kind))].sort();
-  namespace.importer = { oseEntryRows: () => [] };
-  const closed = unownedKinds();
-  same("the shipped rows nothing owns are two document-less kinds and another game's rows", closed.filter((k) => !k.startsWith("kind.ose")), ["kind.classMeta", "kind.constant"]);
-  const creatures = claims.filter((c) => /^kind\.ose.*Monster$/.test(c.kind));
-  check("the shipped cookbook has another game's creature rows", creatures.length > 0 && closed.some((k) => /Monster$/.test(k)));
-  namespace.importer = { oseEntryRows: () => creatures.map((c) => [c.id, { name: c.id }]) };
-  const offered = unownedKinds();
-  check("offered by the picker, they are owned", !offered.some((k) => /Monster$/.test(k)) && owned().filter((c) => /Monster$/.test(c.kind)).every((c) => c.owners.join() === "OseCreatures"));
-  check("and what stays unowned is the constants, the metadata and the keyed areas", offered.every((k) => ["kind.classMeta", "kind.constant"].includes(k) || /Location$/.test(k)));
+  same("the shipped rows nothing owns are the two document-less kinds", unownedKinds(), ["kind.classMeta", "kind.constant"]);
 
   // Every row a kind names is owned by that kind alone, and the entry sources' rows are the picker's.
   const strays = [];

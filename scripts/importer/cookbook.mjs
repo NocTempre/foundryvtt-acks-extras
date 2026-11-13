@@ -64,7 +64,6 @@ import { gridTypeFor } from "../battlemap/constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
 import { occupantRow } from "../lib/place.mjs";
 import { BOOKS, bookIsJudges, bookLine, citeFor, keptBook, laterBook, offeredBookFiles, registryBookOf } from "./books.mjs";
-import { OSE_PREFIX, oseSourceLabel, oseSourceLine } from "./ose-source.mjs";
 import { executeEntry, materializeEffects, attackModel, convertName } from "./executor.mjs";
 import { effectsOriginOf } from "./effects-origin.mjs";
 import { slugLabel } from "./table-extract.mjs";
@@ -135,12 +134,11 @@ import { elementOf, unset } from "../lib/util.mjs";
 
 const FOLDER_NAME = "ACKS Cookbook";
 /**
- * Where imports from outside the ACKS library are shelved when their source
- * names no line of its own — the by-hand path, and a source the Judge
- * registered without saying what it is.
+ * The shelf name for a series that declares none. No book routes to it now; the
+ * docs site's library page still reads it as a string literal
+ * (`docs/site/tools/extract-library.mjs`).
  */
-const UNLINED_LINE = "Your Books";
-
+export const UNLINED_LINE = "Your Books";
 /**
  * The SERIES a cookbook id's imports belong to, or null for the ACKS library.
  *
@@ -155,24 +153,18 @@ const UNLINED_LINE = "Your Books";
 export function lineOf(bookId) {
   if (!bookId) return null;
   const id = String(bookId);
-  if (id === "ose" || id.startsWith(OSE_PREFIX)) return oseSourceLine(id) ?? UNLINED_LINE;
   return bookIsJudges(id) ? judgeLine(bookLine(id)) : bookLine(id);
 }
 
 /**
  * The book a cookbook id belongs to: what the flag says, else the id's own
- * prefix. `dmb.group.bard` is dmb; `ose.milk.p7` is the source `ose.milk`,
- * since an `ose.*` id spends two segments naming its book. The registry, not
- * the segment count, decides which — `ose.hand` is two segments but names no
- * book.
+ * prefix. `ax1.group.bard` is ax1.
  */
 export function bookOfCookbookId(id, book = null) {
   if (book) return String(book);
   const parts = String(id ?? "").split(".");
   if (!parts[0]) return null;
-  if (parts[0] !== "ose") return parts[0];
-  const source = parts.length > 1 ? `${parts[0]}.${parts[1]}` : "ose";
-  return oseSourceLabel(source) ? source : "ose";
+  return parts[0];
 }
 
 /**
@@ -277,9 +269,9 @@ export async function loadCookbook() {
 }
 
 /**
- * Accessors for consumers outside this module. The OSE path needs the compiled
- * `constants` file, the shared registers, and whichever book documents this
- * seat has open — all of which live here and nowhere else.
+ * Accessors for consumers outside this module: the compiled `constants` file,
+ * the shared registers, and whichever book documents this seat has open — all
+ * of which live here and nowhere else.
  */
 export const cookbookContentFile = (name) => data.content.get(name) ?? null;
 export const cookbookRegisters = () => data.registers;
@@ -1461,8 +1453,7 @@ async function claimImport(id, build) {
  * The ACTOR-side claim: same rule, the actor collection instead of the item
  * index. Nothing is remembered — actors are found by their flag, not by an
  * index. A world copy is the Judge's and answers no claim, as it answers no
- * item index (`isWorldCopy`). Exported because the OSE book importers write
- * actors too.
+ * item index (`isWorldCopy`).
  */
 export async function claimActorImport(id, build) {
   return claimed(id, (claimId) => importedActor(claimId, { copies: false }), (_id, doc) => doc, build);
@@ -1714,7 +1705,7 @@ async function ensureFolderPath(type, names, line = null) {
  * Judge-registered source by the name they typed for it, which is the only name
  * it has. Falls back to the id so a book with neither is still named something.
  */
-const bookLabel = (bookId) => BOOKS[bookId]?.label ?? oseSourceLabel(bookId) ?? bookId;
+const bookLabel = (bookId) => BOOKS[bookId]?.label ?? bookId;
 /**
  * The folder an entry of this kind belongs in, creating the path as needed —
  * inside its book's LINE pack, so the tree and the pack always agree.
@@ -1857,18 +1848,9 @@ function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
 
 /**
  * The folder an import from this book belongs in — its book's shelf, inside
- * its line's pack. Exported for the OSE importers, which build their
- * documents outside this file and would otherwise have to know how a line
- * becomes a pack.
+ * its line's pack.
  */
 export const importFolderFor = (type, bookId, group = null) => targetFolder(type, bookId, group);
-
-/**
- * The folder for an import that belongs to no book at all — a block a Judge
- * typed in. It goes to the unlined shelf rather than the ACKS one: it is
- * another game's creature whether or not anything can say which game.
- */
-export const unlinedFolderFor = (type, name) => ensureFolderPath(type, [name], UNLINED_LINE);
 
 /** Pre-create every folder a batch will need, before the workers fan out. */
 async function prepareFolders(type, ids) {
@@ -2537,19 +2519,18 @@ async function repairBook(bookId, label, { tally, quiet = false, ask = null }) {
  * import the ones the world lacks. A stat-block monster (`monsters`) is refilled
  * whole (`refillMonster`); a template, a family, a person or a legacy block
  * (`rewrites`) is built by its importer again, and the create it would make is a
- * write over the held document (`withRewrite`); an OSE creature (`oseIds`) is
- * read by the OSE importer the same way. `tally.force` lifts the prose guards
+ * write over the held document (`withRewrite`). `tally.force` lifts the prose guards
  * of a stat-block monster, and of the rest where the tally carries no
  * `decision`; with one (`decisionOf`), a rewrite holds hand-written prose as an
  * edit (`decidedPolicy`) and pushes it to `tally.edits`.
  *
- * @param {{monsters?: string[], rewrites?: string[], oseIds?: string[]}} ids cookbook ids by how each is written
+ * @param {{monsters?: string[], rewrites?: string[]}} ids cookbook ids by how each is written
  * @param {foundry.documents.Actor[]} actors the imported actors, the library's and the world's
  * @param {object} tally a `repairTally` to count into
- * @returns {Promise<{missing: string[], imported: number|null, ose: unknown}>} the ids no actor held (imported
- *   after the writes) and the OSE importer's result
+ * @returns {Promise<{missing: string[], imported: number|null}>} the ids no actor held (imported
+ *   after the writes)
  */
-async function repairActors({ monsters = [], rewrites = [], oseIds = [] }, actors, tally) {
+async function repairActors({ monsters = [], rewrites = [] }, actors, tally) {
   const claimedBy = (id) => (doc) => !doc.flags?.[MODULE_ID]?.templatePart && claimsEntry(doc, id);
   const missing = [];
   // Monsters first, as the rebuild runs them.
@@ -2583,16 +2564,7 @@ async function repairActors({ monsters = [], rewrites = [], oseIds = [] }, actor
     });
   }
   const imported = missing.length ? await importMany(missing, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`)) : null;
-  let ose = null;
-  if (oseIds.length) {
-    const oseHeld = new Map();
-    for (const id of oseIds) {
-      const [doc] = actors.filter(claimedBy(id));
-      if (doc) oseHeld.set(id, doc);
-    }
-    ose = await withRewrite({ held: oseHeld, tally }, () => api().oseImportEntries(oseIds));
-  }
-  return { missing, imported, ose };
+  return { missing, imported };
 }
 
 /**
@@ -2618,14 +2590,13 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
   const runs = new Map();
   const monsters = [];
   const rewrites = [];
-  const oseIds = byKey.get("OseCreatures") ?? [];
   let rebuildOnly = 0;
   // Under a merged repair: the ids no run writes, rebuilt under the same id, and the
   // pregenerated characters, put to the Judge after pass one (`repairPregens`).
   const rebuilds = [];
   const pregens = [];
   for (const [key, ids] of byKey) {
-    if (key === "Tables" || key === "OseCreatures") continue;
+    if (key === "Tables") continue;
     if (key === "Monsters") {
       for (const id of ids) {
         const how = monsterRepair(id);
@@ -2647,7 +2618,7 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
     if (!runs.has(run)) runs.set(run, new Set());
     for (const id of ids) runs.get(run).add(id);
   }
-  const touched = [...monsters, ...rewrites, ...oseIds, ...[...runs.values()].flatMap((ids) => [...ids])];
+  const touched = [...monsters, ...rewrites, ...[...runs.values()].flatMap((ids) => [...ids])];
   const claimed = (id) => (doc) => !doc.flags?.[MODULE_ID]?.templatePart && claimsEntry(doc, id);
   const over = [...docs.Actor, ...docs.Item].filter((doc) => touched.some((id) => claimed(id)(doc))).length;
 
@@ -2675,9 +2646,8 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
     forgetImportedIndex();
     refill.rebuilt = await importMany(rebuilds, game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
   }
-  const actors = await mergedStep(tally, "actors", () => repairActors({ monsters, rewrites, oseIds }, docs.Actor, tally));
+  const actors = await mergedStep(tally, "actors", () => repairActors({ monsters, rewrites }, docs.Actor, tally));
   if (actors?.missing.length) refill.Monsters = actors.imported;
-  if (actors && oseIds.length) refill.OseCreatures = actors.ose;
   if (pregens.length) await mergedStep(tally, "pregens", () => repairPregens(pregens, docs.Actor, tally));
   for (const [run, only] of runs) refill[run] = (await mergedStep(tally, run, () => REPAIR_RUNS[run](only, tally))) ?? null;
   const tables = byKey.get("Tables");
@@ -3459,23 +3429,6 @@ export const ENTRY_SOURCES = [
     chain: "stepMerchandise",
     viaBook: true,
   },
-  // A creature an OSE book prints a block per step for is one row, under its
-  // generator's id; `oseImportEntries` rebuilds its steps together.
-  {
-    key: "OseCreatures",
-    type: "Actor",
-    idsRefill: "oseImportEntries",
-    entries: () => api().oseEntryRows?.() ?? [],
-    owns: (claim) => {
-      const group = groupBookOf(claim);
-      if (group) return data.books.has(group);
-      const rows = new Set((api().oseEntryRows?.() ?? []).map(([id]) => id));
-      return ancestorsOf(claim).some((id) => rows.has(id));
-    },
-    book: (claim) => groupBookOf(claim) ?? entryBookOf(claim),
-    make: { run: "oseImportEntries", takes: ["ids"], whole: "oseImportAuthored" },
-    chain: "stepOseBooks",
-  },
   {
     key: "Tables",
     type: null,
@@ -3542,7 +3495,7 @@ const isPlaceClaim = (claim) => {
   const book = bookOfCookbookId(stem);
   if (data.books.has(book)) {
     if (stem.startsWith(`${book}.district.`) || stem === regionPlaceId(book)) return true;
-    if (stem === adventurePlaceId(book)) return !oseSourceLabel(book);
+    if (stem === adventurePlaceId(book)) return true;
   }
   return placeEntryOwned(stem);
 };
@@ -3697,10 +3650,7 @@ const BOOK_STEP_KINDS = [
  * lists the fields): the entry sources, the table shelves and the adventure
  * book's steps. A cookbook claim is owned by at most one kind, and each kind
  * names the run that re-creates it. A claim owned by no kind is one nothing
- * here can re-create: a constant, a class's metadata, and an OSE book's keyed areas and adventure place. The OSE
- * claims stay unowned and get no in-place writer while those books are
- * switched off (docs/importer/DECISIONS.md, "The books statted for OSE are
- * switched off, and their code kept").
+ * here can re-create: a constant and a class's metadata.
  */
 export const IMPORT_KINDS = Object.freeze([...ENTRY_SOURCES, ...TABLE_SHELF_KINDS, ...BOOK_STEP_KINDS]);
 
@@ -3757,8 +3707,7 @@ const tableShelfOfClaim = (id) => {
 
 /**
  * Whether a rebuild may delete the library document claiming `id`: a loaded
- * owner can re-create it (an entry of a loaded cookbook, an OSE generator whose
- * book's cookbook is loaded, or the recipe of the table a row is read from),
+ * owner can re-create it (an entry of a loaded cookbook, or the recipe of the table a row is read from),
  * its book is open on this seat, and that book is one the module offers
  * (`BOOKS`). Every delete a rebuild makes asks this first; a document it
  * refuses is left standing and counted. See `rebuildVerdict`.
@@ -3895,7 +3844,7 @@ export async function cookbookReimportEntries() {
     const rebuildOnly = (id) =>
       src.key === "Monsters"
         ? !monsterRepair(id) && !characterEntry(cookbookEntry(id)?.entry)
-        : src.key !== "Tables" && src.key !== "OseCreatures" && !REPAIR_RUNS[src.refill];
+        : src.key !== "Tables" && !REPAIR_RUNS[src.refill];
     const rows = entries
       .map(([id, e]) => {
         const name = e?.name ?? id;
@@ -5006,8 +4955,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
   const node = await executeEntry(session.doc, found.cb, data.registers, found.id);
   if (!node.ok) return { ok: false, reason: "no-match", book: bookId, name: found.entry.name };
   // Never retract fields the entry never claimed — an entry with no
-  // `stats.*` fields (an OSE creature reads its numbers from `block`
-  // instead) would otherwise retract every path at once. See
+  // `stats.*` fields would otherwise retract every path at once. See
   // docs/importer/DECISIONS.md, "A refill retracts only what its entry
   // claimed to fill".
   if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
@@ -8865,8 +8813,8 @@ const NON_ABILITY_KINDS = new Set([
   "kind.merchandise",
   "kind.merchandiseDemand",
   "kind.spell",
-  // A conversion constant is a NUMBER the converter is handed at run time
-  // (readScgConstants), never a document.
+  // A conversion constant is a NUMBER a converter is handed at run time, never
+  // a document.
   "kind.constant",
 ]);
 
@@ -13487,9 +13435,8 @@ export async function cookbookDebug(entryId) {
  * pool the dialog and import-all use, folders included).
  *
  * Builds only the actor kinds `importOne` dispatches (the `actorKindOf` set).
- * Any other kind returns null and goes uncounted, so a list this declines —
- * OSE creatures, which come in through `importOseBook` — returns the same `0`
- * as a run over a world that already holds every id.
+ * Any other kind returns null and goes uncounted, so a list this declines
+ * returns the same `0` as a run over a world that already holds every id.
  */
 export async function cookbookImportIds(ids) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);

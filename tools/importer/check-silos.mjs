@@ -1,9 +1,11 @@
 /**
  * The book-silo gate: book-specific code stays inside its silo.
  *
- * A silo owns book ids. One exists, `ose`: the books `REGISTRY` marks
+ * A silo owns book ids. One is declared, `ose`: the books `REGISTRY` marks
  * `stats: "ose"`, the id prefix `ose.`, the kinds `kind.oseMonster` and
- * `kind.oseLocation`, and the member files `SILOS.ose.members` lists. The
+ * `kind.oseLocation`, and the member files `OSE_SILO.members` lists. Its books
+ * and members have left `main` for the parked `ose` branch, so today it owns
+ * none and the gate keeps the ids and kinds out of `scripts/`. The
  * ACKS books are the engine's own library and own no silo. The ruling and its
  * rejected alternatives are docs/importer/DECISIONS.md, "Book-specific code
  * lives in a silo, and a gate keeps it there".
@@ -75,26 +77,7 @@ const TARGET_MAX = 80;
 export const OSE_SILO = Object.freeze({
   id: "ose",
   kinds: ["kind.oseMonster", "kind.oseLocation"],
-  members: [
-    "scripts/importer/ose-source.mjs",
-    "scripts/importer/ose-statline.mjs",
-    "scripts/importer/ose-convert.mjs",
-    "scripts/importer/ose-binding.mjs",
-    "scripts/importer/ose-blocks.mjs",
-    "scripts/importer/ose-template.mjs",
-    "scripts/importer/ose-book.mjs",
-    "scripts/importer/ose-location.mjs",
-    "scripts/importer/ose-app.mjs",
-    "scripts/importer/ose-manual.mjs",
-    "scripts/importer/ose-axes.mjs",
-    "scripts/importer/scg-constants.mjs",
-    "scripts/monsters/source-view.mjs",
-    "templates/monsters/tab-source.hbs",
-    "tools/importer/test-ose-*.mjs",
-    "tools/importer/harvest-ose-book.mjs",
-    "tools/importer/harvest-ose-areas.mjs",
-    "tools/importer/ose-coverage.mjs",
-  ],
+  members: [],
   dir: "scripts/importer/silos/ose/",
   entry: "scripts/importer/silos/ose/index.mjs",
   manifest: "scripts/importer/silos/index.mjs",

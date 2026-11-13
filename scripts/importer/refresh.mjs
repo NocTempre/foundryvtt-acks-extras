@@ -221,7 +221,7 @@ export const REPAIR = Object.freeze({
 
 /**
  * The policy for an actor kind that is written whole from its build (a
- * template, a family, a person, a legacy block, an OSE creature), derived from
+ * template, a family, a person, a legacy block), derived from
  * what the build carries: the flags it stamps, its token, its embedded items,
  * and the biography it writes. Everything the build leaves out stays as the
  * document holds it.

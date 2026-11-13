@@ -217,8 +217,8 @@ it or has nothing to write from:
 **Every other kind has an in-place write**, under the same guards, in the two
 shapes below.
 
-**The rewrite scope.** A monster template or family, an NPC, a legacy block and
-an OSE creature are built by importers whose build is also what they create.
+**The rewrite scope.** A monster template or family, an NPC and a legacy block
+are built by importers whose build is also what they create.
 `withRewrite({held, tally}, run)` (cookbook.mjs) sets a scope that maps the
 cookbook id of each held document to it; while it stands, `createDoc` for a held
 id writes the build over the held document (`refreshImported` under
@@ -260,7 +260,7 @@ not open on this seat is left.
 **What a repair deletes.** The entry picker deletes and imports again an entry
 no run writes in place (`repairEntries`), and only where `rebuildable` allows
 it (`rebuild-guard.mjs`): a loaded owner re-creates the claim (an entry of a
-loaded cookbook, an OSE generator whose book's cookbook is loaded, or the
+loaded cookbook, or the
 recipe of the table a row is read from, `TABLE_BOOKS`), that claim's book is
 open on this seat, and the book is in `BOOKS`; an entry refused is left
 standing and counted. A character's restore removes it only once its copy
@@ -273,9 +273,7 @@ the table shelves (`TABLE_BOOKS`) and the steps of an adventure book's run
 counted per claim: at most one kind owns a claim), the book a claim is read from
 (`book`) and the run that re-creates it (`make`), with the shelves it files on,
 its step of the import chain and the steps an adventure book's run reports it
-under. A claim no kind owns is one nothing here can re-create; an OSE book's
-keyed areas and adventure place are left so while those books are switched
-off. `runSetFor`
+under. A claim no kind owns is one nothing here can re-create. `runSetFor`
 (`import-kinds.mjs`, `cookbookRunSet` over the live table) derives the runs a
 scope needs: a shelf, a book, a list of entries or everything. A book scope
 names the kinds a book repair names (`viaBook`, the vehicles among them), in
@@ -1625,9 +1623,11 @@ into this repository or shipped in this module.
 A **silo** is the code written for one set of books, kept where nothing else
 reaches it. It owns book ids: the `REGISTRY` entries that declare its `stats`,
 their id prefix, their entry kinds and the member files that exist only for
-them. One silo exists, `ose` (`stats: "ose"`; prefix `ose.`; kinds
-`kind.oseMonster` and `kind.oseLocation`; members `OSE_SILO.members` in
-`tools/importer/check-silos.mjs`). The ACKS books are the engine's own library
+them. One silo is declared, `ose` (`stats: "ose"`; prefix `ose.`; kinds
+`kind.oseMonster` and `kind.oseLocation`; `OSE_SILO` in
+`tools/importer/check-silos.mjs`); its books and members left `main` for the
+`parked/ose` branch, so it owns none today and the gate keeps those ids and
+kinds out of `scripts/`. The ACKS books are the engine's own library
 and own no silo: a row keyed to one of them is data in a shared recipe. Two
 helpers that only look like silo code are shared: the place an adventure's rooms
 nest under (`adventurePlaceId`, `adventurePlaceData`, in `poi-binding.mjs`),

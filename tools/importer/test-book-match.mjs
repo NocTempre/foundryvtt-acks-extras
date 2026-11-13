@@ -154,7 +154,7 @@ check("a count collision with a foreign title names nobody", identifyBook(BOOKS.
   }
   // The pair the 2026-10-17 ruling was made over.
   check("AX3 supersedes AX1", laterBook("ax1", "ax3") === "ax3");
-  check("a book with no year names nobody", laterBook("ax1", "qd1") === null);
+  check("a book with no year names nobody", laterBook("ax1", "cat") === null);
   check("an unknown book names nobody", laterBook("ax1", "nope") === null);
 
   // An item's kept printing: the later year, else the earlier declaration, else the held one.
@@ -168,7 +168,7 @@ check("a count collision with a foreign title names nobody", identifyBook(BOOKS.
     }
   }
   check("an item AX3 prints too is AX3's, whichever arrives first", keptBook("ax1", "ax3") === "ax3" && keptBook("ax3", "ax1") === "ax3");
-  check("a book with no year yields to the one declared first", keptBook("qd1", "rr") === (declared.indexOf("qd1") < declared.indexOf("rr") ? "qd1" : "rr"));
+  check("a book with no year yields to the one declared first", keptBook("cat", "rr") === (declared.indexOf("cat") < declared.indexOf("rr") ? "cat" : "rr"));
   check("between two undeclared books the held one stays", keptBook("nope", "nada") === "nada");
   check("a declared book outranks an undeclared one either way", keptBook("nope", "rr") === "rr" && keptBook("rr", "nope") === "rr");
 }

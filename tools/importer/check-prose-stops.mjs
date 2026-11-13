@@ -38,14 +38,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FILES, OSE_FILES, referenceComplete } from "./reference-lib.mjs";
+import { FILES, COMMUNITY_FILES, referenceComplete } from "./reference-lib.mjs";
 import { openBook, pageItems, detectColumns, colOf } from "../../scripts/importer/extract.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..", "..");
 const COOKBOOK = path.join(ROOT, "cookbook");
 const LEDGER = path.join(HERE, "prose-stops.json");
-const ALL = { ...FILES, ...OSE_FILES };
+const ALL = { ...FILES, ...COMMUNITY_FILES };
 
 if (!referenceComplete()) {
   console.log("prose stops: SKIPPED — local reference PDFs not on this machine.");

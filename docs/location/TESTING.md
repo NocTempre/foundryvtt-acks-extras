@@ -250,10 +250,9 @@ by hand.
    repair tool".
 
 9. **A place held in a COMPENDIUM.** Import an authored adventure with
-   the importer (`acksExtras.importer.oseImportAreas("pc3")` — one adventure plus 32
-   rooms). These land in the pack for the book's own
-   SERIES — "ACKS Cookbook — Planar Compass — Actor", not the shared
-   "ACKS Cookbook — Actor" — so find the pack by label rather than assuming it.
+   the importer. Its places land in the pack for the book's own SERIES
+   (`ACKS Cookbook — <series> — Actor`), not the shared "ACKS Cookbook — Actor" —
+   so find the pack by label rather than assuming it.
    Then open the adventure's sheet.
    *Observable:* `CONTENTS (32)`, one drillable row per room, and no "Nothing
    is kept here yet". A room's own sheet breadcrumbs back to the adventure, and

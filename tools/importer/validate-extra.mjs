@@ -135,39 +135,6 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
   if (aliased.size) console.log(`validate-extra: ${aliased.size} icon path(s) the install serves from a renamed file, kept as written: ${[...aliased].join(", ")}`);
 }
 
-/* 3. The OSE converter carries no printed constant.
- *
- * Its whole arrangement is that the System Compatibility Guide's numbers
- * arrive as arguments, read from the reader's own copy. A gate that listed the
- * forbidden values would write them down in a tracked file and so defeat
- * itself; this is an ALLOW list instead. Every numeric literal in the module
- * must be one of a few structural ones, each justified here — anything else is
- * a value that belongs in the `constants` argument.
- *
- *   0, 1  identities, counters, indexes, and the floor of a count
- *   2, 6  the OSE morale die (2d6) — the dice, not a printed table
- *   4, 8  hit-die sides; both systems roll d8 per hit die and d4 below one
- */
-{
-  const ALLOWED = new Set([0, 1, 2, 4, 6, 8]);
-  const f = path.join(ROOT, "scripts", "importer", "ose-convert.mjs");
-  if (fs.existsSync(f)) {
-    // Comments, strings and REGEX LITERALS are not numeric literals — a
-    // character class like [^a-z0-9] is spelling, not a value.
-    const bare = fs
-      .readFileSync(f, "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, " ")
-      .replace(/(^|[^:/])\/\/[^\n]*/g, "$1 ")
-      .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g, '""')
-      .replace(/([(=,:[!&|?+\s])\/(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[gimsuy]*/g, "$1RE");
-    for (const m of bare.matchAll(/\b\d+(?:\.\d+)?\b/g)) {
-      if (!ALLOWED.has(Number(m[0]))) {
-        fail(`scripts/importer/ose-convert.mjs carries the literal ${m[0]} — a printed constant belongs in the \`constants\` argument, not the converter`);
-      }
-    }
-  }
-}
-
 if (failed) {
   console.error("validate-extra: inline guards FAILED");
   process.exit(1);
@@ -180,7 +147,7 @@ if (failed) {
 // the others read, so they run side by side, each to its end.
 const importerTool = ([tool, ...args]) => [path.join(ROOT, "tools", "importer", tool), ...args];
 execFileSync(process.execPath, importerTool(["lint-register.mjs"]), { stdio: "inherit" });
-const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["test-ose-statline.mjs"], ["test-ose-convert.mjs"], ["test-ose-blocks.mjs"], ["test-ose-binding.mjs"], ["test-ose-template.mjs"], ["test-ose-location.mjs"], ["test-ose-manual.mjs"], ["test-ose-lang.mjs"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-market-classes.mjs"]].map(importerTool));
+const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-market-classes.mjs"]].map(importerTool));
 if (checks.some((check) => check.status !== 0)) {
   console.error(`validate-extra: FAILED — ${checks.filter((check) => check.status !== 0).map((check) => path.basename(check.args[0])).join(", ")}`);
   process.exit(1);

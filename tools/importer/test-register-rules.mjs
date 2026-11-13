@@ -66,7 +66,7 @@ none("a pair from the earlier book", pairProblems(rowsOf(later, earlier({ sameAs
 none("an earlier printing that adds nothing", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: [] }))));
 flags("a pair declared on the later book's row", pairProblems(rowsOf(loc("ax1.fortPlace"), loc("ax3.site27", { meta: { sameAs: "ax1.fortPlace", unique: [] } }))), /earlier book's row/);
 flags("a pair between books whose years tie", pairProblems(rowsOf(loc("ax4.x"), loc("ax2.x", { meta: { sameAs: "ax4.x", unique: [] } }))), /no printing year orders/);
-flags("a pair with a book of no year", pairProblems(rowsOf(loc("qd1.x"), earlier({ sameAs: "qd1.x", unique: [] }))), /no printing year orders/);
+flags("a pair with a book of no year", pairProblems(rowsOf(loc("cat.x"), earlier({ sameAs: "cat.x", unique: [] }))), /no printing year orders/);
 flags("a pair within one book", pairProblems(rowsOf(loc("ax1.other"), earlier({ sameAs: "ax1.other", unique: [] }))), /another book's row/);
 flags("a pair without the reviewer's list", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27" }))), /carries meta\.unique/);
 flags("a unique list of words", pairProblems(rowsOf(later, earlier({ sameAs: "ax3.site27", unique: ["intro"] }))), /paragraph ordinals/);

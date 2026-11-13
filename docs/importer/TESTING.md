@@ -112,7 +112,7 @@ GM has this tab alone.
    each says the book is not shared with this seat; give the seat Observer on
    one journal and that row's button appears.
 10. The migration. Delete one book's journal, then put the old record back by
-   hand — `game.settings.set("acks-extras","shelf",{wld1:{path:"acks-extras-books/wld1.pdf",name:"wld1.pdf",size:0}})`
+   hand — `game.settings.set("acks-extras","shelf",{ax1:{path:"acks-extras-books/ax1.pdf",name:"ax1.pdf",size:0}})`
    — and reload as the GM.
    *Observable:* the console reports `shelf: 1 book(s) carried from the world
    setting into journals under "Your Books"`, the journal is back with its PDF
@@ -133,7 +133,7 @@ Either route ends in the book's journal; a book whose file is already on the
 server stages in well under a second, because nothing is uploaded.
 
 To test a FRESH upload where the shelf already holds every book, move one file
-aside on disk (`mv wld1.pdf wld1.pdf.aside`), stage it, then delete what the
+aside on disk (`mv ax1.pdf ax1.pdf.aside`), stage it, then delete what the
 upload wrote and move the original back — the uploaded copy must be
 byte-identical, so `md5sum` is the check.
 
@@ -226,7 +226,7 @@ Fire it without awaiting — `DialogV2.prompt` resolves on DISMISSAL, so an
 `await` hangs until the pane's timeout — then read the dialog's own instance:
 
 ```js
-acksExtras.importer.cookbookDebug("dmb.level5Friar");
+acksExtras.importer.cookbookDebug("mm.<entry id>");
 await new Promise(r => setTimeout(r, 5000));
 const dlg = [...foundry.applications.instances.values()]
   .filter(a => /Dialog/.test(a.constructor.name)).pop();
@@ -239,9 +239,6 @@ through `executeEntry` with the PREVIOUS cookbook (`git show HEAD:cookbook/…`)
 against the same PDF — that pair is what separates "the box moved" from "the
 text changed", and the two are routinely different: a box can split into two
 columns and materialize byte-identical prose.
-
-`stats (0)` is normal for an OSE row, not a regression — check a row the change
-did not touch before reading it as one.
 
 A definition id (`def.class.thief` and every other content-cookbook entry) opens
 the window like any other; the header names the book the entry itself declares,
@@ -277,8 +274,8 @@ re-import would change.
 ### Where the importer actually writes
 
 Not the sidebar. Classes, abilities and the rest land in the world compendium
-`world.acks-cookbook--item`, and OSE creatures in
-`world.acks-cookbook--<book>--actor` — so a presence check written against
+`world.acks-cookbook--item`, and a line's creatures in
+`world.acks-cookbook--<line>--actor` — so a presence check written against
 `game.items` or `game.actors` reports "nothing imported" for a world that holds
 the whole corpus, and invites a fixture run that duplicates it. Ask
 `game.packs.get(<pack>).getDocuments()`. A map is the exception: its scene,
@@ -778,18 +775,6 @@ step 10, the entry step 7 creates.
     library's own document. Then *Reimport one shelf* for the trap's shelf.
     *Observable:* the copy is still there, unchanged, and the shelf's count
     matches the count before the step.
-11. **OSE creatures.** With an authored OSE book open on this seat, open the
-    picker.
-    *Observable:* an "OSE creatures" group lists that book's creatures, and a
-    creature the book prints one block per step for is ONE row, whose id ends
-    `.group.<key>`. Tick one plain creature and one such generator, both
-    imported, and press *Reimport*.
-    *Observable:* the confirm's removed count is 2. Afterwards both exist again
-    under new ids, and the generator still offers every step. With the book
-    closed on this seat (the masking below), the same two ticks are refused and
-    nothing is deleted: the closed-book warning, no confirm. The picker's
-    promise then resolves `"ok"`, the button's action, since the refusal
-    returns nothing for DialogV2 to hand back.
 12. **A Judge's override is never read into the import.** On a world holding
     the imported `weather` document, with `t = acksExtras.lib.tables`, pick a
     table of it with no override yet (`t.getLayer("weather", t.PRIORITY
@@ -999,7 +984,7 @@ never a delete list.
    walks all three answers.
 10. **Every kind has an in-place write.** With the books of the shelves open,
     pick the Weapons, Armor, Languages and Races shelves and a book's monster
-    templates and families, NPCs and OSE creatures one at a time, answer
+    templates and families, and NPCs one at a time, answer
     **No**, then **Yes**. Before the Yes, edit one weapon's damage die and mark
     it equipped, change one language's taxonomy flag, and rename nothing; if
     the choice opens, press Take the book's for every edit (a field the kind
@@ -1683,414 +1668,6 @@ register's header words, with no odds column.
 ### Teardown
 
 4. Delete the journal and its folder from the pack.
-
-## OSE import
-
-### Fixtures
-
-- An OSE or B-X adventure PDF **the tester owns**. Nothing in this repo ships
-  one, and no path to one belongs in a commit.
-- The ACKS II System Compatibility Guide, for the second half of the run.
-- Actors created by the test are deleted at the end. Nothing existing is
-  edited — a converted actor is disposable by construction, which is why the
-  recipe creates rather than mutates.
-
-### Offline first
-
-```bash
-npm run validate
-```
-
-Must report `ose-statline: OK`, `ose-convert: OK`, `ose-blocks: OK`, and
-`cookbook drift: none`. The drift line is what proves the committed
-`cookbook/constants.json` still matches what `register/scg/` compiles to.
-
-### The constants, before anything else
-
-This is the highest-risk step, because box geometry is per-printing and cannot
-be checked without the book.
-
-1. Connect the Compatibility Guide. It should fingerprint as 12 pages; its
-   metadata title carries the publisher's own spelling ("Compatability"), which
-   is why the registry matches on the stem.
-2. Confirm all four constants resolve. In the console:
-   `await readScgConstants(doc, cookbook, registers)` returns four integers, and
-   returns **null** against any other book — the anchors refusing, which is the
-   behaviour that matters.
-3. If any constant returns null against the guide itself, the printing has
-   moved and `tools/importer/harvest-scg-constants.mjs` must be re-run against it. Do not
-   widen the boxes to make it pass.
-
-### Stage A — import without the guide
-
-4. Disconnect the guide. Register the adventure with `api.oseRegister()`:
-   give it a name of your own (the file's metadata title is not trusted), and a
-   lineage. Register the same file twice and confirm it is recognised and
-   reopened rather than duplicated.
-5. Pick a page with stat blocks. Confirm the candidates the locator offers
-   match the blocks you can see — **count them against the page**. A page whose
-   blocks sit beside prose in the facing column is the case worth checking.
-6. Import one. Then open it and verify:
-   - hit points, saving throws, movement, alignment and morale are filled;
-   - **armour class and attack throw are NOT**, and both appear as gaps reading
-     "needs the System Compatibility Guide";
-   - the Source tab exists, shows the block as printed, and carries the
-     unconverted warning.
-7. Open a hand-built monster and confirm it has **no** Source tab.
-
-### Morale, specifically
-
-8. Import blocks with three different morale scores and read the actor's
-   `system.details.morale`. A book's ML 7 must read −1 and its ML 12 must read
-   +4 — and a middling ML 9 must read +1. If everything above the midpoint
-   reads +4, a clamp is firing and the mapping is not being applied.
-
-### Stage B — connect the guide
-
-9. Reconnect the guide and run `api.oseConvertAll()`. It must report the
-   number of actors updated.
-10. Re-open the actor from step 6: armour class and attack throw are now filled,
-    the unconverted warning is gone, and the Source tab's route column cites the
-    guide for exactly those two axes.
-11. Run `api.oseConvertAll()` a second time. It must report **0**. The
-    no-op is asserted offline too (`test-ose-convert.mjs`), because the bulk
-    pass's own filter used to be the only thing making it true.
-
-### What must be refused
-
-12. Point `api.oseImport()` at a page of blocks from a different game (one
-    sample book prints two systems' stat blocks in one volume). Their
-    checkboxes must be **disabled**, with the reason shown. Confirm the import
-    button cannot reach them — a foreign ascending armour class read as
-    descending inverts, which is the failure this check exists for.
-13. Find a page where a narrow block sits inside a prose column. Its candidate
-    must be marked as possibly two blocks, and also be untickable.
-
-### Calibration
-
-14. Find a page whose labels the canonical grammar does not know (one sample
-    book heads its hit dice differently). The review dialog must say so. Run
-    `api.oseCalibrate(sourceId, page)`, map the word, and confirm the blocks
-    now read. Then open a DIFFERENT registered adventure and confirm it did
-    **not** learn that spelling — the whole point of a per-source profile.
-
-### Converting by hand
-
-16. Run `api.oseManual()`. Paste a stat block into the box and press **Read
-    it** — the fields must fill with the clauses as written (`SV` holding the
-    whole five-letter row, not a parsed shape). Correct one clause, press
-    **Convert**, and confirm the CORRECTED value is what the preview shows and
-    what the created actor carries. An edit that survives the preview but not
-    the document is the exact fault this surface was split to prevent.
-17. Clear the paste box, fill two or three fields in by hand, and convert. The
-    creature must be created with no source, no page, and `origin: "hand"` in
-    its provenance; its Source tab must read "Entered by hand".
-18. Calibrate an adventure to a wording the canonical grammar lacks (step 14),
-    then paste a block using that wording into `oseManual()`. It must be
-    understood, and the editor must say which spelling was used and which book
-    taught it. This is the accumulating half — a book calibrated once makes
-    every later paste better.
-19. Paste something that is not a stat block. It must say so and change nothing.
-
-### Teardown
-
-20. Delete every actor created, and remove the registered source. Report which
-    of the steps above were reached and which were not — a surface that could
-    not be exercised is named, not omitted.
-
-## Authored OSE books
-
-Eleven third-party books ship a cookbook of creature boxes. The path is
-`importOseBook(bookId)` — no registration, no calibration, no block picking.
-Requires the book's own PDF connected this session; the fingerprints are page
-count plus metadata title, and two Quick Delves share a page count, so a title
-is what separates them.
-
-### Fixtures
-
-1. A folder to import into, created for the test and deleted after. Never import
-   an authored book into the world root — 340 actors are hard to find again.
-
-   **Pass `folderId` only where the step says to.** It OVERRIDES the shelving
-   rule, so a run that always passes one never exercises the default — which is
-   the thing that was broken: these importers defaulted to no folder at all and
-   nothing passed one, so every authored book piled loose at the top of its
-   pack. At least one book must be imported with no `folderId` at all.
-
-### Steps
-
-2. `game.modules.get("acks-extras").api.importer.authoredOseBooks()` lists the shipped
-   books with their creature counts and whether each is open this session. A
-   book whose PDF is not connected must report `open: false` and must not be
-   importable — check the refusal, not just the list.
-3. Import a SMALL book first (`qd1`, six creatures). Confirm: actors created
-   with the cookbook's names, a Source tab on each, and a biography holding the
-   block's own text with the book and page as its closing line.
-4. **Check a name against the page.** The harvester's names are gated but not
-   proofread; an actor named after a room or a sentence is the failure that gate
-   exists to prevent, and it is visible only here.
-5. **Check an illustration against the page.** Each picture goes to the block
-   nearest it, so a creature the page never illustrated correctly has none. What
-   must NOT appear is one picture on several unrelated creatures.
-6. Import `dmb` and verify the DIALECT end to end. A Dolmenwood block prints
-   its armour class ascending and alone, so the sheet must show an armour class
-   that IMPROVES with the printed number — the same figure read as OSE lands
-   several points the other way and looks entirely plausible. Confirm against
-   the page for at least one creature, and confirm `flags["acks-extras"].ose`
-   records `lineage: "dolmenwood"`.
-7. **Run the same import a second time.** Nothing may be created, and it must
-   be FAST: the presence check is taken before the page is read, so a book
-   already imported costs an index lookup per entry, not a re-read. Measured on
-   the full library, 643 documents in 41s becomes 0 in 1s. A second run that
-   takes as long as the first means the check moved behind the read.
-8. **Delete what was imported and import it again.** The claim is keyed by
-   identity, and a claim that answers for deleted documents is the failure this
-   step exists to catch — everything must come back.
-9. `acksExtras.importer.oseImportAuthored()` — the step "import everything" runs. It walks every
-   authored book the seat has OPEN and is silent about the rest: a Judge who
-   owns three of the eleven must not be told about the other eight. Confirm the
-   documents carry one id each — no two share
-   `flags["acks-extras"].cookbook.id` — and that a book printing several
-   creatures on one page (`dmb`) produced one document per creature.
-
-   Driving it: fire it without awaiting and poll a global, because reading a
-   library of PDFs pins the renderer's main thread and an awaited eval times
-   out. `art: false` keeps a test run from writing hundreds of extracted
-   illustrations into the data directory, which nothing deletes afterwards. The
-   import uses the API path `acksExtras.importer.oseImportAuthored()`.
-
-### Teardown
-
-10. Delete the folders and every actor in them. Report which books were
-   exercised and which were not reached.
-
-## Apply Stats re-reads a stat block, or refuses
-
-`applyStats()` UPDATES system data on documents that already exist, so this is
-the recipe where a wrong target costs someone else's work. Two things decide the
-targets and both are easy to get wrong from a script:
-`applyStatsTargets` takes the selected tokens PLUS every open actor sheet, and a
-COMPENDIUM actor's sheet counts — which is the only way to point at an imported
-creature in a world with no canvas and no token. So **close every application
-first** (`app.close({ animate: false })` over `foundry.applications.instances`,
-then `ui.windows`), open exactly the fixture's sheet, and assert what the surface
-sees before pressing it.
-
-### Fixtures
-
-1. One creature from an authored OSE book and one ACKS monster, both imported by
-   this run. In a shared world the importers dedup by identity, so a book whose
-   creatures are all present creates nothing and leaves you with no fixture you
-   may write to. Find the free ids first: index every world Actor pack on
-   `flags["acks-extras"].cookbook.id`, fetch
-   `modules/acks-extras/cookbook/<book>.json`, and diff. `dmb` held two
-   (`dmb.fireBeetleGiant`, `dmb.flyGiant`) against a fully imported library;
-   `mm` held over a hundred.
-2. For the retraction half, an ACKS monster whose block leaves a
-   `REFILL_STAT_PATHS` entry unset — `mm.golemBone` prints no morale and no
-   encounter numbers, so `details.morale` and `details.appearing.d` arrive at
-   their schema initials and are free to tamper with.
-
-### Steps
-
-3. Import the OSE creature (`oseImportBook(<book>, { art: false })`), read the 18
-   `REFILL_STAT_PATHS` off it, open its sheet, run `applyStats()`, read them
-   again. *Observable:* every value unchanged, `_stats.modifiedTime` unchanged,
-   and a warning naming the creature as left unchanged — no stat block for this
-   surface to re-read. A creature whose fields all sit at
-   `actor.system.schema.getField(path).getInitialValue()` afterwards is the
-   blanking bug; a success notification for it is the same bug reporting green.
-4. Import the ACKS monster, open its sheet, run `applyStats()`. *Observable:*
-   "refilled 1 monster from your book" and a stat block that still holds the
-   printed values.
-5. Tamper with the two unset paths on the second ACKS fixture by hand
-   (`details.morale`, `details.appearing.d`), then run `applyStats()`.
-   *Observable:* both back at their schema initial values. This is the retraction
-   itself — the thing the OSE refusal must not have disabled.
-
-### Teardown
-
-6. `oseImportBook` and `cookbookImportIds` return counts, not ids, so read the
-   uuids back out of the pack index by the free cookbook ids from step 1 — the
-   moment the import resolves, before anything else runs — and delete by that
-   list, re-resolving each and skipping what has gone. Two runs can be told to
-   import the same free id — the claim in `claimActorImport` is per client, so
-   both miss presence and both build — which makes a uuid read back late a
-   document that may be a peer's, freshly made and identical by id. Read early,
-   and harden it: note the run's start once with `Date.now()` and delete only
-   what carries a `_stats.createdTime` at or after it — both are epoch
-   milliseconds and the server stamps `createdTime` within a few ms of the
-   client's clock. **Not `game.time.serverTime`**: the server computes it as
-   `Date.now() - <world launch>` and the client adds its own latency delta, so
-   it is a DURATION since the world launched, not a timestamp. Against an epoch
-   `createdTime` every document in the world compares as newer, and a filter
-   built on it deletes the library. The server names the same quantity honestly
-   one layer up — `/api/status` serves it as `uptime`, and both read the one
-   `Activity#serverTime` getter — so if the endpoint's word for a number is
-   `uptime`, that is what the client's `serverTime` is too. Where a run
-   genuinely needs a server-stamped epoch, mint one: create a throwaway
-   document, read its `_stats.createdTime`, delete it by its own uuid. The
-   filter is a safety net under the early read-back, never the key — a clock
-   skew that excludes leaves a fixture behind, which is the direction to fail
-   in.
-   `_stats.lastModifiedBy` is not a second opinion either: it is a static stamp
-   of the USER who last wrote, so it is exact about users and blind to sessions,
-   and sessions are what a teardown must tell apart. Quote what was removed,
-   missing and refused.
-
-## Shelves: one line, one set of compendia
-
-Imports are shelved by SERIES, so another game's books never share a compendium
-with the ACKS ones. What proves it is where documents actually LAND and whether
-a second run still finds them — a check that only reads `lineOf` proves the
-lookup table, not the routing.
-
-### Fixtures
-
-1. Nothing to create up front. This recipe imports, inspects and deletes; the
-   packs it creates are part of what is being checked.
-
-### Steps
-
-2. Import a small ACKS book's monsters and a small OSE one (`qd1`) with **no
-   `folderId`**. Confirm in the sidebar: `ACKS Cookbook — Actor` holds the ACKS
-   creatures, `ACKS Cookbook — Quick Delve — Actor` holds the Quick Delve ones,
-   and neither holds the other's. Both packs must be UNLOCKED — a locked pack is
-   a library a Judge cannot edit or drag from.
-3. Open the OSE pack and confirm the tree: `Quick Delve #1: Milk / Creatures`,
-   with the generators under `Templates` if the book has any. Nothing loose at
-   the top of the pack — that is the bug this recipe exists for, and it is
-   visible at a glance.
-4. `api.oseImportAreas("qd1")` with no `folderId`. The adventure sits at the top
-   of the book's own folder and its rooms under `Quick Delve #1: Milk / Areas`.
-   Two levels, never three.
-5. **Import the same book again.** Nothing may be created. This is the check
-   that matters most: the presence read and the write have to agree about which
-   pack to look in, and a disagreement presents as a full second copy of the
-   book rather than as an error.
-6. Import `dmb` as well, then run the ACKS "import everything" control. Confirm
-   the completion notice names EVERY pack it filled, not just the ACKS one — a
-   report naming one shelf sends a Judge to a compendium their Dolmenwood
-   creatures are not on.
-7. Register a source (`oseRegister`) and type a series into **Series or
-   publisher**. Confirm the field offers what the world already shelves, then
-   import a block from it: it must land in `ACKS Cookbook — <that series> —
-   Actor`, in a folder named after the source. Register a second source with the
-   field left BLANK and confirm it lands in `ACKS Cookbook — Your Books — Actor`
-   instead — the blank case is the common one and it is the one that used to
-   create documents with no folder at all.
-8. `api.oseManual()` — type a block with no source and create it. It goes to
-   `Your Books`, under `Entered by Hand`. Then send a blocked candidate to the
-   hand editor from a registered source's review dialog and confirm THAT one is
-   filed with its source's book instead.
-9. **Run Remove Imports.** It must count and delete documents in every pack it
-   created, not only the ACKS one, and remove the packs themselves. A pack left
-   behind holding documents is the failure — the prefix match is what finds
-   them, so a pack whose label lost the prefix would survive with its contents.
-
-### Upgrading a world that imported before this
-
-10. Build the pre-upgrade shape on purpose: `git show v4.2.1:scripts/importer/books.mjs`
-   has no `line`, so an import from that build put the OSE creatures in `ACKS
-   Cookbook — Actor`. Recreate that by creating a few actors in the ACKS Actor
-   pack carrying `flags["acks-extras"].cookbook.id` values from `dmb`, then
-   import `dmb`. Those entries must be reported as ALREADY PRESENT and no second
-   copy created — the reads span every pack, which is what makes "your existing
-   world keeps working" true rather than assumed.
-
-### Teardown
-
-11. Remove Imports clears the packs. Confirm the sidebar has no `ACKS Cookbook —
-   *` compendium left, and delete any fixture actors made by hand in step 10.
-   Filter by `flags["acks-extras"]` — a parallel session's fixtures live in
-   the same world.
-
-## Cross-line safety: merging, and batched writes
-
-Two paths treat the library as one game's. Both are unreachable through any
-shipped control today — no world Item carries an OSE id, because OSE gear is
-embedded on the actor — so both are checked by **building the future shape on
-purpose**, the same discipline as a pre-upgrade shape.
-
-### Fixtures
-
-1. An Item on a line's own shelf. Import one ACKS equipment entry, clone its
-   full data into a `ACKS Cookbook — <line> — Item` pack under a
-   `<line-book>.<something>` cookbook id, keeping the NAME identical. Cloning
-   real data rather than inventing it is what makes `sameMaterial` true, which
-   is the branch that does the damage.
-
-### Steps
-
-2. Delete the ACKS copy, reload (the name index and the dedup index are session
-   caches), and import that same ACKS entry again.
-   *Observable:* the line's item keeps its name, its own cookbook id and its
-   own book, gains no `merged` array, and the ACKS item is created separately
-   in the ACKS pack. A rename or an id rewrite is the failure.
-3. **Prove it was a candidate**, or step 2 passes for the wrong reason — an
-   item the loop never saw is not an item the guard rejected. In page context,
-   `const m = await import("/modules/acks-extras/scripts/importer/cookbook.mjs")`
-   gives the pure exports against live `game.packs`: `m.importedDocs("Item")`
-   must contain the line's item, `acksExtras.lib.vocab.nameKeys` must return
-   the same keys for both names, and `m.lineOf(m.bookOfCookbookId(...))` must
-   differ between them.
-4. **Batched writes, mixed lines, with a failure in the middle.** Call
-   `m.createDocs(Item, [...])` with five documents: ACKS, line, one whose
-   `type` is invalid, then ACKS and line again.
-   *Observable:* five slots; each holds the document built from ITS input; the
-   invalid one is `null` in its own slot; each document is in its line's pack.
-
-   **`createDocuments` does not throw on a document that fails validation — it
-   drops it and answers with FEWER documents, in order.** So a result array
-   rebuilt by position shifts at the first bad document and every later one
-   lands a slot early. This is why the pairing is by cookbook id, and why a
-   probe with the bad document in the MIDDLE is the only arrangement that
-   catches it: put it last and the misalignment has nothing left to shift.
-
-### Teardown
-
-5. Delete the probes and the line's pack. **Re-import the ACKS entry the
-   fixture borrowed** — step 2 deleted the copy the world already held, so the
-   library is one document short until it is imported again. Confirm the pack
-   is back at its starting count; this is the one place this recipe touches a
-   document it did not create, and the reason it must put it back.
-
-## Keyed areas as places
-
-117 numbered rooms across Quick Delves 1-3 and Planar Compass 1-3 import as
-`acks-extras.location` actors. Requires the adventure's own PDF connected.
-
-### Fixtures
-
-1. A folder to import into, created for the test and deleted after.
-
-### Steps
-
-2. `api.oseImportAreas("qd1", { folderId })`. Expect **17 rooms plus one
-   location for the adventure** — the count matters, because the failure this
-   path had was silent: an entry that compiled cleanly and refused at import,
-   leaving a book that looked authored and produced nothing.
-3. Confirm every room's `system.parentUuid` is the adventure's uuid. Nesting is
-   the reason this binds to an actor rather than a journal page; unparented
-   rooms are the feature not working, not a cosmetic difference.
-4. Open a room and confirm its notes hold the printed text — description AND
-   the roster line beneath it ("5 skeletons: Stats on p7, hp 3, 6, 7, 7, 8"),
-   closing on the book and page. The words must arrive from the reader's copy,
-   never from the cookbook.
-5. Check one room's name against the page. The number leads ("2. Statue Hall")
-   so the rooms sort as the map is keyed; a title that wrapped onto a second
-   line must be whole, not cut at the wrap.
-6. Import a book that ships none (`wld1`) and confirm it says so rather than
-   inventing rooms.
-7. Import the areas twice. The second run must create nothing — neither rooms
-   NOR a second adventure beside the first, which is what a book-level id
-   (`<book>.adventure`) is for.
-
-### Teardown
-
-7. Delete the folder and every actor in it. Filter what you delete by
-   `flags["acks-importer"].ose` — a parallel session's fixtures live in the same
-   world, and deleting theirs is the mistake this line exists to prevent.
 
 ## The land-travel tables reach a party
 

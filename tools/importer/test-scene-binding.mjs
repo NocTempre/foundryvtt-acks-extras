@@ -304,8 +304,6 @@ ok("an import built from the system's own compendium is not", !isWorldCopy({ ...
   ok("and a character a player owns", /!playersCharacter\(doc\)/.test(picker));
   ok("an adventure book's repair deletes nothing", !/delete(Imported|Documents)\(/.test(body("cookbookReimportAdventure")));
   ok("a companion slot links the library's creature, not a copy", /importedActor\(effect\.ref, \{ copies: false \}\)/.test(body("resolveCompanion")));
-  const oseBook = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "importer", "ose-book.mjs"), "utf8");
-  ok("the OSE areas presence read leaves a copy out", /if \(await importedActorFor\(id, \{ copies: false \}\)\)/.test(oseBook));
 }
 
 /* ---------------- the picture and the geometry turn by one rule ---------------- */

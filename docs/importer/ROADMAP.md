@@ -605,42 +605,6 @@ races may take and which grants a count rather than naming a list. So this is
 not a page we have failed to read: the human default is the correct answer until
 Autarch prints one, and nobody should re-open it looking for the page.
 
-## OSE: what the first cut does not do
-
-The path is built for monsters. Everything below is scoped out on purpose, not
-missing by accident.
-
-- **Areas, journals, treasure and NPCs.** A keyed adventure is a second grammar:
-  a numbered heading opening a column, a roster line carrying a count and
-  per-instance hit points ("2 golems: stats on p6, hp 14, 18"), run-in feature
-  labels holding loot, and `Area N` cross-references that want to become links.
-  Each publisher keys areas differently, so the heading pattern belongs on the
-  per-source profile beside the stat-block labels. `cookbookImportJournals` is
-  the path it should build through.
-- **Maps and scenes.** Deferred entirely. Area text carries its printed map
-  references as text; no Scene, no walls, no token placement.
-- **Treasure-type letters.** Transcribed and flagged, never mapped — the two
-  games' letters do not denote the same hoards and the guide prints no
-  correspondence.
-- **The ascending lineage.** ShadowDark and 5e-ish OSR blocks are detected and
-  refused. The guide prints their armour-class rule, but range bands and bare
-  ability modifiers have no ACKS counterpart, so it is a second grammar with
-  several more gaps.
-- **Percentile and x-in-6 conversion.** The guide prints both ladders; they are
-  thief-skill and dungeoneering prose, not stat-block fields. Reading the ladder
-  in one instruction also wants `value`'s documented `split`, which is not
-  implemented — `docs/COOKBOOK.md` describes it but `applyPattern` has no branch
-  for it. Fix the doc or the code before relying on either.
-- **Class import.** The guide maps the B-X dwarf and elf onto ACKS classes, and
-  the converter already uses that for saves-as. Importing them as playable
-  classes is the class pipeline's job, not this one's.
-- **Shareable dialect profiles.** A profile is geometry and label vocabulary
-  with no values in it, so it could be exported for other Judges of the same
-  book. It needs its own IP gate first.
-- **The export direction.** ACKS II out to OSE. Note that the guide's forward
-  and reverse formulas are deliberately not inverses — the reverse ones assume a
-  fixed difficulty — so a round trip is off by one on saves and proficiencies.
-
 ## Deferred with the 2026-08-29 surface-index work
 
 - **A "spell" cookbook kind** — DONE 9.0.0 (`kind.spell`). A printed spell
@@ -724,37 +688,6 @@ entry whose source and recipe are unchanged since its last import, judged by a
 stamp on the imported document, and a cache of a book's parsed pages shared by
 the recipes of one run. Measure a full run before choosing between them.
 
-## An OSE column that CONTINUES an entry is claimed by everything on the page
-
-The harvester's column walk knows a column is taken when something STARTS in
-it: `startsOf(col)` reads the headings that open there, `startsIn(col, after)`
-finds the next one below a y, and `takenAt(col, y)` refuses a y another entry
-already holds. A column carrying the tail of an entry begun on an EARLIER page
-starts nothing, so it reads as empty from `PAGE_TOP` down and every entry on
-the page is handed the same region. aft p.57 is the clean case: the giant
-sturgeon, the giant swordfish and the flail snail each carry an identical
-right-column prose box at x226.8 y422.8–499.8, and only one of them is printed
-there.
-
-What makes it more than a missing check is that one column can be both at once.
-dmb p.106 hands its three bards the same right-column box at x307 y160–256 —
-the continuation — while the SAME column below it holds three clerics that are
-a genuinely parallel group with regions of their own. A rule keyed on the
-column, or on a region reaching the body floor, answers both halves the same
-way; the walk needs a notion of INHERITED occupancy, carried forward from the
-previous page's unfinished entry, to cut the column at the right y. That floor
-gate was built and rejected: it answered both halves the same way and cost real
-prose on about three entries.
-
-Its visible cost is bounded and small. `check-prose-stops.mjs` reports 0 open
-stops, so nothing is truncated by this; what it produces is a repeated region,
-and the duplicate text it yields is one passage arriving under two or three
-neighbouring names.
-
-Related, and reached the same way: a full-height plate's centre lies inside no
-entry's region, so art falls through containment to the nearest stat block. The
-aft p.57 plate is the flail snail and lands on a fish either way.
-
 ## The debug window's two remaining gaps
 
 `cookbookDebug` executes a definition id correctly now, but two things around
@@ -766,48 +699,6 @@ proficiency and piece of equipment, ~800 of them — by typing its id from the
 console. Offering them means answering what a picker with two thousand options
 should look like; a second grouped select, keyed by content type, is the shape
 that fits the dialog it already has.
-
-The entries the OSE compile paths emit carry `cite: ""` — 340 in aft, 171 in
-dmb, and every other authored-book entry — because those builders read
-`entry.cite ?? ""` off the recipe where the ACKS paths call
-`citeFor(entry.book, page)`. Both books are in `BOOKS` with a `short` and a
-page count, so the citation is derivable from what is already there. The window
-no longer renders a separator around the hole, but the hole is upstream: the
-same empty string reaches every document those entries import, and a citation
-is the one thing that ships everywhere by doctrine.
-
-## Apply Stats has nothing to re-read for an OSE creature
-
-`refillMonster` re-reads a stat block through `bindMonster`, which is the ACKS
-grammar. An authored OSE entry carries its numbers inside its `block` region
-instead, so the surface now declines those actors (`no-stats`) rather than
-writing over them. The refill an OSE creature should get is its own path — the
-`block` re-read through `ose-statline` and `convertOse` under this seat's
-current SCG constants — and it has questions the ACKS refill never had: whether
-a re-conversion may overwrite conversions a Judge has since corrected, and what
-happens to `flags["acks-extras"].ose.conversions` when the constants moved
-between the import and the refill.
-
-The family's existing "a Judge's repair is never overwritten" check does not
-transfer to it. `editedSinceImport` compares a document against an
-`asImported` snapshot and treats an absent snapshot as edited, which is correct
-where every document it asks about is one that path created — and no actor the
-importer makes carries one, so reusing the check unchanged skips every creature
-in every world and reports success. The gap does not close by backfilling
-either. A snapshot derived from a document's own current state makes every hand
-repair certify as pristine, and one re-derived from a fresh conversion is not
-what the original import produced: the extraction has since changed what it
-yields for these books, and what it changed is the description — the field a
-Judge is likeliest to have written by hand, because it arrived empty. The
-2026-09-09 decision "A corrected recipe does not reach a world that already
-imported it" measures what moved. So the rule for whoever builds this is that
-a snapshot is never derived from a document's current state — which leaves two
-designs open and the choice unmade: an OSE import that stamps a snapshot at
-creation, so later refills have something honest to compare against, or a
-refill carrying no edited-check at all, which instead names what it will
-overwrite before it writes. Only the first puts a second writer on
-`asImported`, so what may assign that flag is downstream of this choice and
-not settled by it being true today.
 
 ## An actor keeps whatever the recipe said the day it was imported
 
@@ -828,7 +719,7 @@ why the first release shipped a written remedy instead.
 Which kinds it builds is stated at the entry point; what is unbuilt is the
 refusal. `importMany` counts the actors that came back and has no branch for a
 null, so a declined id produces no notification, no count and no reason — two
-sessions have now spent time probing an OSE change through this entry point
+sessions have now spent time probing a change through this entry point
 before finding the guard in `importOne`.
 
 Making the refusal audible is a placement question, and `importOne` is the
@@ -1363,21 +1254,6 @@ than on authoring:
   tier's cost line as a value with the tier's power, the history as its
   description. A content kind end to end — row, compiler, binding — rather
   than a row for a kind that exists.
-
-## Switching off the books statted for OSE
-
-The line goes dormant in one commit, with the files left in place:
-`OSE_BOOKS_ACTIVE` false; the grouped imports that wire the OSE files in
-commented out (the importer's `module.mjs` with its `ose*` api keys and the
-`oseSources` setting, the monster sheet's Source tool, `cookbook.mjs`'s
-`ose-source`); `stepOseBooks` and the `OseCreatures` kind removed together, as
-the chain pins require; `lineOf`, `bookOfCookbookId`, `bookLabel` and
-`isPlaceClaim` answering an `ose.*` id without the setting; and an `ose.*`
-claim reading as not offered, so a repair counts it and writes nothing. The
-compile loop then skips a book `BOOKS` lacks. Turning the line back on is
-uncommenting and flipping. Already in place: the loader never fetches a book
-`BOOKS` lacks (`offeredBookFiles`), and the adventure place and the group-id
-grammar every book uses live outside the OSE files.
 
 ## Time phrases inside compiled roll specs
 

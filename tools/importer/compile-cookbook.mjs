@@ -30,7 +30,7 @@ import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recip
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { LABELLED_FIELDS, citeLabel } from "../../scripts/importer/condition-labels.mjs";
-import { FILES, OSE_FILES } from "./reference-lib.mjs";
+import { FILES, COMMUNITY_FILES } from "./reference-lib.mjs";
 import { useTypography } from "../../scripts/importer/extract.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -1281,167 +1281,6 @@ async function compileVehicleTable(doc, entry, _kindRow) {
     fields,
     _col: col,
   };
-}
-
-/* -------------------------------------------- */
-/*  OSE creature compilation                    */
-/* -------------------------------------------- */
-
-/**
- * kind.oseLocation — a keyed area of an authored OSE/B-X adventure.
- *
- * The lightest composite there is: an anchor proving the heading still titles
- * this room, and the prose boxes its text occupies. No stat block, because a
- * room has none — what lives in it is a creature entry of its own.
- */
-async function compileOseLocation(doc, entry, _kindRow) {
-  const page = entry.pages[0];
-  const pd = await pageItems(doc, page);
-  const want = entry.anchor?.display;
-  const fields = {};
-  if (want) {
-    // Found the way the harvester found it — as a HEADING, joined from its runs
-    // — because an area title is regularly split across items ("5." then "The
-    // Docks") and no single one of them carries the name to test against.
-    const head = listHeadings(pd)
-      .filter((h) => h.mode === "display" && String(h.text ?? "").replace(/\s+/g, " ").trim().startsWith(want.slice(0, 12)))
-      .sort((x, y) => x.y - y.y)[0];
-    if (!head) throw new Error(`area heading "${want.slice(0, 24)}" not found on p.${page}`);
-    // The heading's own COLUMN, not its whole baseline: two areas are regularly
-    // titled side by side, and a box spanning both reads as one run-on heading
-    // that matches neither. Refused at import rather than at compile, which is
-    // the worst place for it — the entry looks authored and imports nothing.
-    const cols = detectColumns(pd.items);
-    const line = pd.items.filter(
-      (it) => Math.abs(it.y - head.y) <= 3 && it.h >= HEADING_MIN_H && colOf(it.x, cols) === head.col,
-    );
-    if (!line.length) throw new Error(`area heading "${want.slice(0, 24)}" has no runs on p.${page}`);
-    fields.name = {
-      op: "expect",
-      page,
-      box: {
-        x0: Math.min(...line.map((it) => it.x)) - 4,
-        x1: Math.max(...line.map((it) => it.x + (it.w ?? 0))) + 4,
-        y0: head.y - 6,
-        y1: head.y + 6,
-      },
-      text: want,
-    };
-  }
-  await emitProse(doc, entry, fields);
-  if (!fields.description) throw new Error("no prose boxes — an area with no text is not an area");
-
-  return {
-    id: entry.id,
-    kind: entry.kind,
-    name: entry.name,
-    book: entry.book,
-    cite: entry.cite ?? "",
-    pages: entry.pages,
-    ...(entry.meta ? { meta: entry.meta } : {}),
-    fields,
-  };
-}
-
-/**
- * kind.oseMonster — a creature in an authored OSE/B-X book.
- *
- * The entry supplies GEOMETRY and the shipped grammar does the reading, so what
- * compiles is a box and an anchor, never a parsed creature. That is the whole
- * point: `ose-statline.mjs` improves from the corpus every time a rule is
- * written, and an authored book improves with it rather than freezing at
- * whatever the reader understood on the day the box was drawn.
- *
- * The heading anchor is validated live, so a different printing fails its
- * expect and the entry degrades to a stub instead of reading a box that now
- * holds a different creature.
- */
-async function compileOseMonster(doc, entry, _kindRow) {
-  const page = entry.assists?.block?.page ?? entry.pages[0];
-  const pd = await pageItems(doc, page);
-  const box = entry.assists?.block?.box;
-  if (!box) throw new Error("missing assists.block.box");
-
-  // A PDF emits no space characters, so these runs concatenate to "AC9 [10],HD1"
-  // and every label the grammar looks for loses its word boundary. WHICH gaps
-  // are spaces is geometry, and geometry is what compiles: `joinSpace` marks
-  // the runs needing one and the executor's own joiner applies them. The same
-  // mechanism the prose compiler uses — no new instruction, no schema bump.
-  const runs = runsIn(pd, { box });
-  const joinSpace = [];
-  runs.forEach((r, i) => {
-    const next = runs[i + 1];
-    if (!next) return;
-    const gap = next.x - (r.x + (r.w ?? 0));
-    // A run that starts a new LINE also needs separating, whatever its x.
-    if (gap > 1 || next.sp || next.y > r.y + 1) joinSpace.push(i);
-  });
-
-  const text = joinRuns(runs, { joinSpace });
-  if (!text) throw new Error(`block box on p.${page} is empty`);
-  // A box that no longer holds a stat block is aimed at the wrong thing. The
-  // boundary rejects letters rather than demanding a word break, since a value
-  // may follow its label with no space at all.
-  if (!/\bAC(?![A-Za-z])/i.test(text)) throw new Error(`block box on p.${page} holds no armour class — wrong box?`);
-
-  const fields = {};
-  const want = entry.anchor?.display;
-  if (want) {
-    const head = pd.items
-      .filter((it) => it.h >= HEADING_MIN_H && it.str.trim().startsWith(want.slice(0, 12)))
-      .sort((a, b) => a.y - b.y)[0];
-    if (head) {
-      fields.name = {
-        op: "expect",
-        page,
-        box: { x0: head.x - 4, x1: head.x + (head.w ?? 80) + 4, y0: head.y - 6, y1: head.y + 6 },
-        text: want,
-      };
-    }
-  }
-  fields.block = { op: "value", page, box, pattern: "raw", ...(joinSpace.length ? { fixes: { joinSpace } } : {}) };
-
-  await emitProse(doc, entry, fields).catch(() => {});
-  if (entry.assists?.art) {
-    fields.art = {
-      op: "art",
-      page: entry.assists.art.page ?? page,
-      ...(entry.assists.art.name ? { name: entry.assists.art.name } : {}),
-      box: entry.assists.art.box,
-    };
-  }
-
-  return {
-    id: entry.id,
-    kind: entry.kind,
-    name: entry.name,
-    book: entry.book,
-    cite: entry.cite ?? "",
-    pages: entry.pages,
-    ...(entry.meta ? { meta: entry.meta } : {}),
-    fields,
-  };
-}
-
-/** Prose paragraphs, when the chef authored their boxes. Optional by design:
- * which paragraph belongs to which creature is a reading of the page, and the
- * harvester deliberately does not guess it. */
-async function emitProse(doc, entry, fields) {
-  const paras = entry.assists?.prose;
-  if (!Array.isArray(paras) || !paras.length) return;
-  const page = paras[0].page ?? entry.pages[0];
-  // The same joining fixes the monster path computes. Without them the runs
-  // concatenate as the PDF stored them and the text arrives with its words
-  // welded at every line break — "mandiblesand 10 legs".
-  const byPage = new Map();
-  const out = [];
-  for (const p of paras) {
-    const pp = p.page ?? page;
-    if (!byPage.has(pp)) byPage.set(pp, await pageItems(doc, pp));
-    const instr = { box: p.box, ...(p.fixes ? { fixes: p.fixes } : {}) };
-    out.push(withFixes(instr, byPage.get(pp)));
-  }
-  fields.description = { op: "text", page, paras: out };
 }
 
 /* -------------------------------------------- */
@@ -6318,9 +6157,9 @@ async function main() {
   const contentOut = {};
 
   for (const [bookId, list] of Object.entries(byBook)) {
-    // Authored third-party titles live in their own library, listed separately
-    // so a missing OSE book stops that book rather than the ACKS family.
-    const file = FILES[bookId] ?? OSE_FILES[bookId];
+    // Community titles live in their own library, listed separately so a
+    // missing one stops that book rather than the ACKS family.
+    const file = FILES[bookId] ?? COMMUNITY_FILES[bookId];
     if (!file || !fs.existsSync(file)) {
       warn(`book ${bookId}: reference PDF not found — skipped`);
       continue;
@@ -6449,31 +6288,6 @@ async function main() {
           (contentOut[content] ??= { schema: "acks-cookbook/2", content, entries: {} }).entries[entry.id] = compiled;
           const gridCount = Object.keys(compiled.fields).filter((f) => f.startsWith("grids.")).length;
           console.error(`OK   ${entry.id}: ${gridCount} grid(s) [${content}]`);
-        } catch (err) {
-          warn(`${entry.id}: ${err.message}`);
-        }
-        continue;
-      }
-      // An authored third-party creature: geometry compiles, the shipped
-      // grammar reads. Composite by role, so it lands in the per-book file.
-      if (entry.kind === "kind.oseMonster") {
-        try {
-          const compiled = await compileOseMonster(doc, entry, kindRow);
-          out.entries[entry.id] = compiled;
-          console.error(`OK   ${entry.id}: creature box [${entry.book}]`);
-        } catch (err) {
-          warn(`${entry.id}: ${err.message}`);
-        }
-        continue;
-      }
-      // A keyed area of an authored adventure: a heading and the boxes its
-      // text occupies. Composite by role, so it lands in the per-book file
-      // beside the creatures it shares an adventure with.
-      if (entry.kind === "kind.oseLocation") {
-        try {
-          const compiled = await compileOseLocation(doc, entry, kindRow);
-          out.entries[entry.id] = compiled;
-          console.error(`OK   ${entry.id}: keyed area [${entry.book}]`);
         } catch (err) {
           warn(`${entry.id}: ${err.message}`);
         }

@@ -11,11 +11,6 @@
  * book declaring none goes to the ACKS ones. Only books from outside the ACKS
  * library carry it — the ACKS line is the default, not a name in this file.
  *
- * `stats` declares the stat system the book's rows print: `"ose"` for a book
- * whose creatures and places are statted for Old-School Essentials. It is
- * absent for a book that prints ACKS-native stats, which is the default, and it
- * is what `activeBooks` drops when the OSE line is switched off.
- *
  * `judge` marks a book whose own rows are the Judge's — an adventure, a
  * gazetteer, a supplement that prints a keyed place: every document its ids
  * name (its places, people, organisations, lists, maps, monsters and its
@@ -46,8 +41,8 @@
  * pages past what they were looking for.
  *
  * `REGISTRY` is every book this file knows, the answer to a question about an
- * id a world, a flag or a citation already holds. `BOOKS` is the subset the
- * module currently offers, shipped and imported.
+ * id a world, a flag or a citation already holds. `BOOKS` names the books the
+ * module offers.
  */
 export const REGISTRY = {
   rr: {
@@ -150,116 +145,9 @@ export const REGISTRY = {
     printedOffset: 2,
     judge: true,
   },
-  // Authored third-party titles (DECISIONS: "Third-party books get shipped
-  // cookbooks"). Everything else in the OSE library is registered per world and
-  // never shipped; these are the named exceptions.
-  qd1: {
-    label: "Quick Delve #1: Milk",
-    line: "Quick Delve",
-    stats: "ose",
-    short: "QD1",
-    pages: 20,
-    titleRe: /^Milk$/i,
-    judge: true,
-  },
-  qd2: {
-    label: "Quick Delve #2: The Grotesques' Grotto",
-    line: "Quick Delve",
-    stats: "ose",
-    short: "QD2",
-    pages: 20,
-    titleRe: /Grotesques/i,
-    judge: true,
-  },
-  qd3: {
-    label: "Quick Delve #3: Against the Horselord",
-    line: "Quick Delve",
-    stats: "ose",
-    short: "QD3",
-    pages: 24,
-    titleRe: /Against the Horselord/i,
-    judge: true,
-  },
-  aft: {
-    label: "OSE Advanced Fantasy Referee's Tome",
-    line: "Old-School Essentials",
-    stats: "ose",
-    short: "AFT",
-    pages: 257,
-    titleRe: /Referee/i,
-  },
-  dmb: {
-    label: "Dolmenwood Monster Book",
-    line: "Dolmenwood",
-    stats: "ose",
-    short: "DMB",
-    pages: 137,
-    titleRe: /Dolmenwood/i,
-    // Not OSE, despite the shelf it sits on: ascending armour class printed
-    // alone, hit points as a die expression, a label per movement mode, and
-    // "Morale"/"Enc"/"Hoard" for ML/NA/TT. Read as OSE, a bare "AC 14" converts
-    // as descending and lands five points of armour from the page.
-    profile: "ose.dolmenwood",
-    lineage: "dolmenwood",
-  },
-  wld1: {
-    label: "Wicked Little Delves, vol 1",
-    line: "Wicked Little Delves",
-    stats: "ose",
-    short: "WLD1",
-    pages: 25,
-    titleRe: /Wickedv1/i,
-    judge: true,
-  },
-  wld2: {
-    label: "Wicked Little Delves, vol 2",
-    line: "Wicked Little Delves",
-    stats: "ose",
-    short: "WLD2",
-    pages: 25,
-    titleRe: /Wickedv2/i,
-    judge: true,
-  },
-  wld3: {
-    label: "Wicked Little Delves, vol 3",
-    line: "Wicked Little Delves",
-    stats: "ose",
-    short: "WLD3",
-    pages: 29,
-    titleRe: /Wickedv3/i,
-    judge: true,
-  },
-  pc1: {
-    label: "Planar Compass, Issue 1",
-    line: "Planar Compass",
-    stats: "ose",
-    short: "PC1",
-    pages: 60,
-    titleRe: /Planar\s*Compass\s*1/i,
-    judge: true,
-  },
-  pc2: {
-    label: "Planar Compass, Issue 2",
-    line: "Planar Compass",
-    stats: "ose",
-    short: "PC2",
-    pages: 72,
-    titleRe: /Planar\s*Compass\s*2/i,
-    judge: true,
-  },
-  pc3: {
-    label: "Planar Compass, Issue 3",
-    line: "Planar Compass",
-    stats: "ose",
-    short: "PC3",
-    pages: 72,
-    titleRe: /Planar\s*Compass\s*3/i,
-    judge: true,
-  },
-  // An ACKS-compatible community title, authored like the OSE ones. The
-  // printing carries no metadata title, so the fingerprint gates on the page
-  // count; the pattern matches the stock filename. Set in 12pt body type from
-  // a word processor: `typography` reads it on the engine's size ladder and
+  // An ACKS-compatible community title, authored. The printing carries no
+  // metadata title, so the fingerprint gates on the page count; the pattern
+  // matches the stock filename. Set in 12pt body type from a word processor: `typography` reads it on the engine's size ladder and
   // puts back the five ligatures (ti, tt, tf, tti, ft) its text layer encodes
   // as Latin Extended-B letters, and the Symbol-font bullet its lists use.
   cat: {
@@ -284,11 +172,10 @@ export const REGISTRY = {
       labelColon: true,
     },
   },
-  // The conversion instrument. It unlocks the OSE import path: the constants
-  // that turn a foreign stat block into ACKS II values are printed here, so
-  // they are read from the reader's own copy rather than shipped. The metadata
-  // title carries the publisher's own spelling ("Compatability"), so the regex
-  // gates on the stem both spellings share.
+  // The conversion instrument. Its printed constants are read from the
+  // reader's own copy rather than shipped. The metadata title carries the
+  // publisher's own spelling ("Compatability"), so the regex gates on the stem
+  // both spellings share.
   scg: {
     label: "ACKS II System Compatibility Guide",
     short: "SCG",
@@ -325,30 +212,13 @@ export const REGISTRY = {
 };
 
 /**
- * The owner's switch for the OSE line. `true` offers every book in `REGISTRY`;
- * `false` withdraws each book whose rows are statted for Old-School Essentials
- * (`stats: "ose"`) from `BOOKS`, while `REGISTRY` still answers for it. The
- * ruling and its scope are in docs/importer/DECISIONS.md.
+ * The books the module offers: every book in `REGISTRY`, held as an object of
+ * its own so that withdrawing a book is a deletion here that leaves `REGISTRY`
+ * answering for its id. Enumerations that offer, connect or import a book read
+ * this; a fact about an id that already exists in a world, a flag or a citation
+ * reads `REGISTRY`.
  */
-export const OSE_BOOKS_ACTIVE = true;
-
-/**
- * The books a registry offers: every entry, minus each one declaring
- * `stats: "ose"` when `oseActive` is false. Pure; the input is not changed.
- *
- * @param {Record<string, object>} registry book id → registry entry
- * @param {boolean} oseActive whether books statted for OSE are offered
- * @returns {Record<string, object>} the offered entries, in registry order
- */
-export const activeBooks = (registry, oseActive) =>
-  Object.fromEntries(Object.entries(registry).filter(([, book]) => oseActive || book.stats !== "ose"));
-
-/**
- * The books the module offers: `REGISTRY` as `OSE_BOOKS_ACTIVE` leaves it.
- * Enumerations that offer, connect or import a book read this; a fact about an
- * id that already exists in a world, a flag or a citation reads `REGISTRY`.
- */
-export const BOOKS = activeBooks(REGISTRY, OSE_BOOKS_ACTIVE);
+export const BOOKS = { ...REGISTRY };
 
 /**
  * The per-book cookbook files to fetch: the ids a compiled index lists, in the

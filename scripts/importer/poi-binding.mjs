@@ -5,9 +5,8 @@
  * A city gazetteer prints its quarters as groups: "<Quarter> — Points of
  * Interest" for the places, "<Quarter> — Notable Residents" for the people
  * who live there, and "<Quarter> — Overview" for what the book says of the
- * quarter itself. A keyed place in the first two becomes a location actor —
- * the binding `ose-location.mjs` gives a dungeon's rooms — inside the
- * quarter's own place, which sits inside the city's; the overview is that
+ * quarter itself. A keyed place in the first two becomes a location actor,
+ * inside the quarter's own place, which sits inside the city's; the overview is that
  * quarter place's own notes, so it makes no actor of its own. A group of any
  * other shape (a hideout, a cult, a party) keeps the page path it always had.
  * The group words are the register's own vocabulary for the book's structure,

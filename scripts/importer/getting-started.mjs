@@ -49,15 +49,11 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  *  5. companions  — an ability's companion slot points at a creature, and
  *                   abilities were imported before any creature existed, so the
  *                   link can only be made once 4 has run;
- *  6. authored OSE books — another game's creatures and keyed areas, converted
- *                   through the System Compatibility Guide; the areas follow
- *                   the creatures they are keyed to. Only books this seat has
- *                   open, and silent when that is none of them;
- *  7. journals + roll tables — reference the creatures imported in 4;
- *  8. rules tables — they warn by themselves if the provider is absent;
- *  9. placeholders — book text an earlier version left as a tag, wherever a
+ *  6. journals + roll tables — reference the creatures imported in 4;
+ *  7. rules tables — they warn by themselves if the provider is absent;
+ *  8. placeholders — book text an earlier version left as a tag, wherever a
  *                   copy carried it, read from the books this seat has open;
- * 10. adventures  — each open adventure book as one Adventure on its line's
+ *  9. adventures  — each open adventure book as one Adventure on its line's
  *                   shelf, carrying what every step above made of it.
  *
  * A step missing from this list is a step a GM can only reach by hunting for
@@ -110,12 +106,6 @@ export const GM_STEPS = [
   ["stepTemplatePackages", (api) => api.importTemplatePackages()],
   ["stepMonsters", (api) => api.cookbookImportMonsters()],
   ["stepCompanions", (api) => api.cookbookFillCompanions()],
-  // Every authored third-party book the seat has open. Reachable from here,
-  // from the api and from the import manager's step list, which runs any one
-  // step: there is no per-book control, exactly as there is none for traps or
-  // vehicles, because choosing between them is not a decision a Judge has to
-  // make to import their own books.
-  ["stepOseBooks", (api) => api.oseImportAuthored()],
   // The second argument is the chain's `{quiet: true}`: a step with nothing to
   // write says nothing inside the chain, and warns when it is run on its own.
   ["stepJournals", (api, o) => api.cookbookImportJournals(o)],
