@@ -8,7 +8,11 @@
  * storage off is refused, and lands once it is on; the once-per-world clearing,
  * run dry, names an empty location left holding goods and spares one with goods
  * on it; the world-start prune, run dry, spares an empty place that holds goods.
- * Machine values arrive through ./_env.mjs.
+ * A spoil in a place's house pile is released by the Judge's lock: the Player
+ * seat's retrieval is refused while it is locked, the GM seat's Storage tab
+ * draws the row with the lock and no claim button, pressing the lock marks it
+ * retrievable, and the Player seat's retrieval then lands (step 25). Machine
+ * values arrive through ./_env.mjs.
  *
  * With `REPLAY_CLEARING=1` the walk also fires the clearing by its real
  * trigger: it unsets the world's marker and reloads the GM seat, so the
@@ -25,7 +29,12 @@
  * world item the GM drops. Each location also carries a plain item no one keeps
  * there, so the world-start prune leaves it standing while storage is off.
  * `location/intent-new` is the create hook's subject: retired and built again
- * each run. Each fixture is brought to shape at its step's start. Every figure
+ * each run. `location/intent-spoil` is a location the player seat only
+ * observes (a place the seat owns takes its own writes without the Judge's
+ * relay, so the lock would gate nothing), holding one locked house spoil row
+ * that carries `flags.world.fixtureItem`; the retrieval carries that row to
+ * `location/intent-hero`, and the step's start deletes it from both. Each
+ * fixture is brought to shape at its step's start. Every figure
  * printed is a count or a boolean; no place in the world is named.
  */
 import path from "node:path";
@@ -42,6 +51,8 @@ const LEDGER = { name: "Intent Walk Ledger", type: "item" };
 /** The stocked place's row, kept for the house. */
 const ROPE = { name: "Intent Walk Rope", type: "item", flags: { "acks-extras": { storage: { ownerUuid: HOUSE, ownerName: "" } } } };
 const HERO_ROPE = { name: "Intent Walk Hero Rope", type: "item" };
+/** The tag the spoil section's own embedded items carry, on the spoil place and the hero. */
+const SPOIL_TAG = "location/intent-spoil";
 
 /** Added to every document a seat loads: errors from the first script on, each with the phase it landed in. */
 const RECORDER = `(() => {
@@ -264,6 +275,91 @@ const P = {
     return { onHero: hero.items.filter((i) => i.name === ropeName).length };
   },
 
+  /** Bring the spoil place and the hero to shape: the place holds one locked house spoil, and neither carries a stray item of the section's tag. */
+  shapeSpoil: async ({ placeId, heroId, tag }) => {
+    const S = acksExtras.lib.storage;
+    const house = acksExtras.lib.money.HOUSE_OWNER;
+    const place = game.actors.get(placeId);
+    const hero = game.actors.get(heroId);
+    for (const doc of [place, hero]) {
+      const own = doc.items.filter((i) => i.flags?.world?.fixtureItem === tag).map((i) => i.id);
+      if (own.length) await doc.deleteEmbeddedDocuments("Item", own);
+    }
+    await S.setProvider(place, true);
+    await S.stockProvider(place, [{ name: "Intent Walk Spoil", type: "item", flags: { "acks-extras": { spoil: true }, world: { fixtureItem: tag } } }], { ownerUuid: house, ownerName: "House" });
+    const row = place.items.find((i) => i.flags?.world?.fixtureItem === tag);
+    return {
+      provider: S.isProvider(place),
+      rows: place.items.filter((i) => i.flags?.world?.fixtureItem === tag).length,
+      itemId: row?.id ?? null,
+      spoil: !!row?.flags?.["acks-extras"]?.spoil,
+      houseOwned: row?.flags?.["acks-extras"]?.storage?.ownerUuid === house,
+      locked: !row?.flags?.["acks-extras"]?.storage?.retrievable,
+      heroItems: hero.items.filter((i) => i.flags?.world?.fixtureItem === tag).length,
+    };
+  },
+
+  /** GM: read the spoil row on the open Storage tab. */
+  spoilRow: async ({ placeId, itemId }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    await sleep(400);
+    const app = game.actors.get(placeId).sheet;
+    const row = app.element.querySelector(`section[data-tab="storage"] [data-item-id="${itemId}"]`);
+    return {
+      row: !!row,
+      bone: !!row?.querySelector(".fa-bone"),
+      lock: !!row?.querySelector('[data-action="houseRetrievable"]'),
+      claimButtons: app.element.querySelectorAll('[data-action="houseAttemptSpoil"]').length,
+      diceGlyphs: app.element.querySelectorAll(".fa-dice-d20").length,
+      take: !!row?.querySelector('[data-action="retrieveRow"]'),
+    };
+  },
+
+  /** GM: press the spoil row's lock as a Judge does and wait for the flag. */
+  pressSpoilLock: async ({ placeId, itemId }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const place = game.actors.get(placeId);
+    const app = place.sheet;
+    const button = app.element.querySelector(`section[data-tab="storage"] [data-item-id="${itemId}"] [data-action="houseRetrievable"]`);
+    if (!button) return { pressed: false };
+    button.click();
+    for (let i = 0; i < 50 && place.items.get(itemId)?.flags?.["acks-extras"]?.storage?.retrievable !== true; i++) await sleep(100);
+    await sleep(400);
+    const row = app.element.querySelector(`section[data-tab="storage"] [data-item-id="${itemId}"]`);
+    return {
+      pressed: true,
+      retrievable: place.items.get(itemId)?.flags?.["acks-extras"]?.storage?.retrievable === true,
+      take: !!row?.querySelector('[data-action="retrieveRow"]'),
+    };
+  },
+
+  /**
+   * Player seat: retrieve the spoil to the hero, as the sheets' take buttons do.
+   * `release` is the lock state this client waits up to five seconds to see.
+   * `gmId` names the walk's GM seat, which must be the one answering the relay.
+   */
+  spoilRetrieve: async ({ placeId, heroId, itemId, tag, release, gmId }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = acksExtras.lib.storage;
+    const place = game.actors.get(placeId);
+    const hero = game.actors.get(heroId);
+    const flagged = () => place.items.get(itemId)?.flags?.["acks-extras"]?.storage?.retrievable === true;
+    for (let i = 0; i < 50 && flagged() !== release; i++) await sleep(100);
+    const answer = await S.retrieve(place, hero, [{ id: itemId }]);
+    await sleep(1000);
+    return {
+      isGM: game.user.isGM,
+      owns: hero.isOwner,
+      ownsPlace: place.isOwner,
+      activeGMIsTheWalksSeat: game.users.activeGM?.id === gmId,
+      ok: !!answer?.ok,
+      reason: answer?.reason ?? null,
+      atPlace: place.items.filter((i) => i.flags?.world?.fixtureItem === tag).length,
+      onHero: hero.items.filter((i) => i.flags?.world?.fixtureItem === tag).length,
+      stillSpoil: hero.items.some((i) => i.flags?.world?.fixtureItem === tag && i.flags?.["acks-extras"]?.spoil),
+    };
+  },
+
   /** Whether the clearing and the prune, both run dry, would take each place. Writes nothing. */
   dryRuns: async ({ ids }) => {
     const SI = await import("/modules/acks-extras/scripts/location/storage-intent.mjs");
@@ -381,9 +477,10 @@ try {
   const stocked = await gm.fixture("location/intent-stocked", "Actor", { name: "Intent Walk Stocked Place", type: LOCATION, items: [LEDGER, ROPE], flags: { "acks-extras": { storage: { provider: true } } } });
   const hero = await gm.fixture("location/intent-hero", "Actor", { name: "Intent Walk Hero", type: "character", ownership: { default: 0, ...ownPlayer }, items: [HERO_ROPE] });
   const rope = await gm.fixture("location/intent-rope", "Item", { name: "Intent Walk Dropped Rope", type: "item" });
+  const spoilPlace = await gm.fixture("location/intent-spoil", "Actor", { name: "Intent Walk Spoil Place", type: LOCATION, ownership: { default: 0, [pc.userId]: 2 } });
   const ids = { place: place.id, legacy: legacy.id, stocked: stocked.id };
-  opened = Object.values(ids);
-  note("fixtures", { place: place.built, legacy: legacy.built, stocked: stocked.built, hero: hero.built, rope: rope.built });
+  opened = [...Object.values(ids), spoilPlace.id];
+  note("fixtures", { place: place.built, legacy: legacy.built, stocked: stocked.built, hero: hero.built, rope: rope.built, spoilPlace: spoilPlace.built });
   const shaped = {
     place: await run(gm, P.shapePlace, { id: place.id, provider: false, ledger: LEDGER }),
     legacy: await run(gm, P.shapePlace, { id: legacy.id, provider: true, ledger: LEDGER }),
@@ -480,6 +577,23 @@ try {
   note("dry", dry);
   check("the clearing names the legacy place and spares the stocked one and the place now holding a row", dry.legacy.cleared && !dry.stocked.cleared && !dry.place.cleared, dry);
   check("the prune spares every place holding goods, and takes the new empty one", !dry.legacy.pruned && !dry.stocked.pruned && !dry.place.pruned && dry.made.pruned, dry);
+
+  section("25. a spoil in the house pile is released by the Judge's lock");
+  const spoil = await run(gm, P.shapeSpoil, { placeId: spoilPlace.id, heroId: hero.id, tag: SPOIL_TAG });
+  check("the spoil place holds one locked house spoil, and the hero carries none of the section's items", spoil.provider && spoil.rows === 1 && spoil.spoil && spoil.houseOwned && spoil.locked && spoil.heroItems === 0, spoil);
+  const refused = await run(player, P.spoilRetrieve, { placeId: spoilPlace.id, heroId: hero.id, itemId: spoil.itemId, tag: SPOIL_TAG, release: false, gmId: census.userId });
+  note("player retrieve (locked)", refused);
+  check("the player seat owns the hero and not the place, and the walk's GM seat answers relays", !refused.isGM && refused.owns && !refused.ownsPlace && refused.activeGMIsTheWalksSeat, refused);
+  check("while the row is locked a retrieval is refused and the spoil stays at the place", !refused.ok && refused.atPlace === 1 && refused.onHero === 0, refused);
+  await run(gm, P.storageTab, { placeId: spoilPlace.id });
+  const spoilRow = await run(gm, P.spoilRow, { placeId: spoilPlace.id, itemId: spoil.itemId });
+  note("gm storage row", spoilRow);
+  check("the Storage tab draws the spoil with its mark and the release lock, no claim button and no throw glyph", spoilRow.row && spoilRow.bone && spoilRow.lock && spoilRow.claimButtons === 0 && spoilRow.diceGlyphs === 0, spoilRow);
+  const lock = await run(gm, P.pressSpoilLock, { placeId: spoilPlace.id, itemId: spoil.itemId });
+  check("pressing the lock marks the row retrievable", lock.pressed && lock.retrievable, lock);
+  const taken = await run(player, P.spoilRetrieve, { placeId: spoilPlace.id, heroId: hero.id, itemId: spoil.itemId, tag: SPOIL_TAG, release: true, gmId: census.userId });
+  note("player retrieve (released)", taken);
+  check("the player seat's retrieval lands: the spoil leaves the place and sits on the hero, still a spoil", taken.ok && taken.atPlace === 0 && taken.onHero === 1 && taken.stillSpoil, taken);
 
   if (process.env.SHOTS === "1") {
     await gm.compose();
