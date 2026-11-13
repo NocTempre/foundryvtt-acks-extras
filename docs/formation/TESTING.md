@@ -2103,7 +2103,13 @@ Step 4's invented layer is a product of the walk, `acks-extras` registry layer
    tables assembled` naming `expedition`; `e` carries all five keys
    (`EXPEDITION_KEYS`), each a positive number; `t.citeOf("travel",
    "expedition")` answers `RR p.272`; the Ruledata Browser lists the raw
-   `expeditionRows` and `expeditionProse` beside it.
+   `expeditionRows` and `expeditionProse` beside it. Scripted:
+   `tools/live/formation-day.mjs` and `tools/live/formation-steps.mjs` open the
+   staged Revised Rulebook and Judges Journal for the session and run
+   `acksExtras.importer.cookbookImportTables(["travel"])` where the world holds
+   no `expedition`, and each check that `e` arrived (all five keys positive, a
+   page cited), since the walks' ancillary-slot, forced-march, search-hour,
+   dusk-offer and Call-it-a-day checks read it.
 3. **The surfaces price.** *Observable:* the strip's speed is a number and its
    sub-line the miles a day; the ratio `milesPerDay / milesPerHour` on the
    readout equals the dedicated hours `e.dedicatedHours`; a forced day kind
@@ -2148,8 +2154,11 @@ Browser`, `travel` document, `expedition` table).
    *Observable:* `n` is null; the board draws no slot select though the stored
    day still holds its slots, and shows "Ancillary hours: not imported" with
    the tooltip "Not imported"; `acksExtras.formation.travel.freshDay().activities`
-   is empty. Scripted: `tools/live/formation-day.mjs` step 2 (no tables) asserts
-   the same on the player seat's registry.
+   is empty. Scripted: `tools/live/formation-day.mjs` step 2 (no tables)
+   unregisters the whole `travel` document on the player seat's registry and
+   asserts the same, plus that no pace prices a mile there: every expedition
+   figure is null, the forced and dedicated paces' miles are null, the forced
+   ratio is null, the dedicated one is one, and the strip states no miles.
 3. **An override wins, and reverts.** Set the override's `ancillaryHours` to a
    figure of the Judge's own, other than the imported one, then **End day**.
    *Observable:* `n` follows the override, the fresh board draws that many

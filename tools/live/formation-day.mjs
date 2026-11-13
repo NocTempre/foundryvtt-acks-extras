@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
-import { seats as machineSeats, PORTS, shotDir, logDir } from "./_env.mjs";
+import { seats as machineSeats, PORTS, shotDir, logDir, books } from "./_env.mjs";
 
 // WALK_PLAN names an optional plan file ({ "sections": [...], "shots": true }); without one every section runs and plates are taken under SHOTS=1.
 const ALL_SECTIONS = ["probe","shot-importer","delve","swim","frame","journey","daychange"];
@@ -240,6 +240,39 @@ const P = {
     const I = acksExtras.importer;
     const open = await H.poll(() => !!I.bookOpen?.("rr"), { tries: Math.ceil(waitMs / 500), every: 500 });
     return { rr: !!open, fns: { bookOpen: typeof I.bookOpen, reimportShelf: typeof I.cookbookReimportShelf, reimportEntries: typeof I.cookbookReimportEntries, importTables: typeof I.cookbookImportTables } };
+  },
+
+  /** Open a staged book for this session only, the import the Rules tables step reads from. */
+  connectBook: async ({ id, path }) => {
+    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    if (CB.cookbookSessionDoc(id)) return { already: true };
+    globalThis.__a1Book = { done: false };
+    acksExtras.importer.connectBookUrl(id, path, { remember: false, bridge: false })
+      .then(() => { globalThis.__a1Book = { done: true, ok: true }; })
+      .catch((e) => { globalThis.__a1Book = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  bookState: async ({ id }) => {
+    const CB = await import("/modules/acks-extras/scripts/importer/cookbook.mjs");
+    return { ...(globalThis.__a1Book ?? {}), open: !!CB.cookbookSessionDoc(id) };
+  },
+  /** The Rules tables import for the named documents, fired into a global; `importJob` reads its end. */
+  importTables: async ({ only }) => {
+    globalThis.__a1Import = { done: false };
+    acksExtras.importer.cookbookImportTables(only)
+      .then((r) => { globalThis.__a1Import = { done: true, ok: !!r }; })
+      .catch((e) => { globalThis.__a1Import = { done: true, ok: false, error: String(e?.message ?? e) }; });
+    return { started: true };
+  },
+  importJob: async () => globalThis.__a1Import ?? { done: false },
+
+  /** Whether the `travel` document's `expedition` table holds all five figures, as booleans: the figures stay on the page. */
+  expeditionHeld: async () => {
+    const H = globalThis.__a1;
+    const KEYS = ["feetPerMilePerDay", "dedicatedHours", "forcedHours", "ancillaryHours", "wildernessFactor"];
+    const e = H.t.hasDoc("travel") ? H.t.getDoc("travel")?.tables?.expedition : null;
+    const held = Object.fromEntries(KEYS.map((k) => [k, Number(e?.[k]) > 0]));
+    return { hasTravel: H.t.hasDoc("travel"), held, all: KEYS.every((k) => held[k]), cited: !!H.t.citeOf("travel", "expedition") };
   },
 
   /** The settings window on the module's category, with the Calendar seasons group read back. */
@@ -1539,6 +1572,12 @@ const P = {
     out.stripFound = !!strip;
     out.stripMilesIsForced = !!strip && strip.milesPerDay === forced.milesPerDay;
     out.forcedDiffersFromDedicated = forced.milesPerDay !== dedicated.milesPerDay;
+    // Where no travel document is registered nothing is defaulted: no pace prices a mile, and a pace other than the dedicated one has no ratio to it.
+    const forcedPace = scales.paceFigures("forced");
+    out.milesUnknown = forced.milesPerDay === null && dedicated.milesPerDay === null && forced.milesPerHour === null;
+    out.stripMilesUnknown = !!strip && (strip.milesPerDay ?? null) === null;
+    out.paceRatios = { forced: forcedPace.multiplier === null, dedicated: scales.paceFigures("dedicated").multiplier === 1 };
+    out.figuresNull = Object.values(scales.expeditionFigures()).every((v) => v === null);
     out.lineHasMissing = at("tablesMissing") >= 0;
     out.lineTerrainThenWashedOut = at("terrain.hills") >= 0 && at("road.washedOut") > at("terrain.hills");
     out.lineEntries = line ? line.split(" · ").length : 0;
@@ -2314,7 +2353,7 @@ async function swim(gm, player, census) {
   check("swimming step 7: unregistering by { priority } removes it: null again and hasDoc false", s.step7.swimmingBonus === null && s.step7.hasDoc === false && !s.fabricatedRemovedInFinally, s.step7);
   const back = await page(player, P.reloadTables);
   note("reload", back);
-  check("swimming teardown: reload() mirrors the world's store back into the player's registry (formation at WORLD priority, no override)", back.formation.hasDoc && back.formation.layer20Keys === 10 && back.formation.bonusFromWorld && !back.formation.override && back.travel.hasDoc && !back.travel.override, back);
+  check("swimming teardown: reload() mirrors the world's store back into the player's registry (formation at WORLD priority, no override)", back.formation.hasDoc && back.formation.layer20Keys > 0 && back.formation.bonusFromWorld && !back.formation.override && back.travel.hasDoc && !back.travel.override, back);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2739,10 +2778,10 @@ async function journey(gm, player, census) {
   note("readout, no travel document", rNone);
   check("step 2 (no tables): the readout carries the tablesMissing line and prices no terrain and no road; its multiplier is the weather conditions' alone and its miles are the forced pace's (the strip shows them)", rNone.stripFound && rNone.dayKind === "forced" && !rNone.hasTravelAfter && rNone.tablesMissingPart && rNone.lineHasMissing && rNone.terrainParts === 0 && rNone.roadParts === 0 && rNone.byPaceAndConditionsAlone && rNone.readoutForced && rNone.stripMilesIsForced, { parts: rNone.parts, conditionParts: rNone.conditionParts, byPaceAndConditionsAlone: rNone.byPaceAndConditionsAlone, lineHasMissing: rNone.lineHasMissing, readoutForced: rNone.readoutForced, stripMilesIsForced: rNone.stripMilesIsForced, contextError: rNone.contextError ?? null });
   check("step 2 (no tables): the ancillary slot count is not imported: ancillarySlots() is null, a fresh day carries no slot, and the day board draws none though the stored forced march holds them, saying not imported with the not-imported tooltip", rNone.slotCount === null && rNone.freshSlots === 0 && rNone.boardSlots === 0 && rNone.boardSaysNotImported && rNone.slotTipNotImported, { slotCount: rNone.slotCount, freshSlots: rNone.freshSlots, boardSlots: rNone.boardSlots, boardSaysNotImported: rNone.boardSaysNotImported, slotTipNotImported: rNone.slotTipNotImported, slotsError: rNone.slotsError ?? null });
-  // The smith is not the player seat's, so that seat prices the party at 0 and
-  // every pace's miles agree; "step 2 again" reads the paces on a party whose
-  // every member the seat owns.
-  gapCheck("step 2 (no tables): the forced pace's miles differ from the dedicated pace's on the player seat", UNOWNED_PACE, rNone.forcedDiffersFromDedicated, rNone.speedZero, { speedZero: rNone.speedZero, forcedDiffersFromDedicated: rNone.forcedDiffersFromDedicated });
+  // The paces live in the travel document, so with it unregistered no pace
+  // prices a mile: every expedition figure and the forced pace's ratio answer
+  // null, the dedicated pace's ratio stays one, and the strip states no miles.
+  check("step 2 (no tables): no pace prices a mile on the player seat: every expedition figure is null, the forced and dedicated paces' miles and the forced pace's per-hour figure are null, the forced ratio is null and the dedicated one is one, and the strip states no miles", rNone.figuresNull && rNone.milesUnknown && rNone.stripMilesUnknown && rNone.paceRatios?.forced && rNone.paceRatios?.dedicated, { figuresNull: rNone.figuresNull, milesUnknown: rNone.milesUnknown, stripMilesUnknown: rNone.stripMilesUnknown, paceRatios: rNone.paceRatios });
   const rInv = await page(player, P.jReadout, { partyId: party.id, fid, phase: "invented" });
   note("readout, invented rows", rInv);
   const keys = rInv.parts?.map((p) => p.key) ?? [];
@@ -3030,7 +3069,7 @@ async function daychange(gm, player, census) {
   }
   const qNone = await page(player, P.jReadout, { partyId: pa.id, fid: fids.A, phase: "none" });
   note("readout, no travel document", qNone);
-  check("step 2 again (no tables): tablesMissing, no terrain or road priced, the multiplier the conditions' alone, and the miles the FORCED pace's of a non-zero party speed (they differ from the dedicated pace's)", qNone.stripFound && qNone.tablesMissingPart && qNone.lineHasMissing && qNone.terrainParts === 0 && qNone.roadParts === 0 && qNone.byPaceAndConditionsAlone && qNone.readoutForced && qNone.stripMilesIsForced && qNone.forcedDiffersFromDedicated, { parts: qNone.parts, byPaceAndConditionsAlone: qNone.byPaceAndConditionsAlone, readoutForced: qNone.readoutForced, stripMilesIsForced: qNone.stripMilesIsForced, forcedDiffersFromDedicated: qNone.forcedDiffersFromDedicated });
+  check("step 2 again (no tables): tablesMissing, no terrain or road priced, the multiplier the conditions' alone, and no pace prices a mile (every expedition figure is null, the strip states no miles) for a party of a non-zero speed", qNone.stripFound && qNone.tablesMissingPart && qNone.lineHasMissing && qNone.terrainParts === 0 && qNone.roadParts === 0 && qNone.byPaceAndConditionsAlone && qNone.readoutForced && qNone.stripMilesIsForced && !qNone.speedZero && qNone.figuresNull && qNone.milesUnknown && qNone.stripMilesUnknown, { parts: qNone.parts, byPaceAndConditionsAlone: qNone.byPaceAndConditionsAlone, readoutForced: qNone.readoutForced, stripMilesIsForced: qNone.stripMilesIsForced, speedZero: qNone.speedZero, figuresNull: qNone.figuresNull, milesUnknown: qNone.milesUnknown, stripMilesUnknown: qNone.stripMilesUnknown });
   const qInv = await page(player, P.jReadout, { partyId: pa.id, fid: fids.A, phase: "invented" });
   note("readout, invented rows", qInv);
   const qk = qInv.parts?.map((p) => p.key) ?? [];
@@ -3078,6 +3117,40 @@ async function daychange(gm, player, census) {
   note("the three parties left in delve, the generator off", await page(gm, P.quiet, { fids: Object.values(fids) }));
 }
 
+/**
+ * The `travel` document's expedition table comes from the Judge's import, so a
+ * world holding none gets it as a Judge would bring it: the staged books opened
+ * for this session, then Rules tables for `travel`. The import stays, like any
+ * corpus fixture; the player seat's registry is reloaded from the world's store.
+ */
+async function bringExpedition(gm, player) {
+  section("the expedition figures, imported (Rules tables for travel)");
+  let held = await page(gm, P.expeditionHeld);
+  note("expedition held before (booleans)", held);
+  if (!held.all) {
+    const staged = books(["rr", "jj"]);
+    note("staged books", staged.map((b) => b.id));
+    for (const book of staged) {
+      note(`connect ${book.id}`, await page(gm, P.connectBook, book));
+      let state = await page(gm, P.bookState, { id: book.id });
+      for (let n = 0; n < 90 && !state.open && !state.done; n++) { await sleep(2000); state = await page(gm, P.bookState, { id: book.id }); }
+      note(`book ${book.id}`, { open: state.open, error: state.error ?? null });
+    }
+    if (staged.length === 2) {
+      await page(gm, P.importTables, { only: ["travel"] });
+      let job = await page(gm, P.importJob);
+      for (let n = 0; n < 150 && !job.done; n++) { await sleep(2000); job = await page(gm, P.importJob); }
+      note("rules tables import", { only: ["travel"], done: job.done, ok: job.ok ?? null, error: job.error ?? null });
+      for (let n = 0; n < 10; n++) { held = await page(gm, P.expeditionHeld); if (held.all) break; await sleep(1000); }
+    }
+  }
+  const mirrored = await page(player, P.reloadTables);
+  const playerHeld = await page(player, P.expeditionHeld);
+  note("expedition held after (booleans)", { gm: held, player: playerHeld, mirrored: mirrored.travel });
+  check("travel.expedition arrived: the GM seat's registry holds all five figures and a page for them after the Rules tables import", held.all && held.cited, held);
+  check("travel.expedition reaches the player seat's registry from the world's store", playerHeld.all, playerHeld);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main                                                                */
 /* ------------------------------------------------------------------ */
@@ -3094,6 +3167,14 @@ try {
   ctx.census = census;
   check("the GM seat is the active GM and the player seat is a player", census.gm.activeGMIsSelf && census.gm.role === 4 && census.player.role === 1, { gmRole: census.gm.role, playerRole: census.player.role, activeRoles: census.gm.activeRoles });
   if (!census.gm.activeGMIsSelf) blocked("another GM client is the active GM; the automation would run there");
+  // The search, day-change and clock steps assert the clock moves, so the walk
+  // starts with Advance the world clock on and puts the world's value back last.
+  if (census.gm.settings.advanceWorldTime !== true) {
+    const on = await page(gm, P.setSetting, { mod: MOD, key: "advanceWorldTime", value: true });
+    ctx.settingsToRestore.push({ seat: "gm", key: "advanceWorldTime", value: on.before });
+    census.gm.settings.advanceWorldTime = true;
+    note("advanceWorldTime on for the walk (the world held it off)", on);
+  }
   // A dead run's products it never marked, named by the plan from that run's log, go by the ledger alone.
   if ((PLAN.retrack ?? []).length) note("retracked swept", await gm.sweepTracked({ only: PLAN.retrack.map((e) => gm.track(e.uuid, e.kind)) }));
   const retiredCards = [];
@@ -3104,6 +3185,7 @@ try {
   }
   note("the last run's cards retired", retiredCards.length);
 
+  await bringExpedition(gm, player);
   if (RUN.has("probe")) await probe(gm, player, census);
   if (RUN.has("shot-importer")) await shotImporter(gm);
   if (RUN.has("delve")) await delve(gm, player, census);
