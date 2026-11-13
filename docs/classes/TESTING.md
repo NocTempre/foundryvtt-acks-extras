@@ -543,8 +543,10 @@ with Constitution added AFTER it. A d4 class can no longer roll below the floor
 at all. The floor must NOT reach 2nd level: bind a 2nd-level character through
 the picker and confirm the total is a full reroll of two dice, unfloored.
 
-5. **A 1st level of two dice floors one of them** (`tools/live/classes-hit-points.mjs`
-   walks it). Fixtures, kept: a class
+5. **A 1st level of two dice floors one of them** (the face arithmetic is
+   `tools/test-classes.mjs`, "the floor raises the DIE, and Constitution lands
+   after it"; typing the HD cell is step 2 of "A class with no maximum level"
+   below). Fixtures, kept: a class
    item `classes/two-die-first-level` (a world copy of an imported class with
    its level-1 HD cell typed as `2d8` on the class sheet's Levels table) and a
    character `classes/hp-floor-character` with known Constitution. Rig every
@@ -705,6 +707,8 @@ and JJ books connected. Two seats (GM, Player).
    is empty and reads "not set" with the not-imported tooltip; typing a figure
    stores it and the tooltip says it was set on the sheet; clearing it stores
    `null`, never a stand-in; the capped class's tooltip names its citation.
+   Typing `2d6` in the Levels table's HD cell at level 1 stores it on the
+   level row.
 3. Level the character through the Player's wizard on the open class, past the
    rows' last row. *Observable:* no refusal, no "at its maximum" claim; the
    per-level hit points record one roll each level; the picker's level field
