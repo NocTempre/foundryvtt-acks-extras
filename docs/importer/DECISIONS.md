@@ -1506,3 +1506,103 @@ previous-version data").
 layer holding one, keep the shape they were written in. Its words show blank
 until Rules tables is read again or the override is reverted, and nothing
 rewrites either.
+
+## 2026-11-14 — A repair fills a waiting roster link only into an empty roster, a held scene is never reshaped, and a scenario has one plan beside any parts
+
+Corrects three statements of "The JJ scenarios as bound: a roster link carries
+no count, every area is on its plan, the reading bar names the file's page"
+(2026-11-14). That entry is under seven days old, so the new evidence is
+named: a read of the repair path made after the entry was written, in the
+review of the slice that built the binding. `mergedTally` (`refresh.mjs`)
+always carries a decision, and `runAdventureBookSteps` hands it to the places
+step; under a decision `heldRoster` (`cookbook/target.mjs`) lists a stored
+roster that does not hold the build's as an edit for the Judge to take; a
+plain second import returns a held place before it builds anything; and
+`repairHeldMap` (`cookbook/adventure-maps.mjs`) refreshes a held scene and
+never rebuilds it to another shape.
+
+- **"A forced repair fills the roster again" describes a branch no Judges
+  Journal repair reaches.** A link that waited is filled by a repair where the
+  place's roster is empty. Where the place already holds rows, the longer
+  roster is listed as an edit and the Judge is asked. A second import without
+  a repair leaves the held place as it is.
+- **"To reverse: a plan row and a crop per floor" leaves out what a held
+  scene costs.** The floors would be parts of the one place (`scene.part`),
+  and a repair never reshapes a scene a world already holds: that world keeps
+  the one scene until the Judge deletes it. The reversal is free only until a
+  release ships the one scene. The picture of several floors stays one scene
+  (the session's call, the owner may overrule; ROADMAP "A picture of several
+  floors is one scene").
+- **The lint line said "exactly one plan".** The rule
+  (`tools/importer/scenario-rules.mjs` `scenarioProblems`) is one plan, a
+  scene row with no `part`, beside any parts, whose pins count with the
+  plan's.
+
+The entry's cost line, that no row carries `meta.roster`, is overtaken by the
+entry below: the links are authored.
+
+*Cost:* the repair of a place that holds links is read, not run: no suite
+exercises it.
+
+## 2026-11-14 — A scenario's creature binds one weapon a routine and takes hit points from its dice, and an unread figure blanks on the Statblock alone
+
+How the nine scenarios' stat blocks became actors. Supersedes in part "The
+JJ's scenarios land as keyed places, plans and a roster in the JJ's Adventure"
+(2026-11-13): its cost line that lint checks only that each link's id exists.
+A link now has to name a creature or person row of the Judges Journal or of
+the monster book (`rosterProblems`), and `test-jj-scenarios` holds every
+shipped link to that. The evidence is the build itself, which that entry
+preceded. Read with "The JJ scenarios as bound" (2026-11-14), whose blank
+unread figure this entry builds.
+
+**Built with the owner away. Each bullet is the building session's call, and
+the owner may overrule it; each says what a reversal takes.**
+
+- **A stat line is read routine by routine.** `parseStatline` gives `atks[]`,
+  one entry per attack routine with its text, throw, damage, damage type and
+  rider (`statline-attacks.mjs`), and `atk` stays the first routine, so a line
+  of an adventure or of Lairs & Encounters parses as it did. Checked on every
+  such line the shipping executor reads from the Judge's copies: all parse
+  byte for byte as before.
+- **Each routine is one weapon** on the actor, carrying its damage type. A
+  routine counted in the line ("two of a thing") is one weapon, not one per
+  count. To reverse: mint `count` items in `bindNpc`'s routine loop.
+- **A routine whose throw differs from the first carries the difference as
+  its weapon's attack bonus**, since the actor holds one attack throw and core
+  adds a weapon's bonus to the roll. To reverse: one line in `bindNpc`; every
+  routine then rolls at the first throw.
+- **A stat line that prints dice and no hit points takes hit points from its
+  dice** (`bindStatsScalars`' rule). The rule was asked for the scenarios and
+  was not limited to them, so it also reaches five creatures of the adventures
+  and Lairs & Encounters that print dice alone. To reverse: one condition in
+  `bindNpc`.
+- **An alignment printed as a word is not read**; no scenario line needs it.
+  A dash there is no alignment. To reverse: a mapping line in the parser's
+  alignment clause.
+- **Who stands where, by the text.** A character who moves between rooms is on
+  the scenario's roster and on the rooms the text gives them; a conjured
+  creature is on its conjurer's room; the creatures of an area's random table
+  are on that area; a space used only at set hours links nobody; a creature
+  with no stat block on the scenario's page and no monster-book row links
+  nothing. To reverse: the `meta.roster` lines in `register/jj/`, and a
+  compile.
+- **The list of unread figures is written only where it holds something or
+  clears an earlier list** (`extras.derived.unread`), not as an empty list on
+  every creature. To reverse: one spread in `importAdventureActor`'s create
+  data.
+- **Only the Statblock tab blanks an unread figure.** Its save, morale,
+  attack, hit-point and hit-dice rows draw blank while the actor still holds
+  the value its create left, and the row's tooltip is its citation alone. The
+  rail, the band and the edit tab's inputs still show core's value, and an
+  unread armour class, movement or experience is recorded and drawn nowhere.
+  That is short of the owner's "Fields that require imports stay blank
+  period". No shipped row leaves a figure unread, so nothing shows it today
+  (ROADMAP "An unread figure blanks on the Statblock tab alone").
+
+*Rejected:* linking a creature by the name its room prints (the 2026-11-13
+entry's reason stands); a "not imported" string on any surface (the owner's
+ruling quoted in "The JJ scenarios as bound").
+
+*Cost:* 89 links on 49 places were placed by eye from the corrected text, and
+no check can say a link is on the right room. The blank row has not been seen
+in a browser, and `importAdventureActor`'s read-back of the list has no suite.

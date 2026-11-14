@@ -960,3 +960,50 @@ Parties journal of their introductions. Left:
 - **A lair inset's storeys as levels.** The p. 214 plate's large inset draws
   two buildings with unequal storey counts on one Scene; they are not split
   into levels.
+
+## The Judges Journal's scenarios: what is not built
+
+The nine scenarios (PDF pp. 417–425) import as places, plans, creatures and
+roster links, their text read from each page's picture (DECISIONS 2026-11-13
+and 2026-11-14, the entries on the JJ's scenarios). Left:
+
+- **A picture of several floors is one scene.** The p. 421 plan draws three
+  floors side by side on one canvas. They would be parts of the one place
+  (`scene.part`, as a Lairs & Encounters plate with insets): two more plan
+  rows, three crops, the pins divided among them, each floor's lattice
+  measured apart. A repair never reshapes a scene a world holds, so the change
+  is free only until a release ships the one scene.
+- **A key printed on several rooms is pinned once** (pp. 420, 421, 422), on
+  the first in reading order; the other rooms carry no pin. A place is one
+  token on a scene.
+- **Walls on the plans.** No plan is traced.
+- **A scenario table's grid.** A table's rows are paragraphs of the
+  scenario's notes, read across; the cells' columns are not kept.
+- **A line-end hyphen inside a compound** (pp. 421, 422) is kept with the
+  space of the line break after it.
+- **The extraordinary variant of a damage-type icon**, as on the text layer
+  (above): a stat block's correction writes the type and never the variant.
+- **An alignment printed as a word** is not read on a stat line.
+- **The reading bar names the page by its number in the file**, where a
+  citation names the folio.
+- **`caps: true` on a picture-read heading** is untried. It might retire the
+  re-capitalising corrections on every page; it changes how 77 headings are
+  cased, each to be checked on its crop.
+- **An unread figure blanks on the Statblock tab alone.** The monster sheet's
+  rail, band and edit-tab inputs still show core's value for a figure the
+  recipe left unread, and an unread armour class, movement or experience is
+  recorded and drawn nowhere. A blank row still rolls against core's value,
+  and a figure a Judge types that equals the held value stays blank. No
+  shipped row leaves a figure unread.
+- **Stat-line shapes no shipped line prints:** an experience figure with a
+  thousands separator splits the stat tail; a movement field that opens with a
+  colon and no label keeps the colon; a damage of two rolls joined by a plus
+  with a throw between them reads as a second routine; a counted list after
+  the first routine gives its first name to the rider before it.
+- **Suites not written:** a repair of a place that holds roster links (a link
+  that waited, a roster the Judge edited), and the creature import's read-back
+  of its unread list.
+- **The authoring kit** (`tools/importer/ocr-kit.mjs`, never shipped): `score`
+  ignores one-letter words; `stat` reports unmatched word boxes on a line a
+  correction re-tokens; `whole` misses a heading on one page; `propose` merges
+  a framed box with its neighbours.
