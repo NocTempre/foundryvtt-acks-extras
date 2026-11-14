@@ -782,6 +782,10 @@ The word *template* already means the Monster Manual's stat-by-rank pages in
 this family (`lib/template-logic.mjs`), so this surface says **marching order**
 throughout.
 
+The file's `publicApi` is published as `acksExtras.formation.marchingOrders`,
+under the names save, apply, get, list, delete, formUp and reconcile. The guide's
+"Calling it from a macro" section gives their use.
+
 `reconcile` is pure and returns new member records rather than editing the ones
 it was given, because the party an order is applied to is never quite the party
 it was saved from:

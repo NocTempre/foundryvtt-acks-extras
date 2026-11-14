@@ -1039,6 +1039,54 @@ on it (T-0335).
 **Teardown.** `api.sweepTracked()`. The combats a step deleted, and the
 tokens the reform and the recall deleted, sweep as missing.
 
+## Saved marching orders, from a macro (added with the macro calls)
+
+Covers `marchingOrders` in `marching-templates.mjs` (`publicApi`), reached as
+`acksExtras.formation.marchingOrders`. The Gamemaster seat is the primary GM.
+The Player seat is a provisioned player of the same world.
+
+**Fixtures**, each `api.create()`d or `api.track()`ed, and each carrying its
+marker (`flags.world.fixture`):
+- `formation/marching-orders-party`: an `acks-extras.party` actor holding two
+  `character` actors as members, with its formation auto-created (the party
+  actor's creation is the one in "A party actor made from the sidebar").
+
+**Drive mechanics.** Each step is evaluated in the GM seat's page and reads the
+formation with `acksExtras.formation.getFormationForActor(actor)`. The order
+name is per run, so a second run never meets the first run's order: name it
+`formation-macro-<run>`.
+
+1. **Listing.** `acksExtras.formation.marchingOrders.list()`.
+   **Observable:** an array sorted by name; it holds no order under this run's name.
+2. **Saving.** `acksExtras.formation.marchingOrders.save(formation, name)`.
+   **Observable:** `{template, replaced: false}` with `template.id` set, and
+   `list()` now holds the order.
+3. **Reading back.** `acksExtras.formation.marchingOrders.get(id)` with the id
+   from step 2.
+   **Observable:** the same order, and `acksExtras.formation.marchingOrders.list()`
+   now holds it.
+4. **Applying.** `acksExtras.formation.marchingOrders.apply(formation, id)`.
+   **Observable:** a reconcile report, and the members stand as the saved order
+   records them.
+5. **Reversed pair.** `acksExtras.formation.marchingOrders.save(name, formation)`.
+   **Observable:** a throw with the message
+   `acks-extras | marchingOrders.save: arguments are reversed — the formation comes first`.
+   Nothing is written: `list()` is unchanged.
+6. **Deleting.** `acksExtras.formation.marchingOrders.delete(id)`, then the same
+   call again.
+   **Observable:** the first call removes the order (`get(id)` is null, `list()`
+   lacks it); the second returns false.
+7. **Player seat, save.** From the Player seat,
+   `acksExtras.formation.marchingOrders.save(formation, name)` on a formation the
+   player owns.
+   **Observable:** to observe at P8. Record whatever the call does (a refusal, a
+   throw, or a write). The world setting is a Gamemaster write, so a write here
+   would be a finding; the result is not stated in advance.
+
+**Teardown.** Step 6 deletes the order by the id step 2 returned. A run that
+stops before step 6 leaves its order in the world setting under its run name;
+the next run finds it through `list()` by that name and deletes it by its id.
+
 ## End day, the whole tick (added with survival and the throw)
 
 End day does two things here, and each can fail independently.

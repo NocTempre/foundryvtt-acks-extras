@@ -190,6 +190,37 @@ a character. Someone saved but gone is dropped and the line closes up; someone
 new keeps the back rank. A role whose gear the character no longer carries is
 not restored, and the chat line names who.
 
+### Calling it from a macro
+
+The same calls are published as `acksExtras.formation.marchingOrders`. Each
+takes a formation, which comes from `acksExtras.formation.getFormations()`,
+`acksExtras.formation.getFormationForActor(actor)` or
+`acksExtras.formation.getFormation(id)`.
+
+- `acksExtras.formation.marchingOrders.save(formation, name)` stores the
+  formation's arrangement under `name`, replacing an order already saved under
+  that name. It returns `{template, replaced}`, or null for a blank name, and
+  writes the world setting.
+- `acksExtras.formation.marchingOrders.apply(formation, order)` restores a
+  saved order, given the order or its id, and returns the reconcile report. It
+  writes the formation.
+- `acksExtras.formation.marchingOrders.formUp(formation, order)` applies the
+  order, then gathers anyone on the map back inside the party token. It writes
+  the formation and moves tokens. During a combat it refuses with a warning and
+  returns null, unless the fight is over, in which case the party reforms first.
+- `acksExtras.formation.marchingOrders.get(id)` returns one saved order, or null.
+- `acksExtras.formation.marchingOrders.list()` returns every saved order, sorted
+  by name.
+- `acksExtras.formation.marchingOrders.delete(order)` removes a saved order, given
+  the order or its id. It returns false when no order has that id.
+- `acksExtras.formation.marchingOrders.reconcile(members, cells)` returns what an
+  order would do to those members and writes nothing.
+
+Passing the name where the formation belongs throws
+`acks-extras | marchingOrders.save: arguments are reversed — the formation comes
+first`, naming the call that was made. An applying call given neither an order
+nor an id throws, and the message names what arrived instead.
+
 ## Overland travel
 
 The party sheet has one surface for every kind of travel: its first tab, named

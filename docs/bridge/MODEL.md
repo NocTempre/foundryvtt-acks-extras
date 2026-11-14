@@ -190,7 +190,7 @@ rather than flattening it.
 | `password` | bound user, own account, never a Gamemaster's | `User#update` |
 | `users`, `link`, `unlink`, `bindings` | Judge | the store |
 | `enroll` | Judge | `User.create` as a Player, then the store |
-| `parties`, `party` | Judge | `formation.getFormations` / `getFormation`, the store |
+| `parties`, `party` | Judge | `acksExtras.formation.getFormations` / `acksExtras.formation.getFormation`, the store |
 | `map` | Judge | views the party's scene on the seat, pans to its party token, and answers the board's clip; the seat takes the PNG. `unavailable` on a seat that draws no canvas |
 | `dice` | anyone | core's `Roll`; `Roll#toMessage` as the active character when there is one |
 | `events`, `commands` | anyone | the tap, the registry |

@@ -44,7 +44,7 @@ first) stages the content it publishes:
 | Settings reference | the `game.settings.register()` calls in `scripts/`, joined with `lang/en.json` |
 | Compendia | `tools/pack-data.mjs` + `module.json`; what an import leaves, from the shelf code in `scripts/lib/library.mjs` and `scripts/importer/` |
 | Module map | the `import` statements of every file under `scripts/` |
-| API (one page per `acksExtras` key) | the `acksExtras.<feature> = …` assignments in `scripts/`, each key followed to its declaration and that declaration's docstring |
+| API (one page per `acksExtras` key) | the `acksExtras.<feature> = …` assignments in `scripts/`, and the `publicApi` manifests they place, each key followed to its declaration and that declaration's docstring |
 | Theme | `vendor/acks-design/` tokens and fonts |
 
 Every staged path is gitignored and carries a generated header, and each page's
@@ -80,6 +80,16 @@ The module map and the API pages add one more: the sync exits non-zero when an
 import names no file, or a key of the namespace cannot be followed to a
 declaration (§26). `tools/test-reference.mjs` holds the same render to the
 source in `npm test`.
+
+A call meant for a macro or another module is published from its own file:
+the file ends with `export const publicApi = { … }`, and the feature's entry
+places that object on its namespace, as a group or spread at the top. The same
+two checks fail when a `publicApi` reaches no key, when a file with one is also
+reached another way, when a call in one has no docstring, when a key it
+reaches is reached twice, and when the README or a doc under `docs/` (the logs,
+`wip/`, `releases/` and `site/` aside) writes an `acksExtras.<feature>.<path>`
+the namespace does not hold. A doc names a call by that full path, since a bare
+name is invisible to the check (§31).
 
 ## Not shipped
 
