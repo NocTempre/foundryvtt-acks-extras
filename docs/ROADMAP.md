@@ -84,6 +84,11 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   neutral label is open across books. The owner ruled it stays for now ("leave
   on roadmap for further investigation into cross-book issues"); nothing is
   renamed and no register is recompiled.
+- **The scenario plans' grid distance is read at import.** `scene.grid.distance`
+  on the nine plan rows in `register/jj/` (and the scenes compiled from them in
+  `cookbook/jj.json`) is a figure the page prints and ships as a literal; the
+  importer is to read it from the Judge's copy, and a plan with nothing read
+  stays blank.
 
 ---
 
@@ -206,6 +211,43 @@ browser/Foundry allowlist becomes the shared base, each repo's additions sit
 beside it, and `validate.mjs` calls the gate instead of each repo's
 `validate-extra`.
 
+## Printed option lists are imported
+
+The lists of options a page prints still ship as lang labels, as named row sets
+in `scripts/importer/table-recipes.mjs` and as frozen tables under `scripts/`.
+Each is to be imported: an ordinal id, a label read from the Judge's own copy, a
+blank select where nothing is imported, and the page reference as its tooltip.
+Not built in the Beta. Six batches, one row each; OL-1 goes first and alone, the
+rest follow it, and OL-5 follows OL-4.
+
+- **OL-1, the shared helper and the monster sheet's four lists.** A new
+  `scripts/lib/option-lists.mjs` (the locator and the id minting, once), then
+  `SPECIAL_ABILITIES`, `AGE_CATEGORIES`, `TRAINED_ROLES` and `INTELLIGENCE` in
+  `scripts/monsters/config.mjs`, with `ACKS-MONSTERS.*` and the monster
+  recipes' stored keys.
+- **OL-2, henchmen.** The troop and specialist types (`MERC_ROWS`,
+  `SPECIALIST_ROWS`, `ACKS-HENCHMEN.troop.*`, `.specialist.*`), class rarity
+  (`RARITY_TIER_ROWS`, `.rarity.*`), occupations, slave types
+  (`.slavery.type.*`) and the beastman troop matrix.
+- **OL-3, markets.** Merchandise types and environments (`MERCHANDISE_TYPES`,
+  `RARITIES`, `MERCH_ROWS`, `ACKS-MARKETS.merch.*`, `.merchandise.env.*`),
+  moorage, stabling animals (`.ventures.stay.animal.*`) and workers
+  (`.commissions.worker.*`).
+- **OL-4, weather and sea.** `ACKS-FORMATION.travel.weather.temp.*`, `.precip.*`
+  and `.cond.*`; `ACKS-VEHICLES.wind.*`, `.water.*` and the reason keys beside
+  them.
+- **OL-5, terrain and encounters (after OL-4).** `ENC_TERRAIN_ROWS`,
+  `ACKS-FORMATION.travel.enc.terrain.*`, the vehicle `TERRAIN` list and the
+  travel terrain multipliers, with the encounter and travel recipe blocks.
+- **OL-6, classes and equipment.** The chargen methods (`METHODS` in
+  `scripts/classes/stat-page.mjs`, `ACKS-CLASSES.chargen.methods.*`) and the
+  shield variants (`SHIELD_VARIANTS` in `scripts/equipment/config.mjs`, a second
+  copy of a list the importer already reads from JJ pp. 409–410); the
+  `ACKS-CLASSES.builder.magicHint` string, which copies an imported list, is
+  reworded.
+
+---
+
 ## Book text still in comments and lang strings
 
 - **Comments that quote a book sentence.** The 2026-09-23 quote audit cleared
@@ -217,5 +259,8 @@ beside it, and `validate.mjs` calls the gate instead of each repo's
   formation and equipment still hold keys whose text states a number. Each key
   is ruled printed (it moves onto the import, `acks-printed-value`) or
   structural (it stays), after a recount against the 2026-11-11 imports.
+- **The IP sweep's printed values stay on their own rows.** A value the sweep
+  found that already has a row in a feature ROADMAP or in the importer's keeps
+  it; none is restated here.
 
 ---
