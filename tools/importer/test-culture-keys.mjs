@@ -11,7 +11,8 @@
  * whole `importTables` run over a two-page invented book. The shipped recipe is
  * held to its shape: ordinal ids, neutral labels, keys and no printed words. A
  * culture's name template (`takePatronym`) is read from an invented example,
- * across a page break where the paragraph runs on.
+ * across a page break where the paragraph runs on. The caste recipe is held to
+ * the same rule: ordinal ids, each label read by its key, no word written.
  *
  * Every name below is invented; the keys are computed from them in the test.
  */
@@ -326,6 +327,29 @@ const PAGES = [
   const withTemplate = appearance.valueBlocks.filter((b) => b.values.some((v) => v.key === "patronym")).length;
   ok("the cultures that teach a name template by example read one", withTemplate > 0 && withTemplate < appearance.valueBlocks.length, String(withTemplate));
   eq("the people-1 race draws from exactly one culture", cultures.blocks.filter((b) => b.meta.alsoRaces?.includes("people1")).length, 1);
+}
+
+/* --- the shipped caste recipe: ordinal ids, labels read by key, no words ----------------- */
+{
+  const castes = TABLE_RECIPES.people.tables.dwarvenCastes;
+  const ids = castes.emit.merge.order;
+  eq("the castes are ordinals, one to four, in order", ids, ["caste1", "caste2", "caste3", "caste4"]);
+  ok("the merge adds no label of its own", !("labels" in castes.emit.merge) && Object.keys(castes.emit.merge).every((k) => k === "order" || /^caste\d+Pct$/.test(k)), Object.keys(castes.emit.merge).join());
+  ok("the page is located by a phrase with no figure in it", !/\d/.test(castes.locate));
+  const labels = castes.values.filter((v) => /^caste\d+Label$/.test(v.key));
+  const shares = castes.values.filter((v) => /^caste\d+Pct$/.test(v.key));
+  eq("a label is read for every caste", labels.map((v) => v.key), ids.map((id) => `${id}Label`));
+  eq("a share is read for every caste but the one printed nowhere", shares.map((v) => v.key), ids.slice(0, -1).map((id) => `${id}Pct`));
+  ok("the remainder caste's share is not read", castes.emit.merge[`${ids.at(-1)}Pct`] === null);
+  for (const v of labels) {
+    ok(`${v.key}: found by a key and read as printed`, /^[0-9a-z]{1,8}$/.test(v.findKey ?? "") && v.take === "anchor" && !("find" in v) && !("findRe" in v));
+  }
+  eq("no two labels share a key", new Set(labels.map((v) => v.findKey)).size, labels.length);
+  for (const v of shares) {
+    ok(`${v.key}: an anchor with no figure in it`, typeof v.find === "string" && !/\d/.test(v.find) && !("findKey" in v));
+    ok(`${v.key}: no anchor holds a label key`, !labels.some((l) => holdsKey(v.find, l.findKey)), v.find);
+  }
+  ok("no locate holds a label key", !labels.some((l) => holdsKey(castes.locate, l.findKey)));
 }
 
 console.log(`test-culture-keys: ${pass} checks passed.`);

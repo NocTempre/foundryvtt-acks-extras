@@ -1057,6 +1057,23 @@ walked in docs/lib/TESTING.md, "The repair tool".
     shape against the real book is `tools/importer/test-recipe-content.mjs`.
     Teardown: the layers lifted, the group and officer swept by their tracked
     uuids. Not walked live when written.
+27. The dwarven castes, read from the supplement. With the By This Axe
+    supplement connected, read **Rules tables** (the **Reimport One Shelf (GM)**
+    macro). Call `generateOccupation(rand, "dwarf")` from
+    `scripts/henchmen/rules/identity.mjs` with a `rand` that returns `0` and
+    then `0.99`, and open the `people.dwarvenCastes` RollTable on the
+    RollTable shelf. *Observable:* the occupation is a word the page prints, under category
+    `caste`, and the table shows four results, each a word read from the page,
+    the last covering what the first three leave; compare them with the page
+    and report the match, never the words or figures. Then read **Rules
+    tables** with the supplement not connected, in a world that has never held
+    the table. *Observable:* a dwarf's occupation comes from the occupation
+    tables (or is blank where those are absent), no caste is rolled, and no
+    "not imported" text appears. The reader and the table's round trip are
+    checked offline (`tools/test-henchmen.mjs`, `tools/test-table-docs.mjs`);
+    the recipe's shape against the real book is
+    `tools/importer/test-recipe-content.mjs`. Teardown: none; the tables read
+    are the world's own. Not walked live when written.
 
 ## Teardown
 

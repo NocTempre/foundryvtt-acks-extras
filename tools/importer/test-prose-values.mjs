@@ -14,6 +14,7 @@
  */
 import assert from "node:assert";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
 import { quantity, scaleQuantity } from "../../scripts/lib/tables.mjs";
 
 let pass = 0;
@@ -152,5 +153,30 @@ const sizes = read(
 check("a clause naming no size reads nothing", sizes.none === undefined && sizes.scribe === undefined);
 check("sizes read in order, a word outside the size vocabulary skipped", JSON.stringify(sizes.mason) === JSON.stringify(["tiny", "small", "large"]));
 check("a size is listed once, and words after the list's end are not read", JSON.stringify(sizes.cook) === JSON.stringify(["tiny", "medium"]));
+
+/* --- a word named by its key: `findKey` finds it and `take: "anchor"` reads it as printed --- */
+
+// The words are invented; the recipe holds only their keys, computed here.
+const guild = read(
+  [
+    "In the marches the Quillwright guild, making up about 12% of folk, keeps the ledgers.",
+    "Another 30% of folk are Tallowmen, and the Quillwright (see above) hold the largest share.",
+  ],
+  [
+    { key: "firstWord", findKey: printKey("Quillwright"), take: "anchor" },
+    { key: "secondWord", findKey: printKey("Quillwright"), occurrence: 2, take: "anchor" },
+    { key: "otherWord", findKey: printKey("Tallowmen"), take: "anchor" },
+    { key: "absentWord", findKey: printKey("Absentee"), take: "anchor" },
+    { key: "pctAfterWord", findKey: printKey("Quillwright"), take: "pct", span: 40 },
+    { key: "pctBeforeWord", findKey: printKey("Tallowmen"), before: true, take: "pct", span: 30 },
+  ],
+);
+check("a word is found by its key and read as the page prints it", guild.firstWord === "Quillwright");
+check("the next occurrence of the key is the next token that folds to it", guild.secondWord === "Quillwright");
+check("another word, another key", guild.otherWord === "Tallowmen");
+check("trailing punctuation is not part of the word", guild.otherWord === "Tallowmen" && !/[,.]/.test(guild.otherWord));
+check("a key the page does not hold reads nothing", !("absentWord" in guild));
+check("a key anchors a figure's window like a phrase does", guild.pctAfterWord === 12 && guild.pctBeforeWord === 30);
+check("the word keeps the page's case", read(["the LONGHOUSE stands"], [{ key: "w", findKey: printKey("longhouse"), take: "anchor" }]).w === "LONGHOUSE");
 
 console.log(`test-prose-values: ${pass} checks passed.`);

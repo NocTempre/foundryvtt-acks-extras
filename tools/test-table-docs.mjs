@@ -508,6 +508,33 @@ await test("a dropped table reads back the words, not the entities", async () =>
   assert.equal(row.special, "grain & vegetables", "decoded back to the character the book prints");
 });
 
+await test("a caste table rolls its imported words and reads back under the same ordinal ids", async () => {
+  // Invented words and shares: the table's ids are ordinals, its words are the
+  // `<id>Label` values, and a label is never turned into an id.
+  const castes = { order: ["caste1", "caste2", "caste3", "caste4"], caste1Pct: 30, caste2Pct: 20, caste3Pct: 10, caste4Pct: null, caste1Label: "Alder", caste2Label: "Birch", caste3Label: "Cedar", caste4Label: "Dogwood" };
+  world({ registry: { people: { dwarvenCastes: castes } } });
+  await materializeAll();
+  const rolled = [...shelf("RollTable").contents][0];
+  assert.equal(rolled.formula, "1d100");
+  assert.deepEqual([...rolled.results].map((r) => [r.range, r.description]), [[[1, 30], "Alder"], [[31, 50], "Birch"], [[51, 60], "Cedar"], [[61, 100], "Dogwood"]], "four results, the remainder caste last, each its imported word");
+  globalThis.fromUuid = async () => ({ ...rolled, documentName: "RollTable", results: rolled.results, uuid: rolled.uuid });
+  const entry = { docId: "people", tableId: "dwarvenCastes", key: "people.dwarvenCastes", rollable: true };
+  const { data } = await parseDrop(entry, { uuid: rolled.uuid });
+  assert.deepEqual(data, { ...castes, caste4Pct: 40 }, "the same ids and words, the remainder now a share");
+  // A table that lost a word: the result reads blank, and a result renamed by hand lands on its own ordinal.
+  const noWord = { ...castes };
+  delete noWord.caste2Label;
+  world({ registry: { people: { dwarvenCastes: noWord } } });
+  await materializeAll();
+  const blank = [...shelf("RollTable").contents][0];
+  assert.equal([...blank.results][1].description, "", "a caste with no imported word rolls a blank result");
+  const [first, second, ...rest] = [...blank.results];
+  globalThis.fromUuid = async () => ({ ...blank, documentName: "RollTable", results: [{ ...first, description: "Elm" }, second, ...rest], uuid: blank.uuid });
+  const edited = (await parseDrop(entry, { uuid: blank.uuid })).data;
+  assert.equal(edited.caste1Label, "Elm", "a renamed result stays the first caste");
+  assert.ok(!("elm" in edited) && !("elmPct" in edited) && !("labels" in edited), "no id is made from a word");
+});
+
 await test("changed data rebuilds only the tables that moved", async () => {
   world({ registry: manyRollables(10) });
   await materializeAll();

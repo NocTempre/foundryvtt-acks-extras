@@ -55,6 +55,29 @@ export function holdsKey(text, key) {
   return String(text ?? "").split(KEY_TOKEN_BREAK).some((token) => token && printKey(token) === key);
 }
 
+/**
+ * Where the `occurrence`th token of a text whose key is `key` stands:
+ * `{idx, len}` into the text as given, or null. The tokens are the ones
+ * `holdsKey` tests, so a name found there is found here, and the name is
+ * located without being written. A token keeps whatever punctuation the break
+ * marks leave on it (a full stop, a hyphen); the caller strips what it does
+ * not want. An empty key finds nothing.
+ */
+export function keyTokenAt(text, key, occurrence = 1) {
+  if (!key) return null;
+  const s = String(text ?? "");
+  const breaks = new RegExp(KEY_TOKEN_BREAK.source, "gu");
+  let start = 0;
+  let seen = 0;
+  for (;;) {
+    const m = breaks.exec(s);
+    const token = s.slice(start, m ? m.index : s.length);
+    if (token && printKey(token) === key && ++seen === occurrence) return { idx: start, len: token.length };
+    if (!m) return null;
+    start = m.index + m[0].length;
+  }
+}
+
 /** The most runs one heading is joined from: a heading wraps over a few lines, and a display-heavy page holds hundreds of runs. */
 const HEADING_MAX_RUNS = 8;
 

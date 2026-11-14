@@ -17,7 +17,7 @@
  * Usage: node tools/importer/test-printed-name.mjs
  */
 import assert from "node:assert/strict";
-import { foldLabel, hash36, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf, withoutKeyNumber } from "../../scripts/importer/printed-name.mjs";
+import { foldLabel, hash36, holdsKey, keyTokenAt, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf, withoutKeyNumber } from "../../scripts/importer/printed-name.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { pictureKey } from "../../scripts/importer/scene-binding.mjs";
 
@@ -40,6 +40,24 @@ await t("a print key is the same for every printing of the same letters", () => 
   assert.notEqual(printKey("The Salt Wardens"), printKey("The Salt Warden"));
   assert.match(printKey("The Salt Wardens"), /^[0-9a-z]{1,7}$/);
   assert.equal(printKey(" – "), "", "nothing to fold is nothing to find");
+});
+
+await t("a token is found by its key, where it stands, in the order it occurs", () => {
+  const key = printKey("Zorvane");
+  const text = "the zorvane, (Quilla) and ZORVANE; then Zorvane-kin";
+  const first = keyTokenAt(text, key);
+  assert.deepEqual(first, { idx: 4, len: 7 }, "the first token whose fold is the key, without the mark after it");
+  assert.equal(text.slice(first.idx, first.idx + first.len), "zorvane");
+  const second = keyTokenAt(text, key, 2);
+  assert.equal(text.slice(second.idx, second.idx + second.len), "ZORVANE", "the second occurrence, in the text's own case");
+  assert.equal(keyTokenAt(text, key, 3), null, "a token that merely holds the name is no occurrence");
+  assert.equal(keyTokenAt(text, printKey("Quilla")).len, 6, "a word inside brackets is a token of its own");
+  assert.equal(keyTokenAt("a hyphened Zorvane- word", key).len, 8, "a token keeps the hyphen the break marks leave on it");
+  assert.equal(keyTokenAt(text, ""), null, "an empty key finds nothing");
+  assert.equal(keyTokenAt(null, key), null);
+  for (const probe of ["Zorvane, Quilla", "a Quilla and Zorvane", "Zorvanelle only", ""]) {
+    assert.equal(keyTokenAt(probe, key) !== null, holdsKey(probe, key), `agrees with holdsKey on "${probe}"`);
+  }
 });
 
 await t("the hash is FNV-1a, the one the picture key already used", () => {

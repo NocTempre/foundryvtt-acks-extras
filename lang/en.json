@@ -5234,7 +5234,7 @@
   "ACKS-INFLUENCE.note.hatredDwarfGoblin": "Dwarf and goblin are a hatred pair (MM, Dwarf entry); the Judge decides whether it applies here.",
   "ACKS-INFLUENCE.note.hatredGnomeKobold": "Gnome and kobold are a hatred pair (MM, Gnome entry); the Judge decides whether it applies here.",
   "ACKS-INFLUENCE.settings.btaCaste.name": "By This Axe: dwarven caste reaction modifiers",
-  "ACKS-INFLUENCE.settings.btaCaste.hint": "Enable the optional caste rule — caste-based reaction modifiers between dwarves (Highborn, Oathsworn/Craftborn/Workborn, Houseless). When off, the compendium caste effects stop contributing to rolls.",
+  "ACKS-INFLUENCE.settings.btaCaste.hint": "Turns on the compendium's caste effects, the dwarven caste reaction modifiers (By This Axe). When off, they add nothing to rolls.",
   "ACKS-INFLUENCE.settings.raceRelations.name": "Campaign race relations (JSON)",
   "ACKS-INFLUENCE.settings.raceRelations.hint": "Directional reaction modifiers between races, e.g. [{\"from\":\"dwarf\",\"to\":\"elf\",\"value\":-1,\"label\":\"Grudge of the Vaults\"}]. `from` is the influencer's race/category, `to` the target's; rows need not be symmetric. Applies to reactions, hiring, and loyalty (like Inhumanity). Modules can add rows via api.registerRaceRelations().",
   "ACKS-INFLUENCE.mod.charisma": "CHA modifier",

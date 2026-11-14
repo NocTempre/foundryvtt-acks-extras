@@ -12,7 +12,7 @@
  * PDF's pageItems) and in Node (the dev tools under `tools/importer/`).
  */
 import { BOOKS } from "./books.mjs";
-import { findHeading, holdsKey } from "./printed-name.mjs";
+import { findHeading, holdsKey, keyTokenAt } from "./printed-name.mjs";
 
 /** Cluster a page's text items into rows by y proximity. */
 export function rowsByY(items, tol = 3) {
@@ -1322,11 +1322,13 @@ function sectionRunsOn(its, section) {
 }
 
 /**
- * Where `find` (a phrase) or `findRe` (a pattern, for a phrase that carries a
- * word the page sets and the recipe does not name) first stands in `text` at or
- * after its `occurrence`th place: `{idx, len}`, or null.
+ * Where `find` (a phrase), `findRe` (a pattern, for a phrase that carries a
+ * word the page sets and the recipe does not name) or `findKey` (the `printKey`
+ * of one word, so the recipe holds the word's key and never the word) first
+ * stands in `text` at or after its `occurrence`th place: `{idx, len}`, or null.
  */
 function findIn(text, v) {
+  if (v.findKey) return keyTokenAt(text, v.findKey, v.occurrence ?? 1);
   if (v.findRe) {
     const re = new RegExp(v.findRe, "g");
     let m;
@@ -1352,6 +1354,10 @@ function findIn(text, v) {
  * follows the heading whose `printKey` is `key` (`sectionRuns`), so a phrase
  * shared by several headings' paragraphs is read from the paragraph under the
  * one asked for. Phrases are matched on the lowercased page.
+ *
+ * A value with `findKey` in place of `find` is anchored on a word named by its
+ * `printKey`; with `take: "anchor"` it reads that word as printed, so the
+ * recipe holds a key and the page supplies the word.
  *
  * A value with `take: "patronym"` names no phrase: it reads the whole
  * section's text (`takePatronym`). With `runOn: true` on the value and the
@@ -1394,6 +1400,14 @@ export function extractProseValues(items, recipe) {
     const found = findIn(text, v);
     if (!found) continue; // absent, not undefined: page-span merges keep earlier pages' captures
     const { idx, len } = found;
+    // `take: "anchor"`: the matched word itself, as the page prints it, with the
+    // punctuation either side of it dropped. A word named by `findKey` is read
+    // this way, so a label arrives from the Judge's page and never from a recipe.
+    if (v.take === "anchor") {
+      const word = cased.slice(idx, idx + len).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+      if (word) out[v.key] = word;
+      continue;
+    }
     const span = v.span ?? 90;
     const window = v.before ? text.slice(Math.max(0, idx - span), idx) : text.slice(idx + len, idx + len + span);
     // `runins` is read from the page's own case; every other take reads the

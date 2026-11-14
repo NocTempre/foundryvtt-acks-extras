@@ -1441,7 +1441,7 @@ override reaches the anchor, the hash candidates and the flow's stop alike.
 
 A row that withholds a printed name locates it by `anchor.hash`, the
 `printKey` of the name's folded letters (`printed-name.mjs`), and the words
-arrive from the Judge's page. Five mechanisms carry that past the keyed
+arrive from the Judge's page. Seven mechanisms carry that past the keyed
 places of an adventure.
 
 - **Display headings.** `compileClass` (a `kind.class` row with `anchor.hash`
@@ -1519,6 +1519,17 @@ places of an adventure.
   template from that table, or inline on the culture entry, and the name is
   the given name alone where none is imported; a Judge edits it in the Tables
   browser like any imported table.
+- **Prose by key.** A `proseValues` entry with `findKey` in place of `find`
+  anchors on a word named by its `printKey` (`keyTokenAt`, `printed-name.mjs`,
+  walking the tokens `holdsKey` tests; `findIn` in `table-extract.mjs`, which
+  honours `occurrence`), and `take: "anchor"` stores that word as the page
+  prints it, with the punctuation either side dropped. The recipe holds a key
+  and the page supplies the word. `people.dwarvenCastes` is read this way: its
+  castes are ordinal ids (`caste1` to `caste4`, in `emit.merge.order`), each
+  with a share (`<id>Pct`) and a word (`<id>Label`) read off the page, and the
+  last caste's share, printed nowhere, is the remainder its consumers compute.
+  A word the page does not print is not stored, and the consumers show it
+  blank (`rollDwarvenCaste`, the table's RollTable).
 
 ## A book's page bands
 

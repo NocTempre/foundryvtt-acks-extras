@@ -284,13 +284,16 @@ function generateOccupationRaw(rand) {
 }
 
 /**
- * BTA caste roll for dwarven candidates: the book gives Highborn/Craftborn/
- * Workborn percentages in prose; the Oathsworn share is the remainder. The
- * caste IS the recorded occupation — Craftborn/Workborn trades and Oathsworn
- * orders are GM endpoints (the class trajectory carries an Oathsworn).
+ * Caste roll for dwarven candidates, from the imported `people.dwarvenCastes`
+ * table: `order` lists the castes by ordinal id, each id carries its share
+ * (`<id>Pct`) and the word the page prints for it (`<id>Label`), and the one
+ * caste whose share is not a number takes the remainder. Returns `{label}` for
+ * the caste rolled (an empty label where the page's word was not read), or
+ * null where no share was imported, so the caller falls through to the other
+ * occupation paths.
  */
 function rollDwarvenCaste(rand, castes) {
-  const order = castes.order ?? ["highborn", "craftborn", "workborn", "oathsworn"];
+  const order = castes.order ?? [];
   const pcts = order.map((id) => castes[`${id}Pct`]);
   const known = pcts.filter((v) => typeof v === "number");
   if (!known.length) return null;
@@ -298,23 +301,22 @@ function rollDwarvenCaste(rand, castes) {
   let roll = rand() * 100;
   for (let i = 0; i < order.length; i++) {
     roll -= typeof pcts[i] === "number" ? pcts[i] : remainder;
-    if (roll <= 0) return castes.labels?.[order[i]] ?? order[i];
+    if (roll <= 0) return { label: castes[`${order[i]}Label`] ?? "" };
   }
-  return castes.labels?.[order[order.length - 1]] ?? order[order.length - 1];
+  return { label: castes[`${order[order.length - 1]}Label`] ?? "" };
 }
 
 /**
  * 0th-level occupation. Humans roll the JJ 254-257 profession lists; races
  * with their own society table (occupations.byRace — dwarves roll CASTE per
- * the BTA ethnicity text) use it instead. A category with no entries (the
- * dwarven Oathsworn) means the occupation IS the sworn order — the class
- * trajectory carries it, and the caste label alone is recorded.
+ * the BTA ethnicity text) use it instead; the caste is the recorded occupation,
+ * its word read from the page, and blank where the page's word was not read.
  */
 export function generateOccupation(rand, race = "human") {
   if (race === "dwarf") {
     const castes = optTable("people", "dwarvenCastes");
     const caste = castes ? rollDwarvenCaste(rand, castes) : null;
-    if (caste) return { category: "caste", occupation: caste };
+    if (caste) return { category: "caste", occupation: caste.label };
   }
   // The RAW occupant system (street column + sub-tables) is the primary
   // path; the uniform package draw is the fallback while those tables are

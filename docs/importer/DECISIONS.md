@@ -1471,3 +1471,38 @@ a person.
 
 *Cost:* no row carries `meta.roster` yet. The links are authored with the
 creature rows they name, in the next slice.
+
+## 2026-11-14 — A people's castes are read by key, under ordinal ids
+
+The `people.dwarvenCastes` recipe wrote four printed caste names into source:
+in its `locate` and `find` anchors, in its value keys, and in the merge that
+carried each name as an id and a label. The name rule
+(`.claude/rules/ip-doctrine.md`: "A printed proper NAME is content wherever it
+is written — an identifier included") puts them where no tracked file may:
+nothing but that word makes a caste that caste, so the word is the book's.
+
+The recipe now ids the castes `caste1` to `caste4` (the table keeps its id,
+`dwarvenCastes`). Each caste's word is read off the Judge's page by the
+`printKey` of the word (`findKey`, `take: "anchor"`: MODEL "A name read by its
+key", "Prose by key"), and the three shares keep anchors that hold no name. The
+fourth caste's share is printed nowhere and stays the remainder. A caste whose
+word was not read shows blank, on the occupation a dwarven candidate is given
+and on the table's RollTable, with the owner's rulings behind it: "Caught
+printed values are fixed on the spot" (2026-11-04), "a figure a page prints is
+imported; stop asking" (2026-11-14), and, for the blank, "Missing imports stay
+blank with page reference as a subtle clue on where they could get that info.
+Fields that require imports stay blank period." (2026-11-14).
+
+*Rejected:* renaming the id only (the names stay in the recipe's anchors and
+keys); a stored "Caste N" label (a stand-in word on a surface the owner ruled
+blank, and a second source for the word); reading a label by a "the <word>
+caste" pattern (it writes the supplement's sentence shape into the recipe and
+reads any word that follows "the", where the key finds the one word asked for
+wherever the page prints it); a migration
+of a world's earlier table (the owner, 2026-11-11, "no tools for
+previous-version data").
+
+*Cost:* a world's earlier `people.dwarvenCastes` table, and any Judge override
+layer holding one, keep the shape they were written in. Its words show blank
+until Rules tables is read again or the override is reverted, and nothing
+rewrites either.

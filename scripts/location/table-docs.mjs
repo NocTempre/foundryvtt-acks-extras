@@ -263,7 +263,8 @@ export function entryData({ docId, tableId, subId }) {
  *  - classDistribution: bucket d100 bands + per-bucket class d100s
  *  - occupationTypes: one d100 occupant table per building column
  *  - classPercentages: weighted class table per level
- *  - dwarvenCastes: caste → percentage weights (remainder caste = null)
+ *  - dwarvenCastes: `order` lists ordinal caste ids; each id holds a percentage
+ *    weight (`<id>Pct`, the remainder caste's is null) and the page's word for it (`<id>Label`)
  *  - randomHenchmanLevel: one die's bands {min,max,level}
  *  - a COLUMN_GRIDS column, or a UNIFORM_LISTS list
  */
@@ -355,7 +356,7 @@ function rollTableSpec(entry, data) {
     return { formula: `1d${Math.max(1, at)}`, results };
   }
   if (docId === "people" && tableId === "dwarvenCastes") {
-    const order = data.order ?? Object.keys(data.labels ?? {});
+    const order = data.order ?? [];
     const known = order.map((id) => data[`${id}Pct`]).filter((v) => typeof v === "number");
     const remainder = Math.max(0, 100 - known.reduce((a, b) => a + b, 0));
     let at = 0;
@@ -365,7 +366,7 @@ function rollTableSpec(entry, data) {
         const w = typeof data[`${id}Pct`] === "number" ? data[`${id}Pct`] : remainder;
         const range = [at + 1, at + Math.max(1, w)];
         at += Math.max(1, w);
-        return { range, description: data.labels?.[id] ?? id };
+        return { range, description: data[`${id}Label`] ?? "" };
       }),
     };
   }
@@ -481,8 +482,9 @@ function parseRollTable(entry, table) {
     return current;
   }
   if (entry.docId === "people" && entry.tableId === "dwarvenCastes") {
-    const current = lib().tables.getTable(entry.docId, entry.tableId);
-    const labelToId = Object.fromEntries(Object.entries(current.labels ?? {}).map(([id, l]) => [String(l).toLowerCase(), id]));
+    // The i-th result is the table's i-th caste by its ordinal id; a label is
+    // only ever stored as a label, never made into an id.
+    const current = lib().tables.getTable(entry.docId, entry.tableId) ?? {};
     const out = { ...current };
     const order = [];
     let total = 0;
@@ -490,15 +492,14 @@ function parseRollTable(entry, table) {
       const [min, max] = r.range ?? [0, 0];
       total += Math.max(0, max - min + 1);
     }
-    for (const r of results) {
-      const label = textOf(r);
-      const id = labelToId[label.toLowerCase()] ?? label.toLowerCase().replace(/[^a-z0-9]/g, "");
+    results.forEach((r, i) => {
+      const id = current.order?.[i] ?? `caste${i + 1}`;
       const [min, max] = r.range ?? [0, 0];
       const w = Math.max(0, max - min + 1);
       out[`${id}Pct`] = total > 0 ? Math.round((w * 100) / total) : 0;
-      out.labels = { ...(out.labels ?? {}), [id]: label };
+      out[`${id}Label`] = textOf(r);
       order.push(id);
-    }
+    });
     out.order = order;
     return out;
   }

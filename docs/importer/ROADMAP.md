@@ -505,10 +505,6 @@ plain-string `locate` would put in source.
   `mapPairs` acknowledges "Other Senses" and maps none of it; structured
   senses per recipe are not built. One-off recipe directions for a label the
   mapper does not understand are not built either.
-- **The name rule on an identifier.** `dwarvenCastes` (in `table-recipes.mjs`,
-  with consumers in `scripts/henchmen/rules/identity.mjs` and
-  `builder-binding.mjs`) names a printed people's castes in an identifier; the
-  name rule wants a neutral label and a locator.
 - **Candidates not yet judged.** The importer and registry candidates the
   comment cut raised and no reviewer has read for printed values.
 - **`docs/importer/TESTING.md` states encumbrance figures** in its equipment

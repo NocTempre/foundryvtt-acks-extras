@@ -1279,4 +1279,34 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- a dwarven candidate's caste is an imported share and an imported word, under ordinal ids ----
+// The table, its words and its shares are invented: the roll reads `order`, then
+// `<id>Pct` and `<id>Label`, and names no caste itself.
+{
+  const { generateOccupation } = await import(new URL("../scripts/henchmen/rules/identity.mjs", import.meta.url));
+  const ns = (globalThis.acksExtras ??= {});
+  const saved = ns.lib;
+  const castes = { order: ["caste1", "caste2", "caste3", "caste4"], caste1Pct: 30, caste2Pct: 20, caste3Pct: 10, caste4Pct: null, caste1Label: "Alder", caste2Label: "Birch", caste3Label: "Cedar", caste4Label: "Dogwood" };
+  const raw = { occupationTypes: { rows: [{ type: "farmer", resolve: "farmer", bands: { generalStreet: { min: 1, max: 100 } } }] }, occupationSubTables: { categories: { farmer: { rows: [{ min: 1, max: 100, occupation: "Reaper" }] } } } };
+  const install = (tables) => { ns.lib = { tables: { hasDoc: (doc) => doc === "people", getTable: (doc, id) => tables[id] ?? null } }; };
+  try {
+    install({ ...raw, dwarvenCastes: castes });
+    assert.deepStrictEqual(generateOccupation(() => 0.05, "dwarf"), { category: "caste", occupation: "Alder" }, "a low roll is the first caste, its word as imported");
+    assert.deepStrictEqual(generateOccupation(() => 0.55, "dwarf"), { category: "caste", occupation: "Cedar" }, "the third caste's span is read after the first two");
+    assert.deepStrictEqual(generateOccupation(() => 0.9, "dwarf"), { category: "caste", occupation: "Dogwood" }, "a roll past the printed shares is the remainder caste");
+    assert.strictEqual(generateOccupation(() => 0.05, "human").category, "farmer", "only a dwarf rolls a caste");
+    const { caste1Label, ...noLabel } = castes;
+    install({ ...raw, dwarvenCastes: noLabel });
+    assert.deepStrictEqual(generateOccupation(() => 0.05, "dwarf"), { category: "caste", occupation: "" }, "a caste whose word was not read leaves the occupation blank");
+    install({ ...raw, dwarvenCastes: { order: castes.order, caste1Label: "Alder" } });
+    assert.deepStrictEqual(generateOccupation(() => 0.05, "dwarf"), { category: "farmer", occupation: "Reaper" }, "a table with no share imported falls to the occupation tables");
+    install({ ...raw });
+    assert.deepStrictEqual(generateOccupation(() => 0.05, "dwarf"), { category: "farmer", occupation: "Reaper" }, "no caste table falls to the occupation tables");
+    install({});
+    assert.deepStrictEqual(generateOccupation(() => 0.05, "dwarf"), { category: "", occupation: "" }, "no table of any kind leaves the occupation blank");
+  } finally {
+    ns.lib = saved;
+  }
+}
+
 console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);

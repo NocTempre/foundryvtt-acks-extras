@@ -109,14 +109,19 @@ const TABLES = {
   formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
   // The cultures' name lists and appearance palettes, each read by the keys of
-  // its page; a culture's name list may be in a supplement.
-  people: ["cultures", "cultureAppearance"],
+  // its page; a culture's name list may be in a supplement. The supplement's
+  // caste split: three shares and four words, each read by key.
+  people: ["cultures", "cultureAppearance", "dwarvenCastes"],
 };
 
+/** Whether a recipe's book is on this machine. */
+const haveBook = (book) => !!FILES[book] && fs.existsSync(FILES[book]);
+
+// An optional recipe reads a supplement; a machine without it skips that table and keeps the rest.
 const NEEDED = [...new Set(
-  Object.entries(TABLES).flatMap(([doc, ids]) => ids.map((id) => TABLE_RECIPES[doc]?.tables?.[id]?.book)),
+  Object.entries(TABLES).flatMap(([doc, ids]) => ids.map((id) => TABLE_RECIPES[doc]?.tables?.[id]).filter((r) => r && !r.optional).map((r) => r.book)),
 )].filter(Boolean);
-if (!NEEDED.length || NEEDED.some((b) => !FILES[b] || !fs.existsSync(FILES[b]))) {
+if (!NEEDED.length || NEEDED.some((b) => !haveBook(b))) {
   console.log("test-recipe-content: reference PDFs absent — skipped.");
   process.exit(0);
 }
@@ -1021,6 +1026,25 @@ Object.assign(VERIFY, {
       }
     }
   },
+  // The caste split: three shares, each a percentage, together short of the whole
+  // (the fourth caste is the remainder, printed nowhere), and four words, each a
+  // single word whose key is the one the recipe found it by. Shape only; no word or
+  // figure is named.
+  "people.dwarvenCastes": (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const shares = Object.keys(out ?? {}).filter((k) => /^caste\d+Pct$/.test(k) && out[k] !== null).map((k) => out[k]);
+    if (shares.length !== 3) fail(`shares: ${shares.length} read, expected 3`);
+    if (shares.some((v) => !(isNum(v) && v > 0 && v < 100))) fail("shares: one is not a percentage between none and all");
+    else if (!(shares.reduce((a, b) => a + b, 0) < 100)) fail("shares: together leave no remainder for the fourth caste");
+    for (const v of recipe.values.filter((x) => x.take === "anchor")) {
+      const word = out?.[v.key];
+      if (!isText(word)) fail(`${v.key}: no word read`);
+      else if (printKey(word) !== v.findKey) fail(`${v.key}: the word read does not carry the key it was found by`);
+      else if (/\s/.test(word)) fail(`${v.key}: more than one word`);
+    }
+    if (out?.caste4Pct !== null) fail("caste4Pct: the remainder is not left to the consumer");
+    if (!Array.isArray(out?.order) || out.order.length !== 4) fail("order: not the four castes");
+  },
   "people.cultureAppearance": (out, recipe, fail) => {
     for (const b of recipe.valueBlocks) {
       for (const v of b.values) {
@@ -1052,6 +1076,10 @@ for (const [docId, ids] of Object.entries(TABLES)) {
     const mine = [];
     const fail = (msg) => { mine.push(`${name}: ${msg}`); };
     const recipe = TABLE_RECIPES[docId]?.tables?.[tableId];
+    if (recipe?.optional && !haveBook(recipe.book)) {
+      console.log(`  skip ${name} (${recipe.book} absent)`);
+      continue;
+    }
     if (!recipe) { fail("no such recipe"); }
     else if (!VERIFY[name]) { fail("no verifier registered for this table"); }
     else {

@@ -3106,27 +3106,34 @@ export const TABLE_RECIPES = {
         emit: { container: "rows", keyField: "race" },
       },
       // BTA dwarven castes: the book states the caste split in prose, not a
-      // grid. Anchors carry no values; percentages are read from the page. The
-      // last caste's share is the remainder and is printed nowhere. Optional: a
-      // supplement.
+      // grid. The castes are ordinals, caste1 to caste4: each label is read off
+      // the page by the key of its word (`findKey`, `take: "anchor"`), so no
+      // printed name is written here, and the anchors carry no figures; the
+      // percentages are read from the page. The last caste's share is the
+      // remainder and is printed nowhere. Optional: a supplement. The ruling is
+      // the importer DECISIONS entry "A people's castes are read by key, under
+      // ordinal ids".
       dwarvenCastes: {
         shape: "proseValues",
         book: "bta",
         optional: true,
         printedPage: 22,
-        locate: "of dwarves are Craftborn",
+        locate: "hereditary caste",
         locateBare: true,
         values: [
-          { key: "highbornPct", find: "making up about", take: "pct" },
-          { key: "craftbornPct", find: "of dwarves are craftborn", before: true, take: "pct", span: 30 },
-          { key: "workbornPct", find: "largest caste", take: "pct" },
+          { key: "caste1Pct", find: "making up about", take: "pct" },
+          { key: "caste2Pct", find: "of dwarves are", before: true, take: "pct", span: 30 },
+          { key: "caste3Pct", find: "largest caste", take: "pct" },
+          { key: "caste1Label", findKey: "q3fcdy", take: "anchor" },
+          { key: "caste2Label", findKey: "3gwije", take: "anchor" },
+          { key: "caste3Label", findKey: "1ct7r3j", take: "anchor" },
+          { key: "caste4Label", findKey: "jg5nw", take: "anchor" },
         ],
         emit: {
           path: [],
           merge: {
-            oathswornPct: null, // remainder of 100 — computed by consumers, never printed
-            order: ["highborn", "craftborn", "workborn", "oathsworn"],
-            labels: { highborn: "Highborn", craftborn: "Craftborn", workborn: "Workborn", oathsworn: "Oathsworn" },
+            caste4Pct: null, // remainder of 100 — computed by consumers, never printed
+            order: ["caste1", "caste2", "caste3", "caste4"],
           },
         },
       },

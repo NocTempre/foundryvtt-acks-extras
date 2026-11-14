@@ -89,12 +89,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
-- **A people's caste names are printed names in identifiers.**
-  `importer/table-recipes.mjs` `dwarvenCastes` carries the castes' names in its
-  merge keys, order and labels, and `rules/identity.mjs` `generateOccupation`
-  reads them. Under the name rule (`.claude/rules/ip-doctrine.md`) they want
-  neutral labels, ids built from an ordinal and a locator, with the names
-  arriving at import.
 - **A market hire's morale base is a stored zero.** `engine/hire.mjs` `hire`
   writes `morale.base` as 0 where no caller passes one, and the record's field
   (`data/henchman-record.mjs`) cannot be empty, so core's own morale field is
