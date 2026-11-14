@@ -646,11 +646,15 @@ field as a label.
 everything, meaning the weight is per item and quantity multiplies it. For goods
 the books rate by the bundle — a quiver of arrows, a set of spikes — it is the
 bundle's size, and `weight6Of` counts one bundle's weight per started bundle:
-twenty-one arrows out of a twenty-arrow quiver weigh two, because a part-used
-bundle is still one item.
+one arrow more than a full quiver weighs two, because a part-used bundle is
+still one item.
 
-Annotate declares `per` from a name that states its load ("Quiver, 20 Arrows")
-and never overwrites one already declared. It does not write the count: that
+Annotate declares `per` from a name that states its load ("Quiver, N Arrows",
+`bundledAmmoCount`) and never overwrites one already declared. No count is
+shipped: the importer names the quiver and bolt-case rows of the weapons grid
+from the page's own label, so the count arrives in the name from the Judge's
+book. A name that states none declares nothing, and the device keeps holding
+gear. Annotate does not write the count: that
 is core's `system.quantity.value`, arriving with the item from the compendium,
 the importer or the Judge, and Annotate leaves it as it finds it.
 

@@ -33,7 +33,7 @@ check("labelCapacity reads a whole figure", labelCapacity("Crate (holds 9 stone)
 check("labelCapacity reads a fraction", labelCapacity("Crate/Box (holds 1/3 stone)") === 1 / 3);
 check("labelCapacity reads the abbreviated unit", labelCapacity("Crate, Banded (holds 8 st.)") === 8);
 check("labelCapacity reads a decimal", labelCapacity("Crate (holds 2.5 stone)") === 2.5);
-check("a label that states no capacity reads none", labelCapacity("Quiver, 20 Arrows") === null && labelCapacity("Barrel (20 gallon)") === null && labelCapacity("Holds") === null);
+check("a label that states no capacity reads none", labelCapacity("Quiver, 7 Arrows") === null && labelCapacity("Barrel (20 gallon)") === null && labelCapacity("Holds") === null);
 check("a stated capacity of nothing is a capacity", labelCapacity("Crate (holds 0 stone)") === 0);
 check("a figure in a parenthesis that does not open with holds is no capacity", labelCapacity("Crate (9 stone)") === null && labelCapacity("Crate (weighs 9 stone)") === null);
 {

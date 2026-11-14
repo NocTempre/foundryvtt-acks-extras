@@ -11,7 +11,7 @@
  * damage die, an encumbrance or a price. A bookless seat gets nothing from this
  * path. Built on the table primitives `rowsByY` and `joinRuns`.
  */
-import { rowsByY, joinRuns } from "./table-extract.mjs";
+import { rowsByY, joinRuns, tidyRowName } from "./table-extract.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 import { bookText } from "./prose.mjs";
 
@@ -57,15 +57,20 @@ export const WEAPON_TABLE = Object.freeze({
  * the VALUES stay in the book). Order is the printed table order. `re` matches
  * the extracted label band even through the small-caps first-letter drop the
  * PDF text layer produces, so a clean name attaches to the right row.
+ *
+ * `fromLabel` marks a row whose printed name carries a bundle count: its item
+ * is named from the seat's own label (tidied like a price row's name), so the
+ * count arrives from the reader's book. The canonical `name` is then only the
+ * row's locator and never reaches an item.
  */
 export const WEAPON_NAMES = [
   { name: "Arbalest", re: /arbalest/i },
   { name: "Crossbow", re: /^c?rossbow/i }, // anchored: never the grid's group header
-  { name: "Case, 20 Bolts", re: /bolts/i },
+  { name: "Case", re: /bolts/i, fromLabel: true },
   { name: "Composite Bow", re: /composite/i },
   { name: "Long Bow", re: /long ?bow/i },
   { name: "Short Bow", re: /short ?bow/i },
-  { name: "Quiver, 20 Arrows", re: /arrows/i },
+  { name: "Quiver", re: /arrows/i, fromLabel: true },
   { name: "Silver Arrow", re: /silver arrow/i },
   { name: "Battle Axe", re: /battle ?axe/i },
   { name: "Great Axe", re: /great ?axe/i },
@@ -211,9 +216,10 @@ export function sizeOf(typeSignal) {
 
 /**
  * Attach each canonical weapon name to the value row whose label band matches
- * its pattern. The seat's own `label` rides along beside the canonical name:
- * it is the only place the reader's spelling of the row survives, and
- * `ammoLoad` reads the printed count out of it.
+ * its pattern; a `fromLabel` spec takes its item name from the row's own label
+ * instead. The seat's `label` rides along either way: it is the only place the
+ * reader's spelling of the row survives, and `ammoLoad` reads the printed count
+ * out of it.
  * @returns {{name:string, label:string, melee:boolean, missile:boolean, ammunition:boolean, size:string|null, cells:object, block:string|null}[]}
  */
 export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAMES) {
@@ -225,7 +231,8 @@ export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAME
     if (i < 0) continue; // this weapon's row was not found on the seat's page
     used.add(i);
     const r = valueRows[i];
-    out.push({ name: spec.name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, size: r.size ?? null, cells: r.cells, block: r.block ?? null });
+    const name = spec.fromLabel ? tidyRowName(r.label) : spec.name;
+    out.push({ name, label: r.label, melee: r.melee, missile: r.missile, ammunition: r.ammunition, size: r.size ?? null, cells: r.cells, block: r.block ?? null });
   }
   return out;
 }

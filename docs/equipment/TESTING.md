@@ -661,11 +661,11 @@ Fixtures to create and destroy: one disposable `character`, one disposable
    — `¹⁄₆ · ¹⁄₃`, one bundle's weight and the whole stack's. Open the item's
    sheet with the owning actor's sheet CLOSED; a known defect duplicates the
    title band otherwise and hides this readout.
-6. **Annotate declares it.** Create an item named `Quiver, 20 Arrows` with no
+6. **Annotate declares it.** Create an item named `Quiver, 9 Arrows` with no
    bundle, and press **Annotate**.
-   *Observable:* `gear.per` becomes 20 and the weight does not multiply; the
+   *Observable:* `gear.per` becomes 9 and the weight does not multiply; the
    quantity stays what it was — Annotate never writes the count. Set the
-   quantity to 7 and `per` by hand to something else, then re-annotate:
+   quantity to 4 and `per` by hand to something else, then re-annotate:
    *Observable:* both survive — a half-spent quiver does not refill, and the
    Judge's bundle size stands.
 7. **Containers roll up bundled.** Stow the quiver in a container.

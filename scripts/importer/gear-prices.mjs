@@ -7,7 +7,7 @@
  * geometry ships; the prices come from the reader's own book. Cost is in gp,
  * converted from the gp/sp/cp the book prints.
  */
-import { rowsByY, joinRuns } from "./table-extract.mjs";
+import { rowsByY, joinRuns, tidyRowName } from "./table-extract.mjs";
 import { encToWeight6 } from "./weapon-tables.mjs";
 
 /**
@@ -51,19 +51,6 @@ export const PRICE_TABLES = Object.freeze({
     sides: [SIDE(45, 242, 247, null), SIDE(296, 488, 493, null)],
   },
 });
-
-/**
- * The printed name as a name: the grid small-caps the opening letter of each
- * comma-separated part, which extracts lowercase (RR p. 130). Only that letter
- * is restored; no other capital is added.
- */
-export function tidyRowName(name) {
-  return String(name ?? "")
-    .split(",")
-    .map((part) => part.trim().replace(/^([a-z])/, (c) => c.toUpperCase()))
-    .filter(Boolean)
-    .join(", ");
-}
 
 /** Normalise a name to a lookup key (matches the gear entries). */
 export function priceKey(name) {

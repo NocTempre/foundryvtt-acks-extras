@@ -81,14 +81,15 @@ check("a case of bolts is ammunition, not a missile weapon",
 
 // The load is read off the seat's own label — count and thing counted.
 const boltRow = ammoRows.find((r) => /bolts/i.test(r.name));
-check("the printed load is read off the label", ammoLoad(boltRow)?.count === 20);
+check("the printed load is read off the label", Number.isInteger(ammoLoad(boltRow)?.count) && ammoLoad(boltRow).count > 1);
+check("and the item is named from that label, so its name states the same count", ammoLoad({ name: boltRow.name })?.count === ammoLoad(boltRow).count);
 check("and so is what it is a load of", /bolts/i.test(ammoLoad(boltRow)?.of ?? ""));
 
 // A loaded device: inventory, its load as its quantity, printed weight whole.
 const caseItem = bindAmmoRow(boltRow, "def.weapon.case20Bolts", "cite", { device: true });
 check("a loaded device is inventory, not a weapon", caseItem.type === "item");
 check("it carries no damage die", caseItem.system.damage === undefined);
-check("its load is its quantity", caseItem.system.quantity.value === 20);
+check("its load is its quantity", caseItem.system.quantity.value === ammoLoad(boltRow).count);
 check("and nothing rides on a load flag", caseItem.flags["acks-extras"].ammo === undefined);
 check("and it carries the printed encumbrance whole",
   caseItem.system.weight6 === bindWeaponRow(boltRow, "x", "y").system.weight6);

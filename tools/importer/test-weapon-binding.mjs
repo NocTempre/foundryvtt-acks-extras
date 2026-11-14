@@ -6,7 +6,7 @@
  * the real page is `test-weapon-tables.mjs`. Every value here is invented.
  */
 import assert from "node:assert";
-import { bindWeaponRow, bindAmmoRow, extractValueRows, sizeOf, settleQualities } from "../../scripts/importer/weapon-tables.mjs";
+import { WEAPON_TABLE, bindWeaponRow, bindAmmoRow, extractWeapons, ammoLoad, extractValueRows, sizeOf, settleQualities } from "../../scripts/importer/weapon-tables.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -89,12 +89,23 @@ check("and keeps its modes without a die", net.flags["acks-extras"].weapon.modes
 
 // --- ammunition: a stack whose quantity is the printed count
 const ammo = (name, enc) => ({ name, label: name, melee: false, missile: false, ammunition: true, size: null, cells: { damage: "—", enc, cost: "1gp" } });
-const quiver = bindAmmoRow(ammo("Quiver, 20 Arrows", "1/6"), "x", "y", { device: true });
-check("a loaded device counts its load as quantity", quiver.system.quantity.value === 20);
+const quiver = bindAmmoRow(ammo("Quiver, 7 Arrows", "1/6"), "x", "y", { device: true });
+check("a loaded device counts its load as quantity", quiver.system.quantity.value === 7);
 check("and carries the printed encumbrance whole", quiver.system.weight6 === 1);
 check("and no load flag", quiver.flags["acks-extras"].ammo === undefined);
-const stones = bindAmmoRow(ammo("30 Sling Stones", "1/6"), "x", "y", { device: false });
-check("a bare stack counts its units", stones.system.quantity.value === 30);
+const stones = bindAmmoRow(ammo("9 Sling Stones", "1/6"), "x", "y", { device: false });
+check("a bare stack counts its units", stones.system.quantity.value === 9);
 check("and divides the printed weight across them", Math.abs(stones.system.quantity.value * stones.system.weight6 - 1) < 1e-9);
+const noCount = bindAmmoRow(ammo("Quiver", "1/6"), "x", "y", { device: true });
+check("a label that prints no count is one unit, never a stand-in figure", noCount.system.quantity.value === 1);
+
+// --- a bundle row is named from the seat's own label, so its count is the reader's
+const cell = (str, x, y) => ({ str, x, y });
+const page = (label) => [cell(label, 60, 100), cell("Ammunition", 170, 100), cell("1/6", 280, 100), cell("1 gp", 424, 100)];
+const named = (label, key) => extractWeapons(page(label), WEAPON_TABLE).find((w) => w.ammunition && key.test(w.label));
+check("a bolt case takes its item name from the printed label, count included", named("case, 7 Bolts", /bolts/i)?.name === "Case, 7 Bolts");
+check("a quiver takes its name from the label as the page prints it", named("quiver, 8 Arrows", /arrows/i)?.name === "Quiver, 8 Arrows");
+check("the canonical locator never names the item", named("case, 7 Bolts", /bolts/i)?.name !== "Case");
+check("the bundle count then reads off that name", ammoLoad(named("case, 7 Bolts", /bolts/i))?.count === 7);
 
 console.log(`test-weapon-binding: all ${pass} checks passed`);

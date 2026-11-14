@@ -159,7 +159,7 @@ export function remainingFor({ cell, marketCell = null, direction, ledgerRow, to
 
 /**
  * The distinct-item ledger key: case-folded trimmed name, the same identity
- * the gear-grant lookup matches on. A bundle item (20 arrows) is one key.
+ * the gear-grant lookup matches on. A bundle item (a quiver of arrows) is one key.
  */
 export function itemKeyOf(name) {
   return String(name ?? "").trim().toLowerCase();

@@ -843,21 +843,21 @@ check("plain backpack -> no encumbrance correction (core's flat sum is RAW)", en
 // changed, so the correction is contributed here — and the two sums must agree,
 // or the item sheet and the character sheet print different numbers.
 const { weight6Of: w6Of, bundleSizeOf, coreWeight6Of } = await import(new URL("../lib/item-model.mjs", S));
-const bundleQuiver = (over = {}) => gear("Quiver, 20 Arrows", 1, { id: "qv", qty: over.qty ?? 20, flags: { gear: { per: over.per ?? 20 } } });
+const bundleQuiver = (over = {}) => gear("Quiver, 7 Arrows", 1, { id: "qv", qty: over.qty ?? 7, flags: { gear: { per: over.per ?? 7 } } });
 
 check("no bundle declared → per is 1", bundleSizeOf(gear("Rope", 6)) === 1);
 check("a bundle counts its weight once, not once per unit", w6Of(bundleQuiver()) === 1);
-check("core's own sum is what over-counted it", coreWeight6Of(bundleQuiver()) === 20);
-check("the correction closes exactly that gap", encumbranceDelta6(withItems([bundleQuiver()])) === -19);
+check("core's own sum is what over-counted it", coreWeight6Of(bundleQuiver()) === 7);
+check("the correction closes exactly that gap", encumbranceDelta6(withItems([bundleQuiver()])) === -6);
 // A part-used bundle is still one item — this is the ceil ruling, and it is
 // what distinguishes a bundle from a linear per-unit fraction.
-check("21 of a 20-bundle weighs two bundles, not 1.05", w6Of(bundleQuiver({ qty: 21 })) === 2);
-check("1 of a 20-bundle still weighs a whole bundle", w6Of(bundleQuiver({ qty: 1 })) === 1);
+check("8 of a 7-bundle weighs two bundles, not 8/7", w6Of(bundleQuiver({ qty: 8 })) === 2);
+check("1 of a 7-bundle still weighs a whole bundle", w6Of(bundleQuiver({ qty: 1 })) === 1);
 check("an emptied bundle weighs nothing", w6Of(bundleQuiver({ qty: 0 })) === 0);
 check("per below 1 cannot divide a weight away", bundleSizeOf(gear("Odd", 6, { flags: { gear: { per: 0 } } })) === 1);
 check("a bundled stack inside a container rolls up bundled",
   contentsWeight6(withItems([gear("Pack", 1, { id: "bp2", flags: { container: { capacity: 4 } } }),
-    gear("Quiver, 20 Arrows", 1, { id: "q2", qty: 20, flags: { gear: { per: 20 }, containedIn: "bp2" } })]), "bp2") === 1);
+    gear("Quiver, 7 Arrows", 1, { id: "q2", qty: 7, flags: { gear: { per: 7 }, containedIn: "bp2" } })]), "bp2") === 1);
 // Clothing is outside core's multiplied branch, so it must contribute no
 // correction however its bundle reads.
 check("clothing declares no bundle correction",
@@ -946,7 +946,7 @@ check("the relief is the item's own figure", encumbranceDelta6(withItems([half, 
 // its own weight, and one that states no figure stays the plain sum.
 const quiver = gear("Bowquiver", 1, { id: "bq", flags: { bowquiver: true, container: { capacity: 1 }, gear: { loaded6: 3 } } });
 const cbow = gear("Composite Bow", 6, { id: "cb", type: "weapon", flags: { containedIn: "bq" } });
-const arrows = gear("Quiver, 20 Arrows", 1, { id: "ar", flags: { containedIn: "bq" } });
+const arrows = gear("Quiver, 7 Arrows", 1, { id: "ar", flags: { containedIn: "bq" } });
 check("loaded bowquiver counts as its stated figure, not the sum (delta 3 - 8)", encumbranceDelta6(withItems([quiver, cbow, arrows])) === -5);
 check("empty bowquiver is its own weight (delta 0)", encumbranceDelta6(withItems([quiver])) === 0);
 const mutedQuiver = gear("Bowquiver", 1, { id: "bq0", flags: { bowquiver: true, container: { capacity: 1 } } });
@@ -980,7 +980,7 @@ const clothing = (name) => ({ name, type: "item", system: { cost: 0, weight6: 0,
 const goods = (name) => ({ name, type: "item", system: { cost: 0, weight6: 1, subtype: "item" }, getFlag: () => undefined });
 check("the harness rides the belt and is free to reach (RR pp293-294)", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "free");
 check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 11 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 11 stone)")).access === "action");
-check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/3 stone)")).access === "free" && inferGear(goods("Quiver, 20 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 12 stone)")).access === "action");
+check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/3 stone)")).access === "free" && inferGear(goods("Quiver, 7 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 12 stone)")).access === "action");
 check("a belt pouch by the name a Judge types is the pouch, not a belt — and does not hold gear on its own",
   inferGear(goods("Belt Pouch")).slots.join() === "belt" && inferGear(goods("Belt Pouch")).access === "free"
   && inferGear(goods("Belt Pouch")).holds === false && !gearProfileFor("Purse").holds);
@@ -1008,11 +1008,13 @@ check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, 
 // quiver — and loses the capacity that showed a full one as "0 / 1 st, empty".
 const { bundledAmmoCount } = await import(new URL("config.mjs", S));
 check("a loaded quiver keeps its belt slot and free draw",
-  inferGear(goods("Quiver, 20 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 20 Arrows")).access === "free");
-check("a loaded quiver is not a container", inferGear(goods("Quiver, 20 Arrows")).holds === false);
-check("a loaded bolt case is not a container", inferGear(goods("Case, 20 Bolts")).holds === false);
+  inferGear(goods("Quiver, 7 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 7 Arrows")).access === "free");
+check("a loaded quiver is not a container", inferGear(goods("Quiver, 7 Arrows")).holds === false);
+check("a loaded bolt case is not a container", inferGear(goods("Case, 5 Bolts")).holds === false);
 check("the load is read off the name so the tracker can spend it",
-  bundledAmmoCount("Quiver, 20 Arrows") === 20 && bundledAmmoCount("Case, 20 Bolts") === 20 && bundledAmmoCount("30 Sling Stones") === 30);
+  bundledAmmoCount("Quiver, 7 Arrows") === 7 && bundledAmmoCount("Case, 5 Bolts") === 5 && bundledAmmoCount("9 Sling Stones") === 9);
+check("a name that states no count supplies none", bundledAmmoCount("Quiver") === null && bundledAmmoCount("Case") === null && bundledAmmoCount("Sling Stones") === null);
+check("a device whose name states no load keeps holding gear", inferGear(goods("Quiver")).holds === true && inferGear(goods("Case")).holds === true);
 // "holds N stone" is a capacity, and `stone` is also what a sling throws — the
 // packs must not read as bundles of shot and stop being containers.
 check("a pack that HOLDS stone is still a container",
@@ -1453,16 +1455,16 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const GEAR_KEY = "flags.acks-extras.gear";
   const bundled = (qty, gearFlag) => {
     const flags = gearFlag ? { gear: { ...gearFlag } } : {};
-    const it = { id: "qv" + qty, name: "Quiver, 20 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
+    const it = { id: "qv" + qty, name: "Quiver, 7 Arrows", type: "item", system: { cost: 0, weight6: 1, quantity: { value: qty }, subtype: "item" }, flags: { "acks-extras": flags }, getFlag: (_m, k) => flags[k], effects: [], writes: [] };
     it.update = async (u) => { it.writes.push(u); };
     return it;
   };
   const wrote = (it, path) => it.writes.some((u) => path in u);
   const fresh = bundled(1);
   const freshKey = await api.annotateItem(fresh);
-  check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[`${GEAR_KEY}.per`] === 20);
+  check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[`${GEAR_KEY}.per`] === 7);
   check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity.value"));
-  const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 20 });
+  const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 7 });
   await api.annotateItem(spent);
   check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity.value"));
   check("a declared bundle size survives re-annotation",
@@ -1487,7 +1489,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const belt = doc("Leather belt", "item", null, { subtype: "clothing" });
   await api.annotateItem(belt);
   check("annotate still gives an unannotated belt its place", JSON.stringify(write(belt)[`${GEAR_KEY}.slots`]) === '["belt"]');
-  const loaded = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], capacity: 1 });
+  const loaded = doc("Quiver, 7 Arrows", "item", { slots: ["belt"], capacity: 1 });
   await api.annotateItem(loaded);
   check("a loaded quiver has its capacity cleared and keeps its slots", write(loaded)[`${GEAR_KEY}.capacity`] === null && !(`${GEAR_KEY}.slots` in write(loaded)));
   // A container is declared as one and never given a size: how much it holds is
@@ -1501,7 +1503,7 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const refused = doc("Backpack", "item", { holds: false });
   await api.annotateItem(refused);
   check("a Judge's holds: false on a backpack stands against a later annotate", !(`${GEAR_KEY}.holds` in write(refused)));
-  const staleHolds = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], holds: true });
+  const staleHolds = doc("Quiver, 7 Arrows", "item", { slots: ["belt"], holds: true });
   await api.annotateItem(staleHolds);
   check("a loaded quiver has its holds declaration taken back", write(staleHolds)[`${GEAR_KEY}.holds`] === false);
   const bowq = doc("Bowquiver", "item", null, { description: "Loaded, a bowquiver with a bow and shafts counts as 5 items." });
@@ -2242,19 +2244,19 @@ const { consumeForAttack, launcherAmmoPattern, roundsOf, isThrownAway, recoverTh
   await import(new URL("ammo.mjs", S));
 
 // A launcher's ammo type is resolved from category/name.
-check("bow → arrows", launcherAmmoPattern(weapon("Long Bow", { missile: true, melee: false }), classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))).test("Quiver, 20 Arrows"));
-check("crossbow → bolts", launcherAmmoPattern(weapon("Crossbow", { missile: true }), classifyWeapon(weapon("Crossbow", { missile: true }))).test("Case, 20 Bolts"));
+check("bow → arrows", launcherAmmoPattern(weapon("Long Bow", { missile: true, melee: false }), classifyWeapon(weapon("Long Bow", { missile: true, melee: false }))).test("Quiver, 7 Arrows"));
+check("crossbow → bolts", launcherAmmoPattern(weapon("Crossbow", { missile: true }), classifyWeapon(weapon("Crossbow", { missile: true }))).test("Case, 5 Bolts"));
 {
   // One category holds both kinds, so the ammunition is read from the weapon's own name.
   const patternOf = (name) => launcherAmmoPattern(weapon(name, { missile: true }), classifyWeapon(weapon(name, { missile: true })));
-  check("a bow takes no bolts and a crossbow no arrows", !patternOf("Long Bow").test("Case, 20 Bolts") && !patternOf("Crossbow").test("Quiver, 20 Arrows"));
-  check("an arbalest is a crossbow: bolts, no arrows", patternOf("Arbalest").test("Case, 20 Bolts") && !patternOf("Arbalest").test("Quiver, 20 Arrows"));
+  check("a bow takes no bolts and a crossbow no arrows", !patternOf("Long Bow").test("Case, 5 Bolts") && !patternOf("Crossbow").test("Quiver, 7 Arrows"));
+  check("an arbalest is a crossbow: bolts, no arrows", patternOf("Arbalest").test("Case, 5 Bolts") && !patternOf("Arbalest").test("Quiver, 7 Arrows"));
   // A Judge's own launcher: no row places an invented name, so its class is declared.
   const zorbler = weapon("Zorbler", { missile: true, flags: { category: "bowCrossbow" } });
   const either = launcherAmmoPattern(zorbler, classifyWeapon(zorbler));
-  check("a launcher of the pair whose name says neither takes either", !!either && ["Quiver, 20 Arrows", "Case, 20 Bolts"].every((n) => either.test(n)));
+  check("a launcher of the pair whose name says neither takes either", !!either && ["Quiver, 7 Arrows", "Case, 5 Bolts"].every((n) => either.test(n)));
 }
-check("sling → stones", launcherAmmoPattern(weapon("Sling", { missile: true }), classifyWeapon(weapon("Sling", { missile: true }))).test("30 Sling Stones"));
+check("sling → stones", launcherAmmoPattern(weapon("Sling", { missile: true }), classifyWeapon(weapon("Sling", { missile: true }))).test("9 Sling Stones"));
 check("a launcher is told by its imported class, never by its name", launcherAmmoPattern(weapon("Long Bow", { missile: true }), classifyWeapon(weapon("Zorgle Bow", { missile: true }))) === null);
 check("a melee sword has no ammo pattern", launcherAmmoPattern(weapon("Sword", { melee: true }), classifyWeapon(weapon("Sword", { melee: true }))) === null);
 
@@ -2273,18 +2275,18 @@ const trackItem = (name, over = {}) => {
 };
 
 // Firing a ammoBow decrements the matching ammoQuiver, not other ammo.
-const ammoQuiver = trackItem("Quiver, 20 Arrows", { quantity: { value: 20 }, equipped: false });
-const ammoBolts = trackItem("Case, 20 Bolts", { quantity: { value: 20 }, equipped: false });
+const ammoQuiver = trackItem("Quiver, 7 Arrows", { quantity: { value: 7 }, equipped: false });
+const ammoBolts = trackItem("Case, 5 Bolts", { quantity: { value: 5 }, equipped: false });
 const ammoBow = trackItem("Long Bow", { missile: true, melee: false });
 const archer = withItems([ammoBow, ammoQuiver, ammoBolts]);
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "missile" });
-check("firing a ammoBow spends one arrow", ammoQuiver._sys.quantity.value === 19);
-check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.value === 20);
+check("firing a ammoBow spends one arrow", ammoQuiver._sys.quantity.value === 6);
+check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.value === 5);
 
 // --- Declaring which stack to fire (the `nocked` flag over plain-first) ---
 {
-  const plain = trackItem("Quiver, 20 Arrows", { id: "plain", quantity: { value: 20 }, equipped: false });
-  const silver = trackItem("Quiver, 20 Arrows (Silver)", { id: "silver", quantity: { value: 20 }, equipped: false, flags: { silvered: true } });
+  const plain = trackItem("Quiver, 7 Arrows", { id: "plain", quantity: { value: 7 }, equipped: false });
+  const silver = trackItem("Quiver, 7 Arrows (Silver)", { id: "silver", quantity: { value: 7 }, equipped: false, flags: { silvered: true } });
   const bow = trackItem("Long Bow", { missile: true, melee: false });
   const arch = withItems([bow, plain, silver]);
   arch.updateEmbeddedDocuments = async (_t, updates) => {
@@ -2299,12 +2301,12 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.val
     }
   };
   await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
-  check("plain arrows spend first by default", plain._sys.quantity.value === 19 && silver._sys.quantity.value === 20);
+  check("plain arrows spend first by default", plain._sys.quantity.value === 6 && silver._sys.quantity.value === 7);
 
   const on = await nockAmmo(arch, silver);
   check("nocking a stack reports it on", on === true && silver._flags.nocked === true);
   await consumeForAttack(arch, bow, classifyWeapon(bow), { type: "missile" });
-  check("a declared stack fires ahead of plain", silver._sys.quantity.value === 19 && plain._sys.quantity.value === 19);
+  check("a declared stack fires ahead of plain", silver._sys.quantity.value === 6 && plain._sys.quantity.value === 6);
 
   await nockAmmo(arch, plain);
   check("declaring another stack un-declares the first", plain._flags.nocked === true && silver._flags.nocked === undefined);
@@ -2321,7 +2323,7 @@ check("firing a ammoBow leaves the ammoBolts alone", ammoBolts._sys.quantity.val
 
 // A melee attack consumes nothing.
 await consumeForAttack(archer, ammoBow, classifyWeapon(ammoBow), { type: "melee" });
-check("a melee attack spends no ammo", ammoQuiver._sys.quantity.value === 19);
+check("a melee attack spends no ammo", ammoQuiver._sys.quantity.value === 6);
 
 // A single thrown weapon is MARKED thrown (not destroyed), unequipped.
 const axe = trackItem("Hand Axe", { melee: true, missile: true, special: { thrown: true } });
@@ -2370,9 +2372,9 @@ check("recover clears the thrown state", !isThrownAway(axe) && recovered.include
 
 // Off by setting.
 SETTINGS_STATE.ammoTracking = false;
-const q2 = trackItem("Quiver, 20 Arrows", { quantity: { value: 20 }, equipped: false });
+const q2 = trackItem("Quiver, 7 Arrows", { quantity: { value: 7 }, equipped: false });
 await consumeForAttack(withItems([ammoBow, q2]), ammoBow, classifyWeapon(ammoBow), { type: "missile" });
-check("ammo tracking off → nothing consumed", q2._sys.quantity.value === 20);
+check("ammo tracking off → nothing consumed", q2._sys.quantity.value === 7);
 SETTINGS_STATE.ammoTracking = true;
 
 /* ---------------------------------------------------------------------- */
@@ -3247,7 +3249,7 @@ check("a declared type outranks every inference",
 check("ignoreDeclared reports what the ladder would say without it",
   weaponIdentity(weap("Francisca", { profileKey: "greataxe", skin: { base: "def.weapon.handAxe" } }), { ignoreDeclared: true }).key === "handaxe");
 check("a cookbook id outside the weapon table names nothing",
-  weaponIdentity(weap("Case", { cookbook: { id: "def.weapon.case20Bolts" } })).key === null);
+  weaponIdentity(weap("Case", { cookbook: { id: "def.weapon.case5Bolts" } })).key === null);
 // An unidentified weapon has no class: nothing imported places it.
 check("an identified Francisca carries the axe category",
   classify(weap("Francisca", { skin: { base: "def.weapon.handAxe" } })).cat === "axe");

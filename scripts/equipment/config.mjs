@@ -126,7 +126,7 @@ export const GEAR_PROFILES = Object.freeze({
   adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
   bowquiver: { slots: [SLOT.back], access: "free", holds: true, bowquiver: true },
   quiver: { slots: [SLOT.belt], access: "free", holds: true },
-  // "Case, 20 Bolts". Generic enough to want the comment: the only `case` in
+  // The bolt case. Generic enough to want the comment: the only `case` in
   // the RAW equipment list is the bolt case.
   case: { slots: [SLOT.belt], access: "free", holds: true },
   scabbard: { slots: [SLOT.belt], access: "free" },
@@ -149,12 +149,13 @@ export const GEAR_PROFILES = Object.freeze({
 });
 
 /**
- * A carrying device sold WITH its load, and how much of it: "Quiver, 20
- * Arrows", "Case, 20 Bolts". RAW prices and packs these as one line, and core's
- * own equipment pack ships each as a single `item` carrying `quantity: 20` —
- * the bundle IS the ammunition.
+ * A carrying device sold WITH its load, and how much of it: the name states the
+ * count ("Quiver, N Arrows"). RAW prices and packs these as one line, so the
+ * bundle IS the ammunition. The count is read from the name alone, which the
+ * importer takes from the Judge's own book; nothing here supplies one.
  *
- * @returns {number|null} how many it carries, or null if it is not one of these.
+ * @returns {number|null} how many it carries, or null where the name states
+ *   none or is not one of these.
  */
 export function bundledAmmoCount(name) {
   const text = String(name ?? "");

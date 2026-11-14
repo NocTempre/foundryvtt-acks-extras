@@ -547,7 +547,7 @@ export function parseEquipment(cellText, menu, aliases = {}) {
  * with a stable `key`, rather than as a spell or a dropped sentence.
  * See docs/importer/DECISIONS.md, "A printed pick rides as an offer, not as a dropped sentence".
  *
- * A digit after "with" is a load, not a library: "quiver with 20 arrows".
+ * A digit after "with" is a load, not a library: "quiver with N arrows".
  * The contents may also sit inside the piece's closing bracket, "<book>
  * (with …)"; a book bracket that does not open with "with" is a note and is
  * left alone.

@@ -1234,8 +1234,9 @@ The Revised Rulebook connected.
    game.items.filter(i => i.getFlag("acks-extras","ammunition")).map(i => `${i.name} [${i.type}] ×${i.system.quantity?.value} enc6=${i.system.weight6} per=${i.getFlag("acks-extras","gear")?.per ?? "-"}`)
    ```
 
-   Four rows, all `[item]`. The case and the quiver read `×20` with `per=20`,
-   the sling stones `×30`, the silver arrow `×1`. A run where any of them is
+   Four rows, all `[item]`. The case and the quiver are named from the page's
+   own label, count included, and read `×N` with `per=N` for that count; the
+   sling stones read the count their label prints, the silver arrow `×1`. A run where any of them is
    `[weapon]` means the type column was not read and the rows fell back —
    which is silent on a sheet except for a damage die nobody can explain.
 2. Check the arithmetic the page states, not the one the sheet renders.
