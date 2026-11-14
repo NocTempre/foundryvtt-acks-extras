@@ -1204,3 +1204,20 @@ than on authoring:
   tier's cost line as a value with the tier's power, the history as its
   description. A content kind end to end — row, compiler, binding — rather
   than a row for a kind that exists.
+
+## The Judges Journal's prepared parties: what is not built
+
+The 27 members import as characters in Party 1 to Party 5 folders, with a
+Parties journal of their introductions. Left:
+
+- **A formation party built from a prepared party.** A party's members live
+  in a world-level record keyed by world actor ids, which cannot travel in a
+  compendium, so a party is a folder and not a formation party.
+- **Folder names from the page.** The folders carry the neutral `Party <n>`;
+  the page's own heading reaches only the journal page's text.
+- **Mounts and mercenaries as documents.** A member's mount, holdings and
+  followers stay text in the write-up.
+- **The appendix's own introduction** (PDF p. 451, before the first party) is
+  read by no row.
+- **A two-line display heading stops `compileProse`'s flow,** so the party
+  introductions anchor on their first body line instead of the heading.

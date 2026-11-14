@@ -3492,3 +3492,46 @@ kills the run part-way.
 ### Teardown
 
 The fixture is kept. The library template is left in the current shape.
+
+## A Judge's book's prepared parties
+
+The Judges Journal's appendix of prepared parties (JJ, Appendix P): 27
+`kind.pregen` rows, `jj.pc1`–`jj.pc27`, grouped `Party 1`–`Party 5`, and five
+`kind.prose` introductions, `jj.prose1`–`jj.prose5`. The book is a Judge's
+book (`books.mjs` `judge: true`), so the parties sit on the Judge shelf and
+the book gets its own Adventure (`cookbookImportAdventures`).
+
+### Fixtures
+
+- `importer/jj-party`: the first party member's character (`jj.pc1`), in a
+  world with the JJ open on the GM seat and its own rows imported. Built when
+  nothing carries the marker by importing the JJ's rows (the Adventures tab's
+  row for the JJ, or (Re)import individual entries filtered to `jj.pc`), then
+  `api.mark(uuid, "importer/jj-party")` on the character stamped `jj.pc1`.
+  The library's documents are never tracked or swept.
+- A player seat (the provisioned non-GM user).
+
+### Steps
+
+1. On the GM seat, open the Judge-only Actor library's JJ folder.
+   *Observable:* folders Party 1 to Party 5 holding 4, 5, 6, 6 and 6
+   `character` actors; each is stamped `flags.acks-extras.cookbook.id`
+   `jj.pc<n>`, owned by the Judges alone (`ownership.default` NONE), and
+   carries its class at the printed level with the as-printed block in its
+   biography. 22 of the 27 show their page's portrait as `img`; `jj.pc2` to
+   `jj.pc6` keep the default image.
+2. Open the Parties journal. *Observable:* five pages titled Party 1 to
+   Party 5, each the party's introduction text, stamped `data-acks-entry`.
+3. Open the JJ's Adventure on the shelf. *Observable:* it holds the 27
+   characters and the Parties journal, and its links open the library's own
+   copies.
+4. On the player seat, list the compendium packs. *Observable:* the Judge-only
+   library is not listed; `game.packs` holds no pack carrying a `jj.pc` row.
+5. Draw from the settlement-encounter table through a city turn on the GM
+   seat. *Observable:* the draw lands as before the table moved to the Judge
+   shelf.
+
+### Teardown
+
+The fixture is kept. A walk that dragged a character into the sidebar deletes
+that copy by its id.

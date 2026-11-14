@@ -1219,6 +1219,19 @@ becomes a character, and the derivation wins".
   under their own label; `parseWriteup` reads both shapes. The class line's
   paragraph is read to its title's closing bracket and no further
   (`fixes.keepPrefix` and `drop`).
+- **A write-up set run-in.** A book that sets its write-ups side by side
+  under a run-in name opts in per row: a run-in anchor ends the write-up at a
+  sibling's name line (`pregenStops`), `writeup.classBracket: "drop"` drops
+  the class line's bracket and keeps what follows it, and
+  `writeup.ordinals: true` keeps a superscript ordinal suffix. Its head reads
+  `<n>th level <class>` over a labelled `Stat Line:`, which `parseWriteup`
+  reads clause by clause at bracket depth 0 (armour class without its
+  bracket, hit points, the attack's routine and first throw, damage, morale,
+  alignment), with `Attributes` the scores, `Spellcasting` the spells and
+  `Spell Repertoire` the repertoire; a label with no field keeps its text in
+  `extra`. Members carry `meta.group` `Party <n>`, which files them in that
+  folder (`actorGroupOf`), and each group has a `kind.prose` row titled the
+  same (lint, `partyProblems`).
 - **A pregen's portrait.** A row whose page prints one names it
   (`assists.artName`, with `artPage` where the picture stands on another
   page), and `compilePregen` ships it as an `art` op with its placement box,
