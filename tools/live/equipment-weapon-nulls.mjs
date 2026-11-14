@@ -146,6 +146,11 @@ const P = {
       const gripsParts = loc("ACKS-EQUIPMENT.props.gripsAutoNoSize").split("{grips}");
       const proficiencyNotImported = loc("ACKS-EQUIPMENT.itemSheet.rolls.mod.proficiencyNotImported");
       const lines = [...root.querySelectorAll(".acks-extras-item-sheet__row-line")].map((n) => H.text(n));
+      // The weapon's own attack rows (roll ids atk:*). A maneuver row's
+      // "penalty not imported" answers to the maneuver tables, not the weapon rows.
+      const attackLines = [...root.querySelectorAll(".acks-extras-item-sheet__row")]
+        .filter((r) => r.querySelector("[data-roll^='atk:']"))
+        .map((r) => H.text(r.querySelector(".acks-extras-item-sheet__row-line")));
       const mods = [...root.querySelectorAll(".acks-extras-item-sheet__row-mods .acks-tag")].map((n) => H.text(n));
       const panelText = H.text(root.querySelector(".acks-extras-item-sheet__props"));
       return {
@@ -162,7 +167,8 @@ const P = {
         panelHasGripsNoSize: panelText.includes(gripsParts[1].trim()),
         rollRows: root.querySelectorAll(".acks-extras-item-sheet__row").length,
         rollLines: lines.length,
-        rollLinesNotImported: lines.filter((t) => t.includes(notImported)).length,
+        attackLines: attackLines.length,
+        rollLinesNotImported: attackLines.filter((t) => t.includes(notImported)).length,
         rollLinesBlank: lines.filter((t) => !t).length,
         modCount: mods.length,
         proficiencyNotImportedTag: mods.includes(proficiencyNotImported),
@@ -343,7 +349,7 @@ const registeredItem = (key, r) => {
   check(`${key}: the weapon's item sheet renders its construction panel and its Rolls rows`, r.rendered && r.panel && r.rollRows >= 1, { rendered: r.rendered, panel: r.panel, rollRows: r.rollRows });
   check(`${key}: the weapon's type reads as set on the item, the tooltip on the row and not on the select`, r.kinds?.type?.one && r.kinds.type.kind === "declared" && r.kinds.type.onRow && !r.kinds.type.selectTip, r.kinds?.type);
   check(`${key}: class, size and grips each read from the weapon table's row (figureFromRow), the tooltip on the row`, ["cls", "size", "grips"].every((f) => r.kinds?.[f]?.one && r.kinds[f].kind === "row" && r.kinds[f].onRow && !r.kinds[f].selectTip), { cls: r.kinds?.cls?.kind, size: r.kinds?.size?.kind, grips: r.kinds?.grips?.kind });
-  check(`${key}: no "not imported" text in the panel's notes, its class and size rows, or the Rolls lines and tags`, !r.noTableNote && !r.gripsNoSizeNote && !r.panelHasNoTableText && !r.sizeShowsNotImported && !r.classShowsNotImported && r.rollLinesNotImported === 0 && !r.proficiencyNotImportedTag, { noTableNote: r.noTableNote, gripsNoSizeNote: r.gripsNoSizeNote, size: r.sizeShowsNotImported, cls: r.classShowsNotImported, rollLinesNotImported: r.rollLinesNotImported, tag: r.proficiencyNotImportedTag });
+  check(`${key}: no "not imported" text in the panel's notes, its class and size rows, or the attack rows' lines and the Rolls tags`, !r.noTableNote && !r.gripsNoSizeNote && !r.panelHasNoTableText && !r.sizeShowsNotImported && !r.classShowsNotImported && r.attackLines >= 1 && r.rollLinesNotImported === 0 && !r.proficiencyNotImportedTag, { noTableNote: r.noTableNote, gripsNoSizeNote: r.gripsNoSizeNote, size: r.sizeShowsNotImported, cls: r.classShowsNotImported, attackLines: r.attackLines, rollLinesNotImported: r.rollLinesNotImported, tag: r.proficiencyNotImportedTag });
   check(`${key}: every Rolls line has text`, r.rollLines >= 1 && r.rollLinesBlank === 0, { lines: r.rollLines, blank: r.rollLinesBlank });
 };
 const registeredChar = (key, c) => {
@@ -420,7 +426,7 @@ try {
   check("the class and size rows read \"not imported\" where the row would have spoken", n.classShowsNotImported && n.sizeShowsNotImported, { cls: n.classShowsNotImported, size: n.sizeShowsNotImported });
   check("every figure's tooltip is the no-figure one (figureMissing), on the row", ["type", "cls", "size", "grips"].every((f) => n.kinds?.[f]?.one && n.kinds[f].kind === "missing" && n.kinds[f].onRow), { type: n.kinds?.type?.kind, cls: n.kinds?.cls?.kind, size: n.kinds?.size?.kind, grips: n.kinds?.grips?.kind });
   check("a Rolls row says the proficiency is not imported (proficiencyNotImported) rather than refusing the weapon", n.proficiencyNotImportedTag, { tag: n.proficiencyNotImportedTag, mods: n.modCount });
-  note("Rolls lines reading \"not imported\" for the die (the item's own die, if it holds one, outranks this)", n.rollLinesNotImported);
+  note("attack rows' lines reading \"not imported\" for the die (the item's own die, if it holds one, outranks this)", n.rollLinesNotImported);
   check("every Rolls line has text under the empty source", n.rollLines >= 1 && n.rollLinesBlank === 0, { lines: n.rollLines, blank: n.rollLinesBlank });
   const nc = nulled.char;
   check("the character sheet rendered under the empty source: the weapon's row and both containers", nc.rendered && nc.weaponRow && nc.pack.found && nc.satchel.found, { rendered: nc.rendered, weapon: nc.weaponRow, pack: nc.pack?.found, satchel: nc.satchel?.found });
