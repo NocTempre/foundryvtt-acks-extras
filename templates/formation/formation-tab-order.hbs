@@ -90,13 +90,13 @@
         <span class="hint">{{localize "ACKS-FORMATION.app.blankSlot"}}</span>
         {{#if @root.isGM}}
         <div class="member-controls {{#if this.showHoriz}}grid-controls{{/if}}">
-          <button type="button" data-action="memberUp" {{#unless this.canUp}}disabled{{/unless}}><i class="fa-solid fa-chevron-up"></i></button>
+          <button type="button" data-action="memberUp" {{#unless this.canUp}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveUp'}}" data-tooltip=""><i class="fa-solid fa-chevron-up" inert></i></button>
           {{#if this.showHoriz}}
-          <button type="button" data-action="memberLeft" {{#unless this.canLeft}}disabled{{/unless}}><i class="fa-solid fa-chevron-left"></i></button>
-          <button type="button" data-action="memberRight" {{#unless this.canRight}}disabled{{/unless}}><i class="fa-solid fa-chevron-right"></i></button>
+          <button type="button" data-action="memberLeft" {{#unless this.canLeft}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveLeft'}}" data-tooltip=""><i class="fa-solid fa-chevron-left" inert></i></button>
+          <button type="button" data-action="memberRight" {{#unless this.canRight}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveRight'}}" data-tooltip=""><i class="fa-solid fa-chevron-right" inert></i></button>
           {{/if}}
-          <button type="button" data-action="memberDown" {{#unless this.canDown}}disabled{{/unless}}><i class="fa-solid fa-chevron-down"></i></button>
-          <button type="button" data-action="removeBlank" class="danger"><i class="fa-solid fa-xmark"></i></button>
+          <button type="button" data-action="memberDown" {{#unless this.canDown}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveDown'}}" data-tooltip=""><i class="fa-solid fa-chevron-down" inert></i></button>
+          <button type="button" data-action="removeBlank" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeBlank'}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
         </div>
         {{/if}}
       </li>
@@ -153,19 +153,19 @@
         </div>
         {{#if this.canControl}}
         <div class="member-controls {{#if this.showHoriz}}grid-controls{{/if}}">
-          <button type="button" data-action="memberUp" {{#unless this.canUp}}disabled{{/unless}}><i class="fa-solid fa-chevron-up"></i></button>
+          <button type="button" data-action="memberUp" {{#unless this.canUp}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveUp'}}" data-tooltip=""><i class="fa-solid fa-chevron-up" inert></i></button>
           {{#if this.showHoriz}}
-          <button type="button" data-action="memberLeft" {{#unless this.canLeft}}disabled{{/unless}}><i class="fa-solid fa-chevron-left"></i></button>
-          <button type="button" data-action="memberRight" {{#unless this.canRight}}disabled{{/unless}}><i class="fa-solid fa-chevron-right"></i></button>
+          <button type="button" data-action="memberLeft" {{#unless this.canLeft}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveLeft'}}" data-tooltip=""><i class="fa-solid fa-chevron-left" inert></i></button>
+          <button type="button" data-action="memberRight" {{#unless this.canRight}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveRight'}}" data-tooltip=""><i class="fa-solid fa-chevron-right" inert></i></button>
           {{/if}}
-          <button type="button" data-action="memberDown" {{#unless this.canDown}}disabled{{/unless}}><i class="fa-solid fa-chevron-down"></i></button>
+          <button type="button" data-action="memberDown" {{#unless this.canDown}}disabled{{/unless}} aria-label="{{localize 'ACKS-FORMATION.app.moveDown'}}" data-tooltip=""><i class="fa-solid fa-chevron-down" inert></i></button>
           <button type="button" data-action="toggleDetach" class="{{#if this.detached}}active{{/if}}"
                   {{#unless this.canDetach}}disabled{{/unless}}
-                  data-tooltip="{{#if this.detached}}{{localize 'ACKS-FORMATION.app.recallHint'}}{{else}}{{localize 'ACKS-FORMATION.app.detachHint'}}{{/if}}">
+                  aria-label="{{#if this.detached}}{{localize 'ACKS-FORMATION.app.recallHint'}}{{else}}{{localize 'ACKS-FORMATION.app.detachHint'}}{{/if}}" data-tooltip="">
             <i class="fa-solid {{#if this.detached}}fa-people-arrows{{else}}fa-person-walking-arrow-right{{/if}}"></i>
           </button>
           {{#if @root.isGM}}
-          <button type="button" data-action="removeMember" class="danger" data-tooltip="{{localize 'ACKS-FORMATION.app.removeMemberHint'}}">
+          <button type="button" data-action="removeMember" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeMemberHint'}}" data-tooltip="">
             <i class="fa-solid fa-user-minus"></i>
           </button>
           {{else}}

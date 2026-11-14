@@ -5,12 +5,12 @@
 <section class="player-actions">
   <h3>{{localize "ACKS-FORMATION.request.section"}}</h3>
   <div class="add-light">
-    <select class="player-light-type" data-pick="playerLightType">
+    <select class="player-light-type" data-pick="playerLightType" aria-label="{{localize 'ACKS-FORMATION.app.lightTypeLabel'}}" data-tooltip="">
       {{#each playerLightTypes}}
       <option value="{{this.key}}">{{this.label}}</option>
       {{/each}}
     </select>
-    <select class="player-light-bearer" data-pick="playerLightBearer">
+    <select class="player-light-bearer" data-pick="playerLightBearer" aria-label="{{localize 'ACKS-FORMATION.app.lightBearerLabel'}}" data-tooltip="">
       {{#each ownedMembers}}
       <option value="{{this.id}}">{{this.name}}</option>
       {{/each}}
@@ -21,7 +21,7 @@
   </div>
   {{#if playerSpells.length}}
   <div class="add-light add-spell">
-    <select class="player-spell" data-pick="playerSpell">
+    <select class="player-spell" data-pick="playerSpell" aria-label="{{localize 'ACKS-FORMATION.app.spellPickLabel'}}">
       {{#each playerSpells}}
       <option value="{{this.key}}">{{this.label}}</option>
       {{/each}}

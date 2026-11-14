@@ -9,16 +9,16 @@
       <span class="remaining" data-tooltip-text="{{this.burnTip}}">{{this.remainingText}}{{#if this.shielded}} · {{localize "ACKS-FORMATION.app.shieldedBadge"}}{{/if}}</span>
       {{#if this.canControl}}
       {{#if this.shieldable}}
-      <button type="button" data-action="toggleShield" class="{{#if this.shielded}}paused{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.shieldHint'}}">
+      <button type="button" data-action="toggleShield" class="{{#if this.shielded}}paused{{/if}}" aria-label="{{localize 'ACKS-FORMATION.app.shieldHint'}}" data-tooltip="">
         <i class="fa-solid {{#if this.shielded}}fa-door-closed{{else}}fa-door-open{{/if}}"></i>
       </button>
       {{/if}}
-      <button type="button" data-action="toggleLight" data-tooltip="{{localize 'ACKS-FORMATION.app.toggleLightHint'}}">
+      <button type="button" data-action="toggleLight" aria-label="{{localize 'ACKS-FORMATION.app.toggleLightHint'}}" data-tooltip="">
         <i class="fa-solid {{#if this.lit}}fa-moon{{else}}fa-lightbulb{{/if}}"></i>
       </button>
       {{/if}}
       {{#if @root.isGM}}
-      <button type="button" data-action="removeLight" class="danger"><i class="fa-solid fa-xmark"></i></button>
+      <button type="button" data-action="removeLight" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeLight'}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
       {{/if}}
     </div>
     {{/each}}
@@ -35,12 +35,12 @@
     {{/each}}
     {{#if isGM}}
     <div class="add-light">
-      <select data-pick="lightType">
+      <select data-pick="lightType" aria-label="{{localize 'ACKS-FORMATION.app.lightTypeLabel'}}" data-tooltip="">
         {{#each lightTypes}}
         <option value="{{this.key}}">{{this.label}}{{#if this.turnsText}} ({{this.turnsText}}){{/if}}</option>
         {{/each}}
       </select>
-      <select data-pick="lightBearer">
+      <select data-pick="lightBearer" aria-label="{{localize 'ACKS-FORMATION.app.lightBearerLabel'}}" data-tooltip="">
         {{#each bearerOptions}}
         <option value="{{this.id}}">{{this.name}}</option>
         {{/each}}
@@ -58,15 +58,15 @@
       <span class="label">{{this.name}} — {{this.caster}}</span>
       <span class="remaining">{{this.remaining}} {{localize "ACKS-FORMATION.app.turnsLeft"}}</span>
       {{#if @root.isGM}}
-      <button type="button" data-action="spellMinus" data-tooltip="{{localize 'ACKS-FORMATION.app.spellMinusHint'}}"><i class="fa-solid fa-minus"></i></button>
-      <button type="button" data-action="spellPlus" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPlusHint'}}"><i class="fa-solid fa-plus"></i></button>
-      <button type="button" data-action="removeSpell" class="danger"><i class="fa-solid fa-xmark"></i></button>
+      <button type="button" data-action="spellMinus" aria-label="{{localize 'ACKS-FORMATION.app.spellMinusHint'}}" data-tooltip=""><i class="fa-solid fa-minus"></i></button>
+      <button type="button" data-action="spellPlus" aria-label="{{localize 'ACKS-FORMATION.app.spellPlusHint'}}" data-tooltip=""><i class="fa-solid fa-plus"></i></button>
+      <button type="button" data-action="removeSpell" class="danger" aria-label="{{localize 'ACKS-FORMATION.app.removeSpell'}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
       {{/if}}
     </div>
     {{/each}}
     {{#if isGM}}
     <div class="add-light add-spell">
-      <select data-pick="spellPick" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
+      <select data-pick="spellPick" aria-label="{{localize 'ACKS-FORMATION.app.spellPickLabel'}}" data-tooltip="{{localize 'ACKS-FORMATION.app.spellPickHint'}}">
         <option value="">{{localize "ACKS-FORMATION.app.spellManual"}}</option>
         {{#each spellOptions}}
         <option value="{{this.key}}">{{this.label}}</option>
@@ -74,7 +74,7 @@
       </select>
       <input type="text" data-pick="spellName" placeholder="{{localize 'ACKS-FORMATION.app.spellName'}}" />
       <input type="number" data-pick="spellTurns" min="1" placeholder="{{localize 'ACKS-FORMATION.app.spellTurns'}}" />
-      <select data-pick="spellCaster">
+      <select data-pick="spellCaster" aria-label="{{localize 'ACKS-FORMATION.app.spellCasterLabel'}}" data-tooltip="">
         {{#each bearerOptions}}
         <option value="{{this.id}}">{{this.name}}</option>
         {{/each}}
