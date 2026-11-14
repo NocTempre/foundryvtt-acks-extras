@@ -34,7 +34,7 @@
   {"id": "ax3.site32", "kind": "kind.location", "book": "ax3", "name": "Site 32", "anchor": {"number": "32."}, "pages": [24], "meta": {"group": "Region — Sites"}},
   {"id": "ax3.site33", "kind": "kind.location", "book": "ax3", "name": "Site 33", "anchor": {"number": "33."}, "pages": [24], "meta": {"group": "Region — Sites"}},
   {"id": "ax3.site34", "kind": "kind.location", "book": "ax3", "name": "Site 34", "anchor": {"number": "34."}, "pages": [24], "meta": {"group": "Region — Sites", "market": "mkt21"}},
-  {"id": "ax3.site35", "kind": "kind.location", "book": "ax3", "name": "Site 35", "anchor": {"number": "35."}, "pages": [24, 25], "meta": {"group": "Region — Sites"}},
+  {"id": "ax3.site35", "kind": "kind.location", "book": "ax3", "name": "Site 35", "anchor": {"number": "35."}, "pages": [24, 25], "meta": {"group": "Region — Sites"}, "assists": {"joinTurns": true}},
   {"id": "ax3.site36", "kind": "kind.location", "book": "ax3", "name": "Site 36", "anchor": {"number": "36."}, "pages": [25], "meta": {"group": "Region — Sites", "market": "mkt22"}},
   {"id": "ax3.site37", "kind": "kind.location", "book": "ax3", "name": "Site 37", "anchor": {"number": "37."}, "pages": [25], "meta": {"group": "Region — Sites"}},
   {"id": "ax3.site38", "kind": "kind.location", "book": "ax3", "name": "Site 38", "anchor": {"number": "38."}, "pages": [25], "meta": {"group": "Region — Sites"}},

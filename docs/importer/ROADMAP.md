@@ -1070,11 +1070,8 @@ stop at the first detail region, would carry it.
 
 `verify-cookbook ax1` lists the runs of each page that no row claims. Once
 the passages, sidebars, room tables, headings and captions are claimed, what
-is left falls in four classes:
+is left falls in three classes:
 
-- **A notice board** (p.15). Five short notices are set in the aside size
-  with no head of their own. A passage anchors on a body line or on a
-  display head, so none of these can anchor one.
 - **A price list** (p.24). It is a grid of offerings and prices, which is
   content a market or a journal table would carry, and no kind reads it yet.
 - **A wandering table's description** (p.54). See "A roll table's
@@ -1144,9 +1141,12 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 - **A region place that holds nothing.** The places step makes a book's
   region place whenever its region rows import, so a book whose every site
   pairs onto another book's gets a region place holding only its map.
-- **One AX3 site's paragraph split at a column turn** (`ax3.site35`). Its
-  block breaks mid-sentence where the column turns; AX1's pair keeps none of
-  its own paragraphs, so the place reads AX3's text as split.
+- **AX3 places split at a page turn.** Four AX3 rows (two points of interest
+  and two people) break a sentence where their text turns a page, so each
+  reads one paragraph as two. `assists.joinTurns` joins such a turn on the
+  row that asks for it. Turned on for every row, it also joins two rows'
+  table cells to the prose above them, so it waits for a guard that tells a
+  table from a sentence.
 - **The block plates' section drawings** (AX1 pp.11, 14). Each plate prints
   one section of its block below the plan, at another scale and with no
   grid, and the scene stops above it. It would be a scene of its own.

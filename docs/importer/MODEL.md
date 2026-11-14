@@ -1114,7 +1114,16 @@ its foot); `compileProse` reads the aside-size runs in that box below the
 head, and nothing around it. AX1's thirteen are the `Notes` journal, one page
 each. A paragraph the sidebar is set into is boxed line by line around it
 (`axAsideBoxes`), around its head as well as its type, so the prose reads
-neither.
+neither. A sidebar with no head of its own (AX1's notice board, p.15) anchors
+by hash on its first aside-size line, as a run-in (`as: "runin"` with
+`assists.aside`). `axAsideLines` offers the aside-size lines inside the box as
+its anchor candidates, and the flow starts on the anchor line.
+
+A place's text that turns a page or column mid-sentence is joined only where
+its row asks (`assists.joinTurns`, read by `compileLocation`). In that case the
+opening box of a later segment is marked `continues` when it has no section,
+opens upper-case, and follows a box that closed without terminal punctuation.
+The executor joins the two.
 
 ## A person the page prints in full
 

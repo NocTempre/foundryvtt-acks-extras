@@ -1,0 +1,1 @@
+AX1's notice board on p.15 now imports as a page of the Notes journal (Journal sidebar → Notes), and one AX3 region site whose text turns a page mid-sentence reads as one paragraph instead of two (Journal sidebar → the AX3 region place). Imported earlier? Use Repair in place or re-import (Settings tab → Game Settings → ACKS II — Extras → Manage imports).

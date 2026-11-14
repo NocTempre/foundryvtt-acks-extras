@@ -2132,11 +2132,19 @@ const axBoundsOf = (op) =>
  * statline reporting. A paragraph breaks on an opened line gap OR a >50pt jump
  * of the line's left edge (AX2's inset note boxes share the y-rhythm of the
  * prose beside them).
+ *
+ * A segment is a column or a page of one flow. With `opts.joinTurns`, its
+ * opening box carries `continues` when it has no section of its own, opens
+ * upper-case, and the box before it closed without terminal punctuation: the
+ * print turned there mid-sentence, and the text op's own test reads an
+ * upper-case start as a new paragraph. It is opt-in because a table or a stat
+ * block set at a turn also follows an unpunctuated box, and joins to it.
  */
 function axParas(segs, anchorPage, opts = {}) {
   const paras = [];
   const statlines = [];
   let section = null;
+  let prevSeg = null;
   for (const seg of segs) {
     const lines = toLines(seg.items).map((ln) => ({
       y: ln.y,
@@ -2156,6 +2164,7 @@ function axParas(segs, anchorPage, opts = {}) {
       if (opens(gap) || (xJump && gap > median * 0.8)) groups.push([]);
       groups[groups.length - 1].push(lines[i]);
     }
+    const opened = paras.length;
     for (const g of groups) {
       const first = g[0].items[0];
       const tag = opts.iconTags && AX_TAG_RE.test(first.str.trim()) ? AX_FIRST_TAG.exec(first.str) : null;
@@ -2190,8 +2199,23 @@ function axParas(segs, anchorPage, opts = {}) {
         }
       }
     }
+    const opening = paras[opened];
+    if (opts.joinTurns && prevSeg && opening && !opening.section) {
+      const next = axBoxText(seg.pd, opening);
+      const last = axBoxText(prevSeg.pd, paras[opened - 1]);
+      if (next && last && !/^[a-z]/.test(next) && !AX_TERMINAL.test(last)) opening.continues = true;
+    }
+    prevSeg = seg;
   }
   return { paras, statlines };
+}
+
+/** What closes a box the text op reads as a whole sentence. */
+const AX_TERMINAL = /[.!?:;"”’)\]]$/;
+
+/** The text a paragraph box reads, trimmed. */
+function axBoxText(pd, para) {
+  return joinRuns(runsIn(pd, para), para.fixes).trim();
 }
 
 /**
@@ -2318,6 +2342,28 @@ function axRuninLines(pd, cols) {
   for (let c = 0; c < cols.length; c++) {
     const colItems = pd.items.filter(
       (it) => axBody(pd, it) && axColOf(it.x, cols) === c && it.y > axTop(pd) && it.y < axFoot(pd),
+    );
+    for (const ln of toLines(colItems)) {
+      const items = [...ln.items].sort((x, y) => x.x - y.x);
+      const x1 = Math.max(...items.map((i) => i.x + (i.w ?? 0)));
+      out.push({ line: { y: ln.y, x0: Math.min(...items.map((i) => i.x)), x1, items }, col: c, endY: ln.y, x1 });
+    }
+  }
+  return out;
+}
+
+/**
+ * Every line of a page's aside-size type inside `box` (`assists.aside`: `x0`,
+ * `x1` and `y1` its foot) as a run-in anchor candidate, column by column: the
+ * first line of a sidebar that prints no head of its own.
+ */
+function axAsideLines(pd, cols, box) {
+  const out = [];
+  for (let c = 0; c < cols.length; c++) {
+    const colItems = pd.items.filter(
+      (it) =>
+        it.h <= AX_BODY_MAX_H && !axBody(pd, it) && axColOf(it.x, cols) === c &&
+        it.x >= box.x0 && it.x <= box.x1 && it.y > axTop(pd) && it.y <= box.y1,
     );
     for (const ln of toLines(colItems)) {
       const items = [...ln.items].sort((x, y) => x.x - y.x);
@@ -2529,7 +2575,7 @@ export async function axOpen(doc, entry) {
   let name = null;
   if (hash) {
     const lines = axHeadingLines(pd, assists.headingLines);
-    const candidates = runin ? axRuninLines(pd, cols) : lines.map((line) => axAnchorFrom(pd, cols, line, lines, assists.headingWrap));
+    const candidates = runin ? (assists.aside ? axAsideLines(pd, cols, assists.aside) : axRuninLines(pd, cols)) : lines.map((line) => axAnchorFrom(pd, cols, line, lines, assists.headingWrap));
     for (const c of candidates) {
       const instr = nameOf(c, { hash });
       const read = readOf(instr);
@@ -2543,7 +2589,7 @@ export async function axOpen(doc, entry) {
     // A run-in title its prose runs on from is boxed by its head, as a numbered
     // key's is (`axOpenRuninKey`): the whole line reads the prose with it. The
     // flow starts on the title's own line and `head` drops the title's runs.
-    for (const h of runin && !a ? axRuninHeads(pd, cols) : []) {
+    for (const h of runin && !a && !assists.aside ? axRuninHeads(pd, cols) : []) {
       const instr = withFixes({ op: "heading", page, box: axHeadBox(h.line, h.head), hash }, pd);
       const read = readOf(instr);
       if (printKey(read) !== hash) continue;
@@ -2620,7 +2666,7 @@ async function compileLocation(doc, entry, kindRow, bookCtx) {
     { stopKeys: assists.stopKeys ?? [], ...(stops.length ? { stops } : {}) },
   );
   const { paras, statlines } = axParas(segs, page, {
-    iconTags: entry.book === "ax2", statlines: true, ...(a.head ? { dropRuns: a.head } : {}),
+    iconTags: entry.book === "ax2", statlines: true, joinTurns: assists.joinTurns === true, ...(a.head ? { dropRuns: a.head } : {}),
   });
   if (!paras.length) throw new Error(`no body paragraphs under "${entry.name}" p.${page}`);
   fields.description = { op: "text", page, paras };
@@ -3891,7 +3937,9 @@ async function compileAdventureItem(doc, entry, kindRow, bookCtx) {
  *
  * A sidebar (`assists.aside`: `x0`, `x1`, and `y1` its foot) is read from
  * its own box instead: the aside-size runs under its head, which no flow
- * reads (`axBody`), anchored on the head as a display heading.
+ * reads (`axBody`), anchored on the head as a display heading. A sidebar that
+ * prints no head is anchored by hash with `as: "runin"` on its first
+ * aside-size line (`axAsideLines`), and its text starts on that line.
  */
 async function compileProse(doc, entry, kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
@@ -3899,7 +3947,7 @@ async function compileProse(doc, entry, kindRow, bookCtx) {
   // `axFlow` reads from `endY + 2` down, so the anchor line's own y has to
   // clear it by less than a line pitch: the line above stays out.
   const segs = assists.aside
-    ? axAsideSegs(pd, page, a, assists.aside)
+    ? axAsideSegs(pd, page, entry.anchor.as === "runin" ? { ...a, endY: a.line.y - 3 } : a, assists.aside)
     : await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.line.y - 3 }, new Set(), { stopKeys: assists.stopKeys ?? [], stops });
   const { paras } = axParas(segs, page);
   if (!paras.length) throw new Error(`no paragraphs from "${entry.name}" p.${page}`);

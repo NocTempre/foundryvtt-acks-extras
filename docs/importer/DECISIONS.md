@@ -10754,3 +10754,24 @@ catfolk paragraph moves from appearance to combat, a correction. Line-coverage
 residue across the book falls from 2038 items to 1801, with p.243 of the PDF now
 counted.
 Left: ROADMAP, "A monster's lair: what the Encounter field does not reach".
+
+## 2026-11-13 — A place's text joins a page turn only where its row asks (K17), and a headless sidebar anchors on its first line (J2)
+
+**Ruled.** AX3's `site35` breaks a sentence where its text turns from p.24 to
+p.25 of the PDF. The new line opens upper-case, so the executor read two
+paragraphs. Region-site rows carry no field that could mark the turn, so the
+compiler gained one: `assists.joinTurns` on a location row marks a later
+segment's opening box `continues` when that box has no section, opens
+upper-case, and follows a box that ended without terminal punctuation.
+`site35` is the only row that sets it. AX1's notice board (p.15) is five
+aside-size notices with no head. It anchors as a run-in on the hash of its
+first line, inside `assists.aside`, as `ax1.prose24`.
+
+**Rejected.** Joining every turn automatically. Tried across AX3, it joined
+four rows correctly (two points of interest, two people) and two wrongly: a
+table's cells were joined to the prose above them. Opting in keeps those two
+right until a guard can tell a table from a sentence (ROADMAP, "AX3 places
+split at a page turn"). Also rejected: a new `anchor.as` sort for the notice
+board, which would widen the register lint for a single row.
+
+**Cost.** One ax1 entry added and one ax3 entry changed. No other book moves.
