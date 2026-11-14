@@ -114,15 +114,14 @@ export function signingBonusCost(tier, monthlyWage, briberyProficient) {
   const table = optTable("wages", "signingBonus");
   if (!table) return null; // dialog omits signing-bonus tiers until imported
   const side = briberyProficient ? table.proficient : table.nonProficient;
-  // The side is a tier→period map ({"1":"day"…}) or an array of {bonus, wages}.
-  const period = Array.isArray(side) ? side.find((r) => r.bonus === tier)?.wages : side?.[String(tier)];
+  // Each side is a tier→period map ({"1":"day"…}).
+  const period = side?.[String(tier)];
   if (!period) return null;
-  const row = { wages: period };
   // Pay-period conversion (RAW names the periods, not the math): a week's
   // pay = monthly / 4, a day's = monthly / 30. The influence feature prices
   // bribes through this same function (docs/influence/DECISIONS.md).
-  const gp = { day: monthlyWage / 30, week: monthlyWage / 4, month: monthlyWage, year: monthlyWage * 12 }[row.wages];
-  return { gp: Math.ceil(gp), wages: row.wages };
+  const gp = { day: monthlyWage / 30, week: monthlyWage / 4, month: monthlyWage, year: monthlyWage * 12 }[period];
+  return { gp: Math.ceil(gp), wages: period };
 }
 
 /** A share as a fraction of a full one: a finite number from zero up. Anything else is no figure, never zero. */

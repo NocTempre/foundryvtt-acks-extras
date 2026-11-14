@@ -297,7 +297,7 @@ const CLAIM_SETTLE_MS = 300;
 
 async function claimResolution(location, payload) {
   const resolutionId = payload.resolutionId;
-  if (!resolutionId) return true; // legacy caller — apply unguarded
+  if (!resolutionId) return false; // no claim key, nothing to guard the apply with
   const read = () => {
     const list = payload.candidateId ? location.system.candidates : location.system.specialHires;
     const id = payload.candidateId ?? payload.specialHireId;

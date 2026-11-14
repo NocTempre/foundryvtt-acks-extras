@@ -882,9 +882,8 @@ export async function processLocation(location, currentTime = now()) {
     }
     const month = await rollMonth(location, monthAnchorTime, currentTime);
     // Replaced directed results (monthLong) belong to the ENDED month and
-    // expire with it; legacy private rows (pre-replacement model) persist
-    // until their posting re-rolls.
-    candidates = [...candidates.filter((c) => c.privateToUuid && !c.monthLong), ...month.candidates];
+    // expire with it: the new month's pool is the whole market.
+    candidates = [...month.candidates];
     marketRolls = month.marketRolls;
     // a network roll belongs to its month, as the people it found do
     networkRolls = networkRolls.filter((r) => r.monthStartTime === monthAnchorTime);
@@ -943,12 +942,11 @@ export async function processLocation(location, currentTime = now()) {
 
   // 1b. Weekly churn: a SHARED-pool candidate stays on the market for ONE
   // WEEK after arriving — unhired, they take other work and DISAPPEAR.
-  // Exempt: directed-search results (privateToUuid — legacy) and REPLACED
-  // candidates (monthLong): the person a recruiter's search found stays
-  // available the whole month instead of the weekly rotation.
+  // Exempt: REPLACED candidates (monthLong): the person a recruiter's search
+  // found stays available the whole month instead of the weekly rotation.
   const before = candidates.length;
   candidates = candidates.filter(
-    (c) => !(c.status === "available" && !c.privateToUuid && !c.monthLong && currentTime - c.availableFromTime >= SECONDS_PER_WEEK)
+    (c) => !(c.status === "available" && !c.monthLong && currentTime - c.availableFromTime >= SECONDS_PER_WEEK)
   );
   if (candidates.length !== before) changed = true;
 
