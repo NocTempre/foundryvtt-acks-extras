@@ -10456,3 +10456,79 @@ apply runs; the same gap for a shelf repair of classes is registered (T-0541)
 and is not walked. The read memo's memory over a whole Repair everything is unmeasured:
 the node count logged when the hold ends is the probe. Nothing in this entry
 is walked live yet; the fresh-world step in TESTING is the first walk.
+
+## 2026-11-13 — The JJ's scenario pictures are read by OCR at import, with post-read corrections
+
+The Judges Journal prints its nine Appendix A scenarios (PDF pp. 417–425)
+each as one picture with no text layer. The owner had put them on the roadmap
+on 2026-11-12 ("Roadmap them for now instead."). This entry reverses that
+one day later, and the new evidence is what changed: on 2026-11-13 the pages
+were read with an OCR engine a browser can run, and a browser proof then read
+all nine through the pinned path below, with byte-identical results in two
+browsers. The owner's rulings, in their words:
+
+- Whether a Judge confirming flagged cells could be the import's last step:
+  "Must be unattended".
+- On a check that the picture is the one the recipe was fitted on: "No guard
+  required or desired. Just asking you to include a few post OCR regex
+  corrections targeted at specific lines or words that come out wrong."
+- "May a correction write what the page prints (a heading, a figure)?": "Yes,
+  write them".
+- Scope: "I want the JJ adventures back in the public release package being
+  prepped since this works."
+- Depth: "Stat lines to actors too". The other choice was journals and pinned
+  scenes only.
+
+**Ruled:**
+
+- **The engine ships in the module**: tesseract.js with its English LSTM data,
+  vendored under `vendor/`. One core build is named by file, and the worker,
+  core and language data are loaded from module-relative paths, so no CDN path
+  is left reachable. A fetch from a CDN would send the Judge's browser to a
+  third party.
+- **The read is pinned to the pixels**, because a correction fires only on the
+  read it was written against. The picture's decoded samples come from pdf.js
+  with `isOffscreenCanvasSupported` and `isImageDecoderSupported` both off, so
+  no browser decoder and no ImageBitmap stands between the file and the
+  samples. They are turned grey and scaled in the module's own integer
+  arithmetic, then handed to the engine as a PGM. No canvas is involved.
+- **A recipe carries post-read corrections**: a regex, its replacement and its
+  box, each naming one misread, with the count of places it changes checked
+  against the recipe author's own read when the recipe is compiled. Nothing is
+  checked at import.
+- **"Yes, write them" is an exception to `.claude/rules/ip-doctrine.md`**
+  (the value rule, and the name rule for a keyed heading), read narrowly: the
+  replacement text of a post-read correction on a picture-text recipe, naming
+  one misread. It licenses nothing else a recipe ships; anything else of the
+  page in a shipped file is still a finding. The doctrine file is template
+  canon and is not edited here.
+- **Every figure of every stat block is checked on the picture** by the recipe
+  author before the recipe lands, whether or not a correction touches it. A
+  misread figure in an actor plays, and one valid-looking wrong attack throw
+  was found in a read. A figure that cannot be made right is left unimported
+  by ordinal, and the sheet shows "not imported".
+- **A damage-type icon** is replaced with its word by a correction in a stat
+  block. Elsewhere its misread glyph is dropped.
+
+**Rejected:**
+
+- A Judge confirming flagged cells: the owner's "Must be unattended".
+- A guard that refuses a picture differing from the one a recipe was fitted
+  on: the owner's "No guard required or desired".
+- Loading the engine from a CDN on first use: it is a third-party request from
+  the Judge's browser.
+- Shipping every core build and letting the library pick one by feature
+  detection: about 14.5 MB against 6.9 MB. The plain, SIMD and relaxed-SIMD
+  builds gave byte-identical reads, and the SIMD build is four times the
+  plain build's speed.
+- Scaling through a canvas: two scalers already differ by a few figure tokens
+  a page, which leaves a correction written on one read idle on the other.
+- Taking the largest picture on the page: every scenario page also holds
+  larger frame art, so a recipe names the scenario's picture.
+
+*Cost:* about 6.9 MB in `module.zip`. About 15–25 s of reading a page in a
+browser (measured in headless Edge 157), so three to four minutes for the
+nine. A recipe per page whose corrections hold only on the pinned read.
+Shipped replacement text that writes words and figures of the page, which an
+IP sweep reviews as this entry's exception. Two Chromium browsers agreed; a
+browser with another JS and wasm engine was not compared.
