@@ -156,7 +156,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.binding.templateMin = null;
     }
     const template = legal.find((t) => t.rollMin === this.binding.templateMin) ?? null;
-    // The preview and the grant keys read the bundle synchronously: load it first.
+    // The synchronous readers need the bundle loaded first.
     if (template) await warmTemplateBundles([template]);
 
     const intScore = Number(actor.system?.scores?.int?.value) || 0;

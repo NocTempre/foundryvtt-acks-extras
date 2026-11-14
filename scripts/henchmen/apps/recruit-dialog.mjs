@@ -338,8 +338,7 @@ export async function handleHiringOutcomePayload(payload) {
       result: payload.result,
       signingGp: payload.signingGp,
       answers: Array.isArray(payload.answers) ? payload.answers : null,
-      // A hire the Judge's own seat applies, not one a player's request relayed
-      // to it: the signing bonus passes a reach refusal as a Judge's payment does.
+      // The Judge's own seat only, never a relayed player's request.
       judge: judgeDeclares(payload.requestUserId),
     });
   } finally {

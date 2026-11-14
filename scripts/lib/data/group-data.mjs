@@ -148,8 +148,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // employer) — drives the RR 169 "personally led" command capacity.
         officerLevel: int(0, { min: 0 }),
         // Unit morale / loyalty (mercenary side). Same signed range the system
-        // uses for a monster's morale and a retainer's loyalty. Loyalty is null
-        // until a figure is set: a stored 0 would claim one no page was read for.
+        // uses for a monster's morale and a retainer's loyalty.
         morale: int(0, { min: -6, max: 4 }),
         loyalty: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: -4, max: 4 }),
       }),

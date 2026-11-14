@@ -421,7 +421,6 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(insistPenalty(), null, `${label}: no figure`));
   }
 
-  // Whose figure it is: the Judge's override layer naming the penalty itself, never the import's table or an override of another key.
   const { insistPenaltyIsJudges } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
   const judged = (layer) => {
     const saved = globalThis.acksExtras;
@@ -1279,8 +1278,6 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     await quiet(() => hire.hire(location, "c2", employer));
     assert.strictEqual(recordOf().morale.base, null, "nothing imported: a specialist records none");
 
-    // The signing bonus is a Judge's payment only where the seat that made the
-    // hire declares it, never by default.
     location.system.candidates.push({ ...candidate, id: "c6", status: "available" }, { ...candidate, id: "c7", status: "available" });
     covered = true;
     transfers.length = 0;

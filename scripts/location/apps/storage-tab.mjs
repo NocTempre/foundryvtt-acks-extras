@@ -48,7 +48,6 @@ function collect(actor) {
     img: provider.img,
     isVault: !!api.vaultOwnerUuid(provider),
     canReach: reach.can,
-    // The Judge's own deposit passes a reach refusal with a warning (lib `stash`).
     canDeposit: reach.can || !!game.user?.isGM,
     reachReason: reach.can ? null : loc(`storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     coinGC,

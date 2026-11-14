@@ -85,8 +85,6 @@ ok("another weapon with the same text is told about on its own", () => {
   console.log("ok   an attack waits for a contributor that is still loading, and a failed wait does not hold it");
 }
 
-// A blank or absent attack throw is refused at the seam. The one wrapper on
-// makeAttackThrow is MIXED, because it may skip the system's roll; nothing else is.
 {
   const path = "CONFIG.Actor.documentClass.prototype.makeAttackThrow";
   const makeAttackThrow = registered[path];

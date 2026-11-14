@@ -3021,9 +3021,6 @@ await atest("a class with no bands of its own takes its throws from the chassis 
   }
 });
 
-// A package's bundle on a shelf not yet loaded: `fromUuidSync` answers an index
-// entry with no itemList, so the readers fall back to the row's emptied arrays
-// until `warmTemplateBundles` has loaded the document.
 {
   const { templateContents, templateGrantKeys, warmTemplateBundles } = await import("../scripts/classes/template-packages.mjs");
   const loaded = new Set();

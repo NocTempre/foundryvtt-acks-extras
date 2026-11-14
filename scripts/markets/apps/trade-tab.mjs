@@ -453,9 +453,7 @@ function demandChips(goods, isGM) {
  * The GM's per-party picture: what each party believes about demand (from the
  * reports it holds) and how its ventures stand this month — one line for a
  * party entered as one, one per character where they entered separately. A
- * party with neither is left out. A line's duty label follows the toll its
- * entry was charged (`gateToll`), the switch in force (`cityToll`) for a row
- * that stores none.
+ * party with neither is left out.
  */
 function partyBlocks(goods, monthStart, reports, cityToll = false) {
   const ventures = (goods.ventures ?? []).map(plain).filter((v) => Number(v.monthStartTime) === monthStart);

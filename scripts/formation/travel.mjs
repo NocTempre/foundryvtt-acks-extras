@@ -1556,8 +1556,7 @@ export async function settleDayChange(formationId, today, { counter = false } = 
   const day = Math.floor(Number(today));
   const record = getFormation(formationId);
   if (!record || !Number.isFinite(day)) return false;
-  // The sky follows the party's true hex: a lost party's weather reads the
-  // shadow's country, not the one it believes it stands in.
+  // The sky follows the true hex, not the believed one.
   const t = trueTravelOf(record);
   const settled = settledDayOf(t.weather);
   if (!counter && settled != null && day <= settled) return false;

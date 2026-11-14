@@ -49,11 +49,7 @@ export function insistPenalty() {
   return Number.isInteger(penalty) && penalty >= 0 ? penalty : null;
 }
 
-/**
- * Whether the Judge's own override layer supplies the insistence penalty, as
- * against the figure the import read: the layer's table names the figure
- * itself, so an override of the table's other keys does not count.
- */
+/** Whether the Judge's override layer supplies the insistence penalty itself. */
 export function insistPenaltyIsJudges() {
   const t = globalThis.acksExtras?.lib?.tables;
   if (!t?.PRIORITY) return false;

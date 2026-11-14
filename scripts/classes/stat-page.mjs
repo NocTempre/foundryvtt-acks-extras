@@ -249,9 +249,7 @@ function refresh(root, state) {
   const legal = judge ? [...templates].sort((a, b) => a.rollMin - b.rollMin) : legalTemplates(templates, rolled ?? -1);
   if (!legal.some((t) => t.rollMin === state.templateMin)) state.templateMin = legal[legal.length - 1]?.rollMin ?? null;
   const template = legal.find((t) => t.rollMin === state.templateMin) ?? null;
-  // The preview and the grant keys read the bundle synchronously, and a refresh
-  // cannot wait (the submit handler calls it): the first sight of a package
-  // loads its bundle and draws the page once more when it has.
+  // A refresh cannot wait: warm a package's bundle once, then draw again.
   if (template?.bundle && !state.bundlesAsked?.has(template.bundle)) {
     (state.bundlesAsked ??= new Set()).add(template.bundle);
     warmTemplateBundles([template])

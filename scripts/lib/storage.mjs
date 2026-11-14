@@ -351,13 +351,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
   return { ok: true, manifest };
 }
 
-/**
- * A deposit the Judge makes for a character out of reach of the place: the
- * automation would have refused it, so it says what it would have refused and
- * lets the move go. Only the Judge's own seat (`judgeDeclares`) takes this
- * path; a deposit relayed to the Judge's seat for a player is refused by
- * `moveForSeat` and never reaches it.
- */
+/** Warns the Judge's own seat what the automation would have refused about a deposit out of reach. */
 async function warnJudgeReach(source, provider) {
   if (!game.user?.isGM) return;
   const reach = globalThis.acksExtras?.location?.reach?.depositReach?.(source, provider);

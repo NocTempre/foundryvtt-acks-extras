@@ -880,8 +880,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           figureTip: mod.figureFrom ? this.#figureTip(mod.figureFrom, tone) : null,
           // A held proficiency whose item carries no figure: typed by hand.
           isUnvalued: Boolean(mod.unvalued),
-          // The badge says nothing in words; its tooltip is the page that prints
-          // the figure, the one a row's own figure tip falls back to.
+          // The badge's tooltip is the page that prints the figure.
           unvaluedTip: mod.unvalued ? (TONE_PAGES[tone]?.cite ?? this.#mode?.cite ?? "") : "",
           // A ladder's options are a page's wording, wider than the control
           // column: the row stacks so the chosen rung can be read.

@@ -328,8 +328,7 @@ export const itemLossCite = () => citeOf(RULEDATA_DOC, ITEM_LOSS_TABLES.figures)
  * overlay is off or the item is not a thing with a weight. `state` is the
  * item's class against the imported weights (`lossClassOf`) or `notImported`,
  * which the tab shows as a blank value; `tip` says where the answer came from:
- * the weight and the bounds with their page, and is the page reference alone
- * (`itemLoss.factPage`) when not imported.
+ * the weight and the bounds with their page, or the page alone when not imported.
  *
  * @param {Item} item
  * @param {object} [figures] the `itemLossFigures` shape; the import's when omitted

@@ -428,9 +428,7 @@ function admitsHenchman(employer) {
  * @param {string} candidateId
  * @param {Actor} employer
  * @param {object} [opts] - { elan, irrefusable, signingBonusGp, baseLoyalty,
- *                            category, origin, skipLimit, judge }; `judge` is
- *   lib's `judgeDeclares` for the seat that made the hire, which lets the
- *   signing bonus pass a reach refusal as a Judge's payment does
+ *                            category, origin, skipLimit, judge }
  * @returns {Promise<{actor: Actor}|{error: string}>}
  */
 export async function hire(location, candidateId, employer, opts = {}) {
