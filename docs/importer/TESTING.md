@@ -3535,3 +3535,76 @@ the book gets its own Adventure (`cookbookImportAdventures`).
 
 The fixture is kept. A walk that dragged a character into the sidebar deletes
 that copy by its id.
+
+## A Lairs & Encounters lair: its place, its monster and its plate
+
+Walked on `main` after `topic/lair-maps` lands. Every listing of Chapter 3 is
+a place `le.lair<n>` inside `le.lairs`, numbered in print order; a row whose
+`meta.of` names an ACKS II monster is that monster's lair, and the 37 plated
+lairs have a scene recipe `le.lair<n>Map` naming them as `place` ("A lair is a
+place with its monster" in MODEL; DECISIONS 2026-11-13). The cookbook's rows
+(`cookbook/le.json`) say what each should be: `meta.of` on the place rows, the
+scene rows' `place`, `grid` and `turn`, the stat lines' `occupants.<i>.name`.
+`tools/importer/test-le-cookbook.mjs` (`PLATES`) is the one list of which lair
+owns which plate. Nothing of the page is read to check it.
+
+What a scripted walk meets:
+
+- The book is ACKS I and on the Judge shelf; connect it by its stock file name
+  (the PDF carries no title). A Player seat sees none of it.
+- A place's name, notes and roster names come from the Judge's copy; the
+  report quotes ids and counts, never a listing's words, and a canvas shot of
+  a plate is the book's art and stays in the local log directory (hide
+  `#interface` and `#pause`, as on AX1's plans).
+- The finest plates draw squares of a few points, so their scenes are tens of
+  thousands of cells; judge a grid's fit on a coarse plate first.
+
+### Fixtures
+
+- `importer/le-mm` — no document: the Monstrous Manual's monsters in the
+  library (Import everything has run on the MM), so a `meta.of` resolves.
+  Asserted at the start: the library actor stamped `mm.gorillaCave` exists.
+- `importer/le-lair` — the place under `le.lair4` (the first plated lair, its
+  `meta.of` a plain monster), found by its cookbook id
+  (`flags["acks-extras"].cookbook.id`), and marked with `api.mark` once the
+  places step makes it. Kept.
+- `importer/le-lair-dragon` — the place under a lair whose `meta.of` is
+  `mm.dragon` (a template actor), found and marked the same way. Kept.
+- `importer/le-lair-map` — the world scene the maps step makes from
+  `le.lair4Map`, read back from `created.scenes` and marked. Kept.
+
+### Steps
+
+1. Run `cookbookImportPoiPlaces({ books: ["le"] })`. *Observable:* 168 places
+   made (`le.lairs` and 167 lairs), nothing refused; each lair's
+   `system.parentUuid` is `le.lairs`'s; each lair's roster ends with one hidden
+   row linking the library actor of its `meta.of` (no world copy, quantity 1),
+   and no row of any roster points at a second actor stamped with the same MM
+   id; a lair with no `meta.of` has no such row; `importer/le-lair-dragon`'s
+   last row links the `mm.dragon` template actor.
+2. Count the documents stamped with an MM cookbook id before and after step 1.
+   *Observable:* equal — no stat line made a second copy of an MM monster. A
+   stat line made from its own text is claimed under `le.lair<n>-o<i>` and
+   counted in `creatures`.
+3. Run `cookbookImportScenes({ books: ["le"] })`. *Observable:* 37 scenes,
+   `missing` 0; each is linked to its lair's world copy
+   (`flags.acks-extras.location`) and named as that place is; its battlemap
+   `mapSystem` is `delve`; its grid is square with `distance` 5 and its drawn
+   squares sit under the scene's grid on `importer/le-lair-map` and on one
+   turned plate (frame the canvas, compare by eye, note the plate pages); a
+   turned plate reads upright. The p207 pair are two scenes on two lairs; the
+   shared p214 plate is one scene.
+4. Run the step of step 1 again. *Observable:* `made` 0, `already` 168, no
+   creature made, no roster grows.
+5. Setup check: with the MM's actor for one lair's `meta.of` absent (a world
+   where the MM is not yet imported; build it in a scratch world or skip and
+   say so), run step 1, then import the MM, then Repair everything on the
+   Import tab (Settings tab → Game Settings → ACKS II — Extras → Manage
+   imports). *Observable:* the repair lists that lair's roster as a held edit
+   when it holds made creatures, and writes the linked roster when taken; an
+   empty roster takes the host row with no question.
+
+### Teardown
+
+The four marked fixtures are kept. A setup check's made documents are swept
+with `api.sweepTracked()` and its result is quoted.

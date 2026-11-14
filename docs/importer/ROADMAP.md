@@ -1221,3 +1221,22 @@ Parties journal of their introductions. Left:
   read by no row.
 - **A two-line display heading stops `compileProse`'s flow,** so the party
   introductions anchor on their first body line instead of the heading.
+
+## Lairs & Encounters lairs: what is not built
+
+- **Walls and room pins on the plates.** The plates import as pictures on a
+  grid; room keys stay in the listing's prose until a reader for inline keys
+  is built (the same reader the picture-tables rows need).
+- **The plate pointer in a neighbour's notes.** Eight listings' notes carry
+  the pointer line of a plate that belongs to the listing beside them.
+- **Ordinary warriors and generic crowds.** The rank-and-file of the beastman
+  and demi-human lairs, sized swarms, a variant of a paired creature, and the
+  men of a role are made from their stat lines rather than paired to the ACKS
+  II row; pairing them needs each line compared with the MM's figures.
+- **A lair list on the monster.** A monster's sheet does not list the lairs
+  whose `meta.of` names it.
+- **A lair on a hex.** A lair is not placed on a region map's hex or tied to
+  the lairs-per-hex procedure.
+- **The grid on plates that print another scale.** One plate is drawn in
+  miles with a gridded inset, and several plates' bars read about 4 or 5.3 ft
+  a square; all take the owner's 5 ft.
