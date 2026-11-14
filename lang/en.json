@@ -6198,7 +6198,6 @@
         "leaderDerived": "Leader figures from the AXIOMS leader procedure ({cite}): {hd} HD, {rows} rungs down the leader ladder from the member's {baseHd}{carried}; AC {ac}, the member's {baseAc} {acAdd}; damage {damage}, the member's {baseDamage} {damageAdd}; hit points rolled from the Hit Dice",
         "leaderCarried": ", its hit-point bonus carried",
         "leaderMultiplied": ", its hit-point bonus multiplied by {factor}",
-        "leaderMultipliedBare": ", its hit-point bonus multiplied",
         "leaderDerivedEdited": "Leader built by the AXIOMS leader procedure ({cite}); its armour class or damage has been changed since",
         "acPrinted": "Armour class {ac}, the leader's as printed ({cite})",
         "acDerived": "Armour class {ac}: the member's {baseAc} {acAdd} for its rank, by the AXIOMS leader procedure ({cite})",

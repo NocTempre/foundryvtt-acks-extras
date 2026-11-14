@@ -14,7 +14,6 @@
  */
 import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
 import { convertedDie } from "./kits.mjs";
-import { parseRung } from "./leader-derive.mjs";
 import { loadStanding } from "./load-rule.mjs";
 
 /**
@@ -129,20 +128,14 @@ const modded = (damage, mod) => (damage && mod ? `${damage} ${signed(mod)}` : da
 
 /**
  * The leader tooltip's clause for how the member's hit-point bonus came along:
- * carried whole, or multiplied by the factor the leader record holds. A record
- * with no factor (including `carried: "doubled"`) names the factor its own two
- * ratings imply, and none where they imply none.
+ * carried whole, or multiplied by the factor the leader record holds; none
+ * where the record holds no factor.
  */
 function carriedTip(leader, loc) {
   if (leader.carried === "carried") return loc("statblock.tip.leaderCarried");
-  if (leader.carried !== "multiplied" && leader.carried !== "doubled") return "";
-  let factor = Number(leader.bonusFactor);
-  if (!Number.isFinite(factor) || leader.bonusFactor == null) {
-    const was = parseRung(leader.baseHd)?.bonus;
-    const now = parseRung(leader.hd)?.bonus;
-    factor = was && now != null ? now / was : NaN;
-  }
-  return Number.isFinite(factor) ? loc("statblock.tip.leaderMultiplied", { factor }) : loc("statblock.tip.leaderMultipliedBare");
+  if (leader.carried !== "multiplied" || leader.bonusFactor == null) return "";
+  const factor = Number(leader.bonusFactor);
+  return Number.isFinite(factor) ? loc("statblock.tip.leaderMultiplied", { factor }) : "";
 }
 
 /**

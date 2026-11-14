@@ -286,9 +286,8 @@ role that would climb past the last rung, gets no derived cell), the member's
 hit-point bonus carried where the member qualifies: whole for a champion and a
 sub-chieftain, for which the page prints no factor, and multiplied by the
 imported factor for a chieftain (`BONUS_FACTOR_ROLES`). The leader record
-keeps `carried` (`"carried"` or `"multiplied"`) and `bonusFactor`; a record
-with no factor (one that says `"doubled"`, or holds no `bonusFactor`) has a
-tooltip that names the factor its own two ratings imply. AC and the damage total add
+keeps `carried` (`"carried"` or `"multiplied"`) and `bonusFactor`, which the
+tooltip names. AC and the damage total add
 the role's figures to the member's.
 Throw and saves move by the attack-throw ladder and the save rule above, from
 the member's figures to the derived rating. A derived leader's hit points are

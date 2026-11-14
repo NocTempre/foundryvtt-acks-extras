@@ -269,8 +269,7 @@ ok("the sheet names the leader's source, and the procedure's parts while they ho
   assert.match(tip, /^statblock\.tip\.leaderDerived\|cite=YY p\.7,hd=7\+3,rows=2,baseHd=4\+1,carried=statblock\.tip\.leaderMultiplied\|factor=3,ac=4,baseAc=2,acAdd=\+2,damage=\+3,baseDamage=\+1,damageAdd=\+2$/);
   const carriedOf = (l) => derivationTips({ derived: { leader: { ...leader, ...l } }, ac: 4, damageMod: 3 }, loc).leaderTip.match(/carried=(.*?),ac=/)[1];
   assert.equal(carriedOf({ carried: "carried", bonusFactor: null }), "statblock.tip.leaderCarried|");
-  assert.equal(carriedOf({ carried: "doubled", bonusFactor: undefined, baseHd: "4+1", hd: "9+5" }), "statblock.tip.leaderMultiplied|factor=5", "a record from before the factor was kept names the factor its ratings imply");
-  assert.equal(carriedOf({ carried: "doubled", bonusFactor: undefined, baseHd: "4", hd: "9+5" }), "statblock.tip.leaderMultipliedBare|", "and none where they imply none");
+  assert.equal(carriedOf({ carried: "multiplied", bonusFactor: undefined, baseHd: "4+1", hd: "9+5" }), "", "a record with no factor names none");
   assert.equal(carriedOf({ carried: "" }), "");
   assert.equal(derivationTips({ derived: { leader }, ac: 7, damageMod: 3 }, loc).leaderTip, "statblock.tip.leaderDerivedEdited|cite=YY p.7");
   assert.equal(derivationTips({ derived: { leader: { source: "printed", cite: "ZZ p.3" } } }, loc).leaderTip, "statblock.tip.leaderPrinted|cite=ZZ p.3");
