@@ -10886,9 +10886,11 @@ Room keys stay in the prose until a reader for inline keys is built.
 
 ## 2026-11-13 — Every Lairs & Encounters listing is a lair row, numbered in print order
 
-The owner's "All 168 listings" counted the 168 outline items under Chapter 3;
-the printing holds 167 listings and one how-to section, which is the
-`le.lairs` container. So the book has 167 `le.lair<n>` rows, and `n` is the
+Chapter 3's outline holds 168 items under it: 167 listings and one how-to
+section, which is the `le.lairs` container. The owner's "All 168 listings" is
+read as those 168 items, and whether it meant a 168th listing is pending (no
+heading in the chapter's pages is left over). So the book has 167
+`le.lair<n>` rows, and `n` is the
 listing's place in print order (pages ascending, the left column before the
 right, top to bottom): the first plated listing, once `le.lair1`, is
 `le.lair4`. `tools/importer/harvest-lairs.mjs` reads the Judge's copy and
@@ -10906,9 +10908,15 @@ names and a `meta.of`; the register files are written from its output and
   five, and eight pointer lines are read into a neighbouring listing's notes,
   since the pointer is body-size text. One pointer stands in a listing
   before the one it names, so that lair's pages do not include it.
-- **A plate shared by two listings belongs to one row.** A scene names one
-  `place`, so the shared plate is pinned to the listing whose text holds its
-  pointer, and the other listing is a place without a map.
+- **A plate shared by two listings is pinned to one row, pending the owner.**
+  A scene names one `place`, so the shared plate is pinned to the listing
+  whose text holds its pointer; whether the other listing gets the same plate
+  as a second scene is the owner's to say, and until then it is a place
+  without a map.
+- **The book's two columns are a declared grid** (`AX_BOOK_BANDS.le.columns`).
+  Detection read a third column on three pages, which dropped four stat lines
+  of one listing and cut another's notes, and read a page with art in one
+  column as a single column.
 - **`meta.of` is authored, 154 of 167.** A pairing needs a same-name ACKS II
   row, a pair in the System Compatibility Guide, or a naming scheme the MM
   applies throughout (the beastmen, the men, the dragon template for the nine

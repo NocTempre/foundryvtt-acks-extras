@@ -144,6 +144,18 @@ t("a listing's text is read on its own pages and reaches its last one", () => {
   }
 });
 
+t("a page's prose is read in the book's two columns, the same two on every page of a parity", () => {
+  const bands = { odd: new Set(), even: new Set() };
+  for (const e of Object.values(entries)) {
+    for (const p of e.fields.description.paras) {
+      const page = p.page ?? e.fields.description.page;
+      bands[page % 2 ? "odd" : "even"].add(`${Math.round(p.box.x0)}-${Math.round(p.box.x1)}`);
+    }
+  }
+  assert.deepEqual([...bands.odd].sort(), ["16-296", "296-590"]);
+  assert.deepEqual([...bands.even].sort(), ["26-306", "306-590"]);
+});
+
 t("print order: the number rises with page, then column, then height", () => {
   const at = (id) => {
     const { page, box } = entries[id].fields.name;

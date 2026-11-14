@@ -1763,7 +1763,10 @@ const AX_FOOT_Y = 750;
  * band sits above the first body line (a heading at y48 is below it, where the
  * default 60 would take it for a running head and let one listing's flow run
  * on into the next) and its foot below the last (its folios are dropped by the
- * page reader's footer profile).
+ * page reader's footer profile). Its two columns start at x30 and x310 on odd
+ * pages and x40 and x320 on even ones; detection reads a page's table cells as
+ * a third column, and a page with art in one column as one, so the grid is
+ * declared.
  */
 const AX_BOOK_BANDS = Object.freeze({
   ax1: Object.freeze({
@@ -1771,7 +1774,10 @@ const AX_BOOK_BANDS = Object.freeze({
     columns: Object.freeze({ even: Object.freeze([30, 310]), odd: Object.freeze([40, 320]) }),
   }),
   cat: Object.freeze({ footY: 760 }),
-  le: Object.freeze({ topBand: 40, footY: 765, headX0: 20, rightEdge: 22 }),
+  le: Object.freeze({
+    topBand: 40, footY: 765, headX0: 20, rightEdge: 22,
+    columns: Object.freeze({ even: Object.freeze([40, 320]), odd: Object.freeze([30, 310]) }),
+  }),
 });
 // A book's declared typography (`bodyTop`, `paraGap` in the registry) answers
 // where its bands say nothing: the measures are the page's, whichever reader
