@@ -17,7 +17,7 @@ import { masterworkTierOf, scavengedOf, itemLossAcOf, silveredFlagOf, pristineOf
 import { silverFigure, masterworkFigure, provenanceTip, notImportedTip, capacityTip } from "../printed-layers.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
-import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity } from "../spellbook.mjs";
+import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity, spellbookFigureTip } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
 import { materialOf, itemLossFact, itemLossCite } from "../overlays/item-loss.mjs";
 import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
@@ -426,7 +426,14 @@ function containerSnapshot(item) {
 function spellbookSnapshot(item) {
   if (!isSpellbook(item)) return null;
   const spells = spellbookSpells(item);
-  return { count: spells.length, pagesUsed: pagesUsed(item), pagesCap: pagesCapacity(item), spells };
+  return {
+    count: spells.length,
+    pagesUsed: pagesUsed(item),
+    pagesCap: pagesCapacity(item),
+    capTip: spellbookFigureTip("pages"),
+    usedTip: game.i18n.localize("ACKS-EQUIPMENT.spellbook.tip.used"),
+    spells,
+  };
 }
 
 /** The named-item record as the Effects tab's "The Name" section wants it. */

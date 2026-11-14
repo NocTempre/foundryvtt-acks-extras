@@ -142,6 +142,16 @@ test("the Holds toggle shows the gear declaration, and a container the record al
   assert.equal(declared.details.holdsDeclared, true, "a declared container ticks it");
   assert.equal(buildItemSheetModel(base(), { isGM: true }).details.holdsDeclared, false, "nothing declared, nothing ticked");
 });
+test("a spell book with no capacity imported has no verdict and no bar", () => {
+  const sb = (pagesCap) => buildItemSheetModel(base({ spellbook: { count: 2, pagesUsed: 9, pagesCap, capTip: "t", usedTip: "u", spells: [] } }), { isGM: true, editable: true }).spellbook;
+  const none = sb(null);
+  assert.equal(none.hasCap, false);
+  assert.equal(none.over, false, "unstated never overflows");
+  assert.equal(none.pagesUsed, 9, "the pages used still show");
+  const read = sb(8);
+  assert.equal(read.hasCap, true);
+  assert.equal(read.over, true, "9 pages in 8 is over");
+});
 test("the Appearance tab is Judge-only", () => {
   const snap = base({ magic: { is: true, aura: "arcane", identified: "full" } });
   assert.ok(buildItemSheetModel(snap, { isGM: true }).tabs.some((t) => t.key === "appearance"));
@@ -485,6 +495,30 @@ console.log("item sheet: a magic light's tag");
   test("an effect that is no light keeps its usual tag", () => {
     const html = render([lightRow({ light: null })]);
     assert.ok(html.includes('<span class="acks-tag">Equipped</span>') && !html.includes("shutterEffect"));
+  });
+}
+
+console.log("item sheet: a spell book's pages");
+{
+  const { default: Handlebars } = await import("handlebars");
+  const { readFileSync } = await import("node:fs");
+  Handlebars.registerHelper("localize", (key, opts) => (opts?.hash?.n != null ? `${key}:${opts.hash.n}` : String(key)));
+  Handlebars.registerHelper("not", (v) => !v);
+  Handlebars.registerHelper("disabled", (v) => (v ? "disabled" : ""));
+  const contentsTemplate = Handlebars.compile(readFileSync("templates/equipment/item-sheet/contents.hbs", "utf8"));
+  const render = (pagesCap) => {
+    const model = buildItemSheetModel(base({ spellbook: { count: 1, pagesUsed: 4, pagesCap, capTip: "cap-tip", usedTip: "used-tip", spells: [] } }), { isGM: true, editable: true });
+    return contentsTemplate({ ...model, editable: true, editing: true, gm: true });
+  };
+  test("an imported capacity shows its figure, the bar and its tooltip", () => {
+    const html = render(7);
+    assert.ok(html.includes("itemSheet.of:7") && html.includes('data-tooltip-text="cap-tip"') && html.includes('data-tooltip-text="used-tip"'));
+    assert.ok(html.includes("acks-bar-fill"));
+  });
+  test("no capacity imported says so, with no figure and no bar, and keeps its tooltip", () => {
+    const html = render(null);
+    assert.ok(html.includes("printed.notImported") && !html.includes("itemSheet.of:") && !html.includes("acks-bar-fill"));
+    assert.ok(html.includes('data-tooltip-text="cap-tip"'));
   });
 }
 

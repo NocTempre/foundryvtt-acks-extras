@@ -74,7 +74,7 @@ const { readiedWeaponData, prepareTorch, unarmedStrikeData, masterworkTiersFor, 
 const { cycleStrap, strapOf } = await import(new URL("overlays/shield-variants.mjs", S));
 const { disguiseItem, revealItem, isDisguised } = await import(new URL("actions.mjs", S));
 const { helmetType, isEnclosingHelm, helmFigures } = await import(new URL("overlays/enclosing-helm.mjs", S));
-const { isSpellbook, pagesUsed, spellbookValue, parseSpellList, setSpellbookSpells, overCapacity: bookOver } = await import(new URL("spellbook.mjs", S));
+const { isSpellbook, pagesUsed, pagesCapacity, spellbookValue, spellbookFigureSource, spellbookFigureTip, parseSpellList, setSpellbookSpells, overCapacity: bookOver } = await import(new URL("spellbook.mjs", S));
 const { setMaterial, materialVocabulary } = await import(new URL("overlays/item-loss.mjs", S));
 // The weapon rows are invented (tools/weapon-fixture.mjs); the module ships none.
 const { useWeaponFixture, FIXTURE_ROWS } = await import(new URL("weapon-fixture.mjs", import.meta.url));
@@ -2913,12 +2913,71 @@ check("parseSpellList reads name + trailing level in three shapes", (() => {
 check("isSpellbook recognises the RR Spell Book / grimoire by name", isSpellbook(mockDoc("item", { name: "Spell Book" })) && isSpellbook(mockDoc("item", { name: "Grimoire" })));
 check("isSpellbook is false for ordinary gear and for non-items", !isSpellbook(mockDoc("item", { name: "Backpack" })) && !isSpellbook(mockDoc("weapon", { name: "Spell Book" })));
 const book = mockDoc("item", { name: "Spell Book" });
+// The three figures are the Judge's import: invented here, never the page's.
+const BOOK_FIG = { pages: 7, blank: 3, perLevel: 11 };
+const bookTables = (over = {}) => ({
+  id: "equipment",
+  cites: { spellBookPages: "TEST p. 1", spellBookBlank: "TEST p. 2", spellBookScribing: "TEST p. 3" },
+  tables: {
+    spellBookPages: { pages: BOOK_FIG.pages },
+    spellBookBlank: { value: BOOK_FIG.blank },
+    spellBookScribing: { perLevel: BOOK_FIG.perLevel },
+    ...over,
+  },
+});
+const bookPage = { priority: PRIORITY.WORLD, source: "test" };
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+
+// Nothing imported: the pages used are counted, and no capacity, verdict or value stands in.
 await setSpellbookSpells(book, [{ name: "A", lvl: 1 }, { name: "B", lvl: 3 }]);
 check("spellbook pages used = sum of levels (1+3)", pagesUsed(book) === 4);
-check("spellbook value = 20 + 1000×(1+3)", spellbookValue(book) === 4020);
-check("spellbook under 100 pages is not over capacity", !bookOver(book));
+check("unimported: a book has no capacity, no value and no verdict", pagesCapacity(book) === null && spellbookValue(book) === null && !bookOver(book));
+check("unimported: a new book's record stores no page count", !("pages" in (book._flags.spellbook ?? {})));
+check("unimported: every figure says so", ["pages", "blank", "scribing"].every((w) => spellbookFigureSource(w).state === "none" && spellbookFigureTip(w).includes("spellbook.tip.none")));
 await setSpellbookSpells(book, Array.from({ length: 20 }, (_, i) => ({ name: `S${i}`, lvl: 6 })));
-check("spellbook over 100 pages flags over capacity (120 > 100)", bookOver(book));
+check("unimported: a book scribed to any length is never over capacity", !bookOver(book));
+
+// Imported: the capacity, the value and the verdict follow the table.
+registerTable(bookTables(), bookPage);
+await setSpellbookSpells(book, [{ name: "A", lvl: 1 }, { name: "B", lvl: 3 }]);
+check("imported: the capacity is the table's", pagesCapacity(book) === BOOK_FIG.pages);
+check("imported: value = blank + per-level × (1+3)", spellbookValue(book) === BOOK_FIG.blank + BOOK_FIG.perLevel * 4);
+check("imported: a book under its pages is not over capacity", !bookOver(book));
+await setSpellbookSpells(book, [{ name: "A", lvl: 4 }, { name: "B", lvl: 4 }]);
+check("imported: a book past its pages is over capacity (8 > 7)", bookOver(book));
+await setSpellbookSpells(book, []);
+check("imported: an empty book is worth its blank price alone", spellbookValue(book) === BOOK_FIG.blank);
+check("imported: the record still stores no page count", !("pages" in (book._flags.spellbook ?? {})));
+check("imported: the tooltip names the page read", ["pages", "blank", "scribing"].every((w, i) => spellbookFigureSource(w).cite === `TEST p. ${i + 1}` && spellbookFigureTip(w).includes("spellbook.tip.page")));
+
+// One figure unread costs only what stands on it.
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable(bookTables({ spellBookScribing: undefined }), bookPage);
+await setSpellbookSpells(book, [{ name: "A", lvl: 2 }]);
+check("per-level value unread: a book with spells has no value", spellbookValue(book) === null);
+check("per-level value unread: capacity and the verdict still stand", pagesCapacity(book) === BOOK_FIG.pages && !bookOver(book));
+await setSpellbookSpells(book, []);
+check("per-level value unread: an empty book still has its blank price", spellbookValue(book) === BOOK_FIG.blank);
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable(bookTables({ spellBookBlank: undefined }), bookPage);
+await setSpellbookSpells(book, [{ name: "A", lvl: 2 }]);
+check("blank price unread: no value, though the per-level value is read", spellbookValue(book) === null);
+
+// A blank or non-positive page count is not a capacity.
+for (const bad of ["", 0, "x"]) {
+  unregisterTable("equipment", { priority: PRIORITY.WORLD });
+  registerTable(bookTables({ spellBookPages: { pages: bad } }), bookPage);
+  check(`a page count of ${JSON.stringify(bad)} is not imported`, pagesCapacity(book) === null && spellbookFigureSource("pages").state === "none");
+}
+
+// The Judge's override wins and is named as such.
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+registerTable(bookTables(), bookPage);
+registerTable({ id: "equipment", tables: { spellBookPages: { pages: BOOK_FIG.pages + 2 } } }, { priority: PRIORITY.OVERRIDE });
+check("an override sets the capacity", pagesCapacity(book) === BOOK_FIG.pages + 2);
+check("an override is named in the tooltip, with no page", spellbookFigureSource("pages").state === "judge" && spellbookFigureTip("pages").includes("spellbook.tip.judge") && spellbookFigureSource("blank").state === "page");
+unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
 // A stored spell list keeps a renamed book recognised (identity survives rename).
 const renamed = mockDoc("item", { name: "Old Tome" });
 check("a non-matching name is not a spell book yet", !isSpellbook(renamed));

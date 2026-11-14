@@ -1090,6 +1090,23 @@ reader's own book gave them. Nothing falls back to a shipped number.
   figure, stays rollable, and the roll warns which tables it went without. The
   `hooked`, `targetShaft` and `targetTwoHanded` options have no caller in the
   module: they are API only.
+- **A spell book's pages and value** (`spellbook.mjs`). Three `equipment`
+  tables, each a one-figure `proseValues` read from its own page so its tooltip
+  names that page: `spellBookPages` (RR p. 145, the pages a blank book holds),
+  `spellBookBlank` (RR ch. 5, the Spell Books passage: a blank book's price)
+  and `spellBookScribing` (RR p. 391: the value of one scribed spell level).
+  `pagesCapacity` answers the pages or null; `spellbookValue` is the blank
+  price plus the per-level value times the pages used, null while the blank
+  price is unread or while a spell is recorded and the per-level value is
+  unread (an empty book needs only the blank price); `overCapacity` is false
+  while the capacity is unread, as for any unstated capacity. The book's own
+  record (`ITEM_FLAGS.SPELLBOOK`) holds its spells and no page count, so a
+  Judge's override of the table reaches every book and a new book stores no
+  figure the import did not read. The Contents tab's Pages line shows the
+  pages used, then "of N" with the capacity bar, or "· not imported" and no
+  bar; each figure's tooltip (`spellbookFigureTip`) names the page read, the
+  Ruledata Browser override, or that nothing is imported. The value has no
+  surface in the module; it is the equipment API's `spellbookValue`.
 
 ## Weapon rows read from the book — `weapon-source.mjs`
 

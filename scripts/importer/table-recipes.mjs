@@ -2340,7 +2340,7 @@ export const TABLE_RECIPES = {
     },
   },
   equipment: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal + Monstrous Manual", pages: "RR 15, 109, 121, 127, 140, 160, 296, 299, 305-306; JJ 252, 398; MM 56" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal + Monstrous Manual", pages: "RR 15, 109, 121, 127, 140, 145, 160, 181, 296, 299, 305-306, 391; JJ 252, 398; MM 56" },
     tables: {
       // The weapon sizes the finesse proficiency takes (RR ch. 3): the size words
       // its own sentence names, read as a list.
@@ -2529,6 +2529,32 @@ export const TABLE_RECIPES = {
         values: [
           { key: "penalty", find: "penalties cannot be worse than", take: "signed", span: 8 },
         ],
+      },
+      // A spell book's three figures (RR ch. 4 and ch. 5, RR p. 391), each
+      // read from its own page so its tooltip names that page: the pages a blank
+      // book holds, the price of a blank book, and the value of one spell level
+      // scribed. `equipment/spellbook.mjs` computes the capacity and the value
+      // from them and answers null for any not read.
+      spellBookPages: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 145,
+        locate: "Spell Book (Blank)",
+        values: [{ key: "pages", find: "each such grimoire has", take: "int", span: 8 }],
+      },
+      spellBookBlank: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 181,
+        locate: "sturdy leatherbound",
+        values: [{ key: "value", find: "page spell book costs", take: "gp", span: 12 }],
+      },
+      spellBookScribing: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 391,
+        locate: "Component Cost: None",
+        values: [{ key: "perLevel", find: "material cost:", take: "gp", span: 20 }],
       },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",

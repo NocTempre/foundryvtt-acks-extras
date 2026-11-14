@@ -18,7 +18,7 @@
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
  *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
  *              keys[], fragile, accepts[], refusal, contents[], canSee} | null
- *   spellbook  {pagesUsed, pagesCap, groups[]} | null
+ *   spellbook  {pagesUsed, pagesCap (null until imported), hasCap, capTip, usedTip, groups[]} | null
  *   chart      {sceneName, explored, pct} | null
  *   condition  {labels[], damaged, destroyed, material, acNow, acFull, itemLossAc, uses, note,
  *              itemLoss}   itemLoss {state, tip} | null (overlay off)
@@ -380,7 +380,10 @@ export function buildItemSheetModel(snap, viewer = {}) {
     spellbook: spellbook
       ? {
           ...spellbook,
-          over: spellbook.pagesUsed > spellbook.pagesCap,
+          // With no capacity imported there is no verdict and no bar, only the
+          // pages used and that the capacity is not imported.
+          hasCap: spellbook.pagesCap != null,
+          over: spellbook.pagesCap != null && spellbook.pagesUsed > spellbook.pagesCap,
           pct: pctLabel(spellbook.pagesCap ? spellbook.pagesUsed / spellbook.pagesCap : 0),
         }
       : null,

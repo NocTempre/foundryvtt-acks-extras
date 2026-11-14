@@ -55,9 +55,9 @@
     <div class="acks-row">
       <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.spellbook.pages'}}</span>
       <span class="acks-spacer"></span>
-      <span class="acks-extras-item-sheet__fact-value acks-nums">{{spellbook.pagesUsed}}<span class="acks-extras-item-sheet__of">{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=spellbook.pagesCap}}</span></span>
+      <span class="acks-extras-item-sheet__fact-value acks-nums"><span data-tooltip-text="{{spellbook.usedTip}}">{{spellbook.pagesUsed}}</span><span class="acks-extras-item-sheet__of" data-tooltip-text="{{spellbook.capTip}}">{{#if spellbook.hasCap}}{{localize 'ACKS-EQUIPMENT.itemSheet.of' n=spellbook.pagesCap}}{{else}}· {{localize 'ACKS-EQUIPMENT.printed.notImported'}}{{/if}}</span></span>
     </div>
-    <div class="acks-bar{{#if spellbook.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{spellbook.pct}}"></div></div>
+    {{#if spellbook.hasCap}}<div class="acks-bar{{#if spellbook.over}} acks-bar--danger{{/if}}"><div class="acks-bar-fill" style="--acks-bar-value: {{spellbook.pct}}"></div></div>{{/if}}
   </div>
   <p class="acks-extras-item-sheet__note">{{localize 'ACKS-EQUIPMENT.spellbook.prompt'}}</p>
   <textarea class="acks-input acks-extras-item-sheet__spells" rows="10" data-field="spellbook" {{disabled (not editing)}}>{{spellbookText}}</textarea>

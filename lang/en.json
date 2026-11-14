@@ -1909,7 +1909,19 @@
       "prompt": "One spell per line, level as a trailing number: “Fireball, 3”. The pages used follow from the levels (RR p. 145).",
       "save": "Save spells",
       "over": "{name}: {used}/{cap} pages — over capacity.",
-      "pages": "pages"
+      "pages": "pages",
+      "tip": {
+        "used": "Pages used: the levels of the spells recorded in this book, summed (RR p. 145).",
+        "what": {
+          "pages": "Pages a spell book holds",
+          "blank": "Price of a blank spell book",
+          "scribing": "Value of one scribed spell level"
+        },
+        "page": "{what}: read from {cite}.",
+        "book": "{what}: read from your own book.",
+        "judge": "{what}: set in the Ruledata Browser.",
+        "none": "{what}: not imported, so no figure is shown. Import it from your own book, or set it in the Ruledata Browser."
+      }
     },
     "disguise": {
       "hint": "GM: give this item an apparent (mundane) identity — players see the disguise, not the truth.",

@@ -124,7 +124,7 @@ export const ITEM_FLAGS = Object.freeze({
   NAMED: "named", // {trueName, givenName, ladder[], unlocked, revealed, guesses{}}
   WORN_HAND: "hand", // set by paper-doll normalization: "main" | "off" | "mainOff"
   GRIP: "grip", // player's chosen grip for a versatile weapon: "auto" | "1h" | "2h"
-  SPELLBOOK: "spellbook", // {pages, spells:[{name,lvl}]} — a book recording spell formulae
+  SPELLBOOK: "spellbook", // {spells:[{name,lvl}]} — a book recording spell formulae
   DISGUISE: "disguise", // {true:{name,img,cost,damage,ac,description}, apparent} — GM apparent-identity mask
 });
 

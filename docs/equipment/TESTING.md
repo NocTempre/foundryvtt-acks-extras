@@ -1513,6 +1513,58 @@ The kept actor stays. The run's own cards are tracked by id and swept by that
 list, and the sweep object is printed; the overrides are cleared in a
 `finally`.
 
+## A spell book's pages and value
+
+The three figures arrive from the Revised Rulebook and reach the Contents tab
+and the equipment API only as read (docs/equipment/MODEL.md, "Figures the book
+prints, and what is read without them"). GM seat with the Revised Rulebook
+connected. The walk prints booleans and counts, never a page figure.
+
+### Fixtures
+
+- **Kept, `equipment/spellbook-item`**: a world item named for a spell book
+  (it is recognised by name) holding two recorded spells of different levels.
+  Found by the marker, else built; the spells are set through the Contents tab
+  textarea, one per line with the level trailing.
+- **The tables are the world's**: `spellBookPages`, `spellBookBlank` and
+  `spellBookScribing` in the `equipment` document. When absent the walk runs
+  the Rules tables import for the `equipment` document. "Absent" is a Judge's
+  override written through the Ruledata Browser's `setOverride` with the field
+  blank, never an edit of the imported layer; an override the run did not write
+  fails the step by name.
+
+### Steps
+
+1. The import. *Observable:* each of the three tables holds one finite number
+   and `citeOf` answers a page for each.
+2. Open the book's sheet on the Contents tab. *Observable:* the Pages line
+   shows the pages used and "of N" beside it, with the bar; hovering the used
+   figure names the levels summed and hovering the capacity names the page read.
+3. `api.equipment.spellbookValue(item)`. *Observable:* a number equal to the
+   blank price plus the per-level value times the pages used, from the tables
+   the step 1 read.
+4. Override `spellBookPages.pages` with an invented number below the pages used.
+   *Observable:* the capacity changes, the bar turns to its danger state, the
+   capacity tooltip names the Ruledata Browser, and saving the spells warns
+   with the used and capacity counts. Clear it; the imported figure returns.
+5. The absent case. Blank `spellBookPages.pages` in an override. *Observable:*
+   the Pages line shows the pages used and "not imported", no capacity digit
+   and no bar; its tooltip says not imported; `pagesCapacity` answers null and
+   saving the spells never warns. Create a second spell book and save a spell:
+   its flag record holds the spell and no `pages`.
+6. Blank `spellBookBlank.value`, then restore it and blank
+   `spellBookScribing.perLevel`. *Observable:* `spellbookValue` is null in the
+   first case; in the second it is null while the book holds a spell and the
+   blank price alone once its list is emptied.
+7. Open the book on the Player seat. *Observable:* the same Pages line.
+8. Clear the run's overrides. *Observable:* none left, and the registry serves
+   the imported figures again.
+
+### Teardown
+
+The kept item stays; the second book is swept by its tracked id and the sweep
+object is printed. The overrides are cleared in a `finally`.
+
 ## The die a held weapon shows and rolls
 
 A versatile weapon's melee die is the one answer `heldGrip` gives (MODEL, "One

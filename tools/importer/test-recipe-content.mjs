@@ -81,6 +81,8 @@ const TABLES = {
     "weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials",
     "maneuverDisarm", "maneuverPenalties", "combatTrickery", "maneuverQualities", "hookedWeapon",
     "scavengedCaps",
+    // A spell book's pages, a blank book's price and one scribed level's value.
+    "spellBookPages", "spellBookBlank", "spellBookScribing",
   ],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
@@ -692,6 +694,17 @@ VERIFY["equipment.scavengedCaps"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.penalty) && !(out.penalty < 0)) fail("penalty: not below zero");
 };
+// A spell book's figures are whole counts and prices: pages above zero, a price and a per-level value not below it.
+VERIFY["equipment.spellBookPages"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.pages) && !(Number.isInteger(out.pages) && out.pages > 0)) fail("pages: not a positive whole number");
+};
+for (const [table, key] of [["spellBookBlank", "value"], ["spellBookScribing", "perLevel"]]) {
+  VERIFY[`equipment.${table}`] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    if (isNum(out?.[key]) && out[key] < 0) fail(`${key}: below zero`);
+  };
+}
 VERIFY["equipment.itemLossMaterials"] = (out, recipe, fail) => {
   for (const { key, row } of keyedRows(out, recipe, fail)) {
     if (!Array.isArray(row.materials)) fail(`row ${key}: materials is not a list`);

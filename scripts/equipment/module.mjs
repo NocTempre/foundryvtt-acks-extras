@@ -72,6 +72,11 @@ Hooks.once("init", () => {
   // as literals for the same reason.
   expectTables(RULEDATA_DOC, ["scavengedPiercingSlashing", "scavengedBludgeoning", "scavengedArmorEquipment", "scavengedVesselsVehicles", "scavengedCaps"]);
 
+  // A spell book's three figures (`spellbook.mjs` SPELLBOOK_TABLES): the pages
+  // it holds, a blank book's price and one scribed spell level's value, written
+  // as literals for the same reason.
+  expectTables(RULEDATA_DOC, ["spellBookPages", "spellBookBlank", "spellBookScribing"]);
+
   // Every weapon reader asks the weapon seam; this is the source behind it, the
   // imported rows placed against the imported lists.
   registerWeaponSource(librarySource);

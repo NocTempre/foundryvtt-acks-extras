@@ -67,8 +67,7 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   instead of on each sheet.
 - **Equipment numbers through the importer.** The strings and comments name the
   field and cite the page. The numbers behind them still ship in code: the
-  spell book constants, the torch dice and the
-  non-proficient penalties.
+  torch dice and the non-proficient penalties.
   Each arrives as an imported `equipment` table or from the item's own text, and
   a feature whose table is absent refuses by naming it. `test-equipment` asserts
   those shipped numbers today; it passes invented values in once the code takes
