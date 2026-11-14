@@ -6,25 +6,11 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 /**
- * Sheet for a trap Item — the hand-editing half of the trap document.
- *
- * A Judge who has imported the book's traps picks one and never opens this; a
- * Judge inventing their own fills it in. Both are first-class, which is why the
- * fields are the book's own questions rather than a form shaped around what an
- * importer happens to emit.
- *
- * Fields that only matter for one kind of trap are hidden until that kind is
- * chosen — a save key on a trap that makes an attack throw is a number with
- * nowhere to go, and showing it invites someone to fill it in and expect it to
- * do something.
- *
- * **One level is on screen at a time.** A trap holds six rows, and six of these
- * forms stacked would bury the four fields that describe the trap itself. The
- * level selector chooses which row is being edited AND which one a sprung trap
- * fires, because those are the same question: the Judge is looking at the trap
- * as it stands in this dungeon. A strip above the row says which levels have
- * anything in them, so an imported trap does not look empty when the level on
- * screen happens to be one the book left blank.
+ * Sheet for a trap Item, the hand-editing half of the trap document. Fields
+ * that matter to one kind of trap show only once that kind is chosen. One level
+ * row is on screen at a time: the level selector picks the row edited and the
+ * row a sprung trap fires, and a strip says which levels hold anything.
+ * See docs/formation/DECISIONS.md, "A trap is one document at six levels, not six documents".
  */
 export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -44,12 +30,10 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const system = this.item.system;
     context.system = system;
     context.editable = this.isEditable;
-    // DocumentSheetV2 supplies only `document`/`model`/`source`/`fields`; the
-    // description editor needs the item's uuid, so hand the item over by name.
+    // The description editor needs the item's uuid, which DocumentSheetV2's context lacks.
     context.item = this.item;
 
-    // Never reach for the bare `TextEditor` global — v14 serves it from
-    // foundry.applications.ux and the global is deprecated.
+    // The bare `TextEditor` global is deprecated in v14.
     context.descriptionHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       system.description ?? "",
       { relativeTo: this.item, secrets: this.item.isOwner },
@@ -67,17 +51,12 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ...SAVE_KEYS.map((value) => ({ value, label: game.i18n.localize(`ACKS.saves.${value}.long`) })),
     ];
 
-    // The row on screen, and the path its inputs submit under. Assembled here
-    // because the template has no concat helper — the same reason the vehicle
-    // sheet resolves its keys in context.
+    // The row on screen and its submit path (the template has no concat helper).
     const tier = system.tier;
     context.tier = tier;
     context.tierPath = `system.levels.${Math.max(0, (system.level ?? 1) - 1)}`;
 
-    // Which levels say anything. `stated` is what separates a level the book
-    // prints from one nobody has filled in, and it is asked of the row rather
-    // than of the array's length: an imported trap carries six rows whatever
-    // the book had to say about each.
+    // `stated` is asked of the row, not the array's length: a trap always holds six rows.
     context.levelStrip = Array.from({ length: TRAP_LEVELS }, (_, i) => {
       const row = system.levels?.[i];
       return {
@@ -95,21 +74,18 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.isSave = tier.resolution === RESOLUTIONS.save;
     context.isAttack = tier.resolution === RESOLUTIONS.attack;
     context.isArea = system.scope === SCOPES.area;
-    // Shown so the Judge can see what a depth is worth without doing the
-    // arithmetic, and so a typed formula visibly overriding it is not a
-    // surprise. Suppressed when a typed formula has already won.
+    // The pit's derived damage; suppressed when a typed formula has won.
     const typed = String(tier.damageFormula ?? "").trim();
     const pit = typed ? { formula: null, unknown: [] } : pitDamage(tier.pitDepthFeet, tier.spiked);
     context.derivedDamage = pit.formula;
-    // A pit whose dice are not imported says so instead of showing nothing.
+    // A pit whose dice are not imported says so.
     context.pitUnknown = pit.unknown.includes("fall")
       ? label("pitFallNotImported")
       : pit.unknown.includes("spikes")
         ? label("pitSpikesNotImported")
         : "";
 
-    // The trigger band: blank reads the imported one, and the secret die's
-    // faces bound what a typed band can mean. Neither is invented when absent.
+    // The trigger band: blank reads the imported one; the die's faces bound a typed band.
     const figures = trapFigures();
     context.triggerMax = figures.triggerFaces;
     context.triggerOnDefault = figures.triggerOn;
@@ -119,25 +95,15 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /**
-   * @override — rebuild `levels` from what is STORED before the model cleans
-   * the submit, overlaying only the row that was on screen.
-   *
-   * The form renders one tier, whose inputs are dotted index paths
-   * (`system.levels.3.damageFormula`). Those arrive here already expanded into
-   * an ARRAY — but one built solely from the paths the form named, so every
-   * row below the edited index is an empty default and every row above it is
-   * simply absent. Written through, that is the whole trap replaced by its
-   * fourth level: five levels of imported book content gone on a keystroke,
-   * with nothing on screen to suggest it happened.
-   *
-   * So the array is rebuilt from the document and exactly ONE index is taken
-   * from the submit. Testing whether the submitted value is an array is not a
-   * guard at all — it always is one.
+   * @override — rebuild `levels` from what is stored before the model cleans
+   * the submit, overlaying only the row that was on screen (see
+   * `mergeTierSubmit`: the form's dotted index paths expand into an array
+   * holding only the named row). The submitted value is always an array, so
+   * that is no guard.
    */
   _prepareSubmitData(event, form, formData, updateData) {
     const data = super._prepareSubmitData(event, form, formData, updateData);
-    // A blank band is the imported one: stored as null, never as 0, which
-    // would read as "never springs".
+    // A blank band is stored as null (the imported one), never 0 ("never springs").
     if (data.system && "triggerOn" in data.system) {
       const band = data.system.triggerOn;
       data.system.triggerOn = band === "" || band == null || Number.isNaN(Number(band)) ? null : Number(band);

@@ -45,9 +45,6 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         const item = fromUuidSync(target.closest("[data-item-uuid]")?.dataset.itemUuid);
         if (!item) return;
         const current = overrideFor(item);
-        // Cycle through the three real states rather than hiding "automatic"
-        // behind a binary: a GM who overrode something must be able to hand it
-        // back to automation without hunting for the global reset.
         const next = current === null ? false : current === false ? true : null;
         await setOverride(item, next);
         this.render();
@@ -88,8 +85,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    // The audit window is where a GM checks whether scaling is working, so it
-    // reads the ladders fresh rather than trusting a cache invalidated by hooks.
+    // Reads the ladders fresh, not from the hook-invalidated cache.
     await refreshLadders();
     const formation = this.formation;
     context.formation = formation;
@@ -175,14 +171,9 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
 /* -------------------------------------------- */
 
 /**
- * Every distinct ability in the party, once — the surface for auditing what the
- * candidate union actually caught.
- *
- * "Distinct" is by ability IDENTITY (register id, else folded name), so two
- * members carrying Searching are one row with one ruling. For each row we
- * report not just WHETHER automation uses it but by WHICH route, because a
- * name-matched binding is the fragile one a GM most wants to see: it is the one
- * that breaks on a rename and the one most likely to be a false positive.
+ * Every distinct ability in the party, once: one row per ability identity
+ * (register id, else folded name), with whether automation uses it and by
+ * which route (a name-only binding breaks on a rename).
  */
 function collectPartyAbilities(formation) {
   const rows = new Map();
@@ -209,14 +200,11 @@ function collectPartyAbilities(formation) {
           holders: [],
           bindings,
           bound: bindings.length > 0,
-          // Only a name-only binding is worth flagging; a capability match is
-          // exactly what we want and needs no attention.
+          // Only a name-only binding is flagged.
           nameOnly: bindings.length > 0 && bindings.every((b) => b.route === "name"),
           ruling,
           overridden: ruling !== null,
-          // Default state = what automation would do unaided — through the
-          // SAME gate rollPartyCheck applies, so a Skill-unchecked item never
-          // reads as active here while the roll refuses it.
+          // Unruled: what automation does, through the gate rollPartyCheck applies.
           active: ruling === null ? bindings.length > 0 && skillGateAllows(item) : ruling,
         };
         rows.set(key, row);
@@ -239,8 +227,8 @@ const TAB_ID = "afmskill";
 const loc = makeLoc("ACKS-FORMATION");
 
 /**
- * An ability is "a skill" when explicitly checked on its sheet, or (for items
- * flagged before the checkbox existed) when it carries party-roll flags.
+ * An ability is "a skill" when checked on its sheet, or, with no explicit
+ * `isSkill` flag, when it carries a `checkKey`.
  */
 export function isSkillItem(item) {
   const explicit = item.getFlag(MODULE_ID, "isSkill");
@@ -269,9 +257,8 @@ export function registerSkillFlagEditor() {
 }
 
 function injectSkillUI(app, root, item) {
-  // Rebuild from scratch on every render: the injected tab section survives
-  // part replacement (it is not an application part) while the nav anchor and
-  // details checkbox do not, so removal + re-insertion keeps all three fresh.
+  // Rebuilt on every render: the injected section survives part replacement
+  // (it is no application part) while the nav anchor and checkbox do not.
   for (const el of root.querySelectorAll(".acks-formation-skill-anchor, .acks-formation-skill-tab, .acks-formation-skill-check")) el.remove();
 
   const gm = game.user.isGM;

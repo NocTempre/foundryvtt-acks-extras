@@ -5,26 +5,17 @@ import { positiveFigure } from "../lib/util.mjs";
 /**
  * Traps, as arithmetic — no dice, no documents, no Foundry.
  *
- * Everything here answers a question the Judge could answer with the book open:
- * who walks into the thing first, who is caught when it goes off, what the
- * disarm throw is before anyone rolls it, and whether a thief is allowed to try
- * again. `trap-zone.mjs` supplies the dice and the world; this file is the rule.
+ * Who walks into a trap first, who is caught when it goes off, what the disarm
+ * throw is before anyone rolls it, and whether a thief may try again.
+ * `trap-zone.mjs` supplies the dice and the world; this file is the rule.
  *
- * **What is here and what is not.** The MECHANISMS are the rule itself and are
- * written down: a trap resolves as a saving throw, an attack throw, or damage
- * with no throw at all; a crude one is easier to find and remove and weaker
- * when it fires; a pit deals its depth in dice. The worked traps the Judge's
- * book prints — their damage by level, their areas, their riders — are book
- * content with an owner, and none of them is here. A Judge types the formula
- * their own trap deals, the same way the obstacle helper knows the shape of a
- * climb without knowing any particular cliff.
- *
- * **Every distance and die is read, never held.** The search and pole reaches,
- * the pole's lead, the trigger die and its band, the trapbreak reach, the botch
- * bands, the methodical bonus and the pit's dice arrive in the `formation`
- * registered document (`trapFigures`, `pitFigures`); a figure not imported
- * reads null and each consumer says what it does without it. A rank's depth
- * is the laid column's (`laidOrder`), else the scene's cell.
+ * The mechanisms are written here (a trap resolves as a save, an attack or
+ * automatic damage; a crude one is easier to find and remove and weaker when
+ * it fires; a pit deals its depth in dice). No printed trap is: a Judge types
+ * the formula their own trap deals. Every distance and die arrives in the
+ * `formation` registered document (`trapFigures`, `pitFigures`); a figure not
+ * imported reads null and each consumer says what it does without it. A rank's
+ * depth is the laid column's (`laidOrder`), else the scene's cell.
  */
 
 /** A figure as a whole number of at least zero, or null. */
@@ -89,10 +80,7 @@ export function pitFigures() {
   return { fall: fallFigures(), spike: count && !count.includes("*") && each ? { count, faces: each } : null };
 }
 
-/**
- * How a trap resolves once it goes off. Every trap the Judge's book works
- * through is exactly one of these.
- */
+/** How a trap resolves once it goes off. */
 export const RESOLUTIONS = Object.freeze({
   /** Each creature caught throws a save; failure is the full effect. */
   save: "save",
@@ -107,16 +95,7 @@ export const RESOLUTIONS = Object.freeze({
 /** Who a trap catches: only whoever set it off, or everything within a radius. */
 export const SCOPES = Object.freeze({ triggerer: "triggerer", area: "area" });
 
-/**
- * What beating the trap's throw is worth to the victim.
- *
- * The book's traps do not agree on this and the difference is the whole
- * outcome: a ceiling collapse halves on a made save, a deadfall is dodged
- * outright, one fire trap deals a smaller die instead, and a portcullis grants
- * a choice of which side you land on rather than any mitigation at all. A model
- * with no field for it can only report the throw and the damage side by side
- * and leave the reader to guess whether one affected the other.
- */
+/** What beating the trap's throw is worth to the victim; a field on each trap. */
 export const ON_SUCCESS = Object.freeze({
   /** Half damage, rounded down. The commonest. */
   half: "half",
@@ -126,29 +105,14 @@ export const ON_SUCCESS = Object.freeze({
   full: "full",
 });
 
-/** 1st through 6th: the levels the books print every trap at. */
+/** The number of level rows a trap holds. */
 export const TRAP_LEVELS = 6;
 
 /**
- * One level of a trap with nothing said about it yet.
- *
- * Rows are allowed to be empty — a Judge inventing a trap for one level owes
- * nothing for the other five — so the shape has to exist independently of any
- * row being filled. Lives here rather than on the data model because the sheet
- * and the offline tests both need it without Foundry.
- */
-/**
  * The six rows a trap should hold after a sheet submit that rendered ONE of
- * them.
- *
- * Foundry expands the form's dotted index paths into an array built only from
- * the paths the form named: every row below the edited index arrives as an
- * empty default and every row above it is simply absent. Writing that through
- * replaces the whole trap with its one edited level. So the answer is rebuilt
- * from what is STORED, and exactly one index is taken from the submit.
- *
- * Lives here, Foundry-free, so the rule is unit-tested rather than only
- * reachable by opening a sheet.
+ * them: rebuilt from what is stored, with exactly one index taken from the
+ * submit (Foundry expands the form's dotted paths into an array holding only
+ * the named rows, which written through would replace the whole trap).
  *
  * @param {object[]} stored the document's current rows
  * @param {object[]|object} submitted what the form produced
@@ -164,6 +128,10 @@ export function mergeTierSubmit(stored = [], submitted = [], level = 1) {
   }));
 }
 
+/**
+ * One level of a trap with nothing said about it yet. A row may be empty; the
+ * shape exists without Foundry for the sheet and the offline tests.
+ */
 export const emptyTier = () => ({
   text: "",
   resolution: RESOLUTIONS.automatic,
@@ -203,12 +171,9 @@ export const STATES = Object.freeze({
 });
 
 /**
- * A crudely built trap: easier to find and remove, feebler when it fires.
- *
- * One modifier set covers every crude trap, which is why it is a checkbox on
- * the zone rather than a trap kind of its own. (The book also has a crude trap
- * decay without daily upkeep (JJ p. 238); that is a Judge's clock, not a throw,
- * and nothing here pretends to keep it.)
+ * A crudely built trap: easier to find and remove, feebler when it fires. One
+ * modifier set covers every crude trap (a checkbox on the zone, not a trap
+ * kind). Its upkeep decay (JJ p. 238) is a Judge's clock and is not kept here.
  */
 export const CRUDE = Object.freeze({ find: 4, remove: 4, attack: -2, save: 2 });
 
@@ -219,26 +184,11 @@ export const CRUDE = Object.freeze({ find: 4, remove: 4, attack: -2, save: 2 });
 /**
  * The order in which the party presents itself to a trap, front first.
  *
- * A pole is an extra probe, not a modifier: the book counts it as an
- * adventurer moving ahead of its bearer by the pole's lead (`poleRanks`, the
- * imported lead in ranks), so it enters the sequence that far forward of the
- * person holding it and is thrown for separately. That is the whole value of
- * carrying one — the pole meets the pressure plate while its bearer is still
- * back.
- *
- * Where a pole and a body reach the same square the BODY goes first: someone
- * already walking that ground got there before a pole was waved over it. The
- * pole still throws separately — the Judge may roll many times — but what it
- * buys is untrodden ground ahead of the column, not precedence over a man
- * standing in the square already.
- *
- * **Within a rank the order is shuffled.** Men marching abreast step onto the
- * same ground at the same moment, and each still throws separately — that much
- * is the book's (RR p. 267). What is not the book's
- * is deciding that the leftmost of them always goes first: the sequence ends at
- * the throw that springs the trap, so a fixed file order makes whoever stands
- * in file 0 spring every trap in the dungeon. The shuffle is per rank, so ranks
- * still meet the trap front to back.
+ * A pole is an extra probe: it enters the sequence `poleRanks` (the imported
+ * lead, in ranks) ahead of its bearer and throws separately. Where a pole and a
+ * body reach the same square the body goes first. Within one square and kind
+ * the order is shuffled (RR p. 267), so ranks still meet the trap front to
+ * back. See docs/formation/DECISIONS.md, "Probes in one square are shuffled, and a body precedes a pole".
  *
  * @param {object[]} order rows in `marchingOrder()`'s shape
  * @param {object} [opts]
@@ -247,8 +197,7 @@ export const CRUDE = Object.freeze({ find: 4, remove: 4, attack: -2, save: 2 });
  * @param {number|null} [opts.poleRanks] how many ranks ahead of its bearer a
  *   pole probes (the imported lead over a rank's depth, `poleLeadRanks`); null
  *   where either is not known, and no pole probes.
- * @param {() => number} [opts.random] the source of the shuffle, injected so
- *   the sequence can be pinned in a test without pinning the bias back in.
+ * @param {() => number} [opts.random] the source of the shuffle, injected for tests.
  * @returns {Array<{kind: "body"|"pole", actorId: string, name: string|null,
  *   rank: number, file: number, reach: number}>}
  */
@@ -264,9 +213,8 @@ export function probeSequence(order, { pole = true, poleRanks = null, random = M
   }
 
   // Group by the square each probe reaches, shuffle inside the group, then lay
-  // the groups out front to back. A body still precedes a pole waved into the
-  // same square — someone standing there got there first — so the shuffle runs
-  // within a kind, not across the two.
+  // the groups out front to back; the shuffle runs within a kind, not across
+  // body and pole.
   const groups = new Map();
   for (const probe of probes) {
     const key = `${probe.reach}:${probe.kind}`;
@@ -290,7 +238,7 @@ export function probeSequence(order, { pole = true, poleRanks = null, random = M
     .flatMap(([, group]) => group);
 }
 
-/** The depth of one rank in feet: `rankFeet` where it is a length, else null (nothing says how deep a rank stands). */
+/** The depth of one rank in feet: `rankFeet` where it is a length, else null. */
 export function rankDepth(rankFeet) {
   return positiveFigure(rankFeet);
 }
@@ -308,12 +256,11 @@ export function poleLeadRanks(poleLeadFeet, rankFeet) {
 /**
  * How far ahead of the party token this searcher's own reach extends, in feet.
  *
- * The reach belongs to the CHARACTER and the distance is measured from the
- * party token, so the searcher's own place in the column is subtracted: a
- * pole-bearer stands back by its rank times the rank's depth. A pole with no
- * imported reach is a plain searcher. Null where the searcher's reach cannot be
- * stated: the search reach is not imported, or the searcher stands behind the
- * front rank and no depth says how far back.
+ * The reach is the character's and the distance is measured from the party
+ * token, so the searcher's own place (rank times the rank's depth) is
+ * subtracted. A pole with no imported reach is a plain searcher. Null where the
+ * search reach is not imported, or the searcher stands behind the front rank
+ * and no depth says how far back.
  *
  * @param {object} row a marching-order row
  * @param {object} figures
@@ -347,16 +294,10 @@ export function autoSearchers(order, figures = {}) {
 /**
  * Who the trap catches, given which probe set it off.
  *
- * Two rules, because the book's traps come in two kinds. A needle or a pit
- * takes whoever touched it. A collapsing ceiling, a scything blade or a rolling
- * rock takes everything within reach of where it went off, which in a column
- * means a run of ranks either side.
- *
- * **A pole-sprung trap catches nobody within its own square**, and that is the
- * point of the pole rather than an edge case: the trap fires a lead ahead of
- * the party into empty corridor. An area effect still reaches back for the bearer
- * if its radius is long enough, which is why the pole is protection and not
- * immunity.
+ * A `triggerer` scope takes whoever touched it; an `area` scope takes every
+ * body within its radius of where it went off. A pole-sprung trap catches
+ * nobody within its own square, though an area effect still reaches back for the
+ * bearer.
  *
  * @param {object[]} probes from `probeSequence`
  * @param {number} index which probe sprang it
@@ -375,7 +316,7 @@ export function victimsOf(probes, index, { scope = SCOPES.triggerer, radiusFeet 
   const bodies = (probes ?? []).filter((p) => p.kind === "body");
 
   if (scope !== SCOPES.area) {
-    // The pole took it, so the corridor took it.
+    // A pole-sprung trap fires into empty corridor.
     if (sprung.kind === "pole") return [];
     return bodies.filter((p) => p.actorId === sprung.actorId && p.rank === sprung.rank);
   }
@@ -404,17 +345,11 @@ export function triggerFires(die, triggerOn) {
 /* -------------------------------------------- */
 
 /**
- * The Trapbreaking throw, itemized before it is rolled — the same courtesy the
- * door helper pays a bash, and for the same reason: a player deciding whether
- * to spend a turn on this should see what they are buying.
- *
- * Hasty and methodical differ in more than the bonus. Methodical takes a turn
- * instead of a round, permits a non-thief to try at all through Adventuring,
- * adds the imported bonus for a skilled thief, and may be repeated after a
- * failure. Hasty may not: a thief who fails a hasty attempt has learned
- * everything they are going to learn about this trap until they gain a level.
- * A bonus or a botch band that is not imported contributes nothing (RR ch. 6,
- * Traps and Trapbreaking).
+ * The Trapbreaking throw, itemized before it is rolled. Methodical takes a turn
+ * instead of a round, permits a non-thief through Adventuring, adds the imported
+ * bonus for a skilled thief and may be repeated after a failure; hasty does
+ * none of these. A bonus or a botch band that is not imported contributes
+ * nothing (RR ch. 6, Traps and Trapbreaking).
  *
  * @param {object} o
  * @param {"hasty"|"methodical"} o.mode
@@ -432,9 +367,8 @@ export function disarmPlan({ mode = "methodical", crude = false, skilled = true,
   const push = (value, key) => {
     if (value) parts.push({ value, key });
   };
-  // The methodical bonus is the SKILL's, used methodically. A non-thief working
-  // through Adventuring is already being given a target they would not
-  // otherwise have, and does not also collect the skilled thief's bonus.
+  // The methodical bonus is the skill's; a non-thief working through
+  // Adventuring does not collect it.
   push(methodical && skilled ? (figures.methodicalBonus ?? 0) : 0, "methodical");
   push(crude ? CRUDE.remove : 0, "crude");
   push(extra, "judge");
@@ -464,9 +398,8 @@ export function isBotch(natural, mode = "methodical", figures = trapFigures()) {
 /**
  * May this character try a hasty attempt on this trap again?
  *
- * A failed hasty attempt is remembered against the LEVEL it failed at, not as a
- * plain "no": the rule reopens when the thief has grown, and a lock that could
- * not say when would either bar them forever or forget by morning.
+ * A failed hasty attempt is remembered against the level it failed at, and
+ * reopens when the character's level passes it.
  *
  * @param {Record<string, number>} lock actorId → level the attempt failed at
  * @param {string} actorId
@@ -482,8 +415,7 @@ export function repeatLocked(lock, actorId, level) {
 export function lockAfterFailure(lock, actorId, level) {
   const failedAt = Number(lock?.[actorId]);
   const now = Number(level) || 1;
-  // Keep the HIGHEST level failed at: a thief who somehow tried again and
-  // failed harder should not have the door reopened by the earlier attempt.
+  // Keeps the highest level failed at.
   return { ...(lock ?? {}), [actorId]: Number.isFinite(failedAt) ? Math.max(failedAt, now) : now };
 }
 
@@ -496,12 +428,10 @@ export function lockAfterFailure(lock, actorId, level) {
  * imported `fall` figures), and the spikes at the bottom if it has them, each
  * spike its own damage die.
  *
- * `formula` is null rather than "0" for a pit with no depth — a trap that is
- * not a pit has no pit damage, which is not the same as a pit that does
- * nothing — and null for a depth under one die's feet. `unknown` names what
- * the pit needs and the world does not hold: `fall` when no fall figures are
- * imported (no formula at all), `spikes` when a spiked pit has no spike figures
- * (the fall's dice alone).
+ * `formula` is null for a pit with no depth and for a depth under one die's
+ * feet. `unknown` names what the world does not hold: `fall` when no fall
+ * figures are imported (no formula at all), `spikes` when a spiked pit has no
+ * spike figures (the fall's dice alone).
  *
  * @param {number} depthFeet
  * @param {boolean} [spiked]
@@ -517,11 +447,8 @@ export function pitDamage(depthFeet, spiked = false, { fall, spike } = pitFigure
   const parts = [`${dice}d${fall.faces}`];
   const unknown = [];
   if (spiked) {
-    // A nested count, not a product: the victim lands on a rolled number of
-    // spikes that each deal their own damage, which is that many separate dice.
-    // Multiplying one die by the count instead has a different spread — flatter,
-    // and far swingier at the top. Foundry's parser resolves the nested count
-    // first, so this is exactly the rule and not an approximation of it.
+    // A nested count `(N)dX`, never a product. See docs/formation/DECISIONS.md,
+    // "A pit's spikes are a nested dice count, not a product".
     if (spike) parts.push(`(${spike.count})d${spike.faces}`);
     else unknown.push("spikes");
   }
@@ -534,15 +461,9 @@ export const pitDamageFormula = (depthFeet, spiked = false, figures = pitFigures
 /**
  * What a trap firing asks of one victim, before any of it is rolled.
  *
- * The save bonus and attack penalty a crude trap grants are applied here rather
- * than at each call site, so the one place that knows a trap is crude is the
- * one place that knows what crude is worth.
- *
- * `attackThrow` is the number the Judge's own book gives for a fighter of the
- * trap's level — "attacks as a 3rd level fighter" is a lookup in a table this
- * module does not hold, so the Judge supplies its answer rather than a level
- * for the module to convert. It is combined with the victim's AC the way every
- * ACKS attack throw is: `1d20 + modifiers ≥ attackThrow + AC`.
+ * The one place that applies what a crude trap is worth. `attackThrow` is
+ * supplied by the Judge, not derived from a level, and combines with the
+ * victim's AC as every attack throw does.
  *
  * @param {object} [o.pit] `pitFigures()`, injectable
  * @returns {{resolution: string, saveKey: string|null, saveBonus: number,
@@ -569,12 +490,9 @@ export function firingPlan({
     saveBonus: crude ? CRUDE.save : 0,
     attackThrow: resolution === RESOLUTIONS.attack ? (Number(attackThrow) || 0) : null,
     attackModifier: crude ? CRUDE.attack : 0,
-    // What beating the throw is worth. An ATTACK that misses is always nothing
-    // — a bolt that did not hit deals no damage, whatever the trap says about
-    // saves — so the field only governs the save case.
+    // A missed attack deals nothing, so `onSuccess` governs only the save case.
     onSuccess: resolution === RESOLUTIONS.attack ? ON_SUCCESS.none : onSuccess,
-    // A typed formula is the Judge's own trap and wins; the pit derivation is
-    // the fallback for the one trap whose damage the rule itself states.
+    // A typed formula wins; the pit derivation is the fallback.
     formula: typed || derived.formula,
     pitUnknown: derived.unknown,
   };

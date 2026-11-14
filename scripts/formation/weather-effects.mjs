@@ -2,21 +2,17 @@
  * What today's sky does to the throws, the eye and the body: the weather's
  * printed effects, merged for the day's conditions and the ground under them.
  *
- * `weather.mjs` says WHICH conditions a sky produces; `vehicle-speed.mjs`
- * prices what each costs the march. This reads the rest of a condition's
- * entry — the penalty on a search or a survey, the ceiling on how far anyone
- * can see, what a night's rest needs, the week's disease risk — out of the
- * registered `conditionEffects` table (RR 277-279) and merges it across the
- * conditions a day holds at once. Every figure is imported; what ships is
- * which effects exist, how two conditions combine, and the dust rule's shape:
- * a wind's worse clause applies only on the grounds the page names for it.
+ * `weather.mjs` says which conditions a sky produces; `vehicle-speed.mjs`
+ * prices what each costs the march. This reads the rest of a condition's entry
+ * (search and survey penalties, the sight ceiling, a night's rest, the week's
+ * disease risk) out of the registered `conditionEffects` table (RR 277-279)
+ * and merges it across the day's conditions. Every figure is imported; the
+ * dust clause applies only on the grounds the table names.
  *
- * Merging: throw and forage penalties from distinct conditions SUM — fog and
- * a dust-laden wind are two causes, and the rules stack modifiers that are
- * not the same modifier twice. The visibility ceiling takes the lowest, the
- * visibility factor the product, the air-speed factor the lowest. A night's
- * rest takes the strictest need. Disease keeps every condition's own risk,
- * because each is thrown on its own week.
+ * Merging: throw and forage penalties from distinct conditions sum; the
+ * visibility ceiling and the air-speed factor take the lowest, the visibility
+ * factor the product, a night's rest the strictest need. Disease keeps every
+ * condition's own risk, since each is thrown on its own week.
  */
 import { numOrNull } from "../lib/util.mjs";
 import { readTable, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
@@ -104,8 +100,7 @@ export function weatherEffects(conditions = [], { terrain = "" } = {}) {
     const air = numOrNull(row.airSpeed);
     if (air != null && air > 0) out.airSpeed = out.airSpeed == null ? air : Math.min(out.airSpeed, air);
 
-    // The dust clause: a wind over bare ground. It is the same wind, so its
-    // figures join the wind's own under a key that says which clause spoke.
+    // The dust clause joins the wind's own figures under `<key>.dust`.
     const dust = row.dust;
     if (dust && terrain && (dust.terrains ?? []).includes(terrain)) {
       const dustKey = `${key}.dust`;

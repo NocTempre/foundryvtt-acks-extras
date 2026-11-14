@@ -31,14 +31,10 @@ import { equipForLight } from "./judge-override.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
- * The dungeon-turn engine. Implements step 5 of the Judges Journal sequence of
- * play (marking off the turn) plus the periodic wandering monster throw:
- * spell-duration expiry, rest & winded tracking, light-source
- * burn, and elapsed-time bookkeeping for rations. See the formation RULES.md on the local rules shelf, §9, §14.
- *
- * Everything here runs on a (the) GM client only.
+ * The dungeon-turn engine: marking off the turn, the periodic wandering monster
+ * throw, spell-duration expiry, rest and winded tracking, light-source burn and
+ * the elapsed-time bookkeeping for rations. Runs on the GM client only.
  */
-
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -223,9 +219,7 @@ export async function encounterCheck(formation, { manual = false, params = null 
     return false;
   }
 
-  // The party's signature: what the dungeon can see and hear of them. The
-  // card reports it for the Judge's surprise and earshot rulings; the throw
-  // itself is the stated die, whatever the party's light or pace.
+  // The party's signature, reported on the card; the throw is the stated die regardless.
   const lit = formationHasLight(formation);
   const hurried = isHurried(formation);
 
@@ -254,7 +248,6 @@ export async function encounterCheck(formation, { manual = false, params = null 
   ];
 
   if (encounter) {
-    // The minute falls somewhere in the turn, whose length is the clock's own.
     const distance = resolved.distance ? await new Roll(resolved.distance).evaluate() : null;
     const minute = await new Roll(`1d${ROUNDS_PER_TURN}`).evaluate();
     const detail = distance
@@ -281,8 +274,7 @@ export async function encounterCheck(formation, { manual = false, params = null 
     const table = await resolveEncounterTable(formation, zone);
     if (table) {
       const drawn = await drawForJudges(table);
-      // Only when BOTH levels are known — the zone's, and that of the table
-      // that named the monster — so nothing is scaled by a number nobody set.
+      // Scaling needs both levels: the zone's and the drawn table's.
       const dungeonLevel = zone?.behavior?.system?.dungeonLevel ?? 0;
       for (const source of shiftSources(table, drawn?.results)) {
         await announceShift(source.table, { dungeonLevel, monsterLevel: source.level });
@@ -356,7 +348,7 @@ export async function consumeRations(formation) {
 /*  The clock: rounds and turns                 */
 /* -------------------------------------------- */
 
-/** Absolute rounds elapsed (10 bookkeeping rounds per turn, RR p. 263). */
+/** Absolute rounds elapsed: `ROUNDS_PER_TURN` to the turn (RR p. 263). */
 export function totalRounds(clock) {
   return (clock.turnsTotal ?? 0) * ROUNDS_PER_TURN + (clock.roundsPartial ?? 0);
 }
@@ -379,10 +371,9 @@ async function firePendingEncounter(formation, notes) {
 
 /**
  * Burn `turns` turns off every lit light and every tracked spell on the
- * record, noting each one that gutters, goes out or ends. The part of a
- * completed turn that is only elapsed time, so a journey whose world clock ran
- * burns its light without a dungeon turn having passed. A spent light stays on
- * the record, unlit at zero; the caller prunes.
+ * record, noting each one that gutters, goes out or ends. This is the elapsed-time
+ * part of a completed turn, which a journey's world clock also calls. A spent
+ * light stays on the record, unlit at zero; the caller prunes.
  */
 export function burnTurns(formation, turns, notes) {
   formation.spells ??= [];
@@ -423,8 +414,7 @@ export function burnTurns(formation, turns, notes) {
 async function onTurnCompleted(formation, notes, resting) {
   /* --- Rest & winded (RR p. 271) --- */
   if (!restEnforced()) {
-    // No rest is owed, so none is counted and a party already winded when the
-    // switch went off is released without a card line: nothing was recovered.
+    // No rest is owed: none is counted, and a winded party is released without a card line.
     formation.clock.turnsSinceRest = 0;
     formation.clock.winded = false;
   } else if (resting) {
@@ -445,25 +435,20 @@ async function onTurnCompleted(formation, notes, resting) {
   burnTurns(formation, 1, notes);
 
   /* --- Wandering monster throw every N turns (JJ p. 36) ---
-   * The throw is made at the turn boundary; on a hit, the minute is
-   * pre-rolled and the encounter FIRES when the clock reaches that round of
-   * the turn now beginning. */
+   * Made at the turn boundary; on a hit the minute is pre-rolled and the
+   * encounter fires when the clock reaches that round of the turn now beginning. */
   formation.clock.movedThisTurn = false;
 
   /* --- A city keeps its own cadence --- */
-  // The street is not the dungeon's every-N-turns throw at a different number:
-  // how often it comes round is decided by where the party is standing and
-  // whether it is dark, and the same tick owes a navigation throw the dungeon
-  // never asks for. The city's tick owns both, so this returns rather than
-  // falling through to the wandering-monster throw as well.
+  // The city's tick owns the cadence and its navigation throw, so this returns
+  // before the wandering-monster throw.
   if (formation.travel?.mode === "settlement") {
     await cityTurnCompleted(formation, notes);
     return;
   }
 
-  // A cadence no layer states, or an interval of 0, schedules nothing, and the
-  // counter stays at zero, so a cadence stated later starts its count fresh
-  // rather than throwing at once for the turns that passed without one.
+  // A cadence no layer states, or an interval of 0, schedules nothing and holds
+  // the counter at zero, so a later cadence starts its count fresh.
   const params = getEncounterParams(formation);
   if (!cadenceStated(params) || params.every === 0) {
     formation.clock.encounterCounter = 0;
@@ -477,9 +462,9 @@ async function onTurnCompleted(formation, notes, resting) {
 }
 
 /**
- * Advance the clock by bookkeeping rounds (10 per turn, 1 minute each for
- * time-keeping). Movement, hasty 1-round actions, and combat all spend the
- * same currency; full-turn bookkeeping fires whenever a turn completes.
+ * Advance the clock by bookkeeping rounds (`ROUNDS_PER_TURN` to the turn).
+ * Movement, hasty one-round actions and combat all spend the same currency;
+ * full-turn bookkeeping fires whenever a turn completes.
  * @param {object} formation                the formation record (mutated & saved)
  * @param {number} rounds                   rounds to advance
  * @param {object} [options]
@@ -495,28 +480,18 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
   const dayBefore = Math.floor(formation.clock.turnsTotal / TURNS_PER_DAY);
   let completedTurns = 0;
 
-  // Advance world time so effect durations & calendar modules stay in sync
-  // (60 seconds per bookkeeping round). The clock is shared with henchmen
-  // downtime, so the gate lives in lib.
+  // Advance world time so effect durations and calendar modules stay in sync;
+  // the gate lives in lib because henchmen downtime shares the clock.
   if (mayAdvanceWorldTime()) {
     await game.time.advance((TURN_SECONDS / ROUNDS_PER_TURN) * rounds);
-    // Settle what that advance owes BEFORE this call ticks, and take the
-    // result back into the clone. The holed-up day credit rides the world
-    // clock and patches the stored board (its days and the stay's stamp). The
-    // write at the end carries only what this copy changed, and a turn moves
-    // neither, so the credit stands either way; taking it back makes the board
-    // the turn ticks on, and the one this call reports, the board the record
-    // holds. The credit is serialised at its own module, so this await settles
-    // the hook watcher's answer to the SAME advance as well, and the read below
-    // sees one credit.
+    // Settle the holed-up day credit this advance owes before the turn ticks,
+    // and take the stored board back into this copy. See docs/formation/DECISIONS.md,
+    // "A stay is credited once per advance, by the queue and not by the caller (2026-09-15)".
     await creditHoledUpDays();
     const stored = getFormation(formation.id)?.travel?.settlement;
     if (stored) {
-      // The stored board wins on everything the day credit touches. It does NOT
-      // win on how the move being resolved was measured: the caller established
-      // that from the drag a moment ago and it has not reached the record yet, so
-      // taking the stored value here would report every city move as a straight
-      // line. Carried only when this call set one, so a rest does not erase it.
+      // The stored board wins except `measuredAlong`, which this call may have
+      // set from the drag and which has not reached the record yet.
       const next = { ...stored };
       const board = formation.travel?.settlement;
       if (board?.measuredAlong != null) next.measuredAlong = board.measuredAlong;
@@ -569,7 +544,7 @@ export async function advanceRounds(formation, rounds, { resting = false, reason
   }
 }
 
-/** Advance whole dungeon turns (10 rounds each). */
+/** Advance whole dungeon turns (`ROUNDS_PER_TURN` rounds each). */
 export async function advanceTurns(formation, n = 1, options = {}) {
   return advanceRounds(formation, Math.max(1, Math.floor(n)) * ROUNDS_PER_TURN, options);
 }
@@ -589,9 +564,7 @@ export async function postNotesCard(formation, notes) {
 async function postTurnCard(formation, n, { resting, reason, notes }) {
   const litLights = formation.lights.filter((l) => l.lit);
   const rest = formation.clock.turnsSinceRest;
-  // The turn is the same length either way; only the place it is spent in
-  // differs, and a card that says "dungeon" over a city street reads as the
-  // wrong mode rather than as a turn of the right one.
+  // Only the wording differs between a dungeon turn and a city turn.
   const city = formation.travel?.mode === "settlement";
 
   let html = `<div class="acks-formation-card">`;
@@ -644,19 +617,12 @@ async function postTurnCard(formation, n, { resting, reason, notes }) {
 /**
  * How far one turn carries the party on this scene, in feet.
  *
- * The one place the three adventuring modes differ as trackers. A delve spends
- * an exploration move a turn, so the party's own speed is the rate. A city
- * spends the pace's blocks, so the rate is those blocks in the feet this scene
- * draws them at — and a scene that has not said how big a block is falls back
- * to the walking speed rather than stopping the clock, because a party that
- * moves and is told nothing has happened reads as a broken module. Which of
- * the two is in force is stated on the panel.
- *
- * FEET, on both sides of the comparison. A Judge types the block size in the
- * scene's own units — the Scene Config row is labelled with them — so it is
- * read through those units here, the way the distance the party actually
- * dragged is. A block converted on one side only marks off a metre city's
- * turns three times over.
+ * The one place the adventuring modes differ as trackers. A delve spends an
+ * exploration move a turn, so the party's own speed is the rate. A city spends
+ * the pace's blocks, in the feet this scene draws them at; a scene with no
+ * block size falls back to the walking speed. Feet on both sides of the
+ * comparison: the block is typed in the scene's units and converted here. See
+ * docs/formation/DECISIONS.md, "A block is typed in the map's units and spent in feet (2026-09-15)".
  */
 export function turnDistance(formation, scene) {
   if (formation.travel?.mode === "settlement") {
@@ -664,24 +630,19 @@ export function turnDistance(formation, scene) {
     const city = feetPerTurn({
       pace: s.pace,
       headcount: realMembers(formation).length || 1,
-      // A scene that declared no block yields null, which arrives as 0 and is
-      // refused by `feetPerTurn` exactly as a bare null is — the walking-speed
-      // fallback below is unchanged.
+      // A scene with no block yields 0, which `feetPerTurn` refuses as it does null.
       blockFeet: sceneBlockFeet(scene) * feetPerUnit(scene?.grid?.units),
     });
     if (city.feet) return city.feet;
   }
-  // Hurried parties cover combat speed × 10 rounds per turn (RR p. 263).
+  // A hurried party moves at combat speed (RR p. 263).
   return effectiveSpeed(formation);
 }
 
 /**
- * Where a token's last update put its top-left corner. On a client that draws
- * the token, core animates the prepared `x`/`y` toward a move's destination
- * and runs the first frame inside the update itself, so an `updateToken` hook
- * reads the corner the token is leaving, and later reads catch the tween part
- * way. `_source` holds the destination throughout; on a client that does not
- * draw the token the two agree.
+ * Where a token's last update put its top-left corner. On a drawing client the
+ * prepared `x`/`y` animates toward the destination, so an `updateToken` hook
+ * reads the corner being left; `_source` holds the destination throughout.
  * @returns {{x: number, y: number}}
  */
 export function storedPosition(tokenDoc) {
@@ -692,11 +653,8 @@ export function storedPosition(tokenDoc) {
 /**
  * A token's centre with its corner at `at`.
  *
- * A token's `x`/`y` is its top-LEFT corner, which is the wrong point to ask
- * which street it is on: a four-square wagon's corner can sit a block from the
- * street its middle is on. The corner-to-centre offset is read off the token
- * and moved to `at`, so both ends of a move are measured from the same part of
- * the token wherever its drawing stands.
+ * The corner-to-centre offset is read off the token and moved to `at`, so both
+ * ends of a move are measured from the same part of the token.
  */
 function centreOf(tokenDoc, at) {
   const centre = tokenDoc.getCenterPoint?.() ?? { x: tokenDoc.x, y: tokenDoc.y };
@@ -706,24 +664,22 @@ function centreOf(tokenDoc, at) {
 /**
  * Process a party-token position change on the turn clock: convert the
  * distance to feet, accumulate it, and mark off turns each time a full
- * exploration move's (or, in a city, a pace's blocks) worth of distance is
- * spent. Straight-line distance between the last processed position and the
- * new one (waypoint drags are approximated). `to` is the corner the move put
- * the token at (`storedPosition`). A journeying formation never reaches here:
- * `journey.mjs` dispatches on the mode and owns its movement.
+ * exploration move's (or, in a city, a pace's blocks) worth is spent. Distance
+ * is measured from the last processed position to the new one (waypoint drags
+ * are approximated). `to` is the corner the move put the token at
+ * (`storedPosition`). A journeying formation never reaches here: `journey.mjs`
+ * owns its movement.
  */
 export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc)) {
   const formation = getFormation(formationId);
   if (!formation) return;
   if (formation.clock.paused) return;
-  // While members are deployed for combat, camp moves don't consume turns.
+  // While members are deployed for combat, camp moves consume no turns.
   if (formation.combat?.active) return;
 
   const scene = tokenDoc.parent;
-  // A map whose cell is a mile or more across is walked in days, not turns: a
-  // drag across even one of its cells would bill hundreds of them. Nothing is
-  // billed here; the baseline follows the token and the Judge is told once per
-  // arrival on the scene.
+  // An expedition-scale map is walked in days, not turns: nothing is billed, the
+  // baseline follows the token, and the Judge is told once per arrival.
   if (isExpeditionScale(scene)) {
     formation.clock.lastPosition = { x: to.x, y: to.y };
     const tell = formation.clock.scaleWarned !== scene.id;
@@ -748,15 +704,11 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
   formation.clock.lastPosition = { x: to.x, y: to.y };
   if (!dx && !dy) return;
 
-  // FEET, through the scene's own units — not `grid.distance` raw. A map drawn
-  // in yards or miles states its cell in those, and the speed this is about to
-  // be spent against is in feet.
+  // Feet through the scene's own units, not `grid.distance` raw.
   const perCell = sceneFeetPerCell(scene) || scene.grid.distance;
   const straight = (Math.hypot(dx, dy) / scene.grid.size) * perCell;
-  // In a city, the streets are the distance. A drag round a bend is measured
-  // ALONG the roads under it, so a party that followed a curving avenue pays
-  // for the avenue rather than for the chord across the block it went round.
-  // No roads, or neither end on one, falls back to the straight line and the
+  // In a city the distance is measured along the roads under the drag; with no
+  // roads, or neither end on one, it falls back to the straight line and the
   // panel says which happened.
   const measured = formation.travel?.mode === "settlement"
     ? roadDistance(scene, centreOf(tokenDoc, last), centreOf(tokenDoc, to))
@@ -765,9 +717,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
   if (formation.travel?.mode === "settlement" && formation.travel.settlement) {
     formation.travel.settlement.measuredAlong = !!measured;
   }
-  // How far one turn carries this party HERE. A dungeon turn is an exploration
-  // move; a city turn is the pace's blocks, which the scene sizes in feet.
-  // Same tracker either way — only the currency changes.
+  // How far one turn carries this party here (an exploration move, or a city pace's blocks).
   const speed = turnDistance(formation, scene);
 
   if (speed <= 0) {
@@ -776,7 +726,7 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
     return;
   }
 
-  // Rounds, not whole turns: each tenth of a turn's distance is a round.
+  // Rounds, not whole turns: a turn's distance divides into `ROUNDS_PER_TURN` rounds.
   const roundFeet = speed / ROUNDS_PER_TURN;
   formation.clock.carryFeet = (formation.clock.carryFeet ?? 0) + feet;
   let rounds = 0;
@@ -788,9 +738,8 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
 
   if (rounds > 0) {
     formation.clock.movedThisTurn = true;
-    // A party that moves is no longer stationary: the turn plan's open entries
-    // end here. Loaded late: the plan's activities import this file. A plan
-    // that cannot be cancelled never stops the move being billed.
+    // A move ends the turn plan's open entries. Loaded late: the plan's
+    // activities import this file. A failed cancel never stops the move being billed.
     try {
       const { cancelPlanForMove } = await import("./turn-plan.mjs");
       await cancelPlanForMove(formation);
@@ -819,10 +768,9 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
  * inventory item (torch/candle: the item itself; lantern: a flask of oil).
  *
  * @param {object} [opts]
- * @param {boolean} [opts.override] the Judge is GIVING them this light: supply
+ * @param {boolean} [opts.override] the Judge is giving them this light: supply
  *   the gear they lack and empty a hand to hold it, rather than refusing. Set
- *   from the DECLARING user's authority, never the executing client's — a
- *   player's declaration runs on a GM client and must stay gated.
+ *   from the declaring user's authority, never the executing client's.
  */
 export async function addLight(formation, type, bearerId, { override = false } = {}) {
   const config = LIGHT_SOURCES[type];
@@ -830,15 +778,12 @@ export async function addLight(formation, type, bearerId, { override = false } =
   const bearer = game.actors.get(bearerId);
   if (!bearer) return;
 
-  // The Judge's override runs FIRST, so every check below sees the character
-  // they meant to describe: gear in the pack, a hand free to hold the flame.
+  // The override runs first so every check below sees the described character.
   if (override) await equipForLight(bearer, type);
 
-  // A hand to hold it, the gear RAW requires, and one unit of fuel off the
-  // stack — asked and spent in lib, because a character lighting a lamp from
-  // their own sheet with no formation in sight must clear the same bar.
-  // BLOCKING BY DESIGN for a player: sheathe or stow something first, through
-  // the equipment feature's own draw/sheathe controls.
+  // A free hand, the required gear and one unit of fuel, asked and spent in
+  // lib so a character lighting from their own sheet clears the same bar. A
+  // player must free a hand first, through the equipment feature's controls.
   if (!(await prepareToLight(bearer, type, { override }))) return;
 
   // The burn time is imported (RR p. 265); with none the light never burns down.
@@ -852,10 +797,11 @@ export async function addLight(formation, type, bearerId, { override = false } =
   formation.lights.push(light);
   await updateFormation(formation);
   lightChanged(bearerId, light, "lit");
-  // Lighting with flint and steel takes a full round (RR equipment: tinderbox).
+  // Lighting takes a full round (RR equipment: tinderbox).
   await advanceRounds(formation, 1, { reason: "action" });
 }
 
+/** Remove a light from the record and announce `removed`. */
 export async function removeLight(formation, lightId) {
   const light = formation.lights.find((l) => l.id === lightId);
   formation.lights = formation.lights.filter((l) => l.id !== lightId);
@@ -863,6 +809,7 @@ export async function removeLight(formation, lightId) {
   if (light) lightChanged(light.bearerId, light, "removed");
 }
 
+/** Light or douse a light on the record; a spent light cannot be relit. */
 export async function toggleLight(formation, lightId) {
   const light = formation.lights.find((l) => l.id === lightId);
   if (!light) return;
@@ -921,11 +868,13 @@ export async function addSpell(formation, { name, casterId, turns }) {
   await updateFormation(formation);
 }
 
+/** Stop tracking a spell. */
 export async function removeSpell(formation, spellId) {
   formation.spells = (formation.spells ?? []).filter((s) => s.id !== spellId);
   await updateFormation(formation);
 }
 
+/** Change a tracked spell's remaining turns by `delta`, never below 1. */
 export async function adjustSpell(formation, spellId, delta) {
   const spell = (formation.spells ?? []).find((s) => s.id === spellId);
   if (!spell) return;
@@ -963,8 +912,7 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
   }
   if (!rows.length) return;
 
-  // Rendered by the shared multi-roller card (lib/roll-card.mjs), the same one
-  // the party's checks and the Surprise Matrix use.
+  // The shared multi-roller card (lib/roll-card.mjs).
   const html = renderRollCard({
     title: loc("chat.saveTitle", { save: label }),
     subtitle: formation.name,

@@ -5674,3 +5674,13 @@ reaches and the pit's spikes read; until then a crossing is resolved by hand and
 says so. The stored `triggerOn` of a trap made earlier is an explicit band and
 stays one. This entry's predecessors print the reaches in their text and, being
 append-only, keep them; they are marked superseded in part.
+
+## 2026-11-13 — Probes in one square are shuffled, and a body precedes a pole
+
+**Ruled.** Characters marching abreast step onto the same ground at the same moment and each throws separately (RR p. 267). The order among probes that reach the same square is shuffled, because the sequence ends at the throw that springs the trap and a fixed file order would make whoever stands in file 0 spring every trap. The shuffle is per square and per kind, so ranks still meet the trap front to back. Where a pole and a body reach the same square the body goes first: someone already walking that ground got there before a pole was waved over it. The pole still throws separately, but what it buys is untrodden ground ahead of the column, not precedence over a body already in the square.
+**Rejected.** A fixed file order (leftmost first): it is not the book's and it biases every trap onto one file.
+
+## 2026-11-13 — A pit's spikes are a nested dice count, not a product
+
+**Ruled.** A spiked pit adds `(count)dX`, where the count is itself a dice formula: the victim lands on a rolled number of spikes that each deal their own damage, which is that many separate dice. Foundry's parser resolves the nested count first, so the formula is the rule and not an approximation of it.
+**Rejected.** Multiplying one die by the count: it has a different spread, flatter and far swingier at the top.

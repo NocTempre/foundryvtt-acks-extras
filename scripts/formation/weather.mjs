@@ -2,23 +2,17 @@
  * The sky over the march: the daily weather generator, the condition
  * vocabulary, and the footing (mud and snow) that weather leaves behind.
  *
- * STRUCTURE ships here; the printed numbers do not. What ships: the
- * procedure (three 2d6 throws a day — temperature, precipitation, wind —
- * each adjusted by the hex's climate and the season; the same temperature
- * roll read twice, day and night, under two modifiers; the temperature
- * COLUMN chosen by the sign of the day modifier), the combination rules
- * (freezing air turns drizzle to flurries and rain to snow; still air turns
- * drizzle to mist and rain to fog — freezing looked at first, so snow is
- * never re-read as fog), the optional weather-fronts drift (each roll slides
- * one step toward yesterday's, natural extremes standing), the condition
- * vocabulary, and the footing state machine's TRANSITIONS. What is imported
- * (the `weather` registered document, from the reader's own book): the band
- * edges each modified total lands in, the climate/season modifier grid,
- * every condition's speed factor, and every accumulation threshold. The
- * Köppen climate codes themselves are public science and ship as keys.
+ * The procedure ships here: the daily temperature, precipitation and wind
+ * throws, each adjusted by the hex's climate and the season (temperature read
+ * twice, day and night); the combination rules (freezing is applied before
+ * still air); the optional weather-fronts drift; the condition vocabulary; and
+ * the footing state machine's transitions. The band edges, the climate/season
+ * modifier grid, every condition's speed factor and every accumulation
+ * threshold come from the imported `weather` registered document. The Köppen
+ * codes ship as keys. See docs/formation/DECISIONS.md,
+ * "Weather: the sky's structure ships, its numbers do not".
  *
- * Everything here is arithmetic over plain objects plus registry reads —
- * Node-evaluable, no documents, no Foundry.
+ * Arithmetic over plain objects plus registry reads: no documents, no Foundry.
  */
 
 import { bracketRow } from "../lib/tables.mjs";
@@ -47,11 +41,10 @@ export const TEMPERATURE_BANDS = Object.freeze({
 });
 
 /**
- * The precipitation ladder, rolled kinds and the four DERIVED kinds the
- * combination rules produce (never rolled directly). `condition` marks the
- * kinds that are mechanical weather conditions; `raining`/`snowing` feed the
- * road-washout vocabulary; `wet` feeds the footing counters; `fair` is the
- * book's own drying classification — everything not wet, foggy or sunbaked.
+ * The precipitation ladder: rolled kinds and the derived kinds the combination
+ * rules produce (never rolled directly). `condition` marks the kinds that are
+ * weather conditions; `raining`/`snowing` feed the road-washout vocabulary;
+ * `wet` feeds the footing counters; `fair` is the drying classification.
  */
 export const PRECIPITATION_KINDS = Object.freeze({
   sunbaked: { label: "ACKS-FORMATION.travel.weather.precip.sunbaked", icon: "fa-sun-plant-wilt", condition: true },
@@ -124,10 +117,9 @@ export function seasonKeyFor(season, { map = "", keys = SEASONS, labels = {} } =
 }
 
 /**
- * The Köppen climate codes the generator accepts — public science, shipped
- * as keys with their standard climatological names. What each code is WORTH
- * per season is the book's and arrives with the `climateModifiers` table.
- * `group` drives the picker's optgroups (A tropical … E polar).
+ * The Köppen climate codes the generator accepts, shipped as keys; what each
+ * is worth per season arrives with the `climateModifiers` table. `group`
+ * drives the picker's optgroups.
  */
 export const CLIMATES = Object.freeze({
   Af: { label: "ACKS-FORMATION.travel.weather.climates.Af", group: "A" },
@@ -163,10 +155,9 @@ export const CLIMATES = Object.freeze({
 });
 
 /**
- * The thirteen mechanical weather conditions (RR ch. 6). What each is worth
- * — a speed factor, a visibility floor, a throw penalty — is printed; the
- * speed factors are the `conditionSpeed` table and the rest arrive with the
- * features that consume them. Effects of several at once stack.
+ * The mechanical weather conditions (RR ch. 6). Speed factors come from the
+ * `conditionSpeed` table and the rest from the features that consume them;
+ * effects of several at once stack.
  */
 export const CONDITIONS = Object.freeze({
   frigid: { label: "ACKS-FORMATION.travel.weather.cond.frigid", icon: "fa-icicles" },
@@ -227,7 +218,7 @@ const roll2d6 = (rng) => 2 + Math.floor(rng() * 6) + Math.floor(rng() * 6);
 
 /**
  * The weather-fronts drift: today's roll slides one step toward yesterday's.
- * A natural 2 or 12 stands — the book exempts the unmodified extremes.
+ * The unmodified extremes stand.
  */
 export function frontShift(natural, prior) {
   if (natural === 2 || natural === 12) return natural;
@@ -285,16 +276,14 @@ export function generateDay({ climate = "", season = "spring", prior = null, fro
 /**
  * A finished day settles onto the ground: the footing state machine.
  *
- * The TRANSITIONS ship — snow lies after enough snowy or flurry days; snow
+ * The transitions ship: snow lies after enough snowy or flurry days; snow
  * leaves under warm days, and its melt-water is mud; rain muds the terrains
- * that take mud; a freezing fair day hardens mud and a thaw softens it
- * again (the thaw is this module's reading — the book freezes mud and says
- * no more); fair days dry it. Every THRESHOLD is printed and read from the
- * `accumulation` table (day counts, keyed by transition); absent, the
- * footing holds still and the Judge's manual controls are the weather.
+ * that take mud; a freezing fair day hardens mud and a thaw softens it again;
+ * fair days dry it. Every threshold is read from the `accumulation` table;
+ * absent, the footing holds still and the Judge's manual controls are the
+ * weather. See docs/formation/DECISIONS.md, "Weather: the sky's structure ships, its numbers do not".
  *
- * Consecutive-day counters live in `runs` and reset the day their
- * condition breaks.
+ * Consecutive-day counters live in `runs` and reset the day their condition breaks.
  */
 export function advanceGround(footing, { temperature = "", precipitation = "", mudProne = true } = {}) {
   const th = readTable(WEATHER_DOC, "accumulation");
@@ -323,8 +312,7 @@ export function advanceGround(footing, { temperature = "", precipitation = "", m
   const met = (run, key) => Number.isFinite(Number(th[key])) && run >= Number(th[key]);
   let { mud, snow } = f;
 
-  // A transition that CREATES mud starts its drying clock at zero — the day
-  // the melt-water arrived is not also its first drying day.
+  // A day that creates mud does not also count as its first drying day.
   const freshMud = () => {
     mud = "muddy";
     r.fairModerate = 0;

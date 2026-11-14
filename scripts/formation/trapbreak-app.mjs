@@ -32,22 +32,11 @@ function placementsInReach(formation, reachFeet) {
 }
 
 /**
- * Working on a trap: who is doing it, WHICH trap, and by which column of the
- * table — shown before anything is rolled.
- *
- * **The target is chosen, never inferred.** A party halted in a corridor can be
- * standing at more than one trap, and the thief who spotted the tripwire is not
- * thereby volunteering to put their hands on the pressure plate beside it. The
- * list holds only traps the party has FOUND: an unfound trap offered as a
- * target would announce its existence, which is the whole thing a hidden
- * feature is for. That is also why the list can be empty with traps all around
- * — the answer to "nothing to work on" is to search, not to widen the list.
- *
- * **Players open it too.** Disabling a trap is a character's action, and the
- * throw belongs to their sheet; what a player may not do is write world state,
- * so the attempt is declared and the Judge's client rolls it. Everything the
- * dialog shows a player is already theirs to know: their own throw target, and
- * the traps their party has found.
+ * Working on a trap: who is doing it, which trap, and by which column of the
+ * table, shown before anything is rolled. The target is chosen, never inferred,
+ * from the traps in reach the party has found (a Judge also sees unfound ones).
+ * Players open it too: their attempt is declared and the Judge's client rolls
+ * it. See docs/formation/DECISIONS.md, "Trapbreaking picks its target, and refuses an unfound trap".
  */
 export default class TrapbreakApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #formationId;
@@ -112,9 +101,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
     const chosen = inReach.find((p) => p.uuid === this.choice.targetUuid) ?? inReach[0] ?? null;
 
     const check = actor ? resolveCheck(actor, PARTY_CHECKS[this.choice.mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical"]) : null;
-    // What the TRAP is worth is deliberately left out of the plan shown here:
-    // whether it was crudely built is the Judge's to know, and the card the
-    // throw posts itemises the whole thing afterwards.
+    // The plan omits whether the trap is crude (the Judge's to know); the posted card itemises it.
     const plan = disarmPlan({ mode: this.choice.mode, skilled: !!check?.skilled, extra: this.choice.extra });
     const refusal = chosen && actor ? disarmRefusal(chosen, actor, this.choice.mode) : chosen ? null : "noZone";
 
@@ -189,10 +176,8 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
   }
 
   /**
-   * The placement the form currently points at, re-read from the world.
-   *
-   * Re-read rather than remembered: the dialog stays open across the throws it
-   * makes, and the state it is acting on changed the moment the last one landed.
+   * The placement the form currently points at, re-read from the world each
+   * call because the dialog stays open across its own throws.
    */
   async _placement() {
     const formation = this.formation;

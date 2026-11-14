@@ -3,18 +3,12 @@
  * Dividing an adventure's experience among the people who earned it (RR ch. 6,
  * experience from adventuring; RR ch. 4 for henchmen's shares).
  *
- * Two points of the division do real work and are easy to lose:
- *
- *  - **the fallen still count.** Nothing here filters on a member being down:
- *    a character who died on the way out takes a share like the rest;
- *  - **a henchman's share is their own record's**, `terms.xpShare`, else the
- *    imported one (`henchmen/rules/wages.mjs`, RR ch. 6), so the record is
- *    asked rather than a constant assumed. With neither, the henchman takes
- *    no computed share and the division says why.
- *
- * WHO GETS NOTHING. Hired mercenaries and specialists are paid in wages, not
- * experience. Neither do the animals, the wagons, or anything summoned: they
- * are not party members, they are equipment that happens to have a sheet.
+ * The fallen still count: nothing here filters on a member being down. A
+ * henchman's share is their own record's `terms.xpShare`, else the imported one
+ * (`henchmen/rules/wages.mjs`, RR ch. 6); with neither, they take no computed
+ * share and the division says why. Hired mercenaries and specialists are paid
+ * in wages, and animals, wagons and anything summoned are not party members;
+ * all take nothing.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, realMembers } from "./formation-model.mjs";
@@ -37,18 +31,15 @@ const LANG_PREFIX = "ACKS-FORMATION.xp";
 const recordOf = (actor) => actor?.getFlag?.(MODULE_ID, "record") ?? null;
 
 /**
- * The system stores a character's share as a PERCENTAGE — a full share is 100,
- * not 1 — while a henchman's record stores a fraction of one full share.
- * Everything here is normalised to fractions of one full share, or the two
- * scales silently mix and a henchman standing beside two players takes about a
- * two-hundredth of the loot instead of a fifth.
+ * The system stores a character's share as a percentage (a full share is this
+ * value) while a henchman's record stores a fraction of one full share.
+ * Everything here is normalised to fractions of one full share.
  */
 export const SYSTEM_FULL_SHARE = 100;
 
 /**
- * Why a participant takes the share they take. Returned rather than assumed so
- * the dialog can show its working — a Judge dividing 4,000 XP should be able
- * to see that the wagon and the mercenaries were left out on purpose.
+ * Why a participant takes the share they take, so the dialog can show its
+ * working.
  */
 export const SHARE_REASON = Object.freeze({
   full: "full", // a player character
@@ -68,8 +59,7 @@ export const SHARE_REASON = Object.freeze({
 export function shareFor(actor) {
   if (!actor) return { share: 0, reason: SHARE_REASON.notAPerson };
 
-  // Anything that is not a person does not adventure — it is carried, driven
-  // or conjured. A vehicle is the clearest case and the reason this exists.
+  // A vehicle or anything else that is not a person takes no share.
   if (actor.type !== "character" && actor.type !== "monster") {
     return { share: 0, reason: SHARE_REASON.notAPerson };
   }
@@ -78,7 +68,7 @@ export function shareFor(actor) {
   // Paid in coin: no experience, however long they marched.
   if (kind && kind !== "henchman") return { share: 0, reason: SHARE_REASON.mercenary };
   if (kind) {
-    // The record's own figure, else the imported one, else none: a missing
+    // The record's own figure, else the imported one, else none; a missing
     // figure is tested before any `Number()`, which reads null as zero.
     const { value, from } = resolveShare(recordOf(actor)?.terms?.xpShare, importedShare("xp"));
     if (value == null) return { share: 0, reason: SHARE_REASON.notImported };
@@ -87,17 +77,14 @@ export function shareFor(actor) {
       : { share: 0, reason: SHARE_REASON.noShare };
   }
 
-  // A monster nobody hired is not a party member — a summoned bear and a
-  // charmed ogre both land here.
+  // A monster nobody hired is not a party member.
   if (actor.type !== "character") return { share: 0, reason: SHARE_REASON.notAPerson };
 
-  // Experience is tracked for player characters and henchmen only; an NPC
-  // marching beside the party is the Judge's, at whatever level they set.
+  // Experience is tracked for player characters and henchmen only.
   if (!earnsExperience(actor)) return { share: 0, reason: SHARE_REASON.npc };
 
-  // A character a player owns and nobody hired takes a full share,
-  // scaled by whatever their own sheet says — the system's
-  // `details.xp.share`, read as the percentage it is.
+  // A player's character takes a full share scaled by the system's
+  // `details.xp.share`, read as a percentage.
   const own = Number(actor.system?.details?.xp?.share);
   const value = Number.isFinite(own) && own > 0 ? own / SYSTEM_FULL_SHARE : 1;
   return { share: value, reason: SHARE_REASON.full };
@@ -106,9 +93,7 @@ export function shareFor(actor) {
 /**
  * Divide `total` among these actors.
  *
- * Pure arithmetic over the shares — no writes — so the dialog can show the
- * whole division before a single point is awarded, and so the rule is
- * testable without a world.
+ * Pure arithmetic over the shares, with no writes, so the dialog can preview it.
  *
  * Each row carries its `base` share of the total and, after the key-attribute
  * adjustment `bonusOf` reports for that actor, the `xp` it actually gains.
@@ -125,12 +110,11 @@ export function divideXp(actors = [], total = 0, { bonusOf = () => NO_BONUS } = 
   const excluded = scored.filter((r) => r.share <= 0);
   const shares = taking.reduce((sum, r) => sum + r.share, 0);
 
-  // Nobody to pay: say so rather than dividing by zero.
+  // Nobody takes a share: no division.
   if (!shares) return { rows: [], shares: 0, perShare: 0, awarded: 0, excluded };
 
   const perShare = amount / shares;
-  // Rounded DOWN per character, as core does — the remainder is the Judge's
-  // rounding, not a debt to anybody.
+  // Rounded down per character, as core does.
   const rows = taking.map((r) => {
     const base = Math.floor(r.share * perShare);
     const { bonus = 0, source = null } = bonusOf(r.actor) ?? NO_BONUS;
@@ -166,8 +150,7 @@ export async function awardXp(division) {
 }
 
 /**
- * Everyone a formation would divide XP among — including the dead, who
- * returned alive or dead and are owed their share either way.
+ * Everyone a formation would divide XP among, the dead included.
  */
 export function participantsOf(formation) {
   return realMembers(formation).map(getMemberActor).filter(Boolean);

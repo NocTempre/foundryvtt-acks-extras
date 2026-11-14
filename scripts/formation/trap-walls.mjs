@@ -16,34 +16,17 @@ import {
 import { elementOf } from "../lib/util.mjs";
 
 /**
- * Traps laid on WALLS: a tripwire across a corridor, a scything blade in a 10'
- * line, a needle in a door handle.
+ * Traps laid on walls: a trap is a layer over an existing wall (a door
+ * included), never a wall of its own kind. A fresh trap line restricts nothing
+ * and stops the party on detection instead; players see nothing while it is
+ * armed and unfound, and a Judge sees a marker showing its state. `known` is
+ * what the party has learned and outlives the state. See
+ * docs/formation/MODEL.md, "Traps".
  *
- * A trap is a **layer over an existing wall**, never a wall of its own kind.
- * That is the whole design: the Judge draws the corridor once, and a trap goes
- * onto the segment that is already there — including a door, which is where the
- * book puts its most famous trap. Nothing about the wall's own job changes.
- *
- * **Non-blocking by default.** A trap line the Judge drew fresh restricts
- * nothing: movement, sight and sound pass through it exactly as they did
- * before, because a tripwire is not a barrier. What it does instead is STOP the
- * party when it is detected — the crossing is the event, and the party halts on
- * it rather than walking on obliviously.
- *
- * **Seen the way a secret door is seen.** Players are shown nothing at all
- * while the trap is armed and unfound; a Judge sees a marker for it, and that
- * marker says which state it is in — armed, found, disarmed, spent — the same
- * way a discovered secret door goes on to show whether it is open or shut.
- * Once the party has FOUND it the marker is theirs too: `known` is what the
- * party has learned, and it outlives the state (a trap they found, disarmed
- * and re-armed themselves is still a trap they know about).
- *
- * A trap on a wall is one of the module's wall LAYERS, and the mechanics of
- * being one — the dual flag read, the merge that can empty a field, the
- * all-NONE line, the drawing preset, the region a loop encloses — are shared
- * with the city's streets and live in `lib/wall-layers.mjs`; the segment
- * geometry lives in `lib/wall-geometry.mjs`. Both are re-exported here, because
- * this module's name is where the trap api and the trap suite ask for them.
+ * The wall-layer mechanics (the dual flag read, the merge that can empty a
+ * field, the all-NONE line, the drawing preset, the region a loop encloses)
+ * live in `lib/wall-layers.mjs`, and the segment geometry in
+ * `lib/wall-geometry.mjs`; both are re-exported here for the trap api and suite.
  */
 export { chainWalls, controlledWalls, pointSegmentDistance, segmentCrossing, segmentDistance, wallNear };
 
@@ -51,11 +34,8 @@ export { chainWalls, controlledWalls, pointSegmentDistance, segmentCrossing, seg
 export const TRAP_FLAG = "trap";
 
 /**
- * A wall's trap layer, resolved, or null when it carries none.
- *
- * Every field is defaulted here rather than at each reader: a stored trap may
- * lack keys the current rules consult, and a reader guessing its own default
- * is a second answer to drift from.
+ * A wall's trap layer, resolved, or null when it carries none. Every field is
+ * defaulted here, so a stored trap lacking a key reads the same everywhere.
  */
 export function wallTrap(wall) {
   const f = wallLayer(wall, TRAP_FLAG);
@@ -64,13 +44,11 @@ export function wallTrap(wall) {
     trapUuid: f.trapUuid ?? "",
     state: Object.values(STATES).includes(f.state) ? f.state : STATES.armed,
     repeatLock: f.repeatLock ?? {},
-    // Who has already spent their one automatic hasty search on this trap, and
-    // at what level. Separate from `repeatLock`, which is Trapbreaking's.
+    // Who has spent their automatic hasty search, and at what level (`repeatLock` is Trapbreaking's).
     searchLock: f.searchLock ?? {},
-    // Has the party learned this trap is here? Never inferred from the state:
-    // a trap the thief disarmed and re-armed is armed again and still known.
+    // Never inferred from the state.
     known: !!f.known,
-    // The restrictions laying the trap suppressed, to be put back when it goes.
+    // Restrictions a stored trap suppressed, put back when it goes.
     restore: f.restore ?? null,
   };
 }
@@ -84,13 +62,8 @@ export async function setWallTrap(wall, patch) {
 }
 
 /**
- * Take the trap layer off a wall, leaving the wall itself exactly as it was.
- *
- * `restore` is honoured for a wall whose trap recorded what trapping it
- * suppressed. Nothing writes that key — a trap does not touch its wall's own
- * properties at all — but a stored trap may still carry it, and dropping the
- * trap has to put back what was suppressed rather than leave a silent hole in
- * a corridor.
+ * Take the trap layer off a wall, leaving the wall itself as it was. A stored
+ * `restore` (nothing writes it now) is written back first.
  */
 export async function clearWallTrap(wall) {
   const restore = wallTrap(wall)?.restore;
@@ -100,12 +73,8 @@ export async function clearWallTrap(wall) {
 
 /**
  * The whole shape of a fresh tripwire: a wall that obstructs nothing, carrying
- * an armed trap layer.
- *
- * One function because it is wanted in two places that must not drift — the
- * wall this module creates itself, and the wall-drawing PRESET the Judge draws
- * with. A preset that differed from the drawn wall would mean two kinds of
- * tripwire depending on which route made it.
+ * an armed trap layer. Shared by the wall `drawTrapWall` creates and the
+ * wall-drawing preset.
  */
 export function trapWallData({ trapUuid = "" } = {}) {
   return {
@@ -122,20 +91,10 @@ export function trapWallData({ trapUuid = "" } = {}) {
  * Add a trap layer to every selected wall — or, with nothing selected, arm the
  * wall-drawing tool so the next wall the Judge draws is a tripwire.
  *
- * **An existing wall is never altered.** Not its movement, not its senses, not
- * its door state: the trap is a layer over whatever is already there, so a
- * secret door that gets trapped is still a secret door and still behaves like
- * one. That is the whole reason a trap can go on a door at all.
- *
- * **Nothing selected arms a preset; it does not place anything.** A tool that
- * drops a wall somewhere the Judge was not pointing is a tool that has guessed,
- * and the guess — the middle of the view — is almost never where the tripwire
- * goes. Foundry's own wall types are presets over the drawing tool, so this is
- * one too: press it, then drag the line where it belongs.
- *
- * A wall that already carries a trap keeps its state — re-running the tool must
- * not re-arm a trap the party already dealt with — though assigning a NEW trap
- * to it is a deliberate act and is honoured.
+ * An existing wall's movement, senses and door state are never altered. With
+ * nothing selected it arms a preset and places nothing. A wall that already
+ * carries a trap keeps its state; a newly named trap is still assigned.
+ * See docs/formation/DECISIONS.md, "A trap is a wall PRESET, its marker is its control, and it gets no bucket".
  *
  * @param {object} [opts]
  * @param {string} [opts.trapUuid] the trap Item to assign at the same time
@@ -165,11 +124,8 @@ export async function layTrapOnSelection({ trapUuid = "" } = {}) {
 /**
  * Make the tripwire the shape the wall tool draws, and hand the Judge that tool.
  *
- * A trap line is a wall TYPE in core's own sense, so it is armed as a preset
- * (`armWallPreset`) rather than placed: press it, then drag the line where it
- * belongs. The notification distinguishes an arming that happened from one that
- * could not — an ordinary wall drawn under a promise of a tripwire is a hole in
- * a corridor the Judge believes is watched.
+ * A trap line is armed as a preset (`armWallPreset`) rather than placed. The
+ * notification says whether the arming happened.
  */
 export async function armTrapPreset({ trapUuid = "" } = {}) {
   const armed = await armWallPreset(trapWallData({ trapUuid }));
@@ -180,10 +136,8 @@ export async function armTrapPreset({ trapUuid = "" } = {}) {
 /**
  * Place a fresh non-blocking tripwire across the middle of the view.
  *
- * One grid square wide, horizontal, snapped to the grid. **Not what the scene
- * control does** — a Judge pressing a button gets the drawing preset instead,
- * because the middle of the view is a guess. This is the api's way to put a
- * tripwire on a scene from a macro, where there is no cursor to draw with.
+ * One grid square wide, horizontal, snapped to the grid. The scene control arms
+ * the drawing preset instead; this is the api's way to place one from a macro.
  */
 export async function drawTrapWall({ trapUuid = "" } = {}) {
   const scene = canvas?.scene;
@@ -197,10 +151,8 @@ export async function drawTrapWall({ trapUuid = "" } = {}) {
     { c: [x, y, x + gs, y], ...trapWallData({ trapUuid }) },
   ]);
   canvas.walls.get(wall.id)?.control({ releaseOthers: true });
-  // Hand the Judge the SELECT tool, because dragging the new segment's ends
-  // into place is the next thing they do. A wall-DRAWING tool left active
-  // turns that drag into a fresh, fully blocking wall laid over the tripwire —
-  // which reads as the trap tool having dropped a solid wall.
+  // Hand back the select tool: a drawing tool left active turns the next drag
+  // into a fully blocking wall over the tripwire.
   ui.controls?.activate?.({ control: "walls", tool: "select" });
   ui.notifications?.info(game.i18n.localize("ACKS-FORMATION.traps.drew"));
   return wall;
@@ -213,13 +165,8 @@ export async function drawTrapWall({ trapUuid = "" } = {}) {
 /**
  * Build a Trap Zone Region from the selected walls' outline.
  *
- * Works from ANY selected walls, trapped or not: the Judge is describing an
- * AREA here — the mouth of a pit, the spread of a collapsing ceiling — and the
- * walls are the shape of it, not necessarily traps themselves.
- *
- * The region it creates restricts nothing. A Region in Foundry does not block
- * movement unless a behavior makes it, and the Trap Zone behavior does not: the
- * party walks in, and what stops them is the trap going off.
+ * Works from any selected walls, trapped or not: they are the shape of the
+ * area. The region restricts nothing; the Trap Zone behavior blocks no movement.
  *
  * @returns {Promise<RegionDocument|null>}
  */
@@ -228,10 +175,7 @@ export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
   const { region, created, reason } = await regionFromWalls(walls, {
     name: name || game.i18n.localize("ACKS-FORMATION.traps.regionName"),
     color: "#a3312c",
-    // A trap area is the Judge's, the way a secret door is. The default draws
-    // it for anyone who opens the Regions control — which players have — so it
-    // is pinned to GAMEMASTER rather than left to a default that shows the trap
-    // to the table.
+    // The default shows a region to any player who opens the Regions control.
     visibility: CONST.REGION_VISIBILITY.GAMEMASTER,
     behaviorType: `${MODULE_ID}.trapZone`,
     behaviors: [
@@ -248,17 +192,13 @@ export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
     }
     return null;
   }
-  // Reusing the region the tool made before is how running it twice on one loop
-  // stays harmless; a NEW trap named on the second press is the Judge editing
-  // the zone rather than re-drawing it, and is honoured.
+  // A reused region keeps running the tool twice harmless; a newly named trap is assigned.
   if (!created && trapUuid) {
     const behavior = region.behaviors.find((b) => b.type === `${MODULE_ID}.trapZone`);
     await behavior?.update({ "system.trapUuid": trapUuid });
   }
 
-  // The trap has MOVED from the lines to the area they enclose. Leaving it on
-  // both means the party springs the walls on the way in and the region once
-  // inside — the same trap, twice, from one step.
+  // The trap moves from the lines to the area; left on both it would spring twice.
   let lifted = 0;
   for (const wall of walls) {
     if (!isTrapWall(wall)) continue;
@@ -277,10 +217,8 @@ export async function regionFromSelection({ trapUuid = "", name = "" } = {}) {
 /* -------------------------------------------- */
 
 /**
- * Every armed trap wall the party crossed on this move, nearest crossing first.
- *
- * Nearest first because the party meets them in that order, and the first one
- * that goes off is where they stop.
+ * Every armed trap wall the party crossed on this move, nearest crossing first
+ * (the order the party meets them; the first to go off stops it).
  */
 export function trapWallsCrossed(scene, from, to) {
   const hits = [];
@@ -300,8 +238,8 @@ export function trapWallsCrossed(scene, from, to) {
 /**
  * The trap Item behind a drag payload, or null if the drop was something else.
  *
- * Accepts the payload rather than the item so every drop target — a wall, a
- * wall's sheet, a region's behavior sheet — asks the same question once.
+ * Takes the payload, so every drop target (a wall, its sheet, a region's
+ * behavior sheet) asks the same question.
  */
 export async function trapFromDrop(data) {
   if (data?.type !== "Item" || !data?.uuid) return null;
@@ -310,19 +248,14 @@ export async function trapFromDrop(data) {
 }
 
 /**
- * Assign a trap to a wall, laying the trap layer if the wall has none.
- *
- * Dropping a trap onto an untrapped wall is how most traps will actually be
- * placed — it is one gesture instead of "select, press the tool, then find the
- * field" — so the drop does the whole job rather than refusing a wall that is
- * not yet a trap wall.
+ * Assign a trap to a wall, laying the trap layer if the wall has none; a drop
+ * onto an untrapped wall does the whole job.
  */
 export async function assignTrapToWall(wall, trap) {
   const existing = wallTrap(wall);
   await setWallTrap(wall, {
     trapUuid: trap.uuid,
-    // Re-arm only when this wall was not already a trap: reassigning the trap
-    // on a spent one is the Judge correcting the definition, not resetting it.
+    // Reassigning keeps a spent trap's state.
     state: existing?.state ?? STATES.armed,
     repeatLock: existing?.repeatLock ?? {},
   });
@@ -332,15 +265,13 @@ export async function assignTrapToWall(wall, trap) {
 /**
  * Dropping a trap onto the map assigns it to the wall under the cursor.
  *
- * Returning false stops core's own drop handling, which would otherwise try to
- * make an item pile or a token out of it.
+ * The hook always returns true: the handler is async, and a returned promise
+ * would read as a truthy "handled" to core.
  */
 export function installTrapDrop() {
   Hooks.on("dropCanvasData", (canvasRef, data) => {
     if (data?.type !== "Item" || !data?.uuid) return true;
-    // The handler is async and the hook is not, so the work is kicked off and
-    // the hook answers immediately. Resolving the item first would mean
-    // returning a promise, which core reads as a truthy "handled".
+    // Work is kicked off and the hook answers at once.
     (async () => {
       const trap = await trapFromDrop(data);
       if (!trap) return;
@@ -357,27 +288,19 @@ export function installTrapDrop() {
   });
 
   /**
-   * The same drop, on a wall's own configuration sheet — where a Judge editing
-   * one wall already is, and where the assigned trap is worth SHOWING.
-   *
-   * Hung on `renderApplicationV2` and filtered, which is how every other sheet
-   * injection in this repo is done: the per-class render hooks are the ones
-   * that stop firing when core reshuffles an application's class hierarchy, and
-   * a WallConfig is only recognisable by what it is editing anyway.
+   * The same drop on a wall's configuration sheet, which also shows the
+   * assigned trap. Hung on `renderApplicationV2` and filtered by the document
+   * edited, since a WallConfig is recognisable only by what it edits.
    */
   Hooks.on("renderApplicationV2", (app, element) => {
     if (!game.user.isGM) return;
     const wall = app?.document;
-    // An id is what makes it a wall on the SCENE. The wall palette renders this
-    // same sheet over an unsaved preview document — the shape of the next wall
-    // to be drawn — whose id is null, and a trap assigned to that has no
-    // document to land on: the write throws and the drop target reverts to
-    // empty on the next re-render.
+    // The wall palette renders this sheet over an unsaved preview wall with a
+    // null id, which a trap write cannot land on.
     if (wall?.documentName !== "Wall" || !wall.id) return;
     const root = elementOf(element);
     if (!root) return;
-    // Re-rendering appends a second copy otherwise, and the sheet re-renders
-    // on every field the Judge touches.
+    // The sheet re-renders on every field touched; do not append a second copy.
     if (root.querySelector(".acks-extras-trap-drop")) return;
 
     const trap = wallTrap(wall);
@@ -416,17 +339,9 @@ export function installTrapDrop() {
 
 /**
  * Two tools on the Walls layer, beside the door helper: lay a trap along the
- * selected walls, or enclose the selected walls as a trap area.
- *
- * **The Walls layer is where they live, and traps do not get a layer of their
- * own** even though they sit on regions as well as walls. Leaving a placeables
- * layer releases everything selected on it, so a Traps control would empty the
- * wall selection at the moment it opened — and a selected wall is what both of
- * these tools act on.
- *
- * `createData` makes the line tool a wall PRESET in core's own sense: the pip
- * on its button lights while new walls are being drawn as tripwires, exactly as
- * it does for the secret-door preset next to it.
+ * selected walls, or enclose the selected walls as a trap area. `createData`
+ * makes the line tool a wall preset whose pip lights while it is armed.
+ * See docs/formation/DECISIONS.md, "A trap is a wall PRESET, its marker is its control, and it gets no bucket".
  */
 export function installTrapControls() {
   Hooks.on("getSceneControlButtons", (controls) => {
@@ -434,17 +349,13 @@ export function installTrapControls() {
     if (!walls) return;
     const tools = walls.tools;
     const add = (tool) => {
-      // v13+ hands these over as an object keyed by name; older builds as an
-      // array. Both shapes are still in the wild across the family's worlds.
+      // Core 13+ keys tools by name; an array is still accepted.
       if (Array.isArray(tools)) tools.push(tool);
       else tools[tool.name] = tool;
     };
-    // ONE handler per tool. A `button: true` tool given both `onChange` and
-    // `onClick` has both of them called for a single press, and the line tool
-    // answers that by drawing two tripwires stacked on the same coordinates.
-    //
-    // Ordered past core's own tools so the pair stays together at the end of the
-    // row; an absent `order` sorts as NaN and scatters them.
+    // One handler per tool: a `button: true` tool given both `onChange` and
+    // `onClick` fires both on a single press. `order` is set past core's tools
+    // (an absent one sorts as NaN).
     add({
       name: "acksTrapLine",
       title: game.i18n.localize("ACKS-FORMATION.traps.toolLine"),

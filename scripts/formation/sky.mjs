@@ -1,42 +1,24 @@
 /* global game */
 /**
- * The sky is a function of the day and the ground's climate, not a value a
- * party carries around.
- *
- * A sky stored on the formation and refreshed when a Judge pressed End day
- * would go wrong three ways: advancing the calendar any other way leaves
- * yesterday's sky standing; two parties in the same weather roll
- * independently; and there is no per-day identity at all, so nothing can ask
- * "what was the sky like when we were there".
- *
- * Here the sky is CACHED against `(day, climate, season)`, the day being the
- * calendar day the world clock stands in (the End-day counter only where the
- * clock keeps no calendar). Everything falls out of that key:
- *
- *  - Two parties in the same climate on the same day read one roll, because
- *    they compute the same key.
- *  - The book's fast-travel allowance — crossing several hexes in a day keeps
- *    the roll unless the climate changed — is the key changing, or not, on its
- *    own. No rule needed.
- *  - Yesterday's sky is still addressable, which is what a fronts drift needs
- *    to shift toward.
- *
- * The cache is world state, bounded, and disposable: losing it costs a re-roll
- * and nothing else.
+ * The sky is a function of the day and the ground's climate, cached against
+ * `(day, climate, season)` — the calendar day the world clock stands in, or the
+ * End-day counter where the clock keeps no calendar. Parties sharing a key
+ * share one roll, a day's travel across hexes of one climate keeps it, and
+ * yesterday's sky stays addressable for a fronts drift. The cache is bounded,
+ * world-scoped and disposable: losing it costs a re-roll.
+ * See docs/formation/DECISIONS.md, "Weather is derived from date and climate, not stored on the formation".
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 
 /** Where the cache lives. World-scoped, so every seat reads one sky. */
 export const SETTING_SKY_CACHE = "skyCache";
 
-/** How many days of sky to keep. Old weather is history, not state. */
+/** How many days of sky to keep. */
 export const SKY_CACHE_DAYS = 30;
 
 /**
- * The identity of one sky. `day` is the calendar day the world clock stands in
- * (the End-day counter only where the clock keeps no calendar). A blank
- * climate deliberately still produces a key — a world with no climate declared
- * gets one consistent sky per day rather than a fresh roll per party.
+ * The identity of one sky, `day|climate|season`. A blank climate still
+ * produces a key, so a world with none declared gets one sky per day.
  */
 export function skyKey({ day, climate = "", season = "" } = {}) {
   const d = Number(day);
@@ -50,8 +32,8 @@ export function dayOfKey(key) {
 }
 
 /**
- * Drop everything older than the window, keeping the cache bounded without
- * touching anything a fronts drift might still reach back for.
+ * Drop every entry older than `keepDays` before `today`, keeping the cache
+ * bounded.
  */
 export function pruneSky(cache, today, { keepDays = SKY_CACHE_DAYS } = {}) {
   const now = Number(today);
@@ -66,8 +48,7 @@ export function pruneSky(cache, today, { keepDays = SKY_CACHE_DAYS } = {}) {
 /**
  * Read a cached sky, or record a freshly generated one.
  *
- * `generate` is called ONLY on a miss, which is what makes two parties in one
- * climate share a roll rather than race to overwrite each other's.
+ * `generate` is called only on a miss.
  */
 export function skyFrom(cache, params, generate) {
   const key = skyKey(params);

@@ -2,20 +2,12 @@
 /**
  * The shadow token: where the party really is, while it believes otherwise.
  *
- * A lost party is an object in space, not a coordinate. The book says so
- * (RR p. 285) — a searching group finds a lost one the way it finds a point of
- * interest, and every lost group shares the same last known landmark so they
- * can rendezvous there. Both of those are distance questions, and Foundry
- * already answers distance questions about TOKENS.
- *
- * So the truth is a hidden token: unlinked, vision-less, flagged to its
- * formation, and deleted from every scene when the episode closes or its
- * formation is dissolved. The players' token stands at the believed hex and is
- * the one they drag; the shadow marks where the party really is.
- *
- * The shadow holds no state the ledger does not already own, so losing it
- * costs nothing but a re-place — which is exactly why it can be deleted
- * without ceremony.
+ * The truth is a hidden token (RR p. 285): unlinked, vision-less, flagged to
+ * its formation, and deleted from every scene when the episode closes or its
+ * formation is dissolved. The players' token stands at the believed hex; the
+ * shadow marks where the party really is. It holds no state the ledger does
+ * not own, so deleting it costs only a re-place. See docs/formation/DECISIONS.md,
+ * "The true position is a SHADOW TOKEN, not a coordinate".
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 
@@ -47,9 +39,8 @@ export function shadowsOf(formationId) {
 /**
  * Place or move a formation's shadow to a hex.
  *
- * Hidden and sightless on purpose: it must never light the scene, never grant
- * a player vision, and never appear in a token list a player can read. It is a
- * Judge's pin that happens to be a token so that distance works.
+ * The token is hidden and sightless: it never lights the scene, grants vision,
+ * or appears in a token list a player can read. GM only; returns the token or null.
  */
 export async function placeShadow(scene, formation, offset) {
   if (!game.user?.isGM || !scene || !formation) return null;

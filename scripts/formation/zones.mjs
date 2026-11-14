@@ -9,14 +9,11 @@ import { polygonArea } from "./zone-layers.mjs";
  * Where the party token is standing, in region terms.
  *
  * Shared by every scene-region behavior this feature defines (Encounter Zones,
- * Trap Zones): they differ in what they DO when the party is inside one and not
- * at all in how "inside" is decided, so the geometry lives here once.
+ * Trap Zones): how "inside" is decided lives here once.
  *
- * NOTE for anyone adding a behavior: region behavior sub-types MUST extend
- * `RegionBehaviorType`, not a plain `TypeDataModel`. Core token pathfinding
- * calls `_getTerrainEffects()` on every enabled behavior in a region
- * (`Token#createTerrainMovementPath`), and a plain data model breaks all
- * movement through any region carrying the behavior.
+ * Region behavior sub-types must extend `RegionBehaviorType`, not a plain
+ * `TypeDataModel`: core pathfinding calls `_getTerrainEffects()` on every
+ * enabled behavior (`Token#createTerrainMovementPath`).
  */
 
 /* -------------------------------------------- */
@@ -88,7 +85,7 @@ export function regionContains(regionDoc, point, elevation) {
       return regionDoc.testPoint({ x: point.x, y: point.y, elevation });
     }
   } catch (err) {
-    // fall through to manual testing
+    // falls through to the shape math
   }
 
   let inside = false;
@@ -124,14 +121,9 @@ function ellipseRing(cx, cy, rx, ry, rotation = 0, steps = 24) {
 /**
  * A region's solid shapes as closed rings of `[x, y, x, y, …]` canvas pixels.
  *
- * Containment is all Foundry's own geometry answers, and the trap sweep needs
- * to know how FAR away a region is: a pit two squares off the line of march is
- * within the reach of a searching thief and never contains anybody. Curves are
- * approximated by a 24-gon, which at dungeon scale is wrong by a fraction of a
- * pixel — far below the "within a square or two" the answer is used for.
- *
- * Holes are left out: they subtract from the inside of a shape, and the sweep
- * measures to the outside of one.
+ * For distance questions (the trap sweep), which containment cannot answer.
+ * Curves are approximated by a 24-gon. Holes are left out: the sweep measures
+ * to the outside of a shape.
  */
 export function regionOutlines(regionDoc) {
   const rings = [];
@@ -196,9 +188,7 @@ export function regionEdges(regionDoc) {
 /**
  * The zone of a given behavior type the party token currently stands in.
  *
- * The token's CENTRE is the test point, not its corner: a party token is
- * usually larger than a square, and its top-left corner sits outside a region
- * the party is plainly standing in.
+ * The token's centre is the test point, not its corner.
  *
  * @param {object} formation the formation whose party token is placed
  * @param {string} type the region behavior sub-type to look for
@@ -210,9 +200,8 @@ export function findZone(formation, type) {
 }
 
 /**
- * The zone of a given behavior type drawn over a POINT of a scene — the same
- * test as `findZone`, asked about somewhere the party is not: the far end of
- * a walk, a marker, a place's token.
+ * The zone of a given behavior type drawn over a point of a scene: `findZone`'s
+ * test, asked about somewhere the party is not.
  * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
  */
 export function zoneAt(scene, point, elevation, type) {
@@ -242,10 +231,8 @@ export function zonesAt(scene, point, elevation, type) {
 /**
  * Where the party is standing: the scene, the point, and the elevation.
  *
- * The token's CENTRE, for the reason the zone lookup gives — and ONE
- * expression of it, because every other question about the ground the party is
- * on (which zone, which district, which street) has to be asked of the same
- * point or two of them will disagree about where the party is.
+ * The token's centre, the one point every question about the party's ground
+ * (zone, district, street) is asked of.
  *
  * @returns {{scene: Scene, token: TokenDocument, point: {x: number, y: number},
  *   elevation: number}|null} null for a party with no token placed anywhere.
@@ -258,9 +245,8 @@ export function partyPoint(formation) {
 /**
  * A token's centre on its own scene, in `partyPoint`'s shape; null for a token
  * on no scene. The corner is the stored one (`_source`, as `storedPosition` in
- * turn-engine.mjs reads it; that module reaches this one, so the read is
- * inline): on a client that draws the token, the prepared `x`/`y` are a move's
- * animation, and the movement chain asks where the party stands while it plays.
+ * turn-engine.mjs reads it; that module imports this one, so the read is
+ * inline), since a drawing client's prepared `x`/`y` are a move's animation.
  */
 function tokenPoint(token) {
   const scene = token.parent;
@@ -276,7 +262,7 @@ function tokenPoint(token) {
 }
 
 /**
- * Where the party REALLY stands on its scene: the centre of the token
+ * Where the party really stands on its scene: the centre of the token
  * `truePositionToken` names — the lost episode's shadow while one stands
  * there, else the party's own marker — in `partyPoint`'s shape.
  * @returns {{scene: Scene, token: TokenDocument, point: {x: number, y: number},
@@ -292,11 +278,8 @@ export function truePartyPoint(formation) {
 /**
  * The street the party is standing on, and where that puts them.
  *
- * ONE reader for the whole question. The street, the zone and the district
- * have to be answers about the SAME point or two of them will disagree about
- * where the party is — and the three surfaces that ask (the turn tick, the
- * settlement panel, and a district's reaction figure) had each transcribed
- * the same three steps rather than sharing them.
+ * The one reader for the question, so the street, the zone and the district
+ * are answers about the same point.
  *
  * @param {object} formation the formation whose party token is placed
  * @param {object|null} board the settlement board, which carries the picker's

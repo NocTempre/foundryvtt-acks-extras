@@ -12,10 +12,9 @@
  * The formation registers the delve's own activities (RR ch. 6): the two
  * searches, listening and bashing as group checks rolled once per turn on one
  * card for the members who chose them; the two Trapbreaking columns against a
- * trap the party has found; battering; and Rest. A pace is structural: each of
- * these is done within one turn, so each answers a length of one, except
- * battering, whose length is the door's printed figure and is not imported
- * (ROADMAP §6), so it cannot lock.
+ * trap the party has found; battering; and Rest. Each answers a length of one
+ * turn except battering, whose length is not imported (ROADMAP §6), so it
+ * cannot lock.
  *
  * The Advance turn and Rest presses resolve the plan (`resolvePlanTurn`), in
  * `runPlanTurn`'s order: the clock spends the turn once and every roll after it
@@ -152,8 +151,7 @@ export function registerFormationActivities() {
     pace: "methodical",
     label: "ACKS-FORMATION.plan.activity.batter",
     options: () => [{}],
-    // The turns an axe needs are the door's printed figure: no import reads it
-    // yet, so the length is not imported and the choice cannot lock.
+    // The length is the door's printed figure, which no import reads: the choice cannot lock.
     turns: () => null,
     resolve: () => ({ done: BATTER_KEY }),
   });
@@ -291,10 +289,10 @@ export async function resolvePlanTurn(formation, { resting = false } = {}) {
 /* -------------------------------------------- */
 
 /**
- * A fight takes the party mid-turn (owner ruling 2026-11-11, Q5 A): every open
- * single-turn entry is cancelled, a multi-turn entry keeps its progress, and
- * one card says which, for the table to track. Nothing is posted for an empty
- * plan.
+ * A fight takes the party mid-turn: every open single-turn entry is cancelled,
+ * a multi-turn entry keeps its progress, and one card says which. Nothing is
+ * posted for an empty plan. See docs/formation/DECISIONS.md,
+ * "The turn plan is the party's, and only Turn and Rest resolve it".
  */
 export async function cancelPlanForCombat(formation) {
   if (!game.user.isGM || !formation) return null;

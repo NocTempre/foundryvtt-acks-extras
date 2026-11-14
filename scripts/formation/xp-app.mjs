@@ -2,12 +2,8 @@
 /**
  * Dealing an adventure's experience from the formation window.
  *
- * The division is shown BEFORE it is given. A Judge entering four thousand
- * experience should see, in one glance, that the two players take full shares,
- * the henchman takes their own share, the hired crossbowmen take nothing
- * because they are paid in coin, and the wagon takes nothing because it is a wagon — and that
- * the character who died on the way out is still on the list, because the rule
- * counts everyone who returned, alive or dead.
+ * The division is previewed before it is given: each row's share and
+ * adjustment, who is left out and why, and the fallen still listed.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { divideXp, awardXp, participantsOf, reasonLabel } from "./xp-shares.mjs";
@@ -24,7 +20,7 @@ const LANG_PREFIX = "ACKS-FORMATION.xp";
 export async function dealExperience(formation) {
   const actors = participantsOf(formation);
 
-  // Read once per dialog: a score or a class cannot change while it is open.
+  // Read once per dialog.
   const bonuses = new Map(actors.map((a) => [a, xpBonusFor(a)]));
   const bonusOf = (a) => bonuses.get(a);
 
@@ -59,8 +55,7 @@ export async function dealExperience(formation) {
     content,
     ok: { label: game.i18n.localize(`${LANG_PREFIX}.deal`), callback: (_e, b) => Number(b.form.elements.total.value) || 0 },
     render: (_event, dialog) => {
-      // Live preview: the division re-renders as the Judge types, so the
-      // number they confirm is the number they have already read.
+      // The preview re-renders as the total is typed.
       const input = dialog.element.querySelector('input[name="total"]');
       const box = dialog.element.querySelector(".acks-extras-xp-preview");
       input?.addEventListener("input", () => { box.innerHTML = preview(Number(input.value) || 0); });
@@ -107,13 +102,10 @@ function bonusCell(b) {
 const signed = (n) => `${n > 0 ? "+" : ""}${n}%`;
 
 /**
- * Core's party overview deals XP to every actor carrying its own party flag,
- * counting only `character` types and ignoring henchman shares entirely. With
- * this module active the formation is the roster of record, so core's button
- * is hidden rather than left to disagree — one owner per operation.
- *
- * Hiding, not disabling: a Judge who turns this module's setting off gets
- * core's button back untouched, because nothing about core was changed.
+ * Hide core's party-overview Deal XP button while `ownXpDealing` is on: core
+ * counts only `character` actors with its own party flag and ignores henchman
+ * shares, and the formation is the roster of record. The button is hidden, not
+ * disabled, so turning the setting off restores it untouched.
  */
 export function installCoreXpSuppression() {
   Hooks.on("renderAcksPartyOverviewApp", (app, html) => {
