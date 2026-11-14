@@ -5674,5 +5674,3 @@ reaches and the pit's spikes read; until then a crossing is resolved by hand and
 says so. The stored `triggerOn` of a trap made earlier is an explicit band and
 stays one. This entry's predecessors print the reaches in their text and, being
 append-only, keep them; they are marked superseded in part.
-
-(none: every removed rationale is already recorded there)
