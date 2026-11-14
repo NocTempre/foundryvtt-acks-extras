@@ -10936,7 +10936,7 @@ notes until a reader trims it. A listing's stat-line creatures bind by name in
 the next slice, and a listing whose creature the guide renames needs its own
 replacement pair there.
 
-## 2026-11-13 — A lair's plate is cut inside its frame and gridded off its own lattice
+## 2026-11-13 — A lair's plate is cut inside its frame and gridded off its own lattice — SUPERSEDED IN PART 2026-11-14
 
 Each of the 37 plated lairs has a `kind.scene` (`le.lair<n>Map`, `Lair <n> Map`,
 `register/le/p190-p225-plate-scenes.json`) naming its lair as `place`, with
@@ -10973,7 +10973,7 @@ many small squares. Lattice phase on plates with few drawn
 lines (p. 204, 207, 208, 215) rests on a handful of lines and is the
 first thing to check on a live walk.
 
-## 2026-11-13 — A lair links to its monster, and a stat line binds through a registered replacement
+## 2026-11-13 — A lair links to its monster, and a stat line binds through a registered replacement — SUPERSEDED IN PART 2026-11-14
 
 The owner, on how a lair stands: "Place actor (Recommended)"; on its text: "As AX
 books do"; and from the first ask, "It should link without creating
