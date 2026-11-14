@@ -1678,7 +1678,6 @@
     },
     "notify": {
       "autoUnequipped": "Auto-unequipped to keep a legal loadout: {items}.",
-      "namedGuessSpent": "{name} has already guessed this item's name and may not guess again until gaining a level.",
       "namedAdvanced": "{item} reveals more of its power to {name}.",
       "namedRevealed": "{item} answers to its true name — its full powers awaken.",
       "openDoll": "Open the Paper Doll"
@@ -1870,8 +1869,8 @@
       "slotInferred": "Auto: {slots}, from the item's name and type.",
       "slotAutoNone": "Auto (carried)",
       "slotNone": "Carried — worn nowhere",
-      "slotCapacity": "{n} magic at {slot} (Treasure Tome, one of a form); clothing takes no room, armour or a weapon takes the place.",
-      "slotCapacityRead": "{n} magic at {slot} ({source}); clothing takes no room, armour or a weapon takes the place.",
+      "slotCapacity": "{slot} holds {n} magic item(s) and one equippable item (Treasure Tome).",
+      "slotCapacityRead": "{slot} holds {n} magic item(s) and one equippable item ({source}).",
       "slotCapacityJudge": "set by the Judge",
       "access": "Retrieve from it",
       "accessUnset": "Unset",
@@ -8345,7 +8344,7 @@
   "ACKS-CHARACTER.equipment.loadLabel": "{load} of {max} st",
   "ACKS-CHARACTER.equipment.loadLabelEased": "{load} of {max} st · {carried} st carried",
   "ACKS-CHARACTER.equipment.loadEased": "{eased} st of what you carry does not weigh on you",
-  "ACKS-CHARACTER.equipment.slotUse": "{magic} magic of {cap} here · {equip} equipped. Clothing takes no room.",
+  "ACKS-CHARACTER.equipment.slotUse": "{magic} magic of {cap} here · {equip} equipped.",
   "ACKS-CHARACTER.equipment.slotCap.page": "Capacity read from {cite}.",
   "ACKS-CHARACTER.equipment.slotCap.judge": "Capacity set by the Judge.",
   "ACKS-CHARACTER.equipment.slotCap.none.ring": "Magic rings: JJ p. 144, Treasure Tome p. 74.",
