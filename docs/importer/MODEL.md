@@ -1633,6 +1633,7 @@ inside (`meta.space`, `meta.parent`), and a space is a row the others name
 (`keySpacesOf`). The points-of-interest step takes every such row
 (`isKeyedPlace`) as a location actor (`importKeyedPlace`); the journal step
 takes none (`journalBound`). A place is filed in the book's `Places` folder,
+or in the folder its row's `meta.group` names,
 named by the heading its page prints, and given its page's text, stat lines
 included, as its notes. It sits inside the place its row names
 (`keyedParentId`): its parent row, else its space, else the book's own place
@@ -1782,6 +1783,120 @@ so the reference stays as the library wrote it. A world copy made before the
 place joined keeps its library document's id; the maps step finds it by that
 id and restamps it (`restamp`) rather than copy the place a second time, and
 leaves its notes as they were copied.
+
+## A picture's text
+
+A page that prints its text inside a picture has no text layer, and its fields
+are read from the picture instead. A field whose instruction is `{op: "ocr",
+page, then}` (a register row writes `ocr: {<field>: <then>}`) is dispatched by
+`executeEntry` to `readPictureText` (`importer/picture-text.mjs`) with the
+page's recipe, `bookCookbook.pictures[page]`; COOKBOOK, "`pictures`", is the
+recipe's shape, the runs a box's lines become and the corrections applied to
+them. `readPictureText` takes the page's runs from `pictureReadFor` and runs
+`then`, a heading, text, value or grid instruction, over them through
+`execInstruction` with `claims` off and `getPage` answering the runs, so key
+checks, paragraph assembly, stat-line parsing and creature lookups are the
+existing ops'. A page with no recipe, or an `ocr` with no `then`, throws inside
+`executeEntry`'s own try and is a miss of the field. A `value` that lists
+`unread` paths has each deleted from the parse, recorded as a miss `{field,
+unread}` and echoed as `result.unread`, which the binder reads
+(`bindNpc`, "The Judges Journal's scenarios").
+
+**What is kept, and where.** State is per session document (`stateOf`, a
+`WeakMap`): the pages read, a promise queue, the engine and its idle timer. A
+page's corrected lines are kept as long as the document is. `pictureReadFor`
+answers a held page only when it holds the same recipe object it is asked
+with; a read that fails is not kept, so the next ask reads again. A real read
+runs through `withEngine`: one task at a time per document, the engine opened
+on demand (a pinned copy of the PDF from `doc.getData()` through `openPinned`,
+and a reader from `createReader`) and closed by `teardown` once `IDLE_MS` has
+passed since the last task, the timer never holding a Node process open. An
+engine that failed to start is dropped, so the next read starts one. No
+runtime script calls `closePictureReads`; the idle timer is what closes the
+engine in the client. `seedPictureRead` stores box reads as if the page had
+been read, so no engine starts: the compiler seeds the author's read and the
+suites an invented one.
+
+**What runs where.** `pictureScaled` picks the page's one painted picture of
+the recipe's size (`pictureBySize`) and scales it once (`SCALE`); `readBoxReads`
+cuts each box from that image, padded by `BOX_PAD`, and reads it; `pictureRuns`
+applies the corrections and makes the runs. `importer/ocr.mjs` is the pixel
+path. `openPinned` opens pdf.js with its canvas and image-decoder paths off, so
+a picture's samples arrive raw, and grey, the scale and the PGM handed to the
+engine (`toGrey`, `scaleUp`, `toPgm`) are integer arithmetic over module-owned
+data: every seat gives the engine the same bytes. The engine is the vendored
+Tesseract in `vendor/tesseract/` (`vendor/tesseract/README.md`). In the client
+it is tesseract.js's worker (`browserEngine`) with every path pointed at the
+vendored files and no network or cache; in Node `nodeEngine` loads the same
+core and data and makes the calls the worker script makes on it.
+
+**The reading bar.** `readBar` opens a `progressBar` labelled
+`ui.progressPictureText` with the page's number in the file, takes one step a
+box and finishes when the read ends, failed or not. It opens at the ask, for a
+real read only: a held or seeded page shows none, and neither does a run with
+no notifications or no strings to label it from.
+
+## The Judges Journal's scenarios
+
+The nine scenarios of Appendix A (PDF pp. 417–425, one page each) are rows of
+the Judges Journal's register, `register/jj/p<page>-scenario.json` and
+`p<page>-plan.json`, whose text and names are read by the `ocr` op above. A
+scenario is a key space `jj.scenario<N>` with its keyed areas under it
+(`jj.scenario<N>-<key>`, `meta.space`), the creature rows
+`jj.scenario<N>-npc<I>` (21 in all) and one plan, a `kind.scene` row
+`jj.scenario<N>Map`. A row's label is neutral ("Scenario N", "Scenario N NPC
+I"); a heading op proves its box by the key number it opens with or by
+`printKey` of the words (`hash`), and the place or actor is named by the
+words the Judge's page prints (`printedNameOf`). The keyed places, their
+roster order, pins and `travel` are "An adventure's keyed places"; this
+section is what the scenarios add to it.
+
+**Groups and folders.** Every row carries `meta.group: "Scenario N"`.
+`importKeyedPlace` files a place under `[book label, meta.group || "Places"]`,
+and the creature rows file under the same name through `actorGroupOf`
+(`targetFolder`), so one `Scenario N` folder holds a scenario's places and
+creatures. `scenarioProblems` (`tools/importer/scenario-rules.mjs`, run by
+`lint-register.mjs`) holds the shape: the group on every row, a key space with
+areas and one plan (a scene row with no `scene.part`, beside any parts), a plan
+that pins its own areas only, and every area pinned itself or through the area
+it is part of (`meta.parent`). The plans are `kind.scene` rows with `places`
+pins and no walls.
+
+**Creatures.** A `kind.npc` row reads its name as a heading and its stat line
+through `ocr` into a `value` with `pattern: "statline"`;
+`importAdventureActor` (`cookbook/actor-import.mjs`) binds it with `bindNpc`
+(`cookbook/monster.mjs`). `parseStatline` reads a line that prints each
+routine's throw and damage inside its attack parenthesis routine by routine
+(`scenarioRoutines`, `statline-attacks.mjs`) into `atks[]`; `atk` stays the
+first routine, and a line that keeps its damage under its own key reads no
+`atks`. Each routine is one weapon (`weaponPayload`) typed by its own damage
+word in `flags["acks-extras"].damageType`. A routine whose throw differs from
+the first's carries the difference as the weapon's `bonus.attack`, since the
+actor holds one attack throw. A line that prints hit dice and no hit points
+takes hit points from its dice by `bindStatsScalars`' rule, for every adventure
+and Lairs & Encounters creature bound by `bindNpc`, not the scenarios' alone.
+
+**Roster links.** `meta.roster` on a place row lists cookbook ids of creatures
+the place holds that no stat line in its own text gives. `keyedOccupantRows`
+ends with `rosterLinkRows` (`cookbook/roster-links.mjs`): one hidden row
+(`occupantRow`) for each id the library holds, as its own document and never a
+world copy, with the default quantity and empty notes, none for an actor the
+roster already holds. An id nothing answers adds `tally.rosterWaiting`;
+`cookbookImportPoiPlaces` says how many in its notice
+(`ui.poiRosterWaiting`) and returns the count. `rosterProblems` holds each id
+to a creature or person row, named once, on a keyed place.
+
+**Unread figures.** A `value`'s `unread` paths leave a parse figure out of
+`bindNpc`: no save row worked out from a class level, no hit dice from a level,
+no throw and no attack text. `unreadOfStatline` adds the hit points where the
+hit dice are unread and none are printed. `importAdventureActor` then writes
+`flags["acks-extras"].extras.derived.unread`, `[{path, held, cite}]`
+(`unreadRecord`, `UNREAD_FIGURES` in `importer/unread-figures.mjs`): each actor
+path the figures stand for, the value the created actor holds there and the
+entry's page reference. The list is written only where it is non-empty or
+clears an earlier one, and a repair keeps the `held` an earlier import listed.
+The sheet side is docs/monsters/MODEL.md, "A figure the import left unread".
+No shipped row lists an unread path.
 
 ## A roll table's rows
 

@@ -701,6 +701,48 @@ choose **Import**, and give that player Owner permission on the copy, as for
 an adventure's pregenerated characters. A rebuild leaves the copy alone and
 never deletes a character a player owns.
 
+### The Judges Journal's scenarios
+
+The Judges Journal prints nine scenarios in its appendix, each as one picture
+with its text inside it. Connect the book and run **Import everything**
+(**Manage Imports → Import** tab, opened from **Settings tab → Game Settings →
+ACKS II — Extras → Manage imports**; see *Managing imports*). Like the parties,
+the scenarios land where only Judges can open them.
+
+The first import reads each scenario's picture from your copy, which takes a
+moment: a bar reading *Reading picture text, PDF page N…* shows while it does,
+with the page's number in the file. A page is read once while the book stays
+connected, and a step that needs it again reuses the read.
+
+- **Each scenario is a folder.** In the book's folder on the Judge's shelf of
+  Actors, **Scenario 1** to **Scenario 9** each hold that scenario's places and
+  its creatures.
+- **Each scenario is a place, with its keyed areas inside it.** The scenario's
+  page text is the place's notes, and each numbered area is a place of its
+  own, named by the heading your copy prints and carrying its text. A place's
+  roster lists who is there, hidden from players: the creature your library
+  holds, or the scenario's own. A roster row carries no count; the notes say how
+  many.
+- **The plan is a scene.** Each area stands on it as a hidden token at the
+  number the page prints, as for *An adventure's rooms, as places*, and the
+  scene is on the Judge's shelf of Scenes with the rest of the book's maps.
+- **The scenario's creatures are actors**, filed in its **Scenario** folder,
+  with the figures their stat line prints. Each attack routine is a weapon
+  with its damage and damage type, and a routine whose attack throw differs
+  from the first carries the difference as its weapon's attack bonus. A creature that prints
+  hit dice and no hit points takes hit points from its dice.
+- **The book's Adventure carries all of it.** Open the Adventure and click
+  **Import** to bring a scenario into another world (*An adventure book, as one
+  Adventure*, above).
+
+A roster link to a creature your library does not hold waits, and the places
+step's notice says how many. Import the book that has the creature first. A
+place already in your library is not read again; delete it and run the step to
+fill the link.
+
+Left out: the plans have no walls, and a plan that draws several floors is one
+scene.
+
 ### An adventure's rooms, as places
 
 An adventure's keyed rooms import as **places** in the book's **Places**

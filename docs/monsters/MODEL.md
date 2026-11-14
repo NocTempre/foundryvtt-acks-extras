@@ -175,6 +175,25 @@ targets.
 the pins are the actor's sheet flag, so every unlinked token of one actor
 shares one fold state and one set of pins.
 
+### A figure the import left unread
+
+An adventure creature whose picture read left a figure unread
+(docs/importer/MODEL.md, "The Judges Journal's scenarios") holds core's value
+for it, and the actor's `flags["acks-extras"].extras.derived.unread`
+(`MonsterExtras`, `[{path, held, cite}]`) names it with the value core gave it
+and the page reference. In `_prepareContext` the sheet calls `blankedFigures`
+(`monsters/unread-figures.mjs`) with that list and a reader of the actor's
+paths, which answers each figure whose actor still holds `held`, with its
+`cite`, then `blankUnreadRows` over `statblockColumns`' columns. A blanked row
+draws no figure (`value` and, on the hit dice row, `line`, empty), takes the
+`cite` alone as its tooltip (`valueTip`) and is marked `blank`. The rows are
+the five saves, morale, the attack rows, the hit points row and the hit dice
+row; the attacks group's note goes with an unread attack throw and the hit
+points group's with unread hit dice. Once a Judge changes a figure it no
+longer equals `held` and draws as any figure. Armour class, movement and
+experience are listed too and no row draws them blank; the rails, the band and
+Classification still show core's value. A creature with no list is untouched.
+
 ## Animal tab
 
 Shown only on an `acks-extras.animal`, whose DEFAULT sheet this is. It carries
