@@ -206,6 +206,13 @@ beside it.
   test, unselected lines reported); `tools/importer/verify-cookbook.mjs` recounts every
   `hits` on a live read and replays the entries (`VERIFY_NO_OCR=1` leaves both
   out).
+- **Authoring.** `tools/importer/ocr-kit.mjs` (never shipped; its header is the
+  usage) fits a recipe: box proposals from a whole read, an in-order score
+  against the wiki oracle in both directions, per-correction fired/idle and
+  `hits`, the stat lines' figures with their boxes, crops of the picture to
+  check a figure by eye, and the pixel to page-point map of the placed picture
+  for a scene's `crop` and `places[].at`. Everything it writes holds page text
+  and lives under `OCR_READS`; the console carries counts and indices.
 
 **Executor contract:** pure lookup + mechanical execution; no heuristics, no
 promotion, no writes. Inputs: cookbook + the seat's opened PDF. Output: the
