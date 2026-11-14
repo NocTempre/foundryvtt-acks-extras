@@ -4,19 +4,14 @@
  * figure.
  *
  * Core's `Token#getLightRadius` adds the token's `externalRadius` (half its
- * smaller side) to every radius it converts, so a lantern on a one-cell token
- * reaches half a cell further than the same lantern anywhere else. The
- * module's own lights are figures read from the light table and converted to
- * the scene's units (`token-sync.mjs` `applyTokenLight`), and the marching
- * column's lights stand on no token at all, so the padding made one source
- * reach two distances.
- *
- * The wrapper takes the padding off the light source's `dim` and `bright` on
- * a token whose light is managed (`isManagedLight`): the module wrote it and
- * its stored radii are still the ones it stamped. A light set or edited by
- * hand keeps core's padding. `_getLightSourceData` is the light's own path; `getLightRadius`
- * itself is left alone because sight range, detection modes and the
- * `brightRadius`/`dimRadius` getters read it too.
+ * smaller side) to every radius it converts. The module's own lights are
+ * figures converted to the scene's units (`token-sync.mjs` `applyTokenLight`)
+ * and some stand on no token, so the wrapper takes the padding off the light
+ * source's `dim` and `bright` on a token whose light is managed
+ * (`isManagedLight`). A light set or edited by hand keeps core's padding.
+ * `_getLightSourceData` is the light's own path; `getLightRadius` is left alone
+ * because sight range, detection modes and the radius getters read it too.
+ * See docs/lib/MODEL.md for the managed-light model.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { isManagedLight } from "../token-sync.mjs";

@@ -3,10 +3,9 @@
  * and patch resolution, split out so they import under Node and are unit-tested
  * offline (the same split as group-logic.mjs vs group.mjs).
  *
- * A template is the book's own shape for creatures it refuses to stat once:
- * the MM's dragon/cacodemon/elemental "characteristics by rank/age/tier"
- * pages, and modifier creatures like the vampire thrall that rewrite a victim.
- * The actor's system data holds AXES (rank, age, element, HD…), each option
+ * A template is the book's own shape for creatures it refuses to stat once
+ * (characteristics by rank, age or tier) and for modifier creatures that
+ * rewrite a dropped base actor. The actor's system data holds AXES, each option
  * carrying engine-ready PATCHES that were materialized from the reader's own
  * book at import time. This module never interprets book content — it only
  * selects options and merges what the importer already built:
@@ -15,12 +14,10 @@
  *   resolved = resolveActor(system, choices.choices, { baseName })
  *
  * Per-axis precedence: PINNED (the Judge picked it) > DERIVED (read off a
- * dropped base actor, e.g. a thrall keeps its victim's HD) > DEFAULT (the
- * axis names the option an unpinned generation takes, a family's standard
- * rank and file) > ROLLED (the book's own die over the printed bands, else
- * uniform). Only options available beside the choices already made are
- * chosen (`optionAvailable`). Quick use pins nothing and gets a rules-legal
- * creature.
+ * dropped base actor) > DEFAULT (the option the axis names for an unpinned
+ * generation) > ROLLED (the axis die over the printed bands, else uniform).
+ * Only options available beside the choices already made are chosen
+ * (`optionAvailable`).
  */
 
 import { bracketRow } from "./tables.mjs";
@@ -76,8 +73,8 @@ const inBand = (opt, v, faces) => {
 };
 
 /**
- * Pick one option of one axis by the book's own procedure: the axis die over
- * the options' printed bands when both exist, else uniform. Returns
+ * Pick one option of one axis: the axis die over the options' bands when both
+ * exist, else uniform. Returns
  * `{option, roll}` (roll null for uniform picks). Empty axes return null.
  */
 export function rollOption(axis, rng = Math.random) {
@@ -99,7 +96,7 @@ export function rollOption(axis, rng = Math.random) {
  * Derive an axis choice from a dropped base actor's values. The axis says
  * which base value it reads (`derive.from`, e.g. "hd") and its cap; options
  * with numeric keys are matched to the clamped value, taking the closest
- * option that does not exceed it ("8 HD or less" rows).
+ * option that does not exceed it.
  */
 export function deriveOption(axis, baseValues) {
   const from = axis?.derive?.from;
@@ -125,8 +122,7 @@ const hasOwnPatch = (o) =>
 /**
  * Can this option be chosen beside the choices already made? An option that
  * carries no patch of its own, on an axis some cell refines, is only the key
- * of its cells, so it stands only where a cell matches it: a role a variant
- * prints no figures for is never offered for that variant. An axis left
+ * of its cells, so it stands only where a cell matches it. An axis left
  * unchosen in `choices` matches any of its options. The axis's `default` is
  * always available, and so is every option of an axis no cell names.
  */
@@ -148,9 +144,8 @@ export function optionAvailable(system, axis, option, choices = {}) {
 
 /**
  * Does an axis offer a choice beside the choices already made? Not when at
- * most one of its options is available there (`optionAvailable`): generation
- * can only take that one, so the sheet leaves the axis out rather than naming
- * a choice that is none. A multi axis and an axis that derives from a base
+ * most one of its options is available there (`optionAvailable`), so the sheet
+ * leaves the axis out. A multi axis and an axis that derives from a base
  * always offer one.
  */
 export function axisOffersChoice(system, axis, choices = {}) {
@@ -162,10 +157,10 @@ export function axisOffersChoice(system, axis, choices = {}) {
  * Choose every axis: pinned > derived > default > rolled, among the options
  * available beside the choices already made (`optionAvailable`). Returns
  * `{choices: {axisKey: optionKey}, log: [{axis, option, source, roll?}]}`.
- * Unknown pinned keys fall through to derive/roll rather than erroring — a
- * stale pin must never brick generation; a pin of an unavailable option is
- * logged as `source: "unavailable"` and falls through the same way. An axis's
- * `default` stands in for a roll, so an axis that names one never rolls.
+ * An unknown pinned key falls through to derive/roll; a pin of an unavailable
+ * option is logged as `source: "unavailable"` and falls through the same way.
+ * An axis's `default` stands in for a roll, so an axis that names one never
+ * rolls.
  */
 export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random } = {}) {
   const choices = {};
@@ -238,10 +233,9 @@ export function resolveSubRoll(sub, rng = Math.random) {
 }
 
 /**
- * Roll the special-ability MENU (cacodemon/dragon pages): d100 over printed
- * bands when the menu ships a die, else uniform, spending `budget` slots
- * against each row's slot cost (default 1; the dragon prints fractions).
- * Distinct rows only. Returns `{picks, rolls}` — each pick is a COPY of its
+ * Roll the special-ability MENU: its die over the rows' bands when the menu
+ * carries one, else uniform, spending `budget` slots against each row's slot
+ * cost (default 1, and a cost may be fractional). Distinct rows only. Returns `{picks, rolls}` — each pick is a COPY of its
  * row, carrying `subResult` when the row's own sub-roll resolved.
  */
 export function rollMenu(menu, budget, rng = Math.random) {
@@ -264,7 +258,7 @@ export function rollMenu(menu, budget, rng = Math.random) {
       if (!unpicked.length) break;
       row = unpicked[Math.floor(rng() * unpicked.length)];
     }
-    if (!row || chosen.includes(row)) continue; // re-roll duplicates, per the book
+    if (!row || chosen.includes(row)) continue; // re-roll duplicates
     if (spent + costOf(row) > budget) continue;
     chosen.push(row);
     const subResult = resolveSubRoll(row.sub, rng);
@@ -291,9 +285,8 @@ const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /**
  * A RELATIVE leaf: `{"$add": -1}` adjusts the existing numeric value instead
- * of replacing it — what a MODIFIER template needs (aging: −1 STR onto
- * whatever the base actor has). Graceful: a non-numeric existing value just
- * takes the delta as its value.
+ * of replacing it, for a modifier template applied to a base actor. A
+ * non-numeric existing value takes the delta as its value.
  */
 const isRelative = (v) => isPlain(v) && Object.keys(v).length === 1 && typeof v.$add === "number";
 const applyRelative = (existing, v) => {
@@ -340,12 +333,10 @@ export function mergePatch(target, patch) {
  * from the resolved `hp.hd` (a cell's `rollHp`). Axis merges apply in
  * axis order, then the N-dimensional `cells` (keyed by their axes' chosen
  * option keys joined with "|"), so a 2-axis cell always outranks the 1-axis
- * rows it refines — the dragon's per-age-per-form damage over the age row's
- * baseline. `flags`/`token` are the actor-level channels preset options carry
- * (a family variant is a complete creature, sheet extras and token size
- * included). A matching cell's `dropItemTypes` takes every item of those
- * types out of the payload, whichever axis or cell added it, so a cell can
- * remove what its variant carries (a noncombatant's weapons).
+ * rows it refines. `flags`/`token` are the actor-level channels preset options
+ * carry (sheet extras and token size). A matching cell's `dropItemTypes` takes
+ * every item of those types out of the payload, whichever axis or cell added
+ * it.
  */
 export function resolveActor(system, choices, { baseName = "", templateName = "" } = {}) {
   // The template's FIXED foundation first (printed plain rows), then axes.
@@ -382,12 +373,10 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
     if (key && key === cell.key) {
       mergePatch(merged, cell.merge);
       for (const item of cell.items ?? []) items.push(structuredClone(item));
-      // A cell's actor-level channel: what the sheet reads beside `system`
-      // (a leader's Hit Dice rating and save class) moves with its stats.
+      // A cell's actor-level channel: what the sheet reads beside `system`.
       mergePatch(flags, cell.flags);
-      // A cell whose page gives a rating and no hit points asks for them
-      // rolled from the rating at generation; a later cell writing hit points
-      // of its own settles them instead.
+      // A cell that gives a rating and no hit points asks for them rolled from
+      // the rating; a later cell writing hit points of its own settles them.
       if (cell.rollHp || cell.merge?.hp) rollHp = !!cell.rollHp;
       for (const type of cell.dropItemTypes ?? []) drop.add(type);
     }
@@ -399,8 +388,8 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
       if (key === "base") return baseName || templateName;
       const c = chosen.find((x) => x.axis.key === key);
       if (!c) return "";
-      // null nameLabel falls back to the label; the EMPTY STRING is an
-      // explicit "no name piece" (a Standard role stays out of the name).
+      // A null nameLabel falls back to the label; the empty string is an
+      // explicit "no name piece".
       return c.option.nameLabel ?? (c.option.label || c.option.key);
     });
     name = name.replace(/\s+/g, " ").trim();

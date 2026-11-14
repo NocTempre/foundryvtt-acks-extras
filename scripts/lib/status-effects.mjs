@@ -6,8 +6,8 @@
  * The palette is the catalogue in `conditions.mjs` and three states the engine
  * needs beside it, in the order and with the additions the Judge arranged
  * (`status-palette.mjs`); Foundry's generic list is off it until the Judge
- * puts a status back. Nothing
- * here stores a modifier on an effect. Each roll reads the roller's statuses
+ * puts a status back. Nothing here stores a modifier on an effect. Each roll
+ * reads the roller's statuses
  * — and the target's, for an attack — at the moment it is made, so a condition
  * applies its math whoever created the effect that carries it, and a figure
  * imported later reaches conditions already in place.

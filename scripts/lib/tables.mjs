@@ -1,30 +1,27 @@
 /**
- * Layered rules-table registry (see docs/lib/API.md; adopted by the table
- * extraction program — ruling in acks-module-template docs/DECISIONS.md).
- * Pure module: no Foundry imports; Node tooling and tests import it directly.
+ * Layered rules-table registry (see docs/lib/API.md, "`tables`"). Pure module:
+ * no Foundry imports; Node tooling and tests import it directly.
  *
- * Documents are plain JSON objects carrying `id` (the henchmen ruledata
- * shape: `{ id, source, tables: {…}, throws?: {…} }`). Each id holds at most
- * one document PER PRIORITY LAYER; reads resolve the highest layer present:
+ * Documents are plain JSON objects carrying `id`: `{ id, source, tables: {…},
+ * throws?: {…} }`. Each id holds at most one document per priority layer;
+ * reads resolve the highest layer present:
  *
  *   0  SAMPLE   — module-shipped automation config, never a book value
- *                 (henchmen's `throws` and its partial `rarity`)
  *   10 CATALOG  — premium/companion content module
- *   20 WORLD    — per-world imported tables (importer import via the
- *                 `ruledata-import` service; persisted by its provider)
- *   30 OVERRIDE — GM tweaks parsed from world documents (RollTables /
- *                 journals); usually a PARTIAL doc carrying only the
- *                 tweaked tables
+ *   20 WORLD    — per-world imported tables (the `ruledata-import` service)
+ *   30 OVERRIDE — GM tweaks parsed from world documents; usually a partial
+ *                 doc carrying only the tweaked tables
  *
- * Re-registering at the same layer replaces that layer (idempotent
- * re-import); unregistering a layer falls back to the next-highest.
+ * Re-registering at the same layer replaces that layer; unregistering a layer
+ * falls back to the next-highest.
  *
- * Reads LAYER PER TABLE: getDoc merges `tables`/`throws` maps ascending by
- * priority (higher layers win per key; scalar fields come from the highest
- * layer that defines them), so a partial override never hides the rest of
- * the world doc beneath it. Full-doc layers behave exactly as before.
+ * Reads are layered per table: `getDoc` merges the `tables`/`throws` maps
+ * ascending by priority (higher layers win per key; scalar fields come from
+ * the highest layer that defines them), so a partial override never hides the
+ * rest of the world doc beneath it.
  */
 
+/** The registry's priority layers, lowest first; a read takes the highest layer that holds the table. */
 export const PRIORITY = Object.freeze({ SAMPLE: 0, CATALOG: 10, WORLD: 20, OVERRIDE: 30 });
 
 /** docId → Map<priority, doc> */
@@ -121,11 +118,9 @@ export function expectedTables() {
  * tables all arrived but not all their rows is still reported, with `missing`
  * empty. A document nothing declared has every table it holds checked.
  *
- * Registration of an ID is not presence of its tables, so a missing-tables
- * notice asks THIS and never `hasDoc`: a module's own automation layer claims
- * an id while supplying none of the tables consumers declared — henchmen
- * registers a `rarity` doc holding one inferred table — and a doc-presence
- * check reads that as imported forever.
+ * Registration of an id is not presence of its tables, so a missing-tables
+ * notice asks this and never `hasDoc`: a module's own automation layer can
+ * claim an id while supplying none of the tables consumers declared.
  *
  * A document nothing declared through `expectTables` can only be judged on its
  * id, and is reported with empty table lists when no layer holds it.
@@ -197,8 +192,8 @@ export function getDoc(docId) {
 /**
  * One layer of a document exactly as registered, or null; never merged. An
  * import that merges into what it imported before reads its own layer this
- * way: `getDoc` would carry a GM's override, or a shipped sample, down into the
- * import, where clearing the override or updating the sample no longer shows.
+ * way, since `getDoc` would carry a GM's override or a shipped sample down into
+ * the import.
  */
 export function getLayer(docId, priority) {
   return _layers.get(docId)?.get(priority) ?? null;

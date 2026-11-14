@@ -4,38 +4,29 @@
  * system's and this module's cast buttons and macros end in, and the registry
  * of features that take a cast over.
  *
- * Core's `_useSpell` raises the spell's cast count and posts its chat card. The
- * system's sheet button, its hotbar macro, this module's Magic tab button and
- * the monster sheet all call `item.use()`, which calls `_useSpell`, so wrapping
- * it is the one place a feature can see a cast whichever door the player used.
- * A hand edit of a Cast count field writes the count directly and is no cast.
- * A feature registers a claimant with `addSpellUseClaimant`; the wrapper offers
- * each cast to the claimants in registration order, and the first whose
- * `claims` answers true runs the cast. With no claimant the system's method
- * runs untouched.
+ * Core's `_useSpell` raises the spell's cast count and posts its chat card, and
+ * every cast door (the system's sheet button and hotbar macro, the Magic tab
+ * button, the monster sheet) reaches it through `item.use()`. A hand edit of a
+ * Cast count field writes the count directly and is no cast. A feature
+ * registers a claimant with `addSpellUseClaimant`; the wrapper offers each cast
+ * to the claimants in registration order, and the first whose `claims` answers
+ * true runs it. With no claimant the system's method runs untouched.
  *
- * A claimant's `cast(item, options, spend)` decides whether the cast happens at
- * all. `spend` is the system's own `_useSpell(options)`, the cast count and the
- * card, behind a once-only door: calling it twice runs the system's method
- * once. A claimant that is refused or cancelled never calls it, so a cast that
- * did not happen costs the spell nothing. `spend` resolves true when it ran
- * the system's method. It is libWrapper's chained call underneath, valid only
- * until `cast` settles, so a claimant calls it before `cast` returns. A
- * `spend` after that is a logged no-op that resolves false and never throws
- * into its caller: libWrapper would throw there, and Foundry would raise its
- * module-error notice at the table.
+ * A claimant's `cast(item, options, spend)` decides whether the cast happens.
+ * `spend` is the system's own `_useSpell(options)` behind a once-only door, and
+ * resolves true when it ran the system's method. A claimant that is refused or
+ * cancelled never calls it, so the spell is not spent. It is libWrapper's
+ * chained call, valid only until `cast` settles; a later `spend` is a logged
+ * no-op that resolves false and never throws.
  *
- * The system's `use()` calls `_useSpell` WITHOUT awaiting it, so a caller of
- * `item.use()` cannot wait for, or catch, a claimant's cast. A feature that
- * must await the cast calls `item._useSpell(options)` itself: that is the
- * wrapped method, and its promise settles when the claimant's cast does.
+ * The system's `use()` does not await `_useSpell`, so a caller of `item.use()`
+ * cannot wait for a claimant's cast; a feature that must await it calls
+ * `item._useSpell(options)`. A claimant that throws is contained: `claims` is
+ * logged and passed over, `cast` is logged and the spell is spent only if
+ * `spend` already ran.
  *
- * Every claimant that throws is contained: a `claims` that throws is logged and
- * passed over, a `cast` that throws is logged and the spell is spent only if
- * `spend` already ran. A claimant must never cost the table its cast.
- *
- * This is the method's one wrapper. A later cast engine registers a claimant;
- * it does not wrap `_useSpell` a second time.
+ * This is the method's one wrapper; a later cast engine registers a claimant.
+ * See docs/lib/DECISIONS.md, "One owner of the cast seam: lib".
  */
 import { MODULE_ID } from "../constants.mjs";
 

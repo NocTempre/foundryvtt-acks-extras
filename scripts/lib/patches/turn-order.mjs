@@ -2,23 +2,16 @@
 /**
  * Core patch: combatants tied on initiative sort into one order on every seat.
  *
- * `AcksCombat#setupTurns` sorts the combatants with the system's
- * `sortCombatantsACKS`, and `combat.turn` is an index into that order, so two
- * seats that sort differently disagree on whose turn it is. The system's
- * comparator is a total order only for a pair that differs in outnumbering or
- * in being hostile. For two combatants of the same side it answers the same
- * sign in both directions (two hostiles read -1 either way, two non-hostiles
- * +1, two outnumbering ones +1), and the name tiebreak below those returns is
- * never reached. Such a pair is ordered by the engine's sort and its input
- * order, which differ between browsers and between clients holding the
- * combatants in a different sequence.
+ * `AcksCombat#setupTurns` sorts with the system's `sortCombatantsACKS`, and
+ * `combat.turn` indexes that order. The system's comparator answers the same
+ * sign in both directions for two combatants of the same side, so such a pair
+ * is ordered by the engine's sort and its input order, which differ between
+ * clients.
  *
- * This wrapper answers the pairs the system answers the same way and decides
- * the rest by combatant id. A pair with different initiative is the system's.
- * On a tie: a combatant on the outnumbering side sorts after one that is not;
- * else a hostile one sorts first; else the lower id sorts first. The id is the
- * one key that is stable and identical on every client, where the display name
- * repeats and compares through the locale.
+ * This wrapper leaves a pair with different initiative to the system. On a tie:
+ * a combatant on the outnumbering side sorts after one that is not; else a
+ * hostile one sorts first; else the lower combatant id sorts first. The id is
+ * the one key identical on every client.
  *
  * `setupTurns` passes the comparator unbound, so nothing here reads `this`.
  *
@@ -69,9 +62,9 @@ function onSort(wrapped, a, b, ...rest) {
 
 /**
  * Sort each loaded combat's turns again, in memory and with no write, and
- * redraw the tracker. A combat is set up before the wrapper exists, so a world
- * that loads with a tied round holds the order the engine happened to give it.
- * A combat whose turns are locked is left as `setupTurns` leaves it.
+ * redraw the tracker; a combat set up before the wrapper exists holds the
+ * engine's order for ties. A combat whose turns are locked is left as
+ * `setupTurns` leaves it.
  */
 export function resortCombats() {
   for (const combat of game.combats ?? []) {
@@ -86,11 +79,8 @@ export function resortCombats() {
 
 /**
  * Install at `ready`, when the combat class is final, and re-sort the combats
- * the world loaded.
- *
- * Unconditional and settingless: this repairs a seat-dependent order, and a
- * toggle for it would only be a toggle for the broken state. The only owner of
- * the wrapped method.
+ * the world loaded. Unconditional and settingless. The only owner of the
+ * wrapped method.
  */
 export function installTurnOrderPatch() {
   const proto = CONFIG.Combat?.documentClass?.prototype;

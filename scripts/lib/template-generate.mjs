@@ -28,7 +28,7 @@ const generatedFolder = () => actorFolder(game.i18n?.localize?.(`${LANG_PREFIX}.
 export async function generateFromTemplate(template, { pins = {}, base = null } = {}) {
   const sys = template.system;
 
-  // Values an axis may derive from a dropped base (the thrall's victim HD).
+  // Values an axis may derive from a dropped base.
   const baseValues = {};
   if (base) {
     const hd = hitDiceOrLevel(base);
@@ -82,18 +82,17 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
     system.details = { ...(system.details ?? {}), biography: `${system.details?.biography ?? ""}${biography}` };
   }
 
-  // Actor-level channels from preset options (family variants): sheet-extras
-  // flags and prototype-token fragments ride the resolved payload; the
-  // provenance flag is ours and always wins its own key.
+  // Actor-level channels from preset options: sheet-extras flags and
+  // prototype-token fragments ride the resolved payload; the provenance flag
+  // is ours and always wins its own key.
   const prototypeToken = {
     ...(resolved.art || resolved.tint
       ? { texture: { ...(resolved.art ? { src: resolved.art } : {}), ...(resolved.tint ? { tint: resolved.tint } : {}) } }
       : {}),
     ...(resolved.token ?? {}),
   };
-  // A caster whose level the page prints as a die (a family's shaman) is
-  // rolled here, before the repertoire listener reads the level; the roll is
-  // logged beside the axis choices it was made with.
+  // A caster level given as a die is rolled here, before the repertoire
+  // listener reads the level, and logged beside the axis choices.
   const casting = resolved.flags?.[MODULE_ID]?.extras?.spellcasting;
   if (casting?.levelDie && !Number.isInteger(casting.level)) {
     const level = rollDice(casting.levelDie);
@@ -103,8 +102,8 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
     }
   }
 
-  // A cell that gives a rating and no hit points (a leader the procedure
-  // built) has them rolled from the rating, logged like the caster's level.
+  // A cell that gives a rating and no hit points has them rolled from the
+  // rating, logged like the caster's level.
   if (resolved.rollHp && system.hp?.hd) {
     const hp = rollDice(system.hp.hd);
     if (hp != null) {

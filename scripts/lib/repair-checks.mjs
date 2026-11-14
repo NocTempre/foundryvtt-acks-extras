@@ -32,7 +32,7 @@ function packageState(type) {
   return { ns, state: mod.active ? "active" : "disabled", title: mod.title ?? ns };
 }
 
-/** The raw source of every document an embedded collection could not load. */
+/** The `{id, src}` raw source of every document an embedded collection could not load. */
 function invalidSources(collection) {
   const out = [];
   for (const id of collection?.invalidDocumentIds ?? []) {
@@ -50,9 +50,7 @@ function invalidSources(collection) {
 /**
  * An actor's coin as the raw source holds it: `{rows, text}`, over the money
  * rows that count more than nothing. A row's count and its banked figure are
- * added: the sweep that moves a banked figure into a vault reaches loaded
- * documents only, so on a source that does not load the banked figure is
- * still coin the actor is owed.
+ * added, since the vault sweep reaches loaded documents only.
  */
 function strandedCoin(src) {
   const count = (i) => (Number(i.system?.quantity) || 0) + (Number(i.system?.quantitybank) || 0);
@@ -104,13 +102,12 @@ function* stampedDocs() {
 }
 
 /**
- * Write each rescued record whole as it loads, an actor's items in one call
- * per actor. The write is not diffed, since the documents already hold these
- * values, and it replaces `system` rather than merging into it: a deletion of
- * a key the schema does not declare is cleaned out of a change set before it
- * is sent, so the old names leave the record only when `system` is replaced.
- * Each rescue is forgotten once its write lands, since the record now stores
- * what the document shows.
+ * Write each rescued record whole, an actor's items in one call per actor. The
+ * write is not diffed and replaces `system` rather than merging into it: core
+ * cleans a deletion of an undeclared key out of a change set, so the old names
+ * leave the record only when `system` is replaced. Each rescue is forgotten
+ * once its write lands. See docs/lib/DECISIONS.md, "A stamped item is read at
+ * load and written by a repair check".
  */
 async function writeStampedRecords(findings) {
   const wanted = new Set(findings.map((f) => f.key));
@@ -219,9 +216,10 @@ function twoHandedFindings() {
  * Every world document the missing-image check reads, as `{kind, doc, name,
  * source, ownerImg?}`: the world's actors with their items and effects, the
  * world's items with their effects, macros, roll tables with their results,
- * journal pages, and every scene with its levels and tokens. An unlinked token's synthetic actor is left out, as in
- * `stampedDocs`: its art is the token's own field. A scene token carries its
- * base actor's image, the default its own art falls back to.
+ * journal pages, and every scene with its levels and tokens. An unlinked
+ * token's synthetic actor is left out, as in `stampedDocs`. A scene token
+ * carries its base actor's image as `ownerImg`, the default its own art falls
+ * back to.
  */
 function* imageDocs() {
   const effectsOf = (owner, label) => [...(owner.effects ?? [])].map((fx) => ({ kind: "ActiveEffect", doc: fx, name: `${label} → ${fx.name}`, source: fx._source }));
@@ -268,13 +266,10 @@ const defaultImage = (kind) => CONFIG[kind]?.documentClass?.DEFAULT_ICON ?? null
 const PROBE_TIMEOUT_MS = 10000;
 
 /**
- * Ask the server whether a local file is there. One HEAD request per distinct
- * path is the whole cost: it moves no image bytes, works for the world, module
- * and system trees alike, and needs no file-browsing permission, which a
- * directory listing through the file picker would (and it would list one
- * source at a time). Only a 404 or 410 answers false; any other failure,
- * a timeout included, answers null, so an unreachable server never reports
- * every image missing.
+ * Ask the server whether a local file is there, with one HEAD request, which
+ * moves no image bytes and needs no file-browsing permission. Only a 404 or
+ * 410 answers false; any other failure, a timeout included, answers null, so
+ * an unreachable server never reports every image missing.
  * @returns {Promise<boolean|null>}
  */
 async function probeImage(path) {

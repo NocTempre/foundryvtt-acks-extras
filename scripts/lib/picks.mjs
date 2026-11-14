@@ -4,21 +4,16 @@
  * nothing stores. It carries `data-pick="<key>"` and no `name`, so it never
  * rides a form's submit data.
  *
- * A sheet re-renders while the user is between the pick and the press: a
- * submit-on-change form submits on a change to ANY control in it, named or
- * not, and a formation write elsewhere redraws every open party sheet. The
- * template has no state to rebuild a pick from, so it comes back on its first
- * option and the press reads that. `readPicks` takes the values out of the
- * element being replaced and `restorePicks` writes them into its replacement,
- * from a sheet's `_preSyncPartState` / `_syncPartState`; `isPick` is the test
- * its change handler returns on, so a pick alone is never a submit.
- * `PicksMixin` is all three on one window.
+ * A re-render between the pick and the press would reset a pick to its first
+ * option. `readPicks` takes the values out of the element being replaced and
+ * `restorePicks` writes them into its replacement, from a sheet's
+ * `_preSyncPartState` / `_syncPartState`; `isPick` is the test its change
+ * handler returns on, so a pick alone is never a submit. `PicksMixin` is all
+ * three on one window.
  *
  * Only a pick the user changed is carried: one still holding what its template
- * rendered takes whatever the next render gives it. That lets a pick be
- * rendered from the document (a name to edit, a record's fields) and still
- * show a newer stored value when nobody has typed in it. An action that writes
- * a pick into the document calls `spendPicks` before the write, so the redraw
+ * rendered takes whatever the next render gives it. An action that writes a
+ * pick into the document calls `spendPicks` before the write, so the redraw
  * shows what was stored rather than what was typed.
  *
  * A restore writes `value` and fires no change event, so a window that shows

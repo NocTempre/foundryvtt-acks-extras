@@ -59,7 +59,7 @@ const namings = new Set();
  * only when the spell's own rows name this creature. A creature a spell names
  * is exempt from `sourceReadable`, because the GM's client resolves it with
  * the GM's access and the seat never has to open the shelf it sits on; any
- * other creature is held to it as before. A naming that throws is logged and
+ * other creature is held to it. A naming that throws is logged and
  * counts as not naming. `source` is null where the seat could not resolve the
  * ref: `sourceRef` is then the ref as the request carries it.
  * @param {Function} fn
@@ -151,10 +151,8 @@ export const validCastId = (id) => typeof id === "string" && /^[A-Za-z0-9]{1,32}
 /**
  * The token data a placement preview is drawn from: the creature's own look
  * (picture, size, shape, disposition) and nothing that acts — no light, sight,
- * flags, bars or name — so a preview shows where the creature will stand and
- * does nothing else. The preview stands on the summoner's own actor, because
- * core's placement refuses a preview the seat does not own and an unlinked
- * token is owned through its actor.
+ * flags, bars or name. The preview stands on the summoner's own actor, since
+ * core's placement refuses a preview the seat does not own.
  * @param {object} prototype  the creature's prototype token, as plain data
  * @param {string} summonerActorId  the summoner's actor id
  */

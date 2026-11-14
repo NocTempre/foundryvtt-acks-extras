@@ -1,28 +1,14 @@
 /**
- * Going without: hunger and thirst as ladders a day at a time.
+ * Going without: hunger and thirst as ladders a day at a time, and the cold as
+ * a condition by the hour. The formation surface automates this for a marching
+ * order; it does not own it.
  *
- * Its own subsystem rather than part of travel, because starving reaches well
- * past a march — a besieged stronghold starves, and so does a prisoner. The
- * formation surface AUTOMATES this for a marching order; it does not own it.
- *
- * Three pressures, deliberately different shapes because the rules make them
- * different:
- *
- *  - **Food has three rungs** and climbs slowly. Short rations bite first as a
- *    penalty on every throw; going without long enough stops a body healing
- *    and forbids a forced march; longer still and it begins costing
- *    Constitution, to death.
- *  - **Water has one rung** and arrives fast. There is no thirsty-but-fine
- *    step: you are watered, or you are in the condition that drains you.
- *  - **The weather is not one thing.** Cold makes a CONDITION that ticks by the
- *    hour and ends only at a fire; heat makes MODIFIERS — more water needed, a
- *    worse drain when it runs out, a saving throw under heavy armour. Forcing
- *    them into a matching ladder would misstate both.
- *
- * What ships is the LADDER — the rungs, their order, what each forbids, and
- * that eating a full day steps you back down rather than clearing you outright
- * once you are at the bottom. Every duration, penalty, drain and recovery rate
- * is printed, and arrives through the `survival` registered document.
+ * Three pressures of different shapes: food has three rungs, water one, and
+ * cold is a condition while heat is a set of modifiers (`heatBurden`). What
+ * ships is the ladder (rungs, order, what each forbids, and that a full day's
+ * food steps a starving body down a rung rather than clearing it). Every
+ * duration, penalty, drain and recovery rate arrives through the `survival`
+ * registered document. See docs/lib/MODEL.md, "Survival".
  */
 import { getDoc, hasDoc } from "./tables.mjs";
 import { numOrNull } from "./util.mjs";
@@ -57,13 +43,9 @@ export const HYDRATION = Object.freeze({
 });
 
 /**
- * What the cold does to a body left in it.
- *
- * Deliberately NOT symmetric with heat, because the rules are not. Cold
- * produces a CONDITION a body carries — hypothermia, which drains by the hour
- * and ends only at a heat source. Heat produces MODIFIERS instead: more water
- * needed, a worse drain if that water runs out, and a saving throw for anyone
- * in heavy armour. Forcing the two into one ladder would misstate both.
+ * What the cold does to a body left in it: hypothermia, a condition that drains
+ * by the hour and ends only at a heat source. Heat is not a rung here
+ * (`heatBurden`).
  */
 export const EXPOSURE = Object.freeze({
   sheltered: { label: "ACKS-LIB.survival.sheltered", rung: 0, forbids: [] },
@@ -143,12 +125,8 @@ export function draining(state) {
 
 /**
  * Which hunger rung a body has climbed to, given how long it has gone short.
- *
- * The two clocks run in parallel and the WORSE answer wins: going entirely
- * without is fast, and half rations is the slow road to the same place. Absent
- * thresholds leave the body where it is rather than advancing it on invented
- * timing — a subsystem that starved a party because nothing was imported would
- * be worse than one that did nothing.
+ * The two clocks (no food, short food) run in parallel and the worse answer
+ * wins. A threshold that is not imported never advances the body.
  */
 export function hungerRung({ noFoodRun = 0, shortFoodRun = 0 } = {}) {
   const t = table("food") ?? {};
@@ -184,11 +162,9 @@ export function thirstDie() {
 }
 
 /**
- * Does this temperature band run a cold clock at all?
- *
- * Distinguishes "mild enough that nothing happens" from "nothing imported" for
- * a caller that wants to offer or withhold a control: a band with no threshold
- * is one where hours spent unprotected cost nothing, whichever reason applies.
+ * Does this temperature band run a cold clock at all? A band with no threshold
+ * (mild, or nothing imported) costs nothing for hours spent unprotected, so a
+ * caller can offer or withhold a control on the answer.
  */
 export function exposureBites(band) {
   return numOrNull(table("exposure")?.hoursUnprotected?.[band]) != null;
@@ -201,23 +177,14 @@ export function coldDie() {
 }
 
 /**
- * One day passes, and this is what the body got.
+ * One day passes, and this is what the body got. A full day's food steps a
+ * starving body back to underfed; a full day's water ends dehydration.
  *
- * A full day's food does NOT clear the bottom rung outright — it steps a
- * starving body back to underfed, which is the rule's own shape and the reason
- * a rescued party is not instantly well. A full day's water, by contrast, ends
- * dehydration entirely; thirst has only the one rung to fall from.
- *
- * Returns the next state plus what happened, so a caller can narrate a change
- * without diffing two objects.
- *
- * Hunger and thirst charge differently, and the shapes are not interchangeable:
- * starvation takes a FLAT toll each day, while thirst takes a ROLLED one that
- * the heat can multiply. This function stays pure, so — as with a settlement
- * turn — the caller owns the dice: it passes `thirstRoll` and this decides
- * whether the day calls for it. A rolled cost with no roll supplied is
- * reported as `unrolled` rather than charged at zero, because a dehydrated
- * body that quietly costs nothing is the subsystem not running at all.
+ * Returns the next state plus what happened (`drain`, `recovered`, `worsened`,
+ * `eased`, `unpriced`, `unrolled`). Pure: the caller owns the dice and passes
+ * `thirstRoll`. A rolled cost with no roll supplied is reported as `unrolled`
+ * and charged nothing. See docs/lib/DECISIONS.md, "Thirst charges a rolled toll;
+ * hunger charges a flat one".
  *
  * @param {object} opts
  * @param {"full"|"half"|"none"} opts.food  what this body ate
@@ -240,12 +207,10 @@ export function advanceSurvival(state, {
 
   // --- the rungs ---
   if (food === "full") {
-    // Stepping DOWN, not clearing: a full meal takes a starving body to
-    // underfed and an underfed or hungry one to fed.
     next.nourishment = s.nourishment === "starving" ? "underfed" : "fed";
   } else {
     const climbed = hungerRung(next);
-    // Never step a body DOWN a rung on short commons — the clocks only climb.
+    // Short rations never step a body down a rung: the clocks only climb.
     next.nourishment = NOURISHMENT[climbed].rung >= NOURISHMENT[s.nourishment].rung
       ? climbed : s.nourishment;
   }
@@ -255,9 +220,7 @@ export function advanceSurvival(state, {
   // --- the cost, and the debt coming back ---
   const foodDrain = next.nourishment === "starving" ? numOrNull(table("food")?.conPerDay) : null;
 
-  // Thirst's toll may be registered flat or as a die. A die needs the caller's
-  // roll; without one the day is reported unrolled and charges nothing, so the
-  // gap is visible instead of looking like a body that got off free.
+  // Thirst's toll is registered flat or as a die; a die needs the caller's roll.
   let waterDrain = null;
   let unrolled = false;
   if (next.hydration === "dehydrated") {
@@ -295,12 +258,9 @@ export function advanceSurvival(state, {
 }
 
 /**
- * Has the cold taken hold?
- *
- * Two ways in, and getting WET is the one that needs no clock at all — a
- * soaked body is hypothermic at once, however well dressed. Otherwise it is a
- * matter of how long the body has gone unprotected, and how cold it is: the
- * colder band gives less time. Immunity to cold skips all of it.
+ * Has the cold taken hold? A wet body is hypothermic at once, with no clock;
+ * otherwise it is hours unprotected against the band's limit. Immunity to cold
+ * skips all of it.
  */
 export function exposureRung({
   band = "", protectedFrom = false, wet = false, hoursUnprotected = 0, immune = false,
@@ -315,14 +275,9 @@ export function exposureRung({
 }
 
 /**
- * An hour in the cold.
- *
- * Hourly rather than daily, which is why it is its own step: hunger is a
- * matter of days and the cold is a matter of hours, and running them on one
- * clock would make one of them wrong.
- *
- * Warming at a heat source ends it — the rule asks for an hour there, so a
- * caller passes the hour it has actually spent.
+ * An hour in the cold, its own step because the cold runs by the hour where
+ * hunger runs by the day. Warming at a heat source ends it; a caller passes the
+ * hour it has actually spent there.
  */
 export function advanceExposureHour(state, {
   band = "", protectedFrom = false, wet = false, atHeatSource = false,
@@ -344,9 +299,7 @@ export function advanceExposureHour(state, {
   // The cold only tightens its grip within an hour; it never loosens without a fire.
   next.exposure = EXPOSURE[rung].rung >= EXPOSURE[s.exposure].rung ? rung : s.exposure;
 
-  // The cold charges by the hour and the toll may be registered flat or as a
-  // die. As with thirst, the caller owns the dice: a die with no roll costs
-  // nothing and says so, rather than reading as an hour that did no harm.
+  // As with thirst, the toll is flat or a die and the caller owns the dice.
   let drain = 0;
   let unrolled = false;
   if (next.exposure === "hypothermic") {
@@ -369,17 +322,12 @@ export function advanceExposureHour(state, {
 }
 
 /**
- * What the heat asks of a body, as modifiers rather than a condition.
- *
- * A thirsty body in the heat dies faster, everyone drinks more, and anyone
- * under a heavy load of armour is making saving throws by the hour. Immunity
- * to fire skips all three.
+ * What the heat asks of a body, as modifiers rather than a condition: the water
+ * need, the dehydration drain and whether heavy armour owes a saving throw.
+ * Immunity to fire skips all three.
  */
 export function heatBurden({ band = "", armourStone = 0, immune = false } = {}) {
-  // An unstated band is not a mild one under another name: the weather's own
-  // vocabulary runs frigid..sweltering with nothing called "moderate", and a
-  // default naming a band that cannot be chosen reads as a real setting.
-  // Unstated falls through the same "not in the table" path a mild band does.
+  // An unstated band takes the same "not in the table" path a mild band does.
   const row = table("heat")?.[band];
   if (!row || immune) return { waterNeed: 1, dehydrationDrain: 1, armourSave: false };
   const armourAt = numOrNull(row.armourStone);
@@ -392,16 +340,9 @@ export function heatBurden({ band = "", armourStone = 0, immune = false } = {}) 
 }
 
 /**
- * What an animal needs in a day, in the units its own sheet uses.
- *
- * A pack train eats and drinks, and a party that provisioned only its people
- * discovers the mules have opinions. The figures are the creature's own — they
- * arrive with it from the importer, beside the load it can carry — so this is
- * a read rather than a table lookup: nothing here is printed in a general
- * table, it is printed per animal.
- *
- * Null for either means unstated, never zero: an animal nobody has priced does
- * not eat for free, it simply has no figure yet.
+ * What an animal needs in a day, in the units its own sheet uses. The figures
+ * arrive with the creature from the importer, so this reads the actor rather
+ * than a table. Null for either means unstated, never zero.
  */
 export function animalNeeds(actor) {
   const feed = actor?.flags?.["acks-extras"]?.extras?.feed ?? null;
@@ -413,15 +354,9 @@ export function animalNeeds(actor) {
 }
 
 /**
- * The simplified survival variant: what a party should CARRY to be safe.
- *
- * The book's own shortcut for tables that would rather not track a sack at a
- * time. Its arithmetic is printed — a fraction of the expected trip in food, a
- * few days of water — so this shapes the answer and the registry supplies the
- * figures. Water is waived entirely in country with rivers and lakes to hand.
- *
- * Returns null when unimported, because a recommendation built on invented
- * numbers is worse than none.
+ * The simplified survival variant: what a party should carry. The registry
+ * supplies the figures; water is waived in watered country. Returns null when
+ * unimported.
  */
 export function simplifiedSupply({ mouths = 0, animals = 0, days = 0, wateredCountry = false } = {}) {
   const row = table("simplified");
@@ -432,9 +367,8 @@ export function simplifiedSupply({ mouths = 0, animals = 0, days = 0, wateredCou
   const beasts = Math.max(0, Math.floor(Number(animals) || 0));
   const trip = Math.max(0, Number(days) || 0);
   return {
-    // Foraging covers roughly the rest, which is the whole point of the shortcut.
     food: Math.ceil(people * trip * foodShare),
-    // Animals drink too, and in watered country nobody carries any of it.
+    // Animals drink too.
     water: wateredCountry ? 0 : Math.ceil((people + beasts) * waterDays),
     wateredCountry,
     confidence: numOrNull(row?.confidence),

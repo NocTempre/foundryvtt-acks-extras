@@ -2,31 +2,20 @@
 /**
  * Storage at a place — goods that belong to a character but are not on them.
  *
- * The system has no concept of an inventory anywhere except an actor's own item
- * list, and no way to move an item from one actor to another at all (its drop
- * handlers COPY: they create on the target and never delete from the source).
- * Markets, banks, base camps and "leave it at the inn" all need the same missing
- * primitive, so it lands here once rather than in whichever module needed it
- * first.
+ * The system's item list is an actor's only inventory, and its drop handlers
+ * COPY: they create on the target and never delete from the source. This file
+ * is the one transfer primitive markets, banks and base camps share.
  *
- * THE MODEL: stored goods are REAL EMBEDDED ITEMS on a PROVIDER actor, stamped
- * with whose they are. That choice is what makes the rest work — the goods stop
- * weighing on the character (they are not on the character), every sheet and
- * macro that reads an actor's items reads a location's stock unchanged, and
- * nothing has to be kept in sync with a parallel record of what is really where.
+ * Stored goods are real embedded items on a PROVIDER actor, stamped with whose
+ * they are, so they do not weigh on the character and every reader of an
+ * actor's items reads a place's stock unchanged. A provider is any actor
+ * carrying `flags.acks-extras.storage.provider`; this file never names a
+ * location type.
  *
- * A PROVIDER is any actor carrying `flags.acks-extras.storage.provider`. This
- * library deliberately does not know what a "location" is: the location
- * feature's settlement, the henchmen feature's market actor, and the carts and wagons a later
- * pass turns into base camps are all just actors with the flag. Storage is
- * type-agnostic on purpose.
- *
- * ATTRIBUTION IS A UI CONVENTION, NOT A SECURITY BOUNDARY. `ownerUuid` says
- * whose goods these are so the sheets can group and gate them; a player with
- * ownership of a shared location can still reach every item on it from the
- * console, exactly as they can with the equipment feature's containers
- * (docs/equipment/MODEL.md makes the same ruling — anything that must genuinely
- * stay secret belongs on a GM-owned actor).
+ * Attribution (`ownerUuid`) is a UI convention, not a security boundary: a
+ * player owning a shared place can reach every item on it from the console.
+ * See docs/lib/DECISIONS.md, "Storage lands in the library, keyed on a flag
+ * rather than a type".
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
@@ -54,17 +43,16 @@ import { ITEM_TYPE } from "./vocab.mjs";
 import { coinCount, coinOrderOf, readStoreKey } from "./money-logic.mjs";
 
 /**
- * `creditCoin` (money.mjs), reached when coin actually lands. money.mjs
- * registers a socket relay as it loads, and this file loads where there is no
- * socket to register on — the offline suites import it — so the import waits
- * for the call.
+ * `creditCoin` (money.mjs), reached when coin lands. money.mjs registers a
+ * socket relay as it loads, and the offline suites import this file where no
+ * socket exists, so the import waits for the call.
  */
 const creditCoin = async (...args) => (await import("./money.mjs")).creditCoin(...args);
 
 /**
  * The socket transport (sockets.mjs), reached when a move is handed to the
- * Judge's seat or the relay is registered. It registers on the socket as it
- * loads, so like `creditCoin` the import waits for the call.
+ * Judge's seat or the relay is registered; like `creditCoin`, its import waits
+ * for the call.
  */
 const transport = () => import("./sockets.mjs");
 
@@ -108,10 +96,7 @@ export const DELETE_POLICY_SETTING = "storageDeletePolicy";
 /*  Providers                                    */
 /* -------------------------------------------- */
 
-/**
- * Does this actor hold goods for other people? A flag read, not a type check —
- * see the header: the library does not know what a location is.
- */
+/** Does this actor hold goods for other people? A flag read, never a type check. */
 export const isProvider = (actor) => !!actor?.getFlag?.(MODULE_ID, STORAGE_KEY)?.provider;
 
 /** The character a personal vault belongs to, or null for a shared place. */
@@ -158,9 +143,9 @@ export function ownerOf(item) {
 }
 
 /**
- * Resolve an owner uuid without awaiting — render paths cannot. A uuid that no
+ * Resolve an owner uuid without awaiting, for render paths. A uuid that no
  * longer resolves (the character was deleted) returns null and callers fall back
- * to the stored `ownerName`, which is exactly why that name is stored.
+ * to the stored `ownerName`.
  */
 export function resolveActorSync(uuid) {
   if (typeof uuid !== "string") return null;
@@ -181,12 +166,11 @@ export const storesByOwner = (provider) => groupByOwner(storedItems(provider).ma
 
 /**
  * Every place holding goods for this character, with a coin subtotal each.
- * Only GOODS count: an Item that is not one (a market report on the trade
- * house) is stored on a provider and attributed to its owner, but is not
+ * Only GOODS count: a stored Item that is not goods (a market report) is not
  * something a character retrieves, so it never makes its place a row here.
  *
- * One pass over the world's actors. Cheap at world scale, but it is a scan —
- * call it once per render and share the result rather than per row.
+ * One scan over the world's actors: call it once per render and share the
+ * result rather than per row.
  */
 export function providersFor(owner) {
   const uuid = owner?.uuid;
@@ -265,17 +249,15 @@ export function coinContainerOf(holder) {
 /**
  * The one transfer path: plan everything first, then write.
  *
- * ORDER MATTERS AND IS DELIBERATE. Creates on the target land BEFORE deletes on
- * the source, so the failure mode of a half-finished transfer is a duplicated
- * item, never a destroyed one. If the source half then fails we compensate by
- * deleting what we just created; if even that fails the player is told loudly
- * and the manifest goes to the console. Goods are never silently lost.
+ * Creates on the target land before deletes on the source, so a half-finished
+ * transfer duplicates an item and never destroys one. If the source half fails
+ * the created items are deleted again; if that fails too the player is told and
+ * the manifest goes to the console.
  *
- * There are at most four server round-trips (create, merge-update, source
- * update, source delete) whatever the size of the move, which also keeps us
- * clear of the system's derived-data encumbrance write: `computeEncumbrance`
- * persists `system.encumbrance.max` during preparation, and the fewer separate
- * item writes a transfer makes, the fewer times that runs.
+ * At most four server round-trips (create, merge-update, source update, source
+ * delete) whatever the size of the move, which keeps the system's derived-data
+ * encumbrance write (`computeEncumbrance` persists `system.encumbrance.max`)
+ * to a minimum.
  *
  * A seat that owns the character's end of a deposit or a retrieval and not the
  * place's hands the whole move to the Judge's seat (`askJudge`), which plans it
@@ -295,11 +277,9 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     return { ok: false, reason };
   };
 
-  // A synthetic actor's uuid dies with its token, so goods stamped with one
-  // would be unreturnable: a move that stamps an owner refuses a token's own
-  // actor at either end. A move that stamps nothing carries no uuid forward
-  // and crosses to and from one freely — coin off a fallen monster's token is
-  // handed over like any other. Linked tokens are the world actor either way.
+  // A synthetic actor's uuid dies with its token, so a move that stamps an owner
+  // refuses a token's own actor at either end; a move that stamps nothing
+  // crosses freely. Linked tokens are the world actor either way.
   if (stampOwner && (source.isToken || target.isToken)) return refuse("token");
   if (!source.isOwner || !target.isOwner) {
     const mine = relay === "stash" ? source : relay === "retrieve" ? target : null;
@@ -319,8 +299,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
 
   const tidied = emptyMoneyDeletes(planned.sourceUpdates, plainItems, planned.sourceDeletes);
 
-  // Read before the landing is planned: two arriving stacks of one thing are
-  // folded into the first of them there, and the manifest lists what moved.
+  // Read before the landing is planned, which folds arriving stacks together.
   const manifest = planned.creates.map((c) => ({
     name: c.name,
     type: c.type,
@@ -351,9 +330,7 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
     try {
       if (created.length) await target.deleteEmbeddedDocuments("Item", created.map((d) => d.id));
     } catch (undoErr) {
-      // Both halves failed: the goods exist twice. Say so on the seat that made
-      // the writes — a duplicate somebody knows about is recoverable, a silent
-      // one is not.
+      // Both halves failed: the goods exist twice. Say so on the seat that wrote.
       console.error(`${MODULE_ID} | compensation failed; goods are duplicated`, undoErr, manifest);
       ui.notifications?.error(loc("storage.duplicated", { name: target.name }));
       return { ok: false, reason: "duplicated" };
@@ -455,21 +432,16 @@ export async function registerStorageRelay() {
 }
 
 /**
- * Place → place, keeping each item's existing attribution — consolidating two
- * vaults into one must not quietly reassign whose gold it is.
+ * Place → place, keeping each item's existing attribution.
  */
 export const moveStored = (from, to, spec) =>
   transfer(from, to, spec, { hook: STORAGE_HOOKS.MOVED, stampOwner: true, preserveOwner: true });
 
 /**
- * Character → character. Attribution is dropped, on the same rule as `retrieve`:
- * you own what you carry. This is what a coin row dragged onto somebody else's
- * sheet means — the stack LEAVES the giver, merging into the receiver's row of
- * the same kind rather than making a second. Either end may be a token's own
- * actor: nothing is stamped, so nothing has to outlive the token.
- *
- * Both seats must be owned by whoever drags, which is `transfer`'s own check: a
- * player cannot help themselves from a sheet they do not control.
+ * Character → character. Attribution is dropped, as in `retrieve`. The stack
+ * leaves the giver and merges into the receiver's row of the same kind. Either
+ * end may be a token's own actor, since nothing is stamped. Both seats must be
+ * owned by whoever drags (`transfer`'s own check).
  */
 export const handOver = (from, to, spec) =>
   transfer(from, to, spec, { hook: STORAGE_HOOKS.HANDED, stampOwner: false });
@@ -501,9 +473,8 @@ export async function stockProvider(provider, goods, { ownerUuid, ownerName = ""
  * Put coin at a provider for an owner, merging into that owner's row of the
  * same kind (`creditCoin`). `source` — a coin row's plain data — says which
  * coin it is and is what a new row is copied from; without one the coin is
- * known by `name` and `coppervalue`, or by its rate alone. Idempotent by
- * construction is NOT claimed here — callers that must not double-credit (the
- * vault sweep) carry their own ledger.
+ * known by `name` and `coppervalue`, or by its rate alone. Not idempotent:
+ * callers that must not double-credit (the vault sweep) carry their own ledger.
  * @returns {Promise<boolean>} whether any coin landed
  */
 export async function depositCoin(provider, { ownerUuid, ownerName = "", coppervalue = 100, quantity = 0, name = null, source = null } = {}) {
@@ -515,10 +486,8 @@ export async function depositCoin(provider, { ownerUuid, ownerName = "", copperv
 
 /**
  * Fold one owner's duplicate coin rows on a holder together (`planCoinFold`):
- * rows of one kind kept in one place become one row. Reassigning goods to a
- * new owner can leave two "Gold" rows attributed to the same character, and a
- * purse an earlier version wrote can carry two of its own. `ownerUuid` names
- * whose rows are folded — the holder's own when none is given.
+ * rows of one kind kept in one place become one row. `ownerUuid` names whose
+ * rows are folded; the holder's own when none is given.
  * @returns {Promise<{merged: number}>} how many rows were folded away
  */
 export async function consolidateMoney(holder, ownerUuid = null) {
@@ -546,18 +515,13 @@ export const deletePolicy = () => {
  * Hand one character's goods back, gathered into a container named after the
  * place they were kept.
  *
- * Coin does NOT go in the container — it merges into the character's own coin
- * rows, because a purse inside a crate is not how anyone counts their money and
- * the system's totals only see loose money items.
+ * Coin does not go in the container: it merges into the character's own coin
+ * rows, since the system's totals only see loose money items.
  *
- * The container itself is a plain system `item` weighing nothing, flagged as one
- * of the equipment feature's containers so the goods nest properly in its UI.
- * That vocabulary is READ AND WRITTEN, never imported — no dependency edge.
- *
- * The nesting never sits behind an `equipment` guard: as an undeclared
- * identifier it throws a ReferenceError on every non-coin item, and the
- * caller's try/catch swallows it — so the default "return the goods when a
- * place is deleted" policy silently loses them.
+ * The container is a plain system `item` weighing nothing, flagged as one of the
+ * equipment feature's containers; that vocabulary is read and written, never
+ * imported. Never put the nesting behind an `equipment` guard: the undeclared
+ * identifier throws on every non-coin item and the caller's try/catch hides it.
  */
 export async function returnGoodsTo(owner, plainGoods, { containerName = "Storage" } = {}) {
   if (!owner || !plainGoods?.length) return { ok: false };
@@ -577,10 +541,9 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
     containerId = made?.id ?? null;
   }
 
-  // Fresh ids up front: goods nested inside a stashed container point at the
-  // OLD item id, which dies with the place, so the chain is remapped exactly as
-  // a transfer does. Anything whose container did not come back goes loose into
-  // the returned container instead.
+  // Fresh ids up front: goods nested in a stashed container point at its old
+  // item id, which dies with the place, so the chain is remapped as a transfer
+  // does. Goods whose container did not come back go into the returned one.
   const idMap = new Map(goods.map((g) => [g._id, foundry.utils.randomID()]));
   const arrivals = goods.map((g) => {
     const copy = foundry.utils.deepClone(g);
@@ -592,8 +555,7 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
       delete copy.flags[LIB_ID][STORAGE_KEY];
     }
     const parent = containedInOf(copy);
-    // Its original container if that came back too, else the labelled container
-    // made for this return.
+    // Its original container if that came back too, else the one made here.
     const nest = idMap.get(parent) ?? containerId;
     if (nest) copy.flags["acks-extras"] = { ...copy.flags["acks-extras"], containedIn: nest };
     else if (copy.flags["acks-extras"]) {
@@ -604,20 +566,16 @@ export async function returnGoodsTo(owner, plainGoods, { containerName = "Storag
   });
   if (arrivals.length) await owner.createEmbeddedDocuments("Item", arrivals, { keepId: true });
 
-  // Coin returning to a character lands on their row of the same kind — never
-  // a second "Gold" row — and on their person: it is handed back, not sent on
-  // to another place that keeps coin for them.
+  // Coin lands on the character's row of the same kind and on their person
+  // (`within: "hand"`), not at another place that keeps coin for them.
   await creditCoin(owner, coin.map((c) => ({ source: c, count: coinCount(c) })), { within: "hand" });
   return { ok: true, containerId };
 }
 
 /**
- * The fallback when a place holding goods is deleted.
- *
- * This is a FALLBACK, not a rule: the world setting decides. "Return" hands
- * everything back so a GM tidying the actor directory does not wipe a party's
- * belongings; "lose" is the setting for a campaign where a sacked city really
- * does take your warehouse with it.
+ * Register the cleanup for a place holding goods that is deleted: the world
+ * setting (`deletePolicy`) decides between handing the goods back and losing
+ * them. The manifest is posted before anything moves.
  */
 export function registerStorageCleanup() {
   Hooks.on("deleteActor", async (doc, options, userId) => {
@@ -625,10 +583,8 @@ export function registerStorageCleanup() {
       if (game.system?.id !== "acks") return;
       if (!isProvider(doc)) return;
 
-      // ONE window does the work. Every GM window sees this hook, and unlike the
-      // mount cleanup (idempotent flag unsets) this one creates documents —
-      // running it on three GM screens would hand out three copies of
-      // everything. With no GM online, the deleting user's elected window.
+      // One window does the work: every GM window sees this hook and the cleanup
+      // creates documents. With no GM online, the deleting user's elected window.
       if (game.users?.activeGM) {
         if (!isPrimaryGM()) return;
       } else if (userId !== game.user?.id || !isLeadClient()) return;
@@ -640,8 +596,6 @@ export function registerStorageCleanup() {
       const policy = deletePolicy();
       const lines = [];
 
-      // The manifest is posted BEFORE anything is moved, so a failure halfway
-      // still leaves a record of what was where.
       for (const bucket of buckets.values()) {
         const who = resolveActorSync(bucket.ownerUuid)?.name || bucket.ownerName || "—";
         lines.push(`<li><b>${who}</b>: ${bucket.items.map((i) => i.name).join(", ")}</li>`);
@@ -659,8 +613,7 @@ export function registerStorageCleanup() {
           Hooks.callAll(STORAGE_HOOKS.RETURNED, { ownerUuid: bucket.ownerUuid, place: doc.name, manifest: bucket.items });
           continue;
         }
-        // Lost: either the policy says so, or the owner is gone too and there is
-        // nobody to hand them to.
+        // Lost: the policy says so, or the owner is gone too.
         Hooks.callAll(STORAGE_HOOKS.LOST, {
           ownerUuid: bucket.ownerUuid,
           ownerName: bucket.ownerName,
