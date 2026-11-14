@@ -36,7 +36,7 @@ export function isTemplateCopy(itemData) {
 }
 
 /**
- * Whether an item trades as Tower magic stock, and the base cost its
+ * Whether an item trades as magic-item stock, and the base cost its
  * availability band and price read (the flag's `baseCostGp`, else the item's
  * own cost). A mundane item reports a zero base.
  * @returns {{magic: boolean, baseGp: number}}

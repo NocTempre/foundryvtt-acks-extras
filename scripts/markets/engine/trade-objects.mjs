@@ -1,7 +1,7 @@
 /* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, Roll */
 /**
  * The trade house: the one GM-designated location actor whose embedded Items
- * are every trade object a player owns, inspects or hands over (today, market
+ * are every trade object a player owns, inspects or hands over (market
  * reports). The house is a storage provider (`lib/storage`); each object is
  * stamped with its owner through the storage flag, and the readers here
  * filter the house's items by that stamp or by the market they are about.

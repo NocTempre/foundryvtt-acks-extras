@@ -1,9 +1,8 @@
 /* global game, ui, foundry, fromUuid, fromUuidSync */
 /**
- * The Trade and Ventures tabs the location sheet mounts (the magic-panel
- * precedent: the location owns the sheet, the tab bar and one mount line per
- * hook; markets owns what the tabs prepare and every handler behind their
- * buttons). Trade is the shop: buying, selling, imports, commissions and
+ * The Trade and Ventures tabs the location sheet mounts (the location owns the
+ * sheet, the tab bar and one mount line per hook; markets owns what the tabs
+ * prepare and every handler behind their buttons). Trade is the shop: buying, selling, imports, commissions and
  * searches. Ventures is the merchant's: entering the market, assessing,
  * soliciting and trading merchandise. Both carry the acting-trader picker,
  * the market class and demand, and the trade history.
@@ -805,10 +804,6 @@ async function postVenture(sheet, kind, extra = {}) {
 }
 
 /**
- * The Trade tab's action handlers, keyed by their `data-action` names. Each is
- * invoked by AppV2 with the hosting sheet as `this`.
- */
-/**
  * A catalog row's key in the tab. A held row shares its item key with the
  * compendium row of the same name, so it is keyed by the embedded item's id.
  */
@@ -821,6 +816,10 @@ function catalogRow(sheet, rowKey) {
   return (sheet._tradeCatalog ?? []).find((r) => catalogRowKey(r) === rowKey);
 }
 
+/**
+ * The Trade and Ventures tabs' action handlers, keyed by their `data-action`
+ * names. Each is invoked by AppV2 with the hosting sheet as `this`.
+ */
 export const TRADE_TAB_ACTIONS = {
   /** Open a report held at this market. */
   async openReport(_event, target) {

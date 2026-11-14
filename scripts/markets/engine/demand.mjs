@@ -2,7 +2,7 @@
 /**
  * The SOLE writer of a market's demand layers (`goods.demand`, the base;
  * `goods.demandOverrides`, the Judge's pins). `goods.demandDerived` is
- * reserved for route equalisation and has no writer yet. Every read goes
+ * reserved for route equalisation and has no writer. Every read goes
  * through `trueDemand` (rules/demand.mjs).
  *
  * Demand is the GM's: a writer called from a player seat refuses with

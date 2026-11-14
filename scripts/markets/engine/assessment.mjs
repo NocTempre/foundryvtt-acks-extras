@@ -12,10 +12,9 @@ import { MODULE_ID, LANG } from "../constants.mjs";
 import { performVentureAction } from "./ventures.mjs";
 
 /**
- * The pay a bribe to a market's merchants is priced against, as hit dice for
- * the influence page's wage ladder. A market has no hit dice; its merchants
- * are ordinary people, so the lowest rung is the default and the Judge
- * changes the fee on the page when the market's merchants are grander.
+ * The hit dice a bribe to a market's merchants is priced against on the
+ * influence page's wage ladder (a market has no hit dice of its own). See
+ * docs/markets/DECISIONS.md, "The assessment is an influence roll; the queue can be undone; the ledger names its trader".
  */
 export const assessmentBribeBasisHd = () => 1;
 

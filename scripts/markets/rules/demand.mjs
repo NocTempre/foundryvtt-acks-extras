@@ -139,8 +139,7 @@ export function environmentColumns({ ageBand = null, water = [], biome = [], ele
 /**
  * One good's base demand modifier by Step 7 A-D: A (the roll) plus every
  * applicable environment column (B); the fraction is dropped after B (toward
- * zero, so a total of -3 1/2 is -3 and 3 1/2 is 3); then C (the land-revenue
- * pick) and D (each race present) are added.
+ * zero); then C (the land-revenue pick) and D (each race present) are added.
  *
  * The result carries every step so a preview can show them: `a`, `b` (the
  * unrounded environment sum, null when the good has no environment data),
@@ -166,8 +165,7 @@ export function baseDemand({ environment = null, ageBand = null, water = [], bio
     for (const column of environmentColumns({ ageBand, water, biome, elevation })) b += parseHalfPoint(environment[column]) ?? 0;
   }
   const rolled = Number(a) || 0;
-  // The fractions are dropped (JJ p. 201): truncate toward zero after the environment
-  // step, so the half a negative total carries is discarded, never rounded down.
+  // The fractions are dropped (JJ p. 201): truncate toward zero after the environment step.
   const afterB = Math.trunc(rolled + (b ?? 0)) + 0;
   const c = Number(landDelta) || 0;
   let d = 0;

@@ -67,6 +67,7 @@ function countsFor(revenueGp) {
 /** One d100 for a random-merchandise draw. */
 const rollGood = async () => (await new Roll(`1d${RANDOM_GOOD_DIE}`).evaluate()).total;
 
+/** The Judge's window for generating a market's base demand; see the file header. */
 export class DemandGenerator extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   /**
    * @param {object} o

@@ -5,11 +5,9 @@ import { DEMAND_COLUMN_KEYS, MARKET_CLASS_COUNT, MERCHANDISE_TIERS } from "../me
  * Data model for the `acks-extras.merchandise` Item sub-type: one good in the
  * trade catalogue (see docs/markets/MODEL.md, "The merchandise catalogue").
  *
- * The item is deliberately non-physical: no `cost`, no `weight6`. It defines a
- * kind of goods, not a load of them, so encumbrance never counts it and it is
- * never carried. Every figure is imported from the Judge's own book or typed
- * by the Judge; the schema ships no values, and an unread figure stays `null`
- * so it cannot pass for a printed zero.
+ * The item is non-physical: no `cost`, no `weight6`. It defines a kind of
+ * goods, not a load of them, so encumbrance never counts it. Every figure is
+ * imported or typed by the Judge; an unread figure stays `null`, never a zero.
  */
 export default class MerchandiseData extends foundry.abstract.TypeDataModel {
   static defineSchema() {

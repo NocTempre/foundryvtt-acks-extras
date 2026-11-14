@@ -1,13 +1,13 @@
 /* global game, ui, foundry, fromUuid */
 /**
- * The Trade tab on the character sheet, for a trader (the magic-tab precedent:
- * the sheet owns the tab strip and one mount line per hook; markets owns what
- * the tab prepares and every handler behind its buttons).
+ * The Trade tab on the character sheet, for a trader (the sheet owns the tab
+ * strip and one mount line per hook; markets owns what the tab prepares and
+ * every handler behind its buttons).
  *
  * Two sections. Research lists the character's market reports and their
  * party's, grouped by market, with Open, Give to and Discard. Compare sets two
  * markets' believed demand side by side. Both read reports only: a belief, never
- * the market's true demand. Routes and holdings are not built.
+ * the market's true demand.
  *
  * A player sees the tab on a character they own; the Judge sees it on every
  * character, which is where the Judge marks one a trader.

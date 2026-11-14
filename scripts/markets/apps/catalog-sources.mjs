@@ -51,6 +51,7 @@ export async function catalogSourceRows() {
   return rows;
 }
 
+/** The form window that lists `catalogSourceRows()` and saves the unticked sources to the catalog-excluded setting. */
 export class CatalogSourcesApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-markets-catalog-sources",

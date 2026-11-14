@@ -20,17 +20,10 @@ const CLASS_NUMERALS = Object.freeze(["I", "II", "III", "IV", "V", "VI"]);
 const LIST_FIELDS = Object.freeze(["aliases", "lootKinds", "itemCategories"]);
 
 /**
- * Sheet for a merchandise Item — the hand-editing half of the catalogue.
- *
- * A Judge who has imported their books never needs it for the printed goods;
- * a Judge adding a good, or overriding one for their world, fills it in (a
- * world Item with the same key wins over the imported one). The sections run
- * in the order a Judge answers them: what the good is, what it costs, how
- * much is on offer, what demand does to it, and what else it goes by.
- *
- * The body scrolls inside the window, not the frame: every field submits on
- * change and re-renders the sheet, and only a part's descendant keeps its
- * scroll position across that.
+ * Sheet for a merchandise Item, the hand-editing half of the catalogue: a Judge
+ * adding a good, or overriding one for their world (a world Item with the same
+ * key wins over the imported one). The body scrolls inside the window, not the
+ * frame, so scroll position survives the re-render each field change causes.
  */
 export default class MerchandiseSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -96,9 +89,7 @@ export default class MerchandiseSheet extends HandlebarsApplicationMixin(ItemShe
     }));
 
     context.racialRows = Object.entries(system.racial ?? {}).map(([race, value], index) => ({ index, race, value }));
-    // Lists are edited as one comma-separated line each: they are usually empty
-    // or a few words, and a repeating sub-form for them is more chrome than the
-    // answer is worth.
+    // Lists are edited as one comma-separated line each.
     context.aliasesText = (system.aliases ?? []).join(", ");
     context.lootKindsText = (system.lootKinds ?? []).join(", ");
     context.itemCategoriesText = (system.itemCategories ?? []).join(", ");
