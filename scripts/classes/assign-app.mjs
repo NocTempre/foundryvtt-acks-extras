@@ -14,7 +14,7 @@ import { applyTemplate, netBonusPicks, templateShortfall } from "./chargen.mjs";
 import { awardsThrough, choosableGenerals, grantAbility, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { answeredByTemplate, grantableRefs, isGranted, rungLabel, rungOptions } from "./picks.mjs";
-import { templateGrantKeys } from "./template-packages.mjs";
+import { templateGrantKeys, warmTemplateBundles } from "./template-packages.mjs";
 import { unmetRequirements } from "./stat-page.mjs";
 import { heldProficiencies, isZeroLevel, settleAdvance } from "./zero-level.mjs";
 import { escape as esc, makeLoc } from "../lib/util.mjs";
@@ -156,6 +156,8 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.binding.templateMin = null;
     }
     const template = legal.find((t) => t.rollMin === this.binding.templateMin) ?? null;
+    // The preview and the grant keys read the bundle synchronously: load it first.
+    if (template) await warmTemplateBundles([template]);
 
     const intScore = Number(actor.system?.scores?.int?.value) || 0;
     const assumed = cls?.system?.templatesAssumeIntBonus ?? 0;

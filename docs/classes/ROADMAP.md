@@ -159,13 +159,12 @@ side effect of whatever comes next.
 - **A cap on a 0th-level gain.** The gate has one threshold, so nothing stops
   a single award from carrying a 0th-level character past 1st's band.
 
-## Readers that take an index entry for a document
+## A bundle row's document read from an index entry
 
-`materializeTemplates` loads a row's bundle and the class's table before it
-reads them. Two readers still ask `fromUuidSync` and read
-`system.itemList` off the answer: `templateContents`, which on a shelf that
-is not loaded falls back to the row as printed, and `stripRepresented`,
-which then strips nothing. Neither throws; both read a package as absent.
+`stripRepresented` reads each bundle row's document with `fromUuidSync`. On a
+shelf that is not loaded that is an index entry with no flags, so a match by
+ref or by `grantedFrom` falls back to the name match (inferred, not run: the
+materializer awaits the bundle but not the documents it links).
 
 ## Printed dice and floors still held in source
 

@@ -401,10 +401,25 @@ export function buildProfData(entry, sourceDoc = null) {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Load the bundle documents of some templates, so the synchronous readers below
+ * (`templateContents`, `templateGrantKeys`) see their itemList. A bundle on a
+ * shelf not yet loaded answers `fromUuidSync` with an index entry that has no
+ * itemList, and the readers then fall back to the row's own arrays, which
+ * materializing emptied. A caller that can wait awaits this first; one that
+ * cannot starts it and draws again when it settles. Never throws.
+ * @param {object[]} templates  class template rows
+ */
+export async function warmTemplateBundles(templates) {
+  const uuids = new Set((templates ?? []).map((t) => t?.bundle).filter(Boolean));
+  await Promise.all([...uuids].map((uuid) => fromUuid(uuid).catch(() => null)));
+}
+
+/**
  * A template's contents as the row-entry shapes the panels label.
  *
  * The bundle's cached itemList (no document resolution, so the preview stays
- * synchronous) plus whatever printed entries the row still holds; the two are
+ * synchronous; `warmTemplateBundles` first where the bundle may be on a cold
+ * shelf) plus whatever printed entries the row still holds; the two are
  * disjoint. A bundle that is empty or gone leaves the row answering alone.
  */
 export function templateContents(template) {

@@ -27,7 +27,7 @@ import { legalTemplates, netBonusPicks, templateShortfall, applyChargen } from "
 import { choosableGenerals, refOf } from "./grants.mjs";
 import { classPanelHtml, picksPanelHtml, templatePanelHtml } from "./panels.mjs";
 import { answeredByTemplate, isGranted, rungLabel, rungOptions } from "./picks.mjs";
-import { templateGrantKeys } from "./template-packages.mjs";
+import { templateGrantKeys, warmTemplateBundles } from "./template-packages.mjs";
 import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { whenReady } from "../lib/library.mjs";
@@ -249,6 +249,15 @@ function refresh(root, state) {
   const legal = judge ? [...templates].sort((a, b) => a.rollMin - b.rollMin) : legalTemplates(templates, rolled ?? -1);
   if (!legal.some((t) => t.rollMin === state.templateMin)) state.templateMin = legal[legal.length - 1]?.rollMin ?? null;
   const template = legal.find((t) => t.rollMin === state.templateMin) ?? null;
+  // The preview and the grant keys read the bundle synchronously, and a refresh
+  // cannot wait (the submit handler calls it): the first sight of a package
+  // loads its bundle and draws the page once more when it has.
+  if (template?.bundle && !state.bundlesAsked?.has(template.bundle)) {
+    (state.bundlesAsked ??= new Set()).add(template.bundle);
+    warmTemplateBundles([template])
+      .then(() => refresh(root, state))
+      .catch((err) => console.warn(`${MODULE_ID} | the chargen page did not redraw once a package loaded`, err));
+  }
 
   const intScore = scores.int ?? 0;
   const assumed = cls?.system?.templatesAssumeIntBonus ?? 0;

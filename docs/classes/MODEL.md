@@ -137,6 +137,13 @@ leaves it printed on the row, still applying the old way. That is what makes
 single ownership safe: a partial package can never silently shorten a
 starting kit. `detachTemplatePackages` clears every link (documents kept
 unless asked) and the class applies its printed entries again.
+A package on a library shelf is read from its loaded bundle. `templateContents` and
+`templateGrantKeys` are synchronous, and a bundle on a shelf not yet loaded
+answers `fromUuidSync` with an index entry that has no `itemList`, so they would
+fall back to the row's emptied arrays. The class assignment window awaits
+`warmTemplateBundles` before it builds, and the character generation page, whose
+redraw cannot wait, starts it the first time it meets a package and draws again
+once.
 A package lands beside its class. A class on one of the library's shelves —
 the importer's world packs — writes its bundles, skins and copies to that
 line's Item shelf under `Class Templates / <Class>` and its 3d6 table to the

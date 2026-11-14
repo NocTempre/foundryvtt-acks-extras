@@ -3021,4 +3021,35 @@ await atest("a class with no bands of its own takes its throws from the chassis 
   }
 });
 
+// A package's bundle on a shelf not yet loaded: `fromUuidSync` answers an index
+// entry with no itemList, so the readers fall back to the row's emptied arrays
+// until `warmTemplateBundles` has loaded the document.
+{
+  const { templateContents, templateGrantKeys, warmTemplateBundles } = await import("../scripts/classes/template-packages.mjs");
+  const loaded = new Set();
+  const full = { system: { itemList: [{ type: "ability", name: "Lantern Ward", quantity: 1 }] } };
+  const priorSync = globalThis.fromUuidSync;
+  const priorAsync = globalThis.fromUuid;
+  globalThis.fromUuidSync = (uuid) => (uuid === "Item.cold" ? (loaded.has(uuid) ? full : { name: "index entry" }) : null);
+  globalThis.fromUuid = async (uuid) => {
+    if (uuid === "Item.gone") throw new Error("no such shelf");
+    loaded.add(uuid);
+    return full;
+  };
+  try {
+    const row = { bundle: "Item.cold", abilities: [], items: [], spells: [] };
+    assert.equal(templateContents(row).source, "row", "cold: the readers see the row alone");
+    assert.deepEqual([...templateGrantKeys(row).names], [], "cold: nothing is kept off the pick list");
+    await warmTemplateBundles([row, { bundle: "Item.gone" }, { bundle: "" }, null]);
+    assert.equal(templateContents(row).source, "bundle", "warmed: the bundle's itemList is read");
+    assert.deepEqual([...templateGrantKeys(row).names], ["lantern ward"], "warmed: the package's own abilities stay off the pick list");
+    await warmTemplateBundles(undefined);
+    passed++;
+  } finally {
+    globalThis.fromUuidSync = priorSync;
+    if (priorAsync === undefined) delete globalThis.fromUuid;
+    else globalThis.fromUuid = priorAsync;
+  }
+}
+
 console.log(`test-classes: ${passed} assertion groups passed.`);
