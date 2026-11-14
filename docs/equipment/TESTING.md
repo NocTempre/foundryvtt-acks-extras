@@ -539,6 +539,17 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     record holds the true name, the known word alone and the count, and the
     redraw shows the stored ladder rather than the typed one; a later
     `trueName` write shows in its box.
+17. **The scavenged condition reads the imported grid alone.** With no
+    condition table imported, open the Battle Axe's Construction tab.
+    *Observable:* the condition picker offers Pristine alone, the roll button
+    is disabled, "not imported" shows beside them, and
+    `api.equipment.scavengeItem(item)` warns and returns null with the item
+    unchanged. Import the equipment tables (or set the condition rows in
+    `Settings tab → Game Settings → ACKS II — Extras → Imported Rules
+    Tables`). *Observable:* the picker lists the imported rows, hovering it
+    names the page the importer read (or says the rows were set by hand in
+    the Ruledata Browser), and a pick writes that row's mechanics onto the
+    item. Clear the condition before the next step.
 
 ## Teardown
 

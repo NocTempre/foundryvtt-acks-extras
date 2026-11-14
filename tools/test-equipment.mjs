@@ -1225,34 +1225,30 @@ SETTINGS_STATE.overlayItemLoss = false;
 
 
 // --- Phase 5b: scavenged equipment (RR p. 160) --------------------------------
-const { tableFor, lookup, accumulate, needsReroll, toItemUpdates, SCAVENGED_CAPS } =
+const { tableFor, accumulateImported, toItemUpdates } =
   await import(new URL("overlays/scavenged.mjs", S));
 
 check("bludgeoning weapons use their own table", tableFor(weapon("Mace", { melee: true }), { type: "bludgeoning" }) === "bludgeoning");
 check("swords use the piercing/slashing table", tableFor(weapon("Sword", { melee: true }), { type: "slashing" }) === "piercingSlashing");
 check("armour uses the armour/equipment table", tableFor(armor("Plate", "heavy"), {}) === "armourEquipment");
-check("1-2 is serviceable at full value", lookup("piercingSlashing", 1).value === 1);
-check("19-20 means roll again twice", needsReroll("piercingSlashing", 19) && needsReroll("piercingSlashing", 20) && !needsReroll("piercingSlashing", 5));
 
-// RR's worked example: a scavenged sword rolls 19 (reroll), then 7 and 15 —
-// rusty blade (-1 damage) and loose hilt (-1 initiative), value 66% of normal.
-const ex = accumulate("piercingSlashing", [19, 7, 15]);
-check("RR example: rusty + loose hilt -> -1 damage, -1 initiative", ex.damage === -1 && ex.initiative === -1);
-check("RR example: value falls to ~66% (0.67 x 0.67)", Math.round(ex.valueMultiplier * 100) === 45 || Math.round((1 - ex.valueMultiplier) * 100) >= 33);
-check("the reroll row itself contributes no penalty", !ex.labels.includes("Roll again twice"));
-
-// Effects are cumulative but capped: attack/AC never worse than -5.
-const stacked = accumulate("piercingSlashing", [11, 11, 11, 11, 11, 11, 11]);
-check("attack penalty capped at -5", stacked.attack === SCAVENGED_CAPS.attack);
+// An invented condition grid in the imported shape; the book's rows arrive through the importer.
+const scRow = (c, e, v, min, max) => ({ category: c, effect: e, value: v, min, max });
+const SCAVENGED_TEST_TABLES = {
+  scavengedPiercingSlashing: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "-1 damage", "-50%", 2, 8), 12: scRow("Gamma", "-1 to attacks", "-50%", 9, 12), 17: scRow("Delta", "-1 to initiative", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
+  scavengedArmorEquipment: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "+1 stone encumbrance", "-50%", 2, 8), 12: scRow("Gamma", "Cannot sneak", "-50%", 9, 12), 17: scRow("Delta", "-1 AC / breaks", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
+};
+registerTable({ id: "equipment", tables: SCAVENGED_TEST_TABLES }, { priority: PRIORITY.WORLD, source: "test" });
 
 // Reuse first: results become updates to fields CORE already owns.
-const upd = toItemUpdates(weapon("Sword", { melee: true, damage: "1d6" }), accumulate("piercingSlashing", [7]));
+const upd = toItemUpdates(weapon("Sword", { melee: true, damage: "1d6" }), accumulateImported("piercingSlashing", [7]));
 check("-1 damage becomes a core damage string '1d6-1'", upd["system.damage.base.formula"] === "1d6-1");
-const updA = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [11]));
+const updA = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [15]));
 check("-1 AC becomes a core aac.value", updA["system.ac.value"] === 5);
-const updE = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [3]));
+const updE = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [3]));
 check("+1 stone becomes core weight6 (+6 units)", updE["system.weight6"] === 6);
-check("breaks/cannotSneak recorded as a flag for the Judge", toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulate("armourEquipment", [7]))["flags.acks-extras.scavenged"].cannotSneak === true);
+check("breaks/cannotSneak recorded as a flag for the Judge", toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [11]))["flags.acks-extras.scavenged"].cannotSneak === true);
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
 
 
 // --- Class training chunks (JJ p. 290-291) ------------------------------------
@@ -2656,16 +2652,19 @@ check("a kite shield skips the back (no-back): hand → front", (await cycleStra
 /*  Apply-to-any-item: scavenge condition + shield variant (UI actions)    */
 /* ---------------------------------------------------------------------- */
 
-// rollScavengedD20s expands each 19-20 into two more rolls, in order.
+// The UI actions read the invented grid registered in the scavenged block above.
+registerTable({ id: "equipment", tables: SCAVENGED_TEST_TABLES }, { priority: PRIORITY.WORLD, source: "test" });
+
+// rollScavengedD20s expands each reroll result into two more rolls, in order.
 const seq = (arr) => { let i = 0; return () => arr[i++]; };
-check("scavenge 19-20 expands into two more d20s", JSON.stringify(rollScavengedD20s("piercingSlashing", seq([19, 7, 15]))) === JSON.stringify([19, 7, 15]));
+check("scavenge reroll result expands into two more d20s", JSON.stringify(rollScavengedD20s("piercingSlashing", seq([19, 7, 15]))) === JSON.stringify([19, 7, 15]));
 check("scavenge single non-reroll result = one d20", JSON.stringify(rollScavengedD20s("piercingSlashing", () => 7)) === JSON.stringify([7]));
 
 // Scavenge stamps a condition onto a real-shaped weapon, reversibly. Fields are
 // recomputed from ONE pristine baseline (properties.mjs), so the damage string
 // is normalised ("1d6 - 1") and the snapshot lives under `pristine`.
 const scWeapon = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0 });
-await scavengeItem(scWeapon, { roll: () => 7 }); // "Blade rusty" → -1 damage
+await scavengeItem(scWeapon, { roll: () => 7 }); // "Beta" → -1 damage
 check("scavenge stamps -1 damage onto a weapon", scWeapon.system.damage.base.formula === "1d6 - 1");
 check("scavenge captures ONE pristine baseline", scWeapon._flags.pristine?.damage === "1d6");
 await clearScavenged(scWeapon);
@@ -2673,13 +2672,13 @@ check("clearScavenged restores pristine damage, clears both flags", scWeapon.sys
 
 // Re-rolling never compounds (always recomputed from pristine).
 await scavengeItem(scWeapon, { roll: () => 7 });
-await scavengeItem(scWeapon, { roll: () => 3 }); // "Blade dented" → -1 damage (from pristine, not -2)
+await scavengeItem(scWeapon, { roll: () => 3 }); // "Beta" again → -1 damage (from pristine, not -2)
 check("re-scavenge starts from pristine (no compounding)", scWeapon.system.damage.base.formula === "1d6 - 1");
 await clearScavenged(scWeapon);
 
 // Armour scavenge: -1 AC + a break flag for the Judge.
 const scArmor = mockDoc("armor", { name: "Plate", aac: 6, weight6: 36, armorType: "heavy" });
-await scavengeItem(scArmor, { roll: () => 13 }); // "Dented/rotting" → -1 AC, breaks
+await scavengeItem(scArmor, { roll: () => 13 }); // "Delta" → -1 AC, breaks
 check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.value === 5 && scArmor._flags.scavenged?.breaks === true);
 
 /* --- LAYERING: masterwork + scavenged must coexist and unwind cleanly ----- */
@@ -2688,11 +2687,11 @@ check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.
 const both = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
 await setMasterwork(both, "weaponBoth");
 check("masterwork alone: the document's bonus and damage", both.system.bonus.attack === FIG.both.bonus && both.system.damage.base.formula === `1d6 + ${FIG.both.damage}`);
-await scavengeItem(both, { roll: () => 7 }); // rusty: -1 damage
+await scavengeItem(both, { roll: () => 7 }); // Beta: -1 damage
 check("masterwork + scavenged combine numerically (not '1d6 + 2-1')", both.system.damage.base.formula === `1d6 + ${FIG.both.damage - 1}` && both.system.bonus.attack === FIG.both.bonus);
 await clearScavenged(both);
 check("clearing the condition leaves masterwork intact", both.system.damage.base.formula === `1d6 + ${FIG.both.damage}` && both.system.bonus.attack === FIG.both.bonus);
-await scavengeItem(both, { roll: () => 11 }); // off balance: -1 attack
+await scavengeItem(both, { roll: () => 11 }); // Gamma: -1 attack
 check("scavenged attack penalty stacks onto the masterwork bonus", both.system.bonus.attack === FIG.both.bonus - 1);
 await setMasterwork(both, "none");
 check("clearing masterwork keeps the condition's -1 attack", both.system.bonus.attack === -1 && !!both._flags.scavenged);
@@ -2720,13 +2719,16 @@ check("a blank damage stays blank; a number that is not one is refused",
 const priced = mockDoc("weapon", { name: "Sword", damage: "1d6", cost: 10, weight6: 6 });
 await setMasterwork(priced, "weaponToHit");
 check("masterwork adds the document's surcharge to the price", priced.system.cost === 10 + FIG.hit.add);
-await scavengeItem(priced, { roll: () => 7 }); // rusty: -1 dmg, resale fraction
+await scavengeItem(priced, { roll: () => 7 }); // Beta: -1 dmg, resale fraction
 const resale = priced._flags.scavenged.valueMultiplier;
 check("a scavenged condition scales the whole price", Math.abs(priced.system.cost - (10 + FIG.hit.add) * resale) < 0.01);
 await setMasterwork(priced, "none");
 check("dropping masterwork reprices from pristine", Math.abs(priced.system.cost - 10 * resale) < 0.01);
 await clearScavenged(priced);
 check("clearing every layer restores the original price", priced.system.cost === 10);
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
+const bareScav = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0 });
+check("with no table imported, scavenging applies nothing", (await scavengeItem(bareScav, { roll: () => 7 })) === null && bareScav.system.damage.base.formula === "1d6" && bareScav._flags.scavenged === undefined);
 const { layerSummary, layerProvenance, unstatedLayers } = await import(new URL("properties.mjs", S));
 const p3 = mockDoc("armor", { name: "Plate", aac: 6, cost: 60, weight6: 36 });
 await setMasterwork(p3, "armorAC");
@@ -2827,44 +2829,35 @@ SETTINGS_STATE.overlayShieldVariants = false;
 /*  The IMPORTED scavenged table (the importer → lib ruledata)             */
 /* ---------------------------------------------------------------------- */
 
-const { rowToEffects, importedTable, accumulateImported } = await import(new URL("overlays/scavenged.mjs", S));
+const { rowToEffects, importedTable } = await import(new URL("overlays/scavenged.mjs", S));
 const { scavengedOptions } = await import(new URL("actions.mjs", S));
 
-// rowToEffects parses the READER'S OWN printed words into mechanics.
+// rowToEffects parses the reader's own row words into mechanics; the labels and figures here are invented.
 const rte = (category, effect, value) => rowToEffects({ category, effect, value });
-check("imported row: '-1 damage' → damage -1, value 67%", (() => { const e = rte("Blade rusty", "-1 damage", "-33%"); return e.damage === -1 && Math.abs(e.value - 0.67) < 0.001; })());
-check("imported row: '-1 to attacks' → attack -1", rte("Off balance", "-1 to attacks", "-33%").attack === -1);
-check("imported row: '-1 to initiative' → initiative -1", rte("Loose hilt/haft", "-1 to initiative", "-33%").initiative === -1);
-check("imported row: '+1 stone encumbrance' → encumbrance +1", rte("Broken straps", "+1 stone encumbrance", "-33%").encumbrance === 1);
-check("imported row: 'cannot sneak' → cannotSneak", rte("Rattles if moved", "cannot sneak", "-33%").cannotSneak === true);
-check("imported row: small-caps '-1 Ac/ breaks' → ac -1 AND breaks", (() => { const e = rte("Dented/rotting", "-1 Ac/ breaks", "-33%"); return e.ac === -1 && e.breaks === true; })());
-check("imported row: 'Serviceable' at 100% → no effects, full value", (() => { const e = rte("Serviceable", "-", "100%"); return e.value === 1 && !e.damage && !e.breaks; })());
+check("imported row: '-1 damage' → damage -1, value 50%", (() => { const e = rte("Beta", "-1 damage", "-50%"); return e.damage === -1 && Math.abs(e.value - 0.5) < 0.001; })());
+check("imported row: '-1 to attacks' → attack -1", rte("Gamma", "-1 to attacks", "-50%").attack === -1);
+check("imported row: '-1 to initiative' → initiative -1", rte("Delta", "-1 to initiative", "-50%").initiative === -1);
+check("imported row: '+1 stone encumbrance' → encumbrance +1", rte("Epsilon", "+1 stone encumbrance", "-50%").encumbrance === 1);
+check("imported row: 'cannot sneak' → cannotSneak", rte("Zeta", "cannot sneak", "-50%").cannotSneak === true);
+check("imported row: small-caps '-1 Ac/ breaks' → ac -1 AND breaks", (() => { const e = rte("Eta", "-1 Ac/ breaks", "-50%"); return e.ac === -1 && e.breaks === true; })());
+check("imported row: a dash effect at 100% → no effects, full value", (() => { const e = rte("Alpha", "-", "100%"); return e.value === 1 && !e.damage && !e.breaks; })());
 check("imported row: 'Roll again twice' flags a reroll", rte("Roll again twice", "-", "-").reroll === true);
-check("imported row: an unrecognised effect is kept as a note (vessels)", rte("Faulty", "-30’ max speed", "-33%").notes[0] === "-30’ max speed");
+check("imported row: an unrecognised effect is kept as a note (vessels)", rte("Theta", "-5 widgets", "-50%").notes[0] === "-5 widgets");
 
-// With no lib registry present the built-in table stands.
-check("importedTable is null without the ruledata registry", importedTable("piercingSlashing") === null);
-check("scavengedOptions falls back to the built-in rows", scavengedOptions("piercingSlashing").length === 6);
+// With nothing imported there is no table and nothing to offer.
+check("importedTable is null with nothing imported", importedTable("piercingSlashing") === null);
+check("scavengedOptions offers no rows with nothing imported", scavengedOptions("piercingSlashing").length === 0);
 
-// A stub registry standing in for an imported RR p160 grid.
-globalThis.acksExtras.lib = {
-  tables: {
-    hasDoc: (d) => d === "equipment",
-    getTable: (d, t) => (d === "equipment" && t === "scavengedPiercingSlashing"
-      ? {
-          2: { category: "Serviceable", effect: "-", value: "100%", min: 1, max: 2 },
-          6: { category: "Blade dented", effect: "-1 damage", value: "-33%", min: 3, max: 6 },
-          20: { category: "Roll again twice", effect: "-", value: "-", min: 19, max: 20 },
-        }
-      : {}),
-    bracketRow: (rows, v) => rows.find((r) => v >= Number(r.min) && v <= Number(r.max)) ?? null,
-  },
-};
+registerTable({ id: "equipment", tables: { scavengedPiercingSlashing: {
+  2: { category: "Alpha", effect: "-", value: "100%", min: 1, max: 2 },
+  6: { category: "Beta", effect: "-1 damage", value: "-50%", min: 3, max: 6 },
+  20: { category: "Roll again twice", effect: "-", value: "-", min: 7, max: 20 },
+} } }, { priority: PRIORITY.WORLD, source: "test" });
 check("importedTable resolves through the ruledata registry", !!importedTable("piercingSlashing"));
-check("scavengedOptions lists the IMPORTED categories (reroll row excluded)", (() => { const o = scavengedOptions("piercingSlashing"); return o.length === 2 && o[1].label === "Blade dented"; })());
-check("accumulateImported applies the imported row's mechanics", (() => { const c = accumulateImported("piercingSlashing", [4]); return c.damage === -1 && c.labels[0] === "Blade dented"; })());
+check("scavengedOptions lists the IMPORTED categories (reroll row excluded)", (() => { const o = scavengedOptions("piercingSlashing"); return o.length === 2 && o[1].label === "Beta"; })());
+check("accumulateImported applies the imported row's mechanics", (() => { const c = accumulateImported("piercingSlashing", [4]); return c.damage === -1 && c.labels[0] === "Beta"; })());
 check("accumulateImported: the reroll row itself contributes nothing", accumulateImported("piercingSlashing", [19]).labels.length === 0);
-delete globalThis.acksExtras.lib;
+unregisterTable("equipment", { priority: PRIORITY.WORLD });
 
 /* ---------------------------------------------------------------------- */
 /*  Named-item tracker display (the ladder drives mechanics and display)   */

@@ -67,6 +67,11 @@ Hooks.once("init", () => {
   // reason.
   expectTables(RULEDATA_DOC, ["maneuverDisarm", "maneuverPenalties", "combatTrickery", "maneuverQualities", "hookedWeapon"]);
 
+  // The scavenged condition grids and the one figure that bounds stacked
+  // penalties (`overlays/scavenged.mjs` RULEDATA_TABLES and CAPS_TABLE), written
+  // as literals for the same reason.
+  expectTables(RULEDATA_DOC, ["scavengedPiercingSlashing", "scavengedBludgeoning", "scavengedArmorEquipment", "scavengedVesselsVehicles", "scavengedCaps"]);
+
   // Every weapon reader asks the weapon seam; this is the source behind it, the
   // imported rows placed against the imported lists.
   registerWeaponSource(librarySource);

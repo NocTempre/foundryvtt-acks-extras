@@ -79,6 +79,7 @@ const TABLES = {
   equipment: [
     "weaponFinesse", "unarmedStrike", "itemLoss", "itemLossMaterials",
     "maneuverDisarm", "maneuverPenalties", "combatTrickery", "maneuverQualities", "hookedWeapon",
+    "scavengedCaps",
   ],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
@@ -679,6 +680,11 @@ VERIFY["equipment.hookedWeapon"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.reduction) && !(out.reduction > 0)) fail("reduction: not above zero");
   if (isNum(out?.saveMod) && out.saveMod === 0) fail("saveMod: zero");
+};
+// The scavenged penalty cap is a floor, so a signed figure below zero.
+VERIFY["equipment.scavengedCaps"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.penalty) && !(out.penalty < 0)) fail("penalty: not below zero");
 };
 VERIFY["equipment.itemLossMaterials"] = (out, recipe, fail) => {
   for (const { key, row } of keyedRows(out, recipe, fail)) {

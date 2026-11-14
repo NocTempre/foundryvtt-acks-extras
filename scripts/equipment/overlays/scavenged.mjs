@@ -9,53 +9,23 @@
  * table plus a planner that returns core-field updates; there is no runtime
  * layer and nothing to intercept.
  *
- * Effects are cumulative: a 19-20 result rolls twice more. Damage penalties
- * cannot take a weapon below 1 point, and AC/attack penalties cannot exceed -5.
- * Items that "break" are destroyed on an unmodified 1 when used (long weapons on
- * 1-3) — recorded as a flag for the Judge rather than auto-destroying.
+ * Every figure here is read from the Judge's own copy at import: the condition
+ * grids, each row's effect and resale fraction, and the cap on how far attack
+ * and armour class penalties may stack. This file holds the procedure only:
+ * which d20 band a result lands in, that a "roll again" row spawns two more
+ * rolls, that effects accumulate. With a table not imported there are no rows
+ * to pick and a roll refuses; with the cap not read, nothing is capped.
+ * Items that "break" are recorded as a flag for the Judge rather than
+ * auto-destroying.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
-import { bracketRow } from "../../lib/tables.mjs";
+import { bracketRow, citeOf, getDoc, getLayer, getTable, hasDoc, isMissingRow, PRIORITY } from "../../lib/tables.mjs";
 import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 
-/** d20 → condition. `reroll` means roll twice more and apply both (19-20). */
-export const SCAVENGED_TABLES = Object.freeze({
-  piercingSlashing: [
-    { max: 2, label: "Serviceable", value: 1 },
-    { max: 6, label: "Blade dented", damage: -1, value: 0.67 },
-    { max: 10, label: "Blade rusty", damage: -1, value: 0.67 },
-    { max: 14, label: "Off balance", attack: -1, value: 0.67 },
-    { max: 16, label: "Loose hilt/haft", initiative: -1, value: 0.67 },
-    { max: 18, label: "Shoddy construction", breaks: true, value: 0.67 },
-    { max: 20, label: "Roll again twice", reroll: true },
-  ],
-  bludgeoning: [
-    { max: 2, label: "Serviceable", value: 1 },
-    { max: 6, label: "Soft head", damage: -1, value: 0.67 },
-    { max: 10, label: "Wobbly head", damage: -1, value: 0.67 },
-    { max: 14, label: "Off balance", attack: -1, value: 0.67 },
-    { max: 16, label: "Fragile haft", initiative: -1, value: 0.67 },
-    { max: 18, label: "Shoddy construction", breaks: true, value: 0.67 },
-    { max: 20, label: "Roll again twice", reroll: true },
-  ],
-  armourEquipment: [
-    { max: 2, label: "Serviceable", value: 1 },
-    { max: 6, label: "Broken straps", encumbrance: 1, value: 0.67 },
-    { max: 10, label: "Rattles if moved", cannotSneak: true, value: 0.67 },
-    { max: 14, label: "Dented/rotting", ac: -1, breaks: true, value: 0.67 },
-    { max: 16, label: "Makeshift work", ac: -1, breaks: true, value: 0.67 },
-    { max: 18, label: "Torn/ripped", breaks: true, value: 0.67 },
-    { max: 20, label: "Roll again twice", reroll: true },
-  ],
-});
-
-/** RAW caps: attack/AC penalties never worse than -5; damage never below 1. */
-export const SCAVENGED_CAPS = Object.freeze({ attack: -5, ac: -5, minDamage: 1 });
-
 /* -------------------------------------------------------------------------- */
-/*  The IMPORTED table (importer extraction → lib ruledata registry)  */
+/*  The IMPORTED tables (importer extraction → lib ruledata registry)  */
 /* -------------------------------------------------------------------------- */
 
 /** Our table keys → the ruledata table ids the importer extracts (RR p160). */
@@ -67,24 +37,52 @@ export const RULEDATA_TABLES = Object.freeze({
   vesselsVehicles: "scavengedVesselsVehicles",
 });
 
+/** The ruledata table holding the one figure that bounds stacked attack and armour class penalties. */
+export const CAPS_TABLE = "scavengedCaps";
+
 /**
  * The GM's OWN imported condition table for this key, or null.
  *
  * Read through the lib's ruledata registry, which is where the importer lands
- * the table it extracted from the reader's own book. No values ship here — this
- * is the seat's own page — so when it is present it OUTRANKS the built-in table.
+ * the table it extracted from the reader's own book, and where a Judge's
+ * override of it wins. Nothing stands in for a table that is not there.
  * @returns {object|null} rows keyed by d20 band max: {category, effect, value, min, max}
  */
 export function importedTable(tableKey) {
   const id = RULEDATA_TABLES[tableKey];
-  const reg = globalThis.acksExtras?.lib?.tables;
-  if (!id || !reg?.hasDoc?.(RULEDATA_DOC)) return null;
+  if (!id || !hasDoc(RULEDATA_DOC)) return null;
   try {
-    const t = reg.getTable(RULEDATA_DOC, id);
+    const t = getTable(RULEDATA_DOC, id);
     return t && Object.keys(t).length ? t : null;
   } catch {
     return null; // the doc exists but not this table
   }
+}
+
+/**
+ * Where a condition table's rows came from, for the control that offers them:
+ * `judge` (set in the Ruledata Browser), `page` (read from the book; `cite` is
+ * the page the importer recorded, or null), or `none` (not imported).
+ * @returns {{state:"judge"|"page"|"none", cite:string|null}}
+ */
+export function scavengedSource(tableKey) {
+  const id = RULEDATA_TABLES[tableKey];
+  if (!id || !importedTable(tableKey)) return { state: "none", cite: null };
+  if (getLayer(RULEDATA_DOC, PRIORITY.OVERRIDE)?.tables?.[id] != null) return { state: "judge", cite: null };
+  return { state: "page", cite: citeOf(RULEDATA_DOC, id) };
+}
+
+/**
+ * The floor attack and armour class penalties may not pass, as a negative
+ * number, or null while the figure is not imported (nothing is then capped).
+ * A Judge may type it with either sign; it is always a floor.
+ */
+export function scavengedPenaltyFloor() {
+  if (!hasDoc(RULEDATA_DOC)) return null;
+  const raw = getDoc(RULEDATA_DOC)?.tables?.[CAPS_TABLE]?.penalty;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? -Math.abs(n) : null;
 }
 
 /** A signed integer captured by `re` from `text`, or 0. */
@@ -117,7 +115,7 @@ export function rowToEffects(row) {
   out.ac = signed(e, /([+-]?\d+)\s*a\s*c\b/);
   out.breaks = /break/.test(e);
   out.cannotSneak = /cannot\s+sneak/.test(e);
-  // Percentage of normal value: "100%" → 1, "-33%" → 0.67.
+  // Percentage of normal value: "100%" → 1, "-40%" → 0.6.
   const v = /(-?\d+)\s*%/.exec(String(row?.value ?? ""));
   if (v) {
     const n = parseInt(v[1], 10);
@@ -139,7 +137,16 @@ export function importedRow(tableKey, roll) {
   return bracketRow(rows, roll) ?? null;
 }
 
-/** Accumulate imported rows into one condition, mirroring `accumulate`. */
+/**
+ * Accumulate imported rows (rerolls included) into one condition. Attack and
+ * armour class penalties stop at the imported floor (`scavengedPenaltyFloor`);
+ * with no floor imported they are not capped.
+ * @param {string} tableKey
+ * @param {number[]} rolls d20 results, in order
+ * @returns {{labels:string[], damage:number, attack:number, initiative:number,
+ *            encumbrance:number, ac:number, breaks:boolean, cannotSneak:boolean,
+ *            notes:string[], valueMultiplier:number}}
+ */
 export function accumulateImported(tableKey, rolls) {
   const out = { labels: [], damage: 0, attack: 0, initiative: 0, encumbrance: 0, ac: 0, breaks: false, cannotSneak: false, notes: [], valueMultiplier: 1 };
   for (const roll of rolls) {
@@ -158,8 +165,11 @@ export function accumulateImported(tableKey, rolls) {
     out.notes.push(...e.notes);
     out.valueMultiplier *= e.value;
   }
-  out.attack = Math.max(SCAVENGED_CAPS.attack, out.attack);
-  out.ac = Math.max(SCAVENGED_CAPS.ac, out.ac);
+  const floor = scavengedPenaltyFloor();
+  if (floor != null) {
+    out.attack = Math.max(floor, out.attack);
+    out.ac = Math.max(floor, out.ac);
+  }
   return out;
 }
 
@@ -179,46 +189,6 @@ export function tableFor(item, profile) {
     return type === "bludgeoning" ? "bludgeoning" : "piercingSlashing";
   }
   return "armourEquipment";
-}
-
-/** Look up one d20 result on a table. */
-export function lookup(tableKey, roll) {
-  const rows = SCAVENGED_TABLES[tableKey];
-  if (!rows) return null;
-  return rows.find((r) => roll <= r.max) ?? rows[rows.length - 1];
-}
-
-/**
- * Accumulate results (rerolls included) into one condition.
- * @param {string} tableKey
- * @param {number[]} rolls d20 results, in order
- * @returns {{labels:string[], damage:number, attack:number, initiative:number,
- *            encumbrance:number, ac:number, breaks:boolean, cannotSneak:boolean,
- *            valueMultiplier:number}}
- */
-export function accumulate(tableKey, rolls) {
-  const out = { labels: [], damage: 0, attack: 0, initiative: 0, encumbrance: 0, ac: 0, breaks: false, cannotSneak: false, valueMultiplier: 1 };
-  for (const roll of rolls) {
-    const row = lookup(tableKey, roll);
-    if (!row || row.reroll) continue; // the reroll row itself contributes nothing
-    out.labels.push(row.label);
-    out.damage += row.damage ?? 0;
-    out.attack += row.attack ?? 0;
-    out.initiative += row.initiative ?? 0;
-    out.encumbrance += row.encumbrance ?? 0;
-    out.ac += row.ac ?? 0;
-    out.breaks ||= !!row.breaks;
-    out.cannotSneak ||= !!row.cannotSneak;
-    out.valueMultiplier *= row.value ?? 1;
-  }
-  out.attack = Math.max(SCAVENGED_CAPS.attack, out.attack);
-  out.ac = Math.max(SCAVENGED_CAPS.ac, out.ac);
-  return out;
-}
-
-/** How many d20s a result set needs (each 19-20 spawns two more rolls). */
-export function needsReroll(tableKey, roll) {
-  return !!lookup(tableKey, roll)?.reroll;
 }
 
 /**

@@ -49,8 +49,7 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     `vessel-damage.mjs`, `#stationView` in `vehicle-sheet.mjs`). Unverified:
     the saves lookup in `scripts/monsters/config.mjs`, and the hardcoded
     bonuses the formation ability bridge applies in place of cookbook effects.
-  - *Printed content in tracked, unshipped files:* the scavenged-condition
-    fixtures in `tools/test-equipment.mjs`; a masterwork bonus and price in
+  - *Printed content in tracked, unshipped files:* a masterwork bonus and price in
     the pristine-snapshot ruling of `docs/equipment/DECISIONS.md`; printed
     item strings quoted in `docs/importer/DECISIONS.md`.
   - *Stale text:* the header of `scripts/monsters/config.mjs` (a local-only

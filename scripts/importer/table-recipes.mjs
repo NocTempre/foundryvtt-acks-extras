@@ -2516,6 +2516,20 @@ export const TABLE_RECIPES = {
           { key: "saveMod", find: "opponent suffers a", take: "signed", span: 8 },
         ],
       },
+      // The one figure the page prints for how far scavenged attack and armour
+      // class penalties may stack (RR ch. 4, Scavenged Equipment), read from the
+      // sentence after the grids. `equipment/overlays/scavenged.mjs`
+      // `scavengedPenaltyFloor` applies it to both; a figure not read leaves
+      // them uncapped.
+      scavengedCaps: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 160,
+        locate: "attack throw penalties",
+        values: [
+          { key: "penalty", find: "penalties cannot be worse than", take: "signed", span: 8 },
+        ],
+      },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",
         column: { xMin: 40, xMax: 300 },

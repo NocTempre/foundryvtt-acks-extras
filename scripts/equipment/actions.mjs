@@ -15,11 +15,11 @@ import { consumeItem, roundsOf } from "./ammo.mjs";
 import { rowsSettled } from "./weapon-rows.mjs";
 import { unarmedStrikeDie } from "./attack-mods.mjs";
 import {
-  tableFor, accumulate, needsReroll, SCAVENGED_TABLES,
-  importedTable, importedNeedsReroll, accumulateImported, importedRow, rowToEffects,
+  tableFor, importedTable, importedNeedsReroll, accumulateImported,
 } from "./overlays/scavenged.mjs";
 import { recomputeItemFields, withFlatDelta, damageFormulaOf, scavengedOf, itemLossAcOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
+import { isMissingRow } from "../lib/tables.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 
 function notify(key, data) {
@@ -392,9 +392,10 @@ export async function setMasterwork(item, tier) {
 const rollD20 = () => 1 + Math.floor(Math.random() * 20);
 
 /**
- * Expand a scavenged roll: a reroll result (RR p.160) spawns two more d20s,
- * accumulated in roll order. Bounded so a cascade of rerolls cannot loop. The
- * roller is injectable so tests can drive it deterministically.
+ * Expand a scavenged roll: a reroll row of the imported table (RR p.160) spawns
+ * two more d20s, accumulated in roll order. Bounded so a cascade of rerolls
+ * cannot loop. The roller is injectable so tests can drive it deterministically.
+ * With no table imported no result is a reroll, so one d20 comes back.
  * @returns {number[]} every d20 rolled, in order.
  */
 export function rollScavengedD20s(tableKey, roll = rollD20) {
@@ -404,7 +405,7 @@ export function rollScavengedD20s(tableKey, roll = rollD20) {
   while (queue.length && guard++ < 32) {
     const r = queue.shift();
     rolls.push(r);
-    if (needsReroll(tableKey, r)) queue.push(roll(), roll());
+    if (importedNeedsReroll(tableKey, r)) queue.push(roll(), roll());
   }
   return rolls;
 }
@@ -461,29 +462,25 @@ export async function setDestroyed(item, on = true) {
 }
 
 /**
- * The rows a condition can be PICKED from, in d20 order — the reader's own
- * imported table when present, else the built-in RAW one. Each option carries
- * the band max, which is all `setScavengedRow` needs to resolve it either way.
+ * The rows a condition can be PICKED from, in d20 order: the reader's own
+ * imported table, and nothing when there is none. Each option carries the band
+ * max, which is all `setScavengedRow` needs to resolve it.
  * @returns {{value:number, label:string}[]}
  */
 export function scavengedOptions(tableKey) {
   const imported = importedTable(tableKey);
-  if (imported) {
-    return Object.values(imported)
-      .filter((r) => !/roll\s+again/i.test(String(r.category ?? "")))
-      .sort((a, b) => Number(a.max) - Number(b.max))
-      .map((r) => ({ value: Number(r.max), label: String(r.category ?? "").trim() }));
-  }
-  return (SCAVENGED_TABLES[tableKey] ?? [])
-    .filter((r) => !r.reroll)
-    .map((r) => ({ value: r.max, label: r.label }));
+  if (!imported) return [];
+  return Object.values(imported)
+    .filter((r) => !isMissingRow(r) && !/roll\s+again/i.test(String(r.category ?? "")))
+    .sort((a, b) => Number(a.max) - Number(b.max))
+    .map((r) => ({ value: Number(r.max), label: String(r.category ?? "").trim() }));
 }
 
-/** Set a scavenged condition from a chosen row (its d20 band max). */
+/** Set a scavenged condition from a chosen row (its d20 band max); null when no table is imported. */
 export async function setScavengedRow(item, tableKey, bandMax) {
   const n = Number(bandMax);
-  if (!Number.isFinite(n)) return null;
-  const cond = importedTable(tableKey) ? accumulateImported(tableKey, [n]) : accumulate(tableKey, [n]);
+  if (!Number.isFinite(n) || !importedTable(tableKey)) return null;
+  const cond = accumulateImported(tableKey, [n]);
   if (!cond.labels.length) return null;
   await setScavenged(item, cond);
   return cond;
@@ -492,24 +489,24 @@ export async function setScavengedRow(item, tableKey, bandMax) {
 /**
  * Roll a scavenged condition (RR p.160) onto any weapon or armour.
  *
- * Prefers a world RollTable the GM imported from their own book — drawn
- * natively and matched back to the mechanical effects — over the built-in
- * RAW table, so the control works either way. A reroll result spawns two
- * more rolls under either table.
+ * Reads the condition table the GM imported from their own book: its bands,
+ * category names, effects and resale percentages. A reroll row spawns two more
+ * rolls. With no table imported for the item the roll refuses with a notice,
+ * writes nothing and returns null.
  *
  * Fields are written by recomputeItemFields, so a re-roll never compounds and a
  * coexisting masterwork survives. `roll` is injectable for tests.
- * @returns {Promise<{rolls:number[], tableKey:string, cond:object, table:string|null}|null>}
+ * @returns {Promise<{rolls:number[], tableKey:string, cond:object}|null>}
  */
 export async function scavengeItem(item, { roll } = {}) {
   if (!item || (item.type !== ITEM_TYPE.weapon && item.type !== ITEM_TYPE.armor)) return null;
   const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
   const tableKey = tableFor(item, profile);
+  if (!importedTable(tableKey)) {
+    ui.notifications?.warn?.(game.i18n.localize("ACKS-EQUIPMENT.action.scavengeNotImported"));
+    return null;
+  }
 
-  // The imported table's bands, category names, effects and resale
-  // percentages all come from the GM's own book; the built-in table is only
-  // the stand-in for a world that has not imported one.
-  const useImported = !roll && !!importedTable(tableKey);
   const rolls = [];
   const queue = [0];
   let guard = 0;
@@ -523,13 +520,12 @@ export async function scavengeItem(item, { roll } = {}) {
       v = r.total;
     }
     rolls.push(v);
-    const again = useImported ? importedNeedsReroll(tableKey, v) : needsReroll(tableKey, v);
-    if (again) queue.push(0, 0);
+    if (importedNeedsReroll(tableKey, v)) queue.push(0, 0);
   }
 
-  const cond = useImported ? accumulateImported(tableKey, rolls) : accumulate(tableKey, rolls);
+  const cond = accumulateImported(tableKey, rolls);
   await setScavenged(item, cond);
-  return { rolls, tableKey, cond, imported: useImported };
+  return { rolls, tableKey, cond };
 }
 
 /* -------------------------------------------------------------------------- */

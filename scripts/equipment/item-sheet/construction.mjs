@@ -41,7 +41,7 @@ import { ACCESS_COSTS, slotCapacity, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { LABELABLE } from "../../lib/a11y.mjs";
 import { helmetType } from "../overlays/enclosing-helm.mjs";
 import { materialVocabulary, itemLossMaterials, isVulnerable, setMaterial, materialOf } from "../overlays/item-loss.mjs";
-import { tableFor } from "../overlays/scavenged.mjs";
+import { tableFor, scavengedSource } from "../overlays/scavenged.mjs";
 import { isContainer } from "../containers.mjs";
 import { wearLabel } from "../wear.mjs";
 import {
@@ -310,11 +310,15 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
 
     // CONDITION — pick a row of the applicable scavenged table directly, or
     // roll it. Both read the reader's OWN imported table (RR p160, extracted
-    // by the importer) when the world has one; the built-in RAW table is the
-    // fallback. "Pristine" clears.
+    // by the importer); with none imported there are no rows and no roll, and
+    // the control says so. "Pristine" clears either way.
     const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
     const tableKey = tableFor(item, profile);
     const opts = scavengedOptions(tableKey);
+    const source = scavengedSource(tableKey);
+    const sourceTip = source.state === "none" ? loc("props.conditionNotImportedTip")
+      : source.state === "judge" ? loc("props.conditionJudge")
+        : source.cite ? loc("props.conditionCite", { cite: source.cite }) : loc("props.conditionImported");
     const sc = scavengedOf(item);
     const cur = sc?.labels?.length === 1 ? String(opts.find((o) => o.label === sc.labels[0])?.value ?? "none") : "none";
     const picker = select(
@@ -324,13 +328,22 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     );
     // A stacked condition (a reroll produced several) has no single row —
     // say so rather than showing one of them as if it were the whole story.
-    if (sc?.labels?.length > 1) picker.dataset.tooltip = sc.labels.join("; ");
-    const g = el("div", "acks-extras-item-sheet__prop-group");
-    g.append(picker, button(game.i18n.localize("ACKS-EQUIPMENT.action.scavengeRoll"), "ACKS-EQUIPMENT.action.scavengeHint",
+    picker.dataset.tooltipText = sc?.labels?.length > 1 ? `${sc.labels.join("; ")} · ${sourceTip}` : sourceTip;
+    const rollButton = button(game.i18n.localize("ACKS-EQUIPMENT.action.scavengeRoll"), "ACKS-EQUIPMENT.action.scavengeHint",
       async () => {
         const r = await scavengeItem(item);
         if (r) await postScavengeCard(item, r);
-      }));
+      });
+    const g = el("div", "acks-extras-item-sheet__prop-group");
+    g.append(picker, rollButton);
+    if (source.state === "none") {
+      // Nothing to roll on: the button stays visible, disabled, and the
+      // reason is on the surface as well as in the tooltip.
+      rollButton.disabled = true;
+      delete rollButton.dataset.tooltip;
+      rollButton.dataset.tooltipText = sourceTip;
+      g.append(el("span", "acks-extras-item-sheet__prop-note", loc("props.conditionNotImported")));
+    }
     row("ACKS-EQUIPMENT.props.condition", g);
 
     // Masterwork buys numbers, never eligibility against a magical monster

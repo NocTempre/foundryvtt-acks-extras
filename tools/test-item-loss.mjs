@@ -66,7 +66,15 @@ const check = (label, cond) => { assert.ok(cond, label); pass++; };
 const FIGURES = { threshold: -9, step: 4, clothingStones: 1, lightMax: 2, heavyMin: 5, acPerStone: 3 };
 registerTable({
   id: "equipment",
-  tables: { itemLoss: FIGURES, itemLossMaterials: { fire: { materials: ["wood", "cloth", "leather"] } } },
+  tables: {
+    itemLoss: FIGURES,
+    itemLossMaterials: { fire: { materials: ["wood", "cloth", "leather"] } },
+    // Invented scavenged rows: a roll of 1 changes nothing, a 10 costs armour class.
+    scavengedArmorEquipment: {
+      4: { category: "Alpha", effect: "-", value: "100%", min: 1, max: 4 },
+      20: { category: "Gamma", effect: "-2 AC", value: "-40%", min: 5, max: 20 },
+    },
+  },
 }, { priority: PRIORITY.WORLD, source: "test" });
 
 /** An item document that records its writes, the way the sheet's own writers see one. */
