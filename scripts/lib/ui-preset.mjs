@@ -164,10 +164,8 @@ export function registerUiPresetSettings({ onLookChange } = {}) {
     onChange: (preset) => {
       refreshSheetDefaults(preset);
       onLookChange?.();
-      // A preset chosen through Configure Settings is the Judge's word as much
-      // as one chosen at the prompt: the pins naming a ladder sheet stand
-      // down, and the ladder runs again where one did. This fires on every
-      // client; the primary GM is the one seat that writes the core setting.
+      // Fires on every client; the primary GM is the one seat that writes the
+      // core setting, so it drops the ladder pins and re-runs the ladder.
       if (!isPrimaryGM()) return;
       dropLadderPins()
         .then((dropped) => dropped && refreshSheetDefaults(preset))

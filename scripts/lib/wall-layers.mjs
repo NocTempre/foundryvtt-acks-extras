@@ -3,17 +3,15 @@
  * Layers over a wall: the module's way of meaning something by a line the
  * Judge drew.
  *
- * A wall is Foundry's only drawn LINE, and the module has more than one use for
- * one — a tripwire across a corridor, a street through a city. Neither is a
- * barrier, and neither replaces the wall's own job: both are a FLAG over
- * whatever segment is already there, so a secret door can be trapped and a
- * paved avenue can be an ordinary open line that happens to be a street.
+ * A wall is Foundry's only drawn LINE, and the module means more than one thing
+ * by one — a tripwire, a street. Each is a FLAG over whatever segment is already
+ * there and never replaces the wall's own job.
  *
- * That shape recurs, so the mechanics of it live here once: the dual flag read,
- * the merge that can actually empty a field, the all-NONE restriction data a
- * non-blocking line is drawn with, arming core's own wall tool as a preset, and
- * turning a selection of lines into the region they enclose. What a layer MEANS
- * belongs to the feature that owns its key.
+ * The mechanics live here once: the dual flag read, the merge that can empty a
+ * field, the all-NONE restriction data a non-blocking line is drawn with, arming
+ * core's own wall tool as a preset, and turning a selection of lines into the
+ * region they enclose. What a layer MEANS belongs to the feature that owns its
+ * key.
  *
  * [wall-geometry.mjs](./wall-geometry.mjs) is the pure half — crossings,
  * distances, the graph. This half needs a world.
@@ -25,9 +23,8 @@ import { chainWalls } from "./wall-geometry.mjs";
  * A wall's layer under `key`, raw, or null when it carries none.
  *
  * Read through the document's accessor where there is one, and off the raw
- * flags where there is not: a wall reaches here as a document from the canvas
- * and as plain data from a create hook's bag, the palette's preset or a scene's
- * source, and the layer is the same layer on each.
+ * flags where there is not: a wall arrives as a document or as plain data (a
+ * create hook's bag, the palette's preset, a scene's source).
  */
 export function wallLayer(wall, key) {
   return wall?.getFlag?.(MODULE_ID, key) ?? wall?.flags?.[MODULE_ID]?.[key] ?? null;
@@ -39,10 +36,9 @@ export const hasWallLayer = (wall, key) => !!wallLayer(wall, key);
 /**
  * Write a layer, merging the patch over what is there.
  *
- * The merge is done HERE and the result written as a forced replacement,
- * because a flag write is itself a merge and a merge cannot empty anything: a
- * patch clearing a ledger — `{repeatLock: {}}` — merges into the full ledger
- * and leaves every entry standing.
+ * The merge is done here and written as a forced replacement, since a flag
+ * write is itself a merge and cannot empty a field: a patch of `{repeatLock: {}}`
+ * would leave every entry standing.
  */
 export async function setWallLayer(wall, key, patch) {
   const merged = { ...(wallLayer(wall, key) ?? {}), ...patch };
@@ -61,10 +57,7 @@ export function wallsFlagged(scene, key) {
 
 /**
  * A wall that obstructs nothing: the shape a non-blocking line is drawn as.
- *
- * Resolved at call time, not at module scope — the restriction vocabulary is a
- * Foundry global, and the pure geometry beside this is imported by suites that
- * run without a world.
+ * Resolved at call time, since the restriction vocabulary is a Foundry global.
  */
 export function openWallData() {
   // `EDGE_SENSE_TYPES` is v14's name for the same numbers; `WALL_SENSE_TYPES`
@@ -112,32 +105,19 @@ export function wallNear(scene, x, y, reach, key = null) {
 /**
  * Make `data` the shape core's wall tool draws, and hand the Judge that tool.
  *
- * Foundry's wall types — solid, terrain, secret door — are **presets**: pressing
- * one stores the data new walls are created with and lights a pip on the button,
- * and the Judge then drags the wall out themselves. Every layer this module
- * draws is a wall type in exactly that sense, so each is one of those presets
- * rather than a button that places something. The preset persists until another
- * is pressed, which is the point: laying a row of them is one press and several
- * drags.
+ * Foundry's wall types are **presets**: pressing one stores the data new walls
+ * are created with, and the Judge then drags the wall out. Each layer this
+ * module draws is one of those presets and persists until another is pressed.
  *
- * **There is only ONE preset slot.** Arming a street disarms a tripwire and the
- * other way round, because core keeps one setting for the wall tool. Nothing
- * here can change that, so a caller must not imply otherwise.
- *
- * The slot is CLIENT-scoped, so it is one slot per seat rather than one slot
- * per world: arming disturbs nobody else, and a seat with no wall tool arms
- * something it can never draw with. That is also why it is not shared state a
- * test run has to put back for anyone but itself.
- *
- * Where no palette answers, the drawing tool is still handed over and the
- * result says the arming did not happen: an ordinary wall drawn under a promise
- * of a tripwire is a hole in a corridor the Judge believes is watched.
+ * **There is only ONE preset slot**, client-scoped: arming a street disarms a
+ * tripwire. See docs/battlemap/DECISIONS.md, "The trap line and the road share
+ * core's ONE preset slot". Where no palette answers, the drawing tool is still
+ * handed over and the result says the arming did not happen.
  *
  * @returns {Promise<boolean>} whether the preset was actually armed
  */
 export async function armWallPreset(data) {
-  // Reached through the layer rather than by importing the palette class: the
-  // layer names its own palette, so this follows a rename instead of breaking.
+  // The palette class is reached through the walls layer, which names its own.
   const palette = canvas?.walls?.constructor?.paletteClass;
   const armed = !!palette?.SETTING_KEY;
   if (armed) {
@@ -152,15 +132,11 @@ export async function armWallPreset(data) {
 /**
  * Where a layer's row belongs on a wall's configuration sheet.
  *
- * A WallConfig's application root IS its `<form>`, so a search for a form
- * INSIDE the window content finds nothing and a fallback to the root appends
- * the row outside `.window-content` — below the pinned submit footer, and
- * outside the element core pins its font-size on, so the row ignores the type
- * size knob. The fields live in the scrollable body; a row appended there sits
- * among them and scrolls with them.
+ * A WallConfig's application root IS its `<form>`, so the row goes inside the
+ * scrollable body, not on the root. See docs/battlemap/DECISIONS.md, "A layer's
+ * row goes inside the wall sheet's scrolling body".
  *
- * @returns {HTMLElement} the container to append to — never null, so a core
- *   restructure degrades to a row in the wrong place rather than no row.
+ * @returns {HTMLElement} the container to append to; never null.
  */
 export function wallSheetFields(root) {
   return root.querySelector(".window-content .standard-form")
@@ -168,11 +144,8 @@ export function wallSheetFields(root) {
     ?? root;
 }
 /**
- * The data core's wall tool is currently set to draw, or null.
- *
- * Read so a tool can MODIFY the armed preset rather than replace it — pressing
- * "alley" after "paved" means a paved alley, and a tool that could not see what
- * was armed would have to guess a surface the Judge already chose.
+ * The data core's wall tool is currently set to draw, or null, so a tool can
+ * modify the armed preset rather than replace it.
  */
 export function currentWallPreset() {
   const palette = canvas?.walls?.constructor?.paletteClass;
@@ -187,9 +160,8 @@ export function currentWallPreset() {
 /**
  * Does this region already outline these points?
  *
- * Compared as an unordered set of vertices with the tolerance the chaining
- * uses, because a loop rebuilt from the same walls can start at a different
- * corner and run the other way round.
+ * Compared as an unordered set of vertices within the chaining's tolerance, so
+ * a loop rebuilt from the same walls matches from any corner and direction.
  */
 function samePolygon(region, points, tolerance = 8) {
   const shape = (region.shapes ?? []).find((s) => s.type === "polygon" && !s.hole);
@@ -203,23 +175,17 @@ function samePolygon(region, points, tolerance = 8) {
 /**
  * Build a Region from the outline a set of walls draws.
  *
- * Works from ANY walls, flagged or not: the Judge is describing an AREA here —
- * the mouth of a pit, the bounds of a quarter — and the walls are the shape of
- * it, not necessarily the thing itself.
- *
- * The region restricts nothing. A Region in Foundry does not block movement
- * unless a behavior makes it, and none of this module's do.
+ * Works from ANY walls, flagged or not: the walls are the shape of an area. The
+ * region restricts nothing.
  *
  * **Idempotent.** Running the tool twice on one loop adopts the region it made
- * the first time rather than stacking a second over the same ground; two of
- * them would each answer for a party standing there once.
+ * the first time rather than stacking a second.
  *
  * @param {object[]} walls wall documents
  * @param {object} o
  * @param {string} o.name / @param {string} o.color the region's own fields
  * @param {number} [o.visibility] a `REGION_VISIBILITY` value; core's default
- *   (unlocked) shows the shape to anyone who opens the Regions control, which
- *   players have — so a thing the party must not see states GAMEMASTER.
+ *   shows the shape to anyone who opens the Regions control.
  * @param {object[]} [o.behaviors] behavior data to create it with
  * @param {string} [o.behaviorType] the type whose presence identifies a region
  *   this tool already made, for the idempotency search

@@ -4,22 +4,16 @@
  * writes to `game.time`, the one place features WATCH it from, and the one
  * reading of what hour the clock says it is.
  *
- * Two features move the clock: formation's dungeon turns (a minute per
- * bookkeeping round) and the location sheet's "Advance 1 week" fallback. They
- * differ only in step size — both write the same shared resource through the
- * same `game.time.advance` contract — so a GM is answering one question, not
- * two: does this module drive the clock, or does another module own it? The key
- * is registered once (module.mjs) and read from here by both features, because a
- * per-feature answer would give the same toggle two labels and two defaults.
+ * Two features move the clock: formation's dungeon turns and the location
+ * sheet's "Advance 1 week" fallback. Both write through `game.time.advance`, so
+ * one setting answers whether this module drives the clock or another module
+ * owns it; it is registered once (module.mjs) and read from here by both.
  *
- * Whether it is DARK is read here for the same reason: the calendar keeps no
- * sunrise, so the two hours that bound the dark are the world's settings, and a
- * feature asking the clock asks `clockReading()` rather than keeping a boundary
- * of its own. The dawn is the one other reading the formation's journey asks
- * for: the march ends its day at the next dawn (`untilNextDawn`). The calendar
- * day and the calendar's season (`calendarDay`, `calendarSeason`) are read here
- * too: what the sky is keyed on belongs to the clock, not to a feature's
- * counter.
+ * Whether it is DARK is read here too: the calendar keeps no sunrise, so the two
+ * hours that bound the dark are the world's settings, and a feature asks
+ * `clockReading()` rather than keeping a boundary of its own. The dawn
+ * (`untilNextDawn`), the calendar day and the calendar's season (`calendarDay`,
+ * `calendarSeason`) are read here for the same reason.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { isPrimaryGM } from "./util.mjs";
@@ -31,11 +25,14 @@ export const SETTING_ADVANCE_WORLD_TIME = "advanceWorldTime";
 export const mayAdvanceWorldTime = () => game.settings.get(MODULE_ID, SETTING_ADVANCE_WORLD_TIME);
 
 /**
- * World settings naming the hour it gets light and the hour it gets dark, on
- * the calendar's own clock. Either left blank stands at the day's quarter
- * points (`darkBounds`).
+ * World setting naming the hour it gets light, on the calendar's own clock.
+ * Left blank it stands at the day's quarter point (`darkBounds`).
  */
 export const SETTING_DAWN_HOUR = "dawnHour";
+/**
+ * World setting naming the hour it gets dark, on the calendar's own clock.
+ * Left blank it stands at the day's three-quarter point (`darkBounds`).
+ */
 export const SETTING_DUSK_HOUR = "duskHour";
 
 /**
@@ -196,11 +193,10 @@ export function dawnWithin(reading, dt) {
  * Register a callback fired when world time moves forward, on the one window
  * that runs the automation (`isPrimaryGM`).
  *
- * Every feature that reacts to the calendar shares this registrar rather than
- * guarding a hook of its own: the gate is what stops a two-GM table, or a
- * Judge with two windows open, processing the same day twice, and one copy of
- * it is the only way it stays one answer. Callbacks must be idempotent — each keeps its own
- * watermark, because the hook also fires for a clock the Judge dragged.
+ * Every feature that reacts to the calendar shares this registrar, so the gate
+ * keeps a two-GM table or a two-window Judge from processing a day twice.
+ * Callbacks must be idempotent — each keeps its own watermark, because the hook
+ * also fires for a clock the Judge dragged.
  *
  * @param {(worldTime: number, dt: number) => void} callback  seconds, and the
  *   forward step that produced them.

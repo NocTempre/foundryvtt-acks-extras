@@ -1,19 +1,11 @@
 /**
  * Segments, and the graph a set of them draws.
  *
- * Walls in Foundry are unordered line segments, which is the right shape for a
- * barrier and the wrong one for everything else you might want to ask of a
- * drawn line. Three questions recur and none of them is answerable segment by
- * segment: does a path CROSS this line, does this line ENCLOSE an area, and how
- * far is it ALONG these lines from here to there. The first is a trap springing,
- * the second is turning a hand-drawn loop into a region, and the third is
- * walking a street that bends.
- *
- * So the segments are joined into a graph — endpoints within a tolerance are
- * one node, because a line closed by eye is closed to within a pixel or two —
- * and distance is measured over it. A point off the lines is attached by its
- * nearest projection, which is what makes "walk to the corner and along the
- * avenue" one measurement rather than three.
+ * Walls in Foundry are unordered line segments. Three questions recur over a
+ * drawn line: does a path CROSS it, does it ENCLOSE an area, and how far is it
+ * ALONG the lines from here to there. The last is answered over a graph:
+ * segments are joined into one, endpoints within a tolerance are one node, and a
+ * point off the lines is attached by its nearest projection.
  *
  * Pure geometry: no Foundry, no canvas, no documents. A segment is
  * `[x1, y1, x2, y2]`, the shape a Wall's `c` already has, so callers pass walls
@@ -26,11 +18,8 @@
 /* -------------------------------------------- */
 
 /**
- * The point on a segment closest to `(x, y)`, and how far off it is.
- *
- * Clamped to the ends, so a point past one end projects onto that end rather
- * than onto the infinite line through it — the difference between standing at
- * a street's mouth and standing in the field its line would reach if extended.
+ * The point on a segment closest to `(x, y)`, and how far off it is. Clamped to
+ * the ends, so a point past one end projects onto that end.
  *
  * @param {number[]} seg `[x1, y1, x2, y2]`
  * @returns {{x: number, y: number, t: number, distance: number}} `t` is the
@@ -49,21 +38,15 @@ export function nearestPointOnSegment(x, y, seg) {
 }
 
 /**
- * Perpendicular distance from a point to a segment `[x1,y1,x2,y2]`.
- *
- * Clamped to the segment's ends, so a point off past one end measures to that
- * end rather than to the infinite line through it.
+ * Distance from a point to a segment `[x1,y1,x2,y2]`, clamped to the segment's ends.
  */
 export function pointSegmentDistance(x, y, seg) {
   return nearestPointOnSegment(x, y, seg).distance;
 }
 
 /**
- * Where a movement path crosses a segment, or null.
- *
- * Returns the POINT rather than a yes/no because a crossing is usually an
- * EVENT — the party is halted where it happened, not told about it three
- * squares later.
+ * Where a movement path crosses a segment, or null: the crossing POINT, so a
+ * caller can halt the mover where it happened.
  */
 export function segmentCrossing(from, to, seg) {
   const [x1, y1, x2, y2] = seg;
@@ -75,9 +58,7 @@ export function segmentCrossing(from, to, seg) {
   if (!denom) return null; // parallel, including both degenerate
   const t = ((x1 - from.x) * sy - (y1 - from.y) * sx) / denom;
   const u = ((x1 - from.x) * ry - (y1 - from.y) * rx) / denom;
-  // `t > 0`, not `t >= 0`: a mover STARTING on the line has not crossed it by
-  // stepping away. Without this, a party halted at a trap springs it again on
-  // its next move, in either direction, forever.
+  // `t > 0`, not `t >= 0`: a mover STARTING on the line has not crossed it by stepping away.
   if (t <= 0 || t > 1 || u < 0 || u > 1) return null;
   return { x: from.x + t * rx, y: from.y + t * ry, t };
 }
@@ -131,13 +112,9 @@ export function segmentDistance(a, b) {
 /**
  * Chain wall segments into the outline they draw.
  *
- * Walls are unordered segments; a Region needs a ring of points in order. The
- * chaining walks from each segment to whichever unused segment shares its
- * endpoint, which is what makes a hand-drawn loop usable without asking the
- * Judge to have drawn it in sequence.
- *
- * Endpoints are compared with a tolerance because a loop closed by eye is
- * closed to within a pixel or two, not exactly.
+ * A Region needs a ring of points in order: the chaining walks from each segment
+ * to whichever unused segment shares its endpoint, with endpoints compared
+ * within a tolerance.
  *
  * @param {Array<{c: number[]}>} walls
  * @param {number} [tolerance] pixels within which two endpoints are the same
@@ -180,13 +157,8 @@ export function chainWalls(walls, tolerance = 8) {
     return ring;
   };
 
-  // Try every segment as the start and keep the BIGGEST closed ring found.
-  //
-  // A Judge's selection is rarely exactly the loop: a wall tool leaves the wall
-  // it drew selected, so reaching straight for "enclose these" hands this four
-  // walls of a room plus one stray line. Starting only from the first segment
-  // lets that one leftover decide the answer is "not a shape", which is true of
-  // the whole set and useless as a response.
+  // Try every segment as the start and keep the BIGGEST closed ring found, so a
+  // stray extra wall in the selection cannot decide the answer is "not a shape".
   let best = null;
   for (let start = 0; start < segments.length; start++) {
     const ring = ringFrom(start);
@@ -206,13 +178,9 @@ export function chainWalls(walls, tolerance = 8) {
 /* -------------------------------------------- */
 
 /**
- * Where two segments meet, or null — symmetric in its two arguments.
- *
- * `segmentCrossing` answers a different question and cannot stand in here: it
- * is tuned for a mover springing a trap, so it rejects `t <= 0` on the grounds
- * that starting ON a line is not crossing it. That refusal is right for a trap
- * and wrong for a junction — a side street whose FIRST endpoint sits on an
- * avenue is the commonest T there is, and the trap rule would drop it.
+ * Where two segments meet, or null — symmetric in its two arguments. Unlike
+ * `segmentCrossing` it accepts `t = 0`, so a segment whose first endpoint sits
+ * on another counts as a junction.
  */
 function segmentMeeting(p, q) {
   const [px1, py1, px2, py2] = p;
@@ -234,52 +202,21 @@ function segmentMeeting(p, q) {
  * is a node, and a segment is emitted as one edge per span between consecutive
  * nodes on it.
  *
- * Two endpoints within `tolerance` are ONE node. That tolerance is the whole
- * reason this exists: a Judge drawing a street network drags each length
- * separately, and core's own snapping puts consecutive ends close together
- * rather than identical. Without the merge every segment would be its own
- * island and no route would run further than one length.
+ * Two endpoints within `tolerance` are ONE node. A junction in the middle of a
+ * line (a T, an X) is noded too: the ends are noded, then the crossings, then
+ * each segment is cut at every node that lies on it. See
+ * docs/battlemap/DECISIONS.md, "The road graph is planar, because a city is not
+ * a chain".
  *
- * Endpoints alone are not enough, because the ordinary shapes of a street net
- * put a junction in the MIDDLE of a line: a side street ending on an avenue
- * (a T) shares no endpoint with it, and two streets crossing (an X) have no
- * endpoint at the crossing at all. Noding only the ends leaves those roads in
- * separate components, so a distance over them answers null and the caller
- * falls back to the chord. So the ends are noded, then the crossings, then each
- * segment is cut at every node that lies on it.
+ * One drawn segment becomes SEVERAL edges, all sharing one `meta` object (the
+ * one the caller passed in), so a consumer counts roads by `meta`, never by
+ * edge index. A segment shorter than the tolerance is no edge, but its merged
+ * endpoint is still a node and cuts whatever it lies on. A segment's spans may
+ * fall short of its drawn length by at most the tolerance, where an end merges
+ * into a node inside it. A span of zero length between two distinct nodes is
+ * kept: it is the only thing joining them.
  *
- * One drawn segment therefore becomes SEVERAL edges, all sharing one `meta`
- * object — the same object the caller passed in, so a consumer deduping the
- * edges a route used keys on `meta`, never on the edge index.
- *
- * Three consequences of cutting at every node, all wanted:
- *
- * - **A segment shorter than the tolerance is no edge, but its merged endpoint
- *   is still a node, and that node cuts whatever it lies on.** A three-pixel
- *   stub left on an avenue turns one thousand-pixel edge into two of five
- *   hundred. The stub is a real point of the street, and a route over the two
- *   halves measures what the one edge did — what changes is the edge COUNT,
- *   which is why a consumer counts roads by `meta` and not by edge.
- * - **A segment's own spans need not sum to the length it was drawn at.** Where
- *   an end merges into a node that projects INSIDE the segment — a street drawn
- *   so its last few pixels lie back along one already there — the spans stop at
- *   that node and the overlap is not emitted a second time. The shortfall is at
- *   most the tolerance and it is always road the graph already holds, so no
- *   walk loses it: a point past the last node attaches by its projection and
- *   the remainder is reported as the leg OFF the lines, which is the same
- *   distance under a different name.
- * - **A span can have zero length**, where two distinct nodes project to the
- *   same point of a segment: two side streets ending on opposite flanks of an
- *   avenue, each within the tolerance of it and further than that from each
- *   other, cut the avenue twice at one place. Dropping such a span severs the
- *   line there — the avenue becomes two networks at exactly the point the
- *   planarization exists to join — so it is emitted. It costs nothing: it adds
- *   no length to a walk that crosses it, and a walk that does not need it never
- *   pays for it.
- *
- * Segments are kept whatever else they carry — pass `{c, …}` objects and the
- * rest rides along on each edge's `meta`, so a caller can ask which surfaces a
- * route crossed without a second lookup.
+ * Pass `{c, …}` objects and the rest rides along on each edge's `meta`.
  *
  * @param {Array<number[]|{c: number[]}>} segments
  * @param {number} [tolerance] pixels within which two endpoints are one node
@@ -291,9 +228,7 @@ export function joinSegments(segments, tolerance = 8) {
   const nodes = [];
   const edges = [];
   // Endpoints are bucketed by a grid one tolerance wide, so finding the node a
-  // point belongs to reads nine buckets instead of every node found so far. A
-  // linear scan is quadratic in the number of walls, and a city's street net is
-  // exactly where that starts to be felt.
+  // point belongs to reads nine buckets, not every node.
   const cell = Math.max(tolerance, 1);
   const buckets = new Map();
   const key = (cx, cy) => `${cx}:${cy}`;
@@ -332,11 +267,9 @@ export function joinSegments(segments, tolerance = 8) {
     if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
     const a = nodeAt(x1, y1);
     const b = nodeAt(x2, y2);
-    // A segment shorter than the tolerance has both ends merged into one node.
-    // Keeping it would be a SELF-loop: an edge from a node to itself can never
-    // be a step of a route, and it would be reported as a road the party
-    // followed. The merged node stays registered, so a stub dropped on a street
-    // still cuts that street where it sits.
+    // A segment shorter than the tolerance has both ends merged into one node:
+    // kept, it would be a self-loop. The merged node stays registered, so a stub
+    // dropped on a street still cuts that street.
     if (a === b) continue;
     items.push({ c: [x1, y1, x2, y2], a, b, meta: Array.isArray(entry) ? {} : entry });
     minX = Math.min(minX, x1, x2);
@@ -346,33 +279,23 @@ export function joinSegments(segments, tolerance = 8) {
   }
   if (!items.length) return { nodes, edges, tolerance };
 
-  // A SECOND, coarser grid, this one holding segments rather than points. Both
-  // remaining passes ask "what is near here", and asking that of every segment
-  // in turn is quadratic on the pairs — which is what a city street net has
-  // hundreds of. The cell is at least two tolerances wide, so a point within a
-  // tolerance of a segment is always found in the nine cells around it; and it
-  // grows with the drawing's extent, so a scene measured in tens of thousands
-  // of pixels does not pay for tens of thousands of cells per line.
+  // A second, coarser grid holding segments rather than points, for the two
+  // passes that ask "what is near here". The cell is at least two tolerances
+  // wide, so a point within a tolerance of a segment is found in the nine cells
+  // around it, and it grows with the drawing's extent.
   const span = Math.max(maxX - minX, maxY - minY, 1);
   const coarse = Math.max(2 * cell, span / 64);
   const grid = new Map();
 
-  // A segment is registered in every cell its TRAVERSAL covers, walked column
-  // by column: inside one column of the grid the line occupies a single span of
-  // y, so the cells it covers there are one contiguous run, and the whole line
-  // costs a run per column rather than a cell per pixel. Each run is widened by
-  // `cell` on every side — the endpoint index's own width — which absorbs the
-  // rounding of a crossing that lands on a cell edge.
+  // A segment is registered in every cell its traversal covers, walked column
+  // by column: within one column the cells it covers are one contiguous run.
+  // Each run is widened by `cell` on every side, which absorbs the rounding of
+  // a crossing that lands on a cell edge.
   //
-  // The invariant that buys, and the one pass two rests on entirely: TWO
-  // SEGMENTS THAT CROSS SHARE AT LEAST ONE CELL OF THIS INDEX. Registering
-  // sampled POINTS along the line does not hold it — two oblique lines crossing
-  // near a cell corner register complementary staircases of cells, so they are
-  // never paired and their crossing is never noded, leaving the two roads in
-  // separate components and every distance across them null. Axis-aligned lines
-  // cannot expose it, because a horizontal line fills its whole row and a
-  // vertical one its whole column, so such a pair always shares a cell however
-  // the covering is computed.
+  // Pass two rests on one invariant: two segments that cross share at least one
+  // cell of this index. Sampled points along the line do not hold it. See
+  // docs/battlemap/DECISIONS.md, "The road graph is planar, because a city is
+  // not a chain".
   const coverCells = (x1, y1, x2, y2, add) => {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -409,11 +332,8 @@ export function joinSegments(segments, tolerance = 8) {
     });
   }
 
-  // Pass two: crossings. Two segments that cross with no endpoint at the
-  // crossing — an X — have nothing for the endpoint pass to merge, so the
-  // crossing point is registered as a node in its own right. Registering it
-  // through `nodeAt` means a crossing that lands on an existing end (a T)
-  // resolves to that end rather than doubling it.
+  // Pass two: crossings, registered as nodes through `nodeAt`, so a crossing
+  // that lands on an existing end (a T) resolves to that end.
   const tested = new Set();
   for (const list of grid.values()) {
     for (let p = 0; p < list.length; p++) {
@@ -429,9 +349,7 @@ export function joinSegments(segments, tolerance = 8) {
     }
   }
 
-  // Pass three: which nodes lie ON which segment. Walked from the NODES out —
-  // there are far fewer of them than there are cells along a long line, and the
-  // coarse grid answers each in nine reads.
+  // Pass three: which nodes lie ON which segment, walked from the nodes out.
   const splits = items.map(() => []);
   for (let n = 0; n < nodes.length; n++) {
     const cx = Math.floor(nodes[n].x / coarse);
@@ -450,9 +368,8 @@ export function joinSegments(segments, tolerance = 8) {
   }
 
   // Pass four: cut each segment at its nodes, in order along it, and emit one
-  // edge per span. The sub-segment's ends are taken from the ORIGINAL line
-  // rather than from the node coordinates, so the pieces stay collinear with
-  // the wall the Judge drew even where a node sits a pixel off it.
+  // edge per span. Span ends are taken from the original line, not the node
+  // coordinates, so the pieces stay collinear with the wall.
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const [x1, y1, x2, y2] = it.c;
@@ -461,13 +378,8 @@ export function joinSegments(segments, tolerance = 8) {
     const along = splits[i];
     along.push({ t: 0, node: it.a }, { t: 1, node: it.b });
     along.sort((p, q) => p.t - q.t);
-    // One appearance per node, at the smallest `t` it was found at: the ends
-    // arrive both from the pass above and from the two pushed here. Keeping the
-    // duplicate would emit a span from a node to ITSELF, a self-loop that can
-    // never be a step of a route. Deduping here is what makes every emitted
-    // span run between two DISTINCT nodes — distinct nodes, not distinct
-    // positions: two nodes projecting to one point of the line emit a span of
-    // zero length, which is kept because it is the only thing joining them.
+    // One appearance per node, at the smallest `t` it was found at, so every
+    // emitted span runs between two distinct nodes (not distinct positions).
     const cut = [];
     const placed = new Set();
     for (const s of along) {
@@ -500,9 +412,8 @@ export function joinSegments(segments, tolerance = 8) {
 /**
  * Cheapest distances from one or more starting nodes, over edge lengths.
  *
- * Several sources rather than one because a point that is not ON the network
- * enters it part-way along an edge, and that means starting from BOTH ends of
- * that edge at their own distances. One source is the special case.
+ * Several sources, because a point off the network enters it part-way along an
+ * edge, from both ends of that edge at their own distances.
  *
  * @param {object} graph from `joinSegments`
  * @param {Array<{node: number, dist: number}>} sources
@@ -512,8 +423,7 @@ export function joinSegments(segments, tolerance = 8) {
 export function reachFrom(graph, sources) {
   const dist = new Map();
   const via = new Map();
-  // A linear scan for the nearest unsettled node. A street network is small
-  // enough that a heap buys nothing, and the scan cannot get the answer wrong.
+  // A linear scan for the nearest unsettled node; a street network is small.
   const open = new Set();
   for (const s of sources ?? []) {
     if (!graph?.nodes?.[s?.node]) continue;
@@ -541,11 +451,7 @@ export function reachFrom(graph, sources) {
 
 /**
  * The cheapest walk between two nodes of the graph, or null when they are not
- * connected.
- *
- * Null rather than a big number: a bridge and a ford in the same town are two
- * networks that do not meet, and pricing a walk between them would invent a
- * crossing nobody drew.
+ * connected: two networks that do not meet have no walk between them.
  *
  * @returns {{nodes: number[], edges: number[], length: number}|null}
  */
@@ -558,8 +464,8 @@ export function shortestPath(graph, from, to) {
   const path = [to];
   const used = [];
   let at = to;
-  // Walk the `via` chain back to the source. It cannot cycle: every node was
-  // reached by an edge from a STRICTLY cheaper node.
+  // Walk the `via` chain back to the source; it cannot cycle, since every node
+  // was reached from a strictly cheaper one.
   while (at !== from) {
     const e = via.get(at);
     if (e == null) return null;
@@ -590,19 +496,13 @@ export function nearestOnGraph(graph, point) {
  * How far it is ALONG the network from one point to another.
  *
  * Neither end need be on the lines. Each is attached at its nearest projection
- * and the legs to those projections are reported separately, because walking
- * the last twenty feet across a courtyard is not walking the street: a caller
- * pricing a road's surface wants `along` alone, and a caller pricing a journey
- * wants the sum.
+ * and the legs to those projections are reported separately (`offRoadFrom`,
+ * `offRoadTo`): a caller pricing a road's surface wants `along` alone, and one
+ * pricing a journey wants the sum.
  *
- * **Null when NEITHER end is within `reach`.** A party crossing open ground on
- * a map that happens to have a street somewhere is not on that street, and
- * measuring their move along it would be a longer answer than the straight
- * line for no reason the Judge can see. One end within reach is enough — that
- * is stepping onto the road, or off it.
- *
- * Null too when the two ends attach to networks that do not meet: an
- * unconnected pair has no distance along anything.
+ * **Null when NEITHER end is within `reach`**; one end within reach is enough
+ * (stepping onto the road, or off it). Null too when the two ends attach to
+ * networks that do not meet.
  *
  * @param {object} graph from `joinSegments`
  * @param {object} o
@@ -640,16 +540,14 @@ export function pathLengthAlong(graph, { from, to, reach = 0 } = {}) {
   ].filter((e) => dist.has(e.node));
   if (!ends.length) return null;
 
-  // Whichever end of the exit edge is cheaper to reach. Both are tried because
-  // a route can arrive at a street from either direction.
+  // Whichever end of the exit edge is cheaper to reach.
   let winner = null;
   for (const e of ends) {
     const total = dist.get(e.node) + e.tail;
     if (!winner || total < winner.total) winner = { ...e, total };
   }
 
-  // The edges actually followed, entry and exit included: a caller naming the
-  // surfaces underfoot reads them off this rather than guessing from the ends.
+  // The edges actually followed, entry and exit included.
   const edges = [b.edge];
   let at = winner.node;
   while (via.has(at)) {

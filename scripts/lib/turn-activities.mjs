@@ -235,12 +235,10 @@ export function unlockActivity(plan, actorId) {
  *
  * Each entry loses a turn; one that reaches zero is due and is STAMPED
  * `resolvedTurn = turn` in the plan this returns. The owner writes that plan
- * before resolving anything, so a resolution that fails part-way is never
- * rolled twice: a stamped entry is done. A second call with the same `turn`
- * changes nothing (a counted entry carries `advancedTurn`, a stamped one its
- * stamp), and an entry stamped in any other turn is finished and leaves the plan.
- * Every due entry is stamped in this one pass, so an owner that stops part-way
- * through resolving leaves the entries it had not reached stamped and never run.
+ * before resolving anything: a stamped entry is done, so a resolution is never
+ * run twice. A second call with the same `turn` changes nothing (a counted
+ * entry carries `advancedTurn`, a stamped one its stamp), and an entry stamped
+ * in any other turn is finished and leaves the plan.
  * @param {object} plan
  * @param {number} turn A finite number, once per turn (see the file header); throws otherwise.
  * @returns {{plan: object, due: {actorId: string, entry: object}[],

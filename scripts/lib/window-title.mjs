@@ -74,7 +74,7 @@ export function watchWindowTitle(root) {
 
   title.addEventListener("pointerenter", () => {
     cancel();
-    // As the manager does for its own: at once from a tooltip already showing.
+    // At once from a tooltip already showing, as the manager does for its own.
     if (game.tooltip.element) show();
     else pending = setTimeout(show, game.tooltip.constructor.TOOLTIP_ACTIVATION_MS);
   });

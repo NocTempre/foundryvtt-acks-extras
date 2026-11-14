@@ -1,9 +1,9 @@
 /**
  * Every window this module opens has a drag corner. Core gives one only to a
- * window that asks, and `DialogV2.prompt` and `.confirm` do not, so the rule is
- * kept here once rather than at every place a window is declared. A window is
- * this module's by a class it declares, the declaration that also joins it to
- * a scroll contract (styles/lib.css).
+ * window that asks, and `DialogV2.prompt` and `.confirm` do not, so the ask is
+ * made here once. A window is this module's by a class it declares, the
+ * declaration that also joins it to a scroll contract (styles/lib.css). See
+ * docs/lib/DECISIONS.md, "The drag corner is asked for once".
  */
 import { MODULE_ID } from "./constants.mjs";
 

@@ -25,17 +25,11 @@
  * guessed. Nothing is placed from a missing list, and nothing stands in for
  * one.
  *
- * A row that neither tier places takes a third: the kind its sub-header
- * MATES were placed into, when every other row under the same sub-header that a
- * tier placed agrees on exactly one kind (`placedBy` says `"mates"`). Mates
- * that disagree, a sub-header none of them was placed under, and a row with no
- * sub-header place nothing. A row the first two tiers found ambiguous takes the
- * mates' kind only when it is one of the kinds they were torn between.
- *
- * A single-weapon option (a restricted list's) names one weapon, and a
- * sub-header names a family, so that option matches a row by its NAME alone and
- * is never placed by `block` or by mates; noun-list options, categories, foci
- * and damage types are placed by all three tiers.
+ * A row that neither tier places takes a third: the kind its sub-header MATES
+ * agree on (`placedBy` says `"mates"`; see `placeAll`, and docs/lib/DECISIONS.md,
+ * "A row takes the kind its sub-header mates agree on"). A single-weapon option
+ * (a restricted list's) matches a row by its NAME alone; noun-list options,
+ * categories, foci and damage types are placed by all three tiers.
  *
  * Pure: no Foundry imports. A caller passes the grid (the rows
  * `equipment/weapon-rows.mjs` publishes, or any `{ key: { name, block, … } }`)
@@ -141,9 +135,8 @@ function place(kinds, nameRuns, blockRuns, nameOnly) {
  * exactly one kind (`via: "mates"`). Mates that disagree, a block no row was
  * placed in, and a row with no block place nothing, and a placement made this
  * way is never itself a mate. A row the tiers found ambiguous takes a mates'
- * kind only if it is one of the kinds they were torn between, so the third tier
- * breaks a tie and never overrules a row's own words. A key in `nameOnly` is
- * never taken from mates.
+ * kind only if it is one of the kinds they were torn between. A key in
+ * `nameOnly` is never taken from mates.
  *
  * @param {[string, {name: Set<string>, block: Set<string>, blockText: string|null}][]} rows
  * @param {Set<string>} [nameOnly] the kinds the block and mates tiers leave out

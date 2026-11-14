@@ -95,16 +95,10 @@ export function positiveFigure(value) {
  * The value as a number, or **null when it was never stated**.
  *
  * Use this for anything that may be absent — a registry cell, an optional
- * field, a caller's `= null` default — and never hand-roll
- * `Number.isFinite(Number(x))` for the same job. `Number(undefined)` is NaN and
- * behaves, but **`Number(null)` and `Number("")` are both 0, and 0 is finite**,
- * so the hand-rolled test reports an unstated value as a confident zero. That
- * has produced three separate shipped defects: a blank load rendering as "0",
- * an unpriced flight silently multiplying by zero, and an absent maximum load
- * grounding every mount.
- *
- * Zero and "unstated" are different answers. This is the helper that keeps them
- * different.
+ * field, a caller's `= null` default — never `Number.isFinite(Number(x))`:
+ * `Number(null)` and `Number("")` are both 0 and 0 is finite, so that test
+ * reports an unstated value as a confident zero. Zero and "unstated" are
+ * different answers.
  */
 export const numOrNull = (v) => {
   if (v == null || v === "") return null;
@@ -144,7 +138,7 @@ export const isPrimaryGM = () => isActiveGMSeat() && isLeadClient();
  */
 export const primaryGMSettled = () => automationSettled().then(() => isPrimaryGM());
 
-/** The lib feature's storage surface (attached at import time). */
+/** The lib subsystem's storage surface (attached at import time). */
 export const libStorage = () => globalThis.acksExtras.lib.storage;
 
 /**
@@ -174,10 +168,9 @@ export function refOf(uuid) {
  * The token that replaced `tokenDoc` in the deletion that removed it, or null.
  * Core moves a token to another scene (a `teleportToken` region, a cut and
  * paste between scenes) by creating it there and then deleting the original
- * with `replacements: {[oldId]: newUuid}`, under the same id wherever the new
- * scene has it free. Read it inside the `deleteToken` hook: the successor is
- * in its collection then, and a token sent straight back has deleted it before
- * any write queued behind the hook runs.
+ * with `replacements: {[oldId]: newUuid}`. Read it inside the `deleteToken`
+ * hook, while the successor is in its collection. See docs/lib/MODEL.md,
+ * "A token moved to another scene".
  */
 export function replacementToken(tokenDoc, options) {
   const uuid = options?.replacements?.[tokenDoc?.id];
@@ -186,15 +179,9 @@ export function replacementToken(tokenDoc, options) {
 
 /**
  * The `fontScale` setting as a RATIO against the token default — the JS twin
- * of the `--acks-extras-k` custom property.
- *
- * A window transcribed from a px design canvas scales its whole drawing by
- * this, so its opening size has to move with it: the canvas figure is how much
- * room the drawing needs at the default size, and holding the frame still while
- * the drawing grows is what forces the narrow layouts on a user who asked only
- * for larger type. Sizes read from this are still floors-and-clamps subject —
- * core caps a frame at the viewport, which is what keeps a raised setting from
- * opening a window wider than the display.
+ * of the `--acks-extras-k` custom property. A window transcribed from a px
+ * design canvas scales its opening size by this along with its drawing; core
+ * still caps a frame at the viewport.
  *
  * Answers 1 before settings exist, so a construction-time default is safe.
  */
@@ -263,10 +250,8 @@ export function el(tag, className, text) {
 }
 
 /**
- * 0.6667 → "2/3", because that is how the book says it. Whole numbers stay
- * whole ("2", not "200%"), so a row of factors reads in one idiom rather than
- * mixing fractions and percentages. The vehicle sheet's speed reasons and the
- * travel panel's multiplier chain both print through this.
+ * A factor as a fraction label: 0.6667 → "2/3". Whole numbers stay whole ("2",
+ * not "200%"); a factor with no known fraction prints as a percentage.
  */
 export function fractionLabel(f) {
   if (Math.abs(f - Math.round(f)) < 0.001) return String(Math.round(f));
@@ -280,9 +265,8 @@ export function fractionLabel(f) {
 
 /**
  * Fire one of the family's own hooks without letting a listener take the caller
- * down with it. Announcing a change is always the LAST thing a mutation does, so
- * a sibling feature throwing in its handler must not undo the write that already
- * landed — it gets logged and the mutation still succeeded.
+ * down with it: a throwing listener is logged, and the write that already
+ * landed still counts as succeeded.
  */
 export function announceChange(hook, ...args) {
   try {

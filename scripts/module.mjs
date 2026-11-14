@@ -15,15 +15,14 @@
  *   magic      after classes — its sheet reads the class registry for the
  *              traditions a world's classes cast under, and the class spell
  *              picker reads the spell primitive; before character-sheet,
- *              which will draw the Magic tab from it.
+ *              which draws the Magic tab from it.
  *   influence  before henchmen — henchmen consumes influence's Active Effect
  *              reaction convention (INFLUENCE_REACTION_KEY).
  *   location   after henchmen — the two import each other (henchmen pulls in
  *              LocationSheet; that sheet pulls the market engine, tables and
  *              dialogs back out of henchmen), so this order fixes which side
- *              finishes initializing first rather than leaving it to chance.
- *              The `location` Actor sub-type is registered once either way, by
- *              location/module.mjs, which owns it.
+ *              finishes initializing first. The `location` Actor sub-type is
+ *              registered once, by location/module.mjs, which owns it.
  *   factions   after location — its sheet reads the place layer and the
  *              district vocabulary through direct imports, and its api is
  *              what the henchmen feature asks for a standing shift at call
@@ -42,8 +41,7 @@
  *              size-frontage reader (`sizes.mjs`), so it registers first of
  *              the two.
  *   battlemap  after monsters — sizes tokens from monsters' imported size
- *              frontage and formation's flags; both are plain data imports, so
- *              only this comment depends on the order.
+ *              frontage and formation's flags, both plain data imports.
  *   character-sheet after every feature it draws from — it reads equipment's
  *              loadout, the class registry, the abilities roller, henchmen's
  *              cards and location's storage through direct imports, and
