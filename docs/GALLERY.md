@@ -48,7 +48,9 @@ Discord channel, because a channel can only be shot from a live bot.
 
 A release adds a row here only when it opens a **new feature area** — which is
 rare, and is what "one per guide" means. Everything else a release shoots goes
-into the guide that explains it, and stays there.
+into the guide that explains it. The `releases/` folders hold a release's
+shots for the guides and this table to point at; they are not a record, and a
+folder is pruned once a later release's shots have replaced what it held.
 
 Two moves are always right: **replacing** a plate with a newer shot of the same
 area, and **retiring** one whose area has a better shot in its guide. The move

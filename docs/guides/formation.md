@@ -232,11 +232,13 @@ you have set up as a wilderness or a city map
 picks it for you when the party token lands there — as does a map whose cells
 are a mile or more across, which is read as wilderness unless you have said
 otherwise. Setting a map's grid distance or units after the party is already
-on it counts as landing there.
+on it counts as landing there. A party that arrives on the Scene of a monster's
+lair rolls that lair once, on the wilderness line; the roll and the lair's
+section are on its place sheet ([location](location.md#a-place-that-is-a-lair)).
 
 Every number behind this section is printed in your books and arrives through
-**the importer**. Until you have imported them the strip still works, and says
-plainly what it cannot price — it never guesses a distance, a target or a toll.
+**the importer**. Until you have imported them the strip still works, and a
+step it cannot price carries no figure — it never guesses a distance, a target or a toll.
 
 ### The day
 
@@ -1099,8 +1101,8 @@ figure blank. You can change any of them in the Ruledata Browser.
 leaves. Hover the turns to see where the figure came from.*
 
 The light figures and the wandering-monster cadence (below) arrive with the
-**Rules tables**. Until both are imported, a GM is warned when the world loads.
-To bring them in without a full import, run the **Reimport One Shelf (GM)**
+**Rules tables**. Until they are imported the Kit tab leaves the light figures
+blank and no automatic throw is scheduled. To bring them in without a full import, run the **Reimport One Shelf (GM)**
 macro from *ACKS Extras Macros* and choose **Rules tables**, with your books open
 on that seat.
 

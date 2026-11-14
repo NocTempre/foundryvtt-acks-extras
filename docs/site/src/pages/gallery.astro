@@ -6,8 +6,8 @@
  * The repo already maintains that table as part of every release: what each
  * shot shows, which guide explains it, and which release it was taken in.
  * Reading it here keeps the published gallery and the repo's gallery one list.
- * A row still pointing at an older release directory is a truthful statement of
- * how stale that image is, so the release is printed rather than hidden.
+ * A plate shows its shot, its feature and what it shows; the shot's folder is
+ * not printed, because a folder names where the file sits, not how current it is.
  */
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
 import { Image } from "astro:assets";
@@ -61,7 +61,6 @@ const plates = gallery.map((row) => {
             </h2>
             <p class="acks-gallery__shows">{plate.shows}</p>
             <p class="acks-gallery__meta">
-              <span>Shot in {plate.release}</span>
               <a href={plate.image.src}>Full size</a>
             </p>
           </div>

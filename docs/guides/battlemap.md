@@ -158,7 +158,7 @@ Two buttons at the foot of the panel, in either order, as often as you like:
   (MM ch. 1), which arrives with the Monstrous Manual import (Settings tab →
   Game Settings → ACKS II — Extras → Manage imports; see
   [Managing imports](importer.md#managing-imports)). Until it is imported,
-  tokens keep the size they have, and the button says how many did. Edit the
+  tokens keep the size they have. Edit the
   table in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
   Extras → Imported Rules Tables → Open Ruledata Browser) and your figure
   wins.

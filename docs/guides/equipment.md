@@ -440,7 +440,8 @@ that names what it accepts.*
 
 - **Contents** — a container's load bar, what is inside, and the drop zone that
   names what it accepts and quotes its refusal. A spell book keeps its page
-  count and formula list here.
+  count and formula list here, the pages used against a capacity read from
+  your own book where one is imported (RR p. 145); with none, no bar shows.
 - **Appearance** (Judge only) — whether the item is magical, what the players
   know (found / aura seen / identified) and its aura school; and the
   **disguise**: tick *Can be disguised*, drop any item on the panel, and players

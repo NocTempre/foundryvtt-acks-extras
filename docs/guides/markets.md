@@ -20,7 +20,7 @@ cost, its availability and its buy and order controls.*
    the **ACKS Extras Macros** compendium): equipment availability,
    market characteristics, magic-item transactions, wages and construction,
    and the market chapter's prose figures. Every number the market applies is
-   read from these; an action whose table is missing refuses and names it.
+   read from these; an action whose table is missing is refused, quietly, with no message.
    A table the extractor could not fill completely is reported at import and
    shows as incomplete rather than as "unavailable".
 2. Import **merchandise** (the same step): each trade good becomes a

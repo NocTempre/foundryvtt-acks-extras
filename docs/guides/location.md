@@ -75,6 +75,23 @@ has run.
 
 ![](../releases/v9.7.0/location-role.png)
 
+## A place that is a lair
+
+A place that is the lair of a monster, such as one an adventure's import
+makes, carries a **Lair** section on its **Contents** tab, below the occupants.
+Only the Judge sees it. The **Monster** line links the monster the place is the
+lair of, with the page the importer read it from in its tooltip; the
+**Encounter** line links the group the lair rolled and shows its head count.
+
+**Roll** makes that group: the monster's own in-lair count is thrown, an
+encounter group is made from it, and the place links it. A lair rolls once, so
+**Roll** is greyed out while the lair holds its group (delete the group to roll
+again) and wherever there is nothing to roll, and hovering it says why. A party
+arriving on the lair's Scene rolls it the same way
+([formation](formation.md#overland-travel)). A lair in a compendium rolls from its
+world copy: **Roll** is disabled on the shelf place, and a line beside it says
+to drag the place out of the compendium into the Actors sidebar and roll there.
+
 ## Store goods there
 
 Drag an item onto the place's sheet, or press **Leave something here** — on the

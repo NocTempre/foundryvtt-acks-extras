@@ -14,7 +14,7 @@
  * Machine values arrive through ./_env.mjs; the bestiary must be open on the
  * GM seat (the shelf opens it on join).
  *
- * Fixtures: `monsters/beastman-pre-11-14`, a world actor made from the library
+ * Fixtures: `monsters/beastman-sidebar-copy`, a world actor made from the library
  * template with `_stats.compendiumSource` naming it, so it is a copy dragged out
  * of the library, written with no Kit axis, kit cells or default role; kept. The
  * library template is the walk's to overwrite: it is imported where the library
@@ -33,7 +33,7 @@ const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
 const BOOK = "mm";
 const FAMILY = "mm.familyBeastman";
-const MARKER = "monsters/beastman-pre-11-14";
+const MARKER = "monsters/beastman-sidebar-copy";
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);

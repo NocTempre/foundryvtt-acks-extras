@@ -3447,7 +3447,7 @@ minted one, and a recipe declaring no travel.
 
 ### Fixtures
 
-- `monsters/beastman-pre-11-14` — a template actor in the Actors sidebar
+- `monsters/beastman-sidebar-copy` — a template actor in the Actors sidebar
   carrying the family stamp (`flags["acks-extras"].cookbook.id`
   `mm.familyBeastman`) and `_stats.compendiumSource` naming a library
   template, so `isWorldCopy` answers true: what a Judge's drag out of the

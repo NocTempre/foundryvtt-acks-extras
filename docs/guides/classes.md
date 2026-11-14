@@ -282,7 +282,7 @@ owns shows the same ledger; the chip shows the fund once it holds anything.
   assigned at the top of the window before anything records.
 
 Import the rules tables once so the rates are read from your book; until then
-the window says so and records nothing.
+nothing records.
 
 ## Advanced mode — the class builder
 

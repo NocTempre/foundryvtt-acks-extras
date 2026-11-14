@@ -1,1 +1,0 @@
-- **A city board's old night tick is no longer read.** A board saved before the hour had its own picker follows the clock until the Judge picks an hour again with **The hour** picker (the party token's sheet → City tab), and `patchSettlement` no longer takes `night`; pass `hour` (`clock`, `day` or `night`).

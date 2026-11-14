@@ -47,7 +47,7 @@ dashed slots you can drop someone straight onto, and an empty officer's chair
 says what it is costing her. A crew member without the proficiency their seat
 asks for wears an **unqualified** badge. Once your voyage tables are imported,
 the group shows what its hands are effectively worth beside their head count
-(RR ch. 7); until then it counts them in full and says so.
+(RR ch. 7); until then it counts them in full and shows no worth beside them.
 
 ![](../releases/v11.0.0/vehicles.png)
 
@@ -231,8 +231,8 @@ name.
 A team is counted in heavy-horse equivalents. The heavy horse is the unit, so
 it always counts as one; what an ox or a mule is worth against it is a number
 your book prints, and it arrives with the travel tables. Until you import
-them, a team of heavy horses still adds up and anything else is shown as
-unpriced rather than quietly counted as nothing.
+them, a team of heavy horses still adds up and anything else shows a dash in
+the row's pull rather than being quietly counted as nothing.
 
 ## Making it move
 

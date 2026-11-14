@@ -345,8 +345,8 @@ id; the confirm counts these, and the entry picker marks each with a hammer.
 
 It asks first, with the count of what it will write over, and **No** writes
 nothing. A document whose book is not open on this seat is left as it is, and
-so is one from a book this module no longer offers; the repair counts both.
-Open the book and repair again.
+so is one whose book the cookbook does not carry; the repair counts both. Open
+the book and repair again.
 
 <!-- plate: importer-repair-in-place.png — the Rebuild tab's confirm, titled Repair in place (tools/live/importer-force-repair.mjs, SHOTS=1) -->
 
@@ -394,8 +394,8 @@ characters**, with a note and three answers:
   runs again onto the character, its items kept.
 
 The note says which answer is chosen to start with. A character marked
-**Changed since it was imported**, or **Imported before changes were
-recorded** (it carries no record of what was imported), starts at the first
+**Changed since it was imported**, or **No record of what was imported**,
+starts at the first
 answer; one marked **Matches what was imported** starts at **Leave it as it
 stands**. A character a player owns is not listed.
 
@@ -451,7 +451,7 @@ button, and Import everything above them.*
 
 ### Rules tables
 
-The rules tables arrive with **Import Everything**. To read them again on
+The rules tables arrive with **Import everything**. To read them again on
 their own, pick **Rules tables** in **Reimport One Shelf** (or on the Rebuild
 tab): they are re-read in place, and nothing is deleted. They materialize as
 Foundry documents in your world, register into the shared tables registry, and
@@ -470,7 +470,7 @@ tables still missing, by document.
 *Reimport One Shelf with the rules tables open: every table, or one table's
 own entry — here the formation figures alone.*
 
-**(Re)import Individual Entries** lists every rules-table document under
+**(Re)import individual entries** lists every rules-table document under
 *Rules tables*, ticked when your world holds its import, with the printed pages
 it reads beside it. Tick one to read just that document again. A table you have
 overridden in **ACKS Imported Rules Tables** (**Settings tab → Game Settings →
@@ -564,7 +564,7 @@ A book's essays and other passages import whole, as pages of a journal on
 the book's Judge JournalEntry shelf, one journal for each group the cookbook
 files them under. Each page is titled by what the passage is, keeps its
 paragraphs as the page sets them, and ends with its page reference.
-**Import Everything** runs the step.
+**Import everything** runs the step.
 
 ![](../releases/v11.8.0/importer-journals.png)
 
@@ -572,7 +572,7 @@ paragraphs as the page sets them, and ends with its page reference.
 
 ### An adventure book, as one Adventure
 
-The last step of **Import Everything** keeps each open adventure book in your
+The last step of **Import everything** keeps each open adventure book in your
 library as one **Adventure**, on the book's Adventure shelf. It carries every
 document the book's import made, every map, and the zones laid over those
 maps, filed in the world's folders. Open it and click **Import** to set the
@@ -663,6 +663,44 @@ printed name, then rebuild the entry.
 
 *An adventure's inhabitant as a character: the class bound at the printed level, and its saves and throws the class's own.*
 
+### The Judges Journal's prepared parties
+
+The Judges Journal prints five prepared parties in its appendix. Connect the
+book and run **Import everything** (**Manage Imports → Import** tab; see
+*Managing imports*), or tick the party members in **(Re)import individual
+entries** on the **Tools** tab. The Judges Journal is a Judge's book, so
+everything from it lands where only Judges can open it, and a player's
+Compendium Packs tab lists none of it.
+
+- **Each party is a folder of characters.** Open the Judge's shelf of Actors in
+  the **Compendium Packs** tab, then the book's folder: a folder for each
+  party, holding one **character** for each member, instead of the
+  **Pregenerated** folder an adventure's pregens go in. Only Judges own them.
+  Where the party's page prints a portrait for a member, it is the character's
+  image; a member whose page prints none keeps the default.
+- **A member is filled in from the page's write-up**, the way *People an
+  adventure prints in full* above describes: the class is bound at the printed
+  level, and what else the write-up prints (scores, armour class, hit points,
+  attack throw, proficiencies, spells, spell repertoire, gear) goes in the
+  matching fields. The biography keeps the write-up as printed, with a line for
+  each figure the class gives differently and a line for each name your library
+  could not match. A class your library does not hold is named under **Not in
+  the library**: import the classes first, then rebuild the member.
+- **The Parties journal holds the introductions.** On the Judge's shelf of
+  Journal Entries in the **Compendium Packs** tab, the book's folder holds a
+  journal named *Parties*, with one page for each party, titled as its folder
+  is and carrying that party's introduction from your copy.
+- **The book gets its own Adventure.** The last step of **Import everything**
+  keeps the members and the Parties journal in the book's **Adventure**, on
+  the Judge's shelf (*An adventure book, as one Adventure*, above), and the
+  **Adventures** tab lists the book with a **Repair** of its own. Open the
+  Adventure and click **Import** to bring a party into another world.
+
+To give a member to a player, right-click the character in the compendium,
+choose **Import**, and give that player Owner permission on the copy, as for
+an adventure's pregenerated characters. A rebuild leaves the copy alone and
+never deletes a character a player owns.
+
 ### An adventure's rooms, as places
 
 An adventure's keyed rooms import as **places** in the book's **Places**
@@ -692,6 +730,62 @@ At world start the module cleans up a place that holds nothing and is nothing
 in particular. A place that other places sit in is kept, so a level with its
 rooms stays. The setting is **Settings tab → Game Settings → ACKS II — Extras
 → Clean up empty locations**.
+
+### A Lairs & Encounters lair
+
+Lairs & Encounters is a book you can connect, a Judge's book like the
+adventures: its places, creatures and Scenes land where only Judges can open
+them. Connect your copy under **Books**, as above (its PDF carries no
+metadata title, so it is recognised by its page count and the book's name in
+its stock file name), then run
+**Import everything**, or **Run** beside the places and maps steps
+(**Importing points of interest…**, **Standing up maps…**).
+
+- **Each lair is a place.** The how-to of its lair chapter becomes a Lairs
+  place, and every listing in the chapter a place inside it, in print order.
+  A listing's text is the place's notes, from your copy. Its stat lines go in
+  the roster as creatures: the ACKS II monster where the book's creature has
+  one, and a creature made from the stat line where it has none, filed in the
+  book's **Creatures** folder as an adventure's rooms are.
+- **A lair that prints a plate gets a Scene.** The plates in the book's lair
+  maps become Scenes, each linked to its lair's place and gridded to the
+  squares the plate draws; a plate turned on its page is set upright. A plate
+  drawn on a larger scale, with gridded insets, is a map with insets: the full
+  plate is a gridless Scene at its own scale, and each inset is a Scene of its
+  own, linked from its dot on the full map. A party that moves onto a dot is
+  asked whether to go in. A map already in your world is never re-drawn (*A
+  dungeon map's walls*, above).
+- **A lair has its monster.** A lair whose listing names an ACKS II monster
+  carries that monster, never a copy of it, and finds it whenever the
+  Monstrous Manual is imported: nothing needs repairing. The Lair section of
+  the place's sheet shows it. A stat line made before its monster was imported
+  is bound by a **Repair** of the book on the **Adventures** tab (*Repair an
+  adventure book*, above).
+
+**A lair's in-lair encounter is rolled once, and only from its world copy.**
+The importer makes the Scenes from a world copy of each lair's place, and the
+roll happens there:
+
+- **On arrival.** When your party's token is placed on a lair's Scene, or
+  teleported onto it, the monster's in-lair encounter is rolled once as an
+  encounter group in the **Encounters** folder, and a roll card is whispered to
+  the Judges. The place's roster gains a hidden row for the group. Entering the
+  Scene again rolls nothing; delete the group and the next arrival rolls a
+  new one. The first GM seat to be present rolls it.
+- **With the Roll button.** A lair with no Scene is rolled from its place's
+  sheet: open the sheet, then the **Contents** tab, and press **Roll** in the
+  **Lair** section (Judges only). The section shows the monster, the group once
+  one is rolled, and why none was where the monster's in-lair entry counts
+  something other than bodies or prints no count; the Judges are told that once
+  by a whispered card too.
+- **A place on the Judge's shelf does not roll.** Its **Roll** is disabled, and
+  the line beside it says a lair rolls from its world copy. Drag the place out
+  of the compendium into the world and roll that copy. A copy the importer
+  made for a Scene has no group from the shelf's place, so the two never make
+  two groups.
+
+The sheet's other sections are in the location guide,
+[Places, storage and markets](location.md).
 
 ### Common problems
 
@@ -764,10 +858,9 @@ Treat it as a suggestion. If it disagrees with your book, your book wins.
 
 ### When an entry points at nothing
 
-An imported ability whose cookbook definition is no longer shipped stays in
-your world, pointing at nothing. These are unambiguously this module's
-(generated, with a cookbook id that no longer resolves), which is what makes
-them safe to offer for removal. **Prune** at the top of the **Items** sidebar
+An imported ability whose cookbook id names no entry in the cookbook points at
+nothing. These are unambiguously this module's (generated, with a cookbook id
+that does not resolve), which is what makes them safe to offer for removal. **Prune** at the top of the **Items** sidebar
 (GM) finds and lists them, and asks before it deletes anything.
 
 ### What never ships

@@ -149,9 +149,11 @@ The foundation the other features are built on, and useful on its own.
 - **Groups and mounts.** A stackable group actor (troops as stacks with a linked
   commander) and a rider/mount binding other features can ask about.
 - **Animal, Group and Template actor sub-types**, and the Follower Card sheet.
-- **The rules-table registry.** A priority-layered store the other features read
-  through: imported book tables, world tables, and the GM's overrides on top.
-  Nobody reads a table by module name.
+- **The rules-table registry.** A store of four priority layers the other
+  features read through: the module's own automation config (never a book
+  value), tables a content module supplies, the tables the importer read from
+  your books into the world, and the GM's overrides on top. A read takes the
+  highest layer that holds the table. Nobody reads a table by module name.
 - **Repair This World (GM).** One window that finds the data this module left
   damaged: bundles no sheet lists, links to documents that are gone, writes
   that stopped part-way. It changes only the findings you tick, and checks
@@ -374,7 +376,7 @@ Buy and sell equipment at any settlement with a market, at the availability
 and prices your own books give — with merchant imports, commissions, directed
 searches, the magic-item market, mercantile ventures, market research, and
 the goods and demand a settlement trades in. An action whose table is not
-imported refuses and names the table.
+imported is refused, with no message.
 
 Guide: [Item markets and ventures](https://noctempre.github.io/foundryvtt-acks-extras/guides/markets/).
 

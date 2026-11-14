@@ -42,7 +42,7 @@ counted in groups.*
 Everything else is one click away on **Full sheet** — the chip in the card's
 header band, or the portrait beside the name. If you would rather land on the
 full block, choose **Use full sheet** on the monster in the Actors directory's
-right-click menu, or set it under **Sheet Configuration** on the monster;
+right-click menu, or set it under **Configure Sheet** on the monster;
 the choice is yours and stays. An **animal** opens on the full
 block.
 
@@ -77,7 +77,10 @@ The tabs:
   loads, the attributes, and the **Figures** rule with the core fields the
   system's own sheet shows in its header (hit points, armour class, attack
   throw, morale, initiative, surprise, XP award, alignment, movement), which
-  the band and the rails read.
+  the band and the rails read. The **Body Form** list is read from your own
+  Monstrous Manual by the **Rules tables** import (MM p. 389); until it is
+  imported the field is blank and disabled, its tooltip is the page reference,
+  and a form the monster already holds is kept.
 - **Attacks** — the attack routine, natural weapons and their damage types.
 - **Abilities** — special abilities, tagged by category and carrying their XP
   contribution.
@@ -109,7 +112,7 @@ text below it in full.*
 No new actor type is invented: this is core's `monster`, extended through flags,
 so everything that already reads a monster keeps working. The sheet is a
 subclass of the system's own, so it keeps every tab core defines — and core's
-plain sheet is available under **Sheet Configuration** if you want the lean
+plain sheet is available under **Configure Sheet** if you want the lean
 view for a particular actor.
 
 ## A monster that casts

@@ -1,0 +1,1 @@
+- **Upgrading from a closed-alpha build:** this release does not read data written by earlier builds. Start in a new world, or run **Delete Everything Imported (GM)** (Compendium Packs sidebar tab → ACKS II — Extras → Macros → ACKS Extras Macros → Import from your books) and import again from your books.
