@@ -500,6 +500,48 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
   withTables({}, () => assert.strictEqual(hiredMorale("mercenary", "troopA"), null, "nothing imported: no base"));
 
+  // The specialists' base morale: three figures, each after the clause that
+  // names its group, read by the recipe from invented filler; the officer-role
+  // group takes the officer figure already read. Each clause is the recipe's
+  // own anchor with its seams made spaces, so no sentence of the page is
+  // reproduced here. The figures are invented.
+  const { specialistMorale } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const specialistRecipe = TABLE_RECIPES.wages.tables.specialistMorale;
+  const clause = (key) => specialistRecipe.values.find((v) => v.key === key).findRe.replace(/\\s\*/g, " ");
+  const specialistRead = extractTable(page([
+    `Badger note: the diggers ${clause("standard")} -6, the burrowers aside. The sett crew ${clause("crew")} +7; the wardens ${clause("navigators")} 5; and the rest.`,
+  ]), specialistRecipe);
+  assert.deepStrictEqual(specialistRead, { standard: -6, crew: 7, navigators: 5 }, "the recipe reads each group's figure from its own clause, signed or bare");
+  assert.deepStrictEqual(extractTable(page(["Badger note: the diggers gather by the sett."]), specialistRecipe), {}, "a page without the clauses reads nothing");
+  assert.deepStrictEqual(extractTable(page([`The wardens ${clause("navigators")} 5 and nothing else.`]), specialistRecipe), { navigators: 5 }, "a clause that does not read costs only its own figure");
+  withTables({ wages: { specialistMorale: specialistRead, officerMorale: { modifier: 8 } } }, () => {
+    assert.strictEqual(specialistMorale("alchemist"), -6, "a specialist with no group of its own takes the standard figure");
+    assert.strictEqual(specialistMorale("laborerSkilled"), -6, "so does any other that is not named");
+    assert.strictEqual(specialistMorale("marinerRower"), 7, "a rower takes the crew figure");
+    assert.strictEqual(specialistMorale("marinerSailor"), 7, "and a sailor");
+    assert.strictEqual(specialistMorale("marinerNavigator"), 5, "a navigator takes its own");
+    assert.strictEqual(specialistMorale("marinerCaptain"), 5, "a ship captain too");
+    assert.strictEqual(specialistMorale("scout"), 5, "and a scout");
+    for (const officer of ["marshalCataphract", "marinerMaster", "mercOfficerCaptain", "mercOfficerGeneral"]) {
+      assert.strictEqual(specialistMorale(officer), 8, `${officer}: an officer role takes the officer figure`);
+    }
+    assert.strictEqual(specialistMorale(""), null, "no type, no figure");
+    assert.strictEqual(hiredMorale("specialist", undefined, undefined, "marinerRower"), 7, "a specialist hire records its group's figure");
+    assert.strictEqual(hiredMorale("specialist", "troopA", "longbow", "mercOfficerColonel"), 8, "and a mercenary officer the officer figure");
+    assert.strictEqual(hiredMorale("henchman", undefined, undefined, "marinerRower"), null, "a henchman's stays with the sheet");
+  });
+  withTables({ wages: { specialistMorale: { standard: 0 } } }, () => {
+    assert.strictEqual(specialistMorale("alchemist"), 0, "zero is a figure");
+    assert.strictEqual(specialistMorale("scout"), null, "a group whose figure was not read has none");
+    assert.strictEqual(specialistMorale("marshalCataphract"), null, "nor an officer role whose figure was not read");
+  });
+  for (const [docs, label] of [[{}, "nothing imported"], [{ wages: { specialistMorale: {} } }, "an empty table"], [{ wages: { specialistMorale: { standard: "-3", crew: 1.5, navigators: Number.NaN } } }, "a figure read as text, a fractional one and a non-number"]]) {
+    withTables(docs, () => {
+      for (const type of ["alchemist", "marinerRower", "scout"]) assert.strictEqual(specialistMorale(type), null, `${label}: ${type} has no figure`);
+      assert.strictEqual(hiredMorale("specialist", undefined, undefined, "alchemist"), null, `${label}: a specialist hire records none`);
+    });
+  }
+
   // The fallback throw carries no figure of its own for the count.
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");
@@ -1068,6 +1110,8 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   let covered = false;
   // The loyalty figures the stand-in registry holds; invented, and null once none is imported.
   let figures = { start: 4, calamity: -3 };
+  // The wage tables the stand-in registry holds; invented, and empty until a check sets some.
+  let wagesTables = {};
   const actors = new Map();
   globalThis.ChatMessage = { create: async (m) => { posted.push(m); return m; }, getSpeaker: () => ({}) };
   globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
@@ -1112,8 +1156,8 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     money: { transferCoin: async () => ({ ok: covered }), sinkCoin: async () => ({ ok: covered }), spendableGp: () => 0 },
     tables: {
       getDoc: () => null,
-      hasDoc: (d) => d === "influence" && !!figures,
-      getTable: (d, id) => (d === "influence" && id === "loyaltyChanges" ? figures : null),
+      hasDoc: (d) => (d === "influence" && !!figures) || d === "wages",
+      getTable: (d, id) => (d === "influence" && id === "loyaltyChanges" ? figures : d === "wages" ? wagesTables[id] ?? null : null),
       expectTables() {},
       optTable: () => null,
     },
@@ -1183,6 +1227,66 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(rec().counters.calamities, 2, "the calamity is counted");
     assert.strictEqual(rec().events.at(-1).type, "calamity", "and logged");
     assert.deepStrictEqual(rec().loyalty.permanents.map((p) => p.delta), [-3], "but no unread figure is charged to the ledger");
+
+    // A specialist hire records its group's imported base morale, a henchman's
+    // stays null (the sheet's own field), and a figure not read is null. The
+    // figures are invented.
+    // The record class was loaded under a bare data model; it is given this
+    // block's working one for these hires, which carry the data they were handed.
+    const { default: HenchmanRecord } = await import(new URL("../scripts/henchmen/data/henchman-record.mjs", import.meta.url));
+    const working = globalThis.foundry.abstract.DataModel;
+    const bareClass = Object.getPrototypeOf(HenchmanRecord);
+    const bareProto = Object.getPrototypeOf(HenchmanRecord.prototype);
+    Object.setPrototypeOf(HenchmanRecord, working);
+    Object.setPrototypeOf(HenchmanRecord.prototype, working.prototype);
+    const recordOf = () => actors.get("hire1").getFlag("acks-extras", "record");
+    const quiet = async (fn) => {
+      const was = console.error;
+      console.error = () => {};
+      try { return await fn(); } finally { console.error = was; }
+    };
+    const crew = { ...candidate, id: "c2", status: "available", kind: "specialist", specialistType: "marinerRower" };
+    const marshal = { ...candidate, id: "c3", status: "available", kind: "specialist", specialistType: "marshalLightInfantry" };
+    const unread = { ...candidate, id: "c4", status: "available", kind: "specialist", specialistType: "scout" };
+    location.system.candidates.push(crew, marshal, unread, { ...candidate, id: "c5", status: "available" });
+    wagesTables = { specialistMorale: { standard: -6, crew: 7 }, officerMorale: { modifier: 8 } };
+    await quiet(() => hire.hire(location, "c2", employer));
+    assert.strictEqual(recordOf().morale.base, 7, "a rower's record takes the crew figure");
+    await quiet(() => hire.hire(location, "c3", employer));
+    assert.strictEqual(recordOf().morale.base, 8, "a marshal's takes the officer figure");
+    await quiet(() => hire.hire(location, "c4", employer));
+    assert.strictEqual(recordOf().morale.base, null, "a group whose figure was not read records none, never a zero");
+    await quiet(() => hire.hire(location, "c5", employer));
+    assert.strictEqual(recordOf().morale.base, null, "a henchman's record leaves the base to the sheet");
+    wagesTables = {};
+    await quiet(() => hire.hire(location, "c2", employer));
+    assert.strictEqual(recordOf().morale.base, null, "nothing imported: a specialist records none");
+    Object.setPrototypeOf(HenchmanRecord, bareClass);
+    Object.setPrototypeOf(HenchmanRecord.prototype, bareProto);
+
+    // A group hire reads a troop's base by the wage row's type, so the combined
+    // composite/longbow entry takes the settlement's variant's figure.
+    const { hireAsGroup } = await import(new URL("../scripts/henchmen/engine/hire-group.mjs", import.meta.url));
+    const { COMPOSITE_TROOP: combined } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+    const stack = { template: {} };
+    const group = { id: "g1", uuid: "Actor.g1", system: { unit: {}, commandStatus: () => null, troopCounts: {} }, update: async () => {}, setFlag: async () => {} };
+    const savedGroups = ns.lib.groups;
+    const savedFind = game.actors.find;
+    ns.lib.groups = { addStack: async () => "stack1", patchStack: async (_g, _k, fn) => fn(stack) };
+    game.actors.find = () => group;
+    wagesTables = { mercenaryWages: { rows: [{ type: "longbowman", morale: 7, wages: {} }, { type: "compositeBowman", morale: -6, wages: {} }, { type: "troopA", morale: 5, wages: {} }] } };
+    try {
+      for (const [type, variant, expected] of [[combined, "longbow", 7], [combined, "composite", -6], ["troopA", "longbow", 5]]) {
+        location.system.market = { compositeVariant: variant };
+        location.system.candidates.push({ id: `g-${type}-${variant}`, status: "available", kind: "mercenary", troopType: type, quantity: 1, attributes: {} });
+        stack.baseMorale = undefined;
+        await hireAsGroup(location, employer, { troops: [{ candidateId: `g-${type}-${variant}` }] });
+        assert.strictEqual(stack.baseMorale, expected, `${type} in a ${variant} settlement: the group stack takes the wage row's figure`);
+      }
+    } finally {
+      ns.lib.groups = savedGroups;
+      game.actors.find = savedFind;
+    }
   } finally {
     for (const k of keys) globalThis[k] = saved[k];
     ns.lib = savedLib;

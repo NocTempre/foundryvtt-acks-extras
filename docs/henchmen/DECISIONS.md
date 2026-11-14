@@ -148,3 +148,34 @@ reader of the field is `Actor#rollLoyalty`.
 - Not done: `scripts/lib/data/group-data.mjs` `unit.loyalty` keeps its stored zero
   (ROADMAP row). Registered for correction: the monsters 2026-11-14 entry says
   core's `attack.throw` has "no null"; the same field default makes it nullable.
+
+## 2026-11-14 — A specialist's morale base is read by group, officer roles through the officer figure
+
+Supersedes in part the first 2026-11-14 entry above, its "Not done, the specialists'
+printed bases" bullet. Owner rulings behind it: "caught printed values are fixed
+on the spot", "a figure a page prints is imported" and "missing imports stay blank
+with a page reference as a subtle clue". **New evidence, since that entry is under
+a week old:** the owner's rulings of this day, which turned the remainder into
+work to do now, and a read of the paragraph's text through the shipping
+executor: the page prints three specialist figures beside the officer one the
+`officerMorale` recipe already reads.
+
+- **Where each specialist's base comes from** (`rules/wages.mjs` `specialistMorale`,
+  handed to the hire by `hiredMorale`): the three figures not already read are the
+  `wages.specialistMorale` keys `standard` (most specialists), `crew` (rowers and
+  sailors) and `navigators` (navigators, ship captains and scouts), one recipe of
+  its own so a printing that words one clause differently costs only that figure.
+  Marshals, master mariners and mercenary officers take `wages.officerMorale`,
+  the one figure the page prints for them, so it is read once and not twice under
+  two keys that a Judge's override could pull apart.
+- **A mercenary officer's base is not the RR 171 row's figure.** That row's
+  `moraleModifier` is what the officer adds to the unit he leads, and stays what
+  the group's cache reads; the officer's own base is the Morale paragraph's.
+- **Group membership is procedure.** Which specialist types belong to which
+  printed group is code, by type id, as `officerMoraleModifier`'s officer test is.
+  A type in no named group takes `standard`.
+- **A group hire reads a troop's base through `hiredMorale`**, so the combined
+  composite/longbow entry answers the settlement's variant; it had read the
+  combined id and stored null.
+- Rejected: one key per specialist type (the page prints three figures, not one
+  per type). Cost: a record written before this change keeps its null.

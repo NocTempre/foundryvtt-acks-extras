@@ -2831,6 +2831,25 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "modifier", find: "officers have morale", take: "signed", span: 12 }],
       },
+      // The base morale of the specialists who are not officers (RR 166 prose,
+      // the paragraph that holds the two recipes above): the figure for most
+      // specialists, the one for rowers and sailors, and the one for navigators,
+      // captains and scouts, each after the clause that names its group. The
+      // officer-role group's figure is `officerMorale`'s, read once. A recipe of
+      // its own, so each figure costs only itself when a printing words its
+      // sentence differently. Each figure is a signed or bare integer.
+      specialistMorale: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 166,
+        locate: "but rowers and sailors have morale",
+        locateBare: true,
+        values: [
+          { key: "standard", findRe: "most\\s*specialists\\s*have\\s*a\\s*morale\\s*score\\s*of", take: "signedInt", span: 8 },
+          { key: "crew", findRe: "rowers\\s*and\\s*sailors\\s*have\\s*morale\\s*of", take: "signedInt", span: 8 },
+          { key: "navigators", findRe: "scouts\\s*have\\s*morale", take: "signedInt", span: 8 },
+        ],
+      },
       // How many a leader of each rank personally leads (RR 169 prose): three
       // rungs, each a minimum leader level and a count of infantry and of
       // cavalry. The rungs are the sentence's three units in reading order, the

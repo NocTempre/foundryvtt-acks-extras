@@ -587,7 +587,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       lastPaidTime: now(),
     },
     loyalty: { start: loyaltyStart, permanents: [] },
-    morale: { base: opts.baseMorale ?? hiredMorale(category, candidate.troopType, location.system?.market?.compositeVariant), permanents: [] },
+    morale: { base: opts.baseMorale ?? hiredMorale(category, candidate.troopType, location.system?.market?.compositeVariant, candidate.specialistType), permanents: [] },
     counters: { calamities: 0, levelsGainedInService: 0, startLevel: candidate.level ?? 0 },
     special: {
       skipCalamityLoyalty: hasEffectFlag(employer, "skipCalamityLoyalty"),

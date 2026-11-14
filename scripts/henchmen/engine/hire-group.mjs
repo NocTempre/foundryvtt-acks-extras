@@ -11,7 +11,7 @@
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { hire, employerOwnership } from "./hire.mjs";
-import { commandRungs, mercenaryMorale, officerMoraleModifier, officerTitle } from "../rules/wages.mjs";
+import { commandRungs, hiredMorale, officerMoraleModifier, officerTitle } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 import { takeFromRow } from "../rules/bulk-offer.mjs";
 import { hiredClassName } from "../rules/candidates.mjs";
@@ -144,8 +144,9 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
       // Mounted weight (command capacity) and RR 166 base morale.
       const mounted = MOUNTED_TYPES.has(candidate.troopType);
       // An unread base is stored as null (unknown), never as a 0 that claims
-      // the troop type adds nothing.
-      const baseMorale = mercenaryMorale(candidate.troopType);
+      // the troop type adds nothing. The combined composite/longbow entry is
+      // read as the settlement's variant, as the wage row is.
+      const baseMorale = hiredMorale("mercenary", candidate.troopType, location.system?.market?.compositeVariant);
       await groups.patchStack(group, key, (s) => {
         if (candidate.troopType) s.template.label = candidate.troopType;
         s.mounted = mounted;

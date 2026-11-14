@@ -1088,11 +1088,25 @@ walked in docs/lib/TESTING.md, "The repair tool".
     henchman: `morale.base` is null on both records, the Morale figure is the
     sheet's own Morale field, and the tooltip's first part reads "base, the
     sheet's own Morale field". Set the sheet's Morale and read the Service
-    figure follow it. The starting loyalty is step 29's. The reader and
+    figure follow it. *A specialist.* Hire a rower or sailor, a navigator (or a
+    scout), a marshal and any other specialist from the **Specialists** tab the
+    same way. With `wages.specialistMorale` and `wages.officerMorale` read, each
+    record's `morale.base` is its group's figure (the marshal's is the officer
+    one, the rower's the crew one, the navigator's its own, the other
+    specialist's the standard one), and the Service figure and the tooltip's
+    "base" part follow; compare each with the Morale paragraph and report the
+    match, never the figures. With `wages.specialistMorale` unread (an empty
+    priority-30 layer) the rower, navigator and other specialist record null and
+    the Service figure is the sheet's field, while the marshal still takes the
+    officer figure. *A group.* **Hire as Group** a combined composite/longbow
+    entry in a settlement of each variant; the stack's base morale follows the
+    variant's row, not null. The starting loyalty is step 29's. The readers and
     the hire's base are checked offline (`tools/test-henchmen.mjs`,
-    `tools/test-service-view.mjs`, `tools/test-henchmen-engine.mjs`). Teardown:
+    `tools/test-service-view.mjs`, `tools/test-henchmen-engine.mjs`; the recipe's
+    shape against the book, `tools/importer/test-recipe-content.mjs`). Teardown:
     the hirelings swept by their tracked uuids, the layer lifted. Not walked live
-    when written.
+    when written; the specialist and group cases were added later and are
+    unwalked.
 29. A hire's starting loyalty, imported and blank. **First live checks, before
     anything is built on them:** `actor.update({"system.retainer.loyalty": null})`
     on a kept hireling reads back null (core's `NumberField` declares no

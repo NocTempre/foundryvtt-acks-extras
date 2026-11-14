@@ -77,7 +77,7 @@ const TABLES = {
   // The officer-role morale modifier: one signed figure.
   // The command ladder: three rungs, a minimum leader level and a count of each arm.
   // A mercenary officer's starting loyalty: one signed figure.
-  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare", "commandCapacity", "baseLoyalty"],
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "specialistMorale", "treasureShare", "xpShare", "commandCapacity", "baseLoyalty"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die; and item loss's six figures
@@ -459,6 +459,12 @@ VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.modifier) && !(Number.isInteger(out.modifier) && out.modifier > 0)) fail("modifier: not a positive whole number");
+};
+// The non-officer specialists' base morale: three keys, each a whole number
+// read by its own clause. Shape only; no figure is named.
+VERIFY["wages.specialistMorale"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["standard", "crew", "navigators"]) if (isNum(out?.[key]) && !Number.isInteger(out[key])) fail(`${key}: not a whole number`);
 };
 // A mercenary officer's starting loyalty: a whole number below zero, the sign the reader keeps.
 VERIFY["wages.baseLoyalty"] = (out, recipe, fail) => {

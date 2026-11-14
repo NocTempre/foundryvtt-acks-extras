@@ -230,8 +230,9 @@ not undo it.
   bounded apart from a character's). The `rules/` helpers take those bounds as
   an argument and hold no range of their own; with none handed in a score is
   rounded and left open. `morale.base` is nullable: a market mercenary's is its
-  troop type's imported figure (`rules/wages.mjs` `hiredMorale`), every other
-  hire's is null, and null reads as the sheet's own Morale field
+  troop type's imported figure and a market specialist's its group's
+  (`rules/wages.mjs` `hiredMorale`, below), every other hire's is null, and
+  null reads as the sheet's own Morale field
   (`rules/service.mjs` `moraleParts` says which, `from: "record" | "sheet"`, and
   the Service panel's base tooltip follows). Zero is a figure.
   Each entry carries `compensated`: RR 166 penalties (permanent wounds,
@@ -324,10 +325,20 @@ is absent, blank or not a whole number answers null, the group stores null
 the Ruledata Browser's override layer. A group hired while it was unread keeps
 the null; it is not made up by a later import.
 
-Hire as Group stores each stack's base morale from `rules/wages.mjs >
-mercenaryMorale`, the troop type's own `wages.mercenaryWages` row (RR 166). A
-type with no imported figure answers null, the stack stores null
-(`unitMoraleOf` counts it as nothing).
+A market hire's base morale is `rules/wages.mjs > hiredMorale`, by kind, and
+the group hire reads the troop's through the same function. A mercenary takes
+the troop type's own `wages.mercenaryWages` row (RR 166), read by the type the
+wage row is keyed by, so the combined composite/longbow entry answers the
+settlement's variant. A specialist takes `specialistMorale`, by the group the
+page prints a figure for (RR 166, the Morale paragraph): an officer role (a
+marshal, a master mariner, a mercenary officer) the imported `wages.officerMorale`
+figure, a rower or sailor `wages.specialistMorale.crew`, a navigator, ship
+captain or scout `.navigators`, and every other specialist `.standard`. A henchman
+has none, and the record leaves it to the sheet's own Morale field. A figure
+that is absent, blank or not a whole number answers null, the record or stack
+stores null (`unitMoraleOf` counts a stack's as nothing), and the Service panel
+reads the sheet's field. A Judge changes a figure in the Ruledata Browser's
+override layer; a hire made while it was unread keeps the null.
 
 Hire as Group warns when the unit is larger than its officer can personally
 lead (RR 169), and the figures are the imported `wages.commandCapacity` table:

@@ -65,13 +65,36 @@ export function mercenaryMorale(troopType) {
 }
 
 /**
- * The base morale a market hire's record starts with: a mercenary troop's
- * imported figure (`mercenaryMorale`, read by the wage row's type), and null
- * for every other kind, whose morale the record leaves to the sheet's own
- * field. Null is unknown, never zero.
+ * The base morale a specialist starts with (RR 166), by the group the page
+ * prints a figure for: an officer role (a marshal, a master mariner or a
+ * mercenary officer) takes the imported `wages.officerMorale` figure, a rower
+ * or sailor and a navigator, ship captain or scout each take their own key of
+ * `wages.specialistMorale`, and every other specialist takes its `standard`
+ * one. Null where the figure it would read is not imported or is not a whole
+ * number, and for a missing type. Null is unknown, never zero.
+ * @param {string} specialistType
+ * @returns {number|null}
  */
-export function hiredMorale(category, troopType, compositeVariant) {
-  return category === "mercenary" ? mercenaryMorale(wageTroopType(troopType, compositeVariant)) : null;
+export function specialistMorale(specialistType) {
+  const type = String(specialistType ?? "");
+  if (!type) return null;
+  const known = (v) => (Number.isInteger(v) ? v : null);
+  if (officerTitle(type) || /^(marshal|marinerMaster)/i.test(type)) return known(optTable("wages", "officerMorale")?.modifier);
+  const table = optTable("wages", "specialistMorale");
+  if (/^mariner(Rower|Sailor)$/i.test(type)) return known(table?.crew);
+  if (/^(marinerNavigator|marinerCaptain|scout)$/i.test(type)) return known(table?.navigators);
+  return known(table?.standard);
+}
+
+/**
+ * The base morale a market hire's record starts with: a mercenary troop's
+ * imported figure (`mercenaryMorale`, read by the wage row's type) or a
+ * specialist's (`specialistMorale`), and null for a henchman, whose morale the
+ * record leaves to the sheet's own field. Null is unknown, never zero.
+ */
+export function hiredMorale(category, troopType, compositeVariant, specialistType) {
+  if (category === "mercenary") return mercenaryMorale(wageTroopType(troopType, compositeVariant));
+  return category === "specialist" ? specialistMorale(specialistType) : null;
 }
 
 /**
