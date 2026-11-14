@@ -3,11 +3,10 @@
  * The level ladders the world's imported skills carry, by skill key.
  *
  * A skill imported from the Judge's book (`def.skill.<key>`) stores its throw as
- * a level ladder on its roll target. A borrowed throw ("as a thief of half his
- * class level") names that skill's ladder as its `table`, and the classes
- * registry reads it here when no class document publishes the ladder itself
- * (`ladderRungAt`). Nothing in this file holds a figure: every rung is what the
- * importer wrote onto an item.
+ * a level ladder on its roll target. A borrowed throw names that skill's ladder
+ * as its `table`, and the classes registry reads it here when no class document
+ * publishes the ladder itself (`ladderRungAt`). Nothing in this file holds a
+ * figure: every rung is what the importer wrote onto an item.
  *
  * Imported definitions may live in `game.items` or in a world compendium. Pack
  * documents load asynchronously and a roll reads synchronously, so the pack
@@ -40,12 +39,10 @@ let pending = null;
 let generation = 0;
 
 /**
- * Schedule a rebuild once item changes stop arriving, without dropping the
- * current map. The read is synchronous, so an emptied cache would silently
- * downgrade every borrowed throw to nothing until the rebuild finished; a stale
- * map costs nothing by comparison. A burst of writes (an import, an update
- * pass) reads the packs once, after its last change; a change that lands during
- * a read schedules the next one.
+ * Schedule a rebuild once item changes stop arriving. A burst of writes (an
+ * import, an update pass) reads the packs once, after its last change; a change
+ * that lands during a read schedules the next one. Never empties the current
+ * map: a roll reads it synchronously while the rebuild runs.
  */
 export function invalidateLadders() {
   clearTimeout(pending);
