@@ -10883,3 +10883,44 @@ Only 3 of the 37 plated lairs belong to a monster the MM prepares a lair for,
 and about 4 have no ACKS II monster, so these are L&E's own lairs, not maps of
 the MM's. Each `meta.of` and each replacement pair costs a reviewer's read.
 Room keys stay in the prose until a reader for inline keys is built.
+
+## 2026-11-13 — Every Lairs & Encounters listing is a lair row, numbered in print order
+
+The owner's "All 168 listings" counted the 168 outline items under Chapter 3;
+the printing holds 167 listings and one how-to section, which is the
+`le.lairs` container. So the book has 167 `le.lair<n>` rows, and `n` is the
+listing's place in print order (pages ascending, the left column before the
+right, top to bottom): the first plated listing, once `le.lair1`, is
+`le.lair4`. `tools/importer/harvest-lairs.mjs` reads the Judge's copy and
+proposes each row's hash, its first and last page, the plate its pointer
+names and a `meta.of`; the register files are written from its output and
+`test-le-cookbook.mjs` pins them.
+
+**Ruled:**
+
+- **A last page is where the flow ends.** A listing's `pages` run to the last
+  page that holds a run of its text before the next heading, not to the page
+  that heading stands on.
+- **A pointer is paired by the name it prints**, not by where it stands. A
+  plate's pointer sits in the listing above or below its own about one time in
+  five, and eight pointer lines are read into a neighbouring listing's notes,
+  since the pointer is body-size text. One pointer stands in a listing
+  before the one it names, so that lair's pages do not include it.
+- **A plate shared by two listings belongs to one row.** A scene names one
+  `place`, so the shared plate is pinned to the listing whose text holds its
+  pointer, and the other listing is a place without a map.
+- **`meta.of` is authored, 154 of 167.** A pairing needs a same-name ACKS II
+  row, a pair in the System Compatibility Guide, or a naming scheme the MM
+  applies throughout (the beastmen, the men, the dragon template for the nine
+  dragon types). A same-name row is not enough where the guide says the
+  creature became another: that listing points at the row its creature
+  converts to. Thirteen listings have none, each because the guide deletes
+  the creature or prints no pair.
+
+**Rejected:** a pairing by position alone, which gives the wrong lair for
+eight plates.
+
+*Cost:* the pointer line of a plate sits inside a neighbouring listing's
+notes until a reader trims it. A listing's stat-line creatures bind by name in
+the next slice, and a listing whose creature the guide renames needs its own
+replacement pair there.

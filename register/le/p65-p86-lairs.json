@@ -1,0 +1,490 @@
+[
+  {
+    "id": "le.lair85",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 85",
+    "anchor": {
+      "hash": "sqdq14"
+    },
+    "pages": [
+      65,
+      66
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.beastmanKobold"
+    }
+  },
+  {
+    "id": "le.lair86",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 86",
+    "anchor": {
+      "hash": "d93boj"
+    },
+    "pages": [
+      67
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.kraken"
+    }
+  },
+  {
+    "id": "le.lair87",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 87",
+    "anchor": {
+      "hash": "506tqr"
+    },
+    "pages": [
+      67
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lamia"
+    }
+  },
+  {
+    "id": "le.lair88",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 88",
+    "anchor": {
+      "hash": "e6hg8r"
+    },
+    "pages": [
+      67,
+      68
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lammasu"
+    }
+  },
+  {
+    "id": "le.lair89",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 89",
+    "anchor": {
+      "hash": "1qgqitl"
+    },
+    "pages": [
+      68
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.leyak"
+    }
+  },
+  {
+    "id": "le.lair90",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 90",
+    "anchor": {
+      "hash": "1vw2xxp"
+    },
+    "pages": [
+      69
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lizardGiantDraco"
+    }
+  },
+  {
+    "id": "le.lair91",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 91",
+    "anchor": {
+      "hash": "zyzbwh"
+    },
+    "pages": [
+      69
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lizardGiantGecko"
+    }
+  },
+  {
+    "id": "le.lair92",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 92",
+    "anchor": {
+      "hash": "oexhk8"
+    },
+    "pages": [
+      69
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lizardGiantHornedChameleon"
+    }
+  },
+  {
+    "id": "le.lair93",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 93",
+    "anchor": {
+      "hash": "s75pby"
+    },
+    "pages": [
+      69
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lizardGiantTuatara"
+    }
+  },
+  {
+    "id": "le.lair94",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 94",
+    "anchor": {
+      "hash": "1tla0i3"
+    },
+    "pages": [
+      69,
+      70
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lizardman"
+    }
+  },
+  {
+    "id": "le.lair95",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 95",
+    "anchor": {
+      "hash": "zg47fm"
+    },
+    "pages": [
+      70
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.locustCavern"
+    }
+  },
+  {
+    "id": "le.lair96",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 96",
+    "anchor": {
+      "hash": "dhb36z"
+    },
+    "pages": [
+      70
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lycanthropeWerebear"
+    }
+  },
+  {
+    "id": "le.lair97",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 97",
+    "anchor": {
+      "hash": "16vvcr9"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lycanthropeWereboar"
+    }
+  },
+  {
+    "id": "le.lair98",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 98",
+    "anchor": {
+      "hash": "107f3fk"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lycanthropeWererat"
+    }
+  },
+  {
+    "id": "le.lair99",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 99",
+    "anchor": {
+      "hash": "1uqsa9c"
+    },
+    "pages": [
+      71
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lycanthropeWeretiger"
+    }
+  },
+  {
+    "id": "le.lair100",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 100",
+    "anchor": {
+      "hash": "1lyqzhd"
+    },
+    "pages": [
+      71,
+      72
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.lycanthropeWerewolf"
+    }
+  },
+  {
+    "id": "le.lair101",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 101",
+    "anchor": {
+      "hash": "go3pzr"
+    },
+    "pages": [
+      72
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manticore"
+    }
+  },
+  {
+    "id": "le.lair102",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 102",
+    "anchor": {
+      "hash": "xlyfjw"
+    },
+    "pages": [
+      73
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.medusa"
+    }
+  },
+  {
+    "id": "le.lair103",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 103",
+    "anchor": {
+      "hash": "19qfzds"
+    },
+    "pages": [
+      74
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manBerserker"
+    }
+  },
+  {
+    "id": "le.lair104",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 104",
+    "anchor": {
+      "hash": "1sk7p0l"
+    },
+    "pages": [
+      74,
+      75,
+      76
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manBrigand"
+    }
+  },
+  {
+    "id": "le.lair105",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 105",
+    "anchor": {
+      "hash": "1y1hkfw"
+    },
+    "pages": [
+      76,
+      77
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manMerchant"
+    }
+  },
+  {
+    "id": "le.lair106",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 106",
+    "anchor": {
+      "hash": "140ud43"
+    },
+    "pages": [
+      77,
+      78,
+      79,
+      80
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manNomad"
+    }
+  },
+  {
+    "id": "le.lair107",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 107",
+    "anchor": {
+      "hash": "1ji4kr"
+    },
+    "pages": [
+      80,
+      81,
+      82
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manPirate"
+    }
+  },
+  {
+    "id": "le.lair108",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 108",
+    "anchor": {
+      "hash": "1lhv27x"
+    },
+    "pages": [
+      82
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs"
+    }
+  },
+  {
+    "id": "le.lair109",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 109",
+    "anchor": {
+      "hash": "1wvu4n0"
+    },
+    "pages": [
+      82,
+      83
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs"
+    }
+  },
+  {
+    "id": "le.lair110",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 110",
+    "anchor": {
+      "hash": "1ybsnv1"
+    },
+    "pages": [
+      83,
+      84
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs"
+    }
+  },
+  {
+    "id": "le.lair111",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 111",
+    "anchor": {
+      "hash": "nxqu0l"
+    },
+    "pages": [
+      84,
+      85
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.manBandit"
+    }
+  },
+  {
+    "id": "le.lair112",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 112",
+    "anchor": {
+      "hash": "1bkxf2x"
+    },
+    "pages": [
+      85,
+      86
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs"
+    }
+  }
+]
