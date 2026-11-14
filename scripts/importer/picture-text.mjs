@@ -1,23 +1,9 @@
 /**
  * The `ocr` op: text a book prints inside a picture, read at import from the
- * Judge's own copy and handed to the executor's own ops.
- *
- * A page's recipe (`bookCookbook.pictures[<page>]`) names the picture by its
- * sample size `{w, h}`, lists the boxes to read in reading order, each with a page
- * segmentation mode, and lists the corrections applied to a box's text after
- * the read. `pictureRuns` turns the corrected lines into the text runs the
- * executor's ops take (`{str, x, y, w, h}` in the picture's source samples), and
- * `readPictureText` runs the instruction's `then` over them through the
- * executor's own `execInstruction`, so key-number checks, paragraph assembly,
- * stat-line parsing and creature lookups stay the existing code.
- *
- * The crop padding, the scale and the line derivation are fixed here because
- * the corrections are fitted on them: change one and every correction moves.
- *
- * A page is read once per document and its corrected lines are kept as long as
- * the document is. The engine and the pinned copy of the PDF that feeds it are
- * not: they close when idle (the timer never holds a Node process open) and on
- * `closePictureReads`, and the next page read opens them again.
+ * Judge's own copy and handed to the executor's own ops as text runs.
+ * The crop padding, the scale and the line derivation are fixed here because the
+ * recipe's corrections are fitted on them. A page is read once per document; its
+ * engine closes when idle and on `closePictureReads`.
  */
 import { openPinned, pictureBySize, scaledPicture, createReader } from "./ocr.mjs";
 import { LANG_PREFIX } from "./constants.mjs";
@@ -38,11 +24,8 @@ export const sampleBox = ({ x0, x1, y0, y1 }) => [x0 - BOX_PAD, y0 - BOX_PAD, x1
 /* ------------------------------------------------------------------ the read */
 
 /**
- * The reader's output for one box in the shape the corrections and the runs
- * are computed from, and the shape an author's read stores: `{ box, psm,
- * origin, k, lines: [{ bbox, words }] }`, each word a string, each bbox the
- * engine's `{x0, y0, x1, y1}` in the crop's pixels and `origin` the crop's
- * corner in the scaled picture.
+ * One box's read in the shape the corrections and an author's stored read use:
+ * `{ box, psm, origin, k, lines: [{ bbox, words }] }`.
  */
 function boxReadOf(spec, read, k) {
   return {
@@ -55,9 +38,8 @@ function boxReadOf(spec, read, k) {
 }
 
 /**
- * A picture of a page in grey and scaled once, with its samples: `{ samples,
- * scaled }`, or throws when the page paints no picture, or more than one, of
- * that size.
+ * A page's picture in grey and scaled once, `{ samples, scaled }`; throws when the
+ * page paints none, or more than one, of that size.
  *
  * @param {object} pinned a document opened by `openPinned`
  * @param {number} page
@@ -76,9 +58,8 @@ export async function pictureScaled(pinned, page, size) {
 }
 
 /**
- * Every box of a recipe read in order from one scaled picture: an array of
- * `{ box, psm, origin, k, lines }`, one per `picture.read` entry. `onBox` is
- * called after each box with the number read so far.
+ * Every box of a recipe read in order from one scaled picture, one
+ * `{ box, psm, origin, k, lines }` per `picture.read` entry; `onBox` is called after each.
  *
  * @param {{readBox: Function}} reader a reader from `createReader`
  * @param {object} scaled `scaledPicture`'s result
@@ -102,25 +83,10 @@ function matchesOf(text, find, flags) {
 }
 
 /**
- * A page's text runs from its box reads, and what the corrections did.
- *
- * A box's lines are the words of each read line joined by single spaces; the
- * box's text is its lines joined by newlines, and its corrections run on that
- * text in list order, each on the previous one's output, as JS `replace` with
- * the correction's `flags`. The corrected text is split on newlines again: line
- * i keeps raw line i's box, and a line past the raw count keeps the last one's.
- * Each line is one run `{str: text + " ", x: left edge, y: vertical centre, w,
- * h}` in the picture's source samples. Every run of a box takes the box's median
- * line height as `h`: a line led by an icon reads taller or shorter than its
- * neighbours, and the text ops' superscript cut would otherwise file it onto
- * another line and break the reading order. A box that read no line gives no
- * run.
- *
- * Returns `{ runs, boxText, hits, spans }`: `boxText[i]` is box i's corrected
- * text, `hits[j]` the number of matches correction j had at its place in the
- * list, `g` forced, which compile and verify hold against the correction's
- * `hits`, and `spans[j]` how many of them cross a line break, which a
- * correction may not.
+ * A page's text runs from its box reads: each box's lines are corrected in list
+ * order, then become one run per line in the picture's source samples.
+ * Returns `{ runs, boxText, hits, spans }`; `hits[j]` is correction j's match count
+ * and `spans[j]` how many of them cross a line break, which a correction may not.
  *
  * @param {object[]} boxReads `readBoxReads`'s result, or an author's read
  * @param {{corrections?: object[]}} picture a page's recipe
@@ -210,9 +176,8 @@ function withEngine(doc, st, task) {
 }
 
 /**
- * Store a page's box reads for a document as if the document had been read, so
- * the page's runs come from them and no engine starts. The compiler seeds an
- * author's read; the suite seeds an invented one.
+ * Store a page's box reads for a document as if it had been read, so no engine
+ * starts; the compiler seeds an author's read.
  *
  * @param {object} doc the document the read is for
  * @param {number} page
@@ -224,9 +189,8 @@ export function seedPictureRead(doc, page, picture, boxReads) {
 }
 
 /**
- * The progress bar a real read of a page shows, one step a box, labelled with
- * the page's number in the file. Null where there are no notifications to
- * show it on or no strings to label it from (a Node run).
+ * The progress bar a real read shows, one step a box; null where there is no UI
+ * or no strings to label it (a Node run).
  */
 function readBar(page, boxes) {
   if (!globalThis.ui?.notifications || !globalThis.game?.i18n) return null;
@@ -234,11 +198,9 @@ function readBar(page, boxes) {
 }
 
 /**
- * A page's corrected lines for a document, read at first ask: `{ runs,
- * boxText, hits, spans, boxReads }`. The read is shared by every entry on the page
- * and cached for as long as the document; a failed read is not cached. A real
- * read shows a bar (`readBar`) from the ask until it ends, failed or not; a
- * seeded or cached page shows none.
+ * A page's corrected lines, `{ runs, boxText, hits, spans, boxReads }`, read at
+ * first ask, shared by every entry on the page and cached for the document; a
+ * failed read is not cached.
  *
  * @param {object} doc the session's document, which hands back its own bytes through `getData()`
  * @param {number} page
@@ -280,14 +242,10 @@ function deletePath(obj, path) {
 }
 
 /**
- * Execute an `ocr` instruction: `{ op: "ocr", page, then, unread? }`. The
- * page's corrected lines are read (once per document), and `then`, an
- * instruction of the executor's own, runs over them as the page's text runs,
- * on the instruction's page. `unread`, allowed on a `value` only, lists paths
- * into the parse that are deleted after it runs: each is recorded as a miss
- * `{field, unread}` and echoed as `result.unread`, so a surface can leave it
- * blank. Throws when the page has no recipe, inside the executor's own
- * try, so it becomes a miss of the field.
+ * Execute an `ocr` instruction `{ op: "ocr", page, then, unread? }`: `then` runs over
+ * the page's corrected lines as its text runs. `unread`, on a `value` only, lists
+ * parse paths deleted after the run, each recorded as a miss and echoed as
+ * `result.unread`. Throws when the page has no recipe.
  *
  * @param {object} instr the instruction
  * @param {object} ctx the executor's context for the field

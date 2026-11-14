@@ -1,8 +1,6 @@
 /**
- * The Foundry-FREE half of a lair: the flag a lair place carries and what its
- * monster's in-lair line allows. lair.mjs finds the monster and writes the
- * documents around these decisions, the same split as group-encounter-logic.mjs
- * and group-encounter.mjs.
+ * The Foundry-free half of a lair: the flag a lair place carries and what its
+ * monster's in-lair line allows; lair.mjs does the document work.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { ROLL_KIND, isCreatureStack, planStack } from "./group-encounter-logic.mjs";
@@ -14,26 +12,22 @@ export const LAIR_KEY = "lair";
 export const LAIR_REASONS = Object.freeze(["notImported", "template", "units", "none", "invalid", "failed", "rolled", "shelved"]);
 
 /**
- * Is this place a document of a compendium? An encounter group is a world
- * document, so only a world place rolls; a shelved place is the template a world
- * copy is made from, and a roll on both would make two groups for one lair.
+ * Is this place a document of a compendium? Only a world place rolls.
  * @param {object} [place]
  */
 export const isShelved = (place) => !!place?.pack;
 
 /**
- * The lair flag a world copy of a shelved place starts with: the monster it is
- * the lair of and nothing the shelved place rolled, so the copy rolls its own
- * group. Null where the flag is not a lair's.
+ * The lair flag a world copy of a shelved place starts with: the monster only,
+ * so the copy rolls its own group. Null where the flag is not a lair's.
  * @param {object} [flag] the shelved place's `flags["acks-extras"].lair`
  * @returns {{of: string}|null}
  */
 export const lairForCopy = (flag) => (flag?.of ? lairData(flag.of) : null);
 
 /**
- * The lair flag the importer writes on a place at import: the cookbook id of
- * the monster the place is the lair of. The group and the note are written by a
- * roll, never at import.
+ * The lair flag the importer writes at import: the monster's cookbook id; a roll
+ * writes the rest.
  * @param {string} of the monster's cookbook id
  * @returns {{of: string}}
  */
@@ -51,10 +45,8 @@ export function lairOf(place) {
 }
 
 /**
- * What a lair's monster allows on one encounter line. A lair rolls only where
- * the monster's imported in-lair side gives a number of bodies; a side counted
- * in units, a side with no count, a template (which has no ecology of its own)
- * and a monster that is not imported make nothing.
+ * What a lair's monster allows on one encounter line: a lair rolls only where
+ * its imported in-lair side gives a number of bodies.
  * @param {object|null} monster the library actor, or null where it is not imported
  * @param {"dungeon"|"wilderness"} context
  * @returns {{ok: true, formula: string, noun: string}|{ok: false, reason: string, count?: string, unit?: string}}

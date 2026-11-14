@@ -1,14 +1,8 @@
 /**
  * The toll and the duty a city's gates charge merchandise (AX3 p. 56), the
- * alternative to the class toll and tariff of Entering the Market (RR ch. 8)
- * that a market opts into. Pure module: the toll's dice, the stones one throw
- * of them covers and the duty's percent dice are the Judge's own, imported,
- * and arrive as arguments; nothing here is a printed figure.
- *
- * The toll is one throw of the printed dice per whole unit of `perStones`
- * stones, taken as a single throw scaled by the unit count: the dice count and
- * the modifier both multiply. The duty is one throw of a percent applied to
- * each good's value at the market's price, with no exemptions.
+ * alternative to the class toll and tariff (RR ch. 8) that a market opts into.
+ * Pure module: the dice, the stones one throw covers and the duty percent are the
+ * Judge's own, imported, and arrive as arguments.
  */
 import { roundHalfEven } from "./arbitrage.mjs";
 
@@ -18,9 +12,8 @@ const COPPER_PER_GP = 100;
 export const GATE_TOLLS = Object.freeze(["class", "city"]);
 
 /**
- * One dice term with an optional modifier, as `{count, faces, mod}` ("d6",
- * "4d6+2", "2d8-1"; spaces and case ignored). Null for anything else,
- * including a term with no dice or no faces.
+ * One dice term with an optional modifier, `{count, faces, mod}` ("d6", "4d6+2");
+ * null for anything else.
  */
 export function parseDiceTerm(formula) {
   const m = String(formula ?? "").trim().toLowerCase().match(/^(\d*)\s*d\s*(\d+)\s*(?:([+-])\s*(\d+))?$/);
@@ -32,9 +25,8 @@ export function parseDiceTerm(formula) {
 }
 
 /**
- * A dice term thrown `units` times as one throw: the dice count and the
- * modifier both multiply ("4d6+2" ×3 → "12d6+6"). Null where the term does
- * not read or `units` is not a whole number above none.
+ * A dice term thrown `units` times as one throw: the count and the modifier both
+ * multiply ("4d6+2" ×3 → "12d6+6"); null where it does not read.
  */
 export function scaleDice(formula, units) {
   const term = parseDiceTerm(formula);
@@ -50,19 +42,16 @@ export function diceSpan(formula) {
 }
 
 /**
- * The stones of merchandise a gate assesses: a load's own stones, and the
- * weight in stones (`weightSt`) of an item brought to sell, whose `stones`
- * field counts its pieces. The rows are those the gate assesses; smuggled
- * goods are not passed.
+ * The stones of merchandise a gate assesses: a load's stones and an item's
+ * `weightSt`, its `stones` counting its pieces; smuggled goods are not passed.
  */
 export function merchandiseStonesOf(rows) {
   return (rows ?? []).reduce((n, r) => n + Math.max(0, Number((r?.kind === "item" ? r.weightSt : r?.stones) ?? 0) || 0), 0);
 }
 
 /**
- * The toll on `merchandiseSt` stones: whole units of `perStones` (nearest,
- * a half to the even one, so under half a unit is none), and the one
- * scaled throw they make, in gp. `formula` is null when no unit is owed.
+ * The toll on `merchandiseSt` stones: whole units of `perStones` (nearest, half to
+ * even) and the one scaled throw they make, in gp; `formula` is null when none is owed.
  * @param {object} o
  * @param {number} o.merchandiseSt
  * @param {string} o.dice - the printed dice, in gp
@@ -79,9 +68,8 @@ export function cityTollOn({ merchandiseSt, dice, perStones }) {
 }
 
 /**
- * The duty on the goods coming in: each line's `valueCp` at `pct` percent,
- * rounded up to a whole copper per line. No good is exempt; a line with no
- * value is charged nothing.
+ * The duty on the goods coming in: each line's `valueCp` at `pct` percent, rounded
+ * up to a whole copper; a line with no value is charged nothing.
  * @param {{valueCp?: number|null}[]} lines
  * @param {number} pct
  * @returns {{totalCp: number, lines: object[]}} each line kept with its `pct` and `cp`

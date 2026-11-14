@@ -1,16 +1,9 @@
 /**
- * The printed figures behind a monster's natural attacks, read from the
- * Judge's own Monstrous Manual (MM Overview p. 12, Damage): the damage type
- * each natural weapon is listed against, and the hit dice and size past which
- * a monster's natural attacks deal extraordinary rather than mundane damage.
- * They are imported into the `monsters` registry document's
- * `naturalWeaponDamage` and `extraordinaryRule` tables and read here; nothing
- * in source states one, and a figure that was not imported reads as null. A
- * Judge's override layer is read like any other. Foundry-free.
- *
- * Which weapon is which, and which monster types each extraordinary rule
- * covers, is procedure and lives in the importer (`importer/stats-map.mjs`),
- * which takes what is read here as arguments.
+ * The printed figures behind a monster's natural attacks, read from the Judge's
+ * own Monstrous Manual (MM Overview p. 12, Damage) out of the `monsters` registry
+ * document's `naturalWeaponDamage` and `extraordinaryRule` tables; nothing in
+ * source states one, and a figure not imported reads as null. Which weapon is
+ * which is procedure, in `importer/stats-map.mjs`. Foundry-free.
  */
 import { expectTables, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
@@ -21,9 +14,7 @@ export const NATURAL_DOC = "monsters";
 /** The monster size categories, smallest first. */
 export const SIZE_ORDER = Object.freeze(["small", "man", "large", "huge", "gigantic", "colossal"]);
 
-// Declared where it is read, so the import names the tables as outstanding
-// whichever feature loads first. The ids are the two tables below, written as
-// literals because the producers gate reads this call from source.
+// Literals, because the producers gate reads this call from source.
 expectTables(NATURAL_DOC, ["naturalWeaponDamage", "extraordinaryRule"]);
 
 /** One stored table of the document, or null where it is absent or unread. */
@@ -37,10 +28,8 @@ function tableOf(id) {
 const fold = (word) => String(word ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
- * The damage type each natural weapon is listed against, as a map of the
- * folded weapon word to a `DAMAGE_TYPES` key. Null where the table was not
- * imported or holds no usable row; a weapon the page does not list has no
- * entry. A word listed under two types keeps the first row's.
+ * The damage type each natural weapon is listed against, folded weapon word to
+ * `DAMAGE_TYPES` key; null where the table was not imported or holds no usable row.
  * @returns {Object<string, string>|null}
  */
 export function naturalWeaponDamageMap() {
@@ -62,10 +51,9 @@ function hitDiceOf(raw) {
 }
 
 /**
- * The extraordinary-damage rule's printed edges: `animalHd` and `otherHd`, the
- * hit dice a monster must exceed (`{count, bonus}`), and `animalSize`, the
- * size category an animal must reach (a `SIZE_ORDER` key). Each is null where
- * it was not imported or is no figure a comparison can use.
+ * The extraordinary-damage rule's printed edges: `animalHd` and `otherHd`
+ * (`{count, bonus}`) and `animalSize` (a `SIZE_ORDER` key), each null where it was
+ * not imported or is unusable.
  * @returns {{animalHd: {count: number, bonus: number}|null, animalSize: string|null, otherHd: {count: number, bonus: number}|null}}
  */
 export function extraordinaryEdges() {

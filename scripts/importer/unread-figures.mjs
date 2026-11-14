@@ -1,16 +1,13 @@
 /**
- * What an adventure NPC's actor holds for a figure its picture read left
- * unread. A row's `unread` paths (`picture-text.mjs`) name parse figures the
- * import writes nothing for (`bindNpc`), so the actor shows the value core
- * gave the field at creation. `unreadRecord` names each such actor figure with
- * that value, and the sheet draws the figure blank while the actor still holds
- * it (`monsters/unread-figures.mjs`). Foundry-free.
+ * What an adventure NPC's actor holds for a figure its picture read left unread:
+ * `unreadRecord` names each such actor figure with the value core gave it, and
+ * the sheet draws it blank while the actor still holds it (`monsters/unread-figures.mjs`).
+ * Foundry-free.
  */
 
 /**
- * The actor data paths each parse figure stands for: the fields `bindNpc`
- * writes from it. A path into the parse (`save.level`, `atk.throw`) stands for
- * the figure it sits under, and a figure's parent stands for all of them.
+ * The actor data paths each parse figure stands for: the fields `bindNpc` writes
+ * from it; a parent path stands for all beneath it.
  */
 export const UNREAD_FIGURES = Object.freeze({
   save: Object.freeze([
@@ -31,7 +28,6 @@ export const UNREAD_FIGURES = Object.freeze({
 
 /**
  * The actor paths the unread parse paths stand for, each once, in map order.
- * A path the map does not know stands for nothing.
  */
 export function unreadActorPaths(unread) {
   const paths = Array.isArray(unread) ? unread.filter((u) => typeof u === "string" && u) : [];
@@ -42,9 +38,8 @@ export function unreadActorPaths(unread) {
 }
 
 /**
- * A parsed stat line's unread parse paths, with the hit points added where the
- * hit dice are unread and no hit points are printed: `bindNpc` then binds
- * neither, so both are core's.
+ * A parsed stat line's unread paths, with hit points added where the hit dice
+ * are unread and none are printed.
  *
  * @param {object|undefined} statline the parse, carrying `unread` and `hp`
  * @returns {string[]}
@@ -56,12 +51,10 @@ export function unreadOfStatline(statline) {
 }
 
 /**
- * The `derived.unread` list for an imported actor: each actor figure an unread
- * parse path stands for, with the value the actor held there when created and
- * the page reference the sheet's tooltip shows. A figure an earlier import
- * already listed keeps the value listed then, so a repair over a Judge's edit
- * does not take the edit for core's value; any other is read off the document
- * (`read(path)`). `[]` where nothing is unread.
+ * The `derived.unread` list for an imported actor: each figure an unread path
+ * stands for, with the value the actor held when created and the page reference
+ * the tooltip shows. A figure an earlier import listed keeps its listed value, so
+ * a repair never takes a Judge's edit for core's; `[]` where nothing is unread.
  *
  * @param {string[]|undefined} unread the statline's `unread` paths
  * @param {(path: string) => any} read the actor's value at an actor path

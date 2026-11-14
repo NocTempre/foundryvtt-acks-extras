@@ -1,25 +1,8 @@
 /**
- * Reading text printed inside a picture: the pinned pixel path and the engine
- * that reads it.
- *
- * A page picture reaches the engine as the same bytes on every seat, because
- * every step between pdf.js's decoded samples and the engine's input is
- * integer arithmetic over data the module owns: the document is opened with
- * pdf.js's canvas and image-decoder paths off (the samples arrive raw from
- * `page.objs`, kind 2, 24-bit RGB), grey is Rec. 601 luma in 10-bit fixed
- * point, the scale is bilinear in integers, and the engine is handed a binary
- * PGM. No canvas sits between.
- *
- * The engine is the vendored Tesseract (`vendor/tesseract/`), one core build
- * (SIMD, LSTM only) and the English data, opened with OEM 1 and PSM 3 unless a
- * read names another. The browser reader is tesseract.js's `createWorker`;
- * the Node reader loads the same core file and data itself and makes the same
- * calls on it that the worker script makes, so a PGM read there and here is
- * the same read. Every path the library would default to a CDN for is set
- * here, and no read touches the network or the browser's caches.
- *
- * Runs in the Foundry client and in Node. Nothing from `node:` or from the
- * engine bundle is imported until a reader asks for it.
+ * Reads text printed inside a picture: the pinned pixel path from pdf.js's raw
+ * samples to a binary PGM, and the vendored Tesseract engine that reads it.
+ * The path is integer arithmetic throughout, so a read is the same bytes on
+ * every seat. Runs in the Foundry client and in Node.
  */
 import { getDocument, OPS } from "../../vendor/pdfjs/pdf.mjs";
 
@@ -38,11 +21,9 @@ const OBJECT_WAIT_MS = 10000;
 /* ------------------------------------------------------------------ pictures */
 
 /**
- * Open a PDF with the two pdf.js paths that would hand pictures back as
- * browser bitmaps switched off, so a picture's samples come back raw. Returns
- * the document; the caller destroys it with `doc.loadingTask.destroy()`.
- * The worker source is whatever `GlobalWorkerOptions.workerSrc` holds
- * (`extract.mjs` `setWorker`).
+ * Open a PDF with the pdf.js paths that return pictures as browser bitmaps
+ * switched off, so a picture's samples come back raw; the caller destroys it
+ * with `doc.loadingTask.destroy()`.
  *
  * @param {ArrayBuffer|Uint8Array} data
  * @param {{wasmUrl?: string}} [options] where the wasm image decoders live, as
@@ -59,11 +40,9 @@ export async function openPinned(data, { wasmUrl = null } = {}) {
 }
 
 /**
- * The decoded samples of one picture on a page, by pdf.js's object name for it
- * (the name `pagePictures` lists): `{ width, height, kind, data }`, or null
- * when the page paints no picture of that name or the object never arrived.
- * Throws when it arrived with no raw samples, which means the document was not
- * opened by `openPinned`.
+ * The decoded samples `{ width, height, kind, data }` of one named picture, or
+ * null when the page paints none of that name or it never arrives. Throws when
+ * it arrived with no raw samples (the document was not opened by `openPinned`).
  *
  * @param {object} page a pdf.js page
  * @param {string} name
@@ -78,8 +57,6 @@ export async function pictureSamples(page, name) {
 
 /**
  * Every picture a page paints, `{ name, width, height, kind }`, largest first.
- * A recipe picks the one it wants by size (`pictureBySize`); the largest on a
- * page is often frame art.
  *
  * @param {object} page a pdf.js page
  */
@@ -96,11 +73,8 @@ export async function pagePictures(page) {
 }
 
 /**
- * The decoded samples of the one picture a page paints at an exact sample
- * size, `{ width, height, kind, data }`. pdf.js's object names depend on which
- * pages the document evaluated before (it shares frame images once a second
- * page paints them), so a size is the order-independent way to name a picture.
- * Throws when no painted picture or more than one has that size.
+ * The samples of the one picture a page paints at an exact size, which names
+ * a picture independent of evaluation order. Throws when none or several have it.
  *
  * @param {object} page a pdf.js page
  * @param {{w: number, h: number}} size the picture's width and height in samples
@@ -151,9 +125,7 @@ export function toGrey({ width, height, kind, data }) {
 }
 
 /**
- * Bilinear upscale by integer factor `k`, pixel centres aligned, edges
- * clamped. Weights are exact rationals over 2k, so the result is integer
- * arithmetic throughout.
+ * Bilinear integer upscale by `k`, pixel centres aligned, edges clamped.
  */
 export function scaleUp(grey, width, height, k) {
   const W = width * k, H = height * k, d = 2 * k, dd = d * d, half = dd >> 1;
@@ -192,10 +164,8 @@ export function toPgm(grey, width, height) {
 }
 
 /**
- * A picture in grey and scaled once by `k`, ready for boxes:
- * `{ grey, width, height, k }`, the size being the scaled one. Every box of a
- * picture is cut from this one image, so a box's edge pixels come from the
- * picture's real neighbours and never from a picture scaled on its own.
+ * A picture in grey, scaled once by `k`: `{ grey, width, height, k }`. Every box is
+ * cut from this one image, so its edges come from the picture's own pixels.
  *
  * @param {{width: number, height: number, kind: number, data: Uint8Array}} samples a pdf.js image object
  * @param {number} [k] integer scale factor
@@ -206,12 +176,9 @@ export function scaledPicture(samples, k = 2) {
 }
 
 /**
- * One box cut from a scaled picture. The box is `[x, y, w, h]` in the picture's
- * source samples and is taken at `k` times its coordinates, clamped to the
- * image. Returns the crop as a PGM with its size and `origin`, the crop's
- * top-left corner in the scaled picture's pixels, which is what to add to a
- * read's word positions to place them in the scaled picture (divide by `k` for
- * source samples). Throws on a box with nothing inside the picture.
+ * One box `[x, y, w, h]` (in source samples) cut from a scaled picture, as
+ * `{ pgm, width, height, origin }`, `origin` being the crop's corner in scaled
+ * pixels. Throws on a box outside the picture.
  *
  * @param {{grey: Uint8Array, width: number, height: number, k: number}} scaled `scaledPicture`'s result
  * @param {number[]} box `[x, y, w, h]`
@@ -232,18 +199,15 @@ export function cropBox(scaled, box) {
 /* ------------------------------------------------------------------- reading */
 
 /**
- * What a read returns: `text`, the engine's mean `confidence`, and `lines`,
- * each `{ text, confidence, bbox, words }` with each word `{ text,
- * confidence, bbox }`. A `bbox` is the engine's `{ x0, y0, x1, y1 }` in the
- * pixels of the PGM that was read; `origin` is where that PGM's corner sits in
- * the scaled picture (`[0, 0]` for a whole picture).
+ * What a read returns: `text`, `confidence` and `lines` of `{ text, confidence,
+ * bbox, words }`. A `bbox` is in the read PGM's pixels; `origin` places that PGM
+ * in the scaled picture.
  *
  * @typedef {object} OcrRead
  */
 
 /**
- * The reader's shape of what the engine returned: the blocks the engine's JSON
- * holds, flattened to lines and words in reading order.
+ * The engine's blocks flattened to lines and words in reading order.
  */
 function shapeRead({ text, confidence, blocks }, origin) {
   const lines = [];
@@ -263,11 +227,9 @@ function shapeRead({ text, confidence, blocks }, origin) {
 }
 
 /**
- * One reader, to be torn down with `terminate()` when the run is done: the
- * engine starts once and reads any number of pictures. `read(pgm, {psm})`
- * takes a PGM and a page segmentation mode (3 by default; 6 is a block of
- * text, 7 a single line) and resolves to an `OcrRead`. `readBox(scaled, box,
- * {psm})` cuts the box from a `scaledPicture` and reads it, its `origin` set.
+ * One reader that starts the engine once and reads any number of pictures:
+ * `read(pgm, {psm})` and `readBox(scaled, box, {psm})` resolve to an `OcrRead`,
+ * and `terminate()` ends it. `psm` is the page segmentation mode (3 by default).
  *
  * @returns {Promise<{read: Function, readBox: Function, terminate: Function}>}
  */
@@ -293,10 +255,9 @@ function isNode() {
 }
 
 /**
- * The browser engine: tesseract.js's worker, started from the vendored files
- * with the three paths it would default to a CDN for set, no cache and no blob
- * worker. A failed job rejects its promise; the empty `errorHandler` only
- * stops the library throwing a second time from inside its message handler.
+ * The browser engine: tesseract.js's worker over the vendored files, with its
+ * CDN, cache and blob-worker defaults off. The empty `errorHandler` stops the
+ * library throwing a second time.
  */
 async function browserEngine(root) {
   const { default: Tesseract } = await import("../../vendor/tesseract/tesseract.esm.min.js");
@@ -321,16 +282,9 @@ async function browserEngine(root) {
 }
 
 /**
- * The Node engine: the vendored core file compiled here and driven through the
- * calls tesseract.js's worker script makes on it, in its order — the language
- * data written to `./eng.traineddata`, `TessBaseAPI.Init(null, "eng", 1)`,
- * `SetVariable` for the page segmentation mode (saved and restored around a
- * read that names another), the image written to `/input` and loaded with
- * `SetImageFile`, `Recognize`, then the text, the mean confidence and the JSON
- * blocks. The core is the file the browser reads, never an npm copy and never
- * a build picked by feature detection. The core's own console output (a
- * resolution estimate on every read) is dropped; a failure reaches the caller
- * as a thrown error.
+ * The Node engine: the vendored core file driven through the calls
+ * tesseract.js's worker makes on it, in its order. The core's console output is
+ * dropped and a failure reaches the caller as a thrown error.
  */
 async function nodeEngine(root) {
   const [{ readFile }, { gunzipSync }, { createRequire }, { fileURLToPath }, vm] = await Promise.all([
@@ -343,8 +297,7 @@ async function nodeEngine(root) {
   const corePath = fileURLToPath(new URL("tesseract-core-simd-lstm.wasm.js", root));
   const source = await readFile(corePath, "utf8");
   const mod = { exports: {} };
-  // The core is a CommonJS bundle; the repo's package type makes `.js` ESM,
-  // so it is compiled as a function of the CommonJS arguments.
+  // A CommonJS bundle under an ESM package type, so it compiles as a function.
   vm.compileFunction(source, ["exports", "require", "module", "__filename", "__dirname"], { filename: corePath })(
     mod.exports, createRequire(corePath), mod, corePath, fileURLToPath(root));
   const Module = await mod.exports({ TesseractProgress() {}, print() {}, printErr() {} });
@@ -376,10 +329,8 @@ async function nodeEngine(root) {
 }
 
 /**
- * The orientation tesseract.js reads out of an image's first 500 bytes with a
- * pattern over their decimal values (1 when it finds none). Kept because the
- * worker script applies it to every image, a PGM's pixel bytes included, and a
- * read here must be the read it makes.
+ * The orientation tesseract.js reads from an image's first 500 bytes (1 when
+ * it finds none); applied here because a read must match the worker's.
  */
 function exifOrientation(image) {
   return parseInt(image.slice(0, 500).join(" ").match(/1 18 0 3 0 0 0 1 0 (\d)/)?.[1], 10) || 1;

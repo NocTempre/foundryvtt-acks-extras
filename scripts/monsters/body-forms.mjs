@@ -1,15 +1,9 @@
 /**
- * The body forms a monster is classed under, as the Judge's own Monstrous
- * Manual prints them (Monster Body Form, MM Monster Creation p. 389): a form's
- * name and the sample monsters beside it. They are imported into the `monsters`
- * registry document's `bodyForms` table, one row per form keyed by the folded
- * name, and read here; nothing in source states one. A Judge's override layer
- * replaces the table whole and is read like any other. Foundry-free.
- *
- * With nothing imported the Body Form select has no options, and a monster's
- * stored key is untouched: the sheet renders that select disabled, and a
- * disabled field is left out of the form data, so a submit never carries a
- * value for it (see `monster-sheet.mjs` `_prepareSubmitData`).
+ * The body forms a monster is classed under, as the Judge's own Monstrous Manual
+ * prints them (MM Monster Creation p. 389), read from the `monsters` registry
+ * document's `bodyForms` table; nothing in source states one. With nothing
+ * imported the select has no options and renders disabled, so a submit leaves a
+ * stored key untouched (`monster-sheet.mjs` `_prepareSubmitData`). Foundry-free.
  */
 import { citeOf, expectTables, getDoc, getLayer, hasDoc, isMissingRow, PRIORITY } from "../lib/tables.mjs";
 
@@ -19,16 +13,12 @@ export const BODY_FORM_DOC = "monsters";
 /** The table of `BODY_FORM_DOC` holding the rows. */
 export const BODY_FORM_TABLE = "bodyForms";
 
-// Declared where it is read, so the import names the table as outstanding
-// whichever feature loads first. The id is BODY_FORM_TABLE, written as a
-// literal because the producers gate reads this call from source.
+// A literal, because the producers gate reads this call from source.
 expectTables(BODY_FORM_DOC, ["bodyForms"]);
 
 /**
- * The imported rows in the table's order, `{key, label, example}`: the form's
- * stored key, its printed name, and its sample monsters (empty where the page
- * lists none). A missing-row placeholder and a row with no name are skipped.
- * Empty where nothing is imported.
+ * The imported rows in the table's order, `{key, label, example}`; empty where
+ * nothing is imported. A missing-row placeholder and a row with no name are skipped.
  * @returns {{key: string, label: string, example: string}[]}
  */
 export function bodyFormRows() {
@@ -41,10 +31,9 @@ export function bodyFormRows() {
 }
 
 /**
- * Where the list comes from right now: `override` when a Judge's layer holds
- * the table, `imported` with the page it was read from, `missing` when no row
- * is available. `citeOf` answers null for an override and for an absent
- * table alike, so the layer is asked first.
+ * Where the list comes from now: `override`, `imported` with its page, or
+ * `missing`. The override layer is asked first, since `citeOf` answers null for
+ * both an override and an absent table.
  * @returns {{state: "override"|"imported"|"missing", cite: string|null}}
  */
 export function bodyFormOrigin() {
@@ -54,18 +43,10 @@ export function bodyFormOrigin() {
 }
 
 /**
- * What the Body Form control and the band show for a monster's stored key.
- * `loc` is the sheet's `ACKS-MONSTERS` formatter.
- *
- *  - `imported`: whether any row is available; the select is disabled when not.
- *  - `options`: key to option text (`name — sample monsters`), in table order.
- *    A stored key the table does not hold gets its own option, showing the raw
- *    key, so a submit from another field cannot erase it.
- *  - `label`: the stored form's printed name, or "" where nothing is imported
- *    or the table holds no such row.
- *  - `tip`: the field's provenance: its name with the page it was read from,
- *    with the Judge's own table, or the page reference alone where nothing is
- *    imported.
+ * What the Body Form control and band show for a stored key: `imported` (the
+ * select is disabled when false), `options` (key to option text; a stored key the
+ * table lacks keeps its own option, so a submit cannot erase it), `label` (the
+ * printed name or ""), `tip` (name with its page, or the page reference alone).
  * @param {string} stored the monster's stored `bodyForm` key
  * @param {(key: string, data?: object) => string} loc
  * @returns {{imported: boolean, options: Object<string, string>, label: string, tip: string}}

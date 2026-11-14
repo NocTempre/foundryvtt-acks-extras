@@ -1,16 +1,8 @@
 /**
  * A lair: a place that is the lair of one library monster. The place carries
- * `flags["acks-extras"].lair` (`{of, group, noted}`), and this file is the only
- * one that writes it. `of` is the monster's cookbook id, written at import and
- * resolved here whenever the monster is in the library; `group` is the
- * encounter group the lair rolled, which a lair rolls once; `noted` is the
- * reason the Judges were last told nothing could be rolled.
- *
- * A roll sizes a group from the monster's imported in-lair side
- * (`planLair`), makes it with `makeEncounter`, throws its lair side with
- * `rollEncounter`, and links it from the place by `lair.group` and a hidden
- * roster row. The roster row names the group, whose headcount is the bodies it
- * rolled; the monster itself is never a row. The decisions are lair-logic.mjs.
+ * `flags["acks-extras"].lair` (`{of, group, noted}`), which only this file writes:
+ * `of` is the monster's cookbook id, `group` the encounter group the lair rolled
+ * (once), `noted` the reason the Judges were last told nothing could be rolled.
  */
 import { MODULE_ID, LAIR_LANG_PREFIX } from "./constants.mjs";
 import { byCookbookId, whenReady } from "./library.mjs";
@@ -29,8 +21,7 @@ const DEFAULT_CONTEXT = "wilderness";
 
 /**
  * The library's own actor of the monster a place is the lair of, or null where
- * it is not imported. A world copy and a group's base actor carry the monster's
- * stamp and are skipped (`byCookbookId`'s `original`).
+ * it is not imported.
  * @param {object} place
  * @returns {Promise<Actor|null>}
  */
@@ -50,8 +41,7 @@ export function lairWhy(reason, { count = "", unit = "" } = {}) {
 const heldGroup = (lair) => (lair?.group ? docOf(lair.group) : null);
 
 /**
- * Tell the Judges once why a lair made nothing. The reason is written before
- * the card is posted, so a failed post cannot say it twice.
+ * Tell the Judges once why a lair made nothing; the reason is written before the post.
  */
 async function note(place, lair, refusal) {
   if (lair.noted === refusal.reason) return;
@@ -104,13 +94,9 @@ async function rollOnce(place, { context }) {
 const queues = new Map();
 
 /**
- * Roll a lair's encounter, once. Refused on a place in a compendium: only a
- * world place rolls, so a lair and its world copy never make two groups. Refused where the place already holds a group
- * that still exists, so a lair rolls again only after the Judge deleted it. A
- * monster whose in-lair side gives no number of bodies makes nothing, and the
- * Judges are told why the first time. Calls for one place run one at a time, so
- * two arrivals in a burst make one group. The caller is a GM's window: the
- * place and the group are world documents it writes.
+ * Roll a lair's encounter once. Refused on a compendium place and where the place
+ * already holds a group that still exists; calls for one place run one at a time.
+ * The caller is a GM's window, since the place and the group are world documents.
  *
  * @param {Actor} place the lair
  * @param {object} [options]
@@ -129,11 +115,9 @@ export function rollLair(place, { context = DEFAULT_CONTEXT } = {}) {
 }
 
 /**
- * What the location sheet shows of a lair: its monster (with the page the
- * importer read it from), its group (with the count it rolled and where that
- * count came from), whether the place is shelved (a lair rolls from its world
- * copy), and whether a Roll would do anything and why not. Null for a place that
- * is no lair.
+ * What the location sheet shows of a lair: its monster, its group with its count,
+ * whether the place is shelved, and whether a Roll would do anything and why not.
+ * Null for a place that is no lair.
  * @param {Actor} place
  * @param {{context?: "dungeon"|"wilderness"}} [options]
  */
