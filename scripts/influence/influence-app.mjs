@@ -1293,14 +1293,13 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /**
    * RAW consequence notes for the chat card (no attitude auto-shifts): the
-   * temporary/combat aftermath of intimidation and the bribery crime/failed-bribe
+   * intimidation result and the bribery crime/failed-bribe
    * rules. Purely informational.
    */
   #rawNotes(tone, newIndex, diceResult) {
     const notes = [];
     if (tone === INFLUENCE_TONE.INTIMIDATION) {
       const cite = TONE_PAGES[tone].cite;
-      notes.push(game.i18n.format("ACKS-INFLUENCE.note.intimTemporary", { cite }));
       if (newIndex === 3) notes.push(game.i18n.format("ACKS-INFLUENCE.note.intimidated", { cite }));
       else if (newIndex === 4) notes.push(game.i18n.format("ACKS-INFLUENCE.note.overawed", { cite }));
     }
