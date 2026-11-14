@@ -54,7 +54,7 @@ function postingField() {
         choices: ["henchman", "henchmanByClass", "henchmanByClassProficiency", "henchmanByProficiency", "mercenary", "specialist"],
       }),
       general: new fields.BooleanField({ initial: false }), // the player-facing "adventuring henchmen" post
-      level: num({ integer: true, min: 0, max: 14 }),
+      level: num({ integer: true, min: 0 }),
       classKey: str(),
       rarityOverride: str(),
       alignmentShift: int(0),
@@ -69,7 +69,7 @@ function postingField() {
     // renews as a commissioned search for the whole location.
     advertVeteran: new fields.BooleanField({ initial: false }),
     // The level the employer presents as (RR 168); null = honest.
-    presentedLevel: num({ integer: true, min: 0, max: 14 }),
+    presentedLevel: num({ integer: true, min: 0 }),
     totalAvailable: int(0),
     rollDetail: str(),
     arrivalPlan: new fields.ArrayField(

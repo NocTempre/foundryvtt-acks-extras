@@ -203,9 +203,11 @@ export function generateAge(rand, level, classKey) {
   const rows = optTable("people", "ageByClass")?.rows;
   if (!rows?.length) return 18 + Math.floor(rand() * 7);
   const column = ageColumnFor(classKey);
-  const L = Math.max(0, Math.min(14, level ?? 0));
-  let base = null;
-  for (let l = L; l >= 0 && base == null; l--) base = rows.find((r) => r.level === l)?.[column] ?? null;
+  const L = Math.max(0, Number(level) || 0);
+  // The highest imported row at or below the level: a level past the table's
+  // last row holds that row's age.
+  const held = rows.filter((r) => Number.isInteger(r.level) && r.level <= L && r[column] != null).sort((a, b) => b.level - a.level)[0];
+  const base = held?.[column] ?? null;
   const variance = Math.floor(rand() * 7); // +0..6 years past the minimum
   return (Number(base) || 18) + variance;
 }

@@ -1096,7 +1096,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const ns = (globalThis.acksExtras ??= {});
   const saved = { classes: ns.classes, lib: ns.lib };
   const cultures = { culture1: { race: "human" }, culture2: { race: "human", alsoRaces: ["people1"] }, people2: { race: "people2" }, fenfolk: { race: "human" } };
-  const ageRows = [{ level: 1, noble: 20, mage: 30 }];
+  const ageRows = [{ level: 1, noble: 20, mage: 30 }, { level: 3, noble: 25, mage: 35 }];
   try {
     ns.lib = {
       tables: {
@@ -1120,9 +1120,29 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(generateAge(zero, 1, "marsh warden"), 30, "class 20 follows the mage column, by its key");
     assert.strictEqual(generateAge(zero, 1, "fen reaver"), 30, "class 21 follows the mage column, by its key");
     assert.strictEqual(generateAge(zero, 1, "lamplighter"), 20, "an unlisted class follows the noble column");
+    assert.strictEqual(generateAge(zero, 2, "marsh warden"), 30, "a level between rows holds the row below it");
+    assert.strictEqual(generateAge(zero, 40, "marsh warden"), 35, "a level past the last imported row holds that row, with no ceiling of its own");
+    assert.strictEqual(generateAge(zero, 40, "lamplighter"), 25);
   } finally {
     ns.classes = saved.classes;
     ns.lib = saved.lib;
+  }
+}
+
+// ---- a level far up the ladder: only the imported cap bounds it ----
+// The ladder is invented. The posting form refuses a requested level by the
+// employer cap read from the world, and carries no ceiling of its own, so a
+// high employer level asks for a high candidate level.
+{
+  const { maxHenchmanLevel } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const saved = globalThis.acksExtras;
+  try {
+    const table = { rungs: [{ min: 2, max: null, cap: 1, perLevel: 1 }] };
+    globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "wages", getTable: (doc, id) => (id === "employerLevelCap" ? table : null) } } };
+    assert.strictEqual(maxHenchmanLevel(40), 39, "a level far up the ladder is capped by the imported rise alone");
+    assert.strictEqual(maxHenchmanLevel(40, true), 39, "and a ruler's bound is their own level less one");
+  } finally {
+    globalThis.acksExtras = saved;
   }
 }
 
