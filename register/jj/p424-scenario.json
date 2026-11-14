@@ -89,7 +89,7 @@
     "book": "jj",
     "name": "Scenario 8",
     "pages": [424],
-    "meta": { "group": "Scenario 8" },
+    "meta": { "group": "Scenario 8", "roster": ["jj.scenario8-npc1", "jj.scenario8-npc2"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 46 }, "hash": "eheene" },
       "description": {
@@ -132,7 +132,7 @@
     "book": "jj",
     "name": "Scenario 8 2",
     "pages": [424],
-    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8", "roster": ["mm.khepri"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 797, "y1": 826 }, "number": "2" },
       "description": {
@@ -244,7 +244,7 @@
     "book": "jj",
     "name": "Scenario 8 8",
     "pages": [424],
-    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8", "roster": ["jj.scenario8-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 807, "y1": 836 }, "number": "8" },
       "description": {
@@ -293,6 +293,30 @@
           { "box": { "x0": 892, "x1": 1354, "y0": 327, "y1": 423 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario8-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 8 NPC 1",
+    "pages": [424],
+    "meta": { "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 908, "x1": 1343, "y0": 451, "y1": 463 }, "hash": "138kr9c", "fixes": { "keepPrefix": { "0": 26 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 908, "x1": 1343, "y0": 451, "y1": 586 }, "fixes": { "stripPrefix": { "0": 28 } } }
+    }
+  },
+  {
+    "id": "jj.scenario8-npc2",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 8 NPC 2",
+    "pages": [424],
+    "meta": { "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 909, "x1": 1343, "y0": 596, "y1": 608 }, "hash": "jel10p", "fixes": { "keepPrefix": { "0": 17 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 909, "x1": 1343, "y0": 596, "y1": 654 }, "fixes": { "stripPrefix": { "0": 19 } } }
     }
   }
 ]

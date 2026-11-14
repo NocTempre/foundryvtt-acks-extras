@@ -99,7 +99,7 @@
     "book": "jj",
     "name": "Scenario 9",
     "pages": [425],
-    "meta": { "group": "Scenario 9" },
+    "meta": { "group": "Scenario 9", "roster": ["jj.scenario9-npc1", "jj.scenario9-npc2", "mm.sharkGreatWhite"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 44 }, "hash": "5env81" },
       "description": {
@@ -129,7 +129,7 @@
     "book": "jj",
     "name": "Scenario 9 1",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["mm.lizardman", "mm.thrassianGreaterLizardman"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 891, "y1": 921 }, "number": "1" },
       "description": {
@@ -147,7 +147,7 @@
     "book": "jj",
     "name": "Scenario 9 2",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["mm.lizardman", "mm.thrassianGreaterLizardman"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 0, "y1": 44 }, "number": "2" },
       "description": {
@@ -165,7 +165,7 @@
     "book": "jj",
     "name": "Scenario 9 3",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["mm.lizardman", "mm.thrassianGreaterLizardman", "jj.scenario9-npc2"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 133, "y1": 162 }, "number": "3" },
       "description": {
@@ -184,7 +184,7 @@
     "book": "jj",
     "name": "Scenario 9 4",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["mm.kraken"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 312, "y1": 341 }, "number": "4" },
       "description": {
@@ -203,7 +203,7 @@
     "book": "jj",
     "name": "Scenario 9 5",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["mm.lizardman", "mm.thrassianGreaterLizardman"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 590, "y1": 619 }, "number": "5" },
       "description": {
@@ -221,7 +221,7 @@
     "book": "jj",
     "name": "Scenario 9 6",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "roster": ["jj.scenario9-npc1", "jj.scenario9-npc2"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 708, "y1": 737 }, "number": "6" },
       "description": {
@@ -243,7 +243,7 @@
     "book": "jj",
     "name": "Scenario 9 6b",
     "pages": [425],
-    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "parent": "jj.scenario9-6" },
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "parent": "jj.scenario9-6", "roster": ["jj.scenario9-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 890, "x1": 1335, "y0": 124, "y1": 155 }, "number": "6b" },
       "description": {
@@ -253,6 +253,30 @@
           { "box": { "x0": 890, "x1": 1335, "y0": 198, "y1": 280 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario9-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 9 NPC 1",
+    "pages": [425],
+    "meta": { "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 896, "x1": 1331, "y0": 309, "y1": 322 }, "hash": "qwdgpk", "fixes": { "keepPrefix": { "0": 6 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 896, "x1": 1331, "y0": 309, "y1": 534 }, "fixes": { "stripPrefix": { "0": 8 } } }
+    }
+  },
+  {
+    "id": "jj.scenario9-npc2",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 9 NPC 2",
+    "pages": [425],
+    "meta": { "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 895, "x1": 1331, "y0": 543, "y1": 556 }, "hash": "1ml3ubp", "fixes": { "keepPrefix": { "0": 7 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 895, "x1": 1331, "y0": 543, "y1": 647 }, "fixes": { "stripPrefix": { "0": 9 } } }
     }
   }
 ]

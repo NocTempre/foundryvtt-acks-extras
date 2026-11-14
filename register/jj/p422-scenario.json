@@ -89,7 +89,7 @@
     "book": "jj",
     "name": "Scenario 6",
     "pages": [422],
-    "meta": { "group": "Scenario 6" },
+    "meta": { "group": "Scenario 6", "roster": ["mm.haunt", "mm.specter", "mm.galdrtr"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 46 }, "hash": "1rs11bi" },
       "description": {
@@ -128,7 +128,7 @@
     "book": "jj",
     "name": "Scenario 6 1",
     "pages": [422],
-    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6", "roster": ["mm.haunt", "mm.specter", "mm.spiderGiantBlackWidow", "mm.flyGiantCarnivorous", "mm.beeGiantKiller", "mm.tokayGull"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 539, "y1": 566 }, "number": "1" },
       "description": {
@@ -147,7 +147,7 @@
     "book": "jj",
     "name": "Scenario 6 2",
     "pages": [422],
-    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6", "roster": ["jj.scenario6-npc1", "mm.specter", "mm.haunt"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 711, "y1": 737 }, "number": "2" },
       "description": {
@@ -209,7 +209,7 @@
     "book": "jj",
     "name": "Scenario 6 3",
     "pages": [422],
-    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6", "roster": ["jj.scenario6-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 568, "y1": 597 }, "number": "3" },
       "description": {
@@ -222,6 +222,18 @@
           { "box": { "x0": 456, "x1": 888, "y0": 957, "y1": 1026 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario6-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 6 NPC 1",
+    "pages": [422],
+    "meta": { "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 888, "x1": 1312, "y0": 569, "y1": 582 }, "hash": "5y2ogh", "fixes": { "keepPrefix": { "0": 25 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 888, "x1": 1312, "y0": 569, "y1": 612 }, "fixes": { "stripPrefix": { "0": 27 } } }
     }
   }
 ]

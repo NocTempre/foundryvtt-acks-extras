@@ -130,8 +130,9 @@ await t("a roster link names a row that is a creature or a person, once, from a 
 
 const JJ = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", "jj.json"), "utf8"));
 const jjSpaces = keySpacesOf(JJ.entries);
-const scenarioIds = Object.keys(JJ.entries).filter((id) => /^jj\.scenario\d/.test(id));
+const scenarioIds = Object.keys(JJ.entries).filter((id) => /^jj\.scenario\d/.test(id) && JJ.entries[id].kind === "kind.location");
 const spaceIds = scenarioIds.filter((id) => /^jj\.scenario\d+$/.test(id));
+const npcIds = Object.keys(JJ.entries).filter((id) => /^jj\.scenario\d/.test(id) && JJ.entries[id].kind === "kind.npc");
 
 await t("the book is the Judge's, so its own rows file on the Judge's line and it has an Adventure", () => {
   assert.equal(REGISTRY.jj.judge, true);
@@ -143,10 +144,41 @@ await t("the shipped scenarios pass the rules: nine key spaces, each with its pl
   for (const [id, e] of Object.entries(JJ.entries)) rows.set(id, { id, ...e });
   for (const [id, e] of Object.entries(JJ.scenes ?? {})) rows.set(id, { id, ...e });
   assert.deepEqual(scenarioProblems(rows), []);
-  assert.deepEqual(rosterProblems(rows), []);
   assert.deepEqual(spaceIds, [1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => `jj.scenario${i}`));
   assert.deepEqual([...jjSpaces].sort(), spaceIds);
   assert.equal(scenarioIds.length - spaceIds.length, 68);
+});
+
+await t("every shipped roster link resolves to a creature or a person, and every scenario's people are linked from a place", () => {
+  const MM = JSON.parse(fs.readFileSync(path.join(ROOT, "cookbook", "mm.json"), "utf8"));
+  const rows = new Map();
+  for (const book of [MM, JJ]) for (const [id, e] of Object.entries(book.entries)) rows.set(id, { id, ...e });
+  for (const [id, e] of Object.entries(JJ.scenes ?? {})) rows.set(id, { id, ...e });
+  assert.deepEqual(rosterProblems(rows), []);
+  const linked = scenarioIds.flatMap((id) => JJ.entries[id].meta?.roster ?? []);
+  assert.ok(linked.length > 0, "the scenarios carry roster links");
+  for (const id of linked) assert.ok(rows.has(id), `${id} resolves`);
+  for (const id of npcIds) assert.ok(linked.includes(id), `${id} is on some place's roster`);
+});
+
+await t("each scenario stat block is an NPC row in its scenario's group, read through its page's picture by hash and stat line", () => {
+  assert.ok(npcIds.length > 0);
+  for (const id of npcIds) {
+    const { fields, pages, meta } = JJ.entries[id];
+    const n = /^jj\.scenario(\d+)-npc\d+$/.exec(id);
+    assert.ok(n, id);
+    assert.equal(meta.group, `Scenario ${n[1]}`, id);
+    assert.deepEqual(Object.keys(fields).sort(), ["name", "statline"], id);
+    for (const f of Object.values(fields)) {
+      assert.equal(f.op, "ocr", id);
+      assert.equal(f.page, pages[0], id);
+    }
+    assert.equal(fields.name.then.op, "heading", id);
+    assert.equal(typeof fields.name.then.hash, "string", id);
+    assert.equal(fields.name.then.text, undefined, id);
+    assert.equal(fields.statline.then.op, "value", id);
+    assert.equal(fields.statline.then.pattern, "statline", id);
+  }
 });
 
 await t("every scenario row binds as a keyed place and none as a journal page", () => {

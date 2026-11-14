@@ -198,7 +198,7 @@
     "book": "jj",
     "name": "Scenario 7 6",
     "pages": [423],
-    "meta": { "space": "jj.scenario7", "group": "Scenario 7" },
+    "meta": { "space": "jj.scenario7", "group": "Scenario 7", "roster": ["mm.specter", "mm.haunt"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 890, "y0": 759, "y1": 787 }, "number": "6" },
       "description": {
@@ -216,7 +216,7 @@
     "book": "jj",
     "name": "Scenario 7 7",
     "pages": [423],
-    "meta": { "space": "jj.scenario7", "group": "Scenario 7" },
+    "meta": { "space": "jj.scenario7", "group": "Scenario 7", "roster": ["mm.golemBone"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 456, "x1": 890, "y0": 927, "y1": 957 }, "number": "7" },
       "description": {
@@ -234,7 +234,7 @@
     "book": "jj",
     "name": "Scenario 7 8",
     "pages": [423],
-    "meta": { "space": "jj.scenario7", "group": "Scenario 7" },
+    "meta": { "space": "jj.scenario7", "group": "Scenario 7", "roster": ["jj.scenario7-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 890, "x1": 1351, "y0": 76, "y1": 103 }, "number": "8" },
       "description": {
@@ -246,6 +246,18 @@
           { "box": { "x0": 890, "x1": 1351, "y0": 268, "y1": 327 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario7-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 7 NPC 1",
+    "pages": [423],
+    "meta": { "group": "Scenario 7" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 906, "x1": 1335, "y0": 356, "y1": 368 }, "hash": "1xodsx7", "fixes": { "keepPrefix": { "0": 20 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 906, "x1": 1335, "y0": 356, "y1": 629 }, "fixes": { "stripPrefix": { "0": 22 } } }
     }
   }
 ]

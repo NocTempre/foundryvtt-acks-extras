@@ -123,7 +123,7 @@
     "book": "jj",
     "name": "Scenario 4",
     "pages": [420],
-    "meta": { "group": "Scenario 4" },
+    "meta": { "group": "Scenario 4", "roster": ["jj.scenario4-npc4"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 462, "y0": 0, "y1": 45 }, "hash": "1ubjgxc" },
       "description": {
@@ -160,7 +160,7 @@
     "book": "jj",
     "name": "Scenario 4 1",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 462, "y0": 659, "y1": 689 }, "number": "1" },
       "description": {
@@ -179,7 +179,7 @@
     "book": "jj",
     "name": "Scenario 4 2",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc1", "jj.scenario4-npc4"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 462, "y0": 807, "y1": 835 }, "number": "2" },
       "description": {
@@ -218,7 +218,7 @@
     "book": "jj",
     "name": "Scenario 4 4",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc2", "jj.scenario4-npc4"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 462, "x1": 895, "y0": 122, "y1": 149 }, "number": "4" },
       "description": {
@@ -237,7 +237,7 @@
     "book": "jj",
     "name": "Scenario 4 5",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc1"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 462, "x1": 895, "y0": 335, "y1": 362 }, "number": "5" },
       "description": {
@@ -256,7 +256,7 @@
     "book": "jj",
     "name": "Scenario 4 6",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc2"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 462, "x1": 895, "y0": 509, "y1": 538 }, "number": "6" },
       "description": {
@@ -311,7 +311,7 @@
     "book": "jj",
     "name": "Scenario 4 9",
     "pages": [420],
-    "meta": { "space": "jj.scenario4", "group": "Scenario 4" },
+    "meta": { "space": "jj.scenario4", "group": "Scenario 4", "roster": ["jj.scenario4-npc3", "jj.scenario4-npc4"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 462, "x1": 895, "y0": 930, "y1": 957 }, "number": "9" },
       "description": {
@@ -325,6 +325,54 @@
           { "box": { "x0": 895, "x1": 1356, "y0": 228, "y1": 269 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario4-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 4 NPC 1",
+    "pages": [420],
+    "meta": { "group": "Scenario 4" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 911, "x1": 1346, "y0": 457, "y1": 470 }, "hash": "19f5hne", "fixes": { "keepPrefix": { "0": 14 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 911, "x1": 1346, "y0": 457, "y1": 484 }, "fixes": { "stripPrefix": { "0": 16 } } }
+    }
+  },
+  {
+    "id": "jj.scenario4-npc2",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 4 NPC 2",
+    "pages": [420],
+    "meta": { "group": "Scenario 4" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 911, "x1": 1346, "y0": 493, "y1": 506 }, "hash": "15652qy", "fixes": { "keepPrefix": { "0": 14 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 911, "x1": 1346, "y0": 493, "y1": 522 }, "fixes": { "stripPrefix": { "0": 16 } } }
+    }
+  },
+  {
+    "id": "jj.scenario4-npc3",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 4 NPC 3",
+    "pages": [420],
+    "meta": { "group": "Scenario 4" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 911, "x1": 1346, "y0": 531, "y1": 544 }, "hash": "1yqjtlc", "fixes": { "keepPrefix": { "0": 15 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 911, "x1": 1346, "y0": 531, "y1": 575 }, "fixes": { "stripPrefix": { "0": 17 } } }
+    }
+  },
+  {
+    "id": "jj.scenario4-npc4",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 4 NPC 4",
+    "pages": [420],
+    "meta": { "group": "Scenario 4" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 911, "x1": 1346, "y0": 584, "y1": 597 }, "hash": "m911vk", "fixes": { "keepPrefix": { "0": 6 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 911, "x1": 1346, "y0": 584, "y1": 751 }, "fixes": { "stripPrefix": { "0": 8 } } }
     }
   }
 ]

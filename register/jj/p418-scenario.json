@@ -103,7 +103,7 @@
     "book": "jj",
     "name": "Scenario 2",
     "pages": [418],
-    "meta": { "group": "Scenario 2" },
+    "meta": { "group": "Scenario 2", "roster": ["jj.scenario2-npc1", "mm.bloodHound", "jj.scenario2-npc2", "jj.scenario2-npc3"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 45 }, "hash": "r4e0in" },
       "description": {
@@ -159,7 +159,7 @@
     "book": "jj",
     "name": "Scenario 2 1",
     "pages": [418],
-    "meta": { "space": "jj.scenario2", "group": "Scenario 2" },
+    "meta": { "space": "jj.scenario2", "group": "Scenario 2", "roster": ["jj.scenario2-npc1", "mm.bloodHound"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 881, "y1": 912 }, "number": "1" },
       "description": {
@@ -177,7 +177,7 @@
     "book": "jj",
     "name": "Scenario 2 2",
     "pages": [418],
-    "meta": { "space": "jj.scenario2", "group": "Scenario 2" },
+    "meta": { "space": "jj.scenario2", "group": "Scenario 2", "roster": ["jj.scenario2-npc2"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 454, "x1": 868, "y0": 114, "y1": 140 }, "number": "2" },
       "description": {
@@ -196,7 +196,7 @@
     "book": "jj",
     "name": "Scenario 2 3",
     "pages": [418],
-    "meta": { "space": "jj.scenario2", "group": "Scenario 2" },
+    "meta": { "space": "jj.scenario2", "group": "Scenario 2", "roster": ["jj.scenario2-npc3", "mm.manes"] },
     "ocr": {
       "name": { "op": "heading", "box": { "x0": 454, "x1": 868, "y0": 338, "y1": 365 }, "number": "3" },
       "description": {
@@ -211,6 +211,42 @@
           { "box": { "x0": 870, "x1": 1326, "y0": 62, "y1": 120 } }
         ]
       }
+    }
+  },
+  {
+    "id": "jj.scenario2-npc1",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 2 NPC 1",
+    "pages": [418],
+    "meta": { "group": "Scenario 2" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 889, "x1": 1320, "y0": 742, "y1": 755 }, "hash": "5j0fn9", "fixes": { "keepPrefix": { "0": 18 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 889, "x1": 1320, "y0": 742, "y1": 769 }, "fixes": { "stripPrefix": { "0": 20 } } }
+    }
+  },
+  {
+    "id": "jj.scenario2-npc2",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 2 NPC 2",
+    "pages": [418],
+    "meta": { "group": "Scenario 2" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 888, "x1": 1320, "y0": 778, "y1": 791 }, "hash": "ahl9vc", "fixes": { "keepPrefix": { "0": 22 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 888, "x1": 1320, "y0": 778, "y1": 851 }, "fixes": { "stripPrefix": { "0": 24 } } }
+    }
+  },
+  {
+    "id": "jj.scenario2-npc3",
+    "kind": "kind.npc",
+    "book": "jj",
+    "name": "Scenario 2 NPC 3",
+    "pages": [418],
+    "meta": { "group": "Scenario 2" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 889, "x1": 1320, "y0": 860, "y1": 872 }, "hash": "15dkygt", "fixes": { "keepPrefix": { "0": 7 } } },
+      "statline": { "op": "value", "pattern": "statline", "box": { "x0": 889, "x1": 1320, "y0": 860, "y1": 1008 }, "fixes": { "stripPrefix": { "0": 9 } } }
     }
   }
 ]
