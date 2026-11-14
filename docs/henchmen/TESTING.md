@@ -77,10 +77,12 @@ a step it does not name is walked by hand.
   `acksExtras.lib.tables.getDoc("throws")` lists them. As shipped they include
   `reactionToHiring`, `irrefusableOffer`, `hirelingLoyalty`,
   `hirelingObedience`, `liberationLoyalty`.
-- **Followers are gated twice.** Without the followers tables imported the
-  dialog does nothing and shows no message; with the tables present it refuses
-  below 9th level with a notification. A silent no-op with the tables present
-  means the level gate broke.
+- **Followers are gated twice.** Without the arrival level and the four
+  followers tables imported the dialog does nothing and shows no message; with
+  them present it refuses below the imported arrival level with a notification.
+  No recipe reads the four tables yet, so only a hand-registered layer lifts the
+  first gate (step 31); a silent no-op with every table present means the level
+  gate broke.
 - Level ladders inside the followers and availability paths are read with
   `lib/tables.mjs`'s `bracketRow`, which returns null off the end of a table
   rather than clamping.
@@ -432,10 +434,7 @@ a step it does not name is walked by hand.
    difference of 2, and the mercenary's carries 0. The obedience page itself,
    and a group's **Roll Morale**, are walked from `docs/influence/TESTING.md`
    (The morale pages).
-7. Followers: `openFollowersDialog(employer)` below 9th level and, with the
-   tables imported, at 9th.
-   *Observable:* the level gate names the character and their level; with the
-   tables absent the refusal names the tables instead.
+7. Followers: walked in step 31.
 8. Dangling-reference repair: seed a dangling id on the employer (above), call
    `employer.getTotalWages()`, render the employer's sheet, then run the scoped
    `repairWorld`.
@@ -1150,6 +1149,34 @@ walked in docs/lib/TESTING.md, "The repair tool".
 
 30. A market whose class is not known posts, rolls and charges nothing: walked
     in docs/location/TESTING.md, step 27. Not walked live when written.
+31. The followers dialog's arrival level, imported and absent. The dialog stays
+    disabled in every world until a followers producer exists (the four tables
+    beside the arrival level are unread; henchmen ROADMAP, "Four followers
+    tables have no producer"), so the gate is walked with a priority-30 layer
+    standing in for them: register a `followers` document carrying invented
+    `followersByClass`, `troopTypeTables`, `companionLevel` and `followerLoyalty`
+    tables, a kept character as the employer, and clear the layer at the end.
+    *Imported.* Import the Rules tables from the connected book (`Compendium
+    Packs → ACKS II — Extras → Macros → ACKS Extras Macros → Import from your
+    books`, **Rules tables**) and open the Ruledata Browser (`Settings tab →
+    Game Settings → ACKS II — Extras → Imported Rules Tables → Open Ruledata
+    Browser`): `followers` lists `arrivalLevel` with its page (RR 334); compare
+    with the page and report the match, never the figure. With the stand-in
+    tables registered, `acksExtras.henchmen.openFollowersDialog(employer)` on a
+    character one level below the arrival level posts a warning naming the
+    character, their level, the arrival level and the page, and opens nothing; at
+    the arrival level the dialog opens. *Blank.* With `arrivalLevel` unread (no
+    import, or an empty priority-30 `followers.arrivalLevel` layer) the same call
+    returns at once: no dialog, no notification, no chat card, nothing in the
+    console. *Override.* Write `arrivalLevel` as a Judge's table in the Ruledata
+    Browser: the gate follows it, and the warning's page part is absent.
+    *Levels.* With a stand-in grant that prints no level, the card's troop line
+    reads without a level and the companion line without a levels list (no
+    first or zeroth level stands in); a grant that prints one shows it. The reader
+    and the dialog's gate are checked offline (`tools/test-henchmen.mjs`; the
+    recipe's shape against the book, `tools/importer/test-recipe-content.mjs`).
+    Teardown: the layers lifted, the chat cards the run posted swept by their
+    ids. Not walked live when written.
 
 ## Teardown
 

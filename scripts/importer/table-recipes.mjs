@@ -4599,6 +4599,28 @@ export const TABLE_RECIPES = {
     },
   },
 
+  // The followers rules (RR 334). The only table read so far is the class level
+  // at which followers begin to arrive; the follower grants by class, the troop
+  // type tables, the companion level roll and the follower loyalty table have
+  // no recipe yet (docs/henchmen/ROADMAP.md).
+  followers: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 334" },
+    tables: {
+      // The class level followers begin to arrive at, in the opening sentence of
+      // the followers rules: the figure follows the clause that names the event.
+      // An ordinal's superscript suffix reaches the text layer as a word of its
+      // own, after the digit, so `int` reads the digit and passes it over.
+      arrivalLevel: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 334,
+        locate: "begin to attract followers",
+        locateBare: true,
+        values: [{ key: "level", findRe: "upon\\s*reaching", take: "int", span: 10 }],
+      },
+    },
+  },
+
   // The domain month's tables: the rates, ladders and modifiers the domains
   // feature's procedure runs on. Keys are the feature's own vocabulary
   // (classification, revenue and expense lines) or ordinals in printed order;

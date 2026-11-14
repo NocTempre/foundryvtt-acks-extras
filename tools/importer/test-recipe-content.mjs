@@ -57,6 +57,8 @@ const TABLES = {
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
+  // The class level followers begin to arrive at: one whole number.
+  followers: ["arrivalLevel"],
   // The hiring offer: a result column and the two penalties beside it.
   // The loyalty roll's figure per level of apparent difference.
   // The three tone pages' modifier lists (diplomacy, intimidation, seduction).
@@ -462,6 +464,11 @@ VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
 VERIFY["capacity.riderBody"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.stone) && !(Number.isInteger(out.stone) && out.stone > 0)) fail("stone: not a positive whole number");
+};
+// The followers' arrival level: a whole number above zero. Shape only; no figure is named.
+VERIFY["followers.arrivalLevel"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.level) && !(Number.isInteger(out.level) && out.level > 0)) fail("level: not a positive whole number");
 };
 // The officer-role morale modifier: a positive whole number, the sign the reader keeps.
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {

@@ -776,3 +776,27 @@ nothing for that market:
   search keeps its results unrolled; both resume when a class is set, the fee
   for every week not yet paid.
 - `effectiveMarketClass` answers `null`.
+
+## The followers roll
+
+`apps/followers-dialog.mjs` `openFollowersDialog` rolls a class's follower
+grants once the character reaches the level the followers rules name (RR
+334-337) and posts them as a GM-visible card. What it reads:
+
+- **The arrival level** is the `followers` document's `arrivalLevel` table (key
+  `level`), read from RR 334 by a `proseValues` recipe whose anchor is the
+  clause that precedes the figure. `rules/followers.mjs` `arrivalLevel` answers
+  it as a whole number above zero, else null; `arrivalLevelCite` answers the
+  page, null for a Judge's override. The level notification interpolates the
+  figure and the page from the import.
+- **Four tables no recipe reads yet**: followers by class, the troop type
+  tables, the companion level roll and the follower loyalty table
+  (`followerTablesImported`). Their grants carry the levels the card shows.
+
+Without the arrival level, or without any of the four tables, the dialog
+returns at once: no dialog, no notification, no card. Today no import supplies
+the four tables, so the dialog stays disabled in every world (ROADMAP, "Four
+followers tables have no producer"). A grant whose table printed no level is
+shown without one: `knownLevel` answers null for anything but a whole number of
+zero or more, the troop line then reads without a level, and a companion line
+lists only the levels that were printed.

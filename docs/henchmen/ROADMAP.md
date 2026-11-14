@@ -57,10 +57,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   or limit, from a flag or an Active Effect, would close the gap.
 - **Two reads have nothing to feed them.** `tools/validate-producers.mjs`
   waives each against this entry until a recipe writes it or the read goes:
-  - **Followers ruledata has no producer.** The followers dialog reads a
-    `followers` document (troop types, followers by class, companion levels,
-    follower loyalty) and stays disabled until it is imported, and no recipe
-    reads it off a page, so no import ever enables it.
+  - **Four followers tables have no producer.** The followers dialog reads
+    followers by class, troop type tables, companion levels and follower
+    loyalty from the `followers` document, and no recipe reads them off a page.
+    The dialog does nothing until all four are imported, so no import enables
+    it; the arrival level is read ([MODEL.md](MODEL.md), "The followers roll").
   - `wages.mercenaryOfficers`: a mercenary officer's own morale modifier and
     command level (`engine/hire-group.mjs`, `rules/wages.mjs`
     `officerMoraleModifier`) read rows no `wages` recipe writes, so the

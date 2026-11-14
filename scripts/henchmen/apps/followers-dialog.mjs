@@ -1,17 +1,21 @@
 /* global game, ui, foundry, Roll, ChatMessage */
 /**
- * Follower generation (RR 334-337) — roll & record. At 9th level with a
- * class-appropriate stronghold, roll the class's follower grants: troops
- * (with a per-platoon d100 type roll), companions (1d6 level each), and
- * apprentices. Results post as a GM-visible chat card; hiring the
- * companions/apprentices as no-slot henchmen is a follow-up the Judge does
- * with the normal tools (the card records everything needed).
+ * Follower generation (RR 334-337) — roll & record. Once the character reaches
+ * the class level the followers rules name (the imported `followers`
+ * `arrivalLevel`) and holds a class-appropriate stronghold, roll the class's
+ * follower grants: troops (with a type roll per platoon), companions (a level
+ * roll each), and apprentices. Results post as a GM-visible chat card; hiring
+ * the companions/apprentices as no-slot henchmen is a follow-up the Judge does
+ * with the normal tools (the card records everything needed). The roll does
+ * nothing until the arrival level and the tables it reads are imported, and a
+ * level a table did not print is left off the card.
  *
  * The stronghold prerequisite resolves through the "has X" chain
  * (scripts/facts.mjs): structures-module API → flag → inventory marker item
  * ("Stronghold: Castle", cost = value) → GM confirm.
  */
-import { bracketRow, getTable, hasDoc } from "../rules/tables.mjs";
+import { bracketRow, getTable } from "../rules/tables.mjs";
+import { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel } from "../rules/followers.mjs";
 import { getStronghold } from "../facts.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { gmIds } from "../acks-adapter.mjs";
@@ -32,13 +36,22 @@ async function rollTroopType(tableId) {
   return { die, type: row?.type ?? "?" };
 }
 
-/** Rolls the follower grants for `actor` and posts the results as a GM-visible chat card; does nothing where the followers tables are not imported. */
+/** Rolls the follower grants for `actor` and posts the results as a GM-visible chat card; does nothing where the arrival level or the tables the roll reads are not imported. */
 export async function openFollowersDialog(actor) {
-  if (!hasDoc("followers")) return;
+  const arrival = arrivalLevel();
+  if (arrival == null || !followerTablesImported()) return;
 
   const level = adapter.getLevel(actor);
-  if (level < 9) {
-    ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.followers.levelGate", { name: actor.name, level }));
+  if (level < arrival) {
+    const cite = arrivalLevelCite();
+    ui.notifications.warn(
+      game.i18n.format("ACKS-HENCHMEN.followers.levelGate", {
+        name: actor.name,
+        level,
+        arrival,
+        cite: cite ? ` (${cite})` : "",
+      })
+    );
     return;
   }
 
@@ -88,32 +101,32 @@ export async function openFollowersDialog(actor) {
         const t = row.troopTable ? await rollTroopType(row.troopTable) : null;
         types.push(t ? `${t.type} (d100: ${t.die})` : game.i18n.localize("ACKS-HENCHMEN.followers.troopsGeneric"));
       }
+      const troopLevel = knownLevel(grant.level);
       results.push({
         kind: grant.kind,
-        text: game.i18n.format("ACKS-HENCHMEN.followers.troopsResult", {
-          count,
-          level: grant.level ?? 0,
-          types: types.join("; "),
-        }),
+        text: game.i18n.format(
+          troopLevel == null ? "ACKS-HENCHMEN.followers.troopsUnleveled" : "ACKS-HENCHMEN.followers.troopsResult",
+          { count, level: troopLevel, types: types.join("; ") }
+        ),
       });
     } else if (grant.kind === "companions") {
+      // A level the tables did not print is left off, never stood in for.
       const levels = [];
       for (let i = 0; i < count; i++) {
-        if (grant.levelDie) {
+        let printed = null;
+        if (!grant.levelDie) printed = knownLevel(grant.level);
+        else if (companionLevels.formula) {
           const die = await roll(companionLevels.formula);
-          const lr = bracketRow(companionLevels.rows, die);
-          levels.push(lr?.level ?? 1);
-        } else {
-          levels.push(grant.level ?? 1);
+          printed = knownLevel(bracketRow(companionLevels.rows ?? [], die)?.level);
         }
+        if (printed != null) levels.push(printed);
       }
       results.push({
         kind: grant.kind,
-        text: game.i18n.format("ACKS-HENCHMEN.followers.companionsResult", {
-          count,
-          class: grant.class ?? row.class,
-          levels: levels.join(", "),
-        }),
+        text: game.i18n.format(
+          levels.length ? "ACKS-HENCHMEN.followers.companionsResult" : "ACKS-HENCHMEN.followers.companionsUnleveled",
+          { count, class: grant.class ?? row.class, levels: levels.join(", ") }
+        ),
       });
     } else {
       results.push({

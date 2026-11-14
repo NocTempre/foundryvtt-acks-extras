@@ -1486,4 +1486,112 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus)`);
+// ---- the followers roll's arrival level: imported, never shipped ----
+// Every figure and every word but the recipe's anchor is invented. The roll
+// reads the arrival level and four tables; it does nothing without any of them,
+// and a level a table did not print is left off the card.
+{
+  const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
+  const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
+  const { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel } = await import(new URL("../scripts/henchmen/rules/followers.mjs", import.meta.url));
+  const { openFollowersDialog } = await import(new URL("../scripts/henchmen/apps/followers-dialog.mjs", import.meta.url));
+  const { bracketRow } = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
+  const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
+
+  // The recipe reads the figure after its anchor, a superscript suffix sorting
+  // in as a word of its own, and reads nothing from a page without the anchor.
+  const recipe = TABLE_RECIPES.followers.tables.arrivalLevel;
+  const anchor = recipe.values[0].findRe.replace(/\\s\*/g, " ");
+  assert.deepStrictEqual(extractTable(page([`Badger text: ${anchor} 4 th level, a heron can begin.`]), recipe), { level: 4 }, "the recipe reads the figure after its clause, past a suffix word");
+  assert.deepStrictEqual(extractTable(page(["Badger text: a heron can begin."]), recipe), {}, "a page without the clause reads nothing");
+
+  const savedAcks = globalThis.acksExtras;
+  const savedGlobals = Object.fromEntries(["game", "ui", "foundry", "Roll", "ChatMessage"].map((k) => [k, globalThis[k]]));
+  const lib = (docs, cite = "TEST 1") => ({ tables: { hasDoc: (doc) => docs[doc] !== undefined, getTable: (doc, id) => docs[doc]?.[id] ?? null, bracketRow, citeOf: (doc, id) => (docs[doc]?.[id] ? cite : null) } });
+  const FOUR = {
+    followersByClass: {
+      rows: [{
+        class: "alder", stronghold: "Hut", value: 1, troopTable: "alderTroops",
+        grants: [
+          { kind: "troops", formula: "F1", level: 1 },
+          { kind: "troops", formula: "F1" },
+          { kind: "companions", formula: "F2", levelDie: true },
+          { kind: "companions", formula: "F3", level: 2 },
+          { kind: "companions", formula: "F3" },
+          { kind: "apprentices", formula: "F4" },
+        ],
+      }],
+    },
+    troopTypeTables: { tables: { alderTroops: [{ min: 1, max: 100, type: "scouts" }] } },
+    companionLevel: { formula: "1d6", rows: [{ min: 1, max: 3, level: 3 }, { min: 4, max: 6 }] },
+    followerLoyalty: { fanatic: { classes: [] } },
+  };
+  let totals = {};
+  const seen = { warn: [], info: [], chat: [], prompt: 0 };
+  const actorAt = (level) => ({ name: "Hero", system: { details: { class: "alder", level } }, items: [], getFlag: () => null });
+  const run = async (docs, level, cite) => {
+    Object.assign(seen, { warn: [], info: [], chat: [], prompt: 0 });
+    globalThis.acksExtras = { lib: lib(docs, cite) };
+    globalThis.game = { i18n: { format: (k, d) => `${k}|${JSON.stringify(d)}`, localize: (k) => k }, modules: new Map(), user: { isGM: true }, users: [{ id: "gm", isGM: true }] };
+    globalThis.ui = { notifications: { warn: (m) => seen.warn.push(m), info: (m) => seen.info.push(m) } };
+    globalThis.foundry = { applications: { api: { DialogV2: { prompt: async () => { seen.prompt++; return "alder"; } } } } };
+    globalThis.Roll = class { constructor(f) { this.f = f; } async evaluate() { return { total: totals[this.f] ?? 1 }; } };
+    globalThis.ChatMessage = { create: (m) => seen.chat.push(m), getSpeaker: () => ({}) };
+    await openFollowersDialog(actorAt(level));
+  };
+  try {
+    const arrival = { arrivalLevel: { level: 4 } };
+    const silent = (label) => assert.deepStrictEqual([seen.warn, seen.info, seen.chat, seen.prompt], [[], [], [], 0], `${label}: no dialog, no notice, no card`);
+
+    await run({}, 12);
+    silent("nothing imported");
+    await run({ followers: FOUR }, 12);
+    silent("the four tables without the arrival level");
+    await run({ followers: { ...arrival } }, 12);
+    silent("the arrival level without the four tables");
+    for (const missing of Object.keys(FOUR)) {
+      const { [missing]: _gone, ...rest } = FOUR;
+      await run({ followers: { ...arrival, ...rest } }, 12);
+      silent(`${missing} missing`);
+    }
+    for (const bad of [{}, { level: "4" }, { level: 0 }, { level: 2.5 }]) {
+      await run({ followers: { ...FOUR, arrivalLevel: bad } }, 12);
+      silent(`an arrival level of ${JSON.stringify(bad)}`);
+    }
+
+    await run({ followers: { ...FOUR, ...arrival } }, 3);
+    assert.strictEqual(seen.warn.length, 1, "below the imported level the roll warns once");
+    assert.match(seen.warn[0], /"level":3,"arrival":4,"cite":" \(TEST 1\)"/, "the warning carries the actor's level, the imported level and its page");
+    assert.deepStrictEqual([seen.chat, seen.prompt], [[], 0], "and opens nothing");
+    await run({ followers: { ...FOUR, ...arrival } }, 3, null);
+    assert.match(seen.warn[0], /"cite":""/, "a Judge's override has no page to name");
+    assert.strictEqual(arrivalLevel(), 4, "the reader answers the imported level");
+    assert.strictEqual(arrivalLevelCite(), null, "and no page where none is recorded");
+
+    totals = { F1: 45, F2: 2, F3: 1, F4: 3, "1d100": 7, "1d6": 2 };
+    await run({ followers: { ...FOUR, ...arrival } }, 4);
+    assert.strictEqual(seen.chat.length, 1, "at the imported level the card posts");
+    const card = seen.chat[0].content;
+    assert.match(card, /troopsResult\|\{"count":45,"level":1,/, "a printed troop level is shown");
+    assert.match(card, /troopsUnleveled\|\{"count":45,/, "a troop grant with no printed level is shown without one");
+    assert.match(card, /companionsResult\|\{"count":2,"class":"alder","levels":"3, 3"\}/, "a rolled companion level is the table's row");
+    assert.match(card, /companionsResult\|\{"count":1,"class":"alder","levels":"2"\}/, "a printed companion level is shown");
+    assert.match(card, /companionsUnleveled\|\{"count":1,"class":"alder","levels":""\}/, "a companion grant with no printed level is shown without one");
+    totals["1d6"] = 5;
+    await run({ followers: { ...FOUR, ...arrival } }, 4);
+    assert.match(seen.chat[0].content, /companionsUnleveled\|\{"count":2,"class":"alder","levels":""\}/, "a roll that lands on a row printing no level leaves the level off");
+
+    globalThis.acksExtras = { lib: lib({ followers: { ...FOUR, ...arrival } }) };
+    assert.strictEqual(followerTablesImported(), true, "every table present");
+    assert.deepStrictEqual([0, 1, 12].map(knownLevel), [0, 1, 12], "a whole number of zero or more is a level");
+    assert.deepStrictEqual([undefined, null, "3", -1, 1.5, Number.NaN].map(knownLevel), [null, null, null, null, null, null], "anything else is unknown, never a stand-in");
+  } finally {
+    globalThis.acksExtras = savedAcks;
+    for (const [k, v] of Object.entries(savedGlobals)) {
+      if (v === undefined) delete globalThis[k];
+      else globalThis[k] = v;
+    }
+  }
+}
+
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus, followers arrival level)`);

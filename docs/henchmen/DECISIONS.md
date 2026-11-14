@@ -16,7 +16,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-07-19 — [The location sub-type belongs to the location feature (2026-07-19)](DECISIONS-through-v11.14.5.md#the-location-sub-type-belongs-to-the-location-feature-2026-07-19)
 - undated — [Reaction effects are shared with influence (founding)](DECISIONS-through-v11.14.5.md#reaction-effects-are-shared-with-influence-founding)
 - 2026-08-05 — [Attributes outside Foundry's allowlist are set from the render callback (2026-08-05)](DECISIONS-through-v11.14.5.md#attributes-outside-foundrys-allowlist-are-set-from-the-render-callback-2026-08-05)
-- 2026-08-05 — [The ready-time table check names only ids an import can supply (2026-08-05)](DECISIONS-through-v11.14.5.md#the-ready-time-table-check-names-only-ids-an-import-can-supply-2026-08-05)
+- 2026-08-05 — [The ready-time table check names only ids an import can supply (2026-08-05)](DECISIONS-through-v11.14.5.md#the-ready-time-table-check-names-only-ids-an-import-can-supply-2026-08-05) — qualified in part 2026-11-14 (the followers entry below: `followers` is declared with `expectTables` and not announced in `RULEDATA`)
 - 2026-07-22 — [Attitude and slander match conventions, and share no primitive (2026-07-22)](DECISIONS-through-v11.14.5.md#attitude-and-slander-match-conventions-and-share-no-primitive-2026-07-22)
 - 2026-09-16 — [Rarity overrides are rows on the market, not a second table variant (2026-09-16)](DECISIONS-through-v11.14.5.md#rarity-overrides-are-rows-on-the-market-not-a-second-table-variant-2026-09-16)
 - 2026-09-22 — [Unit morale interpretation stays with the Judge, not auto-verdicted (2026-09-22)](DECISIONS-through-v11.14.5.md#unit-morale-interpretation-stays-with-the-judge-not-auto-verdicted-2026-09-22)
@@ -202,3 +202,41 @@ session's calls, owner may overrule:
 
 *Cost:* a search posted while the class was known and run on after the Judge
 clears the class pays nothing for those weeks and then the arrears.
+
+## 2026-11-14 — The followers' arrival level is read from RR 334, and a level the tables did not print is left off
+
+Owner rulings behind it: a printed figure is imported, and "missing imports stay
+blank" with the page as the clue. The followers dialog compared the character's
+level with a literal, and filled a grant's level with a first or zeroth level
+where its table held none. These are the session's calls, owner may overrule:
+
+- **A `followers` document with one table, `arrivalLevel`.** A `proseValues`
+  recipe on RR 334 reads the figure after the clause that names the arrival, so
+  the source holds an anchor and no figure. It sits in a document of its own
+  because the dialog's other four tables belong to it; `wages` and `domain`
+  carry unrelated figures.
+- **The dialog gates on the tables it reads, not on the document.** The
+  document now exists in every world that imports the Rules tables, so
+  `hasDoc("followers")` would pass and the dialog would throw on the first
+  missing table. It returns at once unless `arrivalLevel` and the four tables
+  are present (`rules/followers.mjs`). `tools/validate-producers.mjs` waives
+  the four tables one by one in place of the whole document, against the
+  narrowed ROADMAP row; the producer itself is not built here.
+- **Only `arrivalLevel` is declared with `expectTables`, and `followers` is not
+  added to `RULEDATA`.** The declaration is the import surface, so it names what
+  an import can supply; announcing the document at `ready` would tell the Judge
+  to import for a roll that stays off until the four tables arrive, which is
+  the case "The ready-time table check names only ids an import can supply"
+  rules out. Add the id when the four tables have a recipe.
+- **The level notification states the imported figure.** It interpolates the
+  arrival level and the page `citeOf` records, the page alone being absent for a
+  Judge's override. No figure is in `lang/`, and the sentence about a stronghold
+  it carried is gone.
+- **A level the tables did not print is left off, never filled.** A troop grant
+  with no printed level reads without one, and a companion line lists only
+  printed levels. A failed bracket lookup on the companion roll no longer stands
+  in a first level.
+- Rejected: a producer for the four tables in the same change (its own ROADMAP
+  row); keeping the old literal as a default for a world without the import (a
+  default is the value the ruling removes). *Cost:* no world sees a change until
+  the four tables are imported.
