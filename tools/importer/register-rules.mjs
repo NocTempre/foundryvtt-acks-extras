@@ -487,6 +487,32 @@ export function regionMapProblems(rows) {
 }
 
 /**
+ * A place's scenes among every row (`rows`: id -> row): the ones that are one
+ * of several (`scene.part`) hang from the one that is the place's own map, so a
+ * place that has parts has exactly one scene without `part`, and no two scenes
+ * of a place share a number. A place with one scene and no parts is any
+ * book's ordinary case and is not asked anything.
+ */
+export function scenePartProblems(rows) {
+  const out = [];
+  const byPlace = new Map(); // place id -> {own: id[], parts: Map(n -> id[])}
+  for (const r of rows.values()) {
+    if (r?.kind !== "kind.scene" || typeof r.scene?.place !== "string") continue;
+    const at = byPlace.get(r.scene.place) ?? { own: [], parts: new Map() };
+    byPlace.set(r.scene.place, at);
+    if (r.scene.part === undefined) at.own.push(r.id);
+    else at.parts.set(r.scene.part, [...(at.parts.get(r.scene.part) ?? []), r.id]);
+  }
+  for (const [place, { own, parts }] of byPlace) {
+    for (const [n, ids] of parts) if (ids.length > 1) out.push(`${ids.join(", ")}: scenes of ${place} share part ${n}`);
+    if (parts.size && own.length !== 1) {
+      out.push(`${place}: has parts and ${own.length ? `${own.length} scenes without one (${own.join(", ")})` : "no scene without one"}; exactly one scene of a place is its own map`);
+    }
+  }
+  return out;
+}
+
+/**
  * A scene link's block, against every row (`rows`: id -> row). Each end names
  * a scene row of any book, a box in that scene's page points lying on the
  * storey it is drawn on, optionally a level (a storey ordinal of a scene that

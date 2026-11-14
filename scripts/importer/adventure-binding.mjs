@@ -14,7 +14,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { hash36 } from "./printed-name.mjs";
-import { SCENE_LINK_FLAG, LOCATION_TYPE } from "../location/constants.mjs";
+import { SCENE_LINK_FLAG, SCENE_PART_FLAG, LOCATION_TYPE } from "../location/constants.mjs";
 import { FACTION_TYPE } from "../factions/constants.mjs";
 import { controlledRegions } from "./faction-binding.mjs";
 import { claimIds } from "./place-pair.mjs";
@@ -322,7 +322,9 @@ const actorIdOf = (uuid) => /^Actor\.([A-Za-z0-9]{16})$/.exec(String(uuid ?? "")
  * names it), and each of the book's organisations' `controls`, from its flag's
  * quarter ids through `controlledRegions`, as the map step computes them. A
  * quarter with no region gives no control; a control on another map is kept,
- * so a book's maps are linked one after another. `actors` are not changed.
+ * so a book's maps are linked one after another. A scene that is a part of its
+ * place (`SCENE_PART_FLAG`) gives the city no `sceneUuid`: the place's own map
+ * does. `actors` are not changed.
  * @param {object} scene the Adventure's scene, with its ids
  * @param {object[]} actors the carried actor sources
  * @param {string} book the book id whose organisations are given quarters
@@ -332,7 +334,7 @@ export function linkFields(scene, actors, book) {
   const byId = new Map(out.map((a) => [a._id, a]));
   const sceneUuid = `Scene.${scene._id}`;
   const city = byId.get(actorIdOf(scene.flags?.[MODULE_ID]?.[SCENE_LINK_FLAG]));
-  if (city?.type === LOCATION_TYPE) city.system = { ...city.system, sceneUuid };
+  if (city?.type === LOCATION_TYPE && !scene.flags?.[MODULE_ID]?.[SCENE_PART_FLAG]) city.system = { ...city.system, sceneUuid };
   const regionOf = new Map();
   for (const region of scene.regions ?? []) {
     const quarter = byId.get(actorIdOf(region.flags?.[MODULE_ID]?.[SCENE_LINK_FLAG]));

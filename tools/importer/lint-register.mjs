@@ -21,7 +21,7 @@ import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/import
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
   KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
-  sceneLinkProblems, siteProblems, spaceProblems,
+  sceneLinkProblems, scenePartProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -465,7 +465,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
         const walk = (v, key, path) => {
           if (typeof v === "string") {
             if (key === "note" || COMPOSITE_ID.test(v) || /^#[0-9a-f]{6}$/i.test(v) || bandOfSection(v)) return;
-            if (path === "scene.grid.family" || path === "scene.grid.units" || path === "scene.travel") return;
+            if (path === "scene.grid.family" || path === "scene.grid.units" || path === "scene.cell.units" || path === "scene.travel") return;
             if (WALL_WORDS.has(path)) return;
             words.push(v);
           } else if (Array.isArray(v)) v.forEach((x) => walk(x, key, path));
@@ -648,6 +648,7 @@ for (const problem of partyProblems(allRows)) err(problem);
 for (const problem of marketColumnProblems(allRows)) err(problem);
 for (const problem of erratumProblems(allRows, errataIdsOf(fs.existsSync(ERRATA) ? fs.readFileSync(ERRATA, "utf8") : ""))) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);
+for (const problem of scenePartProblems(allRows)) err(problem);
 for (const e of linkRows) for (const problem of sceneLinkProblems(e, allRows)) err(problem);
 
 /* --- reference registers --- */

@@ -581,6 +581,25 @@ with no quarters checks no place against one. `offsetsInside` keeps the cells
 whose centres an outline holds; the shift itself is the battlemap's
 `hexAlignment` ([../battlemap/MODEL.md](../battlemap/MODEL.md)).
 
+A gridless recipe may declare its `cell`, `{distance, units}` (`units` a
+`DISTANCE_UNITS` key), for a plate drawn at a scale the foot-to-the-pixel
+picture would overrun. `cellScale` is the picture's scale, `GRID_PIXELS` times
+`feetPerPoint` over the cell's feet, and `sceneFrame` takes it whenever no
+scale is handed in, so every caller agrees; `sceneData` writes
+`{type: 0, size: 100, distance, units}` and the battlemap flag's `distance`, and
+`pictureKey` includes the cell only when there is one. `recipeProblems` refuses
+a cell beside a `grid`, a non-positive distance and a unit outside the table.
+
+Several scenes of one place are told apart by `part: n` (a whole number from 1;
+`recipeProblems` requires a `place`). The part is named for the place by
+`ui.scenePart` and keeps the place's scene link, so a party standing on it is at
+the place. It carries `SCENE_PART_FLAG` (location's, `flags.acks-extras
+.scenePart`), and location's own mirror code skips such a scene, so the place
+still opens its full map: `mirrorCreatedLinks`, `linkScene`, `unlinkScene`, the
+`updateScene` sync and the Adventure's `linkFields` neither write nor clear the
+place's `sceneUuid` for it. The register lint holds a place that has parts to
+exactly one scene without `part` (`scenePartProblems`).
+
 A settlement map hands its quarters' Regions to the organisations that
 control them (`claimControlledQuarters`, in `cookbook/adventure-places.mjs`).
 The organisations step makes the same claim from every settlement map of the

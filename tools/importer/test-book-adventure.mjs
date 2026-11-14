@@ -380,6 +380,8 @@ const sourceWorld = (drop = []) => ({
   const noRegion = { ...a.Scene[0], regions: [a.Scene[0].regions[1]] };
   check("a quarter with no region gives no control", linkFields(noRegion, bare, "zz").find((x) => x._id === I.f1).system.controls, []);
   check("the actors are not changed", JSON.stringify(bare), before);
+  const part = { ...a.Scene[0], flags: { ...a.Scene[0].flags, [MODULE_ID]: { ...a.Scene[0].flags[MODULE_ID], scenePart: 1 } } };
+  check("a part of the city's place gives the city no map of its own", linkFields(part, bare, "zz").find((x) => x._id === I.city).system.sceneUuid, "");
 
   // A book has several maps, linked one after another over the same actors.
   const onOther = `Scene.${I.s2}.Region.${I.rx}`;

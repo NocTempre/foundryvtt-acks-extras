@@ -38,3 +38,12 @@ export const FLAG_PENDING_DEPOSIT = "pendingVaultDeposit";
  */
 export const SCENE_LINK_FLAG = "location";
 
+/**
+ * `scene.flags.acks-extras.scenePart` — the number of a scene that is one of
+ * several of the same place (an inset beside the place's own map). Such a scene
+ * keeps its `SCENE_LINK_FLAG`, so a party standing on it is at the place, and
+ * is never the place's mirror: nothing here writes `system.sceneUuid` for it,
+ * and nothing clears the one the place's own map set.
+ */
+export const SCENE_PART_FLAG = "scenePart";
+

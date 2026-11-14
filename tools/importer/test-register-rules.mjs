@@ -2,7 +2,7 @@
 import assert from "node:assert";
 import {
   KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
-  siteProblems, spaceKeyed, spaceProblems,
+  scenePartProblems, siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
 let pass = 0;
@@ -258,5 +258,18 @@ flags("a grid plan that names no place beside the region map", regionMapProblems
   /ax1\.fort19Map: .*ax1's region map, and ax1\.regionMap already is one/);
 flags("two grid plans that name no place, with no region map", regionMapProblems(rowsOf(mapRow("ax1.fort19Map", { grid }), mapRow("ax1.fort20Map", { grid }))),
   /ax1\.fort20Map: .*names the place it draws/);
+
+/* --- a place's scenes: several are told apart by part --- */
+
+none("a place with one scene and no parts, and a scene with no place", scenePartProblems(rowsOf(
+  mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.cityMap", {}), mapRow("ax1.fort19Map", { place: "ax1.fort19" }))));
+none("a place's own map with two parts", scenePartProblems(rowsOf(
+  mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }), mapRow("ax1.fortMap2", { place: "ax1.fort", part: 2 }))));
+flags("parts with no scene of the place's own", scenePartProblems(rowsOf(
+  mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }))), /ax1\.fort: .*no scene without one/);
+flags("parts beside two scenes of the place's own", scenePartProblems(rowsOf(
+  mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.fort2Map", { place: "ax1.fort" }), mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }))), /2 scenes without one/);
+flags("two parts with one number", scenePartProblems(rowsOf(
+  mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }), mapRow("ax1.fortMap2", { place: "ax1.fort", part: 1 }))), /share part 1/);
 
 console.log(`test-register-rules: all ${pass} checks passed`);

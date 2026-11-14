@@ -830,6 +830,22 @@ const recipe = REGION_MAP.scene;
   ]);
 }
 
+// --- a gridless recipe's cell, and a scene that is a part of its place ------------------------
+{
+  const actor = new MockActor({ _id: id16("pt"), name: "Home", type: LOCATION_TYPE, flags: { [MODULE_ID]: { cookbook: { id: "xx.home" } } } }, null);
+  const ids = { mapPlaceId: "xx.home", districtIds: [], placeIds: [] };
+  const make = (recipe, actors) => mapCreateData({ bookId: "xx", id: "xx.homeMap", recipe, ids, actors, tableOf: async () => null, src: "maps/h.webp", folderId: null, fallbackName: "Home Map" });
+  const whole = { page: 4, crop: { x: 0, y: 0, w: 100, h: 50 }, feetPerPoint: 528, cell: { distance: 1, units: "mi" }, place: "xx.home", travel: "delve" };
+  const map = await make(whole, new Map([["xx.home", actor]]));
+  check("a cell recipe is a gridless scene at its distance, the picture at its scale", [map.grid, map.width, map.height], [{ type: 0, size: 100, distance: 1, units: "mi" }, 1000, 500]);
+  check("the place's own map takes the place's name and flag, and is no part", [map.name, map.flags[MODULE_ID].location, "scenePart" in map.flags[MODULE_ID]], ["Home", actor.uuid, false]);
+  const part = await make({ ...whole, cell: undefined, part: 2 }, new Map([["xx.home", actor]]));
+  check("a part is named for its place and its number, and keeps the link", [part.name, part.flags[MODULE_ID].location], ['ACKS-IMPORTER.ui.scenePart|{"place":"Home","n":2}', actor.uuid]);
+  check("and says so in the flag the place's own link code skips it by", part.flags[MODULE_ID].scenePart, 2);
+  const orphan = await make({ ...whole, part: 3 }, new Map());
+  check("a part whose place is not held takes the row's name and no link", [orphan.name, "location" in orphan.flags[MODULE_ID]], ["Home Map", false]);
+}
+
 // --- region places: the overview, a market, the settlement, a site of its own ----------------
 const pack = game.packs.get(ACTOR_PACK);
 const shelved = (cbId) => pack.docs.find((d) => d.flags?.[MODULE_ID]?.cookbook?.id === cbId);

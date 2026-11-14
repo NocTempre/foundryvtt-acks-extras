@@ -26,7 +26,7 @@
  * meets it.
  */
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
-import { SCENE_LINK_FLAG } from "../location/constants.mjs";
+import { SCENE_LINK_FLAG, SCENE_PART_FLAG } from "../location/constants.mjs";
 import { isKeyedPlace, isPoiEntry, isRegionSite, keySpacesOf, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
 import { gridTypeFor } from "../battlemap/constants.mjs";
@@ -45,7 +45,11 @@ export const SCENE_ZONE_KIND = "kind.sceneZone";
 /** The register kind a way between two scene recipes is filed under. */
 export const SCENE_LINK_KIND = "kind.sceneLink";
 
-/** The grid a scene is given: gridless, one cell to a hundred feet. A grid recipe's cell defaults to the same size. */
+/**
+ * The Foundry cell size of a gridless scene, in pixels, and of a grid recipe's
+ * cell by default. A gridless scene is one cell to a hundred feet unless its
+ * recipe declares a `cell`.
+ */
 const GRID_PIXELS = 100;
 
 /** The lattices a recipe's `grid` may name, as the map stands upright. */
@@ -130,6 +134,20 @@ export function recipeFeetPerPoint(recipe) {
 }
 
 /**
+ * Pixels per page point of a gridless recipe that declares its `cell`
+ * (`{distance, units}`: what one hundred-pixel cell of the scene is worth), or
+ * null when the recipe has none, has a grid, or cannot say how far a page point
+ * reaches. The picture is rendered at `GRID_PIXELS` pixels per cell, so a point
+ * is `feetPerPoint` over the cell's feet of them.
+ */
+export function cellScale(recipe) {
+  const { cell } = recipe ?? {};
+  const cellFeet = Number(cell?.distance) * (DISTANCE_UNITS[cell?.units]?.feet ?? NaN);
+  const feetPerPoint = recipe?.grid ? NaN : recipeFeetPerPoint(recipe);
+  return cellFeet > 0 && feetPerPoint > 0 ? (GRID_PIXELS * feetPerPoint) / cellFeet : null;
+}
+
+/**
  * Pixels per page point that make one drawn cell one Foundry cell of the
  * recipe's `grid.pixels`, or null when the recipe has no usable grid.
  *
@@ -166,6 +184,7 @@ export function gridScale(recipe, probe = null) {
  * from a page point to a scene pixel.
  *
  * `pixelsPerPoint`, when given, IS the scale (`gridScale` for a grid recipe).
+ * Otherwise a gridless recipe that declares its `cell` is drawn at `cellScale`.
  * Otherwise one point is `recipeFeetPerPoint` feet and one pixel is
  * `1 / pixelsPerFoot` feet, so the picture is rendered at their product in
  * pixels to the point. The crop is cut first and turned second; the rounded
@@ -180,7 +199,7 @@ export function gridScale(recipe, probe = null) {
  */
 export function sceneFrame(recipe, { pixelsPerFoot = 1, pixelsPerPoint } = {}) {
   const { crop } = recipe;
-  const scale = pixelsPerPoint > 0 ? Number(pixelsPerPoint) : recipeFeetPerPoint(recipe) * pixelsPerFoot;
+  const scale = pixelsPerPoint > 0 ? Number(pixelsPerPoint) : (cellScale(recipe) ?? recipeFeetPerPoint(recipe) * pixelsPerFoot);
   const turn = (((Number(recipe.turn) || 0) % 4) + 4) % 4;
   const w = Math.round(crop.w * scale);
   const h = Math.round(crop.h * scale);
@@ -215,14 +234,15 @@ export function turnMatrix(frame) {
  * A short key for the PICTURE a recipe draws — its page, crop, turn and scale,
  * and for a grid recipe every grid field the scale and lattice are read from,
  * and nothing else. It names the uploaded file, so a recipe whose picture
- * changed is rendered again. A recipe without a grid keys on its page, crop,
- * turn and scale alone.
+ * changed is rendered again. A recipe with neither a grid nor a `cell` keys on
+ * its page, crop, turn and scale alone.
  */
 export function pictureKey(recipe) {
   const c = recipe?.crop ?? {};
   const parts = [recipe?.page, c.x, c.y, c.w, c.h, (((Number(recipe?.turn) || 0) % 4) + 4) % 4, recipe?.feetPerPoint];
   const g = recipe?.grid;
   if (g) parts.push(g.family, !!g.even, g.box?.w, g.box?.h, g.centre?.[0], g.centre?.[1], g.pixels);
+  if (recipe?.cell) parts.push(recipe.cell.distance, recipe.cell.units);
   return hash36(JSON.stringify(parts));
 }
 
@@ -367,6 +387,23 @@ export function gridProblems(grid, crop = null) {
   return out;
 }
 
+/**
+ * Everything wrong with a recipe's `cell`, as sentences. A cell says what one
+ * hundred-pixel cell of a GRIDLESS scene is worth, so a recipe with a `grid`
+ * has none, and `feetPerPoint` is what ties it to the page.
+ * @param {object} cell the recipe's `cell`
+ * @param {object} recipe the recipe it is part of
+ */
+export function cellProblems(cell, recipe) {
+  if (!cell || typeof cell !== "object" || Array.isArray(cell)) return ["cell must be an object"];
+  const out = [];
+  if (recipe?.grid !== undefined) out.push("cell belongs to a gridless recipe; a grid says its own distance");
+  for (const k of Object.keys(cell)) if (k !== "distance" && k !== "units") out.push(`cell has an unknown key "${k}"`);
+  if (!isNum(cell.distance) || !(cell.distance > 0)) out.push("cell.distance must be a positive number");
+  if (!Object.hasOwn(DISTANCE_UNITS, String(cell.units))) out.push(`cell.units must be one of ${Object.keys(DISTANCE_UNITS).join(", ")}`);
+  return out;
+}
+
 /** How far off a whole cell a storey's corner may sit, as a share of the cell. */
 const STOREY_SLACK = 0.02;
 
@@ -428,6 +465,11 @@ export function recipeProblems(recipe, entries = {}) {
   if (!cropOk) out.push("crop needs numeric x, y and positive w, h");
   if ((recipe?.grid === undefined || recipe?.feetPerPoint !== undefined) && !(recipe?.feetPerPoint > 0)) out.push("feetPerPoint must be a positive number");
   if (recipe?.grid !== undefined) out.push(...gridProblems(recipe.grid, cropOk ? crop : null));
+  if (recipe?.cell !== undefined) out.push(...cellProblems(recipe.cell, recipe));
+  if (recipe?.part !== undefined) {
+    if (!(Number.isInteger(recipe.part) && recipe.part >= 1)) out.push("part must be a whole number from 1");
+    if (typeof recipe.place !== "string" || !recipe.place) out.push("part needs a place: it is one of several maps of that place");
+  }
   if (recipe?.turn !== undefined && ![0, 1, 2, 3].includes(recipe.turn)) out.push("turn must be 0, 1, 2 or 3 quarter turns");
   if (recipe?.blockFeet !== undefined && !(recipe.blockFeet > 0)) out.push("blockFeet must be a positive number when given");
   if (out.length) return out;
@@ -516,7 +558,9 @@ export const GRID_SCENE_PADDING = 0.05;
  * Scene data for a recipe — the WHOLE map, as one create. Without a `grid` the
  * scene is gridless at one cell to a hundred feet, so a pixel is a foot and
  * every measure on the map reads in the book's own unit, and it is set up for
- * settlement travel. With one, the scene carries Foundry's lattice of that
+ * settlement travel; a gridless recipe that declares a `cell` is one
+ * hundred-pixel cell to that distance instead (`cellScale` sets the picture's
+ * size to match). With one, the scene carries Foundry's lattice of that
  * family at the grid's cell size, distance and units, the shift that lays it
  * over the drawn cells and `GRID_SCENE_PADDING` round it, and is set up for
  * journey travel; the picture is scaled by `pixelsPerPoint` (`gridScale` of
@@ -525,6 +569,9 @@ export const GRID_SCENE_PADDING = 0.05;
  * carries, after the caller's regions, one over its whole canvas
  * (`indoorRegionData`). A map without walls is outdoors and states nothing of
  * its sky. The scene is kept out of the navigation bar.
+ *
+ * A recipe that is a `part` of its place carries `SCENE_PART_FLAG` beside the
+ * place's link, so the place's own map stays the one it opens.
  *
  * A plate of storeys is one scene with a level per storey, each its own picture
  * under the one grid, and opens on the first.
@@ -568,6 +615,7 @@ export function sceneData({
   storeys = [], indoorName = "", canvas = null,
 }) {
   const frame = grid ? sceneFrame({ ...recipe, grid }, { pixelsPerPoint: pixelsPerPoint ?? gridScale({ grid }) }) : sceneFrame(recipe);
+  const cell = !grid && cellScale(recipe) ? recipe.cell : null;
   const storey = Number(grid?.distance) * 4;
   const above = grid ? storeys : [];
   const levels = [
@@ -606,7 +654,14 @@ export function sceneData({
         shiftX: Number(shiftX) || 0,
         shiftY: Number(shiftY) || 0,
       }
-      : { grid: { type: 0, size: GRID_PIXELS, distance: GRID_PIXELS, units: "ft" } }),
+      : {
+        grid: {
+          type: 0,
+          size: GRID_PIXELS,
+          distance: cell ? Number(cell.distance) : GRID_PIXELS,
+          units: cell ? (DISTANCE_UNITS[cell.units]?.abbr ?? cell.units) : "ft",
+        },
+      }),
     ...(walls.length ? structuredClone(WALLED_SIGHT) : { tokenVision: false, fog: { mode: FOG_DISABLED } }),
     regions: [...regions, ...indoors],
     tokens: tokens.map((token) => ({ ...token, level: level.id })),
@@ -615,9 +670,10 @@ export function sceneData({
       [MODULE_ID]: {
         cookbook: { id, book, kind: SCENE_KIND },
         ...(locationUuid ? { [SCENE_LINK_FLAG]: locationUuid } : {}),
+        ...(recipe.part ? { [SCENE_PART_FLAG]: recipe.part } : {}),
         battlemap: {
           calibrated: true,
-          distance: grid ? Number(grid.distance) : GRID_PIXELS,
+          distance: grid ? Number(grid.distance) : cell ? Number(cell.distance) : GRID_PIXELS,
           autoScale: false,
           mapSystem: mapSystem ?? (grid ? "journey" : "settlement"),
           blockFeet: recipe.blockFeet > 0 ? recipe.blockFeet : null,

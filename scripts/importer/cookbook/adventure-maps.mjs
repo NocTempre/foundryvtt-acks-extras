@@ -693,8 +693,8 @@ export function gridScenePlan(recipe, scene) {
  * the lattice and shift ride into `sceneData`, and the scale is kept in the
  * cookbook flag (`pixelsPerPoint`) so a zone laid later frames the same
  * picture. Without a plan the data is exactly a settlement map's. A recipe's
- * `travel` is the travel system the map declares. Exported so the offline
- * suite can build both.
+ * `travel` is the travel system the map declares, and a `part` is named for
+ * its place and number. Exported so the offline suite can build both.
  *
  * @param {object} p
  * @param {Map<string, object>} p.actors cookbook id to an Actor-like (`name`, `uuid`, `getTokenDocument`)
@@ -717,6 +717,8 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
     }
     : null;
   const city = actors.get(ids.mapPlaceId) ?? null;
+  // A part of a place is named for it and its number: the place's own map keeps the place's name.
+  const name = recipe.part && city ? game.i18n.format(`${LANG_PREFIX}.ui.scenePart`, { place: city.name, n: recipe.part }) : (city?.name ?? fallbackName);
   const frame = placedFrame(grid ? sceneFrame(recipe, { pixelsPerPoint: grid.pixelsPerPoint }) : sceneFrame(recipe), grid?.origin);
   const regions = [];
   for (const [i, district] of (recipe.districts ?? []).entries()) {
@@ -746,14 +748,14 @@ export async function mapCreateData({ bookId, id, recipe, ids, actors, tableOf, 
   const indoorName = game.i18n.localize(`${LANG_PREFIX}.ui.sceneIndoors`);
   if (!grid) {
     return sceneData({
-      id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
+      id, book: bookId, name, recipe, src, incidents, folderId,
       locationUuid: city?.uuid ?? "",
       level,
       regions, tokens, walls: wallData, mapSystem, indoorName,
     });
   }
   const made = sceneData({
-    id, book: bookId, name: city?.name ?? fallbackName, recipe, src, incidents, folderId,
+    id, book: bookId, name, recipe, src, incidents, folderId,
     locationUuid: city?.uuid ?? "",
     level,
     regions, tokens, walls: wallData, mapSystem, indoorName, canvas: grid.canvas,

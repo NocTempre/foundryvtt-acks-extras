@@ -19,13 +19,14 @@ import { dirname, join } from "node:path";
 import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
-  placeTokenAt, worldCopySource, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
+  placeTokenAt, worldCopySource, turnMatrix, pictureKey, storeyCrops, storeyLevelId, cellScale,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
   GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK, linkQuestion,
 } from "../../scripts/importer/scene-binding.mjs";
 import { isWorldCopy } from "../../scripts/lib/library.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
+import { SCENE_PART_FLAG } from "../../scripts/location/constants.mjs";
 import { cookbookSource } from "./cookbook-source.mjs";
 
 let failed = 0;
@@ -448,6 +449,49 @@ check("no shift given is no shift", [unshiftedHex.shiftX, unshiftedHex.shiftY], 
 check("a scale measured live overrides the offline one", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", pixelsPerPoint: 4 }).width, 800);
 check("a declared travel system is kept", sceneData({ id: "zz.region", book: "zz", name: "R", recipe: hexRecipe(), src: "r.webp", mapSystem: "delve" }).flags[MODULE_ID].battlemap.mapSystem, "delve");
 ok("a city map writes no shift at all", !("shiftX" in data) && !("shiftY" in data));
+
+/* ---------------- a gridless recipe's own cell, and a scene that is a part of its place ---------------- */
+
+// An invented overland plate: a point is 528 ft, and a hundred-pixel cell is a mile.
+const celled = (patch = {}) => ({ crop: { x: 10, y: 20, w: 100, h: 50 }, feetPerPoint: 528, cell: { distance: 1, units: "mi" }, place: "zz.well", ...patch });
+check("a cell sets the scale: the pixels of a cell over the points it spans", cellScale(celled()), 10);
+check("whatever its unit", cellScale(celled({ cell: { distance: 5280, units: "ft" } })), 10);
+check("the frame takes it, so every caller agrees", [sceneFrame(celled()).scale, sceneFrame(celled()).width, sceneFrame(celled()).height], [10, 1000, 500]);
+check("and the turn swaps the sides as for any frame", [sceneFrame(celled({ turn: 1 })).width, sceneFrame(celled({ turn: 1 })).height], [500, 1000]);
+check("a measured scale still wins", sceneFrame(celled(), { pixelsPerPoint: 2 }).scale, 2);
+check("a recipe with no cell has none", cellScale({ ...celled(), cell: undefined }), null);
+check("nor has a recipe with a grid", cellScale({ ...celled(), grid: { family: "square", box: { w: 10, h: 10 }, centre: [15, 25], distance: 5, units: "ft" } }), null);
+check("no cell leaves the foot-to-the-pixel frame as it was", sceneFrame({ ...celled(), cell: undefined }).scale, 528);
+check("the picture's key follows the cell", pictureKey(celled()) === pictureKey(celled({ cell: { distance: 2, units: "mi" } })), false);
+check("and the unit", pictureKey(celled()) === pictureKey(celled({ cell: { distance: 1, units: "km" } })), false);
+check("a recipe with no cell keys exactly as before", pictureKey({ ...celled(), cell: undefined, place: undefined }), pictureKey({ page: undefined, crop: celled().crop, turn: 0, feetPerPoint: 528 }));
+check("a part and a place do not change the picture", pictureKey(celled({ part: 1 })), pictureKey(celled()));
+
+const celledData = sceneData({ id: "zz.up", book: "zz", name: "Up", recipe: celled(), src: "u.webp", locationUuid: "Actor.up" });
+check("a cell's scene is gridless at that distance and unit", celledData.grid, { type: 0, size: 100, distance: 1, units: "mi" });
+check("the picture is the crop at the cell's scale", [celledData.width, celledData.height, celledData.padding], [1000, 500, 0]);
+check("the battlemap record carries the cell's distance", celledData.flags[MODULE_ID].battlemap.distance, 1);
+ok("a recipe with no part carries no part flag", !(SCENE_PART_FLAG in celledData.flags[MODULE_ID]));
+check("a recipe with no cell is the hundred-foot gridless scene it was", sceneData({ id: "zz.map", book: "zz", name: "Map", recipe: sound(), src: "a.webp" }).grid, { type: 0, size: 100, distance: 100, units: "ft" });
+check("a unit is written as the scene's abbreviation", sceneData({ id: "zz.up", book: "zz", name: "Up", recipe: celled({ cell: { distance: 3, units: "km" } }), src: "u.webp" }).grid, { type: 0, size: 100, distance: 3, units: "km" });
+
+const partData = sceneData({ id: "zz.up1", book: "zz", name: "Up (1)", recipe: { ...withGrid({ family: "square", box: { w: 10, h: 10 }, distance: 5, units: "ft", pixels: 70 }), place: "zz.up", part: 1 }, src: "p.webp", locationUuid: "Actor.up" });
+check("a part keeps the link to its place", partData.flags[MODULE_ID].location, "Actor.up");
+check("and says it is a part, by its number", partData.flags[MODULE_ID][SCENE_PART_FLAG], 1);
+check("it is still the gridded scene it is", partData.grid, { type: 1, size: 70, distance: 5, units: "ft" });
+
+const celledBroken = (patch) => recipeProblems(celled(patch), known);
+check("a sound cell has nothing wrong with it", celledBroken({}), []);
+says("a cell beside a grid", celledBroken({ grid: { family: "square", box: { w: 10, h: 10 }, centre: [15, 25], distance: 5, units: "ft" } }), "cell belongs to a gridless recipe");
+says("a cell that is a word", celledBroken({ cell: "mile" }), "cell must be an object");
+says("a cell of nothing", celledBroken({ cell: { distance: 0, units: "mi" } }), "cell.distance");
+says("a cell in no unit", celledBroken({ cell: { distance: 1, units: "furlongs" } }), "cell.units");
+says("a cell key it does not know", celledBroken({ cell: { distance: 1, units: "mi", pixels: 50 } }), 'unknown key "pixels"');
+says("a cell with no scale to tie it to the page", recipeProblems({ ...celled(), feetPerPoint: undefined }, known), "feetPerPoint");
+check("a part with a place has nothing wrong with it", celledBroken({ part: 2 }), []);
+says("a part with no place", celledBroken({ part: 1, place: undefined }), "part needs a place");
+says("a part that is not a whole number", celledBroken({ part: 1.5 }), "part must be a whole number");
+says("a part that is zero", celledBroken({ part: 0 }), "part must be a whole number");
 
 // An invented plate of three storeys printed side by side on one 10 pt grid.
 const storeyed = (patch = {}) => ({

@@ -9,7 +9,7 @@
  * the two disagree.
  * See docs/location/DECISIONS.md, "A location is a PLACE, and a market is an option on one (2026-08-02)".
  */
-import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, SCENE_PART_FLAG } from "./constants.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { elementOf, isUnset, docOf } from "../lib/util.mjs";
 
@@ -24,6 +24,12 @@ export function locationOfScene(scene) {
   const actor = game.actors?.get(String(uuid).split(".")[1]) ?? null;
   return actor?.type === LOCATION_TYPE ? actor : null;
 }
+
+/**
+ * Whether a scene is one of several of its place (`SCENE_PART_FLAG`): it names
+ * the place it is at, and is never the map the place opens.
+ */
+export const isScenePart = (scene) => !!scene?.getFlag?.(MODULE_ID, SCENE_PART_FLAG);
 
 /** The scene a place is, or null. Reads the mirror, verifies against the flag. */
 export function sceneOfLocation(location) {
@@ -69,10 +75,15 @@ export function regionOfLocation(location) {
 /**
  * Link a scene to a place, writing both ends. Re-linking a scene that already
  * points elsewhere clears the old place's mirror first, so a location never
- * claims a map that has moved on.
+ * claims a map that has moved on. A scene that is a part of its place
+ * (`isScenePart`) takes the flag alone: the place's mirror is its own map's.
  */
 export async function linkScene(scene, location) {
   if (!scene || !location || !game.user.isGM) return false;
+  if (isScenePart(scene)) {
+    await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
+    return true;
+  }
   const previous = locationOfScene(scene);
   if (previous && previous.uuid !== location.uuid) {
     await previous.update({ "system.sceneUuid": "" }).catch(() => null);
@@ -82,10 +93,10 @@ export async function linkScene(scene, location) {
   return true;
 }
 
-/** Break the link from either end. */
+/** Break the link from either end. A part scene (`isScenePart`) clears its flag alone. */
 export async function unlinkScene(scene) {
   if (!scene || !game.user.isGM) return false;
-  const location = locationOfScene(scene);
+  const location = isScenePart(scene) ? null : locationOfScene(scene);
   await scene.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
   if (location) await location.update({ "system.sceneUuid": "" }).catch(() => null);
   return true;
@@ -169,7 +180,9 @@ export async function createLocationForRegion(region) {
  *
  * A scene created with its link flags is never seen by the update hooks
  * below, and the mirrors cannot ride in the same create. One batched update,
- * only for a place whose mirror does not already say so.
+ * only for a place whose mirror does not already say so. A part scene
+ * (`isScenePart`) writes none for itself; its regions' mirrors are written as
+ * any scene's.
  * @returns {Promise<number>} how many places were written
  */
 export async function mirrorCreatedLinks(scene) {
@@ -180,7 +193,7 @@ export async function mirrorCreatedLinks(scene) {
     if (actor?.type !== LOCATION_TYPE || actor.system?.[key] === value) return;
     updates.set(actor.id, { ...(updates.get(actor.id) ?? { _id: actor.id }), [`system.${key}`]: value });
   };
-  want(scene.getFlag(MODULE_ID, SCENE_LINK_FLAG), "sceneUuid", scene.uuid);
+  if (!isScenePart(scene)) want(scene.getFlag(MODULE_ID, SCENE_LINK_FLAG), "sceneUuid", scene.uuid);
   for (const region of scene.regions ?? []) want(region.getFlag(MODULE_ID, SCENE_LINK_FLAG), "regionUuid", region.uuid);
   if (updates.size) await Actor.updateDocuments([...updates.values()]);
   return updates.size;
@@ -198,7 +211,7 @@ export async function mirrorCreatedLinks(scene) {
  */
 export function registerSceneLinkSync() {
   Hooks.on("updateScene", async (scene, changes, _options, userId) => {
-    if (userId !== game.userId || !game.user.isGM) return;
+    if (userId !== game.userId || !game.user.isGM || isScenePart(scene)) return;
     const flag = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${SCENE_LINK_FLAG}`);
     // Cleared as core's unsetFlag writes it, or as the `-=` deletion key spells it.
     const cleared = isUnset(flag) || foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.-=${SCENE_LINK_FLAG}`);
