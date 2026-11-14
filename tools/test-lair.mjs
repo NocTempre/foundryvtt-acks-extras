@@ -457,7 +457,7 @@ await ok("the sheet's Lair section is the Judge's alone, names its button, and h
   assert.match(shelf, /<span class="acks-extras-place-hint">Rolls from its world copy<\/span>/, "the reason is text on the surface, beside the button");
   assert.doesNotMatch(render({ lair: { monster: null, group: null, why: "x", canRoll: true, shelved: false } }), /Rolls from/);
   const open = render({ lair: { monster: null, group: null, why: "Nothing to roll", canRoll: false } });
-  assert.ok(open.includes("ACKS-LOCATION.place.lair.notImported"));
+  assert.doesNotMatch(open, /notImported|openPlace/, "a monster that is not imported leaves its row blank");
   assert.match(open, /Nothing to roll/, "why there is no group is on the surface, not only in a tooltip");
   assert.doesNotMatch(render({ lair: { monster: { uuid: "M", name: "Beast", tip: "" }, group: null, why: "", canRoll: true } }), /rollLair"[^>]*disabled/);
 });

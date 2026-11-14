@@ -344,9 +344,10 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * The Judge's lair section: the monster this place is the lair of (or that it
-   * is not imported), the group it rolled (or why none), and whether a Roll
-   * would do anything. Null for a place that is no lair.
+   * The Judge's lair section: the monster this place is the lair of (null where
+   * it is not imported, and its row is blank), the group it rolled (or why
+   * none), and whether a Roll would do anything. Null for a place that is no
+   * lair.
    */
   static async #lairView(actor) {
     const state = await lairState(actor);

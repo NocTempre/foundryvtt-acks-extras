@@ -6174,7 +6174,6 @@
   "ACKS-LOCATION.place.lair.title": "Lair",
   "ACKS-LOCATION.place.lair.monster": "Monster",
   "ACKS-LOCATION.place.lair.group": "Encounter",
-  "ACKS-LOCATION.place.lair.notImported": "Not imported",
   "ACKS-LOCATION.place.lair.monsterTip": "The monster this place is the lair of. Read from {cite}",
   "ACKS-LOCATION.place.lair.monsterNoCite": "The monster this place is the lair of. No page is recorded for it",
   "ACKS-LOCATION.place.lair.roll": "Roll",
