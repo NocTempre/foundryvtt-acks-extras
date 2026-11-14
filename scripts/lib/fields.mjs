@@ -44,17 +44,31 @@ import { OCCUPANT_KIND } from "./place-logic.mjs";
 const F = () => foundry.data.fields;
 
 /* --- leaf helpers (the same builders scripts/monsters/monster-extras.mjs uses) --- */
+/** An optional, nullable number field that starts as null. */
 export const num = (opts = {}) => new (F().NumberField)({ required: false, nullable: true, initial: null, ...opts });
+
+/** An optional string field that may be blank and starts as "". */
 export const str = (opts = {}) => new (F().StringField)({ required: false, blank: true, initial: "", ...opts });
+
+/** A boolean field starting as `initial`. */
 export const bool = (initial = false) => new (F().BooleanField)({ initial });
-// A REQUIRED integer that always holds a value — the counterpart to `num` for
-// fields the system writes concrete integers into (stub attack/initiative,
-// counts, indices). It lives here beside num/str so no data file defines its own.
+
+/**
+ * A REQUIRED integer that always holds a value — the counterpart to `num` for
+ * fields the system writes concrete integers into (stub attack/initiative,
+ * counts, indices). It lives here beside num/str so no data file defines its own.
+ */
 export const int = (initial = 0, opts = {}) =>
   new (F().NumberField)({ required: true, nullable: false, integer: true, initial, ...opts });
+
+/** An optional HTML field that may be blank and starts as "". */
 export const html = () => new (F().HTMLField)({ required: false, blank: true, initial: "" });
+
+/** An optional string field restricted to the keys of `enumObj`, blank allowed. */
 export const choice = (enumObj, opts = {}) =>
   new (F().StringField)({ required: false, blank: true, initial: "", choices: choicesOf(enumObj), ...opts });
+
+/** A set field of strings restricted to the keys of `enumObj`. */
 export const choiceSet = (enumObj) => new (F().SetField)(new (F().StringField)({ choices: choicesOf(enumObj) }));
 /** A list of ability refs (def.prof.x / def.power.x). */
 export const refList = () => new (F().ArrayField)(new (F().StringField)({ blank: false }));
@@ -88,7 +102,10 @@ export function occupantField() {
   });
 }
 
-/* --- LevelValue: flat | perLevel | breakpoints | progression --- */
+/**
+ * A level-dependent value, by `kind`: flat, per level, breakpoints, a borrowed
+ * class progression, or one keyed on another scale.
+ */
 export function levelValueField() {
   const { SchemaField, ArrayField } = F();
   return new SchemaField({
@@ -161,7 +178,8 @@ export function rollField() {
   });
 }
 
-export const rollsField = () => new (F().ArrayField)(rollField());
+/** An array field of `rollField` entries. */
+export const rollsField =() => new (F().ArrayField)(rollField());
 
 /**
  * A pointer to a spell: the core system's spell item by uuid, the importer's
@@ -181,6 +199,11 @@ export function spellRefField() {
 }
 
 /* --- Defenses: immunities / resistances / susceptibilities (shared w/ monsters) --- */
+/**
+ * The defences an ability or monster carries: `immunities`, `resistances` and
+ * `susceptibilities`, each a band of damage types, effects and conditions with
+ * the mundane/extraordinary and silver-flaw flags.
+ */
 export function defensesField() {
   const { SchemaField } = F();
   const band = () =>
@@ -202,9 +225,11 @@ export function defensesField() {
 }
 
 /* --- Movement / senses / vision (shapes shared w/ monster Speed & Senses) --- */
-// One Speed-table row: the ACKS split of encounter/combat speed (⅓ of running)
-// and running speed, plus whether a flyer can hover. num() is nullable, so a
-// blank cell reads as "unspecified", never a real 0.
+/**
+ * An array of Speed-table rows: the ACKS split of encounter/combat speed (⅓ of
+ * running) and running speed, plus whether a flyer can hover. `num()` is
+ * nullable, so a blank cell reads as "unspecified", never a real 0.
+ */
 export const speedsField = () =>
   new (F().ArrayField)(
     new (F().SchemaField)({
@@ -214,13 +239,18 @@ export const speedsField = () =>
       hover: bool(false),
     }),
   );
-export const sensesField = () =>
+/** An array of senses, each a sense type with an optional range and note. */
+export const sensesField =() =>
   new (F().ArrayField)(
     new (F().SchemaField)({ type: choice(SENSE_TYPES, { initial: "acuteHearing" }), range: num({ integer: true }), note: str() }),
   );
-export const visionField = () => choiceSet(VISION_TYPES);
+/** A set of vision types. */
+export const visionField =() => choiceSet(VISION_TYPES);
 
-/* --- Effect: one typed primitive (wide all-optional schema, discriminated by `type`) --- */
+/**
+ * One typed effect primitive: a wide, all-optional schema whose `type` says
+ * which of its fields apply.
+ */
 export function effectField() {
   const { SchemaField } = F();
   return new SchemaField({
@@ -357,4 +387,5 @@ export function effectField() {
   });
 }
 
-export const effectsField = () => new (F().ArrayField)(effectField());
+/** An array field of `effectField` entries. */
+export const effectsField =() => new (F().ArrayField)(effectField());

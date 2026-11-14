@@ -8,9 +8,10 @@
  * offline tooling can import them too.
  */
 
-/** An ability-score modifier ("cha", "wis", …), 0 when absent. */
 import { ACTOR_TYPE } from "./vocab.mjs";
 import { MODULE_ID } from "./constants.mjs";
+
+/** An ability-score modifier ("cha", "wis", …), 0 when absent. */
 export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.mod ?? 0);
 
 /** A character's class level, 0 when absent. */

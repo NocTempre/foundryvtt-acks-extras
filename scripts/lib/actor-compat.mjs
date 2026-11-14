@@ -240,10 +240,13 @@ export const RELEASED_SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", 
  * now. Blast was stored as `breath`; wands folded into Implements.
  */
 export const LEGACY_SAVE_KEYS = Object.freeze({ breath: "blast", wand: "implements" });
-// The saving throw a save key rolls, as the conditions name it (`conditions.mjs`
-// `SAVE_KINDS`): a current key answers itself, and an earlier schema's `breath`
-// or `wand` reaches the Blast or Implements rows, so a stored effect or a world
-// not yet migrated still lands on the right throw.
+
+/**
+ * The saving throw a save key rolls, as the conditions name it (`conditions.mjs`
+ * `SAVE_KINDS`): a current key answers itself, and an earlier schema's `breath`
+ * or `wand` reaches the Blast or Implements rows, so a stored effect or a world
+ * not yet migrated still lands on the right throw.
+ */
 export const saveKindOf = (systemKey) => LEGACY_SAVE_KEYS[systemKey] ?? systemKey;
 /**
  * An Active Effect change key under the system's earlier field names, and the

@@ -1,4 +1,7 @@
+/** This module's id, the key of its flag scope and the prefix of its sub-types. */
 export const MODULE_ID = "acks-extras";
+
+/** The root of the lib subsystem's lang keys. */
 export const LANG_PREFIX = "ACKS-LIB";
 
 /**
@@ -16,7 +19,11 @@ export const FLAG_GEAR = "gear";
  * models that register them.
  */
 export const ANIMAL_TYPE = `${MODULE_ID}.animal`;
+
+/** The actor sub-type of a group, a stack of creatures kept on one actor. */
 export const GROUP_TYPE = `${MODULE_ID}.group`;
+
+/** The actor sub-type of a template, the generator that stamps out creatures. */
 export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 
 /** The lang root of the group actor's strings. */

@@ -172,6 +172,7 @@ Hooks.once("setup", async () => {
     materializePendingHires,
     // special hires (real actors: GM-placed or found on adventures)
     addSpecialHire,
+    /** Adds an actor found on an adventure to a location's special hires, with origin "found". */
     registerFoundRecruit: (location, actor, opts = {}) => addSpecialHire(location, actor, { ...opts, origin: "found" }),
     hireExistingActor,
     payOwedSigningBonus,
@@ -179,6 +180,7 @@ Hooks.once("setup", async () => {
     openRecruitSpecial,
     // data
     HenchmanRecord,
+    /** Returns the `HenchmanRecord` read from an actor. */
     getRecord: (actor) => HenchmanRecord.fromActor(actor),
     // rules (pure; slavery rules only function with enableSlavery on)
     rules: { ...availabilityRules, ...wageRules, ...loyaltyRules, ...diceRules, ...candidateRules, ...identityRules, slavery: slaveryRules },
