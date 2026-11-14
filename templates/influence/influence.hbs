@@ -145,8 +145,8 @@
                    data-tooltip="{{localize 'ACKS-INFLUENCE.unaudited.badge'}}"></i>
               {{/if}}
               {{#if this.isUnvalued}}
-                <i class="fa-solid fa-book-open influence-unread-badge"
-                   data-tooltip="{{localize 'ACKS-INFLUENCE.unvalued.badge'}}"></i>
+                <i class="fa-solid fa-book-open influence-unread-badge"{{#if this.unvaluedTip}}
+                   data-tooltip-text="{{this.unvaluedTip}}"{{/if}}></i>
               {{/if}}
             </label>
           </div>

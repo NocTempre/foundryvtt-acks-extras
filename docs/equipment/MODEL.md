@@ -1038,7 +1038,7 @@ reader's own book gave them. Nothing falls back to a shipped number.
   writes nothing, and `applyItemLoss` counts as `damaged` only the armour whose
   AC changed. The Durability tab adds an Item loss fact (the item's class
   against the imported weights, its tooltip the weight, the bounds and the
-  page) only while the overlay is on. The setting gates the dialog, the write
+  page; blank, the page alone) only while the overlay is on. The setting gates the dialog, the write
   and that fact; `planItemLoss` itself is pure. The damage stones a heavy item
   took are not stored (DECISIONS, "Partial damage is not stored"): only full
   stones act, and each hit is judged alone (JJ p. 398).

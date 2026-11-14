@@ -222,8 +222,8 @@ and carries no figure. `resolveHeldRows` (`actor-data.mjs`) draws the box
 only for a roller who holds the proficiency or a power standing in for it,
 and makes it worth what the roller's own item carries for the page's roll
 family: the item's Active Effect where one speaks, else the value the importer
-located on its page. An item carrying neither draws a typed field with a *no
-value* badge; an unaudited value is offered and never pre-ticked. A drawn box
+located on its page. An item carrying neither draws a typed field with a book
+badge, no words on it: its tooltip is the page's reference alone; an unaudited value is offered and never pre-ticked. A drawn box
 claims its item, so the item is not offered a second time below.
 
 **Offered rows.** An opener may hand the page effect rows of its own in

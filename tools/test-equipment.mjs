@@ -1125,6 +1125,7 @@ check("without the import the plan is not ready, destroys and damages nothing, a
   unreadPlan.ready === false && unreadPlan.destroyed.length === 0 && unreadPlan.damaged.length === 0 && unreadPlan.stones === 0
   && ["threshold", "step", "clothingStones", "lightMax", "heavyMin", "acPerStone", "itemLossMaterials"].every((m) => unreadPlan.missing.includes(m)));
 check("without the import the Durability tab's item-loss fact says not imported", itemLossFact(gear("Spear", 6))?.state === "notImported");
+check("and carries the page reference alone as its tooltip", itemLossFact(gear("Spear", 6))?.tip === "ACKS-EQUIPMENT.itemLoss.factPage");
 SETTINGS_STATE.overlayItemLoss = false;
 check("with the overlay off the Durability tab shows no item-loss fact", itemLossFact(gear("Spear", 6)) === null);
 SETTINGS_STATE.overlayItemLoss = true;
