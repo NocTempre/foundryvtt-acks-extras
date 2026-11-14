@@ -3503,12 +3503,13 @@ the book gets its own Adventure (`cookbookImportAdventures`).
 
 ### Fixtures
 
-- `importer/jj-party`: the first party member's character (`jj.pc1`), in a
-  world with the JJ open on the GM seat and its own rows imported. Built when
-  nothing carries the marker by importing the JJ's rows (the Adventures tab's
-  row for the JJ, or (Re)import individual entries filtered to `jj.pc`), then
-  `api.mark(uuid, "importer/jj-party")` on the character stamped `jj.pc1`.
-  The library's documents are never tracked or swept.
+- The parties' own import in the Judge-only library, in a world with the JJ
+  open on the GM seat. It is found by its stamp, `flags.acks-extras.cookbook.id`
+  `jj.pc1` on the first party member's character, and carries no marker: the
+  capture driver's `api.mark` refuses a compendium document. Built when no
+  document carries the stamp by importing the JJ's rows (the Adventures tab's
+  row for the JJ, or (Re)import individual entries filtered to `jj.pc`). The
+  library's documents are never tracked or swept.
 - A player seat (the provisioned non-GM user).
 
 ### Steps
@@ -3533,7 +3534,7 @@ the book gets its own Adventure (`cookbookImportAdventures`).
 
 ### Teardown
 
-The fixture is kept. A walk that dragged a character into the sidebar deletes
+The import is kept. A walk that dragged a character into the sidebar deletes
 that copy by its id.
 
 ## A Lairs & Encounters lair: its place, its monster and its plate
@@ -3764,8 +3765,9 @@ Steps 1 to 4 state a first import: the counts created, and the picture bar,
 are those of a library holding no `jj.scenario*` document. A library that
 holds them reports them as already held, as step 6 does, and walking the
 create path again needs them absent, which is a setup check's delete
-(`.claude/rules/live-testing.md`, step 4). Steps 6 to 8 are derived from the
-code and have no walk behind them.
+(`.claude/rules/live-testing.md`, step 4). Steps 6 and 8 are derived from the
+code and have no walk behind them; step 7 was walked for one scenario's place
+and all its areas at once.
 
 1. Connect the JJ and press the monsters step (`stepMonsters`), answering its
    question. *Observable:* a bar per page, *Reading picture text, PDF page
@@ -3784,11 +3786,19 @@ code and have no walk behind them.
    not hold; no place is refused. The Scenario folders hold 9 scenario places
    and 68 areas, every one named by its heading and carrying notes, and every
    roster row is hidden.
-3. Press the maps step (`stepScenes`). *Observable:* nine scenes
-   `jj.scenario<N>Map`, each with its picture, a 10 ft grid, no walls, and one
-   hidden token per pinned area: 5, 3, 10, 9, 11, 5, 8, 10 and 6.
+3. Press the maps step (`stepScenes`). *Observable:* eleven world scenes,
+   each with its picture, a 10 ft grid, no walls, and one hidden token per
+   pinned area: a `jj.scenario<N>Map` for each scenario, with 5, 3, 10, 9, 4,
+   5, 8, 10 and 6 tokens, and for p. 421's two further plans
+   `jj.scenario5Map1` with 2 and `jj.scenario5Map2` with 6. The three scenes
+   of scenario 5 are named for its place, the two parts with `(1)` and `(2)`
+   after the name and `flags.acks-extras.scenePart` 1 and 2, and one area has
+   a token on two of them.
 4. Press the adventures step (`stepAdventures`). *Observable:* the JJ's
-   Adventure holds the nine scenes and Actor folders Scenario 1 to Scenario 9.
+   Adventure holds the eleven scenes and Actor folders Scenario 1 to
+   Scenario 9. Where a scene the Adventure held was deleted and its page's
+   scenes stood up again, the step reports the Adventure rebuilt and it holds
+   the scenes the world now has.
 5. Wait half a minute after the last read. *Observable:* the engine's worker
    and the pinned copy's PDF worker have ended (`IDLE_MS`).
 6. Press the monsters and points-of-interest steps again in the same client.

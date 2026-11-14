@@ -967,15 +967,9 @@ The nine scenarios (PDF pp. 417–425) import as places, plans, creatures and
 roster links, their text read from each page's picture (DECISIONS 2026-11-13
 and 2026-11-14, the entries on the JJ's scenarios). Left:
 
-- **A picture of several floors is one scene.** The p. 421 plan draws three
-  floors side by side on one canvas. They would be parts of the one place
-  (`scene.part`, as a Lairs & Encounters plate with insets): two more plan
-  rows, three crops, the pins divided among them, each floor's lattice
-  measured apart. A repair never reshapes a scene a world holds, so the change
-  is free only until a release ships the one scene.
-- **A key printed on several rooms is pinned once** (pp. 420, 421, 422), on
-  the first in reading order; the other rooms carry no pin. A place is one
-  token on a scene.
+- **A key printed on several rooms of one plan is pinned once** (pp. 420,
+  421, 422), on the first in reading order; the other rooms carry no pin. A
+  place is one token on a scene.
 - **Walls on the plans.** No plan is traced.
 - **A scenario table's grid.** A table's rows are paragraphs of the
   scenario's notes, read across; the cells' columns are not kept.

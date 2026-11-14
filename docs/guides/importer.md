@@ -726,6 +726,9 @@ connected, and a step that needs it again reuses the read.
 - **The plan is a scene.** Each area stands on it as a hidden token at the
   number the page prints, as for *An adventure's rooms, as places*, and the
   scene is on the Judge's shelf of Scenes with the rest of the book's maps.
+  Where a page's picture draws several floors, each floor is a scene of its
+  own: the first carries the place's name and the others its name and a
+  number.
 - **The scenario's creatures are actors**, filed in its **Scenario** folder,
   with the figures their stat line prints. Each attack routine is a weapon
   with its damage and damage type, and a routine whose attack throw differs
@@ -740,8 +743,7 @@ step's notice says how many. Import the book that has the creature first. A
 place already in your library is not read again; delete it and run the step to
 fill the link.
 
-Left out: the plans have no walls, and a plan that draws several floors is one
-scene.
+Left out: the plans have no walls.
 
 ### An adventure's rooms, as places
 

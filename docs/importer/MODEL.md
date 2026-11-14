@@ -1844,7 +1844,10 @@ the Judges Journal's register, `register/jj/p<page>-scenario.json` and
 scenario is a key space `jj.scenario<N>` with its keyed areas under it
 (`jj.scenario<N>-<key>`, `meta.space`), the creature rows
 `jj.scenario<N>-npc<I>` (21 in all) and one plan, a `kind.scene` row
-`jj.scenario<N>Map`. A row's label is neutral ("Scenario N", "Scenario N NPC
+`jj.scenario<N>Map`. The p. 421 picture draws three plans, so its scenario has
+two parts beside its plan (`jj.scenario5Map1`, `jj.scenario5Map2`, `scene.part`
+as under "Several scenes of one place"), each with its own crop, pins and grid
+block; a key two of the plans print is pinned on each. A row's label is neutral ("Scenario N", "Scenario N NPC
 I"); a heading op proves its box by the key number it opens with or by
 `printKey` of the words (`hash`), and the place or actor is named by the
 words the Judge's page prints (`printedNameOf`). The keyed places, their

@@ -19588,10 +19588,10 @@
           "h": 642.55
         },
         "crop": {
-          "x": 422.71,
-          "y": 88.02,
-          "w": 139.61,
-          "h": 216.9
+          "x": 494.19,
+          "y": 219.51,
+          "w": 68.13,
+          "h": 85.42
         },
         "turn": 3,
         "place": "jj.scenario5",
@@ -19607,8 +19607,8 @@
           {
             "id": "jj.scenario5-2",
             "at": [
-              442.26,
-              276.49
+              508.83,
+              289.57
             ]
           },
           {
@@ -19624,6 +19624,55 @@
               512.06,
               243.98
             ]
+          }
+        ],
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 9.2,
+            "h": 9.2
+          },
+          "centre": [
+            532.77,
+            266.82
+          ],
+          "distance": 10,
+          "units": "ft"
+        }
+      }
+    },
+    "jj.scenario5Map1": {
+      "kind": "kind.scene",
+      "name": "Scenario 5 Map 1",
+      "cite": "JJ p.419",
+      "pages": [
+        421
+      ],
+      "scene": {
+        "page": 421,
+        "placement": {
+          "x": 72,
+          "y": 86.58,
+          "w": 496.08,
+          "h": 642.55
+        },
+        "crop": {
+          "x": 422.71,
+          "y": 226.23,
+          "w": 68.61,
+          "h": 68.14
+        },
+        "turn": 3,
+        "place": "jj.scenario5",
+        "part": 1,
+        "travel": "delve",
+        "places": [
+          {
+            "id": "jj.scenario5-2",
+            "at": [
+              442.26,
+              276.49
+            ]
           },
           {
             "id": "jj.scenario5-5",
@@ -19631,7 +19680,49 @@
               467.21,
               246.5
             ]
+          }
+        ],
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 9.2,
+            "h": 9.2
           },
+          "centre": [
+            461.62,
+            255.26
+          ],
+          "distance": 10,
+          "units": "ft"
+        }
+      }
+    },
+    "jj.scenario5Map2": {
+      "kind": "kind.scene",
+      "name": "Scenario 5 Map 2",
+      "cite": "JJ p.419",
+      "pages": [
+        421
+      ],
+      "scene": {
+        "page": 421,
+        "placement": {
+          "x": 72,
+          "y": 86.58,
+          "w": 496.08,
+          "h": 642.55
+        },
+        "crop": {
+          "x": 439.5,
+          "y": 86.58,
+          "w": 107.47,
+          "h": 130.05
+        },
+        "turn": 3,
+        "place": "jj.scenario5",
+        "part": 2,
+        "travel": "delve",
+        "places": [
           {
             "id": "jj.scenario5-6",
             "at": [

@@ -1507,7 +1507,7 @@ layer holding one, keep the shape they were written in. Its words show blank
 until Rules tables is read again or the override is reverted, and nothing
 rewrites either.
 
-## 2026-11-14 — A repair fills a waiting roster link only into an empty roster, a held scene is never reshaped, and a scenario has one plan beside any parts
+## 2026-11-14 — A repair fills a waiting roster link only into an empty roster, a held scene is never reshaped, and a scenario has one plan beside any parts — SUPERSEDED IN PART 2026-11-14
 
 Corrects three statements of "The JJ scenarios as bound: a roster link carries
 no count, every area is on its plan, the reading bar names the file's page"
@@ -1606,3 +1606,36 @@ ruling quoted in "The JJ scenarios as bound").
 *Cost:* 89 links on 49 places were placed by eye from the corrected text, and
 no check can say a link is on the right room. The blank row has not been seen
 in a browser, and `importAdventureActor`'s read-back of the list has no suite.
+
+## 2026-11-14 — The p. 421 picture's three plans are three scenes of one place
+
+Supersedes in part "The JJ scenarios as bound" (its bullets "A picture that
+draws several floors is one scene" and "A key the plan prints on several rooms
+is pinned once") and "A repair fills a waiting roster link only into an empty
+roster, a held scene is never reshaped, and a scenario has one plan beside any
+parts" (its sentence that the picture of several floors stays one scene). Both
+are under seven days old. The new evidence is the owner's answer, asked whether
+the picture should stay one scene or be split before the tag: "Split into
+three"; and the point the second entry itself records, that a repair never
+reshapes a scene a world holds, so the split is free only before a release
+ships the one scene.
+
+- **The scenario's place has three scenes.** `jj.scenario5Map` is the place's
+  own map, the lower-left plan; `jj.scenario5Map1` and `jj.scenario5Map2` are
+  parts of the place (`scene.part` 1 and 2), the upper-left and the right-hand
+  plan. Each has its own crop, pins and grid block.
+- **A key is pinned once a plan.** The recipe check still refuses an id placed
+  twice on one scene; a key two plans print stands on each, as one hidden token
+  a scene. One key of this page is on two plans. Within a plan the rooms after
+  the first in reading order still carry no pin.
+- **Each plan's lattice is measured apart.** The right-hand plan keeps the
+  grid block measured for the one scene. The other two take the same square
+  size, and a square fitted to their own walls on both axes; fitted the same
+  way, the right-hand plan's walls give its measured block back within about
+  one sample of the picture.
+- **Rejected:** the three plans as levels of one scene (`levels`). The plans
+  are different outlines at different places on the picture, not storeys cut
+  to one frame.
+
+*Cost:* a world that imported the one scene keeps it until the Judge deletes
+it and runs the maps step again; no release shipped it.
