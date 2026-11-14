@@ -121,7 +121,7 @@ const TABLES = {
   // The cultures' name lists and appearance palettes, each read by the keys of
   // its page; a culture's name list may be in a supplement. The supplement's
   // caste split: three shares and four words, each read by key.
-  people: ["cultures", "cultureAppearance", "dwarvenCastes"],
+  people: ["cultures", "cultureAppearance", "dwarvenCastes", "hirelingAttributes"],
 };
 
 /** Whether a recipe's book is on this machine. */
@@ -478,6 +478,12 @@ VERIFY["voyages.voyagesProse"] = (out, recipe, fail) => {
   }
   const rank = out?.master?.masterRank;
   if (isNum(rank) && !(Number.isInteger(rank) && rank >= 1)) fail("masterRank: not a positive whole number");
+};
+// A prospective henchman's attribute dice: one formula of the shape `NdM`, the
+// shape `rollAttributes` accepts. Shape only; no figure is named.
+VERIFY["people.hirelingAttributes"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (typeof out?.dice === "string" && !/^\d*d\d+$/.test(out.dice)) fail("dice: not a formula of the shape NdM");
 };
 // The followers' arrival level: a whole number above zero. Shape only; no figure is named.
 VERIFY["followers.arrivalLevel"] = (out, recipe, fail) => {

@@ -114,7 +114,7 @@ Hooks.once("setup", async () => {
       globalThis.acksExtras?.lib.tables.expectTables?.("availability", ["henchmanAvailability", "mercenaryAvailability", "specialistAvailability", "searchFees", "arrivalProse"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("rarity", ["classRarityTables", "rarityAvailability", "randomHenchmanLevel", "classDistribution", "specificQualificationMods"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("wages", ["henchmanWageByLevel", "signingBonus", "mercenaryWages", "henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "specialistMorale", "treasureShare", "xpShare", "commandCapacity", "baseLoyalty"]);
-      globalThis.acksExtras?.lib.tables.expectTables?.("people", ["cultures", "classPercentages", "occupationTypes", "occupationSubTables", "occupationPackages", "classRestrictions", "cultureAppearance", "ageByClass", "proficienciesByAge", "hd0", "dwarvenCastes"]);
+      globalThis.acksExtras?.lib.tables.expectTables?.("people", ["cultures", "classPercentages", "occupationTypes", "occupationSubTables", "occupationPackages", "classRestrictions", "cultureAppearance", "ageByClass", "hirelingAttributes", "proficienciesByAge", "hd0", "dwarvenCastes"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("slavery", ["commonSlaves", "slaveTroopCosts", "slaveLoyalty", "soldierRules"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("settlement", ["marketClassByFamilies"]);
       globalThis.acksExtras?.lib.tables.expectTables?.("followers", ["arrivalLevel", "platoonSize"]);

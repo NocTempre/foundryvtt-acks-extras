@@ -137,12 +137,13 @@ export function experienceView(actor) {
   return { value: String(total), tip: total ? loc("tip.experience", { parts: listed }) : loc("tip.experienceNone") };
 }
 
-/** The recorded scores, each named by the system's own short label (Will is its `wis`). */
+/** The recorded scores, each named by the system's own short label (Will is its `wis`), then the page the roll's method is printed on. */
 function scoresTip(scores) {
-  return scores.map((v, i) => {
+  const named = scores.map((v, i) => {
     const key = ROLLED_SCORES[i] === "wil" ? "wis" : ROLLED_SCORES[i];
     return `${game.i18n.localize(`ACKS.scores.${key}.short`)} ${v}`;
   }).join(" · ");
+  return `${named} · ${loc("tip.scoresPage")}`;
 }
 
 /** The clock's one-line reading: behind, unset, or since and until. */

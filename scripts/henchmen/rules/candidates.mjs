@@ -1,8 +1,9 @@
 /**
  * Candidate identity rolls. Pure module — dice arrive via an injected async
  * roller. A candidate's class and level are fixed when the monthly pool is
- * rolled, with no per-candidate reroll surface; attributes (3d6 ×6) are
- * rolled once, at hire time, and recorded. See docs/henchmen/DECISIONS.md,
+ * rolled, with no per-candidate reroll surface; attributes (the imported
+ * formula, once per attribute) are rolled once, at hire time, and recorded.
+ * See docs/henchmen/DECISIONS.md,
  * "Candidate class and level are fixed at the market roll, not at hire".
  */
 import { bandDie, bracketRow, getTable, optTable } from "./tables.mjs";
@@ -131,14 +132,20 @@ export async function rollProficiencyLevel(rollDice, marketClass) {
 }
 
 /**
- * Attributes, 3d6 in order (RR 168: henchmen are rolled up like PCs).
- * Rolled at HIRE only.
- * @returns {Promise<{str:number,int:number,wil:number,dex:number,con:number,cha:number}>}
+ * A prospective henchman's attributes (JJ 252, the 0th-level NPC attributes
+ * list, whose roll-in-order method names henchmen prospects; RR 168 only has
+ * henchmen rolled up like player characters): the imported formula
+ * (`people.hirelingAttributes`) thrown once per attribute, in the sheet's
+ * order. Rolled at HIRE only. Null where the formula is not imported, so the
+ * hire records no attributes.
+ * @returns {Promise<{str:number,int:number,wil:number,dex:number,con:number,cha:number}|null>}
  */
 export async function rollAttributes(rollDice) {
+  const dice = optTable("people", "hirelingAttributes")?.dice;
+  if (typeof dice !== "string" || !/^\d*d\d+$/.test(dice)) return null;
   const attributes = {};
   for (const key of ["str", "int", "wil", "dex", "con", "cha"]) {
-    attributes[key] = await rollDice("3d6");
+    attributes[key] = await rollDice(dice);
   }
   return attributes;
 }

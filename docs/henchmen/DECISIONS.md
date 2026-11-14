@@ -277,3 +277,43 @@ may overrule:
   figure that touches one line of the card); keeping the size as a default for
   a world without the import (a default is the value the ruling removes).
   *Cost:* no world sees a change until the four tables are imported.
+
+## 2026-11-14 — A hire's attribute dice are read from JJ 252, not taken from RR 168
+
+Owner rulings behind it: a figure a page prints is imported, and "missing
+imports stay blank" with the page as the clue. `rollAttributes` threw a
+literal formula six times and cited RR 168, which only says henchmen are rolled
+up like player characters. The player-character method that page points to
+(RR ch. 1) is an allocation with different formulas and floors for different
+attributes and a choice of which gets which, so it is not what the code did.
+The Judges Journal's 0th-level NPC attributes list prints a roll-in-order
+method and names it for henchmen prospects: the literal was a printed value
+cited to the wrong page. These are the session's calls, the owner may overrule
+them.
+
+- **The formula is `people.hirelingAttributes`**, a `proseValues` recipe on
+  JJ 252 that reads the printed formula with an anchor that carries no figure.
+  `rollAttributes` throws it once per attribute in the sheet's order and answers
+  null where the table is unread or the formula is not of the shape `NdM`; the
+  hire then rolls and records nothing and creates the hireling with the sheet's
+  own scores. Example: a world with the table imported hires a candidate with six
+  recorded scores; a world without it hires the same candidate with none, and
+  the Service panel shows no score row.
+- **The recipe is read for every hire, not only 0th level.** The page sits in
+  the 0th-level section and names henchmen prospects, and a leveled prospect is
+  a henchman too, so one formula serves every candidate as it did before. The
+  page sends a stronger character to the player-character options, and a
+  leveled candidate is rolled like a prospect here. The owner may rule the
+  formula 0th-level only, with a leveled hire recording none. *Cost:* a leveled
+  hire's scores come from the prospect's method.
+- **The page's optional swap is not done.** It is the Judge's call on scores
+  the Judge sees, so a hire records the roll as made and the Judge edits the
+  sheet.
+- **The order stays the module's.** The attribute keys and their order are the
+  sheet's structure; the page's list is in the same order.
+- Rejected: reusing core's Scores Generator formulas (they are `data-formula`
+  attributes in a template, not a system export, and the method they belong to
+  is an allocation an unattended hire cannot make); making the hire read the
+  campaign's chargen method setting (the per-attribute choice has no one to
+  make it at hire). *Cost:* no world rolls attributes at hire until the people
+  tables are imported.

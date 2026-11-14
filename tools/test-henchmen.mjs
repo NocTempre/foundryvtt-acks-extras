@@ -770,6 +770,41 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
 }
 
+// ---- a hire's attributes: the imported formula, once per attribute, and nothing without it ----
+// The formula is invented (a two-die, five-sided throw no book prints), so a
+// formula left in source fails; what is pinned is the count, the order and the
+// refusal of an unimported or malformed one.
+{
+  const { rollAttributes } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
+  const withPeople = async (table, fn) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = {
+        lib: { tables: { hasDoc: (doc) => doc === "people" && table !== undefined, getTable: (doc, id) => (id === "hirelingAttributes" ? table : null) } },
+      };
+      await fn();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  const counted = () => {
+    const calls = [];
+    return { calls, roll: async (formula) => (calls.push(formula), calls.length) };
+  };
+  await withPeople({ dice: "2d5" }, async () => {
+    const d = counted();
+    assert.deepStrictEqual(await rollAttributes(d.roll), { str: 1, int: 2, wil: 3, dex: 4, con: 5, cha: 6 }, "six throws, one per attribute, in the sheet's order");
+    assert.deepStrictEqual(d.calls, Array(6).fill("2d5"), "each is the imported formula");
+  });
+  for (const [label, table] of [["no people document", undefined], ["no such table", null], ["a table with no formula", {}], ["a formula that is not a die", { dice: "twice" }], ["a blank formula", { dice: "" }]]) {
+    await withPeople(table, async () => {
+      const d = counted();
+      assert.strictEqual(await rollAttributes(d.roll), null, `${label}: no attributes`);
+      assert.deepStrictEqual(d.calls, [], `${label}: nothing is thrown`);
+    });
+  }
+}
+
 // ---- the weekly arrival split: the shares are the import's, and none imported schedules nothing ----
 // Every share and floor is invented (a tenth-scale split no book prints), so a
 // split left in source fails; what is pinned is the reading and the rounding.
@@ -1195,6 +1230,19 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     console.error = (...args) => errors.push(args.map(String).join(" "));
     let res;
     try {
+      // A candidate with no attributes, hired with no attribute formula imported:
+      // nothing is rolled, the hireling is made with no scores block, and the
+      // candidate is left as it was.
+      const created = [];
+      const makeActorOnce = globalThis.Actor.create;
+      globalThis.Actor.create = async (d) => (created.push(structuredClone(d)), makeActorOnce(d));
+      location.system.candidates.push({ id: "c0", status: "available", name: "Blank", classKey: "", level: 0, wageGp: 1 });
+      const blank = await hire.hire(location, "c0", employer, {});
+      globalThis.Actor.create = makeActorOnce;
+      assert.ok(!blank.error, "a hire with no attribute formula imported still hires");
+      assert.strictEqual(created[0].system.scores, undefined, "and writes no scores block");
+      assert.strictEqual(location.system.candidates.find((c) => c.id === "c0").attributes, undefined, "and records no attributes on the candidate");
+      location.system.candidates.splice(location.system.candidates.findIndex((c) => c.id === "c0"), 1);
       res = await hire.hire(location, "c1", employer, { signingBonusGp: 6 });
     } finally {
       console.error = consoleError;

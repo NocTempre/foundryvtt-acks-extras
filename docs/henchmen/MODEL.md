@@ -170,10 +170,17 @@ Serialized DataModel at `actor.flags["acks-extras"].record`
   `enrollHenchman` (`engine/hire.mjs`) puts an existing character on a roster
   with no hire behind it, as an imported official sheet does: origin `manual`,
   no location, the loyalty start set so the henchman reads the score given
-- `rolled.*` — recorded roll results (attributes 3d6×6, double-d100 class,
+- `rolled.*` — recorded roll results (the six attributes, double-d100 class,
   level die, template) for the future class-autogeneration module, and the
   hit points rolled at hire (`hpRoll`, `hpSteps`) or why none were
-  (`hpUnrolled`, below)
+  (`hpUnrolled`, below). The attributes are the imported
+  `people.hirelingAttributes` formula (JJ 252) thrown once per attribute, in
+  the sheet's order, at hire (`rollAttributes`, `rules/candidates.mjs`); with
+  the table unread nothing is rolled, the candidate and the record carry no
+  attributes, and the hireling is created with the sheet's own scores. The
+  Service panel's score row is then absent; with scores recorded, its tooltip
+  names each, then the page (JJ 252). A Judge's override of the table in the
+  Ruledata Browser is the formula the next hire throws
 - `terms.*` — wage + basis, the two shares (`treasureShare`, `xpShare`: null
   until a Judge sets one, see "The shares" below), signing bonus and
   `signingBonusOwedGp`, `lastPaidTime`, `arrearsGp`, `vassalDomain`

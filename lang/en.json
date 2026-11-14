@@ -4970,6 +4970,7 @@
   "ACKS-HENCHMEN.service.tip.calamities": "counted on the service record · RR 166",
   "ACKS-HENCHMEN.service.tip.levelsGained": "counted on the service record · RR 166",
   "ACKS-HENCHMEN.service.tip.rolled": "recorded at hiring",
+  "ACKS-HENCHMEN.service.tip.scoresPage": "rolled at hiring · JJ 252",
   "ACKS-HENCHMEN.roster.calamityPrompt": "Record a calamity",
   "ACKS-HENCHMEN.roster.calamityPlaceholder": "e.g. missed rations, cursed, reduced to 0 hp",
   "ACKS-HENCHMEN.roster.transferTitle": "Transfer {name} to…",

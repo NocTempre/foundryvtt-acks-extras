@@ -439,11 +439,13 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // A network find is in its holder's market and nobody else's.
   if (candidate.networkFor && candidate.networkFor !== employer?.uuid) return { error: "not-yours" };
 
-  // Attributes roll ONCE, at hire (in order, RR 168) — class and
-  // level were fixed when the monthly pool was rolled.
+  // Attributes roll once, at hire, on the imported formula (JJ 252); none imported, none rolled.
   if (candidate.attributes?.str == null) {
-    candidate.attributes = await rollAttributes(roll);
-    await updateCandidate(location, candidateId, { attributes: candidate.attributes });
+    const rolled = await rollAttributes(roll);
+    if (rolled) {
+      candidate.attributes = rolled;
+      await updateCandidate(location, candidateId, { attributes: rolled });
+    }
   }
 
   const category = opts.category ?? (candidate.kind === "mercenary" ? "mercenary" : candidate.kind === "specialist" ? "specialist" : "henchman");

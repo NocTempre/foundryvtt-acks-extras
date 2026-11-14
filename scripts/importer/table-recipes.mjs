@@ -3106,6 +3106,19 @@ export const TABLE_RECIPES = {
         ],
         blocks: CULTURE_NAME_BLOCKS,
       },
+      // The dice a prospective henchman's six attributes are rolled with (JJ
+      // prose under the 0th-level NPC attributes list): one formula, thrown once
+      // per attribute in the sheet's order. The anchor is the verb before the
+      // formula, found by the clause that follows it, so it carries no figure;
+      // the formula is read as printed.
+      hirelingAttributes: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 252,
+        locate: "if sensible for the npc",
+        locateBare: true,
+        values: [{ key: "dice", findRe: "roll\\s*(?=\\d+\\s*d\\s*\\d+\\s*in\\s*order)", take: "dice", span: 12 }],
+      },
       // NPC minimum age by class group (JJ 248): level rows × six labeled
       // trajectory columns; a dash means the trajectory never reaches that
       // level. Which class keys map to which column is consumer interpretation

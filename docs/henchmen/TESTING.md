@@ -1188,6 +1188,27 @@ walked in docs/lib/TESTING.md, "The repair tool".
     recipe's shape against the book, `tools/importer/test-recipe-content.mjs`).
     Teardown: the layers lifted, the chat cards the run posted swept by their
     ids. Not walked live when written.
+32. A hire's attributes, imported and absent. Hire a market candidate as step 28
+    does (location sheet → **Mercenaries** tab → the handshake on its row,
+    **Attempt to recruit**) and open the hireling's sheet. *Imported.* With `people.hirelingAttributes` read off
+    the connected book, the character sheet's six scores are the six recorded
+    ones, the hireling's **Service** tab shows the Attributes row under its
+    recorded rolls with those six scores in the sheet's order, and hovering it
+    names each score then the page (JJ 252); compare the formula with the page
+    and report the match, never the figure. *Override.* In the Ruledata Browser
+    (`Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables →
+    Open Ruledata Browser`) write
+    `people.hirelingAttributes` with an invented formula: the next hire's
+    scores are thrown with it, and removing the override restores the read.
+    *Absent.* With the table unread (a priority-30 empty
+    `people.hirelingAttributes` layer), hire a second candidate: the hireling
+    keeps the character sheet's own scores, the Service tab has no Attributes
+    row, the roster's rolled line holds no scores, and the candidate carries no
+    recorded attributes. Nothing throws on either path. The reader and the
+    hire's no-attribute path are checked offline (`tools/test-henchmen.mjs`; the
+    recipe's shape against the book, `tools/importer/test-recipe-content.mjs`).
+    Teardown: the hirelings swept by their tracked uuids, the layer lifted. Not
+    walked live when written.
 
 ## Teardown
 
