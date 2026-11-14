@@ -107,9 +107,7 @@ const labelOf = (table, key) => (key ? localize(table?.[key]?.label ?? key) : ""
  * system's computeEncumbrance early-returns for non-characters). The load is
  * what the creature carries — items, coin, and a mounted rider at body weight
  * plus carried encumbrance — compared against its normal load (full speed)
- * and its maximum. A rider whose body weight is not known leaves the load, and
- * what is derived from it, blank; the rider's line then names the page that
- * prints the weight.
+ * and its maximum. An unknown rider body weight leaves the load blank.
  */
 function computeEncumbrance(actor, extras) {
   const stone = loadStone(actor);
@@ -145,10 +143,7 @@ function computeEncumbrance(actor, extras) {
   };
 }
 
-/**
- * The rider's line: the name, the body and gear in stone (null where the body's
- * weight is not known) and a tooltip saying where that weight is read from.
- */
+/** The rider's line: name, body and gear in stone (null where unknown) and a provenance tooltip. */
 function riderLine(rider) {
   const borne = borneBy6(rider);
   return { name: rider.name, stone: borne === null ? null : Math.round((borne / 6) * 10) / 10, tip: riderBodyTip(rider) };

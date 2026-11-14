@@ -57,8 +57,6 @@ const TABLES = {
   // The influence roller's two morale pages: a result column and a modifier
   // list each, every modifier with the wording of its own row.
   morale: ["monsterMorale", "hirelingObedience"],
-  // The class level followers begin to arrive at and the troops that make one
-  // platoon: one whole number each.
   followers: ["arrivalLevel", "platoonSize"],
   // The hiring offer: a result column and the two penalties beside it.
   // The loyalty roll's figure per level of apparent difference.
@@ -95,11 +93,8 @@ const TABLES = {
   ],
   // The ring place's capacity: one count the wear-slot reader answers from.
   wearSlots: ["ringCapacity"],
-  // Which carriers cost an action to retrieve from and which do not: two lists of words.
   gearAccess: ["retrieval"],
-  // The weight a man-sized body is assumed to have: one count in one sentence.
   capacity: ["riderBody"],
-  // The sea's prose windows (RR ch. 7), among them the Seafaring rank a master mariner is named by.
   voyages: ["voyagesProse"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
@@ -464,9 +459,7 @@ VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.capacity) && !(Number.isInteger(out.capacity) && out.capacity > 0)) fail("capacity: not a positive whole number");
 };
-// The two carrier lists of a retrieval rule: each a short list of short words, no
-// word on both sides, and none a whole clause (a cut that missed its end welds
-// the sentence on). Shape only; no word is named.
+// The retrieval lists: short words, none on both sides, none a whole clause.
 VERIFY["gearAccess.retrieval"] = (out, recipe, fail) => {
   const lists = {};
   for (const key of ["action", "free"]) {
@@ -479,15 +472,12 @@ VERIFY["gearAccess.retrieval"] = (out, recipe, fail) => {
   const both = (lists.action ?? []).filter((w) => (lists.free ?? []).includes(w));
   if (both.length) fail("a word sits on both sides");
 };
-// The man-sized body's weight: a whole number above zero, the shape `riderBody6`
-// accepts. Shape only; no figure is named.
+// The man-sized body's weight: a whole number above zero.
 VERIFY["capacity.riderBody"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.stone) && !(Number.isInteger(out.stone) && out.stone > 0)) fail("stone: not a positive whole number");
 };
-// The sea's prose blocks: every declared value reads, and the master mariner's
-// rank is a whole number above zero, the shape the voyages binding accepts.
-// Shape only; no figure is named.
+// The sea's prose blocks: every declared value reads, the master mariner's rank a whole number above zero.
 VERIFY["voyages.voyagesProse"] = (out, recipe, fail) => {
   for (const block of recipe.valueBlocks) {
     if (!out?.[block.id]) { fail(`block ${block.id}: not read`); continue; }
@@ -496,18 +486,17 @@ VERIFY["voyages.voyagesProse"] = (out, recipe, fail) => {
   const rank = out?.master?.masterRank;
   if (isNum(rank) && !(Number.isInteger(rank) && rank >= 1)) fail("masterRank: not a positive whole number");
 };
-// A prospective henchman's attribute dice: one formula of the shape `NdM`, the
-// shape `rollAttributes` accepts. Shape only; no figure is named.
+// A prospective henchman's attribute dice: one formula of the shape `NdM`.
 VERIFY["people.hirelingAttributes"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (typeof out?.dice === "string" && !/^\d*d\d+$/.test(out.dice)) fail("dice: not a formula of the shape NdM");
 };
-// The followers' arrival level: a whole number above zero. Shape only; no figure is named.
+// The followers' arrival level: a whole number above zero.
 VERIFY["followers.arrivalLevel"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.level) && !(Number.isInteger(out.level) && out.level > 0)) fail("level: not a positive whole number");
 };
-// The troops that make one platoon: a whole number above zero. Shape only; no figure is named.
+// The troops that make one platoon: a whole number above zero.
 VERIFY["followers.platoonSize"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.troops) && !(Number.isInteger(out.troops) && out.troops > 0)) fail("troops: not a positive whole number");

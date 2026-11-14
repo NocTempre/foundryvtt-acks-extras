@@ -771,11 +771,9 @@ export const PROGRESSION_CLASSES = {
 /**
  * The fraction of class level a borrowed table is read at, as a number.
  *
- * Which fraction a rule uses is printed, so it is carried by `atLevelNum` /
- * `atLevelDen` on the value itself, read from the reader's own book. A missing
- * or nonsensical fraction (or a spec that is not an object) is 1, the one
- * answer that invents nothing. See docs/abilities/DECISIONS.md, "The level
- * fraction is data, not a member of a shipped list".
+ * Reads the value's own `atLevelNum` / `atLevelDen`; a missing or nonsensical
+ * fraction is 1. See docs/abilities/DECISIONS.md, "The level fraction is data,
+ * not a member of a shipped list".
  *
  * @param {object} spec a LevelValue or a `progressionAs` effect
  */
@@ -1237,14 +1235,7 @@ export function slotCapacitySource(key) {
   return { state: "page", cite: citeOf(WEAR_SLOTS_DOC, spec.table) };
 }
 
-/**
- * The two kinds of retrieval from a container (RR p. 294): reaching in either
- * costs an action in lieu of movement (`action`) or does not (`free`). Per
- * container, so it lives on the gear rather than the slot. The kinds are the
- * procedure and stay ids; which carriers sit on which side is printed, and
- * arrives in the `GEAR_ACCESS_DOC` document (`retrievalAccess`). The select's
- * labels are lang strings (`ACKS-EQUIPMENT.access.<kind>`).
- */
+/** The two kinds of retrieval from a container, per container (RR p. 294); labels are `ACKS-EQUIPMENT.access.<kind>`. */
 export const ACCESS_COSTS = {
   free: {},
   action: {},
@@ -1255,10 +1246,7 @@ export const GEAR_ACCESS_DOC = "gearAccess";
 /** Its table: `{action, free}`, each a list of the carrier words the page names for that side. */
 export const RETRIEVAL_TABLE = "retrieval";
 
-/**
- * Declare the retrieval table, so an import names it as missing until it lands.
- * The id is a literal because the validate gates read this call from source.
- */
+/** Declare the retrieval table, so an import names it as missing until it lands. */
 export function declareGearAccessTables() {
   expectTables("gearAccess", ["retrieval"]);
 }
@@ -1271,13 +1259,8 @@ function retrievalWords(kind) {
 }
 
 /**
- * The retrieval kind (`"free"` or `"action"`) the imported page lists a
- * carrier under, by its name. The longest imported word that the name's folded
- * form contains decides; a name that holds no listed word, one whose longest
- * words tie across the two sides, and a world with nothing imported all answer
- * `""`, never a guess.
- * @param {string} name a carrier's name, as the Judge's book or the Judge writes it
- * @returns {"free"|"action"|""}
+ * The retrieval kind the imported page lists a carrier under, by the longest listed word its name contains.
+ * @returns {"free"|"action"|""} blank on no match, a tie, or nothing imported
  */
 export function retrievalAccess(name) {
   const key = slug(name);
@@ -1289,9 +1272,7 @@ export function retrievalAccess(name) {
 }
 
 /**
- * Where the retrieval membership came from, at render: `{state: "judge"}` where
- * the Judge's own edit holds the table, `{state: "page", cite}` where the import
- * recorded the page it read, `{state: "none"}` where nothing is imported.
+ * Where the retrieval membership came from: the Judge's edit, the imported page, or nothing.
  * @returns {{state: "judge"|"page"|"none", cite: string|null}}
  */
 export function retrievalAccessSource() {

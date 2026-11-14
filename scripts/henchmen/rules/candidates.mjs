@@ -132,12 +132,9 @@ export async function rollProficiencyLevel(rollDice, marketClass) {
 }
 
 /**
- * A prospective henchman's attributes (JJ 252, the 0th-level NPC attributes
- * list, whose roll-in-order method names henchmen prospects; RR 168 only has
- * henchmen rolled up like player characters): the imported formula
- * (`people.hirelingAttributes`) thrown once per attribute, in the sheet's
- * order. Rolled at HIRE only. Null where the formula is not imported, so the
- * hire records no attributes.
+ * A prospective henchman's attributes (JJ 252): the imported formula
+ * (`people.hirelingAttributes`) thrown once per attribute. Rolled at HIRE
+ * only; null where the formula is not imported.
  * @returns {Promise<{str:number,int:number,wil:number,dex:number,con:number,cha:number}|null>}
  */
 export async function rollAttributes(rollDice) {

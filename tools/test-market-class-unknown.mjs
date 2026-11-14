@@ -1,11 +1,6 @@
 /**
- * A market whose class is not known answers null, and nothing reads a figure
- * for a class it does not know. The class comes from the Judge's override or
- * from the imported families table; with neither, no class stands in for it,
- * and each reader answers null before a clamp or a comparison can turn the
- * null into the largest market.
- *
- * Every table below is invented, so a figure left in source fails here.
+ * A market whose class is not known answers null and nothing reads a figure
+ * for it. Every table below is invented, so a figure left in source fails.
  *
  * Run: node tools/test-market-class-unknown.mjs
  */
@@ -68,7 +63,7 @@ assert.strictEqual(shiftMarketClass(null, 1), null, "an unknown class shifted is
 assert.strictEqual(shiftMarketClass(null, 0), null, "an unknown class unshifted is unknown");
 assert.strictEqual(shiftMarketClass(4, 2), 2, "a known class shifts one step per point");
 
-// ---- the families table decides, and a count it holds no bracket for decides nothing ----
+// ---- the families table decides; a count outside every bracket decides nothing ----
 withTables(TABLES, () => {
   assert.strictEqual(marketClassFromFamilies(60), 5, "a count inside a bracket takes its row's class");
   assert.strictEqual(marketClassFromFamilies(500), 2, "the open bracket takes its row's class");

@@ -27,9 +27,7 @@ export const FLAG_WAGE_REMINDED = "wageRemindedThrough";
  * tables declared for them are not all readable. `throws` is not here — it is
  * this module's own roll-automation config (scripts/data/throws-data.mjs,
  * registered at setup).
- * Every id here is declared with `expectTables` in module.mjs; a declared
- * document may be left out while the feature that reads it cannot run on what
- * an import supplies (`followers`). See
+ * Must match the `expectTables` declarations in module.mjs, bar `followers`. See
  * docs/henchmen/DECISIONS.md, "The ready-time table check names only ids an
  * import can supply".
  */

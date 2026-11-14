@@ -1,15 +1,11 @@
 /* global game, ui, foundry, Roll, ChatMessage */
 /**
- * Follower generation (RR 334-337) — roll & record. Once the character reaches
- * the class level the followers rules name (the imported `followers`
- * `arrivalLevel`) and holds a class-appropriate stronghold, roll the class's
- * follower grants: troops (with a type roll per platoon), companions (a level
- * roll each), and apprentices. Results post as a GM-visible chat card; hiring
+ * Follower generation (RR 334-337) — roll & record. At the imported arrival
+ * level with a class-appropriate stronghold, roll the class's follower grants:
+ * troops (with a type roll per platoon), companions (a level roll each), and
+ * apprentices. Results post as a GM-visible chat card; hiring
  * the companions/apprentices as no-slot henchmen is a follow-up the Judge does
- * with the normal tools (the card records everything needed). The roll does
- * nothing until the arrival level and the tables it reads are imported, a
- * level a table did not print is left off the card, and a troop grant lists no
- * platoon types while the platoon size is unread.
+ * with the normal tools (the card records everything needed).
  *
  * The stronghold prerequisite resolves through the "has X" chain
  * (scripts/facts.mjs): structures-module API → flag → inventory marker item
@@ -37,7 +33,7 @@ async function rollTroopType(tableId) {
   return { die, type: row?.type ?? "?" };
 }
 
-/** Rolls the follower grants for `actor` and posts the results as a GM-visible chat card; does nothing where the arrival level or the tables the roll reads are not imported. */
+/** Rolls the follower grants for `actor` and posts them as a GM-visible chat card; does nothing where the arrival level or tables are not imported. */
 export async function openFollowersDialog(actor) {
   const arrival = arrivalLevel();
   if (arrival == null || !followerTablesImported()) return;
@@ -96,8 +92,6 @@ export async function openFollowersDialog(actor) {
   for (const grant of row.grants) {
     const count = await roll(grant.formula);
     if (grant.kind === "troops") {
-      // One type roll per platoon or fraction of one; with the platoon size
-      // unread there is no count of platoons, so no type is rolled.
       const platoons = platoonCount(count) ?? 0;
       const platoonCite = platoonSizeCite() ? ` (${platoonSizeCite()})` : "";
       const types = [];
@@ -118,7 +112,6 @@ export async function openFollowersDialog(actor) {
         ),
       });
     } else if (grant.kind === "companions") {
-      // A level the tables did not print is left off, never stood in for.
       const levels = [];
       for (let i = 0; i < count; i++) {
         let printed = null;

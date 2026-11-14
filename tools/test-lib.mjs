@@ -291,8 +291,7 @@ t("levelFactorLabel writes the fraction, and says nothing at a whole level", () 
   assert.equal(vocab.levelFactorLabel("half"), "");
 });
 
-// The effect-row editor declares a window class at load, so it needs the two
-// application bases; nothing else of Foundry is touched to read its field list.
+// The effect-row editor declares a window class at load, so it needs the two application bases.
 const priorFoundry = globalThis.foundry;
 const priorGame = globalThis.game;
 globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: {} };

@@ -24,9 +24,7 @@ export const ARRANGEMENT_FLAG = "lastArrangement";
 /**
  * What one actor costs a hold: their TRUE mass — body (or bodies, for a
  * stack) plus what they carry. See docs/vehicles/DECISIONS.md, "Weights are
- * true; the printed rate prices the unnamed head." Null where the body's weight
- * is not known (`borneBy6`): a caller treats that as no cost to test, never as
- * a weightless passenger.
+ * true; the printed rate prices the unnamed head." Null where the body's weight is not known.
  * @returns {number|null} stone
  */
 export function passengerCost(actor) {

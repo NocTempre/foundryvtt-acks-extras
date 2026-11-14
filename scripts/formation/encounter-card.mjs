@@ -266,13 +266,7 @@ export function encounterWhen({
   return lines;
 }
 
-/**
- * The zone throw's line on the card: the dice and the roll (null while the
- * throw was not made), the target, and a tooltip for each saying where it came
- * from. The die's is the page the delve's die was imported from, a Judge's
- * override, which holds no page, or, with nothing thrown, the page reference
- * alone; the target's names the zone that set it.
- */
+/** The zone throw's line on the card: dice, roll, target, and a tooltip each saying where it came from. */
 function zoneThrowView(zone, zones) {
   const made = zone.ok === true;
   const cite = made ? citeOf(DELVE_ENCOUNTER_DOC, "die") : null;
@@ -350,7 +344,7 @@ export async function postEncounterCard(formation, chain, {
     ? detection({ partyTerrain: terrain, partyHeads: size, light: "daylight", weather: fx.visibility, partyRoll: chain.distance, rng })
     : null;
   const isNone = outcomeKey === "none";
-  // A throw the registry could not answer (the territory's table, the zone's die) leaves the card at its first lines.
+  // A throw the registry could not answer leaves the card at its first lines.
   const missingThrow = !!((chain.territory && !chain.territory.ok) || (chain.zone && !chain.zone.ok));
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);

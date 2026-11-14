@@ -12,8 +12,7 @@
  * the navigation bonus, and a captain whose Seafaring reaches the imported
  * master-mariner rank (RR ch. 3, RR ch. 7) reads the hazard water better —
  * both prefilled, both overridable, because the dialog is a helper and the
- * Judge is the authority. With no rank imported the master-mariner box is
- * left unticked.
+ * Judge is the authority. No imported rank leaves the box unticked.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds, fractionLabel } from "../lib/util.mjs";

@@ -36,8 +36,7 @@ const sumOf = (rows, key) => rows.reduce((n, o) => n + (Number(o[key]) || 0), 0)
  *   marineGear: number, trade: object|null, pct: number, unweighed: number}}
  *   `used` is the whole load the vehicle bears — the figure a land vehicle's
  *   speed tiers are priced against; `trade` is the crew-for-cargo credit
- *   already folded into `capacity`; `unweighed` counts the passenger and
- *   cargo rows whose weight is not known, which `used` leaves out.
+ *   already folded into `capacity`; `unweighed` counts rows of unknown weight.
  */
 export function holdFrom(sys, { aboardStone = 0, occupants = [] } = {}) {
   const namedPassengerStone = sumOf(occupants.filter((o) => o.role === "passenger"), "stone");

@@ -51,9 +51,7 @@ export function draftKindOf(actor) {
  * is the UNNAMED abstraction only. Crew bodies never charge the hold (RR p.
  * 316), but a non-motive role's gear does (`gearStone`, `cargoGear: true`).
  * See docs/vehicles/DECISIONS.md, "Weights are true; the printed rate
- * prices the unnamed head." `stone` is null where the actor's body weight is not
- * known (`borneBy6`); the hold counts such a row for nothing and reports it
- * as unweighed.
+ * prices the unnamed head." `stone` is null where the body weight is unknown.
  *
  * @param {Actor} vehicle
  * @returns {{actor, uuid, id, name, img, role, station, kind, bodies, stone,

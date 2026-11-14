@@ -35,12 +35,7 @@ export function declareCapacityTables() {
   expectTables(CAPACITY_DOC, [RIDER_BODY_TABLE]);
 }
 
-/**
- * What a man-sized body weighs for purposes of carrying capacity, in sixths of
- * a stone, from the world's `capacity` table (the Judge's override over the
- * import); null when none is imported. Nothing stands in for it.
- * @returns {number|null}
- */
+/** A man-sized body's weight in sixths of a stone from the `capacity` table; null when none is imported. */
 export function riderBody6() {
   if (!hasDoc(CAPACITY_DOC)) return null;
   const raw = getDoc(CAPACITY_DOC)?.tables?.[RIDER_BODY_TABLE]?.stone;
@@ -49,10 +44,7 @@ export function riderBody6() {
 }
 
 /**
- * Where the man-sized body's weight came from, at render:
- * `{state: "judge"}` where the Judge's own edit holds the table, `{state:
- * "page", cite}` where the import recorded the page it read, and `{state:
- * "none"}` where nothing is imported.
+ * Where the man-sized body's weight came from: the Judge's edit, the imported page, or nothing.
  * @returns {{state: "judge"|"page"|"none", cite: string|null}}
  */
 export function riderBodySource() {
@@ -61,26 +53,14 @@ export function riderBodySource() {
   return { state: "page", cite: citeOf(CAPACITY_DOC, RIDER_BODY_TABLE) };
 }
 
-/**
- * The body weight a creature states for itself (`extras.bodyStone`, per
- * body), in stone; null where it states none. A blank field is no statement.
- * @param {Actor} actor
- * @returns {number|null}
- */
+/** The body weight a creature states for itself (`extras.bodyStone`, per body), in stone; null when blank. */
 export function statedBodyStone(actor) {
   const stated = actor?.flags?.[MODULE_ID]?.extras?.bodyStone;
   const body = stated == null || stated === "" ? NaN : Number(stated);
   return Number.isFinite(body) ? body : null;
 }
 
-/**
- * What a figure built on the man-sized body says about where that weight came
- * from, as a tooltip: the page the import read, the Judge's own edit, or the
- * page reference alone where nothing is imported. Empty for an actor who
- * states a body weight of their own, since that figure has no page.
- * @param {Actor} actor whose body the figure weighs
- * @returns {string}
- */
+/** Tooltip naming where the man-sized body's weight came from; empty for an actor who states their own. */
 export function riderBodyTip(actor) {
   const i18n = globalThis.game?.i18n;
   if (!i18n || statedBodyStone(actor) !== null) return "";
@@ -90,12 +70,7 @@ export function riderBodyTip(actor) {
   return i18n.localize("ACKS-LIB.capacity.riderBody.none");
 }
 
-/**
- * One body's weight in sixths of a stone: the creature's own stated weight,
- * else the imported man-sized body; null when neither is known.
- * @param {Actor} actor
- * @returns {number|null}
- */
+/** One body's weight in sixths of a stone: the stated weight, else the imported man-sized body; null when neither. */
 export function bodyWeight6(actor) {
   const own = statedBodyStone(actor);
   return own === null ? riderBody6() : own * STONE;
@@ -133,12 +108,8 @@ export function carriedWeight6(actor) {
 
 /**
  * What this actor costs the thing carrying them: their body plus their kit,
- * unmitigated. A character's body is the man-sized weight the book assumes
- * (`riderBody6`, RR p. 161); a creature with a stated body weight uses its own
- * (`bodyStone`, PER BODY); a stack weighs every living body it stands for —
- * twenty mercs as one group actor are twenty bodies and one shared kit, never
- * one. Null where the body's weight is not known: the kit alone is not the
- * cost, and every figure derived from this answers null with it.
+ * unmitigated, per living body of a stack (`riderBody6`, RR p. 161). Null
+ * where the body's weight is not known.
  * @returns {number|null}
  */
 export function borneBy6(actor) {
@@ -177,8 +148,7 @@ export function capacity6(doc) {
 }
 
 /**
- * What the document is holding, in sixths of a stone. Null for a mount whose
- * rider's body weight is not known: the load is then not a figure.
+ * What the document is holding, in sixths of a stone; null for a mount whose rider's body weight is unknown.
  * @returns {number|null}
  */
 export function load6(doc) {

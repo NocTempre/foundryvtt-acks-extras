@@ -92,9 +92,7 @@ export function segmentKeyFor(spec) {
  */
 export function effectiveMarketClass(location, employer, { network = true } = {}) {
   const base = location.system.marketClass;
-  // A place with no market has no class, and neither has a market whose class
-  // is not known. Without this the null would clamp to the largest market
-  // there is, the worst possible wrong answer to "what can you hire here".
+  // No market, or an unknown class, is null; it must not clamp to the largest market.
   if (base == null) return null;
   // A situational shift (a mercantile network: "in a previously entered
   // market") counts only where the markets feature says the employer has
@@ -224,8 +222,7 @@ async function buildGmCandidate(location, spec, { marketClass = null } = {}) {
   const demographics = demographicsOf(location);
   const variant = location.system.market?.classRarityTableId || "default";
 
-  // Level: use the specified one, else roll for the market (a roll needs the
-  // class; `createPosting` refuses an unleveled placement at a place without one).
+  // Level: use the specified one, else roll for the market.
   let level = spec.level != null && spec.level >= 1 ? spec.level : null;
   if (level == null) {
     const rolled = await rollRandomLevel(rollDice, clampMarketClass(marketClass));
@@ -357,9 +354,7 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
           candidate.classKey = rolled.classKey;
           candidate.doubleD100 = rolled.rolls;
         }
-        // 0th-level henchmen have no class: the double-d100 draws from the
-        // leveled class distribution, and a 0th prospect rolls a
-        // street occupation and takes a class when they actually level.
+        // 0th-level henchmen have no class; a street occupation is rolled and a class taken at levelling.
         candidate.wageGp = henchmanWage(spec.level ?? 0);
       } else if (spec.kind === "henchmanByClass") {
         if (!candidate.level || candidate.level <= 0) {
@@ -612,9 +607,7 @@ export async function createPosting(
   const currentTime = now();
   // You cannot post a notice in a place that has no market to post it in.
   if (!location.system.hasMarket) return { error: "no-market" };
-  // Every figure of a search reads at the market's class; where it is not
-  // known nothing is posted, rolled or charged. A GM placement that names its
-  // level rolls nothing and needs no class.
+  // An unknown market class posts, rolls and charges nothing; a GM placement naming its level needs none.
   if (location.system.marketClass == null && !(PRIVATE_KINDS.includes(rawSpec.kind) && rawSpec.level >= 1 && !requestUserId)) return { error: "no-market-class" };
   // presentedLevel travels on the POSTING (RR 168 lie), not the spec — keep
   // it out of spec comparisons and storage.
@@ -866,7 +859,6 @@ export async function processLocation(location, currentTime = now()) {
     deferred = "arrivals-missing";
     console.warn(`${MODULE_ID} | market roll deferred for "${location.name}": arrival shares not imported (Rules tables)`);
   }
-  // A place whose class is not known rolls nothing either, and keeps its market.
   const classKnown = sys.marketClass != null;
   if (marketDue && tablesLoaded && sharesImported && classKnown) {
     // A posting that advertised the same thing for a whole month upgrades to
@@ -981,7 +973,6 @@ export async function processLocation(location, currentTime = now()) {
       const employer = employerDoc?.actor ?? employerDoc;
       const weeksElapsed = Math.floor((currentTime - posting.createdTime) / SECONDS_PER_WEEK) + 1;
       const feesPaid = posting.feesPaid.length;
-      // No fee is read, charged or refused at a class that is not known.
       const feeClass = feeMarketClass(location, employer, posting);
       for (let w = feesPaid; w < weeksElapsed && feeClass != null; w++) {
         const fee =
@@ -1023,8 +1014,7 @@ export async function processLocation(location, currentTime = now()) {
     try {
       const employerDoc = posting.employerUuid ? await fromUuid(posting.employerUuid).catch(() => null) : null;
       const employer = employerDoc?.actor ?? employerDoc;
-      // A directed search re-rolls at the class its recruiter reads the market
-      // at; with none known the posting keeps its results as they are.
+      // With no class known the posting keeps its results.
       const mc = effectiveMarketClass(location, employer, { network: !!posting.network });
       if (mc == null) continue;
       // This recruiter's previous directed results purge on re-roll. The

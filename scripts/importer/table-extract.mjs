@@ -1133,14 +1133,7 @@ function takeProse(window, take, spec = {}) {
       return sizes.length ? sizes : undefined;
     }
     case "nounList": {
-      // The nouns of one comma-separated list, as the page prints them, in
-      // reading order: the window is cut at the recipe's `until` pattern (a
-      // phrase that follows the list and holds none of its nouns), split on
-      // commas and on a final "or"/"and", and stripped of a leading article.
-      // A noun that itself holds the word "and" or "or" splits; the lists this
-      // reads name single-word or hyphen-free items. A cut the window does not
-      // hold reads nothing: the list's end is unknown, and the words after it
-      // belong to another clause.
+      // The nouns of one comma-separated list, cut at the recipe's `until`; a window lacking the cut reads nothing.
       const cut = spec.until ? new RegExp(spec.until).exec(window) : null;
       if (spec.until && !cut) return undefined;
       const head = cut ? window.slice(0, cut.index) : window;

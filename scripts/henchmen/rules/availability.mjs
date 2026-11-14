@@ -13,11 +13,7 @@ export const ARRIVALS_DOC = "availability";
 /** The prose table of `ARRIVALS_DOC` holding them (RR 162). */
 export const ARRIVALS_TABLE = "arrivalProse";
 
-/**
- * Clamp a market class to the legal 1..6 range (1 is the largest market).
- * A class that is not known (null, undefined, not a number) stays null: it is
- * never read as a number, since a null would clamp to the largest market.
- */
+/** Clamp a market class to the legal 1..6 range (1 is the largest market); an unknown class stays null. */
 export function clampMarketClass(mc) {
   if (mc == null || mc === "" || !Number.isFinite(Number(mc))) return null;
   return Math.min(6, Math.max(1, Math.round(Number(mc))));
@@ -25,8 +21,7 @@ export function clampMarketClass(mc) {
 
 /**
  * Derive market class from urban families (RR 352) by the imported settlement
- * table's bracket. Null when no bracket holds the count, or the row names no
- * class: the class is then unknown, never a default.
+ * table's bracket; null when no bracket holds the count.
  */
 export function marketClassFromFamilies(urbanFamilies) {
   const rows = getTable("settlement", "marketClassByFamilies").rows;
@@ -177,7 +172,6 @@ export function rarityExpr(tier, marketClass) {
  */
 export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default", rarityOverrides = [], blockedClasses = []) {
   const mc = clampMarketClass(marketClass);
-  // Nothing in a pool reads without the class: a null never reaches an expression.
   if (mc == null) return { error: "no-market-class" };
   if ((spec.kind === "henchmanByClass" || spec.kind === "henchmanByClassProficiency") && classBlocked(blockedClasses, spec.classKey)) {
     return { error: "class-blocked" };

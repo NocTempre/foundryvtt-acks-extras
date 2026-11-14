@@ -466,9 +466,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
 
   // RETRIEVAL COST — only meaningful once something can be inside it. The
   // capacity that makes it a container is the Details tab's own switch.
-  // The row says where the carrier list the importer reads came from: the page
-  // it read, the Judge's own edit of it, or with nothing imported the page that
-  // prints it.
+  // Provenance of the imported carrier list (RR p. 294).
   if (isContainer(item)) {
     const accessRow = row("ACKS-EQUIPMENT.props.access", select(
       [{ value: SLOT_AUTO, label: loc("props.accessUnset") }, ...Object.keys(ACCESS_COSTS).map((k) => ({ value: k, label: game.i18n.localize(`ACKS-EQUIPMENT.access.${k}`) }))],

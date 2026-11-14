@@ -1113,12 +1113,7 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // Which carriers cost an action in lieu of movement to retrieve from, and
-  // which do not (RR 294, Movement Actions): two lists
-  // in one bullet, each anchored on its verb phrase and cut where the clause
-  // that follows the list begins, so the recipe holds no carrier's name.
-  // lib/vocab.mjs `retrievalAccess` answers a carrier's side from them, and
-  // blank while they are not imported.
+  // Which carriers cost an action to retrieve from, and which do not (RR 294).
   gearAccess: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 294" },
     tables: {
@@ -1135,11 +1130,7 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // What a man-sized body is assumed to weigh for purposes of carrying
-  // capacity (RR 161, Encumbrance and Equipment): one figure in one sentence,
-  // read after the clause that names the assumption, which carries none. lib/capacity.mjs `riderBody6` answers
-  // it, and null while it is not imported. The swimming rescue's share on RR
-  // 271 is a different figure (`formation` `carriedBodyStone`).
+  // What a man-sized body is assumed to weigh for carrying capacity (RR 161).
   capacity: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 161" },
     tables: {
@@ -2150,8 +2141,7 @@ export const TABLE_RECIPES = {
             ],
           },
           {
-            // The Seafaring rank that makes a master mariner, in the sentence
-            // that defines the role by its ranks.
+            // The Seafaring rank that makes a master mariner (RR 315).
             id: "master",
             printedPage: 315,
             locate: "master mariners are captains with",
@@ -3128,11 +3118,7 @@ export const TABLE_RECIPES = {
         ],
         blocks: CULTURE_NAME_BLOCKS,
       },
-      // The dice a prospective henchman's six attributes are rolled with (JJ
-      // prose under the 0th-level NPC attributes list): one formula, thrown once
-      // per attribute in the sheet's order. The anchor is the verb before the
-      // formula, found by the clause that follows it, so it carries no figure;
-      // the formula is read as printed.
+      // The dice a prospective henchman's attributes are rolled with (JJ p. 252).
       hirelingAttributes: {
         shape: "proseValues",
         book: "jj",
@@ -4645,18 +4631,11 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // The followers rules (RR 334-335). Two figures are read so far: the class
-  // level at which followers begin to arrive and the troops that make one
-  // platoon; the follower grants by class, the troop type tables, the companion
-  // level roll and the follower loyalty table have no recipe yet
-  // (docs/henchmen/ROADMAP.md).
+  // The followers rules (RR 334-335): the arrival level and the platoon size.
   followers: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 334-335" },
     tables: {
-      // The class level followers begin to arrive at, in the opening sentence of
-      // the followers rules: the figure follows the clause that names the event.
-      // An ordinal's superscript suffix reaches the text layer as a word of its
-      // own, after the digit, so `int` reads the digit and passes it over.
+      // The class level followers begin to arrive at (RR 334).
       arrivalLevel: {
         shape: "proseValues",
         book: "rr",
@@ -4665,9 +4644,7 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "level", findRe: "upon\\s*reaching", take: "int", span: 10 }],
       },
-      // The troops that make one platoon, in the sentence that sends a Judge to
-      // the troop type table once per platoon: the figure follows the opening
-      // bracket after the unit's name.
+      // The troops that make one platoon (RR 335).
       platoonSize: {
         shape: "proseValues",
         book: "rr",

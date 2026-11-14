@@ -771,9 +771,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 }
 
 // ---- a hire's attributes: the imported formula, once per attribute, and nothing without it ----
-// The formula is invented (a two-die, five-sided throw no book prints), so a
-// formula left in source fails; what is pinned is the count, the order and the
-// refusal of an unimported or malformed one.
+// The formula is invented, so one left in source fails.
 {
   const { rollAttributes } = await import(new URL("../scripts/henchmen/rules/candidates.mjs", import.meta.url));
   const withPeople = async (table, fn) => {
@@ -1230,9 +1228,6 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     console.error = (...args) => errors.push(args.map(String).join(" "));
     let res;
     try {
-      // A candidate with no attributes, hired with no attribute formula imported:
-      // nothing is rolled, the hireling is made with no scores block, and the
-      // candidate is left as it was.
       const created = [];
       const makeActorOnce = globalThis.Actor.create;
       globalThis.Actor.create = async (d) => (created.push(structuredClone(d)), makeActorOnce(d));
@@ -1535,9 +1530,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 }
 
 // ---- the followers roll's arrival level and platoon size: imported, never shipped ----
-// Every figure and every word but the recipe's anchor is invented. The roll
-// reads the arrival level, the platoon size and four tables; it does nothing without the level or any table,
-// and a level a table did not print is left off the card.
+// Every figure and every word but the recipe's anchor is invented.
 {
   const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
   const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
@@ -1546,8 +1539,6 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const { bracketRow } = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
   const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
 
-  // The recipe reads the figure after its anchor, a superscript suffix sorting
-  // in as a word of its own, and reads nothing from a page without the anchor.
   const recipe = TABLE_RECIPES.followers.tables.arrivalLevel;
   const anchor = recipe.values[0].findRe.replace(/\\s\*/g, " ");
   assert.deepStrictEqual(extractTable(page([`Badger text: ${anchor} 4 th level, a heron can begin.`]), recipe), { level: 4 }, "the recipe reads the figure after its clause, past a suffix word");
@@ -1634,8 +1625,6 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     await run({ followers: { ...FOUR, ...arrival } }, 4);
     assert.match(seen.chat[0].content, /companionsUnleveled\|\{"count":2,"class":"alder","levels":""\}/, "a roll that lands on a row printing no level leaves the level off");
 
-    // The platoon size is a figure of its own: unread, a troop grant is listed
-    // with no platoon types and no type is rolled.
     totals = { F1: 45, F2: 2, F3: 1, F4: 3, "1d100": 7, "1d6": 2 };
     await run({ followers: { ...FOUR, ...arrival } }, 4);
     assert.strictEqual(seen.chat.length, 1, "the card posts without the platoon size");

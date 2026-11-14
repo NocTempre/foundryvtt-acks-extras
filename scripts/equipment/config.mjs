@@ -112,11 +112,7 @@ const POUCH = Object.freeze({ slots: [SLOT.belt] });
  * One table, because these are all the same fact about one piece of gear:
  * `holds` says it takes other gear and `slots` where it rides. A container
  * with no slots is not worn at all: a barrel and an ironbound chest sit on the
- * floor.
- *
- * What it costs to get something out is never here: RR p. 294 names which
- * carriers cost an action in lieu of movement and which do not, and the
- * importer reads that list (`lib/vocab.mjs` `retrievalAccess`).
+ * floor. Retrieval cost is read from the import (`lib/vocab.mjs` `retrievalAccess`, RR p. 294).
  *
  * How MUCH a container holds is never here: the price grid prints it in the
  * row's label and the importer writes it to the item's `gear.capacity`

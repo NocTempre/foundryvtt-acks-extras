@@ -134,9 +134,7 @@ const kindOf = (carrier) => {
  * `{ carrier, role, kind, speed }`, `kind` being `animal`, `land` or `vessel`.
  * A vessel's speed is null, its clock not being a march's (`carrierSpeedFor`).
  * A wagon quotes its pace with this member aboard, so taking the offer cannot
- * land them below the figure that won it. A member whose body weight is not
- * known neither fills a hold nor a mount in the check, and a wagon's pace with
- * them aboard is then null: the offer stands and quotes no pace.
+ * land them below the figure that won it. A member of unknown body weight fills neither.
  */
 function offerOf(entry, actor, formation, t) {
   const carrier = entry.actor;

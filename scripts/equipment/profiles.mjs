@@ -65,8 +65,7 @@ export function isHelmet(item) {
  * to go switches the wear features off.
  *
  * @returns {{slots: string[], access: string, holds: boolean, relief: number|null, loaded6: number|null}}
- *   `access` is the retrieval side the imported page lists the name under, blank
- *   where it lists none or nothing is imported; `holds` says only that
+ *   `access` is the retrieval side the imported page lists the name under, else blank; `holds` says only that
  *   it takes gear, never how much (the capacity is the item's own, read from
  *   the page by the importer); `relief` is null unless the item is a harness
  *   whose own text states the weight it secures, and `loaded6` unless it is a
@@ -80,8 +79,7 @@ export function inferGear(item) {
   if (profile) {
     return {
       slots: [...(profile.slots ?? [])],
-      // Which side of the retrieval list the name falls on, from the import: blank
-      // for a name the page does not list and while nothing is imported.
+      // The retrieval side from the import; blank when unlisted or unimported.
       access: retrievalAccess(item.name ?? ""),
       holds: profile.holds === true,
       // A harness's relief is read off the item's own name or description,

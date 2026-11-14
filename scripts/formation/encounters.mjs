@@ -574,17 +574,11 @@ export function aftermath({ terrain, rng = Math.random } = {}) {
  *
  * `zone` is what the encounter zones the party stands in say, `{target, table,
  * die}`: `target` a target of their own, `die` the dice it is thrown on (the
- * imported delve throw's, passed in by the caller), `table` whether they name
- * a RollTable. A target replaces the territory throw: the dice are recorded as
- * `chain.zone` (`{ok: true, die, roll, target, hit}`), `chain.territory` is a
- * skipped marker (`{ok: true, skipped: true}`), and a hit is a monster
- * encounter. With no die, or one `rollDice` cannot read, the zone throws
- * nothing: `chain.zone` is `{ok: false, target, missing}` and the chain
- * carries no outcome. A named table replaces the creature step of a creature
- * outcome with `chain.zoneDraw` — the caller draws it, since the table is a
- * document — after the rarity throw a territory monster outcome still makes; a
- * zone's own hit with a table stops there. Terrain outcomes and the distance
- * roll are untouched.
+ * caller passes the imported delve throw's), `table` whether they name a
+ * RollTable. A target replaces the territory throw and is recorded as
+ * `chain.zone`; with no readable die the zone throws nothing and the chain
+ * carries no outcome. A named table replaces the creature step with
+ * `chain.zoneDraw`, which the caller draws.
  */
 export function runEncounter({ territory, road = false, night = false, terrain, restingOrKnownRoute = false, zone = null, rng = Math.random } = {}) {
   const zoneTarget = Math.max(0, Math.floor(Number(zone?.target) || 0));
@@ -621,10 +615,8 @@ export function runEncounter({ territory, road = false, night = false, terrain, 
 }
 
 /**
- * A zone's own throw in place of the territory's: the caller's dice against
- * the zone's target, a hit being a monster encounter drawn from the zone's
- * table when it names one, else on the terrain's sub-table at the territory's
- * rarity. Dice `rollDice` cannot read throw nothing and touch no rng.
+ * A zone's own throw in place of the territory's: the caller's dice against the zone's target.
+ * Dice `rollDice` cannot read throw nothing and touch no rng.
  */
 function zoneThrow({ territory, terrain, target, table, die: dice, rng }) {
   const roll = rollDice(dice, rng);

@@ -461,8 +461,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       const next = nextMarketRollTime(sys.monthAnchorTime, t);
       context.nextRollDays = next ? Math.max(0, Math.ceil((next - t) / SECONDS_PER_DAY)) : null;
     }
-    // A class that is not known shows a blank badge: its tooltip is the page
-    // reference alone, and the search fee beside it is not worked out.
+    // An unknown class shows a blank badge and no search fee.
     const known = sys.marketClass != null;
     context.marketClass = sys.marketClass;
     context.marketClassRoman = known ? ["I", "II", "III", "IV", "V", "VI"][sys.marketClass - 1] : "";
