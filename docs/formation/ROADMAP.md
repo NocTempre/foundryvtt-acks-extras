@@ -16,7 +16,7 @@ Legend: 🟡 partial or assisted · 🔧 needs development
 
 | Rule | Status | What is missing |
 |---|---|---|
-| Running fatigue, winded from running | 🔧 | Only the winded state from five turns without rest is automated. Per-round running fatigue (a Paralysis save after a CON-adjusted number of rounds, Endurance's allowance) is a combat-scale rule: it needs a combat-round hook and the save automation. Low priority; fights rarely last that long. |
+| Running fatigue, winded from running | 🔧 | Only the winded state from missed rest is automated. Per-round running fatigue (a Paralysis save after a CON-adjusted number of rounds, Endurance's allowance) is a combat-scale rule: it needs a combat-round hook and the save automation. Low priority; fights rarely last that long. |
 | Corridor-width formation (RR ch. 6, Marching and Mapping) | 🟡 | The party marches as a column and squeezes where a wall shuts a file out (MODEL "The column"). What remains is a per-formation toggle to march unsqueezed. |
 | Mapping proficiency's secret error-detection throw | 🔧 | A Judge-only party check, `kw:mapping`: rolled for a mapper who can work and holds the proficiency, when the map and the ground disagree. One more Judge-only entry in `PARTY_CHECKS` (`party-rolls.mjs`), resolved as the other party checks are (MODEL, "The party check's throw"), with the result shown to the Judge alone. What the proficiency changes today is read by the mapping verdict (MODEL, "Mapping"). |
 | Earshot and noise | 🟡 | Left to the Judge's adjudication; nothing automates it. |

@@ -661,7 +661,7 @@ scout. They live here rather than in a feature because more than one asks.
 **Sense resolution** runs in one precedence order, so the movement rules and the
 canvas can never disagree: the Full Monster Sheet stat block
 (`flags["acks-extras"].extras`), then a `kw:lightlessvision` capability, then
-item and active-effect names. `canSeeInDark` (the ⅓-speed blinded rule) and
+item and active-effect names. `canSeeInDark` (the blinded speed rule) and
 `senseProfile` (token sight) are two readings of that one answer.
 
 **The Foundry mapping.** `sight.range` is what a token sees *in darkness* — core
@@ -887,7 +887,7 @@ detection mode.
 
 Source-side conditions are resolved in `senses.mjs` and written into the token,
 so a suppressed sense costs nothing per visibility test and `canSeeInDark` agrees
-with the canvas — a deafened thief takes the blinded ⅓-speed penalty. Conditions
+with the canvas — a deafened thief takes the blinded speed penalty. Conditions
 that depend on the *target*, or on where the perceiver is standing, cannot be
 precomputed and live in `_canDetect` instead.
 

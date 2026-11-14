@@ -869,15 +869,14 @@ first-level awards (fixed grants counted against what the template carried, the
 Nth 1st-level rung printing a ref owing the Nth copy, plus the chosen picks).
 
 **A template's printed proficiencies ARE the character's level-1 picks.** RR
-Ch. 2 hands a template over "with weapons, armor, equipment, proficiencies, and
-spells ready for play", and the Intellect bonus is chosen "on top of those
-listed for the template" — so a level-1 offer drawing on the class inventory or
+Ch. 2 hands a template over complete and ready for play, and the Intellect
+bonus is chosen on top of what the template lists — so a level-1 offer drawing on the class inventory or
 the general list is answered by the template and not asked again beside it. An
 offer among named alternatives (a warlock's dark path, a witch's tradition) is
 not something a template lists, and stays on offer.
 
 **The template pays the starting coin**, in the denominations it prints — most
-pay gold, a few pay silver, and three pay silver alone. Each lands on the
+pay gold, and the rest pay silver. Each lands on the
 character's own row of that name through the lib's `creditCoin`, which tops a
 purse up and never makes a second; where the character keeps none, the row is
 copied from the world's coin of that name (`coinTemplate`) so it keeps that
@@ -897,8 +896,7 @@ Judge unlock a second control offers the additive behaviour instead.
 
 **Intellect is netted against the template.** Most templates assume no bonus
 (RR Ch. 2 §II.1), so the whole bonus is the player's to spend. The studious
-spellcasters' templates assume one — a proficiency listed last and a spell
-listed second — recorded as `templatesAssumeIntBonus` on the class document
+spellcasters' templates assume one, recorded as `templatesAssumeIntBonus` on the class document
 and filled by the importer, because it cannot be derived from the document
 ([DECISIONS.md](DECISIONS.md)). Below that band the two printed entries are
 withheld and named in the chat summary; above it only the difference is

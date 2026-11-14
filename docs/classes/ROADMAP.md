@@ -152,7 +152,7 @@ side effect of whatever comes next.
 ## Deferred with the 2026-10-23 0th-level gate
 
 - **Erosion on the calendar.** A marked proficiency is removed by the Judge;
-  nothing watches world time to remove one a month, and the mark's `since` is
+  nothing watches world time to remove one on its cadence, and the mark's `since` is
   read by nothing yet.
 - **An unmark control.** A mark set in error comes off only by deleting the
   item or clearing its flag by API.

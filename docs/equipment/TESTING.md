@@ -97,7 +97,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 2c. Ready from core's own stack: create "Torches (6)" from the system's
    equipment compendium and press its Ready control (the character sheet's
    or the system sheet's). *Observable:* a `weapon` named "Torch" appears,
-   1d4, melee and thrown, `flags.acks-extras.light` true, and the stack
+   with its printed damage die, melee and thrown, `flags.acks-extras.light` true, and the stack
    reads one fewer. Press Ready on a plain `item` with "torch" nowhere in
    its name through the API (`prepareTorch(actor, item)`): *Observable:* a
    notice says it is not a torch stack, and nothing is created.

@@ -99,7 +99,7 @@ chosen before this keep their dice-made figures, with no migration (owner,
 
 Asked "At the AX3 capital's gates, which toll does entering the market
 charge? RR p. 372 tolls each entry per stone of cargo capacity plus a tariff.
-AX3 p. 56 (written for ACKS I) tolls merchandise passing any of its eight
+AX3 p. 56 (written for ACKS I) tolls merchandise passing any of its
 gates, entering OR leaving, by its own dice, plus a duty. The two give
 different amounts. Under the later-printing ruling, ACKS II wins over the AX
 books.", with the options "A: RR at every gate (Recommended)" and "B: AX3 toll

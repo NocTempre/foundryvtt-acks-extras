@@ -110,7 +110,7 @@ is a union"). A single-valued domain reads its one value through
 | `maneuverTrickery` | CSV | Combat Trickery manoeuvres |
 | `damageAttribute` | single value | the score that replaces STR on a damage roll STR modifies (Strength of Faith) |
 | `armorTraining` | numeric | armour categories added above class; from an ability, its `modifies`/`armor` row's step times its rank (below) |
-| `running` | boolean | +30' speed marker — read by movement modules (formation), not written here |
+| `running` | boolean | a speed marker — read by movement modules (formation), not written here |
 | `finesse` `preciseShooting` `sniping` `ambushing` `skirmishing` `unarmedFighting` `blindFighting` `mountedCombat` `riding` `berserkergang` `freeSwap` | boolean | proficiency presence tests |
 
 ### Armour Training's step

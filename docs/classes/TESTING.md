@@ -192,7 +192,7 @@ re-render alone keeps the old module.
 
 Fixtures: a disposable class Item with two template rows — one whose items
 name a base the world holds by a SHORT name (create a disposable `weapon`
-named `Staff`; the row prints "staff tipped with glass gemstone"), one naming
+named `Staff`; the row prints "staff tipped with a jade bead"), one naming
 gear the world does not hold. A disposable character.
 
 1. `acksExtras.classes.templates.materializeTemplates(cls)` (or the sheet's

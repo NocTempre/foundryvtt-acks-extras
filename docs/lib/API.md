@@ -309,7 +309,7 @@ that decides them.
 | `vsAlignmentMode` | `gate` (default) — applies only versus that alignment; `sign` — applies always, negated otherwise |
 | `tones` | restrict to some of the three `INFLUENCE_TONES` |
 | `optionalRule` | obeys a world setting of this name; **absent means enabled** |
-| `kickerAt` / `kickerNote` | a rider that fires when the roll total reaches `kickerAt` (Mystic Aura's 12+ bewitched) |
+| `kickerAt` / `kickerNote` | a rider that fires when the roll total reaches `kickerAt` (Mystic Aura's bewitched rider) |
 
 ```js
 scopeApplies({ vsKinds: ["animal"] }, { kinds: ["animal"] })
@@ -317,9 +317,9 @@ scopeApplies({ vsKinds: ["animal"] }, { kinds: ["animal"] })
 ```
 
 `gate` and `sign` are separate modes because the books write both and they are
-different rules: Ancient Pacts is +1 versus Chaotic monsters and nothing
-otherwise; Deathly Visage is +2 versus Chaotic and −2 versus everyone else.
-Storing either as the other is wrong by double the value, in the direction that
+different rules: Ancient Pacts applies against Chaotic monsters and nothing
+otherwise; Deathly Visage applies a bonus versus Chaotic and a penalty versus
+everyone else. Storing either as the other is wrong, in the direction that
 matters most.
 
 **`undetermined` is the field to respect.** It means a scope was declared but
@@ -439,24 +439,24 @@ these are structured refs rather than free text. Any effect may carry:
 
 How the book's recurring shapes map:
 
-- **Modifies another ability** — Skulking's *+2 to Hiding and Sneaking throws*:
-  `{type:"modifies", refs:[hiding, sneaking], target:"proficiencyThrow", value:2, mode:"add"}`.
-- **Conditional override ("instead")** — Alertness is a stand-in throw, *but if
-  you are separately proficient in Searching you get +2 to that throw instead*:
-  a `searchListen` throw (read only where no skill is held, as the Adventuring
-  figure's stand-in) plus one additive row per skill,
-  `{type:"modifies", refs:[searching], ifHas:[searching], value:2, mode:"add"}`.
+- **Modifies another ability** — one that adds to the throws of two others:
+  `{type:"modifies", refs:[hiding, sneaking], target:"proficiencyThrow", value:N, mode:"add"}`.
+- **Conditional override ("instead")** — Alertness is a stand-in throw that a
+  separately held Searching replaces with an additive bonus: a `searchListen`
+  throw (read only where no skill is held, as the Adventuring figure's
+  stand-in) plus one additive row per skill,
+  `{type:"modifies", refs:[searching], ifHas:[searching], value:N, mode:"add"}`.
   The row names a capability, so it follows the skill however the item is named;
   with no skill held it is not applied.
-- **Stacking rules** — Diplomacy's *+1 reaction stacks with Mystic Aura but not
-  Intimidation or Seduction*:
-  `{type:"modifier", target:"reaction", value:1, stacksWith:[mysticAura], notStacksWith:[intimidation, seduction]}`.
-- **Chaining / partial stack** — Counterspelling is +2 caster levels, *three
-  rather than two* with Bright Lore of Aura: the base
-  `spellcastingMod` plus `{…, ifHas:[brightLoreOfAura], casterLevelDelta:3, mode:"replace"}`.
+- **Stacking rules** — Diplomacy's reaction bonus stacks with Mystic Aura but
+  not Intimidation or Seduction:
+  `{type:"modifier", target:"reaction", value:N, stacksWith:[mysticAura], notStacksWith:[intimidation, seduction]}`.
+- **Chaining / partial stack** — Counterspelling adds caster levels, and a
+  larger number with Bright Lore of Aura: the base
+  `spellcastingMod` plus `{…, ifHas:[brightLoreOfAura], casterLevelDelta:N, mode:"replace"}`.
 - **Prerequisite** — Eldritch Warrior *requires* Eldritch Talent:
   `{type:"requires", refs:[eldritchTalent]}`.
-- **Grants a choice** — Expert Traveler *begins play with Driving or Seafaring*:
+- **Grants a choice** — Expert Traveler begins play with one of two named abilities:
   `{type:"grants", refs:[driving, seafaring], choose:1}`.
 
 ### Typed modifiers — which rows change the sheet
@@ -1294,7 +1294,7 @@ animals are container roots too).
 `mergePatch` understands RELATIVE leaves — `{"$add": n}` adjusts the
 existing numeric value instead of replacing it (missing base counts from 0;
 only the exact one-key `{$add: number}` shape is relative). This is the
-primitive MODIFIER templates build on: an aging template's "−1 STR" patch
+primitive MODIFIER templates build on: an aging template's attribute patch
 composes with whatever base actor it is stacked onto.
 
 Menu rows may carry a `sub` generation roll ({die, twice?, outcomes:

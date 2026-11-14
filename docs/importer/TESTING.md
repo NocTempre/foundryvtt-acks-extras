@@ -1249,32 +1249,31 @@ The Revised Rulebook connected.
    which is silent on a sheet except for a damage die nobody can explain.
 2. Check the arithmetic the page states, not the one the sheet renders.
    *Observable:* for the bare stacks `quantity × weight6` equals the printed
-   encumbrance — 1 for the stones, 0 for the silver arrow; the case and the
-   quiver carry the printed 1 whole as `weight6`, and `per` is what makes the
+   encumbrance column; the case and the
+   quiver carry the printed whole as `weight6`, and `per` is what makes the
    bundle weigh once on a character. A stack whose per-unit weight was rounded
-   to an integer shows here as 0, and as a character who can carry thirty
-   stones for free.
+   to an integer shows here as 0, and as a character who can carry a heavy
+   stack for free.
 2b. The weapons are the system's own shape. *Observable:* the one-liner
 
    ```
    game.items.filter(i => i.type === "weapon" && i.getFlag("acks-extras","cookbook")?.id?.startsWith("def.weapon.")).map(i => `${i.name} ${i.system.size} ${Object.entries(i.system.special).filter(([,v]) => v).map(([k]) => k).join("+") || "-"} ${i.system.damage.base.formula || "-"}/${i.system.damage.alternate.formula || "-"} tags=${[...i.system.customTags].join("|") || "-"}`)
    ```
 
-   reads the table as the page prints it: Sword `medium - 1d6/1d8`, Dagger
-   `tiny thrown 1d4/-`, Crossbow `na cleave+handy+slow 1d6/-` with
-   `cleaveLimit.numeric` 2, Long Bow's `cleaveLimit.addStrMod` true, Lance
-   `large impact+long+mounted`, Net `medium entangling+thrown -/-`, and no
-   custom tag on any of them. Then put the Sword, the Dagger and the Net on a
+   reads each row as the page prints it: the size, the special tags and the
+   base and alternate damage of the Sword, Dagger, Crossbow, Lance and Net,
+   the Crossbow's numeric `cleaveLimit`, the Long Bow's `cleaveLimit.addStrMod`
+   true, and no custom tag on any of them. Then put the Sword, the Dagger and the Net on a
    character with the **Roll automation** setting *off* and press the
    system's own attack button on each: the Sword's dialog offers One-Handed
-   and Two-Handed and its preview reads 1d8 on the second; the Dagger's
+   and Two-Handed and its preview reads the alternate die on the second; the Dagger's
    offers Thrown with range bands; the Net's rolls no damage. Put a Long Bow
    and the quiver on the same character and shoot once: the quiver reads
-   `×19`.
+   one fewer.
 3. Put the case on a character and open the sheet.
    *Observable:* it is filed as gear, not under Weapons; it carries no damage
    die and offers no attack; and it rides on the belt, free to draw from — the
-   annotation acks-extras stamps at import. It is NOT a 1d6 line.
+   annotation acks-extras stamps at import. It is NOT a damage line.
 The device actually holding its bolts, and choosing between stacks at the roll,
 are acks-extras' surfaces — its `docs/equipment/TESTING.md` owns those steps.
 
@@ -3809,7 +3808,7 @@ and all its areas at once.
    and 68 areas, every one named by its heading and carrying notes, and every
    roster row is hidden.
 3. Press the maps step (`stepScenes`). *Observable:* eleven world scenes,
-   each with its picture, a 10 ft grid, no walls, and one hidden token per
+   each with its picture, the grid distance its register row gives, no walls, and one hidden token per
    pinned area: a `jj.scenario<N>Map` for each scenario, with 5, 3, 10, 9, 4,
    5, 8, 10 and 6 tokens, and for p. 421's two further plans
    `jj.scenario5Map1` with 2 and `jj.scenario5Map2` with 6. The three scenes
