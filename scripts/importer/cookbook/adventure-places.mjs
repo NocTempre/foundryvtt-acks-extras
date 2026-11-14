@@ -33,6 +33,7 @@ import {
 } from "../market-profile-binding.mjs";
 import { merchandiseCatalog, primeMerchandiseCatalog } from "../../markets/engine/merchandise.mjs";
 import { lineOf, bookOfCookbookId, data, ctx, bookLabel, claimedId, ACTOR_KINDS } from "./state.mjs";
+import { rosterLinkRows } from "./roster-links.mjs";
 import {
   packFor, rewriteScope, isRewriting, blockTarget, writeRowBlock, keepsJudgeFigure, blockDigestIn, writeJournalPage,
   wasRewritten, createDoc, claimActorImport, importedActor, ensureFolderPath, importedActorsOfType,
@@ -318,13 +319,14 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
     regions ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiRegionsDescribed`, { n: regions })}` : "",
     bound ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiSitesBound`, { n: bound })}` : "",
     rostered ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiOccupantsRostered`, { n: rostered })}` : "",
+    tally.rosterWaiting ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiRosterWaiting`, { n: tally.rosterWaiting })}` : "",
     creatures ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiCreaturesMade`, { n: creatures })}` : "",
     paired ? `, ${game.i18n.format(`${LANG_PREFIX}.ui.poiPlacesPaired`, { n: paired })}` : "",
   ].join("");
   ui.notifications.info(
     `${MODULE_ID} | points of interest: ${made} place(s) created${described ? `, ${described} quarter(s) described` : ""}${regionParts}${already ? `, ${already} already held` : ""}${stamped ? `, ${stamped} given a role` : ""}${refused ? `, ${refused} skipped (page did not match the cookbook)` : ""}.`,
   );
-  return { made, described, regions, bound, already, stamped, refused, rostered, creatures, paired, created: run.created };
+  return { made, described, regions, bound, already, stamped, refused, rostered, rosterWaiting: tally.rosterWaiting ?? 0, creatures, paired, created: run.created };
 }
 
 /**
@@ -391,7 +393,8 @@ async function importKeyedPlace(bookId, id, run) {
   const cb = data.books.get(bookId);
   const e = cb.entries[id];
   const label = bookLabel(bookId);
-  const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
+  // A row's group is its folder beside the book's places: a scenario's rows file together.
+  const folder = (await ensureFolderPath("Actor", [label, e.meta?.group || "Places"], lineOf(bookId)))?.id ?? null;
   const parentId = keyedParentId(e, bookId);
   const parent = isKeyedPlace(cb.entries[parentId], parentId, run.spacesOf(bookId))
     ? await run.placeFor(bookId, parentId)
@@ -501,6 +504,7 @@ export async function keyedOccupantRows(bookId, id, node, run) {
     rows.push(occupantRow(actor, { quantity: person ? 1 : quantity, notes, hidden: true }));
     run.tally.rostered++;
   }
+  rows.push(...(await rosterLinkRows(data.books.get(bookId)?.entries?.[id], rows, run.tally)));
   return rows;
 }
 

@@ -17,6 +17,7 @@ import {
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
+import { scenarioProblems, rosterProblems } from "./scenario-rules.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
@@ -782,6 +783,9 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
     }
   }
 }
+
+/* --- scenarios and roster links: rules that hold between rows --- */
+for (const problem of [...scenarioProblems(allRows), ...rosterProblems(allRows)]) err(problem);
 
 /* --- organisations: every id a block names is a real row of the right sort --- */
 for (const { id, o } of orgRows) {

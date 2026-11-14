@@ -20,6 +20,8 @@
  * `closePictureReads`, and the next page read opens them again.
  */
 import { openPinned, pictureBySize, scaledPicture, createReader } from "./ocr.mjs";
+import { LANG_PREFIX } from "./constants.mjs";
+import { progressBar } from "./progress.mjs";
 
 /** The integer scale a picture is read at. */
 export const SCALE = 2;
@@ -75,15 +77,20 @@ export async function pictureScaled(pinned, page, size) {
 
 /**
  * Every box of a recipe read in order from one scaled picture: an array of
- * `{ box, psm, origin, k, lines }`, one per `picture.read` entry.
+ * `{ box, psm, origin, k, lines }`, one per `picture.read` entry. `onBox` is
+ * called after each box with the number read so far.
  *
  * @param {{readBox: Function}} reader a reader from `createReader`
  * @param {object} scaled `scaledPicture`'s result
  * @param {{read: {box: object, psm: number}[]}} picture a page's recipe
+ * @param {(done: number) => void} [onBox]
  */
-export async function readBoxReads(reader, scaled, picture) {
+export async function readBoxReads(reader, scaled, picture, onBox) {
   const out = [];
-  for (const spec of picture.read) out.push(boxReadOf(spec, await reader.readBox(scaled, sampleBox(spec.box), { psm: spec.psm }), scaled.k));
+  for (const spec of picture.read) {
+    out.push(boxReadOf(spec, await reader.readBox(scaled, sampleBox(spec.box), { psm: spec.psm }), scaled.k));
+    onBox?.(out.length);
+  }
   return out;
 }
 
@@ -217,9 +224,21 @@ export function seedPictureRead(doc, page, picture, boxReads) {
 }
 
 /**
+ * The progress bar a real read of a page shows, one step a box, labelled with
+ * the page's number in the file. Null where there are no notifications to
+ * show it on or no strings to label it from (a Node run).
+ */
+function readBar(page, boxes) {
+  if (!globalThis.ui?.notifications || !globalThis.game?.i18n) return null;
+  return progressBar(game.i18n.format(`${LANG_PREFIX}.ui.progressPictureText`, { page }), boxes);
+}
+
+/**
  * A page's corrected lines for a document, read at first ask: `{ runs,
  * boxText, hits, spans, boxReads }`. The read is shared by every entry on the page
- * and cached for as long as the document; a failed read is not cached.
+ * and cached for as long as the document; a failed read is not cached. A real
+ * read shows a bar (`readBar`) from the ask until it ends, failed or not; a
+ * seeded or cached page shows none.
  *
  * @param {object} doc the session's document, which hands back its own bytes through `getData()`
  * @param {number} page
@@ -229,11 +248,12 @@ export function pictureReadFor(doc, page, picture) {
   const st = stateOf(doc);
   const held = st.pages.get(page);
   if (held?.picture === picture) return held.result;
+  const bar = readBar(page, picture.read.length);
   const result = withEngine(doc, st, async ({ pinned, reader }) => {
     const { scaled } = await pictureScaled(pinned, page, picture.size);
-    const boxReads = await readBoxReads(reader, scaled, picture);
+    const boxReads = await readBoxReads(reader, scaled, picture, () => bar?.step());
     return { ...pictureRuns(boxReads, picture), boxReads };
-  });
+  }).finally(() => bar?.finish());
   st.pages.set(page, { picture, result });
   result.catch(() => {
     if (st.pages.get(page)?.result === result) st.pages.delete(page);
@@ -265,8 +285,8 @@ function deletePath(obj, path) {
  * instruction of the executor's own, runs over them as the page's text runs,
  * on the instruction's page. `unread`, allowed on a `value` only, lists paths
  * into the parse that are deleted after it runs: each is recorded as a miss
- * `{field, unread}` and echoed as `result.unread`, so a surface can say it was
- * not imported. Throws when the page has no recipe, inside the executor's own
+ * `{field, unread}` and echoed as `result.unread`, so a surface can leave it
+ * blank. Throws when the page has no recipe, inside the executor's own
  * try, so it becomes a miss of the field.
  *
  * @param {object} instr the instruction

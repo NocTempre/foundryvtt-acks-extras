@@ -104,13 +104,13 @@ function kindProblems(entry, res) {
 }
 
 /**
- * Check a page's recipe and the entries reading it against the author's read.
- * Every finding goes to `warn`.
+ * Check a page's recipe and the entries reading it against the author's read,
+ * which `load` hands over. Every finding goes to `warn`.
  */
-async function checkAgainstRead({ row, entries, registers, warn }) {
+async function checkAgainstRead({ row, entries, registers, warn, load }) {
   const page = row.pages[0];
   const block = pictureBlock(row);
-  const { reads, file, stale, samples } = loadRead(row.book, page, block);
+  const { reads, file, stale, samples } = load(row.book, page, block);
   if (!reads) {
     warn(`${row.id}: ${stale ? `the author's read at ${file} is ${stale}` : `no author's read at ${file}`} — recipe unchecked; run tools/importer/ocr-author-read.mjs ${row.book} ${page}`);
     return;
@@ -150,9 +150,10 @@ async function checkAgainstRead({ row, entries, registers, warn }) {
  *
  * @param {object} doc the opened book
  * @param {object} row the register row
- * @param {{list: object[], out: object, registers: object, warn: Function}} ctx the book's rows, its output, the compiled registers
+ * @param {{list: object[], out: object, registers: object, warn: Function, load?: Function}} ctx the book's rows, its output, the compiled registers,
+ *   and the author's-read loader (`loadRead`, from the local shelf, unless a suite hands in its own)
  */
-export async function compilePictureRow(doc, row, { list, out, registers, warn }) {
+export async function compilePictureRow(doc, row, { list, out, registers, warn, load = loadRead }) {
   const page = row.pages[0];
   try {
     if (row.kind === PICTURE_KIND) {
@@ -161,7 +162,7 @@ export async function compilePictureRow(doc, row, { list, out, registers, warn }
       (out.pictures ??= {})[page] = block;
       console.error(`OK   ${row.id}: picture (${block.read.length} box(es), ${block.corrections.length} correction(s))`);
       const entries = list.filter((e) => e.ocr && e.pages?.[0] === page && !(e.status && e.status !== "active"));
-      await checkAgainstRead({ row, entries, registers, warn });
+      await checkAgainstRead({ row, entries, registers, warn, load });
       return;
     }
     if (!list.some((e) => e.kind === PICTURE_KIND && e.pages?.[0] === page)) throw new Error(`reads through p.${page}, which has no ${PICTURE_KIND} row`);
