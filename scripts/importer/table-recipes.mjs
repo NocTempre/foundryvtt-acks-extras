@@ -3858,12 +3858,15 @@ export const TABLE_RECIPES = {
         rowTol: 4,
         minCells: 1,
         cellColumns: [{ key: "maxLevel", x: 273, w: 20, row: true, pattern: "int" }],
+        // Each row's total build points is the integer its label prints,
+        // read through `labelInt`; the keys are ordinals and carry no figure,
+        // and rows claim in page order.
         rows: [
-          { key: "8", labelRe: "^8$" },
-          { key: "7", labelRe: "^7$" },
-          { key: "6", labelRe: "^6$" },
-          { key: "5", labelRe: "^5$" },
-          { key: "4", labelRe: "^4$" },
+          { key: "r1", labelRe: "^\\d+$", labelPattern: "labelInt" },
+          { key: "r2", labelRe: "^\\d+$", labelPattern: "labelInt" },
+          { key: "r3", labelRe: "^\\d+$", labelPattern: "labelInt" },
+          { key: "r4", labelRe: "^\\d+$", labelPattern: "labelInt" },
+          { key: "r5", labelRe: "^\\d+$", labelPattern: "labelInt" },
         ],
       },
       tradeoffPenalty: {

@@ -194,7 +194,9 @@ turns that state into a PLAN:
   carries.
 - **Maximum level** — read from the builder's racial value alone: -1 is no
   racial category and 0 to 4 is one. A racial class's is the budget's racial cap
-  table row on its TOTAL build points (a racial value of 0 adds none, -1 never
+  table row on its TOTAL build points (each row's total is the integer its
+  label prints, JJ 299, read at import; a row whose label does not read answers
+  no total) (a racial value of 0 adds none, -1 never
   enters the total); a class with no racial category takes
   `budget.humanMaxLevel`, read from JJ 297's class-list proficiency count (the
   count is a total less the maximum level, and the sentence after gives the

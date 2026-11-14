@@ -57,6 +57,19 @@ export const joinRuns = (runs, gapMin = null) => {
 };
 
 /**
+ * The printed name as a name: the grids small-caps the opening letter of each
+ * comma-separated part, which extracts lowercase (RR p. 130). Only that letter
+ * is restored; no other capital is added.
+ */
+export function tidyRowName(name) {
+  return String(name ?? "")
+    .split(",")
+    .map((part) => part.trim().replace(/^([a-z])/, (c) => c.toUpperCase()))
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
  * Stable camelCase key for a printed row/column label, shared by the grid
  * executor, the template compiler and the importer so the same label always
  * yields the same key. Parentheticals carrying digits or no letters are
@@ -259,6 +272,13 @@ export function applyCellPattern(text, pattern = "raw") {
       // slash-separated: "+a" -> [a]; "-a/-b/-c" -> [-a, -b, -c].
       const parts = t.replace(/[−–—]/g, "-").split("/").map((s) => s.trim());
       return parts.every((s) => /^[-+]?\d+$/.test(s)) ? parts.map(Number) : null;
+    }
+    case "labelInt": {
+      // A row whose whole label is one integer, read as a `labelPattern`:
+      // "N" -> {label: N}. The row's figure comes off the page, so the row's
+      // key can be an ordinal and carry no printed number.
+      const m = t.match(/^\d+$/);
+      return m ? { label: parseInt(m[0], 10) } : null;
     }
     case "parenthetical": {
       // A label that carries its own note in brackets, read as a

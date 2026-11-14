@@ -11,6 +11,7 @@ import assert from "node:assert";
 import { applyCellPattern, extractTable } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { parseMiles } from "../../scripts/markets/rules/routes.mjs";
+import { assembleBuilderTables } from "../../scripts/importer/builder-binding.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -182,6 +183,24 @@ check("the other print column never joins a cell", !ranges.some((r) => /across/.
   const frontage = extractTable(page(7), TABLE_RECIPES.monsters.tables.sizeFrontage);
   check("the frontage recipe claims the row whatever figure the bracket holds", frontage.squares?.small === "A squares cell");
   check("squareFeet reads no figure from a label without one", applyCellPattern("Frontage (squares)", "squareFeet") === null);
+}
+
+/* --- the class builder's racial caps: the rung is the label the page prints --- */
+{
+  const caps = TABLE_RECIPES["acks.classBuilder"].tables.racialCaps;
+  const rung = (label, cell, y) => [run(label, 200, y), run(cell, 273, y, 10)];
+  const page = [...rung("31", "17", 300), ...rung("30", "15", 312), ...rung("29", "12", 324), ...rung("28", "11", 336), ...rung("27", "10", 348)];
+  const got = extractTable(page, caps);
+  check("racial caps keys are ordinals, not figures", Object.keys(got).join() === "r1,r2,r3,r4,r5");
+  check("each row reads its rung from the label and its cap from the cell", got.r1.label === 31 && got.r1.maxLevel === 17 && got.r5.label === 27 && got.r5.maxLevel === 10);
+  const asm = assembleBuilderTables({ racialCaps: got }).budget.racialCaps;
+  check("assembly takes points from the read label, every row", asm.length === 5 && asm[4].points === 31 && asm[4].maxLevel === 17 && asm[0].points === 27 && asm[0].maxLevel === 10);
+  const short = extractTable(page.slice(0, 8), caps);
+  check("a row the page does not print reads missing and assembles to no row", short.r5.__missing === true && assembleBuilderTables({ racialCaps: short }).budget.racialCaps.length === 4);
+  const unread = { ...got, r2: { ...got.r2, label: null } };
+  const drop = assembleBuilderTables({ racialCaps: unread }).budget.racialCaps;
+  check("a row whose rung did not read carries no points and is answered by no total", drop.length === 4 && drop.every((r) => r.points !== 30 && Number.isInteger(r.points)));
+  check("labelInt reads a bare integer label and nothing else", applyCellPattern("12", "labelInt")?.label === 12 && applyCellPattern("12 pts", "labelInt") === null);
 }
 
 console.log(`test-grid-rows: all ${pass} checks passed`);

@@ -160,10 +160,14 @@ export function assembleBuilderTables(raw) {
   }
   if (isNum(raw.hpAfterNine?.afterLevel)) hp.afterLevel = raw.hpAfterNine.afterLevel;
   if (Object.keys(hp).length) budget.hpAfterNine = hp;
+  // The rows' keys are ordinals; a row's build-point total is the integer its
+  // label read, so a row whose label did not read is dropped and its total is
+  // answered by no row.
   if (raw.racialCaps) {
-    budget.racialCaps = Object.entries(raw.racialCaps)
-      .filter(([, r]) => r && !r.__missing && isNum(r.maxLevel))
-      .map(([points, r]) => ({ points: Number(points), maxLevel: r.maxLevel }));
+    budget.racialCaps = Object.values(raw.racialCaps)
+      .filter((r) => r && !r.__missing && isNum(r.label) && isNum(r.maxLevel))
+      .map((r) => ({ points: r.label, maxLevel: r.maxLevel }))
+      .sort((a, b) => a.points - b.points);
   }
   // A human class's maximum level: JJ 297 prints the class list's proficiency
   // count as a total less the maximum level, and the count a typical class ends

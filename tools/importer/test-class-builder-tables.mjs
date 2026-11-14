@@ -135,7 +135,8 @@ check("the post-9 level falls inside the grids' level range", raw.hpAfterNine.af
 check("the class list's proficiency count reads as two integers, the total over the typical", isInt(raw.proficiencyCount?.total) && isInt(raw.proficiencyCount?.typical) && raw.proficiencyCount.total > raw.proficiencyCount.typical);
 
 const caps = asm.budget.racialCaps;
-check("racial caps assemble every raw row, on consecutive point totals, with a maximum level that never rises with the points", caps.length === keys(raw.racialCaps).length && caps.every((c, i) => i === 0 || c.points === caps[i - 1].points + 1) && caps.every((c, i) => i === 0 || c.maxLevel <= caps[i - 1].maxLevel));
+check("racial caps read their point totals off the labels, under ordinal keys", keys(raw.racialCaps).every((k) => /^r\d+$/.test(k)) && Object.values(raw.racialCaps).every((r) => isPosInt(r.label) && isPosInt(r.maxLevel)));
+check("racial caps assemble every raw row, on consecutive point totals, with a maximum level that never rises with the points", caps.length === keys(raw.racialCaps).length && Object.values(raw.racialCaps).every((r) => caps.some((c) => c.points === r.label && c.maxLevel === r.maxLevel)) &&caps.every((c, i) => i === 0 || c.points === caps[i - 1].points + 1) && caps.every((c, i) => i === 0 || c.maxLevel <= caps[i - 1].maxLevel));
 check("the human maximum level is at least every racial one", asm.budget.humanMaxLevel >= Math.max(...caps.map((c) => c.maxLevel)));
 
 check("tradeoffs assemble every raw row, each with a benefit", asm.tradeoffs.length === keys(raw.tradeoffsRaw).length && asm.tradeoffs.every((t) => isPosInt(t.powersGained)));
