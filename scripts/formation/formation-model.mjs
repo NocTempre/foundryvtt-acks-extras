@@ -1953,3 +1953,29 @@ export async function toggleRole(formation, actorId, role, { override = false } 
   });
   return formation;
 }
+
+/** Formation records and members, spread at the top of `acksExtras.formation`. */
+export const publicApi = {
+  getFormation,
+  marchingOrder,
+  getFormations,
+  // Drops several members in one write.
+  removeMembers,
+  // Hand integration for the equipment feature: `handsOccupied` is how many
+  // hands the mapper's kit fills, `kitInHand` the items it lists at them;
+  // `getFormationForActor` and the light mutators let equipment's sheet
+  // controls light, douse and shutter by actor.
+  handsOccupied,
+  heldLightCount,
+  kitInHand,
+  getFormationForActor,
+  // Vehicles reach formation through here, not by import, since formation
+  // imports vehicles (vehicles/deploy.mjs stands a deployed place beside the
+  // party whose train it is in).
+  formationCarrying,
+  getPartyToken,
+  // lib/light.mjs reads this, through the namespace, to decide which record
+  // owns an actor's lights; removing it sends every member's token back to
+  // its own empty actor flag.
+  lightsForBearer,
+};

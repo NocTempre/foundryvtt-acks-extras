@@ -75,21 +75,15 @@ import {
   createFormation,
   dissolveFormation,
   formationForToken,
-  formationCarrying,
   getFormation,
   getFormationForActor,
   getFormations,
   getPartyActor,
-  handsOccupied,
-  heldLightCount,
   isLinkedPartyToken,
-  kitInHand,
-  lightsForBearer,
   getPartyToken,
-  marchingOrder,
   patchFormation,
   pruneFormations,
-  removeMembers,
+  publicApi as formationModelApi,
   syncPartyActorSpeed,
 } from "./formation-model.mjs";
 import { findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
@@ -99,6 +93,7 @@ import {
   formUp,
   listTemplates,
   pickMarchingOrder,
+  publicApi as marchingOrdersApi,
 } from "./marching-templates.mjs";
 import { anchorMap, archiveSession, registerMapSocket, saveFogAsMapItem, startMapSession } from "./map-items.mjs";
 import { registerLostSocket } from "./lost-fog.mjs";
@@ -557,7 +552,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 23,
+    apiVersion: 24,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -643,14 +638,12 @@ Hooks.once("init", () => {
     // Dividing adventure XP among the members.
     xp: xpShares,
     ROLES,
-    marchingOrder,
+    marchingOrders: marchingOrdersApi,
     open: openPartySheet,
     PartySheet,
     advanceTurns,
     advanceRounds,
-    getFormations,
-    // Drops several members in one write.
-    removeMembers,
+    ...formationModelApi,
     rollPartyCheck,
     PARTY_CHECKS,
     startMapSession,
@@ -658,23 +651,6 @@ Hooks.once("init", () => {
     anchorMap,
     saveFogAsMapItem,
     requestPartyAction,
-    // Hand integration for the equipment feature: `handsOccupied` is how many
-    // hands the mapper's kit fills, `kitInHand` the items it lists at them;
-    // `getFormationForActor` and the light mutators let equipment's sheet
-    // controls light, douse and shutter by actor.
-    handsOccupied,
-    heldLightCount,
-    kitInHand,
-    getFormationForActor,
-    // Vehicles reach formation through here, not by import, since formation
-    // imports vehicles (vehicles/deploy.mjs stands a deployed place beside the
-    // party whose train it is in).
-    formationCarrying,
-    getPartyToken,
-    // lib/light.mjs reads this, through the namespace, to decide which record
-    // owns an actor's lights; removing it sends every member's token back to
-    // its own empty actor flag.
-    lightsForBearer,
     // lib/light.mjs's brightestLightReaching reads the column's lights through
     // this: they stand on no token, so a token sweep never sees them.
     carriedLightPoints,

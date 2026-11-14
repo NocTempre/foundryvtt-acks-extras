@@ -209,7 +209,7 @@ const atest = async (name, fn) => {
 await atest("saveTemplate called (name, formation) says the arguments are reversed", async () => {
   const message = await refusal(() => saveTemplate("Standard order", aFormation()));
   assert.match(message, /arguments are reversed/);
-  assert.match(message, /saveTemplate/);
+  assert.match(message, /marchingOrders\.save/);
 });
 
 await atest("applyTemplate called (order, formation) says the arguments are reversed", async () => {
@@ -226,7 +226,8 @@ await atest("a formation passed where an order belongs is named as a formation",
 
 await atest("an order argument that is neither an order nor an id says what it wanted", async () => {
   const message = await refusal(() => applyTemplate(aFormation(), 42));
-  assert.match(message, /getTemplate\/listTemplates/);
+  assert.match(message, /marchingOrders\.get\/list/);
+  assert.match(message, /marchingOrders\.apply/);
   assert.match(message, /got a number/);
 });
 

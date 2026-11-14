@@ -19,7 +19,9 @@ import { announceChange } from "../lib/util.mjs";
  * `applyTemplate` and `formUp` rewrite the formation. The applying calls take
  * the saved order OBJECT or its id, and the storing call refuses a reversed
  * argument pair by name. See docs/formation/DECISIONS.md, "The marching-order
- * API is guarded at the boundary, not renamed".
+ * API is guarded at the boundary, not renamed". The calls for macros are those
+ * in `publicApi`, reached as `acksExtras.formation.marchingOrders.<name>` under
+ * the names save, apply, get, list, delete, formUp and reconcile.
  */
 
 /** World-setting key holding every saved marching order, keyed by id. */
@@ -131,7 +133,7 @@ function describeArg(value) {
  * An id that names nothing throws rather than resolving to null.
  *
  * @param {object|string} order the saved order, or its id
- * @param {string} caller the exported function's name, for the error text
+ * @param {string} caller the published name a macro typed, for the error text
  * @returns {object} the saved order
  * @throws {Error} when the id names nothing, or the argument is neither shape
  */
@@ -143,7 +145,7 @@ function resolveOrder(order, caller) {
   }
   if (order && Array.isArray(order.cells)) return order;
   throw new Error(
-    `${MODULE_ID} | ${caller}: wanted a saved marching order (from getTemplate/listTemplates) ` +
+    `${MODULE_ID} | ${caller}: wanted a saved marching order (from marchingOrders.get/list) ` +
       `or its id, got ${describeArg(order)}`,
   );
 }
@@ -155,7 +157,7 @@ function resolveOrder(order, caller) {
 function assertFormation(formation, caller, second) {
   if (Array.isArray(formation?.members)) return;
   // Keyed on the SECOND argument looking like a formation: one rule catches both
-  // `saveTemplate(name, formation)` and `applyTemplate(order, formation)`.
+  // `marchingOrders.save(name, formation)` and `marchingOrders.apply(order, formation)`.
   if (Array.isArray(second?.members)) {
     throw new Error(`${MODULE_ID} | ${caller}: arguments are reversed — the formation comes first`);
   }
@@ -192,7 +194,7 @@ export function getTemplate(id) {
  *   name was blank.
  */
 export async function saveTemplate(formation, name) {
-  assertFormation(formation, "saveTemplate", name);
+  assertFormation(formation, "marchingOrders.save", name);
   const label = String(name ?? "").trim();
   if (!label) return null;
   const all = foundry.utils.deepClone(readTemplates());
@@ -243,8 +245,8 @@ function roleIsAvailable(actorId, role) {
  * @returns {Promise<object>} the `reconcile` report
  */
 export async function applyTemplate(formation, template) {
-  assertFormation(formation, "applyTemplate", template);
-  const order = resolveOrder(template, "applyTemplate");
+  assertFormation(formation, "marchingOrders.apply", template);
+  const order = resolveOrder(template, "marchingOrders.apply");
   const before = new Map(
     formation.members.filter((m) => m?.actorId).map((m) => [m.actorId, new Set(m.roles ?? [])]),
   );
@@ -294,8 +296,8 @@ export async function applyTemplate(formation, template) {
  */
 export async function formUp(formation, template) {
   if (!formation || !template) return null;
-  assertFormation(formation, "formUp", template);
-  template = resolveOrder(template, "formUp");
+  assertFormation(formation, "marchingOrders.formUp", template);
+  template = resolveOrder(template, "marchingOrders.formUp");
   if (formation.combat?.active) {
     // Loaded late, like the turn engine below: the bridge imports this file.
     const { reformIfOver } = await import("./combat-bridge.mjs");
@@ -435,3 +437,6 @@ export function describeResult(result) {
   }
   return parts.join(" ");
 }
+
+/** The saved-marching-order calls, published as `acksExtras.formation.marchingOrders` under the names a caller types: save, apply, get, list, delete, formUp, reconcile. */
+export const publicApi = { save: saveTemplate, apply: applyTemplate, get: getTemplate, list: listTemplates, delete: deleteTemplate, formUp, reconcile };
