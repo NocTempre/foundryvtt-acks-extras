@@ -1,41 +1,26 @@
 /**
  * Settlement travel: crossing a city the way the party crosses country.
  *
- * A settlement is measured in BLOCKS, not feet — the distances are too short
- * for the expedition scale and too long for the dungeon turn — and the shape
- * of the rule is the wilderness journey in miniature: a pace decides how far a
- * turn carries you, a navigation throw decides whether you arrive where you
- * meant to, and where you are standing decides how often the street throws
- * something at you.
+ * A settlement is measured in BLOCKS, not feet, and the shape of the rule is
+ * the wilderness journey in miniature: a pace decides how far a turn carries
+ * the party, a navigation throw decides whether it arrives where it meant to,
+ * and where it stands decides how often the street throws something at it.
  *
- * Three structural facts and nothing else:
+ * Three structural facts: only the commuting pace throws to navigate; a route
+ * walked before needs no throw and a destination reached before by another way
+ * earns a registry-priced modifier; and a large party straggles in tiers that
+ * bite only the commuting pace.
  *
- *  - **The paces.** Commuting is a walk with a destination; meandering is a
- *    walk with none. Only commuting can go wrong — a meandering pace reads the
- *    street signs it is already looking at, so it never throws.
- *  - **The route memory.** A route walked before is walked without a throw.
- *    A DESTINATION reached before by another way is easier but not free, and
- *    that partial credit is a modifier the registry prices.
- *  - **The straggle.** A large party moves worse through a crowd, in tiers.
- *    That the tiers EXIST and that they bite only the commuting pace is the
- *    rule; where each tier starts and what it costs is printed, and imported.
- *
- * Every number this file needs is read from the `settlement` registered
- * document (`expectTables`), and every reader here returns null with a stated
- * reason when the table is absent rather than guessing a distance.
+ * Every number is read from the registered `cityTravel` document, and every
+ * reader returns null with a stated reason when the table is absent.
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
 import { diceFormula } from "./constants.mjs";
 
 /**
- * The registered document these derivations read.
- *
- * `cityTravel`, NOT `settlement`: the henchmen feature already registers a
- * `settlement` document for market class by families, and a settlement in this
- * codebase means a PLACE where people live. Sharing the id would put two
- * unrelated features' tables in one document and make "is the settlement data
- * imported?" an ambiguous question.
+ * The registered document these derivations read: `cityTravel`, not
+ * `settlement`, which the henchmen feature already registers for market class.
  */
 export const SETTLEMENT_DOC = "cityTravel";
 
@@ -43,23 +28,16 @@ export const SETTLEMENT_DOC = "cityTravel";
 export const SETTING_STRAGGLING = "settlementStraggling";
 
 /**
- * The die the navigation throw is made on: the game's own throw (JJ p. 79 names
- * it a Navigation throw, and a throw is the d20 the rules define in their
- * opening chapter), which is the die every other throw in the module rolls.
- *
- * Not interchangeable with the street's die, and named here so no two readers
- * can drift apart: this throw is made against a target priced on its scale, and
- * the street's encounter throw against a cadence target priced on another's.
- * Rolling one against the other's target changes how often the street answers
- * while changing nothing a Judge can see on the card.
+ * The die the navigation throw is made on: the game's own throw (JJ p. 79).
+ * Not interchangeable with the street's die, since each is made against a
+ * target priced on its own scale.
  */
 export const NAVIGATION_DIE = "1d20";
 
 /**
  * The die the street's encounter throw is made on, from the imported `dice`
- * table, or null until it is imported. Nothing is thrown on a guess: the
- * caller reports the die as not imported. Rebuilt from its integers, since a
- * Judge's override is free text.
+ * table, or null until it is imported (the caller reports it as not imported).
+ * Rebuilt from its integers, since a Judge's override is free text.
  */
 export const streetDie = () => diceFormula(table("dice")?.street);
 
@@ -82,8 +60,7 @@ function stragglingEnabled() {
  * How the party is moving through the streets.
  *
  * `throws` is the structural half of the navigation rule: a commuting party
- * can lose its way and a meandering one cannot, whatever the printed target
- * turns out to be.
+ * can lose its way and a meandering one cannot.
  */
 export const SETTLEMENT_PACES = Object.freeze({
   commuting: { label: "ACKS-FORMATION.settlement.pace.commuting", throws: true, straggles: true },
@@ -91,9 +68,8 @@ export const SETTLEMENT_PACES = Object.freeze({
 });
 
 /**
- * Where the party is, which is what decides how often the street answers.
- * `holedUp` is not a place in the street at all — it is the party staying put,
- * and it keeps its own much slower cadence.
+ * Where the party is, which decides how often the street answers. `holedUp` is
+ * the party staying put, not a place in the street, and keeps its own cadence.
  */
 export const SETTLEMENT_LOCATIONS = Object.freeze({
   avenue: { label: "ACKS-FORMATION.settlement.where.avenue" },
@@ -109,11 +85,8 @@ export const ROUTE_KNOWLEDGE = Object.freeze({
 });
 
 /**
- * What the party is doing about being noticed.
- *
- * A structural choice with a printed price: making a nuisance of yourself
- * raises the encounter throw. Holing up is NOT here — that is a LOCATION, and
- * it changes the cadence rather than the target.
+ * What the party is doing about being noticed: seeking trouble raises the
+ * encounter throw. Holing up is a LOCATION, not an intent.
  */
 export const SETTLEMENT_INTENTS = Object.freeze({
   ordinary: { label: "ACKS-FORMATION.settlement.intent.ordinary" },
@@ -121,12 +94,8 @@ export const SETTLEMENT_INTENTS = Object.freeze({
 });
 
 /**
- * How the party is carried.
- *
- * Deliberately carries no rate: the rules say a litter or a wagon affords
- * privacy and is *not any faster*, so a conveyance that quietly changed the
- * block rate would be inventing a rule. It is a flag the Judge can see, and
- * the one thing it is good for — being unseen — is the Judge's call.
+ * How the party is carried. A conveyance carries no rate; `private` is a flag
+ * the Judge reads for being unseen.
  */
 export const CONVEYANCES = Object.freeze({
   onFoot: { label: "ACKS-FORMATION.settlement.conveyance.onFoot" },
@@ -135,10 +104,9 @@ export const CONVEYANCES = Object.freeze({
 });
 
 /**
- * Where the board takes the hour from. `clock` follows the world clock and
- * is the default; `day` and `night` are the Judge's word, for a table whose
- * clock is not kept or a scene the Judge is narrating out of it. Whether it
- * is dark is resolved by `isNight`, never read off the board directly.
+ * Where the board takes the hour from: `clock` follows the world clock (the
+ * default); `day` and `night` are the Judge's word. Whether it is dark is
+ * resolved by `isNight`, never read off the board directly.
  */
 export const HOUR_MODES = Object.freeze({
   clock: { label: "ACKS-FORMATION.settlement.hour.clock", follows: true },
@@ -162,10 +130,7 @@ export function isNight(board, { dark = null } = {}) {
 function table(key) {
   if (!hasDoc(SETTLEMENT_DOC)) return null;
   const t = getDoc(SETTLEMENT_DOC)?.tables?.[key];
-  // A registered table may be a bare figure — the after-dark shift on the
-  // encounter roll is one number, not a row. Rejecting non-objects made every
-  // such table read as "not imported", which is indistinguishable from a
-  // Judge who has not imported it yet.
+  // A registered table may be a bare figure, so non-objects are not rejected.
   return t == null ? null : t;
 }
 
@@ -179,10 +144,8 @@ function stampOrNull(value) {
 /**
  * A board's city stamp: a scene id, or null for anything that names no scene.
  *
- * The one place that says what a stamp is, because the board's writers compare
- * stamps to decide whether a party has arrived somewhere new. The empty string
- * is null rather than a stamp of its own: a board carrying it would compare
- * unequal to every city and start a fresh tally on every arrival.
+ * The one place that says what a stamp is: the empty string is null, not a
+ * stamp of its own, or it would compare unequal to every city.
  */
 export function sceneStamp(value) {
   return typeof value === "string" && value ? value : null;
@@ -191,12 +154,7 @@ export function sceneStamp(value) {
 /** A fresh settlement board: on an avenue, at the clock's hour, going nowhere in particular. */
 export function freshSettlement() {
   return {
-    /**
-     * The scene whose blocks these are, or null for a board no city has
-     * claimed. A tally belongs to the streets it was walked in, and this is
-     * what tells one city from the next: a party placed straight into another
-     * city arrives on a board that names the one it left.
-     */
+    /** The scene whose blocks these are, or null for a board no city has claimed. */
     sceneId: null,
     pace: "meandering",
     where: "avenue",
@@ -207,16 +165,15 @@ export function freshSettlement() {
     conveyance: "onFoot",
     /**
      * Is somebody in this settlement hunting this party? Picks a district's
-     * wanted table over its ordinary one. Judge-told, and deliberately NOT
-     * carried across re-entry: being hunted is a fact about one settlement's
-     * own powers, so a party arriving somewhere new arrives unhunted.
+     * wanted table over its ordinary one. Judge-told, and not carried across
+     * re-entry. See docs/formation/DECISIONS.md, "Being hunted is a board fact,
+     * and it does not travel (2026-09-12)".
      */
     wanted: false,
     /**
      * The faction hunting the party here, when `wanted` was set by one (the
      * uuid of a faction actor), and the district the ledger was last asked
-     * for. Both belong to this city: re-entry drops them with the flag.
-     * `hunt.mjs` is the only writer; a Judge's untick clears the name.
+     * for. `hunt.mjs` is the only writer; a Judge's untick clears the name.
      */
     huntedBy: "",
     huntRegion: "",
@@ -225,25 +182,18 @@ export function freshSettlement() {
     days: 0,
     /**
      * World time, in seconds, that the current stay is counted from. Null
-     * until the party is somewhere it stays put; the clock watcher stamps it
-     * and moves it forward by the days it has already charged for.
+     * until the party stays put; the clock watcher stamps it and moves it
+     * forward by the days it has charged for.
      */
     holeUpSince: null,
     lost: false,
     lastThrow: null,
     /**
      * The road the party was standing on when the turn was taken, as the tick
-     * read it off the map — `{name, surface, street}` — or null for a party on
-     * no drawn street. A SNAPSHOT: what the map said then, not a second place
-     * to edit the map.
+     * read it off the map (`{name, surface, street}`), or null. A SNAPSHOT.
      */
     road: null,
-    /**
-     * Was the last move counted ALONG the streets, or as the straight line
-     * between its ends? Null until the party has moved. A city measured by the
-     * chord charges a party that followed a curving street for the block it
-     * went round, so which of the two happened is worth saying.
-     */
+    /** Was the last move counted ALONG the streets, or as the straight line between its ends? Null until the party has moved. */
     measuredAlong: null,
   };
 }
@@ -270,9 +220,7 @@ export function settlementOf(travel) {
     blocks: Number(s.blocks) || 0,
     turns: Number(s.turns) || 0,
     days: Number(s.days) || 0,
-    // Nothing coerces to zero here: `Number(null)` and `Number("")` are both 0,
-    // and a stay stamped at world time zero is a stay the clock watcher charges
-    // every day since the world began for.
+    // Never coerced: `Number(null)` is 0, a stamp the clock watcher would charge from world time zero.
     holeUpSince: stampOrNull(s.holeUpSince),
     lost: !!s.lost,
     road: s.road?.surface
@@ -287,16 +235,10 @@ export function settlementOf(travel) {
 }
 
 /**
- * Where the party actually is, for the street's purposes — and which source
- * said so.
- *
- * Three answers, in order. A party holed up is holed up whatever it is standing
- * on: the room is the answer and the street outside is not. Otherwise the ROAD
- * under the token answers, because it was DRAWN while the picker was typed — a
- * Judge who drew an alley and left the picker on the avenue meant the alley, and
- * keeping the two in step by hand is the kind of bookkeeping the map exists to
- * end. With no drawn street underfoot the picker is all there is, which is every
- * city map until someone lays a road on it.
+ * Where the party actually is, for the street's purposes, and which source
+ * said so. In order: a party holed up is holed up whatever it stands on;
+ * otherwise the ROAD under the token answers, since it was DRAWN; with no drawn
+ * street underfoot the picker is all there is.
  *
  * @param {object} board the settlement board
  * @param {string|null} roadStreet the `street` of the road under the party
@@ -305,8 +247,7 @@ export function settlementOf(travel) {
 export function effectiveWhere(board, roadStreet = null) {
   const s = settlementOf({ settlement: board });
   if (SETTLEMENT_LOCATIONS[s.where]?.stationary) return { where: s.where, from: "picker" };
-  // `holedUp` is a picker answer and can never be read off a road: a wall
-  // flagged as a street is a street, and nobody is hiding in it.
+  // `holedUp` is a picker answer and can never be read off a road.
   if (roadStreet && SETTLEMENT_LOCATIONS[roadStreet] && !SETTLEMENT_LOCATIONS[roadStreet].stationary) {
     return { where: roadStreet, from: "road" };
   }
@@ -315,11 +256,8 @@ export function effectiveWhere(board, roadStreet = null) {
 
 /**
  * Carry a stay across a board write: a party that has moved is no longer on it.
- *
- * Every writer of the board passes through here, rather than each remembering
- * the rule, because a stale stamp is not a visible defect — a party that holed
- * up in spring and walked out in autumn is charged every day between the two
- * the moment it next stops somewhere, and only the card at the end says so.
+ * Every writer of the board passes through here, so a stale stamp cannot
+ * charge the days between two stays.
  */
 export function carryStay(previous, next) {
   return next?.where === previous?.where ? next : { ...next, holeUpSince: null };
@@ -328,21 +266,15 @@ export function carryStay(previous, next) {
 /**
  * The board a party re-entering a city starts on.
  *
- * What the Judge TOLD the board stays — the pace, the streets, the route they
- * know, the hour, the intent, how they are carried — and what the last city
- * COUNTED goes: blocks, turns, days and the stay's stamp belong to the city
- * they were spent in, and carrying them makes a party arrive somewhere new
- * already a mile into it. Stepping out to the country and back therefore does
- * not forget the route, which is the whole reason the route is remembered at
- * all.
+ * What the Judge TOLD the board stays (the pace, the streets, the route, the
+ * hour, the intent, how they are carried) and what the last city COUNTED goes
+ * (blocks, turns, days and the stay's stamp). See docs/formation/DECISIONS.md,
+ * "Re-entering a city keeps what the Judge set, not what the last city counted
+ * (2026-09-12)".
  *
- * The board comes back stamped with the city it is being entered in, so the
- * next arrival can tell this city from another one. Naming no city keeps the
- * stamp `previous` already carries: a board not being told a new city is still
- * counted in the one it names, and an unstamped board is the state the next
- * arrival cannot recover from — it can only read a board that names nowhere as
- * foreign and drop its tally. The rule is stated here, in the function that
- * owns the field, so a caller cannot forget it.
+ * The board comes back stamped with the city being entered; naming no city
+ * keeps the stamp `previous` already carries, since an unstamped board reads
+ * as foreign to the next arrival.
  *
  * @param {object|null} previous the board being left
  * @param {string|null} [sceneId] the scene the fresh tally is counted in;
@@ -365,13 +297,12 @@ export function reenterSettlement(previous, sceneId = null) {
 
 /**
  * The board asked about the hunt for the quarter the party now stands in.
- * Unchanged while that is the quarter it was last asked for (`huntRegion`),
- * so the Judge's own word on `wanted`, ticked or cleared, stands until the
- * party crosses into another one. Entering a quarter whose holder wants the
- * party sets `wanted` and names the hunter in `huntedBy`; entering one where
- * nobody does clears the name and leaves `wanted` as the Judge had it. The
- * quarter is "" when the party stands in none. A fresh tally
- * (`reenterSettlement`) names no quarter, so an arrival is always asked.
+ * Unchanged while that is the quarter last asked for (`huntRegion`), so the
+ * Judge's own word on `wanted` stands until the party crosses into another.
+ * Entering a quarter whose holder wants the party sets `wanted` and names the
+ * hunter in `huntedBy`; entering one where nobody does clears the name and
+ * leaves `wanted` as it was. The quarter is "" when the party stands in none,
+ * and a fresh tally (`reenterSettlement`) names none, so an arrival is always asked.
  * @param {{regionUuid?: string, hunterUuid?: string}} hunt
  */
 export function applyHunt(board, { regionUuid = "", hunterUuid = "" } = {}) {
@@ -383,11 +314,8 @@ export function applyHunt(board, { regionUuid = "", hunterUuid = "" } = {}) {
 /**
  * Which straggling tier a party of this size falls in, or null for none.
  *
- * The tiers are a registered ladder — `[{from, multiplier}]` — because both
- * the headcount each starts at and what it costs are printed. The RULE here is
- * that the deepest tier whose threshold the party has reached is the one that
- * applies, and that splitting the party is the way out (each group then throws
- * for its own encounters, which is the cost of splitting).
+ * The tiers are a registered ladder, `[{from, multiplier}]`; the deepest tier
+ * whose threshold the party has reached applies.
  */
 export function straggleTier(headcount, { pace = "commuting" } = {}) {
   if (!SETTLEMENT_PACES[pace]?.straggles) return null;
@@ -410,10 +338,8 @@ export function straggleTier(headcount, { pace = "commuting" } = {}) {
  * Blocks covered in one turn: the pace's rate, reduced by the straggling tier
  * the party's size earns.
  *
- * Returns `{blocks, parts}` so the panel can show the derivation the way the
- * march readout does, or `{blocks: null, missing}` naming what was not
- * imported — a settlement with no imported rates has no distance, and saying
- * so is better than moving the party an invented number of blocks.
+ * Returns `{blocks, parts}` so the panel can show the derivation, or
+ * `{blocks: null, missing}` naming what was not imported.
  */
 export function blocksPerTurn({ pace = "meandering", headcount = 1 } = {}) {
   if (!SETTLEMENT_PACES[pace]) return { blocks: null, missing: "pace" };
@@ -429,16 +355,9 @@ export function blocksPerTurn({ pace = "meandering", headcount = 1 } = {}) {
 /**
  * How far one city turn carries the party, in FEET.
  *
- * The bridge between the book's abstraction and a drawn map: the rules measure
- * a city in blocks because feet-per-turn in a village would be tedious, but a
- * party crossing a city SCENE moves in feet, and the tracker needs one currency
- * to convert. How big a block is belongs to the map, not to the book — a Judge
- * draws the blocks — so `blockFeet` is passed in by the scene rather than read
- * from the registry.
- *
- * Null feet with a stated `missing` when either half is unknown, so the caller
- * can time the party by its walking speed and SAY it is doing that, instead of
- * ticking against an invented block.
+ * The bridge between blocks and a drawn map: a block's size belongs to the map,
+ * so `blockFeet` is passed in by the scene, not read from the registry. Null
+ * feet with a stated `missing` when either half is unknown.
  */
 export function feetPerTurn({ pace = "meandering", headcount = 1, blockFeet = null } = {}) {
   const rate = blocksPerTurn({ pace, headcount });
@@ -451,10 +370,9 @@ export function feetPerTurn({ pace = "meandering", headcount = 1, blockFeet = nu
 /**
  * The navigation throw for one turn of city travel.
  *
- * Structure only: a known route needs no throw at all; a known destination by
- * an unknown way earns a modifier; everything else throws bare. The target and
- * the modifier are the registry's, and an unimported table yields a null
- * target so the caller reports the gap instead of rolling against nothing.
+ * A known route needs no throw; a known destination by an unknown way earns a
+ * modifier; everything else throws bare. The target and the modifier are the
+ * registry's, and an unimported table yields a null target.
  */
 export function citySpec({ pace = "commuting", route = "unknown" } = {}) {
   const spec = SETTLEMENT_PACES[pace];
@@ -464,12 +382,8 @@ export function citySpec({ pace = "commuting", route = "unknown" } = {}) {
   const nav = table("navigation");
   const target = Number(nav?.target);
   if (!Number.isFinite(target)) return { throws: true, target: null, missing: "navigation" };
-  // The target and the known-destination modifier are read from separate
-  // sentences, so one can arrive without the other. A party that has been
-  // there before and has no imported figure for it is TOLD, rather than
-  // quietly throwing at the bare target — the same contract the intent
-  // modifier keeps, and for the same reason: an imported zero and a figure
-  // that never came look identical on the panel.
+  // The target and the known-destination modifier can arrive separately: a
+  // missing modifier is flagged `unpricedRoute`, never read as an imported zero.
   if (route !== "destination") return { throws: true, target, modifier: 0 };
   const known = numOrNull(nav?.knownDestination);
   return { throws: true, target, modifier: known ?? 0, unpricedRoute: known == null };
@@ -477,8 +391,7 @@ export function citySpec({ pace = "commuting", route = "unknown" } = {}) {
 
 /**
  * How far off a lost turn puts the party, as a dice expression from the
- * registry. Null when unimported — the party is lost, and by how much is a
- * printed figure the Judge's own book supplies.
+ * registry. Null when unimported.
  */
 export function strayBlocks() {
   const f = table("navigation")?.strayBlocks;
@@ -486,16 +399,10 @@ export function strayBlocks() {
 }
 
 /**
- * What looking for trouble is worth on the encounter throw.
- *
- * Looking for trouble does not come round more often — it succeeds more
- * easily. The size of that is printed; that it eases the throw rather than
- * shortening the interval is the rule, and lives here. A party that WANTS
- * trouble and has no imported figure for it is told, rather than quietly
- * throwing at the ordinary target.
- *
- * Keeping to yourself is the absence of the modifier, not a modifier of zero:
- * it is never unpriced, whatever the registry holds.
+ * What looking for trouble is worth on the encounter throw: it eases the
+ * throw, never shortens the interval. A party that WANTS trouble and has no
+ * imported figure for it is flagged `unpriced`; keeping to yourself is the
+ * absence of the modifier and is never unpriced.
  */
 function intentBonus(intent) {
   if (!SETTLEMENT_INTENTS[intent]?.seeks) return { seeking: false, bonus: 0, unpriced: false };
@@ -507,11 +414,9 @@ function intentBonus(intent) {
  * The street's encounter cadence for where the party is and what time it is.
  *
  * Keyed `<where>` → `{day, night}` → `{everyTurns, throw}`. Returns null when
- * the table is absent; a caller must not fall back to the wilderness cadence,
- * which is a different rule at a different scale.
- *
- * The street is the OUTERMOST layer: what a Judge has drawn over it answers
- * first, and `resolveCityCadence` is where the two are put in order.
+ * the table is absent; a caller must not fall back to the wilderness cadence.
+ * What a Judge has drawn over the street answers first
+ * (`resolveCityCadence`).
  */
 export function streetCadence({ where = "avenue", night = false, intent = "ordinary" } = {}) {
   if (!SETTLEMENT_LOCATIONS[where]) return null;
@@ -537,9 +442,8 @@ export function streetCadence({ where = "avenue", night = false, intent = "ordin
 /**
  * A stated override figure, or null for one left alone.
  *
- * The behaviour schemas initialise their number fields to 0 and a Judge who
- * leaves a box alone means the layer beneath to answer, so zero reads as
- * "inherit" and never as "never" or "on a 0".
+ * The behaviour schemas initialise number fields to 0, so zero reads as
+ * "inherit", never as "never" or "on a 0".
  */
 function stated(value) {
   const n = Number(value);
@@ -549,19 +453,12 @@ function stated(value) {
 /**
  * Which cadence this turn actually answers to.
  *
- * A city is not one uniform crowd: a Judge draws an Encounter Zone over the
- * harbour, or a district over the thieves' quarter, and expects the streets
- * inside it to keep their own time — the same override the delve clock already
- * honours, at the city's scale. Precedence runs street → zone → district,
- * innermost wins, and it is decided PER FIELD: an override that states only an
- * interval keeps the target beneath it, so a Judge never has to restate what
- * they did not mean to change.
- *
- * The intent modifier is the PARTY's and not the place's, so it is re-derived
- * here from the bare target of whichever layer answered rather than inherited
- * from the street's already-adjusted figure.
- *
- * Null when no layer can price the throw at all — the caller reports the gap.
+ * Precedence runs street → zone → district, innermost wins, and it is decided
+ * PER FIELD: an override that states only an interval keeps the target beneath
+ * it. The intent modifier is the PARTY's, so it is re-derived here from the
+ * bare target of whichever layer answered. Null when no layer can price the
+ * throw. See docs/formation/DECISIONS.md, "A zone in a city overrides interval,
+ * target and table (2026-09-12)".
  *
  * @param {object|null} street       `streetCadence()`'s answer, or null when unimported
  * @param {object|null} [opts.zone]      an Encounter Zone behaviour's `system`
@@ -591,9 +488,7 @@ export function resolveCityCadence(street, { zone = null, district = null, night
 
   let everyTurns = null;
   let bareTarget = null;
-  // ONE owner per figure, not one owner for the pair. Per-field inheritance
-  // means the interval and the target can come from different layers, and a
-  // single name over both credits one layer with the other's number.
+  // ONE owner per figure: the interval and the target can come from different layers.
   let everyTurnsSource = null;
   let targetSource = null;
   for (const layer of layers) {
@@ -617,19 +512,13 @@ export function resolveCityCadence(street, { zone = null, district = null, night
 
 /**
  * Which layer each half of the cadence came from, as a line for the Judge.
- *
- * Named ONCE, because the panel and the turn card have to say the same thing
- * and they are the two surfaces in this feature that have already drifted. A
- * split answer gets its own sentence rather than one place-name over both
- * figures: a zone that states only an interval, inside a district that states
- * only a target, is the DESIGNED use of per-field inheritance, and one name
- * there prints one layer's figure under the other layer's name.
+ * The one reader the panel and the turn card share; a split answer gets its
+ * own sentence rather than one place-name over both figures.
  *
  * @param {object|null} cadence `resolveCityCadence()`'s answer, or an
  *   `encounterOwed` event, which carries the same two source fields
- * @param {object} names display name per layer — `{street, zone, district}`.
- *   The region names are the Judge's own and the street's is a localized word,
- *   so all three come from the caller that can read them.
+ * @param {object} names display name per layer, `{street, zone, district}`,
+ *   supplied by the caller that can read them
  * @returns {{key: string, data: object}|null} a full lang key and its format
  *   data, or null when the street owns both figures and no line is owed
  */
@@ -648,8 +537,7 @@ export function cadenceAttribution(cadence, names = {}) {
       }
       : null;
   }
-  // A half with no name to print cannot be attributed, and an unattributed
-  // figure is worse than an unmentioned one.
+  // A half with no name to print cannot be attributed.
   if (!turnsFrom || !targetFrom) return null;
   return {
     key: "ACKS-FORMATION.settlement.cadenceSplit",
@@ -658,32 +546,19 @@ export function cadenceAttribution(cadence, names = {}) {
 }
 
 /**
- * Which table says what the street throws at them.
+ * Which table says what the street throws at them, picked innermost-first: a
+ * district's wanted table when the party is hunted there, the district's
+ * ordinary table, a zone's, the map's own city list, and otherwise the world's
+ * own imported incident table.
  *
- * The cadence decides WHETHER something finds the party; this decides WHAT.
- * They are separate questions and a Judge answers them separately — a zone may
- * change how often the harbour is busy without changing who is on it — so the
- * table is picked innermost-first on its own: a district's wanted table when
- * the party is being hunted there, then the district's ordinary table, then a
- * zone's, and otherwise the city's own imported incident table.
+ * The whole ORDER is returned, not only its head, since a uuid can name a
+ * document that no longer exists: `rollSettlementIncident` walks it to the
+ * first table that EXISTS and reports that candidate's `source`. The last entry
+ * is always the world's own table, which ends the walk.
  *
- * The whole ORDER is returned, not only its head, because a uuid is a promise
- * that a document exists and the promise can be broken — a table deleted, or
- * left in a compendium the world no longer enables. A single answer makes an
- * unresolvable inner table skip every table inside it too, so a quarter that
- * has said who is on its streets is answered by the city's generic list with
- * nothing saying its own was passed over. `rollSettlementIncident` walks the
- * order to the first table that EXISTS and reports that candidate's `source`;
- * the last entry is always the city's own table, which is why the walk always
- * terminates.
- *
- * A MAP may name a city list of its own (`city`), which sits between the drawn
- * lists and the world's: a gazetteer's city has its own incident table, and a
- * world can hold two cities. That candidate alone is `banded` — read by range
- * with the map's after-dark shift rather than drawn — and carries the band
- * that defers to the quarter together with the quarter's special list and
- * what THAT list adds after dark, so the walk can hand the roll over without
- * asking the canvas a second time.
+ * The map's city list (`city`) alone is `banded`: read by range with the map's
+ * after-dark shift, carrying the band that defers to the quarter with the
+ * quarter's special list and what THAT list adds after dark.
  *
  * @param {object} [opts]
  * @param {{tableUuid?: string, afterDark?: number, band?: {from: number, to: number}|null}|null} [opts.city]
@@ -712,7 +587,7 @@ export function pickIncidentSource({ district = null, zone = null, wanted = fals
   return { ...candidates[0], candidates };
 }
 
-/** A shift as the panel prints it: the sign written out, so a positive one reads as an addition. */
+/** A shift as the panel prints it, the sign written out. */
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 /**
@@ -764,9 +639,7 @@ export function incidentRouting(pick, nameOf = () => null) {
 /**
  * The stretch of a city list that defers to the quarter, as a pair of edges.
  *
- * Null unless both edges are stated and in order: a band with one edge matches
- * everything above it or nothing at all depending on which edge is missing, and
- * either sends rolls to a list nobody meant them for.
+ * Null unless both edges are stated and in order.
  * @returns {{from: number, to: number}|null}
  */
 export function incidentBand(from, to) {
@@ -777,17 +650,12 @@ export function incidentBand(from, to) {
 }
 
 /**
- * What a district does to how the locals take the party, where they are.
- *
- * A quarter's reputation is not uniform inside it — a gazetteer states the
- * unwelcome as something that happens in the alleyways rather than on the
- * avenue — so the figure carries the place it applies to and is only owed when
- * the party is standing there. `any` is the district-wide case.
- *
- * The figure is SIGNED and never passes through `stated()`: 0 here means "this
- * quarter is unremarkable", where 0 on a cadence field means "inherit the layer
- * outside me", and `stated()` also rejects the negative that is the whole point
- * of this field.
+ * What a district does to how the locals take the party, where they are. The
+ * figure carries the place it applies to and is owed only when the party stands
+ * there; `any` is the district-wide case. It is SIGNED and never passes through
+ * `stated()`: 0 here means unremarkable, not "inherit". See
+ * docs/formation/DECISIONS.md, "A district's reaction figure is signed, and
+ * never inherits (2026-09-12)".
  *
  * @param {object|null} district a District behaviour's `system`
  * @param {string} [opts.where] the place the party is, in the board's vocabulary
@@ -805,12 +673,9 @@ export function districtReaction(district, { where = "avenue" } = {}) {
 /**
  * A day spent holed up, resolved.
  *
- * Holing up is the one settlement rate measured in DAYS rather than turns, so
- * it gets its own tick: the party covers no ground, and the street is given
- * exactly one chance at them. Advancing turn by turn through a week of study
- * would be twenty-four hours of ticks a day to reach the same throw.
- *
- * Pure, like the turn: the caller owns the dice.
+ * Holing up is the one settlement rate measured in DAYS rather than turns: the
+ * party covers no ground and the street gets one chance at them a day. Pure,
+ * like the turn: the caller owns the dice.
  */
 export function advanceSettlementDays(board, { days = 1, rolls = [], cadence: given = null } = {}) {
   const s = settlementOf({ settlement: board });
@@ -818,8 +683,7 @@ export function advanceSettlementDays(board, { days = 1, rolls = [], cadence: gi
   if (!spec?.stationary) return { board: s, events: [{ kind: "notHoledUp", where: s.where }] };
 
   const n = Math.max(0, Math.floor(Number(days) || 0));
-  // The caller may have resolved what a Judge drew over this spot; a party
-  // hiding inside a zone hides at the cadence the zone keeps.
+  // The caller may have resolved what a Judge drew over this spot.
   const cadence = given ?? streetCadence({ where: s.where, night: isNight(s), intent: s.intent });
   const next = { ...s, days: s.days + n };
   const events = [];
@@ -842,19 +706,13 @@ export function advanceSettlementDays(board, { days = 1, rolls = [], cadence: gi
 /**
  * Which row of the settlement encounter table a roll lands on.
  *
- * The table itself is written content and can only arrive by import — but the
- * PROCEDURE ships: one d100, a modifier after dark, and the band it falls in.
- * Returns null when unimported so a caller reports the gap rather than
- * inventing an incident.
+ * The table is imported content; the procedure is one roll, a modifier after
+ * dark, and the band it falls in. Returns null when unimported.
  */
 export function settlementEncounter(roll, { night = false, rows: given = null } = {}) {
-  // Rows may be HANDED IN — the incident list usually arrives as a Foundry
-  // RollTable rather than as ruledata, and this stays pure by being told about
-  // it rather than going looking. A world that authored the table by hand
-  // supplies it through the registry instead, and both read the same way.
+  // Rows may be handed in (the imported RollTable's), keeping this pure.
   const rows = given ?? table("encounters100");
-  // The world's list names no stretch of its own for the quarter, so nothing
-  // read here is ever `special`.
+  // The world's list names no quarter stretch, so nothing read here is `special`.
   return readIncident(roll, { night, afterDark: table("encounterAfterDark"), rows });
 }
 
@@ -864,10 +722,9 @@ export function settlementEncounter(roll, { night = false, rows: given = null } 
  * a stretch that defers to the quarter the party is in, whether this total is
  * inside it.
  *
- * The shift and the band are the CALLER's, because they belong to whichever
- * list is being read: the world's list takes its shift from the registry, a
- * map's list takes both from the map. A total no row covers is an answer, not
- * an error — a printed list can skip numbers — and comes back unmatched.
+ * The shift and the band are the CALLER's, since they belong to whichever list
+ * is being read. A total no row covers is an answer, not an error, and comes
+ * back unmatched.
  *
  * @param {number} roll the die as thrown
  * @param {object} [opts]
@@ -891,16 +748,9 @@ export function readIncident(roll, { night = false, afterDark = 0, rows = null, 
 /**
  * One turn of city travel, resolved.
  *
- * The board's `blocks`, `turns`, `lost` and `lastThrow` exist for this: without
- * a tick they are fields nothing reads, which is the same defect as a schema a
- * Judge cannot populate.
- *
- * Pure — it takes the board and a roll, and returns the next board plus what
- * happened. The caller owns the dice and the chat card, so the sequence can be
- * tested without a world.
- *
- * Order matters: the party MOVES, then the street gets its chance. A turn spent
- * walking into an alley is a turn the alley can answer for.
+ * Pure: it takes the board and the rolls, and returns the next board plus what
+ * happened; the caller owns the dice and the chat card. The party MOVES, then
+ * the street gets its chance.
  */
 export function advanceSettlementTurn(board, {
   headcount = 1, navRoll = null, encounterRoll = null, cadence: given = null,
@@ -919,9 +769,7 @@ export function advanceSettlementTurn(board, {
   }
 
   // --- did they go the right way? ---
-  // A party that is staying put is not going anywhere to go wrong: the throw
-  // belongs to a journey across the city, not to the ten minutes it spends in
-  // the room it is hiding in.
+  // The navigation throw belongs to a journey, not to a party staying put.
   const nav = spec?.stationary
     ? { throws: false, reason: "stationary" }
     : citySpec({ pace: s.pace, route: s.route });
@@ -931,8 +779,6 @@ export function advanceSettlementTurn(board, {
     next.lastThrow = { total, target: nav.target, kept };
     next.lost = !kept;
     if (!kept) {
-      // Lost in a city is not lost in the wild: the party ends the turn a
-      // short way from where it meant to be, and knows it at once.
       events.push({ kind: "strayed", blocks: strayBlocks() });
     }
   } else if (nav.throws && nav.target == null) {
@@ -942,27 +788,22 @@ export function advanceSettlementTurn(board, {
   }
 
   // --- and did anything find them? ---
-  // A party that is not going anywhere is thrown for by the DAY, and
-  // `advanceSettlementDays` owns that throw. Counting the same stay in turns
-  // as well would give a holed-up party two chances at the same interruption.
-  // The caller resolves what a Judge has drawn over the street and hands the
-  // answer in; the bare street is the fallback for a caller that has no canvas
-  // to ask, which is every test and every headless read. It has no clock to
-  // ask either, so a board following the clock reads as day here.
+  // A stationary party is thrown for by the DAY (`advanceSettlementDays`), never
+  // also by the turn. The caller hands in what a Judge drew over the street; the
+  // bare street is the fallback for a caller with no canvas, and with no clock a
+  // board following the clock reads as day.
   const cadence = spec?.stationary
     ? null
     : (given ?? streetCadence({ where: s.where, night: isNight(s), intent: s.intent }));
   if (spec?.stationary) {
-    // Nothing owed and nothing missing: the day tick is the one that answers.
+    // Nothing owed: the day tick answers.
   } else if (!cadence) {
     events.push({ kind: "unpriced", what: "encounters" });
   } else if (next.turns % cadence.everyTurns === 0) {
     const owed = {
       kind: "encounterOwed", scale: "turn", target: cadence.target,
       everyTurns: cadence.everyTurns,
-      // Which layer set each HALF of this cadence, so the card can name what a
-      // Judge drew rather than leaving an unexplained change of rhythm on the
-      // street. Both, because the two halves can have different owners.
+      // Which layer set each HALF of this cadence; the two can differ.
       everyTurnsSource: cadence.everyTurnsSource ?? "street",
       targetSource: cadence.targetSource ?? "street",
       ...(cadence.modifier ? { modifier: cadence.modifier, seeking: true } : {}),

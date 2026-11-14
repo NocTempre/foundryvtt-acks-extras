@@ -16,32 +16,16 @@ import { turnActivity } from "../lib/turn-activities.mjs";
 /**
  * Player-declared party actions. All formation state lives in a world setting
  * only GMs can write, so member-owning players declare actions from the party
- * sheet and the primary GM's client validates and executes them:
- *
- * - light a torch/lantern/candle borne by a member they own;
- * - track a spell they cast (from an owned member's spellbook);
- * - declare a rest turn, or a listen/search/bash/track check;
- * - lock or clear their own character's choice in the turn plan (plan);
- * - move their own character in the marching order (reorder);
- * - take up or set down a role for their own character (role);
- * - step their own character out of the party token to scout, or back in
- *   (detach);
- * - leave their own character behind where they fell, or go back for them
- *   (leftBehind);
- * - say how their own character travels (conveyance);
- * - bring an actor of their own into the party, or take one out (bringIn /
- *   takeOut);
- * - douse/relight or shutter a light their character carries (lightToggle /
- *   lightShield);
- * - consult — anchor — a map their character holds (anchorMap);
- * - work on a trap the party has found, or re-arm one they disarmed
- *   (trapbreak / trapRearm).
+ * sheet and the primary GM's client validates and executes them. The request
+ * types are the `case`s of `executeRequest`: lights, spells, a rest turn, party
+ * checks, the turn plan, the marching order, roles, detaching, leaving a
+ * member behind, conveyance, bringing an actor in or out, light discipline,
+ * anchoring a map and trapbreaking.
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
  * requesting client writes names who asked. Every executed request is
- * announced publicly so the table sees who declared what; check results still
- * go to the GM per the usual secrecy rules.
+ * announced publicly; check results still go to the GM.
  */
 
 const REQUEST_HANDLER = "partyRequest";
@@ -78,9 +62,8 @@ async function executeRequest(formation, user, type, payload) {
         light: game.i18n.localize(`ACKS-LIB.light.${payload.lightType}`),
         bearer: foundry.utils.escapeHTML(game.actors.get(payload.bearerId)?.name ?? "?"),
       }));
-      // The DECLARING user's authority, not this client's: every player request
-      // executes on a GM client, so `game.user.isGM` would hand the override to
-      // everyone. A GM declaring from the same panel still gets it.
+      // The DECLARING user's authority, not this client's: `game.user.isGM` is
+      // true on every GM-executed player request.
       await addLight(formation, payload.lightType, payload.bearerId, { override: user.isGM });
       break;
     }
@@ -117,8 +100,7 @@ async function executeRequest(formation, user, type, payload) {
       const option = typeof payload.option === "string" && payload.option ? payload.option : null;
       const result = await lockPlan(formation, { actorId: payload.actorId, key: payload.key, option, by: user.id });
       if (!result.ok) {
-        // The declaring seat checked before it sent; a refusal here means the
-        // party changed in between, and silence would leave them waiting.
+        // The party changed since the declaring seat checked; tell it.
         await ChatMessage.create({
           content: foundry.utils.escapeHTML(reasonText(result.reason, game.actors.get(payload.actorId))),
           whisper: [user.id],
@@ -134,8 +116,7 @@ async function executeRequest(formation, user, type, payload) {
     }
     case "check": {
       if (!userOwnsMember(formation, user)) return;
-      // Same closed-set rule as lightType: the key names both a localization
-      // entry and a roll route, so unknown keys stop here.
+      // Closed set: the key names both a localization entry and a roll route.
       if (!(payload.key in PARTY_CHECKS)) return;
       // A solo check is not a party roll and has no party-roll route to take.
       if (PARTY_CHECKS[payload.key].solo) return;
@@ -179,14 +160,12 @@ async function executeRequest(formation, user, type, payload) {
     /* --- Roles: a player declares their own character's job --- */
     case "role": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
-      // Unknown roles stop here, so the label fallback below can never feed a
-      // crafted payload string into the announcement.
+      // Closed set: a crafted role string never reaches the announcement.
       if (!(payload.role in ROLE_LABELS)) return;
       const had = formation.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
       const after = await toggleRole(formation, payload.actorId, payload.role, { override: user.isGM }); // kit gate inside
       const holds = after.members.find((m) => m.actorId === payload.actorId)?.roles?.includes(payload.role) ?? false;
-      // Announce what HAPPENED, not what was asked for: the kit gate can decline
-      // a player's request, and the table should not be told they took the job.
+      // Announce what HAPPENED: the kit gate can decline the request.
       if (holds === had) return;
       await announceDeclaration(formation, user, loc(holds ? "request.roleOn" : "request.roleOff", {
         name: foundry.utils.escapeHTML(game.actors.get(payload.actorId)?.name ?? "?"),
@@ -199,9 +178,8 @@ async function executeRequest(formation, user, type, payload) {
     case "detach": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
       const result = await toggleDetachMember(formation, payload.actorId);
-      // Declined GM-side: mid-combat, not theirs to recall, or no party token to
-      // step out from. The declaring seat was told the request was sent, so
-      // silence here leaves them believing it is still in flight.
+      // Declined GM-side (mid-combat, not theirs to recall, no party token): the
+      // declaring seat is told, since it believes the request is in flight.
       if (!result) {
         await ChatMessage.create({
           content: loc("request.detachDeclined"),
@@ -290,10 +268,9 @@ async function executeRequest(formation, user, type, payload) {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
       const actor = game.actors.get(payload.actorId);
       if (!actor) return;
-      // The Judge's own modifier is the JUDGE's: a declaring client may name
-      // the character, the trap and the column, and nothing else about the
-      // throw. `attemptDisarm` re-reads the trap and refuses it here if the
-      // party is not standing at it, so a stale or crafted uuid finds nothing.
+      // A declaring client names the character, the trap and the column, and
+      // nothing else about the throw; `attemptDisarm` re-reads the trap and
+      // refuses a uuid the party is not standing at.
       const mode = payload.mode === "hasty" ? "hasty" : "methodical";
       await announceDeclaration(formation, user, loc(type === "trapRearm" ? "request.trapRearm" : "request.trapbreak", {
         name: foundry.utils.escapeHTML(actor.name),

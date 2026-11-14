@@ -19,27 +19,22 @@ export { hasAbility };
  * Party rolls pulled from the character sheets, not generic dice.
  *
  * Each member's target is the abilities' own figure for the throw, before the
- * creature's conditions, which this file applies once as a named part:
- *   1. a matching class-power / proficiency **ability item** on the sheet
- *      (e.g. a thief's Searching skill): the throw named by `rollKey`, read by
- *      the abilities roller (`skillThrow`), so the ladder, the borrowed
- *      progression and every bonus the character's other abilities carry are
- *      already in the target and the die stays a bare d20;
- *   2. the character's **Adventuring** figure (`adventuringThrow`): the stored
- *      field, or the throw of an ability that stands in for it, lowered by the
- *      bonuses that name the activity.
- * Candidates, the Judge's Throw bonus, the once-per-turn limit, the time a check
- * costs and the Strength a bash adds are this file's; no figure and no
- * ability's name is.
+ * creature's conditions, which this file applies once as a named part: a
+ * matching ability item's throw named by `rollKey` (`skillThrow`), else the
+ * character's Adventuring figure (`adventuringThrow`). Candidates, the Judge's
+ * Throw bonus, the once-per-turn limit, the time a check costs and the Strength
+ * a bash adds are this file's; no figure and no ability's name is.
  *
- * Searching/listening throws are Judge-secret (RR p. 265), so results post as
- * ONE compact GM-whispered card rather than public per-member cards. RAW
- * constraints are enforced or reminded:
- *   - hasty search: skill users only;
- *   - methodical search: takes a full turn (auto-advanced);
- *   - listening: once per turn while the party is moving (tracked, warned).
+ * Searching and listening throws are Judge-secret (RR p. 265), so results post
+ * as one GM-whispered card rather than public per-member cards.
  */
 
+/**
+ * The party checks, keyed by check. Each entry holds what `resolveCheck`, the
+ * roll and the skill audit read: the capability token, the flag key a binding
+ * names, the name pattern, the Adventuring fallback (`advKey`, null where none
+ * is permitted) and the time it costs (`consumesRound` or `consumesTurn`).
+ */
 export const PARTY_CHECKS = Object.freeze({
   listen: {
     flagKey: "listen",
@@ -91,10 +86,8 @@ export const PARTY_CHECKS = Object.freeze({
     note: "ACKS-FORMATION.rolls.bashNote",
   },
   /*
-   * The two Trapbreaking columns. Both are `solo`: disarming is one character
-   * lying in the dirt with a set of picks, never the whole party rolling at
-   * once, so they are configuration for `resolveCheck` and for the skill audit
-   * rather than buttons on the party sheet. `trap-zone.mjs` drives them.
+   * The two Trapbreaking columns are `solo`: configuration for `resolveCheck`
+   * and the skill audit, driven by `trap-zone.mjs`, never a whole-party roll.
    */
   trapbreakHasty: {
     flagKey: "trapbreak",
@@ -138,24 +131,10 @@ export const PARTY_CHECKS = Object.freeze({
 const loc = makeLoc("ACKS-FORMATION");
 
 /**
- * All rollable ability items matching the check on this actor's sheet.
- *
- * Three routes, unioned so no route can lose a member the others would find:
- *   1. the check's **capability** token (`kw:searching`) — catches every
- *      printing of the mechanic regardless of the item's name;
- *   2. an explicit `checkKey` flag — the GM binding any item as a custom skill;
- *   3. the **name pattern** — the original route, still needed for abilities
- *      the register has not tagged (Eavesdropping does not yet declare
- *      `kw:listening`) and for hand-made items with no cookbook id.
- */
-/**
  * The eligibility gate party rolls apply BEFORE any route matching, exported so
- * the audit window reports exactly what rollPartyCheck will do. A GM ruling
- * from the audit window is final in both directions and outranks the per-item
- * Skill checkbox — it is the surface that shows what automation decided, so it
- * has to be able to overturn it. With no ruling, unchecking "Skill" on the
- * item sheet withdraws the item from party rolls even if its bindings remain
- * (re-checking restores them).
+ * the audit window reports what rollPartyCheck will do. A GM ruling from the
+ * audit window outranks the per-item Skill checkbox in both directions; with no
+ * ruling, an unchecked "Skill" withdraws the item from party rolls.
  */
 export function skillGateAllows(item) {
   const ruling = overrideFor(item);
@@ -174,19 +153,23 @@ const nameMatchHasThrow = (item) =>
   Number(item.system?.rollTarget) > 0 ||
   rollsOf(item).some((roll) => !measures(roll) && roll.target && typeof roll.target === "object" && (roll.target.kind ?? "flat") !== "flat");
 
+/**
+ * All rollable ability items on the actor's sheet matching the check, by any of
+ * three routes unioned (see docs/formation/DECISIONS.md, "Capability matching
+ * is a union, not a fallback"): the check's capability token, an explicit
+ * `checkKey` flag, or the name pattern.
+ */
 function skillCandidates(actor, cfg) {
   return actor.items.filter((i) => {
     if (i.type !== ITEM_TYPE.ability) return false;
     if (!skillGateAllows(i)) return false;
 
-    // 1. Capability — precise, and immune to renaming.
     if (cfg.capability && itemHasCapability(i, cfg.capability)) return true;
 
-    // 2. Explicit binding designates ANY item for this roll.
+    // An explicit binding designates ANY item for this roll.
     const checkKey = i.getFlag?.(MODULE_ID, "checkKey");
     if (checkKey) return checkKey === cfg.flagKey;
 
-    // 3. Name match.
     return cfg.pattern.test(i.name) && nameMatchHasThrow(i);
   });
 }
@@ -224,12 +207,10 @@ function bestSkill(actor, cfg) {
  * Resolve one member's throw: `{target, source, bonus, parts, skilled}` or null.
  *
  * The target is the abilities' own figure (`skillThrow`, else
- * `adventuringThrow`) with every bonus the character's abilities carry already
- * in it, so the die rolled against it is a bare d20 and `bonus` is 0. The
- * creature's conditions are then applied once, here. `parts` itemizes what
- * moved the target, one entry per ability, the Judge's Throw bonus and the
- * conditions, each `{label, value, cite?}` with a positive value lowering the
- * target. With several matching skill items the BEST (lowest) target is used.
+ * `adventuringThrow`), bonuses included, so the die is a bare d20 and `bonus`
+ * is 0; the creature's conditions are applied once, here. `parts` itemizes what
+ * moved the target, each `{label, value, cite?}` with a positive value lowering
+ * it. With several matching skill items the lowest target is used.
  */
 export function resolveCheck(actor, cfg) {
   const loc = (key) => game.i18n.localize(`ACKS-FORMATION.${key}`);
@@ -339,8 +320,7 @@ export async function rollCheckFor(actor, cfg) {
 export async function rollPartyCheck(formation, checkKey, { only = null, spend = true } = {}) {
   const cfg = PARTY_CHECKS[checkKey];
   if (!cfg) return 0;
-  // A solo check belongs to one character. Rolling it for the whole party is
-  // never what was meant, so it is refused here rather than at each caller.
+  // A solo check belongs to one character; refused here, not at each caller.
   if (cfg.solo) return 0;
 
   if (cfg.blockedWhenHurried && isHurried(formation)) {
@@ -382,9 +362,6 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
     return 0;
   }
 
-  // One shared renderer for every card where several people rolled at once
-  // (lib/roll-card.mjs) — the party's saves and the Surprise Matrix post the
-  // same shape, and did so three different ways before.
   const html = renderRollCard({
     title: game.i18n.localize(cfg.label),
     subtitle: formation.name,

@@ -473,9 +473,7 @@ export function neighbourToward(scene, offset, direction) {
 export function compassPad(scene) {
   const orientation = hexOrientation(scene);
   if (orientation === "rows") return ["nw", null, "ne", "w", "center", "e", "sw", null, "se"];
-  // A flat-topped hex has no neighbour due east or west, so those cells stay
-  // empty and the four diagonals take the corners: north-east sits above the
-  // level, as it does on the map, and not beside the centre.
+  // A flat-topped hex has no neighbour due east or west: those cells stay empty.
   if (orientation === "columns") return ["nw", "n", "ne", null, "center", null, "sw", "s", "se"];
   return null;
 }

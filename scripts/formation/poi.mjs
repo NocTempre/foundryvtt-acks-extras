@@ -10,10 +10,9 @@
  * [poi-logic.mjs](./poi-logic.mjs)'s; this file finds the scene, writes the
  * documents and talks to the Judge.
  *
- * The location feature is reached through its api rather than imported: it
- * publishes at ready, everything here runs later, and an import in this
- * direction would close a cycle the module graph already carries the other
- * way (`location/here.mjs` reads this feature's `partyPoint`).
+ * The location feature is reached through its api, not imported: an import in
+ * this direction would close a cycle with `location/here.mjs`, which reads this
+ * feature's `partyPoint`.
  */
 import { MODULE_ID, TURN_SECONDS } from "./constants.mjs";
 import { elementOf, escape as esc, makeLoc, gmIds } from "../lib/util.mjs";
@@ -38,9 +37,8 @@ const loc = makeLoc("ACKS-FORMATION");
 export const SETTING_TRANSIENT_TURNS = "transientIncidentTurns";
 
 /**
- * The token-update option marking a move THIS feature made. The movement hook
- * skips it: the hop was priced by the printed figure before the token moved,
- * and pricing the drag as well would charge the walk twice.
+ * The token-update option marking a move THIS feature made; the movement hook
+ * skips it, as the hop was priced before the token moved.
  */
 export const TRAVEL_OPTION = `${MODULE_ID}.poiTravel`;
 
@@ -160,9 +158,8 @@ export async function placeTokenAt({ scene, x, y, name = "", text = "", parentUu
 }
 
 /**
- * The card's one button. Bound on render rather than inline, because chat
- * content is markup and a handler has to be attached to the element core
- * builds from it.
+ * Bind the incident card's one button on render; chat content is markup, so
+ * the handler attaches to the element core builds from it.
  */
 export function installIncidentCardActions() {
   Hooks.on("renderChatMessageHTML", (_message, html) => {
@@ -216,14 +213,11 @@ export function poiTargets(formation) {
 export const regionsTouch = (a, b, scene) => ringsTouch(regionOutlines(a), regionOutlines(b), joinTolerance(scene));
 
 /**
- * Walk the party to a point of interest for the printed price.
- *
- * The clock is spent FIRST, through the ordinary tick — a hop of two turns is
- * two street turns, thrown for as any two are — and only then is the token
- * moved, with the option the movement hook skips, so the drag is not priced a
- * second time by distance. The clock's baseline moves with the token for the
- * same reason: the next real drag must measure from where the party now
- * stands, not from where it was before the hop.
+ * Walk the party to a point of interest for the imported price. The clock is
+ * spent FIRST, through the ordinary tick, and only then is the token moved
+ * with `TRAVEL_OPTION`; the clock's baseline moves with the token. See
+ * docs/formation/DECISIONS.md, "A hop to a point of interest is priced by
+ * quarter (2026-09-16)".
  *
  * @param {string} formationId
  * @param {string} tokenId
@@ -255,17 +249,14 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
   const cost = poiTravelTurns(figures, relation, pace);
   if (cost.turns == null) return { moved: false, reason: cost.missing, relation };
 
-  // Loaded late: the turn engine imports the city tick, which will import the
-  // marker drop above, and a static edge here would close that loop.
+  // Loaded late: a static edge would close a cycle through the turn engine and the city tick.
   const { advanceTurns, storedPosition } = await import("./turn-engine.mjs");
   if (spend && cost.turns > 0) await advanceTurns(formation, cost.turns, { reason: "action" });
   // Re-read after the tick: it wrote the record, and may have resized the token.
   const after = getFormation(formationId);
   const party = after ? partyPoint(after)?.token : null;
   if (!party) return { moved: false, reason: "noTarget", relation };
-  // Whole pixels: a token's position is stored as integers, and the baseline
-  // must be the position the token actually holds, or the next drag starts
-  // half a pixel from where the party stands.
+  // Whole pixels: the baseline must be the integer position the token holds.
   const x = Math.round(to.x - (party.width * gs) / 2);
   const y = Math.round(to.y - (party.height * gs) / 2);
   await party.update({ x, y }, { animate: false, [TRAVEL_OPTION]: true });

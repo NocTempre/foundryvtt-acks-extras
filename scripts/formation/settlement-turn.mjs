@@ -3,9 +3,7 @@
  * A city turn, actually taken.
  *
  * [settlement.mjs](./settlement.mjs)'s tick is pure and owns no dice; this
- * rolls them, writes the board, and whispers the Judge what happened. The
- * split is the same one the rest of the feature keeps: arithmetic that can be
- * tested without a world, and a thin caller that cannot.
+ * rolls them, writes the board, and whispers the Judge what happened.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
@@ -31,11 +29,11 @@ import { hunterName, withHunt } from "./hunt.mjs";
 const loc = makeLoc("ACKS-FORMATION");
 
 /**
- * One throw of the named die, or null when none is owed — the tick reads null
- * as "not asked". The die is a parameter and never a default: the two throws a
- * city turn can owe are made on different dice against differently scaled
- * targets, and a shared default is how they come to be made on the same one.
- * A die that is null (not imported) is no throw either; the caller says so.
+ * One throw of the named die, or a null total when none is owed (the tick reads
+ * null as "not asked"). The die is a parameter, never a default: the city turn's
+ * two throws are made on different dice (see docs/formation/DECISIONS.md, "A
+ * city turn owes two throws, on two dice (2026-09-12)"). A null die (not
+ * imported) is no throw either; the caller says so.
  */
 async function maybeRoll(owed, formula) {
   if (!owed || !formula) return { total: null, roll: null, die: formula };
@@ -46,9 +44,8 @@ async function maybeRoll(owed, formula) {
 /**
  * What a Judge has drawn over the street where the party is standing.
  *
- * One read of the canvas, shared by the cadence and the incident table: they
- * are separate questions of the same region, and asking twice invites the two
- * to disagree about which zone — or district — the party is in.
+ * One read of the canvas, shared by the cadence and the incident table so the
+ * two cannot disagree about which zone or district the party is in.
  */
 function drawnOver(formation) {
   const zone = findEncounterZone(formation);
@@ -58,11 +55,9 @@ function drawnOver(formation) {
     zoneName: zone?.region?.name ?? null,
     district: district?.behavior?.system ?? null,
     districtName: district?.region?.name ?? null,
-    // The quarter's own document, for the marker an incident leaves: a place
-    // promoted from one nests inside the quarter's place when it has one.
+    // The quarter's own document, for the marker an incident leaves.
     districtUuid: district?.region?.uuid ?? null,
-    // The outermost layer is the map itself: the city list it names, which the
-    // drawn lists are picked ahead of and the world's own behind.
+    // The outermost layer is the map itself: the city list it names.
     city: sceneIncidents(partyPoint(formation)?.scene ?? null),
   };
 }
@@ -71,38 +66,30 @@ function drawnOver(formation) {
 /**
  * One city turn, marked off because the party MOVED.
  *
- * Called from the turn engine's per-turn bookkeeping, so a turn in a city
- * costs everything a turn in a dungeon costs — the torch, the spell, the rest
- * — and the city's own business happens in the same tick: the blocks are
+ * Called from the turn engine's per-turn bookkeeping, so the city's own
+ * business happens in the same tick as a dungeon turn's: the blocks are
  * credited, the way is checked, and the street gets its chance.
  *
- * Writes the next board onto the LIVE record rather than patching the setting.
- * The caller is mid-tick holding the same object and saves it when the tick
- * ends; a second write from here would be overwritten by that save, which is
- * how a city turn would silently lose its blocks.
+ * Writes the next board onto the LIVE record rather than patching the setting:
+ * the caller is mid-tick holding the same object and saves it when the tick
+ * ends, so a second write from here would be overwritten.
  */
 export async function cityTurnCompleted(formation, notes = []) {
   if (!game.user?.isGM) return null;
   const t = travelOf(formation);
   if (t.mode !== "settlement") return null;
 
-  // The board, with the hunt asked for the quarter the party now stands in: a
-  // faction that wants them and holds this district marks them hunted here
-  // (hunt.mjs), so the district's hunted list answers this turn.
+  // The board, with the hunt asked for the quarter the party now stands in (hunt.mjs).
   const board = withHunt(t.settlement, formation);
   const headcount = realMembers(formation).length || 1;
 
-  // Only roll what the turn will actually consult. A party staying put neither
-  // navigates nor is thrown for by the turn — its day tick owns both.
-  // Where the party is, for the street's purposes: the road under it when one
-  // is drawn there, the picker otherwise. The DRAWN answer wins, so a Judge who
-  // laid an alley does not also have to remember to say so on the panel.
+  // Only roll what the turn will consult: a stationary party's day tick owns both throws.
+  // Where the party is: the road drawn under it when there is one, else the picker.
   const { road, here } = streetUnder(formation, board);
   const stationary = !!SETTLEMENT_LOCATIONS[here.where]?.stationary;
   const nav = stationary ? { throws: false } : citySpec({ pace: board.pace, route: board.route });
   const { zone, zoneName, district, districtName, districtUuid, city } = drawnOver(formation);
-  // The hour, resolved ONCE for the turn: the cadence and the incident read
-  // the same answer, so a clock crossing dusk mid-turn cannot split them.
+  // The hour, resolved ONCE for the turn, so the cadence and the incident agree.
   const night = boardNight(board);
   const cadence = stationary
     ? null
@@ -121,19 +108,15 @@ export async function cityTurnCompleted(formation, notes = []) {
     encounterRoll: encThrow.total,
     cadence,
   });
-  // A throw owed on a die nobody imported is owed and not made: the card says
-  // so, where the tick (which is handed a roll or none) cannot tell why.
+  // A throw owed on a die nobody imported is owed and not made: the card says so.
   if (willOweEncounter && encThrow.die == null) {
     events.push({ kind: "unpriced", what: loc("settlement.streetDie") });
   }
 
-  // The road is a SNAPSHOT of what the map said for this turn, so the card and
-  // the panel report the street the turn was actually resolved on.
+  // The road is a SNAPSHOT of what the map said for this turn.
   next.road = road;
   formation.travel = { ...storedTravelOf(formation), settlement: next };
 
-  // The turn card is what the Judge is already reading; the two things a city
-  // turn can do that a dungeon turn cannot belong on it.
   if (events.some((e) => e.kind === "strayed")) {
     notes.push({ type: "bad", text: loc("settlement.note.strayed") });
   }
@@ -141,10 +124,8 @@ export async function cityTurnCompleted(formation, notes = []) {
     notes.push({ type: "bad", text: loc("settlement.note.incident") });
   }
 
-  // The card is the LAST thing a city turn does, and it is the only part of it
-  // that talks to the server. The turn is already resolved onto the record the
-  // caller is holding: a card that cannot be written must not take the blocks,
-  // the throw and every other feature's bookkeeping down with it.
+  // The card is the last step and the only one that talks to the server: one
+  // that cannot be written must not take the turn's bookkeeping down with it.
   try {
     await whisperTurn(next, events, [navThrow.roll, encThrow.roll].filter(Boolean), {
       zoneName, districtName, here, formation, regionUuid: districtUuid, night,
@@ -164,12 +145,10 @@ function boardNight(board) {
 /**
  * Days spent holed up, credited because the WORLD CLOCK moved.
  *
- * Holing up is the one settlement rate the party's own motion cannot report:
- * the party is deliberately not going anywhere, so there is no movement to
- * tick and the calendar is the only thing that changes. Priced by the DAY —
- * a week of study is seven throws, not a thousand ten-minute ticks that happen
- * to owe seven of them — so each day rolls its own die and the stay lands as
- * one card.
+ * Holing up is the one settlement rate with no movement to tick: it is priced
+ * by the DAY, each day rolling its own die, and the stay lands as one card.
+ * See docs/formation/DECISIONS.md, "A stay is credited in days actually thrown
+ * for (2026-09-12)".
  *
  * Patches the setting directly: unlike the turn, nothing else is mid-tick.
  */
@@ -204,8 +183,7 @@ export async function runHoledUpDays(formation, days) {
   const next = advanced.board;
   let events = advanced.events;
   if (events.some((e) => e.kind === "notHoledUp")) return null;
-  // Days owed a throw that was never made are not days nothing found them: the
-  // stay says its die is not imported instead of reporting a quiet one.
+  // Days owed a throw never made are not quiet days: the stay says its die is not imported.
   if (cadence && !die) {
     events = [...events.filter((e) => e.kind !== "encounterOwed"), { kind: "unpriced", what: loc("settlement.streetDie") }];
   }
@@ -219,8 +197,7 @@ export async function runHoledUpDays(formation, days) {
     credited: n, asked, cadence, zoneName, districtName, night,
     incident: pickIncidentSource({ district, zone, wanted: board.wanted, city }),
   });
-  // `credited` is the contract with the clock watcher: the stamp may only move
-  // forward by days that were actually thrown for.
+  // `credited` is the contract with the clock watcher: the stamp moves by days thrown for only.
   return { board: next, events, credited: n, asked };
 }
 
@@ -230,25 +207,17 @@ const DAY_SECONDS = 24 * 60 * 60;
 /**
  * How many days of a stay one clock advance credits.
  *
- * A bound on the dice, not on the stay: a Judge who drags the calendar a year
- * forward means a year to pass, not a year of throws in one frame. What is not
- * credited is not forgiven — the stamp stays behind by the remainder, so the
- * next advance charges the next stretch and the debt drains.
+ * A bound on the dice, not on the stay: what is not credited is not forgiven,
+ * since the stamp stays behind by the remainder and the next advance charges it.
  */
 const MAX_STAY_DAYS_PER_CREDIT = 30;
 
 /**
- * The queue every credit runs in.
- *
- * One clock advance reaches the credit twice — the hook watcher answers it, and
- * the turn engine awaits it as well before re-reading the board — and a second
- * pass reading the board while the first is still between its dice and its
- * stamp prices the same stretch again. Running them in turn is what makes the
- * stamp the guard it is written as.
- *
- * The same shape the ledger's own writer keeps (`formation-model.mjs`): the
- * chain swallows an outcome so a failed credit does not block the next, while
- * the promise handed back still rejects for the caller that asked for it.
+ * The queue every credit runs in, so two callers answering one clock advance
+ * run in turn and the stamp stays the guard (see docs/formation/DECISIONS.md,
+ * "A stay is credited once per advance, by the queue and not by the caller
+ * (2026-09-15)"). The chain swallows an outcome so a failed credit does not
+ * block the next; the promise handed back still rejects for its caller.
  */
 let creditChain = Promise.resolve();
 
@@ -264,20 +233,11 @@ function enqueueCredit(fn) {
 /**
  * Credit whatever whole days have passed for every party holed up in a city.
  *
- * The watcher for the one settlement rate that has no movement to read. It is
- * driven by the world clock rather than by a button, so a stay advanced by
- * anything — a rest, a downtime week, the Judge nudging the calendar — is
- * priced the same way, and a party cannot be charged twice for the same day:
- * the stamp moves forward by exactly the days credited, and the remainder
- * stays on the clock.
- *
- * Serialised, so two callers answering ONE advance charge it once: the second
- * starts after the first has moved the stamp, reads the stamp it left, finds no
- * whole day outstanding and writes nothing. Awaiting the returned promise is
- * therefore a barrier on the whole credit, whichever caller opened it.
- *
- * A party that has just holed up is stamped and charged nothing; the first day
- * begins now, not at whatever the calendar said when the world was made.
+ * The watcher for the settlement rate with no movement to read, driven by the
+ * world clock: the stamp moves forward by exactly the days credited and the
+ * remainder stays on the clock. Serialised, so awaiting the returned promise is
+ * a barrier on the whole credit, whichever caller opened it. A party that has
+ * just holed up is stamped and charged nothing.
  */
 export function creditHoledUpDays() {
   return enqueueCredit(creditHoledUpDaysNow);
@@ -287,15 +247,14 @@ export function creditHoledUpDays() {
 async function creditHoledUpDaysNow() {
   if (!game.user?.isGM) return;
   const now = Number(game.time?.worldTime) || 0;
-  // The read-only blob, not a deep copy: this runs on every clock advance and
-  // asks two fields of each record. The writes go through `patchFormation`.
+  // The read-only blob, not a deep copy; writes go through `patchFormation`.
   for (const formation of Object.values(readFormations())) {
     const t = travelOf(formation);
     if (t.mode !== "settlement") continue;
     const board = t.settlement;
     if (!SETTLEMENT_LOCATIONS[board.where]?.stationary) continue;
 
-    // First sighting: start the clock here rather than at the epoch.
+    // First sighting: start the stay's clock here.
     if (board.holeUpSince == null) {
       await patchFormation(formation.id, (record) => {
         const cur = storedTravelOf(record);
@@ -306,9 +265,7 @@ async function creditHoledUpDaysNow() {
 
     const days = Math.floor((now - Number(board.holeUpSince)) / DAY_SECONDS);
     if (days < 1) continue;
-    // Only the days that were actually thrown for may move the stamp. Moving
-    // it by what was ASKED for retires days nothing ever rolled a die against,
-    // and the loss is invisible: the calendar and the board simply disagree.
+    // Only the days actually thrown for move the stamp, never the days asked for.
     const credited = (await runHoledUpDays(formation, days))?.credited ?? 0;
     if (credited < 1) continue;
     await patchFormation(formation.id, (record) => {
@@ -320,16 +277,9 @@ async function creditHoledUpDaysNow() {
 }
 
 /**
- * The world's settlement incident table, whichever way the Judge has it.
- *
- * The list of written incidents is CONTENT, and it reaches a world one of two
- * ways: the importer materializes it as a Foundry RollTable from the Judge's
- * own book, or a Judge authors it into the ruledata registry by hand. The
- * procedure is the same either way — one roll, the after-dark shift, the band
- * it lands in — so the rows are found here and handed to the pure reader.
- *
- * The RollTable is matched on the importer's own cookbook id rather than its
- * name, because a Judge may rename it and a translated world will.
+ * The cookbook id of the world's settlement incident table, a RollTable the
+ * importer materializes from the Judge's own book. It is matched on this id,
+ * never the name, which a Judge may rename.
  */
 const INCIDENT_TABLE_ID = "jj.settlementEncounters";
 
@@ -340,9 +290,7 @@ export async function findCityIncidentTable() {
   const world = game.tables?.find(flagged) ?? null;
   if (world) return world;
   for (const pack of game.packs.filter((p) => p.documentName === "RollTable")) {
-    // Per pack, because one unreadable compendium — a module mid-update, a
-    // pack whose system no longer loads — must not hide the table sitting in
-    // the next one.
+    // Per pack: one unreadable compendium must not hide the table in the next.
     try {
       const index = await pack.getIndex({ fields: ["flags"] });
       const hit = [...index].find(flagged);
@@ -357,9 +305,8 @@ export async function findCityIncidentTable() {
 /**
  * A RollTable's rows as the bands the pure reader matches against.
  *
- * Rows whose range is not a pair of numbers are dropped rather than defaulted:
- * a band with no edges matches everything or nothing depending on which way
- * the comparison falls, and either is worse than the row not being there.
+ * Rows whose range is not a pair of numbers are dropped, never defaulted: a
+ * band with no edges matches everything or nothing.
  */
 export function incidentRowsOf(table) {
   if (!table) return null;
@@ -371,11 +318,9 @@ export function incidentRowsOf(table) {
 /**
  * The document a candidate's uuid names, or null when the promise is broken.
  *
- * A uuid promises a document exists, and the promise breaks two ways: `fromUuid`
- * answers null for one that is gone and throws for a compendium the world no
- * longer has. Both say the same thing to the walk below — this table cannot
- * answer — so both are answered the same way, and the throw is logged rather
- * than ending the walk at whichever layer happened to hold the dead uuid.
+ * `fromUuid` answers null for a document that is gone and throws for a
+ * compendium the world no longer has; both mean this table cannot answer, and
+ * the throw is logged so the walk continues past the dead uuid.
  */
 async function incidentTableAt(uuid) {
   if (!uuid) return null;
@@ -403,11 +348,10 @@ async function drawIncident(table, source) {
 
 /**
  * One list thrown on its OWN formula and read by range, with what it adds
- * after dark: rows past the die's last face are reached only by that
- * addition, and `table.roll()` never lands on them. `fallback` is the die for
- * a list whose formula does not parse: the imported incident die, null until
- * imported. Null for a list with no ranged rows, or with neither a formula nor
- * a fallback.
+ * after dark: rows past the die's last face are reached only by that addition,
+ * which `table.roll()` never does. `fallback` is the die for a list whose
+ * formula does not parse (the imported incident die, null until imported). Null
+ * for a list with no ranged rows, or with neither a formula nor a fallback.
  */
 async function throwBanded(table, { afterDark = 0, band = null, fallback = null }, night) {
   const rows = incidentRowsOf(table);
@@ -423,12 +367,11 @@ async function throwBanded(table, { afterDark = 0, band = null, fallback = null 
  * The map's own city list, read by band (`throwBanded`).
  *
  * When the total falls in the stretch that defers to the quarter and the
- * quarter has a special list that can be read, that list is thrown the same
- * way with its OWN after-dark figure and answers instead, carrying the city
- * throw as `via` so the card can show both. A band with nothing to hand over
- * to leaves the city row's own words standing, marked `specialMissing` when
- * the quarter names a list that is gone or has no ranged rows. Null for a
- * table with no ranged rows, which sends the walk on.
+ * quarter has a readable special list, that list is thrown the same way with
+ * its OWN after-dark figure and answers instead, carrying the city throw as
+ * `via`. A band with nothing to hand over to leaves the city row standing,
+ * marked `specialMissing` when the quarter names a list that is gone or has no
+ * ranged rows. Null for a table with no ranged rows, which sends the walk on.
  */
 async function readMapIncident(
   table,
@@ -447,26 +390,16 @@ async function readMapIncident(
 /**
  * Roll one settlement incident, and say which table answered.
  *
- * THREE procedures, because three kinds of table arrive here. The world's own
- * imported table is a d100 of banded rows and carries an after-dark shift the
- * registry prices, so it is read the way the book reads it. A city list the
- * MAP names is read the same way with the map's own shift, and may hand its
- * roll to the quarter's special list (`readMapIncident`). A table a Judge drew
- * over the street is an ordinary RollTable with a formula of its own, and is
- * drawn the way the delve clock already draws a zone's table — its bands are
- * its own business, and a d100 forced onto a 1d6 table would miss every row.
+ * Three procedures: the world's own imported table is read by banded rows with
+ * the registry's after-dark shift; a city list the MAP names is read the same
+ * way with the map's own shift, and may hand its roll to the quarter's special
+ * list (`readMapIncident`); a table a Judge drew over the street is an ordinary
+ * RollTable drawn on its own formula.
  *
- * `candidates` is `pickIncidentSource`'s whole order, innermost first, and is
- * walked to the first table that EXISTS. Trying only the innermost made one
- * broken uuid skip every table inside it: a quarter whose hunted list had been
- * deleted was answered by the city's generic d100 with its own ordinary list
- * never asked. `source` is taken from the candidate that answered, so the
- * card's hunted line and its "drawn from" line name the table actually rolled.
- * The order always ends at the world's own table, which is what terminates the
- * walk.
- *
- * Null when nothing in the order — the world's own table included — supplied a
- * row.
+ * `candidates` is `pickIncidentSource`'s whole order, innermost first, walked
+ * to the first table that EXISTS, ending at the world's own table. `source` is
+ * taken from the candidate that answered. Null when nothing in the order
+ * supplied a row.
  *
  * @param {object} [opts]
  * @param {Array<{tableUuid: string|null, source: string, banded?: boolean}>} [opts.candidates]
@@ -499,9 +432,7 @@ export async function rollSettlementIncident({
   }
   const world = await findCityIncidentTable();
   const rows = incidentRowsOf(world);
-  // The list's own die: the formula the importer read off the page onto the
-  // table, else the imported incident die for a list the registry holds. With
-  // neither, nothing is thrown and the card says there is no table to use.
+  // The table's own formula, else the imported incident die; with neither, nothing is thrown.
   const formula = diceFormula(world?.formula) ?? incidentDie();
   if (!formula) return null;
   const roll = await new Roll(formula).evaluate();
@@ -511,9 +442,8 @@ export async function rollSettlementIncident({
 
 /**
  * A stay as one card: how long it lasted, which days were interrupted, and what
- * found them on each. `incident` is `pickIncidentSource`'s answer and `night`
- * the hour the stay's cadence was resolved at; every day of a stay is drawn at
- * that one hour.
+ * found them on each. `incident` is `pickIncidentSource`'s answer; every day of
+ * a stay is drawn at the one hour `night` names.
  */
 async function whisperStay(board, events, rolls, {
   credited = null, asked = null, cadence = null, zoneName = null, districtName = null,
@@ -523,10 +453,7 @@ async function whisperStay(board, events, rolls, {
   const met = owed.filter((e) => e.met);
   const lines = [loc("settlement.card.holedUp", { days: board.days })];
 
-  // A stay thrown for at a rhythm the Judge drew, rather than the street's own,
-  // is said here for the reason the turn card says it: a day count that cannot
-  // be reproduced from the street's figures reads as the clock miscounting. One
-  // line for the whole stay, because every day of it answered to one cadence.
+  // One attribution line for the whole stay: every day answered to one cadence.
   const said = cadenceAttribution(cadence, {
     street: loc("settlement.cadenceStreet"),
     zone: zoneName,
@@ -534,9 +461,7 @@ async function whisperStay(board, events, rolls, {
   });
   if (said) lines.push(game.i18n.format(said.key, said.data));
 
-  // The calendar has run further ahead than this credit reaches. Saying so is
-  // the difference between a stay still catching up and a stay that has lost
-  // the difference, and only the card can tell the Judge which this is.
+  // The calendar has run further ahead than this credit reaches.
   if (asked != null && credited != null && asked > credited) {
     lines.push(loc("settlement.card.stillCatchingUp", { credited, left: asked - credited }));
   }
@@ -552,9 +477,7 @@ async function whisperStay(board, events, rolls, {
     lines.push(loc("settlement.card.undisturbed", { throws: owed.length }));
   }
 
-  // What found them, day by day. Each met day draws through the same order the
-  // street turn walks, at the stay's own hour; the party was indoors, so no
-  // marker is left on the map and the draw is the card's alone.
+  // Each met day draws through the street turn's own order; no marker is left on the map.
   for (const event of met) {
     const { lines: drawn } = await drawIncidentLines(pick, { night, board, rolls });
     lines.push(loc("settlement.card.stayDay", { day: event.day })
@@ -570,9 +493,8 @@ async function whisperStay(board, events, rolls, {
 }
 
 /**
- * The incident's own line: the list that answered, when it has a name (a
- * list authored into the registry has none), and the shifted total only when
- * a shift was applied, so a throw by day never claims the dark.
+ * The incident's own line: the list that answered, when it has a name, and the
+ * shifted total only when a shift was applied.
  */
 function incidentLine(incident, text) {
   const data = { roll: incident.roll, total: incident.total, text, table: incident.table };
@@ -582,8 +504,7 @@ function incidentLine(incident, text) {
 
 /**
  * The street's die as a card prints it, its tooltip saying where the figure
- * came from: the page it was imported from, or a Judge's override, which holds
- * no page.
+ * came from: the imported page, or a Judge's override.
  */
 const streetDieTip = (die) => {
   const cite = citeOf(SETTLEMENT_DOC, "dice");
@@ -600,14 +521,12 @@ const markerLine = (note) =>
  * One incident drawn through `pick`'s whole candidate order, as the lines a
  * card prints for it: the hunted line, every named list the walk could not
  * read, the city throw that handed over to a quarter's special list, and the
- * incident itself — or the missing-table line when nothing in the order
- * answered. Shared by the turn card and the stay card, so both draw through
- * the one order and say the same things about it.
+ * incident itself, or the missing-table line when nothing answered. Shared by
+ * the turn card and the stay card.
  *
- * Every die thrown is pushed onto `rolls`, which the caller shows to the
- * Judges. The lookup reaches every RollTable compendium in the world, so it is
- * guarded here: a card that cannot name the incident must not take the
- * caller's bookkeeping down with it.
+ * Every die thrown is pushed onto `rolls`. The lookup reaches every RollTable
+ * compendium, so it is guarded: a card that cannot name the incident must not
+ * take the caller's bookkeeping down with it.
  *
  * @param {object|null} pick `pickIncidentSource`'s answer
  * @param {object} opts
@@ -619,9 +538,7 @@ const markerLine = (note) =>
  */
 async function drawIncidentLines(pick, { night, board, rolls }) {
   let incident = null;
-  // Every named list the walk could not read, said on the card whatever then
-  // answered: a list that is gone sends the throw to the next one, and the
-  // Judge otherwise sees only that the wrong list spoke.
+  // Every named list the walk could not read, said on the card whatever then answered.
   const passed = [];
   try {
     incident = await rollSettlementIncident({ night, ...(pick ?? {}), passed });
@@ -639,18 +556,14 @@ async function drawIncidentLines(pick, { night, board, rolls }) {
     return { incident, lines };
   }
   if (incident.source === "wanted") {
-    // Keyed on the answer and not on the ask: a `wantedTableUuid` pointing at a
-    // table that is gone falls to the next list in the order, and a line
-    // promising the hunted list above another list's entry asserts something
-    // untrue. It leads the lines so the reason still reads before the outcome;
-    // named after the faction whose ledger set the flag, when one did.
+    // Keyed on the answer, not the ask: a hunted list that is gone falls to the
+    // next list. It leads the lines; named after the faction whose ledger set the flag.
     const hunter = hunterName(board);
     lines.unshift(hunter
       ? loc("settlement.card.wantedBy", { name: hunter })
       : loc("settlement.card.wanted"));
   }
-  // A quarter's special list answered because the city throw sent it there:
-  // that throw is said first, so the second die has a reason.
+  // A special list answered because the city throw sent it there: say that throw first.
   if (incident.via) {
     rolls.push(incident.via.dice);
     lines.push(loc("settlement.card.incidentDeferred", {
@@ -659,8 +572,7 @@ async function drawIncidentLines(pick, { night, board, rolls }) {
   }
   rolls.push(incident.dice);
   const text = incident.entry ?? loc("settlement.card.incidentUnmatched");
-  // The after-dark shift belongs to a list read by band — the world's d100, or
-  // the map's — so a drawn table's line does not claim one.
+  // The after-dark shift belongs to a list read by band; a drawn table's line claims none.
   lines.push(incidentLine(incident, text));
   return { incident, lines };
 }
@@ -676,9 +588,7 @@ async function whisperTurn(
   const lines = [];
   lines.push(loc("settlement.card.moved", { blocks: board.blocks, turns: board.turns }));
 
-  // Which street the turn was resolved on, and that the MAP said so. A cadence
-  // read off a drawn alley while the panel still says avenue looks like the
-  // tick ignoring the panel unless the card names its source.
+  // Which street the turn was resolved on, and that the MAP said so.
   if (here?.from === "road" && board.road) {
     const where = loc(`settlement.street.${here.where}`);
     lines.push(board.road.name
@@ -696,13 +606,8 @@ async function whisperTurn(
   }
   const owed = events.find((e) => e.kind === "encounterOwed");
   if (owed) {
-    // A cadence that is not the street's is a thing the Judge drew, and a card
-    // that changed rhythm without saying so reads as the tick miscounting. The
-    // place named is whichever layer actually answered — naming the zone when
-    // the district set the rhythm would misattribute it.
     // Attribution is per FIGURE, through the reader the panel also uses: the
-    // interval and the target can come from different layers, and one name over
-    // both prints one layer's number under the other layer's name.
+    // interval and the target can come from different layers.
     const said = cadenceAttribution(owed, {
       street: loc("settlement.cadenceStreet"),
       zone: zoneName,
@@ -713,22 +618,13 @@ async function whisperTurn(
       ? loc("settlement.card.owed", { target: owed.target })
       : loc(owed.met ? "settlement.card.met" : "settlement.card.quiet",
         { rolled: owed.rolled, target: owed.target, die: streetDieTip(streetDie()) }));
-    // A party that WANTS trouble and has no imported figure for it is told,
-    // rather than quietly throwing at the ordinary target. The tick flags it;
-    // this is the only surface that can say so.
+    // The tick flags a wanted-trouble intent with no imported figure; this card says so.
     if (owed.unpricedIntent) lines.push(loc("settlement.card.unpricedIntent"));
-    // The street answering is only half of it: what actually happened is the
-    // incident table's to say, and the Judge should not have to go and roll it.
-    // The lookup reaches every RollTable compendium in the world, so it is
-    // guarded here: a card that cannot name the incident must not take the
-    // turn's bookkeeping down with it.
     if (owed.met) {
       const { incident, lines: drawn } = await drawIncidentLines(pick, { night, board, rolls });
       lines.push(...drawn);
-      // Where it happened, kept on the map: a Judge-only marker the clock
-      // takes away, with the one button that makes it permanent. Guarded
-      // like the lookup — a marker that cannot be written must not take the
-      // card down with it.
+      // A Judge-only marker the clock takes away, with the one button that
+      // makes it permanent; a marker that cannot be written must not take the card down.
       if (incident?.entry && formation) {
         const note = await dropIncidentNote(
           formation,
@@ -746,8 +642,6 @@ async function whisperTurn(
     lines.push(loc("settlement.card.unpriced", { what: gap.what }));
   }
 
-  // The totals are in the text for reading; the dice show to the Judges
-  // through Dice So Nice and stay off the message.
   await postToJudges({
     speaker: { alias: loc("settlement.card.speaker") },
     content: `<div class="acks-extras-settlement-card"><h3>${loc("settlement.card.title")}</h3>`

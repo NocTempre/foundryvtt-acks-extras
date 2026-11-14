@@ -22,26 +22,13 @@ import { clockReading } from "../lib/world-time.mjs";
 export { PARTY_TYPE };
 
 /**
- * A party actor holds almost NO data of its own — the formation record does.
- * Its schema is the compatibility stub every non-character sub-type needs so
- * the acks system's unguarded per-actor compute (isNew, attack, initiative,
- * movement, saves) does not error on it. That set has one home:
- * the lib's acksCompatStubs().
- *
- * A party does not save on its own — rollPartySave reads each MEMBER's saves —
- * so the stub carries no saves of its own beyond the compat set.
- *
- * Movement is re-declared for two party-specific reasons the shared stub can't
- * carry: `base` defaults to a human's 120 (synced from members on the first
- * formation sync), where the stub's 0 is right for a settlement/domain; and
- * `value` holds the "N'/turn (exploration)" label formation-model.mjs writes.
- * `mod` is deliberately absent — the system only reads movement.mod in
- * _calculateMovement, which runs off computeEncumbrance, which bails on
- * type !== "character" (actor.mjs), so a party never touches it: dead field,
- * not carried.
- *
- * `description` is the party's own prose, the one field the sheet writes to
- * the actor: it reads in the frame's reading column and is edited there.
+ * The party actor's data model: the compat stub from the lib's
+ * `acksCompatStubs()` (so the acks system's per-actor compute does not error on
+ * a non-character), a `movement` block re-declared for the party (`base`
+ * synced from members on the first formation sync, `value` the label
+ * formation-model.mjs writes), and `description`, the one field the sheet
+ * writes to the actor. Everything else lives on the formation record; see
+ * docs/formation/DECISIONS.md, "A party actor holds almost no data".
  */
 export class PartyData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -101,9 +88,7 @@ function clockTime() {
 
 /**
  * What a stack calls itself: its own collective noun, else the default for the
- * kind of unit it is. The marching order says the same word the group sheet
- * says, so "40 mercenaries" in the party window is "40 mercenaries" on the sheet
- * that edits them — one concept, one vocabulary.
+ * kind of unit it is, the word the group sheet uses.
  */
 function stackNoun(actor) {
   const own = actor?.system?.noun;
@@ -126,20 +111,14 @@ function stackRows(formation) {
 }
 
 /**
- * The party actor's sheet. It reads the formation record rather than the
- * actor, which carries almost no state of its own, and takes the character
- * sheet's shape: the band (crest, mode, name, the day's or the rest's bar) is
- * the window header; one art row of rails around the party's plate stands
- * above every tab; and the tabs are named by the mode — Dungeon, Wilderness or
- * City; Order, Train or Company; Kit; Sightings; and the Judge's own tab on a
- * GM seat only. Each tab carries its own actions at its head. The decisions
- * are frame-view.mjs's; this class binds them to Foundry.
+ * The party actor's sheet, the one formation UI. It reads the formation record
+ * and takes the character sheet's shape: the band (crest, mode, name, the
+ * day's or the rest's bar) is the window header, one art row stands above every
+ * tab, and the tabs are named by the mode, with the Judge's tab on a GM seat
+ * only. The decisions are frame-view.mjs's; this class binds them to Foundry.
  *
- * The band renders as a part and is then MOVED into Foundry's `.window-header`,
- * as the character sheet does it, so the header stays the drag handle and keeps
- * its buttons while the band's name field and mode select live in the form.
- * Every part renders inside the one form, so an inactive or hidden tab's inputs
- * are still in the DOM and still submit — switching tabs never drops an edit.
+ * The band renders as a part and is then MOVED into `.window-header`. Every
+ * part renders inside the one form, so an inactive tab's inputs still submit.
  */
 export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.sheets.ActorSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -256,14 +235,10 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   }
 
   /**
-   * The sheet's form is interactive for the GM and for any player who owns a
-   * MEMBER of the formation — decoupled from ownership of the party actor
-   * itself. Foundry force-disables every control in the window when a sheet is
-   * not editable (DocumentSheetV2#_toggleDisabled), which would grey out a
-   * member-owner's own reorder/role/light controls just because the party
-   * actor grants them only Observer. Per-control gating (`canControl` in the
-   * view) remains the authority over WHICH controls each user may touch; this
-   * getter only decides whether the window is live at all.
+   * The form is live for the GM and for any player who owns a MEMBER of the
+   * formation, whatever the party actor grants them: Foundry disables every
+   * control on a non-editable sheet. Per-control gating (`canControl` in the
+   * view) still decides which controls each user may touch.
    */
   get isEditable() {
     if (super.isEditable) return true;
@@ -379,9 +354,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     if (isGM) Object.assign(context, buildGMExtras(formation));
     else Object.assign(context, buildPlayerPanel(formation));
 
-    // An occupant may stand for a crowd, so the party is counted in BODIES and
-    // the rows that hold a stack say how many. The count is the group actor's
-    // own headcount — it is never tracked a second time here.
+    // The party is counted in BODIES; a stack's row says how many it stands for.
     const stacks = stackRows(formation);
     context.headcount = partyHeadcount(formation);
     for (const row of context.members ?? []) {
@@ -407,12 +380,9 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   }
 
   /**
-   * Say what a stacked row stands for, and point at where it is edited.
-   *
-   * The badge carries the `openSheet` action, so the one route to a stack's
-   * headcount and its casualties is the group's own sheet — the formation never
-   * grows a second way to do the same thing. Attached after render and skipped
-   * where a badge already exists, so row markup that renders one itself wins.
+   * Say what a stacked row stands for. The badge's `openSheet` action opens the
+   * group's own sheet, where the headcount is edited; skipped where row markup
+   * already renders a badge.
    */
   #markStacks(context) {
     for (const row of context.members ?? []) {
@@ -476,11 +446,9 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
   }
 
   /**
-   * The band is the window header. Each render appends a fresh band to the
-   * content (the last one left it), so the stale copy in the header is removed
-   * and the new one moved in before the header's controls. A press on the
-   * band's own controls stops at the band; anywhere else it falls through to
-   * the header and drags the window.
+   * Move the fresh band into the window header, before the header's controls,
+   * and remove the stale copy. A press on the band's own controls stops at the
+   * band; anywhere else it falls through and drags the window.
    */
   #moveBandIntoHeader() {
     const header = this.element.querySelector(":scope > .window-header");

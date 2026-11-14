@@ -8,10 +8,8 @@
  * writes the body's fatigue state and the Fatigued condition, and tells the
  * Judge on one whispered card. It runs after the day closes, on the day's own
  * sky: `closeDay` captures the weather, camp and exposure BEFORE the end of the
- * day advances them, and passes them in.
- *
- * A body's fatigue belongs to the body, not to the marching order: the state is
- * a flag on the actor, like its hunger.
+ * day advances them, and passes them in. A body's fatigue is a flag on the
+ * actor, like its hunger.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { getMemberActor, hasAbility, realMembers } from "./formation-model.mjs";
@@ -31,7 +29,7 @@ import { makeLoc, numOrNull } from "../lib/util.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-/** Where a body's fatigue ladder lives. On the ACTOR, because it is the body's. */
+/** The actor flag holding a body's fatigue ladder: it travels with the actor, not the party. */
 export const FATIGUE_FLAG = "fatigue";
 
 const LABOR = /\blabou?r\b/i;
@@ -46,9 +44,7 @@ const nightReason = (key) => loc(`rest.reason.${key}`);
 const fatigueReason = (key) => loc(`rest.fatigue.${key}`);
 
 /**
- * One card row for one body's night.
- *
- * Detail lines are joined into the one cell: the armour throw when made, why
+ * One card row for one body's night; the detail cell joins the armour throw, why
  * the night was not restful, and why the fatigue stacks moved.
  */
 function rowOf(result) {

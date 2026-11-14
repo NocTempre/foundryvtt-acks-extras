@@ -5,21 +5,15 @@
  * [provisions.mjs](./provisions.mjs) deals the pool and
  * [lib/survival.mjs](../lib/survival.mjs) walks the ladder; both are pure. This
  * is the impure half that reads the packs, spends them, and writes each body's
- * state — kept apart so the arithmetic stays testable without a world.
+ * state, a flag on the actor.
  *
- * A body's hunger belongs to the BODY, not to the marching order it happens to
- * be standing in: the state is a flag on the actor, so a character who leaves
- * the party takes their hunger with them and one who joins arrives with
- * whatever they have been living on.
+ * The sky's toll is applied here too, after each body's meal and exposure walk:
+ * the sun's burn, the heat's armour save, the cold's mark and the week's
+ * disease (RR 277-279). The runs of consecutive days that disease counts live
+ * on the formation record. Every outcome is told on one whispered card.
  *
- * The sky's toll on the body is applied here too, after each body's meal and
- * exposure walk: the sun's burn, the heat's armour save, the cold's mark and
- * the week's disease (RR 277-279). The runs of consecutive days that disease
- * counts belong to the party's weather, so they live on the formation record.
- * Every outcome is told on one whispered card, and only on a day that has one.
- *
- * Only the journey calls this. A dungeon delve keeps its own ration
- * bookkeeping, which counts turns rather than days and has no pool.
+ * Only the journey calls this; a dungeon delve keeps its own ration bookkeeping.
+ * See docs/formation/MODEL.md, "The weather's toll".
  */
 import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
 import { getMemberActor, hasAbility, patchFormation, realMembers } from "./formation-model.mjs";
@@ -43,25 +37,24 @@ import { makeLoc, numOrNull } from "../lib/util.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
-/** Where a body's hunger lives. On the ACTOR, because it is the body's. */
+/** The actor flag holding a body's hunger state: it travels with the actor, not the party. */
 export const SURVIVAL_FLAG = "survival";
 
 /** Water is carried, not eaten; its items are named for the vessel. */
 export const WATER_PATTERN = /water|skin|canteen/i;
 
-/**
- * What the order carries, counting BOTH named provisions and anything foraging
- * deposited. Hunted game feeds a party exactly as rations do.
- */
+/** What counts as food: named provisions and anything foraging deposited. */
 export const FOOD_SOURCES = Object.freeze({ pattern: RATION_PATTERN, foraged: "food" });
+
+/** What counts as water: named vessels and anything foraging deposited. */
 export const WATER_SOURCES = Object.freeze({ pattern: WATER_PATTERN, foraged: "water" });
 
-/** Game counts as food; it is a separate flag only so a Judge can tell them apart. */
+/** Food days carried: provisions plus hunted game, which has its own flag. */
 function foodDays(actor) {
   return daysCarried(actor, FOOD_SOURCES) + daysCarried(actor, { foraged: "hunt" });
 }
 
-/** The sharing policy this world uses, defaulting to the kinder reading. */
+/** The sharing policy this world uses, `even` when unset or unreadable. */
 function policy() {
   try {
     return game.settings.get(MODULE_ID, SETTING_SHARE_POLICY) ?? "even";
@@ -79,9 +72,8 @@ export function sheltered(actor) {
 }
 
 /**
- * The armour this body has on, in stone: the sum of its worn armour items. The
- * figure the heat's armour save and a night slept in kit are both measured by.
- * Items are spread first: an embedded collection is not an array.
+ * The armour this body has on, in stone: the sum of its worn armour items, the
+ * figure the heat's armour save and a night slept in kit are measured by.
  */
 export function wornArmourStone(actor) {
   const worn = [...(actor?.items ?? [])].filter((i) => i?.type === ITEM_TYPE.armor && isWorn(i));
@@ -162,8 +154,7 @@ async function weatherToll(actor, { fx, band, hours, warm, state, dueDiseases })
     }
   }
 
-  // The heat's armour save is measured against the armour this body wears, not
-  // the band's average: each hour of exposure in too much of it is a throw.
+  // Each hour of exposure in too much armour is a throw.
   const burden = heatBurden({ band, armourStone: wornArmourStone(actor) });
   const death = deathTarget(actor);
   if (burden.armourSave && hours > 0 && death != null) {
@@ -235,10 +226,8 @@ function tollSections(report) {
 /**
  * The cold's hours, applied to one body.
  *
- * Walks the clock an HOUR at a time rather than charging the block at once,
- * because the rung is reached mid-stretch and every hour after it costs: a
- * body that goes six hours past the threshold owes six tolls, not one. Each
- * hour rolls its own die for the same reason a party does not share one.
+ * Walks the clock an HOUR at a time: the rung is reached mid-stretch and every
+ * hour after it costs, each hour rolling its own die.
  */
 async function walkExposure(state, { hours, band, protectedFrom, atHeatSource, wet, die }) {
   let s = state;
@@ -259,9 +248,8 @@ async function walkExposure(state, { hours, band, protectedFrom, atHeatSource, w
 /**
  * Feed the order for one day and walk every ladder one step.
  *
- * Returns a per-member report — what they got, where it left them, and what it
- * cost — so the panel can say who is suffering without re-deriving any of it.
- * Nothing is written when there is nobody to feed.
+ * Returns a per-member report: what they got, where it left them, and what it
+ * cost. Nothing is written when there is nobody to feed.
  */
 export async function runProvisionDay(formation) {
   if (!game.user?.isGM) return null;
@@ -271,30 +259,24 @@ export async function runProvisionDay(formation) {
 
   const food = actors.reduce((n, a) => n + foodDays(a), 0);
   const water = actors.reduce((n, a) => n + daysCarried(a, WATER_SOURCES), 0);
-  // The heat asks for more water than a mild day does. The band comes from the
-  // day's own weather, so a party crossing a desert feels it without anyone
-  // remembering to say so.
+  // The band comes from the day's own weather.
   const burden = heatBurden({ band: travelOf(formation).weather?.temperature ?? "" });
   const day = provisionDay({
     mouths: actors.length, food, water, policy: policy(), waterNeed: burden.waterNeed,
   });
 
-  // Thirst charges a rolled toll, and the ladder stays pure, so the dice are
-  // thrown here. Each body throws its own — a shared roll would make a party
-  // suffer in lockstep, which is a different rule than the one printed.
+  // The ladder is pure, so the dice are thrown here, one per body.
   const die = thirstDie();
   const cold = coldDie();
 
-  // The weather the order stood in, and for how long. The hours are declared,
-  // not inferred: a marching day is not automatically a day unprotected.
+  // The exposure hours are declared, not inferred from the march.
   const travel = travelOf(formation);
   const band = travel.weather?.temperature ?? "";
   const exposure = travel.exposure ?? { hours: 0, atHeatSource: false, wet: false };
   const hours = Math.min(24, Math.max(0, Math.floor(Number(exposure.hours) || 0)));
 
-  // What the sky does beyond the meals. Disease runs live on the formation,
-  // because a run of days is the party's weather, not one body's; they are
-  // advanced once for the day, and a run that comes due is thrown per member.
+  // Disease runs are the party's weather, advanced once for the day; a run
+  // that comes due is thrown per member.
   const fx = weatherEffects(conditionsOf(travel.weather), { terrain: travel.ground });
   const prior = weatherRunsOf(formation);
   const { runs, due } = advanceWeatherRuns(prior, fx.disease);
@@ -313,9 +295,7 @@ export async function runProvisionDay(formation) {
       ...meal, thirstRoll, heat: burden.dehydrationDrain,
     });
 
-    // The cold runs on its own clock, so it is walked after the day's meal
-    // rather than folded into it. A body with a cloak is protected; one that
-    // got wet is not, however well dressed.
+    // The cold runs on its own clock, walked after the day's meal.
     const warm = sheltered(actor);
     let state = step.state;
     let chill = { drain: 0, unrolled: false, worsened: false };
@@ -349,8 +329,7 @@ export async function runProvisionDay(formation) {
     });
   }
 
-  // The toll is told only on a day something was thrown or dealt; the day's
-  // own log already carries hunger.
+  // The toll card posts only on a day something was thrown or dealt.
   const sections = tollSections(report);
   if (sections.length) {
     try {

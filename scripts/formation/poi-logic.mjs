@@ -20,7 +20,7 @@ export const TRANSIENT_FLAG = "transient";
 export const DISTRICT_RELATION = Object.freeze({
   SAME: "same",
   ADJACENT: "adjacent",
-  /** Two quarters that do not touch: the printed figures give no price for it. */
+  /** Two quarters that do not touch: the figures price no such hop. */
   FAR: "far",
   /** One end stands in no quarter at all. */
   OUTSIDE: "outside",
@@ -30,10 +30,8 @@ export const DISTRICT_RELATION = Object.freeze({
  * Do two outlines meet along a boundary?
  *
  * A corner of either within `tolerance` of an edge of the other is a shared
- * boundary: two quarters drawn by hand along one street meet on a line that is
- * never quite the same line twice, and two straight edges that overlap always
- * put one of their ends on the other. Two quarters that meet at a single
- * corner count too — a corner is on an edge.
+ * boundary, so hand-drawn outlines meeting along a line, and outlines meeting
+ * at a single corner, both count.
  *
  * @param {number[][]} ringsA outlines as flat `[x0, y0, x1, y1, …]` rings
  * @param {number[][]} ringsB
@@ -78,9 +76,8 @@ export function districtRelation(a, b, { touch = () => false } = {}) {
  * What a hop costs in turns, from the imported district-travel figures.
  *
  * The figures are `{same: {<pace>: turns}, adjacent: {<pace>: turns}}` as the
- * importer assembles them. A hop the table does not price answers null and
- * says why, so the panel can name the missing figure rather than a distance
- * of nothing.
+ * importer assembles them. A hop the table does not price answers null turns
+ * and says what is missing.
  * @returns {{turns: number|null, missing: ""|"relation"|"table"|"pace"}}
  */
 export function poiTravelTurns(districtTravel, relation, pace) {
@@ -108,10 +105,8 @@ export function noteLabel(text, cap = 60) {
 /**
  * The Note a transient incident is dropped as.
  *
- * No journal entry: a Note that has none and was authored by a Judge is one
- * core shows to nobody else, so the marker is Judge-only by construction and
- * needs no document of its own to hide behind. `expiresAt` is in world
- * seconds, which is what the clock watcher compares.
+ * It carries no journal entry, which core shows to nobody but its author, so
+ * the marker is Judge-only. `expiresAt` is in world seconds.
  */
 export function transientNoteData({
   x, y, text, now, turns, turnSeconds, icon,
@@ -149,8 +144,7 @@ export const WILDS_FLAG = "wilds";
  *
  * The same shape as `transientNoteData` with no transient record: nothing
  * expires it, and the `wilds` record says what the party met, on which list,
- * for which formation and when. No journal entry, so it is Judge-only by the
- * same construction.
+ * for which formation and when. Judge-only the same way.
  */
 export function terrainMarkData({
   x, y, outcome = "", outcomeLabel = "", name = "", table = "", formationId = null, now = 0, icon,
@@ -193,8 +187,7 @@ const escapeText = (s) =>
  * The place a marker is promoted into: a location actor named by the Judge,
  * carrying the incident's text as its notes, inside the quarter's place when
  * the quarter has one and the city's otherwise. The name falls back to the
- * marker's own label, so a Judge who accepts the dialog as it opens gets the
- * words they were looking at.
+ * marker's own label.
  */
 export function promotedPlaceData({ name = "", text = "", parentUuid = "", img = "" }) {
   const body = escapeText(text);

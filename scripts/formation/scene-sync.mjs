@@ -20,27 +20,22 @@ import { gmIds, isPrimaryGM } from "../lib/util.mjs";
  *   `scene.fog.exploration` on v13) stays on only while a formation on the
  *   scene is mapping (`mapping.mjs`): a Mapper who can work, lit where they
  *   stand when the light requirement is on (RR ch. 6). Otherwise the fog is
- *   fully DISABLED: nothing is displayed *or recorded* — the party still sees
- *   current surroundings via the party token's vision, but no map memory
- *   accumulates while no one is drawing it. The scene's original mode is
+ *   fully DISABLED, so no map memory accumulates. The scene's original mode is
  *   remembered in a flag and restored when no formation remains.
  *
  * - **Measurement ↔ the mapper.** The scene's measurement flag (`measure-fuzz.mjs`)
- *   follows the same verdict, and stands above the fog switch: exact with a
- *   proficient mapper mapping, vague with an unproficient one, "?" when none is.
+ *   follows the same verdict, above the fog switch.
  *
  * - **Party token light: none of its own.** A member's light shines from
- *   that member's place in the column (`column-light.mjs`), so the party
- *   token carries no light the module wrote; a light the Judge set on it by
- *   hand stays.
+ *   that member's place in the column (`column-light.mjs`); a light the Judge
+ *   set on the party token by hand stays.
  *
  * - **The mapper's hands.** A member holding the Mapper role carries the
- *   system's Vulnerable condition until the kit is stashed on a free turn of a
- *   fight (`mapper-kit.mjs`); it runs with fog management off.
+ *   system's Vulnerable condition until the kit is stashed (`mapper-kit.mjs`);
+ *   it runs with fog management off.
  *
  * - **Party actor ownership ← member ownership.** Every player who owns a
- *   member of the formation gets owner rights on the party actor, so they see
- *   through (and may move) the party token while their character is inside it.
+ *   member of the formation gets owner rights on the party actor.
  */
 
 /**
@@ -66,7 +61,7 @@ function fogIsEnabled(value) {
   return FOG_MODES ? value !== FOG_MODES.DISABLED : !!value;
 }
 
-/** The fog closing or reopening is a Judge's note: it tells the table whether the party can map, so it goes to the GMs alone. */
+/** Whisper the fog closing or reopening to the GMs. */
 async function announceFog(sceneName, restored) {
   await ChatMessage.create({
     content: `<div class="acks-formation-card"><em>${foundry.utils.escapeHTML(
@@ -121,17 +116,15 @@ async function syncMeasureFlag(scene, formationsOnScene) {
     return;
   }
   const mode = measureModeFor(formationsOnScene.map(mappingOf), { combat: formationsOnScene.some((f) => f.combat?.active) });
-  // The hidden error factor is rolled once per scene and then never changes,
-  // so re-measuring always shows the same wrong number.
+  // The hidden error factor is rolled once per scene and kept.
   const factor = current?.factor ?? Math.round((0.8 + Math.random() * 0.45) * 100) / 100;
   if (current?.mode === mode && current?.factor === factor) return;
   await scene.setFlag(MODULE_ID, MEASURE_FLAG, { mode, factor });
 }
 
 /**
- * Run a release against a scene only while the world still holds it. The
- * scene is re-resolved at call time rather than captured, because the caller
- * awaits between steps.
+ * Run `fn` against a scene only while the world still holds it, resolved at
+ * call time because the caller awaits between steps.
  */
 function withLiveScene(sceneId, fn) {
   const scene = game.scenes.get(sceneId);
@@ -191,11 +184,9 @@ async function syncPartyActorOwnership(formation) {
 
 /**
  * The party token sheds no light of the module's: each bearer's light shines
- * from that bearer's cell in the column, drawn on every client
- * (`column-light.mjs`). Writing 0/0 through `applyTokenLight` clears a light
- * the module wrote here and leaves one the Judge set by hand, which
- * the `managedLight` flag tells apart. A member who has deployed or detached
- * burns their light on their own token (`syncDeployedMemberTokens`).
+ * from their cell in the column (`column-light.mjs`). Writing 0/0 through
+ * `applyTokenLight` clears a light the module wrote and leaves one the Judge
+ * set by hand, which the `managedLight` flag tells apart.
  */
 async function syncPartyTokenLight(formation) {
   const token = getPartyToken(formation);
@@ -211,19 +202,17 @@ async function syncPartyTokenLight(formation) {
 async function syncPartyTokenVision(formation) {
   const token = getPartyToken(formation);
   if (!token) return;
-  // A party token sees, whatever the vision setting. The first sync to read one
-  // that neither it nor the vision pass has claimed switches its sight on (it
-  // took sight off from a prototype that never set it) and stamps it; sight a
-  // hand turns off after that stays off.
+  // A party token sees, whatever the vision setting: the first sync to read one
+  // neither it nor the vision pass has claimed switches its sight on and stamps
+  // it; sight a hand turns off after that stays off.
   if (!token.getFlag(MODULE_ID, FLAG_PARTY_SIGHT) && !visionClaimed(token)) {
     await token.update({
       ...(token.sight?.enabled ? {} : { "sight.enabled": true }),
       [`flags.${MODULE_ID}.${FLAG_PARTY_SIGHT}`]: true,
     });
   }
-  // The party token is written directly rather than through syncTokenFromActor
-  // (the party actor has no senses of its own), so the world switch that turns
-  // the vision pass off has to be honoured here too.
+  // Written directly, not through syncTokenFromActor (the party actor has no
+  // senses), so the vision-pass switch is honoured here.
   if (!game.settings.get(MODULE_ID, SETTING_MANAGE_VISION)) return;
   let best = { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
   for (const member of formation.members) {
@@ -243,17 +232,10 @@ function isDeployed(formation, actorId) {
 }
 
 /**
- * A member out of the party token carries their own torch and sees with their
- * own eyes. Their token is synced from the actor exactly like any standalone
- * creature's — the only difference being that `bearerLights` finds their light
- * in the formation's record rather than on the actor.
- *
- * This is what makes a detach worth doing: the scout walks into the dark with
- * whatever their character can actually see by.
- *
- * A member out as a STACK is synced body by body: each body stands on its own
- * token over its own actor, so the one that took a wound or lit a lamp is not
- * made to see and burn like the rest of the crowd.
+ * A member out of the party token is synced from their actor like any
+ * standalone creature's token, except that `bearerLights` finds their light in
+ * the formation's record. A member out as a STACK is synced body by body, each
+ * on its own token over its own actor.
  */
 async function syncDeployedMemberTokens(formation) {
   const scene = getPartyToken(formation)?.parent ?? game.scenes.get(formation.sceneId);
@@ -266,10 +248,8 @@ async function syncDeployedMemberTokens(formation) {
 
 /**
  * Marks a token update as the party token's own RESIZE, so the movement hook
- * knows the party turned rather than walked. Holding the token's centre still
- * across a size change moves its top-left corner, and everything hanging off
- * the movement hook — the dungeon clock, the trap check, the scouts' leash —
- * measures from that corner.
+ * knows the party turned rather than walked: a size change holding the centre
+ * still moves the top-left corner the hook's consumers measure from.
  */
 export const RESIZE_OPTION = `${MODULE_ID}.partyResize`;
 
@@ -277,16 +257,10 @@ export const RESIZE_OPTION = `${MODULE_ID}.partyResize`;
 const STEP_WAIT_MS = 4000;
 
 /**
- * Wait for a token's movement animation, but never longer than `STEP_WAIT_MS`.
- *
- * The wait is BOUNDED because movement can be paused indefinitely — a Region
- * behaviour calls `pauseMovement` and holds the key until something resumes it
- * — and the animation promise stays pending for exactly as long. Timing out
- * costs the smoothness of one step. Blocking would cost the environment sweep
- * that runs the resize as one sequential step, and fog, ownership, measurement
- * and the map session all queue behind it.
- *
- * A rejected animation is a settled one: it must not take the sweep down.
+ * Wait for a token's movement animation, but never longer than `STEP_WAIT_MS`:
+ * a Region behaviour can pause movement indefinitely, leaving the animation
+ * promise pending, and the sweep's other steps queue behind this one. A
+ * rejected animation counts as settled.
  */
 export function stepFinished(token) {
   const animation = token?.object?.movementAnimationPromise;
@@ -310,8 +284,7 @@ function sameSize(a, b) {
  *   module owns its size, so a hand resize goes back.
  * - `fixed`: the size is the Judge's. A token still at the size the module
  *   last stamped goes to one cell once; one whose size changed since the stamp
- *   is never written. A token with no stamp counts as the module's, since
- *   every size it carries from before the switch is one the module wrote.
+ *   is never written. A token with no stamp counts as the module's.
  *
  * Exported for the offline suite. Pure over its arguments.
  * @param {{width: number, height: number}} size the token's stored size
@@ -336,10 +309,8 @@ export function partySizeTarget(size, stamp, { shape, locked = false }) {
 export async function syncPartyTokenSize(formation) {
   if (!getPartyToken(formation)) return;
 
-  // Wait out the step the party is taking before resizing the token that took
-  // it. `animate: false` calls `stopAnimation`, so a size write issued while a
-  // move is still animating cancels that move and snaps the token to its
-  // destination.
+  // `animate: false` calls `stopAnimation`, so a size write issued mid-move
+  // would cancel the move: wait out the step first.
   await stepFinished(getPartyToken(formation));
 
   const token = getPartyToken(formation);
@@ -351,8 +322,7 @@ export async function syncPartyTokenSize(formation) {
     locked: !!token.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK),
   });
   if (!target) {
-    // A token already one cell carries no stamp yet: claim it, so a Judge's
-    // later resize in `fixed` reads as theirs.
+    // Claim a one-cell token with no stamp, so a Judge's later resize reads as theirs.
     if (!stamp && sameSize(stored, { width: 1, height: 1 })) {
       await token.update({ [`flags.${MODULE_ID}.${FLAG_PARTY_SIZE}`]: { width: 1, height: 1 } });
     }
@@ -361,19 +331,15 @@ export async function syncPartyTokenSize(formation) {
   const { width, height } = target;
 
   const before = { x: token.x, y: token.y };
-  // `resize`, never `update({width, height})`. Width and height are MOVEMENT
-  // fields, so a size write IS a movement write: written raw it anchors the
-  // token by its top-left corner and is measured and wall-constrained like a
-  // walk. `resize` holds the centre still and carries `ignoreWalls`/`ignoreCost`.
-  //
-  // Never animate a size write: a tweened width/height reads as the token
-  // shrinking and swelling.
+  // `resize`, never `update({width, height})`: width and height are MOVEMENT
+  // fields, so a raw write anchors by the top-left corner and is measured and
+  // wall-constrained like a walk; `resize` holds the centre still and carries
+  // `ignoreWalls`/`ignoreCost`. Never animate a size write.
   await token.resize({ width, height }, { animate: false, [RESIZE_OPTION]: true });
   await token.update({ [`flags.${MODULE_ID}.${FLAG_PARTY_SIZE}`]: { width, height } });
 
-  // Holding the centre still moves the top-left corner, and the clock measures
-  // from the corner. Re-baseline it, or the next real step bills the party for
-  // the width of its own turn.
+  // The clock measures from the top-left corner, which holding the centre still
+  // moves: re-baseline it.
   if (token.x === before.x && token.y === before.y) return;
   await patchFormation(formation.id, (record) => {
     if (!record.clock?.lastPosition) return false;
@@ -389,12 +355,9 @@ let repeat = false;
  * Reconcile fog and token light everywhere. Cheap when nothing changed (every
  * write is compared first), so it is safe to call after each formation update.
  *
- * Sweeps are COALESCED, never concurrent. Every write to the formations
- * setting fires one of these unawaited, so a burst — dissolving a party and
- * its members, or a bulk delete in the sidebar — used to put several sweeps
- * in flight at once, each holding scene references the others were
- * invalidating. A request arriving mid-sweep is absorbed and replayed once at
- * the end, so a caller still awaits a sweep that saw its own change.
+ * Sweeps are COALESCED, never concurrent: a request arriving mid-sweep is
+ * absorbed and replayed once at the end, so a caller still awaits a sweep that
+ * saw its own change. See docs/formation/DECISIONS.md, "2026-08-20 — Environment sweeps coalesce, and a vanished target is not a fault".
  */
 export async function syncEnvironments() {
   if (inFlight) {
@@ -419,23 +382,16 @@ async function runEnvironmentSync() {
   const formations = Object.values(getFormations());
 
   /**
-   * Every step is fault-isolated, and must stay that way. These run in
-   * sequence, so an unguarded throw in the FIRST step (token light) leaves
-   * ownership, token size, fog, measurement and map sessions unsynced — and the
-   * caller only logs, so the table just sees the map go dark with no error
-   * surfaced. A failing step must cost only itself.
+   * Run one sweep step, fault-isolated: a failing step costs only itself. See
+   * docs/formation/DECISIONS.md, "Every sync step is fault-isolated".
    */
   const step = async (label, fn, survives) => {
     try {
       await fn();
     } catch (err) {
-      // A write that lost a race with a delete is not a fault. The client can
-      // hold a document the server has already dropped — the request is built
-      // against a live document and refused by the time it lands — and what it
-      // was about to reconcile is moot anyway. Asking whether the TARGET is
-      // still here separates that from a real failure exactly, where matching
-      // the error's wording would only approximate it and would eventually
-      // swallow something that mattered.
+      // A write that lost a race with a delete is not a fault; whether the
+      // TARGET is still here is asked, never the error's wording. See
+      // docs/formation/DECISIONS.md, "2026-08-20 — Environment sweeps coalesce, and a vanished target is not a fault".
       if (survives && !survives()) {
         console.debug(`${MODULE_ID} | environment sync step "${label}" skipped: its target was deleted mid-sweep`);
         return;
@@ -444,8 +400,7 @@ async function runEnvironmentSync() {
     }
   };
 
-  // Unconditional: it only ever clears a light the module wrote, which no
-  // setting should keep burning.
+  // Unconditional: it only clears a light the module wrote.
   for (const formation of formations) {
     await step("token light", () => syncPartyTokenLight(formation), () => !!getPartyToken(formation));
   }
@@ -457,9 +412,8 @@ async function runEnvironmentSync() {
     await step("member tokens", () => syncDeployedMemberTokens(formation), () => !!getPartyActor(formation));
   }
 
-  // The mapper's hands (RR ch. 6): above the fog switch, since the condition
-  // answers to the role and the fight and not to fog management. The active GM
-  // alone writes it, so two seats never race the same effect.
+  // The mapper's hands (RR ch. 6): above the fog switch. The primary GM alone
+  // writes it, so two seats never race the same effect.
   await step("mapper kit", () => (isPrimaryGM() ? syncMapperKits(formations) : null));
 
   const byScene = new Map();
@@ -469,15 +423,10 @@ async function runEnvironmentSync() {
     byScene.get(formation.sceneId).push(formation);
   }
 
-  // The scene's measurement answers to the mapping verdict and not to fog
-  // management, so it too stands above the fog switch; a scene the formations
-  // have left lets go of it here as well.
-  //
-  // Ids, not held documents, and the scene re-resolved per step. Each write
-  // awaits, and a scene deleted while the sweep is running leaves a reference
-  // that still answers `.id` and still reads its flags: only the WRITE fails,
-  // and by then it is a request already on its way to a server that no longer
-  // has the scene.
+  // Measurement answers to the mapping verdict, so it too stands above the fog
+  // switch; a scene the formations have left lets go of it here. Ids, not held
+  // documents: the scene is re-resolved per step, since a scene deleted
+  // mid-sweep still reads its flags and only the write fails.
   for (const [sceneId, group] of byScene) {
     if (!game.scenes.has(sceneId)) continue;
     await step("measurement", () => withLiveScene(sceneId, (scene) => syncMeasureFlag(scene, group)), () => game.scenes.has(sceneId));
@@ -489,16 +438,12 @@ async function runEnvironmentSync() {
 
   if (!game.settings.get(MODULE_ID, "manageFog")) return;
 
-  // Re-resolved per step, not captured: resolving once and holding the
-  // document across BOTH awaits is the same staleness the release loop below
-  // avoids — a scene deleted between the two writes fails the second.
   for (const [sceneId, group] of byScene) {
     if (!game.scenes.has(sceneId)) continue;
     await step("scene fog", () => withLiveScene(sceneId, (scene) => syncSceneFog(scene, group)), () => game.scenes.has(sceneId));
     // Assigning a Mapper IS "start mapping": open a session automatically.
     for (const held of group) {
-      // The sweep awaits between steps, so the copy it holds can predate a
-      // fight that began meanwhile: the decision reads the record as it stands.
+      // The held copy can predate a fight that began mid-sweep: read the record as it stands.
       const formation = getFormation(held.id) ?? held;
       if (canMap(formation) && !formation.mapSession) {
         try {

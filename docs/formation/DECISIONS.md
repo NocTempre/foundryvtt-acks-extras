@@ -5684,3 +5684,13 @@ append-only, keep them; they are marked superseded in part.
 
 **Ruled.** A spiked pit adds `(count)dX`, where the count is itself a dice formula: the victim lands on a rolled number of spikes that each deal their own damage, which is that many separate dice. Foundry's parser resolves the nested count first, so the formula is the rule and not an approximation of it.
 **Rejected.** Multiplying one die by the count: it has a different spread, flatter and far swingier at the top.
+
+## 2026-11-13 — A conveyance in a city carries no rate
+
+**Ruled.** A litter or a wagon affords privacy and is not any faster, so a conveyance on the settlement board is a flag the Judge can see (`private`) and carries no block rate. Being unseen is the Judge's call.
+**Rejected.** A conveyance that changes the block rate: it would invent a rule the book does not state.
+
+## 2026-11-13 — The city's travel tables register as `cityTravel`, not `settlement`
+
+**Ruled.** The settlement derivations read the registered document `cityTravel`. The henchmen feature already registers a `settlement` document for market class by families, and a settlement in this codebase means a place where people live.
+**Rejected.** Sharing the `settlement` id: it would put two unrelated features' tables in one document and make "is the settlement data imported?" an ambiguous question.

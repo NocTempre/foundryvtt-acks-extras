@@ -3,16 +3,10 @@
  * An hour spent looking, resolved.
  *
  * [searching.mjs](./searching.mjs) prices the throw and owns no dice. This
- * rolls it, and — the half that matters at the table — makes the party PAY for
- * looking: RAW gives a searching party one wandering-monster throw per hour,
- * which is what turns "search until you find it" from a free action into a
- * decision.
- *
- * The encounter is thrown through the journey's own chain rather than a second
- * one of ours, so a monster found while searching is drawn from exactly the
- * tables a monster met while marching would be. The hour is spent on the day
- * board and the world clock (`spendSearchHour`), and `acksExtras.searchHourSpent`
- * announces it with the hex it was spent in.
+ * rolls it, and owes the party one wandering-monster throw per hour of looking,
+ * thrown through the journey's own encounter chain. The hour is spent on the
+ * day board and the world clock (`spendSearchHour`), and
+ * `acksExtras.searchHourSpent` announces it with the hex it was spent in.
  *
  * Whether there is anything to find is the hex's stock ([hex-stock-run.mjs](./hex-stock-run.mjs))
  * or the Judge's own word. A stock-fed hour credits the throws that beat the
@@ -40,7 +34,7 @@ const loc = makeLoc("ACKS-FORMATION");
 /** The three answers to "is there anything here": the stock's, or the Judge's yes or no. */
 const PRESENT_MODES = Object.freeze(["stock", "yes", "no"]);
 
-/** A legacy boolean maps `true` to `yes` and `false` to `no`; anything unrecognised reads as `no`. */
+/** A boolean maps `true` to `yes` and `false` to `no`; anything unrecognised reads as `no`. */
 function presentMode(present) {
   if (present === true) return "yes";
   return PRESENT_MODES.includes(present) ? present : "no";
@@ -54,7 +48,7 @@ function trackerIn(formation) {
   });
 }
 
-/** A modifier with its sign written out, so a positive one does not read as a bare number. */
+/** A modifier with its sign written out. */
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 /** A point as the candidate list names it: its own name, else its kind. */
@@ -66,9 +60,8 @@ const candidateOf = (point) => ({ id: point.id, name: point.name || loc(`hexStoc
  * `present` is `"stock"`, `"yes"` or `"no"` (a boolean maps to `yes` or `no`).
  * `yes` and `no` are the Judge's own answer to "is there anything here" and
  * leave the stock unread and unwritten; `stock` reads the party's true hex for
- * a point this formation has not found yet. Either way the module never tells
- * the party which an empty result was: the outcome distinguishes a miss from
- * empty ground WITHOUT saying so.
+ * a point this formation has not found yet. Either way the party is never told
+ * whether an empty result was a miss or empty ground.
  *
  * `target` is `"anything"`, a point id, or `"elsewhere"`. Any choice but
  * `anything` makes the hunt specific; `elsewhere` also forces nothing here to
@@ -94,8 +87,7 @@ export async function runSearchHour(formation, {
 
   const here = trueHexOf(formation);
   const ground = here?.astray && here.center ? (paintedTerrainAt(here.scene, here.center).ground ?? t.ground) : t.ground;
-  // The sky taxes every hour of looking, and taxes a tracker's help once more
-  // for each hour already spent on the trail today, this one included.
+  // The tracker's weather penalty scales with the hours searched today, this one included.
   const fx = weatherEffects(conditionsOf(t.weather), { terrain: t.ground });
   const hoursSearchedToday = t.day.activities
     .filter((a, n) => a === "search" && t.day.done[n]).length + 1;
@@ -115,8 +107,7 @@ export async function runSearchHour(formation, {
     return { ok: false, missing: spec.missing, candidates: [], credited: false, survey: null };
   }
 
-  // The stock answers only when asked, and only for a hex that holds one. A
-  // hunt for something elsewhere finds nothing here whatever the stock holds.
+  // A hunt for something elsewhere finds nothing here whatever the stock holds.
   let record = null;
   let pool = [];
   if (mode === "stock" && here) {
@@ -158,8 +149,7 @@ export async function runSearchHour(formation, {
 
   await spendSearchHour(formation.id);
 
-  // The cost of looking: one encounter throw for the hour, whatever was found.
-  // A party that searches all day is a party that meets things all day.
+  // One encounter throw for the hour, whatever was found.
   let encounter = null;
   try {
     encounter = await postEncounterThrow(formation, { activity: "search" });

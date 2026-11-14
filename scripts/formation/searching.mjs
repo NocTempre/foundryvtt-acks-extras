@@ -1,23 +1,12 @@
 /**
  * Searching the wild: finding what the country is hiding.
  *
- * One throw serves three purposes, which is why they live together. A party
- * sweeping a hex for a lair, a LOST party hunting for the last landmark it
- * knew, and a party out looking for that lost party all make the same
- * Wilderness Searching throw — the second and third are the first with a
- * different quarry, and the book says so outright.
- *
- * The rule that surprises people, and the reason the target is not a constant:
- * **a party that covers ground finds more.** A faster expedition sweeps a
- * wider path, so its target improves as its daily distance rises. That
- * relationship is the rule; the ladder of distances and targets is printed.
- *
- * Two structural consequences worth stating because they bite:
- *
- *  - **A search costs an hour and buys one throw.** It is an ancillary
- *    activity, so a day holds only as many searches as the board has slots.
- *  - **Searching draws attention.** Every search owes an encounter throw. A
- *    lost party hunting for its landmark is not doing something safe.
+ * One Wilderness Searching throw serves a party sweeping a hex, a LOST party
+ * hunting for its last landmark, and a party looking for that lost party; they
+ * differ only in the quarry. The target is read from an imported ladder keyed
+ * by the expedition's daily distance. A search is an ancillary activity (a day
+ * holds as many as the board has slots) and every search owes an encounter
+ * throw.
  */
 import { getDoc, hasDoc, bracketRow } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
@@ -36,12 +25,9 @@ export const SEARCH_SUBJECTS = Object.freeze({
 });
 
 /**
- * How the party is looking.
- *
- * From the air is not simply faster: over open country a flier gets MORE
- * throws in the same time, and over closed canopy it gets the same throws at a
- * worse target. Two different corrections, which is why this is a mode rather
- * than a modifier.
+ * How the party is looking. From the air, open country buys more throws in the
+ * same time and closed canopy the same throws at a worse target: two different
+ * corrections, hence a mode and not a modifier.
  */
 export const SEARCH_MODES = Object.freeze({
   onFoot: { label: "ACKS-FORMATION.search.onFoot" },
@@ -54,17 +40,12 @@ function table(key) {
 }
 
 /**
- * The target for a party covering this many miles a day.
- *
- * A bracketed ladder, so the imported rows carry their own bounds and the
- * lookup needs no arithmetic of ours. Null when unimported — a search nobody
- * has priced cannot be attempted, and inventing a target would quietly hand
- * out lairs.
+ * The target for a party covering this many miles a day, from the imported
+ * bracketed ladder. Null when unimported, and for a day nobody could price.
  */
 export function searchTarget(milesPerDay) {
   const rows = table("targets");
   if (!Array.isArray(rows) || !rows.length) return null;
-  // A day nobody could price (null) is no distance at all, never the lowest rung.
   if (milesPerDay == null) return null;
   const miles = Number(milesPerDay);
   if (!Number.isFinite(miles)) return null;
@@ -74,11 +55,9 @@ export function searchTarget(milesPerDay) {
 /**
  * The throw for one hour of searching.
  *
- * `movingQuarry` is the one modifier the rule names: a lost group that is
- * itself moving or searching is harder to find than one sitting still. Its
- * size is printed; that it applies only to a quarry that can move is not.
- * `tracking` is set when the order holds a tracker; the registered
- * `trackingBonus` is added, or noted `trackingUnpriced` when it is missing.
+ * `movingQuarry` applies only to a quarry that can move. `tracking` is set when
+ * the order holds a tracker; the registered `trackingBonus` is added, or noted
+ * `trackingUnpriced` when it is missing.
  *
  * `weather` is the sky's signed modifier on the search itself and
  * `weatherTracking` its signed modifier on a held tracker's help (RR 277-279);
@@ -113,7 +92,6 @@ export function searchSpec({
     notes.push("movingQuarry");
   }
 
-  // Hunting ONE named place is harder than noticing whatever is there.
   if (specific) {
     const penalty = numOrNull(table("specificTarget"));
     if (penalty == null) return { ok: false, missing: "specificTarget", subject };
@@ -121,8 +99,7 @@ export function searchSpec({
     notes.push("specific");
   }
 
-  // A tracker in the order helps the throw. The throw never refuses for want of
-  // the figure: it prices without it and says so.
+  // The throw never refuses for want of the tracking figure: it prices without it and says so.
   if (tracking) {
     const bonus = numOrNull(table("trackingBonus"));
     if (bonus == null) notes.push("trackingUnpriced");
@@ -132,15 +109,12 @@ export function searchSpec({
     }
   }
 
-  // The sky taxes the look itself, and taxes a tracker's help separately: a
-  // party with no tracker has no help for it to tax.
+  // The sky taxes the look, and a tracker's help separately.
   const sky = numOrNull(weather) ?? 0;
   if (sky) add("weather", sky);
   const skyTracking = tracking ? (numOrNull(weatherTracking) ?? 0) : 0;
   if (skyTracking) add("weatherTracking", skyTracking);
 
-  // A search costs an hour on the ground. From the air over open country it
-  // costs less, and over canopy it costs the same but reads worse.
   let turnsPerThrow = numOrNull(table("turnsPerThrow")) ?? 6;
   if (mode === "aerial") {
     const closed = table("canopyTerrains");
@@ -157,7 +131,6 @@ export function searchSpec({
     }
   }
 
-  // Structural and unconditional: looking around gets you noticed.
   return {
     ok: true, target, modifier, parts, subject, mode, notes,
     turnsPerThrow, costsHours: turnsPerThrow / 6, owesEncounterThrow: true,
@@ -165,12 +138,8 @@ export function searchSpec({
 }
 
 /**
- * How many searches a day's board can hold.
- *
- * A search is an ancillary activity, so this is the board's business rather
- * than the rules' — a forced march that spends every slot on marching has no
- * hours left to look around with, which is exactly the trade the day board
- * exists to make visible.
+ * How many searches a day's board can hold: the `search` slots, none on a
+ * forced march.
  */
 export function searchesAvailable({ slots = [], forced = false } = {}) {
   if (forced) return 0;
@@ -180,10 +149,8 @@ export function searchesAvailable({ slots = [], forced = false } = {}) {
 /**
  * Whether a search of this hex can find anything at all.
  *
- * Separate from the throw on purpose: a party can search a hex containing
- * nothing all week and never learn that it contains nothing, which is the
- * rule's own shape. A caller that skipped the throw when `present` is false
- * would leak the map through the absence of a roll.
+ * Separate from the throw: a caller must roll even when `present` is false, or
+ * the absence of a roll would reveal that the hex is empty.
  */
 export function searchOutcome({ rolled = 0, target = null, present = false } = {}) {
   if (target == null) return { found: false, reason: "unpriced" };
@@ -194,19 +161,14 @@ export function searchOutcome({ rolled = 0, target = null, present = false } = {
 }
 
 /**
- * Splitting the party to sweep a hex faster.
- *
- * Each sub-party throws on its own AND draws its own encounters, which is the
- * whole trade: more searches, and nobody to help when one of them finds
- * something with teeth. Groups near enough to come to each other's aid have
- * not really split — they are one party searching one area — so the structure
- * refuses to pretend otherwise.
+ * Splitting the party to sweep a hex: each sub-party throws on its own and
+ * draws its own encounters. Groups near enough to come to each other's aid
+ * (`mutuallySupporting`) have not split.
  */
 export function splitSearch({ groups = 1, mutuallySupporting = false } = {}) {
   const n = Math.max(1, Math.floor(Number(groups) || 1));
   if (n === 1) return { groups: 1, throws: 1, encounterThrows: 1, split: false };
   if (mutuallySupporting) {
-    // Close enough to assist is not split, whatever the marching order says.
     return { groups: 1, throws: 1, encounterThrows: 1, split: false, reason: "supporting" };
   }
   return { groups: n, throws: n, encounterThrows: n, split: true, alone: true };
@@ -215,14 +177,9 @@ export function splitSearch({ groups = 1, mutuallySupporting = false } = {}) {
 /**
  * The Land Surveying assessment: how many places of interest a hex holds.
  *
- * Thrown SECRETLY, and it has three outcomes rather than two. A success
- * reveals the true count. An unmodified 1 reveals a FALSE one — the surveyor
- * is confidently wrong, and the party is told a number they have no reason to
- * doubt. Anything else reveals nothing at all, which is not a failure so much
- * as "not yet enough to go on".
- *
- * The bonus is cumulative in the party's own successful searches of that hex:
- * the more of the ground they have actually walked, the better the read.
+ * Thrown SECRETLY, with three outcomes (`surveyOutcome`): the true count, a
+ * false one, or nothing. The bonus is cumulative in the party's own successful
+ * searches of that hex.
  *
  * `weather` is the sky's signed modifier on the survey (RR 277-279), folded
  * into `bonus`; a nonzero figure is also a `{key: "weather", value}` entry of
@@ -245,10 +202,8 @@ export function surveySpec({ priorSuccesses = 0, weather = 0 } = {}) {
 }
 
 /**
- * What the surveyor concluded, and whether it is true.
- *
- * `natural` is the unmodified die, because the false reading hangs on it and
- * on nothing else — a heavily penalised miss is silence, not a lie.
+ * What the surveyor concluded, and whether it is true. `natural` is the
+ * unmodified die: the false reading hangs on it alone, and any other miss is silence.
  */
 export function surveyOutcome({ natural = null, total = null, target = null } = {}) {
   if (target == null) return { state: "unpriced" };
