@@ -25,28 +25,28 @@ check("a missile weapon prints no size", sizeOf("Thing Missile") === null);
 check("ammunition prints no size", sizeOf("Case Ammunition") === null);
 
 // --- the qualities land as the system's own properties
-const q = settleQualities("Cleave 2, Handy, Slow");
+const q = settleQualities("Cleave 4, Handy, Slow");
 check("a plain word lights its property", q.special.handy === true && q.special.slow === true);
-check("a cleave word lights cleave with its limit", q.special.cleave === true && q.cleaveLimit.numeric === 2 && q.cleaveLimit.addStrMod === false);
-const str = settleQualities("Cleave 3 + STR mod");
-check("the Strength rider is read", str.special.cleave === true && str.cleaveLimit.numeric === 3 && str.cleaveLimit.addStrMod === true);
+check("a cleave word lights cleave with its limit", q.special.cleave === true && q.cleaveLimit.numeric === 4 && q.cleaveLimit.addStrMod === false);
+const str = settleQualities("Cleave 5 + STR mod");
+check("the Strength rider is read", str.special.cleave === true && str.cleaveLimit.numeric === 5 && str.cleaveLimit.addStrMod === true);
 check("a bare cleave word carries no limit of its own", settleQualities("Cleave").cleaveLimit.numeric === undefined);
 check("a dash is no quality", Object.keys(settleQualities("—").special).length === 0 && settleQualities("-").customTags.length === 0);
 check("a word with no property is kept as a custom tag", settleQualities("Two Handed").customTags.join() === "Two Handed");
 
 // --- a bound weapon
-const dagger = bindWeaponRow(row("Dagger", { melee: true, missile: true, size: "tiny", damage: "1d4", special: "Thrown", short: "15'", med: "30'", long: "45'" }), "x", "y");
+const dagger = bindWeaponRow(row("Dagger", { melee: true, missile: true, size: "tiny", damage: "1d3", special: "Thrown", short: "12'", med: "24'", long: "36'" }), "x", "y");
 check("the size is the system's", dagger.system.size === "tiny");
 check("thrown is the system's special property", dagger.system.special.thrown === true);
 check("no legacy tags are written", dagger.system.tags === undefined);
 check("melee and missile are the system's booleans", dagger.system.melee === true && dagger.system.missile === true);
-check("the range lands", dagger.system.range.short === 15 && dagger.system.range.long === 45);
+check("the range lands", dagger.system.range.short === 12 && dagger.system.range.long === 36);
 
-const sword = bindWeaponRow(row("Sword", { melee: true, size: "medium", damage: "1d6/1d8" }), "x", "y");
-check("a versatile row writes the base and the alternate die", sword.system.damage.base.formula === "1d6" && sword.system.damage.alternate.formula === "1d8");
+const sword = bindWeaponRow(row("Sword", { melee: true, size: "medium", damage: "1d5/1d9" }), "x", "y");
+check("a versatile row writes the base and the alternate die", sword.system.damage.base.formula === "1d5" && sword.system.damage.alternate.formula === "1d9");
 check("a row with no quality writes an empty special object", Object.keys(sword.system.special).length === 0 && sword.system.customTags === undefined);
 
-const unsized = bindWeaponRow(row("Sling", { missile: true, damage: "1d4", special: "Handy" }), "x", "y");
+const unsized = bindWeaponRow(row("Sling", { missile: true, damage: "1d3", special: "Handy" }), "x", "y");
 check("a row that prints no size leaves the system's default", unsized.system.size === undefined);
 
 const net = bindWeaponRow(row("Net", { melee: true, missile: true, size: "medium", damage: "—", special: "Entangling, Thrown" }), "x", "y");

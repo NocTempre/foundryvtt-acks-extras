@@ -170,18 +170,17 @@ t("resolveLevelValue: perLevel (18+, -1/level)", () => {
   assert.equal(R(lv, 1), R(lv, 0)); // level floored at 1
 });
 
-t("resolveLevelValue: breakpoints (+1/+2/+3 @1/7/13)", () => {
-  const lv = { breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 7, value: 2 }, { atLevel: 13, value: 3 }] };
+t("resolveLevelValue: breakpoints (an invented ladder, +1/+2/+4 @1/5/9)", () => {
+  const lv = { breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 5, value: 2 }, { atLevel: 9, value: 4 }] };
   assert.equal(R(lv, 1), 1);
-  assert.equal(R(lv, 6), 1);
-  assert.equal(R(lv, 7), 2);
-  assert.equal(R(lv, 13), 3);
+  assert.equal(R(lv, 4), 1);
+  assert.equal(R(lv, 5), 2);
+  assert.equal(R(lv, 9), 4);
 });
 
 t("resolveLevelValue: round up — half class level, as the page prints it", () => {
-  // Lay on Hands: "a bonus to their Mortal Wounds throw of one-half his class
-  // level (round up)". Unrounded this reads 2.5 at 5th level, a number the
-  // rule never produces.
+  // A bonus of one-half the class level, rounded up. Unrounded this reads 2.5
+  // at 5th level, a number the rule never produces.
   const lv = { kind: "perLevel", base: 0.5, per: 0.5, round: "up" };
   assert.equal(R(lv, 1), 1);
   assert.equal(R(lv, 4), 2);
@@ -214,7 +213,7 @@ t("resolveLevelValue: nullish is null", () => {
 });
 
 t("resolveLevelValue: conditional keys on a scale, not level", () => {
-  // "counts as 1 power at Arcane Value 1-2, 2 at Arcane Value 3-4"
+  // a count that steps up with a named scale rather than the level
   const lv = { on: "arcaneValue", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }] };
   assert.equal(R(lv, 14, { arcaneValue: 1 }), 1);
   assert.equal(R(lv, 1, { arcaneValue: 4 }), 2);

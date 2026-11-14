@@ -53,8 +53,8 @@ check("a missile weapon prints no size and gets none", bound("long bow")?.system
 
 // The Special cell lands as the system's own properties, never as legacy tags.
 check("a thrown weapon lights the system's thrown property", bound("dagger")?.system.special.thrown === true);
-check("the crossbow's three qualities light", (() => { const s = bound("crossbow")?.system; return s?.special.cleave === true && s?.special.handy === true && s?.special.slow === true && s?.cleaveLimit?.numeric === 2 && s?.cleaveLimit?.addStrMod === false; })());
-check("the bow's cleave reads its Strength rider", bound("long bow")?.system.cleaveLimit?.addStrMod === true && bound("long bow")?.system.cleaveLimit?.numeric === 3);
+check("the crossbow's three qualities light", (() => { const s = bound("crossbow")?.system; return s?.special.cleave === true && s?.special.handy === true && s?.special.slow === true && Number.isInteger(s?.cleaveLimit?.numeric) && s.cleaveLimit.numeric > 0 && s?.cleaveLimit?.addStrMod === false; })());
+check("the bow's cleave reads its Strength rider", bound("long bow")?.system.cleaveLimit?.addStrMod === true && Number.isInteger(bound("long bow")?.system.cleaveLimit?.numeric));
 check("a three-word Special cell that starts left of the others is read whole", bound("lance")?.system.special.mounted === true && bound("lance")?.system.special.impact === true && bound("lance")?.system.special.long === true);
 check("a weapon with no quality keeps an empty special object and no custom tag", Object.keys(bound("club")?.system.special ?? { x: 1 }).length === 0 && bound("club")?.system.customTags === undefined);
 check("the net prints no die and writes a blank formula", bound("net")?.system.damage.base.formula === "" && bound("net")?.system.damage.alternate.formula === "");

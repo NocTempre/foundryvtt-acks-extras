@@ -357,8 +357,8 @@ a = rollActor([swordItem, armor("Plate", "heavy", { id: "pl" })], { flags: { arm
 check("Weapon Finesse inert while non-proficiently equipped", sumRows(attackThrowRows(a, swordItem, "melee")) === -3);
 unregisterTable(FIGURES.id, { priority: PRIORITY.WORLD });
 
-// Loadout: the state + full-package advisory violation, and the AC half —
-// "no bonus on ... armor class from attributes" (bonuses only; penalties stay).
+// Loadout: the state + full-package advisory violation, and the AC half:
+// attribute bonuses to armor class are dropped (bonuses only; penalties stay).
 const npUse = actor([weapon("Battle Axe", { melee: true, id: "ax" })], { flags: { weaponProficiency: "swordDagger", styles: "single,twoHanded" }, system: { scores: { dex: { mod: 2 } }, details: { level: 3 } } });
 const npUseLo = getLoadout(npUse);
 check("nonProficientUse state + advisory violation, still legal", npUseLo.nonProficientUse === true && npUseLo.violations.some((v) => v.type === VIOLATION.NON_PROFICIENT_USE && v.advisory) && npUseLo.legal);
@@ -2450,11 +2450,11 @@ check("torch + two weapons overflows hands", overHand.violations.some((v) => v.t
 delete globalThis.acksExtras.formation;
 
 /* ---------------------------------------------------------------------- */
-/*  Torch as a weapon (RR p148/p300): 1d4, no damage bonus                   */
+/*  Torch as a weapon (RR p148/p300): its die, no damage bonus              */
 /* ---------------------------------------------------------------------- */
 
 const torchProfile = classifyWeapon(weapon("Torch", { melee: true, damage: "1d4" }));
-check("torch classifies as a 1d4 weapon", torchProfile.damage === "1d4");
+check("torch classifies as a weapon with its die", torchProfile.damage === "1d4");
 check("torch is flagged no-damage-bonus", torchProfile.special?.includes("noDamageBonus"));
 check("torch is throwable", torchProfile.thrown === true);
 

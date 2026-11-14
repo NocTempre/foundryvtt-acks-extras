@@ -515,12 +515,12 @@ assert.strictEqual(diceRange(""), null, "no formula");
 }
 
 {
-  // 0.15gp base, 0.02gp step (the RULES.md salt worked example shapes); shifts invented.
-  const base = { basePriceCp: 15, stepCp: 2 };
+  // Base, step and shifts all invented.
+  const base = { basePriceCp: 17, stepCp: 3 };
   const SHIFTS = { largeClassEdge: 3, largeClassShift: 2, smallClassEdge: 4, smallClassShift: 3, sowingShift: 2, harvestShift: 3 };
   assert.strictEqual(
     merchMarketPriceCp({ ...base, roll4d4: 9, dm: -3, marketClass: 1, ...SHIFTS }).priceCp,
-    15 - 2 + 4 - 6,
+    17 - 3 + 6 - 9,
     "steps stack: 4d4-10, the large-class shift, demand"
   );
   assert.strictEqual(
@@ -530,7 +530,7 @@ assert.strictEqual(diceRange(""), null, "no formula");
   );
   assert.strictEqual(
     merchMarketPriceCp({ ...base, roll4d4: 10, dm: 0, marketClass: 4, ...SHIFTS }).priceCp,
-    15 - 6,
+    17 - 9,
     "the small-class edge is inclusive and shifts by its own amount"
   );
   assert.strictEqual(
@@ -540,7 +540,7 @@ assert.strictEqual(diceRange(""), null, "no formula");
   );
   assert.strictEqual(
     merchMarketPriceCp({ ...base, roll4d4: 4, dm: -6, marketClass: 6, ...SHIFTS }).priceCp,
-    2,
+    3,
     "price never falls below one step"
   );
   assert.strictEqual(

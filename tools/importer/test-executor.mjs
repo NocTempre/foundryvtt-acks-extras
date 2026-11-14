@@ -95,9 +95,9 @@ t("`as:perLevel` makes the located number both the base and the rate", () => {
   // 2nd. Before this, `per` defaulted to -1 and the effect decayed with level.
   const [e] = materializeEffects(
     [{ type: "modifier", target: "hp", from: { as: "perLevel", pattern: "restore\\s*(\\d+)\\s*hit\\s*points\\s*per" } }],
-    paras("He can restore 2 hit points per experience level."),
+    paras("He can restore 3 hit points per experience level."),
   );
-  assert.deepEqual(e.value, { kind: "perLevel", base: 2, per: 2 });
+  assert.deepEqual(e.value, { kind: "perLevel", base: 3, per: 3 });
 });
 
 t("`per` overrides the rate for the base-then-increment shape", () => {
@@ -110,17 +110,17 @@ t("`per` overrides the rate for the base-then-increment shape", () => {
 
 t("a proportion written as a WORD is located, not shipped", () => {
   // A half-class-level proportion rounded up (RR p60) carries no digit. The alternatives
-  // are shipping 0.5 or dropping the mechanic; both are wrong.
+  // are shipping 0.5 or dropping the mechanic; both are wrong. The sentence is invented.
   const [e] = materializeEffects(
     [
       {
         type: "modifier",
         target: "save",
-        forWhat: "Mortal Wounds",
+        forWhat: "Poison",
         from: { as: "perLevel", round: "up", pattern: "throw\\s*of\\s*(one-half|half)\\s*(?:his|her)\\s*class\\s*level" },
       },
     ],
-    paras("He can grant a bonus to their Mortal Wounds throw of one-half his class level (round up)."),
+    paras("He can grant a bonus to their Poison throw of one-half his class level (round up)."),
   );
   assert.deepEqual(e.value, { kind: "perLevel", base: 0.5, per: 0.5, round: "up" });
 });
@@ -157,8 +157,8 @@ t("`round` is shape, so it ships; it is absent unless stated", () => {
 /* ------------------------------------------------------------------ */
 
 t("a PAIRED ladder reads its rungs off the page too", () => {
-  // "+1 ... at 7th level +2 ... at 13th level +3": shipping steps [1,7,13]
-  // would ship 7 and 13, which are the book's numbers as much as the bonuses.
+  // A bonus with a rung at two later levels: shipping steps [1,N,M] would
+  // ship the rung levels, which are the page's numbers as much as the bonuses.
   const [e] = materializeEffects(
     [
       {
@@ -174,15 +174,15 @@ t("a PAIRED ladder reads its rungs off the page too", () => {
       },
     ],
     paras(
-      "She gains a +1 bonus to armor class. At 7th level, the bonus increases to +2, and at 13th level the bonus increases to +3.",
+      "She gains a +1 bonus to armor class. At 5th level, the bonus increases to +2, and at 9th level the bonus increases to +4.",
     ),
   );
   assert.deepEqual(e.value, {
     kind: "breakpoints",
     breakpoints: [
       { atLevel: 1, value: 1 },
-      { atLevel: 7, value: 2 },
-      { atLevel: 13, value: 3 },
+      { atLevel: 5, value: 2 },
+      { atLevel: 9, value: 4 },
     ],
   });
 });
@@ -894,9 +894,9 @@ t("a shared recipe object is never written through by a nested locator", () => {
 t("a per-level rate printed apart from its base is read from its own group, signed by the verb", () => {
   const [e] = materializeEffects(
     [{ type: "throw", roll: "1d20", rollType: "above", from: { as: "perLevel", perGroup: 2, perSign: -1, pattern: "throw\\s*of\\s*(\\d+)\\+[\\s\\S]*?reduces\\s*by\\s*(\\d+)\\s*per\\s*level" } }],
-    paras("A throw of 17+ succeeds. The throw required reduces by 2 per level of experience."),
+    paras("A throw of 16+ succeeds. The throw required reduces by 3 per level of experience."),
   );
-  assert.deepEqual(e.value, { kind: "perLevel", base: 17, per: -2 });
+  assert.deepEqual(e.value, { kind: "perLevel", base: 16, per: -3 });
 });
 t("no register recipe ships a number outside its locators", () => {
   const root = fileURLToPath(new URL("../../register/", import.meta.url));
@@ -928,7 +928,7 @@ t("no register recipe ships a number outside its locators", () => {
 });
 t("one phrase naming two fields is two modifiers, one per conjunct", () => {
   const registers = JSON.parse(fs.readFileSync(new URL("../../cookbook/registers.json", import.meta.url), "utf8"));
-  const out = effectScan(paras("The character gains a +1 bonus to surprise rolls and initiative rolls."), registers);
+  const out = effectScan(paras("The character gains a +3 bonus to surprise rolls and initiative rolls."), registers);
   const targets = out.filter((e) => e.type === "modifier").map((e) => e.target).sort();
   assert.deepEqual(targets, ["initiative", "surprise"]);
 });
