@@ -29,6 +29,7 @@ export const PRODUCES = Object.freeze({
     tacking: "voyagesProse",
     berth: "voyagesProse",
     crew: "voyagesProse",
+    masterMariner: "voyagesProse",
     hazardThrow: "voyagesProse",
     hazards: "voyagesProse",
     repair: "voyagesProse",
@@ -114,6 +115,11 @@ export function assembleVoyageTables(raw = {}) {
   // share outside 0–1 is a misread, not a rate.
   const missing = parseShare(flat.unproficientMissing);
   if (missing != null && missing >= 0 && missing <= 1) out.crew = { unproficientMissing: missing };
+
+  // The Seafaring rank the page names a master mariner by: a whole number of
+  // ranks, at least one.
+  const masterRank = Number(flat.masterRank);
+  if (Number.isInteger(masterRank) && masterRank >= 1) out.masterMariner = { rank: masterRank };
 
   if (raw.navigationRaw) {
     const targets = {};

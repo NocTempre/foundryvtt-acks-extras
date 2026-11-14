@@ -217,7 +217,13 @@ land flags beside the sea ones: still air makes fog of rain, and the top two
 bands impose the windy and stormy conditions. Driving and
 Seafaring are read from the vehicle, and Seafaring at master-mariner rank
 (RR ch. 3) alone can tack in a strong wind — at the imported tacking rate,
-when there is one to show.
+when there is one to show. The master mariner's rank is the importer's read
+of the crew page's sentence that names the role by its ranks (RR p. 315, the
+`voyages` document's `masterMariner` table, `vehicle-speed.mjs`
+`masterMarinerRank`/`isMasterMariner`). With no rank imported nobody is a
+master mariner: `seaSpeeds` answers `masterMariner: false`, and the Seafaring
+field on the Aboard tab has no ceiling (it takes the imported rank as its
+`max` once there is one).
 
 ## The sea
 
@@ -233,7 +239,9 @@ rolls the day's two questions in the door-helper shape — the throw
 decomposed into its parts and shown before anything is rolled, then one d20
 whispered to the Judge. The navigation dialog prefills the arts from the
 people actually aboard and the hazard dialog prefills the master mariner
-from the best Seafaring at the helm; both stay overridable, because the
+from the best Seafaring at the helm (ticked when it reaches the imported
+master-mariner rank, left unticked when no rank is imported, its label
+citing RR ch. 3 and ch. 7); both stay overridable, because the
 dialog is a helper and the Judge is the authority. A failed hazard throw
 states the hazard's own imported effects on the card. A holed hull offers
 **the sinking clock**: one roll of the imported die onto a flag, a

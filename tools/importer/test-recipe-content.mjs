@@ -97,6 +97,8 @@ const TABLES = {
   wearSlots: ["ringCapacity"],
   // The weight a man-sized body is assumed to have: one count in one sentence.
   capacity: ["riderBody"],
+  // The sea's prose windows (RR ch. 7), among them the Seafaring rank a master mariner is named by.
+  voyages: ["voyagesProse"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -465,6 +467,17 @@ VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
 VERIFY["capacity.riderBody"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.stone) && !(Number.isInteger(out.stone) && out.stone > 0)) fail("stone: not a positive whole number");
+};
+// The sea's prose blocks: every declared value reads, and the master mariner's
+// rank is a whole number above zero, the shape the voyages binding accepts.
+// Shape only; no figure is named.
+VERIFY["voyages.voyagesProse"] = (out, recipe, fail) => {
+  for (const block of recipe.valueBlocks) {
+    if (!out?.[block.id]) { fail(`block ${block.id}: not read`); continue; }
+    proseKeys(out[block.id], block, fail);
+  }
+  const rank = out?.master?.masterRank;
+  if (isNum(rank) && !(Number.isInteger(rank) && rank >= 1)) fail("masterRank: not a positive whole number");
 };
 // The followers' arrival level: a whole number above zero. Shape only; no figure is named.
 VERIFY["followers.arrivalLevel"] = (out, recipe, fail) => {

@@ -29,3 +29,23 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-01 — [Coin crosses a hold by the rule every sheet keeps](DECISIONS-through-v11.14.5.md#2026-10-01--coin-crosses-a-hold-by-the-rule-every-sheet-keeps)
 - 2026-10-01 — [Freight is refused on a sheet that lists no goods](DECISIONS-through-v11.14.5.md#2026-10-01--freight-is-refused-on-a-sheet-that-lists-no-goods)
 
+## 2026-11-14 — The master mariner's rank is imported, and the Seafaring field's ceiling follows it
+
+The rank that makes a master mariner was a literal in `seaSpeeds` (who may tack
+in a strong wind) and in the hazard dialog's prefill, and its twin was the
+`max` of the vessel's `seafaringRank` field, in the schema and in the sheet's
+spinner. The importer now reads the rank from the crew page's sentence that
+defines the role by its ranks (RR p. 315; the figure agrees with RR ch. 3's
+Seafaring entry and RR p. 319) into `voyages.masterMariner`, and
+`isMasterMariner` is the one test every reader uses. With nothing imported
+nobody is a master mariner: the hazard dialog's box is unticked, `seaSpeeds`
+answers `masterMariner: false` and `canTack` follows the wind alone, and the
+field has no ceiling.
+
+The session's call, owner may overrule: the schema's `max` is dropped and the
+sheet's spinner takes the imported rank as its `max` while one is imported. A
+data-model bound cannot read the registry, so the alternative was to keep a
+figure in the schema; a field with no ceiling until an import is the blank
+the rulings ask for. Rejected: reading the ranks a seat asks (`handProficiency`,
+`seatQualification`) in the same change; they are separate printed figures on
+the vehicles ROADMAP.

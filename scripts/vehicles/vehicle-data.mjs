@@ -217,10 +217,10 @@ export default class VehicleData extends TypeDataModel {
       /**
        * The best rank of Seafaring aboard (RR ch. 3): the rank that sails or
        * rows, the one that captains, and the master mariner's, who alone can
-       * tack in a strong wind. The ceiling is the master mariner's rank, a
-       * printed figure tracked in docs/vehicles/ROADMAP.md.
+       * tack in a strong wind. The sheet's field takes the imported master
+       * mariner's rank as its ceiling, and has none until one is imported.
        */
-      seafaringRank: int(0, { min: 0, max: 3 }),
+      seafaringRank: int(0, { min: 0 }),
     };
   }
 

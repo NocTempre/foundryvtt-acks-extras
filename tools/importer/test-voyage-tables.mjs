@@ -104,6 +104,12 @@ check("an unproficient hand reads as the crew it counts missing", out.crew.unpro
 check("a fraction reads too", assembleVoyageTables({ voyagesProse: { crew: { unproficientMissing: "1/4 missing crew" } } }).crew.unproficientMissing === 0.25);
 check("a share past a whole hand is a misread, not a rate",
   assembleVoyageTables({ voyagesProse: { crew: { unproficientMissing: "3 missing crew" } } }).crew === undefined);
+check("the master mariner's rank reads from its word",
+  assembleVoyageTables({ voyagesProse: { master: { masterRank: 5 } } }).masterMariner.rank === 5);
+check("a rank that is none or no whole number assembles to nothing",
+  assembleVoyageTables({ voyagesProse: { master: { masterRank: 0 } } }).masterMariner === undefined &&
+  assembleVoyageTables({ voyagesProse: { master: { masterRank: 2.5 } } }).masterMariner === undefined &&
+  assembleVoyageTables({ voyagesProse: { master: {} } }).masterMariner === undefined);
 check("empty raws assemble to nothing", Object.keys(assembleVoyageTables({})).length === 0);
 
 console.log(`test-voyage-tables: all ${pass} checks passed`);

@@ -7211,7 +7211,7 @@
   "ACKS-VEHICLES.sea.pathfinding": "Pathfinding aboard",
   "ACKS-VEHICLES.sea.navigationArt": "Navigation aboard",
   "ACKS-VEHICLES.sea.hazard": "Hazard",
-  "ACKS-VEHICLES.sea.masterMariner": "Master mariner at the helm",
+  "ACKS-VEHICLES.sea.masterMariner": "Master mariner at the helm (RR ch. 3, RR ch. 7)",
   "ACKS-VEHICLES.sea.halfSpeed": "Slowed passage (RR ch. 7)",
   "ACKS-VEHICLES.sea.halfSpeedAt": "Making {speed} of her speed or less (RR ch. 7)",
   "ACKS-VEHICLES.sea.shallowDraft": "Shallow draft over sandbar or shoal",

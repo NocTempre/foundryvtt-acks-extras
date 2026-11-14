@@ -47,6 +47,25 @@ export function readTable(docId, tableId) {
 }
 
 /**
+ * The Seafaring rank that makes a master mariner (RR ch. 3, RR ch. 7), read
+ * from the imported `voyages` document; null until a book is imported, and
+ * every master-mariner reading answers false meanwhile.
+ */
+export function masterMarinerRank() {
+  const rank = Number(readTable(VOYAGES_DOC, "masterMariner")?.rank);
+  return Number.isInteger(rank) && rank >= 1 ? rank : null;
+}
+
+/**
+ * Whether a Seafaring rank is a master mariner's: false while the rank the
+ * page names has not been imported.
+ */
+export function isMasterMariner(rank) {
+  const master = masterMarinerRank();
+  return master != null && (Number(rank) || 0) >= master;
+}
+
+/**
  * Ground: the STRUCTURAL half only — which terrains exist, which of them
  * refuse wheels without a road, which turn to mud under rain (`mudProne`),
  * and each one's label. What each terrain is WORTH is printed, and arrives
@@ -236,9 +255,8 @@ export function crewFraction(roles = []) {
  * @returns {{oarSprint, oarCruise, oarSlow, sail, voyageOar, voyageSail, reasons: object[]}}
  */
 export function seaSpeeds(vehicle, { wind = "moderate", roles = null } = {}) {
-  // Seafaring taken three times is a master mariner (RR ch. 3), and that is
-  // the rank the wind rules care about.
-  const masterMariner = (Number(vehicle?.seafaringRank) || 0) >= 3;
+  // The master mariner's rank (RR ch. 3) is the one the wind rules care about.
+  const masterMariner = isMasterMariner(vehicle?.seafaringRank);
   const s = vehicle?.speeds ?? {};
   const key = WIND[wind] ? wind : "moderate";
   const w = WIND[key];

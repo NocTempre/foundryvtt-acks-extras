@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import {
   WIND, windFor, windSpec, conditionMultiplier, crewFraction, seaSpeeds, landSpeed,
   draftPull, draftEquivalent, canEnter, cargoRemaining, travelMultiplier, TERRAIN, ROAD_KINDS,
-  TRAVEL_DOC, VOYAGES_DOC,
+  TRAVEL_DOC, VOYAGES_DOC, masterMarinerRank, isMasterMariner,
 } from "../scripts/vehicles/vehicle-speed.mjs";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 
@@ -55,6 +55,8 @@ const SAMPLE_VOYAGES = {
     rounding: { voyageMiles: 5, combatFeet: 20 },
     berth: { stone: 40 },
     crew: { unproficientMissing: 0.75 },
+    // An invented rank: the sample's master mariner sits at a rank the book does not print.
+    masterMariner: { rank: 4 },
   },
 };
 const registerSamples = () => {
@@ -148,13 +150,16 @@ const crewed = { kind: "sea", speeds: { sail: 180 }, crew: { roles: [] }, condit
 let t = seaSpeeds(crewed, { wind: "strong" });
 assert.equal(t.canTack, false, "a strong wind forbids tacking");
 assert.equal(t.tackSpeed, null);
-t = seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "strong" });
+t = seaSpeeds({ ...crewed, seafaringRank: 4 }, { wind: "strong" });
 assert.equal(t.canTack, true, "unless a master mariner has the helm");
 assert.equal(t.tackSpeed, 45, "180 x the registered tacking rate");
-assert.equal(seaSpeeds({ ...crewed, seafaringRank: 2 }, { wind: "strong" }).canTack, false,
-  "two ranks is a captain, not a master mariner");
-assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "moderate" }).tackSpeed, null,
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 3 }, { wind: "strong" }).canTack, false,
+  "a rank short of the imported master mariner's is not one");
+assert.equal(seaSpeeds({ ...crewed, seafaringRank: 4 }, { wind: "moderate" }).tackSpeed, null,
   "in a moderate wind everyone tacks normally, so there is no reduced rate to show");
+assert.equal(masterMarinerRank(), 4, "the rank is the registered document's");
+assert.ok(isMasterMariner(4) && isMasterMariner(5) && !isMasterMariner(3) && !isMasterMariner(0) && !isMasterMariner(undefined),
+  "a rank at or above the imported one is a master mariner's");
 
 /* --- teams pull as their equivalents sum, at IMPORTED rates -------------- */
 const team = (...kinds) => ({ team: { animals: kinds.map((kind) => ({ kind, pulling: true })) } });
@@ -466,6 +471,13 @@ assert.ok(repairPlan(16, 8).missing, "an unpriced repair plan says so");
 assert.equal(roundVoyage(13), 13, "no grain: no rounding, which is only cosmetic");
 assert.equal(lightenChance(100), null, "a chance of nothing is not zero");
 assert.ok(crewCargoTrade({ kind: "sea", crew: { roles: [{ required: 10 }] } }, 2).missing);
+assert.equal(masterMarinerRank(), null, "no doc: no master mariner's rank, never a guess");
+assert.equal(isMasterMariner(9), false, "no rank imported: nobody is a master mariner, whatever they hold");
+assert.equal(seaSpeeds({ kind: "sea", speeds: { sail: 180 }, crew: { roles: [] }, condition: {}, seafaringRank: 9 }, { wind: "strong" }).masterMariner, false,
+  "and the vessel's speeds do not read one");
+registerTable({ id: VOYAGES_DOC, tables: { masterMariner: { rank: 0 } } }, { priority: PRIORITY.WORLD, source: "test" });
+assert.equal(masterMarinerRank(), null, "a rank of none is a misread, not a rank");
+resetTables();
 registerSamples();
 
 console.log("test-vehicles: OK (registry navigation, hazards, shares, repair, berth; degradation says why)");

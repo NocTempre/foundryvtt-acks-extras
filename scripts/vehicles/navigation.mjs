@@ -86,7 +86,7 @@ export function reducedSpeed() {
  * anyway. A slowed part carries the imported `share` where one was read.
  *
  * @param {object} o
- * @param {boolean} [o.masterMariner] Seafaring taken three times
+ * @param {boolean} [o.masterMariner] Seafaring at the imported master-mariner rank (RR ch. 3)
  * @param {boolean} [o.halfSpeed] making the slowed passage's share of her speed or less
  * @param {boolean} [o.shallowDraft] a galley or longship, over sandbar or shoal
  * @returns {{target, bonus, effective, parts: object[], missing: boolean}}

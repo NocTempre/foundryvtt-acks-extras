@@ -17,7 +17,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_KINDS, CARRIAGE } from "./vehicle-data.mjs";
-import { seaSpeeds, landSpeed, draftEquivalent, WIND, TERRAIN } from "./vehicle-speed.mjs";
+import { seaSpeeds, landSpeed, draftEquivalent, masterMarinerRank, WIND, TERRAIN } from "./vehicle-speed.mjs";
 import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
 import { SINKING_FLAG, openHazardDialog, openNavigationDialog, startSinkingClock, tickSinkingClock } from "./sea-throws.mjs";
 import { voyageDay } from "./voyage.mjs";
@@ -204,6 +204,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       hull,
       stations,
       skills: this.#skillNotes(),
+      // The Seafaring field's ceiling: null until the rank is imported.
+      masterRank: masterMarinerRank(),
       paces: Object.entries(TRAVEL_PACE).map(([value, p]) => ({
         value, label: game.i18n.localize(p.label), selected: value === this.#pace,
       })),

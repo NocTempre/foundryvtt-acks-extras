@@ -2128,6 +2128,17 @@ export const TABLE_RECIPES = {
             ],
           },
           {
+            // The Seafaring rank that makes a master mariner, in the sentence
+            // that defines the role by its ranks.
+            id: "master",
+            printedPage: 315,
+            locate: "master mariners are captains with",
+            column: { xMin: 295, xMax: 592 },
+            values: [
+              { key: "masterRank", findRe: "master\\s*mariners\\s*are\\s*captains\\s*with", take: "wordInt", span: 14 },
+            ],
+          },
+          {
             id: "shares",
             printedPage: 316,
             locate: "cannot deal damage to vessels",

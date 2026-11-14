@@ -13,8 +13,7 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
     starving crew (RR ch. 7);
   - the stowed mast's cost to the oars (vehicle-speed.mjs `seaSpeeds`, RR ch. 7);
   - the Seafaring ranks a seat asks (occupants.mjs `handProficiency`,
-    `seatQualification`) and the master mariner's rank (vehicle-speed.mjs
-    `seaSpeeds`) (RR ch. 3);
+    `seatQualification`) (RR ch. 3);
   - the voyage day length (voyage.mjs `VOYAGE_HOURS`, RR ch. 7); the march
     day it is compared with is read from the import.
 - **The hold counts an unweighed passenger as nothing.** A passenger whose

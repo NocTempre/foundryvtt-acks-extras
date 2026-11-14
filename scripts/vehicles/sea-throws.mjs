@@ -9,15 +9,18 @@
  *
  * The arts and the helm are read from the people actually aboard: an
  * occupant with the Pathfinding power or the Navigation proficiency lights
- * the navigation bonus, and a captain whose Seafaring reaches master
- * mariner reads the hazard water better — both prefilled, both overridable,
- * because the dialog is a helper and the Judge is the authority.
+ * the navigation bonus, and a captain whose Seafaring reaches the imported
+ * master-mariner rank (RR ch. 3, RR ch. 7) reads the hazard water better —
+ * both prefilled, both overridable, because the dialog is a helper and the
+ * Judge is the authority. With no rank imported the master-mariner box is
+ * left unticked.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds, fractionLabel } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { abilityRank } from "../lib/capabilities.mjs";
 import { occupantsOf } from "./occupants.mjs";
+import { isMasterMariner } from "./vehicle-speed.mjs";
 import { WATERS, HAZARD_KINDS, navigationThrow, hazardThrow, hazardSpec, reducedSpeed } from "./navigation.mjs";
 import { sinkFormula, isSinking } from "./vessel-damage.mjs";
 
@@ -125,7 +128,7 @@ export async function openNavigationDialog(vehicleActor) {
  */
 export async function openHazardDialog(vehicleActor) {
   const { DialogV2 } = foundry.applications.api;
-  const master = bestSeafaring(vehicleActor) >= 3;
+  const master = isMasterMariner(bestSeafaring(vehicleActor));
 
   const hazardOptions = Object.entries(HAZARD_KINDS)
     .map(([value, cfg]) => `<option value="${value}">${game.i18n.localize(cfg.label)}</option>`)

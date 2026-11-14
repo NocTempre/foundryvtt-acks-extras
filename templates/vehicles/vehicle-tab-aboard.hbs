@@ -87,7 +87,7 @@
     <div class="form-group">
       <label>{{localize "ACKS-VEHICLES.vessel.seafaring"}}</label>
       <div class="form-fields">
-        <input type="number" name="system.seafaringRank" min="0" max="3" value="{{system.seafaringRank}}">
+        <input type="number" name="system.seafaringRank" min="0"{{#if masterRank}} max="{{masterRank}}"{{/if}} value="{{system.seafaringRank}}">
       </div>
       <p class="hint">{{localize "ACKS-VEHICLES.vessel.seafaringHint"}}</p>
       {{#if skills.seafaring}}<p class="hint">{{skills.seafaring}}</p>{{/if}}

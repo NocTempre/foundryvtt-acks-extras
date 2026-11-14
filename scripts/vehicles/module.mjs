@@ -47,6 +47,7 @@ Hooks.once("init", () => {
     "rounding",
     "berth",
     "crew",
+    "masterMariner",
   ]);
 });
 

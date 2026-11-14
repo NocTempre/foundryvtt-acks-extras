@@ -186,8 +186,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     - **Navigation throw** opens the dialog with the arts prefilled from an
       aboard actor holding a "Navigation" ability item; rolling whispers
       ONE Judge card listing each part, the effective target and the d20.
-    - **Hazard throw** with an aboard master mariner (three "Seafaring"
-      items) prefills the helm; force a failure (roll until) and the card
+    - **Hazard throw** with an aboard master mariner (the "Seafaring" item
+      at the rank the doc's `masterMariner.rank` names; the invented sample
+      uses a rank the book does not print) prefills the helm; force a failure (roll until) and the card
       states the chosen hazard's invented dice/holding line.
     - damage her to 0: the hull block offers **Start the clock**; starting
       posts the rolled rounds and shows the counter; **Round passes** ticks
@@ -235,6 +236,21 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 17. Taking the wagon to market — an entry that declares it and loads bought
     into its hold — is walked in [../markets/TESTING.md](../markets/TESTING.md),
     "The fleet walk".
+18. The master mariner's rank (unwalked). Fixtures: the sea fixture, and a
+    character with a "Seafaring" ability item aboard at the rank the world's
+    `voyages` doc names (read it from `getTable("voyages", "masterMariner").rank`,
+    built once and kept). With the book connected, import RR's voyages tables
+    first, then set the aboard character's item to that rank and open the
+    Seamanship block's **Hazard throw**.
+    *Observable:* the "Master mariner at the helm" box is ticked and its
+    label cites RR ch. 3 and ch. 7; one rank lower, it is unticked. On the
+    Aboard tab the Seafaring field's `max` is that rank. In a strong wind
+    the Travel tab shows the master-tack line for the vessel whose
+    `system.seafaringRank` reaches it, and the no-tacking hint for one that
+    does not. Then retire the `voyages` doc's `masterMariner` table (an
+    unimported world): the box is unticked whatever rank is aboard, the
+    Aboard tab's field has no `max`, the Travel tab shows the no-tacking
+    hint and no master-tack line, and the console is clean.
 
 ## Teardown
 
