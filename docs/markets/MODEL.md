@@ -211,6 +211,10 @@ party's find.
       market set to `"city"` and the table unread, a charged entry refuses
       naming it. A settlement import sets the field from a market record's
       `meta.gateToll` where the place holds none.
+      The toll an entry was charged is stored with it (`gateToll` on the posted
+      action, copied to the venture row when the day resolves), so a past
+      row's duty label and paid line name that entry's toll, not the switch
+      now in force; a row that stores none reads the switch in force.
     - **Moorage and stabling** (`rules/stay.mjs` `stayPerDay`; RR ch. 8,
       Engaging in Mercantile Ventures) is a daily fee on what the party
       keeps at the market: each sea vehicle as a ship of its size (maximum

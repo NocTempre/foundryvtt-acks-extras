@@ -210,6 +210,10 @@ export function goodsSchema() {
         // privilege waived both.
         tollCp: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         tariffCp: int(0),
+        // enter: which toll the gate charged, the market's own class's or its
+        // city's (`gateTollOf`); null on a row that stores none, which reads
+        // the switch now in force.
+        gateToll: new f.StringField({ required: false, nullable: true, initial: null, choices: [...GATE_TOLLS] }),
         privilegeUuid: str(),
         // enter: the party sneaked in, so the gate charged neither toll nor tariff.
         sneaked: new f.BooleanField({ initial: false }),
@@ -244,6 +248,9 @@ export function goodsSchema() {
         // The tariff the entry paid, and the domain whose ruler's privilege
         // waived toll and tariff ("" where none did).
         tariffCp: int(0),
+        // Which toll that entry was charged (`gateToll` on the action): null on
+        // a row that stores none, which reads the switch now in force.
+        gateToll: new f.StringField({ required: false, nullable: true, initial: null, choices: [...GATE_TOLLS] }),
         privilegeUuid: str(),
         entered: new f.BooleanField({ initial: false }),
         // When the entry that opened this visit was posted: the day a known

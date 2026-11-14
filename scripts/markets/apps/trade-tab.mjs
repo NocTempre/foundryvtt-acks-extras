@@ -453,7 +453,9 @@ function demandChips(goods, isGM) {
  * The GM's per-party picture: what each party believes about demand (from the
  * reports it holds) and how its ventures stand this month — one line for a
  * party entered as one, one per character where they entered separately. A
- * party with neither is left out.
+ * party with neither is left out. A line's duty label follows the toll its
+ * entry was charged (`gateToll`), the switch in force (`cityToll`) for a row
+ * that stores none.
  */
 function partyBlocks(goods, monthStart, reports, cityToll = false) {
   const ventures = (goods.ventures ?? []).map(plain).filter((v) => Number(v.monthStartTime) === monthStart);
@@ -478,7 +480,7 @@ function partyBlocks(goods, monthStart, reports, cityToll = false) {
         [
           venture.entrantUuid ? `${actorOfUuid(venture.entrantUuid)?.name ?? venture.entrantUuid}, ${loc("ventures.apartMarker", { n: venture.entrants })}` : "",
           // A city-toll market's tariff column holds the duty it charged in the tariff's place.
-          loc(cityToll ? "parties.ventureLineCity" : "parties.ventureLine", {
+          loc((venture.gateToll ? venture.gateToll === "city" : cityToll) ? "parties.ventureLineCity" : "parties.ventureLine", {
             state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
             cargo: venture.cargoSt,
             impact: venture.impact,

@@ -1471,6 +1471,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   const wrote = fresh.updates[0];
   assert.deepStrictEqual(wrote["system.market.goods.merchPrices"].map((p) => [p.category, p.monthStartTime, p.priceCp]), [["salt", monthStart, 2600]], "the rolled price is written with the entry");
   const action = wrote["system.market.goods.actions"][0];
+  assert.strictEqual(action.gateToll, "city", "the action keeps which toll the gate charged, for the row it becomes");
   assert.match(action.detail, /toll 9gp \(6d4\+3 → 9gp\); duty 12\.88gp \(1d6 → 4%\)/, "the posted detail names the toll's throw and the duty's");
   assert.deepStrictEqual([action.tollCp, action.tariffCp], [900, 1288], "the action keeps what each came to, the duty in the tariff's field");
   assert.match(wrote["system.market.marketLog"][0].note, /\(21\.88gp: toll 9gp, duty 12\.88gp \(toll 6d4\+3 → 9gp; duty 1d6 → 4%\) paid\)/, "the ledger note names both throws");
@@ -1492,6 +1493,7 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(thrown, [], "nothing is thrown");
   assert.strictEqual(spends[0].gp, (6 + Math.ceil(12 * 2000 * 0.02) + Math.ceil(1000 * 0.02)) / 100, "toll 2cp a stone on 3 st, then the tariff at the class's printed common rate on the goods' base prices");
   assert.strictEqual(spends[0].reason, "«ACKS-MARKETS.ventures.tollTariffReason»", "the class's reason");
+  assert.strictEqual(classic.updates[0]["system.market.goods.actions"][0].gateToll, "class", "a class-toll entry says so");
   assert.match(classic.updates[0]["system.market.goods.actions"][0].detail, /toll 0\.06gp; tariff /, "its detail says tariff, with no throw");
   assert.strictEqual("system.market.goods.merchPrices" in classic.updates[0], false, "and writes no price");
 

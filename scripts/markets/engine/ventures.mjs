@@ -34,6 +34,7 @@ import { stayOwed, STABLED_AS } from "../rules/stay.mjs";
 import { networkSteps } from "./network.mjs";
 import { marketKnownTo } from "./known-market.mjs";
 import { toGp } from "../rules/pricing.mjs";
+import { GATE_TOLLS } from "../rules/gate-toll.mjs";
 import { trueDemand } from "../rules/demand.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
@@ -388,6 +389,7 @@ export async function postVentureAction(location, payload) {
     networkMode: kind === "enter" && NETWORK_MODES.includes(networkMode) ? networkMode : "auto",
     tollCp: kind === "enter" ? tollCp : null,
     tariffCp,
+    gateToll: kind === "enter" ? (gate?.gateToll ?? null) : null,
     privilegeUuid: privilege?.uuid ?? "",
     sneaked: !!gate?.sneaked,
     entrantUuid: kind === "enter" ? (entrants > 0 ? actor.uuid : "") : key.entrantUuid,
@@ -643,6 +645,7 @@ export async function processVentureActions(location, log, t) {
         effectiveClass: 0,
         tollCp: 0,
         tariffCp: 0,
+        gateToll: null,
         privilegeUuid: "",
         entered: false,
         enteredTime: 0,
@@ -667,6 +670,7 @@ export async function processVentureActions(location, log, t) {
       // from its capacity.
       row.tollCp = Number.isInteger(action.tollCp) ? action.tollCp : Math.ceil(parseTollCpPerSt(ch.toll) * Math.max(0, Number(action.cargoSt) || 0));
       row.tariffCp = Math.max(0, Number(action.tariffCp) || 0);
+      row.gateToll = GATE_TOLLS.includes(action.gateToll) ? action.gateToll : null;
       row.privilegeUuid = action.privilegeUuid ?? "";
       row.entered = true;
       row.enteredTime = Number(action.postedTime) || t;
@@ -686,7 +690,7 @@ export async function processVentureActions(location, log, t) {
         ? game.i18n.localize(`${LANG}.ventures.paidSneaked`)
         : row.privilegeUuid
           ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
-          : game.i18n.format(`${LANG}.ventures.${gateTollOf(location) === "city" ? "paidLineCity" : "paidLine"}`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
+          : game.i18n.format(`${LANG}.ventures.${(row.gateToll ?? gateTollOf(location)) === "city" ? "paidLineCity" : "paidLine"}`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
       const entered = game.i18n.format(`${LANG}.ventures.${entrants ? "enteredSeparatelyLine" : "enteredLine"}`, { name: actor.name, location: location.name, impact, n: entrants });
       const stay = row.stayCpPerDay > 0 ? `<br>${game.i18n.format(`${LANG}.ventures.stayLine`, { gp: toGp(row.stayCpPerDay), where: game.i18n.localize(`${LANG}.ventures.stayAt.${row.stayAt}`) })}` : "";
       await postCard(actor, `<strong>${entered}</strong><br>${paid}${stay}`);

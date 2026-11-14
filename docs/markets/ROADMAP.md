@@ -29,10 +29,6 @@ vehicles setting its market impact. What is not built:
 - **The smuggling throw**: the gate records what is smuggled in and tells
   the Judge; the Smuggling hijink itself (RR §VIII.5) and confiscation are
   the domains feature's hijinks, not built.
-- **A past venture row's duty label follows the switch now in force.** At a
-  market set to charge the city's toll (`goods.gateToll`), a row from an
-  earlier entry names its tariff or duty by the market's current switch, not
-  the switch at the time of entry. The row would store which it paid.
 - **A Judge's `gateToll` is overwritten only by repair's force.** The
   merged-repair path has no per-field force for `goods.gateToll`: only
   `repair.force` overwrites a value a Judge set, and a re-import does not.
