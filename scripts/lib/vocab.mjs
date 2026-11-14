@@ -208,29 +208,33 @@ export const DAMAGE_TYPES = {
   varies: { label: "Varies by Weapon" },
 };
 
-/** Natural weapons → default damage type (MM Overview p.12). */
+/**
+ * The natural weapons a monster's attack can be, by key and label (MM Overview
+ * p. 12). The damage type each deals is the imported `naturalWeaponDamage`
+ * table's (`monsters/natural-weapons.mjs`); nothing here states one.
+ */
 export const NATURAL_WEAPONS = {
-  bite: { label: "Bite", damage: "piercing" },
-  claw: { label: "Claw", damage: "slashing" },
-  talon: { label: "Talon", damage: "slashing" },
-  gore: { label: "Gore", damage: "piercing" },
-  horn: { label: "Horn", damage: "piercing" },
-  tusk: { label: "Tusk", damage: "piercing" },
-  stinger: { label: "Stinger", damage: "piercing" },
-  hoof: { label: "Hoof", damage: "bludgeoning" },
-  tail: { label: "Tail", damage: "bludgeoning" },
-  tentacle: { label: "Tentacle", damage: "bludgeoning" },
-  tongue: { label: "Tongue", damage: "bludgeoning" },
-  constriction: { label: "Constriction", damage: "bludgeoning" },
-  ram: { label: "Ram", damage: "bludgeoning" },
-  pincer: { label: "Pincer", damage: "slashing" },
-  spine: { label: "Spine", damage: "piercing" },
-  weapon: { label: "Weapon", damage: "varies" },
+  bite: { label: "Bite" },
+  claw: { label: "Claw" },
+  talon: { label: "Talon" },
+  gore: { label: "Gore" },
+  horn: { label: "Horn" },
+  tusk: { label: "Tusk" },
+  stinger: { label: "Stinger" },
+  hoof: { label: "Hoof" },
+  tail: { label: "Tail" },
+  tentacle: { label: "Tentacle" },
+  tongue: { label: "Tongue" },
+  constriction: { label: "Constriction" },
+  ram: { label: "Ram" },
+  pincer: { label: "Pincer" },
+  spine: { label: "Spine" },
+  weapon: { label: "Weapon" },
   // The monster sheet offers these three beyond the list above. `sting` and
   // `stinger` are one concept under two keys, and a stored monster may hold either.
-  sting: { label: "Sting", damage: "piercing" },
-  feeler: { label: "Feeler", damage: "bludgeoning" },
-  envelopment: { label: "Envelopment", damage: "acidic" },
+  sting: { label: "Sting" },
+  feeler: { label: "Feeler" },
+  envelopment: { label: "Envelopment" },
 };
 
 /** Vision capabilities (MM Overview pp.12–13). */

@@ -600,3 +600,44 @@ imports → Rules tables). The battlemap's walk of the same figures is
    *Observable:* `sizeSquareFeet()` and `sizeSquares("large")` are null, and a
    monster imported now carries Foundry's default prototype token. Re-import
    to restore.
+
+## Natural weapons and extraordinary damage
+
+The two Damage-entry tables of the Monster Overview (MODEL, "Natural weapons
+and extraordinary damage") and the first-pass import's use of them. Needs the
+Monstrous Manual connected on a GM seat and the Rules tables import run
+(Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rules
+tables).
+
+**Fixtures.** A disposable `monster` actor carrying `flags.world.fixture` =
+`monsters/natural-weapons`, named for a monster whose recipe the import knows
+(Apply Stats finds the recipe by the actor's name). Find it by the marker;
+build it with `api.fixture("monsters/natural-weapons", "Actor", {type:
+"monster", name: <a recipe's name>})`.
+
+**Steps.**
+
+1. Open the Ruledata Browser (Settings tab → Game Settings → ACKS II — Extras →
+   Imported Rules Tables → Open Ruledata Browser) on `monsters`.
+   *Observable:* `naturalWeaponDamage` lists a row per damage type with a list
+   of weapon words, and `extraordinaryRule` lists `animalHd`, `animalSize` and
+   `otherHd`; both cite MM p. 12.
+2. Select the fixture's token and run `acksExtras.importer.applyStats()` in the
+   console, then read the minted weapon items' `flags.acks-extras`.
+   *Observable:* a natural attack the stat block prints no icon for carries the
+   `damageType` the table lists its weapon word under and none where the table
+   does not list it; an attack with an icon carries the icon's type; the
+   `extraordinary` flag follows the monster's types, hit dice and size against
+   the imported edges.
+3. Override `extraordinaryRule`'s `animalSize` with another category, apply
+   again, and read the flags.
+   *Observable:* the animal's flag follows the override; clearing it returns the
+   imported edge.
+4. Take the world layer of `monsters` off the registry, as in battlemap TESTING
+   6a, apply again, and read the flags.
+   *Observable:* no natural attack carries a type except from its icon, and an
+   attack of an animal or other edge-bound type carries no `extraordinary` key.
+   Re-import to restore.
+
+**Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
+built.

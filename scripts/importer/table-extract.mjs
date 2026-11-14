@@ -1126,6 +1126,19 @@ function takeProse(window, take, spec = {}) {
       if (!m) return undefined;
       return m[1].replace(/ (\w)/g, (_, c) => c.toUpperCase());
     }
+    case "hitDice": {
+      // The first hit-dice figure written "N" or "N+K" / "N-K" before its "HD"
+      // -> {count, bonus}. A small-caps "HD" may reach the text layer as two
+      // runs, so the letters may be spaced.
+      const m = window.match(/(\d+)\s*(?:([+-])\s*(\d+))?\s*h\s*d\b/);
+      return m ? { count: Number(m[1]), bonus: m[3] ? (m[2] === "-" ? -1 : 1) * Number(m[3]) : 0 } : undefined;
+    }
+    case "sizeWord": {
+      // The first monster size category the window names (the monster sheet's
+      // size vocabulary, `monsters/config.mjs` SIZES), as its key.
+      const m = window.match(/\b(small|man|large|huge|gigantic|colossal)\b/);
+      return m ? m[1] : undefined;
+    }
     case "dice": {
       const m = window.match(/\d+d\d+/);
       return m ? m[0] : undefined;

@@ -4972,7 +4972,7 @@ export const TABLE_RECIPES = {
   // Monster figures a binder works out rather than reads off the creature's
   // own block. `importer/leader-roles.mjs` keys the ladder rows.
   monsters: {
-    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 13, 349" },
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 12, 13, 349" },
     tables: {
       // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
       // the throw value at its far right. The class-level columns between are
@@ -5185,6 +5185,43 @@ export const TABLE_RECIPES = {
         printedPage: 349,
         locate: "average specimens",
         values: [{ key: "score", find: "with attributes of", take: "int", span: 4 }],
+      },
+      // The natural weapons each damage type is printed against (MM Overview
+      // p. 12, Damage), one row per type, keyed by the vocabulary's own key
+      // (`lib/vocab.mjs` DAMAGE_TYPES). The page prints rows for some types
+      // only, so a type's row is optional and a type with none is absent. The
+      // legend of icons below the table repeats the type words, so `yMax` ends
+      // the grid above it. `monsters/natural-weapons.mjs` reads a weapon's
+      // type from these lists.
+      naturalWeaponDamage: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 12,
+        locate: "listed in the same order as attacks",
+        column: { xMin: 40, xMax: 295, yMin: 360, yMax: 415 },
+        labelMaxX: 118,
+        joinGap: 1,
+        cellColumns: [{ key: "weapons", x: 120, w: 175, row: true, pattern: "wordList" }],
+        rows: Object.keys(DAMAGE_TYPES)
+          .filter((key) => key !== "varies")
+          .map((key) => ({ key, labelRe: `^${key.replace(/al$/, "")}`, optional: true })),
+      },
+      // The rules that sort a monster's natural attacks into extraordinary or
+      // mundane damage (MM Overview p. 12): the hit-dice figure an animal must
+      // exceed, the size it must reach, and the hit-dice figure the other
+      // listed types must exceed. Each anchor is the clause naming the figure,
+      // never the figure. Which types each rule covers is
+      // `monsters/natural-weapons.mjs`'s procedure.
+      extraordinaryRule: {
+        shape: "proseValues",
+        book: "mm",
+        printedPage: 12,
+        locate: "extraordinary damage with their attacks",
+        values: [
+          { key: "animalHd", find: "is an animal with more than", take: "hitDice", span: 14 },
+          { key: "animalSize", findRe: "more than [\\d+ -]+h\\s*d\\s+and of", take: "sizeWord", span: 16 },
+          { key: "otherHd", find: "vermin with more than", take: "hitDice", span: 14 },
+        ],
       },
     },
   },

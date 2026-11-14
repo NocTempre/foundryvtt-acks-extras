@@ -29,6 +29,8 @@ import { feetPerMilePerDay, parseFigure, parseHours } from "../../scripts/import
 import { parseOptions, parseFocus, parseThrowable, parseDealtBy, parseMarkedOptions, parseSelection } from "../../scripts/importer/weapon-binding.mjs";
 import { parseFrontage } from "../../scripts/monsters/sizes.mjs";
 import { SIZES } from "../../scripts/monsters/config.mjs";
+import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
+import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
 import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
@@ -94,8 +96,9 @@ const TABLES = {
   ],
   // The frontage a monster size category occupies on a battle grid, and what
   // one of its squares is worth in feet; the load rule's two figures and the
-  // default attribute score.
-  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore"],
+  // default attribute score; the natural weapons each damage type is listed
+  // against and the edges of the extraordinary-damage rule.
+  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
   // The jumping and fall figures, the Spelunking grids' stretch and targets
@@ -522,6 +525,28 @@ VERIFY["monsters.loadRule"] = (out, recipe, fail) => {
 VERIFY["monsters.defaultScore"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.score) && !(Number.isInteger(out.score) && out.score > 0)) fail("score: not a whole figure above zero");
+};
+// The natural weapons per damage type: at least one row read, each a damage
+// type the vocabulary declares holding a list of plain words. Shape only; no
+// weapon is named.
+VERIFY["monsters.naturalWeaponDamage"] = (out, recipe, fail) => {
+  const rows = Object.entries(out ?? {}).filter(([, row]) => !isMissingRow(row));
+  if (!rows.length) fail("no damage-type row read");
+  for (const [type, row] of rows) {
+    if (!Object.hasOwn(DAMAGE_TYPES, type)) fail(`row ${type}: not a damage type the vocabulary declares`);
+    else if (!Array.isArray(row.weapons) || !row.weapons.length) fail(`row ${type}: weapons is not a non-empty list`);
+    else if (row.weapons.some((w) => !isText(w) || /[,()“”]/.test(w))) fail(`row ${type}: a weapon word carries list punctuation`);
+  }
+};
+// The extraordinary-damage rule: both hit-dice edges whole figures and the size
+// edge a size category the vocabulary declares. Shape only; no figure is named.
+VERIFY["monsters.extraordinaryRule"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["animalHd", "otherHd"]) {
+    const hd = out?.[key];
+    if (hd !== undefined && !(Number.isInteger(hd?.count) && hd.count > 0 && Number.isInteger(hd?.bonus))) fail(`${key}: not whole hit dice`);
+  }
+  if (out?.animalSize !== undefined && !SIZE_ORDER.includes(out.animalSize)) fail("animalSize: not a size category the vocabulary declares");
 };
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape

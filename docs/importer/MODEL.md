@@ -42,6 +42,24 @@ re-import or refill (`REPAIR.monster`, `minted: ["items"]`) and *Apply Stats*
 replace the actor's minted items with this build; a namesake minted before it
 has no extras at all and reads the same, so none is migrated.
 
+## A stat block's natural attacks
+
+`mapPairs` (`stats-map.mjs`) recognises a natural weapon by name stem and sets
+`flags.acks-extras.naturalWeapon`. Two figures it needs are the Judge's import
+and are passed in, never held in source: the damage type each natural weapon
+is listed against (registry document `monsters`, table `naturalWeaponDamage`,
+a `gridRows` read of the Damage table, MM Overview p. 12) and the edges of
+the extraordinary-damage rule (table `extraordinaryRule`, a `proseValues`
+read of the same page, through the `hitDice` and `sizeWord` takes). The
+callers read them with `monsters/natural-weapons.mjs`
+(`naturalWeaponDamageMap`, `extraordinaryEdges`). A weapon's type is the
+stat block's own damage icon where the block prints one, else the imported
+table's, else none is written. Which monster types each rule covers stays in
+`extraordinaryNatural`; where its answer needs an edge that was not imported,
+or a size that was not read, the `extraordinary` flag is left unwritten.
+`docs/monsters/MODEL.md`, "Natural weapons and extraordinary damage", has the
+reader's side.
+
 ## The import manager
 
 One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds the

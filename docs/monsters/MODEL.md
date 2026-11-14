@@ -262,6 +262,26 @@ note names no maximum. The Encumbered speed readout shows `speedShare` and shows
 nothing where none is imported. A blank attribute stays blank on the Classification
 tab and shows `defaultScore()` as its placeholder, or none.
 
+**Natural weapons and extraordinary damage.** Two more `monsters` tables, from
+the Damage entry of the Monster Overview (MM p. 12), read by
+`scripts/monsters/natural-weapons.mjs`. `naturalWeaponDamage` is one row per
+damage type the page files natural weapons under (keyed by `DAMAGE_TYPES`),
+each holding the list of weapon words (`weapons`); `naturalWeaponDamageMap()`
+folds it to weapon word against type, and a weapon key of
+`lib/vocab.mjs` `NATURAL_WEAPONS` takes the type of the word that equals it.
+`NATURAL_WEAPONS` itself carries keys and labels only, so a weapon the page does
+not list (and a key the module adds beside the printed ones) has no type.
+`extraordinaryRule` holds the rule's three edges: `animalHd` and `otherHd`
+(`{count, bonus}`, the hit dice a monster must exceed) and `animalSize` (the
+size category an animal must reach); `extraordinaryEdges()` answers each as
+read or null. Which types each rule covers is the importer's procedure
+(`stats-map.mjs` `extraordinaryNatural`). The Judge edits both tables in the
+Ruledata Browser like any imported table, and the override wins. Without them
+an imported natural attack carries the damage type its stat block's icon
+names, or none, and carries no `extraordinary` flag where the monster's type
+needs an edge, which the sheet reads as unticked; an incarnation, an enchanted
+creature and a humanoid are decided without any edge.
+
 **Provenance.** Each derived throw and save row stores its parts on the
 generated actor (`extras.derived`: the figure written, the member's figure
 and rating it moved from, the rating it moved to, the ladder rows between, the

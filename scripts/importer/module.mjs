@@ -35,6 +35,7 @@ import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
+import { naturalWeaponDamageMap, extraordinaryEdges } from "../monsters/natural-weapons.mjs";
 import { createDocFor } from "./poc.mjs";
 import { importTables, tableRecipeBooks, tableRecipeCount } from "./tables-binding.mjs";
 import { progressBar } from "./progress.mjs";
@@ -2154,7 +2155,11 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
   const pairs = extractStatPairs(pageData);
   if (!pairs.length) return ui.notifications.warn(`${MODULE_ID} | ${recipe.name}: no stat rows found on PDF p. ${recipe.page}.`);
   // A named proficiency resolves against the library's definitions before it is minted bare.
-  const { system, extras, items, applied, unmapped } = mapPairs(pairs, { proficiency: await proficiencyResolver() });
+  const { system, extras, items, applied, unmapped } = mapPairs(pairs, {
+    proficiency: await proficiencyResolver(),
+    naturalDamage: naturalWeaponDamageMap(),
+    extraordinaryEdges: extraordinaryEdges(),
+  });
 
   // The entry's text goes to `extras.description.appearance`, and nowhere else.
   // Each target is written as one object or path, never a parent plus a dotted

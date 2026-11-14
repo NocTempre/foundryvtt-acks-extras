@@ -10,10 +10,11 @@
 import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
+import { SIZE_ORDER } from "../monsters/natural-weapons.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 
 const TYPE_KEYS = ["animal", "beastman", "construct", "enchanted", "giant", "humanoid", "incarnation", "monstrosity", "ooze", "plant", "undead", "vermin"];
-const SIZE_KEYS = ["small", "man", "large", "huge", "gigantic", "colossal"];
+const SIZE_KEYS = SIZE_ORDER;
 const SPEED_KEYS = ["land", "burrow", "climb", "fly", "swim", "webcrawl"];
 const SAVE_CLASS_BY_ABBR = { F: "fighter", C: "crusader", M: "mage", T: "thief", D: "dwarvenVaultguard", E: "elvenSpellsword" };
 
@@ -56,51 +57,68 @@ export const damageTypeOf = (segment) => {
   return null;
 };
 
-// Natural-weapon name -> the lib NATURAL_WEAPONS enum key + that key's default
-// damage type (MM Damage table). Ordered so a more specific stem wins.
+// Natural-weapon name -> the lib NATURAL_WEAPONS enum key. Ordered so a more
+// specific stem wins. The damage type a key deals is the imported
+// `naturalWeaponDamage` table's (`monsters/natural-weapons.mjs`), passed to
+// `mapPairs`.
 const NATURAL_WEAPON_KEYS = [
-  ["bite", /^bit/, "piercing"],
-  ["stinger", /^stinger/, "piercing"],
-  ["sting", /^sting/, "piercing"],
-  ["gore", /^gor/, "piercing"],
-  ["horn", /^horn/, "piercing"],
-  ["tusk", /^tusk/, "piercing"],
-  ["spine", /^spine/, "piercing"],
-  ["claw", /^claw/, "slashing"],
-  ["talon", /^talon/, "slashing"],
-  ["pincer", /^pincer/, "slashing"],
-  ["hoof", /^(hoof|hoov|hoove)/, "bludgeoning"],
-  ["tail", /^tail/, "bludgeoning"],
-  ["tentacle", /^tentacl/, "bludgeoning"],
-  ["tongue", /^tongue/, "bludgeoning"],
-  ["constriction", /^constrict/, "bludgeoning"],
-  ["ram", /^ram/, "bludgeoning"],
-  ["feeler", /^feeler/, "bludgeoning"],
-  ["envelopment", /^envelop/, "acidic"],
-  ["weapon", /^weapon/, "varies"],
+  ["bite", /^bit/],
+  ["stinger", /^stinger/],
+  ["sting", /^sting/],
+  ["gore", /^gor/],
+  ["horn", /^horn/],
+  ["tusk", /^tusk/],
+  ["spine", /^spine/],
+  ["claw", /^claw/],
+  ["talon", /^talon/],
+  ["pincer", /^pincer/],
+  ["hoof", /^(hoof|hoov|hoove)/],
+  ["tail", /^tail/],
+  ["tentacle", /^tentacl/],
+  ["tongue", /^tongue/],
+  ["constriction", /^constrict/],
+  ["ram", /^ram/],
+  ["feeler", /^feeler/],
+  ["envelopment", /^envelop/],
+  ["weapon", /^weapon/],
 ];
-/** Resolve an attack name to { key, damage } (enum key + default type) or null. */
+/** Resolve an attack name to the lib NATURAL_WEAPONS enum key, or null. */
 function naturalWeaponOf(name) {
   const n = (name ?? "").toLowerCase().trim();
-  for (const [key, re, damage] of NATURAL_WEAPON_KEYS) if (re.test(n)) return { key, damage };
+  for (const [key, re] of NATURAL_WEAPON_KEYS) if (re.test(n)) return key;
   return null;
+}
+
+/** Whether a hit-dice figure exceeds an edge (`{count, bonus}`); null with no edge. */
+function exceeds({ count, bonus }, edge) {
+  if (!edge) return null;
+  const n = count ?? 0;
+  return n > edge.count || (n === edge.count && (bonus ?? 0) > edge.bonus);
 }
 
 /**
  * Whether a monster's NATURAL attacks deal extraordinary (vs mundane) damage,
- * derived from its types, hit dice and size by the MM Damage-table rulings
- * (the icon's colour is unreadable in text); every other type is mundane.
+ * derived from its types, hit dice and size (the icon's colour is unreadable
+ * in text). An incarnation or enchanted creature always does and a humanoid
+ * never does; an animal must exceed the animal hit-dice edge and reach the
+ * size edge; a construct, giant, monstrosity, undead or vermin must exceed the
+ * other hit-dice edge; every other type is mundane. The edges are the Judge's
+ * imported figures (`extraordinaryEdges`); a monster whose answer needs one
+ * that was not imported, or a size that was not read, answers null (unknown).
  */
-function extraordinaryNatural(types = [], hd = {}, size = "") {
+function extraordinaryNatural(types = [], hd = {}, size = "", edges = null) {
   const t = new Set(types);
   if (t.has("incarnation") || t.has("enchanted")) return true;
   if (t.has("humanoid")) return false;
-  const count = hd.count ?? 0;
-  const bonus = hd.bonus ?? 0;
-  const moreThan4plus1 = count > 4 || (count === 4 && bonus > 1);
-  const hugeOrLarger = ["huge", "gigantic", "colossal"].includes(size);
-  if (t.has("animal")) return moreThan4plus1 && hugeOrLarger;
-  if (["construct", "giant", "monstrosity", "undead", "vermin"].some((k) => t.has(k))) return moreThan4plus1;
+  if (t.has("animal")) {
+    const above = exceeds(hd, edges?.animalHd);
+    const rung = SIZE_ORDER.indexOf(edges?.animalSize);
+    if (above === null || rung < 0) return null;
+    if (!above) return false;
+    const at = SIZE_ORDER.indexOf(size);
+    return at < 0 ? null : at >= rung;
+  }
+  if (["construct", "giant", "monstrosity", "undead", "vermin"].some((k) => t.has(k))) return exceeds(hd, edges?.otherHd);
   return false;
 }
 
@@ -146,8 +164,15 @@ export function namesakeAbility(name) {
  * @param {(name: string) => object} [options.proficiency] builds the ability
  *   item for one named proficiency; the default is the unclassified namesake,
  *   the importer passes the one that resolves the name against its definitions
+ * @param {Object<string, string>|null} [options.naturalDamage] the imported
+ *   damage type of each natural weapon key (`naturalWeaponDamageMap`); a weapon
+ *   it does not hold, or all of them with none imported, gets no damage type
+ *   beyond the stat block's own icon
+ * @param {object|null} [options.extraordinaryEdges] the imported edges of the
+ *   extraordinary-damage rule (`extraordinaryEdges`); with none imported the
+ *   natural attacks carry no extraordinary mark where the monster's type needs one
  */
-export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
+export function mapPairs(pairs, { proficiency = namesakeAbility, naturalDamage = null, extraordinaryEdges = null } = {}) {
   const system = {};
   const extras = {};
   const items = [];
@@ -288,13 +313,13 @@ export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
       }
     }
     // Extraordinary applies to natural attacks only, derived from the monster.
-    const extraNatural = extraordinaryNatural(extras.types, extras.hd, extras.size);
+    const extraNatural = extraordinaryNatural(extras.types, extras.hd, extras.size, extraordinaryEdges);
     segments.forEach((dmgSeg, i) => {
       const dmg = /\d*d\d+(?:[+-]\d+)?/.exec(clean(dmgSeg))?.[0] ?? clean(dmgSeg);
       const rawName = (names[i] ?? names[names.length - 1] ?? `attack ${i + 1}`).trim();
       const nw = naturalWeaponOf(rawName);
-      // Damage type: prefer the printed icon glyph; fall back to the natural weapon's default.
-      const damageType = damageTypeOf(dmgSeg) ?? nw?.damage ?? null;
+      // Damage type: the printed icon glyph, else the imported type of the natural weapon; none otherwise.
+      const damageType = damageTypeOf(dmgSeg) ?? (nw ? (naturalDamage?.[nw] ?? null) : null);
       const name = capitalize(rawName);
       items.push({
         name,
@@ -302,9 +327,9 @@ export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
         img: DEFAULT_IMG.ATTACK,
         flags: {
           [MODULE_ID]: {
-            ...(nw ? { naturalWeapon: nw.key } : {}),
+            ...(nw ? { naturalWeapon: nw } : {}),
             ...(damageType ? { damageType } : {}),
-            extraordinary: nw ? extraNatural : false,
+            ...(nw && extraNatural === null ? {} : { extraordinary: nw ? extraNatural : false }),
           },
         },
         system: {
