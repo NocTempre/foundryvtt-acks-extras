@@ -1,0 +1,1109 @@
+# Character sheet — decision record
+
+Why the sheet is shaped the way it is: what was ruled, what was rejected, and
+what it cost. How it behaves *now* is [MODEL.md](MODEL.md).
+
+Entries are dated and append-only. A superseded entry stays, marked.
+
+---
+
+### The module's own character sheet, and it is the default (2026-09-03)
+
+User direction, verbatim: *"note this is new default preserve original"*. The
+sheet in `scripts/character-sheet/` registers at `ready` as the **default**
+sheet for `character` actors. The system's own sheet is not touched, not
+unregistered and not wrapped: it stays in the sheet registry, a Judge can set
+it back per actor or for the world through Foundry's Sheet Config, and every
+injection this module makes into it (wear buckets, the class picker, the
+casting strip, the roster button, the Storage tab, the class-modifiers
+section) keeps working there unchanged. No field moves and nothing is
+migrated: the new sheet reads and writes the same core paths the old one did,
+so switching an actor between the two loses nothing either way.
+
+**Rejected: subclassing the system's sheet.** The whole point of the design
+is a different layout — the band in the window header, the rails around the
+portrait, tabs organised by play rather than by document type — and a
+subclass that moved core's nodes around would depend on the shape of core's
+templates for every one of them. The item sheet went through that once
+(equipment DECISIONS 2026-08-23) and the ruling there transfers whole: the
+surface is this module's own markup over the module's own view-model, and
+nothing in it depends on how the system renders.
+
+**Rejected: registering it as an alternative only.** Conservative, and what
+the first draft of this entry did — but the user's direction is the default,
+and "the original is preserved" is the safeguard that makes that safe: a
+world that prefers the old sheet is one Sheet Config click away, and the old
+sheet's injections are still maintained.
+
+**Refined 2026-09-04** (new evidence: the user's ruling that the sheet
+defaults are a world-level selection between Foundry's, the system's and this
+module's, asked once at startup). `makeDefault` here is now this module's
+declared choice for the lib's default-sheet ladder to read; whether a world
+opens on it is the `uiPreset` world setting — lib DECISIONS 2026-09-04. The
+module's sheets remain the shipped default, so nothing above is reversed.
+
+### The design canvas is the specification (2026-09-03)
+
+The layout, the tab set, the rails, the tones and the dedup ledger were
+worked out on the Claude Design canvas *Extras Character Sheet* across some
+thirty rounds with the user; the working files are the gitignored
+`design/character-sheet/` (`build.mjs`, `shared.mjs`, the artboards). The
+rulings that came out of it, so they survive the canvas:
+
+- **Style follows the printed sheet by way of the vendored tokens**; organisation
+  follows play. Rolls is the one-stop dashboard, the rails carry what is asked
+  for mid-fight, and everything else is filed by kind.
+- **"Anything in two places has to pass a justification round."** The
+  sanctioned exceptions, and why each stands:
+  - *Rolls* repeats every throw with its target — so nobody hunts a die
+    mid-round. Every other surface shows a throw as the d20 alone; the target
+    is the tooltip and this tab.
+  - *HP*: the rail heart holds the current total and the fill is the fraction;
+    the full pair, current over maximum, is edited on Stats. One is the gauge,
+    the other the pen.
+  - *Movement and AC*: the rail cell shows the number in force for the mode
+    you are in; Stats lists the table. Same shape as HP.
+  - *Save and adventuring targets*: Rolls shows them, Stats edits them.
+- **Gone from the header**: the Class badge (the tab and the glyph carry it),
+  the encumbrance cell (the Load bar is the one place; the movement cell's
+  colour is the alert), the THROW tags and targets on ability rows, the fixed
+  coin ledger, and the roster and rest cells (character actions, not sheet
+  tools). The far-right rail is sheet tools only.
+- **Attribute checks are not rolls in ACKS II**, so the attribute boxes carry
+  no die. Hit dice are a stat, not a throw; the Stats page offers the one
+  roll that writes a new total, for a monster or a fresh sheet.
+- **Counts in the tab strip only where "how many" is the reason to open the
+  tab** (Followers, Effects). A gold badge is a choice waiting and disappears
+  when answered.
+- **Six tones, one meaning each**: green a positive status, red a negative
+  status or harm, amber a mundane thing burning down, violet magic running,
+  gold specialization and achievement, burgundy identity and selection.
+- **The fold** hides everything but the band, the portrait and the rails, and
+  puts the starred rolls, timers and counts in a bar beside the unfold
+  chevron. No XP bar folded; no targets in any rail cell, folded or not.
+
+**Not built from the canvas** (each is on [ROADMAP.md](ROADMAP.md)): the
+staggered hex rails of option D, the medallion header (B) and the vitals
+strip (C), the dashed "any three / any five / restricted" drop slots on the
+training list, and the Magic and caster-Effects boards that were never drawn.
+
+### The rails draw Foundry's icons (2026-09-03)
+
+The canvas drew its own stroke glyphs — a heart with the total inside, a
+shield with the AC inside, two hands open or clenched. The equipment feature
+ruled on 2026-08-23 that *the rails draw Foundry's icons and no mark is this
+module's own drawing*, and that ruling was not reopened: the user was told
+of the conflict during the design pass and left it standing. So every glyph
+on this sheet is a Font Awesome icon the platform ships. The two shapes the
+canvas composed — a figure inside a glyph, two hands side by side — are
+composed here too, from those icons: the number is text overlaid on the
+heart or the shield, and the grip cell is two hand icons, each open or
+clenched, drawn together on one haft for a two-handed weapon. What was
+bespoke on the canvas was a design-time stand-in, not a spec.
+
+### Core's sheet is dressed by injection; this sheet asks for what it wants (2026-09-03)
+
+Eleven render hooks in this module decorate the system's character sheet
+by DOM injection. Every one of them gates on the actor's type, and most gate
+on a selector core's template carries (`.sheet-inventory`, the class input,
+`.active-effects`), so on this sheet they fall through harmlessly. Three did
+not, and were gated rather than left to guess:
+
+- the casting strip fell back to `root.querySelector("header")` when no class
+  input was found, which on any non-core sheet is the WINDOW header — the
+  strip landed between the frame and the content. The fallback is now core's
+  own `.sheet-header`; this sheet mounts the strip where its Magic tab wants
+  it, through the exported builder.
+- the Storage tab injected itself into any sheet with a primary tab strip.
+  Storage here is the "Kept elsewhere" rule on Equipment, so the injector now
+  skips the module's own sheets.
+- the roster button landed in every character sheet's window header. Roster
+  here is a chip on Followers, beside the cards it manages.
+
+The gate is one predicate, `ownsSheet(app)` in `lib/util.mjs`: an application
+whose declared classes carry `acks-extras`. The rule it states: **an
+injector dresses the system's sheet; a sheet this module draws itself calls
+the feature's builder and places the result.** The class-modifiers section
+and the casting strip export exactly such builders, so the two sheets render
+the same section from the same code and cannot drift.
+
+### Where the fold and the pins live (2026-09-03)
+
+The canvas said the fold "remembers its state per user, on the actor's
+flags". Built on the **user document** instead (`flags["acks-extras"].sheetFold`,
+keyed by actor id): a user can always write their own flags, so an observer
+seat — a player looking at another's sheet, a Judge on a player's character —
+can fold too, where an actor flag would need ownership and silently not
+stick. The fold is a viewing preference, and viewing preferences belong to
+the viewer.
+
+The **pins** are character data — what this character's player wants at hand
+— so they live on the actor (`flags["acks-extras"].sheet.pins`), the way an
+item's favourite lives on the item. A pin on an ITEM'S roll is that item's own
+`system.favorite`, which core already stores and the item sheet already
+toggles; the actor flag carries only the rolls no item owns (saves,
+adventuring, initiative, the healing rate) and the starred timers and
+resources. One fact per thing, and the folded bar reads both.
+
+### The training list keeps the lib vocabulary (2026-09-03)
+
+The canvas drew the RAW weapon hierarchy — the six narrow categories of the
+book, with bows and crossbows as one — and noted that the lib's `SLOT_VOCAB`
+splits bows from crossbows and adds an unarmed chip. That vocabulary is
+shared by the follower card, the inventory strip and the class-modifiers
+editor, and changing it is a cross-feature decision the user has not ruled
+on. So the Stats tab renders the explicit list FROM the vocabulary as it is:
+each of the eight lib classes as a collapsible bucket, opened to the
+individual weapons the equipment feature's own table files under it, lit by
+the same proficiency test the attack roll uses. Adopting the book's six is
+[ROADMAP.md](ROADMAP.md).
+
+### Rolls the system has no method for (2026-09-03)
+
+Initiative and the two surprise throws are on the Rolls tab because the
+canvas put every throw there. The system rolls initiative only through the
+combat tracker and surprise only through the Judge's Surprise Matrix, so the
+sheet does this: a character who is a combatant in the active combat rolls
+initiative through the tracker (core's formula, and the initiative-card
+patch applies); otherwise the row rolls the initiative die with the
+character's modifier to chat. Surprise rolls the die with the character's
+own modifier and posts the result, and states no threshold — the matrix is
+the Judge's, and the sheet does not second-guess it.
+
+### The last right-rail cell is the character's own party (2026-09-03)
+
+User direction, verbatim: *"the bottom right rail, I want it to be the actors
+party, so their henchmen and summons by default with a little # of how many
+(summons add a * per, eg 1** is 1 hench 2 summons) are on the scene and
+color shift if suffering a calamity. it promotes to the formation if in one
+on the scene."* Built exactly so, with three readings the direction left to
+be settled:
+
+- **"The party" is the henchmen the system and the henchmen feature already
+  record** — `henchmenList` and the monster henchmen list — plus the
+  summons. **A summon is a creature whose actor names this character as its
+  summoner** (`flags["acks-extras"].summonedBy`, the character's uuid), because
+  nothing in the module modelled a summon before this: the formation feature
+  files "a summoned thing" under not-a-person for XP, and the initiative card
+  mentions a summoner's group, neither with data behind it. The party menu is
+  where a Judge binds one — the controlled tokens become this character's
+  summons — and releases them. The flag lands on the summoned actor, which
+  for an unlinked token is that token's own delta, so a summoned monster's
+  three tokens are three summons and go away with their tokens.
+- **"Suffering a calamity" is the henchmen record's `pendingCalamity`**: set
+  when a managed hireling is brought to zero hit points and cleared when they
+  are healed above it. That is the one calamity state the module holds per
+  henchman; the tone is the harm red, and it counts every henchman of the
+  character, present or not — a follower down in the next room is still your
+  calamity.
+- **"On the scene" is the scene on the canvas**, else the world's active
+  scene; the formation "is on it" when its party token is. A formation whose
+  token is elsewhere leaves the cell in party mode and is named in the
+  tooltip.
+
+**Rejected: counting formation members with the asterisk notation.** A
+formation's members are people in a marching order, not a summoner's
+creatures; the cell in formation mode shows the plain count of members
+present and opens the party sheet, which is where the order is read.
+
+### Conditions ride on the save that clears them (2026-09-03)
+
+A status effect on the character rides on a left-rail save cell, keyed by
+status id: the Foundry ids for restraint, paralysis and the like ride on
+Paralysis; poison, disease and bleeding on Death; burning, frozen, shock and
+corrosion on Blast; sleep, fear and a curse on Spells. A status with no
+mapping takes the save its source names, when the effect's origin is an item
+with a `save` field. The book names the save only for escapes and
+enervation; everything else takes the save of what imposed it, which is what
+the origin knows. The mapping is a table in `constants.mjs`, so a world that
+adds its own conditions extends it in one place.
+
+An effect that CHANGES a save — the global save modifier or one save's value
+— colours that cell with the signed number, green when it helps and red when
+it hurts, split when both are in force. That reading is data-driven and
+replaces the canvas's illustrative "Bless +1" on the Spells cell: Bless does
+not touch saves, so it is a timer on Effects and nothing on the rail.
+
+### Training is edited once, on Stats, at the weapon (2026-09-04)
+
+**Asked.** Three surfaces edited the class training effect and disagreed on
+grain: the Effects tab's class-modifiers grid (eight weapon chips, five
+armour icons), the Stats tab's buckets (class toggles beside an explicit
+weapon list that could not be toggled), and core's Active Effect config —
+reached from the Stats note's EFFECTS button — a fixed-height window outside
+the scroll contract that offers three CSV text fields. User direction:
+training is one thing, edited in one place, on the Stats tab; the grid
+leaves the Effects tab; the core window is no longer a route; **every armour
+rung and the shield are shown explicitly** (overruling the Stats note's
+"heaviest only · lighter is implied"); the weapon list regroups by book tier
+and by size and can be shown ungrouped, with the individual weapons as the
+atomic units that move between groups; a pencil arms editing; a badge marks
+a departure from what the class prints; owners may add training by hand.
+
+**Ruled.** The Stats tab's Training block is the editor. Its units are the
+36 weapons of the equipment table (`equipment/training-view.mjs`), each one
+pill with one glyph, placed once per organisation by first-match against the
+grammar's own tokens: *by category* (the seven narrow tokens), *by size*
+(the four `melee:<size>` clauses, then `missile:all` — the broad kinds), *no
+grouping* (`all`). A group header is a control for its token; a member is a
+control for that weapon. Anything an organisation does not place lands in a
+trailing *Elsewhere* group — empty for the shipped table, present so a
+future weapon cannot vanish. The organisation is a viewing preference and
+lives on the user (the fold's ruling, above); the pencil and the open groups
+are sheet state.
+
+**The grant is always written canonically.** A toggle computes the unit set
+and writes the shortest clause list that covers exactly it, in a fixed order
+(`canonicalGrant`). This supersedes the classes ruling of 2026-09-03
+("append on ON, expand only the clause that must expand on OFF, never
+collapse back to `all`"). New evidence: that ruling's cost — a size clause
+widening to a whole category because a class pill could not say "swords of
+medium size" — existed only because the editor's finest control was the
+class; with a control per weapon every expansion is lossless and every
+collapse is one click reversible, so nothing needs to stay explicit for a
+later edit's sake. The bare `crossbow` is a category in the grammar and a
+weapon in the table, so the one weapon is written `weapon:crossbow`
+(`equipment/proficiency.mjs`), the only token the grammar gained.
+
+**Provenance explains; it never decides.** Each pill's lit state is still the
+strips' and the attack roll's own test. Beside it, `trainingProvenance`
+lists every source that grants the slot — the class effect, another effect
+by name, an ability item by name (the bridge now records which item
+contributed which token), the sheet's own flag — and a pill lit by no class
+source refuses the click in edit mode with the source in its tooltip, since
+a control that will not switch off must say why. The badge compares the
+class effect's grant to the class document's printed one (`editedSlots`,
+reading the document through the effect's `fromClass` uuid plus the chosen
+path options) and is silent when the document is gone.
+
+**Rejected:** shipping the page's numbered pick-combinations (broad choices
+i–vi, "any five") as a fourth organisation. Those are the custom-class
+builder's option table, content under the IP doctrine; a *book picks* view
+would read a registered table the importer emits and appear only in a world
+that imported it ([ROADMAP.md](ROADMAP.md)). The tier CAPTIONS ship: the
+kind of a token is what `classifyGrantToken` already distinguishes.
+
+**Rejected:** keeping the Effects-tab grid on this sheet as a second view.
+Two controls for one document disagree on screen the moment one of them
+rounds; the training row stays in *Managed by the module*, locked, with its
+control sending the reader to Stats. The system sheet's injected grid
+stands, at class granularity, until that sheet is retired.
+
+*Cost:* a grant edited by hand no longer round-trips to the spelling the
+importer wrote — `missile:all,melee:tiny,melee:small,melee:medium` comes
+back from an ON/OFF pair as the same four clauses, but a class that printed
+`swordDagger,spearPolearm` returns as `sworddagger,spearpolearm`. The
+profile compares case-insensitively; only a hand-read notices.
+*Learned live, same day:* the first live pass could not open the sheet for
+any classed character — `printedTraining` called `flatMap` on the class
+document's `effects`, an EmbeddedCollection that has `map` and `filter` and
+no `flatMap`, and every offline mock is a plain array. Two guards came out
+of it: the read spreads the collection first, and the Stats build wraps its
+two explainers so a throw there leaves the pills lit and unannotated rather
+than the sheet unrendered. The test mocks the document's `effects` as a
+Collection-like object so an array cannot hide it again.
+### The XP bar is a slider as well as a button (2026-09-04) — SUPERSEDED the same day, below
+
+User direction: *"I would also like to make the xp bar draggable instead of a
+button."* The bar opened the Class tab, where the XP field lives; the request
+is to set the number on the bar itself.
+
+Ruling: a press that travels sets the experience by where it is released,
+mapped across the bar's width and clamped to the threshold; a press that does
+not travel is still the click that opens the Class tab. The fill and the label
+follow the pointer live, the write lands on release, and the re-render settles
+the band. The Class tab's field stays — it is where a number past the
+threshold, or one with no threshold to map against, is typed.
+
+Rejected: replacing the button outright. The Class tab is where the level-up
+lives, and the bar is the one control on the band that points there; a slider
+that could not open it would strand the gold band's promise.
+
+Cost: a click after a drag is swallowed for a moment so the release does not
+also open the tab; a bar with no threshold is not draggable, since there is
+nothing to map the width to.
+
+### The XP bar is a reading, and a press on it drags the window (2026-09-04)
+
+Supersedes the slider ruling above, made earlier the same day. **The new
+evidence is the user's own reading of the request**, given once the slider
+was built and live-verified: *"Not at all what I want. It stays a display
+only, not a control."* "Draggable instead of a button" meant the bar should
+behave like the rest of the title bar — a press on it moves the window — not
+that the bar should set the number. The first ruling read "draggable" as a
+gesture on the value; the author meant a gesture on the sheet.
+
+Ruling: the bar is a plain element with no action and no listeners. The band's
+pointer guard stops only its controls, so a press on the bar reaches Foundry's
+header drag exactly as a press on the title does. XP is typed on the Class
+tab, which the class glyph before the name still opens.
+
+Cost: the bar no longer opens the Class tab on click. Accepted; the glyph
+beside it does, and a reading that is also a button was the confusion the
+report names.
+
+### Changes are replayed by type, and the clock reads the unit it was given (2026-09-05)
+
+Evidence: one bridge `sheet` read of a character logged eight Foundry 14
+deprecations — the `CONST.ACTIVE_EFFECT_MODES` enum, the numeric `mode` of
+every change, and the `rounds`/`turns`/`seconds` getters of every effect's
+duration — all removed in Foundry 16. Under them the sheet counted only
+`add` changes: a `subtract` was not read at all, an `override` or a
+`multiply` was summed as if it were an addition, and the clock knew rounds
+alone.
+
+Ruling: the lib's effect scanner is the one reading of what a change does.
+It replays the enabled changes on a field, in Foundry's priority order, from
+the field's source value — add, subtract, multiply, override, upgrade and
+downgrade each by Foundry's own arithmetic — and attributes to each effect
+the movement it caused. A save modifier is that movement: an override reads
+as the difference it makes, a lowered target as help. The CSV grants honour
+subtract and override the same way. The clock reads the unit the effect was
+given — rounds and turns for the game, seconds, minutes and hours for the
+clock, days, months and years for the calendar — and counts down through
+Foundry's prepared remaining, which the world calendar converts; a rounds or
+turns effect outside combat, which Foundry restates in seconds, is converted
+back through the world's round or turn length. The rider and the Effects tab
+print each change with a glyph for its type.
+
+Rejected: reading a modifier as the derived value minus the source. It would
+have been the system's arithmetic rather than a second copy of it, but it
+cannot run under Node, it says nothing about which effect did what, and a
+derived value the system rounds or clamps would hide an effect entirely.
+
+Rejected: keeping the numeric-mode reading behind Foundry's migration shim.
+Foundry 16 removes it, and the shim's once-per-session log is the first thing
+every bridge client sees.
+
+Cost: a `custom` change reads as nothing, since only the package that wrote
+it knows its meaning; an `override` on a CSV grant replaces the set where it
+used to add to it (superseded 2026-11-10: a CSV grant is a union, and a
+custom change on one grants too — docs/lib/DECISIONS.md, "A CSV grant is a
+union"); a thirty-second effect reads `30s` where it used to round
+up to `1m`; Foundry counts a month's remainder up on both ends, so a fresh
+two-month effect stands at its total where Foundry's own label says three;
+and a rounds effect that outlives its combat restates from its full value,
+as Foundry's label does, not from what was left when the combat ended.
+
+### The hands span, and the bar shows what is forgiven (2026-09-05)
+
+Field report: *"two-hands should not be a separate bucket in equipment,
+rather two handed items bridge the main and off hand"*, and *"show the true
+weight as a phantom extension on the bar dashed with no fill so the effect
+is visually explained and clear its working"* — the second after finding
+that a harness makes the number on the sheet smaller than the kit adds up
+to, with nothing saying why.
+
+Ruling: the vocabulary keeps its both-hands place — the lib's resolver and
+core's buckets answer "where is this held" with it — and the sheet folds it.
+When a weapon is held in both hands, the Main hand and Off hand places become
+one row carrying both labels behind one bracket, keyed by the main hand so a
+drop on it still draws; when nothing is held in both hands the two stay
+separate targets and no both-hands row is listed. The Load bar draws two
+readings on one track: the burden core computes as the fill, and the true
+weight — the lib's `carriedWeight6`, everything on the body at what it
+weighs — as a dashed, unfilled phantom running on from the fill. The label
+reads both figures and the tooltip says how much is forgiven. Where the two
+agree, or a correction adds weight, there is no phantom.
+
+Rejected: removing the both-hands place from the vocabulary. It is the true
+answer to where a thing is held, core's inventory and the wear resolver both
+use it, and the report is about the listing, which the sheet owns. Rejected:
+rescaling the track to the true weight so the fill never reaches the end.
+The breakpoints are core's percentages of the maximum, and the bar has to
+keep telling the truth about slowing. Rejected: a setting to hide the
+phantom. It appears only while a rule is working, which is the moment it is
+wanted.
+
+Cost: the folded row's over-capacity mark is the sum of two capacities rather
+than a rule of its own; the over-capacity class is `is-full`, since `is-over`
+is the drag state every drop zone shares and a place wore both; the forgiven
+weight is a tooltip beside the label rather than a third figure on it, so a
+reader who never hovers sees the two figures and the dashed gap between them.
+
+### Magic slots and equip slots are different counts (2026-09-05)
+
+Evidence, the same day as the entry above: that entry marked a place over
+capacity by counting everything at it, and the owner ruled on a helm over a
+coif reading as two of one — a magic item takes its form's slot, a piece of
+armour or a weapon takes the place, and clothing takes neither; a magic item
+stacks over plain wear.
+
+Ruling: the lib counts a place twice (`slotUse`): magic items against the
+Treasure Tome's capacity for the form, armour and weapons against the one the
+body allows, and the place is over when either count is. Clothing and plain
+gear count against neither. The badge shows the larger count and carries both
+in its tooltip; the folded hands row is over when the equipment across both
+hands is more than two hands hold. "Magic" is the markets feature's
+declaration on the item or a magical variation inside it.
+
+Rejected: counting plain gear against the form. A coif under a helm, an amulet
+beside a torc and a pouch beside a scabbard are ordinary wear the rules never
+refuse. Rejected: a physical capacity per place. The one physical exclusion
+the body has is a second piece of armour or a second weapon at one place, and
+that is a type test rather than a number per place.
+
+Cost: a plain ring is jewellery, so three of them show no warning — the
+Tome's rule is about magic rings — and an unmarked magic item counts as plain
+until it is declared magic or wears a magical variation.
+
+### The canvas figures are a specification, scaled by a ratio (2026-09-07)
+
+Field report: the `fontScale` client setting had no effect on this sheet
+while it worked on every other ACKS surface. Measured live, dragging it from
+14 to 18 moved **26 of ~865 elements** — the sheet was written in absolute px
+(63 `font-size` declarations, 62 of them literal, and 213 px lengths in all)
+because the design canvas is stated in px. Two files in the module were off
+the `--acks-fs-*` ramp; every other stylesheet was already on it.
+
+Ruling: the canvas figures stay exactly as drawn and are **multiplied by
+`--acks-extras-k`**, the type knob expressed as a ratio (`calc(var(--acks-fs-base)
+/ 14px)`, published on `.acks-extras` in `styles/lib.css`). The whole drawing
+scales — type, cells, rails, portrait, gaps — so the sheet at 18 is the sheet
+at 14, larger. A px literal that survives in the stylesheet is therefore one
+of exactly two things, a **stroke** (0 and 1px) or a **floor**, which is the
+rule a diff is read against.
+
+Rejected: **snapping the 16 canvas sizes to the vendored ramp.** The ramp is a
+book scale and has one step between 9.38 and 12.46px; 40 of the 63
+declarations live in that gap. Snapping would move them by −6% to +25% *at the
+default setting*, redrawing the sheet for every user in order to fix a knob.
+A form scale wants six steps where a book wants one.
+
+Rejected: **CSS `zoom` on the sheet root**, the one-line answer. It puts the
+frame in a second coordinate space that ApplicationV2 mixes with the first:
+the window travels 1.29px per 1px of pointer drag, the implicit-height branch
+re-measures and re-writes an inflated height on every render, and the
+off-screen clamps compare a zoomed paint against an unzoomed figure. It also
+scales the hairlines the token file keeps at whole pixels, and double-scales
+every shared component that already rides the ramp.
+
+Cost: a large mechanical diff, and a second file (`equipment-item-sheet.css`)
+in the same shape still to follow. The two `@container` breakpoints moved from
+px to `em` so they resolve against the sheet's own size and collapse the row
+when the *drawing* outgrows the frame — verified live: the place column
+collapses below 840px at base 14 and below 1080px at base 18. The opening
+width follows the ratio in `sheet.mjs` (`atTypeScale`), while `min-width`
+deliberately does not: scaling the floor to 823px would push it past those
+breakpoints and disable the narrow layouts for the user most likely to need
+them.
+
+Two cascade defects surfaced with it, both invisible offline. Core pins a
+font-size on `.window-content` **and** on `.window-header`, and those are the
+elements the sheet body and the title band inherit from — so the size set on
+the frame reached neither. And core's `flex: 0 0 36px` on the header outranks
+this sheet's `height: auto`, which had been clipping the 45px band at both
+edges since it shipped; `flex: 0 0 auto` is what makes the declaration real.
+
+### The adventuring throws are listed from the system's fields, once (2026-09-16)
+
+*Superseded in part, 2026-11-11 ("An Adventuring row is the better of the
+stored figure and the held skill's throw"): the row's figure and roll are no
+longer the stored field alone. Listing once, and the five `adv:*` ids, stand.*
+
+The Rolls tab listed the five adventuring throws twice once a character held
+the Adventuring proficiency, which chargen and the level-up wizard both grant:
+once under Adventuring from `system.adventuring`, and again under
+Proficiencies & powers from the item's own throws.
+
+**Ruled.** The Adventuring group is the one listing, read from the system's
+fields and rolled through `actor.rollAdventuring`; the proficiency's item lists
+no rows. The fields are what Stats edits (the justification round above), what
+core's own sheet rolls and what formation's party rolls read, so a Judge's
+edit reaches every surface through them.
+
+Rejected: **the item's throws as the Adventuring group.** It would route the
+five through the abilities roller, but the rows would exist only while the
+proficiency is owned, their pin ids would change the moment it is granted
+(`adv:climb` to `abl:<id>:climbing`), and a Stats edit would stop showing on
+the tab.
+
+Cost: an Adventuring item edited by hand to carry a throw that is not one of
+the five lists nothing for it here; it still rolls from the Abilities tab.
+
+### An editable field holds the stored value (2026-09-16)
+
+Ruled: every input the Stats and Class tabs submit is bound to
+`actor._source.system` (`storedSystem` in view-model.mjs), never to the
+prepared `actor.system`; the read-only figures — the AC breakdown, the
+initiative display, the retainer category — stay on the prepared data,
+because they are arithmetic, not a pen. A field an Active Effect touches is
+marked at render from `actor.overrides` and its tooltip names the prepared
+figure, so the Judge still sees what is in force.
+
+Evidence: a field report of a fighter whose AC modifier and Avoid Surprise
+climbed by one on every recalculation after a proficiency's effect landed on
+them. Reproduced with one effect adding 1 to both paths and two submits of an
+unrelated field: the stored modifier went 0 → 1 → 2, because the sheet submits
+on change and the whole form goes with every change, so an input showing the
+prepared value writes the effect's contribution back as the new base on every
+keystroke elsewhere. The system's own Tweaks dialog reads `_source` for the
+same reason, which is the precedent.
+
+Rejected: submitting only the changed field. It would stop the compounding
+without stopping the lie — the input would still show the effect's sum as if
+it were the Judge's entry, and a deliberate edit to that field would still
+write the sum plus the edit. Also rejected: leaving the prepared value in the
+input and subtracting the override on submit; the override is not always
+additive (an OVERRIDE mode replaces), so the subtraction is wrong whenever it
+matters most.
+
+Cost: a field with an effect on it shows a figure that differs from the
+figure the sheet rolls with, and only the mark and its tooltip explain why.
+The guide says so. The Class tab's `level` stays prepared for the tab's own
+logic (the XP bar, the awards lookup) and only its input is stored-sourced —
+two readings of one field in one file, named `level` and `levelField`.
+
+### A token's move does not re-render the sheet (2026-09-22)
+
+Same report as classes DECISIONS 2026-09-22 (slow sheets at a table of five on
+one small server). Every open character sheet re-rendered, debounced, on every
+`updateToken` on the current scene, because the party cell counts the scene's
+tokens — and a move is nearly every token update on a live scene, so each step
+re-rendered every open sheet on every seat.
+
+**Ruled.** An update re-renders only when it touches a field the party cell
+reads (`PARTY_TOKEN_KEYS`: which actor, whether it is linked, its name and
+texture, an unlinked token's actor data). Creating and deleting a token still
+re-render.
+
+Cost: a field the cell starts reading later must join that list, or the cell
+goes stale for updates of that field alone.
+
+### Core windows are reached through the sheet registry, not reimplemented (2026-09-22)
+
+Recorded from the header of `scripts/character-sheet/core-bridge.mjs`.
+
+**Ruled.** A bridge cell calls the system's own action with `{actor}` as
+`this`, so it opens the very window core's sheet opens: reuse of the system's
+windows through the system's own registry, not a copy of them. If the system
+renames an action, the cell says so rather than opening nothing.
+
+### An ability with no throw is a row that posts its card (2026-09-23)
+
+Reported: a starred ability that makes no throw never reached the folded
+card, because the Rolls tab built rows only from throws and the pin bar lists
+rows.
+
+**Ruled.** Every ability that makes no throw, other than Adventuring, is a row
+in its own *Post to chat* group, and clicking it posts the system's item card —
+the card the Abilities tab's eye already posts. Pinning it is the item's own
+`system.favorite`, as for a throw row, so nothing new is stored.
+**Rejected.**
+- *Rows for starred abilities only.* A row that exists only while pinned
+  vanishes the moment it is unpinned, taking the pin control with it.
+- *The throw row's id shape.* `abl:<id>:<key>` dispatches to the roller with a
+  throw's key, which a post row does not have; it is its own kind, `post:<id>`,
+  dispatched to the item card.
+
+Cost: a character with many passive abilities has a long third column.
+
+### A stack divides by a count and joins by a drop (2026-10-01)
+
+The ruling is docs/lib/DECISIONS.md, "Currency is one stack with one count,
+weighed by how many make a stone (2026-10-01)", which gives a stack
+`divideStack` and `joinStacks`. This sheet is their surface.
+
+**Ruled.** The scissors on a stack with no wear slot ask for a count and
+divide it off. Dropping a row on another row of the same thing joins the two.
+The split control keeps its meaning where a stack can be worn: one out, to
+wear it.
+
+**Rejected.** A separate join control: the drop already says which two rows,
+and a control would need a picker. Dividing through the item's own sheet
+only: the count is on the row, and a purse is divided to hand part of it
+over, which starts from the list.
+
+**What it cost.** Two controls draw the same glyph, told apart by their
+tooltip and by which rows carry them.
+
+### The official sheet's field names ship hashed (2026-10-15)
+
+Asked for: a reader that turns a filled official character sheet into a
+Foundry character. The official sheet is a fillable form of 711 fields.
+
+**Ruled (owner, 2026-09-30).** The form is read through its fields, and the
+field table ships each field's name only as `hash36` of it
+(`pdf/form-keys.mjs`), mapped to this module's own key. The pairing of name
+and hash is kept on the local rules shelf, never in this repo. A field is
+found by hashing the name the reader's own copy carries, which proves the
+field is the one meant without saying what it is called.
+**Rejected.**
+- *Field names verbatim.* They are the publisher's identifiers for its own
+  form: a vocabulary that would ship in this module. The IP doctrine's name
+  rule applies, and the hash costs nothing at runtime.
+- *Position-matching a printed sheet.* The first assessment of the request
+  assumed the sheet had no form fields. A printed sheet would need its label
+  coordinates mapped, which is brittle across printings and ships a map of
+  the page.
+
+**What it cost.** A printing of the form with renamed fields reads as "not
+the form" until the table is regenerated from that copy. The table cannot be
+read back into names, so what a key means lives only in the module key.
+
+### Import and export are one bridge (2026-10-15)
+
+**Ruled (owner, 2026-09-30).** Export — writing a character into the
+Judge's own blank copy of the form — ships with the import: one field table
+both ways, one record. The module ships no copy of the form.
+
+An import records every box it read (`flags.acks-extras.sheetPdf.fields`).
+An export reads everything the character has a field for off the prepared
+actor, and takes everything else from that record. A proficiency the record
+read from the class box goes back there, because nothing on the character
+says which box it came from.
+The record also lists the names the world could not answer, and an export
+writes them back into their boxes.
+**Rejected.**
+- *Export without a record.* The domain page, tick grids and a weapon's
+  initiative would come back blank from a sheet that went in holding them.
+- *Writing back every recorded name the character lacks.* That would bring
+  back a proficiency the reader deleted after the import. Only names that
+  never landed are written back.
+
+### A disagreement is a check, never a write (2026-10-15)
+
+**Ruled.** The import binds the class first, lands abilities, gear and
+spells, and only then writes plain values. A class-decided value the sheet
+disagrees with is a check, with *Keep sheet value* for a house ruling. A
+value an Active Effect sets now is reported and never written ("An editable
+field holds the stored value", 2026-09-16). Values the system derives are
+checks only.
+**Rejected.**
+- *The sheet wins.* A hand-kept sheet carries arithmetic slips and stale
+  values, and would overwrite the class's figures with them in silence.
+- *Writing the base as the sheet's figure less the effect.* Nothing says
+  which effects the sheet's figure already included, or when it was written.
+
+A re-import does not bind a class the character already holds at that
+level. Found live: binding again rewrote a kept save back to the class's.
+It also recreated the class's training, and in the gap the equipment loadout
+wrote a shield penalty that the import's checks read as one less AC. The
+next read was right again.
+
+**What it cost.** A reader importing a house-ruled character presses Keep
+once per value the class disagrees with, once per character.
+
+### What has no field is one notes block, replaced on re-import (2026-10-15) — the domain page SUPERSEDED 2026-10-17, below
+
+**Ruled.** Unmatched names, the domain page and everything else with no
+field become one block in the character's notes. The record holds the exact
+block, so a re-import replaces it instead of stacking a second.
+**Rejected.** *A journal entry per character*: another document to find,
+own and delete. *Flags only*: the reader would never see it.
+
+**What it cost.** Once the reader edits the block it no longer matches, and
+the next import appends a fresh one beside it.
+
+### Coin is never built from a rate (2026-10-15)
+
+**Ruled.** Coin is credited from the character's own coin of that metal,
+else the world's coin named for it. A box with neither is *not found*.
+**Rejected.** *Building a coin item.* How many coins make a stone is a
+printed value (`.claude/rules/ip-doctrine.md`).
+
+**What it cost.** A world that holds no coin items imports no coin. The
+box's text is kept in the notes and written back by an export.
+
+### Henchmen are created only on request (2026-10-15)
+
+**Ruled.** A slot naming a roster member updates that henchman. A slot
+naming no one is created and enrolled only when the reader ticks the
+window's box and the seat may create characters; otherwise it is kept in
+the notes whole.
+**Rejected.** *Always create*: one import could make six actors nobody asked
+for. *Never create*: the sheet's henchmen page would come in as text only.
+
+**What it cost.** A created henchman's roster record carries the manual
+origin and no location, as a hand enrollment does.
+
+### A weapon listed off the hands is carried, and exported back there (2026-10-15)
+
+Found live: a sheet listing a dagger at the belt and a shield in the off
+hand imported with the dagger drawn into the off hand and the shield
+unequipped, and the AC check read one lower. `placeItem` draws a weapon put
+at any place, which is the sheet-drop gesture it was lifted from.
+
+**Ruled.** The import draws a weapon only into a hand. A weapon listed at
+the belt, on the back or worn stays carried. The export lists a still-carried
+weapon at the place the record read it.
+**Rejected.** *Changing `placeItem` for the sheet's drop too.* Dropping a
+weapon on a place to draw it is that surface's own gesture.
+
+**What it cost.** A carried weapon the record never named at a place is
+exported under the backpack and counted.
+
+### The blank form is a book in Your Books, shared with players (2026-10-15)
+
+The export first asked each seat to pick its blank, and kept it only until
+the page reloaded.
+
+**Ruled (owner, 2026-10-15).** The blank is loaded to the server the way the
+books are, and that is the default. It is a row in Your Books: the
+importer's registry carries the sheet as a `form` entry, staged and opened
+by the shelf. Its shelf journal is created at Observer for every player, so
+a player's export needs no setup. The owner's reasons: no second export
+format to maintain, and the export promotes the official sheet.
+**Rejected.**
+- *The per-seat pick.* Every reload asked for the file again, and a player
+  needed a copy of their own.
+- *Shelf storage under a record of its own.* It would have left the
+  registry untouched, at the cost of a second staging path beside the books'.
+- *GM-only, like the books.* A player could not export until the Judge
+  shared the journal.
+
+**What it cost.** The registry's fingerprint is a page count and a title,
+and the sheet has a count and no title, so any five-page file fits it. The
+importer therefore reads the form's fields when the sheet is opened and
+refuses a copy without them. That makes the importer read through the
+character sheet's field table (`form.mjs`).
+
+### A new-character window keeps its key and its id apart (2026-10-15)
+
+The 11.3.0 release gate found two faults in the new-character window that
+the walks before it never recorded, because none of them read the console or
+the toasts. Every import from it raised *Cannot assign to read only property
+'windowKey'*: the window wrote the character's id into its options, which
+Foundry freezes once an application is constructed. The import itself had
+landed. The throw cut off the done notice and left the preview reading
+*A new character* and the henchmen as off the roster. And a second *Import
+sheet* while that window was open built another window under the same id,
+which took over the first's frame: the report vanished, and the character's
+own *Official sheet (PDF)* then brought the detached first window forward,
+so nothing appeared.
+
+**Ruled.** The key a window is kept under is a field of its own, moved by an
+import. A new-character window opens as `-new`, or the first free `-new-<n>`
+while an imported one still holds `-new`.
+
+**Rejected.** *Closing the imported window and opening the character's.* It
+would lose the report the import just wrote, which is the window's purpose
+at that moment.
+
+**What it cost.** A walk that drives the window by id finds the second
+new-character window at `-new-2`.
+
+### The domain page goes into a domain, by the Judge (2026-10-17)
+
+Supersedes the domain page's half of "What has no field is one notes block"
+(2026-10-15). **New evidence:** that ruling had no domain to write into. The
+domain record shipped in 11.5.0 (`docs/domains/MODEL.md`), and on
+2026-10-17 the owner asked for the domain page's import and export.
+
+**Ruled.**
+- An import writes the page into an `acks-extras.domain` actor, found by the
+  record, then the character's domains by name, then an unruled domain of
+  that name, then the character's only domain; else it makes one. The reader
+  can untick the box and keep the page in the notes.
+- Only a GM seat writes it, and only a GM seat's export reads it. A player's
+  import and export keep the page in the character's notes and record, as
+  before.
+- A revenue or expense row lands on the side its families column matches,
+  and a row matching neither is not written.
+- What the domain sums for itself is checked, never written. The boxes it
+  keeps no field for go into the domain's notes, not the character's.
+
+**Rejected.**
+- *A player's seat writing the domain.* The wave-1 domain is the Judge's
+  ("The wave-1 sheet is the Judge's", `docs/domains/DECISIONS.md`), and a
+  hand-kept player sheet would overwrite the Judge's record.
+- *An observer's export reading the domain.* The record holds land values a
+  player is not shown, and one rule both ways is simpler to state and test.
+- *Guessing a side for an unmatched row* (the peasants', say). A rate on the
+  wrong families is a wrong month shown as a right one; an unset line is
+  shown as unset.
+- *Writing the derived boxes* (families, hexes, totals) as figures. The
+  domain sums them from its rows, so they are checks, as the character's
+  derived values are ("A disagreement is a check, never a write").
+- *The no-field boxes in the character's notes.* They describe the domain,
+  and two characters' imports touching one domain would scatter them.
+
+**What it cost.** A line whose families match no count arrives as a note for
+the Judge to set. The location, growth and loss, investments, authority,
+morale effects and each hex's revenue come back on export only from the last
+import's record. A world not relaunched since the domain type arrived keeps
+the page in the notes.
+
+## 2026-10-21 — Fate points answer to the system's Heroic Fate setting
+
+**Ruled.** Every fate-point surface of the sheet — the art row's tag, the
+tags prompt's field and the Effects tab's resource row with its spend and
+award — reads the system's `heroicFate` world setting (`heroicFateOn`,
+`tabs/effects.mjs`) and is left out while it is off; the adjust action
+refuses as well, so a stale button writes nothing. The system's 14.1.0 sheet
+gates its own fate points on the same setting, and a world that plays
+without Heroic Fate should see none on either sheet.
+
+**Rejected.** *A setting of the module's own.* Two switches for one optional
+rule would disagree the first time a Judge flipped one.
+
+**What it cost.** A character's stored fate points are kept, not cleared,
+while the setting is off; turning it back on shows them again.
+
+## 2026-10-22 — Morale is the Judge's characters', hired or not
+
+**Ruled.** The Morale field (Stats, in the Throws column) and the Morale roll
+(Rolls) show on a character that `carriesMorale` (view-model.mjs): a serving
+hireling, or a character no player owns — the Judge's NPC built as a
+character. A player's character shows neither: it makes no morale roll
+(RR ch. 6, Morale). A hireling's Rolls
+row stays in the Retainer group beside Loyalty; an NPC's sits in a group of
+its own. The Retainer block on Stats keeps Wage and Loyalty.
+
+**Rejected.** *Morale on every character.* A PC carries no morale score, and
+a field that rolls nothing the rules use reads as one it should.
+*Hirelings only, as the system's sheet has it.* A Judge running NPCs as
+characters had no sheet that showed their morale but the Follower Card.
+
+**What it cost.** Ownership decides, so a character a GM has not yet handed
+to its player shows Morale until it is; the system's own character sheet
+still shows morale for hirelings only.
+
+## 2026-11-03 — The Stats tab sets the roll modifiers apart from the targets
+
+**Asked.** A player read Stats as offering a target to type where Rolls
+showed "+2" for the same field, and could not find where to adjust Avoid
+Surprise. The Stats group captioned "Throw targets" held real targets (attack
+throw, saves, adventuring throws) beside four modifiers (save, initiative, and
+the two surprise fields), and the surprise inputs were bare numbers with no
+sign and no hint of what Rolls would add. Core adds the two surprise fields to
+a die, so they are modifiers, not targets.
+
+**Ruled.** The four modifiers sit under their own *Roll modifiers* subhead.
+Initiative and both surprise rows carry the initiative row's note, the signed
+figure Rolls adds, with a tooltip saying how it is made: the stored value plus
+the effects' share for surprise, the total alone for initiative, whose figure
+folds in more than its stored modifier. The inputs keep their names and stay
+STORED values (2026-09-16); no schema moved. The Rolls tab stays the gauge and
+gets no editor: its rows are rolls, and the modifier is edited on Stats or
+changed by an Active Effect. The throw group's note says what the group holds.
+
+**Rejected.** *Showing the in-force figure in the input.* It is written back
+as the base on the next submit and the effect compounds; 2026-09-16 settled
+that. *An editor on the Rolls row.* A second place to write one field, and a
+row that is a button cannot also be a field. *A new Active Effect picker for
+Avoid Surprise.* The system's own effect editor already reaches
+`system.surprise.avoidsurprise`; the guides now say so.
+
+**What it cost.** Save modifier and initiative modifier move down with the
+surprise pair, so the targets and the modifiers no longer read in the order
+the system's sheet lists them. The save modifier carries no in-force note:
+Rolls folds it into each save's target instead of listing it. A situational
+modifier on the surprise and out-of-combat initiative rolls is not built (see
+ROADMAP).
+
+## 2026-11-10 — A summon is an unlinked token of a GM-made copy
+
+*Superseded in part* by 2026-11-11, "A summoning is tied to its spell", below:
+a Player seat no longer summons from a prompt with the spell optional.
+
+**Asked.** Players need tools to create the monster tokens a spell can summon
+(ledger row T-0456). The 2026-09-03 ruling above already makes a summon any
+creature whose actor names the character in `summonedBy`, bound from tokens
+that exist; nothing let a player make one. The magic ruling of 2026-09-25
+(docs/magic/DECISIONS.md, answer 3) fixes the shape of the answer:
+click-to-place is the baseline, a summoning entry's own constraint on where the
+creature appears is followed with its figures imported, and dismissal keeps its
+prompt.
+
+**Ruled.** *Summon…* in the party cell's menu (lib MODEL, "Summons"). The
+creature is one token per summon, UNLINKED, of a world copy of the library
+creature made once per source by the GM's client, filed in a folder a player
+cannot open and owned by nobody but the GM. The token is owned by the
+character's owners through its own `delta.ownership`, and carries `summonedBy`
+and a `summon` record `{sourceUuid, name, spellId?, castId, at}` in its delta.
+A world copy because a token needs a world actor; unlinked because each summon
+is its own creature, with its own hit points, and goes when its token goes. The
+seat places the tokens with core's click-to-place (`create: false`) and sends
+the positions to the GM, whose relay authorizes the sender (owns the summoner,
+can read the creature, may view the scene) and is the only writer of
+documents. A dismissal confirms on the requesting seat and the GM deletes the
+tokens the module made for that summoner; the copy stays. The cell's *Release*
+now applies only to creatures bound by hand, which have no record: a bound
+token may be a standing NPC, and the cell never removes one.
+
+**Rejected.** *A player-owned base actor.* It gives the player every token of
+that creature, including ones another summoner made. *A linked actor per
+summon.* It puts one sidebar actor per summoned creature in the world's
+directory and leaves each behind when its token goes. *Previews built with no
+actor, as the first design had it.* Core refuses a preview the seat does not
+own (`placeTokens` checks `isOwner`, and a token is owned through its actor), so
+a seat's placement of an actorless preview throws; the preview stands on the
+summoner's own actor instead.
+
+**Not yet verified live, and a departure from the design as first drawn.** The
+preview standing on the summoner's actor, `Release` leaving the relay, and a
+dismissal touching only record-bearing tokens are this slice's own rulings; the
+token's `delta.ownership` grants every non-GM owner of the summoner rather than
+the requester alone, as a companion's does. The walk (TESTING.md, "Summons from
+a Player seat") settles whether a non-GM's placement accepts that preview and
+whether any module hook on token drawing treats it as the summoner's token.
+
+**What it cost.** The GM's folder gains one actor per distinct creature
+summoned and keeps it; nothing removes them. The preview's synthetic actor is
+the summoner's, so any status icon the summoner shows can be drawn on the
+preview while it is placed. A player who may open no monster pack has nothing to
+summon, and the prompt says so. How a summoning entry constrains where its
+creature appears is not read yet: `placeSummons` takes the placement hook, and
+no feature supplies one.
+
+## 2026-11-11 — A summoning is tied to its spell
+
+**Asked.** T-0456 again, with the owner's rulings of 2026-11-11: summons are
+tied to spells; a summoning spell's commands sit in the character's party cell,
+its cast included while no creature of it stands; and the bare *Summon…* that
+names no spell stays for GM seats only.
+
+**New evidence.** Those rulings. The entry above, a day older, let any seat
+summon any creature its shelves held with a spell optional, which is what tying
+a summoning to its spell exists to stop.
+
+**Ruled.** A request names a spell item of the summoner, and the records it
+stamps keep that spell and its name, read on the GM's client from the item
+(lib MODEL, "Summons"). A request naming no spell is refused `spellRequired`
+unless `bareSummonAllowed(user)` allows it, and it allows a GM seat only. That
+one function is what the relay's check, the seat's pre-check and the bare
+prompt read, so widening it is one line. What a spell may call is a policy a
+feature registers with lib (`registerSummonPolicy`); lib imports no feature.
+The token shape, the GM-made copy and the relay of the entry above stand.
+
+**Rejected.** *Removing the bare prompt.* A GM still places creatures no spell
+names. *Leaving it to every seat.* A player would call whatever the shelves
+hold.
+
+**What it cost.** A player whose character holds no summoning spell has nothing
+to summon. A policy that throws is logged and counts as an allow, so a broken
+feature rule never blocks a placement and never enforces one either.
+
+## 2026-11-11 — The party cell's summoning rows are one per spell
+
+**Asked.** T-0456, P1-4: how the party cell lists a summoning spell's commands
+(owner rulings Q0 A, the cell is the group's place; Q1 A, every summoning spell
+appears, with *Cast* while none of its creatures stand).
+
+**Ruled.** One row per summoning spell of the character: *Cast <spell>* while
+none of its creatures stand on the scene, else *Dismiss <spell> (n)*, which
+covers every cast of that spell. A record naming no summoning spell the
+character still has is a loose cast with a *Dismiss* of its own, so nothing
+the module summoned is left without a way off the scene. A creature bound by
+hand keeps *Release* only. Every summon on the scene is reached by exactly one
+of the three, which the offline suite pins. The Magic tab carries the same
+*Dismiss* on the spell's row with its standing count.
+
+**Rejected.** *A Dismiss row per cast under each spell.* Two casts of one spell
+would show as two rows naming the same spell, which the cell's one-line menu
+cannot tell apart; the cast's end card dismisses a single cast where one is
+needed. *Cast offered beside Dismiss.* Q1 A offers Cast while none stand; a
+second cast while some do goes through the Magic tab's Cast.
+
+**What it cost.** From the cell, a player cannot dismiss one cast of a spell
+and keep another; the card a cast's end posts is the one per-cast control.
+
+### An Adventuring row is the better of the stored figure and the held skill's throw (2026-11-11)
+
+**Asked.** T-0478: a Thief's Rolls tab showed the Adventuring group at the
+system's defaults at level 3, while the Searching skill's own sheet resolved a
+better figure for the same activity.
+
+**New evidence.** Nothing class- or level-driven ever writes
+`system.adventuring`: it is the system's schema defaults until a Judge edits it
+(Stats), a follower-card override or a PDF import writes it. The 2026-09-16
+entry took the field as the character's figure; for a character holding a
+skill it is not. A live read at level 3 showed the stored figure, the
+Adventuring proficiency's own throws (flat) and the Searching skill's
+level-resolved methodical throw as three different numbers, and the row's roll
+posted against the stored one.
+
+**Ruled.**
+- *Better of the two.* A character uses whichever of its proficiency throws is
+  better. The row's figure is the lower of the stored field and the held
+  skill's throw; the skill only when strictly lower. One function,
+  `adventuringThrow` (`abilities/adventuring-throw.mjs`), holds the join, and
+  the figure is read from the abilities roller's own `throwOutcome`, so the
+  Rolls row and the skill's sheet cannot disagree.
+- *The mapping is the methodical throw.* The Adventuring proficiency's search
+  and trapbreaking are the one-turn methodical throws (RR ch. 3, Adventuring;
+  ch. 6, Searching); the
+  skill's hasty throw is its own row and stays in Proficiencies & powers.
+  Listening maps to the skill's one throw. Climbing and Dungeonbashing have no
+  skill throw and stay the stored figure.
+- *Before conditions.* The figure leaves the creature's conditions out. The
+  roll stays `actor.rollAdventuring(key)` with the derived figure as
+  `options.target`, which the throw's one wrapper (lib `patches/adventuring-roll.mjs`)
+  holds on the stored field with the conditions applied, so core's roll and the
+  secret roll read it there and the conditions count once. Secrecy for
+  listening and searching is untouched.
+- *No doubling.* A skill throw an Adventuring row stands for is left out of the
+  Proficiencies group, keeping the 2026-09-16 entry's one listing.
+- *Said on the row.* The figure's tooltip names the source that won, the other
+  figure, and the page the skill's import cites; a skill's name shows under the
+  label when it won.
+
+**Rejected.** *Writing `system.adventuring` on level-up or class apply.* It
+stores a derived copy that drifts when a skill or a condition changes, it
+overwrites a Judge's Stats edit, and it needs the level-up and apply paths.
+*Routing the row through the abilities roller.* A secret throw's blind posting
+lives in the adventuring wrapper, and nothing ticks an ability's own Blind roll
+box.
+
+**What it cost.** A Judge's Stats edit stops showing on a row where a skill's
+throw is better (the tooltip says why). A skill throw an Adventuring row stands
+for has no row of its own, so its star on the folded card is gone with it. The
+follower card, the PDF export and the Stats tab still read the stored field;
+formation's party check resolves its own skill target (T-0481).
+
+**Amended, 2026-11-11 (T-0481).** The figure also takes the abilities' bonuses
+to the throw: the `modifies` rows that name the activity (a bonus that needs the
+skill held acts on the skill's throw only; one that does not lowers the stored
+figure too), and an Alertness-like ability's `searchListen` throw replaces the
+stored figure where no skill is held. The tooltip lists those parts with their
+pages and says "not imported" where nothing is stored. New evidence: the
+register's row shapes (`modifies` with `ifHas`) and RR ch. 3 Adventuring naming
+all five Activity proficiency throws (5 of 5). The cost line's "formation's party
+check resolves its own skill target" no longer holds: formation's check reads
+`adventuringThrow` and `skillThrow`
+([formation DECISIONS](../formation/DECISIONS.md) 2026-11-11; abilities
+DECISIONS, same date).
+
+### The book's printed groups are shortcuts to the one training setting (2026-11-11)
+
+**Asked.** The owner, on weapon training: it follows the book RAW, which means
+the Fighting value's selection levels (JJ ch. 12) and the Martial Training and
+Weapon Focus options (RR ch. 3). The task is "not reversing rulings, proving
+that they are found in the book". Training is selectable by every book
+category, each individual miscellaneous weapon and each size, with quick
+selection of the printed groups. Overlap is allowed when every control is an
+entry to the same setting.
+
+**Ruled.**
+- *One setting.* The class training grant, in the grammar it already has, is
+  the only thing stored: no token kind is added and nothing is migrated. The
+  2026-09-04 entry's units (each weapon once per organisation), its three
+  organisations and `canonicalGrant` stand, and so does the 2026-09-03
+  vocabulary.
+- *Shortcuts may overlap.* Each printed group the importer reads and can
+  resolve to weapons (a narrow, broad, Martial Training or Weapon Focus
+  option) is a quick-select button. A button adds or removes the units it
+  resolves to and writes through `canonicalGrant`, the same path a pill takes.
+  It holds no state, so two buttons may cover the same weapon. The
+  once-per-organisation rule governs the units, and both buttons write the one
+  grant. The restricted level's single picks are the units themselves. A
+  combination option ("any N") names no set and has no button.
+- *The proof is on the surface.* A category group's tooltip names the printed
+  options that hold its weapons, with their pages (`ui-tooltips.md`). A
+  category that no printed option holds whole, or a weapon that no option
+  holds, is a finding to report, never a gap to word around.
+- *Bow and crossbow stay apart.* Every training option names them together,
+  but Manual of Arms (RR ch. 3) trains their troops apart, so the grammar keeps
+  two categories. The `ROADMAP.md` entry for the book's six categories is
+  closed by this.
+
+**Amends** the 2026-09-04 rejection of a *book picks* organisation. What is
+built is a row of shortcuts over the imported option table, not a fourth
+organisation, and none of the page ships: the lists arrive by import, as that
+entry required. The new evidence is the owner's two rulings above.
+
+**What it cost.** A button is only as right as its expansion: a weapon the
+imported lists place wrongly makes its shortcut tick the wrong set. The error
+is visible on the pills and can be fixed by hand. How far the placement reaches
+is importer MODEL's to say.

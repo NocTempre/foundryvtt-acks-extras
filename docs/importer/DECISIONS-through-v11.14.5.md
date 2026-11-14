@@ -1,0 +1,10004 @@
+# Importer — decision record
+
+> Merged from the separate acks-importer repo on 2026-09-01. Text written before then names paths as they were there: `scripts/x.mjs` is now `scripts/importer/x.mjs`, `tools/x.mjs` is `tools/importer/x.mjs`, `flags["acks-importer"]` is `flags["acks-extras"]` (the importer's `generated` key is now `minted`), and `acksImporter.fn()` is `acksExtras.importer.fn()`.
+
+Why this feature is shaped the way it is: what was ruled, what was rejected, and
+what it cost. How it behaves *now* is [MODEL.md](MODEL.md).
+
+Entries are dated and append-only. A superseded entry stays, marked.
+
+---
+
+### A browse recipe is a pointer and carries no mechanics (2026-09-05)
+
+**Problem.** The PoC recipe for Combat Reflexes carried a `payload.effects`
+array — an embedded effect adding the proficiency's initiative bonus — under a
+comment calling it the module's mechanical interpretation, shipped because it
+"is not in the book and cannot be extracted". Walking the importer recipe for
+7.0.0 found it dead: `createDocFor` (`scripts/importer/poc.mjs`) builds a
+browse-loaded item from name, type, folder, flags and description and never
+reads `payload`, and an item created through it from that recipe held zero
+effects. No test read the field either.
+
+**Rejected: wiring it.** One line in `createDocFor` would have made the
+comment true, and it is the fix the finding first proposed. Refused on the
+value rule of `.claude/rules/ip-doctrine.md`: the bonus is the proficiency's
+stated benefit on the page the recipe cites, so a recipe that ships it ships a
+page value, however small. The comment's premise was wrong — the number is in
+the book, and the cookbook already reads it from there (`tools/test-equipment.mjs`:
+"Combat Reflexes classified from a connected book declares the very bonus").
+Wiring the payload would have given a seat two sources for one number, the
+shipped one and the classified one, which is the disagreement that test
+exists to refuse.
+
+**Taken.** The payload and its comment are removed; a browse recipe is a
+pointer — book, page, heading, citation — and nothing else. The 7.0.0
+changelog entry that had described the payload's change type was reduced to
+the class path it also covered. Cost: none; nothing ever read the field.
+
+### The barbarian's column is declared elected (2026-09-04)
+
+**Problem.** The barbarian's damage-bonus column is headed exactly like the
+fighter's, so the header-driven key could not tell the column the player
+narrows at 1st level from the column that is simply unrestricted — and the
+consumer's answer to that ("ask every unqualified column") had every fighter,
+bard and assassin answering a barbarian's question.
+
+**Ruled.** The register declares the barbarian's column `electedDamageBonus`.
+The qualifier is read off the class's own combat paragraph, which is where the
+page states it; the header stays the locator. `tools/importer/lint-register.mjs`
+is unchanged — it asks that a header's narrowing be present in the key, and an
+elected column's header carries none. `repairClassLadderKeys` reaches a
+barbarian imported before the declaration by its existing rule (the one
+declared key that is the bare name behind a qualifier), so no world needs a
+re-import. Every other bare `damageBonus` column now means both, which is what
+acks-extras writes for it.
+
+Supersedes the last paragraph of the 2026-08-27 entry below.
+
+---
+
+### A book the server holds is a journal (2026-09-03)
+
+**Ruled: a staged book is a `JournalEntry` in the world — one per book, filed
+under "Your Books", with a single PDF page whose `src` is the staged path — and
+that page is the shelf record.** The world setting that held the shelf since
+2026-08-21 is read once by the first GM seat to arrive, turned into journals,
+and emptied; nothing reads it after that. `shelf()`, the join-time restore and
+the Books window all read the journals, so every consumer sees the destination
+the write chose.
+
+**Why a journal.** The owner asked that a loaded book leave something readable
+in the world (ROADMAP, 2026-09-03), and the shelf already held the one thing
+that reads as the whole book: the PDF. Foundry's own PDF page renders it in
+pdf.js with the book's own contents, so a Judge opens the book from the
+sidebar instead of from their disk, and shares it the way any journal is
+shared. The file system alone gave them a path in a setting nobody could open.
+
+**Why the page is the record, and not a mirror of the setting.** Two records
+of one shelf drift — the 2026-08-25 window bands were exactly that failure, at
+the scale of one dialog. With the page as the record, a Judge deleting the
+journal has unstaged the book, and a Judge re-pointing the page has re-pointed
+the shelf; both are gestures they already know, and the restore's fingerprint
+refuses a page that no longer answers for its book.
+
+**Rejected: the bytes in the document.** A hundred-megabyte book as a field on
+a JournalEntry is a hundred megabytes sent to every seat at every join, before
+anything renders. The page points at the file; the file stays under the data
+directory, as it always did.
+
+**Ownership is Foundry's default — the creating GM, and nobody else.** Handing
+a book to a player is a deliberate gesture on the journal. The 2026-08-21
+caveat stands unchanged: a file under the data directory is fetchable by anyone
+signed in who learns its path, and the journal changes who can FIND the book,
+not who can fetch it.
+
+**Not an import.** The journals and their folder carry the `shelf` flag, never
+the `cookbook` one, so Remove Imports leaves them alone the way Forget Books
+already did: the shelf is the GM's staged library, not something the module
+made from it.
+
+**Cost.** One more migration at ready, GM-only and idempotent — an entry that
+fails to land leaves the setting for the next load. A player seat that joins
+before any GM has sees an empty shelf until then. Live, 18 staged books
+carried across in one load, and a book staged twice stayed one journal with
+one page.
+
+---
+
+### The whole chain gets one bar, and it counts steps (2026-09-02)
+
+**Ruled.** *Import Everything* opens a single progress notification for the run
+and clears it in a `finally`. Five of the thirteen steps drew nothing at all, so
+a run could sit silent for minutes with no way to tell work from a hang — the
+report that prompted this said exactly that.
+
+**A progress notification belongs to no window, which is what makes it the
+right surface.** The chain runs from the Getting Started band AND from the
+hotbar macro, where there is no window and the old per-step toasts were all a
+Judge got. One notification serves both, and it does not expire while short of
+its total, so it persists for the whole run. **Rejected: a window of its own.**
+A new surface, new strings, and a thing to keep on screen for nine minutes,
+when core already has the shape.
+
+**It counts STEPS, because that is the only total knowable in advance.**
+Several steps cannot say how much they hold until they begin — a table recipe
+scans until it hits, a vehicle expands into rows only the page knows — and the
+per-step bars already report items where an item count exists. So the two
+answer different questions and both are needed: the per-step bar ticking is
+what says *still working*, and this one says *how much is left*. **Nothing is
+faked**: no invented denominator, and no smoothing across steps of wildly
+unequal length.
+
+**A step counts as done whether it succeeded or threw.** The chain already
+survives a failing step; a bar that stalled on one would report a hang that is
+not happening.
+
+**Known and accepted:** core stacks newest-first and caps at five live
+notifications, so this bar sits below the per-step bar and shares the cap with
+anything else the session raises. Neither costs correctness, and both are
+core's behaviour rather than ours to fix.
+
+### Importing again refreshes what it did not create (2026-09-02)
+
+**Ruled.** `cookbookUpdateAbilities` closes `stepAbilities`. Refreshing the
+abilities is part of importing them, not a separate gesture a Judge is asked to
+know about.
+
+**Rejected: doing the same for classes.** `cookbookUpdateClasses` is the
+matching half and stays out of the chain. It has no ownership guard — it asks
+once, then replaces each class's whole `system`, hand edits with it — and it
+asks through a MODAL, which a chain that narrates its own progress must not
+stop on. The gap that justifies routing the abilities pass does not exist here
+either: classes are world documents, so removing the imports and importing
+again already rewrites them. Abilities are routed because an ability can live
+on an actor, where that gesture cannot follow.
+
+**This supersedes the "Accepted cost" paragraph of "Imported text is written
+into the world, once, by the GM who owns the book" (2026-08-24)**, which said
+worlds imported before the change hold `@PdfText` tags, that the repair is
+*Remove ALL Imports* + import again, and that there is no repair pass. Two
+things that ruling did not know:
+
+- **Its stated repair cannot reach the documents that matter.** *Remove ALL
+  Imports* enumerates world collections and label-matched packs and never
+  descends into an actor. `cookbookUpdateAbilities` is the only function that
+  walks an ability owned by a character, so a proficiency on a player's sheet
+  was unrepairable by any gesture a user had — permanently, by construction.
+  Import itself never revisits an existing document, so importing again could
+  not have cleared it either.
+- **The repair pass it declined to build already existed.** The cost it weighed
+  — "would keep the whole per-seat resolution path alive" — does not apply,
+  because nothing is built here. The pass was written, correct, and reachable
+  only from a sidebar button and the API. This routes it; it does not add it.
+
+**Rejected: a separate *Update Abilities* macro.** The macro pack deliberately
+ships only what a Judge chooses between — connect books, import everything,
+delete everything, rebuild one shelf — because the individual steps have a
+dependency order and offering them invites running them in the wrong one.
+Refreshing is not a decision; it is the second half of importing.
+
+**Rejected: widening the import path's overwrite to match legacy-scoped
+documents.** `cookbookImportAbilities` has no ownership guard at all, so a
+broadened match there would clobber a Judge's own copies and edits
+unconditionally. The guard lives only on the update path, which is why the
+update path is the one that got routed.
+
+**A book that is not connected must not cost text — or mechanics.** With no
+session for an entry's book the executor yields no node, and everything rebuilt
+from one degrades together: the description becomes the citation line alone, and
+the extras block loses its node-derived parts. The stamp marks that description
+as this module's own, so the ownership guard read it as overwritable and the
+write went through — trading a Judge's imported paragraphs for a stub on any
+seat that ran the pass without every book open.
+
+**An entry whose book yielded no node is now passed over entirely**, and counted
+as such in the report. A narrower first attempt held back only the description
+and let the rest of the rebuild land, on the reasoning that the register repairs
+the mechanics without the book. Live verification refuted it: `category` and
+`deprecated` did come back from the register, and `extras.effects` came back
+**empty**, because effect detection reads the extracted text. Holding back one
+field of a rebuild that is uniformly impoverished is a guess about which fields
+are node-derived, and it was wrong on the first one checked. What cannot be read
+is not rewritten.
+
+**Cost:** *Import Everything* now walks every ability in the world, actors
+included, so it takes longer on a large world. An unflagged, hand-made ability
+whose description is **empty** and whose name matches a definition is adopted and
+stamped by a run a Judge may have thought of as import-only; anything holding
+words is asked about first, as before. A seat that has not connected its books
+now repairs nothing rather than repairing a little — which is the honest report,
+and the notification says how many were passed over and why.
+
+---
+
+### One picture per entry, one register per kind (2026-09-01)
+
+**Ruled.** Every one of the 819 register entries that becomes an Item carries an
+`icon`, no two differently-named entries share one, and each kind draws from a
+visual register that says what the row is before its name is read:
+
+| Kind | Register | Source |
+|---|---|---|
+| proficiency, combat proficiency, skill | flat white-on-black pictogram | `systems/acks/assets/icons/` |
+| class | heraldic banner | `icons/sundries/flags/` |
+| power | effect art — spell, knack, or stronghold | `icons/magic|skills|creatures|environment/` |
+| equipment | painted object | `icons/commodities|consumables|containers|equipment|tools|weapons|sundries|environment/` |
+| variation | forge and material | `icons/tools/smithing/`, `icons/commodities/`, `icons/equipment/shield/` |
+| trap | the mechanism, or the thing that hits you | `icons/environment|weapons|magic|tools|commodities|skills/` |
+| vehicle | conveyance | `icons/environment/vehicles|settlement/`, `icons/tools/nautical|navigation/` |
+
+Before this, 73 of 819 were placed: 437 powers had no icon at all and fell back
+to one book, 68 goods shared one bag, 43 structures shared one castle, 13 traps
+shared one trap, every class was one of nine grey glyphs. A sidebar of imported
+items was a wall of repeats, which is the same as no icon at all.
+
+**`icons/svg/*` is banned outright, in entries and in generated documents.**
+Those flat greys are what Foundry gives a document nobody chose a picture for,
+so choosing one is indistinguishable from not choosing — every duplicate above
+was one. Generated documents (a monster's attack, a spoil, a grid row, an
+ability with no entry behind it) cannot have a per-entry icon, so they take
+`DEFAULT_IMG` from `scripts/constants.mjs` — painted art from the same folders,
+one named symbol rather than a scatter of literals.
+
+**Sameness is per printed NAME, not per id.** Lay on Hands is one ability under
+three classes and Manacles is one item in two books; each keeps one picture, and
+the ledger counts a collision only when one path answers to two names. That is
+also why the power register reaches into the ACKS tree: where a class power *is*
+a printed proficiency (Alertness, Armor Training, Deciphering), it wears the
+proficiency's pictogram rather than a second picture for one concept.
+
+**Rejected: keyword-scored auto-assignment.** `tools/propose-icons.mjs` already
+measured it — 2 right and 14 wrong in a 42-entry sample, with Battle Magic
+scored onto a battle AXE — and its verdict stands. Every path here was picked by
+reading the entry; the tool's `--search` mode and the ledger's `--free` are what
+made that tractable.
+
+**The gate is a ratchet, not a snapshot.** `tools/icon-ledger.mjs --check`
+(against `register/_icons.json`) fails when unplaced entries increase, so a new
+entry authored without an icon is caught where it lands rather than at the next
+release. `--apply` refuses any path not present in an installed library, which
+is what keeps a typo from shipping as a broken image on every seat.
+
+**Cost.** A handful of picks are approximate because the libraries have no
+better answer: four horseshoes stand in for three chariots and a saddle, a
+stable stands in for a donkey, a bolt of cloth for a signal flag. Eleven of
+those carry an `iconNiche` upgrade from game-icons.net for seats that have the
+pack. The one surface still sharing pictures is the weapons and armour grids,
+whose rows are minted from the page and take `DEFAULT_IMG.WEAPON`/`.ARMOR`/
+`.SHIELD`: giving each printed row its own art needs a name-keyed table in
+shipped code, which is the IP structure-vs-content line and wants its own
+ruling.
+
+### A shield form is a shield, not a difference applied to one (2026-09-01)
+
+**Ruled.** The six Judges Journal shield forms — auxiliary, buckler, crescent,
+heater, kite, phalanx — import as core `armor` items of type `shield`, one base
+item each, filed on Equipment / Shields. They imported as `acks-extras.variation`
+documents from 2026-08-16; that is reversed, and the entries are `kind.equipment`
+now.
+
+A variation is a difference a reader applies to a thing they already own:
+masterwork, silvering, an ornament. A form is not that. Nothing in the books
+sells a shield and then sells kite-ness to fit onto it — the passage describes a
+complete piece of equipment a soldier is issued, and a reader who wants one buys
+one. The two shapes were also visibly the same thing twice: extras' sample pack
+ships all six as playable armour while this module shipped six documents of the
+same names that could only be dragged onto a shield, and extras' own variation
+layer refuses a `form` variation on any item already carrying the shield-form
+flag, because the flag and the document say the same thing.
+
+**The item states an ordinary AC, and that is what changed.** The earlier ruling
+recorded none, on the reasoning that a form does not state a magnitude — the book
+repeats the standard shield's own figure, and what a form states is where the
+AC applies and when it does not. That reasoning holds for what the number MEANS
+and the conditions are still enums on the entry (`grantsAC`, `mounted`,
+`deniedWhen`, `noBack`, `noMount`, `requiresStyleSpecialization`). What it cannot
+survive is the document becoming the shield itself: core adds an equipped
+shield's `aac.value` unconditionally and the overlay reading those enums corrects
+DOWNWARD from it, so a form with no AC is not conservative, it is an unusable
+shield and a broken correction. Each entry therefore locates its own in-hand AC
+and its own encumbrance from the seat's page, by a locator anchored in that
+entry's own sentence — never one pattern swept across six passages, which is the
+mistake the 2026-08-16 entry was written against and which is what produced a
+bare `equippedAC: 1` on all six.
+
+Encumbrance is now read for all six rather than three. As a difference, a figure
+that changes with the carry state stated nothing unconditional and was left out;
+as a base item, the weight in hand is the item's weight and the carry states are
+the overlay's business — so the crescent takes the figure its passage states
+first, and the kite and phalanx take their dismounted one.
+
+**Rejected: the Armor shelf**, beside the shields the RR grid materializes. The
+shelf a document lands on is the shelf that rebuilds it: "Armor" is refilled by
+`importArmor`, which reads a printed grid and cannot mint a described entry, so
+one shelf rebuild would have deleted the six with nothing to put back. Equipment
+refills from the entries, which is where they now are.
+
+**Cost.** A world that imported the forms before this holds six documents of a
+type that cannot be changed in place, under ids that moved with the kind, so
+`repairShieldVariations` deletes the library copies and the equipment import
+re-creates them — the `repairAnimalItems` pattern. Variations a Judge already
+applied to a shield are embedded copies on that document and are never touched.
+The forms carry no price: the Judges Journal prints none for them.
+
+### A grid may be keyed on a name, and its cells need not be numbers (2026-08-30)
+
+**Ruled.** A table recipe may declare `labelText`, saying its label column holds
+a NAME rather than a level. The compiler's row walk judged data rows by "the
+first cell is a number", which every level-keyed table satisfies and which the
+Crusader Rebuking Undead grid (RR p.39) cannot: its label column is the undead
+type and its columns are the crusader's levels. Under the numeric rule the table
+resolved one data row and warned.
+
+With `labelText` the header lines are told apart by what they ARE — the line
+carrying the declared label header, a spanning line of bare integers, a line too
+narrow to be a row — instead of by not being numeric. The walk also skips a lone
+footnote marker sitting on its own baseline between two rows: it carries no
+cells so it can never be read as data, and breaking on it cost the table its
+last row, which is the asterisked one.
+
+**The cell rule is structural and holds no printed letter.** A cell that parses
+as a number is a target, a dash is a rung the character cannot act on, and
+anything else non-empty is a rung reached without a throw. Which letter the page
+prints there rides through as the rung's `text`, read from the seat's own book.
+Writing "R means automatic" into the recipe would have shipped the rule, and
+naming the nine undead types in it would have shipped a table of options; the
+row labels come off the reader's page and become the ladder keys.
+
+**Each row becomes one class LADDER on the crusader**, rather than roll targets
+on the Rebuke Undead power. A published table is borrowable: a craftpriest
+rebukes as a crusader of their class level, a necromancer controls as a chaotic
+crusader of half (rounded down), and the Black Lore of Zahar raises that to two
+thirds. All four read the one table at a different fraction — which is what
+acks-extras' `progression` target already expresses — where nine targets copied
+onto each power would be four transcriptions of one page.
+
+**Still open:** nothing yet EMITS the throws that point at those ladders. The
+throw count is data (nine types here, and a Judge's own book may print another),
+so the spec form has to expand per published ladder, and an ability entry is
+executed with no sight of the class that awards it. Where that linkage lives is
+undecided — ROADMAP.md.
+
+### A list is bounded by the label that introduces it (2026-08-30)
+
+**Problem.** A class's printed Proficiency List arrived with prose welded into
+its names — "paladins select one class" fused to "Berserkergang". The box was
+computed from the detected COLUMN, and a class page is dominated by its
+templates table, which starves the column detector into reporting one column.
+A one-column read boxes the list across the full page width, so the Proficiency
+Progression paragraph printed beside it fell inside; in reading order the two
+columns' runs interleave, and every welded name arrived unresolved. 115 names
+across the thirty-one class lists.
+
+**Ruled.** The box never starts left of its LABEL. A run-in label sits on the
+left edge of the column it introduces, so the label's own x is a better left
+bound than a detected column start that may not exist. That alone recovered 96
+of the 115.
+
+Three residues needed measuring rather than inferring, and the register now
+carries `class.profList` `x0`/`x1`/`y1` for them: a list whose comma-aligned
+entries voted a phantom column mid-list, losing every line's tail; one that ran
+on into the prose printed under it with no gap the stop heuristic could see; and
+the chapter TAB the page paints into its own margin, which on a recto lands
+inside a right-hand list's column between two lines. The tab is dropped by TEXT,
+not geometry — it reads the same as the running head, and no proficiency is ever
+named after the chapter.
+
+**Rejected.** Repairing the column detector. Its docstring already records why:
+lowering its threshold invents columns out of table cells and page tabs, and
+supplying the edges run-in headings imply leaves the false edges in place. The
+fix here needs no such evidence — it uses a bound the field already has.
+*(Superseded 2026-09-09 by "The column histogram counts runs against lines" —
+the detector was repaired by neither of the two routes rejected here. The
+per-class measurements this entry rules on stand.)*
+
+**Cost.** Three per-class measurements that a re-printing can invalidate. They
+are visible: `tools/dev-proflists.mjs` reports every class's list against the
+surface index and names what fails, and the release recipe reads its total.
+
+**Also ruled: two more printed short forms are aliases.** By This Axe writes
+"Dungeon Bashing" and "Fighting Style" where the Revised Rulebook writes
+"Dungeonbashing Expertise" and "Fighting Style Specialization". Same footing as
+Art/Craft (2026-08-29): a second printed surface for an entry this module
+already ships. That the BTA form means the RR proficiency is a reading of the
+books, not a mechanical fact — it is the entry a class list can offer, and the
+alternative left eight dwarven classes silently short two proficiencies.
+
+---
+
+
+### A printed floor and a printed rate are read, not shipped (2026-08-29)
+
+**Problem.** Two numbers the rules define reached the engine as nothing at all.
+The 1st-level hit die carries a printed minimum and the engine applied none, so
+a character rolling under it kept the raw roll. Hit points per level past 9th
+are set by the saves chassis and adjusted by race; the racial half was already
+extracted and read by nobody, and the chassis half had no recipe at all, so a
+class built with the Judges Journal builder gained a flat-less die count past
+9th while an imported class of the same spread carried the printed bonus.
+
+**Ruled.** Both are imported, both through the machinery that already exists.
+The floor is a new `hitPoints` ruledata document read from the chargen chapter
+by a `proseValues` recipe; the rates ride the EXISTING `savesRule` recipe,
+because they key on the saves chassis and the book prints them in that section —
+a second page scan would buy nothing. `builder-binding.mjs` assembles them into
+`budget.hpAfterNine`, keyed as the book PAIRS them (crusader+mage,
+fighter+thief), which is a different pairing from the post-8 XP increments
+beside it, so the two cannot share keys.
+
+**Rejected.** `kind.constant` for the floor: those entries are harvested box
+geometry against a fixed rectangle, and the sentence carrying this floor is
+running prose. Folding the rates into `acks.classBuilder`'s own tables: that
+document is builder INPUT handed wholesale to the derivation, and a hit-point
+floor is not a build point.
+
+**Cost.** Two anchors that a re-printing can move. Both are `find` strings on
+lowercase clauses carrying no digit before the number, which is the shape most
+tolerant of the welded words and interleaved superscript runs real extraction
+produces; `tools/test-hitpoint-tables.mjs` and the class-builder table test
+assert against the real books that the anchor still lands on an integer, and
+deliberately assert nothing about WHAT the integer is.
+
+**Verified negative, recorded so it is not re-investigated.** Only the dwarf
+prints a racial post-9th hit-point rate. The elf, halfling, Nobiran and Zaharan
+sections carry the boilerplate sentence naming the category and state no value,
+so `hpAfter9: null` for those races is the printed absence and not an
+unfinished extraction.
+
+---
+
+### A second printed name for a shipped entry is authored on the entry (2026-08-29)
+
+**Problem.** Two resolvers in `cookbook.mjs` answered the same question
+differently. The class Proficiency List read a flat last-wins map; a template's
+proficiency cell read a length-sorted menu whose ties fell to cookbook load
+order. Twenty printed names resolved to a class POWER on one path and the
+PROFICIENCY on the other — "Acrobatics", "Climbing" and "Weapon Finesse" among
+them. A template then granted a power the character was never owed and, because
+ownership is matched on type and name, silently refused them the proficiency
+ever afterwards. Separately, the merged Art/Craft proficiency was reachable
+under neither of the short forms the books also print for it, and the gap was
+papered over by a literal in shipped source.
+
+**Ruled.** One `abilitySurfaceIndex` feeds both paths, arbitrating collisions
+with the category ranking the monster path already uses. A printed short form
+is authored on the entry that owns it as `aliases`, compiled into the cookbook,
+and gated by `lint-register`: an alias may only give another printed surface to
+an entry this module already ships, never introduce a name for something it does
+not, and never collide with another entry's name or alias. The world's holdings
+are deliberately NOT consulted — what a spread MEANS is a fact about the book,
+not about what has been imported yet.
+
+**Rejected.** Generalising the equipment list's slash convention: `Art/Craft` is
+the only slashed awardable name of the corpus, and a rule authored for a
+population of one is a rule that will be wrong for the second member. Keeping
+the `Spec.` abbreviation hatch beside the alias rule: two coexisting rules make
+the longest-first scan order-dependent, so the hatch was deleted and the same
+abbreviation is now authored as an alias.
+
+**Cost.** The alias field is authored data with no in-app editor, correctly —
+it is a fact about a printing, not about a world. It reaches the compiled
+cookbook only through one line in `compile-cookbook.mjs`, and it fails SILENTLY
+if that line is lost, which is why `test-cookbook-coherence.mjs` asserts the
+shipped entries carry their aliases end to end rather than asserting the
+compiler in isolation.
+
+---
+
+### A printed pick rides as an offer, not as a dropped sentence (2026-08-29)
+
+**Problem.** A starting package sometimes hands over a choice rather than a
+thing — "and one spell of character's choice". Minting it as a spell produced a
+document called "One spell of character's choice", so it was dropped instead and
+preserved only in the item's note. That is invisible on the character: the
+player is owed a spell and nothing anywhere says so, and the pick is simply
+never made.
+
+**Ruled.** The clause rides in the spells array as a row carrying no name whose
+`offer` is set, with a ChoiceSpec naming what may be picked and a stable `key`
+built from the book it came out of. The printed sentence still stays on the
+note. Nothing is minted here — the importer records the OFFER, and acks-extras
+turns it into something the player can answer.
+
+**Cost.** `offer` is a flag, not an inference. An emptiness test would be
+cheaper and is wrong: a blank row added by hand on the class sheet has no name
+and an initialised ChoiceSpec, and would read as an offer.
+
+### The library is the packs AND the sidebar this module stamped (2026-08-29)
+
+**Superseded in part (2026-09-23)** by "A copy of an import is the Judge's,
+and a rebuild leaves it standing": a copy keeps the cookbook flag, so the flag
+alone no longer makes a sidebar document an import.
+
+**Problem.** A world that imported before imports moved into compendia keeps
+that library in the sidebar. Every item-side read asked the packs alone and
+took the sidebar only as a fallback for a pack that would not open, so those
+documents were invisible: the dedup gate called each one missing and the next
+run minted a twin into the pack. The field report was a chargen class list
+offering all 31 classes twice, the two generations interleaved by the page
+their citations name — the tell that they were made by releases either side of
+the move.
+
+**Ruled.** "Imported" means a cookbook flag, not a shelf. `sidebarImports`
+gives the item reads the same world-then-pack reach the actor reads
+(`importedIdsOfType`, `importedActor`) have always had, so an import is found
+wherever a release put it. Packs are read first, so an id a world holds twice
+answers with the copy on the shelf a write lands on.
+
+**Rejected: a migration that moves sidebar imports into the pack.** It rewrites
+every uuid a character, a class template or a Judge's own macro points at, to
+tidy documents that work where they are. And **rejected: deleting the twin
+automatically** — both copies are legitimately the Judge's, and which one their
+world already points at is not knowable from here. The existing controls now
+reach both: Remove Imports always swept the sidebar, and rebuilding a shelf
+sweeps it as of this ruling.
+
+**Cost.** `importedDocs` now returns only flagged documents. In a pack-less
+world it used to answer with every document of the type, homebrew included, so
+a hand-made item could claim a printed name in the price list's library check.
+That was never intended and the reads all filter for our own flag anyway.
+
+---
+
+### A column key carries every qualification its printed header carries (2026-08-27)
+
+**Problem.** The paladin's progression column is headed *Melee Damage Bonus* and
+was keyed `damageBonus`. The header is a LOCATOR — it finds the column and is
+dropped at compile — so the key is the only part of a column that reaches a
+class document's ladder, and the only thing a consumer can read to decide who a
+value applies to. Keyed unqualified, the paladin's melee-only bonus arrived
+shaped exactly like the fighter's unqualified one, and nothing downstream could
+tell them apart.
+
+**Ruled.** A key spells out every attack-type qualifier its header states.
+`tools/lint-register.mjs` enforces it over `melee`, `missile` and `unarmed`: a
+header carrying one and a key that does not is a lint failure naming the key it
+should have. The check is register-only by necessity — the compiler keeps a
+column's key and geometry and discards its header, so this is the last point at
+which the two can be compared at all.
+
+**Only attack-type qualifiers are checked.** They are the ones that change WHO a
+value applies to. A header word the key merely spells differently is not a
+defect, so the gate asks that the narrowing be present, not that the names match.
+
+**A repair, because no ordinary re-import would reach one.** `importClasses`
+skips a class the world already holds, so a wrongly-keyed ladder would survive
+every re-run. `repairClassLadderKeys` compares each imported class against the
+keys the cookbook declares NOW and re-keys a ladder whose key has since been
+qualified — document-driven, so no book need be connected and no class is named
+in code. It re-keys only where exactly ONE declared key is that same name behind
+a qualifier; anything less certain is left alone rather than guessed at. A label
+moves with the key only while it still reads as the one import derived, so a
+Judge who retitled the column keeps their title.
+
+**Unqualified is not a synonym for "both".** *(Superseded 2026-09-04: the
+barbarian's column is declared `elected`, and bare now means both.)* The
+fighter's column is printed
+without a qualifier because the bonus is unrestricted; the barbarian's is
+printed without one because the player elects melee or missile and cannot change
+it. No field of a class document separates those two, and the importer does not
+invent one — what an unqualified column means is the consuming module's
+question, and acks-extras asks the player rather than assuming.
+
+---
+
+### A citation names the printed folio; everything else names the PDF page (2026-08-27)
+
+**Problem.** A field report showed a class power citing a page two past its own
+entry. Every core-book citation was wrong the same way, and had been since the
+first one shipped: the Judges Journal prints folio 314 on PDF page 316, and the
+Revised Rulebook, Monstrous Manual and Treasure Tome carry the same two pages of
+front matter (By This Axe carries one). 1154 shipped citations sent a reader
+past what they were looking for.
+
+**Why nothing caught it.** The registry already had `printedOffset`, added for
+the AX line whose folios visibly disagreed with their PDF pages, and exactly one
+cite composer applied it — the one written beside it. The other six interpolated
+the raw page, and the five core books were never given an offset at all, so the
+composers agreed with each other and with the register. Page numbers are never
+converted anywhere else in the pipeline: no gate, no probe and no round-trip
+compares a citation against anything that knows what the paper says.
+
+**Ruled.** Every book carries a `printedOffset`, and `citeFor` in
+`scripts/books.mjs` is the ONE place a page number is translated for a reader.
+Register entries, compiled instructions and art pointers keep addressing the PDF
+page — that is what the reader hands the extractor — and the conversion happens
+at the single point a number is shown.
+
+**Rejected — deriving the citation at runtime from `book` + `pages`.** It would
+make the offset impossible to forget, but 29 entries cite a page their `pages[0]`
+does not name: an alias is read from the passage its text prints in, and its
+citation follows the text rather than the listing. Deriving would lose exactly
+what the 2026-08-12 alias ruling established.
+
+**Rejected — a migration.** Consistent with the 2026-08-24 ruling: existing
+documents keep the citation they were written with, and *Update Abilities* —
+which already rewrites the generated surface — repairs them. An item whose prose
+a Judge has edited keeps its old citation, because that path holds the whole
+description back; that is the accepted cost of never clobbering someone's
+writing.
+
+**The gate that was missing.** `test-cookbook-coherence.mjs` now asserts that
+every citation equals `citeFor(book, description page ?? pages[0])` — a check per
+shipped citation that fails on the raw page and passes only on the folio. The
+offset itself is not derivable from shipped data, so the gate proves the
+composer, not the number; the five offsets were measured off the books' own
+folios, sampled the length of each book, before being declared.
+
+---
+
+### A grid row is what the SECTION above it says, not what its name looks like (2026-08-26)
+
+**Problem.** A vaultguard's leather belt arrived as ordinary inventory. Core
+files a `clothing` item on its own part of the character sheet and leaves it
+out of encumbrance, so the belt sat among the rope and the torches and was
+weighed with them. The reporter noticed it on two classes and read it as a
+class-import bug; it is neither about classes nor about belts.
+
+`importPricedGear` wrote `subtype: "item"` on every row it materialized. A
+DESCRIBED entry gets its subtype from the register (`bindEquipment` reads
+`meta.subtype`), but a priced row has no entry — it exists precisely because
+the shop list itemizes what a description treats as one subject, and three
+printed belts is exactly that case. So every clothing row the entries did not
+claim imported as plain inventory: 38 of them, and the classes' own starting
+templates skin 70-odd pieces of gear off that half of the grid.
+
+**Ruled: the row carries the heading it was printed under.** One recipe reads
+a grid that stacks clothing, then livestock, then provisions, so `table` — the
+recipe that read the row — cannot answer what the row IS. `extractPrices`
+carries the last section heading forward onto every row; a heading is a line
+where nothing is priced and only the first column has text, which the
+column-heading line under it can never be, because that one repeats across
+every column.
+
+**Ruled: which headings MEAN something is the system's question, not ours.**
+`subtypeForSection` folds the printed heading against `CONFIG.ACKS.item_subtypes`
+— by key and by localized label — so the importer writes down no name off the
+page and a heading the system's vocabulary does not know stays plain inventory.
+The alternative was declaring the three headings in the recipe beside the
+column geometry, which would have put three of the book's words in shipped
+source to say something core already says in its own.
+
+**A wrong subtype is corrected in place, not re-created.** Re-import cannot
+reach these: the id is already claimed and the loop skips it, so a belt filed
+as inventory would stay filed there forever. Only documents carrying our
+`generated` flag are touched, and only the one field — this is
+`repairAnimalItems`' posture without the delete, which an item's mutable
+subtype does not need. Skins already copied onto a character are the template
+package's to refresh, not ours.
+
+**Left standing, and why:** the livestock rows on the same grid still import as
+ITEMS, though `importEquipment` has ruled since the animals work that a mule is
+a creature and a described animal entry becomes an actor. Seventeen class
+templates name a riding horse. Making a priced row an actor moves it out of the
+collection `resolveBase` searches and wants the `repairAnimalItems` migration
+extended to `def.priced.*`; that is a release with a migration in it, not a
+patch.
+
+### Reconciling is a claim about one game's library (2026-08-25)
+
+**Ruled: `reconcileByName` skips any candidate on a different LINE.** Neither
+branch below it is meaningful across games — merging rewrites the name, system
+and identity of the loser, and tagging labels it as an edition of a book it has
+nothing to do with.
+
+The whole function is the claim *two BOOKS printed the same thing*: merge the
+reprint and record the loser's id, or keep both and tag them so a reader can
+tell which book each came from. Two games printing "Rope" is not that claim.
+
+**The loser would always have been the non-ACKS one.** `reconcileByName` is
+only reached from `importEquipmentItem`, so the incoming is always ACKS, and
+`bookRank` puts every ACKS book ahead — MAX_SAFE_INTEGER for a Judge-registered
+`ose.*` source that is in no registry, and a real-but-later index for the
+shipped OSE books, which are declared after the ACKS ones. Either way
+`incomingWins`, and someone's imported OSE item silently becomes an ACKS entry
+with an ACKS id. Not a duplicate to notice — an identity quietly overwritten.
+
+Latent when found, and by a wider margin than it looked: no world Item carries
+an OSE id at all, because the OSE paths put converted gear in `items:` embedded
+on the actor rather than minting world documents. It is also **not** a
+regression from shelving reads across packs — before that there was exactly one
+Item pack, so the candidate set is identical. It is a landmine for the first
+line-bearing book that mints an item.
+
+### A batched write files by identity, never by position (2026-08-25)
+
+**Ruled: `createDocs` returns one slot per input — `null` where the document
+was not created — and pairs results to inputs by COOKBOOK ID.**
+
+Two faults, and the second was introduced while fixing the first.
+
+**The original.** `createDocs` pushed only successes, and the abilities import
+paired them back by index: `written.forEach((doc, i) => rememberImported(
+batch[i].id, doc))`. One failed create shifted every later slot, so documents
+were filed in the dedup index under their neighbours' ids — a lookup that
+answers confidently with the wrong document, which is worse than a lost import.
+That pairing was also **redundant**: `createDocs` already runs every document
+through `remembered`, which reads the id off the document's own flag. Its
+comment — "`createDocs` cannot, it is type-generic" — was true when written and
+stopped being true when `remembered` moved inside. The lines are deleted.
+
+**The one introduced.** The first fix rebuilt the array positionally with
+`made.forEach((doc, k) => out[chunk[k].i] = ...)`, on the assumption that
+`createDocuments` answers with one document per input. **It does not throw on a
+document that fails validation — it drops it and returns fewer, in order.** So
+`made[k]` stops being `chunk[k]` at the first invalid document and everything
+after it lands one slot early: the same off-by-one, rebuilt inside its own fix.
+A live probe of five documents with a bad one third caught it — slot 3 held
+slot 4's document — where every offline gate passed. Pairing is now by the
+cookbook id every document this module creates carries; anything unidentifiable
+takes the chunk's first free slot so the count stays honest.
+
+**Also ruled: a batched write groups by line.** One resolved pack for a mixed
+list writes everything to whichever shelf the first document wanted. Nothing
+batched carries a non-ACKS id today, so this groups into one bucket and changes
+no behaviour — "not per-line today" is a property of the current book list, not
+of the code.
+
+---
+
+### Another game's books get their own shelf (2026-08-25)
+
+**Ruled: imports are shelved by SERIES.** A book declares a `line` in
+`books.mjs` and its documents go to that line's own compendia — `ACKS Cookbook
+— Dolmenwood — Actor` beside `ACKS Cookbook — Actor`. A book that declares no
+line is ACKS and uses the unsuffixed packs, which is every ACKS book: the ACKS
+line is the default rather than a name in the source.
+
+**This refines "The pack is the container" (2026-08-24), one day old, and the
+new evidence is what shipping the OSE step made visible.** That ruling settled
+that a pack is the unit of ownership and that the pack's own name inside it was
+redundant; both stand. What it could not have known is what the library would
+hold a day later: 4.2.0 wired `importAuthoredOse` into the one import control,
+so a single press now fills one Actor pack with the ACKS Monstrous Manual, the
+Advanced Fantasy Referee's Tome, the Dolmenwood Monster Book, three Quick
+Delves, three Wicked Little Delves and three Planar Compass issues. One pack was
+the right answer for one publisher's library and the wrong one for six.
+
+**Three things were unorganized, and only one of them was the pack.**
+
+- The registered-source and by-hand paths called `createDoc(Actor, data)` with
+  no folder at all, so every creature a Judge converted themselves was created
+  loose at the top of the library among the ACKS monsters.
+- `importOseBook` and `importOseAreas` defaulted `folderId` to null and nothing
+  passed one, so the authored books did the same thing at scale — 340 Referee's
+  Tome creatures in a heap, and the 165 Dolmenwood ones on top of them.
+- Everything shared one pack per type, so there was no shelf to file them on
+  even once they had folders.
+
+**The shelf is derived from the document's own cookbook flag, not passed in.**
+`createDoc` reads `flags["acks-importer"].cookbook` and resolves the line
+through `lineOf`; twenty-odd importers create documents and every one of them
+already stamps that flag. Threading a `line` argument through all of them
+instead would have been twenty chances to add the twenty-first importer and
+forget — and, worse, the destination would then be decided by the CALLER while
+the presence checks derive it from the id. `importedActor` asking a different
+pack than `createDoc` wrote to reports "not imported" and mints a twin, which is
+the exact failure the claim rules already exist to prevent. One pure function
+over the id answers for both.
+
+**Reads span every pack; only writes pick one.** `importedIdsOfType`,
+`importedIndex`, `importedDocs` and `importedActorsOfType` now enumerate every
+world pack whose label starts with `ACKS Cookbook — `. A batch mixes lines —
+"import everything" walks the ACKS books and the OSE ones in one pass — so a
+check that asked one pack would call every Dolmenwood creature new on every run.
+`deleteImported` groups by the pack each document is actually on, because a
+delete addressed to the wrong pack removes nothing and says nothing.
+
+**The prefix is load-bearing.** Every label keeps `ACKS Cookbook — ` whatever
+line it holds: the sidebar sorts packs by label, so the library stays one block
+instead of scattering; and `cookbookRemoveImports` finds this module's packs by
+that prefix alone, so a line added by a later release is swept up by a Remove
+Imports that has never heard of it.
+
+**A registered source is ASKED which line it belongs to**, in the register
+dialog, offered as a datalist of what this world already shelves. The module
+cannot know who published a file it has never seen — a source's metadata title
+is already known to be unreliable evidence (one sample book carries its author's
+word-processor filename there), and inferring a publisher from it would put two
+adventures on two nearly-identical shelves or one on the wrong one. Suggesting
+is what keeps the list short; requiring a choice from it would refuse every book
+nobody here has heard of. Blank is allowed and lands on a shared shelf.
+
+**Rejected: naming PUBLISHERS rather than series.** It is the more natural
+grouping and it was the first plan. Two things killed it. `ip-scan.mjs`
+hard-fails on publisher attribution in `scripts/` — the ACKS line could not be
+named in the file that would have to name it — and beyond the two lines whose
+publisher is common knowledge, this session could not have named the rest
+without guessing, which would have shipped a wrong attribution in a
+user-visible pack label. A series name is printed on the book's own cover and
+is already in `books.mjs` as part of every one of these titles.
+
+**Rejected: a migration for worlds imported before this.** Consistent with the
+2026-08-24 ruling: delete-and-re-import is the upgrade path. Nothing breaks
+without it — the reads span every pack, so documents already in `ACKS Cookbook —
+Actor` are still found, still counted as imported, and still removed by Remove
+Imports. They simply stay where they are until the library is rebuilt.
+
+**Cost:** more packs in a sidebar — up to six Actor compendia where there was
+one, for a Judge who owns all these books. That is the point of the change, but
+it is a cost for a Judge who owns one OSE adventure and now has a second pack
+for it.
+
+---
+
+### Imported text is written into the world, once, by the GM who owns the book (2026-08-24)
+
+**Ruled.** An import materializes the entry's own paragraphs into the document
+it creates, with the page reference as the closing line, and the world holds
+them from then on. The `@PdfText` enricher, the per-seat reveal and every
+"connect your PDF on this seat to read it here" stub are retired with it.
+
+**This supersedes the closing paragraph of "The refresh bridge" (2026-07-29)** —
+"nothing enters world data, and prose remains memory-only everywhere". The new
+evidence is not about the bridge, which stands unchanged: it is that the
+conditional text failed as a reading surface. Resolution ran at render time, so
+a description was only as readable as the seat looking at it, and the reveal
+path had already broken silently — the import path caches paragraph OBJECTS
+where the reveal expected a string, so a revealed cookbook entry rendered
+`[object Object]`. A surface whose failure mode is invisible to the seat that
+imported it is not a surface anyone can rely on.
+
+**What the shape has to carry, and why each part is load-bearing:**
+
+- **Escaped, never parsed.** Extracted text is plain text that happens to be
+  about to live in an HTML field; an angle bracket in a printed formula is a
+  character. The reveal path got this for free through `textContent`; a stored
+  description does not.
+- **Stamped** (`data-acks-entry` on the wrapper). `handWrittenProse` used to ask
+  "is this description exactly one `@PdfText` tag?" to decide whether a re-import
+  may overwrite it. With text in the field that test is impossible without a
+  mark, and losing it would mean either clobbering a Judge's own writing or
+  never updating anything.
+- **The citation is part of the block, not a separate field.** Attribution
+  travels with the reproduction or it is lost the first time someone copies the
+  text out of one field.
+
+**The Full Monster Sheet routes sections to six separate fields**, so the page
+reference closes the last one that received text — the creature carries it once,
+at the bottom of the Description tab, rather than six times.
+
+**Accepted cost: worlds imported before this hold `@PdfText` tags, and there is
+no repair pass.** — SUPERSEDED 2026-09-02 by "Importing again refreshes what it
+did not create": the repair named here reaches no ability owned by an actor, and
+the pass this paragraph declined to build already existed and is now routed into
+*Import Everything*. The rest of the entry stands. The enricher that used to
+render them is gone, so an
+unrepaired document shows the literal `@PdfText[mm.ghoul]{MM p.112}` until it is
+re-imported (*Remove ALL Imports*, then import again). A citation-only shim was
+rejected: it would keep the whole per-seat resolution path alive to pretty-print
+documents that a single re-import fixes properly.
+
+**Also retired, because it lost its only consumer:** the eager per-recipe
+extraction inside `ingestBook`. Connecting a book is now an open and a
+fingerprint; text is read from the page an import names, at the moment it is
+imported.
+
+**IP posture, stated out loud.** This is app-licensed in-app content the GM
+materialized from their own copy, which `.claude/rules/ip-doctrine.md` allows —
+the same hand-typed equivalence that already governs imported stat blocks and
+roll-table rows. What changes is that a world backup now carries the book's
+sentences where it used to carry citations. Nothing about the SHIPPED artifact
+changes: no rules words, no page values, no `ruledata/`.
+
+---
+
+### Same name, two books: merge unless they differ beyond their source (2026-08-24)
+
+**Amended on a condition (2026-10-17)** by "Later books supersede, by the year
+their printing carries": precedence becomes publication order once a census
+shows that no merge changes its winner. **Condition met (2026-10-24)**: "An
+item two books print is the later printing's".
+
+**Ruled.** Two imports that share a printed name are ONE document unless they
+differ in more than where they came from. Identical-but-for-provenance merges,
+and the higher-precedence book's copy is what the library keeps. Genuinely
+different keeps both, TAGGED with each book's short name, so a reader can tell
+`Boots (RR)` from `Boots (BTA)` instead of finding two rows called "Boots".
+
+**Precedence is the order `BOOKS` declares** — Revised Rulebook, Judges Journal,
+By This Axe, Monstrous Manual — read at run time rather than restated, so a new
+book takes its rank from where it is added.
+
+**The comparison is DIRECTIONAL, and getting that wrong is why this took two
+attempts.** A live document's `system` is a data model carrying every field the
+schema declares, defaults included; creation data carries only what the binding
+set. Comparing them whole never matches, so the first build declared two
+identical printings of Laborer's Tools different and tagged them. `sameMaterial`
+asks only whether the existing document already says everything the incoming
+would.
+
+**A merged id is recorded, not discarded.** The absorbed entry's id goes into
+`cookbook.merged` and `importedIndex` answers for it, or the loser's id resolves
+to nothing and the next run imports the twin again. **A tagged document keeps
+its printed name** in `cookbook.printed`, and collisions are judged on that —
+tagging rewrites the name, and a rewritten name would never collide again, so a
+pair tagged by an older build could never later be reconsidered.
+
+**A regional or racial version with the same stats is a VARIANT, not another
+base item** — so it merges. All five Rulebook/By This Axe pairs do: Boots,
+Cloak, Journal, Manacles, Whistle, plus Laborer's Tools and Special Components.
+Running the imports twice more in reverse order changed nothing — 1,006
+documents before and after.
+
+Getting there needed a register fix, and the failure to merge is what found it:
+Boots and Cloak differed only in `subtype`, because EVERY By This Axe equipment
+entry was authored `group: "gear"` with no `subtype` at all. Dwarven belts,
+boots, caps, cloaks, coats, turbans and tunics were therefore shelved with the
+rope and carried the wrong item subtype, and the war and guard bears imported as
+inventory rather than as animals. The comparison was doing its job; the data was
+wrong. (What this does NOT do is build a variant DOCUMENT linking to the base —
+the merge only guarantees one base item, which is what the rule asks for.)
+
+**Cost:** the check runs per document, so it reads a name index built once
+(`libraryNameIndex`) rather than the library. Loading every pack document per
+item made the equipment import quadratic again inside the check meant to keep it
+clean — measured at seven minutes before the index, and the index is dropped by
+the same `forgetImportedIndex` that drops the id index.
+
+### Three controls, not twenty-one (2026-08-24)
+
+**Ruled: the macro pack ships four entries** — connect your books, import
+everything, reimport one shelf, delete everything imported.
+
+It shipped twenty-one. Nearly all were one step of a larger job, on the shelf
+because it happened to be a function: import traps, import variations, import
+vehicles, import rules tables, build template packages, fill companion slots. A
+Judge does not choose those individually — they are what "import everything" is
+made of, they have a dependency order, and offering them as a list invites
+running them in the wrong one.
+
+`cookbookReimportShelf(shelf)` is the one genuinely new control: empty one
+top-level shelf and import it again, for a book reconnected at a different
+printing or a shelf edited past recognition. Deleting first is the point —
+import is idempotent and passes over what it already has, so importing "again"
+over a populated shelf changes nothing.
+
+**Which shelves exist is NOT restated.** `ITEM_SHELF` already says which id
+namespaces land where; `SHELF_REFILL` names only what `ITEM_SHELF` cannot, which
+run rebuilds a shelf. A shelf with no refill cannot be rebuilt alone and says so.
+
+**Nothing is lost.** Every dropped macro's function is still on the api, and a
+world that imported the old pack keeps its copies working. Their ids are not
+reused: an id is identity, and re-issuing one would hand such a world a
+duplicate.
+
+### Writes are batched, because a write costs what the shelf already holds (2026-08-24)
+
+**Ruled: every bulk importer BUILDS all its documents, then writes them in
+chunks** (`createDocs`, `WRITE_CHUNK` 50).
+
+**The measurement that settled it.** A write costs one round trip whose price is
+set by how many documents the target already holds — each call re-indexes the
+collection — not by the payload. Against a live world: a create into a
+19-document pack, ~35ms; the same create into a 1,039-document pack, ~950ms.
+Twenty-five individual creates at that size, 23,866ms; the same twenty-five in
+one call, 1,107ms. So a one-at-a-time loop is quadratic in the library it is
+building and visibly slows as it goes — which is exactly what a whole-corpus
+import did.
+
+The ability import went from **not finishing in forty minutes** to **9.1
+seconds**.
+
+**Rejected: a time-window write queue** that coalesces concurrent creates
+transparently. Sequential `await`s never overlap, so such a queue accumulates
+one document and batches nothing; the callers have to stop awaiting each write,
+which is a structural change, not a wrapper.
+
+**Rejected first, and wrong: blaming page extraction.** `executeEntry` built a
+fresh page cache per call and 82% of the ability corpus's page reads were
+redundant, which looked like the answer. Threading a shared cache through
+changed nothing measurable — a definition parses in about 7ms. The cache is
+still right and is kept; it was never the cost. Measure before believing.
+
+**Cost:** `importAbility` is split into `abilityData` (build) and the write, and
+the bulk path no longer goes through `claimImport` — so `createDoc` and
+`createDocs` now teach the dedup index themselves (see below).
+
+### Every create teaches the dedup index (2026-08-24)
+
+**Ruled: `createDoc`/`createDocs` remember any Item carrying a cookbook id.**
+
+Only `claimImport` updated the index, so a document created through `createDoc`
+alone was invisible to the next presence check IN THE SAME SESSION. Running the
+class-builder table import twice produced two `def.race.dwarf` and two
+`def.race.elf`, every time. Keyed off the document's own flag rather than a
+caller-supplied id, so no creator can forget.
+
+**Found by asserting idempotency, not by reading code:** a full import was run,
+then every step re-run out of order and repeated, and the two end states
+compared by fingerprint. They differed by exactly two documents.
+
+### One name has many printed forms, and the rule lives in lib (2026-08-24)
+
+**Ruled: the price-list claim asks `acksExtras.lib.vocab.nameKeys`.**
+
+The catalogue writes a thing head-first with its qualifier after a comma — "Oil,
+Military (1 pint)" — while the weapon table writes "Military Oil". Two ids, two
+shelves, one flask, two documents. The claim also only consulted the equipment
+chapter's *declared* entries, so it could never see a weapon minted at run time
+from a grid.
+
+The claim now folds every printed form (comma-flip, parenthetical, slash
+alternatives) and matches against the whole LIBRARY, which is why the price list
+runs last. `Oil, Military` and `Oil, Common` are claimed; **`Oil, Olive` is
+kept**, because nothing else in the library is olive oil — the check dedups what
+is duplicated and preserves what is not.
+
+**Rejected: a comma-flip helper here.** It fixes the reported case and leaves
+the slash and parenthetical forms to be rediscovered one at a time. The pattern
+is "the same thing printed differently", and acks-extras already had those rules
+— in a second copy, with a docstring asserting the two must agree. They now live
+once, in `lib/vocab.mjs`.
+
+**Known, not fixed — and not what it first looked like.** Two pairs of equipment
+entries share a printed name across books: `def.equip.laborersTools` (By This
+Axe) / `def.equip.laborerSTools` (Revised Rulebook), and
+`def.equip.specialComponents` / `def.equip.specialComponentsMiscellaneous`.
+These are NOT duplicate rows in one corpus — each book needs its own entry
+because a recipe is page coordinates. Whether each pair is one item printed
+twice or two things sharing a name is a question about what those pages say,
+and it decides the fix; ROADMAP carries it.
+
+### The audit: a recipe answers for itself, without importing (2026-08-24)
+
+**Ruled: `cookbookAudit()` parses every recipe and reports per-recipe, writing
+nothing.** A recipe is page coordinates and probes, and only the printing in
+front of it decides whether it still matches — so "does this recipe work?" must
+be answerable without the import that would act on the answer.
+
+**What it found:** nothing. 720 recipes across the Revised Rulebook and Judges
+Journal, and 291 in the Monstrous Manual — **1,011 parsed, zero failures**, in
+about fourteen seconds. The suspicion that failing recipes were behind the slow
+import was wrong. It did surface 36 register-token misses across 29 monsters
+(mostly `magicProperty` names the register has no row for), which is register
+data to add, not geometry to re-measure.
+
+**Art is skipped by default**, because an audit asks a text question: the `art`
+op walks a page's operator list to choose an image and costs 1.8s for one
+Monstrous Manual creature and 15s for another, against 7ms for a proficiency.
+
+### The art op is skipped when the picture is already on disk (2026-08-24)
+
+**Ruled: `importOne` skips the `art` op when `cachedArt(id)` answers.**
+
+The upload cache has always short-circuited the decode-and-upload half. It never
+saved the WALK — and the walk is what costs the seconds. So a world whose art
+was entirely cached still paid 1.8–15s per creature to choose an image it was
+never going to extract. Measured after: three monsters with cached art imported
+in 321ms, 101ms and 121ms, each with its illustration correctly applied.
+
+The art gate moved from `node.fields.art` (the op's result) to the RECIPE's own
+art field, or a cached illustration would never reach the actor once the op was
+skipped.
+
+### The pack is the container: compendium-only, two levels deep (2026-08-24)
+
+**Ruled: every import is written to a world compendium, and no folder tree
+inside one is more than two levels deep.** `importToCompendium` is removed —
+where imports land stops being a setting.
+
+**The problem was ownership, and it was structural.** Foundry's folder
+ownership dialog writes `folder.contents`, which is a folder's DIRECT children
+(`client/applications/apps/document-ownership.mjs`); it does not recurse. The
+tree was `ACKS Cookbook / <book> / <group>`, so configuring ownership at the
+root reached nothing — a live world measured 229 flagged actors and 2,317
+items of which 38 and 178 were reachable, both only because they were
+misfiled. Covering the library properly meant opening the dialog on 99 leaf
+folders. A compendium answers the same question with one role-keyed setting on
+the pack, and world packs are unlocked by default, so the documents stay
+editable and draggable exactly as sidebar ones were.
+
+**With the pack as the container, its own name inside it was redundant**, and
+the level it cost mattered: a pack caps folders one shallower than the world
+(`CONST.FOLDER_MAX_DEPTH - 1`), and `ACKS Cookbook / Classes / Templates /
+<Class>` was already four. Dropping the root put every tree at two with a level
+to spare. `ensureFolderPath` now truncates a deeper path rather than creating
+it — a gate, because this grew back one level at a time.
+
+**Rejected: a module-side recursive ownership button.** It would have worked
+and would have rescued existing worlds without a re-import. It leaves the
+underlying shape — a library the sidebar has to hold and a hundred dialogs to
+share — exactly as it was, and adds a second gesture a Judge has to know about.
+
+**Rejected: migrating existing worlds into the packs.** Delete-and-re-import is
+the upgrade path, stated in the changelog. A migration would have to move
+~3,200 documents, re-point every uuid on every character that referenced one,
+and be right about which of two same-id documents was the real definition —
+for a world the re-import rebuilds correctly in minutes.
+
+**Cost:** a breaking change, and the reason this is 3.0.0. A world upgraded
+without re-importing keeps its sidebar documents, which the module no longer
+reads; Remove Imports still finds them by flag, so nothing is stranded.
+
+**Superseding note:** class-template packages stay WORLD documents. That is not
+an exception grudgingly kept — acks-extras copies pack documents into the world
+precisely so a Judge can repair one (its `template-packages.mjs` header), and a
+package exists to be repaired. Their folder is `Class Templates / <Class>` in
+the sidebar, which is what acks-extras' own `defaultFolder` already built; the
+two paths now agree, where before this file's ruling of 2026-08-19 gave the
+importer a different four-level one.
+
+> **Superseded 2026-09-10** ("A package and a rules table land where the
+> import lives", below): a pack class's package lands on that line's shelves.
+
+### A namespace with no shelf is a failing test, not a folder nobody notices (2026-08-24)
+
+**Ruled: `tools/test-item-shelves.mjs` asserts the shelf table against the
+DATA.** Every `def.*` namespace the cookbooks carry must have an `ITEM_SHELF`
+row or be named as something that is deliberately not an item, with the reason;
+every row must name a namespace something actually mints.
+
+`itemShelfFor` answered null for an unknown namespace and the document was
+filed at the top of the library with nothing said. Three namespaces drifted in
+that way — `def.priced`, `def.race`, `def.constant` — and one live world held
+178 items loose above the shelves. Nothing could have caught it: validate does
+not know what a shelf is, and a test written against the table alone agrees
+with itself.
+
+The shelf table is deliberately DUPLICATED into the test (parsed out of the
+source), because importing `cookbook.mjs` offline would drag in the Foundry
+globals — and the duplication is what gives the check teeth: it fails when the
+two disagree. The first run found a fourth namespace, `def.classmeta`, which
+had no shelf either; it is a passage read for one name at import time and never
+a document, so it is now stated as such.
+
+**Also ruled:** a namespace declared not-an-item must be excluded from
+`NON_ABILITY_KINDS` too, and the test asserts both together. `kind.constant`
+was missing from that set, so the generic ability walk minted four `ability`
+items for the SCG's conversion constants — numbers the converter is handed, not
+documents. The comment above that set already warned this would happen; the
+warning is now a gate.
+
+### Organize is deleted, because destination has one author (2026-08-24)
+
+**Ruled: `cookbookOrganize` and its macro are removed.**
+
+It existed to re-file documents made by older releases into the current tree.
+Delete-and-re-import now does that, and Organize was itself the worst filing
+bug in the module: a class template's skinned gear carries the cookbook id of
+the definition it was copied from, so Organize read a Barbarian's engraved
+silver waterskin as the shared Waterskin and moved it to the Equipment shelf.
+The correlation in the world that found it was exact — all 1,191 skinned parts
+carrying an importer id had been moved out of their class folder, and all 436
+without one were still in it.
+
+**The general rule it violated:** a document's destination has ONE author, the
+importer that creates it, and it is decided at creation time (see the "FILE IT
+NOW" note in `importOne`). Organize was a second author with a different
+opinion, and the price list proved the two disagreed even for the importer's
+own documents — its importer filed 172 rows under `Equipment / Price List`
+while `ensureItemFolder` said the top level, so whichever ran last won.
+`itemShelfPath` is now the only path-builder for items, and every item importer
+calls `ensureItemFolder`.
+
+**Rejected: keeping Organize with a `templatePart` exclusion.** It fixes the
+symptom and leaves the second author in place. A GM who hand-moves an imported
+document can move it back; nothing else needed it.
+
+**Cost:** no recovery gesture for a hand-moved document, and no repair for
+worlds that already ran the broken Organize. Both are answered by
+delete-and-re-import.
+
+---
+
+### Four macros, three dialogs, one question (2026-08-21)
+
+**Ruled: the book surfaces collapse into ONE window, and a book's own ROW is
+how a book gets named.**
+
+"1 · Your Book" shipped four macros onto three dialogs. Getting Started carried
+a *Connect a book…* button; the Connect dialog carried a `<select multiple
+size=6>` over twenty books, a file picker and a folder picker; the Books dialog
+carried a SECOND folder picker, a bulk picker and the per-book rows. Two of the
+three asked "which book do you mean?" in different words, and the answer the
+reader liked — a row with a button on it — was the one buried behind the other
+two. The reported symptom was the list: twenty books, six visible rows.
+
+The window is four bands: the walkthrough (open on a seat with nothing, folded
+once there is something), the server shelf, the controls that answer for
+several books at once, and the books themselves grouped Waiting / Open / Not
+connected, the last two collapsed behind their counts. `connectBook`,
+`bookStatus`, `reconnectBooks` and `gettingStarted` all resolve to it, because
+a compendium macro outlives the build that shipped it and three of the four
+macros are dropped from the pack rather than renamed. Their ids are not reused.
+
+**What the select was hiding.** `pairPicks` existed only because a
+`<select multiple>` cannot say which file is which: it paired by evidence and
+then fell back to POSITION for whatever was left. With the naming on the row
+there is nothing left to guess, so the fallback and its function are deleted
+and `matchFilesToBooks` — evidence, or a named refusal — is the whole matcher.
+This makes the 2026-08-11 "position is not evidence" ruling total rather than
+last-resort, and the offline test now asserts the refusal where it used to
+assert the guess.
+
+**Reconnect all**, asked for and missing, is shaped by the gesture rule rather
+than pretending it away: it does everything needing no permission first (the
+shelf, served paths, bridged bytes, handles still granted), then spends its one
+transient activation on the remembered FOLDER, which re-grants a whole shelf at
+once. Whatever a folder cannot answer for is NAMED as still needing its own
+click. The permission request goes first in the handler, before any await that
+could outlive the activation window — a permission asked for after a 100 MB
+read is a permission asked for too late.
+
+**Cost.** `booksDialog` is meaningfully bigger and now renders conditional
+bands. The join-time auto-close is kept but narrowed to the join-time offer:
+opened by hand the window is also the shelf and the import chain, and closing
+it under the reader mid-task is not tidiness.
+
+---
+
+### A book the server holds asks nobody for anything (2026-08-21)
+
+**Ruled: a PDF staged under the Foundry data directory is recorded in WORLD
+settings, and every GM seat reads it on join with no gesture.** — The record
+clause is SUPERSEDED 2026-09-03 by "A book the server holds is a journal": the
+shelf is a journal per book now, not a setting. The rest stands.
+
+Every location kind before this was a property of one browser: a handle needing
+a permission click, or a filename needing the picker again. That is a fair
+price for a book only that browser can reach, and no price at all for a book
+the server can reach. The `url` kind and `connectBookUrl` already existed and
+were reachable only from the api — this makes them a surface, and moves the
+memory from the seat to the world so it holds for every GM seat on any machine.
+
+Two routes in, because GMs keep their books differently: **Add to server** on
+an open book's row uploads it through the same `FilePicker.upload` the art
+importer uses, and **Scan the folder** reads `acks-importer-books/` for a GM
+who copied files there by hand. `FilePicker.browse` answers with paths and no
+sizes, so a scan matches on remembered name and title-in-filename and the size
+pass never fires — the right strength for a directory the GM curated.
+
+**A shelf entry is never written on a filename.** Both routes connect and
+fingerprint the file first, and `ingestBook`'s wrong-book refusal is what
+decides; a refusal must not leave an entry behind promising a book is
+available. `connectBookUrl` therefore THROWS where it used to warn and return,
+because a soft return told the shelf that a failed read had succeeded.
+
+**Stated rather than discovered:** a file under the data directory is fetchable
+by any signed-in user who learns its path. Staging makes a book undiscoverable,
+not inaccessible, and the guide says so in those words. A table that needs more
+than that keeps its books on its own disks.
+
+**Rejected — clearing the shelf from "Forget books".** Forgetting is a
+statement about this browser. A GM tidying their own seat must not silently
+unstage the books every other seat reads, so `forgetBooks` leaves world data
+alone and says which it touched.
+
+**Found by the live gate: the scan could not read the module's own handwriting.**
+`shelveUpload` writes `<bookId>.pdf`, and the evidence rules — remembered name,
+size, the book's title in the filename — match none of that: "jj.pdf" contains
+neither a name this seat remembers nor the words "Judges Journal". A shelf
+staged from the rows therefore read as EMPTY the moment it was scanned. The
+scan gains one pass of its own, ahead of the others, matching a filename stem
+that is exactly a book id. It is confined to the shelf directory, where the
+module controls the naming; a folder of the reader's own files is still matched
+on its own merits only. The pass still only PROPOSES a book — the same live run
+staged a Monstrous Manual named `rr.pdf` and watched the fingerprint refuse it.
+
+**Also found live: `singleton` had two states where it needed three.** The
+entry is dropped when its promise settles, which is a microtask, so anything
+that closed the window and reopened it in the same turn met an entry whose app
+was already closed — and `bringToFront` on a closed application reads the style
+of an element that is gone. "Still building" (no app captured yet) and "closed
+under us" are now distinguished: the first is waited on, the second is dropped
+and reopened. Its `finally` also checks the slot is still its own before
+clearing it, so a replacement is not deleted by the dialog it replaced.
+
+---
+
+### A class's variants are PATHS, and the grid that prints them is read by geometry (2026-08-23)
+
+**Problem.** The Barbarian's combat training does not exist as a sentence. Its
+spread prints a table — Region | Armor | Weapon Proficiencies | Fighting Style
+Proficiencies, a row per region — so the prose reader could never find it, and
+the class imported with no training of any kind. The Zaharan's dark paths and
+the dwarven castes have the same shape.
+
+**Ruled.** ACKS Extras owns the shape (`system.paths`, its DECISIONS
+2026-08-22); this side fills it from the reader's page. `buildPaths` emits the
+printed variant table as a group of options, each carrying its own training, and
+adds a `templates` group for any class that has starting templates — so EVERY
+imported class gets at least one path group and the feature is not reserved for
+the one class that motivated it.
+
+**Ruled: per-option data stays on the option** (user), even where every row
+agrees. All three Barbarian regions permit armour up to medium; hoisting that to
+the class would bake in a coincidence of this printing and leave nowhere for a
+custom path, or a later one that differs, to say otherwise.
+
+**Three things the page defeated, and what was authored instead of guessed:**
+
+- **The table is mentioned before it is printed** ("as shown on the Barbarian
+  Combat Proficiencies table below"), and the title search found the prose
+  first, anchoring the whole table's geometry on the wrong column. `titleLast`
+  says the heading is the later occurrence.
+- **Rows are anchored on the label column, read off the page.** The print lines
+  stand four to nine points apart, so the line assembler folds a region's name
+  in with the armour rung above it; the first cell of that merged row is
+  whatever sorts leftmost, and the whole table read as one band. The label
+  column is a geometric fact and is taken as one. A label that WRAPS — "Ivory"
+  over "Kingdoms" — is one label, recognised as a gap much smaller than the gap
+  between real rows.
+- **The column x's are authored.** The heading lines fold into the first data
+  row too, so the header search cannot find "Weapon Proficiencies" as a cell of
+  its own. Where the page defeats the search the recipe gives the geometry
+  rather than a better guess.
+
+### A totem animal is a creature, and the template is which one (2026-08-21)
+
+**Problem.** "Rat totem animal", "Black cat familiar" — printed in a Starting
+Equipment cell, and read as gear because that is the cell they are in. Eleven of
+them became items with no base, no mechanics and no creature behind them: a rat
+on the character's equipment list. One was worse than mistyped. The witch's band
+carried BOTH the `Familiar` ability (from her proficiency column) and an item
+named for her cat, which is the same fact imported twice.
+
+The model for this already existed and was pointing the other way.
+`resolveCompanion` leaves an ability's companion slot EMPTY when the creature is
+built or chosen rather than named — "there is no single entry to point at" —
+because which creature it is was never a property of the ability. It is a
+property of the TEMPLATE, and the template was the one place saying it.
+
+**Ruled.** A phrase in `register/_refs/companionPhrase.json` names the ability
+whose slot it fills; the descriptor is lifted off the item list and becomes that
+ability's SELECTION. It fills the row's existing entry where the proficiency
+column already granted the ability — the witch gets `Familiar (black cat)`, one
+document, not two — and never overwrites a selection the column already made
+(`Familiar (eagle)` stands). Where the row has no entry, one is added carrying
+the ref, and the specialized copy's `grantedFrom` stamp is what stops the
+class's own award of the same ability from granting it a second time; verified
+live, `ownsRef` answers true and re-applying the class adds nothing.
+
+**Not done, and named:** the creature is a NAME, not a ref, so the ability's
+`actorUuid` is still empty — the Judge drops the actor in, exactly as before.
+Matching a selection against the imported monsters would fill it, and that is
+worth doing; it is a different subsystem (effects) and did not belong in a
+hotfix.
+
+### A head dress is a hat (2026-08-21)
+
+Ruled: a bladedancer's, a priestess's and a gossamer head dress resolve to the
+shop list's **Hat**, not to Helmet (Light). They are worn, not armour — nothing
+about them protects — and what makes one cost 20gp is the ornament, which the
+cell prices in place and the skin now carries. One register row either way if
+this is ever ruled the other.
+
+### What the page says a thing is worth is imported with it (2026-08-21)
+
+**Problem.** 50 printed descriptors reach the end of the ladder with no
+catalogue row behind them, and that is correct: the shop list has no entry for a
+bladedancer's head dress or a gaudy silver ring. But 18 of them are PRICED where
+they stand — "(20gp value)", "(45gp value)", the same amount written bare — and
+that bracketed number was read only to be skipped, so the item arrived with the
+one value its page ever gave it thrown away, and the Judge was handed something
+to repair with nothing to repair it from.
+
+**Ruled.** A bracketed amount is read onto the item as its cost, and it
+OVERRIDES a base's price where there is a base: a cell that says a staff is
+worth 45gp is describing the gemstone on that one, not the shop list's plain
+staff. It reaches the character through the template item's own `cost` field
+(acks-extras `class-data.mjs`), and a repair pass carries it across rather than
+letting a replacement built from a base arrive priced as the plain version.
+
+This is the same rule every other imported number follows — it comes off the
+reader's own page at import time and nothing is shipped.
+
+**Left as it is, and named:** the 11 totem animals and familiars printed in
+equipment cells are class features, not gear, and carry no value to read. They
+import as named items with no base, which is visible and deletable; the bundle
+holds items, and minting an actor from an equipment cell would be a second
+pipeline for one line of flavour.
+
+### The catalogue's conventions are rules; what is left is authored (2026-08-21)
+
+**Problem.** With the menu and the containment floor fixed (below), 545 of a
+printed 168 cells' descriptors still pointed at nothing. Reading them showed the
+misses were not random: the price list writes a name HEAD FIRST with its
+qualifier after a comma — "Rations, Iron", "Rope, 50’", "Sack, Small", "Horse,
+Medium riding" — and a template's cell writes the same thing as English. A slash
+names one row by either word ("Waterskin/Wineskin", "Sandals/Shoes"). The two
+halves of one book could never meet: "1 week's iron rations" alone accounted for
+142 of the misses.
+
+**Ruled.** A convention the catalogue uses throughout is a RULE, not an
+exception. `nameForms` gives every menu row the forms its own list prints it in
+— comma rotated back, slash alternatives expanded — and the HEAD alone is
+deliberately not among them, or "Sandals/Shoes, Leather, High" would answer for
+a bare "sandals" that is another row's own name. 545 misses fell to 265.
+
+**Ruled.** Three more printed constructions are read across the separators,
+because the cell writes them across the separators:
+
+- **A catalogue SET.** "Quiver, 20 Arrows" and "Case, 20 Bolts" are single
+  priced rows; the cell writes them "quiver with 20 arrows". The container split
+  tore them into two things the price list has never heard of and counted the
+  encumbrance twice, so it now stands down when the set resolves whole.
+- **A book's CONTENTS.** "Bark-bound prayer book with remove fear, angelic
+  choir, and counterspell" is one book, and an English list is commas until the
+  "and". Split, its spells went on the character as inventory. The clause is
+  rejoined up to the chunk that opens with "and" — and only if the list actually
+  closes that way within a few chunks.
+- **"UNDER" IS A PAIR.** "leather armor under blue mage's cassock" dresses a
+  character in both; read whole, nine characters lost a garment they are printed
+  as wearing.
+
+**Ruled.** What survives all of that is authored, once, in
+`register/_refs/equipmentPhrase.json` — 37 rows across three kinds: the same
+object under other words ("hide armor" for Hide and Fur Armor), a row the list
+files under a category prefix ("1 lb garlic" for "Herb, Garlic"), and a
+real-world weapon name used as flavour ("scimitar", "francisca", "glaive"). It
+is BOOK-level because the evidence is: "scimitar" appears in eight classes, and
+the three aliases that already existed were authored on the Fighter's entry
+alone and so answered for the Fighter alone. Per-class `equipAliases` remain and
+win over it. An authored key matches on exactly the terms a menu name does, so a
+four-letter key like "pole" can no more fire from inside "polearm" than a
+catalogue name can.
+
+**Rejected: authoring the whole list.** Every one of these would have worked as
+a phrase row, and 280 of them would have been wrong to write down — a convention
+recorded as three hundred exceptions is a convention nobody can see, and the next
+book's list would need all three hundred again.
+
+**Cost.** 719 unresolved descriptors became 57, and the 57 that remain are
+honest: goods the book prices in place because the catalogue has no row for them
+("bladedancer's head dress (20gp value)"), and totem animals and familiars,
+which are class features printed in the equipment cell and are not gear at all.
+They import as named items with no base — visible and repairable, which is what
+the package shape is for.
+
+### Two things read off a cell that were never in it (2026-08-21)
+
+Found by auditing all 623 distinct descriptors against the row each was matched
+to, rather than only the ones that matched nothing.
+
+**A bracketed amount prices the item, whatever follows it.** The coin lift
+skipped an amount only when the word "value" came after it, and the same tables
+also print "(20gp)" bare. The lift eats to the next comma, so a witch's
+"silver earrings (20gp)" arrived named `silver earrings (` with 20gp added to
+her purse. The BRACKET is the test now, not the word after the amount.
+
+**A closing bracket can end a descriptor.** One cell prints its holy book and
+the quill after it with no comma between them, and the quill was swallowed by
+the book's name. It splits under the pair rule's own guard — only when what
+follows the bracket is itself a known item — so every "(20gp value)" and
+"(white bird)" that ENDS a descriptor is left exactly as printed.
+
+**A full stop can be a separator.** One template's list runs "…waterskin. 1
+week's iron rations…" where every other one has a comma; read as one descriptor
+the rations vanished into the waterskin's name. A stop followed by the start of
+another descriptor separates — never one inside brackets, which is where the
+abbreviations live.
+
+**A hyphen at the end of a line is inside a word.** These cells wrap where a
+compound breaks, and the grid joined the lines with a space: "Well- made wool
+dress", "Blood- stained club" — fifteen of them. The hyphen is KEPT rather than
+swallowed: it is a real one in every compound these tables print, so keeping it
+can only ever misspell visibly, where dropping it would silently invent a word.
+
+### A template's equipment menu is BOTH pipelines, and a short name is a whole word (2026-08-21)
+
+**Problem.** A class's starting gear resolved against `equipmentMenu()`, built
+from the cookbook's `kind.equipment` entries alone. But weapons, armour and
+priced rows do not come from the cookbook — they are materialized from the
+reader's own GRIDS and mint their own ids (`def.weapon.sword`,
+`def.armor.plate`, `def.priced.silk-1-lb`). The menu therefore contained no
+weapon and no armour at all, and three separate symptoms followed from that one
+fact. A sword pointed at nothing and imported as a nameless trinket. "War
+hammer" bound to the carpentry **Hammer (small)** the shop list *does* carry, so
+every dwarven template handed over a tool where its weapon should be. And a
+printed pair — "polished sword and dagger" — never split, because the pair rule
+only fires when BOTH halves are known items: the character got one weapon
+carrying the dagger's damage and the sword silently gone.
+
+A second, independent floor hid the short names even once the menu held them.
+Containment required a folded length of six, and most printed weapons are
+shorter: sword, staff, spear, club, mace, torch, dart.
+
+**Ruled.** The menu is built from both pipelines: the cookbook first, then the
+gear this world has already materialized, read from the imported index (so a
+compendium-mode world resolves too). Equipment lands before classes in the
+Getting Started order, so a class binds after its weapons exist. A cookbook
+entry wins on a shared id.
+
+**Ruled.** Containment keeps its floor of six for a BARE substring, and a name
+of four or five characters matches only as a whole WORD of the descriptor —
+"sword" in "polished sword", never "mace" in "grimace" — with a trailing plural
+counted part of the word, because a cell printing "torches" names the Torch.
+Below four characters nothing matches this way at all: "oil", "net", "sap".
+ACKS Extras applies the same rule to world documents (`bestBaseMatch`), and the
+two are pinned to each other by comment in both files — a descriptor that
+resolved to one base here and skinned itself over another one there is the
+failure this shape prevents.
+
+**Rejected: reading the rule out of ACKS Extras at runtime.** It is on its
+public API and the dependency runs the right way, but `parseEquipment` is a pure
+parser with an offline test suite, and coupling it to a live global would make
+what a cell splits into depend on module load order.
+
+**Cost.** The menu now carries a few hundred more rows, and a descriptor
+mentioning an incidental short noun can bind to it ("wineskins with honey-mead"
+finds Honey). That was already true of the extras side, so the two now agree
+about it; the wrong base is a document the Judge can retype, which is what
+packages are for.
+
+### A template part is not an import (2026-08-21)
+
+**Problem.** Extras skins a template's gear by COPYING the base document, and a
+copy carries the original's flags — the importer's `cookbook.id` included. A
+world therefore held a dozen documents stamped `def.weapon.staff`, only one of
+which was the Staff. The gear menu above would have taken whichever came first
+and made one template's "aged and dusty staff" the catalogue name every other
+template matched against.
+
+**Ruled.** Extras strips the importer's claim from a skin (its own `skin` flag
+records what the copy is), and the menu skips any document carrying the
+`templatePart` flag extras publishes — belt and braces, because a world imported
+before the fix still holds the mis-stamped copies.
+
+### Template packages: extras owns the shape, this side owns the folders (2026-08-19)
+
+> **Folders superseded 2026-08-24** — the path below (`ACKS Cookbook / Classes
+> / Templates / <Class>`) is now `Class Templates / <Class>`, the same path
+> acks-extras' own `defaultFolder` builds. Everything else in this entry stands.
+
+**Problem.** A class's starting templates imported as data rows on the class
+document, so a mis-classified piece of starting gear (the Wonderworker's staff
+as an unwieldable `item`) had no single document a Judge could repair — the
+fix was re-import or per-character surgery.
+
+**Ruled (user):** templates materialize as core `bundle` Items of linked,
+repairable world documents, with a generated 3d6 RollTable per class. The
+materializer lives in **acks-extras** (`acksExtras.classes.templates
+.materializeTemplates`) because it is document-driven — it works off the
+class document's own rows, needs no book, and owns the class model, the base
+resolver and the skin layer. This side calls it after `importClasses` and
+`cookbookUpdateClasses` (whose whole-`system` rewrite wipes the rows' cached
+bundle uuids; the call re-derives them from the bundles' own flags) and ships
+`importTemplatePackages()` — macro, api, Getting Started step after classes —
+as the no-book upgrade path for worlds imported before packages existed.
+Folders are this side's only contribution: bundles and their gear under
+`ACKS Cookbook / Classes / Templates / <Class>`, tables under `ACKS Cookbook /
+Class Templates`. Created documents carry an `asImported` snapshot; an edited
+one is skipped and counted, never clobbered — the ruling's whole point is
+that a Judge's repair survives every re-run. Shape, ownership and the apply
+path: acks-extras `docs/classes/MODEL.md` § Template packages; the ruling
+record is its `DECISIONS.md` 2026-08-19.
+
+**Rejected:** minting `def.class.*.tpl.*` cookbook ids for generated
+documents (they are derivations of a class document, not book entries; the
+extras `templatePart` flag is their identity, and a cookbook id would drag
+them into importedItem claims they must not answer).
+
+**Cost:** `cookbookUpdateClasses`' confirm says hand edits on the CLASS are
+replaced, and that stays true — but bundles and gear are separate documents
+the update never touches, which the confirm text does not say. Accepted; the
+skip report names what was preserved.
+
+### A block that reaches the foot of the last column turns the page (2026-08-16)
+
+**Problem.** `subheading` entries followed a column turn but not a page turn,
+which the `display` branch has always done. Scything Blade is the last trap on
+its spread: its fifth level was cut mid-sentence at the foot of the page and its
+sixth was lost entirely. Twelve traps of thirteen were whole, so the defect was
+invisible in aggregate and only showed against the wiki's own outline.
+
+**Ruled:** the branch follows the turn, and what stops it there is tested by
+SHAPE, in three parts — because each of the first two, alone, is wrong:
+
+- **Not by font alias.** pdf.js names fonts per PAGE, so the alias that
+  identifies an anchor's siblings means nothing on the page after it.
+- **Not by "alone on its line" either.** A wrapped sentence at the top of a page
+  is frequently a single run, and it stopped the flow before it carried
+  anything — indistinguishable from the turn never happening.
+- **So: alone on its line, in a face the page's body is not, AND body-sized.**
+  The third clause is owed to the ordinals: the `th` of the very tier being
+  carried over is alone, in its own face, and stopped the flow at the page's
+  first line.
+
+`assists.flowColumns` states the continuation page's columns, reusing the AX
+path's own vocabulary — a page that defeated column detection for the entry
+defeats it for the turn as well, and Scything Blade's continuation page is one.
+
+**Cost, and the second thing this taught.** The first version carried the
+next page's "column zero" wholesale, and on RR p18 that is the MARGIN TAB: the
+`nonProficientUse` entry gained three paragraphs that dropped to empty strings.
+Furniture is now excluded before paragraphs are built rather than left to the
+drop fixes, so an entry with no real continuation gains no paragraph at all.
+With that, the whole-corpus diff is `powers.json` only — `proficiencies.json` is
+byte-identical, which is the check that the turn fires where it should and
+nowhere else.
+
+### A margin tab is known by where it sits, not by how tall it stands (2026-08-16)
+
+**Problem.** Authoring the trap entries surfaced `marginTabs` failing in both
+directions on one page. The rule separated a vertical chapter tab from a
+superscript ordinal by the height of the stack: three or more small runs sharing
+an x, spanning at least twenty points, is a tab. Neither half holds. The Judge's
+Journal sets its "Dungeons" tab as four glyphs over sixteen points — under the
+threshold, so it was kept, and materialized as a word of gibberish at the end of
+every entry that reached the foot of the last column. Meanwhile a trap's six
+tier ordinals share one indent and span two hundred points — over the threshold,
+so the `st` was dropped off every `1st level`.
+
+**Ruled:** position, which is the direct test. A tab is set in the trimmed
+margin, OUTSIDE the block of body type; an ordinal sits on a line of it. The
+extent is measured from the runs of body height on the page, deliberately not
+from the detected columns — a tab stack can drag a column left onto itself, and
+an edge derived from that places the tab inside the very block it is meant to be
+outside of. That was tried first and it un-dropped the Revised Rulebook's own
+`ProFIcIEncIES` tab, which is how the reasoning got checked.
+
+**Measured, whole corpus:** twelve entries changed, all of them in `powers.json`,
+all shedding drops rather than gaining them — ordinal superscripts on the class
+tables and a row of footnote asterisks that had been silently deleted from the
+text for as long as the rule has existed. `proficiencies.json` is byte-identical,
+which is the check that the margin tabs are all still caught.
+
+**Cost:** the rule now trusts that body type reaches further than furniture
+does. A page whose only body runs are themselves in the margin would defeat it,
+and none exists in six books.
+
+### The coverage audit counted a naming difference as absent content (2026-08-16)
+
+**Problem.** `verify-against-compendium` reported 98 differences against the
+system's packs — 16 proficiencies and 45 powers the register supposedly lacked.
+That report is not idle: it is where this roadmap's authoring priorities come
+from, and extras' `hideSupersededPacks` map is built on the same question. Read
+one by one, most of the 61 were content the register already holds.
+
+Three separate blindnesses, each mechanical:
+
+- **A kind the pairing does not read.** The proficiency pairing read
+  `kind.proficiency` and `kind.combatProficiency` only. The Revised Rulebook's
+  own table names eight thief skills — Climbing, Hiding, Listening, Lockpicking,
+  Pickpocketing, Searching, Sneaking, Trapbreaking — and the register carries all
+  of them as `kind.skill`, which neither pairing looked at.
+- **A directory the reader cannot reach.** `registerEntries` walks the book
+  directories and skips everything beginning with `_`, so `register/_refs/` was
+  invisible. Animal, Beastman, Construct, Demon, Humanoid, Ooze, Undead and
+  Vermin are creature-type tokens there; the pack ships each as an item.
+- **A name the edition replaced.** The pack predates ACKS II and carries ACKS I
+  spellings. Each was settled by searching the RR for both: *Righteous Turning*,
+  *Master of Charms & Illusions*, *Dungeon Bashing* and *Apostasy* do not appear
+  in it; *Righteous Rebuke*, *Mastery of Enchantments & Illusions* and
+  *Dungeonbashing Expertise* do.
+
+**Ruled:** an answer is reported at the tier that is true of it, rather than as
+coverage or as a gap. Content under a kind the pairing does not read, and content
+carried as a descriptor token, each get their own bucket and their own sentence —
+counting them as covered would hide a real modelling difference, and counting
+them as missing sends a chef to author an entry that already exists. Settled
+renames go in `compendium-aliases.json`, which had never been authored: it held
+its own example and nothing else. Proficiencies fell from 16 to 1, powers from
+45 to 26 with 8 descriptor and 4 cross-kind.
+
+**Ruled — the thief-skill question, which the roadmap left as neither.** It is a
+modelling difference, and the register's model is the ACKS II one: these are
+class powers whose target improves with level, so they are ladders the class
+entries reference, not twelve standalone documents. The pack ships *Backstab*,
+*Climb Walls*, *Hear Noise*, *Hide in Shadows*, *Move Silently* and *Find Traps*
+because it was built against ACKS I. Nothing is owed here.
+
+**Cost:** the ten monster resistances and immunities are still reported. They are
+materialized into `fields.defenses` from the seat's own prose and will never be
+documents, which is a standing decision rather than a lookup — so it is written
+in the roadmap where the audit lives, and a chef meets it while reading the
+report rather than finding it silenced inside the tool.
+
+**One genuine gap survived the pass:** *Apostasy*, which appears in neither the
+Revised Rulebook nor the Judge's Journal. It is named in the roadmap as content
+to locate rather than aliased away.
+
+### A page the histogram cannot read is authored, not out-detected (2026-08-15)
+
+**Problem.** Sixteen definitions extracted whatever printed beside them instead
+of their own text — Coat, Tunic and Pants and Turban shipped a column of price
+digits. `detectColumns` bins body-run x-origins and needs a bin holding >8% of
+them, which a table starves: BTA p95 prints columns at 36 and 306 and the
+detector returns 240 and 310, both edges of the price list below.
+
+**Rejected: a better detector.** Two were built and measured against the whole
+corpus. Reading the gutters as whitespace over the page fails where a wide table
+crosses them (RR p71 sets seventeen stat lines across the gutter). Reading them
+from the anchor's own lines works on BTA but breaks pages where the block is
+short and a table follows it: recompiled, that version fixed sixteen entries and
+broke four that had been correct, `def.power.jargon` among them. Every variant
+traded one set of pages for another, because the pages that defeat the detector
+are irregular in different ways.
+
+**Ruled:** `assists.columns` — the per-entry override the repo already had, and
+already used on six register files — is the answer for these, and the detector
+is left alone. An authored pair of numbers is exact, verifiable by reading the
+entry's own text, and risks nothing on the eleven hundred entries that were
+never in doubt. Sixteen entries authored across eleven pages.
+
+**Cost:** a page that defeats detection now needs a human to notice. So the
+measure became a gate rather than a note: `tools/check-prose-boxes.mjs` fails
+when a definition's first paragraph does not contain its own anchor's x, and
+names the entries needing the assist. It reads only the compiled cookbook, so
+CI carries it.
+
+**Two compiler rules were sharpened in the same pass**, both of them cases where
+a test of SHAPE matched something that was not that shape:
+
+- A section heading may not end in a full stop. Turban's closing line — "Meniri
+  dwarves south of Opelenea and Kemesh." — is forty-four characters,
+  capitalised, alone on its line, and set in a face that is not its column's
+  commonest only because a price table below it holds the vote. It read as a
+  heading and cut the entry in half.
+- A run-in anchored on a PREFIX ending in "(" does not end at the prefix. The
+  anchor is written that way because the level ordinal varies, but "(9th):" is
+  still heading: 62 of 69 prefix-anchored definitions opened their description
+  with their own heading's tail. Absorption now runs to the closing parenthesis
+  and the colon after it, and only where the line actually holds that shape.
+
+---
+
+### Prose continues across a column and a page; never across a heading (2026-08-13)
+
+**Problem.** A definition block that reaches the bottom of its column resumes
+in the next one, and `columnFlow` / `pageFlow` ended that continuation at the
+next anchor of the SAME kind. Nothing else stopped it, so a block ran through
+whatever lay between: an equipment entry swallowed a weapon table and the next
+item's entry, a dwarven whistle swallowed a fuels price list, a class power
+swallowed a race's traits.
+
+**Ruled:** a continuation also ends at a display heading, whatever kind it
+belongs to. Body runs sit below the display-heading size, so the size alone
+tells them apart without knowing what the heading says. Measured over the whole
+shipped corpus: 15 of 1204 entries changed, every one of them shorter, none
+longer — and the text each one shed was another entry's.
+
+**Superseded same day for the body-size case — see the entry below.** This
+ruling stands for display headings; the body-size run-in it declined to handle
+was closed in 2.6.3.
+
+---
+
+### A block ends at its section heading, calibrated on the body (2026-08-13)
+
+**Problem.** The reported entry survived the rule above. `def.power.longeval`
+(and the four aliases that follow its text, *Ageless* among them) ends at "Code
+of Behavior", which is a heading in neither of the senses the compiler knew: not
+a display heading — it is set at body size — and not the next entry, because the
+stop matched `alias === anchor.alias` and required a colon, and a section
+heading is a THIRD font carrying no colon. The page sets a run-in face, a body
+face and a heading face; the stop could see only its own.
+
+**Ruled:** calibrate on the BODY, not on the anchor. Whatever face most of a
+block is set in is prose, and a line-initial run in any other face that occupies
+its whole line is a heading that ends the block. Testing the RUN's own text
+rather than the line's is what keeps a bullet glyph — its own tiny face, empty
+string, sitting at the column edge of a wrapped sentence — from reading as one.
+
+**The half that mattered more.** Finding the stop is not enough: a block
+continues into the next column and overleaf only because it ran out of column,
+and a block that ended at a heading ran out of nothing. Those two branches were
+gated on the run-in stop alone, so an entry that had already finished still
+collected the next column and the page after it. `longeval` shed its Code of
+Behavior and went on gathering a template table until the continuation was
+gated on the section stop too.
+
+**Rejected — stopping at any non-body face without the bracket test.** The JJ
+closes a power with the classes that may take it, and that list wraps:
+"[Elven Wizard," ends a line and "Nobiran Wizard, Wizard]" begins the next, in
+the list's own face, flush left — a heading by every other test. Cutting there
+leaves the bracket open, which is worse than not cutting: `stripOwnerList` no
+longer recognises the list it exists to remove, so half of it stays on the page.
+`def.power.flawlessPrecision` did exactly this until a heading was forbidden
+from opening inside an unclosed bracket.
+
+**One printed style, several fonts.** The stop that ends a block at the next
+entry matched the anchor's own font, and BTA p98 sets "Firewood:" and "Refined
+Oil:" — adjacent entries in one column, identically styled — in two different
+aliases, so firewood described the oil beneath it. Matching "not the body font"
+instead fixes that and breaks JJ p310, where the see-references ARE set in the
+body font: "Alien Senses: See alertness." swallowed the entry after it, its
+see-reference stopped parsing, and it silently ceased to be an alias at all —
+caught only because the alias count fell by one. A heading is either: the
+anchor's font, or not the body's. Neither test alone covers both pages.
+
+**Measured, whole corpus, against all six books:** 34 of 1206 entries changed,
+every one shorter, none longer, and 30 of the 33 now end on sentence
+punctuation, and every cut lands where the DROPPED text opens a new section
+rather than continuing the entry's own sentence — the weaker "ends on a period"
+test scores a cut at any heading as clean, including a wrong one, so it was
+replaced. Three entries end in table wreckage they ended in before — shorter,
+not worse, and owed to their own boxes rather than to this rule. What the rest
+shed was another section's: three witch traditions dropped from 5012 characters
+to 915 by no longer reciting the whole Additional Class Powers list, and
+`refinedOil` from 2561 to 309 by no longer reciting a weapon table.
+
+**Confirmed against the wiki snapshot**, which preserves the paragraph
+boundaries PDF extraction destroys: Longeval's page there ends exactly where
+this rule now cuts. `flawlessPrecision` is confirmed by the book itself — the
+Judges Journal closes a custom power with its class list, and the kept text
+ends immediately before `[Elven Wizard, Nobiran Wizard, Wizard]`.
+
+---
+
+### An alias is read from the book its text prints in (2026-08-12)
+
+**Problem.** A field report showed the class power *Ageless* describing itself
+with a poison table and the general Proficiency Throws rules, in mangled
+spacing, starting mid-word. Not an extraction fault: an alias — a name the books
+list whose rules text prints under another entry — carries a pointer to its
+target's passage, and that pointer is page geometry. The compiler copied the
+geometry, and the citation, onto the alias without moving `book`. Nothing at
+runtime could notice: an entry is read from `entry.book` alone, the instruction
+set has no cross-document read, and the only correctness gate is the `expect`
+probe on the name — which kept passing, because the name was the one field still
+pointing at the right book. So 31 Judges Journal powers executed Revised
+Rulebook rectangles against the JJ and extracted whatever printed there.
+
+**Ruled:** an alias follows its text. Where the target lives in another book the
+alias adopts that book, its pages and its name probe — the probe is what proves
+the page, and the alias's own probe points at the listing it is leaving behind.
+The ability's own name is a different field and does not move. The citation
+already named the target's book, so this makes the entry agree with itself
+rather than changing what it claims.
+
+**Rejected — refuse the cross-book pointer.** The textless-alias path already
+exists and degrades cleanly, so refusing would have been the smaller change. It
+also leaves all 31 permanently unreadable and leaves a reveal button with
+nothing behind it. Wrong text is worse than no text; no text is still not the
+goal.
+
+**Rejected — a per-field book.** Correct in the long run: it would let a JJ
+entry keep its own book and still read a passage from the RR. It needs a second
+document at runtime and a change to a frozen instruction set, which is not a
+hotfix.
+
+**Cost, accepted:** the book that unlocks these 31 moves from the JJ to the RR.
+A seat with only the JJ connected loses their text — it never had their real
+text, but it did have something. Worlds that imported them under the old data
+hold mechanics scanned from the wrong prose; only a GM re-run of Update
+Abilities repairs that, and nothing detects it automatically.
+
+**The gate that was missing.** `expect` proves the name and nothing else, so a
+mis-pointed field is invisible to it. `tools/test-cookbook-coherence.mjs` now
+asserts over shipped data that an alias is read from its target's book, and that
+an entry's citation names the book it is read from — the second is the
+user-visible face of the same defect, and it catches all 31.
+
+---
+
+### The class-builder import leaves working examples, not just tables (2026-08-12)
+
+**Problem.** acks-extras grew an advanced mode that derives a class from JJ
+build values, consuming an `acks.classBuilder` ruledata doc, race documents
+and per-class builder state — none of which ships anywhere (every number is
+book content).
+
+**Ruled (user):** the JJ table import produces all three. `table-recipes.mjs`
+extracts the raw builder chapter (category ladders, the per-value spell grids
+including the delayed-acquisition set, trade-offs, smoothing and post-8
+prose, the dwarf/elf sections, the Ready-for-Play build paragraphs);
+`builder-binding.mjs` assembles the engine shape into the same ruledata doc,
+materializes `acks-extras.race` items stamped `def.race.<key>`, and writes
+each Ready-for-Play build onto its class document — scoped, by the same
+ruling, to the RR core classes and the demi-humans; the rest of the JJ
+roster and races is extras-ROADMAP work. Live-verified: derive reproduces
+the printed Fighter and Elven Spellsword spreads exactly.
+
+**Mechanics that earned comments in code, recorded here once:** superscript
+ordinal runs interleave mid-sentence ("capped th at 10 level"), so prose
+anchors stop at the printed number and parses never assume adjacency; verso
+pages sit ~26pt left of recto (the delayed grids), and one verso column
+starts at x≈299, under the default 300 column split.
+
+**Rejected: parsing trade-off elections out of the build paragraphs.** Which
+sentence maps to which trade-off row is a judgment; the paragraph lands in
+`builder.notes` and the Judge elects by hand.
+
+### Position is not evidence, and a file that is another book is refused (2026-08-11)
+
+**Problem.** A reader selected four books in the connect dialog, picked their
+four PDFs, and every one of them landed in the wrong book — each warning that it
+was a "different edition/printing" of the book it was not. The pairing was
+positional: nth book selected takes nth file picked, which the dialog's own note
+advertised as "paired in the order you chose them".
+
+**Ruling.** That order does not exist. A `<select multiple>` reports
+`selectedOptions` in *document* order however it was clicked, so the reader's
+sequence is gone before the callback runs; the OS file picker returns its files
+in its own order, usually alphabetical. Position therefore carries no information
+about which file is which, and pairing on it is a coin toss that looks
+deliberate. The filename matcher that had always existed — remembered name, then
+byte size, then the book's title in the filename — was consulted only for
+*surplus* files, i.e. never in the case that mattered. It now decides the named
+books first, and position survives only as the last resort for files no evidence
+could place. The matcher moved to its own module so the pairing can be exercised
+offline instead of only against four real PDFs.
+
+**Also ruled: a wrong-book file is refused, not warned about.** The fingerprint
+check already knew the file was wrong and said so — and read it anyway. Every
+recipe this build extracts is a page number, so a book filled from the wrong PDF
+imports the wrong page's content under the right name and nothing downstream can
+tell. `identifyBook` asks the fingerprint the other way round ("whose file is
+this?") and the read is refused when the answer is another book in the registry.
+A printing that fits *no* book still only warns: that is edition drift, which is
+what the warning was for.
+
+**Cost.** One case the guard cannot catch cleanly: a variant printing whose page
+count exactly equals another book's and which carries no metadata title at all
+would be refused as that other book. No shipped printing does this — the
+registry's page counts are distinct, and a test holds them that way — and the
+alternative was reading it into the wrong slot in silence.
+
+**Rejected: asking the reader which file is which.** A row per book with its own
+picker already exists for reconnect, and it costs one trip through the OS dialog
+per book. The whole point of the multi-select is that one trip does the lot; the
+evidence is good enough to earn it, and what it cannot place it names.
+
+---
+
+### One dedup rule for every importer: ask the shelf you write to, and claim before you build (2026-08-06)
+
+**Problem.** Duplicate imports, reported from a live table as "double-importing
+(or worse), especially the classes". Four independent causes, none of which the
+offline suite can see (it has no compendium, no concurrency and one user):
+
+1. *World read, pack write.* `importToCompendium` moved where documents are
+   created. `importedIndex`/`importedIdSet` were taught to follow it; equipment,
+   location journals, adventure roll tables and `resolveCompanion` were not, and
+   kept asking `game.items` / `game.journal` / `game.tables` / `game.actors`.
+   With the setting on, each of those saw an empty shelf on every run.
+2. *Check and create are not atomic.* `importAbility` read the dedup index, then
+   spent a page extraction and a socket round-trip building the item. Imports
+   run four at a time and every creature resolves its own proficiency list, so
+   four creatures reaching for one shared ability in that window each made one.
+   This is the "or worse": the copy count is the concurrency, not two.
+3. *No GM guard.* `importClasses`, `importAllEquipment` and
+   `cookbookUpdateClasses` were the only bulk entry points without one, while
+   their macros are labelled "(GM)" and executable by every seat.
+4. *No dedup at all.* `cookbookImportIds` and the browse-and-load path created
+   unconditionally.
+
+**Taken: the two rules, applied everywhere.** A presence check reads whichever
+target the matching write goes to — `importedIdsOfType(type, worldCollection)`
+is that question asked once, and `importedItem` / `importedActor` are its
+document-returning forms. And a build is *claimed* before it starts:
+`claimImport(id, build)` caches the in-flight promise keyed by cookbook id, so
+the second caller waits for the first one's document. This is the same shape
+`ensureFolderPath` already used for folders, generalized. Because the claim is
+keyed on the cookbook id alone and shared by every item importer, it is also
+what guarantees the class import and the ability import resolve to the same
+item rather than one each — the cross-importer half of the report.
+
+**Rejected: a de-duplicating repair pass.** Worlds that already ran the broken
+importers hold twins. Merging them means choosing which copy the actors that
+embedded it should follow, and that is a migration with a new user-facing
+surface — a minor, not a patch. The clean-slate path already ships and works:
+Remove ALL Imports, then import again. Recorded in ROADMAP.
+
+**Amended 2026-08-06 (2.4.2): a claim is a window, not a cache.** The first cut
+of `claimImport` kept the resolved promise in `inflightImports` forever, which
+made it a second cache — one `forgetImportedIndex` reached but nothing else did.
+Deleting an imported document therefore left the claim answering for it, and
+delete-then-re-import (the only way to refresh a value derived at CREATE time)
+silently did nothing until a page reload. The claim is now released in a
+`finally`; `rememberImported` has already run by then, so the verified index
+holds the result and no window is reopened. `importedItem` also confirms a
+cached document against its collection before trusting it, since the index is
+built once and the GM may delete from the sidebar at any time. Caught by live
+testing — the delete path has no offline coverage, and both faults are
+invisible to a single-pass import.
+
+**Cost.** `importEquipment` splits in two so the item half can be claimed while
+the animal half (an Actor) stays outside the item index. `poc.mjs` gains a
+`browsed` flag so a browse-loaded document can be found again — documents
+created before this release carry no such flag and will still be twinned once,
+after which they are stable.
+
+---
+
+### The refresh bridge: bytes may cross a reload, and nothing longer (2026-07-29)
+
+**Problem.** The possession model persists a book's *location*, never the book.
+Three location kinds existed, and only two could reopen themselves: a
+`FileSystemFileHandle` (one permission click) and a fetchable `url` (silent).
+Both are out of reach for the seat that needs them most — the File System
+Access API does not exist outside a secure context, so a player on plain
+`http://` over the LAN, and every Firefox seat regardless of origin, fell to the
+`file` kind: the remembered *name* of a PDF and nothing else. That seat re-picked
+every book through the OS file dialog on every page load, and a Foundry client
+reloads constantly.
+
+**Rejected: caching the PDF per seat.** IndexedDB is the only store not gated on
+a secure context, so a durable byte cache is the only thing that would have made
+a remote seat reconnect with no gesture at all. It was rejected because it
+quietly converts "you must keep the book" into "you must have had the book
+once": the cache outlives the file, and the module's central claim stops being
+true.
+
+**Taken: a 60-second window, measured from when the page went away.** The bytes
+of an *already open* book are held in IndexedDB and are readable only while a
+`touched` stamp — refreshed every 20s by a live page, and once more on
+`pagehide` — is inside the window. Every join sweeps first: inside the window,
+books reopen silently; outside it, the bytes are deleted before anything else
+runs. `Forget Books` and setting the window to `0` both empty it immediately.
+
+The stamp is deliberately not written at connect time. Measured from the
+connect, an hour of play would leave the window long expired at exactly the
+reload it exists to cover, which is the whole failure it addresses.
+
+Three properties of that stamp are load-bearing, and 0.61.0 shipped with all
+three wrong — the bridge never once fired on a real refresh. Recorded because
+each is invisible until tested against an actual reload:
+
+1. **The stamp lives in localStorage, not IndexedDB.** It is written from
+   `pagehide`, and an async IndexedDB transaction opened there never commits —
+   the page is destroyed first. Measured directly: the localStorage write lands
+   every time, the IndexedDB write lands never. With the async write silently
+   lost, the freshest stamp was whatever the 20s heartbeat last managed.
+2. **The comparison is against `performance.timeOrigin`, not "now".** Foundry
+   takes 20–45s to reach `ready`, so comparing at `ready` charged the reader's
+   window for the boot they had just sat through — a 60s window bought perhaps
+   fifteen, and a slower world bought none. The question is "how long was this
+   seat away?", which is timeOrigin minus stamp and nothing else.
+3. **A slightly negative gap is the normal case, not clock drift.** A reload
+   records the incoming document's `timeOrigin` *before* the outgoing page is
+   given `pagehide`, so an ordinary refresh yields a gap a few milliseconds
+   below zero. A `gap >= 0` guard therefore rejected every single refresh. Only
+   a stamp more than `CLOCK_TOLERANCE_MS` ahead means the clock actually moved.
+
+Worth stating plainly: the byte cache was never the fragile part. An
+FSA-derived `File` stored in IndexedDB was verified to survive a reload and
+read back byte-identical. Every failure was in deciding *whether* to use it.
+
+What this does and does not concede: a reload is not a new session, so bridging
+it enforces nothing less than before. A *session* still cannot begin without the
+reader's own file. Nothing is uploaded, nothing enters world data, no other seat
+can read it, and prose remains memory-only everywhere.
+
+> **The last sentence is superseded** by "Imported text is written into the
+> world, once, by the GM who owns the book" (2026-08-24): what a GM imports —
+> prose included — now persists in world data. The bridge itself, and everything
+> else in this entry, stands: it still governs the BYTES of a book, which are
+> never stored beyond the window and never uploaded.
+
+**Also:** where a gesture is still required, it is now one gesture for the whole
+shelf. A plain file picker grants no persistent permission and so consumes no
+user gesture (unlike `requestPermission` on a handle, which is why the per-book
+rows exist at all), so a seat re-picking two or more books gets a single
+multi-file control that matches files to books by remembered name → remembered
+size → the book's title in the filename. Unmatched files are named, never
+guessed at: a book filled from the wrong PDF is worse than a book left closed.
+
+### Dialogs are singletons (2026-07-29)
+
+`connectBook()` and the reconnect pass are each reachable from more than one
+place — a macro, the Getting Started button, the join hook — and none of them
+checked whether their dialog was already open. Every extra call stacked another
+identical window, so a reader who clicked "Connect your book" twice got two book
+pickers, two dropdowns listing the same six books, and two chances to read the
+same PDF into the same slot. Both now register a key *synchronously*, before
+their async content build, and a second call brings the open dialog forward
+instead.
+
+---
+
+### Withdrawn surface
+
+Things this module used to ship and deliberately does not. Recorded because the
+absence is a decision, and a reader of the registry would otherwise re-add them.
+
+**The demo book (2026-07-19).** A fake entry ("cw", Codex of Whispers) sat in the
+book registry to demonstrate the missing-book path. The cookbook now spans three
+real books and no seat is expected to own all of them, so an unreadable entry is
+the ordinary case and needs no prop to show it off.
+
+**The Judge's Screen inserts (2026-07-24).** Listed as a book ("js") because four
+hiring tables were read off them. Every one of those tables is printed in a book
+the reader already needs — three in the JJ, the signing bonus in the RR — so the
+screen only ever added a fifth PDF to connect for content the seat could already
+read. A book id is a promise that connecting that PDF unlocks something; the
+cheatsheet no longer unlocks anything.
+
+**The PoC driver and its audit popout (2026-07-19).** A fixed sample set and a
+side-by-side contrast of the two language options. Both demonstrated a question
+the cookbook has since answered in production, and both leaned on the fake book.
+
+**A third copy of the LevelValue resolver.** A local `levelValueAt()` flattened
+an imported ability's roll target to a first-level number to fit core's single
+`rollTarget`. Ladders now travel whole into the abilities flag and resolve there
+against the character — this module locates and classifies, it does not evaluate.
+
+**An offline-resolved `powerValue`.** The custom-class build cost used to be
+resolved during compilation and shipped as a number, which put book values in the
+module. It is now a shipped *pattern* matched against the reader's own extracted
+text at runtime, like the defence and effect scans. The pattern ships; the number
+it finds never does.
+
+---
+
+### The book-progress denominator measured the wrong thing
+
+The "how much of this book can I read" count compared the handful of hand-written
+PoC recipes against `proseMem`, the prose extracted eagerly on connect. Both
+predate the cookbook, so a seat holding the whole Monstrous Manual was told about
+a denominator of a dozen against a numerator that starts at zero and stays there
+— cookbook prose is extracted lazily per reveal and never lands in `proseMem`.
+
+The number was not wrong so much as measuring something nobody asked about. What
+a reader wants to know is how many SHIPPED entries this book's connection
+unlocks.
+
+---
+
+### Fingerprints are page count plus metadata title, never file hashes
+
+DriveThruRPG watermarks each customer's copy, so the bytes differ per person. A
+hash-based fingerprint would identify one buyer's PDF and reject everybody
+else's.
+
+---
+
+### A second class book joins without a second import path (2026-08-06)
+
+**Problem.** By This Axe prints ten dwarven classes plus reprints of the RR
+craftpriest and vaultguard, in a typography measurably different from RR:
+body type at exactly 10pt (RR sets 9), glyph runs joined without inter-word
+spaces, XP figures kissing their Title neighbours at 6-8px, proficiencies as
+run-ins rather than display headings, and the class C/G schedule stated only
+in prose because the RR grid does not know these classes.
+
+**Ruled: RR wins every overlap, and no BTA register entry re-anchors what
+another book already defines.** The two reprinted classes got no bta recipes
+- their rows in the source matrix carry the bta spread page and a note of
+what the diff found (the craftpriest reprint is value-identical; the
+vaultguard differs at two mid-table XP thresholds). Powers the JJ
+consolidated chapter or an RR spread already anchors keep their ids and
+anchors; a world with RR+JJ loses nothing by not owning BTA. Only what no
+book has is authored bta-primary.
+
+**Ruled: typography is a per-book constant, not a global.** Widening the
+definition body ceiling globally to admit BTA leaked RR sidebar quotes into
+neighbouring entries; widening cell glue globally would have re-fused RR
+columns. Both are dispatched per entry book. The prose C/G schedule is a
+binder fallback that fires only when the grid lookup misses, so RR classes
+never touch it.
+
+### The printed name and the defined name are two different names (2026-08-14)
+
+**Problem.** A class or race spread names a power in the short form its own
+paragraph uses; the definition it points at carries the full one. A dwarf's
+value-0 rung prints "Hardy" for `def.power.hardyPeople`, and prints "Dwarf
+Tongues" and "Elf Tongues" for `def.power.giftOfTongues` — a name no
+definition carries at all. Race materialization resolved rung powers by exact
+item name, so the misses landed in the rung's note and the rung granted
+nothing. In a world that has not yet imported its powers, *every* name misses
+and every rung comes up empty.
+
+**Ruled: the source matrix is the alias index.** `register/_refs/powerSource`
+already records, per class, the name a spread prints beside the ref it means —
+it was built as a provenance matrix, but that pairing is exactly the alias
+mapping, and authoring a second list of aliases beside it would give one fact
+two owners. Resolution now falls through to it: world item by exact name
+first, register second.
+
+**Ruled: a register hit binds even when the world does not hold the power.**
+A `def.*` id is a ref in its own right, so the rung points at the definition
+and resolves the moment those powers are imported — better than a note naming
+a power nothing links to. Only a name the register cannot place stays in the
+note.
+
+**Ruled: an ambiguous printed name resolves to nothing.** Nine classes print
+a "Renown" of their own, and four print a "Lay on Hands"; binding a rung to
+whichever came first would attach another class's power. Five names are
+ambiguous today and every one of them is dropped from the index rather than
+guessed at.
+
+**Cost, and what it exposed.** `powerSource` was the one reference register
+that never declared `registry`, and the compiler keys tables by that field
+(`refs[r.registry] = r`) — so it had always compiled into the cookbook as the
+literal key `undefined`. Nothing could name it, and a second omission would
+have silently overwritten the first. The lint now requires the field and
+requires it to equal the file's basename, which is why the file is
+`powerSource.json` rather than `power-sources.json`.
+
+### A language is a name and a page, not a description (2026-08-15)
+
+**Problem.** `kind.language` had a folder and a category but no entries. The
+obvious authoring — model it on `kind.proficiency` — does not fit what the book
+prints. The Auran Empire languages are not descriptor blocks: RR Appendix A
+sets all 58 as one indented family tree, each a single cell naming the language
+beside its real-world counterpart, and no page anywhere describes an individual
+language. There is no run-in heading, no display heading and no prose.
+
+**Ruled: languages compile to their name check alone.** *Superseded same day —
+see the entry below: 58 name-only entries turned out to BE the list, and none
+ship.* `compileLanguage`
+anchors the printed cell (`anchor.label`, matched folded so Argollëan survives
+extraction differences) and emits one `expect`. Every other definition kind's
+`description` instruction would have nothing to point at. Aiming it at the rows
+below the cell — the only text there is — would hand each language its
+children's names as its own prose, which is how `def.equip.coat` already fails
+(ROADMAP).
+
+**Ruled: the tree stays on the page.** *Superseded same day — see the entry
+below: the names do NOT ship, and the tree is read into the world from the
+seat's own book.* Names ship, as every entry's name does.
+Descent, and which real-world tongue each language stands in for, is the page's
+own arrangement — the table IS the content — so the entry ships neither. A
+reader follows the citation. This also keeps the register honest about what it
+knows: nothing in the module can be wrong about a relationship it never claims.
+
+**Cost.** A language item's description is a citation stub with no reveal. The
+`@PdfText` reveal link is now gated on the recipe HAVING a description
+instruction rather than on the seat having the book, because otherwise every
+language showed a reveal that opened on an empty string.
+
+**Ruled: `def.language.*`, never `def.lang.*`.** `itemShelfFor` keys on an id's
+first two segments, and the shelf commit bab3055 added is `def.language` — so
+`def.lang.*` ids lint clean, compile clean, and file all 58 languages in the
+unsorted root folder. Nothing else in the register or the compiled cookbook
+collides: no existing definition's id tail matches a language's, and no
+cross-reference in any book resolves to one. The single name collision is
+`mm.lizardman`, a monster in a book cookbook, which shares no lookup with a
+content-type definition.
+
+**Ruled: languages stay out of the printed-name tokenizers.** A class's
+Proficiency List and a template's Proficiencies cell name proficiencies, skills
+and powers, never a language. Feeding 58 short common words ("Orc", "Ithean",
+"Draconic") to a greedy longest-first matcher only gives them a chance to claim
+the head of a cell that belongs to something else.
+
+### The taxonomy is read from the seat's own book, and a list cannot ship (2026-08-15)
+
+Supersedes the first two rulings of the entry above, hours after they shipped.
+
+**Problem.** Fifty-eight register entries whose every field was the same name
+— camelCased in the id, plain in `name`, folded in `anchor.label` — passed
+both IP gates. `ip-scan` caps string LENGTH and hunts for prose; the register
+lint caps a label at sixty characters. Neither counts how MANY name-only
+entries a kind ships, and a taxonomy transcribed one cell per entry is not a
+way of finding the list, it IS the list. The family's rule is that no value
+read off a page ships in any repo, history included; the entries were removed
+and the commits that carried them were squashed out of history before the
+branch and tags moved.
+
+**Ruled: the recipe carries geometry, never names.** The `languages` table
+recipe (`table-recipes.mjs`) holds a section heading, two x-bands and an
+indent step. `extractIndentTree` (`table-extract.mjs`) turns cell indentation
+into depth and parentage at import time, in the world doing the importing,
+against the seat's own Revised Rulebook. What the rows SAY never enters this
+repo; a derived id is not shipped content.
+
+**Ruled: extracted languages become shelved ability items.**
+`language-binding.mjs` derives `def.language.*` ids — honoring this entry's
+own earlier `def.language.*`-never-`def.lang.*` ruling, which the first cut
+of the binding violated (it minted `def.lang.*`, which `itemShelfFor` cannot
+key, so all 58 items landed loose in the world root). Creation goes through
+`ensureItemFolder`, the same shelf machinery every other imported ability
+uses. The items do not set the `generated` flag: Prune removes generated items
+whose definition no longer resolves, and a language never had a definition to
+resolve — flagging them would offer all 58 for deletion on the next prune.
+
+**Ruled: the gate that was missing now exists.** `audit-transcription.mjs`
+fails validate when any kind ships more than a dozen name-only entries. It
+caught nothing the day it landed only because the list was already gone; it is
+the check that would have refused the list on the day it was authored.
+
+**Cost.** A world whose seat never imports the Revised Rulebook has no
+language items at all. That is the right failure: the alternative was the
+module knowing the answer.
+
+### 2026-08-15 — an imported language is a `language`
+
+The taxonomy imported as `ability` items carrying `system.category:
+"language"`. The system has owned a first-class `language` item type all along:
+it declares the type, gives it an icon and a details template, files it in its
+own section of the character sheet, and reads it in the Polyglot provider it
+registers at startup. Minting abilities put all 58 tongues outside every one of
+those at once — imported languages showed up in the proficiency list, and no
+character speaking one was visible to Polyglot.
+
+**Ruled: the type is the system's.** `LANGUAGE_TYPE` replaces the ability
+constant, and the descent record moves from `system` to flags, because the
+system's language type carries a description and nothing else and a field it
+does not declare is dropped on the way in. Nothing about the IP posture
+changes: the names still come from the reader's own book and the ids are still
+derived at runtime.
+
+**Ruled: find before minting, in three places.** A tongue is looked for by its
+derived id, then by name among the world's languages, then in the system's own
+compendium. The first is the old idempotence guard; the second stops the import
+laying a twin beside a language a Judge typed themselves; the third means a
+world gets the system's furnished document — description and art — rather than
+a bare name. An adopted document is stamped with the derived id so the next run
+finds it by the fast path.
+
+**Ruled: the retype creates before it deletes.** A document's type cannot be
+updated, so an ability minted by an earlier version is replaced rather than
+changed. The replacement is committed first and the ability removed only once
+its successor exists, so a run that dies halfway leaves a duplicate — which the
+next run adopts — never a world that has lost a language.
+
+**Cost.** The name index spans every type, not just `language`, so a world
+holding the old abilities is recognised as already having the tongue. Without
+that, the release that fixes the type is also the release that doubles
+everyone's language list.
+
+### 2026-08-16 — who speaks which: read off the spread, defaulted off the chapter
+
+The roadmap entry of a day earlier said the language lists were "not a
+pattern away" — measured against `cookbookProse`, which returns only the
+register's description window. Wrong measurement: the spreads DO print the
+lists, as a `Tongues:` runin in Racial Traits, and the class binder's `body`
+(the full spread, the same read the cleave phrase uses) reaches it.
+
+**Ruled: the runin is the granted list, whole.** It names the racial tongue,
+the common one, and the rest, so a demi-human class imports with `granted` =
+the parse and `count` = 0; Intellect's slots are the extras module's business
+at grant time. The parse keeps only proper-name-shaped items, so a
+speak-with-beasts power can never be granted as a language.
+
+**Ruled: a human class is the chargen chapter's rule.** No runin means human:
+one open homeland pick beside the common tongue, whose NAME is extracted once
+per run from the chapter's own "often called" sentence
+(`def.classmeta.startingTongues`, the compiler's new prose-window classMeta
+shape). Bookless imports grant nothing rather than a guess.
+
+**Ruled: race documents inherit through the runin's own subject.** "Dwarf
+Tongues" names its race; the label, folded, keys the builder's race item, and
+only an EMPTY race list is written — a Judge's edit is never replaced.
+
+**Found while shipping, not fixed here: repeated compiles disagree.** Six
+from-scratch compiles produced four distinct powers.json hashes, differing in
+paragraph box coordinates — so the drift gate flagged different entries on
+different runs. UNRESOLVED whether the compiler itself is nondeterministic or
+the measurement was contaminated: a concurrent session was hand-editing the
+compiler and the bta registers during the same window, and this session's own
+compiler edit was overwritten mid-run by that session, so the hashes may have
+been comparing different programs. Re-measure on a quiet tree before treating
+the compiler as guilty. The committed cookbook is the modal output of six runs, which also
+repaired 22 BTA entries whose committed boxes pointed at the WRONG page
+column — stale survivors of the margin fix that the in-place compile's
+folding behaviour never replaced. The determinism bug is toolchain work and
+is recorded in the intake ledger, not patched in a hotfix.
+
+> **Settled 2026-11-11:** the measurement was the contaminated one. Two
+> from-scratch `compile-cookbook --out` runs on a quiet tree were
+> byte-identical to each other and to the committed cookbook, all 34 files, so
+> the compiler is deterministic and the drift gate's premise holds.
+
+**Ruled: a clause the page interleaves is dropped whole.** The Spellsword's
+spread lands its proficiency list mid-sentence in the raw column text,
+capitalised exactly like tongues, so no shape test can separate them. The
+speak-clause capture is capped at 80 characters — every real list fits in 48
+with all its spaces glued out — and a clause that cannot reach its terminator
+under the cap is interleaved and dies; the class falls back to the human
+default. One class granting fewer languages beats one class granting
+Fighting Style Specialization as a tongue.
+
+### 2026-08-16 — a class is its race's whether or not its page reads
+
+The Spellsword fallback shipped in 2.9.3 was the right refusal and the wrong
+resting place: the class got the human default, which is not merely less
+information but WRONG information — an elf handed a homeland pick it does not
+get.
+
+**Ruled: the register declares the race; the book still supplies the list.**
+`class.race` on the six demi-human RR entries is a classification, the same
+kind of statement as `chassis` or `factored`, and the class's name already
+says it. The tongues are then borrowed from a sibling of the same race whose
+page parsed, so every name still came off the reader's own book — only the
+page it was read from changes.
+
+**Ruled: only a class that read its OWN runin may lend, and only a class that
+did not may borrow.** Without that pair of tests a human-default list
+propagates itself around a race and the fallback silently becomes the answer.
+The borrower also hands back the homeland slot the default had spent, keeping
+whatever its own spread granted on top.
+
+**Ruled: Nobirans are their own race and stay on the default.** Their spread
+prints no Tongues runin, so there is no sibling to borrow from and nothing is
+invented; the declaration is there for the day a page provides one.
+
+**Ruled: bonus languages are picks, never names.** Multilingual and Linguistics
+grant languages of the reader's own choosing — the book says so and leaves them
+to the campaign's regions — so they land in `count`, not `granted`. The largest
+grant found wins rather than the sum, because a spread states its allowance once
+and then talks about it.
+
+**Cost, and the shape of the whole feature:** every pattern here is `\s*`
+between tokens and explicit in its alternations, because raw body extraction
+glues inter-run spaces out. That is not defensive style, it is the measured
+behaviour of the source — `ElfTongues:`, `theCommon`, `AncientZaharan`,
+`called“Common”`. The last of those cost a release: 2.9.3 shipped with the
+common tongue silently unfound, so every human class imported speaking nothing.
+
+---
+
+### The Compatibility Guide becomes a book the reader connects (2026-08-19)
+
+`tools/harvest-conversions.mjs` has said since it was written that the System
+Compatibility Guide "needs NO recipe … only the CONCLUSION ships", and its OGL
+name table ships exactly that way. The OSE path needed the guide's *other* half
+— the arithmetic on printed page 2 — and the same posture would have shipped
+four integers read off a page.
+
+**Ruled: `scg` joins `BOOKS`, and the constants are extracted per reader.** The
+rule is structural and ships in `ose-convert.mjs`; the numbers arrive as an
+argument, the shape `formation/jumping.mjs` already uses for printed values it
+needs but may not carry. This is deliberately stricter than the standing ruling
+for the same book, and stricter than `stats.mjs`'s save table.
+
+**Ruled: the anchor carries no standalone number.** Each constant is an `expect`
+on a clause that names the conversion, plus an `int` read of the clause that
+carries it. A printing that moves the text fails the anchor and the entry
+degrades to a stub, instead of reading an integer out of whatever sentence now
+occupies the box. `lint-register.mjs` enforces the no-number rule on the anchor,
+and the digit test is for a STANDALONE number, because the lineage lists that
+make the best anchors name editions like "3E".
+
+**Rejected: a gate that lists the forbidden values.** The obvious check —
+"`ose-convert.mjs` must not contain 9, 10, 11 or 20" — writes those numbers into
+a tracked file and defeats itself. `validate-extra.mjs` §3 is an ALLOW list
+instead: every numeric literal in the converter must be one of six structural
+ones, each justified in the comment. Strictly stronger, and it names nothing.
+
+**Cost:** a `kind.constant` with its own compiler branch, because a constant is
+a definition by role with no heading to locate and no prose block to bound —
+the same shape problem `kind.vehicle` has.
+
+---
+
+### Morale is mapped from the scale's endpoints, not clamped (2026-08-19)
+
+OSE morale is a 2d6 score, 2–12. The ACKS field admits −6…+4 and *hard-clamps*
+(`monster-data.mjs`). `cookbook.mjs`'s `bindNpc` clamps too, correctly, because
+an AX quick-stat line is already on the ACKS scale. Reusing that binder for OSE
+would have pinned every morale of 5 or more to +4 — most of any book's roster.
+
+**Ruled: the two scales are the same width, so the endpoints fix the mapping.**
+Eleven values each; the lowest morale in one is the lowest in the other, giving
+2→−6, 8→0, 12→+4. Nothing is chosen. OSE's steady 7–8 landing on the ACKS normal
+of 0 is the corroboration, not the derivation.
+
+**Ruled: the offset is read, never written down.** `moraleOffset()` takes the
+ACKS bounds from the live schema and the OSE bounds from the dice, so the
+converter holds no morale constant and a system that rebalanced the field would
+not silently acquire a wrong mapping. Where the widths differ, no endpoint
+mapping exists and the axis becomes a gap.
+
+**Ruled: this is a derivation, not a printed rule.** The guide is silent on
+morale. The Source tab labels the route "scale endpoints" rather than citing the
+guide, so a Judge can see which values rest on a printed rule and which do not.
+
+**Ruled: `ose-convert.mjs` never reaches a clamp.** A score outside 2–12 is a
+mis-read and becomes a gap; it is not squeezed into range.
+
+---
+
+### A source is registered by the Judge, and a dialect belongs to one book (2026-08-19)
+
+**Ruled: page count is the fingerprint; the document title is evidence only.**
+One of the sample books carries its author's word-processor filename in its
+metadata title, so a registry that trusted titles would mis-name it. Page count
+survives the per-customer watermarking that makes bytes useless, and a Judge can
+read it off any file.
+
+**Ruled: ambiguity is resolved by asking, not by refusing.** `identifyBook`
+refuses to name a book on ambiguous evidence, which is right for a shipped
+registry. Two adventures of the same length is an ordinary situation, and the
+Judge knows which file they just picked — so `identifyOseSource` returns a
+single answer only on more than page count alone, and the caller asks otherwise.
+
+**Ruled: a label spelling learned from one book changes only that book.** One
+sample heads its hit dice "HIT DICE". Widening the shared alternation to
+`HD|HIT DICE` is this project's named standing failure mode — it converts one
+verified reading into an unverified claim about every book nobody has opened.
+The spelling lands on that source's profile row and nowhere else, and
+`test-ose-statline.mjs` asserts the canonical profile does not learn it.
+
+**Ruled: what the geometry cannot separate is marked, not converted.** Two
+armour-class labels in one candidate means two creatures were gathered
+together — a narrow stat block set inside a prose column, a sub-column the
+page-wide histogram cannot see. The grammar would still return a full-looking
+reading of two creatures mixed, so the candidate carries `mergedBlocks` and
+stays out of any unattended path. A block from a different game carries
+`suspectLineage` for the same reason: read as OSE, its ascending armour class
+inverts silently.
+
+**Cost, and what it bought:** the locator segments on stat-bearing LINES rather
+than vertical gaps, because a block set inside body text has no gap above or
+below it. Getting there cost two real bugs, both from reading the raw run
+concatenation instead of the geometry: the PDF emits no space characters, so
+"ML 5" arrives as `ML` and `5` with a gap between them and every word-boundary
+test failed on the whole line.
+
+---
+
+### Three things a converter cannot tell you, found in one live run (2026-08-19)
+
+The OSE path's offline suites were green — 5 files, every axis asserted, the
+constants round-tripping off the real guide. The first live run found three
+bugs, and the shape they share is the lesson: **each one sits in the gap between
+a value being computed correctly and that value arriving where anything reads
+it.** A suite that stops at the converter cannot see any of them.
+
+**The extended stat block was computed and then dropped.** `convertOse` returned
+`extras` — hit-dice rating, saves-as, the speed table, the encounter numbers —
+and `oseActorData` never assigned it to the document. Every one of those fields
+was correct in the converter's output and absent from the created actor. The
+offline tests asserted `converted.extras`, which was right, and never asserted
+the document, which was wrong. `test-ose-binding.mjs` now asserts the document.
+
+**A creature opened on a sheet that could not show its own provenance.** The
+Full Monster sheet registers for `monster` but is deliberately NOT the default
+for it, so an imported creature landed on a sheet with no Source tab — the audit
+surface existed and was unreachable by ordinary use. Fixed by pinning
+`flags.core.sheetClass` on the imported actor, **not** by changing its type: an
+OSE monster is not an `acks-extras.animal`, and `monster` is what every other
+import in this module already creates.
+
+**Calibration never fired, on any book.** `unknownLabels` passed a one-label
+profile into the block finder to widen the net, and did the opposite: a
+candidate needs several distinct labels before it is a block at all, so the
+narrowed profile matched nothing anywhere — including the pages that most needed
+the prompt. The consequence was worse than a missing prompt, because of the
+fourth finding below.
+
+**A clause under an unrecognised label was swallowed without trace.** In this
+idiom a comma separates fields, so words that are not a label fall inside the
+PREVIOUS field's segment. Every reader takes what it recognises off the front,
+so a block reading `AC 7 [12], HIT DICE 1 (4hp)` reported an armour class and
+lost the hit dice entirely — no gap, no warning, nothing in `extra`. The residue
+rule had been applied only to single-token fields; it now covers every field
+whose reader does not keep its clause verbatim.
+
+**Ruled: an offline suite for an import path must assert the DOCUMENT, not the
+transform.** The three highest-value checks written after this run — the extras
+flag, the pinned sheet, the surviving unknown clause — were all cheap, all
+offline, and all absent because the suite tested the function that was easy to
+test. Each was added with the pre-fix code confirmed failing first.
+
+**Cost:** the release stopped at the gate with the version bumped, the changelog
+written and the snapshots half-captured. That is the gate working. The morale
+mapping — the axis most likely to be silently wrong, and the one the whole run
+was designed around — was correct on the first live attempt: 7→−1, 8→0, 9→+1,
+12→+4, read back off persisted actors.
+
+---
+
+### Hand conversion edits clauses, not parsed values (2026-08-19)
+
+The import path needs a readable PDF, and a good deal of what a Judge wants to
+convert is not one: a scan with no text layer, a block the locator refused
+because it could not tell two creatures apart, a monster off a forum. Those need
+a way in that does not involve a page.
+
+**Ruled: the editor holds each label's CLAUSE, in the source game's idiom, and
+converting re-runs the ordinary grammar over a reassembled stat line.** The
+obvious alternative — a widget per parsed value, a number box for morale and a
+dropdown for the save class — is easier to build and would have frozen the
+editor at whatever the grammar understood on the day it was written. Every rule
+learned afterwards would have needed a second implementation here, and the two
+would have drifted. As ruled, a new hit-dice spelling or a mangled dash reaches
+hand entry the moment it reaches the parser. `parseOseStatline` grew a
+`segments` return for it, which is the clause as written rather than what was
+understood.
+
+**Ruled: pasted text is read with everything the world has learned; a book is
+not.** These look contradictory and are not. The per-source rule exists so one
+book's wording cannot silently change how a different book parses. Pasted text
+belongs to no book — there is no reading to corrupt, the Judge sees the result
+in an editable form before anything exists, and the reader names which learned
+spelling fired and which source taught it. So the pool is safe exactly where the
+per-book restriction is necessary, and calibrating one adventure now makes every
+later paste better.
+
+**Ruled: `oseActorData` splits, and the fields half is the real one.** It
+re-derived its fields from the raw text, so a corrected clause would have been
+discarded between the form and the document — the same fault as converting a
+value and never writing it, which this feature had already shipped once and had
+caught live. `oseActorDataFromFields` takes settled fields; the old entry point
+is a wrapper that parses and delegates.
+
+**Ruled: `origin` is recorded.** "Read off a page" and "typed in by a person"
+deserve different amounts of trust at the table, and the Source tab can only say
+so if the record distinguishes them.
+
+**Cost:** the line-joining rule that closes up a word the typesetter broke
+across a line had been living in the locator, where pasted text never reached
+it. It moved into the grammar as `joinLines`, so both paths get it — pasted
+text is the same page, copied, and carries the same broken words.
+
+---
+
+### The corpus is the feedback loop, and evidence promotes a spelling (2026-08-19)
+
+A block that has to be corrected by hand is a **defect report against the
+grammar**. The manual editor exists so a Judge is never stuck; it is not where a
+misreading is supposed to end. `tools/ose-coverage.mjs` sweeps the local
+third-party library and ranks what the grammar could not read, so those reports
+arrive in bulk instead of one Judge at a time. Take the top line, write the
+rule, run it again — the number that matters is the share of blocks read
+completely.
+
+**Ruled: the report is SHAPES, never values.** Every digit run folds to `#`, so
+one finding covers every book that prints that shape. A shape is what a rule is
+written against, and a report of shapes carries no publisher's numbers — which
+is what makes it safe to read, quote and act on. It prints to stdout and writes
+nothing: a coverage file in the repo would be a corpus of other publishers'
+stat lines in a tracked file.
+
+**Ruled: multiple independent books promote a spelling from per-source to
+canonical.** This AMENDS the same-day ruling that a spelling learned from a book
+stays on that book's profile. That ruling was right on the evidence it had —
+ONE book heading its hit dice `HIT DICE`, from which generalising is this
+project's named standing failure. The new evidence is different in kind: a sweep
+of 93 books found `Hit Dice` in four independent titles across two publishers,
+and `Saves D# R# H# B# S#` — B/X's own letter names — in several more. A wording
+several unrelated publishers use is the family's, not one book's. The per-source
+mechanism stays exactly as it was for everything that has been seen once.
+
+**Ruled: a partial reading is worse than none, and the corpus is how you find
+them.** The alternate save letters did not fail loudly. `SV D12 R13 H14 B15 S16`
+matched three of five letters and quietly produced a creature with three saving
+throws, the other two left at their defaults with nothing to show the
+difference. A row is now accepted only when its letters make up a complete known
+set; anything else is reported. The same rule now guards the bare-number
+fallback, which used to turn a broken row into a confident single value.
+
+**Cost, and what it says about the method:** the two largest findings in the
+whole sweep were bugs in rules added earlier the same day. The residue cut,
+introduced so nothing read is dropped, cut at the first comma anywhere — so it
+severed a group's hit points (`(hp 4, 6, 7)`) and every thousands separator in
+the corpus, the latter 141 times across 22 books, presenting as an unexplained
+bare number. Both are one-line fixes and neither was visible from the three
+books the feature was built against. Coverage over the whole corpus went
+72% → 90% on these findings alone.
+
+---
+
+### A label that is also an English word cannot be canonical (2026-08-19)
+
+Several books print `Attacks:`, `Morale` and `Saving Throws:` as stat-block
+labels, and by the evidence rule above — used by unrelated publishers — they
+looked like promotions. Adding all three made coverage WORSE: nine more
+"blocks" appeared and two publishers lost three points apiece.
+
+**Ruled: a spelling earns a canonical place only if it is both used across
+publishers AND unlikely to occur as ordinary prose.** The locator decides what
+is a stat block by counting how many labels a cluster carries, so a label that
+is also an English word manufactures blocks out of room descriptions — and each
+one then reads as a creature with a paragraph stuck to it. Books that really do
+print those words as labels get them on their own profile, where a Judge has
+confirmed what the page is. The measurement is what caught this; the reasoning
+alone said promote.
+
+**Ruled: a sentence that MENTIONS statistics is not a stat line.** Room text
+quotes them constantly — "1d4 giant toads (AC 7 (12), HD 2+2 …) have hopped in",
+"(Use normal goblin stats: …)". `isStatLine` now weighs density: a line of a
+dozen words or more carrying fewer than three stat markers is prose. A real stat
+line is nearly all statistics; prose is long and carries a handful.
+
+**Note on the metric.** Coverage is a share of blocks FOUND, so a locator change
+moves the denominator and percentages stop being comparable across one. The
+density rule took the corpus from 1127 blocks to 1239 and from 1015 read to
+1120 — a hundred more creatures importable, at 92% → 93%. Judge locator work by
+the absolute count and grammar work by the share.
+
+---
+
+### Third-party books get shipped cookbooks (2026-08-19)
+
+`docs/OSE.md` said the opposite in as many words — "a module cannot ship a list
+of other publishers' books anyway" — and the whole OSE path was built on that:
+a grammar that ships, sources that are registered per world and never shipped.
+
+**Ruled by the IP reviewer: named third-party titles get full cookbooks,
+shipped like the ACKS books.** The scope is the OSE Advanced Fantasy Referee's
+Tome, the Dolmenwood Monster Book, and the Quick Delves, Wicked Little Delves
+and Planar Compass series. The target is 100% coverage — geometry patches where
+the grammar cannot reach, plus prose, tables, and art for creature entries —
+and keyed locations become location actors as well.
+
+The reviewer is the only one who can make this call: `ip-doctrine.md` says the
+value rule needs a human, and this is that rule applied to whose books may be
+recipe'd in public. Recorded here rather than assumed, because the shipped
+posture now differs between the ACKS library and everything else only by who
+authored it, and a later session reading OSE.md alone would conclude the
+reverse.
+
+**What does NOT change.** Structure ships and content is imported, exactly as
+before: a cookbook carries boxes, anchors and citations, never values or prose.
+Every number and every sentence still arrives from the reader's own copy at run
+time. The IP gates are unchanged and still apply — `lint-register.mjs` caps and
+`ip-scan.mjs` still refuse book text in tracked files, whoever published it.
+
+**Ruled: an OSE cookbook entry supplies GEOMETRY, and the existing grammar does
+the reading.** `kind.monster` is shaped for the Monstrous Manual's bold
+label/value rows and cannot read an inline OSE stat line. Rather than a second
+reader, an OSE entry names the box and the shipped `ose-statline.mjs` reads what
+comes out of it — so the corpus-driven grammar and the hand-authored books
+improve together instead of drifting apart. That is what makes 100% reachable:
+geometry solves precisely the cases the locator cannot find, and the grammar
+already reads 93% of what it does find.
+
+### Silence is the failure a corpus-driven grammar cannot learn from (2026-08-19)
+
+**Ruled: an unrecognised label ENDS the clause before it and is reported under
+the word the page printed.** Previously only a KNOWN label bounded a clause, so
+an unknown one fell inside its neighbour: a Dolmenwood line of the shape
+(figures invented)
+
+    Att 3 claws (+5, 1d3) Speed 70 Morale 4 XP 90
+
+read as an attack whose text happened to run on, with `extra` empty. Every
+measurement then called the block perfectly understood while its speed and its
+morale sat inside an attack string, and the sweep that exists to find gaps
+reported none.
+
+The cost is measured and was worth paying. The Monster Book's honest score is
+**11%**, not the 94% the sweep had been reporting — the 83 points between them
+were entirely swallowed text. Three other books moved by a point or two for the
+same reason. A number that only ever moves up is not a measurement.
+
+**Rejected: widening the canonical labels instead.** That is the failure already
+recorded under *A label that is also an English word cannot be canonical* —
+"Morale" and "Speed" are ordinary English, and teaching every book to read them
+manufactures stat blocks out of room descriptions. The boundary rule is narrow
+on purpose: a capitalised word followed by a number, at bracket depth zero.
+Attack text names its weapons in lower case and brackets its dice, so it does
+not collide.
+
+### Dolmenwood is a dialect and a lineage, not a spelling (2026-08-19)
+
+**Ruled: `dmb` declares `profile: "ose.dolmenwood"` and `lineage: "dolmenwood"`,
+and the lineage answers what a lone armour class means.** The Monster Book sits
+on the OSE shelf and prints none of OSE's block: an ASCENDING armour class with
+no bracket beside it, hit points as a die expression and its total ("HP 4d8
+(18)"), one label per movement mode, an attack bonus inside the attack instead
+of a THAC0 line, and Morale/Enc/Hoard for ML/NA/TT.
+
+The armour class is why this could not be left to a profile alone. "AC 14" is
+valid OSE and valid Dolmenwood and means opposite things; read with the wrong
+lineage it converts five points away from the page and looks entirely plausible
+on the sheet. So the grammar keeps reporting the first printed figure without
+deciding what it is, `readAc` marks the block `bare`, and `LINEAGES` — which
+already recorded a progression per family — decides. Reading dmb correctly took
+it from 11% to 90%.
+
+**Rejected: refusing dmb until a Dolmenwood importer exists.** Its saves, morale
+and hit dice are B-X's; only four axes differ, and gap-and-flag already covers
+what a dialect cannot reach.
+
+### A harvested name is checked, and one picture belongs to one creature (2026-08-19)
+
+**Ruled: the harvester emits a creature only when the name and the art can be
+defended, and reports the rest for hand authoring.** Both defaults were wrong in
+the same direction — they produced output that looked complete.
+
+*Names.* The nearest display heading is not always the creature's. A bestiary
+that sets descriptive prose large gave actors called "And Bony Claws. Servants
+of Grim, Forgotten Gods, Doomed t" — 87 of dmb's 166 rows. A keyed adventure's
+nearest heading is the ROOM, so Quick Delve monsters were named "13. Hallway".
+Now the name comes from the block itself, else a RUN-IN LABEL in the block's own
+column (calibrated against the surrounding prose height, because these books set
+a stat block SMALLER than the paragraph describing it), else the display
+heading — and a name that reads as an area key or a sentence is refused.
+
+*Art.* Each illustration goes to the block nearest IT, not each block to the
+illustration nearest itself. The second rule gave one picture to every creature
+on the page: 81 distinct images covering 224 assignments in aft, `img_p23_1`
+shared by acolyte, amphisbaena, ankheg and ape. Matching image-first leaves
+creatures the page never illustrated with no art, which is correct.
+
+The cost is fewer rows — dmb 166 to 79, and 120 of 483 entries carry art (25%)
+rather than a nominal 66%. A wrong name is the first thing a Judge reads and the last thing
+they think to check; a missing one is a gap a human closes in a minute.
+
+### Saves go in under the names the SYSTEM has, not the ones ACKS II is moving to (2026-08-19)
+
+**Ruled: the binder renames converted saves to whatever the target schema
+actually declares, and the converter keeps emitting the ACKS II names.**
+
+Found live, and unfindable offline. The converter emits `blast` and
+`implements`; release `acks` 14.0.1 still calls those saves `breath` and `wand`,
+and a Foundry `SchemaField` DROPS a key it has no field for — without an error,
+a warning, or a trace. Every OSE creature imported against that build arrived
+with four of its five saving throws, and the fifth was gone before the document
+existed. No mocked check could see it, because the mock has whatever fields the
+test gives it.
+
+The rename lives in the binder, not the converter: the converter stays free of
+Foundry, and the choice is made where the live schema can be read. A build
+carrying the new name is written under the new name, so this expires by itself
+instead of becoming a permanent alias. Every path that writes a document goes
+through the one helper — a generator would otherwise drop the save once per
+creature it stamps.
+
+### A creature stated across a range is a generator, not a creature (2026-08-19)
+
+**Ruled: a block printing "HD 3 to 8", or a series of blocks printing one step
+each, becomes an `acks-extras.template` actor.**
+
+Eleven Referee's Tome entries print a range in one block; twenty-one Dolmenwood
+retainers print a block per level. Read as single creatures the first kind
+arrives as the WEAKEST member of its own kind — a three-hit-dice ankheg, with
+the other five steps leaving no trace — and the second arrives as three
+unrelated monsters that happen to share a name.
+
+The family already had the right document. `acks-extras.template` was built for
+the Monstrous Manual's four varies-by-rank entries, and a varies-by-hit-dice
+entry is the same shape, so this uses it rather than inventing a second
+mechanism. The two routes differ in what they must prove:
+
+- **Several entries, one axis.** Nothing is derived: every option carries its own
+  printed block, fully converted. Grouping is declared in the register
+  (`meta.templateGroup`), derived from the entry NAME this tool wrote — never
+  from the page, which says nothing about grouping.
+- **One entry, a printed range.** Each step's hit points are printed and are
+  transcribed. The attack throw is printed only at the two ENDS, so the steps
+  between are filled ONLY when the bonus divides evenly across the range — the
+  book's own table restricted to those rows. Where it does not divide, the
+  middle of the range carries no throw at all and the gap says why. A plausible
+  straight line through unprinted figures is invention wearing arithmetic's
+  clothes, and refusing is the whole reason this is safe to ship.
+
+### A caption is furniture, and 276 identical warnings hid thirteen real ones (2026-08-19)
+
+**Ruled: residue triage drops the caption line that labels a claimed box, and
+`compileMonster` gains the `descColumns` and `skips` assists the AX path had.**
+
+The Monstrous Manual compiled with 289 residue warnings. 276 were the same
+thing — "Amphisbaena Primary Characteristics", the line naming the stat column
+under it — which binds nothing and is furniture exactly as a running head is.
+Behind them sat thirteen entries where real PROSE was going unclaimed, including
+one whose description was missing 88 items because it spilled into a second
+column the single-column prose model never looked at.
+
+Only ONE line per band is dropped, and only a line lying wholly inside it: a
+paragraph the boxes genuinely missed runs to several lines and still warns,
+quieter by its first line and never silent. `descColumns` is authored per entry
+rather than detected, because everywhere else in the book the next column holds
+the stat block and a rule that guessed would claim it.
+
+Warnings went 289 → 0. The number that mattered was never 289; it was the
+thirteen nobody could see.
+
+### The book connectors are one surface, and a folder is a group (2026-08-20)
+
+**Ruled: Book Status, the join-time reconnect offer, and on-demand reconnect
+all open a single Books dialog; the separate Reconnect macro is dropped from
+the pack; the Connect dialog gains a parent-folder route; and every shipped
+macro runs behind the same two guards with a unique in-folder sort.**
+
+The four "Your Book" macros had four surfaces: a walkthrough window, a form
+dialog, a toast-or-dialog, and a console dump behind a toast that said to go
+read the console. A reader could not tell from the macro list which button
+would show them anything — the reported symptom was an X drawn over Reconnect
+and a line under Book Status. Status and the control that changes it now share
+one dialog: every book renders a row (open / remembered / absent), remembered
+rows keep their per-gesture Unlock/Retry/picker controls, absent rows hand
+over to Connect, and the refresh-bridge state prints on the dialog instead of
+only the console. `api.reconnectBooks()` survives for old worlds' imported
+macros and opens the same dialog after retrying the silent pass.
+
+The folder route answers the group case the per-file rules cannot: picking the
+folder that holds the PDFs self-identifies every book inside (evidence-only
+matching — remembered name, size, title-in-filename; the connect dialog's
+positional fallback never runs against a folder, because a folder full of
+adventures must not have one dealt into an empty slot). On File System Access
+seats the directory handle is remembered under a reserved store key, so next
+session ONE permission gesture re-grants the whole shelf — the per-book
+gesture rule binds file handles, not directories. Elsewhere a
+`webkitdirectory` input scans the same way and falls back to name-only
+records. Unrecognised PDFs are counted, named on the console, and never
+warned about — in a folder they are the normal case.
+
+Macro commands were also normalized: every macro runs its api function behind
+the same ready-guard and exists-guard (older module builds get "needs a newer
+build", not a TypeError), and the Import folder's duplicate sort keys (two
+220s, two 230s) — which rendered in load order, i.e. no order — are unique
+again. Remove ALL Imports now also sweeps the rules-table documents the
+ruledata provider materialized (contract v1.3, ACKS Extras): documents only,
+counted in the confirm; the imported table DATA stays registered, because
+removing documents is a tidy-up, not an un-import.
+
+### A picture is pointed at, not reasoned toward (2026-08-20)
+
+**Ruled: an entry POINTS at its illustration — page, XObject name, box — and the
+harvester decides which entry a picture belongs to once per page, by
+containment.**
+
+Proximity was tried twice and was wrong both times. Measured per creature, it
+handed one bestiary picture to every creature on the page: 81 distinct images
+covering 224 assignments in the Referee's Tome, `img_p23_1` shared by acolyte,
+amphisbaena, ankheg and ape. Measured per picture, it ignored which COLUMN the
+picture was in and gave a Rhagodessa's portrait to a Robber Fly two columns
+away. A picture standing inside an entry's own region is that entry's, regions
+do not overlap, and what is left over goes to the nearest entry that still has
+none — no tie-break, and nothing claimed twice.
+
+**What actually held coverage down was not matching at all.** The Monster Book
+prints one creature to a page with a full portrait beside it — 123 illustrated
+pages — and only 17 had produced an ENTRY. The pictures were never hard to find;
+the creatures were, and the missing art was the symptom. Two page-geometry
+faults were behind it, both recorded in the harvester: a bestiary that sets its
+opening description large enough to read as a heading, so the nearest heading
+over a block is flavour text and the real title sits above it; and a region
+whose span ends exactly at the next column's edge, where an inclusive skip test
+passed over the column the art lives in. 79 entries became 165, and art went
+from a quarter of the corpus to better than a third.
+
+The lower size bound came down with it. Containment does the real work — an
+ornament must stand inside a creature's own entry AND be the largest thing there
+— so the stricter bound was discarding more than half of what one book holds.
+
+### A keyed room is a place, not a page of prose (2026-08-20)
+
+**Ruled: `kind.oseLocation` binds to an `acks-extras.location` actor, and the
+adventure becomes a location the rooms nest inside.**
+
+The obvious binding is a journal page. A place in this family is an ACTOR — it
+has a parent it sits inside, a roster of what lives there, contents, and
+optionally a market — and a room imported as prose can never grow any of that.
+The Judge who later wants the storefront to hold the goods it sells would have
+to build a second document and keep the two in step by hand. So the room arrives
+as the thing a room is, and its text arrives as every imported text does: a lazy
+tag against the reader's own copy.
+
+Locating them needs no grammar and no confidence rules, which is why
+`harvest-ose-areas.mjs` is a separate tool rather than a mode of the creature
+harvester: a keyed area announces itself with a number and a full stop, and a
+heading that is not numbered is not one.
+
+**Two anchoring faults, both found by RUNNING the compiled entries rather than
+reading them.** An area title is regularly split across runs ("5." then "The
+Docks"), so testing one item's prefix found nothing — headings are matched as
+headings now, joined from their runs. And two areas are regularly titled side by
+side, so a box spanning the whole baseline reads as one run-on heading matching
+neither; the expect box is the heading's own column. The second failed at
+IMPORT rather than at compile, which is the worst place for it: the entry looks
+authored and quietly imports nothing. Five of seventeen in one book became zero
+of a hundred and seventeen.
+
+Wicked Little Delves ships no areas. It keys its rooms another way, and a tool
+that guessed would invent areas rather than find them.
+
+### Staging is a property of the world, so it must not cost a seat-local connect (2026-08-24)
+
+**Ruled: any book can be put on the server from its own row or from a picker in
+the shelf band, whether or not that book is open on this computer.**
+
+"Add to server" was offered only on a book already OPEN this session, because
+the file has to be read before anything can vouch for what it is. True, and it
+put the control on the wrong side of the work: a GM with nineteen PDFs on disk
+and a fresh browser saw a shelf band with nothing in it and nineteen rows with
+no way to stage anything. The reported symptom was "no button on most rows" —
+the button was on the two rows that happened to be open.
+
+Reading first is kept; what changed is WHERE the reading happens. `stageFile`
+reads the picked file here, lets `ingestBook`'s fingerprint refuse a wrong one,
+and only then uploads — so the guarantee is now stronger than it was: nothing
+reaches the server before it has been identified, where the open-book route
+uploaded first and read back after. The read-back is dropped for a caller that
+fingerprinted the bytes it is sending (`verified`), which also takes a
+hundred-megabyte re-fetch-and-reparse off every use of the original button.
+
+**Found while shipping it: Foundry refuses to overwrite a non-media file.** The
+upload of a name already taken fails the whole request — so a shelf staged
+once could never be re-staged, and the reader was told "the upload did not
+complete" over a book that was sitting on the server the whole time. A taken
+name is now answered by reading the copy already there and staging it if it is
+that book, which costs nothing and is the outcome the reader wanted; a file
+that is a DIFFERENT book is named, with its path, rather than silently adopted.
+
+**The shelf copy is always `<bookId>.pdf`.** One name per book is what makes
+"is this book already up there?" a question with an answer, it is the name the
+scan's first pass already reads, and the directory is the module's own.
+
+**Rejected — matching picked files by an exact id stem.** The bulk picker takes
+the reader's own filenames and matches them on evidence only (a remembered
+name, a size this seat has seen, the book's title in the filename), leaving the
+id-stem pass confined to the shelf directory where the module controls the
+naming. A file that names no book is reported by name and left alone; its own
+row takes it in one pick, which is the strongest evidence in the window.
+
+### An authored entry is an identity, and that is what puts the OSE books in the import (2026-08-24)
+
+**Ruled: an import from an authored book stamps the ENTRY id on what it makes,
+and "import everything" gains an OSE step that walks every authored book the
+seat has open.**
+
+`importOseBook` and `importOseAreas` were on the api and on nothing else — no
+macro, no button, no step. The module's one import control therefore walked
+past about seven hundred authored entries in books it had just read, and the
+only way to reach them was the console. A shipped cookbook nobody can reach is
+a cookbook that does not ship.
+
+Wiring it in needed an identity first. The OSE binding stamped
+`<bookId>.p<page>`, which is not one creature: Dolmenwood prints up to nine on
+a page. So an authored import passes its entry id — `aft.woollyRhinoceros`,
+`qd3.area5` — and the page-derived id stays only where there is no entry to
+name (the registered-source and by-hand paths, which a Judge drives one block
+at a time and which stay undeduplicated rather than deduplicated WRONG). A
+generator built from several entries carries its group under its book,
+`dmb.group.bard`, because group keys are bare words — "bard", "cleric" — that
+repeat from book to book. The adventure a book's rooms nest inside gets
+`<book>.adventure`, so a second run nests its rooms under the dungeon already
+there instead of building a second one beside it.
+
+**The presence check is taken BEFORE the page is read, not before the write.**
+Every entry costs a page render and a parse, and this now runs inside a chain a
+Judge re-runs over a world that already holds the books: asking after the read
+would pay for six hundred creatures to decide it wanted none of them. Measured
+on this library: 643 documents in 41 seconds the first time, 0 in 1 second the
+second.
+
+**Rooms and adventures gained the same `cookbook` flag every other import
+writes.** They had only an `ose` flag, so nothing could ask whether a room was
+already imported. Their removal never depended on it — imports live in the
+module's own compendia and those are deleted whole — but identity did.
+
+### A book the server holds is never bridged (2026-08-24)
+
+**Ruled: `connectBookUrl` takes `bridge`, and the shelf passes it false.**
+
+The refresh bridge exists for a file this seat cannot reopen without a gesture.
+A shelved book is refetched on every join with no gesture at all, so bridging
+one buys nothing — and the shelf is the case where the cost is real: seventeen
+books, better than half a gigabyte, written into this seat's storage at every
+single join, for reads that were never going to ask the reader for anything. It
+is also what pinned the renderer for the first minute of a session.
+
+The open-book **Add to server** button asks the server before it asks the
+bridge, which is why dropping those bytes costs nothing: a book whose copy is
+already up there is staged from that copy, and only a name that is free needs
+bytes from this seat at all.
+
+### A window whose bands are a snapshot has to be built again (2026-08-25)
+
+**Ruled: every change to the shelf closes the Books window and opens it again,
+carrying its report into the new one.**
+
+Staging a book wrote the world setting, updated the row it was pressed from,
+and left every other band describing the world as it was when the window
+opened. A GM who staged thirteen books through the new picker therefore saw
+"On the server" still listing the six it had at open, thirteen rows in ANOTHER
+band claiming to be read from the server, and — because the scan counted a file
+whose book was already staged as a file that matched no book — "nothing new to
+stage: 19 PDF(s) there matched no book" over a shelf that was completely full.
+Every one of those is the same fault, and patching rows one at a time is how it
+happened: the bands are derived from world state, so the honest refresh is to
+derive them again.
+
+The report travels as a `notice` rather than dying with the old window, because
+the thing worth keeping from a staging run is exactly what it could not name —
+the files that matched no book.
+
+**`close()` must be AWAITED before the reopen.** The window is a singleton
+keyed on being open, so an application asked for while the last one is still
+closing is answered with the one going away — the first cut of this closed the
+window and opened nothing, which is worse than the bug it fixed. Found in the
+live run, not in review.
+
+**A full shelf collapses behind its count**, like the book groups below it. A
+reader who owns nineteen books had them listed twice in one window, and the
+controls under the first list were a scroll away.
+
+### The anchor is not advice — it decides whether a page is written (2026-08-29)
+
+**Ruled: any path that materializes a document from an executed entry consults
+`ok` first, no exceptions.** `cookbookImportJournals` was the one that did not:
+it asked for the anchor and then read `node.fields` regardless, so an entry
+whose heading no longer framed its box wrote whatever prose occupied those
+coordinates — under the room's own name and its own citation, which is a page
+nothing downstream can distinguish from a good one.
+
+The failure is not hypothetical and not confined to a moved printing. A file
+that fingerprints as no book in the registry is accepted into whatever slot it
+was picked for (`identifyBook` can only refuse a file it recognises as another
+book), so a mis-picked PDF reaches every entry in that book. That is the field
+report this came from: a proficiency whose page rendered Judges Journal prose
+under an RR citation, on a seat whose RR slot held the JJ file.
+
+The same hole existed once before and was reached by readers rather than by
+imports — `cookbookProse`, the lazy `@PdfText` reveal, took
+`res.fields.description` with `res.ok` unread. It died with the enricher in
+4.0.0, which is why this one survived alone: the invariant was being kept by
+twenty call sites and broken by one, and nothing states it in a place a new
+call site has to pass.
+
+**Rejected: refusing the wrong file at connect instead.** Fingerprinting cannot
+tell a stranger from a printing this build has not seen, and hardening it into a
+refusal would lock out every legitimate edition drift — the registry's page
+counts are a warning surface on purpose. The anchor is the check that knows what
+it is looking at, and it is per-entry, which is the granularity the answer
+actually has.
+
+**The empty container stays.** A book whose every room refuses still leaves its
+journal behind with no pages. That is honest — the shelf says nothing was
+imported — and a later good run fills it. A page of wrong prose was the defect;
+an empty journal is not.
+
+### The weapons grid prints three types, and ammunition is not a weapon (2026-08-30)
+
+The grid on RR ch.4's weapons page files four rows under **Ammunition** — the
+bolt case, the arrow quiver, the silver arrow, the sling stones — each with an
+em-dash where every weapon carries a die. `extractValueRows` had read that type
+since the recipe was written and `extractWeapons` dropped it when it attached
+the canonical names, so all four materialized as `weapon` documents.
+
+That type cannot hold one of them. It has no `quantity` field at all, so a
+bundle's count could only live in its name, where the ammunition tracker cannot
+spend it and the sheet cannot show it; and its `damage` field defaults to a die,
+so a case of bolts arrived as something to swing, listed among the weapons, with
+neither `melee` nor `missile` set. A field report described it exactly: "came in
+as a case, but with 20 bolts as a name".
+
+**Ruled: an Ammunition row materializes as inventory.** That is also the shape
+the rest of the family already assumes — `isAmmoItem` and `canBeSilvered` in
+acks-extras both read an `item` — so this removes a divergence rather than
+creating one.
+
+**Two shapes, because the grid prints two.** A row whose printed name names a
+carrying device is that device, ~~and its load rides on the `ammo` flag to be
+minted when the device reaches an actor~~; a row that is bare units is a stack of
+them. Whether a name is a device is the equipment root's question — it owns the
+gear profiles that answer it — so it is asked at import rather than restated
+here. **Superseded 2026-10-22 — see *An imported weapon is written in the
+system's own fields*: nothing ever read the flag, so the device is its load.**
+
+**The catalogue holds ONE document per priced row.** Minting the case and its
+bolts as two catalogue documents was rejected: RR sells the pair as one priced
+line, `containedIn` is an actor-embedded relation, and a class template copies a
+single base document, so a paired catalogue entry would arrive on a character
+with its contents left behind on the shelf. Recording the load and filling the
+device at the point of grant keeps one document per row and puts the pair where
+it is actually carried.
+
+**A loaded device carries the printed encumbrance whole; a bare stack divides
+it.** RR counts a bundle as one item however full it is, so a case that weighs
+its 1/6 st whether it holds twenty bolts or three is the printed rule, and it
+keeps encumbrance from drifting mid-combat as shots are spent. A bare stack has
+no device to hold that weight, so the printed figure is divided across the units
+it was printed for and `quantity` multiplies it back exactly — `weight6` is a
+plain NumberField, so the fraction survives.
+
+**The repair deletes rather than migrates.** A document's type cannot be changed
+in place, so `repairAmmoWeapons` removes the `weapon`-typed ones and the same
+run re-creates them — the `repairAnimalItems` pattern, with the same guard: only
+documents carrying our own `generated` flag are touched, so a Judge's hand-made
+case is never deleted. A class template's copy carries no importer stamp and is
+not reached from here; acks-extras re-derives those with its packages.
+
+The container model this feeds — a case that actually holds its bolts, and what
+a loaded device's capacity is — is ruled in acks-extras
+`docs/equipment/DECISIONS.md`, which owns it.
+
+### A printed class power is an award, and nothing offline was asking (2026-08-30)
+
+**Problem.** A field report said the Dwarven Excavator imported without Expert
+Caving, Loadbearing and Mine Working — three of the four powers printed under
+its own Starting Class Powers heading. The class's register entry simply never
+named them, and an award that is not named imports as nothing at all: the class
+document carries no row, the sheet shows no gap, and the omission reads exactly
+like a class that has no such power. Nothing offline compared what a spread
+prints against what its register awards, so the only detector was a Judge
+reading the book beside the sheet.
+
+**It was not one class.** Auditing all thirty-one found seventeen powers missing
+across eight of the ten By This Axe classes — every one of them a starting
+power, and every RR class clean. The dwarven chapter was authored from its
+progression tables and its additional-powers section; the Starting Class Powers
+column was read for some classes and skipped for others.
+
+**Ruled: the audit is the gate, not the prose.** `tools/dev-award-scan.mjs`
+reads every class's own pages through the shipping extractor, reconstructs each
+run-in label, and reports the ones no award ref accounts for. A clean run is
+zero, so it is runnable after authoring a class rather than only when a report
+arrives. Labels that introduce structure are filtered by name; labels that name
+an OPTION are filtered by an explicit per-class list, because the alternative —
+a scan that always reports the same twenty residues — is a scan nobody reads.
+
+**Ruled: what a reader PICKS or ROLLS is not an award.** The Earthforger's four
+sigils, the Rhetor's rhetorical effects, the Sporecaster's optional powers and
+the table it rolls on when it takes one, and the Warlock's corruptions are all
+printed as run-in labels beside the powers, and none of them is granted. The
+Earthforger's sigil already had the shape this needs — a `choice` award over
+named refs — and the others are left unauthored rather than turned into grants
+that a class does not have.
+
+**Ruled: a proficiency-equivalent power is the proficiency, only where the
+spread says so.** The Excavator's Expert Caving and Mine Working, and the
+Pugilist's Combat Trickery and Endurance, each close with the sentence that
+names the proficiency they equal, so each awards that `def.prof.*` with the
+printed name in its note — the shape the Delver already shipped. The Pugilist's
+Combat Trickery was nearly authored as a power of its own on the reasoning that
+it obviously *is* the proficiency; the sentence at the end of the paragraph is
+what settled it, and reading to the end of the paragraph is the rule.
+
+**Cost.** Three powers had no definition to arrive as at all — the Earthforger's
+Extemporaneous Invocations, the Rhetor's Linguistics, the Sporecaster's
+Conventional Brewing. Two of the three ran on into their class's progression
+tables, because a run-in that reaches the foot of the last column continues
+overleaf; both carry `assists.descStopY`, which is the assist that gates both
+the column flow and the page flow.
+
+---
+
+### A roster block that prints its own name is not a bare roster block (2026-09-08)
+
+**Problem.** `assists.anchorAtStatline` anchors an NPC on its quick-stat label,
+for blocks with no printed intro of their own. That arm has no anchor line to
+flow from, so it never attempts `description`. Seventeen AX3 entries carry the
+assist; probing the column above each label found two that do print a name line
+of their own with a biography under it, and both shipped with no description at
+all while every offline gate stayed green.
+
+**Ruled: those two move to the runin path; the other fifteen keep the assist.**
+No entry carrying the assist has a heading-size line on its page, so the display
+anchor is genuinely unavailable — but a runin anchor is a body-size match, and
+the two offenders print one. Of the rest, eleven are preceded by the previous
+block's statline, and four by text ANOTHER entry already claims: two rows of a
+special-encounters rolltable and two location-key bodies. A description there
+would be a cross-entry double-claim, not a recovery, so the assist is right for
+them. Teaching the arm to flow prose upward from the label was rejected on the
+same count: it would have to guess a boundary the book prints, and on this
+corpus it recovers two entries by mis-claiming four.
+
+**Cost.** `compileNpc` now warns when an `anchorAtStatline` entry's own column
+carries a punctuation-free line spelling its name words in order. It warns
+rather than throws because a throw is caught per entry and drops the entry from
+the cookbook — a missing NPC in exchange for a missing paragraph.
+
+---
+
+### A caption is not an ending, and an interruption is not one either (2026-09-08)
+
+**Problem.** A shaman's totem-animal ability printed across a column break
+imported only its first half. The run-in flow ended the passage at a table
+CAPTION: the caption is flush left, a whole line, short, carries no terminal
+period and no open bracket, and its glyph alias differs from the body's — it
+passes every test the `section` rule applies, so the flow treated it as the
+heading that ends the entry and never turned the column. RR pp.71–72.
+
+**Ruled: a caption ends a passage only when the passage has actually finished.**
+Two conditions together, because either alone is common: the caption must be
+followed by at least two GRIDDED lines (a printed line with three or more runs
+and two or more inter-run gaps above 12pt — a wrapped sentence never has that
+shape), AND the passage must break off mid-sentence. When both hold the caption
+is an INTERRUPTION: the flow resumes in the next column inside the anchor's own
+horizontal band, bounded below by the last gridded line and above by the caption,
+and ends by SHAPE — display height, or a name-and-colon at the column edge.
+Ending the band at a fixed distance was rejected; that is the same class of
+defect as the bug being fixed.
+
+**Cost.** One entry moved (`def.power.totemanimal`, and its alias
+`def.power.animalCompanion`): 1 paragraph / 380 normalized characters became 7
+paragraphs / 2,153. It needs `assists.flowColumns` for RR p.72, whose columns
+detection reads differently from p.71. Of the three mechanisms the fix adds,
+only the contiguous-rows ceiling is load-bearing on that page — the other two
+are carried because the shape they guard is what makes the rule safe to
+generalise, not because this entry exercises them. The wider mechanism this
+shares a cause with is NOT fixed: 134 descriptions still hold 1,037 table-shaped
+lines, because `endsFlow` stops at a heading and a body-height table row is not
+one.
+
+---
+
+### Furniture is learned per document, not cut at a fixed height (2026-09-08)
+
+**Problem.** `FOOTER_BAND = 32` deleted every text run within 32pt of the foot
+of every page, in every book. It is a page-design constant applied to books that
+do not share a page design: where the folio sits higher, the band ate the last
+line or two of body type, and 135 entries were quietly missing their final
+sentence.
+
+**Ruled: profile each document's actual furniture and cut only that.** Sample up
+to 24 pages per parity (recto and verso print different furniture), keep the
+lines that repeat across pages in the bottom 5% of the page, and drop only runs
+matching that learned profile. A parity that samples enough pages but recognises
+no furniture falls back to the flat band, so a book whose foot is genuinely
+irregular loses nothing it did not already lose. Raising the constant was
+rejected: it moves which books are wrong, not whether they are.
+
+**Cost.** 708 runs / 5,085 characters returned to the extractor across dmb, aft
+and bta; 1,454 of those now reach a description box, the rest reaching a
+statline, a table, or no op at all. 80 runs / 208 characters are newly dropped,
+every one a bare folio number in AX2/AX3. Eight books are unaffected. The number
+to state is the 1,454, not the earlier projection of 3,797 — that figure counted
+every band character in a description's column, including text belonging to the
+NEXT entry, and was an upper bound rather than a target.
+
+---
+
+### A passage ends where its shape ends, not a fixed distance down the page (2026-09-08)
+
+**Problem.** A class's intro prose ends at the first of three named section
+headings. Those headings are set in SMALL CAPS, which reaches extraction
+shattered into fragments — the first run of "Combat Characteristics" is "CO" —
+so no run ever matched a name, and the intro fell back to a window of
+`anchor.y + 300`. Eight BTA dwarven classes ended at exactly that fallback,
+seven of them at an identical y on five different pages, each cutting a sentence
+in half and each having already over-run the real section heading above it.
+
+**Ruled: read three independent signals and end the passage at the EARLIEST.**
+The original per-run name match is kept; a rejoined-line name match is added for
+shattered small caps; and display HEIGHT at the column's left edge ends a
+passage whatever the heading is called, which is what a book using section names
+outside the list needs. Taking the earliest is what makes them safe to combine —
+a rejoin that scrambles a line can then only MISS a stop, never invent a later
+one. That mattered: a three-column RR page prints a table row within 3pt of a
+heading, and the naive rejoin fused the two and silently doubled that class's
+description.
+
+**Cost.** Eight entries moved, in both directions — four shrank back to their
+real section heading and four grew past the fallback. Every other class is
+byte-identical, which is the evidence that the added signals fire only where the
+name match had already failed.
+
+---
+
+### Column detection is overridden per page, never per constant (2026-09-08)
+
+**Problem.** Two AX3 residents shipped a description consisting of a single
+hyphen. Their page prints statlines at one left edge and prose 18pt further
+left; detection votes for the statline edge, and the flow window — the column
+left less a fixed 12pt hanging allowance — began to the RIGHT of every prose
+line on the page. The only runs it could see were the hyphens of hyphenated
+word-breaks at the column's right edge. A third entry on the page captured its
+own statline as prose and swept two neighbours' regions as well.
+
+**Ruled: author `assists.columns` (and `flowColumns` for a continuation page).**
+Widening the hanging allowance was rejected: it is the same fixed-distance
+reasoning that caused the defect, and a wider window pulls the neighbouring
+column in on every well-detected page. A survey settled the scope — 7 of the 851
+pages the cookbook reads vote one column while the body plainly sits in two — so
+this is per-page authoring, not a detector rewrite.
+
+**Cost.** Three entries fixed: two went from a hyphen to 350 and 391 characters
+of their own prose; the third fell from 3,695 characters to 1,156 by giving back
+the two neighbours' text it had been claiming. That entry still carries its own
+statline inside its description box — a pre-existing defect of the same page, not
+introduced here. The two remaining open stops in the ledger look like the same
+class of fault in the OSE harvester, and are not: an override there was built
+and rejected, below.
+
+---
+
+### A description is asked where it STOPS, and only where the page can answer (2026-09-08)
+
+**Problem.** `check-prose-boxes` gates where a description STARTS. Nothing gated
+where it stops, which is where the silent losses are: a box ending mid-sentence
+still looks well-formed, and a reader without the book cannot tell the passage
+was cut in half.
+
+**Ruled: gate the stop on a clause boundary, and give NO VERDICT where the page
+cannot answer.** A description is asked the question only when a body line sits
+immediately below its box, in the same column and x band, claimed by no other
+entry. It fails only when BOTH halves agree the sentence runs on — the last line
+ends without terminal punctuation and the next opens lower-case — because either
+alone is ordinary. `prose-stops.json` ratchets: a new open stop fails the build,
+a recorded one is named and counted. The gate prints ids, pages and coordinates
+and never the text it inspected.
+
+**Cost.** The honest metric is that most descriptions get no verdict: 422 of
+1,829 reach a discrimination at all, and 1,349 do not because the next line
+belongs to a neighbour (439) or the column ends (910). Stating "1,829
+descriptions stop correctly" would be false. The gate found nine open stops on
+its first run and every one was a real defect in a different mechanism — five a
+fixed-window class intro, two a mis-detected column, two the OSE harvester's
+single-column vote. Seven were fixed; the two the harvester cannot express are
+in the ledger.
+
+---
+
+### The line that introduces a creature is set between the two sizes nothing looked at (2026-09-08)
+
+**Problem.** DMB opens most creature entries with a standfirst — a line set over
+both columns, larger than body type and smaller than a heading. The harvester
+collects body-height lines inside a column, so a line that is neither body
+height nor heading height and belongs to no single column was collected by
+nothing. 114 of 165 entries lost it: 17,703 characters that never reached a
+description, with every offline gate green.
+
+**Ruled: box the standfirst before the column walk, never inside it.** It is
+keyed on the band between the name and the first body-height line, and admitted
+only when it reads as prose — lower-case density at or above 0.5, at least 24
+characters, and straddling the gutter. It is boxed first because it reads first,
+and outside the walk because a column span would cut it at the gutter and drag
+the first body paragraph's box across with it.
+
+**Cost.** M2 fell from 113 lost standfirsts to 26, recovering 15,075 characters.
+The 26 that remain are lines the prose test declines — mostly too short to
+distinguish from a label. Declining them is the deliberate half of the rule: the
+test admits a line only on positive evidence that it is prose.
+
+---
+
+### What ends an entry is looked for ABOVE as well as below (2026-09-08)
+
+**Problem.** An entry continuing into the next column ran from `PAGE_TOP` down to
+the first thing that starts another entry BELOW that point. These books open
+every column with a heading set above `PAGE_TOP`, so the thing that ends the
+region was invisible to the search that looked only downward, and the region ran
+straight through the next creature's opening prose into its stat block. 94
+entries were over-capturing their neighbour's first paragraph.
+
+**Ruled: a column that already holds another entry's start at or above the entry
+point is not available.** `startsOf` became the one list of everything that
+starts an entry in a column; `startsIn` reads it downward for where an entry
+ends, and the new `takenAt` reads it as a whole for whether the column is
+somebody else's before the walk enters it. Lowering `PAGE_TOP` was rejected: it
+changes which headings are missed, not that some are.
+
+**Cost.** M1 fell from 94 over-runs to 4, and overlapping box pairs from 685 to
+484. One area entry stops producing boxes and keeps the wrong one it was
+authored with; it is reported as an orphan by the refresh rather than silently
+dropped. Five illustrations changed owner as a consequence, because art is
+placed by containment in an entry's regions — four AX3-style full-width plates at
+a page foot moved from the left column's entry to the later-starting right
+column's, and three of those were checked against the plate itself and are now
+correct.
+
+---
+
+### A bulleted statistic is not a stat line (2026-09-08)
+
+**Problem.** A stat-line probe recognises a line carrying enough known labels.
+One book sets each statistic on its own bullet, so a single bulleted line can
+carry a label and be mistaken for a whole block's stat line.
+
+**Ruled: scope the guard to `statLineTest` and require two distinct labels behind
+a bullet.** The full-scope version of this guard — applying the bullet rule
+inside `isStatLine` and `findStatBlocks` as well — was built and then rejected on
+evidence: it takes a bulleted block from one candidate with eight labels to ZERO
+candidates, which deletes the whole creature silently from a book nothing in this
+audit had checked. A guard that can erase a creature to avoid mis-typing a line
+is the worse trade.
+
+**Cost.** `isStatLine` and `findStatBlocks` keep the old behaviour, so the
+mis-typing they can still produce is unfixed and deliberate.
+
+---
+
+### The OSE harvester's single-column pages are not a column-lefts problem (2026-09-08)
+
+> **Superseded 2026-09-09** by "The column histogram counts runs against lines".
+> The diagnosis below is wrong in its first clause and its cost paragraph; the
+> ruling against a per-page override table stands, and so does the walk defect
+> it identifies.
+
+**Problem.** Four DMB pages and one AFT page vote a SINGLE column while the body
+plainly sits in two, which collapses everything downstream that reasons about
+"the same column": a heading on the left ends a passage on the right, and a stat
+block's header row lands where a description belongs. It accounts for both open
+rows in `prose-stops.json` and for eight entries whose whole description is a
+small-caps stat header. The definition compiler answers this with
+`assists.columns`; the harvesters take detection's word and have nothing to
+author against, so the obvious fix is a per-page override table.
+
+**Ruled: the override is REJECTED, and the ledger rows stay open.** It was built
+— a measured table of column lefts, read by both harvesters ahead of detection —
+and it made things worse. Isolated against a with/without re-harvest, it touched
+exactly the five overridden pages and 19 rows, every one gaining prose boxes,
+which read as a clean win until the entries were materialized: on p.107 the
+level-1 enchanter, level-3 enchanter and level-1 fighter all END WITH THE SAME
+SENTENCE, and on p.116 the giant frog closes with another creature's swoop
+attack while the griffon opens with the frog's. Declaring the second column lets
+an entry walk into a column that CONTINUES an entry from an earlier page, and
+nothing marks such a column as taken — so every entry on the page claims it.
+
+**Cost.** Two ledgered stops and eight header-only descriptions stay broken,
+all of them pre-existing and none of them regressions. The real defect is one
+level down: the column walk knows a column is taken when something STARTS in it,
+and has no way to know a column is taken because an entry from the previous page
+has not finished. Raising column detection before teaching the walk that would
+convert a truncation into a cross-entry bleed, which is the worse of the two —
+the same trade already ruled on for the bulleted stat line.
+
+---
+
+### The column histogram counts runs against lines (2026-09-09)
+
+**Problem.** `detectColumns` keeps a 10pt bin of body-item `x` origins when it
+holds more than 8% of the page's body runs. The numerator is what a column edge
+can actually supply — the runs that BEGIN a printed line — but the denominator
+is every run on the page, and pdf.js emits a run per style change. Runs per line
+range from 1.98 to 6.97 across this corpus, so the same 8% asks for between
+17.7% and 54.7% of the page's lines depending on how finely the page is set. A
+column of stat blocks or small caps fragments into many runs and starves the
+quieter column beside it: the page reports one column, a span covers the whole
+width, and a passage ends at a heading printed in the other column. It is a
+dimensional error, not a threshold to tune and not a binning artefact — the
+peaks are crisp, and the exemplar offered for bin fragmentation (dmb p.35's
+x310/320/330 spread) is a centre-aligned numbered list whose x varies with
+glyph width above a single prose edge at 313.64.
+
+**New evidence, against the entry of 2026-09-08.** That entry ruled from a
+per-page override table that made materialized entries worse, and concluded the
+defect could not be in column detection. The override was **half-applied**: it
+reached the harvester's own `cols` but not the `detectColumns` calls inside
+`findStatBlocks`, `listHeadings` and `runinLabelAbove`, so `startsOf(1)` came
+back empty and every entry on the page took the whole right column. Three
+independent reproductions show the shared closing sentences and the swapped
+attacks are that, not a property of declaring two columns. Its "eight entries
+whose whole description is a small-caps stat header" does not reproduce against
+the shipped harvester either — dmb has exactly one such entry
+(`dmb.level3Enchanter`, p.107); the eight were measured under the override.
+
+**Ruled: the histogram stays and a line-based rescue is added beside it.** The
+8% bar is what separates a column's edge from the background of runs that merely
+begin at some x mid-line, so it is not lowered — lowering it globally invents
+columns out of table cells, indents and page-edge chapter tabs (RR p27 returns
+EIGHT at 3%). The rescue re-asks the question of the page's LINES and admits an
+edge only where the page's own extents vouch for it: it starts enough of the
+page's lines, its lines stand alone on their baselines often enough that a
+table's cells cannot pass, its median measure matches the widest the page
+already sets, and nothing reaches across either gutter that bounds it. The
+right-gutter test runs in a second phase so a rescued column can serve as its
+predecessor's neighbour. A page whose histogram found no column at all is left
+alone: with nothing set in columns to extend, a line-start histogram finds only
+a table's stops.
+
+Reconstructing those lines exposed a second defect in the same function. Runs
+were grouped by a page-wide `y` then `x` sort, which leaves x out of order
+inside a baseline tolerance band — a left-hand run then joins a segment that
+began to its right and the line's true start is lost. Each line's runs are
+sorted by x before they are joined.
+
+**Cost and measure.** 3172 pages across every book in the library: 37 change,
+none loses a column, and none has a column value move — the change is purely
+additive. Materialized against the books themselves, every entry it moves is an
+OSE one: 21 in the Dolmenwood Monster Book, 7 in the Advanced Fantasy Referee's
+Tome. It recovers 10 creatures (8 on dmb p.108 and p.116, 2 on aft p.55, where
+a welded title splits), fills
+the one description that was empty, and retires the 4 phantom rows the welded
+titles had minted; on dmb p.107 the same seven entries carry 1374 characters
+between them where they carried 925, redistributed — the level-5 fighter gives
+back the 345 it had swallowed. `check-prose-stops.mjs` reports 0 open with no
+new stops, so `prose-stops.json` is emptied.
+
+**The definition side changes geometry and nothing else.** 28 of the 37 changed
+pages are ACKS books, and the 9 definition entries whose boxes they move — 4
+classes, 3 skills, 2 powers — materialize byte-identical text before and after.
+`defColumns` and the flow logic were already reaching the right prose through
+the histogram's miss: what it produced there was a wrong BOX, not wrong text.
+
+**One defect grows where the same defect shrinks.** Recovering aft p.57's right
+column hands it to all three entries printed in the left one, because the walk
+cannot see that it continues an entry begun on p.56 — a passage that used to be
+missed is now imported three times. Counted across both OSE registers the rows
+sharing a prose box go from 13 to 12, and the shared boxes from 13 to 11: a net
+improvement carrying one new instance. The walk defect is ROADMAP.md's.
+
+Five plates change owner as a side effect, and the plate settles each: dmb
+p.107's cat-folk spellcaster casting a growth spell moves from the level-1
+fighter to the level-1 enchanter, and dmb p.108's mushroom-gathering friar from
+the level-3 knight to the level-5 friar — both corrections. The aft p.57 plate
+moves between the giant swordfish and the giant sturgeon and depicts neither: it
+is the flail snail printed below them, which the nearest-block fallback cannot
+reach because a full-height plate's centre lies in no entry's region. A wash,
+inside a defect this change neither causes nor repairs.
+
+**What stays rejected.** The per-page column override table, on the 2026-09-08
+entry's own reasoning about the walk. **What stays broken:** the walk's shared
+regions, in ROADMAP.md.
+
+---
+
+### A compendium is a cache; presence is asked of its index (2026-09-09)
+
+**Problem.** In one session, against a world that already held all 31 classes,
+`importClasses()` reported everything already present and created nothing — and
+then, some minutes of read-only probing later, created all 31 a second time.
+Nothing was written between the two runs and no hook fired; both copies of
+`Dwarven Delver` carry a `_stats.createdTime`, six days apart.
+
+The guard is `if (await importedItem(id))`, and `importedItem` confirmed its
+cached hit with `cached.collection.get(cached.id)`. For a compendium document
+that collection is the `CompendiumCollection`, which is not a shelf but a cache
+over one: every `get` and `set` re-arms a debounce that calls `clear()`
+`CACHE_LIFETIME_SECONDS` (300) later, dropping every document whose sheet is not
+open. The pack's INDEX is kept — `clear()` deletes through `super.delete`
+exactly so the rows survive — but the confirmation was not asking the index. So
+five minutes of doing anything else turned a full library into an empty one as
+far as the guard could see, and every id it was then asked about was built
+again. The window is invisible while a run is busy and opens the moment one
+pauses, which is why repeat-use checks never caught it.
+
+**Ruling.** Presence is asked of the pack index, never of the documents the pack
+happens to be holding (`liveCopy`, `scripts/importer/cookbook.mjs`). A real
+delete takes the index row with it, so the one thing the confirmation exists for
+— a Judge deleting a document to re-import it fresh — still answers null, warm
+or cold. The document is re-read only once the index has said yes, and the read
+takes the whole shelf rather than the one document, because an eviction dropped
+every id the caller's loop is about to ask for; concurrent workers share the one
+read through `shelfReloads`, and the rebuilt instance replaces the evicted one
+in the session index.
+
+**What was rejected.** Trusting the session cache and dropping the confirmation
+— it is what makes delete-then-reimport work, and a cache that answers for
+deleted documents is the failure the family already shipped once. Re-fetching
+per id: correct, and a server round trip for each of a thousand ids after every
+pause. Widening `forgetImportedIndex` to fire on a timer: the same guess about
+staleness the pack already answers exactly.
+
+**Cost and measure.** The actor side had asked the index all along
+(`importedIdsOfType`, `importedActor`) and was never exposed; this is the item
+side saying the same thing. Live in world `test` with the eviction forced by
+hand (`pack.clear()` — what the debounce calls, and no write): all 31 class ids
+answer after it, one shelf read restores 1028 documents, `importClasses()`
+returns `[]` with a create-hook ledger recording nothing, and a fixture deleted
+warm and deleted cold both report gone. `tools/importer/test-imported-index.mjs`
+holds the case; it fails against the previous code at the eviction.
+
+### A refill retracts only what its entry claimed to fill (2026-09-09)
+
+**Problem.** *Apply Stats* took an imported OSE creature's whole stat block to
+schema defaults and reported success. The path is four steps, none of them
+OSE-aware: `applyStatsTargets` (`scripts/importer/module.mjs`) selects any actor
+of `type: "monster"`, and the OSE binding creates its creatures as `monster`;
+every authored OSE creature carries a `flags["acks-extras"].cookbook.id` naming
+a shipped entry, so `refillMonster` resolves it and proceeds; a `kind.oseMonster`
+entry declares `name`, `block` and `description` and no `stats.*` fields at all,
+because an OSE creature's numbers sit inside the `block` region and are read by
+`ose-statline.mjs`, never by `bindMonster`; so the bind yielded `{details:{}}`
+and the retraction loop — there so a field a recipe no longer produces
+disappears from the actor — read all eighteen `REFILL_STAT_PATHS` as dropped and
+wrote each one's schema initial value. 577 shipped creatures across eleven
+authored OSE books stand on that path, and the failure is silent: the sheet
+still names the creature and still shows its biography and provenance.
+
+Live in world `test`, dmb connected, a Dolmenwood Giant Fire Beetle imported
+fresh, its sheet open, `applyStats()`: armour class, attacks, morale, number
+appearing and speed each went from the imported figure to the schema's initial
+value, and every save and THAC0 to the ladder's initial row. All seventeen paths
+this system's schema declares ended at their initial value — the eighteenth,
+`saves.blast.value`, has no field here and was skipped by the loop's own
+`if (field)` guard — and the notification read "refilled 1 monster from your
+book."
+
+**Ruling.** `refillMonster` declines an entry whose executed node carries no
+`stats`, with `{ ok: false, reason: "no-stats" }`, and `applyStats` names those
+actors as left unchanged. A retraction is only meaningful against an entry that
+HAS a stat block: an absent `stats` says the entry describes none for this
+binding, not that its recipe dropped eighteen fields at once.
+
+**Rejected: excluding OSE-lineage actors in `applyStatsTargets`.** It looks like
+the narrower fix and is the weaker one — it puts the constraint at the selection
+site while the destructive write stays reachable through the exported
+`refillMonster`, and it answers only the lineage that happened to be found. Any
+later kind whose node yields no stats would blank again. The guard belongs at
+the write.
+
+**Rejected: making Apply Stats re-read an OSE block here.** Running the `block`
+region back through `ose-statline` and `convertOse` is the right eventual
+behaviour, and it is a feature with its own conversion and provenance
+questions — ROADMAP, not a bug fix.
+
+**Cost and measure.** An OSE creature's Apply Stats is now a refusal a Judge can
+read instead of a wrong write. Verified live both ways: the same fixture deleted
+and re-imported, then pointed at, reports "no stat block for this surface to
+re-read — left unchanged" with `_stats.modifiedTime` untouched; `mm.batGiant`
+still refills; and a `mm.golemBone` whose morale and number appearing were
+tampered with by hand had both retracted to their schema initials, so the
+retraction is unchanged for entries that carry stats. Pre-existing — the
+retraction loop and the OSE authored-book importer were written for different
+questions and never met.
+
+### A corrected recipe does not reach a world that already imported it (2026-09-09)
+
+**Problem.** The column fix rewrote 14 OSE entries' geometry and retired 4 ids
+that never named a real creature. None of it reaches a Judge who has already
+imported those books. `importOseBook` asks the shelf whether the id is present
+BEFORE it renders the page, in its per-entry loop, deliberately — the check
+was moved ahead of the read so that re-running "import everything" over a full
+world does not pay for three hundred page parses to decide it wants none of
+them. The consequence is that a corrected box produces nothing at all on a
+document that exists. There is no actor-side refresh anywhere to compensate:
+`cookbookUpdateAbilities` and `cookbookUpdateClasses` rewrite Items, and
+`cookbookReimportShelf` selects by id PREFIX from a table whose every prefix is
+`def.`, so neither can reach an `aft.`/`dmb.` actor.
+
+**Measured, twice, against a world holding 163 of the two books' entries.**
+Re-importing creates **6 actors and changes nothing else**: aft's two new ids,
+Dolmenwood's two new creatures, and the two generators its six new class-step
+rows collapse into. 163 entries report already present; zero `updateActor` or
+`updateItem` hooks fire; nothing is deleted. Confirmed independently by the
+release session against its own pre-upgrade world — 163 already present, 4
+created, 0 updated, 0 deleted. The retired ids are referenced nowhere, so no
+dangling reference is created, and `cookbookAudit` builds its list from the
+shipped cookbook alone, which puts an orphan outside its domain rather than in
+its error list.
+
+**Ruled: disclose it and hand over the remedy; do not build a migration.** The
+release notes carry an "Upgrading an existing world" section saying that
+already-imported creatures keep what they have, that nothing is changed or
+deleted, and which ids to delete and re-import to pick the corrections up.
+
+**Rejected: adopting the retired ids into their replacements.** The Item side
+already has the mechanism — `byId` indexes each document under its own id and
+every id in its `merged` array, so a withdrawn id keeps
+resolving. `importedActor` compares the id exactly and has
+no equivalent. Building one is a schema commitment and a new collision surface,
+made to serve four documents in two third-party books, delivering a fix a Judge
+can also get by deleting them.
+
+**The remedy is 14 actor ids, and the indirection is what gets a remedy list
+wrong.** `dmb.level{1,3,5}Enchanter`, `dmb.level{1,3,5}Fighter` and
+`dmb.level3Knight` are template-group MEMBERS and own no actor of their own —
+the documents to delete are `dmb.group.enchanter`, `dmb.group.fighter` and
+`dmb.group.knight`. A list built by copying the changed entry ids matches
+nothing for seven of the fourteen.
+
+**Cost.** Four orphan actors with no per-document cleanup. `danglingAbilities`
+walks imported Items and skips anything that is not type `ability`, so
+`cookbookPruneAbilities` cannot see an actor; only the whole-library "Remove ALL
+Imports" reaches one. Two of the four are the phantom Griffon and Hawk rows,
+whose names are identical to creatures that also exist correctly — and on those
+two pages BOTH documents have to go, because the surviving flagged one holds
+what the old box read and the orphan holds the rest, so neither is right on its
+own. The other two carry a welded title naming two creatures at once, which is
+at least unmistakable.
+
+---
+
+### The body face is the entry's own opening, and a heading of any size ends a block (2026-09-10)
+
+**Problem.** `def.power.naturalStealth` has shipped since 6.0.0 as its one
+paragraph plus the Explorer's starting-equipment kits and the "Additional Class
+Powers" line from the page after — ten times its printed length — with
+`cookbookAudit`, `verify:cookbook`, `check-prose-stops` and the chef ledger all
+green. The ruling of 2026-08-13 elects the body face from "whatever face most
+of a block is set in", which asks the column what the block is before the
+block's extent is known: on RR p29 forty lines of kits in their own face
+outvote four lines of the entry, so the sub-heading that closes it reads as
+body and is invisible to the section stop. Independently, that sub-heading is
+set at 10pt over a 9pt body, and the section test excluded any run at or above
+body height — a size that is neither body nor display, so no rule owned it and
+the block ran to the column foot and overleaf.
+
+**New evidence, against the entry of 2026-08-13.** That ruling's rejection of
+"any non-body face" was about the bracket test, not about size; the exclusion
+`it.h >= DEF_BODY_MAX_H` answers to no clause in it. Its whole-corpus
+measurement was taken with a body face a foreign block beneath the entry could
+capture.
+
+**Ruled: the body face is the face of the entry's own opening** — the run that
+follows the heading on the anchor's line, else the first body-height line
+beneath it; weight over the column is the last fallback, never the first
+answer. **And a line-initial run at the column edge in a non-body face is a
+section heading at any size.** `body` already leaves runs at or above body
+height out, so the only thing the size test ever did was stop a block from
+ending there.
+
+**Measured, whole corpus, all books:** 2 of 1937 entries changed, both shorter,
+both of the diagnosed shape — `naturalStealth` 4 paragraphs → 1 (380pt → 36pt,
+no longer reaching p30) and `scrollreading` 4 → 3. Every offline gate green
+after; none of the compile's sixteen warnings concerns a block's bounds.
+
+**The instrument, and where it runs.** What surfaced this was the wiki
+snapshot's paragraph compared to each definition's materialization — every
+entry, aliases resolved to their target, owner lists and bullets normalised —
+which none of the shipped gates asks: `verify:cookbook` skips content
+cookbooks, `check-prose-stops` gates truncation only and gives no verdict where
+a column ends, `dev-runon-scan` sees only a swallowed sibling's name box. It is
+PREPARATION, not a check. Oracle content reaches the author of a row and
+nobody else: it says what SHAPE the passage has — how many paragraphs, whether
+bullets belong, where it ends — while the bound is being read off the page,
+and the printed page decides every conflict. Nothing compares a finished
+materialization to the wiki: not at recompile, not after a merge, not as a
+spot check on entries no one is authoring. A mechanism change is measured by
+the description-op diff between two compiles and by reading the changed
+entries' pages; a merged bound is verified by its paragraph count and its
+page, never by a green re-comparison.
+
+**Cost.** A run-in heading wrapped alone onto a second line in the anchor's own
+face could now end its own block at once; no such entry exists in the corpus
+today, and the recompile diff would show one.
+
+---
+
+### A block's edge is read by the same shapes at every boundary it crosses (2026-09-10)
+
+**Problem.** The oracle instrument of the entry above was dispatched as six
+batches — four chefs reading one entry at a time, two prep passes sampling
+entries it had passed. They came back with twenty per-entry bounds and seven
+mechanism defects, and every one of the seven was a boundary the compiler read
+differently from the others. The display branch's page turn ended only at a
+display heading, so an entry ending in the last column of RR p108, p112 or
+p113 carried the next page's opening table. The display branch had no section
+stop at all, so a body-size heading in the entry's own face on JJ p410 ended
+nothing. The column flow began at the top band whatever stood there, so RR
+p36, RR p78 and BTA p80 carried the table printed at the head of the next
+column, and its stop matched any run in the anchor's face at the column edge,
+so a cross-reference cost RR p36 its last line. `defColumns` tested single runs
+for the run-in shape and missed a name split by a superscript ordinal (RR p51,
+p82). The body-face election took the first run after the anchor, which BTA
+sets as a three-run level tag. And the page-turn pitch was measured with
+superscript rows and margin tabs in it, so JJ p317 carried one line.
+
+**Ruled.** One page turn, `pageFlow`, serves every branch, and its carry ends
+at the first of five ceilings tested by shape: a heading — display size, or a
+whole row set above body size, which is what a caption or a sub-heading is; a
+section heading at body size, against the page's own body face; the next
+entry's opening at the column edge; the top of a table; the pitch break, on
+body rows only. One section shape, `sectionShape`, is applied in the anchor's
+column, in the flowed column and overleaf, with the bracket depth carried from
+the block's own text. The column flow skips a table at the head of the
+destination column before it tests for a section, because a caption has a
+heading's shape, and demands the run-in shape of a stop only where the anchor
+has that shape itself. The body face is the first run of words after the
+anchor, never a run of a few characters. `defColumns` reads lines.
+
+**Rejected: "the block ended on its page".** A block whose text closes on a
+full stop with room for another line below it in the column looked ended, and
+the rule fixed four false page turns at once — but RR p154's Palanquin ends
+three lines short of the foot on a full stop and continues overleaf, because
+its next paragraph was kept whole, and the rule cut it. Room below a block
+reports the typesetter's paragraph control, not the block's extent. Every
+false turn the rule caught is caught by a shape ceiling; the rule is gone.
+
+**Measured, whole corpus, all books:** 57 of 1937 entries changed against
+HEAD, 52 shorter, none longer; five re-boxed at equal height where a column
+was recovered. Twenty-three of the 57 are chef-authored bounds merged through
+the gate (one more held for review); the rest are the mechanism. RR oracle:
+379 → 399 of 443 match, overrun candidates 36 → 21, no truncation; JJ 268 →
+272 of 274. Every remaining non-match is chef-verified against its page, an
+oracle artifact — the classes chapter scored against the Judges' class
+summaries — or a diagnosed defect listed below. Validate green.
+
+**Diagnosed, open.** RR p88 Acrobatics wraps around a grid and finishes in a
+frame printed above its own foot; the column model reads top to bottom and
+cannot reach it. RR p42: detection returns the progression grid's edges as the
+page's columns, and stating the true ones re-opens the head-of-column carry
+because the continuation resumes at the foot of the right column under an
+illustration. Class intros on RR p26 and p32 end where a straddling table
+column begins. Tables set under proficiency entries on RR p113 have no
+register node, so a correct bound leaves them uncaptured. Gambling on p113 is
+held for review: its cells hold sentences. RR p153 Wall prints a callout
+inside its own entry, labelled in the anchor's face and inset four and a half
+points — inside the stop rule's tolerance, so the block ends at the callout
+and loses it. JJ p316 Eldritch Talent closes with a bracket holding a remark
+rather than a list of names; `stripOwnerList` is deliberately tight and leaves
+it, and one bracket in the book is not evidence to widen it. *Superseded the
+same day by the entry below, for every item but the p113 tables.*
+
+**The instrument, withdrawn as a check.** Its verdict mode was run here after
+each merge and each mechanism round, and over 36 entries nobody was authoring.
+That use is withdrawn — oracle content is preparation only, as the entry above
+rules — and it was never a reliable arbiter: fifteen of the twenty-one flags
+it still raises are the wiki disagreeing with the page. What the work keeps is
+the op diff and the page.
+
+**Cost.** A continuation that resumes after a pull-quote at the top of the
+next page is cut at the pull-quote. A continuation whose first line is alone a
+short capitalised phrase in a non-body face ends there. Neither exists in the
+corpus today; the recompile diff would show one.
+
+### A callout is named, not measured; a class intro is the prose in its own face (2026-09-10)
+
+**Problem.** The entry above left five diagnosed defects open, and the user
+directed that they be fixed rather than carried. Working them showed that they
+were not five register rows but three mechanisms and two bounds, and the
+measurement turned up more of the same shape. RR p153 Wall's note is inset
+four and a half points in the run-in face; so are the examples under RR p43,
+p45, p51, p79 and p99 — ten entries in all, and every one ended at its own
+callout. RR p88 Acrobatics narrows beside a grid and finishes in a frame above
+its foot; RR p42 Expert Bargaining's page detects the progression grid's edges
+as its columns. JJ p316 closes its owner list with a semicolon clause and kept
+the bracket. Thirty-seven entries across the three books arrived as two
+paragraphs where the print turned a column or a page mid-sentence. And every
+class intro — the band read from a class page's left column — had its words
+welded, because the intro para was the one text block never sent through
+`withFixes`; Warlock, Witch and Shaman carried the level grid's XP cells or its
+footnote, Nobiran Wonderworker and the ten By This Axe classes opened on the
+stat block's last line, and eight more carried a straddling grid column or a
+margin tab.
+
+**Ruled.** A run-in labelled as an example or a note never ends a block
+(`CALLOUT_RE`): no entry in any book is named so, and the label's word is the
+only thing that separates an inset callout from an inset sibling — RR p151
+Headquarters sets a whole block of siblings, AC and SHP among them, at the same
+four-and-a-half-point inset. The stop rule keeps its column-edge bound as it
+was. The executor joins a box that opens with a lower-case letter to a
+previous box that closed without terminal punctuation, unless the new box
+carries its own section label; the frame RR p88 finishes in is stated by a new
+assist, `descAppend`, and joins that way. `stripOwnerList` accepts one
+semicolon clause after the names — it qualifies who else may take the power,
+which is the list's business as much as the names are; the pattern stays
+anchored to a capitalised list and to the closing bracket at the end of the
+text. The class intro is the candidate lines that hold a word — the stat block
+opens each of its lines with a control-character run on the edge (RR p94,
+U+008D), which `trim` does not blank — in their dominant face; what the box
+still encloses of the grid is dropped by FACE, read off the gridded rows the
+band holds page-wide, and shipped as drop ordinals, never as text; and the
+intro para receives the run fixes every other block does. A gridded row holds
+at least one body-height run, so a row of superscript ordinals no longer ends
+a column flow (RR p36). Expert Bargaining's page states its columns in the
+register; the carry into the second column skips the grid at its head and
+resumes under the illustration.
+
+**Rejected: the prose edge as the sibling test.** Measured as the mode of
+body-line x it missed bulleted columns (RR p154) and hanging indents (RR p129)
+and grew sixteen entries; measured as the leftmost x it read RR p153's note
+correctly and then read RR p151's structures block — siblings set 4.5pt in as
+a whole — as one entry of seven paragraphs. An inset callout and an inset
+sibling stand on the same x. Geometry cannot tell them apart; the word can.
+The edge survives only where it belongs: the class intro band, where the
+column band also holds the grid's cells and the margin tab.
+
+**Rejected: keeping the grid out of an intro by height or by tolerance.** The
+footnote under RR p74's grid sits 3.8pt above a prose baseline, where an
+ordinal sits, so no vertical tolerance separates the two without losing
+ordinals; the grid's widest XP cell starts inside the prose's right edge, so no
+x bound keeps it out without cutting the lines below the grid. The face is
+what the page actually varies.
+
+**Measured, whole corpus, all books, executor held constant:** RR 33 entries
+changed against 7.5.1 — 21 class intros, ten callout entries longer by their
+callout, Acrobatics 1797 → 1131 characters, Expert Bargaining one paragraph in
+reading order; JJ 0; BTA 10, every dwarven intro shorter by the stat line. The
+executor change alone: 37 joins (RR 14, JJ 20, BTA 3), and Eldritch Talent
+965 → 860. Both together against 7.5.1: 79 of 1937 entries — RR 46 (32
+longer, 14 shorter), JJ 20, BTA 13. Every grown RR entry's last line was read
+against its page and ends at the next sibling, a section heading or a
+pull-quote; every class intro was materialized, holds no grid cell, footnote or
+stat label, and ends on the page's own last intro line. Validate and the suite
+green. The instrument was not used.
+
+**Withdrawn.** The Gambling bound proposed for RR p113 compiled to the box the
+register already produced and was not merged; the games table has no register
+node and stays uncaptured, with the other p113 tables.
+
+**Cost.** An entry genuinely named Note or Example would be absorbed by the
+entry before it; none exists in the three books, and the register lint would
+show a new one. A box that opens with a lower-case letter after a box that
+ended without punctuation is joined even where the print did break the
+paragraph — the corpus holds no such pair; every join was read at its seam. An
+intro whose first or last line opens in an emphasis face would lose that line;
+no intro in the corpus opens a line so. An owner list whose clause holds a
+`]` would keep its bracket.
+
+### A package and a rules table land where the import lives (2026-09-10)
+
+**Reported (user):** the class-template items and tables and the materialized
+rules tables were in the sidebar while every other import was in a compendium.
+The ruling is lib's (`docs/lib/DECISIONS.md` 2026-09-10). This side: `packFor`
+opens its shelf through `lib/library-target.mjs`, the same door the two feature
+writers use, so one label per line is spelled once; `materializeClassTemplates`
+hands the classes feature the line's Item and RollTable packs beside its
+folders (`ensureWorldFolderPath` went with the placement it served);
+`importedIdsOfType` skips template parts in the index, since a shelf now holds
+a class's skinned copies beside the definitions they copied and a copy answering
+for its definition would stop the definition ever importing; and the Remove
+Imports confirm counts the ruledata provider's SIDEBAR documents only
+(`countMaterializedDocs({sidebar: true})`), the shelf's being counted with the
+packs it deletes. Supersedes the 2026-08-24 superseding note ("class-template
+packages stay WORLD documents").
+
+### A setting table is a journal page holding a table (2026-09-10)
+
+**Reported (user):** the gambling games list on RR p. 113 should import as a
+setting-detail journal — a table, no odds. **Ruled.** A new kind,
+`kind.settingTable`: a sidebar list printed without a die column, whose rows
+open with a NAME in the label face and continue in the body face. It has no
+heading to anchor, so the register frames the printed column header
+(`assists.nameExpect`) and bounds the rows (`assists.rows`); the compiler
+splits the region on face changes into label/row paragraph pairs (section
+`r<n>`) and the executor's `text` op materializes them. The binding routes
+the kind to a JournalEntry page beside the locations, one entry per
+`meta.group`, the body a two-column table under the register's header words
+(`prose.mjs` `entryTable`), stamped and cited like every other block so
+`stripBookText` still tells the import from a Judge's writing. The register
+carries the header words and the box; the names and the descriptions arrive
+from the page. The withdrawn Gambling bound above was a bound on the games as
+an ABILITY's text; this is the games as the table they are.
+
+**Rejected:** a RollTable with no formula. The rows are not outcomes and the
+book gives no odds; a table document that cannot be rolled is a journal page
+wearing the wrong sidebar.
+
+**Rejected:** materializing the rows as paragraphs. The printed shape is a
+grid, and a reader scanning for one game reads the first column.
+
+*Cost:* a region that opens in the body face throws at compile, by design — a
+mis-drawn box is a build error, not a page with a headless row.
+
+### A citation is a link, and the plain reference still resolves (2026-09-10)
+
+**Reported (user):** page references should link to the PDFs they were pulled
+from. **Ruled.** `bookText` writes the reference as an
+`<a class="acks-extras-importer-cite-link" data-book data-page>` when the
+writer knows the book and the PDF page; `executeEntry` returns both and every
+binder passes them. One document-level click handler (`module.mjs`
+`onCiteClick`) opens the book's shelf journal on its PDF page
+(`openBookPage`): a viewer already open turns to the page through its hash; a
+viewer not yet loaded is built with the hash on its URL, the way core's Load
+PDF button builds it. A plain `<p class="acks-extras-importer-cite">` — every
+reference an earlier release wrote — is parsed back at click time (`books.mjs`
+`parseCite`, the inverse of `citeFor`), so an upgraded world gets the link
+without a re-import. The gate is the shelf journal's own permission: a seat
+that cannot observe the book's journal is told so and nothing opens. The link
+carries the PDF page, never the folio; `parseCite` adds the printed offset
+back.
+
+**Rejected:** a Foundry text enricher. The reference lives in the document
+text by the ruling that retired `@PdfText`; an enricher would put the
+resolution back at render time, which is the shape that was retired.
+
+**Rejected:** one click handler per sheet. Descriptions render inside core
+sheets, journal pages and chat cards; a document-level delegate reaches all
+three and is registered once.
+
+*Cost:* the audit dialog's citation cells stay `<span>`s — that dialog is
+about the recipe, not the page.
+
+### The hit-dice rating is parsed once (2026-09-10)
+
+**Ruled.** `stats.mjs` `parseHitDice` is the one reader of the printed Hit
+Dice string — a whole rating with a bonus, a fraction as a glyph or a slash,
+the special-ability marks before or after a hit-point aside, and the slight
+creatures printed as a hit die or a hit-point total — and `buildExtras`,
+`bindStatsScalars` and `stats-map.mjs` all call it. It returns `{count, bonus,
+asterisks}`; the binders derive the roll formula through lib's `hdFormula`,
+which scales a fractional count to a smaller die, and lib's `monsterHitDice`
+reads a formula back. Three sites each held a regex of their own and
+disagreed on fractions; a familiar picker that needs "under one Hit Die" to
+mean the same thing for an imported creature and a hand-typed one is what
+forced the merge.
+
+*Cost:* `monsterHd` reads a scaled die as its fraction (`1d4` → 0.5) where it
+read 1 before; every caller wanted the rating.
+
+### A citation click runs before core's hyperlink handler (2026-09-11)
+
+**Ruled.** `onCiteClick` listens on the document in the CAPTURE phase and
+stops propagation once it has a target. Core's `Game` registers a document
+click listener of its own that opens every `a[href]` it reaches in a new
+browser tab, and a bubble-phase listener registered at `ready` runs after it
+— so a citation link, which carries `href="#"`, opened a second Foundry client
+on every press (7.5.3). Capture runs first whatever the registration order,
+and the stop keeps the click from core. A reference inside an open ProseMirror
+editor is passed over, as core passes it over, so editing a description never
+turns the page. The link keeps its `href`: it is what makes the reference
+reachable from the keyboard.
+
+**Rejected:** an href-less anchor, core's own content-link shape. It dodges
+the handler and loses keyboard focus with it, and the documents older imports
+wrote already carry the `href="#"` form and would have gone on opening tabs.
+
+*Cost:* a citation click reaches no other listener — nothing else has a claim
+on it.
+
+### A kind says what it binds to, and the lint holds its categories to the vocabulary (2026-09-11)
+
+**Ruled.** A kind whose entries become ability items declares `binds:
+"ability"` in its `_kinds` row, and the register lint fails any such entry
+whose `meta.category` is not a key of the ability vocabulary
+(`ABILITY_CATEGORIES`). The runtime clamp in `abilityCategory` stays: it
+answers for a cookbook the lint never saw, and it warns on every import and
+update it clamps — which is how `def.skill.dowsing`, authored in 6.0.0 with
+a category spelled outside the vocabulary, reached a Judge's console as a
+warning per run and an actor sheet as a proficiency for ten days before
+anyone read the line.
+
+**Rejected:** a list of ability kinds inside the linter. The compiler already
+keys the content lists by kind, and a second list drifts the day a kind is
+minted; the kind row is the one place that already said what it binds to — in
+prose, until now.
+
+*Cost:* minting an ability-bound kind means one more key in its row, or the
+lint never looks at its categories.
+
+### A book is a reimport unit too (2026-09-16)
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": a book's run repairs in place and deletes
+> nothing first. The book as a repair unit stands.
+
+**Ruled.** The reimport picker offers every book open on this seat beside the
+shelves, and `cookbookReimportBook(bookId)` deletes every document imported
+from that book — on every shelf with a refill run — and runs those refills.
+The "three controls" ruling (2026-08-24) stands: the macro count stays four,
+the picker gains a group. A shelf is the wrong unit for the case that raised
+this: a book whose copy read badly on one seat lands its documents on
+Equipment, Class Powers, Skills and Classes at once, beside every other
+book's, and rebuilding a shelf to reach them re-reads sixteen books to fix
+one.
+
+**Rejected:** offering a book that is not open on this seat. Deleting first
+is the point of the control, and what nothing can read back stays deleted.
+**Rejected:** a document another book owns that merged one of this book's ids
+(the Rulebook's Boots carrying By This Axe's) — it is that book's document.
+
+*Cost:* a book run walks every refill importer whose shelf it touched; each
+passes over what still exists, so the cost is the walk, not a rebuild.
+
+### A word boundary pdf.js marks is kept (2026-09-16)
+
+**Ruled:** pdf.js sets the word space of a tightly set line as a zero-width
+" " item of its own. `textRuns` still drops the item but keeps the boundary on
+the run that follows (`sp`), and the compiler's `joinSpace` honours it beside
+the 1pt gap test. Heading text is still joined without it: the registers' display anchors were authored against the welded join, and the keyed-area compile matches them by exact prefix. **Rejected:** lowering the gap threshold — the welded pairs
+sat at 0–1pt, the gap kerned letter pairs inside a word also show, so no
+threshold tells the two apart; the space item is the only witness. **Cost:**
+every book's recipes recompile with more `joinSpace` ordinals, and a seat reads
+the corrected text only after it reimports the book.
+
+### A settlement's keyed places are actors, nested quarter → city (2026-09-16)
+
+*Superseded in part 2026-09-17 — the quarter's own overview no longer stays on
+the page path ("A quarter's overview is the notes of the quarter's place"), and
+a place is named from the page ("A printed proper name is read, never
+shipped").*
+
+**Ruled.** A `kind.location` entry whose group reads `<Quarter> — Points of
+Interest` or `<Quarter> — Notable Residents` binds to a location ACTOR under a
+place for its quarter under the book's own place — the adventure place the OSE
+binding also makes, claimed under one id so whichever path runs first makes it
+and the other finds it — carrying the page's materialized text as its notes.
+`cookbookImportJournals` steps over them; `cookbookImportPoiPlaces` builds them
+as its own step of the chain, after the journals. Any other group shape — a
+hideout, a cult, a party, the quarter's own overview — stays on the page path.
+
+**Why an actor.** A place in this family has a parent, a roster, a market and a
+token; a page grows none of those, and the settlement layer's points of
+interest ARE these entries. Binding them as pages was the dependency half
+shipped first; this is the consumer.
+
+**Why the group words, and only those two.** They are the register's own
+vocabulary for the book's structure, not the book's prose, and the register
+prints exactly those two per quarter. **Rejected: binding every `kind.location`
+in a settlement book** — the organisations' keyed rooms belong to the factions
+phase, which binds them as what they are. **Rejected: a `meta.poi` stamp per
+entry** — a second thing to keep in step with the group it already has.
+
+**Worlds that hold the pages keep them.** Nothing here deletes a page, and the
+pass asks presence by cookbook id before it reads the page, so a re-run over a
+world that has both costs a lookup per entry.
+
+*Cost:* AX3's keyed places no longer land as pages on a fresh import; a Judge
+who wants them as pages has the actor's notes.
+
+### A display heading ends a run-in block in its own column (2026-09-16)
+
+**Ruled:** in `compileDefinition`, a run at display-heading height below the
+anchor in the anchor's own column ends the block, as `endsFlow` already ends a
+continuation. **Rejected:** stopping at the next registered run-in — the
+overrun that surfaced this (Earthshooter, BTA p98) had a table and a paragraph
+between the entry and the next run-in, so a sibling stop alone would have kept
+both. **Cost:** an entry whose block ran past a heading shortens to the heading.
+
+### A settlement's organisations bind as factions seated in their quarter (2026-09-16)
+
+*Superseded 2026-09-17 — the group-derived organisation is retired entirely
+("A body becomes a faction one way: a row that was read"). What follows records
+the mechanism as it stood; the authored row is now the only one.*
+
+**Ruled:** a group of the shape "<Quarter> — <Organisation>" — a quarter's
+group that is neither its points of interest nor its notable residents — or
+"NPC Party — <Name>" is an organisation. It becomes an `acks-extras.faction`
+actor (`faction-binding.mjs`, `cookbookImportFactions`) seated in the
+quarter's own place, the city's for a company with no quarter, with the
+people keyed under the group rostered as members. The step runs after the
+points of interest, as its own step of the chain, and asks presence by
+cookbook id before it builds; a member already rostered is not rostered
+twice, and a person the world has not imported is left for the next run.
+
+**Why the group shape.** The register prints exactly two suffixes per quarter
+for its places and residents, and every other dash-joined group under a
+quarter is a body of people: a hideout, a cult, a citadel's garrison. That
+structure is the register's, not the book's prose. The company's head is one
+word the register uses for one thing.
+
+**Why `other`.** What a hideout or a cult is to the law is the Judge's
+reading; the import lands every organisation as `other` and the kind is a
+select on the sheet. **Rejected: a `meta.organisation` stamp** giving each
+group a kind — a second thing to keep in step with the group it already has,
+and a reading of the book shipped as structure.
+
+**The rooms stay pages.** An organisation's keyed rooms, where a book prints
+them, land as they always did; binding them as places under the seat is
+parked (`docs/factions/ROADMAP.md`).
+
+*Cost:* AX3's organisations are four actors on a Factions shelf a world did
+not have; a Judge who wants only the pages deletes them.
+
+### A printed proper name is read, never shipped (2026-09-17)
+
+**Ruled (the user's).** A row for a keyed place or a named organisation ships
+a neutral label — `POI 15`, `Organisation 4` — and an id built from the same
+number (`ax3.poi15`, `ax3.org4`). No word of the printed name is in the row,
+the cookbook or a test. The name is LOCATED instead: a keyed place by the key
+number its heading opens with (`anchor.number`), an unnumbered name by
+`anchor.hash`, the `printKey` of its folded text — a 32-bit hash, which proves
+a page prints the name and cannot be read back into it. The executor's
+`heading` op reads the box, checks it against the number or the hash and hands
+the words back as `title`; the binding names the document with them
+(`printedNameOf`). The lint holds the shape: a numbered row is labelled and
+identified by its number, a place among a quarter's points of interest anchors
+by number, an organisation by hash.
+
+**Why the key number may ship.** It is a reference on the footing of a page
+citation: it says where on the Judge's page and map to look, and pays out only
+to a reader holding the book.
+
+**Scope.** Converted: AX3's 87 numbered places, fifteen of which had shipped
+under name-derived ids. Left as shipped and parked in [ROADMAP.md](ROADMAP.md):
+the quarters' own names, the NPC rows whose ids worlds hold actors under, the
+two unnumbered place rows, the group strings that name a city or a body, AX2's
+numbered place rows and the OSE rows. Each needs an id migration this release
+does not carry.
+
+**Superseded in part, same day** — the NPC rows are aliased in this release
+after all, and the reasoning that parked them is answered under "A printed
+proper name is not an identifier either". The rest of the list stands.
+
+**Migration.** The fifteen converted ids were only ever imported as journal
+pages, which no step looks up again; this release builds them as actors under
+the new ids and leaves the pages alone.
+
+**Rejected:** matching a shipped prefix of the name — a prefix is a piece of
+it. **Rejected:** keeping the name in the row and hashing only as a check —
+the ruling is about what the row says. **Rejected:** mending a name the line
+broke while importing — judgment in the executor; the compiler decides and
+ships `glue`.
+
+*Cost:* the entry browser lists `POI 15` until the place is imported. The name
+a world gets is the page's own, title-cased from a heading set in capitals, so
+three of AX3's read longer than the labels their rows used to carry.
+
+### A quarter's overview is the notes of the quarter's place (2026-09-17)
+
+Supersedes, for the overview only, "stays on the page path" in the 2026-09-16
+places ruling.
+
+**New evidence.** The map recipe names each quarter by a row, and the overview
+is the only row a quarter has. The first import also built every quarter's
+place EMPTY beside a page holding that quarter's description: one fact in two
+documents, the empty one being the one a Judge opens from the map.
+
+**Ruled.** `<Quarter> — Overview` is a third place group. It makes no place of
+its own: its text becomes the notes of the quarter's place, written only while
+those notes are empty, so a re-run reads nothing and a Judge's own words over
+them are kept. `cookbookImportJournals` steps over it with the other two.
+
+**Rejected:** a child place per overview — a quarter would hold a place named
+after itself.
+
+*Cost:* a world that imported the overview as a page under 7.7 keeps the page
+and gains the notes.
+
+### An organisation the book introduces by name is an authored row (2026-09-17)
+
+Supersedes "Why `other`" and the rejected stamp of the 2026-09-16
+organisations ruling, for organisations a book introduces in its own prose.
+Group organisations stand as ruled there.
+
+**New evidence.** Three things that ruling did not know. The user ruled that
+this release models how factions stand to each other and to places, and that
+the answer may be worked out once and baked into the recipe. The legal
+authority row is gated on a faction's kind (`AUTHORITY_KINDS`), so an import
+that lands every body as `other` leaves that row reachable only for a faction
+built by hand. And a group heading gathers everyone printed under it: AX3's
+first import rostered one body's quarry as its members, and only a row that
+was read can tell the two apart.
+
+**Ruled.** `kind.organisation`: one row per organisation the book introduces,
+labelled by number, found by print key, its description the paragraph that
+introduces it. Its `organisation` block says the rest BY COOKBOOK ID: the
+keyed place it is seated at, the places it holds, who leads it and who belongs
+to it, the quarters it controls, the group it stands in for (`replaces`, by
+naming one of that group's people) and how it stands to the other
+organisations, a tie the page keeps from the players marked `hidden`. What
+sort of body it is and each stance are this module's own words
+(`FACTION_KINDS`, `RELATION_STANCES`), never the book's. `nameFrom: "seat"`
+names a body after the keyed place it keeps, where the page introduces it by a
+person's name. The lint proves every id is a row of the right sort; the
+compiler drops a relation whose other end did not compile, with a warning.
+
+**The import** builds authored organisations first, then the groups nothing
+replaced, then relations once every organisation they could name exists
+(`cookbookImportFactions`). A re-run tops up only what is absent and never
+rewrites a row that is there.
+
+**Quarters wait for a map.** A Region exists only once a scene does, so the
+quarters ride on the faction's flag as the ids of the quarters' places, and
+the map step turns them into the regions it draws.
+
+**A seat the map does not set down stays in the library.** It is not brought
+into the world with its faction: a place with no token, goods or roster is
+what the location feature's ready-time prune deletes. The faction points at
+the library copy, which opens.
+
+**Rejected:** reading a body's kind off the heading it is printed under while
+importing — it ships the book's own categories as a lookup. **Rejected:**
+bringing unplaced seats across and exempting them from the prune — the prune's
+test is the location feature's, and an import is not a reason to bend it.
+
+*Cost:* the kinds and the ties are a reading of the book, shipped as structure
+over ids; a Judge who reads it differently edits the sheet. AX3 lands
+twenty-two factions where it landed four.
+
+### A printed map is a recipe of geometry over its page (2026-09-17)
+
+**Ruled.** `kind.scene`, compiled under a cookbook's `scenes` key: one page's
+crop, the quarter turns that stand it upright, the feet one point is worth,
+each quarter's outline and colour, the point each keyed place stands at, and
+the city's list and each quarter's list by id. Geometry and ids, measured off
+the page once by the author and baked into the row — the user ruled a generic
+map tool out of scope and the working-out in (*the out-of-scope clause is
+superseded by 2026-10-17, "Walls are traced at import from the Judge's own
+page"*). The scale is a MEASUREMENT: the
+printed scale bar's length in points against the feet it states, so the scene
+is a pixel to the foot and every figure the settlement layer reads off it is
+in the book's own unit. What the city's list adds after dark and the stretch
+of it that defers to the quarter are read from the imported list at import
+(`afterDarkShift`, `bandOfSection`), so neither figure ships.
+
+**The anchor is the placement of the map's own image** on the page
+(`placementMatches`). A printing that lays the map out elsewhere is refused
+before anything is written, where outlines cut for another picture would have
+drawn quarters over the wrong streets.
+
+**A place must stand in the quarter its own group names** (`recipeProblems`,
+asked by the compiler, the lint and the verifier alike): the quarter under a
+place is found by geometry at the table, and a point drawn over its neighbour
+would be priced as the neighbour's.
+
+**The picture is rendered with the print intent.** A display render is paced
+by animation frames and a tab that is not in front is given none; the first
+live import, run in a pane that was not in front, never finished its render.
+Only the crop is painted, so nothing outside it — a page's footer — reaches
+the picture.
+
+**Rejected:** shipping the map's picture or a tracing of it — the picture is
+the book's, and the recipe pays out only over the Judge's own page.
+**Rejected:** the grid and scale as Judge-typed fields after import — a map
+that arrives unscaled is not a play surface, and the scale is on the page.
+
+*Cost:* a recipe is hand-measured, one per map; a second printing with another
+layout imports no map until its recipe is cut.
+
+### A map and what stands on it are world documents, owned by nobody (2026-09-17)
+
+**Ruled.** The scene, the places set down on it, the quarters' places, the
+city's place and the book's factions are WORLD documents — the one exception
+to the library keeping its imports in compendiums. A scene link, a region link
+and a token each need a world actor, and the faction readers consult world
+factions only. `planCrossing` works the crossing out before the slow render,
+so a map that cannot be built leaves no actor behind; `bringAcross` makes each
+copy with its library id kept, so every reference between copies is rewritten
+before any of them exists (`worldCopySource`). A person stays in the library,
+and a roster row or a leader goes on pointing at them there.
+
+**Owned by nobody, and said so.** A copy states `ownership.default` NONE. The
+location feature shares every new place with the table — players have to own a
+place to leave goods in it — and a copy that arrived with no ownership of its
+own was handed to every player by that rule: a keyed place the map had set
+down hidden sat in the players' sidebar with the Judge's page as its notes.
+Found in review before release; the Judge shares a place when the party finds
+it, in the same breath as showing its token.
+
+**Set down hidden.** A keyed place may be a secret, and showing one is a click
+where un-showing is not possible. A hidden token is no travel target, so a
+place joins the walk list as it is revealed.
+
+**One create.** The picture goes in as the scene's first level, spelled out
+with core's own default level id; `active: false` is stated; regions and
+tokens ride in the same create, already linked. Each was forced live: core
+strips the older top-level `background` from creation data, it activates a
+scene that does not say when the world has none active, and an activated scene
+is drawn at once, under whatever a second write is still adding. The places'
+mirrors are the only thing written after, because they name documents the
+create makes (`mirrorCreatedLinks`).
+
+**Rejected:** importing the scene into a compendium for the Judge to drag out
+— a dragged scene's tokens and region links name library actors, which is
+every link broken at once. **Rejected:** leaving ownership to the location
+feature's default and documenting it — a default that publishes a Judge's page
+is not one a Judge would find in time.
+
+*Cost:* a world holds a second copy of each place the map sets down, and the
+library's copy no longer follows a Judge's edits to it. A map imported before
+its book's factions does not hand them their quarters until it is deleted and
+imported again ([ROADMAP.md](ROADMAP.md)).
+
+> Extended 2026-09-30: the map is also written to the library as an Adventure,
+> and superseded in part — a world with no library holds no person for a
+> roster row to point at, so an Adventure imported there creates the people
+> its organisations name. See "A settlement's map is in the library too, as
+> one Adventure".
+
+### A printed proper name is not an identifier either (2026-09-17)
+
+**Ruled (the user's).** The name ruling above reaches the people a book names,
+not only its places: no printed proper noun is in the module, in a label, in a
+locator, or in an id. AX3's 57 named residents are `NPC <n>` with the id
+`<book>.npc<n>`, anchored by `anchor.hash` — the key of the name's folded
+letters — beside `anchor.as`, which says which sort of heading the hash is to
+be sought among, because a name the row may not spell cannot be compared word
+by word. The three sorts are the three the compiler searches: a display
+heading, a body-size run-in line, and the label a statline opens with.
+
+**What this knew that the scope above did not.** That entry left the residents
+as shipped and cited what a world holds actors under. The reading it was drawn
+against is the wrong one: the question a licence asks is what the repository
+says, and an id built from a name says it in full and in public, one `git
+clone` from anyone. A migration cost is a reason to plan the change, never a
+reason to keep the words. Its Scope paragraph stands as the record of the
+narrower reading.
+
+**The shape is a gate, not a convention.** `lint-register.mjs` holds a
+`kind.npc` row to its ordinal label, its ordinal id and a hash anchor, as it
+already holds an organisation and a keyed place; and it rejects an `as` beside
+anything but a hash, or an `as` naming a sort nothing searches — a locator
+written for a search that does not exist finds nothing, and reads as a missing
+entry rather than a bad row.
+
+**The pairing is kept, and kept out.** Which row stands for whom is real
+knowledge a session needs to read a diff, and is exactly the text that may not
+ship: it lives in the local rules shelf beside the other extracts
+(`acks-rules/acks-content/`), never in a repo, a commit message, a changelog
+or an issue. It is regenerated by pairing a row's `printKey` against the last
+revision that carried the names, so it is derived rather than transcribed.
+
+**Rejected:** a comment naming the row in `register/` — the same words in the
+same repository, one indirection further from the gate that looks for them.
+**Rejected:** shortening a name to a stem for the id — a stem is a piece of it.
+
+*Cost:* a world that imported AX3 before this release does not recognise its
+own people at the new ids: presence is matched on
+`flags["acks-extras"].cookbook.id`, so a reimport builds second copies beside
+the old ones. Both carry the stamp, so Remove ALL Imports clears both, and the
+clean-slate path is the answer until an id migration exists
+([ROADMAP.md](ROADMAP.md)). The entry browser lists `NPC 8` until the book is
+imported.
+
+### A body becomes a faction one way: a row that was read (2026-09-17)
+
+**Ruled.** The group-derived organisation is retired. `organisationGroupOf`,
+`isOrganisationEntry`, `factionId`, `factionData` and `replacedFactionIds` are
+gone with it, `organisation.replaces` with them, and `cookbookImportFactions`
+builds from authored `kind.organisation` rows alone. A person's `meta.group`
+says where in the book they were printed, and is never read for membership.
+
+**The new evidence, two days on.** That ruling's mechanism was to read the
+body's name out of the second half of the group string. Aliasing removed the
+name — it was a printed proper noun sitting in shipped data — and what the
+string now holds is a bucket: three quarters' `— Special Locations` bound as
+three bodies called that, and the roaming company, its ` — <Name>` suffix gone
+entirely, bound to nothing. The mechanism did not degrade; its input ceased to
+exist. Restoring it would mean putting the name back.
+
+**And the concept was wrong before the aliasing took it.** A heading gathers
+everyone printed under it. On AX3 p.175 two headings govern two lists: the
+body's members, and the people it has been contracted to kill. The group path
+rostered all of them as members — a body's quarry filed as its membership, on
+a sheet a Judge reads to decide who helps whom. One of those "members" is an
+officer of the city watch. Only a row that was read tells them apart, which is
+what the authored row is for.
+
+**Membership is what a row says, and a row can say it quietly.** `members` and
+`leader` take an id or `{id, hidden}`: a body that hides its whole membership
+rosters every one of them concealed, and a person may belong openly to one
+body and secretly to another. `hidden` is the flag the roster row and the
+relation row already carry — display gating, never access, so a secret that
+must hold belongs on a GM-owned document.
+
+**Rejected:** a structural `meta.organisationOf: <rowId>` on each person — it
+is membership spelled a second way, in the place the first way already failed,
+and two places to state one fact is how the quarry got rostered.
+**Rejected:** keeping the path for books not yet aliased — it would keep a
+printed name in the register of every book still to come, which is the thing
+being removed.
+
+*Cost:* every body a book names now needs a row, so a quarter's people bind to
+nothing until one is written; the twenty AX3 rows grew to cover the bodies the
+groups used to stand for. A world that imported before this holds the group
+factions under their old ids; they carry the import stamp, so Remove ALL
+Imports clears them, and nothing rewrites them in place.
+
+### A body ships when the page sets its name apart (2026-09-17)
+
+**Ruled.** Every body AX3 names and can anchor now has a row: twenty-four, up
+from twenty. Which bodies those are was not decided by judgement — the book was
+swept for every run that reads like the name of a body, and each was checked
+against what the register already held. Four were free, and four were written.
+
+**Two ways a row finds its name, and the row says which.** `compileOrganisation`
+scans BODY-SIZE runs for one whose `printKey` matches, because the gazetteer
+sets a body's name in bold where a sentence first says it and the PDF gives
+such a name a run of its own. A body the book introduces under a HEADING
+instead — an appendix party rather than a name inside a sentence — says
+`anchor.as`, and is then found by the same search every keyed entry uses, its
+description the flow beneath it. Only a reader can see which shape a page uses,
+so the row declares it rather than the compiler guessing.
+
+**A name printed only inside a longer run cannot ship, and no mechanism fixes
+that.** One AX3 guild is named once, mid-sentence, in a run that also carries
+eleven other words. A box is geometry over runs, so there is no way to cut that
+name out of its sentence; anything that could would have to carry the words
+themselves. The body does not ship, and its guildmaster keeps the one tie that
+a row can state. The same is true of two patrician houses, a foreign monastery
+and a foreign kingdom. This is the name rule biting, and it is the right bite:
+a body whose name the page never sets apart is a body the module can only
+describe by quoting.
+
+**The printed membership table arrives, and twice.** A body whose page carries
+a labelled MEMBERSHIP block gets that block as description text, materialized
+from the Judge's own copy like every other passage — no recipe reads the list.
+What binds people to the faction is the row's own id list, which is the half a
+machine can act on. The table says who; the ids say which documents.
+
+**A head is named in words, never inferred from an honorific.** A row sets
+`leader` only where the page says someone leads the body or is its ranking
+member. The trap is that a settlement book's honorific is usually the class
+LEVEL TITLE the person's own statline gives them — it names a rank inside a
+class, not an office inside a body, and three people in AX3 were nearly rowed
+as heads of orders they are simply senior clerics of. Where the page ranks
+nobody, everyone named goes in `members` and the faction ships headless, which
+is what the page says.
+
+**Rejected:** a `nameFrom` that drops a stated structural prefix so a body
+printed only as "MEMBERS OF <name>" could be anchored — it ships a rule about
+one book's wording. It was not needed: that cult is named as a run of its own
+in the organisations section and anchors like the other twenty.
+
+*Cost:* four bodies AX3 describes reach a world as prose in somebody else's
+entry and never as a faction. A Judge who wants them makes them by hand, which
+is the same cost every unnamed body has always had.
+
+### A tie is concealed when the CITY does not know it (2026-09-17)
+
+A settlement book's organisations overview is the Judge's briefing. It prints
+every tie the Judge needs, including the ones the city is built on not knowing,
+so **where a tie is printed says nothing about whether it is public.** The test
+for `hidden` is the fiction's: does the city know? A syndicate whose head the
+book introduces with "it is secretly under the control of" conceals that head
+even though the overview names him on its first page, and a sect the book calls
+covert conceals its head and every body it deals with.
+
+The consequence is that concealment is read off the WORDS, not off the section.
+Four AX3 bodies conceal their head — two syndicates, a cult inside a scholastic
+order, and a covert sect — and in three of the four the same page names that
+head plainly two sentences earlier. A pass that took "printed in the overview"
+for "public" published all four.
+
+**A holding is a keyed place the body operates out of or runs.** The question a
+settlement book forces is whose holding a garrisoned gate is: the household it
+defends, or the troops based in it. It is the troops'. The city watch holds the
+twenty-six gates and towers its officers are based in; the guard holds the gate
+and bastion that ring a palace it does not live in; a syndicate holds the
+neighbourhood the page says it runs. Ownership is not the test, because a
+settlement book states possession rarely and garrisoning constantly, and a
+roster built on ownership leaves every defensive work in the book unheld.
+
+**A relation is authored on the body the page makes the actor.** Where a page
+says one body pays another to look away, the relation goes on the payer and not
+on the paid; a reader of the other sheet sees it in the reverse view, which is
+what that view is for. Two AX3 syndicates keep watch officers on their payroll
+and a guildmaster turns a blind eye, and all three are one-directional.
+
+**Rejected:** a body-to-body relation inferred from a person-to-person tie. The
+city watch's commander is the son of a councilor and would back his coup — a
+fact about two people, one of whom happens to lead a body and one of whom
+happens to sit on one. Promoting it to a relation between the watch and the
+council states something the page does not: that the watch as a body is the
+council's friend. The tie is the man's, and it reaches a world as his entry's
+prose.
+
+*Cost:* the concealment test needs a reader with the book open, every time. No
+gate can check it, because the sentence that makes a tie secret is prose and
+the row that records it is a boolean.
+
+### An imported body's overview lands on the Judge's side (2026-09-17)
+
+The concealment ruling above gates the structured ties — a roster row, a
+relation, the office itself. It said nothing about the PARAGRAPH the importer
+materializes beside them, and a live player seat read it: the roster concealed
+a head while the description a sentence below named that head and said the
+office was secret. Everything the rows withhold, the prose published.
+
+So the materialized text of a `kind.organisation` row is written to
+`system.gmNotes`, which the sheet renders only for a Judge, and `system.notes`
+arrives empty. A settlement book's organisations section is written to the
+Judge — it is what the city's bodies ACTUALLY are, which is a different
+document from what the city is told about them. The empty public field is the
+affordance for the second one: a Judge who shares a body's sheet writes the
+street's version of it there.
+
+**A keyed PLACE keeps the opposite routing, and deliberately.** A place's
+description is what a party finds when it walks in — the prose is the reveal,
+not the secret behind it — so imported place text stays in `notes` and the
+Judge's private record stays a field the Judge fills. The asymmetry is between
+a document written ABOUT a thing and a document written to be READ OUT, not
+between two kinds of caution.
+
+**Rejected:** gating the field on ownership instead. An imported document is
+owned by nobody, so nothing leaks until a Judge shares the sheet — which makes
+the leak an ambush rather than an impossibility, and arrives exactly when the
+Judge has decided the body is public knowledge.
+
+*Cost:* a Judge who wants the book's paragraph in front of the table copies it
+across. That is one paste, and it is the paste where the Judge decides which
+sentences the city knows.
+
+---
+
+### The entry picker rebuilds by re-running whole importers (2026-09-20)
+
+> **Superseded 2026-09-22** ("The entry picker runs each importer over the
+> ticked entries only", below): a whole run imports every entry the world
+> never held, not only the ones it just deleted.
+
+**Problem.** "Did *this* entry come out right" had no answer short of emptying
+the shelf around it. A recipe fixed for one trap meant deleting thirteen and
+waiting for all thirteen to build again; a fixed proficiency meant the whole
+Proficiencies shelf. Both are the shelf rebuild being used as a per-entry tool
+it was never shaped to be — and a Judge doing it on a live world loses every
+edit made to the other rows on the way past.
+
+**Ruled.** `cookbookReimportEntries` lists every importable entry with a
+checkbox and, for the ticked ones, deletes exactly what they claim and then
+runs each OWNING importer once, whole. It is the shelf rebuild's mechanic
+addressed at a row: every importer passes over what it already holds, so a
+whole run after a targeted delete rebuilds exactly what was deleted. Monsters
+are the exception and need none of this — `importMany` already takes an id
+list.
+
+**Rejected: a per-entry entry point into each importer.** Six of them build
+from an entry apiece (abilities, classes, equipment, traps, variations,
+vehicles) and each would have taken one, which is six more code paths that
+must stay in step with the six that ship, for a debug surface whose cost is
+measured in seconds. The whole-run refill reuses paths the release already
+gates.
+
+**Rejected: offering weapons, armor and the price list.** They are built from
+whole printed tables rather than from an entry apiece, so there is no row to
+tick; they stay with the shelf rebuild, which is the unit they actually have.
+
+*Cost:* rebuilding one trap re-runs `importTraps` over all of them, and
+rebuilding one class re-runs the class pass including its ladder repair and
+template materialization. Correct and slow, on a surface used by one person at
+a time. The id shown beside every row is the other half of the tool: a rename
+on either side leaves the id as the only label both the recipe and the
+document still answer to.
+
+---
+
+### Rules tables join the entry picker as documents, not as tables (2026-09-20)
+
+**Superseded in part (2026-09-23)** by "An import merges into its own layer":
+a table row's tick is the import's own layer, not `hasDoc`.
+
+**Problem.** The entry picker shipped without the ruledata tables, which is
+where a recipe change is most expensive to check: a full table run locates
+pages for 138 recipes across every connected book and takes minutes, so
+verifying one fixed grid meant re-reading all of them.
+
+**Ruled.** `importTables` takes an `only` list of ruledata document ids and the
+picker offers one row per document (22 of them), with the pages its recipes
+read. `tableRecipeCount(only)` narrows the progress denominator to match, so
+the bar counts the work actually being done.
+
+**The unit is the DOCUMENT, not the table.** A merge writes a document's table
+map, and the store layers per document — offering the 138 tables separately
+would let a Judge tick half a document and produce a write the store has no
+shape for.
+
+**They are the one source with no `type` and no delete.** Tables are not
+documents on a shelf: they live in the ruledata store, they merge rather than
+replace, and there is nothing to remove before re-reading one. So the source
+carries `idsRefill` instead of `refill`, the confirm reports 0 removed, and
+presence is `hasDoc` rather than a document flag — which is why a world can
+show ticks on table rows and none on the shelves above them.
+
+*Cost:* a picker row whose behaviour differs from every other row in the list,
+carried by one sentence in the hint and a group label that says so.
+
+---
+
+### The entry picker runs each importer over the ticked entries only (2026-09-22)
+
+**New evidence.** A Judge used the picker to bring in classes and watched it
+import classes nobody ticked. The 2026-09-20 ruling rested on "every importer
+passes over what it already holds, so a whole run after a targeted delete
+rebuilds exactly what was deleted" — true on a world that holds the whole
+shelf, and on no other. The picker lists every entry this build can import,
+held or not, so ticking one the world never held is its ordinary use, and on a
+world that imported part of a shelf the whole run imported the rest of it.
+
+**Ruled.** The six importers the picker drives (abilities, classes, equipment,
+traps, variations, vehicles) take `{ only }`, a set of cookbook ids, and their
+loop passes over every entry outside it. It is the same loop over fewer ids,
+not a second path, which is what the 2026-09-20 entry objected to.
+`runEntryReimport` groups the ticked ids by owning run and calls each run once
+with its set. Under `only`, `importAllEquipment` also skips its three repair
+passes and its weapon, armour and price-list tail: each repair deletes what the
+whole loop is trusted to rebuild, and the tail builds from whole printed tables
+that no picker row names.
+
+**A closed book is refused, not rebuilt.** Every reimport deletes first, and an
+entry whose book is not open on this seat rebuilds a stub or nothing — its
+content comes off the page. A ticked entry whose book is closed is left as it
+is and the notice counts it; the shelf rebuild keeps that shelf's closed-book
+documents the same way (`readableHere`), and its confirm says how many it keeps
+before anything is deleted, so the count it offers to delete is not read as
+the whole shelf. Update Classes had
+the same shape — it replaces a class's whole `system` with whatever was read —
+and now leaves a class it could not read untouched, as Update Abilities already
+did. Its follow-up passes take only the classes it rewrote: lending a race's
+tongues gives back a language slot each time it runs over a class.
+
+**Rejected: narrowing the shelf and book rebuilds to what they held.** "Empty
+this shelf and import it again" is a request for the shelf, and a Judge
+filling a partial one uses it for exactly that. Narrowed, the gap could not be
+filled from the one control that names it.
+
+*Cost:* the shelf and book rebuilds still import what the world never held on
+that shelf or from that book, and Import Everything on a seat with a book
+closed still mints a stub for each of that book's entries the world lacks —
+both what those controls promise. The picker is the tool for one entry, and
+the only one that now refuses a closed book outright.
+
+---
+
+### Rules tables are read again from Reimport One Shelf (2026-09-22)
+
+**Reported.** "There's no longer a way to import rules tables." Two things
+made it true for a Judge who looked. Reimport One Shelf offered shelves and
+books and no tables: the tables were read by Import Everything and by the entry
+picker's table rows and by nothing else. And seven notices that send a Judge
+to import something — a missing table in the class builder, henchmen and
+markets, an empty class list or a stub class — named the "ACKS Importer", a
+module that since the 2026-09-01 merge does not exist to be found; the
+location browser's named a control no surface is called.
+
+**Ruled.** Reimport One Shelf carries a **Rules tables** group whose one option
+re-reads every table in place (`cookbookImportTables`); like the picker's table
+rows it deletes nothing, and the option's label says so. Every notice that
+points at an import names the macros that do it — Import Everything, or Rules
+tables in Reimport One Shelf.
+
+**Rejected: a macro of its own.** The macro pack was cut to the controls a
+Judge reaches for (see the pack's own ruling in `tools/pack-data/importer.mjs`),
+and a table re-read is a shelf-scale action, which is the picker's unit.
+
+*Cost:* one option in a list whose other options empty a shelf first, carried
+by its label.
+
+### The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count (2026-09-22)
+
+Recorded from the comments on `bindVehicleRow` and `bindSeaVesselRow` in `scripts/importer/cookbook.mjs`.
+
+**Ruled.** The land table states movement and cargo as pairs, and its column
+notes say what a pair means: the first figure is at normal encumbrance, the
+second at heavy. So the row binds them as speed TIERS rather than one capacity
+beside one speed: a cart hauling its heavy load moves at the slower rate, and
+the tier row is where the vehicle model already looks for that. A cargo figure
+in parentheses is the table's other convention: the vehicle carries passengers
+or that much cargo instead. Those rows are howdahs, whose crew column is a
+choice between two passenger counts rather than a complement, so they fill a
+passenger count, not a crew role, and get no speed tiers, because their pace is
+the creature's, not the vehicle's.
+
+**Ruled.** The sea table's conventions differ from the land table's. Its three
+crew columns are three role complements: sailors and rowers are motive, and
+marines are not, being cargo that fights. Its combat and voyage speeds land on
+the schema's named sea fields rather than tiers, and its cargo is a single
+figure, never a pair. A dash is an absent cell, not a zero. A parenthesised
+marines figure is an allowance drawn from the crew itself rather than an extra
+complement, and it still binds as the bench size, because the schema's
+`required` on a non-motive role is a bench, not extra manpower. Price is not
+read: it is the markets' business, not the hull's.
+
+**Rejected.** Reading the draft team. The label names it in prose, and
+converting that into the heavy-horse equivalents the schema counts is a
+judgment about draft values, not a reading of the table.
+
+### A class's training paragraph is read by three grammars, one per domain (2026-09-22)
+
+Recorded from the comments on `parseCombatTraining` and `parseTrainingProse` in `scripts/importer/cookbook.mjs`.
+
+**Ruled.** A class spread states its weapon, armour and fighting-style
+training in one paragraph, in that fixed order, and the formula reader applies
+one grammar per domain, each a shape the book writes rather than a value it
+prints. Where a sentence names a group and then enumerates it in a
+parenthesis, the enumeration is what is read, so nothing is inferred about the
+group. Armour reads the heaviest rung named, since each rung includes
+everything under it; a sentence denying armour outright is the bottom rung, not
+an absent answer. Styles read only the positive clause: every spread that
+names styles goes on to name the ones it excludes, in the same sentence, so the
+exclusion clause is cut before anything is read. The two mandatory styles are
+not emitted: the consumer already holds them, and repeating them here would
+state a rule that lives there. A paragraph with no formula marker goes to a
+second, sentence-shaped reader, which converges on the same grants.
+
+**Ruled.** A paragraph carrying a digit is refused: none of these sentences
+prints a number, and one that does has a table's cells folded through it. Each
+page column is offered on its own first and the joined page only afterwards,
+since a column carries its own prose without the table beside it, and a
+paragraph that genuinely runs across a column break still needs the joined
+page.
+
+*Cost:* before the per-column retry, refusal was the end of it, and twelve
+classes silently imported with no weapon, armour or fighting-style training,
+indistinguishable from classes that grant none. Before the sentence reader,
+all ten classes of the book that writes its training as plain sentences read
+as having no training at all.
+
+### History the source comments carried, recorded (2026-09-22)
+
+These were written into code comments as the reason a guard exists. The
+comments now state the guard; the story is here.
+
+- **Monster folders file by type, not family.** Filing by family was tried first: most families have only a handful of members, so it produced a folder per creature rather than a taxonomy.
+- **One destination rule serves every actor importer.** Before it, animals were filed under the raw group key's folder, ungrouped monsters piled into one folder while their families went unused, and vehicles asked the item rule and landed loose at the top of the library.
+- **Removal recognises template parts and deletes folders last.** A flag-only sweep once deleted the folders around the class-template bundles, their skinned gear and the per-class tables, and Foundry re-parented 715 orphans to the top of the sidebar: a folder deleted while it still holds documents re-parents them instead of taking them with it.
+- **Entry counts read both cookbook shapes.** Counting only the per-book shape reported zero entries for the Revised Rulebook while a content-type cookbook held its proficiencies.
+- **`repairAnimalItems` exists because animals were once inventory.** Before animals imported as actors, the priced animals became inventory items; an item's type cannot change in place, so the repair deletes the module's own generated ones for the equipment import to re-create as actors.
+- **`danglingAbilities` exists because definitions were withdrawn.** Ten were, once it turned out the harvest had read the tail of a spaceless heading as an ability of its own; the items they created stay in worlds that imported them, and this offers them for removal.
+- **A starting-equipment pair once never split.** The joined descriptor contained a known item's name, so the containment fallback read the whole pair as that one item and the character got one item named for two weapons; the menu match now takes only a whole descriptor or an exact alias key.
+- **A monster's create carries its items, cookbook id and extras in one write.** They were four separate round trips per monster; folding them into the create was measured at about 2.6x on the write phase.
+- **`repairEquipmentAbilities` exists because equipment leaked into the ability import.** Every ability path walks the content cookbooks generically, so a new non-ability kind joins the ability import unless it is excluded; equipment did in v0.26.0, and the ability-typed documents it made fail validation on every sheet render. The category clamp stands behind the register lint for any value the lint never saw.
+- **Equipment once imported as plain `item`.** A sword had no damage and no attack, and nothing could be wielded or worn, because `equipped` lives only on `weapon` and `armor`; the core type now follows from the register's group rather than a name scan.
+
+### A copy of an import is the Judge's, and a rebuild leaves it standing (2026-09-23)
+
+**Reported.** Rebuilding a shelf, a book or picked entries deleted the copies
+a Judge had dragged out of the library into the sidebar, edits and all.
+
+**Ruled.** A world document that is a copy of an import (`isWorldCopy`) is not
+part of the library, so nothing that rebuilds the library deletes it. A copy is
+known by what Foundry or the scene import stamps on it: a scene's `worldCopy`
+flag, a `compendiumSource` into a world compendium (a drag out), or a
+`duplicateSource` (a sidebar duplicate). The importer writes none of these on
+an import, so a sidebar-era import still counts. **Supersedes in part** "The
+library is the packs AND the sidebar this module stamped" (2026-08-29): the
+cookbook flag alone no longer makes a sidebar document an import, because a
+copy keeps the flag it was copied with.
+
+The same test applies to "is this already imported?" (`importedIdsOfType`,
+`importedIndex`, and `importedActor(id, {copies: false})` for animals and
+vehicles). Otherwise a rebuild would delete the library's document, find the
+copy, and never put the library's document back.
+
+**Rejected.**
+- *Filtering only the three delete lists.* The refill then counted the copy as
+  already imported, so a rebuild removed the entry from the compendium and
+  left the Judge's copy standing in for it.
+- *Taking copies out of `importedActor` altogether.* A scene's places and
+  organisations link to one another through their world copies, which is why
+  that read asks the world first.
+- *Any `compendiumSource` marks a copy.* An import built from the system's own
+  compendium would then be mistaken for one, and the next run would mint its
+  twin.
+
+**What it cost.** The passes that rewrite or repair the library in place
+(Update Classes and the one-shot repairs) no longer reach a Judge's copies.
+Remove All Imports still deletes them, on purpose: it enumerates the world by
+the cookbook flag, not through the library.
+
+### OSE creatures are rebuilt from the entry picker, one row per generator (2026-09-23)
+
+**Reported.** The entry picker never listed an OSE creature, so a creature read
+wrong could only be fixed by deleting it by hand and importing its whole book
+again.
+
+**Ruled.** The picker gains an "OSE creatures" group, listing the creatures of
+every authored OSE book open on this seat (`oseEntryRows`). A creature the book
+prints one block per step for is one row, under its generator's id, because its
+steps are rebuilt together or the generator loses options. The rebuild deletes
+what the rows claim, then runs `importOseBook` narrowed to them (`only`).
+**Rejected: adding `kind.oseMonster` to `ACTOR_KINDS`.** That set is also what
+`importOne` dispatches, and `importOne` declines OSE creatures. The picker would
+have deleted each ticked creature and put nothing back. The monster dialog and
+Import Everything would also have listed creatures they cannot import.
+
+*Cost:* the group lists a book's creatures only while that book is open on this
+seat, where the groups above it list everything the build compiles and refuse at
+the rebuild.
+
+---
+
+### An import merges into its own layer (2026-09-23)
+
+**Reported.** A Judge's table override survived its own revert. The override
+was read into the import on the next re-read, so clearing it uncovered the same
+figure one layer down.
+
+**Ruled.** Every import that merges into what it imported before reads its own
+layer, through `getLayer(docId, PRIORITY.WORLD)`: `importTables` and the ten
+`apply*Import` assemblers. `getDoc` merges every layer per table, so reading
+through it carried the override down into the import. It carried a module's
+shipped sample down too: henchmen registers a partial `rarity` document at
+SAMPLE, and reading `rarity` from the book wrote that sample into the world
+layer, where a later version of the sample could no longer show through. An
+assembler with no world layer now does nothing, where it used to run over
+whatever layer it found.
+
+**A copy frozen earlier is shed.** `importTables` drops, from the world layer it
+merges into, any table the layers beneath supply identically (`ownTables`).
+Dropping it changes no read, since the per-table merge shows the identical copy
+beneath, and it lets the sample update again.
+
+**New evidence against the 2026-09-20 presence rule.** That same sample made
+`hasDoc("rarity")` true in every world, so the entry picker ticked a document
+nothing had imported. A table row's tick is now the world layer too.
+
+**Rejected: stripping override values out of the merged read before writing.**
+It needs the override's table list at every write site, and it still carries a
+sample down.
+
+*Cost:* a world whose override was read into its import before this keeps it
+there until the document is read again. A table the import reads comes back
+from the book at that re-read. A table only the override ever supplied stays in
+the world layer, because the merge keeps every table this run did not read, and
+an override's copy cannot be told from an import that happens to match it.
+
+---
+
+### The console carries what a Judge can act on (2026-09-23)
+
+**Reported.** An import run filled the console, and a Judge saw warnings "on
+certain libraries". Most of the volume was core echoing the progress bar, one
+line per step. At Verbose, it was the art directory being created again for
+every picture. The warning was the missing-books toast: a seat without two
+supplements was warned on a run that read 136 of 138 tables.
+
+**Ruled.**
+- The progress bar is not echoed; a run logs its start and finish at debug.
+- pdf.js reports errors only. The fingerprint check already reports a printing
+  that differs from the one a recipe was cut from.
+- The art directory is created once per session, and the per-creature art lines
+  log at debug. "No suitable illustration" stays at log; it is a defect signal.
+- A table recipe or culture block from a supplement is marked `optional`. A
+  missing supplement is reported as information naming it; a missing book a core
+  table needs still warns.
+- A table that could not be read from an open book is a warning toast. It used
+  to reach only the console report.
+- A book nothing in the build reads says so on opening, instead of "0 entries".
+- The six proficiency names a monster's stat block shares with a class power or
+  a skill carry an authored `ref` to the proficiency, so the stat block no
+  longer guesses. A pick the category ranking settles logs at debug; only a tie
+  inside one category warns. The NPC path reports the same way, and Update
+  Abilities reports each name once, with its count of copies.
+- An equipment run logs one line for the items it merged across books and the
+  names it tagged, which it used to do silently.
+
+**Rejected: a verbosity setting.** Debug is what Chrome's Verbose level shows,
+so the lines are there for whoever asks for them, and a setting would be a knob
+over a console.
+
+*Cost:* a hung import no longer leaves a per-step trail; the bar on screen and
+the start and finish lines at debug are what remain. The AX3 statline tokens the
+index cannot resolve are not addressed here (ROADMAP).
+
+### A table recipe cites the folio, and its search converts it (2026-09-23)
+
+**Reported.** The class-builder tables cited pages two past the ones they
+print on.
+
+**Found.** The 2026-08-27 ruling (a citation names the printed folio) never
+reached the table recipes. `locatePage` treated `printedPage` as a PDF page, so
+a recipe that stored the true folio started its search two pages early and the
+search radius found the page anyway. Recipes in seven documents stored the PDF
+page instead, which put the search on the right page and the wrong number in the
+citation: the class builder, flight, survival, foraging, searching, city travel
+and languages. Two culture blocks and the dwarven castes were one page off. The
+entry picker shows `source.pages` as the document's citation. Three of those
+named PDF pages (class builder, flight, languages); four left out pages their
+recipes read (searching, travel, voyages, people); and every single-book
+document showed its pages with no book.
+
+**Ruled.** `printedPage` is the folio, everywhere. Both locators start on
+`pdfGuess`, the PDF page that folio prints on through the book's
+`printedOffset` — the same single conversion the citation composers use. A
+document's `source.pages` names every folio its recipes read, each run of pages
+under the book's short name. `test-recipe-pages` runs every search the import
+makes (`recipeLocates`) against the real books and fails a recipe whose search
+lands on a folio other than the one it cites, a folio its document's citation
+leaves out, or a book whose `printedOffset` disagrees with the PDF's own page
+labels. It is LOCAL-ONLY and skips without the books, like the other suites that
+read them.
+
+**Rejected: reading the page labels at import.** pdf.js exposes them, but a
+printing without labels would still need the offset, and two conversions would
+be one more place for them to disagree. The labels check the offsets in the
+suite instead.
+
+*Cost:* none for a world. The picker reads the recipes, so an upgraded world
+shows the corrected citations without a re-read, and every search lands on the
+page it landed on before.
+
+### A Judges Journal chart has one source and at most two projections (2026-09-23)
+
+**Reported.** A Judge wanted the wilderness encounter charts as RollTables. The
+`encounters` rules-table doc already held every row; it reached the world only
+as JSON journal pages, because the projection admitted people and rarity shapes
+alone.
+
+**Ruled.** A chart has ONE reader of its page, and where it lands decides what
+else it may become:
+- **Rules data** (a `TABLE_RECIPES` doc) when a feature computes with it. Where
+  its shape is a column grid or a list set, `location/table-docs.mjs` also
+  projects it as RollTables; a Judge's edit dropped back overrides the doc, so
+  the edit reaches the feature. The encounter charts are this case: 92
+  RollTables from a complete import, and no new extraction.
+- **A cookbook `kind.rolltable`** for a chart only the Judge rolls.
+- **A `kind.settingTable`** for a reference grid or list with no odds (the
+  2026-09-10 ruling).
+
+**Rejected: re-reading the monster grids as cookbook RollTables.** Two readers
+of one page drift apart, and a Judge's edit to the second would never reach
+formation. **Rejected: RollTables as formation's source.** The chain branches on
+structured outcome and rarity keys, which free-text results lose; a keyed column
+therefore reads back only the keys its table already holds.
+
+*Cost:* 92 more documents on the RollTable shelf, filed under the doc's folder.
+The remaining charts, by wave, are in the ROADMAP.
+
+### A statline page's columns are stated for the block alone, and a lost bracket is restored at resolution (2026-09-23)
+
+**Found.** Seven AX3 statline tokens resolved to nothing. The design read two as
+register defects and two as spells printed among proficiencies. The run dump
+said otherwise:
+- **Two NPC statlines read a neighbouring column.** Column detection placed the
+  second column past where that column's text begins, so the block's bound
+  admitted the neighbour's runs, and the box drawn around them read two blocks
+  as one. On one page the neighbour is another NPC's statline: its spell names
+  landed in the first NPC's proficiencies and its hit dice replaced the first
+  NPC's. On the other it is a roll table's number column, whose figure sat
+  inside a hyphenated word.
+- **One token lost its opening bracket in the book's own text layer.** No box
+  and no extraction can supply a character the printing does not hold.
+
+**Ruled.**
+- `assists.statColumns` states the statline page's columns for the block
+  alone. A recompile changes those two statlines and nothing else in the
+  cookbook.
+- `rebracket` restores a specialty's opening bracket when the tokens are
+  resolved: the name is the longest run of leading words the ability index
+  knows. It ships no text and serves any book.
+- No spell filter. The spell names were the neighbour's column, and a filter
+  would have hidden the corruption beneath them.
+
+**Rejected: `flowColumns` for the statline page.** It also turns the prose flow
+onto that page. Recompiled, one NPC's description gained its own statline as a
+paragraph, and the other's lost three hyphen joins. **Rejected: a detector
+change.** The 2026-08-15 and 2026-09-08 rulings stand: per-page authoring over
+a detector that trades one page set for another.
+
+*Cost:* three tokens still resolve to nothing, and each is a content gap
+(ROADMAP).
+
+### A template part never answers for its definition, wherever the index is read (2026-09-23)
+
+**Found.** The 2026-08-21 ruling ("A template part is not an import") stripped
+the importer's claim from gear skins and made the gear menu skip parts. Ability
+parts still carry the claim: a world with class template packages held two dozen
+documents claiming one proficiency, each named for one class's specialty.
+`importedIndex` kept the first document per id in shelf order, so a statline
+grant copied a part and appended its own specialty to the part's.
+
+**Ruled.** `importedIndex` skips any document carrying the `templatePart` flag,
+so every reader of it — statline grants, the by-name lookup, the ability
+picker's present marks, Update Abilities' definitions, the dedupe before an
+ability import — inherits the 2026-08-21 rule. Where a world holds a definition
+only as parts, it now counts as not imported, and the next grant imports the
+definition itself.
+
+*Cost:* a world whose only copy of a definition is a part gains that definition
+on the next grant that needs it. An actor already granted a doubled name keeps
+it until it is imported again.
+
+### A table remembers the page it was read from, and every read has a writer (2026-09-23)
+
+**Found.** An imported table carried no page. A Judge checking a figure the
+module applied had to know which recipe produced it and which page that recipe
+read, and a table assembled from raw ones had no page at all. The declared-table
+gate proved a read was *declared*, never that anything *wrote* it: a scan of
+every reader found eleven documents or tables nothing produces, among them a
+travel figure the formation roadmap listed as built.
+
+**Ruled.**
+- A document carries `cites: {tableId: citation}` beside `tables`, in the
+  cookbook's `"RR p.505"` form. `importTables` cites each fresh table from its
+  recipe (only the blocks a run actually read) and keeps the citation of a table
+  it keeps. `assembledDoc` (`scripts/importer/produces.mjs`) gives an assembled
+  table the joined citations of the raw tables its binding names. `citeOf`
+  answers null for an override or a sample: neither was read off a page.
+- A class's published tables (`acks.class.<key>`, `acks.classProgressions`)
+  cite the class item's `source.cite`, the page its sheet's Cite field shows.
+  A Judge's edits to a class stay under that page, as they do on the sheet;
+  a class with an empty Cite cites nothing. The live walk found all 32 of
+  these documents naming no page, the first sections of the browser.
+- Every binding exports `PRODUCES = {docId: {engineKey: rawKey | rawKey[]}}`.
+  The one map feeds the citation of assembled tables and the producer list of
+  `tools/validate-producers.mjs`, so a binding cannot cite by one map and be
+  checked against another. A registry and a sample declare `PRODUCES` too, with
+  no raw source.
+- `validate-producers.mjs` fails a read whose document or table nothing
+  produces, unless a waiver names the ROADMAP line that owns the gap; a waiver
+  whose gap has closed fails too. It runs as validate-extra §8.
+- A value-block table counts as read only when a block contributed. The old
+  test named the `classes` path, so a culture-appearance read that found no
+  block wrote an empty table over a good one.
+
+**Rejected: `_cite` inside each table** (the design's first shape). A table is
+an array or a scalar as often as an object, and a key inside it changes the
+data every reader receives. **Rejected: leaving assembled tables to the
+`source.pages` fallback.** The whole document's page list on every row is
+accurate and useless: it is the question the Judge was asking, not an answer.
+The fallback stays for a document that carries no `cites` at all.
+
+*Cost:* a world imported before 8.6.0 shows its documents' page lists until it
+re-reads its rules tables. The eleven waived gaps stay gaps; each is a ROADMAP
+line, and the gate fails the day one closes without its waiver going.
+
+### A rebuild can repair in place instead (2026-09-24)
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": the mode is gone and every control repairs in
+> place; a field a guard keeps is put to the Judge as a held edit. MODEL.md,
+> "The merged repair", says how it works now.
+
+**Reported.** Every rebuild deletes and imports again. A corrected read reached
+a world only by costing it the documents' ids, and with them every link, grant
+and journal pointer, plus the folder, owners, name and notes a Judge gave them.
+
+**Ruled.** Reimport One Shelf (shelf and book) and the entry picker carry a
+mode: *Rebuild*, the default and the behaviour since 8.0.6, or *Repair in
+place*. Repair writes a fresh read over each held document
+(`refreshImported`, `scripts/importer/refresh.mjs`) and imports what the world
+lacks, as the rebuild's refill does.
+
+- **Kept:** the id, pack, folder, ownership, sort, name and image; the
+  cookbook stamp's identity (`id`, `merged`, `printed`, `book`); every flag
+  the kind's binder does not own; embedded documents the module did not mint;
+  and each kind's fields that play sets (`REPAIR`): a trap's level, a
+  vehicle's crew, damage taken and tier teams, a stack's quantity and equipped
+  state. An equipment item's `subtype`, `melee` and `missile` are kept too:
+  `annotateItem` settles them after creation, and a repair does not run it.
+- **Replaced:** the binder's `system` fields, a stamped description unless a
+  Judge wrote in it (`handWrittenProse`; per field for a monster's prose), the
+  binder's flags, and the minted embedded documents. An array row's unbuilt
+  fields are filled from the stored row at the same index
+  (`keepUnrenderedFields`), because an update replaces rows whole.
+- **Refused:** a document whose book is not open here, whose page no longer
+  matches, or whose build is another document type. A write Foundry rejects is
+  logged and counted with them.
+- A kept document without `minted` stands in for the build's document it
+  matches, so nothing is doubled: an effect by its change keys (a Judge's
+  taken-over training, docs/classes/DECISIONS.md 2026-09-24), an embedded item
+  by its type and name.
+- **Abilities** repair through `cookbookUpdateAbilities` narrowed to the picked
+  ids, so the copies characters carry are refreshed too, as Import Everything
+  already does ("Importing again refreshes what it did not create").
+- **Classes** are written whole, name, image and rows as built, as
+  `cookbookUpdateClasses` always wrote them. A description a Judge wrote and a
+  training effect a Judge took over stay.
+- **A stat-block monster** is refilled whole (`refillMonster(actor, {whole:
+  true})`): stats, token size, minted attacks and abilities, each prose field.
+- **Rebuild only:** monster templates and families, NPCs, adventure appendix
+  blocks, OSE creatures, and the weapon, armour, price-list, language and race
+  documents, each built from a whole printed table or by another binder. The
+  shelf list marks such a shelf, the picker marks such a row, and Repair counts
+  what it left.
+- **Rules tables** merge in both modes.
+- **A book's repair** takes only that book's entries, over the shelves its
+  rebuild empties, and reaches the book's animals, which are equipment entries
+  filed as actors.
+- **A document merged from two books** is written once, from its own entry,
+  whichever of its ids a run meets first (`unrepaired`).
+
+**Rejected.**
+- *An "also repair world copies" option*, from the design. A copy is the
+  Judge's ("A copy of an import is the Judge's", 2026-09-23), and
+  `importedDocs` no longer returns one, so nothing a repair enumerates is a
+  copy.
+- *Keeping a vehicle's cargo whole.* The build reads only the capacity; the
+  update merges, so the passenger figures a Judge set stay.
+- *Retracting absent fields outside a monster's stats.* A field the build
+  leaves out is either one the page states as none or one this seat could not
+  read, and nothing tells the two apart. A monster's stat paths are the one set
+  its entry claims to fill ("A refill retracts only what its entry claimed to
+  fill"). ROADMAP.
+- *Running `annotateItem` again on repair.* It rewrites the gear flag, which
+  holds a Judge's slot choice. ROADMAP.
+- *Removing a rules table's world layer in Rebuild.* It would undo "a re-read
+  that finds nothing keeps what it had" (8.6.0).
+- *Repair as the default.* It is kinder to edits, but it cannot cover the
+  rebuild-only kinds, and a changed default would change what the controls do
+  for every Judge who learned them.
+
+*Cost:* a repair re-reads everything it writes, so it takes as long as the
+rebuild. Outside a monster's stats, a field the page stopped printing keeps its
+old value. A class's whole write still replaces hand edits other than its
+description and taken-over training, and a monster's minted attacks replace a
+Judge's edits to them.
+
+### The city's roll tables carry no city (2026-09-30)
+
+**Ruled.** AX3's city-wide roll tables — the rumor table, its "behind the
+rumor" companion and the city encounters table — shipped the city's printed
+name in their ids, their names, one display anchor and their `meta.group`.
+The name audit found it after the market rows were aliased (the ring now
+knew the word). The rows are `ax3.cityRumors`, `ax3.cityRumorTruths` and
+`ax3.cityEncounters`; the rumor table anchors by `printKey` of its heading
+(`anchor.hash`, `as: "display"`) and the roll-table import names a table from
+the page it read (`printedNameOf`, as places and bodies already do), so the
+printed heading arrives with the Judge's own book; the companion and the
+encounters table keep authored English names; the four city-wide rows file
+under the group `City`.
+
+**Cost.** A world that imported the two rumor tables before this holds them
+under the old ids; they carry the import stamp, so Remove ALL Imports or a
+Roll tables shelf repair clears them, and nothing rewrites them in place. The
+same cost the place and body renames took.
+
+This closes the "group strings that name a city" half of what the 8.0.0
+aliasing parked; the quarters' own group strings still stand.
+
+### A sub-heading on the page after opens with a capital (2026-09-24)
+
+**Found.** The sub-heading turn ends at the first solo line in a face the
+body is not set in, body-sized, because nothing on the page after is matched
+by name. A ritual whose entry runs overleaf into the stat block of the
+creature it summons carries an italic list of that creature's spells, and the
+list's last line is alone on its line, off the body face and nine points
+tall. The turn ended there, inside the stat block, and the prose-stop gate
+named it.
+
+**Ruled.** The solo-line stop also requires the line to open with a capital
+letter. A sub-heading is a name and does. A wrapped line of an italic passage
+opens with whatever word the wrap fell on, and a list of spell names wraps
+lower-case. Every other cookbook compiles byte-identical under the test.
+
+**Rejected.** *A `descAppend` frame on the row.* It is anchored to the entry's
+own page, and the missing lines are on the page after. *Recording the id as a
+known stop.* The gate's `known` ledger is for truncations not yet authored,
+and this one was a rule short, not an author.
+
+*Cost:* none found. A sub-heading that opens lower-case would now be read as
+prose and the turn would run through it; no book on the shelf prints one.
+
+### The repertoire pages compile as grids keyed by printed number (2026-09-25)
+
+**Found.** Four classes print their own spell list on the repertoire pages of
+the spell chapter: a title per class, then a table per three levels — the
+row's number once at the left, a name under each level's header, a school
+line over each name. The class binder had no way to reach them, so the picker
+offered those classes the whole divine list.
+
+**Ruled.** `def.classmeta.spellRepertoires` (`kind.classMeta` with
+`repertoires`; `compile-cookbook.mjs` `compileRepertoires`) compiles one
+`grid` per class and header row, keyed `<class>.<tradition>L<levels>`, with a
+raw name column per level: the label span is the number column, the row
+tolerance stays under the school line's offset so that line falls out as a
+row with no label, and the grid closes on its own last numbered row.
+`executeRepertoires` runs the entry once per class import or repair and keeps
+a node whose bands partly missed, warning the misses; `classRepertoireFor`
+reads one class's lists off it; `bindClass` resolves each printed name to a
+spell entry id through the register's own titles (`titleIndex`: whole, in the
+singular, or from a column's closing abbreviation), warns the names no title
+answers, and writes the ids on the casting row's `spellList` — every list for
+a class of one tradition, the matching tradition's lists otherwise.
+
+**Rejected.** One grid per level band: the number is printed once per row
+across the levels abreast, so a per-level box holds no labels of its own (the
+first compile found exactly one band per header row). Authoring the four lists
+in the register: a list of titles a reader picks from is content, and the
+page is on the seat.
+
+*Cost:* a class not on those pages keeps an empty list. Nothing offline reads
+the page; a count of names per class against the seat's own book belongs in
+`tools/rules-tests/`.
+
+### Seven spell headings the 9.0.0 register did not carry (2026-09-25)
+
+**Found.** Repairing the four printed class repertoires left three titles no
+imported spell answered. Not a folding fault: the register had no entry for
+them. Four spell headings share their text row with the chapter's margin tab
+(one glyph at the page's outer edge, level with the heading), which the
+heading pass that authored the register read as a row with a second column
+and skipped; three sit on the chapter's last page, one past the range the
+register file's name declares. Authored, the four compiled with a stat block
+that opened on the heading row: the tab glyph falls in the column by x but
+outside its box, and let in it led the body lines, so the title was read into
+the magic type ("angelicauradivine" as a list source).
+
+**Ruled.** The seven are authored by hand in page order with the
+`subheading` anchor and the page's column assist, and the register file
+keeps its name — the range in a file name says where the file started, not
+what it may hold. When a printed name resolves to nothing, probe the page
+for the heading's own text before assuming a fold: a column-aware read that
+tolerates one stray glyph at the margin finds a heading the whole-row read
+lost. The definition compiler keeps an item outside the column's box out of
+the body lines, so a margin glyph can no longer open a stat block.
+
+**Cost.** A world that imported spells under 9.0.0 lacks the seven until
+`importSpells()` runs again or the Spells shelf is repaired; the class
+repair warns per unresolved name until then, and a monster whose entry names
+one of the seven carries the name in its prose instead of a copy.
+
+### A held map has its links repaired, never its shape (2026-09-30)
+
+**Ruled.** The map step, finding a scene the world already holds under the
+recipe's id, brings its LINKS up to the recipe before writing the Adventure:
+the city list in the battlemap flag is named again where the map names none
+or names one that is gone, each quarter's special list likewise, and a
+quarter's `specialAfterDark` is filled from the list's own rows where it was
+never stated. Nothing else of the scene is read or written — not the
+outlines, the tokens, the picture, or any figure a Judge typed — and the
+step's summary counts what it wrote.
+
+**What this knew that 2026-09-17 did not** ("A printed map is a recipe of
+geometry over its page" left a held scene "exactly as it stands"). Every
+roll-table import mints a fresh id (`createDoc(RollTable, …)`), so a Rebuild
+of the roll-table shelf ("A rebuild can repair in place instead", 2026-09-24)
+leaves a held map naming lists that no longer exist, and the 9.3.0 renaming of
+the city list's id ("The city's roll tables carry no city") did the same to
+every world that imported the map before it. A map so stranded falls to the
+world's generic list at the table with nothing saying so — the report of
+2026-09-30 in `docs/formation/DECISIONS.md`. And the District behaviour
+gained a figure (`specialAfterDark`) that a scene made before it cannot
+carry, which only a write can fill.
+
+**Rejected:** re-creating a held map (the map step's made path) — it costs
+the scene its id, its tokens' positions and every note and region a Judge
+added. **Rejected:** repairing at `ready` for every world — a silent write to
+a Judge's scene on load; the map step is a Judge's own action and reports its
+count. **Rejected:** deriving the figure at the table instead of writing it —
+`docs/formation/DECISIONS.md`, 2026-09-17 and 2026-09-30.
+
+*Cost:* a Judge who blanked a quarter's special list, or the map's city
+list, has it named again by the next map step. To keep the quarter's list
+out of the walk, clear the map's band in Scene Configuration; to keep the
+city's list out, point the district's own table at another list.
+
+### A settlement's map is in the library too, as one Adventure (2026-09-30)
+
+**Superseded (2026-10-17)** by "A book is in the library as one Adventure":
+the Adventure is the book's, not the map's, and the per-map kind is retired.
+
+**Ruled (the user's, 2026-09-18: "The importer should create a compendium
+scene as well… An adventure pack would also be appropriate. The point is to
+use the book to setup the city to be playable"; resumed 2026-09-30 as an
+Adventure document in the library).** The map step still stands the map up in
+the world, exactly as the entry of 2026-09-17 has it, and beside it writes ONE
+Adventure per map to its book line's Adventure shelf (`ACKS Cookbook — <line>
+— Adventure`; a Judge's book on the Judge's line). It carries the map, the
+city and quarters and every place the map sets down, every organisation of
+the book, the people those organisations name, the lists the map and its
+quarters roll on, and the folders all of it is filed in. Its own id is
+derived from the recipe's (`settlementAdventureId`), so a map has one
+Adventure.
+
+**Ids are the world's.** Each document carries the id its world copy has, and
+every reference between them is written in world form
+(`adventure-binding.mjs`). A document the world does not hold keeps its
+library id. Importing it where the copies exist names the same documents;
+importing it where they do not makes them under the ids everything already
+points at, and an organisation's quarters, which name regions, come back live
+with the map they were on.
+
+**The book's city, not the table's.** It is built from the library's
+documents, never the world's copies: a place's goods, a faction's ledger, a
+party's tokens and a Judge's notes are play, and this is the way back to the
+book. A place or organisation only the world holds is carried from the
+world's source, counted and logged, because it is the only source there is.
+
+**Built when the map is.** A step that makes the map writes it, replacing the
+one on the shelf; a step that finds the map held writes it only when the shelf
+lacks it, so an Adventure a Judge edited is not rewritten by a re-run. The
+held path checks the page against the recipe's anchor before it takes the
+picture, as the made path does.
+
+**An import fills; it never overwrites.** Importing one adds only what this
+world is missing: the map and the book's organisations when absent, anything
+else only where something the world holds or is getting names it, and a
+folder only where something created goes in it. Nothing held is written to.
+A document the world holds under another id with the same cookbook id counts
+as held, and what is created points at it; a person or a list the world's
+LIBRARY holds counts as held too, and what is created points at the library —
+so importing into the world that built the Adventure never mints a world twin
+of a library person beside the one every roster already names. Only the
+document types the Judge ticked on the import sheet are created. To put a
+part back as the book has it, delete it and import again. Core's import is
+narrowed this way only for an Adventure carrying `kind.settlementAdventure`;
+every other Adventure imports as core imports it. The hook that narrows it is
+synchronous by necessity: core does not await it, and a promise there would
+leave core's lists whole and send the import into its overwrite (pinned by
+`tools/importer/test-settlement-adventure.mjs`).
+
+**Organisations are roots.** An organisation the world lacks is created by
+every import that includes actors, named or not: nothing else in the
+Adventure names an organisation, so one a Judge deleted could not otherwise
+be put back. **Rejected:** organisations as roots only in a world that holds
+none of them (the critique's alternative) — a Judge who pruned bodies on
+purpose keeps them gone, but a Judge who deleted one to reset it can never
+have it back. The Judge who wants a prune to hold unticks Actors on the
+import sheet.
+
+What this knew that 2026-09-17 did not. The ask for a compendium form of the
+map, to set the city up to play from the book. That the rejected compendium
+scene failed because its links named library actors, and an Adventure carries
+its actors and creates them under their own ids (`keepId`), so its links
+resolve on arrival. And that core's import writes over a held document whole,
+without its hooks: a second import of a played city would erase the goods,
+the standing and the tokens.
+
+**Rejected:** a compendium Scene shelf: a scene dragged from it is the case
+rejected on 2026-09-17. **Rejected:** building it from the world's copies
+(core's exporter): it ships play and the Judge's secrets as the book.
+**Rejected:** core's overwrite: see above. **Rejected:** creating everything
+it carries: the library's people would arrive as twins of the people an
+organisation already rosters, and be rostered twice. **Rejected:** a
+distributable module package carrying the city: it ships book content, and
+Foundry has no client-side path to compile module packs.
+
+*Cost:* a world compendium belongs to its world, so the Adventure opens where
+it was built, or where a Judge moves the pack, and its picture only on the
+same server. It is as old as the step that wrote it: a book reimported is
+not in it until it is deleted and the step run again. Putting something back
+means deleting it first. A person no organisation names is left out, and a
+seat the map does not show stays a library reference (the description counts
+them). The shelf-lock track (2026-09-18, on hold) is not landed, so the
+Adventure is written to an unlocked shelf like every other library document.
+
+### What a terrain result leads to is read into the chart it came from (2026-09-30)
+
+**Ruled.** Wave 2 of the Judges Journal charts takes the 2026-09-23 route of
+rules data with a RollTable projection, because formation computes with it.
+The sub-tables a terrain-encounter result names, the treasure type for each
+terrain and the ruin modifier are read into the `encounters` doc
+(`terrainSubTables`, `treasureByTerrain`, `ruinModifier`), and the throw rolls
+them (formation MODEL, *The encounters*).
+- **A result printed across several columns is one line**, its cells joined
+  in reading order with " — ", as `occupationSubTables` already joins a
+  special note. A RollTable result holds one text, and so does the card's
+  line.
+- **Each sub-table rolls its own die.** The sub-tables share one doc key but
+  not a die, so the projection marks the set `ownDie`: each is rolled on its
+  own furthest band, not the set's.
+- **A read proves its die.** A sub-table is read with a run of optional band
+  specs, so one recipe shape serves a table of any length. The binding keeps
+  it only when its bands tile 1 to a standard die with no gap or overlap. A
+  lost row or a stray line leaves the table out, and the card sends the Judge
+  to the book; it never rolls a die the page did not print.
+- **The link from a result to its tables is keyed by the result's common
+  noun** (`TERRAIN_FOLLOW_UPS`), folded to its letters. The printed list, its
+  order and every row it leads to arrive with the import. A result the key
+  does not name stops at its name.
+- **A terrain lookup reads through the encounter-terrain pick**, which names
+  its row in each lookup. That is how the pick already maps itself into the
+  civilized, monster, distance and evasion tables.
+
+**Rejected:** one recipe spec per printed row. Every table would need its own
+row list, and a table with rows the list lacks would read short and
+unnoticed. **Rejected:** projecting the set on one die, which would roll a d10
+table on a d100.
+
+*Cost:* lairs per hex and climate by terrain are not read, because nothing
+consumes them yet. The results that hand off to another draw stop at their
+name. Both are in the ROADMAP.
+
+### A body's unnamed people are a grid the page prints (2026-09-30)
+
+The 2026-09-17 ruling above let a printed membership table arrive as
+description text and bound nobody from it. The user named the gap outright:
+the follower tables of a body's unnamed members were missing from the world.
+They now arrive as figures, and the shape they take follows from what the
+page does.
+
+**A grid is read by a second row, not by the organisation's.** A
+`kind.strengthGrid` row anchors on the grid's heading by print key and ships
+geometry: box, label span, header band, column spans. Its `strength.columns`
+block names BY ID the organisation each column belongs to. The organisation
+row is untouched, because the grid is not always the body's alone: one AX3
+page prints seven orders across seven columns under one heading, and the
+column-to-body map is the one fact the geometry cannot state.
+
+**Which column is whose is authored, and the register says only ids.** The
+mapping was read once from the page, on the local shelf, and ships as
+`c<n>: <organisation id>`; the header words are read at import like every
+other printed name. A grid whose columns belong to several bodies attributes
+its revenue column to nobody, since the page prints no income per order.
+
+**The total row is a check.** Every printed strength grid ends in a `Total`
+row, and it is the page's own arithmetic: the column sums are compared with it
+at import and a disagreement is reported by column key, because a column cut
+one span too narrow shows exactly as a sum the page disputes. The row itself
+is never stored; the sheet computes the one it shows. The compiler requires
+the label span to hold both an ordinal level and a `Total`, so a box that
+drifts off the grid fails at compile, not at a Judge's table.
+
+**A dash is a zero.** The grids print a dash for a level with nobody in it.
+`intDash` reads that as null, and a row of dashes then has no parsed cell and
+is dropped by the grid op's `minCells` floor, which `emitGrids` cannot lower
+to zero. The new `dashZero` cell pattern reads the dash as the count it is,
+and a footnote mark on a number ("21*") as not part of it.
+
+**A header band is joined by line.** The seven-order grid sets each heading
+over two lines with a gloss on a third. The band's runs joined in reading
+order interleaved every column's words; the header now joins line by line
+within each column's span, for every grid, which changed no shipped cookbook
+(no other header band had a second line).
+
+**A flow excludes a table it does not own.** The temple quarter's special
+encounter list continues in the column whose top the seven-order grid
+occupies, and the list's fourth row shipped carrying the grid's every number
+as prose. `assists.excludeBoxes` on the list's row drops the grid's box from
+the flow; the row's continuation now starts beneath the table. The verify
+pass caught it as a double claim the moment the grid had an owner, which is
+the coverage argument for claiming every printed table.
+
+**Rejected:** rostering the counts as quantity rows (a table of forty cells as
+forty roster rows, `docs/factions/DECISIONS.md`); reading the counts a page
+states in prose (no geometry finds a number by the phrase before it without
+shipping the phrase); a per-book column map in the compiler (the register
+already carries authored ids; a second place to state them is the dedup law
+broken).
+
+*Cost:* five AX3 bodies whose numbers are prose ship with an empty table
+(`docs/factions/ROADMAP.md`). A world that imported the temple list before
+this fix keeps the bad fourth row until the Judge deletes the list and runs
+the step again; presence is by id, and a held document is never rewritten.
+
+### The doing-business figures ride the city-travel document, and a gate is marked rather than measured (2026-09-30)
+
+**Reported (the user):** "A gates/import tax/smuggling should also be scoped
+in." The design was drawn (a gate action on the settlement board, the
+syndicate's consignment service on the faction) and the release was called
+before the two actions were built; what landed is the half every later piece
+reads from.
+
+**Ruled.**
+- The page's figures arrive through the `cityTravel` table recipe, beside
+  `districtTravel` from the paces page two folios on (AX3 p. 56): `businessProse` reads two windows,
+  and `city-travel-binding.mjs` assembles `gateTolls` (the toll's dice, the
+  stones one throw covers, the duty's dice as a percentage) and `smuggling`
+  (loads a month, the fee, the interception chance, the arrival dice). Both
+  are declared by the formation feature's `expectTables`, so a world that
+  never read the page shows two expected tables that did not arrive rather
+  than a gate that charges nothing. The duty is parsed only beside the word
+  that names it, so a page without a duty sentence yields a toll and no duty
+  instead of the toll's dice twice.
+- A gate is a `kind.location` row with `meta.role: "gate"`, and the role
+  lands on the place (`system.role`) at import, on a fresh import and by a
+  stamp on a place the world already holds. A role is which KIND of place
+  this is to a procedure, not a page value, so the stamp needs no page read.
+  Every gate the book keys is marked, the inner ones included: which of them
+  stand in the wall is the Judge's knowledge at the table, and an action that
+  priced the toll only at some of them would be deciding it from a list the
+  module does not hold.
+- The syndicate that carries goods past the gates is named on its
+  organisation row as `services: ["smuggling"]`, an id-level fact like a
+  seat or a relation; the faction binding's write of it is the consignment
+  service's first step and is not built.
+- A party's loads are read through `acksExtras.markets.manifestOf` and
+  handed over through `removeLoads`, in the markets feature because the load
+  flag is that feature's; the snapshot `removeLoads` returns is what a later
+  delivery re-creates without naming the flag.
+
+**Rejected:** a `kind.constant` row per figure — its compiler asserts an
+integer and its consumer reads a live page (`scg-constants.mjs`), where these
+figures are needed at play with no book open; a per-market copy of the
+figures on the city's place — the trade layer's market-local rules
+(`docs/markets/wip/trade-layer.md`, S3) can shadow the document later.
+
+*Cost:* the figures are world-global like `districtTravel`: a second city in
+the same world charges the first city's gate toll until a market-local layer
+exists. The gate action and the consignment service are `docs/formation/ROADMAP.md`
+and `docs/factions/ROADMAP.md` rows.
+
+## 2026-10-01 — A modifier row's wording is read from the reader's page
+
+The influence roller's two morale pages offer rungs a Judge has to tell apart,
+and what tells them apart is the condition each row states, which is the
+page's sentence (`docs/influence/DECISIONS.md`, "The morale pages read the
+Judge's table, and post with no result when it is absent"). So the `morale`
+recipe reads the wording with the figure, and two things were added to
+`proseValues` for it (`extractProseValues`, `table-extract.mjs`):
+
+- **`take: "signed"`** reads only a figure that carries its sign. A modifier
+  row words its condition with bare numbers of its own, and `signedInt`'s
+  bare-number fallback took those for the modifier.
+- **`label: true`** stores the row's wording beside its figure as
+  `<key>Label`, cut between the row edges either side of the anchor
+  (`rowLabel`), with the page's own capitals.
+
+*Rejected:* a per-row `labelFrom`/`labelTo` pair of anchors. Every anchor is a
+fragment of the page in a shipped recipe, and the edges of a row are already
+on the page: its bullet and its figure. *Rejected:* a table shape with a label
+column. One page prints the figure after the wording behind a bullet and the
+other before it in a grid, and the prose reading handles both with one rule.
+
+*Cost:* the label is as good as the text layer. A symbol font's bullet arrives
+as whatever code its slot holds, so the edge class is wide, and a page whose
+rows carry no bullet and no signed figure yields no label at all. A label
+longer than a row is discarded rather than kept, so a missed edge costs the
+wording and never imports a paragraph.
+
+## 2026-10-09 — Lairs per hex is read from the procedure's own page
+
+The hex-stocking procedure's three inputs — the lairs-per-terrain row, the
+substitution bands and the settled-territory shares — are read from the page
+that states the procedure (Judges Journal ch. 2), not from the terrain table
+that cites it. `table-recipes.mjs` gains `lairsPerHexRaw` (the grid, one
+cell per terrain row), `lairsProse` (prose values with two `valueBlocks`,
+the substitution bands and the settled shares) and `lesserTerrainProse` (the
+either-or share a terrain hand-off reads, from the chapter's placement page);
+`encounters-binding.mjs` assembles `lairsPerHex` as `NdM±K` strings keyed by
+terrain, `lairSubstitution` as tiling bands of `{min, max, kind}`, and
+`settledLairShare` as fractions by territory, with `lesserTerrainShare` an
+integer percent. `parseLairDice` (exported) reads the three dash seams the
+extraction produces in a dice cell. The settled shares are read in the
+page's order, the first unnamed figure taken as the civilized one — a
+reading to confirm against the page by a reviewer who holds it. The Tracking
+bonus of the searching page is read the same way: `searchProse` gains a
+`tracking` window, and the binding emits `trackingBonus` through
+`parseSigned` only when it reads.
+
+*Rejected:* a hand-authored row in a `ruledata` directory, the IP line;
+reading the lairs figure from the terrain table, which prints it once, on
+the procedure's page, and cites it elsewhere.
+
+*Cost:* `dev-try-recipe.mjs` cannot run a `valueBlocks` recipe, so the two
+prose recipes were proved with a scratch script that follows
+`tables-binding.mjs`; the tiling proof for the bands lives in the binding
+suite. The searching window is cut short on purpose, because the worked
+example after the sentence prints figures of its own.
+
+## 2026-10-09 — A monster grid binds its cells by their centres
+
+The eighteen monster sub-tables are set centred, so a name's start wanders
+with its width; a window opened a fixed distance ahead of each column header
+put a wide rare name's opening, or its small-caps first letter, in the column
+before it, where the join welded it onto that column's own name. Three
+sub-tables answered six bands with nothing (the rare cell gone whole), ten
+rows across seven more carried a torn letter or a second name, and every
+offline suite stayed green because the committed tests feed the assembler
+invented cells.
+
+`extractGridRows` gains `anchor: "center"`: a windowed column claims a run by
+its centre, and a run of closing punctuation alone continues the run before
+it, because no cell opens with a bracket. `monsterGrid` takes the four column
+centres measured off each printing and opens its windows midway between
+neighbours. `tools/importer/check-encounter-grids.mjs` reads every encounter
+grid off the local book and fails on a missing row, an empty cell, a stranded
+letter, a torn bracket, a second name, or a band that does not tile its die;
+`validate` runs it on the machines that hold the PDFs and it skips elsewhere,
+like the cookbook drift check.
+
+*Rejected:* nudging edges per grid (three were nudged first; a geometry scan
+then found the ten rows no nudge could reach without opening a weld on the
+other side); a name dictionary to split welded cells by, which is book
+content.
+
+*Cost:* a world imported before this holds the welded names until the Judge
+re-imports the encounters document; the CHANGELOG says so.
+
+## 2026-10-09 — Between books, identity follows the newest printing and content the most specific
+
+**Amended (2026-10-17)** by "Later books supersede, by the year their printing
+carries": at the same granularity, the later printing wins.
+
+The adventures reprint things the core books print — a monster, a terrain's
+encounter table, a rumour list — and each other's: AX1's forest lies inside
+the region AX3 maps. The user's ruling: ACKS II supersedes only where the
+printing is identical; otherwise the more specific printing is correct. Two
+rules follow. Identity: a thing a newer book prints under the same name is
+that thing, so a monster the core books revised is registered once, from the
+newest printing, and an adventure's row for it is not registered, or carries
+`meta.revisedBy` naming the printing that supersedes it; AX5's register
+holds its appendix's own monsters. Content: where a book prints a rule for a
+narrower place — an adventure's own table for its forest, a cliff's own
+cadence — that printing wins inside that place, which is what an encounter
+zone is (below): the region's terrain table answers everywhere, a zone's
+table answers inside its outline, the smallest zone first.
+
+*Rejected:* importing every printing as a document of its own (two actors
+for one wolf, the Judge choosing by date); the newest printing overriding
+the specific one (the region's rumours replacing an adventure's own).
+
+*Cost:* "identical" is a reviewer's call per row, made when a book is
+registered and recorded in the register, never decided by the compile.
+
+## 2026-10-09 — A region's map is a grid recipe over its page
+
+AX3's region is a hex map printed on one page, and the Judge's copy
+supplies the picture. The `kind.scene` row carries the page, the crop, the
+turn and a `grid` block measured off the printing — the hex family, whether
+the even columns shift, the box one hex fills in page points, the centre of
+one hex, the distance and unit a hex spans, the pixels a hex is given — and
+`places[]`, the sites at their hex centres. The importer crops the page,
+lays Foundry's hex grid over it so the drawn hexes and Foundry's coincide,
+and sets the scene's distance from the block; the block is measured the way
+the battlemap calibration tool measures one (battlemap DECISIONS,
+2026-10-09), so an imported map and a hand-calibrated one answer every
+measurement alike.
+
+*Rejected:* shipping a hex overlay picture (the page is the picture);
+painting the terrain from the render — a density, orientation and
+connected-component classifier was run over the page and did not separate
+forest from hills at the page's resolution; the Judge paints terrain, and
+classifying from the render is ROADMAP.
+
+*Cost:* fifty-three hex centres authored by hand from the lattice; a lattice
+measured a cell off puts every site a cell off, which only the imported
+scene shows.
+
+## 2026-10-09 — A zone is a row of the book that prints its rule
+
+An adventure's local encounter rule — a forest with its own table, a cliff
+with its own cadence, hills with day and night counts — is `kind.sceneZone`:
+a row naming the scene it lies over, its outline in that scene's page
+points, the table it draws (a roll table of the same book), its cadence (on
+entry, or by periods), and the boxes on the page where the target and the
+day and night counts print, read at import by the throw and count-word
+patterns. The outline is geometry the chef traces; the figures arrive from
+the Judge's copy. The formation answers from every zone under the party,
+smallest first, so overlapping zones are drawn to leave room for the one
+that must win: the hills zones are cut around the cliff's.
+
+*Rejected:* zones carrying their figures (page values); zones as painted
+terrain (a cadence and a count are not a terrain's); one zone per terrain
+class from the render (the classifier above).
+
+*Cost:* hand-traced outlines (AX4 one, AX5 two, AX6 one); a zone whose table
+has not compiled waits (`zonesWaiting`) and is linked by a later run.
+
+## 2026-10-09 — A gazetteer site is a place in the region, never a quarter's
+
+**Amended (2026-10-17)** by "A site its page prints by title anchors by hash".
+
+AX3's gazetteer keys fifty-three sites by number across the region. They are
+`kind.location` rows in the `Region — Sites` group, with the region's
+overview in `Region — Overview` (`REGION_GROUPS`); a site anchors by its key
+number and ships a neutral label, as a quarter's point of interest does. The
+points-of-interest step claims the region as one place and each site as a
+place under it; a site that is one of the book's markets claims that
+market's place (`meta.market`), and a site the market record calls the
+adventure's own settlement claims the settlement rather than making a second
+place. The AX3 cookbook suite asks the region's sites what it asks a
+quarter's: a label built from the number, an id built from it, a name read
+off the page by it, one overview.
+
+*Rejected:* a quarter called Region (the quarter parse is closed to the
+region's groups); sites as journal pages alone (a site is where the party
+arrives).
+
+*Cost:* the scene keys its markers by site id, so a site whose heading the
+compile misses leaves the scene warning of a place it cannot key — two did,
+across a 20pt gutter (the heading-line entry below).
+
+## 2026-10-09 — Centred dies are cut by their mirror, and a cut by leading is withdrawn
+
+A grid table whose cells run several lines prints each die centred on its
+cell. Two cuts were tried on AX4's and AX5's tables today and both failed on
+the same pages: a midpoint cut between dies puts the midpoint inside a tall
+cell when its neighbour is short, and a cut by leading (`rowGap`, added this
+morning) meets a paragraph break inside a cell set at the same leading as
+the gap between rows (AX4 p.11, second column, die 62-66; AX5 p.10, die 4
+printed on a baseline of its own). The ruling: the die's baseline is the
+cell's centre, so the cell's bottom line is its top line mirrored about the
+die. Rows are cut in order, each row's top the first line under the row
+before, and a line left under the last row is an error naming it, since the
+band's y1 then reaches past the table. The mirror holds on every centred grid
+in the registers (AX2 two, AX3 four, AX4 four, AX5 two, AX6 one, probed off
+the books), and its checks found two tables that had shipped wrong under the
+midpoint: AX2's mummy reaction (p.19), whose band began under the first
+row's first line, so the first result lacked its opening clause since the
+table shipped; and AX3's city rumour truths (p.47), where the die column's
+left edge excluded two keys and three keys were fused with their cell's
+first run, so the table shipped ten of its twenty keys with the missing rows
+folded into their neighbours. A fused die is read off the run's head and
+stripped by character count, in every mode, as a fused list anchor already
+was.
+
+*Rejected:* keeping `rowGap` beside the mirror (two modes for one fact, one
+of them wrong on the first real page); a per-row line count (a value the
+page prints by layout).
+
+*Cost:* a centred grid whose leading is too uneven for the mirror keeps hand
+`bands` (AX1's rumours, 2.4pt off); a world imported before this holds the
+two defective tables until the Judge re-imports the AX2 and AX3 tables
+documents, and the CHANGELOG says so.
+
+## 2026-10-09 — What counts as a heading line is the row's assist
+
+`axHeadingLines` reads an AX page's headings by a shape measured on AX2 and
+AX3: runs 11.5pt and up, below the running heads, inside 30pt margins. The
+new books print headings outside it. AX5 sets its new monsters' names in
+body-size small capitals; AX1 sets two table titles at 11pt, prints a section
+heading in the running-head band (p.37) and starts its even pages' column at
+x 28. And two AX3 site headings sharing a baseline across a 20pt gutter were
+joined into one line, so the second key was never found. The ruling: the
+shape stays the default, and a row says where its book departs from it in
+`assists.headingLines` (`minH`, `caps`, `topY`, `x0`), read by the anchor,
+the hash candidates and the flow's stop alike; a line is split at any gap
+that crosses the page's midline, for every book. A capitals heading is told
+by its lowercase being fragments — four letters or more, two fifths
+capitals, no lowercase run past four letters — because small capitals
+extract as a scatter of case.
+
+*Rejected:* per-book layout constants in `BOOKS` (runtime code carrying
+facts only the compiler reads); lowering the heading height for every book
+(every body line of AX2 and AX3 becomes a heading candidate, and a flow
+stops at each); learning the heading face's font alias from the anchor's
+match (a hash-anchored row has no match to learn from).
+
+*Cost:* the capitals rule is a heuristic a body line of abbreviations could
+pass; the sign is a flow cut short at that line, which the compile's residue
+reports.
+
+## 2026-10-09 — A row's explanation stands as its own paragraph, and an opener line opens one
+
+A table's row text is HTML in Foundry's result, so a detail paragraph
+appended to a row is wrapped as a paragraph of its own rather than joined
+onto the row's sentence with a space: the row reads as its short entry, then
+its explanation. And the compiler reads an opener wherever it prints: a
+column of entries set with no blank line between them is one gap-built
+paragraph, and reading openers on paragraphs' first lines alone found one or
+two keys per table in AX4 and AX1 with the rest logged unmatched; an opener
+line now starts a paragraph wherever the builder set it. A key inside a
+paragraph that opens nothing is not counted unmatched, since a wrapped line
+can open with a number and a stop; a paragraph's first line still is.
+
+*Rejected:* a blank-line rule per book (the gap is the printer's, not the
+book's); joining the explanation onto the row's text (one run-on result).
+
+*Cost:* a paragraph re-cut at an opener line carries a line band for its
+box, not the builder's; the executor still merges a mid-sentence
+continuation across the cut.
+
+## 2026-10-09 — A legacy stat row's band reaches halfway to its neighbours
+
+The ACKS I-style block (`kind.monsterLegacy`) is a label column with a value
+column per variant. The first AX5 compile got three things wrong, found when
+`verify:cookbook` reported the four optic variants with no description and
+the proto-ooze pair with no stats. A label the kind did not list (`% Lair:`,
+where the kind knew `% In Lair:`) left its row above the recognised block,
+so the variant-header band swallowed that row's values and every variant's
+band was cut on them to zero width. A label welded to its value in one run
+(`Armor Class:` with the figure on its heels) matched no label and dropped
+the row. And a value that wraps onto a line either side of its label, the
+footman's and the sergeant's attack lines, fell outside a band of ±4.5
+points. The ruling: the kind row lists every printed spelling of a label; a
+label the kind does not list that prints above the first recognised row
+fails the compile by name rather than mis-cutting silently; a welded value is
+read off the label's own run by a `stripPrefix` count; and a row's band
+reaches halfway to the neighbouring labels, its runs joined as the page lays
+them, which is the band a two-line value needs and a one-line value already
+had.
+
+*Rejected:* a per-row line-count assist (the page says how far a band goes;
+a hand count would say it again, per entry); aliasing printed labels in the
+compiler (the kind row is where printed labels are declared).
+
+*Cost:* the stray-label guard reads the header band for anything shaped like
+a label, so a variant header ending in a colon would fail to compile; none
+prints one. The optic rows lose `descStopY`, which had stopped the flow on
+its first page before it reached the prose overleaf: a flow with a stop floor
+returns after one page, and that is the floor's contract.
+
+## 2026-10-13 — An icon the core build renamed keeps the path it was given, and the gate reads the build's aliases
+
+Core 14.369 serves 21 icons from renamed files and keeps answering for their
+old paths: its server holds `STATIC_FILE_ALIASES` and serves each old path
+from the file it maps to. One register power names one of the 21, and no
+entry names a new spelling. The icon-existence check in
+`tools/importer/validate-extra.mjs` tested the install's files alone, so on
+the day the install was updated it failed `validate`, and every commit gate
+with it, on committed data the running server still answered for: a request
+for the old path returned the renamed file, byte for byte, and a made-up
+name returned 404. The ruling: the entry keeps its path, and the check
+resolves an `icons/` path through the install's alias list where the file is
+not there, naming each path that resolves that way in a line of its output.
+
+*Rejected:* renaming the entry's icon to the new spelling (the install this
+check passed against on 2026-10-10 held the old file, so a seat on a build
+from before the rename would be sent a path that build has no file for, and
+no alias runs backwards); a list of renamed paths kept in this repo (the
+build already holds it).
+
+*Cost:* the check reads a constant out of the server's minified source as
+text. Where a later build words it differently the list reads as empty and
+an aliased path fails the gate again. The ledger's `--free` offers a renamed
+file as unclaimed though an entry spends that picture under its old path.
+
+## 2026-10-17 — A book is in the library as one Adventure
+
+Supersedes "A settlement's map is in the library too, as one Adventure"
+(2026-09-30). The user's ruling: the per-map Adventure "is just a WIP that
+needs fixed", and every adventure book imports whole, AX1 first. The cost the
+per-map form hid is also new: links between one book's maps cannot ride
+per-map containers, and AX3's region map had no container at all.
+
+**Ruled.** A book `BOOKS` marks as the Judge's (`judge: true`) is written to
+its line's Adventure shelf as ONE Adventure, provided it yields at least one
+document the Adventure carries. Books with no adventure in them get none.
+- **Identity.** No register row is needed: the book is the unit. The id is
+  `stableDocId("<book>.book")` and the stamp `{ id: "<book>.book", book,
+  kind: "kind.bookAdventure" }`. The name is the book's `label` and the
+  cover is its first map by page.
+- **Contents.** Every document whose cookbook stamp names the book, and
+  everything those name: every map with its Regions, Levels and tokens; places
+  at every level; organisations, people and characters; the book's own
+  monsters and stat-line occupants; its tables and any table a carried region
+  names; its journals and items. A seat monster on a roster stays a library
+  reference, as a rostered person does. A place another book has taken over
+  ("Later books supersede", below) is carried by reference.
+- **Roots.** Every carried document is a root. A Judge who wants a prune to
+  hold unticks the type on core's import sheet.
+- **When.** Once per book, at the end of Import Everything. The stamp keeps
+  two hashes: one over the assembled sources, one over the stored Adventure
+  as written. Stored content that no longer matches its written hash is the
+  Judge's edit and is kept. Otherwise a changed source hash rewrites it. This
+  closes the stale-Adventure case the 2026-09-30 entry priced.
+- **The hook.** It stays one owner, renamed to fit the job. It steers
+  `kind.bookAdventure` and, permanently, the retired `kind.settlementAdventure`:
+  a per-map Adventure can survive in a shelf no one re-ran, a moved pack or a
+  backup, and unsteered its import falls to core's overwrite.
+- **Retirement.** The first successful book Adventure deletes that book's
+  per-map Adventures from the shelf, names each one, and never runs when the
+  write failed. World documents are untouched.
+
+Kept from 2026-09-30: ids are the world's; the book's documents, never the
+table's; an import fills and never overwrites; the hook is synchronous by
+necessity.
+
+*Rejected:* per-map Adventures beside the book's, which would be two
+containers kept in step by hand; retirement by hand; dropping the legacy
+steering after migration; a modal in the migration (Import Everything never
+stops on one); a register row per book.
+
+*Cost:* the per-map stamp records no write hash, so a Judge's edit to a
+per-map Adventure cannot be told apart and is lost at retirement. The
+documents it named are world documents and stay. A world that never re-runs
+keeps its per-map Adventure, which still imports as a fill. A book Adventure in
+another world still needs its pack moved by hand and the same server for its
+pictures.
+
+## 2026-10-17 — Later books supersede, by the year their printing carries
+
+Amends "Between books, identity follows the newest printing and content the
+most specific" (2026-10-09). It also amends, on a condition, "Same name, two
+books" (2026-08-24), whose precedence is `BOOKS` declaration order. The new
+evidence is the user's correction: "later books supersede", in place of a
+proposed "whichever book imports first".
+
+**The order.** `BOOKS[id].published` is the copyright year the registered
+printing carries on its credits page. That is bibliographic structure,
+shipped on the footing of `label` and `pages`. Read on 2026-10-17: AX1 2015;
+AX2–AX6 2018; By This Axe 2022; RR, JJ, MM, TT and SCG 2024.
+`books.mjs:laterBook(a, b)` returns the later book, or null when the years tie
+or either year is missing.
+
+**A place two books print** is one actor. Its identity and its place-level
+text come from the later printing, whichever book lands first.
+- A pair is declared once, as `meta.sameAs`, on the earlier book's row. It is
+  declared only between rows at the same granularity, and which rows qualify
+  is a reviewer's call made when the row is authored, never by the compile.
+  This is the footing "identical" has in the 2026-10-09 entry.
+- When the later book arrives second, it takes the place over: its id, its
+  book, its read name (only where the Judge has not renamed the place), and
+  the module's text block on the place. Ownership, folder, image, every play
+  field and every byte outside the module's blocks stay. The actor's id never
+  changes, so every pin, link, parent and roster still holds.
+- When the earlier book arrives second, it writes no identity, name or text
+  over the place. It fills only empty fields and joins `merged`.
+- Rows narrower than the place stay under it in both orders: AX1's fort, its
+  buildings and rooms, and the forest zone. Both orders must reach the same
+  world state.
+
+**At the same granularity the later printing wins.** That is the tie-break the
+2026-10-09 entry lacked. That entry's identity rule and its rejection of "the
+newest printing overriding the specific one" both stand: a narrower printing
+is a different row, never a pair.
+
+**Items** keep `BOOKS` order until a census lists every merge `reconcileByName`
+can make and shows that publication order changes no winner. On a tie the
+declaration order stands.
+
+*Rejected:* the first import claiming the place, which makes the result
+depend on import order; declaration order for places, which would put AX1 over
+AX3 although it is a habit of declaration and not a fact of publication; a
+per-row direction (`meta.supersedes`), which can contradict the global order;
+declaration order as a tie-break, which guesses; the PDFs' metadata dates,
+which are the download's (every AX file reads January 2025); rewriting the
+whole notes on takeover, which destroys the Judge's own text.
+
+*Cost:* a year is coarse, and AX2–AX6 tie in 2018. A pair between same-year
+books is refused until the register records which came first. A wrong year
+inverts every takeover between two books, and no gate can tell, so the year is
+checked against the credits page by a reviewer.
+
+## 2026-10-17 — The earlier printing's unique paragraphs follow the later one's
+
+The user's ruling on where an earlier book's place-level text goes when a later
+book takes the place over: "Merge unique information."
+
+**Ruled.** The earlier book's pair row carries `meta.unique`: the 1-based
+ordinals, in compiled prose order, of the paragraphs that hold information the
+later printing lacks. It is indices only, with no words. The place's notes
+hold the later book's block, then the earlier book's block filtered to those
+paragraphs. Each block keeps its own entry stamp and citation, so the Judge
+can see which book every paragraph came from. `unique: []` says the earlier
+printing adds nothing; its block keeps only the citation line, because a
+pointer costs nothing to keep. A paragraph that mixes repeated and unique
+information is kept whole, since a repeat costs less than a loss. Lint
+requires `unique` wherever `sameAs` is set, so every pair carries a
+reviewer's decision.
+
+*Rejected:* similarity matching at import (it drops or repeats sentences
+silently, and no review sees it); keeping all of the earlier text; moving it to
+a journal page (one place's description split across two documents).
+
+*Cost:* each pair costs a reviewer a read of both printings when the row is
+authored.
+
+## 2026-10-17 — A person the page prints in full becomes a character, and the derivation wins
+
+The user's rulings for AX1: the pre-generated party and the nine inhabitants
+become character actors, and "Rederive ACKS II values was correct."
+
+**Ruled.**
+- **Kinds.** A pregen is `kind.pregen`. An inhabitant is a `kind.npc` row
+  carrying `meta.actor: "character"`. Both bind through one character
+  binding, as core `character` actors.
+- **What the binding writes.** It writes the scores, printed hit points,
+  alignment and morale, then binds the class at the printed level and lets the
+  class apply derive saves, throws and the rest.
+- **Differences.** Every printed figure that differs from the derivation is
+  recorded on the actor, in a stamped "as printed" block on its biography,
+  and counted in the step's report.
+- **Gaps.** An unmatched class, proficiency or item is reported, and the
+  character is still made.
+- **Ids.** Each character's id is stable (`stableDocId` of its cookbook id,
+  created with `keepId`). A rebuild is a delete and a create under the same
+  id, so every roster, journal link and Adventure reference survives it.
+  That is what keeps track D's residual effects and rebuild-in-place
+  shelved.
+- **Rebuild and removal.** NPCs stay rebuild-only (2026-09-24). Neither a
+  rebuild nor Remove Imports deletes a character that any non-GM user owns:
+  a pregen handed to a player is that player's.
+- **Ownership.** Judge-only until the Judge hands one over.
+
+AX3's people stay monster NPCs (user, 2026-10-17). Converting them means
+re-minting ids and re-pointing every organisation and roster, and it is on the
+ROADMAP.
+
+*Rejected:* printed figures overriding the derivation, which needs track D's
+residual effects and a rebuild-in-place to keep them current; converting
+AX3's people in the same minor.
+
+*Cost:* AX1 is an ACKS I adventure, so differences and unmatched names are
+expected on most characters, and the Judge reads them from the sheet.
+
+## 2026-10-17 — An adventure's keyed areas live in key spaces, under neutral labels
+
+AX1 numbers its fort's buildings and each dungeon level's rooms from 1 again,
+so a key number is not unique in the book. Its keys are run-in labels at the
+start of a paragraph, not headings.
+
+**Ruled.**
+- **Key spaces.** A key space is an ordinary `kind.location` row: the fort,
+  a level. A keyed area names its space in `meta.space`. Its id is
+  `<book>.<space stem><key>`, with a hyphen when the stem ends in a digit
+  (`ax1.fort9a`, `ax1.l1-12`). Its label is the space's name and the key
+  ("Fort 9a").
+- **Nesting.** The parent is written explicitly in `meta.parent`: the base
+  key for a lettered sub-key, a territory section for a room that has one,
+  else the space. Lint holds it to the same book and the same space, and
+  rejects cycles.
+- **Anchors.** A run-in key anchors by `anchor.number` with `as: "runin"`. A
+  range key ("1-3.") is a key of its own.
+- **Titles.** No keyed area's printed title ships, whether it is a proper name
+  or a common word. The name is read off the Judge's page at import. A
+  per-row common-or-proper judgment has no gate, a register mixing the two is
+  where a leak hides, and shipping the title buys nothing.
+
+*Rejected:* POI groups for key spaces (they parse as a settlement's quarters
+and their unscoped `poi<n>` ids collide); extending `harvest-ose-areas.mjs`
+(it reads display headings and ships titles); shipping common-word titles.
+
+*Cost:* about 220 keyed rows for AX1 alone, harvested by a new tool and
+settled by an author against the page wherever the key sequence has a gap.
+
+## 2026-10-17 — Maps are joined as scenes, and Levels only stack storeys
+
+The user asked for floor plans a party can walk between: "either a composite
+scene with levels and region linking … or multiple scenes that are similarly
+properly connected."
+
+**Ruled.**
+- **Separate scenes.** Each printed map is its own scene, joined to the
+  others by `teleportToken` regions.
+- **Levels.** One scene with a Level per storey is used only where a page
+  prints storeys of one footprint at one scale, joined by `changeLevel`.
+  Anything else is forced: a scene has one grid, and core's v14 Level carries
+  none (`common/documents/level.mjs`). The region's hexes, the fort's
+  template and the plans' squares cannot share a scene.
+- **Link rows.** A link is a row of its own (`kind.sceneLink`), resolved in a
+  pass after every map exists, because a world scene's id is minted at
+  create. Rows sharing an end make one Region offering a choice. An end on a
+  region map asks before it moves a token, so a journey passing through the
+  hex is not diverted.
+- **Travel mode.** A recipe states the travel mode its map adopts.
+- **Walls.** None ship (user, 2026-10-17). A traced layout would ship the
+  drawn map; tracing at import from the Judge's own picture is on the ROADMAP.
+  *Superseded the same day by "Walls are traced at import from the Judge's
+  own page": none ship still, and the trace lands in AX1's minor.*
+
+*Rejected:* one composite scene (one grid per scene); teleport links between
+storeys (they lose position, and a scene stops being one place's map); writing
+destinations into a map's create (the ids do not exist yet); traced walls in
+the register.
+
+## 2026-10-17 — A site its page prints by title anchors by hash
+
+Amends "A gazetteer site is a place in the region, never a quarter's"
+(2026-10-09). New evidence: AX1 p.66 prints its region's sites under run-in
+titles and no key number, so a site cannot anchor by a number the page never
+prints.
+
+**Ruled.** Such a site anchors by `hash` with `as: "runin"`, under the label
+`Site <n>` and the id `<book>.site<n>` by ordinal. A site its page keys by
+number still anchors by number.
+
+## 2026-10-17 — AX1's domain record and art are not imported
+
+**Ruled (user, 2026-10-17: "wait for new domain sheet").** The p.28 domain
+record is not imported in any form until the domain sheet exists to receive
+it, and AX1's art pages are not imported at all.
+
+*Rejected:* the record as a Judge-only picture page in the meantime.
+
+## 2026-10-17 — A placeholder is found by what it is, not by whose flag it carries
+
+Extends "Importing again refreshes what it did not create" (2026-09-02). New
+evidence: a field report of `@PdfText[def.equip.herbComfrey]{RR p.145}` on a
+character's herbs, and more like it. Every repair this module had found its
+documents by the importer's flag, in the library — and only the abilities pass
+walked a character. A template package's gear is a skin (`buildGearData`): a
+copy of the library item, description included, with the importer's flag
+stripped so it cannot answer for the definition. A skin copied while its base
+still held a placeholder kept it, and no gesture a user had could reach it.
+Equipment and every other kind on a character were unreachable the same way.
+
+**Ruled.** The tag names its own entry, so a pass finds tags by what they are:
+every string of every document the world and its compendia hold, embedded
+documents included. It replaces each tag with a fresh read of the entry it
+names, in the shape an import writes today, under the entry's current page
+reference (the tag's own may predate 4.3.2's page fix). Only the tag goes; a
+Judge's writing beside it stays, so no ownership question arises. A tag whose
+book is not open on the seat, or whose entry the library no longer has, is
+left as it is and reported with what it needs. It is a check in Repair This
+World (`importer.legacyText`), where each finding is listed and the rescan
+judges the fix, and Import Everything closes on the same fix.
+
+*Rejected:* resolving tags at render again. That is the per-seat resolution the
+2026-08-24 ruling retired, kept alive to display copies a single write fixes.
+*Rejected:* copying the library document's description over each copy. It
+reaches only copies that kept a flag naming their base, and a library item can
+hold a placeholder itself.
+
+## 2026-10-17 — An ACKS I adventure binds to ACKS II, replacements included
+
+**Ruled (user, 2026-10-17: "AX modules use ACKS II versions and especially
+replacements where relevant").** Every class, proficiency, spell, item and
+monster an AX book names binds to the ACKS II document the library holds,
+never to an ACKS I version of it.
+- **Same name.** A thing ACKS II prints under the name the AX book uses is
+  that thing ("Between books, identity follows the newest printing",
+  2026-10-09): a monster links to its ACKS II entry, and a character's class
+  and abilities are ACKS II's ("A person the page prints in full becomes a
+  character").
+- **Another name.** Where ACKS II replaced the thing under another name (a
+  renamed or reworked class, spell, proficiency, item or monster), the AX
+  book's name binds to the replacement. The pair is registered, never guessed
+  at import: a reviewer authors it as the ACKS II document's cookbook id,
+  keyed so that no name the IP doctrine withholds ships (`printKey` of the
+  ACKS I name). The System Compatibility Guide is read first wherever it
+  prints the conversion.
+- **Neither.** A name with no ACKS II document and no registered replacement
+  is reported, and the document is still made. Nothing is invented.
+
+Amends the AX1 design's "ACKS I names on ACKS II classes: reported, never
+invented": a name is now reported only where no replacement is registered.
+
+*Rejected:* fuzzy name matching at import, which picks a wrong document
+silently; keeping an ACKS I version beside its ACKS II replacement.
+
+*Cost:* each replacement pair costs a reviewer a read of both books, and a
+pair nobody registered reads as a gap until someone does.
+
+## 2026-10-17 — How a book's Adventure is assembled and kept current
+
+Amends "A book is in the library as one Adventure" (2026-10-17) on two
+points. Each names what that ruling did not know.
+
+- **An edit is told by the stored document's modified time, not by a second
+  hash.** *New evidence:* a probe that ran core's own data models under Node
+  showed that a stored source gains every field a later data model adds as
+  soon as it is loaded. A hash over the stored Adventure therefore drifts on
+  the first core or system update, and every Adventure would read as the
+  Judge's. Instead, the stamp records `writtenAt`: the document's modified
+  time, read back after the write and recorded by a second update. A modified
+  time more than `WRITE_SLACK_MS` past it is an edit. Only the hash over the
+  assembled sources remains, taken without any `_stats`.
+- **Every document is a root, and the library keeps what the world does not
+  need.** *New evidence:* in the world the Adventure was assembled in,
+  roots-for-all creates a world copy of every library person, list, journal
+  and item next to the copy that everything already names. That is the
+  breakage the 2026-09-30 fill exists to prevent. So a person, a list, a
+  journal, an item, or a place no carried map shows stays in the library
+  when the library holds it, and anything that names it points there. A
+  world whose library lacks them creates them all. Pregenerated characters
+  are left to their own slice.
+
+Mechanics, with no ruling reversed:
+- The maps are built by the map step's own code: a grid recipe's plan
+  through `gridScenePlan` on an unsaved scene, and the picture cut at the
+  plan's scale. A region's map and a settlement's are built alike.
+- A zone is carried as the world scene holds it, with the list it rolls on.
+  It is another book's row laid over the map, and only a held map has one.
+- Folders mirror where the world files each document now: a library
+  document with a world twin is filed as its twin is, so an import into the
+  same world finds its folders held. The world folder's id is used where one
+  matches. This replaces the fixed per-map folder set.
+- An import is refused while any library shelf is cold. A cold shelf reads
+  every library document as missing. *(Amended 2026-10-25, "A book
+  Adventure's import waits for the library": the import waits for the warm
+  first, and the refusal stands only for a shelf that does not load.)*
+- A map whose page does not match its recipe fails its whole book, and the
+  error names the map. The alternative is an Adventure that silently lacks
+  the map.
+
+*Rejected:* a hash over the stored content (above); shelving decided per
+document at assembly, which would make the stored Adventure depend on the
+library it was built beside.
+
+*Cost:*
+- Any write to the stored Adventure past the slack reads as the Judge's,
+  including a write that is not theirs (a migration over every compendium
+  document). Such an Adventure is kept until someone deletes it.
+- A link from a list, a journal or an item to a carried document stays a
+  library link: `adventureRefs` has no slot for those documents.
+- The map step leaves a map whose quarters are not imported yet waiting
+  (`unready`). The Adventure has no such wait, so a half-imported book's map
+  is built with empty seats, or fails the book if its build throws. Run as
+  the chain's last step, the adventures step meets this only when a book's
+  earlier steps failed.
+
+## 2026-10-17 — Walls are traced at import from the Judge's own page
+
+Supersedes two earlier passages:
+- the **Walls** bullet of "Maps are joined as scenes" (earlier the same
+  day);
+- the clause of "A printed map is a recipe of geometry over its page"
+  (2026-09-17) that ruled a generic map tool out of scope.
+
+Both entries' rejections of shipping the picture or a tracing of it still
+stand, the "traced walls in the register" rejection included.
+
+**New evidence.** The same-day reversal rests on three findings:
+- **Every AX map is a raster.** A probe of pdf.js's operator list found
+  every AX1 and AX3 map page to be a single placed raster with no vector
+  layer, so pixels are all there is to read.
+- **The trace works on AX1's first dungeon level (PDF p38).** A tracer run
+  gave 688 walls, 62 of them doors, enclosing one connected floor. The
+  result held at 50 and at 100 pixels to the square, and across gray
+  thresholds from 150 to 170.
+- **Few corrections are needed.** About 2–4% of the plan's cells needed a
+  hand correction.
+
+On that evidence the user ruled to trace at import with a 5% correction
+cap: "Don't even bother with the cipher." On timing: "walls traced at
+import land in AX1's minor, reversing the no-walls answer."
+
+**Ruled.**
+- **A recipe may carry `walls`.** The block holds three things:
+  - `mode`, one of three:
+    - `grid`: rock and floor on the drawn squares, with doors in the throats;
+    - `contour`: the floor's outline, for caves;
+    - `stroke`: light wall strokes on a dark floor;
+  - the gray `threshold` the mode cuts at;
+  - the `corrections`.
+
+  The lattice is the recipe's own `grid`, which is measured geometry
+  already (2026-10-09). The trace runs at import, over the crop of the
+  Judge's own page, and no traced geometry ships.
+- **A correction is a sparse, absolute assertion** on that lattice. Each
+  one does one of three things:
+  - marks a cell as floor or rock;
+  - marks a one-cell throat as a door, a secret door or open;
+  - marks a cell's edge as a wall, a door, a secret door or open.
+
+  A further kind drops the island found at a page point. A correction names
+  a cell, an edge or a point, never a segment or a polyline, because a list
+  of segments is a tracing.
+- **The cap.** A recipe's corrections number at most 5% of the lattice
+  cells its crop spans. `recipeProblems` checks this, so the compiler, the
+  lint and the verifier all refuse a row over the cap. A plan that needs
+  more stays wall-less and is listed on the ROADMAP. The cap is the line
+  between correcting a trace and shipping one.
+- **The walls ride the map's one create** with the picture, the regions and
+  the tokens. The book's Adventure carries them too.
+- **A map with walls has token vision on, under global light.** Walls exist
+  to block sight and movement, and with sight off a plan draws them as
+  lines only. Global light keeps the plan readable while the walls cut line
+  of sight. A map without walls keeps the 2026-09-17 settings.
+- **The trace renders its own grayscale copy of the crop**, at a fixed
+  pitch in pixels per cell. It does not depend on the picture's cache or
+  scale. Its points are carried through the same `toScene` as the
+  picture's, so the walls and the picture turn by one rule.
+- **The hatched-wall plans stay wall-less** (AX1 p10, p11 and p14), because
+  every mode failed on them. They are listed on the ROADMAP. The streets and
+  gates of AX3's city map stay shelved, since this ruling covers plan walls
+  only. *(Superseded 2026-10-25 by "The hatched plans and the storeys stand
+  walls": p10 is read by a `hatch` mode, p11 and p14 by `stroke`.)*
+
+*Rejected:*
+- **The book cipher**, which ships the tracing encrypted under a key read
+  off the page's line initials. It still ships the whole tracing, which
+  needs a change to the template's doctrine, and the user dropped it.
+- **Estimating the lattice at import.** Autocorrelation locked onto a
+  harmonic on the cave plan, so the pitch is the recipe's measurement.
+- **Tracing the uploaded picture.** A held picture is served from the art
+  cache without a render, and a grid recipe's picture is several times the
+  pixels a trace needs.
+- **Corrections as segments.** A list of segments is a tracing.
+
+*Cost:*
+- A walled map's crop is rendered a second time on each import, and the
+  trace runs on the main thread while it does.
+- A renderer that draws the page differently can move a wall by a pixel or
+  flip a marginal cell. The threshold band is the margin, and the live gate
+  quotes the counts.
+- Corrections are authored by eye against a local overlay of the book's
+  page. That overlay never enters a repository.
+
+## 2026-10-17 — What AX1's cave level taught the contour trace
+
+Amends "Walls are traced at import from the Judge's own page" (the same
+day), which gave a correction four forms: a cell, a throat, an edge and an
+island's point.
+
+**New evidence.** AX1's cave level (PDF p55) is the first contour plan
+traced, and it needs a form the ruling lacked:
+- **Light marks read as doors.** Contour reads a door as a light bar closed
+  at both ends. On p55 a light sliver between a rock edge and a grid line,
+  and the wave bars drawn on water, passed that test.
+- **No ruled form removes one alone.** In contour a door lies where its bar
+  is drawn, off the lattice. A cell asserted `open` cuts every segment that
+  crosses the cell, the outline's walls beside the door with it. An edge
+  cuts only segments that run along a lattice line, which a drawn door does
+  not.
+
+**Ruled.**
+- **A drawn door must stand in a passage.** Contour keeps a door only when
+  there is floor beyond both of its long sides. A sliver against a rock
+  edge has rock on one side and is not read.
+- **A point correction may drop a door**, in contour mode only:
+  `{at, drop: "door"}` removes the drawn door nearest the point, within
+  half a cell. A point with no door that near drops nothing. It counts
+  toward the 5% cap like every other correction, and it names a point, not
+  a segment.
+- **A point never flips the plan.** An island point that lands on the
+  largest component of its value, the plan's floor or the rock framing it,
+  is refused and counted (`islandsRefused`). On p55, 10 gray levels either
+  side of the recipe's cut, 2 and then 3 of its 16 island points landed on a
+  main component, and the trace returned the crop's border and nothing
+  else. With the guard those points are refused and the plan stands. A
+  refusal on a live import says the render drifted.
+- **A contour door reaches its walls.** Simplifying and snapping move the
+  outline off the drawn jambs. On p55, 4 of 13 doors stopped 0.15 to 1.65
+  points short of the outline, a gap that sight passes. A door end on the
+  floor side of the outline now reaches along the door's line to the
+  nearest wall within a quarter cell, and crosses it slightly, so rounding
+  to whole scene pixels cannot reopen the gap.
+- **A star drawn on the floor is floor.** The user ruled a star "not a wall
+  but an item in the room of importance"; stars, rings and stairs drawn on a
+  plan are dropped as islands, or made floor on their cells.
+
+*Rejected:*
+- **A door test strict enough to need no drop.** A water bar and a narrow
+  door have the same shape at the pitch the trace runs at, so a stricter
+  test loses real doors.
+- **Narrowing a cell's `open` to doors in contour.** It would give one form
+  two meanings by mode, and a cell `open` is also how a contour plan cuts a
+  wall that should not be there.
+
+*Cost:* the passage test can also refuse a real door drawn against a rock
+face. Such a door is asserted on its cell, which costs a correction.
+
+## 2026-10-18 — A book's page geometry is the book's, and an aside is no room's prose
+
+AX1's rooms are the first rows read on AX1's pages at scale, and three of
+the AX defaults misread them. Column detection found one column on a page a
+map is set into, so p.41's prose went to the wrong room and the harvester
+sorted its keys out of reading order. The paragraph rule, tuned on AX3, opens
+a paragraph above 1.6 line pitches; AX1 opens one at 17 to 19 points on a 12
+point pitch, so one stat block ran on through the next two rooms. And the
+9pt sidebars and tables AX1 sets across the gutter were read into the prose
+beside them, since the executor reads every run in a box.
+
+**Ruled.**
+- **Bands are per book.** A book's page geometry lives in the compiler's
+  `AX_BOOK_BANDS`, keyed by book, never in each row's assists.
+- **AX1 reads on a fixed grid.** Its columns are the grid of its even and
+  odd pages. Every other book still detects its columns.
+- **An aside is no room's prose.** A run in a book's aside size is read by
+  no keyed area. AX1's sidebars become journals of their own in S7 and are
+  unclaimed until then.
+- **AX1's tables lose their doubled text.** Two of AX1's tables had read
+  their own grid as a description, and a wandering-monster detail had taken
+  in a sidebar's words. The bands correct both. Nothing has shipped them.
+
+*Rejected:*
+- **Columns as row assists.** About two hundred rows would each carry the
+  same grid, and the harvester would still order keys by detection.
+- **Retuning `detectColumns`.** Every book's compile shares it, and every
+  cookbook would move under the drift gate.
+- **Dropping aside runs by `fixes.drop`.** A box's join fixes are computed
+  with the aside's runs among the prose's, so dropping one also drops the
+  space after the prose run before it.
+
+*Cost:* the bands measure one printing, and they live in code. A printing
+with other margins needs its own entry.
+
+## 2026-10-18 — AX1 prints ten inhabitants, and a stat block may run on into the next column
+
+The 2026-10-17 ruling names nine inhabitants. The page sets ten blocks under
+display headings. Nine carry ability scores and a class level; the tenth
+carries a monster's line, with hit dice and attacks and neither scores nor a
+class.
+
+**Ruled.**
+- **Ten rows, nine characters.** `ax1.npc1`–`ax1.npc10` in reading order.
+  The nine are `meta.actor: "character"` under the 2026-10-17 ruling.
+  `ax1.npc2` binds a monster actor, as AX3's people do.
+- **A block the column's foot cuts takes its run-on.** `assists.statRunsOn`
+  reads the next column's top as a second box. The executor reads `boxes` in
+  the order listed, each box in reading order. A read of their union by y had
+  put the run-on first. AX1's 27 paragraphs already read through `boxes` read
+  the same runs, in the same order.
+- **A split label is still the label.** A label set in several runs of its
+  line is matched across them. A movement clause closed by a semicolon is
+  read as movement.
+
+*Rejected:*
+- **Detecting the run-on.** A block that ends at the foot is shaped like one
+  that runs on, and a room's occupants would take in the next column's prose.
+- **A second statline field.** The character binding reads one block.
+
+*Cost:* one assist on one row.
+
+## 2026-10-18 — A mixed book is a Judge's book by its Judge's half; its player's half never took the flag
+
+*Superseded in part, 2026-10-23 ("A book's content stands on its own open
+shelf"): the Judge's-half ruling and the one-book-one-line ruling stand; the
+reach of a content row — "files unlined whichever book printed it" — does not.*
+
+The catgirl's first cut (the entry below) withdrew the tavern's two floor
+plans on the reading that `judge: true` closes every shelf of a book — the
+classes and the race with the keeper and the rooms — and that a book with a
+player's half and a Judge's half needs a line for each. The reading was
+wrong, and the evidence was in the cut itself: the walk's own sweep filed the
+classes and powers on the library's open Item shelf and only the monster on
+the line's (commit 093ea20, TESTING). `lineOf` names a book off an id's
+prefix or its `book` flag; a class, a power or a proficiency carries a `def.`
+id and a flag of `{id, cite}` with no book, so no book's flag reaches it. Run
+under Node with `BOOKS.cat.judge = true`, every `def.` id still resolves to
+no line and only the `cat.` ids move, to the series' Judge line.
+
+**Ruled.**
+- **`cat` is a Judge's book.** The flag marks a book whose OWN rows are the
+  Judge's; what the book contributes to the library's lists never files by
+  book, so it stays open. The two floor plans go back as compiled. The keeper
+  and the rooms wait on readers (ROADMAP) and join the book's Adventure when
+  they land.
+- **One book, one line.** No second line, no second id. The registry's
+  `judge` paragraph and `lineOf`'s docstring state the reach, and
+  `test-judge-shelf` pins it: every content row files unlined whichever book
+  printed it, every row of a book's own file carries the book's prefix, and a
+  lined Judge's book's ids take its series' Judge line.
+- **The scenes and Adventure steps take a `books` scope,** as the item steps
+  take `only`: the live walk runs them on the one book it opened, on a seat
+  that holds every shelved book open.
+- **The compendia reference prints a series' Judge line as the pattern,**
+  never the series' name (docs/DECISIONS.md §21): the first lined map book
+  would otherwise have put a publisher's title on the page.
+
+*Rejected:*
+- **Routing by kind** — keyed places, people, organisations, maps and the
+  Adventure to the Judge line for every book, the rest by flag. It keeps a
+  mixed book's monsters open and buys nothing else. It reverses "the shelf is
+  derived from the document's own cookbook flag" for the journals and tables
+  that carry no kind, and about fifteen `lineOf(bookId)` sites — every Places
+  and Factions folder, the journal pack, the census, the Adventure filter —
+  must agree with the document's line, or a folder of one pack is handed to a
+  write into another; the file is under a peer's edit. It is the design for
+  the day a book's own row has to stay open, and not before.
+- **A second book id for the Judge's half.** Two rows with one fingerprint
+  give `identifyBook` two hits and it names neither, so the wrong-book
+  refusal is lost for both; `matchFilesToBooks` hands a file to one id; the
+  typography, the shelf journal and the byte cache double; and 2026-10-17
+  made the book the unit of its Adventure.
+- **Leaving mixed books out.** The tavern never ships, and the roadmap keeps
+  a premise the code contradicts.
+
+*Cost:* the catfolk beastman files on the line's "— Judge — Actor" shelf,
+closed to players, where the Monstrous Manual's monsters are open. A later
+per-book row of this book — an essay, an item written per book — closes with
+it, and that is the signal to build the kind routing. `cat` is the first
+Judge's book with rows in the content files, so this is the first run of that
+path. The Books window gains the book's Adventure line. Nothing shipped the
+first cut, so nothing migrates; a dev world that imported it keeps its
+open-line monster, and `importedActor` searches every shelf, so the beastman
+is not imported twice. Each plan counts the book's own place — a settlement
+row this book never prints — as a place not yet imported: a number on the
+maps step's notice, with nothing refused. Live (2026-10-18, the typography
+walk, 26 checks): both plans stood up gridless and off the navigation bar,
+the Adventure carried them with the monster on the series' Judge Adventure
+shelf, the Player seat saw neither Judge shelf and saw the eight items on the
+library's own, and the sweep removed 13 documents with none missing or
+refused; the walk's presence census had been minting the line's Actor shelf
+before its shelf census ran, and now counts it as its own.
+
+## 2026-10-18 — A community book joins the shelf, and a book's typography is declared beside its fingerprint
+
+The user asked for *The OSR Catgirl: Nine Lives of Adventure* (Contentronix,
+an ACKS-compatible community supplement) to be imported like the ACKS books.
+The 2026-08-19 ruling names the third-party titles that get shipped
+cookbooks; this request extends that list by one title on the same terms:
+the cookbook carries boxes, anchors and citations, and every word and number
+arrives from the Judge's own copy.
+
+**Ruled.**
+- **The title is `cat` in `BOOKS`,** fingerprinted by page count and a title
+  pattern — the file carries no metadata title.
+- **A book's typography is a declared input, beside its fingerprint.** The
+  book is a word-processor export: body at 12pt where the family's books set
+  9.5, five ligatures encoded as Latin Extended-B letters and a bullet as a
+  private-use point, each ligature a run of its own, and every label's colon
+  set in the value's run. `BOOKS.cat.typography` declares those (`bodyPt`,
+  `glyphs`, `ligatureRuns`, `labelColon`) with the page measures its readers
+  take (`leading`, `paraGap`, `bodyTop`, `wrapAlign`); `pageItems` applies
+  them to a document tagged by `useTypography`, so the compiler and the seat
+  read one book identically. Heights scale to the ladder; x and y stay in
+  page points. An untagged document is read byte for byte as before.
+- **A spread whose title is art anchors on a label.** `anchor.label` names a
+  body-size run-in — the stat block's first label, the class header's first
+  bullet; the expect text is that label and the document is named by the
+  register row. kind.monster and kind.class take it.
+- **A passage that leaves its page is authored, never detected.**
+  `assists.continuation` lists the columns in reading order
+  (`{page, col, y1?}`); `assists.pageColumns` states a page's columns where
+  the detector reads one; `assists.proseColumn` says where a monster's prose
+  sits when it is beside the block; `assists.labelAliases` maps a book's own
+  labels onto the rows; a proficiency list that turns a column names the
+  column (`profList.continues`). A continuation paragraph with no label above
+  it carries no section, so the executor joins a box opening mid-sentence onto
+  the box before it across the page turn.
+- **What ships first.** The race's five tiers (kind.power), the catfolk
+  beastman (kind.monster) and the three classes (kind.class, chassis
+  fighter/fighter as each spread states; progression tables unread, since two
+  of the three are images). The tavern — its two floor plans, its keeper and
+  its keyed rooms — the ten items and the essays wait (ROADMAP).
+
+*Rejected:*
+- **Per-document size floors threaded through the compiler.** About seventy
+  sites in a file a peer is editing and twenty more outside it, for a floor
+  the ladder already expresses — and a floor cannot put a ligature back.
+- **A better column detector.** The tagged read moves no threshold, and an
+  untagged book is unchanged; the column ruling stands.
+- **The keeper as kind.npc now.** Her block is set as spaced paragraphs under
+  the name with the prose beside it; the cluster reader stops at the first
+  gap and the flow takes the rest of the block for prose. A provisional row
+  compiled clean and read back three lines of the block.
+  **Superseded (2026-10-23)** by "A person written out is read by her
+  labels": the block is not a cluster, so a reader of its own takes it whole,
+  to the label that opens the prose.
+- **Splitting the book's paragraphs by ratio.** Its gap is 1.4× its pitch,
+  under the 1.6 the median split needs; the gap is declared, not re-derived.
+- **The tavern's two floor plans in this cut.** Two kind.scene rows compiled
+  gridless (never run on a seat), and `test-judge-shelf` refused them: a book that
+  ships a map is a Judge's book, and a Judge's book's every shelf is closed to
+  players — which would close the classes and the race, the half of this book
+  a player opens. The registry gives a book one line; a book with a player's
+  half and a Judge's half wants two, and that is a ruling the tavern's keeper
+  and rooms need as much as its plans do. The rows are withdrawn with the
+  rest of the tavern (ROADMAP).
+  **Superseded (2026-10-18)** by "A mixed book is a Judge's book by its
+  Judge's half": the flag never reached the classes, and the plans ship.
+
+*Cost:* `BOOKS` is runtime code now carrying a per-book fact the compiler also
+reads. The 2026-10-09 ruling rejected that for facts only the compiler reads;
+these the seat reads too — the `heading` op hashes the mapped letters and
+`stripPrefix` counts them. Size assists written for a typography book are in
+scaled points. `SPOIL_RE` admits "st." beside "st". The glyph keys are spelt
+as escapes (2026-10-14). The private-use bullet maps onto U+2022 on purpose:
+the executor's `clean` strips the private-use range, so an unmapped bullet
+would vanish from imported prose where the book's other bullet (U+25CF)
+already reaches it. The proficiency list of every shipped class now goes
+through `withFixes`, so the 31 earlier class recipes gain `joinSpace`
+ordinals at their line turns: the list each materializes is the same once
+whitespace is folded, which is how its names are matched, and the
+descriptions are byte for byte what they were. The icon ledger's class
+register widens to core's heraldic shields: core paints 31 banners and the 31
+shipped classes hold every one, and a class item's img has no fallback
+picture, so the optional game-icons banners were not an answer (an ability's
+`iconNiche` has one; a class has only `icon`). The book's list label is set
+in the first name's run, so the class
+list ships a `stripPrefix` count for it, the way a run-in heading does.
+
+## 2026-10-18 — A secret door stands on both mouths, a split box is a double door, and the crop's edge walls nothing
+
+Amends "Walls are traced at import from the Judge's own page" (2026-10-17).
+That trace stood a secret door across its cell's middle, read every door box
+as one door, and walled the crop's edge like any other edge.
+
+**New evidence.** The user reviewed indexed overlays of AX1's first level
+(PDF p38) cell by cell and marked what the trace got wrong:
+- **A secret door across a cell's middle leaves a wall.** "A secret door
+  like 1-5 needs secret doors on both sides. A wall in the middle wont
+  work." Asked whether that held for p38 alone: "I was talking about other
+  pages too."
+- **A door box split by a bar is two doors.** For a double door the trace
+  missed the user chose "Doors on both lines", and for the rule "Every split
+  box". p38 draws six, one of them across two cells, and the trace read each
+  as one door.
+- **The crop's edge drew straight walls across rooms.** Room 1's bottom and
+  room 56's top were cut by a line where the crop ended, not the plan.
+- **Rubble is floor, and a raised structure is not.** The marked rubble had
+  traced as rock, and "the pyramid needs at least terrain walls, it's not
+  simply walk through."
+- **On authoring:** "don't be afraid to recipe something knowing the answer.
+  Not everything has to import, the recipe just has to be useless without
+  the book to protect the IP."
+
+**Ruled**, for every plan:
+- **A secret door stands on both mouths of its cell**, in `grid` and
+  `contour`, so the wall reads whole from either side.
+- **Every split box is a double door**: a door on each of its drawn long
+  lines, the opening's whole width. A bar counts only between the box's
+  long lines, in the middle of the opening, with the box's lines on both
+  sides of it, so a box's closed end is no bar. A plain box stays one door
+  across the cell's middle. *(Superseded the same day by "A double door is
+  two leaves meeting at its bar, and a correction may be a drawn line": the
+  two doors are two leaves on the box's centre line.)*
+- **The crop's own edge is no wall.**
+  - In `grid`, a floor cell on the lattice's border is walled there only
+    where the crop's strip beyond the lattice is a quarter cell deep or more
+    and mostly rock.
+  - In `contour`, an outline segment along the render's border is dropped.
+    On p55 that drops 4 segments and changes nothing else; each was a
+    closure across a passage that runs off the plate's edge.
+- **A correction may be a box of terrain**, `{box: [c0, r0, c1, r1], is:
+  "terrain"}` on lattice lines. Its four sides take core's Terrain wall
+  senses: they block movement, and sight stops at the second terrain wall it
+  crosses. A box weighs 4 against the cap, one per side, as four edge
+  corrections would. An edge correction overrides a side, which keeps a
+  stair onto the structure open.
+- **Rubble drawn in a room is floor.** Where the trace reads it as rock, its
+  cells are asserted `floor`.
+- **p38's recipe:**
+  - the crop reaches up to the row of rock above the first rooms and down to
+    the page's frame, two more lattice rows, one at each end;
+  - the threshold falls from 155 to 95, which reads 1253 floor cells against
+    1228 on the same lattice, and the counts hold at 85 and 105;
+  - 48 corrections weigh 51 of a cap of 95;
+  - the trace finds one floor region, 6 split boxes, and the structure's box
+    with its stair open.
+- **The user inspects every dungeon map before a push.**
+
+*Rejected:*
+- **Reading a split per cell.** A box across two asserted cells is split on
+  their shared line, which neither cell's scan sees whole. The opening is
+  read as one run of door cells.
+- **Weighing a box by its perimeter.** p38's box would weigh 40 of 95. A
+  side is one assertion, as an edge is.
+- **Loosening the label-ring test** to stop it masking two of p38's door
+  boxes. It dropped real labels, so the two doors are asserted (ROADMAP).
+- **Opening a contour cell asserted a door.** It reshaped p55's outline
+  around its three asserted door cells, whose doors already stand in their
+  passages (ROADMAP).
+
+*Cost:*
+- A Judge opens a secret passage as two doors.
+- A token inside a terrain box sees out over its sides, and one outside
+  sees in.
+- A passage that runs off the plate's edge is left open there.
+
+## 2026-10-18 — A double door is two leaves meeting at its bar, and a correction may be a drawn line
+
+Supersedes the split-box rule of the entry above; its other rules stand.
+
+**New evidence.** The user reviewed the sheets drawn on the importer's
+render:
+- "double doors are a two lines that meet at the middle, not double layered
+  doors", with five of p38's boxes marked and "there are a few more". The
+  earlier answer "Doors on both lines" had been read as a door on each long
+  line; the drawing is two leaves side by side along the wall.
+- "two angled doors are off": two p55 doors asserted on cells stood square
+  to the lattice across passages that run aslant.
+- "missing wall around stairs": p38 room 53's stair and p55 room 1's stair
+  box traced with no walls.
+- "missing tiny door": a door box where a p55 corridor narrows into a room;
+  the throat stays open and reads no door.
+- A dotted line between two caves (AX1 p. 62). The user confirmed it from
+  the book: "Iron bars is a wall you can see through but not walk though."
+
+**Ruled.**
+- **A split box is two leaves on its centre line, meeting at its bar**, each
+  from one end of the opening. The bar test is unchanged.
+- **A correction may be a line**, `{line: [x0, y0, x1, y1], is}` in page
+  points, weighing one. In every mode it asserts `wall`, `door`, `secret`,
+  `terrain` or `invisible`, and it is laid last: a door or secret line
+  replaces every traced door within half a cell of it, and in `contour`
+  closes against the outline as a traced door does.
+- **`invisible` is core's Invisible wall**: movement NORMAL; light, sight and
+  sound NONE. A barred opening is one.
+- **A stair is walled along its sides and open at its mouth.** A drawn
+  stair's lines narrow toward its lower end, and the mouth is the end a
+  walker steps on (AX1 pp. 46, 56 agree for both stairs). p38's stair takes
+  two edges along its north side. p55's box takes eight: every side and the
+  divider between its flights, except the mouth of the flight that opens on
+  the room.
+- **The wheel beside the barred cave is its spiral stair** (AX1 p. 62). It
+  keeps its floor cell, walled into the rock and open to the cave where its
+  drawing opens.
+- **p55 takes 47 corrections, weighing 47 of a cap of 80.** The two cell
+  doors become lines aslant on their drawn boxes; the tiny door is a line
+  across its box; the dotted line is an invisible line; the stair box takes
+  its eight edges. The importer's render reads 14 doors and one invisible
+  wall, and refuses no point.
+- **p38 takes 50 corrections, weighing 53 of 95.** Its six split boxes read
+  as twelve leaves.
+
+*Rejected:*
+- **Terrain for the bars.** Sight would stop at a second terrain wall behind
+  them.
+- **A box state of `wall` for the stair box.** Its mouth needs an open edge
+  either way, and eight edges assert the drawing without a new state.
+- **A line in lattice units.** A point correction already takes page points,
+  and a line is for what lies off the lattice.
+
+*Cost:*
+- A line's points are read off the importer's render, so a render that moves
+  shifts the drawn box under it, as with any point correction. Closing covers
+  a short line in `contour`; elsewhere the review sheets catch the drift.
+- A Judge opens a double door as two doors.
+
+## 2026-10-18 — A recipe is checked on the importer's own render, never on a plate
+
+Amends "What AX1's cave level taught the contour trace" (2026-10-17), whose
+26 corrections for p55 were read off a local plate render resampled to the
+lattice.
+
+**New evidence.** The live import of p55 traced 11 doors where the plate
+traced 13, and refused one island point. The importer renders the page with
+pdf.js (print intent, white ground, Rec. 601 gray, `TRACE_PITCH` pixels per
+grid box). A reproduction of that render under Node (pdf.js' legacy build on
+@napi-rs/canvas) traced 1496 walls and 11 doors against the live run's 1497
+and 11, so the render, not the tracer, had moved. On it:
+- one door's throat closes into rock, so its room and its passage are two
+  outlines that meet at a point;
+- another throat stays open past its drawn door;
+- a pale patch of rock texture at the crop's right edge reaches a passage
+  along the edge, so it is the plan's floor, which an island drop never
+  flips.
+
+**Ruled.**
+- **A recipe's corrections are read and checked on a reproduction of the
+  importer's render.** A plate is a different rasterizer and resample, and a
+  throat or a pale patch reads differently on each.
+- **p55 takes 37 corrections, weighing 37 of a cap of 80:**
+  - the refused point goes;
+  - two cells floor the closed throat and an edge asserts its door;
+  - the open throat's door is a cell door;
+  - five solid cells make the patch rock;
+  - three open edges take the wall left along the crop's edge, where the
+    patch ran past the lattice's last column.
+- **The trace reads 13 doors and refuses no point** on the importer's render.
+  On the plate it reads the same.
+
+*Rejected:*
+- **Another threshold.** With the 26 corrections on the importer's render,
+  every threshold from 125 to 170 that was tried refuses 1 to 7 points and
+  reads 10 or 11 doors.
+- **Running cell corrections before island drops,** so one solid cell could
+  cut the patch free and the old point drop it. It changes what every
+  recipe's corrections mean, to save a few corrections on one plan.
+
+*Cost:*
+- The closed throat's door spans its corridor's whole cell.
+- Its room gains a sixth of a cell beside the throat.
+- The other door stands 0.3 cell from its drawn line.
+- A notch half a cell wide stays in the passage's wall where the patch met
+  it at the crop's edge.
+
+## 2026-10-18 — A presence check reads; only an import opens a shelf
+
+Amends "One dedup rule for every importer: ask the shelf you write to, and
+claim before you build" on the actor side, and the typography walk's census
+order of the same day.
+
+**Evidence.** `importedActor` asked `packFor` for the id's own shelf, to
+read that shelf before the others. `packFor` is the WRITER's door: it opens
+the pack it is asked for when the world has none. So the first "already
+imported?" question about an actor of a line — the walks' census, an
+importer's dedup gate, the OSE book's group check — left the line's Actor
+shelf in the world as an empty pack. Live, on the catgirl's walk run before
+any import, the census left `…--the-osr-catgirl--actor` behind and, once the
+book was a Judge's, `…--judge--actor`; the walk was then reordered to read
+its pack census before its first presence check, which deleted the pack it
+had caused rather than stopping it being made.
+
+**Ruled.**
+- **A presence check never opens a shelf.** `importedActor` finds the own
+  shelf through `findLibraryPack`, which answers null for a shelf the world
+  lacks, and reads the others through `ourPacksOfType`; `packFor` is for the
+  writers alone. The own shelf still answers first when it exists, so a
+  creature re-shelved by a release that changed its line is found on
+  whichever shelf holds it.
+- **Pinned twice.** Offline, `test-imported-index` asks for an actor of a
+  lined book in a world with no shelf and counts calls to the pack minter:
+  zero, and the answer null; the same test holds the own shelf answering
+  first. Live, the typography walk reads the world's packs before and after
+  its GM census and fails on any difference, and holds that the line's Actor
+  shelf is absent before the census and among the packs the IMPORT opened.
+- The other presence checks already read: `importedItem` through the item
+  index, `importedTable` and `importedIdsOfType` through `ourPacksOfType`,
+  and the adventure writer through `findLibraryPack` before it opens.
+
+*Rejected:* keeping the walk's reorder as the fix. A walk that deletes the
+pack its census minted proves the walk tidies, not that the module reads; a
+Judge's own "import this?" click would still have minted it.
+
+*Cost:* a world that already holds an empty lined Actor pack from an
+earlier census keeps it; nothing here deletes a pack.
+
+## 2026-10-18 — A character from the page is bound by the sheet import, and its older names ride the renames already shipped
+
+How "A person the page prints in full becomes a character, and the derivation
+wins" (2026-10-17) is built.
+
+**Ruled.**
+- **The sheet import binds it.** The importer reads the parsed stat line into
+  the official sheet's boxes (`sheetValuesFromStatline`) and hands them to
+  `importSheet`, which already binds a class by name at a level, grants
+  proficiencies, gear, coin and spells, compares what the class derives
+  instead of writing it, and reports what the world cannot answer. The
+  importer makes the shell under the stable id first and writes morale and
+  the biography after. `importSheet` gained `record: false`, which leaves its
+  notes block, its import record and its chat card to the caller.
+- **Older names ride the two renames already shipped.** A class or spell the
+  library does not answer is retried under the conversion table's rename of
+  its category; a proficiency resolves through the ability index, whose
+  aliases carry older printings' names. Nothing is fuzzy-matched.
+- **The block quotes the line.** The "as printed" block opens with the stat
+  line itself, so the save code, the defeat award, the damage and the
+  leadership figures are on the sheet without a field of their own; then a
+  line per check and per name the library could not answer.
+- **The guard is the character's.** Rebuild and Remove Imports skip a
+  `character` a player owns, and nothing else, as the 2026-10-17 ruling says.
+
+*Rejected:*
+- **A character binder of its own** (`characterActorData`). It would be a
+  second writer of the sheet's fields, and would need its own class bind,
+  grants and checks.
+- **A register of replacement pairs** (an ACKS I name's `printKey` to an
+  ACKS II cookbook id). Live, the nine AX1 characters missed two names in
+  all, both spells: the conversion table marks one absent from ACKS II, and
+  renames the other to a spell the library does not hold. A register would
+  be a third rename mechanism beside the two that answered the rest, and
+  would answer neither of those.
+
+*Cost:*
+- The sheet bounds what lands: 20 proficiency rows, 7 weapons, 8 spells a
+  level. What it has no row for is listed as not in the library.
+- The bind takes no class awards (`grantAwards`). A choice award needs an
+  answer the page does not give, so a character from the page holds its
+  class's powers only where its line names them.
+
+## 2026-10-18 — A thin wall between two rocks is a wall, a symbol in a niche is no door, and a spiral stair is walled along its circle
+
+Amends two entries of this day. From "A recipe is checked on the importer's
+own render, never on a plate" it amends the open throat's cell door. From "A
+double door is two leaves meeting at its bar, and a correction may be a drawn
+line" it amends the spiral stair's walls and both maps' counts.
+
+**New evidence.** The user looked at the sheets again before any push:
+- "Missed a slanted wall": the p55 throat between rooms 16 and 18, where
+  the cell door stood, is closed by a thin wall. It is drawn as two parallel
+  lines aslant between the two rocks.
+- "Not a door": the edge door behind the corridor niche by p38's room 36.
+  The niche holds a drawn symbol.
+- "Nitpick on a rock": a rock in p55's room 8 is under 0.3 of a cell, so the
+  cleanup floors it. It stood unwalled beside two walled rocks.
+- "a stair": room 18's stair box was walled only where the outline met it.
+- "The wall around the circle stair could be cleaned up": the spiral
+  stair's floor cell stood walled as a square box.
+
+**Ruled.**
+- **A thin wall drawn between rocks is a wall line**, not a door. The cell
+  door goes. *(Superseded the same day by "The slanted pair between rooms 16
+  and 18 is a door": it is an aslant door line.)*
+- **A symbol in a niche stands in front of a wall.** p38's edge behind the
+  niche asserts a wall.
+- **A rock the cleanup floors, where the plan draws a rock, is walled by
+  lines around its outline.** Room 8's takes five.
+- **A spiral stair keeps its floor cell.** Four open edges take the square.
+  Five lines follow the circle on the rock side, from where the outline meets
+  it to where the outline leaves it. The stair stays open where its drawing
+  opens.
+- **Room 18's stair takes three edges along both long sides.** Its narrow,
+  lower end is the mouth on this level, and its wide end stands against the
+  rock.
+- **p55 takes 64 corrections, weighing 64 of a cap of 80.** The importer's
+  render reads 13 doors and one invisible wall, and refuses no point.
+- **p38 keeps 50 corrections, weighing 53 of 95,** and reads 64 doors.
+
+*Rejected:*
+- **A lower floor for the cleanup's rock blobs.** It would change every
+  contour plan's islands to wall one rock, and labels' rings and symbols are
+  what that floor drops.
+- **An open cell for the spiral stair in place of its floor cell.** It would
+  cut the outline wherever it crosses the cell, so the ends the arc must meet
+  would move with the render.
+
+*Cost:*
+- p55 has 16 weight of its cap left.
+- The wall behind p38's niche stands on the lattice, a sixth of a cell
+  behind the drawn back.
+- The arc is five chords of the drawn circle.
+
+## 2026-10-18 — The slanted pair between rooms 16 and 18 is a door
+
+Supersedes the thin-wall rule of the entry above; its other rules stand.
+
+**New evidence.** The user marked the two parallel lines aslant between p55's
+rocks at rooms 16 and 18 and said "This was a door". The earlier "Missed a
+slanted wall" was about the door's slant. It was misread as a wall.
+
+**Ruled.**
+- **The pair is a door line along its centre, aslant.** It closes against
+  the outline as a traced door does. Closed, it seals 16 from 18; open, it
+  joins them.
+- **p55 keeps 64 corrections, weighing 64 of 80,** and reads 14 doors and
+  one invisible wall.
+
+*Cost:* none beyond any line's. Its points are read off the importer's
+render.
+
+## 2026-10-19 — An item a book introduces is a core item read whole
+
+The catgirl prints ten items on three pages; the first cut (2026-10-18)
+left them because the kind was in flight for AX1 and no book had a row of
+it. The user asked for them this session, and only them: "Fix nothing else
+but adding the missing items for now."
+
+**Ruled.**
+
+- **A `kind.adventureItem` row anchors as a run-in line.** The book sets
+  an item's name in body type, bold in neither face, so no display heading
+  exists to find; the row carries `anchor: { hash, as: "runin" }` and the
+  compiler's run-in candidates are every body-size line of the column. The
+  heading detector sees nothing on those pages, which is the test that
+  decided it, not the book's look.
+- **A sibling's name line ends the prose.** With no display heading between
+  items, `compileAdventureItem` passes the book's other item lines as
+  `stops` (`bookCtx.itemStops`, built as `npcStops` is), so item 2's column
+  foot does not run into item 3's heading at the top of the next column,
+  and item 9 stops where item 10 opens.
+- **The book's foot is 760, not 750.** The last item's cost line sits at
+  y752, above the folio the page reader's footer filter drops; at the AX
+  default it read as a folio and the description lost its last line. `cat`
+  joins `AX_BOOK_BANDS` with only its foot set.
+- **The binding is name and description, nothing else.** A core `item`,
+  named from the page, its description the item's one printed paragraph with
+  the page reference last; `cost`, `weight` and `quantity` take the type's
+  resting values. It is filed under the book's folder, "Items", in the
+  line's Item pack, so a Judge's book's items close with its other rows,
+  and it is claimed by cookbook id like every item, so a second run reports
+  "already present".
+- **One step, scoped like the maps.** `cookbookImportAdventureItems({ books })`
+  runs after the roll tables in Import Everything and is quiet when no open
+  book prints an item. The Adventure, written last, carries the items as it
+  carries every Item of the book.
+
+**Rejected.**
+
+- *Reading the figures into fields now* (a worn item's attack and damage
+  bonus as weapon fields, the cost as `system.cost`). Each item prints its
+  figures in a different clause of its paragraph, and a binding that reads
+  one shape reads the next wrongly; the kind's note says the upgrade is in
+  place, when a magic-item binding exists.
+- *Breaking the paragraph before the cost line.* The page sets the cost on
+  the paragraph's own pitch with no gap, so it is one printed paragraph, and
+  the description is the page's.
+- *Authoring the stops per row* (`assists.stopKeys` naming the next item's
+  hash). It is the same list the register already holds; deriving it keeps
+  the rows to an anchor and a page.
+
+*Cost:* the Judge applies an item's bonus by hand until a binding reads it.
+The live record: the typography walk, extended, ten items made on the
+first run, none refused; each a core item of one paragraph with a page
+reference, standing on the line's Judge Item shelf, which the import and
+not the census opened; the Adventure carrying ten items; the Player seat
+seeing no shelf of the line.
+
+## 2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows
+
+The ruling of 2026-10-21 (equipment DECISIONS, *The attack seam rides the
+system's labelled modifiers*) had the weapon binder hand the table's quality
+words to the system's tag migration as legacy `tags`. The new evidence is the
+rebuilt Weapons shelf read back on 14.1.0 the day after that release: every
+imported weapon's `special` properties were false save `cleave`, and every
+word stood in `customTags` instead. The system's migration lights
+`special.<word>` only where that key already stands in the source, and the
+binder wrote no `special` object; the cleave word alone takes a path that
+writes unconditionally. The same read showed every weapon sized `na`, so the
+system's own dialog — which offers the two-handed grip to a medium melee
+weapon and nothing else — offered none; the grips and the thrown attack had
+worked in the live walk only because the equipment feature's seam answers
+them from its own name-keyed table. The net, whose row prints a dash, carried
+the system's default die in both grips. And the quiver imported as one item
+of quantity one with its twenty on an `ammo` flag that nothing in the module
+reads: a bow's first shot took the quiver from one to none.
+
+**Ruled.** The binder writes the fields the system's dialog reads:
+
+- **`size`** from the type cell, which prints it before the use ("Medium
+  Melee", "Sm. Melee/Missile"). The text layer abbreviates, drops a small-caps
+  first letter and welds the word onto the name, so each size is matched by
+  its tail and the use word after it, never by a boundary before it. A row
+  that prints no size — every missile weapon, ammunition — leaves the field
+  at the system's default.
+- **`special.*`** from the Special cell, one property per word, with the
+  keys read from the system's weapon schema at import so the vocabulary is
+  never copied; a cleave word carries its limit and its Strength rider into
+  `cleaveLimit`; a word the schema has no property for is kept in
+  `customTags`. Legacy `tags` are no longer written.
+- **A blank formula** in both grips where the row prints no die.
+- **Quantity is the printed count** on every ammunition row, device or bare
+  stack; the device keeps the printed encumbrance whole and the equipment
+  root's `per` makes it weigh once. The `ammo` flag is gone.
+- The Special window opens just past the cost band: the cell is centered, so
+  the lance's three words started left of where the two-word window began
+  and the row imported with none.
+
+**Rejected.**
+- *Keeping the legacy tags and adding an all-false `special` object so the
+  migration lights them.* It would work today and would hang the import on a
+  migration path the system keeps for old worlds; the field is the system's
+  and the binder can write it.
+- *Filling the device from its flag when it reaches an actor.* Nothing was
+  built to read the flag in two months, the guide already says the count on
+  the row is what you have, and the system's own quiver is one item of
+  quantity twenty.
+- *Sizing from the equipment feature's weapon table.* The page prints the
+  size; a table of sizes is content the import reads, not a figure to ship.
+
+*Cost:* a world imported before this holds weapons sized `na` with their
+words in custom tags, and quivers of one. **Reimport One Shelf → Weapons**
+rebuilds the compendium; a copy already on a character is the Judge's item
+and keeps the old shape until it is replaced from the shelf. The offline
+record is `tools/importer/test-weapon-binding.mjs` on invented rows and
+`test-weapon-tables.mjs` on the page, where every row now reads as the
+table prints it.
+
+## 2026-10-23 — A book's content stands on its own open shelf
+
+The 2026-10-18 entry above ruled that a content row — a class, a power, a
+proficiency under a `def.` id — files on the ACKS library's own shelf
+whichever book printed it, and the catgirl's three classes and five powers
+went there, beside the ACKS line's classes, while its monster, maps, items and
+Adventure went to the series' Judge shelves. The user ruled on 2026-10-19,
+with the first cut in front of them, that everything a community book prints
+lands on its own shelf and merges into no ACKS II compendium; the item cut
+that followed was scoped to the ten items alone, and this entry lands the
+rest of that ruling. That is the new evidence the 7-day rule asks for: the
+2026-10-18 entry decided the reach of a content row without it.
+
+**Ruled.**
+- **A content row files on its book's SERIES line, open, never the Judge's**
+  (`lineOfClaim`): a book of another series shelves its classes and powers
+  on "ACKS Cookbook — <series> — Item", which every seat can open, because a
+  class is a thing a player picks; a book of the ACKS library has no series,
+  so its content files on the library's own shelf as before. A book's own
+  rows keep `lineOf` — the Judge's line for a Judge's book — unchanged.
+- **The stamp carries the book.** A content document's cookbook flag is
+  `{id, cite, book}` where the entry names a book; the id alone cannot say
+  which series, so the flag does, and `lineOfData` reads it. Every content
+  binder in `cookbook.mjs` stamps it; the merchandise rows and the languages
+  do not, because no book is in scope there and both are the library's.
+- **The folder is built in the pack the write goes to.** `ensureItemFolder`
+  takes the claim's line, so a series' "Classes" and "Class Powers" folders
+  are made in the series' Item pack. `createDoc` warns when a folder stands
+  in another pack than the destination: core drops such a folder without a
+  word and the document lands at the root, which is the one way this routing
+  fails silently.
+- **A content row is not the book's bundle.** `bookDocuments` leaves content
+  ids out whatever book the stamp names, so a series' Adventure carries the
+  Judge's half alone and the Books window counts the same contents as before.
+- **This book only.** No other shipped book has both a line and content rows,
+  so nothing else moves. A world that imported the catgirl before this holds
+  its classes on the library's shelf; every presence check reads every pack,
+  so a re-run imports nothing twice and moves nothing. Reimport One Shelf
+  rebuilds the library shelf; the classes it leaves behind are deleted by
+  hand or by Remove All Imports.
+
+*Rejected:*
+- **Routing by kind** stays rejected on the 2026-10-18 grounds; this entry
+  routes by NAMESPACE, which the id already carries, and touches no folder
+  site that reads `lineOf(bookId)` for a book's own rows.
+- **Closing the content with the book.** A class on a Judge's shelf is a
+  class no player can pick, which is what the book printed it for.
+- **A migration pass** for worlds holding the first cut's classes. Nothing
+  shipped them under a release that advertised the shelf, and the presence
+  index spans every shelf, so the cost of leaving them is a second copy only
+  where a Judge imports the book again after deleting one by hand.
+
+*Cost:* the series now has TWO lines in the world — "The OSR Catgirl" with an
+Item shelf a player can open, and "The OSR Catgirl — Judge" with the Actor,
+Item, Scene, Journal and Adventure shelves closed. A row of this book written
+per book — an essay, a tavern, a keeper — files on the Judge line and is
+invisible to players; the 2026-10-18 Cost paragraph named that as the signal
+for kind routing, and it still is. `extract-library.mjs` pins `lineOf`'s body
+by string and is untouched; the site's compendia page says a Judge's book's
+classes stay open on the shelf above or on the series' own. `test-judge-shelf`
+pins the new reach: no content row on a Judge's line, a lined book's content
+on its series' line, an unlined book's on the library's, the book's own ids on
+the Judge's. The live record is the typography walk's steps 2, 6 and 7.
+
+## 2026-10-23 — A passage is a journal page under a functional title
+
+The catgirl prints seven passages no kind read: an introduction, the race's
+own history under its requirement line, a two-page survey of cultures with
+faction and hook lists, a design essay, the tavern's text with its room
+numbers inline, a generic class for other systems, and conversion notes.
+(The race's page joined the same day as the six the entry was written for;
+its requirement line stays out of the passage, being a race document's
+field — ROADMAP, "A race document".) The register has carried `kind.prose` since the ordinal
+kinds were declared, with no compiler and no binding behind it. The user's
+2026-10-23 instruction was the whole book.
+
+**Ruled.**
+- **A passage anchors on its first body line, by hash.** The chapter titles
+  over these pages are pictures; the heading detector finds nothing on any of
+  them. The first line of body is the one line the row can prove it found,
+  so the row carries its print key with `as: "runin"`, and `compileProse`
+  flows from that line rather than under it — the line is the passage's,
+  not a name's. The executor's heading check holds the page to the key as it
+  does an item's name.
+- **The page's title is what the passage IS.** A printed chapter title is the
+  book's words whether or not it was set as a picture, so the row names the
+  page by function (`meta.title`: Introduction, Cultures, Design notes,
+  Tavern, Generic class, Conversion notes) and the journal by group (Essays,
+  Tavern). The test is whether the word does its job as a common one.
+- **The AX readers take the book's declared page measures.** `axParas`,
+  `axStatCluster` and `axTop` read `paraGap` and `bodyTop` off the page's
+  `typography` where the book's band row says nothing. Before this the
+  declaration reached the class and monster readers only: the AX readers
+  opened a paragraph at 1.6 times the median pitch, which the catgirl's
+  25-point paragraph gap never clears, and started a continuation page at
+  the default band, which dropped the first line of every column set from
+  the book's declared top. The shipped items, classes, powers and monster
+  compile byte-identical under the change; only the passages differ.
+- **A generic class for other systems is a passage, not a class.** Its
+  chassis table is read as two paragraphs, its labelled abilities as the
+  page sets them (one tight paragraph, 17-point pitch throughout). A class
+  item for it would carry a progression the book prints as a picture and
+  figures the text says to adjust per system.
+- **The journals step takes a `books` scope and reports what it created,**
+  as the item and scene steps do, so the live walk writes the one book it
+  opened and sweeps by uuid.
+
+*Rejected:*
+- **A page per list.** The faction and hook lists are set at body pitch
+  with no gap between bullets, so each list is one paragraph of bullets; a
+  reader that split them would be splitting on a glyph.
+- **The room numbers as keyed areas** in this cut. The keys are set inside
+  paragraphs, not at headings, and the keyed-area path reads a heading or a
+  run-in key line; the shape is on the ROADMAP.
+
+*Cost:* a passage carries the book's prefix, so it files on the Judge line —
+the Essays and the Tavern are invisible to a player seat, including the
+introduction and the conversion notes written for players. The 2026-10-18
+Cost paragraph named exactly this as the signal for routing by kind; it still
+is, and it is still not built. The live record is the typography walk's step
+2 (two journals, six pages, paragraph counts read against the page by hand).
+
+## 2026-10-23 — A person written out is read by her labels
+
+The catgirl spends a page on the tavern's keeper: a display name, then her
+class line and scores, then labelled lines — hit points, armour class,
+saves, attack, damage, proficiencies by kind, racial and class abilities,
+inventory — set a group at a time with the page's paragraph gap between the
+groups, and a last label opening a paragraph about her house that turns the
+column. The 2026-10-18 entry rejected reading her as `kind.npc` then: the
+cluster reader stops at the first gap. The AX1 adventure design names the
+same shape for its pregens and calls for a compiler that emits one value op
+per labelled field.
+
+**Ruled.**
+- **One op, read by its labels at import.** `compileWriteup` takes the block
+  whole — from the first line under the name to the label that opens the
+  prose (`writeup.proseLabelKey`, a print key, so the register spells no
+  label) or to the column's foot — as ONE value op in a `writeup` pattern,
+  and `parseWriteup` splits it by its labels into `parseStatline`'s shape.
+  One op rather than one per field because the fields' NAMES are the page's
+  labels, which the reader knows as a sheet's vocabulary and the register
+  need not spell per row; and the same shape because `importCharacter` and
+  `sheetValuesFromStatline` then serve both without a second binding.
+- **A known label is found at its own first word.** A generic "capitalised
+  words then a colon" rule took the last token of every list with the label
+  that followed it ("… Swashbuckling General Proficiencies:"). Known labels
+  are an alternation matched at their own start; an unknown label is one
+  capitalised word, and keeps its clause as text.
+- **Proficiencies by kind fill their own rows.** A write-up names its class
+  and general lists; each fills its own rows on the sheet, a token's throw
+  bracket is the row's throw, and a "(G)"/"(C)" marker on a token outranks
+  the label it stands under. A quick-stat line's one list fills the general
+  rows and runs on, as before.
+- **An attack routine is not a weapon.** A routine ("claw/claw at N+") gives
+  the throw and stays text; the weapons table takes only what a damage
+  bracket names. A coin whose clause closes with a note in brackets is still
+  coin.
+- **A character's proficiencies are supplied before they are granted.** The
+  sheet import grants what the library holds, and a Judge's library need not
+  hold the Rulebook's proficiencies when a book names them; `importCharacter`
+  resolves the tokens through the shared tiers first (`resolveAbilities`, as
+  a monster's list is), which imports the definitions the cookbook can
+  supply, then the sheet import embeds them. Every character the importer
+  makes gets this, the AX adventures' included; what nothing supplies is
+  still reported as unmatched.
+- **The anchor is the display name, by hash.** The name line is set above
+  body size, so it is a heading to the opener (`as: "display"`); the row
+  ships "NPC 1" and the page supplies the name.
+
+*Rejected:*
+- **A `kind.pregen` compiler per labelled field** for this book. The keeper
+  is an inhabitant with prose of her own, which `kind.npc` with
+  `meta.actor: "character"` already binds; the pregen kind's step, folder
+  and ownership hand-out are AX1's to build, and a write-up op is what its
+  compiler will emit too.
+- **Her racial and class abilities as embedded powers.** The class binding
+  grants what the class grants at her level; the page's lists ride in the
+  as-printed block, where the Judge reads them against the sheet.
+
+*Cost:* `lint-register` learns the pattern; the kind file for `kind.npc`
+still declares `statline`, and the op's own `pattern` is what the executor
+runs. The live record is the typography walk's steps 2, 3 and 6.
+
+## 2026-10-23 — A rebuilt Item keeps its id
+
+**New evidence.** A community book's class, rebuilt through the entry picker,
+came back on its open Item shelf under a new document id, while a character
+rebuilt beside it kept its own (2026-10-17, "A person the page prints in full
+becomes a character"). A character holds its class by uuid
+(`classForActor` reads the `FLAG_CLASSES` binding's uuid first), and a
+journal link or a template part holds an Item the same way, so every Item
+rebuild cut them.
+
+**Ruled.** Every imported Item is written with `keepId`, under the first id
+`itemIds` finds that the target does not hold and no earlier row of the same
+write took:
+
+- **The id it stood under.** `deleteImported` records each Item it removes
+  by cookbook id, and the create that puts the entry back takes it. The
+  picker, the shelf rebuild and the book rebuild all delete through it, so
+  all three keep ids, for documents made before this ruling too.
+- **Its cookbook id's `stableDocId`,** as a character's is, for an entry with
+  no record: the same id in every world and after Remove Imports.
+- **Core's own,** when both are taken. One duplicate id rejects a whole
+  write, so a held id is passed over rather than sent.
+
+The choice is made in `createDoc` and `createDocs`, which every Item import
+writes through, and in the language binding's own batch. A caller's `_id`
+stands only under the caller's own `keepId`; any other is dropped, as core
+dropped it before.
+
+**What narrows.** "A rebuild can repair in place instead" (2026-09-24)
+offered Repair as the way to keep an id. Rebuild keeps it too now; it still
+discards the name, folder, ownership and notes a Judge gave the document,
+which only Repair keeps.
+
+**Rejected.**
+- *Derived ids alone.* Every Item a world already holds stands under an id
+  core minted, so its first rebuild would cut its links once more — the
+  failure reported.
+- *Keeping ids for the picker only.* The shelf and book rebuilds delete
+  through the same `deleteImported`, and are the same request over more
+  entries.
+- *Actors in the same change.* A monster, vehicle or OSE creature rebuilt
+  through the picker still takes a new id. The record would serve them as
+  cheaply, but no walk here rebuilds an actor, and an actor's library id is
+  what `bringAcross` keys a map's world copies by. ROADMAP.
+
+*Cost:* the record lives in the GM's client for the session. An entry
+deleted and not written back (a throw, a page that no longer matches) keeps
+its record until a reload, and its first import after one takes the derived
+id: one changed uuid, not one per rebuild. An entry whose line changed is
+written to another shelf, and its uuid changes with the pack whatever its id.
+The live record is the typography walk's step 1a.
+
+## 2026-10-24 — A walled map is dark, and its tokens see by their own light
+
+**New evidence.** The user, running AX1 on 11.6.0, reported that the
+dungeon maps' vision "was not setup properly". The 2026-10-17 entry ("Walls
+are traced at import from the Judge's own page") lit a walled map with
+global light and left fog exploration off. Under global light every square in
+a token's line of sight is visible at any distance. That makes the carried
+lights and the senses the module puts on a token (`lib/light.mjs`,
+`lib/perception.mjs`, docs/lib/MODEL.md "Perception") inert on exactly the
+maps they exist for. A scene at darkness 0 also reads as day to the
+formation, so a party underground was never in the dark the rules ask about.
+With fog off, what a player had seen went black again behind them.
+
+**Ruled.** A walled map's scene states (`scene-binding.mjs:WALLED_SIGHT`):
+
+- token vision on;
+- fog exploration INDIVIDUAL, so each user keeps what their tokens have seen;
+- darkness 1, with global light off.
+
+A token sees what a light it or its party carries reaches, plus what its own
+senses reach. A map without walls keeps the 2026-09-17 settings. This
+supersedes the 2026-10-17 entry's sight bullet, which is 7 days old. The rest
+of that entry stands.
+
+**Rejected.**
+- *Global light with fog on.* It keeps what the party has explored, but a
+  lit dungeon still makes the light rules decoration.
+- *Darkness from a recipe field.* Every walled map registered is a place a
+  party enters on foot. A field nobody sets differently is a field without a
+  question to answer.
+- *`darknessLock`.* Core's lock only disables the slider in Scene Config, and
+  nothing in this module writes a scene's darkness.
+
+*Cost:* a walled building interior a party enters by day starts dark too, so
+the Judge raises the light for that scene. A map already in a world keeps
+the settings it was made with: the step never re-creates a held scene. To
+take the new settings, delete the scene and run the maps step again, which
+re-traces the walls (the guide's "A dungeon map's walls").
+
+## 2026-10-24 — A stroke plan draws its walls dark, and its doors as boxes
+
+Amends one line of "Walls are traced at import from the Judge's own page"
+(2026-10-17), the `stroke` mode, "light wall strokes on a dark floor". The
+entry's other rulings stand.
+
+**New evidence.**
+- The 2026-10-17 stroke prototype read AX1's p16 plate off a render that had
+  been inverted.
+- On the importer's own render (print intent, on white), every stroke plate
+  (p12, p15, p16, p22, p24, p26) draws its walls dark, at about gray 46, on a
+  light floor. Its lattice lines fall between 57 and 145.
+- The shipped mode cut `gray >= threshold`. On p15 it traced 720 walls of
+  floor texture. No row used the mode, so nothing shipped wrong.
+- These plates draw a door as a box of paper across the wall, closed by a
+  thin outline. A double door is two such boxes end to end, split by a bar.
+
+**Ruled.**
+- **`stroke` reads dark strokes on a light floor**, cut at the threshold.
+  80 parts the walls from the lattice on every one of the six plates.
+- **The strokes are opened, thinned and walked as a graph.** A component
+  shorter than nine tenths of a cell is furniture or a mark, and drops. A
+  corner's tines no longer than the band is deep are pruned, so a band ends
+  in one point.
+- **A drawn box is the door** (MODEL, "A map's walls, traced from the
+  page"). A box counts only with wall beyond both its ends and floor on both
+  its long sides: a bed against a wall has the wall along a side. A split box
+  is two leaves meeting at its bar, as on the other plans (2026-10-18).
+- **A stroke cell may name its box's kind** (`door`, `secret`), and a point
+  may drop a box's door. These are the same two corrections contour takes,
+  for the same reason: a stroke door lies off the lattice.
+
+*Rejected:*
+- **A closing to bridge the gaps in a crenellated wall** (p26's north wall).
+  At a radius that bridged the narrowest slits it joined furniture and floor
+  texture to the walls on every plate. The plate asserts that wall with line
+  corrections instead.
+- **Pairing free stroke ends across a door gap.** A band's end thins to a
+  hook, and pairs formed across rooms. The box is drawn on the page, so the
+  trace reads the box.
+
+*Cost:*
+- A lattice line crossing a box is read as paper only where it is one pixel
+  wide. A wider one splits the box, and the halves need not stand as doors.
+- A window drawn as a gap in the wall reads as an opening. The plate's
+  review sheet shows both, and a line corrects either.
+
+## 2026-10-24 — A pregen is a write-up read across its columns
+
+AX1 prints its pre-generated party as eight write-ups under display names.
+Each opens with a level-first class line ("Level <n> <alignment> <class>
+(<title>)") and an unlabelled "AC, Move, HP, ATK" line, then puts the scores
+under their own label. Most run on past their column, and one runs over the
+page, before their prose opens. `compileWriteup` reads one column to its foot.
+It would also take the 9-point summary table at the page foot into the first
+block, because it skips the body-type filter.
+
+**Ruled.**
+- **The block flows.** `compilePregen` reads the write-up the way prose flows
+  (`axFlow`), cuts it at the prose label, and ships ONE `writeup` value op read
+  in `parts`: a part per column, each with its own page, box and fixes. The
+  executor's `value` op reads parts in order and joins them with a space. The
+  flow from the prose label on is the description.
+- **`parseWriteup` reads the level-first head.** It reads the alignment and the
+  title from the class line, and the armour class, move, hit points and attack
+  from the stat line. The ATK clause runs to the end of the head. "Ability
+  Scores" and "Class Powers" are known labels. The cat's write-up and every AX
+  book's stat lines parse byte-identically before and after.
+- **What follows the title on the class line is not read.** Most of the class
+  lines then credit the backer who made the character, which is no field of
+  the sheet. The compiler ships the run's kept length as a count
+  (`fixes.keepPrefix`, the counterpart of `stripPrefix`) and drops the runs
+  after it. So no real person's name reaches the sheet's as-printed line, or a
+  release plate shot from it.
+- **Pregens ride the monsters step.** The design planned a `stepPregens` after
+  the template packages. The monsters step already runs there, and it imports
+  every actor kind through `importOne`. A pregen is one more kind on that path
+  (`ACTOR_KINDS`, `characterEntry`), filed under `Pregenerated`.
+- **A pregen stays in the library, like every person.** The 2026-10-24 fill
+  rule ("Maps and their places") keeps people in the library, and a pregen is
+  a person. A Judge hands one out with core's compendium Import, then gives the
+  player ownership. Core's `importDocument` keeps the entry's id, so the world
+  copy holds the library's id and its cookbook stamp, and a rebuild or Remove
+  Imports leaves it once a player owns it (`playersCharacter`). This
+  answers "Pregenerated characters are left to their own slice" in the
+  2026-10-17 entry on how a book's Adventure is assembled.
+- **A class printed behind a qualifier binds the class after it.** One pregen
+  prints a core class with its tradition before the class name. Where neither
+  the library nor the conversion table answers a class name,
+  `classBehindQualifier` takes the longest run of trailing words the library
+  answers, and the as-printed block adds a "Class read as" row naming it. The
+  fallback lives in the importer's `libraryNameFor`.
+
+*Rejected:*
+- **A `stepPregens` of its own.** It would sit at the same point in the order,
+  and a step whose only content is one kind costs the chain a narration line
+  and a second idempotence path.
+- **Reading the summary table.** It is a cross-check and not a source. One
+  pregen's hit points in the table differ from its write-up, and the write-up
+  is the one the binding reads.
+- **Carrying pregens into the world on an Adventure import.** That reverses
+  the fill rule the user kept the same day.
+- **The qualifier read in `matchClass`.** That would also change what the
+  character sheet's PDF import binds, and nothing walks that surface for it.
+
+*Cost:* a class line with no title in brackets gives no bound, so its whole
+paragraph is read, a credit included. The pregens' portraits are not imported
+(ROADMAP). A people word before a human class reads the same way as a
+tradition: a "<people> <class>" the library lacks binds the human class, and
+only the "Class read as" row says so. Two pregens (`ax1.pc7`, `ax1.pc8`) print
+a class no core book defines. They import with no class, and the block names
+the class as not in the library. A Judge builds it with the class builder
+under the printed name, then rebuilds the entry.
+
+## 2026-10-24 — A line restates a traced door lying along it
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+The new evidence is AX1 p.23's plan. It draws a window as a light box across a
+wall, the shape of a door, and the tracer stood its two panes as a split door.
+Correcting that took a point drop and a wall line over the same box: two
+corrections for one fact, against plate caps of 8 and 9.
+
+*Ruled:* a line of any kind replaces a traced door whose two ends both lie
+within 0.15 of a cell of it. A door or secret line keeps its wider reach, a
+door whose middle lies within half a cell. A line half a cell beside a door
+leaves it.
+
+*Rejected:* **teaching the box reader a window from a door.** The plates draw
+both as a light box across a wall, and a rule for one plate's panes buys
+nothing that a line does not.
+
+*Cost:* a line laid along a wall where a real door stands replaces that door,
+so the recipe states the door as a line of its own.
+
+## 2026-10-24 — The wall a door hangs in is never a tine
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+The new evidence is a door-end census of AX1's six stroke plates. Twelve door
+ends touched no wall: 2 on p.21, 2 on p.23, 1 on p.15 and 7 on p.11. Each
+had a gap of 16 to 25 pixels at 50 to the cell, and both tokens and sight
+pass through a gap that size. Each was a box set a short way from a junction.
+The stretch of wall between the box and the junction thinned to a dead end
+no longer than the band is wide, so it was pruned as a corner tine. Its
+junction lay beyond the door's third-of-a-cell reach.
+
+*Ruled:* a path is never a tine when its free end lies at a box's end, within
+a third of a cell beyond it and inside the box's half width, and it runs
+along the box's axis. The reach stays as it was.
+
+*Rejected:*
+- **A longer reach.** The door would run past its box to the junction, and
+  opening it would open the wall.
+- **Joining a loose door end to the nearest wall afterwards.** The nearest
+  wall need not be the one the door hangs in.
+
+*Cost:* one door end on p.11 is still loose. It stops at a bar near the end
+of its box, and the short piece past the bar is not read as part of the box.
+That plate states the door as a line.
+
+## 2026-10-24 — An adventure's keyed areas are places, and their stat lines a roster
+
+AX1 keys its areas in three key spaces: the fort and two dungeon levels. The
+journals step wrote each area as a page of its group, and the places step took
+none, so an imported AX1 had its maps and nothing standing in them. The user
+reported it the same week ("the current adventure does not import more than
+the maps").
+
+**Ruled.**
+- **A keyed area and a key space are places, not pages.** The places step
+  takes every row `isKeyedPlace` names, and the journals step takes none of
+  them. Two documents for one printed place are what a Judge then keeps in
+  step by hand, which is the ruling a settlement's points of interest took
+  ("A settlement's keyed places are actors, nested quarter → city"). Each
+  sits inside the place its row names, and a space sits inside the book's own
+  place.
+- **A place's notes are its page's text whole, stat lines included.** The
+  line is what a Judge reads at the table, and the roster only links it.
+- **A room's stat lines are its roster, every row hidden.** A row tells a
+  player what waits in a room. Each links to the first that answers: the
+  register's lookup; the library's creature of another book by name key, a
+  name two books print answered by the later-published; the person or
+  creature this book's own rows were imported as; else a creature made from
+  the line. A person stands once with no notes. A creature's whole count is
+  its quantity, and any other count, and the hit points, are its notes.
+- **A creature made from a line is claimed under `<place id>-o<i>`**,
+  stamped `unaudited` as a quarter's place is. No cookbook row names it, and
+  that id is what a later run and a rebuilt room find it by.
+- **A parent made again is a new document.** A held place whose parent uuid
+  resolves to nothing is moved onto the parent's new one. One that resolves
+  is the Judge's move and stays.
+- **A world that imported these rooms as pages keeps its pages.** Nothing
+  here deletes, as with a settlement's points of interest.
+
+*Rejected:*
+- **The stat lines cut out of the notes.** The line would then stand only on
+  a creature made from it, and on nothing at all for a room whose creature
+  the library answers.
+- **A creature made from every line.** Where the library answers, that is a
+  second copy of a core creature in the book's folder, which a Judge's edits
+  to the core one never reach.
+- **The label's name keys alone.** A count of several prints the creature's
+  name in the plural, and the library's names are singular.
+- **The fill rule widened to bring every place into the world.** It stays
+  as ruled on 2026-10-24 ("Maps and their places"): a place an Adventure
+  import brings is one a carried map names.
+
+*Cost:*
+- **An Adventure import still brings AX1's maps alone.** The Adventure
+  carries the places, their tree and their rosters, but no carried map names
+  a place until AX1's map recipes carry their places (`places`, docs/importer/
+  ROADMAP.md, "AX1 whole is in progress"), and a place no map names stays in
+  the library.
+- AX1's rooms print no person's stat line. Its people are mentioned in the
+  prose, which makes no row, so no AX1 room has a person on its roster.
+- A held place's roster is not read again, so a creature deleted after the
+  import leaves its row naming nothing until the room is rebuilt.
+- A creature made from a line has what the line prints and nothing more: no
+  treasure, no description beyond the line itself.
+- The pages an earlier release wrote for these rooms stand beside the places.
+
+## 2026-10-24 — A plan is the place it draws, and its rooms stand on it as pins
+
+The entry above left an Adventure import of AX1 bringing its maps alone: the
+places were carried but no map named one, so the fill rule left them all in
+the library. AX1's plans of its two levels and of areas 18 and 24 now say
+which place each is and where each of its rooms is keyed.
+
+**Ruled.**
+- **A plan names the place it draws (`scene.place`)**, and the map is named
+  for that place and linked to it. A recipe that names none is the book's own
+  place's, so every map that shipped before keeps its link.
+- **A grid recipe that names its place is a plan, not a region's map.** A
+  region's map is a grid recipe with no quarters and no `place`
+  (`isRegionRecipe`). Every AX1 plan is drawn on a grid. Read as a region's
+  map, a plan named the region's place, which an adventure does not have,
+  and brought its pins with none of the places they sit in. The live walk
+  found this; the offline fixture plan had no grid, so the suite could not.
+- **A plan of a place pins only areas inside it**, at any depth, and the
+  recipe check refuses one from elsewhere. A room set down on the other
+  level's plan is the misreading this catches.
+- **A pin stands on the key its page prints.** Where the plan circles its
+  keys, the tracer's own ring finder (`labelRings`) places the pin and the
+  author reads only which key each ring holds. Where it does not (a sub-key's
+  letter, a key in a dark patch), the author places it by eye. Every pin was
+  checked against an overlay of the page that drew each pin's key beside the
+  printed one.
+- **A row that keys a range of rooms is pinned once, on its first key.** A
+  place is one token on a map, and the row is one place.
+- **Every area inside a plan's place that holds no other is pinned on it**,
+  gated in `test-ax1-cookbook`. A section that only holds rooms is not on the
+  map.
+- **A pinned room comes into the world inside the places it sits in.** The
+  maps step brings every place a pinned room or the plan's own place sits in,
+  up to the book's own (`mapIds`). A book's Adventure creates a place no map
+  shows once a place it creates sits in it (`fillPlan`). Either way a world
+  room sits in a world section, the section in its level, and the level in the
+  book's own place.
+- **A plan explored a turn at a time declares `travel: "delve"`.**
+
+*Rejected:*
+- **Pins at each room's centre, found from the traced floor.** Rooms run into
+  corridors, and the key is where the page's own reader looks.
+- **The sections left in the library, each world room naming the library's
+  section as its parent.** A place's contents are the places that name it as
+  their parent (lib `childrenOf`). The world's level would then list no room,
+  and a world room's path would climb into the library and never reach the
+  level on the map.
+- **A held map given the pins its recipe gained.** A map's shape is the
+  Judge's once made ("A held map has its links repaired, never its shape"):
+  a pin the Judge deleted would come back on every run.
+
+*Cost:*
+- A world that made AX1's maps before this keeps them without pins. Deleting
+  a map and running the maps step again lays them.
+- The sections and the book's own place hold no goods, roster or token, and
+  the empty-location prune removed such a place at `ready`. They stand because
+  places sit in them (location DECISIONS, 2026-10-24, "A place another place
+  sits in is not empty").
+- The fort's buildings and their sub-keys, other than areas 18's and 24's,
+  are on no plan yet. The fort overview and the other buildings' plans have no
+  recipe, so an Adventure import still leaves those places in the library.
+
+## 2026-10-24 — A dungeon level is one zone over its plan, its figures read off the page
+
+AX1 prints a wandering-monster rule for each of its two levels: a list, how
+often the Judge throws, the chance, and, in the section's heading, the
+level's dungeon level. Each level's rule is now a zone over its plan.
+
+**Ruled.**
+- **One zone per level, over the plan's whole crop**, its list the level's
+  table. A party anywhere on the level stands in it.
+- **A zone over its map's whole picture is drawn on the Regions layer
+  alone.** A zone the Judge sees always fills its area, and over a whole plan
+  the fill lay on every room and hid the pins. The live walk's shot showed
+  it; no check read the canvas. A zone over part of a map is still drawn
+  for the Judge, because there its fill marks where the rule holds.
+- **The interval and the dungeon level are read off the page**, as the target
+  is (`everyAt`, `levelAt`), and the Region's encounter zone carries them as
+  `encounterEvery` and `dungeonLevel`. The build plan called the dungeon level
+  structure. The heading prints it, and a number read off a page is content
+  (ip-doctrine). A plan's place in the module's order is the module's; the
+  level a book gives a floor is the book's.
+- **A target printed in words is read through its own box, `chanceAt`**, with
+  a new `rollTarget` pattern: the first number that no die or modifier owns.
+  So "a 4 on a d6" and the low end of "4 or 5" read as "4+" does.
+
+*Rejected:*
+- **`targetAt` read through `rollTarget` for every book.** Read offline over
+  every shipped zone, AX6's target box gives a different number under it, so
+  the change would move a shipped figure.
+- **Widening `throw` to read a target without its "+"** (inferred cost). Every
+  other `throw` box would start reading a number where it read none.
+
+*Cost:*
+- AX1's narrower rules are not laid: two areas and a room of the first level
+  print their own interval and chance (ROADMAP, "AX1 whole"). The delve reads
+  the first zone under the party token (formation DECISIONS 2026-10-09), so
+  inside the level's zone a narrower one would never answer.
+
+## 2026-10-24 — A window is a wall that sight passes
+
+Amends today's "A stroke plan draws its walls dark, and its doors as boxes".
+That entry reads a window drawn as a gap as an opening, to be corrected by a
+line, and leaves the line's kind open.
+
+**New evidence.** The drafts for AX1's plans on p.15, p.21 and p.23 close
+their outer walls with one line along each side, because windows and slits
+break the trace along the whole side. A `wall` line made every window blind.
+Asked, the user ruled: "Make the window-only lines invisible: sight passes,
+movement blocked." An `invisible` line costs the same one correction. It stops
+tokens, and the traced wall under it still stops every sense, so sight passes
+only where the trace breaks.
+
+**Ruled**, for every stroke plan:
+- **A side whose trace breaks only at its windows is closed by an
+  `invisible` line.** A window drawn as a box across the wall, restated by the
+  line (p.23's top), is seen through the same way.
+- **A side where the trace lost wall as well stays a `wall` line.** The
+  tracer drops a stretch of wall shorter than nine tenths of a cell, such as
+  a block between two windows, and sight would pass it. A side may be split
+  where the loss begins: p.15's south wall is invisible to the west and wall
+  to the east.
+- **Sight never passes beside a door.** Where the trace stops short of a door
+  on an invisible side, the door's leaves run on to where the trace resumes
+  (p.15's entrance).
+
+*Rejected:*
+- **Every window blind**, a `wall` line on every side. It was the
+  recommendation, since sight could never pass more than the page draws. The
+  user ruled for the windows.
+- **A line per window.** Each window would cost a correction, where a side
+  costs one.
+
+*Cost:*
+- The trace pulls the wall back along a drawn embrasure's flanks, so sight
+  passes a gap wider than the opening. On p.21 a slit that narrows to a point
+  at the outer face lets sight through 0.7 to 1.2 cells.
+- Light and sound pass a window as sight does.
+- Which sides lost wall is read off the review sheet, side by side. No digest
+  says it.
+
+## 2026-10-24 — A place two books print is joined by the row that arrives second
+
+Builds the mechanism "Later books supersede, by the year their printing
+carries" and "The earlier printing's unique paragraphs follow the later one's"
+(both 2026-10-17) ruled, and pairs AX1's first level with the AX3 region site
+it is (`meta.unique` keeps all 23 of AX1's paragraphs: the site's one
+paragraph summarises the level the module key describes).
+
+**Ruled.**
+- **The join is two pure patches** (`place-pair.mjs`): `takeoverPatch` when
+  the later row arrives with the earlier place held, `bindPatch` when the
+  earlier row arrives with the later place held. The places step applies them
+  from both of its row paths, a keyed place and a region site (`joinPaired`),
+  and asks the library's own document for the pair's place.
+- **A place stamps the name it was built with** (`cookbook.printed`), so a
+  takeover renames it only while the Judge has not.
+- **A merged id is answered everywhere a place is looked up**: the presence
+  checks, the importer index, the maps step's crossing and a book's Adventure
+  (`claimIds`, `answersFor`). A room still finds the place it sits in, and
+  each book's Adventure carries the place.
+- **A world copy made before its place joined is restamped, not copied
+  twice.** It keeps its library document's id, so the maps step finds it by
+  that id and writes the place's stamp onto it.
+- **The places step and `claimActorImport` ask for the library's own
+  document** (`importedActor(id, {copies: false})`). This applies "A copy of an
+  import is the Judge's, and a rebuild leaves it standing" (2026-09-23) where it
+  had not reached. Found when a world copy that answered for a merged id made
+  AX1's row read as held after the library's place was deleted, and the step
+  put its rooms inside the copy.
+- **AX1's fort and AX3's site 28 stay unpaired.** Site 28 binds onto a market,
+  so no place of its own is built to join, and joining two places that both
+  stand is not ruled. Lint refuses a pair with either row bound onto a market
+  or an adventure.
+
+*Rejected:* reusing `refreshPlan` for the takeover. It writes the stamp's
+`id`, `merged` and `book` back to what the entry builds and replaces a prose
+field whole, where a takeover moves the identity and swaps one block.
+
+*Cost:*
+- `unique` ordinals are counted against the compiled paragraphs, which no
+  offline gate reads. The AX1 walk compares the kept block's paragraphs with
+  the list's length.
+- Deleting one of the pair's places and importing again leaves the place a new
+  document id in either order. A book's Adventure that carried the old one is
+  stale until rebuilt, and a world copy under the old id stands on as the
+  place's copy.
+- A restamped world copy keeps the notes it was copied with.
+- In the earlier book's Adventure the place's parent is its own book's place,
+  which that Adventure does not carry, so the reference stays in library form.
+
+**Extended (2026-10-28)** to a market grid's column, which pairs with a later
+book's market through the same patches: docs/markets/DECISIONS.md, "A later
+printing's demand replaces an earlier one's, and a sideways grid's columns say
+which market they are".
+
+## 2026-10-24 — The cap is a ceiling at 10%, and 5% is a budget that warns
+
+Amends the bullet "The cap" in "Walls are traced at import from the Judge's
+own page" (2026-10-17). That bullet refuses any recipe whose corrections
+weigh more than 5% of its lattice's cells.
+
+**New evidence.**
+- The user: "The cap was not a hard cap for corrections." Asked what it
+  becomes, the user chose a higher hard ceiling, kept as a backstop, with a
+  warning above 5%.
+- Under the hard 5%, two AX1 plans came up short. p.11's plan needs
+  seventeen corrections against a cap of twelve, so it was listed wall-less.
+  p.15's raised dais needs three terrain lines on top of eleven corrections
+  against a cap of twelve, so it stands as floor. And the window lines on
+  p.15, p.21 and p.23 were laid one to a side partly to fit.
+
+**Ruled.**
+- **Corrections weighing more than 10% of the lattice's cells are refused**
+  (`CORRECTION_CEILING`), wherever `recipeProblems` runs, as the 5% were. The
+  user's option read "e.g. 10%", and the figure is one constant.
+- **Past 5% (`CORRECTION_SHARE`), the lint and the compiler warn**, and the
+  row compiles. The warning is a reviewer's cue: a recipe made mostly of
+  corrections is drifting from correcting a trace toward shipping one.
+
+*Rejected:*
+- **No cap.** Nothing would then hold the line the 2026-10-17 entry drew
+  between correcting a trace and shipping one.
+- **Keeping 5% hard.** The plans above.
+
+*Cost:* between 5% and 10% that line is held by a reviewer, not a gate.
+
+## 2026-10-24 — A raised structure off the lattice is a rect
+
+Amends the terrain box bullet of "A secret door stands on both mouths, a
+split box is a double door, and the crop's edge walls nothing" (2026-10-18).
+That bullet stands a box's sides on lattice lines only.
+
+**New evidence.** p.15's stepped dais stands off its plan's lattice. Its
+outer step lies 0.27 of a cell inside one lattice line, 0.35 short of
+another and 0.08 below a third, so a box would wall it up to a third of a
+cell from where it is drawn. Lines could state it, three of them. The user:
+"Clearly a technique is needed for off-grid terrain"; asked which, the user
+chose a shape that stands terrain on every side, with a reader for the
+plans' arrow slits beside it.
+
+**Ruled.** A correction may be a rect, `{rect: [x0, y0, x1, y1, turn], is:
+"terrain"}` in page points. Its four sides are the box between the two
+corners, turned `turn` degrees clockwise about its centre, each laid as a
+terrain line. A rect weighs 4, as a box does.
+
+*Rejected:* **a polygon of page points.** A list of segments is a tracing
+(2026-10-17), and so is a polygon. A rect states one shape by two corners
+and a turn.
+
+*Cost:* against a wall a rect's fourth side stands along the wall, and it
+weighs 4 where three lines would weigh 3.
+
+## 2026-10-24 — An item two books print is the later printing's
+
+Meets the condition "Later books supersede, by the year their printing
+carries" (2026-10-17) set for items: they kept `BOOKS` order until a census
+showed that publication order changes no merge's winner.
+
+**New evidence: the census.** `reconcileByName` merges equipment alone (its
+one caller is `importEquipmentItem`). Over every equipment row the registers
+hold, 190, seven cross-book pairs share a name key within one line, all
+between By This Axe and the Revised Rulebook. Publication order keeps the
+same copy as declaration order in all seven.
+
+**Ruled.** The merge keeps the printing `keptBook` names: the later by year
+(`laterBook`); where the years tie or one is missing, the book `BOOKS`
+declares first; between two undeclared books, the one already held.
+
+*Rejected:* refusing the merge on a tie, as a place's pair does. Two items
+that differ only in their source are one document either way, and a refusal
+would leave two.
+
+*Cost:* a book registered later is ordered by its year, with no census of
+its own. A census over its equipment rows says whether it changes a winner.
+
+## 2026-10-24 — A book holds one region map, and the register lint checks it
+
+The walls slice's three building plans (pp.16, 22, 24) arrived as grid
+recipes naming no place, so each read as AX1's region map: a plan of one
+building standing on the region's place under journey travel, beside the map
+"AX1's sites are places in its region" stands there. "A plan is the place it
+draws" had ruled this shape out, and it recurred.
+
+**Ruled.**
+- **The register lint refuses a second region map in one book**
+  (`regionMapProblems`). The first placeless grid recipe a book holds is its
+  region map. Any other is named with the one it collides with, and the fix
+  the message gives is the plan's `scene.place`.
+- The three plans name their buildings and take delve travel.
+
+*Rejected:* refusing every placeless grid recipe. A region map is one.
+
+*Cost:* a book that prints two region maps cannot register the second until
+a region map can name its region.
+
+## 2026-10-24 — The fort's overview is its hex plan, and a block built to another's plan is a scene of that plan
+
+AX1 maps the fort three ways above the dungeon: an overview of its grounds
+(p.6), plates of single buildings (pp.10, 11, 14) and the walled plans of
+the stroke plates. This entry covers the overview and the two block plates.
+
+**Ruled.**
+- **The overview is the fort's own plan** (`place: ax1.fort`), explored a
+  turn at a time (`delve`). Its hex lattice is fitted from the drawn hex
+  edges, and its distance is the hex scale the map prints. Each top-level
+  area stands at its circled key. A key sits on its building, wherever that
+  falls in a hex, so the region map's cell-centre check does not apply. A
+  row that keys several buildings stands at its first key, as a range of
+  rooms does.
+- **A block plate's scene is its block plan.** Each plate prints the block
+  on a squared grid, and below it a drawing of one section at another
+  scale, with no grid. The crop stops above that drawing.
+- **A sub-area stands at its letter's first occurrence.** A label that names
+  two sub-areas stands each at its own letter.
+- **A block built to another's plan is a scene of that plan** (blocks 10
+  and 15–17), linked to its own place and keying no sub-areas. A key is one
+  place, and a place's map is the one that names it, so two blocks of one
+  plan are two scenes of one picture.
+
+*Rejected:*
+- **The section drawing in the frame.** Under the block plan's grid it would
+  be measured at the wrong scale.
+- **Pins at hex centres on the overview.** A key printed between two hexes
+  would move to one of them, away from the building it names.
+- **One scene naming two places.** A scene's `place` is one id, and the
+  second block would have no map of its own.
+
+*Cost:*
+- The section drawings are not imported (ROADMAP).
+- A delve on a hex lattice lays the party's formation on hex cells. No live
+  walk has run one yet (ROADMAP).
+
+## 2026-10-24 — A plate of storeys is one scene with a level per storey
+
+AX1's p.10 prints a gatehouse and a tower storey by storey, side by side on
+one squared grid: the gatehouse in two storeys, the tower in three.
+
+**Ruled.**
+- **One scene per building, a level per storey** (`levels`), on core's scene
+  levels. Each storey's crop is the first's moved a whole number of cells, so
+  the stairs drawn on one storey stand over the stairs on the next.
+- **A storey stands four cells' distance over the last**, core's own default
+  level height. Nothing on the plate is read for it.
+- **The gatehouses built to the first's plan are a scene of that plan**
+  (`ax1.fort2-3Map`), as the blocks are.
+
+*Rejected:*
+- **A scene per storey.** A token could change storey only by changing
+  scene, and the stairs would line up on no canvas.
+- **The whole plate as one level.** A token on the stairs would have to
+  cross the page to reach the storey above.
+
+*Cost:*
+- A token changes storey through core's level controls. Stairs that move it
+  are not wired (ROADMAP). *(Wired 2026-10-25 by "The map step joins the
+  maps by their link rows".)*
+- The plates draw their walls as hatching, so the storeys are wall-less, as
+  the block plans are (ROADMAP). *(Superseded 2026-10-25 by "The hatched
+  plans and the storeys stand walls": each storey's walls stand on its
+  level.)*
+
+## 2026-10-24 — AX1's sites are places in its region, and its region map stands them on their hexes
+
+AX1 prints six sites around the fort on its region page (p.66) and draws
+them, with the fort and the first level, on its region map (p.33). Five are
+AX3 region sites.
+
+**Ruled.**
+- **A site set under a run-in title anchors by the title's head.** Each AX1
+  site's title runs in on the line its prose opens, so no whole line hashes to
+  the title. Where no whole run-in line answers a `{hash, as: "runin"}`
+  anchor, the compiler boxes a title closed by a colon by its head alone
+  (`axRuninHeads`). A row so anchored stops where the next titled row of its
+  group opens (`titleStops`).
+- **Five sites are AX3's, and keep none of AX1's paragraphs** (`meta.sameAs`,
+  `unique: []`). No heading hash matched, since AX1's headings carry the hex
+  and AX3's do not, so each pair was read on the two pages, in reading order.
+  AX1's text for each is an earlier wording of AX3's. The sixth site is
+  AX1's own place in AX1's region.
+- **AX1's region map is its own region place's, unpaired with AX3's.** Both
+  maps print the same hex scale, but AX1's covers about half of AX3's
+  columns. It is a crop of the same ground, and a map is one picture. It
+  stands on `ax1.region`, which the places step makes for the sites.
+- **A key space may stand on a map that names no place.** The region map
+  draws the fort and the first level each in its hex, among the sites. On a
+  plan a space is the map's place or holds it, and the recipe check still
+  refuses one there (`recipeProblems`). This extends "A plan is the place it
+  draws, and its rooms stand on it as pins" (above, same day). The new
+  evidence: the region map is the first recipe that stands a key space beside
+  other places. The test that refused a space as any map's pin was written
+  before any map did.
+- **A region map brings the places its keyed pins sit in**, as a plan does
+  (`mapIds`, `keyedAbove`). Found writing the live walk: the region branch
+  brought the fort alone, and its world copy kept a library parent.
+- **The places step lists every region place it makes** in `created.places`,
+  the region's own place and each site, as it lists keyed places. A run that
+  made them can sweep them by its own ledger.
+- **The lattice is measured.** The map's hex grid is fitted from the drawn
+  hex edges on the extracted image. Core's `HexagonalGrid`, shifted onto one
+  drawn centre, put a cell centre within a pixel of every other drawn centre,
+  for either column parity. Each place stands at its hex's centre. A site
+  drawn across hexes stands at its label's hex.
+
+*Rejected:*
+- **Pairing AX1's region map with AX3's.** One is a crop of the other's
+  ground. Two pictures of one region are two maps.
+- **Snapping each pin to the nearest cell at import.** A pin set at a drawn
+  centre already lands on a cell centre, and snapping would hide a lattice
+  that does not fit. The live walk measures the distance instead.
+
+*Cost:*
+- A book's region place is made whenever its region rows import, so a book
+  whose every site pairs onto another book's still gets a region place that
+  holds only its map. AX1's sixth site and its map use it.
+- The bind writes AX1's id and block onto five of AX3's library places. AX3's
+  Adventure carries them as they were until it is rebuilt.
+- The encounter area AX1 prints for its region map is no zone yet (ROADMAP).
+
+## 2026-10-24 — A window is the throat of a splayed gap, read by the tracer
+
+Supersedes, in today's "A window is a wall that sight passes", the ruled
+bullet that closes a side with one `invisible` line, and the first *Cost*
+bullet. Under that entry sight passes the whole gap the trace leaves.
+
+**New evidence.**
+- A side line cannot narrow the gap. The trace pulls the wall back along an
+  embrasure's flanks, and the line stands on the wall's centre, so on p.21 a
+  slit that narrows to a point still lets sight through 0.7 to 1.2 cells.
+- The user, shown that slit: "Clearly a technique is needed for off-grid
+  terrain"; asked which, the user chose a reader for the plans' arrow slits
+  beside the rect.
+- Run with no corrections on AX1's six stroke plans, a reader of splayed
+  gaps finds 33 windows on p.11, 16 on p.15 with three false, 18 on p.21
+  with its outer wall closed, 15 on p.23, and none on p.14. p.25 reads 25:
+  its north wall's 8 slits, 9 in the annex under its wall lines, and 8 on
+  hatching, an arc and corners.
+
+**Ruled.**
+- **A window is the narrowest paper crossing between two facing jambs, no
+  wider than half a cell, where the gap widens away from it.** A splayed
+  jamb and a notch cut down to a slit both read; a doorway's square jambs
+  keep their width and are no window.
+- **The throat is drawn into the ink before thinning.** The wall runs on
+  across it and the stretch inside it is invisible, so sight passes at the
+  throat and the flanks stand as wall.
+- **A drawn door box stays a door**, and a line of any kind replaces a traced
+  window lying along it, as it does a door.
+- **A false window is dropped by its point** (`{at, drop: "window"}`), which
+  leaves its gap as drawn. A window the reader misses is still a line.
+
+*Rejected:*
+- **Side lines kept.** They pass sight along every break in the side, flanks
+  included.
+- **Pairing the skeleton's facing free ends.** Thinning has already pulled
+  the flanks back, so a pair names the gap where the trace stops, not at the
+  slit.
+
+*Cost:*
+- Ink that makes a funnel reads as a window, as on p.25; each costs a drop.
+  So does a doorway whose corridor is less than an eighth of a cell wider
+  than it, which is drawn as a stepped embrasure is.
+- The thresholds (`WINDOW_*`) are fitted on these six plates.
+- The pass adds about half a second on the largest of them.
+
+## 2026-10-24 — A grid map carries a cell of canvas round its picture
+
+**Evidence.**
+- Core puts the picture at the canvas's padded origin less the shift
+  (`Scene#getDimensions`: `sceneX = x - shiftX`), and with a padding of 0
+  the canvas is the picture's own size and the origin is 0. `hexAlignment`'s
+  shift runs to half a cell either way, so every grid map with a shift had a
+  strip of its picture off the canvas, on one side or the other.
+- The live walk of AX1's walled plans found that strip's walls off the
+  canvas: 79 wall endpoints up to 17 px past the top of `ax1.fort19Map`, 13
+  up to 5 px past the right of `ax1.fort23Map`, 3 on `ax1.fort18Map` and 8 on
+  `ax1.level2Map`. Across the windows in those strips, 5 on
+  `ax1.fort19Map`'s top and 2 on `ax1.fort23Map`'s right, the walk's probes
+  found sound stopped at the canvas's edge, and the console warned that a
+  polygon's origin was out of the scene bounds.
+- The user chose to fix the framing in the importer, for every grid map,
+  over widening those recipes' crops.
+
+**Ruled.**
+- **A grid map is made with a padding of `GRID_SCENE_PADDING` (0.05), the
+  smallest step core's field takes.** Core rounds a padding up to whole
+  cells, or whole strides on a hex grid, so the picture keeps at least a cell
+  of canvas on every side; a shift moves it at most half of that.
+- **`gridScenePlan` asks at that padding whatever scene it is handed**, and
+  refuses a plan whose shifted picture would not lie whole on the canvas
+  (a pixel's slack), so a padding core rounds to nothing refuses the map
+  instead of cutting its edge off.
+- **A settlement map keeps a padding of 0.** It has no shift, and its
+  creation data stays byte for byte what it was.
+- **A zone carried into a book's Adventure moves with the picture's corner.**
+  A world map made before this keeps its corner where it was, and the
+  Adventure's scene puts it a margin further in.
+
+*Rejected:*
+- **A half-cell margin on each walled recipe's crop.** It mends three
+  recipes and not the next one, and every recipe would have to remember it.
+- **A shift held in [0, cell) with no padding.** The picture then never
+  overhangs the origin side, and overhangs the far side by the same strip.
+- **Core's default padding (0.25).** A wider tinted border, for nothing
+  0.05 does not already give.
+
+*Cost:*
+- Every grid map shows a tinted border a cell or more wide round its
+  picture.
+- Each grid book's Adventure is rewritten once at the next Adventures step:
+  its scenes' padding and every token, wall and zone coordinate move.
+- A world map made before this keeps its cut edge until it is made again.
+  Setting its padding to 5% in Scene Config is expected to move its objects
+  with it (core's `autoReposition` fires on a padding change); that is read
+  in core and not run.
+
+## 2026-10-25 — The hatched plans and the storeys stand walls
+
+Supersedes 2026-10-17's "The hatched-wall plans stay wall-less" and
+2026-10-24's cost line that left the storeys wall-less.
+
+**Evidence.**
+- p11 and p14 draw their walls as strokes, and `stroke` mode came after the
+  2026-10-17 ruling. It traces both with no correction: 253 walls and 47
+  doors on p11 at a threshold of 128, and 128 walls and 28 doors on p14 at
+  80 once the opening is narrowed to 0.02, which keeps the thin partitions
+  the default opening clears.
+- p10 draws its walls as hatching. `contour`'s rock mask reads the paper
+  between the strokes as floor; closed across that paper first, the same
+  mask reads the gatehouse's and the tower's walls whole. A grid of small
+  marks on the gatehouse's upper floor closed into one block until specks
+  were cut before the closing.
+- Core v14 walls carry `levels`, and a wall whose list is empty stands on
+  every level, so a storey's walls can stand on that storey alone.
+- The user asked for vision on these plans before the links between maps.
+
+**Ruled.**
+- **A fourth mode, `hatch`**, is `contour` after a speck cut
+  (`HATCH_SPECK`) and a closing of the rock (`HATCH_CLOSE`), padded with
+  rock past the crop so the plan's edge does not erode.
+- **`stroke` takes an `opening`** per recipe, its radius as a share of the
+  cell. The default stays `STROKE_OPENING`, so every stroke plan already
+  landed traces as it did.
+- **A plan of storeys takes one `walls` block**, traced storey by storey.
+  Its corrections are page points, each inside one storey's crop, the
+  storey it corrects; a lattice correction names no storey and is refused,
+  as are overlapping storey crops. The budget and the cap count every
+  storey's cells. Each storey's walls stand on its own level.
+- **p11's and p14's crops are the block plan under its heading**, half a
+  cell clear of the walls, so no letter of the heading traces as a wall. A
+  pair sharing one picture keeps one crop, one grid and one walls block.
+- p10's gatehouse takes five corrections, under its budget of six: each
+  gate's double door as two leaves, and a wall-walk door the box reader
+  misses. The tower takes none.
+
+*Rejected:*
+- **Narrowing the default opening.** Every stroke plan already landed would
+  trace differently.
+
+*Cost:*
+- The stair on each storey, and the engine on the gatehouse's roof and the
+  tower's, read as rock joined to the wall, so a token cannot step onto a
+  drawn stair; a link between storeys (ROADMAP) stands beside it.
+- `HATCH_CLOSE` and `HATCH_SPECK` are fitted on p10's two buildings.
+
+## 2026-10-25 — The map step joins the maps by their link rows
+
+Builds on 2026-10-17's "Maps are joined as scenes, and Levels only stack
+storeys", which ruled the link row and left its pass unbuilt.
+
+**Evidence.**
+- Core v14 (`client/data/region-behaviors/teleport-token.mjs`) stores a
+  destination relative to the behaviour naming it and resolves it with
+  `fromUuidSync(uuid, {relative})`. It asks only through `choice`, formats
+  `dialog.revealed` with the token, the Region and the scene, and lists
+  destinations on one scene by the Region's name alone.
+- Core refuses a destination Region on more than one level of a scene, and
+  `changeLevel` asks a token entering it which of its levels to take,
+  keeping its position.
+- On AX1's fort plan the four towers' ends lie in the middle third of the
+  picture across, two in the top third and two in the middle third down, so
+  thirds of the picture name them as two pairs.
+
+**Ruled.**
+- **The map step joins the links** after its last zone, over every
+  cookbook's link rows, and `cookbookImportLinks` runs that pass alone. There
+  is no Judge step of its own: a link is ids and boxes, and its maps exist
+  only once the map step has run.
+- **One Region per end**, keyed by its map, its storey and its box carried
+  to the first storey. Ends that rows share are one Region leading to every
+  other end, and it asks which.
+- **A stair between storeys is one Region over them, with `changeLevel`**,
+  on the cell beside the drawn stair, which the trace reads as rock (the
+  entry before this one). A stair between two plans is a `teleport` row, one
+  end on each plan's stair.
+- **A teleport asks** where it leads to several, where its row says
+  `confirm`, and on a region's map. The question is a lang key core formats.
+- **Destinations are kept as core stores them.** The book's Adventure
+  carries a link Region from the world's map as it carries a zone, its
+  scenes under the world's ids, which are the ids it imports under.
+  *(Carrying from the world's map alone is superseded by the next entry, the
+  same day.)*
+- **A Region is named for its end's place**, else `Link <n>`, **and a
+  compass word**: ends on one map under one name by thirds of the rectangle
+  they span together, an end alone by thirds of the picture.
+- **A held Region is repaired, never rebuilt.** Dead destinations go,
+  missing ones are added, and a destination the Judge added stays.
+- **AX1's first rows**: the region to the fort and to the first level, the
+  two levels by two stairs, the fort's four towers to the one tower plan,
+  and the tower's stair between its storeys. The rest follow once these
+  are walked live.
+
+*Rejected:*
+- **A link step for the Judge.** It would decide nothing a Judge can.
+- **A slot in `slotsOf` re-pointing destinations.** The Adventure imports
+  under the world's ids, so a stored destination resolves as it stands.
+- **Thirds of the picture alone** for the compass word: the towers' choice
+  would offer two pairs of identical names.
+
+*Cost:*
+- An Adventure imported where its scenes take other ids, a twin beside the
+  maps it was written from, keeps destinations naming the world's Regions.
+  The link pass reads the import before any copy (`heldMapOf`), so it never
+  re-points the twin.
+- The gatehouse's upper storey has no stair inside; it is reached by the
+  wall walks from the towers, which wait with the rest of AX1's ways
+  (ROADMAP).
+- Each box is read off the Judge's page by an author, as a zone's outline is.
+
+## 2026-10-25 — The book's Adventure lays the ways the world lacks
+
+Supersedes one bullet of the entry above, written the same day: that the
+Adventure carries a link Region from the world's map as it carries a zone.
+
+**Evidence.**
+- The AX1 walk's teardown rebuilds the owner's Adventure over a world that
+  holds two of AX1's seventeen maps. Read back, the Adventure held 5 of the
+  14 link ends, and the first level's way in led to a Region none of its
+  scenes carried. Any world missing a map gets the same result.
+- A zone is carried only from a held map because it is another book's row,
+  rolling on a list the Adventure has to bring. A link is the book's own
+  row, on maps the Adventure builds from their recipes, so that reason does
+  not apply.
+
+**Ruled.**
+- **The Adventure lays every end whose row lies wholly on its own maps**
+  (`withAdventureLinks`), on a scene built like its own, by the map step's
+  own rectangle, name and question.
+- **An end the world holds is carried as held**, under its ids, and repaired
+  as the link pass repairs one. A destination that still resolves against
+  the world's behaviour stays, and the ends its rows name are added.
+- **A laid end's ids are derived from its map's seed and its end key**, the
+  same on every rebuild.
+- **A destination is written by core's `buildRelativeUuid`**, the form core
+  stores.
+- **One code for both passes**: the world's pass and the Adventure gather the
+  rows (`linkSlots`), place and name the ends (`placeLinkEnds`) and set the
+  question (`linkQuestion`) alike.
+
+*Rejected:*
+- **Rebuilding the owner's Adventure before the walk's sweep.** It hides the
+  defect, which any world missing a map has.
+- **Laying every end afresh under the world's ids.** `withWorldIds` pairs a
+  Region by the place it is drawn for, and four of AX1's ends share one place
+  while a stair names none. It would also discard a Judge's shape and
+  question.
+
+*Cost:*
+- A way to another book's map is in no Adventure. AX3's site to the first
+  level waits with the rest of AX1's ways (ROADMAP).
+- A destination the Judge added to a held end is kept even where it leads
+  outside the book, and in a world without that map it leads nowhere.
+
+## 2026-10-25 — An Adventure's import runs the link pass
+
+**Evidence.** The import writes to nothing the world holds, so a held map's
+end keeps the destination it had. Once the map it led to is deleted and the
+Adventure brings that map back, the end leads to a Region that no longer
+exists. After the AX1 walk's sweep, the world's first level still led to a
+deleted region-map Region. No step had run the link pass since.
+
+**Ruled.** `importAdventure` (`book-adventure.mjs` `afterImport`) runs
+`cookbookImportLinks({quiet: true})` after its mirrors and thumbnails,
+whenever the import made or held a map. `quiet` posts no notification for a
+pass that made, repaired and refused nothing.
+
+*Rejected:*
+- **Writing the held map's Regions from the import.** That breaks the rule the
+  import is steered by, and the link pass already repairs a held end.
+- **Leaving the pass to the Judge.** A way that leads nowhere does not look
+  broken until a token walks into it.
+
+*Cost:* the pass reads every cookbook's link rows against the whole world. An
+import can therefore also join another book's ways that were waiting on a map
+the import brought.
+
+## 2026-10-25 — A book Adventure's import waits for the library
+
+**Evidence.** Core empties a compendium's documents 300 seconds after its
+last read (`CompendiumCollection.CACHE_LIFETIME_SECONDS`), so a cold library
+is the normal state of a working session (`docs/lib/MODEL.md`), not a
+startup one. The 2026-10-17 refusal therefore met the first press after any
+idle spell. The AX1 walk's section 3b pressed Import once and the import
+never ran; a rerun logged the library cold at that same press.
+
+**Ruled.** `book-adventure.mjs` wraps `Adventure#prepareImport` (libWrapper
+`WRAPPER`, a prototype fallback where libWrapper is absent). For a cookbook
+Adventure, while `libraryCold()`, it posts `adventure.libraryWarming` and
+awaits `warmLibrary()`, at most `WARM_TRIES` times, then calls through.
+`steerImport` is unchanged: it still fills synchronously and still refuses a
+cold shelf, which is now the net for a shelf that does not load. Core calls
+the hook straight after `prepareImport` resolves, with no await between, so
+the fill reads the library the wait warmed. The legacy V1 path reaches
+`prepareImport` through `_prepareImportData`, so it waits too.
+
+*Rejected:*
+- **Filling in an `options.preImport` step, when cold or always.** Core's
+  loop ignores a step's return, so a step cannot cancel: an empty import
+  still records `adventureImports` and fires `importAdventure`, and filling
+  always would make every nothing-to-add one. A later hook that replaces
+  `options.preImport` drops the step and hands core's overwrite the whole
+  lists. A throw only logs on a V1 sheet, and on a V2 one leaves Import
+  disabled under two notifications. The legacy path runs no steps at all and
+  would still need the synchronous fill.
+- **Wrapping `Adventure#import`.** It starts before the sheet's
+  `_configureImport`, so whatever that awaits sits between the warm and the
+  fill, and the legacy path reaches `prepareImport` without passing through
+  it.
+- **Wrapping the sheet's `_configureImport`.** A V1 sheet does not define it.
+
+*Cost:* a library document invalid enough that core keeps it as source only
+may hold its shelf cold for good, and then every book Adventure's import is
+refused (plausible, not seen). A cold press shows one more notification. The
+wait is pinned in `tools/importer/test-book-adventure.mjs` and walked live by
+importer-ax1, which empties every shelf before each press.
+
+## 2026-10-28 — The importer walks keep only what no import reads
+
+**Evidence.** `.claude/rules/live-testing.md` step 4 (2026-10-26) keeps a
+fixture once built and deletes one only where setup is the subject. Every
+section of the four importer walks is setup by that rule's own list: an
+import's first run, a rebuild through the entry picker, a hand-out, a
+document deleted and brought back. Their products are also what the next
+import answers to. `importedActor(id, {copies: false})` counts any world
+actor claiming an entry that is not a world copy, so a world character left
+claiming an AX1 inhabitant's entry stops the next import from making that
+inhabitant; a standing AX1 or AX3 import trips the held-document guards of
+the other walks that import the same book (importer-ax1, importer-adventure,
+importer-characters); a carried Item left stamped to AX3 rides into the
+next Adventure of the book, the owner's included; and an empty place left
+standing is pruned by the primary GM's ready and counted by the domains
+walk's prune as someone else's.
+
+**Ruled.** The importer walks keep the end-of-walk sweep of what they made,
+by the run's own ids, as the sweep of their setup sections. The one fixture
+they keep is the one no import reads: importer-ax1's lamplighter
+(`importer/lamplighter`), a player's character that carries the light, whose
+step gives it back the player's ownership and a fresh unlit torch first. A
+fixture a dead run could leave in an import's way carries a marker and is
+retired before the step that would read it: importer-characters' claimant
+(`importer/claimant`, retired before the import) and importer-adventure's
+carried Item (`importer/carried-item`, retired before the fixtures are
+built).
+
+*Rejected:*
+- **Keeping a book's import between runs, marked.** Each import walk's first
+  step needs the import absent, so a kept one is retired at the next run's
+  start and the churn is the same; the products sit in compendium shelves,
+  which the driver's marker lookup does not read (template DECISIONS,
+  2026-10-28: a fixture is a world document); and a kept import is exactly
+  what trips the held-document guards of the other walks on the same book.
+- **Clearing the import first with `cookbookRemoveImports()`.** It deletes
+  every session's import, not the run's own, which step 4 forbids.
+
+*Cost:* the importer walks rebuild their whole import on every run, as
+before; only the lamplighter is found again.
+
+## 2026-10-28 — AX1 registers the three items no later book prints
+
+The census that "An item two books print is the later printing's"
+(2026-10-24) owes a book registered after it. AX1's equipment appendix
+(AX1 p.69) describes twelve items. Nine share a name key with a row the
+Revised Rulebook or By This Axe already registers, and both carry a later
+year than AX1, so the merge would keep their copy of all nine. The other
+three share a name key with no row in any register, so they change no
+winner.
+
+**Ruled.** AX1 registers the three (`register/ax1/p70-equipment.json`) and
+none of the nine. Its body is set at 10pt, as BTA's is, so its definitions
+take BTA's body ceiling (`DEF_BODY_MAX_H_BY_BOOK`).
+
+*Rejected:* registering all twelve and letting `reconcileByName` keep the
+later copy. Under the printing rule the nine can only lose that merge, so
+their rows would compile passages no import keeps.
+
+*Cost:* a world without By This Axe gets no copy of the one item AX1 shares
+with it alone. test-ax1-cookbook checks that no AX1 equipment row shares a
+name key with another book's row, so a later register that prints one of
+the three shows up there.
+
+## 2026-10-28 — A seat opens only the shelved books it may read
+
+**Evidence.** The join-time restore (`restoreShelf`) asked the shelf
+journal's permission of the form alone, so every seat opened every staged
+book, though a book's journal is the creating GM's alone ("A book the server
+holds is a journal", 2026-09-03) and the shelf is the GM seats' to read on
+join ("A book the server holds asks nobody for anything", 2026-08-21). A
+player's client holds every shelf journal, the withheld ones included, so
+the restore found them all. Measured on 14.369 from a fresh browser on the
+server's own machine, as the Player seat of a world with 23 staged books
+and none shared with it: the seat fetched all 23 (830 MB) and finished the
+restore 34–41 s after `ready`, holding 23 pdf.js workers and 1.45–1.54 GB
+of renderer private memory. Under this ruling it fetches nothing and holds
+0.46 GB. `ready` arrives at the same time either way, since the restore
+runs after it.
+
+**Ruled.** A seat opens a shelved book whose PDF page is open to it at
+Observer: every one on a GM seat, on a player seat what the Judge shared,
+the form among them (`books.mjs` `shelfBooksToOpen`, asked by
+`restoreShelf` at join and from Reconnect all). It is the test a citation
+applies (`openBookPage`), on the page that is the shelf record.
+
+**What a player sees.**
+- *A citation*: unchanged. `openBookPage` reads the shelf page and hands
+  the viewer the server's file whether or not the seat opened the book, so
+  a player the book is withheld from is told they lack permission and
+  nothing opens, as before, and a player it is shared with opens the page.
+  No reference a player could open stops opening.
+- *Your Books*: a withheld book's shelf row says it is on the server and
+  not shared with them (`shelfWithheld`), where it said their seat reads it
+  at every launch; its book row reads Not connected.
+- *No walkthrough*: a seat with nothing open in a world whose shelf holds
+  books is not a new table, so the first-run window also waits on an empty
+  shelf, as the window's own "nothing yet" already did. Without it, every
+  player seat would be offered the walkthrough at every join until it
+  ticked it away.
+- *The official sheet*: unchanged; the form was already gated this way.
+
+**Rejected: GM seats, and the form when shared.** Literal to the
+2026-08-21 wording, and leaner: every import is GM-only, so on a player
+seat a book other than the form is read by nothing the module does. It
+keeps a second rule beside the journal's, and a book the Judge shares
+reads Not connected on the very seat it was shared with.
+
+*Cost:* a Judge who shares the shelf so the table can read the books in the
+journal puts each shared book's fetch and parse back on every player seat
+at every join, for no reader the module has today. The rejected rule is one
+condition in `restoreShelf` if that proves common.
+
+## 2026-10-28 — One management window
+
+The owner asked that importing "have more controls and get merged into one
+management window", during a review of the macro pack that found functions
+no surface reached: a chain step that could be re-run only by hunting its
+api name, a book rebuild offered in one dialog's picker, a repair window
+with no door from the importer, an adventure book with no way to be rebuilt
+at all.
+
+**Ruled.**
+
+- **One window, five tabs** (`apps/import-manager.mjs`): Books, Import,
+  Rebuild, Adventures, Tools. It is reached from the *Manage Imports (GM)*
+  macro, the settings menu and the Books window's walkthrough band. It
+  holds no state and runs nothing of its own: every press hands off to a
+  run that already exists and asks its own questions, so the window adds
+  surface and no second implementation.
+- **Every chain step is a control.** The Import tab lists `GM_STEPS` in the
+  chain's order and runs any one (`runImportStep`). This supersedes IN PART
+  "Three controls, not twenty-one (2026-08-24)": that ruling's reason — a
+  Judge offered twenty-one macros runs them in the wrong order — stands, and
+  the macro count still falls; what changes is that the steps are now
+  offered *in their order, numbered, under the whole-chain button*, which is
+  the shape that ruling found missing. `cookbookUpdateClasses` is still not
+  offered: its modal and its ownership gap are what kept it out of the
+  chain, and a list of steps is the chain.
+- **The Books dialog is not merged.** *(Superseded 2026-11-04, "The Books
+  window is a tab of the import manager".)* Connecting, staging, status and the
+  walkthrough are a window of their own with their own live record (TESTING,
+  "The Books window"); the Books tab shows which books are open and opens
+  that window. Folding it in would have moved a tested surface to retest it
+  for no gain in reach.
+- **The Rebuild tab and the Reimport One Shelf dialog share one source**
+  (`rebuildOptions`, `runRebuildPick`), so neither can offer what the other
+  lacks. The dialog stays: the live walks drive it by api.
+
+**Rejected:** a settings-menu entry per tab (five doors to one window);
+registering the window's own repair checks (it opens the repair window on
+the importer's checks instead, one owner per check).
+
+*Cost:* one more AppV2 window to walk live; two tabs (Books, Tools) that
+mostly launch other windows.
+
+## 2026-10-28 — An adventure book is a reimport unit
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over" and "The manager draws only the one repair, and
+> Repair everything replaces the Mode select": *Rebuild* is gone, and an
+> adventure book offers Repair alone, which deletes nothing. The book as one
+> unit, the maps kept and Repair forcing the Adventure stand.
+
+The owner asked for "a reimport and repair option" for adventure imports
+specifically. A shelf rebuild could not reach an adventure book: its
+documents land as world journals, places, factions, scenes and items, none
+of them on a refill shelf, and `cookbookReimportBook` takes shelf Items
+alone (its own ruling, "A book is a reimport unit too", 2026-09-16).
+
+**Ruled.**
+
+- **`cookbookReimportAdventure(bookId, {mode})` treats the book as one
+  unit.** *Rebuild* (`drop`) deletes every Actor, RollTable, JournalEntry
+  and Item its stamp names — the library's copy and the world twin it is
+  filed under — and the book's Adventure off its shelf, then runs the
+  book's steps again, narrowed to it. *Repair* deletes nothing and runs the
+  same steps with the adventures step forced.
+- **Maps are kept.** A scene carries what no import can put back: the
+  Judge's regions and tokens, fog, drawings, notes. The scenes step already
+  repairs a held map's links in place (`repairHeldMap`); a rebuild runs
+  that. A map a Judge wants fresh is deleted by hand first, as before.
+- **Kept too:** a copy dragged out of the library (`isWorldCopy`), a
+  character a player owns (`playersCharacter`), and a document another book
+  owns that merged one of this book's ids, each by the predicate the shelf
+  rebuild already keeps it by.
+- **Ids are stable across the drop.** Every document the rebuild deletes
+  comes back under the id it stood under ("Every rebuilt document keeps its
+  id", below), so a map's pins and an organisation's seats resolve again
+  without a link pass over them. This is what makes a rebuild safe to offer
+  beside the maps it keeps, and the first review of this change found it
+  false for every type but Item.
+- **Repair forces the Adventure.** `bookAdventureState({force})` reads a
+  stored Adventure as stale whatever its stamp says, a Judge's edit
+  included — a repair is asked for because the Adventure is suspect, and
+  the confirm says the edit goes.
+- **Each narrowed run is quiet about nothing.** `cookbookImportFactions`,
+  `cookbookImportMarketProfiles` and `cookbookImportRollTables` gain
+  `{books}` and return their empty counts without a warning when the books
+  named hold nothing for them; the places and scenes steps are skipped by
+  the caller where the book has no rows of theirs, since their "nothing in
+  any open book" warning is right for a chain run and wrong for one book.
+
+**Rejected:** deleting the maps too (what they carry cannot be put back);
+a rebuild that deletes by type across every book (the shelf rebuild's
+reason, "A book is a reimport unit too"); a repair that writes over the
+Judge's Adventure silently (the confirm names it).
+
+*Cost:* a rebuild re-reads the book's pages once more — minutes for a book
+with maps; a region laid over a map by another book is kept with the map
+and may name a place the rebuild re-created under the same id, which is why
+the ids must stay stable.
+
+## 2026-10-28 — Every rebuilt document keeps its id
+
+**New evidence.** "A rebuilt Item keeps its id" (2026-10-23) rejected
+*actors in the same change* because no walk then rebuilt an actor. The
+adventure-book rebuild above does: it deletes a book's places, people,
+organisations, lists and journals and keeps the book's maps, whose pins,
+region seats and roll-table links point at the deleted documents by id.
+With the Item-only record every pin on a kept map would have dangled after
+the first rebuild — the failure the 2026-10-23 ruling fixed for Items,
+reproduced for every other type by the control that needs it most. The
+2026-10-23 ruling's own note, that `bringAcross` keys a map's world copies
+by their library actor's id, is the same evidence from the other side.
+
+**Ruled.** `deleteImported` records the id of every document it removes, by
+type and cookbook id, and `createDoc` and `createDocs` settle every type's
+id through `itemIds` (named for what it was written for, now given the
+type): the recorded id, else the cookbook id's `stableDocId`, else core's
+own, with `keepId` on every write. A caller's own `_id` stands only under
+its own `keepId`, as before. The ROADMAP row "A rebuilt actor keeps no id"
+is closed by this.
+
+**Rejected:** keeping ids for the adventure rebuild alone (the picker's
+monster rebuild dangled links by the same route, and one funnel is the
+2026-10-23 design); recording ids without the derived fallback (an entry
+never imported in this world would still take core's id, and its first
+rebuild would cut links once more).
+
+*Cost:* a document first imported after this ruling takes a derived id, the
+same in every world; a world copy made by `bringAcross` keeps the library
+id as before. The live record is the adventure rebuild's recipe, step 2
+(every noted id answers again); the picker's monster rebuild owes its own
+walk.
+
+## 2026-10-28 — ERRATA.md is a repo document, not shipped
+
+11.11.0 shipped `ERRATA.md` at the repo root, which `module.zip` takes whole:
+the release workflow excludes named paths, and the root file was none of
+them. The owner ruled the same day to take it out of the zip.
+
+**Ruled.** It lives at `docs/importer/ERRATA.md`. The zip excludes `docs/*`,
+so the synced release workflow is unchanged, and `lint-register` reads the
+ids from there.
+
+*Rejected:* an `ERRATA.md` exclude in the template's release workflow. The
+file is this repo's, and the exclude would sync to every module and need a
+template push.
+
+*Cost:* a Judge who reads an erratum id in a place's note finds its entry on
+GitHub, not in the module folder. 11.11.0's zip keeps the root copy.
+
+## 2026-10-28 — A walled map is indoors, and the fort's maps are a city
+
+**New evidence.**
+- The user reported daylight and rain inside AX1's walled maps, from a
+  time/weather module. Such a module writes each scene's darkness and weather
+  by the clock.
+- The 2026-10-24 entry "A walled map is dark, and its tokens see by their own
+  light" rejected `darknessLock` because core's lock "only disables the
+  slider" and nothing in this module writes darkness. The first half is wrong:
+  core's `Scene#_preUpdate` drops a darkness change from any update that does
+  not also name the lock. The second half holds, but the writer is another
+  module.
+- The user ruled the fort's maps city maps: the overview and every building
+  plan.
+
+**Ruled.**
+- **A walled map is indoors.** Its darkness is locked, it states no weather,
+  and it carries one Region over its whole canvas with core's Suppress Weather
+  behaviour (`indoorRegionData`). This supersedes that entry's `darknessLock`
+  rejection, 4 days old; the evidence above is new.
+- **A map without walls is outdoors** and states neither, so the world's clock
+  lights it and may send weather over it.
+- **Every fort map declares `travel: "settlement"`.** That is the overview and
+  its 13 building plans. The dungeon's levels keep `delve` and the region's map
+  `journey`. This supersedes, for the fort, the overview's "explored a turn at
+  a time (`delve`)" ("The fort's overview is its hex plan…") and the bullet
+  "A plan explored a turn at a time declares `travel: "delve"`" ("A plan is the
+  place it draws…"), both 4 days old; the user's ruling is the new evidence.
+  Formation counts a city's maps as one city (formation DECISIONS,
+  2026-10-28).
+
+**Rejected.**
+- *The time module's own per-scene opt-out.* It answers one module. The lock
+  and Suppress Weather are core's and hold against any writer.
+- *An empty `weather` alone.* A module that sets weather on every scene writes
+  over it.
+- *Indoors from a recipe field.* Walls are the fact: every walled AX1 map is a
+  building or a dungeon, and each unwalled one (the fort's grounds, the region)
+  is open ground.
+
+*Cost:*
+- A map already in a world keeps what it was made with: the step never
+  re-creates a held scene. To take the new settings, delete the scene and run
+  the maps step again.
+- A Judge who wants a building lit by day unchecks its darkness lock first.
+- A time module's darkness no longer reaches a walled map at any hour.
+
+Walked live on core 14.369 (`tools/live/importer-ax1.mjs`, 88 of 88), with the
+owner's go-ahead to rebuild their AX1 maps. Each walled map came in locked,
+with no weather and one roof over its canvas, and the fort's grounds and the
+region's map without either. A darkness write naming the level alone read
+back 1 on a walled map. Each plan declared its recipe's `travel`, and the
+Adventure carried the same sight.
+
+## 2026-10-29 — A held map's travel system is a link when the importer minted it
+
+**Ruled.** `repairHeldMap` brings a held map's declared travel system
+(`flags.acks-extras.battlemap.mapSystem`) to the recipe's `travel` when the
+recipe declares one and the held value still reads as the default the map
+step minted before recipes declared any: `journey` on a gridded plan,
+`settlement` on an ungridded one. Any other value is the Judge's own
+declaration and is never read; a recipe declaring no travel writes nothing;
+the write is counted as a repair.
+
+**What this knew that 2026-09-30 did not** ("A held map has its links
+repaired, never its shape"). Until 0706286 (11.10.0) the map step passed no
+travel system, so `sceneData` wrote `journey` on every gridded plan, and the
+AX1 dungeon levels shipped in 11.6.0 with exactly that on them. A party
+token arriving on such a level adopts the declaration (`adoptSceneSystem`,
+"a declaration outranks both") and keeps the journey's clock: on the test
+world a 120 ft drag on a 10 ft grid spent 0.02 miles, posted no card and
+billed no turn, which is the 2026-10-28 field report "the party is still not
+tracking dungeon exploration". A re-import did not mend it, because the repair
+read links alone. The declaration was never the Judge's: it is the step's
+own write, and it is a link in the sense the ruling means — what the map
+names, not what the Judge drew — so the repair owns it.
+
+**Rejected:** re-creating the held level — the 2026-09-30 cost, every room pin
+and note a Judge added. **Rejected:** bringing every held declaration to the
+recipe — a Judge who set a plan to `settlement` by hand would lose it on the
+next map step. **Rejected:** reading `delve` from a feet-scale grid in
+`inferredTravelSystem` — it reverses docs/formation's "silence is nobody has
+said", and belongs to formation's roadmap if anywhere.
+
+*Cost:* a Judge who set a gridded plan to `journey` on purpose, matching the
+minted value exactly, has it brought to the recipe's `delve` by the next map
+step; the battlemap setup tool sets it back. The live record: the T-0361
+repair walk in TESTING.md, "A held plan's travel system".
+
+## 2026-10-28 — An item a book introduces is worn where its page says
+
+The catgirl's ten items (DECISIONS 2026-10-19) came in as plain core items
+of one paragraph, and a Judge found none of them wearable: core's `equipped`
+field lives on `weapon` and `armor` alone, a plain item is wearable only by
+a declared slot, and the items step declared none. The module item sheet's
+Equip guesses a slot from the name and knew gloves, gauntlets, bracers and
+mittens, so the first item, a wrap, warned "no slot"; the character sheet's
+Equipment tab offers wear to a declared slot alone; and the Follower Card
+asked core's field, so it offered wear to no plain item at all. The report
+blamed the system update; the cause predates it.
+
+**Ruled.**
+
+- **The place is read from the paragraph.** Each paragraph opens by saying
+  where the thing is worn — around the palms, the wrists, the waist, the
+  tail — and `adventure-item-binding.mjs` reads a wearing verb and the
+  earliest body place named into the lib's slot, declared as the item's one
+  slot. The words it knows are the body's places and the garments that stand
+  for them, the module's vocabulary; a tail, a torso or a wearing clause
+  with no place is the uncapped `worn`; "finger", never "ring", since the
+  verb rings a bell in the same sentences. A thing nobody wears (a dose)
+  declares no slot and stays goods.
+- **The price is read from the cost line**, through the one reader
+  `buildEquipmentItem` already used for a prose-priced piece of equipment,
+  now shared (`priceStatedIn`).
+- **A crafting time is the magic mark.** A paragraph that states one is a
+  made magic item and takes `markets.magic`, so `isMagical` counts it
+  against its place's magic capacity and the item sheet treats it as one.
+- **The Follower Card wears what the lib calls wearable.** Its equipment
+  rows read `isWearable`/`isWorn` and its toggle writes core's field where
+  the type has one, else `setWorn` at the first declared slot — the same two
+  stores every other sheet reads.
+
+**Rejected.**
+
+- *Reading the grants into effects now.* Three of the items add to natural
+  attacks, two to thrown weapons, and six make those attacks extraordinary:
+  the equipment contract's attack domains are flat melee and missile, the
+  extraordinary flag is per weapon, nothing gates a plain item's
+  transferred effects on its worn state, and a player character's claws are
+  prose powers. Each is a design of its own (ROADMAP, "The items' grants").
+- *Adding the wrap's word to the sheet's name heuristic.* The heuristic is
+  the fallback for gear nobody declared; an import that knows the place
+  declares it.
+- *Leaving the magic mark to the Judge.* The mark is what makes the
+  one-of-a-form rule count the item, and the paragraph states it as plainly
+  as the price.
+
+*Cost:* an item already in a world keeps what it was imported with; delete
+it and run the items step again to take the slot, the price and the mark.
+The live record: the typography walk's step 2, extended.
+
+## 2026-10-29 — Nothing is imported without the book
+
+**Ruled.** Every importer that builds a document from one cookbook entry
+reads the entry off the seat's own copy of its book first (`cookbook.mjs`
+`readForImport`), and an entry whose book is not open on the seat, or whose
+page no longer matches the cookbook, is passed over and counted in the run's
+notice. Nothing is created from the entry's shape alone. This reaches the
+abilities (the bulk run, the picker and the `ability-provider` service), the
+equipment entries (items and animals), the classes, the spells, the traps and
+the variations; the monsters, vehicles, merchandise, journals, roll tables,
+adventure items, places, scenes and the weapon, armour and price grids already
+imported from an open book alone. The three equipment sweeps that delete what
+the import is trusted to rebuild (`repairEquipmentAbilities`,
+`repairAnimalItems`, `repairShieldVariations`) keep what the import would now
+pass over. A book opened later imports what a closed run passed over, since
+every import steps over what the world holds and builds the rest.
+
+**Superseded:** RECIPES.md's first degradation tier, "structure & refs —
+always: the graph renders bookless as stubs+citations", and the equipment
+import's "bookless seats still get the document — name, icon, citation stub",
+both older than this file's dated entries. "Importing again refreshes what it
+did not create" (2026-09-02, above: "an entry whose book yielded no node is
+now passed over entirely") ruled the same for the UPDATE pass, on the
+evidence that a rebuild with nothing read is the entry's shape without its
+content; this extends it to the create pass, which that entry left building
+stubs.
+
+**What this knew that the tier did not.** The owner's report of 2026-10-29:
+the importer creates the reference documents without the book instead of
+skipping. A stub carries the entry's name, type, icon and page reference, so
+every sheet, picker and compendium lists it as the thing — a class a player
+can take, a spell a caster can learn, a glove a character can wear — and
+nothing on its face says it is empty until it is opened. The module's own
+header has said since the PoC that "a session that cannot open the PDF
+imports nothing"; the tier contradicted it for six importers. Live, the test
+world held a book's classes and powers as stubs on a seat where the book was
+never open, which is what the report describes.
+
+**Rejected:** pruning the stubs a world already holds. The update passes
+leave a document whose book is closed as it is (the 2026-08-29 entry), and a
+stub whose book opens is filled by Repair; a prune would delete a Judge's
+edits to a stub along with the stub. A world that wants them gone removes the
+shelf and imports again with its books open. **Rejected:** keeping the stub
+for a monster's embedded proficiency copy (`bindAbility` with no node at
+`bindMonster`'s step 2). That copy sits on an actor whose own book IS open,
+names the proficiency the stat line prints and is not a library document;
+it stays, and is named here as the one bookless build left.
+
+*Cost:* a seat with none of a content type's books open now imports none of
+it, where it used to get a shelf of empty documents; the notice says how many
+and why. The `ability-provider` service reports a proficiency whose book is
+closed as missing instead of embedding a stub, so a hireling hired on such a
+seat lacks that proficiency until the book is open. The abilities picker's
+header no longer promises "structure only"; its closing notice counts what it
+passed over.
+
+## 2026-10-29 — A player character's natural attack is a power's row
+
+The item-grants design (`wip/20261029-item-grants-as-effects-design.md`,
+not in effect) put two questions to the owner, who ruled: follow the rules
+as written and the design's findings, and take whichever answer is more
+easily kept consistent. The community book's class carries a claw power
+with a better natural attack than a bare hand.
+
+**Ruled.**
+
+- **A player character's natural attack is a roll-time weapon built from
+  the power's typed `naturalAttack` row** (the design's E2), the way the
+  unarmed strike is built at roll time, and flagged natural so the worn
+  gear's natural-attack domains and the wearer-level extraordinary mark
+  apply to it. The power is the one store; nothing becomes goods, costs a
+  hand or needs re-making when the class is re-applied.
+- **An ordinary unarmed strike is not a natural attack.** The rules name
+  natural weapons as a creature's own horns, tusks and claws (RR ch. 6,
+  "Melee attacks") and give a fist or foot its own section (RR ch. 6,
+  "Brawling"), so an item that improves natural attacks leaves a punch
+  alone. A character without such a power has no natural attack.
+- **A thrown bonus follows the attack in flight's kind, not the weapon's
+  class.** A dagger stabbed takes nothing; the same dagger thrown takes the
+  bonus.
+
+**Rejected.**
+
+- *An embedded weapon the power grants (E1).* It is physical, so it lists
+  in inventory, markets, storage and handover, counts against a hand, and
+  needs an exemption in each place and a rebuild on re-application.
+- *The unarmed strike as the natural attack (E3).* It takes brawling's die
+  and non-lethality, which the power's row is printed to improve on.
+
+*Cost:* the class register rows gain a typed natural-attack row whose die
+is a page value and arrives from the Judge's book at import; `executor.mjs`
+needs a locator for it. The ruling settles the design's section (e); the
+build is the design's seven slices and lands under its own entries.
+
+## 2026-10-29 — A book's own item is repaired in place
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": a description a Judge wrote is put to the
+> Judge as a held edit instead of being kept outright. The run and the
+> routes that reach it stand.
+
+Supersedes the *Cost* line of "An item a book introduces is worn where its
+page says" (2026-10-28), one day old. The new evidence: after 11.12.0 shipped
+the binding, the owner's world still showed the community book's items
+unslotted, unmarked and at 0 gp. The items step passed every one as "already
+present" and wrote nothing, and no repair gesture reached them: `repairBook`
+walked only the shelves `SHELF_REFILL` names, and a book's own items are on
+none, so Manage → the book → Repair never ran their step. The only route was
+the cost line's "delete and import again", and nothing on the surface said so.
+
+*Ruled:* the items step, given a repair tally, writes the fresh build over each
+held item under `REPAIR.adventureItem` — slot, magic mark and cost rewritten,
+the quantity a Judge set kept, a description a Judge wrote kept. The run is
+reached from the book's Repair and from the entry picker's *A book's items*
+source, which is `bookOwn`: its rows file on the book's own folder, not on a
+cookbook shelf, so the shelf test that admits every other source does not
+apply to them. A repair's run order is `SHELF_REFILL`'s followed by every run
+no shelf names. `adventureItemData` is the item's one builder, shared by the
+import and the repair.
+
+*Rejected:* retracting a flag the build does not carry. A slot a hand set
+where the page gives none stays, as every other kind's binder flags do; a
+repair writes the binder's answers and leaves what it has no answer for.
+Also rejected: teaching the book REBUILD (drop mode) to delete a book's own
+items. It still walks shelves only, so a rebuild leaves the book's items
+standing, and the repair is the way to refresh them.
+
+*Cost:* a world imported before 11.12.0 needs one Repair per book to bring
+its items to the bound shape. `tools/importer/test-adventure-item-repair.mjs`
+and `tools/live/importer-item-repair.mjs` pin the behaviour.
+
+## 2026-10-30 — A class stated in sentences
+
+Narrows "What ships first" in "A community book joins the shelf" (2026-10-18),
+which shipped the community book's three classes with their chassis and their
+progression tables unread. The new evidence: the owner's world showed each
+class sheet's "no progression rows yet" banner and asked that the imports be
+playable, and the keeper's character import warned the same at apply, so she
+imported unbound. Reading the spreads again found that every number the rows
+need except experience and title is stated in sentences beside the tables:
+the hit dice to a cap and the flat step past it, the damage bonus and the
+levels it rises at, a cleave per level, the proficiency gains. Their tables
+are pictures with no text under them (the three level tables, p13, p17 and
+p20, and one spell-slot table, p14); only one class's attack-and-saves
+table, at a page foot, is text, and it prints the fighter's bands, as each
+spread says in words.
+
+*Ruled:*
+
+- **Attack and saves are the chassis's, lent at read time.** The row keeps
+  naming `fighter`/`fighter`; `registry.mjs` already lends the chassis
+  class's bands one hop wherever a class prints none, and the chassis class
+  is the one the Judge imported from their own core book. Copying the
+  fighter's bands onto the class would be a second store of the same table.
+  The one text table is left unread: it says what the chassis says.
+- **Level rows come from the hit-dice sentence** (`proseLevels.hitDice`), one
+  per level to the maximum, experience `null` and title empty. Neither is
+  derived: the spreads' printed experience is not the fighter's, rounds
+  differently from class to class, and appears in no sentence, so a
+  chassis-derived or formula-derived ladder would contradict the page.
+- **The damage ladder and the cleave are typed rows read from their
+  sentences**, never constants: `damageBonus` (its key carrying who the bonus
+  applies to) and the core rows' cleave pattern, its phrase widened to a bare
+  "per level".
+- **The class sheet names the unread levels and the page**, and a repair
+  keeps a level's experience and title a Judge typed where the build reads
+  none (`REPAIR.class` `fillUnread`), so typing them from the book is done
+  once.
+- **The compiler reads a class page's body from the book's declared body
+  top** (`typography.bodyTop`), not from a fixed 50: the community book sets
+  its first line above it, which cut the middle out of the sentences that
+  turn a page. Only that book declares one.
+
+*Rejected:* a fighter-chassis progression for experience and hit dice (the
+hit dice are the class's own die, and the experience is not the fighter's);
+the class builder's derivation (the spreads print no build values, and its
+rounding does not reproduce the printed figures); the class powers as
+`def.power` rows in this change (a content kind per power, its own work; the
+abilities stay in the description), and the natural attack, which is the
+item-grants design's (2026-10-29), not this one's.
+
+*Open:* reading a picture table (an image-region read in the executor) would
+bring experience, titles and the thief-skill and slot columns in; it is a new
+dependency and a new extraction surface, put to the owner (ROADMAP).
+
+*Cost:* a world holding the stubs needs one Repair of the book.
+`tools/importer/test-class-prose-levels.mjs` and
+`tools/live/importer-class-rows.mjs` pin the behaviour.
+
+## 2026-10-30 — A community class's experience is priced from its build
+
+Supersedes the rejection of "the class builder's derivation" in "A class
+stated in sentences" (same day). The new evidence: the book's own design
+pages (p5–6) say each class was assembled with the JJ class-creation and
+race-creation procedures on a racial value, and print each racial value's
+cost in text on the race pages. With those costs, one allocation per class
+— read from what its spread says it can do — reproduces its printed 2nd-level
+experience exactly under the module's own `baseXpCost`, and the printed
+maximum level of two of the three under the racial level-limit table. The
+earlier ruling assumed the build was unknowable; it is stated, in the
+procedure the book names. Where the printed table and the procedure then
+disagree, the owner ruled: import the procedure's figures and note the
+printed ones as errata (2026-10-30).
+
+*Ruled:*
+
+- **The register row declares the build** (`class.build`: Hit Dice,
+  Fighting, Thievery and magic values, trade-off keys, the racial value) —
+  a classification of the spread like `chassis`, not a figure read off a
+  page. The racial value's cost is a page value: the row's `build.race`
+  names the race's pages and the pattern that reads it, and the compiler
+  emits those pages' text column by column (`race<page>c<col>`).
+- **`buildXp` prices it against the world's builder tables**
+  (`acks.classBuilder`, imported from the Judge's JJ): `baseXpCost` for 2nd
+  level, `xpSchedule` with the tables' smoothing and the saves chassis's
+  post-8 step. Only a level whose experience is still unread takes the
+  price. No tables, no readable race cost, or a category the tables cannot
+  price leaves every level unread — a partial price is never written.
+- **Experience only.** Hit dice stay the hit-dice sentence's: one class's
+  die is its Hit Dice value raised by its racial value, which the race model
+  does not carry, so `derivePlan` would write the wrong die.
+- **Provenance rides the class** (`flags.acks-extras.xpBuild`), and the
+  sheet's experience cells name the build while 2nd level still holds the
+  priced figure. A Judge's typed experience is replaced on repair, since
+  the build now reads one; the titles stay the Judge's to type, and the sheet
+  says so when every level lacks one.
+
+*Rejected:* writing `system.builder` from the import (the builder tab's
+Apply would re-derive the hit dice from the die alone); adding the racial
+costs to the register (page values); the printed figures as a fallback
+(content).
+
+*Not applied:* where the printed hit points past 9th level, or a printed
+maximum level, differ from the procedure, the sentence and the page stand;
+the import reads them and the difference is reported to the owner.
+
+*Cost:* a held class takes the price on the next Repair of the book; a world
+without the JJ builder tables keeps unread experience and its notice.
+
+## 2026-11-04 — The monster attack-throw ladder is imported, and a leader's figures name their parts
+
+Supersedes, in part, "A family's leaders follow their own figures (T-0392)"
+(same day). That entry kept a shipped ladder (`11 - step`, floored) for grid
+templates with no printed throw and moved a leader's throw one per row. New
+evidence: the owner's ruling of 2026-11-04 that a printed value caught in
+source is fixed in the work that catches it, behind an import, editable by the
+Judge, and shown as not imported when nothing is. The ladder is the Monster HD
+column of RR ch. 6, Attack Throws by Level and HD; core's
+`CONFIG.ACKS.monster_saves` mirrors the saves table, but core ships no monster
+attack-throw ladder, so there is nothing of the system's to reuse.
+
+- **The ladder is a registry table.** Document `monsters`, table
+  `attackThrowByHd`, read off the page with the rulebook's other tables and
+  editable in the Ruledata Browser, where the override wins. A leader's throw
+  is the member's printed throw moved by what the ladder adds between the two
+  rows, so the page still anchors it and the step between rows is the table's,
+  not the module's. Rejected: keeping a one-per-row step for the leader path,
+  which is the ladder's shape written into code.
+- **No ladder, no throw.** A leader cell writes none (the member's stands) and
+  a grid row keeps the actor's default; the sheet says the ladder is not
+  imported. Rejected: falling back to the old formula, which is the printed
+  ladder under another name.
+- **A derived figure names its parts.** The cell stores what the throw and the
+  save row were worked out from (`extras.derived`), and the Statblock's
+  tooltip names them while the actor still carries the figure, required by the
+  tooltip doctrine for a figure a change adds.
+- **A refill clears a damage modifier the re-read no longer finds.**
+  `damage.mod.melee` and `.missile` are binder-owned now, so they join
+  `REFILL_STAT_PATHS`, as the throw already is.
+- **Every binder lifts the "by weapon" modifier**, owner's "Move to damage.mod"
+  applying to every monster: the legacy stat line, the person block and grid
+  template rows and form cells now do what `bindMonster` does. The legacy and
+  person binders used to make no weapon at all for a "by weapon" damage,
+  because they kept only a die.
+
+*Cost:* a template imported before the rulebook's tables has no derived
+throws until it is repaired; generation does not re-read the ladder. A
+modifier a Judge set by hand on an imported monster is reset by a refill whose
+page prints none. A person block's "by weapon" bonus now rides every damage
+roll of that actor, naturals included, as a monster's does.
+
+## 2026-11-04 — AXIOMS leaders are a second source, chosen per template
+
+The owner ruled "Offer Axiom 2 and MM as options": the AXIOMS leader procedure
+is offered beside the MM's printed leaders, the MM the default, the source
+shown as provenance, and AXIOMS the only source where the MM prints no leader.
+
+- **The compendium is one book** (`axc`, AXIOMS Compendium, Issues 1-8),
+  fingerprinted by its page count alone, since the PDF carries no title, with
+  `titleRe` matching the stock download's file name for a multi-file pick.
+  Rejected: an issue per book, which would split one PDF's folios across eight
+  registrations and leave the later-printing order to decide between issues of
+  the same file.
+- **The procedure is two imported tables**, `leaderLadder` and `leaderSteps`
+  in registry document `monsters`, read off the compendium's own page. The
+  module ships what the procedure does (climb rungs, carry or double a bonus,
+  add armour and damage) and none of its figures.
+- **The source is an axis, `leaderSource`, before Role.** As printed is the
+  default; AXIOMS procedure the alternative. An axis is pinned on the template
+  and chosen per generation with nothing new, and the generation log says
+  which was taken. Rejected: a world setting, which could not differ between
+  two templates, and writing both into one cell set, which the template engine
+  would let the later cell silently win.
+- **A partial procedure derives nothing.** The registry merges an override per
+  table, so a Judge override of the steps that drops a figure yields no
+  derived cells rather than leaders built from half the rule.
+- **A rung printed as a bare plus is read as +1**, the reading `hdOf` gives a
+  stat line's bare plus. Inferred, not printed; the owner may rule otherwise.
+- **A derived leader rolls its hit points** (`rollHp`), since the procedure
+  prints none.
+
+*Cost:* casters, drudges and whelps have no derived cells. A family imported
+before the compendium was loaded has no derived cells until it is
+re-imported. On a variant with printed leaders the printed cell stays keyed
+`variant|role` and the derived one adds the source, so picking the procedure
+applies the printed cell first and the derived over it: a figure the procedure
+does not write stays the printed leader's.
+
+## 2026-11-04 — The leader readings settled, and leaders outside a family
+
+Supersedes two lines of "AXIOMS leaders are a second source, chosen per
+template" (same day). New evidence: the orchestrating session's rulings on the
+two questions that entry left open.
+
+- **A bare plus rung is N+1.** The Leader HD table (AXIOMS 2 p. 44) prints one
+  rung as a bare plus beside its dice and never sizes it. It is read as one
+  point, the reading `hdOf` gives a stat line's bare plus, so the module reads
+  one notation one way. A reading, not a printed figure; the earlier entry's
+  "the owner may rule otherwise" is answered.
+- **No Leader figures axis where only the procedure speaks.** On a variant
+  whose page prints no leader the procedure's cells are its only leaders, so
+  offering "As printed" there would name a source those figures do not come
+  from. The builder leaves out any axis with at most one option available
+  beside the other pins (`axisOffersChoice`, lib DECISIONS, same day), and the
+  leader's tooltips name the procedure. Rejected: keeping the axis with As
+  printed disabled, which still reads as a choice the Judge made.
+- **An entry outside a family gets a template of its own** for its leaders,
+  beside the creature rather than in place of it: the creature's direct import
+  is unchanged, and the template's Variant axis holds that creature alone.
+  Its id is the entry's with a `.leaders` suffix, so the presence check counts
+  it on the entry's shelf without the template claiming the creature's id,
+  which every slot and companion lookup reads; `leadersOf` names the
+  creature. A family's merge search skips it, and an entry some loaded family
+  declares as a member mints none, since that family's template holds its
+  leaders. Rejected: writing the roles onto the creature as variants
+  (`extras.variants`), which nothing generates from; and minting under the
+  creature's own id, which would give two actors one claim.
+- **The procedure builds for the beastman type alone** outside a family. A
+  family's members are all beastmen, so the family pass needs no test; a
+  standalone entry is any creature, and the procedure is the beastman
+  article's.
+
+*Cost:* an existing world gets a standalone entry's template only once the
+creature is imported again or repaired. Deleting the creature leaves its
+template standing; deleting the template and repairing the creature brings it
+back.
+
+## 2026-11-04 — A beastman's kit is a preset of stat cells, its unprinted armour worked out at generation
+
+The owner's rulings on the kit slice: "A kit preset writes stat cells only:
+AC, damage total, move and morale from the RR row, with the kit noted. No
+equipment items." and "A monster's AC from a kit is computed at generation, by
+a pure function that writes `ac.value` with its provenance (the parts and the
+pages in a tooltip). Never wrap core's `computeAC`."
+
+- **Three imported tables** in registry document `monsters`: the RR ch. 9
+  Beastman Troops rows, AXIOMS 2 Beastmen by Type (natural armour class only)
+  and its damage-die conversion. Under the later-printing ruling the RR's
+  printed troop figures win; AXIOMS supplies only what no ACKS II page prints
+  (a kind's unarmoured armour class, the die a modifier converts to). Its kit
+  paragraphs are not read: their armour classes assume the earlier edition's
+  armour.
+- **A troop row is held to its kind and its Hit Dice.** The rows are claimed
+  in the page's order under label-only kind headings, so a printing that drops
+  one row would hand the next kind's row up; a row dresses a variant only
+  where the variant's key is the row's kind and its rating the row's.
+  Rejected: trusting the claim order alone.
+- **Kit cells are keyed with the role** (`variant|role|kit`). The troop rows
+  print the rank and file, so a 2-axis cell would let a chieftain generate
+  with a trooper's armour class; with the role in the key, the rank-and-file
+  cell applies to Standard only, and a leader has cells of its own.
+- **A leader in a kit has no printed armour class.** Its kit cell writes the
+  row's move and morale and leaves the armour class to generation: the row's
+  figure plus the leader's armour class over its warrior's, so a printed and a
+  derived leader keep their advantage. Its own damage total stands (the
+  leader's printed bonus is a total). Rejected: the trooper's armour class
+  for every rank, and adding the leader's printed armour class to the row's,
+  which counts the warrior's armour twice.
+- **Unarmoured** is an option where the kind's natural armour class is
+  imported: that figure, plus the leader's difference. It changes nothing
+  else; the Monstrous Manual prints each kind's speed and damage.
+- **The computation is the monsters feature's**, a listener on the template
+  engine's resolved hook (the magic repertoire's precedent), so the lib engine
+  is unchanged and core's `computeAC` is not wrapped. Its parts are stored on
+  `extras.derived.kit` for the tooltip.
+- **Mounted troop rows are not read.** They print a rider's and its mount's
+  figures in pairs, and their move is the mount's. An owner question.
+- **The kit's words are read off the label's brackets** at import (a
+  `parenthetical` label pattern in the table extractor) and reach the
+  creature's notes at generation, from the Judge's own copy.
+
+*Cost:* a beastman template imported before the rulebook's or the AXIOMS
+tables has no Kit axis until it is repaired; generation does not re-read the
+tables. A leader in a kit keeps its own damage total even where the kit's row
+prints a larger one than the warrior's stat block. The Full Monster Sheet's
+speed rows are the stat block's; the kit's move is written to the system's
+movement figure only.
+
+## 2026-11-04 — The Books window is a tab of the import manager
+
+**Reported.** T-0386, the owner: "On the import tool build the book tab
+straight into it; no need for multiple windows." Two windows asked the same
+question of a Judge, and the manager's Books tab was a status table with a
+button that opened the other.
+
+**New evidence for superseding 2026-10-28 ("The Books dialog is not
+merged").** That ruling kept the dialog apart to avoid retesting a tested
+surface. The owner has now ruled the reach matters more; the retest is the
+price and is on the live walks' list (below).
+
+**Ruled.**
+
+- **The panel is built where the books are, and printed in the tab.**
+  `booksPanel` stays in `module.mjs` (it closes over the seat's locations,
+  shelf and file handles) and returns `{html, wire}`; the manager prints
+  `html` and wires it after each render. The alternative, porting the
+  panel's ~700 lines of listeners to Handlebars actions in `apps/`, would
+  export thirty module-private helpers and change nothing a Judge sees.
+- **Every entry point opens the manager on the tab.** `openBooksDialog` is
+  `openImportManager({tab: "books", ...})`. `bookStatus`, `connectBook`,
+  `reconnectBooks` and `gettingStarted` keep their api names as thin openers:
+  macros already imported into worlds, the character sheet's book link and
+  the shipped *Your ACKS Books (this seat)* macro call them.
+- **A seat that is not a GM opens the manager and sees the Books tab alone.**
+  The Books window served every seat (a player connects their own copy; the
+  join-time offer reaches a player), so the gate on `openImportManager` could
+  not stay. The other four tabs write the world and are dropped from a
+  player's context, their actions refuse, and the settings-menu entry stays
+  restricted. *Owner to rule* if a player should not open the manager.
+- **Dropped with the dialog:** the join-time offer's `autoClose` (closing the
+  whole manager under a GM who has gone to another tab is wrong), the OK
+  button's "still not open" warning (the tab shows which books are waiting),
+  the `singleton` guard (the manager is already one window per seat), and the
+  walkthrough band's import, merchandise and manage buttons (the Import and
+  Tools tabs are those controls). The band's GM text points at the Import tab.
+  *Owner to rule* if the `autoClose` behaviour should return as "close once
+  nothing is waiting and the Books tab is showing".
+- The Books table (state and scope per book) is gone: each row of the panel
+  already says both.
+
+**Rejected:** keeping a thin Books window for the join-time offer only (two
+surfaces again); a settings-menu entry per tab.
+
+*Cost:* the live walks that drove the dialog's DOM go stale where they used
+the dialog's frame (`importer-adventure.mjs` reads `.acks-extras-importer-books
+[data-adventure]`, which still resolves); the panel's open details fold again
+on each render of the manager; the census is read once by the panel and once
+by the Adventures tab.
+
+## 2026-11-04 — A family's leaders follow their own figures (T-0392)
+
+The report: "The beastmen templates do not seem to be following the rules on
+upgraded stats/abilities for non-base types." A leader carried its name over
+the warrior's throw, saves, rating and XP, and a role with no figures for the
+chosen variant was still offered and rolled. Model: docs/monsters/MODEL.md,
+"Family templates: the Role axis".
+
+- **The damage bonus is a total**, owner's answer "Move to damage.mod
+  (Recommended)". Every monster's "by weapon ±N" moves at bind time out of the
+  weapon item's formula into `system.damage.mod`, direct imports included,
+  and a leader cell sets the total there. A leader sentence with no damage
+  clause totals 0. Melee and missile alike: the page gives no delivery, so
+  that is the default taken, not a reading of the page. Rejected: an
+  item-replace channel on cells (a cell could not remove the member's item).
+  *Cost:* core adds `damage.mod.melee` to every melee roll, so a creature
+  whose stat line prints a weapon modifier and natural attacks gets it on the
+  naturals too; the other `weaponDamage` callers (adventure stat lines,
+  person blocks) still carry a modifier in the formula.
+- **Saves and throw are derived, not printed.** No leader prints a save; the
+  member's save class at its save level is moved by the levels between the two
+  ratings, and the throw by the ladder rows between them, from the member's own
+  printed throw (RR ch. 6, Attack Throws by Level and HD; MM ch. 4, Monster
+  Type). Anchoring on the member's throw means the leader path ships no throw
+  figure; grid templates with no printed throw still use the derived ladder.
+  *Superseded in part, same day:* "The monster attack-throw ladder is
+  imported, and a leader's figures name their parts".
+- **A missing cell is refused, not filled**, owner's answer "Standard by
+  default (Recommended)": an unpinned role generates Standard, and a role a
+  variant prints no figures for is never offered or rolled. Rejected: rolling
+  uniformly over every role, which named warriors as chieftains.
+- **XP is read whole at import, not compiled.** The XP cell's own instruction
+  is run once more at the `raw` pattern beside the int the stat block keeps.
+  Rejected: a second compiled field, which would recompile every monster entry
+  of every book for the forty that print one figure per role.
+- **An overview that is another member's block is lore.** The generic MM
+  Beastman reads a bugbear's stat boxes, and the generic Lycanthrope a
+  werebear's; neither is a variant now, and its prose is the template's
+  description. Decided at import (`overviewIsLore`), not at compile, so the
+  entry stays a family member and is not offered as a stand-alone monster.
+- **Casters roll their level at generation**, a new contract: the cell carries
+  `spellcasting {class, levelDie}`, the generator rolls it, the magic listener
+  derives the class's slots at that level. A cell cannot carry the slots,
+  which depend on the roll.
+
+*Cost:* families are rebuilt by their importer only, so an existing template
+shows none of this until a re-import or a repair of it in place.
+
+## 2026-11-04 — A forced repair, and what it still keeps
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": Force repair is gone, and the guard it lifted
+> wholesale is answered per edit by the Judge. What it lists as kept because
+> the import does not own it is still kept.
+
+**Reported.** T-0387, the owner: "There needs to be a repair in place that
+forces no skips." Repair in place (2026-09-24) leaves documents and fields
+for stated reasons, and a Judge who wants every document the import writes
+rewritten had no control for it.
+
+**Diagnosed first.** The skips a repair makes are listed by cause in
+`MODEL.md`, "A forced repair". There is no unchanged-hash check and no
+"already imported" claim in the repair path: the runs find held documents by
+their cookbook stamp and write them. The skips are the policy's guards, the
+sources that cannot be read, and the kinds with no in-place writer.
+
+**Ruled.** A third mode, *Force repair*, in every control that offers Repair
+(the Mode selects of the shelf, book and entry dialogs, the manager's Rebuild
+tab; `mode: "force"` on the api).
+
+- **Lifted:** the hand-written prose guard: `REPAIR`'s `prose` and
+  `proseFlags`, and an ability's `annotated` description. These are the "hand
+  edits to imported fields" the owner's words aim at: the build writes the
+  field and a Judge's words stopped it.
+- **Kept, because the import does not own it:** a document the import did not
+  make (unflagged items, name-adopted abilities, embedded documents without
+  `minted`, template parts, library copies); a field the build does not
+  produce (`keepUnrenderedFields`, `keepFlags`, `fillUnread`: lifting these
+  would write an empty value over what a Judge typed where the page gave
+  nothing); a document with nothing to write from (closed book, page no
+  longer matching, no stats, another type, a rejected write); and the kinds
+  with no in-place write.
+- **Kept, an owner ruling pending: the `keep` fields** (a trap's level, a
+  vehicle's crew and damage, a stack's quantity and equipped state, a spell's
+  cast count, an equipment item's subtype, melee and missile). The binder
+  writes them at creation, so they are in the import's write set in the
+  strictest reading; but they are play state or settled afterwards by
+  `annotateItem`, and rewriting them would reset a world's live data and
+  undo the annotation layer. Default: kept, and the confirm says so.
+- **The guard is a confirm** that counts the documents to rewrite, says edits
+  to the fields an import writes (a written description included) are
+  replaced and that it cannot be undone, and lists what is still kept. No
+  and closing the dialog both answer false (`rejectClose: false`); nothing is
+  written.
+- **No collision dialog.** A forced ability repair does not ask which name-
+  adopted documents to overwrite; they are the Judge's by name and are
+  counted left alone.
+- **An adventure book's Repair has no forced mode.** It imports what the world
+  lacks and refreshes maps; it never held a hand-written-prose guard to lift.
+  *Owner to rule* whether a forced adventure repair means rewriting every
+  journal, roll table and place the book made; that is the Rebuild's work
+  without the delete, and has no in-place writer.
+
+**Rejected:** a rebuild fallback for the kinds with no in-place writer (it
+deletes ids, folders and owners, which is what a repair exists to keep); a
+global flag read by `refreshImported` (the tally already travels through every
+run, and a forced tally cannot leak into a later ordinary one).
+
+*Cost:* weapons, armour, the price list, languages, races, monster templates
+and families, NPCs and OSE creatures are still left by a forced repair; the
+confirm and the notice say so. **Superseded the same day** by the entries below
+for the kinds and the adventure book; the rest of this entry stands.
+
+## 2026-11-04 — Every kind gets an in-place write
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": there is one repair, not an ordinary and a
+> forced one, and a pregenerated character is the Judge's choice per repair.
+> Every kind's in-place write stands.
+
+**Ruled** (owner, "Yes, all of them (Recommended)"): weapons, armour and the
+price rows, languages and races, monster templates and families, NPCs, OSE
+creatures and the rest that were rebuild-only get an in-place write, for the
+ordinary repair and the forced one alike (they differ only by the prose
+guard). New evidence for superseding the entry above, written the same day: the
+owner's ruling, which that entry listed as open.
+
+- **One scope, not a writer per kind.** An actor kind's importer is its build
+  (templates, families, NPCs and OSE creatures carry nesting, tokens and
+  grants), so `withRewrite` diverts the importer's own `createDoc` for a held id
+  into a `refreshImported` write under `actorPolicy(build)`. The build is
+  called, never copied; a change to a template's build (the beastmen work) is
+  repaired with no second edit.
+- **Table rows are written where their table is.** Weapons, armour, priced rows,
+  languages and races each take `{repair}` in the importer that makes them, with
+  `REPAIR` entries for the figures, flags and what play owns (`equipped`,
+  `quantity`).
+- **Kept as ruled:** a hand-made document, a field outside the import's write
+  set, what play set, a book not open on this seat. Added: a pregenerated
+  character (the sheet import grants items onto the actor, so a rewrite would
+  grant them twice) and a row the page no longer yields (nothing to write from;
+  counted).
+
+**Rejected:** a rebuild fallback for any kind (it deletes ids, folders and
+owners); one `refreshImported` call per kind with the build copied beside it.
+
+*Cost:* a rewrite of an actor writes its embedded items from the build, so an
+item a Judge added to an imported creature that was not minted survives and one
+a Judge edited that was minted does not; the confirm says what is kept.
+
+## 2026-11-04 — An adventure book has a forced repair
+
+> **Superseded 2026-11-11** by "One repair, in place, and the Judge chooses
+> what it writes over": an adventure book's Repair is the one repair, with no
+> forced mode.
+
+**Ruled** (owner, "Yes"): the Adventures tab's Repair gains a forced mode with
+the same confirm and counts; Cancel writes nothing. It writes in place the
+Adventure, the creatures and people, the book's own items and its roll tables.
+Journals and maps were already refreshed in place. **Places, organisations and
+market profiles are topped up, not written over:** they carry nesting,
+relations and rosters that a rewrite would flatten, and the confirm counts
+them as "more … topped up". *Owner to rule* whether they get an in-place
+writer too; the cost of a no is that an edited place survives a forced repair.
+**Superseded the same day** by "A forced repair writes the places, bodies and
+pregenerated characters too", below; the rest of this entry stands.
+
+## 2026-11-04 — Overhead token art comes from an installed compendium, one writer
+
+**Ruled** (owner): "If that compendium is in the world data offer importing its
+images as the token; keep the book images as the portrait"; and for the scale,
+"Fit token to kept scale?" taken as: keep this module's token size and scale and
+fit the third-party art inside them, never copy the compendium's scale.
+
+- **Surface:** the import manager's Tools tab, because it is GM-gated, already
+  runs jobs and re-renders. Rejected: a modal inside the import chain (the
+  chain narrates its own progress and must not stop on a question), the repair
+  window (it is for damage), a world setting (nothing would gate it but this
+  button).
+- **Discovery at runtime, no package named:** any active module's Actor pack
+  with monster rows whose token art lies under that module's path. Core serves
+  only active modules' packs, so "installed and active" and "its packs are in
+  `game.packs`" agree. More than one source gives one button each.
+- **One writer, one rule:** write only where the token still shows the import's
+  default or our last write. A Judge's token is counted and left. Rebuild
+  resets the token to the book's, and the Judge presses Apply again.
+- **Exact folded-name matching.** Ambiguous and unmatched rows are counted. The
+  variant-suffix tier is on the ROADMAP.
+- **The flag records what Restore puts back:** `{from, src, was}`. Restore needs
+  no compendium, so it still works after the package is uninstalled.
+- **Wildcards:** a wildcard token path marks `randomImg`; lib `artOf` falls back
+  to the portrait for it, since a group's image cannot be a wildcard.
+
+**Rejected:** copying the compendium's scale (its figures were tuned to its own
+footprints); remembering the answer so a new import applies it by itself (a
+second writer and a branch in `importArt`).
+
+*Cost:* a token pointing at a package breaks if the package is uninstalled until
+Restore; nothing flags it yet.
+
+## 2026-11-04 — A forced repair writes the places, bodies and pregenerated characters too
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over": the one repair writes places, organisations
+> and market profiles in place, and each edit it meets is the Judge's to take
+> or keep; a pregenerated character is the Judge's choice per repair, not a
+> mode's rewrite. Places and bodies written through the existing scope stand.
+
+**Ruled** (coordinator, from the owner's "There needs to be a repair in place
+that forces no skips" and "Yes, all of them"): an adventure book's Force repair
+writes its places, organisations and market profiles in place, replacing an
+edited place or roster, with the confirm saying so and counting them; and a
+pregenerated character is rewritten under a forced repair, with the items its
+sheet import grants stamped `minted` first. An unforced repair keeps its
+behaviour for both. New evidence for superseding the two entries above, written
+earlier the same day: the owner's own wording, which they listed as open.
+
+- **Places and bodies through the existing scope.** `withRewrite` gains
+  `retract` (fields the build lacks that are returned to empty first), and the
+  importers' held branches step aside for a held id. The importer's build is
+  the one rewrite; a roster, relations and strength are rebuilt by the passes
+  that fill them after the create.
+- **Left, because another step joins them:** a place two books print, and the
+  containers a place stands in. The confirm counts them as left.
+- **Market profiles keep the later printing.** A forced profile replaces a class
+  or family count a Judge set and any base but one a later printing wrote; the
+  later-printing rule is the owner's and a book repair does not reverse it.
+- **A pregenerated character is landed again, not rebuilt.** The sheet import
+  answers a line by what the character carries, so rerunning it grants nothing
+  twice, which makes the earlier "granted twice" reason for keeping pregens
+  wrong for this path. Deleting the stamped grants first, to replace an edited
+  grant, would also drop the class's powers, because the class bind skips a
+  character already at that class and level; that round trip is on the ROADMAP.
+  A character imported before the stamp has unstamped grants and takes the same
+  rewrite.
+
+**Rejected:** deleting and regranting a pregenerated character's items (above);
+rewriting the containers a place stands in (a quarter's overview notes would be
+blanked before their own pass restores them).
+
+*Cost:* an item a Judge edited on a pregenerated character stays edited; a place
+the book prints twice is not rewritten.
+
+### A condition is read off the page, and a label names its kind (2026-11-04)
+
+Owner ruling "Fix this release": the cookbook's author-written condition
+phrases are the book's expression and stop shipping
+(`docs/abilities/DECISIONS.md`, same date, holds the ruling and the order of
+preference).
+
+**Ruled, for the recipe engine:**
+
+- **`conditionFrom` reads the clause at import**, as a figure's `from` does,
+  on effects and roll specs. **A miss keeps the row.** A figure's miss drops
+  its row because a row without its number is wrong; a row without the page's
+  words for its condition is only less specific, and its label still says what
+  kind of condition stands.
+- **The label carries its page reference, written by the compiler.** The
+  register writes the bare label once; `citeLabel` appends the entry's own
+  page, so no register row restates a page reference the entry already holds.
+- **The lint refuses a condition of more than two words that is not a label**,
+  in the register and in the compiled cookbook. It is the one gate the prose
+  rule can have here, because the label list is closed.
+- **An effects frame** (`assists.effectsFrames`) lets a recipe read a bonus
+  table printed beneath the entry without making it part of the description.
+
+**Rejected:** a locator miss dropping the row (rows that apply today would stop
+existing on a seat whose print differs); shipping the clause as a fallback
+(that is the phrase this ruling removes); free-form labels (the lint could no
+longer tell a label from a paraphrase).
+
+*Cost:* a label shows wherever a book's wording has drifted from the locator,
+and a Judge reads the page it cites.
+
+### Every clause field takes a locator; a note is gated where a machine can decide (2026-11-04)
+
+The same ruling reaches a row's `restriction`, `consequence` and `note`
+(`docs/abilities/DECISIONS.md`, same date, holds the scope).
+
+**Ruled, for the recipe engine:**
+
+- **One clause reader, four fields.** `CLAUSE_FIELDS` (`condition`,
+  `restriction`, `consequence`, `note`) each take a `<field>From` locator on an
+  effect spec, read by `locateCondition` and stripped before the row reaches
+  the world. A miss keeps the row and the shipped value, as for a condition.
+- **Each labelled field has its own closed label list** (`LABELLED_FIELDS`),
+  cited by the compiler and refused by the lint beyond two words, so a
+  consequence label can never be read as a condition label.
+- **A note is not labelled.** It is the module's remark, and its prose half
+  stays a reviewer's call; `noteProblem` refuses a figure outside a page
+  reference and a TODO, in a recipe row and in a class award.
+- **`noteFrom` needs no label beside it**: a capability or companion row with
+  no note reads "see description", which is the module's own words.
+
+**Rejected:** reading the clause on roll specs too (a roll's note reaches only
+the roll editor, and no recipe needed it); a per-field reader (the four fields
+share every rule a clause needs).
+
+*Cost:* a second label list to keep closed per field.
+
+## 2026-11-04 — The chieftain's hit-point factor and the armour-training step are read off the page
+
+Under the owner's ruling of 2026-11-04 (template
+`.claude/rules/ip-doctrine.md`, "A printed value found in source is fixed by
+the work that finds it"), two printed figures found in source move into the
+import. The leader entry above ("carry or double a bonus") stands for the
+procedure; the factor is no longer the module's.
+
+- **`leaderSteps` reads `bonusFactorChieftain`** (AXIOMS 2, Beastmen Leaders,
+  step 1): anchored on the carry clause, which names the two ranks that keep
+  the bonus and prints no factor for them, and taken with `times`, which now
+  also reads a verb form (`doubled`, `triples`). `deriveLeader` multiplies a
+  chieftain's carried bonus by it; a champion and a sub-chieftain carry the
+  bonus whole, which is the procedure. `procedureComplete` requires it, so in
+  a world whose steps were imported before this, a family imported or
+  repaired again gets no derived cells until the compendium's tables are
+  imported again; templates already built keep theirs. The leader record keeps the factor
+  (`bonusFactor`); a record generated before keeps `carried: "doubled"`, and
+  its tooltip names the factor its own two ratings imply instead of a shipped
+  one.
+- **The armour-training row locates its step** (RR ch. 3 and JJ ch. 12,
+  Armor Training): the word before the "weight category heavier" seam, read
+  by `materializeEffects`. The ruling and its surface are equipment
+  DECISIONS, same date.
+
+**Rejected:** a `bonusFactor` key for the champion and the sub-chieftain,
+which the page does not print; reading the factor `before: true` on the rank's
+name, whose before-window keeps the first match for `times`, and whose
+hyphenated spelling the text layer splits.
+
+*Cost:* a world that imported the compendium's tables before this has no
+derived leaders until it imports them again; the printed leaders stand.
+
+## 2026-11-04 — Import everything takes the three modes, over every open book, asked once
+
+> **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
+> chooses what it writes over" and "The manager draws only the one repair, and
+> Repair everything replaces the Mode select": the three modes are gone.
+> Repair everything, beside Import everything, runs the one repair over every
+> open book and then every open adventure book. The parts and the single
+> confirm stand.
+
+**Ruled (owner).** Import everything gains Rebuild, Repair in place and Force
+repair beside importing what is missing. Each runs that mode over every book
+open on this seat (`cookbookReimportBook`) and then every open adventure book
+(`cookbookReimportAdventure`): the parts are the per-book runs, so "everything"
+deletes, keeps and refuses exactly what each would alone, and nothing of a
+closed book is touched. One confirm asks for all of them: each part is run
+first with an `ask` that records its own confirm and answers No (every part
+asks before its first write, so that pass writes nothing), and the confirm
+lists each part's lines under its name. A rebuild closes on the whole chain,
+since a book's refill (`SHELF_REFILL`) does not reach the steps that stand on
+it (template packages, companion slots); a repair closes on the rules tables
+re-read in place.
+
+**Rejected:** one confirm per part, which is a dialog per open book; a new
+"Everything" option in `rebuildOptions`, which would put the same control on
+the Rebuild tab and Reimport One Shelf as well as the Import tab the owner
+asked for; and Remove All Imports followed by the chain, which deletes what a
+closed book holds and cannot bring it back.
+
+*Cost:* the confirm's counts are each part's own, so a document two parts
+reach (a book's own item an adventure's repair also writes) is counted in
+both. The dry pass reads the library once more than the run does.
+
+## 2026-11-10 — A copy dragged out of the library never stands in for a family's template
+
+**Reported.** The owner, on 11.14.4: the Beastman template offered no
+Standard role and lacked roles the page prints, and "Rebuild is still
+skipping existing". The template had been imported before 11.14.0, so it
+carried the old Role axis; rebuilding it should have replaced it.
+
+**Diagnosed** (read from source; the one live run of the old code was cut off
+after its delete, so it proves the delete and not the skip).
+`importedIdsOfType` has left a copy out of the held-id set since "The library
+is the packs AND the sidebar this module stamped", so that a rebuild puts the
+library's document back. `importedActorsOfType`, the lookup `importFamily`
+and the leader template run to find the template they merge into or write
+over, did not, and it listed the sidebar first. With a copy of the family's
+template in the sidebar, a rebuild deleted the library's template and the
+family import then found the copy, merged no new variant into it and created
+nothing: the copy kept its shape and the library lost its template.
+
+**Ruled.** `importedActorsOfType` leaves out what `isWorldCopy` names, as the
+held-id set does. A copy is the Judge's and no import mode writes it; a
+rebuild puts the library's template back beside it.
+
+**Rejected:** rewriting the copy as well. It is the Judge's by the same rule
+that keeps it out of every repair, and it may carry their own edits.
+
+*Cost:* a Judge who works from a copy keeps the old shape after a rebuild
+until they delete it and drag out the rebuilt template; the changelog says so.
+A rebuild's template keeps its id only while the page that deleted it stays
+open (`deleteImported` records ids in memory).
+
+## 2026-11-10 — A rebuild deletes only what a loaded owner can put back
+
+**Ruled by the owner.** "The entire point of the rebuild settings was to not
+ignore the existing items. The point of repair is fix the existing items
+without breaking links. Check you are fixing this globally." An audit of every
+delete a rebuild makes found that the guard ("A closed book is refused, not
+rebuilt") asked only whether a claim's book was open. It deleted a claim no
+loaded entry owns, a table row whose table book was closed (the book rebuild
+never reached rows, the shelf rebuild did), and, once books can be switched
+off (the entry below), a claim from a book this build no longer offers. Each
+delete left nothing in its place.
+
+**Ruled.** Before any rebuild deletes a library document, `rebuildable`
+(`rebuild-guard.mjs`) asks three things: a loaded owner re-creates the claim
+(an entry of a loaded cookbook under the claim or a dot-ancestor of it, a
+generator whose book's cookbook is loaded, or the recipe of the table the row
+is read from), that owner's book is open on this seat, and the book is offered
+(`BOOKS`). A document refused stays and is counted on the confirm and the
+notice. The shelf rebuild, the book rebuild, the entry picker and the two
+type-fixing repairs ask it; an adventure book's rebuild refuses a book outside
+`BOOKS` before it deletes. The same audit found presence reads that a copy
+dragged out of the library could answer (an organisation, a roll table's
+forced repair, an OSE room, a companion slot): each now asks for the
+library's own document, as the family template lookup does since the entry
+above, and a link read (a place, a leader, a scene's table) still takes a copy.
+
+**Rejected:** keeping the open-book test and adding the other two as
+warnings. A warning after a delete is a report of data loss.
+
+*Cost:* a shelf rebuild no longer sweeps documents that claim no loaded entry.
+Prune Abilities removes such abilities, after listing them; on any other shelf
+they stay until a Judge deletes them. The picker's refusal now runs under
+repair as well, where it changes nothing while every loaded book is offered.
+
+## 2026-11-10 — The books statted for OSE are switched off, and their code kept
+
+**Ruled by the owner.** The non-ACKS books are deactivated "for now": the
+code stays, and the module stops shipping them, allowing their import,
+supporting them and testing them in builds until the decision is reversed.
+Asked where the line falls, the owner answered that The OSR Catgirl is a
+third-party ACKS book and that anything shipping ACKS-native stats stays; that
+the code leaves the release zip as well; and that the System Compatibility
+Guide stays listed.
+
+So the line is the stat system a book prints, not its publisher. Every book
+whose compiled rows are only `kind.oseMonster` and `kind.oseLocation` carries
+`stats: "ose"` in `books.mjs`: the three Quick Delves, the Referee's Tome, the
+Dolmenwood Monster Book, the three Wicked Little Delves and the three Planar
+Compass issues. The sources a Judge registers for the OSE path, and converting
+by hand, go with them. The catgirl and the Compatibility Guide carry no mark.
+
+**Suspended, not superseded:** "Third-party books get shipped cookbooks
+(2026-08-19)" for these titles, and "Another game's books get their own shelf
+(2026-08-25)". Turning the switch back on restores them as written.
+
+**How.** One switch, `OSE_BOOKS_ACTIVE`. `REGISTRY` keeps every book's facts,
+so an id a world already holds (a flag, a citation, a remembered shelf, a
+fingerprinted PDF) still resolves. `BOOKS` is what the module offers, connects
+and imports. The withdrawal lands one surface at a time: what is offered and
+imported, the tests, then the zip. The switch stays on until every surface
+reads it, so nothing is half-withdrawn in a release.
+
+**Rejected:** keying the switch on `line`, because the catgirl carries one and
+prints ACKS stats. Deleting the code, because the owner wants the decision
+reversible.
+
+*Cost:* a world that imported one of these books keeps what it made; nothing
+deletes it, and no rebuild may delete what a book it cannot read made. The OSE
+code reaches shared importer files at a dozen points (the import module's
+settings, API and dialogs; the cookbook's source labels and refill run; the
+place binding), so it cannot leave the zip until those are untangled.
+
+## 2026-11-10 — Book-specific code lives in a silo, and a gate keeps it there
+
+**Ruled by the owner.** "Let this be a lesson learned to keep specific book
+content silo'd in the code base for proper hygiene." The OSE-statted books are
+switched off and their code kept ("The books statted for OSE are switched off,
+and their code kept"); that code had reached a dozen shared importer files,
+which is why it cannot leave the release zip.
+
+**Ruled.** A *silo* owns book ids. One exists, `ose`: the registry entries
+declaring `stats: "ose"`, the prefix `ose.`, the kinds `kind.oseMonster` and
+`kind.oseLocation`, and the files written only for them. The ACKS books are the
+engine's own library and own no silo.
+
+`tools/importer/check-silos.mjs` holds every other file to four rules:
+
+- no import of a member, and no non-literal `import()` under `scripts/`;
+- no literal under `scripts/` naming a silo book id, the silo id, a silo kind
+  or a member file, except with a reasoned `// silo-ok:` (the member file is
+  the gate's addition, because a template is reached by a path string and not
+  by an import);
+- no member reachable from `module.json` except through the silo's manifest
+  edge;
+- the manifest's import of the silo and `module.json`'s declaration of its
+  stylesheet agree.
+
+Today's violations are `tools/importer/silo-baseline.json`, which the gate lets
+only shrink: a new violation fails, and so does a baseline entry that no longer
+occurs. The gate reads a parse, not a regex.
+
+**Rejected:** a folder per book now. No ACKS book owns code; a book-keyed row
+(a By This Axe row inside a recipe's list) is data in a shared recipe, and a
+per-book silo is the same mechanism the day one is needed. Parsing by regex,
+which misses `export … from` and a multi-line import and reads comments.
+
+*Cost:* until the move slices land, the baseline carries every existing edge
+from the shared importer into the OSE files, and every member the entry points
+reach.
+
+## 2026-11-11 — A borrowed throw is a recipe, and a typed row names its mode
+
+**Ruled by the owner** ("follow RAW", T-0481): the thief-ladder borrow and the
+level fraction are part of the character's throw on every surface, not a
+party-check-only flag. Their rulings are in `docs/abilities/DECISIONS.md` and
+`docs/formation/DECISIONS.md`; this entry records what the importer does
+because of them.
+
+**Ruled.** A roll spec's `target.progression` makes the throw a borrowed one
+(`executor.mjs` `materializeRolls`): the class key and table ship, the fraction
+and the rounding are read by locators from the seat's page, and a fraction that
+does not yield drops the roll rather than shipping a whole level. The compile
+of 2790 cookbook entries lost 0, gained 0 and changed 12; `provides`, `notStacksWith` and `aliasOf` are
+unchanged on every one. `effects-origin.mjs` `shapeOf` now includes a
+`modifies` row's `mode`, so a library copy stamped from the old `replace` shape
+reads stale and Update Abilities rewrites it.
+
+**Rejected:** shipping the fraction as a recipe constant (a printed value), and
+a book-scoped compile spliced into the cookbook (it dropped provides on an
+earlier attempt; the full compile is the only landing path).
+
+*Cost:* a world's copies keep their old rows until Update Abilities runs; the
+old conditioned `modifier` rows stay pending, applied to nothing, until then.
+
+## 2026-11-11 — One repair, in place, and the Judge chooses what it writes over
+
+**Ruled by the owner**, 2026-11-11:
+
+- **In-place rebuild.** Every rebuild control repairs in place, under the id
+  each document holds; none deletes first.
+- **R2.** "A repair prompts the Judge to choose, case by case or all; this
+  replaces force repair." The edits a repair meets are put to the Judge after
+  its first pass, one by one or all at once.
+- **Q1.** A book the module no longer offers is not checked: its documents are
+  passed over and counted (`notOffered`).
+- **Q2.** A body's relations the Judge changed or deleted are listed as an
+  unstamped edit, kept by default.
+- **Q3.** A pregenerated character is the Judge's choice per repair. The
+  default offered keeps the played character under a new id, as a document of
+  its own, and restores the book's under its cookbook id; the alternatives are
+  to leave it, or to write the book over it in place under the decision.
+- **Walks.** A live walk may write over or clear the test world's documents as
+  it needs, the AX1 and AX3 corpus import included; no permission switch gates
+  it.
+
+**New evidence, superseding the 2026-11-04 entries on a forced repair** ("A
+forced repair, and what it still keeps", "An adventure book has a forced
+repair", "A forced repair writes the places, bodies and pregenerated
+characters too", "Import everything takes the three modes, over every open
+book, asked once"): the owner's R2.
+Those entries ruled three modes, each its own control, with Force repair
+lifting the prose guard wholesale. R2 replaces the modes with one repair whose
+guard is answered per edit by the Judge; what those entries list as kept
+because the import does not own it is still kept. Their text stands as
+history.
+
+**Ruled.**
+
+- **One repair** (`mergedRepair`, MODEL "The merged repair"): pass one under
+  "keep" holds every edit and lists every pregenerated character; the choice
+  dialog (`chooseHeldEditsDialog`) answers; pass two runs under the answer only
+  where something is taken or a character is not left, and only over the steps
+  that listed something. A `mode` from an API caller is ignored and named on
+  the console. The import manager's Mode selects and the Adventures tab's three
+  repair buttons are still drawn and all run the one repair; removing them is
+  later work.
+- **A decision passed in answers before anything is held**, so one pass runs
+  and no character is acted on; `choose` answers as the dialog does.
+- **Q3 as built: the default follows the play stamp** (coordinator's reading
+  of the owner's ruling, which the owner may overrule; not itself an owner
+  ruling). Q3 says "the played pregen". An untouched character has nothing to
+  keep, and restoring every listed character by default made a "(kept)" copy
+  of each on every repair. So the character importer records a checksum of
+  what play can change (`playStamp`: name, `system` with the biography, each
+  embedded item's name, type and `system`, sorted; ids, stats, ownership,
+  sort, folder, flags and effects left out) after its last write. A repair
+  offers restore where the stamp moved or was never recorded (a character
+  imported before this change), and leave, with the note that it matches what
+  was imported, where it holds. A restored character is imported fresh and
+  stamped, and a rewrite re-stamps, so a second repair offers leave.
+- **A data-model migration reads as play.** A system update that rewrites a
+  stored field changes the stamp without a player, and the next repair offers
+  restore for that character: one extra kept copy, which the Judge can answer
+  leave or delete. Accepted.
+- **The kept copy is the module's no longer**: its cookbook claim and play
+  stamp are taken off and `keptFrom` records where it came from, so no import
+  or repair counts it again. A refused copy leaves the character whole; a
+  re-import that makes nothing, or a rewrite that throws, is counted in
+  `pregenRefused`. A player's character and a copy dragged out of the library
+  are never listed.
+
+**Rejected:** comparing a dry repair plan with the character
+(`refreshPlan`): a character's build is a shell its sheet import fills on the
+live actor, so a plan sees no difference whether it was played or not. A
+scratch import per character per repair to compare against: exact, but slow,
+and it writes during the pass meant to write nothing. Defaulting every
+character to leave: it drops the owner's default offer. Keeping Force repair
+beside the merged repair: R2 replaces it.
+
+*Cost:* every repair that meets a held edit or a listed character asks a
+second question after its confirm. A character imported before the play stamp
+is offered restore once. An API caller that relied on `mode: "drop"` deleting
+first now gets an in-place repair.
+
+## 2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select
+
+**Asked.** The entry above left the import manager's Mode selects and the
+Adventures tab's extra repair buttons drawn, all running the one repair.
+Removing them would also remove the only control that repairs every open book
+at once.
+
+**Ruled.** The Import tab carries Import everything and Repair everything
+(`host.runEverything("repair")`) side by side. The Rebuild tab keeps its
+picker and Go, with no Mode. Each adventure book offers Repair and Write
+Adventure. Every action the template draws has a handler, and every handler a
+button (`tools/importer/test-import-manager.mjs`). The lang keys the single
+repair left unused are deleted.
+
+**Rejected.** No Repair everything button, leaving the whole-world repair to
+`api.reimportEverything()`. A Judge would lose a control the Mode select gave
+them.
+
+*Cost:* the guide's import manager plate predates the button and stays stale
+until it is shot again.
+
+## 2026-11-11 — Treasure is read from the Judges Journal, and the Treasure Tome is a layer over it
+
+Recorded here from the owner's ruling of 2026-09-30, which the ledger held
+and no document did.
+
+**Asked.** Wave 7 of the Judges Journal charts (ROADMAP, *The Judges Journal
+charts not yet read*) waited on how three sources relate: core's treasure
+RollTables pack, the Judges Journal's treasure chapter, and the Treasure Tome,
+which expands it.
+
+**Ruled.** Every treasure table is read from the Judges Journal, including
+those core's pack also holds in the same form; the module reads nothing from
+core's treasure pack. The Treasure Tome is an import layer over the Judges
+Journal: its row replaces the Journal's where the two differ, and its added
+rows extend the table. The wave order 3 to 8 stands.
+
+**Rejected.** Reusing core's pack where its table matches the page, the other
+option the question offered.
+
+*Cost:* none until wave 7 is built. The treasure-by-terrain lookup wave 2
+reads into `encounters` is not one of these tables and is unchanged.
+
+## 2026-11-11 — A Judge's edit inside an imported journal block is found by a digest in the page's stamp
+
+**Asked.** `writeJournalPage` kept a page holding hand-written prose outside
+the stamped block, but `handWrittenProse` strips the block, so a word typed
+inside it was invisible and the next import rewrote the page. Import
+Everything rewrites every imported location page, so the edit was lost on every
+run.
+
+**Ruled (owner, 2026-11-11).** The import stamps a hash of what it wrote, and a
+stored block that no longer hashes to its stamp is the Judge's: the page is
+kept exactly as the outside-prose case keeps it (counted `preserved`, a held
+edit under a repair). A page with no hash is read as unedited; there is no
+backfill and no scan.
+
+- The hash is `blockDigest` over the block's readable text, recorded in the
+  page's own stamp (`flags.acks-extras.cookbook.sum`) beside the entry id. It
+  is not an attribute of the block: the editor keeps `data-*` attributes today,
+  but a stamp in the document's flags cannot be dropped by anything the editor
+  does to the markup, and no markup written by any other writer changes.
+- Readable text, not markup: the editor re-serializes attribute order, wraps a
+  table cell's text in a paragraph and reflows lines without a word changing,
+  and an untouched block must never read as edited after a save. The cost is
+  that a formatting-only edit (bold on a word, a moved paragraph break) is not
+  seen and the page is refreshed.
+
+**Rejected.** A note in the guide telling Judges to write outside the block: it
+asks every Judge to know a stamp they cannot see, and the loss stays silent for
+the one who does not.
+
+*Cost:* the other writers of a stamped block (a description, a biography, a
+monster's prose field, a roll table's description) still see an edit inside
+their block as nothing. They hold the block by `handWrittenProse` alone and
+carry no stamp to put a digest in; a place's notes already record a checksum per
+block (`rowBlockPatch`). Each is a separate change.
+
+## 2026-11-11 — Every stamped block is read against a digest in a per-field slot (T-0505)
+
+**Asked.** The journal entry above left the other writers of a stamped block
+(a description repair, a roll table's description, a character's biography, a
+monster's prose, a place's notes) seeing an edit inside their block as nothing,
+and `rowBlockPatch`'s raw checksum read a block the editor had re-serialized as
+edited, the opposite failure.
+
+**Ruled (ledger row T-0505, under the owner's 2026-11-11 rule that no compat
+or repair code is written for alpha or previous-version data).** Each writer records the digest
+(`blockDigest`) of what it wrote and reads an edit against it, as the journal
+page does, with one slot per field. A document carries several stamped fields,
+so the slot is `flags.acks-extras.cookbook.sums`, keyed by the field's path and
+the block's entry id; the key writes every dot out, so an update path never
+nests it. The journal page's own `sum` stays, since existing pages carry it. A
+field with no digest reads as unedited, as a page does.
+
+- **Stamped from the payload written.** `createDoc`/`createDocs` stamp a new
+  document, `refreshPlan` stamps from the update it builds, and the abilities
+  write, `rewriteTable`, a character's biography and `rowBlockPatch` stamp what
+  they write. A stamp driven by the guard list would go stale on exactly the
+  field a decision just took.
+- **One id, several blocks.** A biography is the page's text and an "as
+  printed" block under one id, so a block's digest covers every block of its id.
+- **Place notes.** The digest replaces the raw checksum, and a block that
+  digests as the page's reads as unedited whatever markup the editor gave it. A
+  block with no digest reads as unedited, like every other field. This
+  **supersedes the place hold of b549559f**, which held a differing no-stamp
+  block as `unstamped` and compared a raw checksum (`cookbook.blocks`). New
+  evidence: no release carries `cookbook.blocks` (the commit is in no tag, the
+  latest being v11.14.4), so no field world holds the old stamp and nothing
+  needs reading for it, and the per-field slot makes a place read as the other
+  four writer kinds do. `cookbook.blocks` is no longer read or written; it
+  stays on any document that has it.
+- **Takeover and bind** stamp the blocks they write, so the earlier id's old
+  digest does not read the kept paragraphs as an edit.
+
+**Rejected.** One digest per document: a document with a description and a
+biography, or a place with several rows' blocks, has no single block. A scan
+or backfill of existing worlds, which the journal ruling also declined.
+
+*Cost:* a formatting-only edit (bold on a word) is not seen, as for a page. A
+description, biography, monster prose field, roll table description or place
+block written before digests existed has none and is rewritten over an edit
+inside its block once, on the first repair after the upgrade, which stamps it.
+Apply Stats (`applyStatsToActor`) writes a
+monster's appearance with no guard at all and records its digest, so a later
+repair does not read it as an edit; guarding it is not part of this change.
+`takeoverPatch` still replaces the earlier book's block without asking whether
+it was edited: the later book's text supersedes it by ruling, and no held-edit
+path reaches that write.
+
+## 2026-11-11 — The armour rung on an ability's gate is imported (T-0513)
+
+Owner ruling. Six register rows (Swashbuckling, Blade-Dancing and its two
+aliases, the bladedancer's Graceful Fighting, both its rows) shipped the armour
+rung on a `lightlyEquipped` gate as a word in the recipe, so the shipped
+recipe stated which suit a printed ability allows. `ip-doctrine.md` lists a
+ladder rung as content, however small and however alone; the gate's load was
+already read off the page and its rung sat beside it as the one printed
+figure the recipe still carried.
+
+The recipe ships the gate's kind alone. A `gate.armourMax` locator
+(`executor.mjs`, `LOCATABLE_FIELDS`) captures the clause the page words as
+"wearing …, and carrying" and maps the heaviest ladder word in it to the rung
+key with `ceilingOf`, the sibling of `ceilingBelow` in `armour-limits.mjs`:
+the thief-skill limit binding's word table, read for an allowance where that
+one reads a prohibition. A clause naming no ladder word reads no rung, and a
+locator that misses drops its whole row like any other. Nothing imported
+leaves no row, and a hand-made row with no rung answers null (situational),
+never a default rung.
+
+**Rejected.** A registry table read at runtime, the route the armour limit
+took (`thiefLimits`): that limit is one rule printed once and applied to many
+abilities, so one table serves every row. Each of these rows reads its own
+passage, and the rung and the load are two figures of the same clause, so the
+locator beside `gate.loadMax` is the same shape and needs no table, document
+or override layer. A Judge changes a rung through the row editor, as for any
+row.
+
+*Cost:* a world imported before this keeps the literal in the rows it
+stamped until Update Abilities (top of the Items sidebar) or a re-import
+rewrites them; no migration reads them. The rung is not Judge-editable
+centrally, only per row.
+
+## 2026-11-11 — Rows named by a book's proper names ship ordinal labels and a locator (T-0394, T-0473, T-0494, T-0493)
+
+*Ruling:* two RR classes, the barbarian's three origin powers, one class
+power and one proficiency whose names are a people's or a place's ship as
+`def.class.class20`/`class21` ("Class 20/21"), `def.power.barbarianOrigin1–3`
+("Tribal Origin 1–3", file order), `def.power.darkFortress` ("Dark
+Fortress") and `def.prof.proficiency15` ("Proficiency 15"). Each register
+row carries `anchor.hash` (`printKey` of the heading) and the binder names
+the document from the page's words, so a world with the book sees the
+printed names. The two peoples of JJ ch. 12 are race keys `people1` /
+`people2`, named at import from their ladder's value-0 label. The
+stem-style ids rejected on 2026-09-17 stay rejected: an ordinal is the
+only id that holds nothing of the name. Region words stay on the class
+sheet's path options, which are read from the page.
+
+*What moved with the ids:* the builder reads both peoples' ladders, powers
+and post-8 increments, every race's value-0 powers as run-ins (no shipped
+power names), and every RR class's Ready-for-Play build as one run-in read
+over JJ 330–331, matched to the class documents of current cookbook ids by
+name or locator; a build names its race by the ladder's word or by its
+classes' adjective (`buildRaceWords`). A proficiency whose name is withheld
+resolves in class lists and template cells by its locator
+(`abilitySurfaceIndex().byPrintKey`). Influence and henchmen learn a class's
+race from the classes API (`raceKeyOfClass`) instead of the name's words;
+the culture row, the proficiencies-by-age columns and the character-aging
+rows key on `people1`/`people2`.
+
+*Rejected:* a migration of earlier worlds (owner, 2026-11-11). Splicing a
+book-scoped compile (it drops entry fields); the whole cookbook compiles to
+scratch and is copied in, every box byte-identical outside the changed rows.
+
+*Cost:* a world imported before this keeps its documents under the old ids
+beside the new ones a re-import builds; repair writes only ids the cookbook
+ships, so it visits the new documents and lists the old as left. Remove ALL
+Imports is the clean slate. A world setting or record holding the old race
+keys (a race relation, a culture id on a hireling) no longer matches them.
+Builds now stamp 21 classes, not 12. The people races' attribute floors and
+the max-level power are read as names only (classes ROADMAP).
