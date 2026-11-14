@@ -135,6 +135,7 @@ async function adjustTrackedSpell(app, target, delta) {
   app.render();
 }
 
+/** The Judge-facing action handlers shared by the formation windows, run with the window as `this`. */
 export const SHARED_ACTIONS = {
   /** A group tile: the Judge's word for how the whole party moves. */
   async movementTile(event, target) {

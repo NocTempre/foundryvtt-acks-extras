@@ -51,8 +51,11 @@ export const ROLL_FAMILY = Object.freeze({
   MORALE: "morale",
 });
 
+/** The active-effect change key that carries a reaction-roll modifier. */
 export const REACTION_CHANGE_KEY = `flags.${MODULE_ID}.reaction`;
+/** The active-effect change key that carries a loyalty-roll modifier. */
 export const LOYALTY_CHANGE_KEY = `flags.${MODULE_ID}.loyalty`;
+/** The active-effect change key that carries a morale-roll modifier. */
 export const MORALE_CHANGE_KEY = `flags.${MODULE_ID}.morale`;
 
 /** Change key → the roll family it feeds. */
@@ -112,6 +115,7 @@ export const INFLUENCE_TONE = Object.freeze({
   SEDUCTION: "seduction",
 });
 
+/** The tones as `{value, label}` options, the label a lang key. */
 export const INFLUENCE_TONE_CHOICES = Object.freeze([
   { value: INFLUENCE_TONE.DIPLOMACY, label: "ACKS-INFLUENCE.tone.diplomacy" },
   { value: INFLUENCE_TONE.INTIMIDATION, label: "ACKS-INFLUENCE.tone.intimidation" },
@@ -322,6 +326,7 @@ export const BEWITCH_PAGE = Object.freeze({ table: "mysticAura", cite: "RR 115" 
  */
 export const BRIBE_CRIME_PAGE = Object.freeze({ table: "bribeCrime", cite: "RR 287" });
 
+/** The influence form's modifier rows per tone, grouped under lang-key headings. */
 export const INFLUENCE_MODIFIERS = Object.freeze({
   [INFLUENCE_TONE.DIPLOMACY]: [
     {

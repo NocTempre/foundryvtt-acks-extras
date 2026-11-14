@@ -97,6 +97,7 @@ export function readFormations() {
   return game.settings.get(MODULE_ID, SETTING_FORMATIONS) ?? {};
 }
 
+/** Returns the stored formation with this id, or null. */
 export function getFormation(id) {
   const record = id ? readFormations()[id] : null;
   return record ? handOut(record) : null;
@@ -456,6 +457,7 @@ export function patchDeployments(formation, members) {
   });
 }
 
+/** Creates and stores a new formation with this name, optionally tied to a party actor, and returns it. */
 export async function createFormation(name, { actorId = null } = {}) {
   const id = foundry.utils.randomID();
   const formation = {
@@ -488,6 +490,7 @@ export async function createFormation(name, { actorId = null } = {}) {
   return formation;
 }
 
+/** Deletes the stored record of the formation with this id. */
 export async function deleteFormationRecord(id) {
   await commit((all) => {
     delete all[id];
@@ -504,6 +507,7 @@ export function formationForToken(tokenDoc) {
 /*  Derived data                                */
 /* -------------------------------------------- */
 
+/** Returns the world actor a member entry points at, or null. */
 export function getMemberActor(member) {
   return game.actors.get(member.actorId) ?? null;
 }
@@ -945,14 +949,17 @@ export function effectiveSpeed(formation) {
   return Math.floor(speed / 3) * 10;
 }
 
+/** Returns the formation's party actor, or null. */
 export function getPartyActor(formation) {
   return formation.actorId ? (game.actors.get(formation.actorId) ?? null) : null;
 }
 
+/** Returns the scene the formation's party token is on, or null. */
 export function getPartyScene(formation) {
   return formation.sceneId ? (game.scenes.get(formation.sceneId) ?? null) : null;
 }
 
+/** Returns the formation's party token document on its scene, or null. */
 export function getPartyToken(formation) {
   const scene = getPartyScene(formation);
   return scene && formation.tokenId ? (scene.tokens.get(formation.tokenId) ?? null) : null;
@@ -1326,6 +1333,7 @@ export async function removeMembers(formation, actorIds, { restore = true } = {}
   return formation;
 }
 
+/** Removes one member from the formation, restoring its token unless `restore` is false; see `removeMembers`. */
 export async function removeMember(formation, actorId, { restore = true } = {}) {
   return removeMembers(formation, [actorId], { restore });
 }

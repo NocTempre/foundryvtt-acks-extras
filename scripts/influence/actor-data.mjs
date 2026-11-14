@@ -20,6 +20,7 @@ const GENERIC_IMG = "icons/svg/mystery-man.svg";
  */
 export const ALIGNMENT = Object.freeze({ LAW: "law", CHAOS: "chaos", NEUTRAL: "neutral", OTHER: "other" });
 
+/** Returns the `ALIGNMENT` value for a free-text alignment, read from its first letter. */
 export function classifyAlignment(value) {
   const c = String(value ?? "").trim().charAt(0).toUpperCase();
   if (c === "L") return ALIGNMENT.LAW;
@@ -46,6 +47,7 @@ const LIB_ALIGNMENT = Object.freeze({
   neutral: "neutral",
 });
 
+/** Returns the lib subsystem's alignment token for a value, or null when it is not one. */
 export const toLibAlignment = (value) => LIB_ALIGNMENT[String(value ?? "").toLowerCase()] ?? null;
 
 
