@@ -1,6 +1,6 @@
 /* global game, foundry, ui, fromUuid */
 /**
- * The `acks-lib.template` BUILDER sheet: one select per axis (defaulting to
+ * The `acks-extras.template` BUILDER sheet: one select per axis (defaulting to
  * "Roll"), a drop zone for an optional base actor, and Generate. Pins and the
  * base are per-window UI state, never actor data. See docs/lib/DECISIONS.md,
  * "The template actor is a generator, never a bulk import" and

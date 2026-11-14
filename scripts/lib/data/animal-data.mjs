@@ -1,6 +1,6 @@
 /* global foundry */
 /**
- * `acks-lib.animal` — the bridge between an animal and a monster. See
+ * `acks-extras.animal` — the bridge between an animal and a monster. See
  * docs/lib/API.md, "`acks-extras.animal` — the animal/monster bridge", and
  * docs/lib/MODEL.md, "What a mount knows about itself".
  *

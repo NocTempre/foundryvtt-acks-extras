@@ -16,7 +16,7 @@
  *   - the layered tables registry, service registry, ruledata loader
  *   - **actor compatibility stubs** — one definition of the fields the system
  *     touches on every actor
- *   - **the `acks-lib.animal` actor sub-type** — an animal is a monster you can
+ *   - **the `acks-extras.animal` actor sub-type** — an animal is a monster you can
  *     also buy, load and ride, so its combat block uses the monster's own field
  *     paths and everything that reads a monster reads it unchanged
  *   - **mount binding** — the "who is riding what" fact the equipment
@@ -144,49 +144,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
-  // 19: hp — the group hit-point tool. 22: worldTime — the clock's reading.
-  // 23: conditions — the condition catalogue and its math.
-  // 24: currency — one count per coin row, weight per stone, a named mint
-  // and sink; `toBank` is gone from `transferCoin`.
-  // 25: coin stores — `coinStores`, a holder's coin order, a payment's reach
-  // (`within`), and a payment relayed where the seat cannot write.
-  // 27: worldTime — the next dawn; movementScales — hexes per day only
-  // against a stated hex; drawQuietly — a table draw for the caller's own
-  // card.
-  // 28: mount — `ride`; storage — a deposit or a retrieval relayed where the
-  // seat cannot write the place.
-  // 29: statusPalette — the token palette as arranged; conditions —
-  // `SAVE_KINDS`, the save a `rollMath` is for and the kind of attack an
-  // `acMath` stands against; `giverOf`, `endingAtTurn`, `lostTo`, `LOSSES`
-  // and a subject's `gifts`.
-  // 30: places — `isMarkerActor`, the bodies whose token marks a place.
-  // 31: worldTime — whether a step of the clock crossed a dawn.
-  // 32: groupEncounter — the Roll, Make Encounter and the reveal;
-  // `sizeFromEcology` reads one named side where a state is given.
-  // 33: groups `canDeploy` and `STACK_DRAG_TYPE`, what a stack's row carries.
-  // 34: groups `moveStack` and `moveRefusal`, a stack's row between groups.
-  // 35: tables `bandDie`, a one-die table's die read off its own bands.
-  // 36: summons — a character's summoned creatures, placed and dismissed;
-  // spellUse — the cast seam, claimants for a spell's cast.
-  // 37: the shipped weapon table is gone from the equipment API's `config`
-  // (`WEAPONS`, `WEAPON_FOCUS_GROUPS`, `ANYONE_THROWS`, `WEAPON_ALIASES`) and
-  // from the training view (`WEAPON_UNITS`); the rows are the imported ones,
-  // read through the weapon seam. The equipment API's `config.GEAR_PROFILES`
-  // entries carry no `capacity` and `inferGear` answers none: a container's
-  // capacity is the figure its price row states, written at import.
-  // 38: senses — `SHADOWY_SENSE_RANGE` and `DEFAULT_LIGHTLESS_RANGE` are gone,
-  // and `senseProfile`'s `sightRange` is null where the shadowy radius, a dark
-  // sense's default reach or Night Vision's multiple is not imported;
-  // `shadowySenseRange`, `lightlessDefaultRange`, `nightLightFactor` and
-  // `senseCite` read the `senses` document.
-  // 39: bows and crossbows are one weapon class — `vocab`'s
-  // `SELECTION_VOCAB.weaponProficiency` and the proficiency strip's weapon
-  // classes hold one `bowcrossbow` where they held `bow` and `crossbow`, and a
-  // bare `crossbow` grant names the one weapon.
-  // 40: movement scales — `FEET_PER_TURN_PER_MILE_PER_DAY`, `MARCH_HOURS` and
-  // `WILDERNESS_FACTOR` are gone and `TRAVEL_PACE` entries carry no multiplier
-  // or hours; `expeditionFigures`, `paceFigures`, `expeditionCite` and
-  // `expeditionTip` read the `travel` document's `expedition` table.
+  // Rises whenever the surface below changes shape; a consumer gates on it.
   apiVersion: 40,
   vocab,
   fields,
@@ -282,7 +240,7 @@ const localImpl = Object.freeze({
   savingThrowFields,
   AnimalData,
   ANIMAL_TYPE,
-  /** The `acks-lib.group` stackable actor: model + lifecycle ops. */
+  /** The `acks-extras.group` stackable actor: model + lifecycle ops. */
   GroupData,
   GROUP_TYPE,
   groups,
@@ -292,7 +250,7 @@ const localImpl = Object.freeze({
    * `ROLL_CONTEXT_HOOK`, where a feature answers which line a scene reads.
    */
   groupEncounter,
-  /** The `acks-lib.template` generator actor: model + pure roll/resolve. */
+  /** The `acks-extras.template` generator actor: model + pure roll/resolve. */
   TemplateData,
   TEMPLATE_TYPE,
   templateLogic,

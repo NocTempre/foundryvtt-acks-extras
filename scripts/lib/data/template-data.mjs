@@ -1,6 +1,6 @@
 /* global foundry */
 /**
- * `acks-lib.template` — a GENERATOR actor: the book's "characteristics by
+ * `acks-extras.template` — a GENERATOR actor: the book's "characteristics by
  * rank/age/tier" pages held as a document that stamps out concrete creatures.
  * See docs/lib/API.md, "`acks-extras.template` — the generator actor (v0.16)".
  *

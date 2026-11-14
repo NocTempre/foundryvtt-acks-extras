@@ -1,5 +1,5 @@
 /**
- * The Foundry-FREE half of the `acks-lib.template` generator: choice rolling
+ * The Foundry-FREE half of the `acks-extras.template` generator: choice rolling
  * and patch resolution, split out so they import under Node and are unit-tested
  * offline (the same split as group-logic.mjs vs group.mjs).
  *

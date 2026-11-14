@@ -330,7 +330,7 @@ function stackFromSource(source, { count = 0, key } = {}) {
 
 /**
  * Add a new stack to the group from a source actor (a monster, character, or
- * acks-lib.animal). This is how a mixed unit is built: one `addStack` per
+ * acks-extras.animal). This is how a mixed unit is built: one `addStack` per
  * troop type — swordsmen, then spearmen. If it becomes the FIRST stack, the
  * group's representative-individual block (the token's bar) is seeded from it.
  *

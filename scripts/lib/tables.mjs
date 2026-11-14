@@ -66,7 +66,7 @@ export function registerTable(doc, { priority = PRIORITY.SAMPLE, source } = {}) 
   notifyChanged(doc.id);
 }
 
-/** Drop-in alias for the historical per-module registry call. */
+/** Register one document at the default priority: `registerTable(doc)`. */
 export function initTables(doc) {
   registerTable(doc);
 }

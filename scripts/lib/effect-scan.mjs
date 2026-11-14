@@ -55,7 +55,7 @@ export function appliedEffects(actor) {
  * Build a feature's effect-metadata reader.
  * @param {string} moduleId flag scope the metadata lives under
  * @param {{legacyLabel?: boolean}} [opts] include the pre-v11 `effect.label`
- *   link in the label chain (henchmen's historical behavior).
+ *   link in the label chain (the henchmen feature's effects read it).
  */
 export function makeEffectMeta(moduleId, { legacyLabel = false } = {}) {
   return (effect) => {

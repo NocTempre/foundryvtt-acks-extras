@@ -1,6 +1,6 @@
 /* global foundry */
 /**
- * `acks-lib.group` — a STACK of near-identical creatures held as one actor:
+ * `acks-extras.group` — a STACK of near-identical creatures held as one actor:
  * a mercenary platoon, a pack of kobolds, a flight of manes. See
  * docs/lib/GROUPS.md for the model (member records as ActorDeltas, the
  * laziness invariant, the representative individual) and the lifecycle ops
@@ -60,7 +60,7 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         key: str(), // stable stack id (randomID); lifecycle ops address a stack by it
         template: new SchemaField({
           uuid: new DocumentUUIDField({ required: false, blank: true, nullable: true, initial: null }),
-          type: str({ initial: "monster" }), // the base actor's type: monster | character | acks-lib.animal
+          type: str({ initial: "monster" }), // the base actor's type: monster | character | acks-extras.animal
           label: str(),
           snapshot: new ObjectField(),
           snapshotTime: int(0),

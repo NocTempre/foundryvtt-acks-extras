@@ -1,6 +1,6 @@
 /* global game, foundry, ui, fromUuid */
 /**
- * The `acks-lib.group` sheet.
+ * The `acks-extras.group` sheet.
  *
  * A group is not a creature you read a stat block off — it is one or more
  * STACKS, each a HEADCOUNT and a ROSTER — so it gets its own sheet rather than
