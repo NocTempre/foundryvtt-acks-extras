@@ -33,6 +33,7 @@ function ladderOf(item) {
 }
 
 let ladderCache = null;
+
 /** How long the item hooks wait for quiet before the packs are read again. */
 export const LADDER_REFRESH_QUIET_MS = 1000;
 let pending = null;
