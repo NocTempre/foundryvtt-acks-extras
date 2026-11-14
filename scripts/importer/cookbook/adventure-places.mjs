@@ -10,7 +10,7 @@ import { coversFigure, decides, heldEdit } from "../held-edits.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview,
   regionPlaceId, regionPlaceData, keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
-  adventurePlaceData, adventurePlaceId, CREATURE_REPLACEMENTS, replacementOf,
+  adventurePlaceData, adventurePlaceId, CREATURE_REPLACEMENTS, replacementOf, withHostRow,
 } from "../poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, isStrengthGridRow, strengthPlan,
@@ -474,7 +474,10 @@ async function occupantTargets(bookId) {
  * same-name row the replacement stands in for. The row's quantity is the
  * label's count, and its notes the count printed as dice and the hit points. A
  * person of the book stands once, with no notes, however the room counts its
- * line.
+ * line. A place whose row names a monster it is the lair of (`meta.of`) ends
+ * with one more hidden row, a reference to the library's actor of that monster,
+ * unless a stat line already bound to it; none while the monster is not
+ * imported, which a repair of the book then fills.
  */
 export async function keyedOccupantRows(bookId, id, node, run) {
   const { core, own } = await run.targetsOf(bookId);
@@ -498,7 +501,11 @@ export async function keyedOccupantRows(bookId, id, node, run) {
     rows.push(occupantRow(actor, { quantity: person ? 1 : quantity, notes, hidden: true }));
     run.tally.rostered++;
   }
-  return rows;
+  const of = data.books.get(bookId)?.entries?.[id]?.meta?.of;
+  const monster = of ? await importedActor(of, { copies: false }) : null;
+  const hosted = withHostRow(rows, monster ? occupantRow(monster, { hidden: true }) : null);
+  if (hosted !== rows) run.tally.rostered++;
+  return hosted;
 }
 
 /**

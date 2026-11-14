@@ -10970,3 +10970,49 @@ unit than feet, and the finest lattices (p. 220, 221, 202, 199) make a picture o
 many small squares. Lattice phase on plates with few drawn
 lines (p. 204, 207, 208, 215) rests on a handful of lines and is the
 first thing to check on a live walk.
+
+## 2026-11-13 — A lair links to its monster, and a stat line binds through a registered replacement
+
+The owner, on how a lair stands: "Place actor (Recommended)"; on its text: "As AX
+books do"; and from the first ask, "It should link without creating
+duplicates." Carried out in `keyedOccupantRows` (MODEL, "A lair is a place with
+its monster").
+
+**Ruled:**
+
+- **Replacement pairs are a register, keyed by hash.** 2026-10-17's "the pair is
+  registered, never guessed at import" had no register for creatures; the
+  `creature` table is keyed by the printed label, so a pair written there ships
+  the name. `creatureReplacement` is keyed by `hash36` of a folded form of the
+  label (a `printKey` hash of the singular and of the plural as printed) and
+  holds `ref` and `books`. 41 labels are registered for L&E: a rename, a
+  spelling, a word order, an irregular plural, or the Monstrous Manual's
+  "Man, X" scheme, each read against the lair's own `meta.of`, the System
+  Compatibility Guide and the Manual's rows.
+- **A pair answers for the books it was reviewed for.** Each row names `le`; an
+  AX book's stat line binds as it did until a reviewer reads its rooms. One pair
+  needs the scope: the Guide gives lair 70's creature two targets, and the one
+  registered is the one that listing's `meta.of` names, not the ACKS II row of
+  the same name, which is another creature.
+- **A registered label answers alone.** It is ahead of the same-name binding, and
+  where its monster is not in the library the line is made, never bound to the
+  same-name row, which is the wrong creature.
+- **A lair's roster refers to its `meta.of` monster.** One hidden row by uuid to
+  the library's actor, appended after the stat lines and dropped where a stat
+  line already bound to that actor, so a lair never lists its monster twice and
+  never copies it.
+- **No book switch.** The design's switch that skipped stat-line creatures for
+  L&E belonged to the option the owner did not pick; the stat lines are bound as
+  the AX books' are, and `meta.of` alone makes a place a lair.
+
+**Rejected:** binding a stat line through `conversion.json`'s renames (several
+monster rows there are garbled); a pair for a label qualified by a role, age or
+size, which names a stat block ACKS II has no row for; a roster row for a
+monster that is not imported.
+
+*Cost:* 231 of 355 stat lines are still made, among them named individuals and
+the beastmen, dwarves, elves and others "warriors", which may duplicate the
+Manual's row until a reviewer compares their figures. A host row adds one to
+the place's headcount where no stat line bound to the monster. A lair imported
+before the Manual keeps the creatures its stat lines made until a Repair, and
+Repair lists that roster as an edit rather than replacing it.

@@ -251,3 +251,16 @@ export function replacementOf(label, pairs, bookId) {
   }
   return null;
 }
+
+/**
+ * A roster with a lair's monster on it: `host`, a hidden reference row to the
+ * library's own actor of the monster the lair is the lair of, appended unless a
+ * row of the roster already points at that actor (a stat line that bound to it).
+ * @param {object[]} rows the roster built from the room's stat lines
+ * @param {object|null} host an occupant row, or null where the monster is not in the library
+ * @returns {object[]} `rows` itself when nothing is added
+ */
+export function withHostRow(rows, host) {
+  if (!host?.uuid || rows.some((r) => r.uuid === host.uuid)) return rows;
+  return [...rows, host];
+}

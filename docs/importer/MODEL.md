@@ -1618,6 +1618,9 @@ A new place's roster is its occupants (`occupantsOf`), one hidden row each
 (`occupantRow`), linked to the first of these that answers
 (`keyedOccupantRows`):
 
+0. the ACKS II monster the label is registered to for this book
+   ("A lair is a place with its monster"), which answers alone: a label so
+   registered never meets the same-name creature the replacement stands in for;
 1. the creature the register's lookup names (`occupants.<i>.name.ref`);
 2. the library's creature of another book under one of the label's name keys
    (`creatureKeys`: the label's words, its last word in each singular form);
@@ -1654,6 +1657,42 @@ is created when a carried map shows it, and the places above it because a
 created place sits in each (`fillPlan`). A map made before its recipe carried
 pins keeps its shape (`repairHeldMap`); deleting it and running the maps step
 again lays them.
+
+## A lair is a place with its monster
+
+A keyed place whose row carries `meta.of`, the cookbook id of an ACKS II monster
+row of the Monstrous Manual (`lairOfProblems`), is that monster's lair. Two things
+bind it, both in `keyedOccupantRows`, and no book is named in either.
+
+**A stat line binds through a registered replacement.** `register/_refs/creatureReplacement.json`
+pairs a label with the monster row ACKS II prints for it: the creature under
+another name, another spelling, another word order or an irregular plural. A
+row is keyed by `hash36` of one folded form of the label (`creatureKeys`, so the
+plural and the singular meet one key), names the row (`ref`, a `kind.monster`
+row of the Monstrous Manual) and the books it was reviewed for (`books`), and
+carries no name (`replacementProblems`). `replacementOf` reads it. A label
+qualified by a role, an age or a size, a named person and a generic crowd are not
+paired: they are made as the AX books' are. A registered label whose monster is
+not yet in the library is made and not bound to its same-name row; a repair
+binds it once the monster is there.
+
+**The roster refers to the monster.** After its stat lines, the place's roster ends with one hidden row
+(`occupantRow`) pointing at the library's own actor of the `meta.of` monster,
+by uuid: a reference, never a copy, and never a world copy (`importedActor` with
+`copies: false`). `withHostRow` adds it unless a row of the roster already points
+at that actor, which is the case where a stat line bound to it. Where the monster
+is not imported, no row is added. A monster template (`mm.dragon`) is an actor
+of the `acks-extras.template` type, so its row is a plain `actor` row; it is
+counted as one body in the place's headcount, as every row is.
+
+A repair of the book builds a held keyed place again, so its roster is built
+again with the host row (`withRewrite`'s `retract`, above). Under a repair that
+carries a decision (`heldRoster`), a stored roster that does not cover the build
+is a Judge's edit: a lair imported before the Monstrous Manual holds the
+creatures its stat lines made, so the repair lists its roster, and writes the
+linked one where the decision takes it. A roster that was empty takes it
+without a question. The rulings are DECISIONS 2026-11-13, "A lair links to its
+monster, and a stat line binds through a registered replacement".
 
 ## A place two books print
 
