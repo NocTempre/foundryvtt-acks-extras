@@ -922,9 +922,11 @@ would undo "a re-read that finds nothing keeps what it had".
 - **A pregenerated character's grants.** Answered *Write the book over it*,
   its sheet import runs again and its biography is written, but an item the
   import granted that a Judge edited is
-  not replaced. Replacing it means deleting the stamped grants and binding the
-  class again, which the class bind skips for a character already at that class
-  and level; it needs the bind's round trip walked live before it is safe.
+  not replaced. Every grant carries the same `minted` flag and no record of
+  what was granted, so an edited grant cannot be told from an untouched one:
+  replacing one needs a per-item sum written at import, and an item the class
+  bind made does not come back while the bind skips a character already at
+  that class and level. Its round trip wants a live walk before it ships.
 
 ## Overhead token art: what is not built
 
