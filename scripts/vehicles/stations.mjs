@@ -78,7 +78,7 @@ function landStations(sys, occupants, by, pull) {
     filled: pull ?? null,
     named: by("draft"),
     abstract,
-    unnamed: abstract.filter((a) => !a.uuid).reduce((s, a) => s + Math.max(1, num(a.count)), 0),
+    unnamed: abstract.reduce((s, a) => s + Math.max(1, num(a.count)), 0),
     emptySlots: 0,
     short: num(sys?.team?.required) > 0 && pull != null && pull < num(sys.team.required),
     singleton: false,

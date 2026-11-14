@@ -27,11 +27,6 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   ATTACHMENT on the dropped actor (`attachedTo {uuid, role, station, kind}`)
   — never a `system.team.animals` row; the typed rows are only the abstract
   complement.
-- **Old team rows convert themselves.** A row carrying a uuid (the pre-4.28
-  drop scheme) becomes an attachment the first time an owner opens the sheet
-  — except rows marked not-pulling, which stay rows on purpose. To test the
-  conversion, write a uuid row by hand, re-open the sheet, and assert the row
-  is gone and the flag exists.
 - **Typed counts are the UNNAMED complement.** `crew.roles[].aboard`,
   `cargo.passengers` and the team rows all count people/animals nobody has
   put an actor to; named attachments ADD. The stations panel's stepper is the

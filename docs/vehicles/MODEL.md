@@ -41,9 +41,7 @@ horse is harnessed to a wagon moves at the wagon's pace.
 [occupants.mjs](../../scripts/vehicles/occupants.mjs) assembles the ONE
 occupant list every consumer reads — the sheet, the buckets, boarding — and
 answers the team's real pull (`draftPullOf`): the abstract team rows ("2
-heavy horses", no documents) plus every attached animal. Rows that still
-carry a uuid from the old drop scheme convert to attachments the next time an
-owner opens the sheet.
+heavy horses", no documents) plus every attached animal.
 
 ## Stations
 

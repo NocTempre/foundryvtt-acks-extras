@@ -1,4 +1,3 @@
-/* global fromUuid */
 /**
  * Who is aboard a vehicle, assembled once. The attachment layer knows who
  * is bound and in what role; the capacity primitive knows what each
@@ -6,11 +5,10 @@
  * every consumer reads (sheet, buckets, boarding, the formation's train).
  *
  * The team has two halves — abstract rows and real `draft` attachments;
- * `draftPullOf` sums both, and `normalizeTeamRows` converts old uuid-bearing
- * rows lazily. See docs/vehicles/DECISIONS.md, "The team has two halves:
- * abstract rows, real attachments."
+ * `draftPullOf` sums both. See docs/vehicles/DECISIONS.md, "The team has two
+ * halves: abstract rows, real attachments."
  */
-import { attachedTo, attachmentOf, attach } from "../lib/attachment.mjs";
+import { attachedTo, attachmentOf } from "../lib/attachment.mjs";
 import { borneBy6, borneWeight6 } from "../lib/capacity.mjs";
 import { bodyCount } from "../lib/group-logic.mjs";
 import { STONE } from "../lib/item-model.mjs";
@@ -189,51 +187,6 @@ export function attachedDraftPull(vehicle) {
  */
 export function draftPullOf(vehicle) {
   return draftPull(vehicle?.system) + attachedDraftPull(vehicle);
-}
-
-/**
- * Convert team rows that point at a real actor into draft attachments.
- *
- * Lazy, per vehicle, idempotent: called on sheet render, it moves each
- * uuid-bearing row onto the animal itself (keeping the row's corrected kind)
- * and drops the row. A row standing for more than one animal leaves the
- * remainder behind as an abstract row. Rows it cannot convert — the actor is
- * gone, unowned, or the attach is refused — stay rows and read as they always
- * did. Rows marked not-pulling stay rows too: an attachment has no idle state
- * yet, and a lame horse must not silently resume pulling by being converted.
- *
- * @returns {Promise<boolean>} whether anything changed
- */
-export async function normalizeTeamRows(vehicle) {
-  if (!vehicle?.isOwner) return false;
-  const rows = vehicle?.system?.team?.animals ?? [];
-  if (!rows.some((r) => r.uuid && r.pulling !== false)) return false;
-  const keep = [];
-  let changed = false;
-  for (const row of rows) {
-    if (!row.uuid || row.pulling === false) {
-      keep.push(row);
-      continue;
-    }
-    const actor = await fromUuid(row.uuid).catch(() => null);
-    if (!actor || actor.documentName !== "Actor" || !actor.isOwner) {
-      keep.push(row);
-      continue;
-    }
-    const kind = DRAFT_KINDS[row.kind] ? row.kind : null;
-    const res = await attach(actor, vehicle, "draft", { kind });
-    if (!res.ok) {
-      keep.push(row);
-      continue;
-    }
-    changed = true;
-    const count = Math.max(1, Number(row.count) || 1);
-    // The actor stands for ONE animal; a row that said three leaves two
-    // abstract ones behind rather than quietly shrinking the team.
-    if (count > 1) keep.push({ ...row, uuid: "", name: "", count: count - 1 });
-  }
-  if (changed) await vehicle.update({ "system.team.animals": keep });
-  return changed;
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;

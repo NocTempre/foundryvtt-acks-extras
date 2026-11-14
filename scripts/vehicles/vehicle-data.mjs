@@ -117,18 +117,12 @@ export default class VehicleData extends TypeDataModel {
         gearStone: new foundry.data.fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
       });
 
-    /** One animal in the team, bound by uuid so its own sheet stays the truth. */
+    /** One row of unnamed animals in the team; a named animal is an attachment. */
     const teamAnimal = () =>
       new SchemaField({
-        uuid: str(),
-        name: str(),
         kind: choice(DRAFT_KINDS, { initial: "heavyHorse" }),
-        // How many animals this row IS. A four-horse wagon is a team of four
-        // identical horses, and making a Judge create four actors to say so —
-        // and unharness them one at a time — is bookkeeping the printed table
-        // does not ask for. A row dragged from a specific animal keeps its
-        // uuid and stands for one; a row typed by hand stands for as many as
-        // it says.
+        // How many animals this row IS: a team of identical animals typed by
+        // hand, so a Judge need not create one actor per animal.
         count: int(1, { min: 1 }),
         // A lame or dead animal stays on the roster and stops pulling — the
         // Judge should not have to delete a horse to record that it fell.
@@ -244,9 +238,8 @@ export default class VehicleData extends TypeDataModel {
 
   /**
    * The submitted rows laid OVER the stored ones. A row carries fields the
-   * form has no input for (an animal's uuid and name, set only by dragging
-   * it into harness), so rebuilding from the form alone would come back
-   * nameless and bound to nothing. `named` (the form's actual input names)
+   * form has no input for (a team row's `pulling`, toggled by its own
+   * control), so rebuilding from the form alone would reset them. `named` (the form's actual input names)
    * decides which fields the submission overwrites; a submitted default is
    * indistinguishable from a field deliberately cleared, so only a NAMED
    * field is taken and the rest stand as the stored row had them.

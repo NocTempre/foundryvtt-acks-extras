@@ -28,7 +28,7 @@ import { load6 } from "../lib/capacity.mjs";
 import { attach, detach } from "../lib/attachment.mjs";
 import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf } from "../lib/storage.mjs";
 import { isLocation, parentUuidOf, placeIndex, placePath, setParent } from "../lib/place.mjs";
-import { occupantsOf, draftPullOf, normalizeTeamRows, derivedSkills } from "./occupants.mjs";
+import { occupantsOf, draftPullOf, derivedSkills } from "./occupants.mjs";
 import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
 import { routeActorDrop } from "./drop-dialog.mjs";
 import { fractionLabel } from "../lib/util.mjs";
@@ -531,17 +531,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
           : null,
       charts: d.charts.has ? game.i18n.format(`${LANG_PREFIX}.station.chartsFrom`, { name: d.charts.from }) : null,
     };
-  }
-
-  /**
-   * @override — convert any team rows still bound to a real actor into draft
-   * attachments. Lazy and idempotent: a vehicle written under the row scheme
-   * converges the first time an owner opens it, and the guard inside returns
-   * before any write when there is nothing to convert.
-   */
-  _onRender(context, options) {
-    super._onRender?.(context, options);
-    void normalizeTeamRows(this.actor);
   }
 
   /** Open the document a chip or a place link names. */
