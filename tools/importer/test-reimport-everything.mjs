@@ -5,8 +5,8 @@
  * `ask` it is handed before its first write, and writes only on a Yes. The
  * suite holds the orchestration to that contract: the dry pass writes nothing,
  * the one confirm carries every part's own lines under its label, a No runs
- * nothing more, a Yes runs each part that asked and no other, and the closing
- * run follows the parts once. No Foundry.
+ * nothing more, a Yes runs the caller's `before` once and then each part that
+ * asked and no other. No Foundry.
  */
 import assert from "node:assert";
 import { EVERYTHING_MODES, reimportEverything } from "../../scripts/importer/everything.mjs";
@@ -36,28 +36,43 @@ ok("three modes, as the Rebuild tab names them", EVERYTHING_MODES.join() === "dr
 {
   const writes = [];
   const shown = [];
-  const after = [];
+  const log = [];
   const parts = [part("Book A", ["Delete 3 of A?", ""], writes), part("Book B", null, writes), part("Book C", ["Delete 1 of C?"], writes)];
-  const no = await reimportEverything({ mode: "drop", parts, confirm: async (asked) => (shown.push(asked), false), after: async () => after.push("chain") });
+  const no = await reimportEverything({ mode: "drop", parts, confirm: async (asked) => (shown.push(asked), false), before: async () => log.push("read") });
   ok("a No returns null", no === null);
   ok("and nothing is written, in the dry pass or after it", writes.length === 0, writes.join());
-  ok("nor does the closing run run", after.length === 0);
+  ok("nor does the read ahead of the parts run", log.length === 0);
   ok("the one confirm lists each part that asked, under its label, in order", shown.length === 1 && shown[0].map((a) => a.label).join() === "Book A,Book C", JSON.stringify(shown));
   ok("with that part's own lines, an empty line left out", shown[0][0].lines.join("|") === "Delete 3 of A?" && shown[0][1].lines.join("|") === "Delete 1 of C?", JSON.stringify(shown[0]));
 
-  const yes = await reimportEverything({ mode: "drop", parts, confirm: async () => true, after: async () => (after.push("chain"), "chained") });
+  const yes = await reimportEverything({ mode: "drop", parts, confirm: async () => true, before: async () => (log.push("read"), "tables") });
   ok("a Yes runs each part that asked, once, in order", writes.join() === "Book A,Book C", writes.join());
   ok("a part that never asked is not run", !writes.includes("Book B"));
-  ok("the closing run follows the parts once", after.join() === "chain" && yes.after === "chained", JSON.stringify(yes));
+  ok("the read ahead of the parts runs once and its result is returned", log.join() === "read" && yes.before === "tables", JSON.stringify(yes));
   ok("and the result counts the parts and carries each one's own result", yes.asked === 2 && yes.parts.map((p) => p.result?.label).join() === "Book A,Book C" && yes.mode === "drop", JSON.stringify(yes));
 }
 
 {
   let confirms = 0;
   const writes = [];
-  const none = await reimportEverything({ mode: "repair", parts: [part("Closed", null, writes)], confirm: async () => (confirms++, true), after: async () => "tables" });
-  ok("with no part asking, no confirm is shown", confirms === 0);
-  ok("nothing runs and the result says none asked", none.asked === 0 && none.parts.length === 0 && none.after === null && writes.length === 0, JSON.stringify(none));
+  const none = await reimportEverything({ mode: "repair", parts: [part("Closed", null, writes)], confirm: async () => (confirms++, true), before: async () => (confirms += 10, "tables") });
+  ok("with no part asking, no confirm is shown and no read is taken", confirms === 0);
+  ok("nothing runs and the result says none asked", none.asked === 0 && none.parts.length === 0 && none.before === null && writes.length === 0, JSON.stringify(none));
+}
+
+{
+  // The read sits between the confirm's Yes and the first part's Yes-run, and the dry pass precedes both.
+  const log = [];
+  const parts = ["A", "B"].map((label) => ({
+    label,
+    run: async (ask) => {
+      const yes = await ask({ lines: [label], title: "reimportTitle" });
+      log.push(`${label}:${yes ? "yes" : "no"}`);
+      return yes;
+    },
+  }));
+  await reimportEverything({ mode: "repair", parts, confirm: async () => (log.push("confirm"), true), before: async () => log.push("read") });
+  ok("the read runs once, after the confirm and before any part's Yes-run", log.join() === "A:no,B:no,confirm,read,A:yes,B:yes", log.join());
 }
 
 {

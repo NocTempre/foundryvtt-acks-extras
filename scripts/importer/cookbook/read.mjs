@@ -7,6 +7,61 @@ import { repairWrite } from "../refresh.mjs";
 import { executeEntry } from "../executor.mjs";
 import { data, ctx, cookbookEntry, bookOf } from "./state.mjs";
 
+/** The open read hold (`holdingReads`): executed nodes by session doc, then entry id, and the counts it logs. */
+let heldReads = null;
+
+/**
+ * Run `run` with one execution per entry: inside it, `readForImport` and
+ * `repairFromEntry` answer a repeated read of an entry from the node the first
+ * read produced, copied, so a repair's second pass does not re-extract what its
+ * first pass read. Nodes only, never pages. A node is kept under the open book
+ * it was read from, so a book closed and reopened inside the hold reads again.
+ * A hold already standing is joined; the outermost one clears it and logs how
+ * many entries it read and how many reads it answered again.
+ */
+export async function holdingReads(run) {
+  if (heldReads) return run();
+  heldReads = { nodes: new WeakMap(), entries: 0, hits: 0 };
+  try {
+    return await run();
+  } finally {
+    const { entries, hits } = heldReads;
+    heldReads = null;
+    console.debug(`${MODULE_ID} | read hold ended: ${entries} entries read, ${hits} reads answered again`);
+  }
+}
+
+/**
+ * Execute one entry of `session`'s book, through the read hold when one stands
+ * and `opts` carries nothing but `pageCache` (any other option changes what the
+ * node holds). The hold keeps the promise and forgets it when it rejects; every
+ * caller gets its own copy, and a node that cannot be copied is not kept.
+ */
+async function executeHeld(session, found, id, opts) {
+  const run = () => executeEntry(session.doc, found.cb, data.registers, id, opts);
+  const hold = heldReads;
+  if (!hold || Object.keys(opts).some((key) => key !== "pageCache")) return run();
+  if (!hold.nodes.has(session.doc)) hold.nodes.set(session.doc, new Map());
+  const kept = hold.nodes.get(session.doc);
+  let read = kept.get(id);
+  if (read) hold.hits++;
+  else {
+    read = run();
+    kept.set(id, read);
+    hold.entries++;
+    read.catch(() => {
+      if (kept.get(id) === read) kept.delete(id);
+    });
+  }
+  const node = await read;
+  try {
+    return structuredClone(node);
+  } catch {
+    if (kept.get(id) === read) kept.delete(id);
+    return node;
+  }
+}
+
 /**
  * Write a fresh read of `id` over one imported document: execute the entry on
  * this seat, bind it with `build(node)`, and write the build under `policy`
@@ -20,7 +75,7 @@ export async function repairFromEntry(doc, id, build, policy, tally = null) {
   const found = cookbookEntry(id);
   const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
   if (!session) return "book-closed";
-  const node = await executeEntry(session.doc, found.cb, data.registers, id).catch(() => null);
+  const node = await executeHeld(session, found, id, {}).catch(() => null);
   if (!node?.ok) return "no-match";
   let built;
   try {
@@ -36,7 +91,8 @@ export async function repairFromEntry(doc, id, build, policy, tally = null) {
  * Read one entry off the seat's own book for an import: `{node}` when the
  * page yielded one, else `{node: null, reason}` — `book-closed` when the
  * entry's book is not open here, `no-match` when its page no longer matches
- * the cookbook. An import creates nothing from a null node: a document built
+ * the cookbook. Inside `holdingReads`, a repeated read of one entry is served
+ * from the first. An import creates nothing from a null node: a document built
  * from the entry's shape alone reads as the thing on every sheet, and a book
  * opened later imports what was passed over, since every import steps over
  * what the world holds and builds the rest. `opts` is `executeEntry`'s.
@@ -45,7 +101,7 @@ export async function readForImport(id, opts = {}) {
   const found = cookbookEntry(id);
   const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
   if (!session) return { node: null, reason: "book-closed" };
-  const node = await executeEntry(session.doc, found.cb, data.registers, id, opts);
+  const node = await executeHeld(session, found, id, opts);
   return node?.ok ? { node, reason: null } : { node: null, reason: "no-match" };
 }
 

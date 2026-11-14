@@ -7,6 +7,9 @@
  * page cache for exactly as long as one call: a page is extracted once however
  * many recipes or definitions print on it, and is read afresh by the next call.
  *
+ * A read hold (`holdingReads`) goes further: inside one, an entry is executed once
+ * however often it is read, by an import or a repair.
+ *
  * The books here are invented: a page is one text run, counted when it is
  * extracted, and a table recipe is any shipped recipe whose anchor the invented
  * pages never print, so a locate scans the whole book. The world is the
@@ -19,7 +22,8 @@ import { importTables, tableRecipeBooks } from "../../scripts/importer/tables-bi
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { pdfGuess } from "../../scripts/importer/table-extract.mjs";
 import * as services from "../../scripts/lib/services.mjs";
-import { initCookbook, loadCookbook, cookbookImportAbilities, cookbookUpdateAbilities } from "../../scripts/importer/cookbook.mjs";
+import { initCookbook, loadCookbook, cookbookEntry, cookbookImportAbilities, cookbookUpdateAbilities } from "../../scripts/importer/cookbook.mjs";
+import { holdingReads, readForImport, repairFromEntry } from "../../scripts/importer/cookbook/read.mjs";
 
 let pass = 0;
 const ok = (label, cond, detail = "") => {
@@ -289,6 +293,101 @@ function fetched(url) {
   abilityBook.reads.clear();
   await cookbookUpdateAbilities();
   ok("the next run reads the page afresh", abilityBook.reads.get(2) === 1, `${abilityBook.reads.get(2)}`);
+
+  /* --- the read hold: one execution per entry while it stands --------------------------- */
+  const GAMMA = "def.prof.gamma";
+  const DELTA = "def.prof.delta";
+  const quiet = console.error;
+  console.error = () => {};
+  const fails = () => {
+    throw new Error("binding failed");
+  };
+
+  abilityBook.reads.clear();
+  await readForImport(GAMMA);
+  await readForImport(GAMMA);
+  ok("outside a hold, two reads of an entry execute twice", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+
+  abilityBook.reads.clear();
+  const firstRead = await holdingReads(async () => {
+    const one = await readForImport(GAMMA);
+    const two = await readForImport(GAMMA);
+    ok("inside a hold, two reads of an entry execute once", abilityBook.reads.get(2) === 1, `${abilityBook.reads.get(2)}`);
+    ok("and both answer with the same node", one.node && JSON.stringify(one.node) === JSON.stringify(two.node) && one.reason === null);
+
+    await readForImport(DELTA);
+    ok("another entry of the same page executes on its own", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+
+    const repaired = await repairFromEntry({}, GAMMA, fails, null);
+    ok("a repair read after an import read executes nothing new", abilityBook.reads.get(2) === 2 && repaired === "error", `${abilityBook.reads.get(2)} ${repaired}`);
+
+    const mine = (await readForImport(GAMMA)).node;
+    const before = JSON.stringify(mine);
+    mine.name = "changed";
+    mine.fields.note = "changed";
+    const next = (await readForImport(GAMMA)).node;
+    ok("a node a caller changed does not change the next read", JSON.stringify(next) === before && next !== mine, JSON.stringify(next));
+
+    let seen = null;
+    await repairFromEntry({}, GAMMA, (node) => ((seen = node), fails()), null);
+    ok("a repair is handed a copy as well", seen && JSON.stringify(seen) === before);
+
+    await holdingReads(async () => {
+      await readForImport(GAMMA);
+    });
+    ok("a hold opened inside another joins it", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+    await readForImport(GAMMA);
+    ok("and its end leaves the outer hold standing", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+
+    abilityBook.reads.clear();
+    await readForImport(GAMMA, { skipOps: ["art"] });
+    await readForImport(GAMMA, { skipOps: ["art"] });
+    ok("a read that changes what the node holds (skipOps) is never shared", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+    await readForImport(GAMMA, { trackClaims: true });
+    await readForImport(GAMMA, { trackClaims: true });
+    ok("nor is one that tracks claims", abilityBook.reads.get(2) === 4, `${abilityBook.reads.get(2)}`);
+
+    abilityBook.reads.clear();
+    await readForImport(GAMMA, { pageCache: new Map() });
+    ok("a read handed only a page cache shares the held node", abilityBook.reads.size === 0, `${abilityBook.reads.size}`);
+
+    const reopened = countingBook(4);
+    await reopened.settle();
+    sessions.set("zz", { doc: reopened });
+    await readForImport(GAMMA);
+    ok("a book closed and reopened inside the hold is read again, not served from the old one", reopened.reads.get(2) === 1, `${reopened.reads.get(2)}`);
+    sessions.set("zz", { doc: abilityBook });
+    abilityBook.reads.clear();
+    await readForImport(GAMMA);
+    ok("and the first copy of the book still answers from its own reads", abilityBook.reads.size === 0, `${abilityBook.reads.size}`);
+    return "done";
+  });
+  ok("the hold hands back what its run returned", firstRead === "done");
+
+  abilityBook.reads.clear();
+  await holdingReads(() => readForImport(GAMMA));
+  await holdingReads(() => readForImport(GAMMA));
+  ok("a hold that ended is gone: the next one reads again", abilityBook.reads.get(2) === 2, `${abilityBook.reads.get(2)}`);
+
+  // A read that rejects is forgotten, so the next read in the hold tries again.
+  abilityBook.reads.clear();
+  await holdingReads(async () => {
+    const { entry } = cookbookEntry(DELTA);
+    const fields = entry.fields;
+    Object.defineProperty(entry, "fields", {
+      configurable: true,
+      get() {
+        Object.defineProperty(entry, "fields", { value: fields, writable: true, configurable: true, enumerable: true });
+        throw new Error("read rejected");
+      },
+    });
+    const first = await readForImport(DELTA).catch((err) => err);
+    ok("a read that rejects rejects its caller", first instanceof Error && /read rejected/.test(first.message), String(first?.message));
+    const second = await readForImport(DELTA);
+    const third = await readForImport(DELTA);
+    ok("the next read executes again, and its node is kept", second.node && third.node && abilityBook.reads.get(2) === 1, `${abilityBook.reads.get(2)}`);
+  });
+  console.error = quiet;
 }
 
 delete globalThis.foundry;

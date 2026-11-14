@@ -7,11 +7,10 @@ import { blockSums, editedInBlocks } from "../prose.mjs";
 import { handWrittenProse } from "../refresh.mjs";
 import { decides, heldEdit } from "../held-edits.mjs";
 import { BOOKS } from "../books.mjs";
-import { executeEntry } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { elementOf, escape as esc, unset } from "../../lib/util.mjs";
-import { data, ctx, cookbookEntry, bookOf, abilityEntries, cookbookAbilityIds } from "./state.mjs";
-import { passedOver, runPageCache } from "./read.mjs";
+import { ctx, cookbookEntry, bookOf, abilityEntries, cookbookAbilityIds } from "./state.mjs";
+import { passedOver, runPageCache, readForImport } from "./read.mjs";
 import {
   packLabel, WRITE_CHUNK, createDocs, importedIndex, importedDocs, deleteImported, importedItem, prepareItemShelves,
 } from "./target.mjs";
@@ -413,13 +412,8 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       const found = cookbookEntry(id);
       // Re-extract once per definition, not once per copy of it.
       if (!nodeCache.has(id)) {
-        const session = ctx.sessionDocs.get(bookOf(found));
-        let node = null;
-        if (session) {
-          node = await executeEntry(session.doc, found.cb, data.registers, id, { pageCache: pageCache(bookOf(found)) }).catch(() => null);
-          if (!node?.ok) node = null;
-        }
-        nodeCache.set(id, node);
+        const read = await readForImport(id, { pageCache: pageCache(bookOf(found)) }).catch(() => ({ node: null }));
+        nodeCache.set(id, read.node);
       }
       const node = nodeCache.get(id);
       // Nothing was read — this entry's book is not open on this seat, or its

@@ -37,6 +37,7 @@ import {
   folderCache, packCache, packLabel, withRewrite, decisionOf, forgetImportedIndex, importedDocs, holdingLibrary,
   deleteImported, importedActor, importedIdSet, actorEntriesAcrossBooks, familyMemberIds, ITEM_SHELF, shelfKeyOf,
 } from "./target.mjs";
+import { holdingReads } from "./read.mjs";
 import { refillMonster } from "./monster.mjs";
 import { importClasses, cookbookUpdateClasses } from "./classes.mjs";
 import { importVehicles, importAllEquipment } from "./equipment.mjs";
@@ -659,14 +660,18 @@ export const reimportableShelves = () =>
  * once. Handed a `tally`, the caller drives the passes (`cookbookReimportEverything`):
  * one pass runs under it, quiet on a second pass, and nothing is reported.
  * The Judge answers for the held edits and the pregenerated characters left
- * (`chooseHeldEditsDialog`); `choose` answers in the Judge's place.
+ * (`chooseHeldEditsDialog`); `choose` answers in the Judge's place. Both passes,
+ * the dialog's wait and `finish` run inside one read hold (`holdingReads`), so an
+ * entry the first pass read is not read again by the second.
  * @param {(tally: object, at: {first: boolean}) => Promise<object|null|undefined>} pass
  * @param {{decision?: unknown, tally?: object|null, finish?: ((tally: object) => Promise<unknown>)|null,
  *   choose?: ((edits: object[], more: {pregens: object[]}) => Promise<unknown>)|null}} [opts]
  */
 async function runMerged(pass, { decision = null, tally = null, finish = null, choose = null } = {}) {
   if (tally) return pass(tally, { first: !secondPass(tally) });
-  const result = await mergedRepair({ pass, decision, choose: choose ?? chooseHeldEditsDialog, makeTally: repairPassTally, finish });
+  const result = await holdingReads(() =>
+    mergedRepair({ pass, decision, choose: choose ?? chooseHeldEditsDialog, makeTally: repairPassTally, finish }),
+  );
   if (result) reportMerged(result);
   return result;
 }
@@ -759,9 +764,11 @@ export function runRebuildPick(value, mode) {
  * open on this seat, asked once (`everything.mjs`): every book's
  * (`cookbookReimportBook`), then every adventure book's
  * (`cookbookReimportAdventure`), all under one tally per pass, so the edits
- * every part held are answered together. The first pass closes on the rules
- * tables re-read in place; each adventure book's Adventure is written once,
- * after the last pass. Nothing of a book closed here is touched, as in each
+ * every part held are answered together. The rules tables are read once the
+ * Judge has said Yes, before any part writes (`cookbookImportTables`, phase
+ * "read"), and what that read found is applied once after the last pass, so a
+ * class a pass rewrites whole is stamped last; each adventure book's Adventure
+ * is written after that. Nothing of a book closed here is touched, as in each
  * part alone.
  * @param {unknown} [mode] ignored (`ignoredMode`)
  * @param {{decision?: Parameters<typeof decides>[0], choose?: Function|null}} [opts] the caller's word on
@@ -785,6 +792,7 @@ export async function cookbookReimportEverything(mode, { decision = null, choose
     })),
   ];
   let asked = [];
+  let tablesRead = null;
   const pass = async (tally, { first }) => {
     if (!first) {
       for (const part of partsUnder(tally).filter((p) => asked.includes(p.label))) await part.run(async () => true);
@@ -799,7 +807,7 @@ export async function cookbookReimportEverything(mode, { decision = null, choose
           [t("repairMergedEverything", { n: rows.length }), ...rows.flatMap(({ label, lines }) => [`<strong>${esc(label)}</strong>`, ...lines]), t("everythingClosed")],
           "repairMergedTitle",
         ),
-      after: () => api().cookbookImportTables?.(null),
+      before: async () => (tablesRead = (await api().cookbookImportTables?.(null, { phase: "read" })) ?? null),
     });
     if (result?.asked === 0) {
       ui.notifications.info(t("everythingNone"));
@@ -808,8 +816,12 @@ export async function cookbookReimportEverything(mode, { decision = null, choose
     asked = (result?.parts ?? []).map((p) => p.label);
     return result;
   };
-  // Every adventure book a part repaired gets its Adventure written once, from what the last pass left.
-  const finish = async () => (adventures.size ? api().cookbookImportAdventures?.({ books: [...adventures], force: true }) : null);
+  // The tables read before the parts apply here, after the last pass has left every class as it will stand;
+  // then every adventure book a part repaired gets its Adventure written once, from what the last pass left.
+  const finish = async () => {
+    if (tablesRead) await api().cookbookImportTables?.(null, { phase: "apply", read: tablesRead });
+    return adventures.size ? api().cookbookImportAdventures?.({ books: [...adventures], force: true }) : null;
+  };
   return runMerged(pass, { decision, finish, choose });
 }
 
