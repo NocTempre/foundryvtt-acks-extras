@@ -3543,7 +3543,7 @@
         "noTools": "{name} has no thieves' tools.",
         "cannotTry": "{name} has no way to work on a trap.",
         "hastyNeedsSkill": "{name} cannot work hastily — that is the Trapbreaking skill only.",
-        "alreadyFailedHasty": "{name} has already failed hastily here, and cannot try again until higher level.",
+        "alreadyFailedHasty": "{name} has a failed hasty attempt recorded on this trap at the current level (RR p. 267).",
         "notDisarmed": "Only a disarmed trap can be re-armed.",
         "rearmNeedsSkill": "{name} needs the Trapbreaking skill to re-arm a trap.",
         "notFound": "Nobody has found that trap yet."
@@ -3587,7 +3587,7 @@
         "level": "1st to 6th (JJ ch. 8, Trap Level). Chooses which row is edited below and which one fires when the trap goes off.",
         "trigger": "How it is set off, in your own words: a tripwire, a pressure plate, a rune.",
         "triggerOn": "Springs the trap on a secret die at or under this figure (RR ch. 6, Traps and Trapbreaking). Leave it blank to read the imported figure; 0 never springs.",
-        "crude": "Crudely built: easier to find and to remove, and feebler when it fires.",
+        "crude": "Ticked, the trap takes the crude-trap adjustments to finding, removing and its effect.",
         "attackThrow": "From your own book, for a fighter of this trap's level. Rolled against the victim's AC.",
         "damageFormula": "What it deals, as dice. Leave blank for a pit and the depth below supplies it.",
         "pitDepthFeet": "In feet. The fall's own damage is derived from it.",
@@ -3763,7 +3763,7 @@
         "trouble": "Looking for trouble"
       },
       "conveyanceLabel": "Carried",
-      "conveyanceHint": "A litter or a wagon affords privacy. It is not any faster.",
+      "conveyanceHint": "How the party is carried. It sets no travel rate; a litter or wagon is marked private for the Judge.",
       "conveyance": {
         "onFoot": "On foot",
         "litter": "By litter",
@@ -3929,9 +3929,9 @@
       "searchThrow": "{target}+, {held} hour(s) held for it",
       "automatic": "Found without a throw here.",
       "thirsty": "the heat is drinking it faster",
-      "thirstyHint": "Sweltering weather increases what each person needs, so the same skins last fewer days.",
+      "thirstyHint": "Today's weather raises the water need per person, so the days of water shown are fewer (RR 277–279).",
       "exposureHours": "Hours in the weather",
-      "exposureHoursHint": "How long the order stood unprotected today. Anyone carrying a cloak or furs is sheltered; getting wet is not.",
+      "exposureHoursHint": "Hours the order stood unprotected today. A member carrying weather clothing counts as sheltered (RR 277–279).",
       "atHeatSource": "At a fire",
       "wet": "Got wet"
     },
