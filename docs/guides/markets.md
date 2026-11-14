@@ -223,8 +223,11 @@ number of picks; its owner chooses the goods on the report sheet (character
 sheet → Trade tab → Research → the report's sheet). Every chosen good reads
 "Awaiting the Judge" until the Judge answers it, and then shows its modifier
 (RR ch. 8, Assessing Supply and Demand). A false result asks the same choice
-and looks the same, but the modifiers it gives are wrong. The assessment card
-links the report.
+and reads the same at both stages. The Judge gets a whispered card when a good
+is chosen; on the report's sheet, "Answer from the market" fills a partial
+report's goods from the market's demand, and on a false report the Judge types
+each figure into its field (clearing it returns the good to waiting). The
+assessment card links the report.
 
 ![](../releases/v11.4.0/markets-partial-assessment.png)
 
