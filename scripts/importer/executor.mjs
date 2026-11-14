@@ -1,14 +1,13 @@
 /**
  * Cookbook executor — the DUMB runtime interpreter (frozen instruction set,
- * schema "acks-cookbook/1"; see docs/importer/COOKBOOK.md).
+ * the schemas in `COOKBOOK_SCHEMAS`; see docs/importer/COOKBOOK.md).
  *
  * Performs instructions mechanically against the seat's own opened PDF: filter
  * text runs by shipped geometry, apply shipped assembly fixes, parse with the
  * fixed pattern library, resolve tokens through shipped exact-match tables,
- * read instructed visual attributes (glyph fill colors). NO judgment lives
- * here: no detection, inference, normalization, or promotion — every decision
- * was made offline and shipped as data. Content failures degrade to misses/
- * stubs; this module never throws on content.
+ * read instructed visual attributes (glyph fill colors). No judgment lives
+ * here: every decision was made offline and shipped as data. Content failures
+ * degrade to misses/stubs; this module never throws on content.
  *
  * Runs identically in the browser (Foundry binding) and Node (verify harness).
  */
@@ -23,27 +22,25 @@ import { ceilingOf } from "../equipment/armour-limits.mjs";
 /** Monster description sections that no mechanics scan reads (see `executeEntry`). */
 const UNSCANNED_MONSTER_SECTIONS = new Set(["encounter", "lair", "notes"]);
 
-/**
- * Schema v2 (2026-07-24) is v1 plus the `grid` instruction — nothing existing
- * changed, so every v1 cookbook keeps executing under this executor forever.
- */
+/** The cookbook schema ids `executeEntry` accepts; any other id is a `schema-mismatch`. */
 export const COOKBOOK_SCHEMAS = ["acks-cookbook/1", "acks-cookbook/2", "acks-cookbook/3"];
+
+/** The schema id of the cookbook version that added the `grid` instruction. */
 export const COOKBOOK_SCHEMA = "acks-cookbook/2";
 
 /* -------------------------------------------- */
-/*  Mechanical helpers (fixed, part of v1)      */
+/*  Mechanical helpers (fixed)                  */
 /* -------------------------------------------- */
 
 // Private-use-area glyphs (icons, foot/inch marks) are stripped from prose and
-// raw values; damage handling reads them deliberately before the strip.
+// raw values; damage handling reads them before the strip.
 const PUA_RE = /[\uE000-\uF8FF]/g;
 const clean = (s) => (s ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
-// Prose keeps a damage-type mark as its word: the RR sets "1d6 <fire> damage"
-// with an icon glyph where the MM's tables do, and stripping it leaves "1d6
-// damage" reading as untyped. The shipped `damageGlyph` table names the glyph;
-// one the table does not know is left for clean() to strip. The mark's colour
-// (extraordinary against mundane) is not in the text layer and is not claimed.
+// Prose keeps a damage-type mark as its word, so stripping the glyph does not
+// leave the damage reading as untyped. The shipped `damageGlyph` table names the
+// glyph; one the table does not know is left for clean() to strip. The mark's
+// colour is not in the text layer and is not read here.
 const glyphWords = (s, registers) => {
   const table = registers?.tables?.damageGlyph;
   if (!table) return s ?? "";
@@ -54,12 +51,11 @@ const inBox = (it, box) => it.x >= box.x0 && it.x <= box.x1 && it.y >= box.y0 &&
 
 /**
  * Runs inside the instruction's box(es), in reading order (y, then x) within
- * each box, the boxes in the order listed: a block that runs on at the top of
- * the next column follows its own first part. A run on an edge two boxes share
- * is read once, in the first. ALL matching runs are returned (and claimed by
- * the caller); dropText removal happens at join time so fix ordinals and
- * claims stay stable. Exported for the compiler, which must enumerate
- * identically when computing fixes.
+ * each box, the boxes in the order listed. A run on an edge two boxes share is
+ * read once, in the first. ALL matching runs are returned (and claimed by the
+ * caller); dropText removal happens at join time so fix ordinals and claims
+ * stay stable. Exported for the compiler, which must enumerate identically when
+ * computing fixes.
  */
 export function runsIn(pageData, instr) {
   const boxes = instr.boxes ?? (instr.box ? [instr.box] : []);
@@ -74,14 +70,11 @@ export function runsIn(pageData, instr) {
 }
 
 /**
- * Reading order that keeps SUPERSCRIPTS with their own line. Ordinal marks
- * ("1st", "5th") are set ~4pt above the baseline, so a plain (y,x) sort files
- * them ahead of the entire line and the prose comes out "st When the character
- * casts…" with the digit stranded. Derive baselines from the full-size runs,
- * attach every run to its nearest baseline, then order by (baseline, x).
- *
- * Exported behaviour is shared with the compiler, so fix ORDINALS stay aligned —
- * changing this ordering requires recompiling the cookbooks.
+ * Reading order that keeps SUPERSCRIPTS (ordinal marks) with their own line: a
+ * plain (y,x) sort files them ahead of the line. Derives baselines from the
+ * full-size runs, attaches every run to its nearest baseline, then orders by
+ * (baseline, x). `runsIn` shares this order with the compiler, so fix ordinals
+ * stay aligned; changing it requires recompiling the cookbooks.
  */
 function orderRuns(items) {
   if (items.length < 2) return [...items];
@@ -124,23 +117,19 @@ function orderRuns(items) {
  * value). Ordinals index the FULL run list. Exported for compiler parity.
  */
 export function joinRuns(runs, fixes = {}, dropText) {
-  // One string or several: a box can enclose more than one run that is IN it
-  // without being OF it — a claimed label, and the chapter tab the page paints
-  // into its own margin, which lands mid-value and welds onto the next entry.
+  // One string or several: a box can enclose runs that are in it but not of it
+  // (a claimed label, a chapter tab painted into the margin).
   const dropSet = new Set(
     (Array.isArray(dropText) ? dropText : dropText == null ? [] : [dropText]).map((s) => String(s).trim()),
   );
   const drop = new Set(fixes.drop ?? []);
   const joinSpace = new Set(fixes.joinSpace ?? []);
   const mergeHyphen = new Set(fixes.mergeHyphen ?? []);
-  // A run-in heading can share its run with the prose that follows it — the PDF
-  // emits `Acrobatics` and `: The character is trained to…` as two runs, so the
-  // colon and the whole first line arrive together. Dropping that run to lose
-  // the heading would take the opening sentence with it; strip the heading's
-  // characters off the front instead.
+  // A run-in heading can share its run with the prose after it: strip the
+  // heading's characters off the front rather than dropping the run.
   const strip = fixes.stripPrefix ?? {};
   // The other end: a run that carries a clause and then what follows it keeps
-  // only the clause's characters. Also a count, for the same reason.
+  // only the first `keepPrefix` characters.
   const keep = fixes.keepPrefix ?? {};
   let out = "";
   runs.forEach((r, i) => {
@@ -156,11 +145,10 @@ export function joinRuns(runs, fixes = {}, dropText) {
 }
 
 /**
- * Drop a trailing "[Class, Class, …]" list — the classes a JJ custom power is
- * available to. Deliberately tight: it must be the LAST thing in the text and
- * open with capitalised names, so a bracket used for anything else survives.
- * The list may close with one semicolon clause qualifying who else may take
- * it (JJ p317); the clause is the list's business as much as the names are.
+ * Matches a trailing "[Class, Class, …]" list — the classes a JJ custom power is
+ * available to. It must be the LAST thing in the text and open with capitalised
+ * names, so any other bracket survives. It may close with one semicolon clause
+ * qualifying who else may take it (JJ p317).
  */
 const OWNER_LIST = /\s*\[\s*[A-Z][A-Za-z'’’.\- ]*(?:,\s*[A-Z][A-Za-z'’’.\- ]*)*(?:;[^\]]*)?\s*\]\s*$/;
 const stripOwnerList = (text) => String(text ?? "").replace(OWNER_LIST, "").trim();
@@ -168,7 +156,7 @@ const stripOwnerList = (text) => String(text ?? "").replace(OWNER_LIST, "").trim
 /** Names vary by small-caps and spacing between books, so compare folded. */
 const convKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** "2 1/2" -> 2.5, "1/2" -> 0.5, "3" -> 3. Build costs print as mixed fractions. */
+/** "2 1/2" -> 2.5, "1/2" -> 0.5, "3" -> 3; null when no number reads. */
 function parseCount(tok) {
   const t = String(tok ?? "").trim();
   const mixed = t.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
@@ -183,7 +171,7 @@ function parseCount(tok) {
  * Look a name up in the conversion table (harvested offline from the System
  * Compatibility Guide). Returns `{from, to?, status, category}` for an OGL/OSR
  * or legacy name, else null. The folded index is memoised on the registers
- * object so repeated lookups stay cheap.
+ * object.
  */
 export function convertName(registers, token) {
   const table = registers?.tables?.conversion;
@@ -201,10 +189,9 @@ export function convertName(registers, token) {
  * Exact-match table lookup: token -> {text, key?, ref?}; miss -> {text}.
  *
  * On a miss the token may be a legacy or foreign (OGL/OSR) name, so the
- * conversion table is consulted and the ACKS II equivalent retried — that is
- * what lets a converted source resolve even though the original entry was
- * renamed. A name the guide marks "deleted"/"absent" resolves to a WARNING
- * rather than a silent miss: it is understood, just not present.
+ * conversion table is consulted and the ACKS II equivalent retried. A name the
+ * guide marks "deleted"/"absent" resolves to a conversion status rather than a
+ * silent miss.
  */
 function lookup(registers, tableName, token, misses) {
   const row = registers?.tables?.[tableName]?.[token];
@@ -222,9 +209,8 @@ function lookup(registers, tableName, token, misses) {
 }
 
 const DICE_RE = /\d*d\d+(?:[×xX]\d+)?(?:[+-]\d+)?/;
-// A damage segment is real when it has dice, a flat number (e.g. "1"), or is a
-// "by weapon" placeholder — the last two are silently dropped by a dice-only
-// filter, which zeroes out most humanoid/flat-damage attacks.
+// A damage segment is real when it has dice, a flat number, or is a "by weapon"
+// placeholder.
 const isDamageSeg = (s) => {
   const c = clean(s);
   return DICE_RE.test(c) || /^\d+$/.test(c) || /weapon/i.test(c);
@@ -255,8 +241,8 @@ function splitTop(s) {
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-// Natural-weapon stems (bit->bite): fixed game vocabulary, frozen with the
-// schema. Ordered so a more specific stem wins (stinger before sting).
+// Natural-weapon stems (bit->bite): fixed vocabulary, frozen with the schema.
+// Ordered so a more specific stem wins (stinger before sting).
 const NW_STEMS = [
   ["bite", /^bit/], ["stinger", /^stinger/], ["sting", /^sting/], ["gore", /^gor/],
   ["horn", /^horn/], ["tusk", /^tusk/], ["spine", /^spine/], ["claw", /^claw/],
@@ -264,6 +250,8 @@ const NW_STEMS = [
   ["tentacle", /^tentacl/], ["tongue", /^tongue/], ["constriction", /^constrict/],
   ["ram", /^ram/], ["feeler", /^feeler/], ["envelopment", /^envelop/], ["weapon", /weapon/],
 ];
+
+/** The natural-weapon key `name` stems to (`NW_STEMS`, first match wins), or null. */
 export function stemNw(name) {
   const n = (name ?? "").toLowerCase().trim();
   for (const [key, re] of NW_STEMS) if (re.test(n)) return key;
@@ -316,15 +304,15 @@ function parseRoutine(text) {
  * Structured attack model: Attacks and Damage fields each split on top-level
  * " or " into aligned MODES (alternatives like "1 weapon OR 2 claws + bite").
  * Within a mode, damage segments zip 1:1 with expanded attack names. Returns
- * `modes` and `flatDamage` (all damage segs in mode order — the compiler uses
- * it to align glyph colours identically to what the runtime will enumerate).
- * Shared verbatim by compiler + executor so nothing drifts.
+ * `modes` and `flatDamage` (all damage segs in mode order, which the compiler
+ * uses to align glyph colours with the runtime's enumeration). Shared by the
+ * compiler and the executor.
  */
 export function attackModel(attacksText, damageRaw) {
   const damageGroups = splitOr(damageRaw);
-  // Coalesce a BARE-NUMBER attack part ("1 or 2 (hooves 7+)") into the routine
-  // that follows it — it is a count RANGE for one attack, not a separate mode.
-  // The damage "or"-groups are authoritative for how many attack modes exist.
+  // A bare-number attack part ("1 or 2 (<routine>)") coalesces into the routine
+  // that follows it: it is a count range, not a mode. The damage "or"-groups
+  // decide how many modes exist.
   const routineStrs = [];
   let alt = null;
   for (const part of splitOr(attacksText)) {
@@ -355,8 +343,8 @@ export function attackModel(attacksText, damageRaw) {
 /*  Defense scan (frozen, vocabulary-driven)    */
 /* -------------------------------------------- */
 
-// Damage-word -> type key. Keys mirror the damageGlyph registry; a few English
-// synonyms map to the canonical key. Generic vocabulary, frozen like the rest.
+// Damage-word -> type key. Keys mirror the damageGlyph registry; English
+// synonyms map to the canonical key.
 const DAMAGE_WORDS = {
   acid: "acidic", acidic: "acidic", arcane: "arcane", bludgeoning: "bludgeoning",
   necrotic: "necrotic", cold: "cold", frost: "cold", electric: "electrical",
@@ -364,38 +352,14 @@ const DAMAGE_WORDS = {
   fire: "fire", flame: "fire", luminous: "luminous", slashing: "slashing",
   piercing: "piercing", poison: "poisonous", poisonous: "poisonous", seismic: "seismic",
 };
-// A defense clause ends at the sentence end OR the next defence verb / contrast
-// word — so "immune to X and resistant to Y" doesn't leak Y's flags into X.
+// A defense clause ends at the sentence end or the next defence verb / contrast
+// word, so one clause's flags never leak into the next.
 const DEF_BOUNDARY =
   "(?=[.;]|\\b(?:but|however|except|while|though|although|whereas)\\b|\\b(?:resistant|resistance|vulnerable|susceptible)\\b|\\bhave full effect\\b|$)";
 
 /**
- * Scan a monster's OWN description prose for immunity / resistance /
- * susceptibility statements, matching a SHIPPED vocabulary (damage words +
- * the defenseEffect register). Materializes per seat from that seat's book —
- * nothing about which defenses apply is ever baked. Exported so authoring
- * tools can preview the same result.
- */
-/**
- * Effect fields a locator may fill, and the shape each one needs.
- *
- * Only NUMBERS are locatable, and this list is why. Everything else an effect
- * carries — `unit`, `period`, `target`, `mode`, `restriction` — is a conclusion
- * about the mechanic's shape ("this is a percentage", "this is per month"),
- * which the recipe states outright because a conclusion may ship. A number is
- * the one thing that may not, so it is the one thing that gets a locator.
- *
- * `value` alone is a LevelValue SchemaField and needs the object form; a bare
- * integer there does not survive DataModel validation. The rest are plain
- * numbers, and `amount` is the only one the schema allows to be fractional.
- */
-/**
- * Proportions the books write as WORDS, so a locator can point at them.
- *
- * A bonus clause scaled by a fraction of class level (RR pp. 60, 113) carries
- * no digit at all. Without this the only ways to model it are to ship
- * 0.5 — a value read off the page — or to drop the mechanic. Both are wrong, so
- * the fraction is read from the seat's own prose like any other number.
+ * Proportions the books write as WORDS, so a locator can read them (a bonus
+ * scaled by a fraction of class level, RR pp. 60, 113, carries no digit).
  */
 const WORD_NUMERALS = {
   half: 0.5,
@@ -428,15 +392,8 @@ function readNumber(raw, allowFraction) {
     const v = Number(ratio[1]) / Number(ratio[2]);
     return allowFraction ? v : Math.round(v);
   }
-  // A DICE EXPRESSION IS A FORMULA, NOT A NUMBER. The strip below removes every
-  // non-digit, so "2d6" would read as 26 — and it does not fail: the effect
-  // materializes as `{amount: 26}`, looking exactly like a value read cleanly
-  // off the page. No gate can catch it (the count matches, the locator
-  // "resolved"), which makes it precisely the plausible-wrong-value failure
-  // this pipeline exists to prevent. Refusing it drops the effect instead, so
-  // the gap is visible and reportable — a missing mechanic is honest, an
-  // invented number is not. There is no locatable dice field today; when one is
-  // added it must parse the formula, never fall through to here.
+  // A dice expression is a formula, not a number: the digit strip below would
+  // read "<n>d<m>" as one number. NaN drops the effect.
   if (/^\d+\s*d\s*\d+/i.test(s)) return NaN;
   return allowFraction ? parseFloat(s.replace(/[^\d.-]/g, "")) : parseInt(s.replace(/[^\d-]/g, ""), 10);
 }
@@ -444,13 +401,10 @@ function readNumber(raw, allowFraction) {
 /**
  * Build a breakpoint ladder out of one match's capture groups.
  *
- * Two shapes, because the books write ladders two ways. Plain: every group is a
- * VALUE and the rungs are 1..N (or `steps`) — a throw that improves by rank.
- * Paired (`pairs`): the groups alternate rung and value, so the rungs come off
- * the page too — a bonus "+A … at Nth level +B … at Mth level +C" would
- * otherwise need its rungs shipped, and the rungs are the book's numbers as
- * much as the bonuses are. A leading odd group is the first rung's value, whose
- * rung is implicit.
+ * Two shapes. Plain: every group is a VALUE and the rungs are 1..N (or
+ * `steps`). Paired (`pairs`): the groups alternate rung and value, so the rungs
+ * are read off the page too; a leading odd group is the first rung's value,
+ * whose rung is implicit.
  */
 function ladderFrom(match, { pairs = false, steps = null } = {}) {
   const groups = match.slice(1).filter((g) => g != null);
@@ -477,6 +431,12 @@ function ladderFrom(match, { pairs = false, steps = null } = {}) {
   return out.sort((a, b) => a.atLevel - b.atLevel);
 }
 
+/**
+ * Effect fields a locator may fill, and the shape each one needs. Only numbers
+ * are locatable; every other effect field is shape, which the recipe states.
+ * `value` is a LevelValue SchemaField and needs the object form; `amount` and
+ * `belowFraction` may be fractional; `armourRung` is read through `ceilingOf`.
+ */
 const LOCATABLE_FIELDS = {
   value: "levelValue",
   amount: "number",
@@ -484,23 +444,15 @@ const LOCATABLE_FIELDS = {
   casterLevelDelta: "integer",
   choose: "integer",
   times: "integer",
-  // The total at which a rider fires — Mystic Aura's "if this bonus results in
-  // a total of 12 or more, the subjects act as if bewitched". The threshold is
-  // the page's number like any other, so it is located, not shipped.
+  // The total at which a rider fires.
   kickerAt: "integer",
-  // Roll-outcome triggers (acks-lib `outcome`): the botch band's top edge
-  // (the "unmodified" clause's upper bound, RR pp. 386, 425; JJ p. 259) and the
-  // notice fraction (a "below half the target" clause read through the
-  // word-numeral table). Both are the page's
-  // numbers; the recipe ships only where to read them.
+  // Roll-outcome triggers (the lib's `outcome`, RR pp. 386, 425; JJ p. 259): the
+  // botch band's top edge and the notice fraction, read through the
+  // word-numeral table.
   naturalMax: "integer",
   belowFraction: "number",
-  // A gate's figures (acks-lib `gate`, lib/typed-modifiers.mjs): the load a
-  // lightly-equipped gate allows is the page's number, so the recipe ships the
-  // gate's kind and where to read its load, never the load itself. The armour
-  // rung is the page's too: the locator captures the clause naming what may be
-  // worn, and `ceilingOf` (the armour-limit binding's word table) maps the
-  // printed words to the ladder key.
+  // A gate's figures (the lib's `gate`, lib/typed-modifiers.mjs): its load, and
+  // the clause naming the armour rung, which `ceilingOf` maps to the ladder key.
   "gate.loadMax": "number",
   "gate.armourMax": "armourRung",
 };
@@ -548,9 +500,8 @@ function cleanClause(s) {
  * capture `group` (default 1), or the captures `groups` names joined by ", ",
  * cleaned. Null when the locator misses, is malformed, or reads nothing or
  * more than a clause; the spec's shipped field, a neutral label or the
- * module's remark, then stands. Unlike a figure's locator, a miss never drops the
- * row: the condition qualifies the row, and the row's mechanics are complete
- * without the page's words for it.
+ * module's remark, then stands. Unlike a figure's locator, a miss never drops
+ * the row.
  *
  * @param {{pattern: string, flags?: string, group?: number, groups?: number[]}} loc
  * @param {string} text the seat's extracted prose, joined
@@ -574,33 +525,28 @@ export function locateCondition(loc, text) {
 }
 
 /**
- * Materialize an ability's structured EFFECTS from chef-authored specs.
+ * Materialize an ability's structured EFFECTS from authored specs.
  *
  * The cookbook ships the effect's STRUCTURE (type, target, mode, refs, ifHas,
- * stacking) — never its numbers. A spec that carries a number points at it with
- * a locator applied to THIS SEAT'S own extracted prose, so the value
- * materializes from the reader's book exactly like a monster stat. A locator
- * that doesn't match (different printing) drops that effect rather than
- * inventing a value.
+ * stacking), never its numbers. A spec that carries a number points at it with
+ * a locator applied to THIS SEAT'S own extracted prose. A locator that does not
+ * match drops that effect. See docs/importer/MODEL.md, "An ability's modifiers: recipe or scan".
  *
  * `from` is one locator or an array of them, each naming the field it fills:
  *
  *   "from": { "pattern": "a (-?\\d+) penalty" }                    -> value
  *   "from": [{ "into": "amount", "pattern": "(\\d+)% per month" }]  -> amount
  *
- * `into` defaults to `value`, which is what every recipe written before this
- * meant. An `into` naming a field that is not locatable drops the effect: a
- * typo must not silently produce an effect missing the number that was the
- * whole point of it.
+ * `into` defaults to `value`. An `into` naming a field that is not locatable
+ * drops the effect.
  *
  * A locator filling `value` may ask for a scaling shape instead of a flat one:
  *
  *   { "as": "perLevel", "pattern": "restore (\\d+) hit points per .*level" }
- *        -> base and rate both the located number: "2 hp per level" is 2·level.
- *          `per` overrides the rate; `round` ("up"|"down") states the page's
- *          own rounding, which is shape, not a value. `perGroup` reads the
- *          rate from that capture group instead, signed by `perSign` (-1
- *          where the page's verb lowers the figure).
+ *        -> base and rate both the located number ("N hp per level" is
+ *          N·level). `per` overrides the rate; `round` ("up"|"down") states
+ *          the page's rounding. `perGroup` reads the rate from that capture
+ *          group instead, signed by `perSign` (-1 where the verb lowers it).
  *   { "into": "gate.loadMax", "pattern": "carrying (\\d+) stone" }
  *        -> one level of nesting: a gate's figure, beside the gate's kind the
  *          recipe ships.
@@ -624,9 +570,7 @@ export function materializeEffects(specs, paras) {
     const clauses = CLAUSE_FIELDS.map((field) => [field, effect[`${field}From`]]);
     for (const field of CLAUSE_FIELDS) delete effect[`${field}From`];
     const locators = (Array.isArray(from) ? from : from ? [from] : []).filter((l) => l?.pattern);
-    // All or nothing. An effect whose locators half-matched would ship a
-    // mechanic with one number read from the page and another silently absent,
-    // which reads as complete and is not.
+    // All or nothing: a half-matched effect is dropped whole.
     let complete = true;
     for (const loc of locators) {
       const into = loc.into ?? "value";
@@ -645,8 +589,7 @@ export function materializeEffects(specs, paras) {
         complete = false;
         break;
       }
-      // A LADDER reads every capture group at once, so it is handled before the
-      // single-value path rather than through it.
+      // A ladder reads every capture group at once, before the single-value path.
       if (kind === "levelValue" && loc.on) {
         const breakpoints = ladderFrom(m, { pairs: loc.pairs, steps: loc.steps });
         if (!breakpoints.length) {
@@ -660,8 +603,7 @@ export function materializeEffects(specs, paras) {
         continue;
       }
       const raw = String(m[loc.group ?? 1] ?? m[0]);
-      // A rung is a word, not a number: the clause names the ladder words, and
-      // a clause naming none reads no rung, which drops the row like any miss.
+      // A rung is a word: a clause naming no ladder word reads no rung and drops the row.
       if (kind === "armourRung") {
         const rung = ceilingOf(raw);
         if (!rung) {
@@ -671,17 +613,15 @@ export function materializeEffects(specs, paras) {
         setLocated(effect, into, rung);
         continue;
       }
-      // Strip the page's own punctuation ("1,000 gp" -> 1000) but keep the
-      // decimal point for the fields allowed to be fractional — `amount`, and
-      // `value` because a fraction-of-class-level phrase (RR pp. 41, 60; JJ p. 311) is a rate, not a count.
+      // The punctuation strip keeps the decimal point for every field but an
+      // integer one; `value` may be a fraction of class level (RR pp. 41, 60; JJ p. 311).
       const n = readNumber(raw, kind !== "integer");
       if (!Number.isFinite(n)) {
         complete = false;
         break;
       }
-      // A rate printed apart from the base ("a throw of N+ … reduces by M per
-      // level") is read from its own group; `perSign` is the direction the
-      // page's verb states (-1 for "reduces"), which is shape, not a value.
+      // A rate printed apart from the base is read from its own group; `perSign`
+      // is the direction the page's verb states (-1 for "reduces").
       let per = loc.per ?? n;
       if (loc.as === "perLevel" && loc.perGroup) {
         const rate = readNumber(String(m[loc.perGroup] ?? ""), true);
@@ -696,9 +636,8 @@ export function materializeEffects(specs, paras) {
         into,
         kind === "levelValue"
           ? loc.as === "perLevel"
-            ? // "N per level" is N·level, so the located number is BOTH the
-              // first-level value and the rate. An explicit `per` overrides it
-              // for the rarer "base, then N more each level" shape.
+            ? // The located number is both the first-level value and the rate;
+              // an explicit `per` overrides the rate.
               { kind: "perLevel", base: n, per, ...(loc.round ? { round: loc.round } : {}) }
             : { kind: "flat", flat: n }
           : n,
@@ -715,15 +654,13 @@ export function materializeEffects(specs, paras) {
 }
 
 /**
- * Materialize an ability's ROLLS from chef-authored specs — the per-entry
- * recipe that displaces `rollScan` for entries a chef has actually read.
+ * Materialize an ability's ROLLS from authored specs — the per-entry recipe
+ * that displaces `rollScan`.
  *
  * What the RECIPE ships: how many rolls the entry offers, each one's stable
  * key, its roll type and formula, and WHERE to find its parts. What comes from
- * the seat's own book: the label (what the roll is for), the target number,
- * and every step of a rank or level ladder. A spec whose locator does not
- * match drops that roll rather than inventing one — a missing roll is honest,
- * a fabricated target is not.
+ * the seat's own book: the label, the target number, and every step of a rank
+ * or level ladder. A spec whose locator does not match drops that roll.
  *
  *   { key, label:{pattern,group?}, target:{pattern} | {pattern,on,steps},
  *     rollType?, formula?|{pattern,group?}, condition?, conditionFrom?, note? }
@@ -742,8 +679,8 @@ export function materializeEffects(specs, paras) {
  * `round` are locators for the proportion of the level and the way it rounds.
  *
  * `target.on` names a VALUE_SCALES scale ("rank", "level"): the locator's
- * capture groups become the ladder's steps in order, so "18+ / 14+ / 10+"
- * with on:"rank" is ranks 1/2/3. `steps` overrides the step numbers when the
+ * capture groups become the ladder's steps in order, so three targets with
+ * on:"rank" are ranks 1/2/3. `steps` overrides the step numbers when the
  * book's ladder does not start at 1.
  */
 export function materializeRolls(specs, paras, ctx = {}) {
@@ -760,16 +697,13 @@ export function materializeRolls(specs, paras, ctx = {}) {
   };
   for (const spec of specs ?? []) {
     const { label, target, formula, fromLadders, conditionFrom, ...rest } = spec ?? {};
-    // A spec that expands from a class's published ladders is not located in
-    // prose at all — the binder does it, where the other entry is reachable.
+    // A `fromLadders` spec is expanded by the binder, not located in prose.
     if (fromLadders) continue;
     const roll = { formula: "1d20", rollType: "above", ...rest };
     const read = locateCondition(conditionFrom, text);
     if (read) roll.condition = read;
 
-    // The DICE may be printed rather than fixed. A spec that names them
-    // outright still may (a d20 throw is a d20 throw), but a roll whose dice
-    // are part of the rule has to read them off the page like any other value.
+    // The dice may be a string the spec names outright, or a locator that reads them.
     if (typeof formula === "string") roll.formula = formula;
     else if (formula?.pattern) {
       const fm = run(formula);
@@ -785,14 +719,10 @@ export function materializeRolls(specs, paras, ctx = {}) {
       if (text0) roll.label = text0;
     }
 
-    // The entry's own progression ladder as this roll's target. Thief skills
-    // keep no numbers in their prose — the whole ladder lives in a grid the
-    // `progression` op reads (`ctx.progression`) — so no prose locator can ever
-    // express their throw, which left every table-driven skill's Rolls tab
-    // empty (the gap three chefs hit independently). The recipe says only
-    // "this roll's target IS the ladder"; the numbers still come off the
-    // seat's own page, through the same op as always. No ladder materialized
-    // (bookless seat) drops the roll like any other unlocated target.
+    // The entry's own progression ladder (`ctx.progression`, read by the
+    // `progression` op) as this roll's target, for an ability whose numbers
+    // live in a grid and not in its prose. No ladder materialized (bookless
+    // seat) drops the roll like any other unlocated target.
     if (target?.fromProgression) {
       if (!ctx.progression?.breakpoints?.length) continue;
       roll.scale = "level";
@@ -801,12 +731,11 @@ export function materializeRolls(specs, paras, ctx = {}) {
       continue;
     }
 
-    // A BORROWED throw: a skill taken as another class at a fraction of class level, with a rounding clause (RR pp. 116, 121).
-    // The recipe ships which class's skill the sentence borrows and where the
-    // sentence is; the proportion and the rounding are read off the seat's own
-    // prose. A proportion the recipe names but the page does not yield drops the
-    // roll, since reading at the whole level would be a figure nobody printed. A
-    // rounding the page does not state is left off, for the caller's default.
+    // A borrowed throw: a skill taken as another class at a fraction of class level, with a rounding clause (RR pp. 116, 121).
+    // The recipe ships the class's skill and where the sentence is; the
+    // proportion and the rounding are read off the seat's own prose. A named
+    // proportion the page does not yield drops the roll; a rounding it does not
+    // state is left off, for the caller's default.
     if (target?.progression) {
       if (!run(target)) continue;
       const { as, table, fraction, round } = target.progression;
@@ -826,9 +755,7 @@ export function materializeRolls(specs, paras, ctx = {}) {
       continue;
     }
 
-    // A MEASURE is not rolled against anything, so it is complete with no
-    // target at all — requiring one would drop every effect roll the books put
-    // after a successful throw.
+    // A measure is not rolled against anything, so it is complete with no target.
     if (roll.rollType === "measure") {
       out.push(roll);
       continue;
@@ -852,16 +779,10 @@ export function materializeRolls(specs, paras, ctx = {}) {
 }
 
 /**
- * Every ROLL an ability offers, read from the seat's own prose.
- *
- * An ability is not one roll. Animal Husbandry diagnoses (11+, and 7+ / 3+ once
- * taken twice or three times), cures (18+), cures serious injury (14+) and
- * extracts venom (18+ / 14+ / 10+). Collapsing that to a single target loses
- * most of the proficiency, so each throw is captured separately with the label
- * the sentence gives it and, where the book states one, its rank ladder.
- *
- * The LABEL and the NUMBERS come from the reader's book; nothing about them is
- * shipped. What ships is the knowledge that throws look like this.
+ * Every ROLL an ability offers, read from the seat's own prose: each throw is
+ * captured separately, with its rank ladder where the text states one. The
+ * numbers come from the reader's book; what ships is the shape throws take.
+ * Never labels a roll (`label` is deleted from every result).
  */
 export function rollScan(paras) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
@@ -870,10 +791,8 @@ export function rollScan(paras) {
   const seen = new Set();
   const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 32);
 
-  // Spans already claimed by the rank-ladder pass, so the plain-roll pass below
-  // cannot re-read a ladder's first step as a separate flat throw. Without this
-  // Animal Husbandry yields both "18+/14+/10+ by rank" AND a bogus flat 18+,
-  // i.e. one printed roll presented as two, the second one wrong.
+  // Spans claimed by the rank-ladder pass, so the plain-roll pass cannot re-read
+  // a ladder's first step as a separate flat throw.
   const claimed = [];
   const inClaimed = (i) => claimed.some(([a, b]) => i >= a && i < b);
 
@@ -891,7 +810,7 @@ export function rollScan(paras) {
     });
   }
 
-  // A plain "<verb phrase> … proficiency throw of N+" / "diagnose illness on N+".
+  // A plain "<verb phrase> … proficiency throw of N+" / "<verb phrase> on N+".
   for (const m of text.matchAll(/([a-z][a-z' -]{2,40}?)\s+(?:on|requires[^.]{0,40}?and a)\s+(?:a\s+)?(?:proficiency throw of\s*)?(\d+)\+/gi)) {
     const label = m[1].replace(/\s+/g, " ").trim();
     if (!/[a-z]{3}/.test(label)) continue;
@@ -899,34 +818,15 @@ export function rollScan(paras) {
     const key = slug(label);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    // NO `scale` on a flat target. A scale says "this number varies with
-    // something", and a flat throw does not vary — carrying the schema's
-    // default made the Rolls tab appear to claim a level progression that the
-    // page never states (found by first-pass audit on Mapping). The field is
-    // inert for flat values, so the claim was invisible in behaviour and
-    // misleading on inspection, which is the worst combination.
+    // No `scale` on a flat target: a scale claims the number varies.
     out.push({ key, label, formula: "1d20", rollType: "above", target: { kind: "flat", flat: parseInt(m[2], 10) } });
   }
-  // NO LABELS from a scan, ever. What a roll is FOR is a judgment about the
-  // sentence, and this scan cannot make it: around Mapping's throw it read
-  // "and succeeding", and around Animal Husbandry's it read "Each" — a parser
-  // artifact presented as the roll's name. A first attempt at filtering the
-  // bad ones out was the same mistake one level up (it dropped an informative
-  // phrase and kept a meaningless one), because there is no general rule here
-  // to write. Naming the rolls is per-entry recipe work; until a recipe names
-  // one, the sheet says "Proficiency throw" and claims nothing.
+  // No labels from a scan: a scanned phrase is a parser artifact, and naming a
+  // roll is per-entry recipe work.
   for (const r of out) delete r.label;
   return out;
 }
 
-/**
- * Derive an ability's structured EFFECTS from its OWN prose, classified against
- * a SHIPPED vocabulary (the `modifierTarget` register) plus a fixed library of
- * shape patterns. Effect TYPE, TARGET and VALUE all materialize from the seat's
- * book — the cookbook pre-declares none of them, exactly as the defense scan
- * ships only the keyword vocabulary and never which creature has what.
- * Per-entry assists remain the fallback for shapes this cannot classify.
- */
 /**
  * The anchors a frequency phrase is read by, each paired with the key it
  * reads to. Every key is a `SPELL_LIKE_FREQ` member (`lib/magic-vocab.mjs`);
@@ -977,6 +877,13 @@ export function frequencyFieldsOf(s) {
   return { frequency, ...(frequencyText ? { frequencyText } : {}) };
 }
 
+/**
+ * Derive an ability's structured EFFECTS from its OWN prose, classified against
+ * a SHIPPED vocabulary (the `modifierTarget` register) plus a fixed library of
+ * shape patterns. Effect type, target and value all materialize from the
+ * seat's book; the cookbook pre-declares none of them. A per-entry recipe
+ * replaces this scan outright (`materializeEffects`).
+ */
 export function effectScan(paras, registers) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   if (!text) return [];
@@ -989,16 +896,13 @@ export function effectScan(paras, registers) {
     for (const [surface, key] of targets) if (p.includes(` ${surface} `)) return key;
     return null;
   };
-  // The bare nouns a later conjunct may not be read by: "… initiative and
-  // rolls twice" names no second roll, but "rolls" is a surface on its own.
+  // The bare nouns a later conjunct may not be read by.
   const GENERIC_SURFACES = new Set(["throws", "throw", "rolls", "roll"]);
   /**
-   * Every target a phrase names, one per conjunct: "surprise rolls and
-   * initiative rolls" is two targets, where the longest surface alone kept one.
-   * Each comes back with the conjunct that named it. A phrase no conjunct
-   * names is read whole, so a surface spanning the "and" still classifies.
-   * Several conjuncts naming one target are one target ("Hiding and Sneaking
-   * proficiency throws").
+   * Every target a phrase names, one per conjunct, each with the conjunct that
+   * named it. A phrase no conjunct names is read whole, so a surface spanning
+   * the "and" still classifies. Several conjuncts naming one target are one
+   * target.
    */
   const classifyAll = (phrase) => {
     const found = [];
@@ -1024,20 +928,11 @@ export function effectScan(paras, registers) {
   };
 
   /**
-   * WHICH activity a target phrase names, if it names one.
-   *
-   * `classify` answers what KIND of thing is modified (a proficiency throw, a
-   * saving throw, a reaction roll) and deliberately throws away which one, because the vocabulary is shipped
-   * and the name is not. But a bonus with no name on it is not usable: "+2 on
-   * Lockpicking proficiency throws" and "+2 on Hiding and Sneaking proficiency
-   * throws" both stored as an unattributed "+2 to proficiency throws", so a
-   * consumer could only ever apply every bonus to every roll, or none. The
-   * name is read off the seat's own page like every other value here.
-   *
-   * The activity is the run of Capitalised words the phrase opens with, joined
-   * by "and"/"or" — the books name activities in title case and the rest of the
-   * phrase ("proficiency throws") in lower. A phrase that opens lowercase names
-   * no activity and returns "", which is the honest answer for "attack throws".
+   * Which activity a target phrase names, if it names one. `classify` yields
+   * only the KIND of thing modified (the vocabulary is shipped); the name is
+   * read off the seat's own page. The activity is the run of capitalised words
+   * the phrase opens with, joined by "and"/"or"; a phrase that opens lowercase
+   * names none and returns "".
    */
   const namedActivity = (phrase) => {
     const words = String(phrase ?? "").trim().split(/\s+/);
@@ -1059,23 +954,15 @@ export function effectScan(paras, registers) {
     out.push(e);
   };
 
-  // Values ship as acks-lib LevelValue objects so they satisfy the ability
-  // DataModel directly (a bare number would fail the SchemaField).
+  // Values ship as the lib's LevelValue objects, which the ability DataModel
+  // requires (a bare number fails the SchemaField).
   const flat = (n) => ({ kind: "flat", flat: n });
 
-  /* --- Context. A NUMBER'S MEANING IS CONTEXTUAL. ---
-   *
-   * Blind Fighting reads "suffers only a -2 penalty on attack throws … instead
-   * of the base -4 penalty". Scanned for a number and a target alone, that
-   * stores a -2 penalty — when the ability is really a net +2. Recording it is
-   * worse than recording nothing, because a wrong mechanic looks right.
-   *
-   * So every candidate is judged against the SENTENCE it came from:
+  /* --- Context: every candidate number is judged against the sentence it came from:
    *   replace  the number stands but supersedes a default ("instead of")
    *   skip     the context inverts or voids it, or the number is not a
    *            modifier at all (a die face, an opponent's penalty)
-   * Anything the scan cannot model honestly is dropped and left to a recipe.
-   */
+   * Anything the scan cannot model is dropped and left to a recipe. --- */
   const bounds = [];
   {
     let at = 0;
@@ -1093,25 +980,18 @@ export function effectScan(paras, registers) {
   const judge = (sentence, n) => {
     if (isDieFace(sentence, n)) return "skip";
     // A negation clause (a does-not-suffer, nor-is or without-penalty form; RR
-    // pp. 108, 119) VOIDS the penalty, so emitting it as an active modifier
-    // inverts the ability.
+    // pp. 108, 119) voids the penalty.
     if (/\b(?:does not|doesn't|no longer|never)\s+suffers?\b|\bnor is\b|\bwithout (?:any )?penalt/i.test(sentence)) return "skip";
-    // An instead-of-the-base lead-in (RR p. 108) is decisive: the number is this character's, and
-    // it SUPERSEDES a default. Checked before the opponent rule, which would
-    // otherwise skip it for merely mentioning the enemies it applies against.
-    // A replacement is almost always conditional too ("when blinded"), and the
-    // scan cannot read the condition — so it defers to a recipe rather than
-    // storing an unconditional value that would be wrong most of the time.
+    // An instead-of lead-in (RR p. 108) replaces a default; checked before the
+    // opponent rule. A conditional replacement is skipped for a recipe, since
+    // the scan cannot read the condition.
     if (/\binstead of\b|\brather than\b|\bin lieu of\b/i.test(sentence)) {
       return /\b(?:if|when|while|unless|against)\b/i.test(sentence) ? "skip" : "replace";
     }
-    // A penalty stated for the OPPONENT is not a modifier on this character.
+    // A penalty stated for the opponent is not a modifier on this character.
     if (/\bopponents?\b|\benemies\b|\benemy\b|\btargets?\b/i.test(sentence) && n < 0) return "skip";
-    // Most bonuses are SITUATIONAL — "+4 on attack throws when ambushing",
-    // "+2 on reaction rolls when negotiating". The number is right but it is not
-    // unconditional, and storing it bare claims it always applies. The scan
-    // cannot state the condition without copying the sentence, so it marks the
-    // effect situational and leaves the circumstance to the description.
+    // A conditioned bonus is marked situational; the circumstance stays in the
+    // description.
     if (/\b(?:if|when|while|unless|against|versus|vs\.?)\b/i.test(sentence)) return "conditional";
     return "add";
   };
@@ -1129,9 +1009,8 @@ export function effectScan(paras, registers) {
   };
 
   const OWNER = "(?:all\\s+|his\\s+|her\\s+|their\\s+|its\\s+|the\\s+)?";
-  // The target phrase must be long enough to reach the end of a two-activity
-  // name (two proficiencies joined by "and", RR p. 119), which a shorter cap cuts
-  // mid-word so the vocabulary lookup misses.
+  // The target phrase cap must reach the end of a two-activity name (two
+  // proficiencies joined by "and", RR p. 119).
   const TARGET = `${OWNER}[A-Za-z' -]{2,50}`;
   // A signed figure, then the word bonus or penalty, then "to"/"on" and the target (RR pp. 26, 105; JJ p. 308; MM pp. 12, 13, 267)
   for (const m of text.matchAll(new RegExp(`([+-]?\\d+)\\s+(bonus|penalty)\\s+(?:to|on)\\s+(${TARGET})`, "gi"))) {
@@ -1159,40 +1038,33 @@ export function effectScan(paras, registers) {
     if (/penalty/i.test(m[3])) n = -Math.abs(n);
     pushModifier({ type: "modifier", target: key, value: flat(n) }, m.index);
   }
-  // Verb form: "his maximum number of cleaves is increased by 1", "morale score
-  // is increased by 1". Rejects "increased TO 2x" (a multiplier, not a delta).
+  // Verb form: "<target> is increased by <n>". Rejects "increased TO" (a
+  // multiplier, not a delta).
   for (const m of text.matchAll(/([A-Za-z][A-Za-z' -]{2,50}?)\s+(?:is|are)\s+(increased|reduced|decreased)\s+by\s+(\d+)/gi)) {
     const key = classify(m[1]);
     if (!key) continue;
     const n = parseInt(m[3], 10);
     pushModifier({ type: "modifier", target: key, value: flat(/increase/i.test(m[2]) ? n : -n) }, m.index);
   }
-  // "succeeds on a Dungeonbashing proficiency throw of 18+" — the capitalised
-  // qualifier says WHICH activity, so a bundle like Adventuring's five throws
-  // stays five distinct effects instead of collapsing on the number.
-  // A throw stated at 1st level often improves with level a sentence later —
-  // "At 1st level the character must make a proficiency throw of 18+ … The
-  // proficiency throw required reduces by 1 per level." Read flat, that loses
-  // the entire progression, so the improvement is folded into the value.
+  // "<Activity> proficiency throw of N+": the capitalised qualifier says which
+  // activity, so a bundle of throws stays distinct effects.
+  // A later "reduces by M per level" sentence is folded into the value as a
+  // perLevel step.
   const perLevel = text.match(
     /throw(?:\s+required)?\s+(?:is\s+)?(reduce[sd]?|improve[sd]?|decrease[sd]?|lower(?:s|ed)?)\s+by\s+(\d+)\s+per\s+level/i,
   );
   for (const m of text.matchAll(/(?:([A-Z][A-Za-z-]+)\s+)?proficiency throw of (\d+)\+/g)) {
     const base = parseInt(m[2], 10);
-    // "Reduces" makes the target NUMBER smaller, which makes the throw easier —
-    // so the step is negative however the book phrases it.
+    // The step is negative however the book phrases it: a smaller target is an easier throw.
     const value = perLevel ? { kind: "perLevel", base, per: -Math.abs(parseInt(perLevel[2], 10)) } : flat(base);
     const e = { type: "throw", value, roll: "1d20", rollType: "above" };
     if (m[1]) e.forWhat = m[1];
     push(e);
   }
-  /* --- Limitations: what switches the ability OFF ---
-   * Only shapes that reduce to a VALUE are classified — an encumbrance ceiling,
-   * an armour weight. The books state plenty of other restrictions in prose
-   * (a per-round-count movement restriction, RR pp. 86, 105), and those
-   * stay in the imported description on purpose: the sentence already lives
-   * there, and a flag holding a second copy is one this module would have to
-   * state the rule to fill. A conclusion may ship; a sentence may not. */
+  /* --- Limitations: what switches the ability off ---
+   * Only shapes that reduce to a value are classified (an encumbrance ceiling,
+   * an armour weight); other restrictions (RR pp. 86, 105) stay in the imported
+   * description, never copied into a flag. */
   const enc = text.match(/encumbrance of more than (\d+) stone/i);
   if (enc) push({ type: "limitation", condition: "encumbrance", value: flat(parseInt(enc[1], 10)) });
   const armour = text.match(/wearing (medium or heavy|heavy|medium|light) armou?r[^.]{0,90}\bcannot\b/i);
@@ -1215,9 +1087,7 @@ export function effectScan(paras, registers) {
     push({ type: "requires", note: m[1].trim() });
   }
 
-  /* --- Usage limit with no spell attached. WHAT it gates is free text, but the
-   * limit itself is a clean mechanical fact worth surfacing, so it ships as a
-   * capability carrying only the frequency. --- */
+  /* --- Usage limit with no spell attached: a capability carrying only the frequency. --- */
   if (!out.some((e) => e.type === "spellLike")) {
     const read = frequencyFieldsOf(text);
     if (read.frequency) push({ type: "capability", ...read });
@@ -1260,7 +1130,7 @@ export function effectScan(paras, registers) {
 
   // A skill borrowed "as <class> of <fraction> his level" (RR pp. 108, 115; JJ
   // p. 308): the class may be plural with no article, and the class/caster
-  // qualifier before "level" is sometimes absent.
+  // qualifier before "level" may be absent.
   for (const m of text.matchAll(
     /as\s+(?:an?\s+)?(thie(?:f|ves)|crusaders?|fighters?|mages?)\s+of\s+(one[- ]half\s+)?(?:his|her|their)\s+(?:(?:class|caster)\s+)?level/gi,
   )) {
@@ -1270,6 +1140,13 @@ export function effectScan(paras, registers) {
   return out;
 }
 
+/**
+ * Scan a monster's OWN description prose for immunity / resistance /
+ * susceptibility statements, matching a SHIPPED vocabulary (damage words and
+ * the `defenseEffect` register). Returns `{immunities?, resistances?,
+ * susceptibilities?}`, each `{damage, effects, mundane, extraordinary}`, or null
+ * when nothing reads. Exported so authoring tools can preview the same result.
+ */
 export function defenseScan(paras, registers) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   if (!text) return null;
@@ -1347,9 +1224,8 @@ export function readCountWord(text, registers, misses) {
 function applyPattern(raw, instr, registers, misses) {
   let text = clean(raw);
   // Shipped config (like stripRoll): drop a trailing colon and/or one trailing
-  // parenthetical before lookup — AX quick-stat labels print as
-  // "Skeletons (12):" but the creature table keys clean names. The count and
-  // colon live in the reader's book; the config only says to skip them.
+  // parenthetical before lookup (a quick-stat label "<name> (<count>):" against
+  // a table keyed on clean names).
   if (instr.stripColon) text = text.replace(/\s*:\s*$/, "");
   if (instr.stripParen) text = text.replace(/\s*\([^)]*\)\s*$/, "");
   switch (instr.pattern ?? "raw") {
@@ -1357,16 +1233,13 @@ function applyPattern(raw, instr, registers, misses) {
     case "statValue":
       return instr.table ? lookup(registers, instr.table, text, misses) : text;
     case "int": {
-      // A genuine "not applicable" (undead morale prints "N/A") is NOT zero —
-      // preserve it distinctly so the binding leaves the field blank, not 0.
+      // A printed "not applicable" is not zero: "N/A" is kept distinct so the
+      // binding leaves the field blank.
       if (/^\s*(n\s*[/\\]?\s*a|nil|not applicable|—)\s*$/i.test(text)) return "N/A";
       const m = /(-?[\d,]+)/.exec(text);
       if (!m) return null;
-      // The match can be punctuation with no digit in it — a bare "," or "-"
-      // both satisfy the pattern — and parseInt turns those into NaN. NaN is
-      // typeof "number", so it slips past every downstream guard and only
-      // surfaces as a schema rejection at Actor.create, which reads as a bug in
-      // the importer rather than an unparseable stat. No number is `null`.
+      // The match can be punctuation with no digit (a bare "," or "-"), which
+      // parseInt turns into NaN; no number is `null`, never NaN.
       const n = parseInt(m[1].replace(/,/g, ""), 10);
       return Number.isFinite(n) ? n : null;
     }
@@ -1375,25 +1248,24 @@ function applyPattern(raw, instr, registers, misses) {
     case "countWord":
       return readCountWord(text, registers, misses);
     case "throw": {
-      // A throw target is the first "<n>+", where `int` would read a die
-      // expression's count first. A die's faces ("1d6+2") and a modifier
-      // ("+2") are not targets: the number may not follow a digit or a "d",
+      // A throw target is the first "<n>+". A die's faces ("<n>d<m>+<k>") and a
+      // modifier are not targets: the number may not follow a digit or a "d",
       // and the "+" may not lead into one.
       const m = /(?<![\dDd])(\d+)\+(?!\d)/.exec(text);
       return m ? parseInt(m[1], 10) : null;
     }
     case "rollTarget": {
-      // The number a die must reach, printed as "<n>+", as "a <n> on a d6",
-      // or as the low end of "<n> or <m>": the first number that is no die's
-      // count or faces and no modifier.
+      // The number a die must reach, printed as "<n>+", "a <n> on a d<m>" or the
+      // low end of "<n> or <m>": the first number that is no die's count or
+      // faces and no modifier.
       const m = /(?<![\dDd+-])(\d+)(?![\dDd])/.exec(text);
       return m ? parseInt(m[1], 10) : null;
     }
     case "refList":
       if (!text || /^none/i.test(text)) return [];
       return splitTop(text).map((t) => {
-        // Shipped config: strip a trailing roll target ("Climbing 5+" -> token
-        // "Climbing", target 5) before the exact-match lookup.
+        // Shipped config: strip a trailing roll target ("<name> <n>+" -> token
+        // "<name>", target n) before the exact-match lookup.
         const roll = instr.stripRoll ? /\s*(\d+)\+\s*$/.exec(t) : null;
         const token = roll ? t.slice(0, roll.index).trim() : t;
         const row = lookup(registers, instr.table, token, misses);
@@ -1403,8 +1275,8 @@ function applyPattern(raw, instr, registers, misses) {
       const m = /^([^(]+?)\s*(?:\(([^)]*)\))?$/.exec(text);
       if (!m) return { text };
       const main = instr.table ? lookup(registers, instr.table, m[1].trim(), misses) : { text: m[1].trim() };
-      // splitTop keeps "1,600 st." whole (thousands comma is between digits and
-      // not a list separator; protect digit,digit before the top-level split).
+      // A thousands comma between digits is not a list separator: protect
+      // digit,digit before the top-level split.
       const paren = splitTop((m[2] ?? "").replace(/(\d),(\d)/g, "$10000$2"))
         .map((t) => t.replace(/0000/g, ","))
         .map((t) => (instr.parenTable ? lookup(registers, instr.parenTable, t, misses) : { text: t }));
@@ -1428,9 +1300,9 @@ function applyPattern(raw, instr, registers, misses) {
     case "writeup":
       return parseWriteup(text);
     case "countParen": {
-      // How many a quick-stat label says there are: its closing parenthetical,
-      // "(12)", "(2d6)" or "(1d3 or 1)". A whole number is a number; anything
-      // else with a digit in it is kept as printed; no digit is no count.
+      // How many a quick-stat label says there are: its closing parenthetical.
+      // A whole number is a number; anything else with a digit in it is kept as
+      // printed; no digit is no count.
       const m = /\(([^()]*)\)\s*$/.exec(text);
       const count = m ? m[1].replace(/\s+/g, " ").trim() : "";
       if (!/\d/.test(count)) return null;
@@ -1443,19 +1315,18 @@ function applyPattern(raw, instr, registers, misses) {
 
 /**
  * `statline` pattern: the AX-line inline quick-stat block, e.g.
- *   "Fighter 3; Str 11, ... Cha 14; AC 5 (leather), MV 120', HD 3, hp 16,
- *    #AT 1 (sword 6+), Dmg 1d6+2, SV F3, ML +1, AL N, XP 50;
- *    Proficiencies: ...; Equipment: ..."
- * Monster lines omit the class/ability segments and sometimes a comma
- * ("AC 2 HD 3+1"), so the core clause is read by keyword anywhere in it, not
- * sequentially. Purely mechanical: segments split on top-level ";", classified
+ *   "<class> <n>; Str <n>, ... Cha <n>; AC <n> (<armour>), MV <n>', HD <n>,
+ *    hp <n>, #AT <n> (<weapon> <n>+), Dmg <dice>, SV <class><n>, ML <n>,
+ *    AL <x>, XP <n>; Proficiencies: ...; Equipment: ..."
+ * Monster lines omit the class/ability segments and sometimes a comma, so the
+ * core clause is read by keyword anywhere in it, not sequentially. Purely mechanical: segments split on top-level ";", classified
  * by their leading token, unrecognized segments kept verbatim in `extra`.
  * Which box holds the block (and the name label dropped via dropText) was
  * decided at compile time. Missing keys are simply absent — never a throw.
  *
  * Damage is keyed "Dmg" or a bare "D" opening a clause. Hit points printed one
- * per creature ("hp 5, 4, 3") read as `hpList`, with `hp` the first of them
- * and a closing parenthetical as `hpNote`. A printed minus sign (U+2212) reads
+ * per creature ("hp <n>, <n>, <n>") read as `hpList`, with `hp` the first of
+ * them and a closing parenthetical as `hpNote`. A printed minus sign (U+2212) reads
  * as the hyphen-minus; `text` keeps what the page printed.
  *
  * A repertoire runs on over the semicolons that close its spell levels: every
@@ -1568,13 +1439,13 @@ export function parseStatline(text) {
       if (xp) out.xp = parseInt(xp[0].replace(/,/g, ""), 10);
       continue;
     }
-    // A stat that got its own ";"-separated segment ("…ML +2; XP 1,900;…").
+    // A stat that got its own ";"-separated segment ("…ML <n>; XP <n>;…").
     const xpSeg = /^XP\s+([\d,]+)$/i.exec(seg);
     if (xpSeg) {
       if (out.xp == null) out.xp = parseInt(xpSeg[1].replace(/,/g, ""), 10);
       continue;
     }
-    // Class segment: "Wizard* 5 (Fellowship)" / "Fighter 3" / "Normal Man".
+    // Class segment: "<class>* <n> (<note>)" / "<class> <n>".
     const cls = /^([A-Za-z][A-Za-z' -]*?)\*?\s+(\d+)\s*(?:\(([^)]*)\))?$/.exec(seg);
     if (cls && !out.class && !/^(XP|ML|AC|HD|MV|Dmg|Save|SV|hp)$/i.test(cls[1].trim())) {
       out.class = { name: cls[1].trim(), level: parseInt(cls[2], 10), ...(cls[3] ? { note: cls[3].trim() } : {}) };
@@ -1591,12 +1462,10 @@ export function parseStatline(text) {
  * a label the reader knows, of one word or two, or one capitalised word it
  * does not. A known label is matched at its own first word, never from a
  * capitalised word before it (a list's last token), and an unknown label of
- * two words is not a label at all — a generic two-word match took the token
- * before every "Class Abilities" with it. Every label opens a clause: the
- * known ones read into fields, the rest keep their text. An unknown label may
- * join two capitalised words with a slash. The label's space is left for the
- * next label to open on, so a label with an empty body does not hide the one
- * after it.
+ * two words is not a label at all. Every label opens a clause: the known ones
+ * read into fields, the rest keep their text. An unknown label may join two
+ * capitalised words with a slash. The label's space is left for the next label
+ * to open on, so a label with an empty body does not hide the one after it.
  */
 const WRITEUP_LABEL =
   /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Ability Scores|Attributes|Stat Line|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Class Powers|Abilities|Inventory|Equipment|Spellcasting|Spells|Spell Repertoire|Repertoire|Languages|Alignment|Movement|MV|XP|Side Effects|Permanent Wounds|[A-Z][a-z]+(?:\/[A-Z][a-z]+)?):(?=\s)/g;
@@ -1833,15 +1702,9 @@ async function execInstruction(instr, ctx) {
       claim(runs, ctx.field);
       const found = clean(joinRuns(runs));
       // A printed heading can carry glyph artifacts the shipped label does not
-      // (a heading's "(1st level)" suffix reads "(1level)" when the superscript
-      // detaches; RR p. 73, JJ p. 312), so compare folded and fall back to a prefix. That still
-      // proves we are on the right entry — a wrong page shares no prefix — but
-      // does not fail over a stray glyph, and a failed expect would otherwise
-      // zero the entry's mechanics.
-      // NFKD first: the AX PDFs mix precomposed and decomposed
-      // accents (DOPPELGÄNGER prints A+combining diaeresis); folding must land
-      // both forms on the same string. Purely widens tolerance — old cookbooks
-      // keep matching.
+      // (a detached superscript; RR p. 73, JJ p. 312), so compare folded and
+      // fall back to a prefix: a wrong page shares no prefix. NFKD first, so
+      // precomposed and decomposed accents land on the same string.
       const fold = (s) => s.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const f = fold(found);
       const w = fold(instr.text);
@@ -1853,8 +1716,7 @@ async function execInstruction(instr, ctx) {
       // the key number the heading opens with, or by a key of its folded
       // letters, and the words themselves are handed back for the binder to
       // name the document with. A name the line broke is read in `parts`; a
-      // part marked `glue` continues the word the part before it broke, which
-      // the compiler saw and this does not judge.
+      // part marked `glue` continues the word the part before it broke.
       let title = "";
       for (const part of instr.parts ?? [instr]) {
         const ppd = part.page && part.page !== instr.page ? await getPage(part.page) : pd;
@@ -1865,43 +1727,37 @@ async function execInstruction(instr, ctx) {
         title += title && !part.glue ? ` ${piece}` : piece;
       }
       const ok = instr.number != null ? opensWithNumber(title, instr.number) : !!instr.hash && printKey(title) === instr.hash;
-      // A box that failed its check names nothing: the words in it are some
-      // other entry's, and a box proved as a header that is not a title
-      // (`names: false`) names nothing either. `caps` is the compiler's word
-      // that the line's case carries nothing, handed on for whoever sets the
-      // name.
+      // A box that failed its check names nothing, and neither does a box
+      // proved as a header that is not a title (`names: false`). `caps` is the
+      // compiler's word that the line's case carries nothing, handed on to
+      // whoever sets the name.
       const names = ok && instr.names !== false;
       return { ok, found: title.slice(0, 60), title: names ? title.slice(0, 200) : null, ...(instr.caps === true ? { caps: true } : {}) };
     }
     case "text": {
       const paras = [];
       for (const para of instr.paras ?? []) {
-        // A paragraph may name its OWN page: definition blocks are column- and
-        // page-flowed, so an entry starting low on a page continues overleaf.
-        // Absent `para.page` this is exactly the old single-page behaviour.
+        // A paragraph may name its own page: an entry starting low on a page
+        // continues overleaf. Absent `para.page`, the instruction's page serves.
         const ppd = para.page && para.page !== instr.page ? await getPage(para.page) : pd;
         const runs = runsIn(ppd, para);
         claim(runs, ctx.field);
-        // A row the table prints empty on purpose reads as empty text and is
-        // kept, where any other box that reads nothing is dropped.
+        // A row the table prints empty reads as empty text and is kept; any
+        // other box that reads nothing is dropped.
         if (para.empty === true) {
           paras.push({ type: "paragraph", ...(para.section ? { section: para.section } : {}), empty: true, text: "" });
           continue;
         }
         const text = clean(glyphWords(joinRuns(runs, para.fixes ?? instr.fixes, para.dropText), registers));
         if (!text) continue;
-        // A box that opens mid-sentence continues the box before it: the
-        // passage turned a column or a page there, and the print never broke
-        // a paragraph at that turn. Lower-case first letter after a previous
-        // box that closed without terminal punctuation is that shape and no
-        // other; a box carrying its own section label is always a new one.
-        // A box marked `continues` is the same case where the turn falls before
-        // a capital — a name, which the letter test reads as a fresh start — and
-        // the compiler, which could see the page, says so.
-        // A row's detail paragraph (`detail: true`) is the one sectioned box
-        // that continues another: the detail paragraph before it in the same
-        // row's block. Detail paragraphs otherwise stay apart and keep the
-        // mark, which tells them from a row's own text.
+        // A box that opens mid-sentence continues the box before it (a column
+        // or page turn): a lower-case first letter after a box that closed
+        // without terminal punctuation. A box carrying its own section label
+        // is always a new one. A box marked `continues` is the same case where
+        // the turn falls before a capital, which the compiler could see.
+        // A row's detail paragraph (`detail: true`) continues the detail
+        // paragraph before it in the same row's block; detail paragraphs
+        // otherwise stay apart and keep the mark.
         const prev = paras[paras.length - 1];
         const sameBlock = para.detail === true && prev?.detail === true && prev.section === para.section;
         if (prev && (!para.section || sameBlock) && (para.continues || (/^[a-z]/.test(text) && !/[.!?:;"”’)\]]$/.test(prev.text)))) {
@@ -1915,10 +1771,8 @@ async function execInstruction(instr, ctx) {
           text,
         });
       }
-      // The JJ closes a custom power with the classes that may take it, as a
-      // bracketed list of class names (JJ p. 308). That
-      // is the CONTAINER's business, not the ability's: an ability does not know
-      // who may take it. Strip it so the description is the ability itself.
+      // The JJ closes a custom power with a bracketed list of the classes that
+      // may take it (JJ p. 308); that list is the container's, so it is stripped.
       const last = paras[paras.length - 1];
       if (last) last.text = stripOwnerList(last.text);
       return paras.filter((p) => p.text || p.empty);
@@ -1929,9 +1783,8 @@ async function execInstruction(instr, ctx) {
         claim(runs, ctx.field);
         return applyPattern(joinRuns(runs, instr.fixes, instr.dropText), instr, registers, misses);
       }
-      // A value the page sets across a column or a page turn: each part is one
-      // stretch of it, on its own page, with its own fixes, read in order and
-      // joined with a space where the print turned.
+      // A value across a column or page turn: each part is one stretch, on its
+      // own page with its own fixes, read in order and joined with a space.
       const pieces = [];
       for (const part of instr.parts) {
         const ppd = part.page && part.page !== instr.page ? await getPage(part.page) : pd;
@@ -1943,16 +1796,10 @@ async function execInstruction(instr, ctx) {
       return applyPattern(pieces.join(" "), instr, registers, misses);
     }
     /**
-     * One COLUMN of a level-progression table, read as a LevelValue.
-     *
-     * Some abilities keep no numbers in their own entry at all — every thief
-     * skill's target numbers live in a single grid, one column per skill, one
-     * row per level. The recipe ships the grid's coordinates (which column,
-     * which rows) and nothing else, so the numbers still materialize from the
-     * reader's own book exactly like a monster's hit dice.
-     *
-     * Rows are paired by vertical proximity rather than by index, because a
-     * blank cell would otherwise shift every level below it.
+     * One COLUMN of a level-progression table, read as a LevelValue. The recipe
+     * ships the grid's coordinates (which column, which rows) and nothing else.
+     * Rows are paired by vertical proximity, not by index, so a blank cell
+     * shifts nothing.
      */
     case "progression": {
       const levels = runsIn(pd, { box: instr.levelBox });
@@ -1984,12 +1831,11 @@ async function execInstruction(instr, ctx) {
       claim(dRuns, ctx.field);
       const attacksText = clean(joinRuns(aRuns, instr.fixes?.attacks, instr.dropText?.attacks));
       const damageRaw = joinRuns(dRuns, instr.fixes?.damage, instr.dropText?.damage); // glyphs preserved
-      // Parse both fields into aligned MODES ("1 weapon OR 2 claws + bite").
-      // A chef may ship `attacksOverride` — a normalized routine string for a
-      // rare format the generic parser mishandles; damage still extracts live.
-      // Quality per segment comes from the shipped COLOR ANNOTATION indexed by
-      // GLOBAL segment position (flatDamage order) — an observation the compiler
-      // made; the runtime never scrapes colours.
+      // Parse both fields into aligned MODES. `attacksOverride` is a normalized
+      // routine string for a format the generic parser mishandles; damage still
+      // extracts live. Quality per segment comes from the shipped colour
+      // annotation, indexed by global segment position (flatDamage order); the
+      // runtime never reads colours.
       const { modes } = attackModel(instr.attacksOverride ?? attacksText, damageRaw);
       const colors = instr.colors
         ? instr.colors.map((c) => (c ? (registers?.tables?.[instr.colorTable]?.[c] ?? null) : null))
@@ -2028,24 +1874,22 @@ async function execInstruction(instr, ctx) {
       };
     }
     /**
-     * `grid` (schema v2): a printed table read by authored geometry — the MM's
-     * "characteristics by rank/age/tier" pages. The recipe ships the data-row
-     * band, the row-label span and the column spans with cell patterns; the
-     * values materialize here from the reader's own page, exactly like a
-     * monster's hit dice. Rows whose cells nearly all fail to parse (column
-     * headers caught inside the band) are dropped but stay claimed.
+     * `grid`: a printed table read by authored geometry. The recipe ships the
+     * data-row band, the row-label span and the column spans with cell
+     * patterns; the values are read from the reader's own page. Rows whose
+     * cells nearly all fail to parse (column headers inside the band) are
+     * dropped but stay claimed.
      *
      * `transpose` reads a sideways table (properties as rows, options as
-     * columns — the elemental by-element page): one output row per COLUMN,
-     * cells keyed by the slugged property labels. The property labels as
-     * printed come back as `labels`, keyed as the cells are, because
-     * `header` is keyed by column and names no property.
+     * columns): one output row per COLUMN, cells keyed by the slugged property
+     * labels. The property labels as printed come back as `labels`, keyed as
+     * the cells are, because `header` is keyed by column and names no property.
      */
     case "grid": {
       const runs = runsIn(pd, { box: instr.box });
       claim(runs, ctx.field);
-      // v3: authored per-row y-bands replace line bucketing — a template row's
-      // equipment cell wraps over several text lines that are ONE logical row.
+      // Authored per-row y-bands replace line bucketing: one logical row may
+      // wrap over several text lines.
       const yRows = instr.rowBands
         ? instr.rowBands
             .map((b) => ({ y: b.y0, key: b.key ?? null, items: runs.filter((it) => it.y >= b.y0 && it.y <= b.y1).sort((p, q) => p.y - q.y || p.x - q.x) }))
@@ -2053,13 +1897,10 @@ async function execInstruction(instr, ctx) {
         : rowsByY(runs, instr.rowTol ?? 3);
       const spanItems = (items, x0, x1) => items.filter((it) => it.x >= x0 && it.x <= x1);
       const spanRaw = (items, x0, x1) => spanItems(items, x0, x1).map((it) => it.str).join("");
-      // Gap-aware joining (authored gapMin, page geometry like every bound):
-      // small-caps runs need blind joins, but a wide gap is a word space the
-      // text layer does not carry ("1d4 + CON drain" arrives as 4 runs).
-      // A cell that spans several printed LINES — a rowBands cell that wraps,
-      // a header whose words carry a gloss beneath them — has no horizontal
-      // gap at the wrap point, so each line joins alone and the lines join
-      // with a space.
+      // Gap-aware joining (authored gapMin): small-caps runs need blind joins,
+      // but a wide gap is a word space the text layer does not carry. A cell
+      // that spans several printed lines has no horizontal gap at the wrap
+      // point, so each line joins alone and the lines join with a space.
       const spanLines = (items, x0, x1) => {
         const inSpan = spanItems(items, x0, x1);
         const lines = new Map();
@@ -2067,13 +1908,9 @@ async function execInstruction(instr, ctx) {
           const k = Math.round(it.y / 3);
           (lines.get(k) ?? lines.set(k, []).get(k)).push(it);
         }
-        // A HYPHEN AT THE END OF A LINE IS INSIDE A WORD, not before a
-        // space. These cells wrap where a compound breaks (RR p. 78), and
-        // joining the lines with a space put a gap after the hyphen on the
-        // character sheet. The hyphen is
-        // kept rather than swallowed: it is a real one in every compound
-        // these tables print, and keeping it can only ever misspell
-        // visibly, where dropping it would silently invent a word.
+        // A hyphen at the end of a line is inside a word (cells wrap where a
+        // compound breaks, RR p. 78): the lines join with no space after it, and
+        // the hyphen is kept.
         const joinedLines = [...lines.entries()]
           .sort((a, b) => a[0] - b[0])
           .map(([, l]) => joinCellRuns(l.sort((p, q) => p.x - q.x), instr.gapMin ?? null));
@@ -2087,7 +1924,7 @@ async function execInstruction(instr, ctx) {
       const cellValue = (text, col, rawText) => {
         if (col.pattern === "glyphs") {
           // Each PUA glyph char maps through a shipped table (damage-type
-          // marks). Read from the RAW join — clean() strips PUA chars.
+          // marks), read from the raw join because clean() strips them.
           const hits = [];
           for (const ch of rawText ?? "") {
             const row = registers?.tables?.[col.table ?? "damageGlyph"]?.[ch];
@@ -2103,11 +1940,9 @@ async function execInstruction(instr, ctx) {
         }
         return v;
       };
-      // A table whose columns ARE its scale carries its header band with it, so
-      // the scale is READ here rather than shipped: the compiler said where the
-      // headers sit, the seat's own book says what they are. A header is
-      // joined by line whatever the rows are: a column's words may wrap, or
-      // carry a gloss on the line beneath.
+      // A table whose columns are its scale carries its header band, so the
+      // scale is read here, not shipped. A header is joined by line whatever
+      // the rows are.
       let header = null;
       if (instr.headerBand) {
         const hRuns = runsIn(pd, { box: { ...instr.box, y0: instr.headerBand.y0, y1: instr.headerBand.y1 } });
@@ -2122,11 +1957,10 @@ async function execInstruction(instr, ctx) {
       const labels = {};
       if (instr.transpose) {
         // Property labels come from the label span of every y-row; each
-        // authored column becomes one output row (an option). A sideways table
-        // mixes value shapes BY ROW (speeds are text, damage type is glyphs),
-        // so `props[key]` may override the column pattern per property. An
-        // authored band key names its property, so two books' grids of one
-        // vocabulary key their cells alike; else the slugged label does.
+        // authored column becomes one output row. A sideways table mixes value
+        // shapes by row, so `props[key]` may override the column pattern per
+        // property. An authored band key names its property; else the slugged
+        // label does.
         const props = yRows
           .map((r) => ({ y: r.y, key: r.key, label: spanText(r.items, instr.label.x0, instr.label.x1), items: r.items }))
           .filter((r) => r.label || r.key);
@@ -2145,9 +1979,9 @@ async function execInstruction(instr, ctx) {
         }
       } else {
         for (const r of yRows) {
-          // An authored band key names a row whose printed label cannot be
-          // read as text (a rotated table's names): the key is neutral and
-          // the label, if any, is whatever the span holds.
+          // An authored band key names a row whose printed label cannot be read
+          // as text (a rotated table): the key is neutral and the label is
+          // whatever the span holds.
           const label = instr.label ? spanText(r.items, instr.label.x0, instr.label.x1) : "";
           if (!label && !r.key) continue;
           if (!r.key && instr.dropRows?.includes(slugLabel(label))) continue; // claimed header row
@@ -2160,7 +1994,7 @@ async function execInstruction(instr, ctx) {
               parsed++;
             }
           }
-          // A header row's cells are labels, not values — almost nothing parses.
+          // A header row's cells are labels, so almost nothing parses.
           if (parsed >= (instr.minCells ?? 1)) rows.push({ key: r.key ?? slugLabel(label), label, cells });
         }
       }
@@ -2203,10 +2037,8 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     if (!pageCache.has(n)) pageCache.set(n, await pageItems(doc, n));
     return pageCache.get(n);
   };
-  // Art is cached on the same terms as text and for a stronger reason: reading
-  // a page's placed images decodes them, which costs seconds where reading its
-  // text costs milliseconds. The Monstrous Manual prints several creatures to a
-  // spread, so an uncached `art` op pays that once per creature.
+  // Art is cached on the same terms as text: reading a page's placed images
+  // decodes them, which is far dearer than reading its text.
   const artCache = opts.artCache ?? new Map();
   const getArt = async (n) => {
     if (!artCache.has(n)) artCache.set(n, await pageArtInfo(doc, n).catch(() => []));
@@ -2230,14 +2062,12 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
       result = null;
     }
     if (field === "name") {
-      // A name check that THREW is a failed check, not a passed one — null
-      // (the exception path above) must fail exactly like `ok: false`.
+      // A name check that threw (null) fails exactly like `ok: false`.
       if (!result || result.ok === false) ok = false;
       fields.name = result;
       continue;
     }
-    // Nest dotted fields: "stats.x" under fields.stats, "creatures.0" under
-    // fields.creatures — one generic rule so new kinds need no special case.
+    // Nest dotted fields: "stats.x" under fields.stats, "creatures.0" under fields.creatures.
     if (field.includes(".")) {
       const dot = field.indexOf(".");
       (fields[field.slice(0, dot)] ??= {})[field.slice(dot + 1)] = result;
@@ -2246,14 +2076,12 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     }
   }
 
-  // Defenses = per-entry prose scan (this seat's own description + shipped
-  // vocabulary) UNIONED with the creature's TYPE-inherent defenses (an ACKS
-  // type rule authored once on the type node, e.g. "all undead are immune
-  // to..."). Both are applied by the type/prose the SEAT extracted — nothing
-  // about which defenses a specific creature has is baked on the entry.
-  // `effectsText` is page text the effects recipe's locators read beside the
-  // description (a bonus table set under the block); it is not the entry's
-  // prose, so it leaves the result here, read or not.
+  // Defenses = the per-entry prose scan (this seat's own description + shipped
+  // vocabulary) unioned with the creature's type-inherent defenses (authored
+  // once on the type node); nothing about a specific creature's defenses is
+  // baked on the entry. `effectsText` is page text the effects recipe's
+  // locators read beside the description; it is not the entry's prose, so it
+  // leaves the result here, read or not.
   const effectsText = Array.isArray(fields.effectsText) ? fields.effectsText : [];
   delete fields.effectsText;
   // A monster's encounter, lair and notes sections describe its prepared lair
@@ -2265,57 +2093,44 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
   if (mechanics?.length) {
     const scanned = defenseScan(mechanics, registers);
     if (scanned) fields.defenses = scanned;
-    // Structured effects: classified from THIS SEAT'S prose against the shipped
-    // vocabulary — UNLESS a chef authored specs for this entry, in which case
-    // the recipe replaces the scan outright, exactly as it does for rolls.
-    //
-    // These used to concatenate, which is a double-application bug: Trapfinding
-    // prints "+2 on Searching and Trapbreaking proficiency throws" and the scan
-    // reads it as +2 to EVERY proficiency throw, so a chef's corrected,
-    // properly-scoped effect would have shipped next to the wrong one rather
-    // than instead of it. A recipe states the entry's mechanics completely;
-    // anything the scan additionally believes is by definition not part of them.
+    // Structured effects: classified from this seat's prose against the shipped
+    // vocabulary, unless authored specs exist for the entry, in which case the
+    // recipe replaces the scan outright (as for rolls) and the two never
+    // concatenate. See docs/importer/MODEL.md, "An ability's modifiers: recipe or scan".
     const authoredEffects = entry.fields?.effects?.specs;
     const effects = authoredEffects?.length
       ? materializeEffects(authoredEffects, [...mechanics, ...effectsText])
       : effectScan(mechanics, registers);
     if (effects.length) fields.effects = effects;
-    // A VARIATION's numbers: the same materializer, deliberately its own field.
-    // Not folded into `effects` because these are not an ability's mechanics —
-    // they are what a difference costs and what it moves — and because that
-    // path falls through to `effectScan` when nothing is authored, which would
-    // put a scan's guesses on a document whose whole point is that its numbers
-    // came off the page. No scan fallback here: a variation with no authored
-    // locator locates nothing, and says so by being empty.
+    // A variation's numbers: the same materializer, kept in its own field apart
+    // from `effects` (what a difference costs and moves is not an ability's
+    // mechanics). No scan fallback: a variation with no authored locator
+    // locates nothing and is empty.
     const variationSpecs = entry.fields?.variation?.specs;
     if (variationSpecs?.length) {
       const located = materializeEffects(variationSpecs, mechanics);
       if (located.length) fields.variation = located;
     }
-    // The entry's OWN printed numbers, located the same way and kept apart for
-    // the same reason: what a thing IS is not what a difference MOVES, and
-    // neither may fall through to a scan. A spec that did not match is absent,
-    // so the binding sees the book's number or nothing — never a default.
+    // The entry's own printed numbers, located the same way and kept apart for
+    // the same reason, with no scan fallback. A spec that did not match is
+    // absent, so the binding sees the book's number or nothing.
     const valueSpecs = entry.fields?.values?.specs;
     if (valueSpecs?.length) {
       const located = materializeEffects(valueSpecs, mechanics);
       if (located.length) fields.values = located;
     }
     // Every roll the ability offers, each with its own target and progression.
-    // A chef-authored recipe REPLACES the scan outright for this entry rather
-    // than merging with it: the recipe states how many rolls the entry has, so
-    // anything the scan additionally thinks it sees is a duplicate or an
-    // artifact. Scans are the draft for entries nobody has read yet.
+    // An authored recipe replaces the scan outright for this entry; it never merges.
     const authored = materializeRolls(entry.fields?.rolls?.specs, mechanics, {
       progression: fields.progression,
     });
     const rolls = entry.fields?.rolls?.specs?.length ? authored : rollScan(mechanics);
     if (rolls.length) fields.rolls = rolls;
   }
-  // Values the books state in PROSE rather than in a labelled field — the
-  // custom-class build cost, a "counts as <n> custom powers" clause (JJ pp. 310, 320, 322). The pattern is
-  // shipped vocabulary; the NUMBER is read here, from this seat's own extracted
-  // text, so no book value ever rides along in the module.
+  // Values the books state in prose rather than in a labelled field (the
+  // custom-class build cost, a "counts as <n> custom powers" clause; JJ pp.
+  // 310, 320, 322). The pattern is shipped; the number is read here from this
+  // seat's own extracted text.
   if (mechanics?.length) {
     const text = mechanics.map((p) => p.text).join(" ");
     for (const [key, spec] of Object.entries(registers?.derive ?? {})) {
@@ -2330,10 +2145,9 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
       if (value != null && !Number.isNaN(value)) fields[key] = value;
     }
   }
-  // An ability whose numbers live in a TABLE rather than in its own entry: the
-  // column just read IS its proficiency throw, level by level. Added after the
-  // prose scan so it lands even on an entry whose description says nothing
-  // mechanical — which is exactly the case that motivated it.
+  // An ability whose numbers live in a table: the column just read is its
+  // proficiency throw, level by level. Added after the prose scan so it lands
+  // even on an entry whose description says nothing mechanical.
   if (fields.progression?.breakpoints?.length) {
     (fields.effects ??= []).push({
       type: "throw",
@@ -2355,9 +2169,8 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     kind: entry.kind,
     name: entry.name,
     cite: entry.cite,
-    // Where the text was read from, for the citation link a binding writes:
-    // the book id and the entry's first PDF page — the page a viewer opens,
-    // not the printed folio the cite names.
+    // Where the text was read from, for the citation link a binding writes: the
+    // book id and the entry's first PDF page, not the printed folio `cite` names.
     book: entry.book ?? bookCookbook.book?.id ?? null,
     page: entry.pages?.[0] ?? null,
     ok,

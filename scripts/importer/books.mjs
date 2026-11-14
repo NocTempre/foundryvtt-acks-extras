@@ -1,15 +1,16 @@
 /**
  * Book registry: every PDF the streamer can read, with edition fingerprints.
- * Fingerprints use page count + metadata title — NEVER file hashes (DTRPG
- * watermarks each customer's copy, so bytes differ per person).
+ * A fingerprint is page count plus metadata title, never a file hash (the
+ * retailer watermarks each customer's copy, so bytes differ per person).
  *
- * A book id is a promise that connecting that PDF unlocks something. Do not add
- * one that unlocks nothing — see docs/importer/DECISIONS.md § Withdrawn surface.
+ * A book id is a promise that connecting that PDF unlocks something; a book
+ * that unlocks nothing is not registered.
+ * See docs/importer/DECISIONS-through-v11.14.5.md, "Withdrawn surface".
  *
  * `line` names the series a book belongs to, and is what its imports are
  * shelved under: a book declaring one goes to that line's own compendia, and a
  * book declaring none goes to the ACKS ones. Only books from outside the ACKS
- * library carry it — the ACKS line is the default, not a name in this file.
+ * library carry it.
  *
  * `judge` marks a book whose own rows are the Judge's — an adventure, a
  * gazetteer, a supplement that prints a keyed place: every document its ids
@@ -22,10 +23,10 @@
  * Judge's half.
  *
  * `form` marks a fillable form rather than a book: nothing imports from it,
- * and what connecting it unlocks is the official-sheet export, which writes a
- * character into it. It is read through its fields, so a copy that is not the
- * fillable form is refused when it is opened, and its shelf journal is shared
- * with every player, whose exports read it too.
+ * and connecting it unlocks the official-sheet export, which writes a character
+ * into it. It is read through its fields, so a copy that is not the fillable
+ * form is refused when opened, and its shelf journal is shared with every
+ * player, whose exports read it too.
  *
  * `published` is the copyright year the registered printing carries on its
  * credits page, and `laterBook` orders by it first. Only the ACKS line carries
@@ -38,11 +39,8 @@
 
 /**
  * `printedOffset`: printed folio = PDF page - offset. Register pages and every
- * compiled instruction always address the PDF page; the offset is applied at
- * the ONE point a page number is shown to a reader, so a citation names the
- * number printed on the page they turn to. Every book carries one, because
- * every book has front matter: a reader handed a raw PDF page is sent two
- * pages past what they were looking for.
+ * compiled instruction address the PDF page; `citeFor` applies the offset where
+ * a page number is shown to a reader. Every book carries one.
  *
  * `REGISTRY` is every book this file knows, the answer to a question about an
  * id a world, a flag or a citation already holds. `BOOKS` names the books the
@@ -156,8 +154,8 @@ export const REGISTRY = {
     printedOffset: 2,
     judge: true,
   },
-  // An ACKS I supplement that prints keyed lairs and a plate for some of them
-  // (2016). Its printing carries no metadata title, so the count alone names
+  // An ACKS I supplement that prints keyed lairs and a plate for some of them.
+  // Its printing carries no metadata title, so the count alone names
   // it; the pattern matches the stock filename. No `line`, as for the AX books.
   le: {
     label: "Lairs & Encounters",
@@ -170,9 +168,10 @@ export const REGISTRY = {
   },
   // An ACKS-compatible community title, authored. The printing carries no
   // metadata title, so the fingerprint gates on the page count; the pattern
-  // matches the stock filename. Set in 12pt body type from a word processor: `typography` reads it on the engine's size ladder and
-  // puts back the five ligatures (ti, tt, tf, tti, ft) its text layer encodes
-  // as Latin Extended-B letters, and the Symbol-font bullet its lists use.
+  // matches the stock filename. Set in word-processor body type: `typography`
+  // reads it on the engine's size ladder and puts back the five ligatures (ti,
+  // tt, tf, tti, ft) its text layer encodes as Latin Extended-B letters, and the
+  // Symbol-font bullet its lists use.
   cat: {
     label: "The OSR Catgirl: Nine Lives of Adventure",
     line: "The OSR Catgirl",
@@ -195,10 +194,8 @@ export const REGISTRY = {
       labelColon: true,
     },
   },
-  // The conversion instrument. Its printed constants are read from the
-  // reader's own copy rather than shipped. The metadata title carries the
-  // publisher's own spelling ("Compatability"), so the regex gates on the stem
-  // both spellings share.
+  // The conversion instrument. The metadata title carries a misspelling of
+  // "Compatibility", so the regex gates on the stem both spellings share.
   scg: {
     label: "ACKS II System Compatibility Guide",
     short: "SCG",
@@ -218,12 +215,10 @@ export const REGISTRY = {
     form: true,
   },
   // The AXIOMS compendium of issues 1-8, registered as one book: one PDF, one
-  // fingerprint, one folio offset across the issues read so far. The printing
-  // carries no metadata title, so the count alone names it; the regex matches
-  // the stock filename. What it unlocks: the beastman leader procedure's
-  // tables (`monsters` registry document), which fill the leaders the
-  // Monstrous Manual does not print. One copyright year cannot order its
-  // issues against each other.
+  // fingerprint, one folio offset. The printing carries no metadata title, so
+  // the count alone names it; the regex matches the stock filename. It unlocks
+  // the beastman leader tables (`monsters` registry document). One copyright
+  // year cannot order its issues against each other.
   axc: {
     label: "AXIOMS Compendium, Issues 1-8",
     short: "AXIOMS",
@@ -235,11 +230,10 @@ export const REGISTRY = {
 };
 
 /**
- * The books the module offers: every book in `REGISTRY`, held as an object of
- * its own so that withdrawing a book is a deletion here that leaves `REGISTRY`
- * answering for its id. Enumerations that offer, connect or import a book read
- * this; a fact about an id that already exists in a world, a flag or a citation
- * reads `REGISTRY`.
+ * The books the module offers: a copy of `REGISTRY`, so withdrawing a book is a
+ * deletion here that leaves `REGISTRY` answering for its id. Enumerations that
+ * offer, connect or import a book read this; a fact about an id already held by
+ * a world, a flag or a citation reads `REGISTRY`.
  */
 export const BOOKS = { ...REGISTRY };
 
@@ -261,9 +255,9 @@ export const offeredBookFiles = (listed, books, registry = REGISTRY) =>
 
 /**
  * The book a cookbook id names by its first segment, when `registry` knows
- * that book, else null. It reads the registry rather than `BOOKS`, so a book
- * the module no longer offers still answers: a claim naming one is told apart
- * from a claim naming no book. Pure.
+ * that book, else null. It reads `REGISTRY`, not `BOOKS`, so a withdrawn book
+ * still answers and a claim naming one is told apart from a claim naming no
+ * book. Pure.
  *
  * @param {string} id a cookbook id such as `<book>.<entry>`
  * @param {Record<string, object>} [registry] defaults to `REGISTRY`
@@ -277,21 +271,19 @@ export const registryBookOf = (id, registry = REGISTRY) => {
 /**
  * The citation a reader is shown for one PDF page of one book.
  *
- * THE ONE PLACE A PAGE NUMBER IS TRANSLATED. Everything upstream — register
- * entries, compiled instructions, art pointers — addresses the PDF page,
- * because that is what the reader hands the extractor. A citation is the
- * opposite direction: it is read by a person holding the book, so it names the
- * folio printed on the paper. Composing one by interpolating the raw page is
- * how six of the seven call sites came to cite two pages past the entry.
+ * The one place a PDF page number becomes a printed folio: register entries,
+ * compiled instructions and art pointers address the PDF page, and a citation
+ * names the folio on the paper. Compose a citation here, never by interpolating
+ * the raw page.
+ * See docs/importer/DECISIONS-through-v11.14.5.md, "A citation names the printed folio; everything else names the PDF page (2026-08-27)".
  */
 export const citeFor = (bookId, page) => `${REGISTRY[bookId]?.short ?? bookId} p.${page - (REGISTRY[bookId]?.printedOffset ?? 0)}`;
 
 /**
  * The inverse of `citeFor`: the book id and PDF page a citation names, or null
  * when it names no book this build knows. Reads the short label and the folio
- * and puts the offset back, so a reference an earlier release wrote as plain
- * text still opens the right page. The PoC recipes cite the PDF page itself
- * ("MM PDF p. 171") and say so; those need no offset.
+ * and puts the offset back; a citation marked `PDF` already names the PDF page
+ * and takes no offset.
  * @returns {{book: string, page: number}|null}
  */
 export function parseCite(text) {
@@ -315,17 +307,14 @@ export function fingerprintWarning(bookId, numPages, title) {
 }
 
 /**
- * Which book an opened PDF actually is, or null when the fingerprint names no
- * one book. This is the same evidence `fingerprintWarning` reads, asked the
- * other way round: not "does this file fit the slot it was put in" but "whose
- * file is this".
+ * Which book an opened PDF is, or null when the fingerprint names no one book.
+ * It reads the evidence `fingerprintWarning` reads, but asks whose file this is
+ * rather than whether it fits a given slot.
  *
- * A book is named only when the whole fingerprint fits it and fits nothing
- * else. The page counts in the registry are distinct, so an untitled printing
- * — which is every AX book — is still identified by count alone; a title, where
- * the printing carries one, must match too. A file that fits no book (a
- * printing this build has never seen) names nobody, which is what keeps edition
- * drift a warning rather than a refusal.
+ * A book is named only when the whole fingerprint fits it and nothing else.
+ * Registry page counts are distinct, so an untitled printing is identified by
+ * count alone; a title, where the printing carries one, must match too. A file
+ * that fits no book names nobody, so edition drift stays a warning.
  */
 export function identifyBook(numPages, title) {
   const hits = Object.entries(REGISTRY).filter(
@@ -337,9 +326,8 @@ export function identifyBook(numPages, title) {
 /**
  * The series a book's imports are shelved under, or null for the ACKS library.
  *
- * A pure lookup over the shipped registry. Judge-registered sources are not in
- * it — those carry their line on their own world record, and `cookbook.mjs`
- * asks both.
+ * A pure lookup over the shipped registry; a Judge-registered source carries its
+ * line on its own world record, and `cookbook.mjs` asks both.
  */
 export const bookLine = (bookId) => REGISTRY[bookId]?.line ?? null;
 
@@ -368,10 +356,10 @@ export const shelfBooksToOpen = (staged, observes, isOpen) =>
 /**
  * The later of two books by the year their printings carry (`published`), or
  * null when either book has none. A tie in year is broken by `seriesOrder`
- * where both books carry one, and is otherwise null. It is never broken by
- * declaration order: that order is a habit of this file, not a fact of
- * publication, so a caller that needs an answer has to refuse or fall back on
- * a rule of its own.
+ * where both books carry one, and is otherwise null. Declaration order never
+ * breaks a tie, so a caller that needs an answer refuses or falls back on a
+ * rule of its own.
+ * See docs/importer/DECISIONS.md, "Same-year adventures are ordered by their place in the series (K9)".
  */
 export function laterBook(a, b) {
   const ya = REGISTRY[a]?.published;
@@ -386,10 +374,10 @@ export function laterBook(a, b) {
 
 /**
  * Which of two books' printings of one item the library keeps when an import
- * finds the other already held (`b`): the later (`laterBook`), and where
- * that names nobody, the book this file declares first, the held one when
- * neither is declared. Items alone fall back so; a place's pair
- * refuses instead.
+ * finds the other already held (`b`): the later (`laterBook`), else the book
+ * declared first in `REGISTRY`, else the held one when neither is declared.
+ * Only items fall back so; a place's pair refuses.
+ * See docs/importer/DECISIONS-through-v11.14.5.md, "An item two books print is the later printing's".
  */
 export function keptBook(a, b) {
   const later = laterBook(a, b);
