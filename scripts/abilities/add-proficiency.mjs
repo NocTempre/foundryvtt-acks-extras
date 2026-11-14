@@ -86,16 +86,15 @@ async function askProficiency(list, options) {
  * Add one proficiency of `list` to `actor`. Resolves `{via: "library", ref}`
  * for a pick, `{via: "blank", item}` for a blank one, and null when nothing
  * was made. The library and the bound class are awaited first, so a shelf still
- * loading is not mistaken for an empty list. A pick of a proficiency the actor already holds adds another copy,
- * since a hand-add is deliberate and a rank is a count of copies.
+ * loading is not mistaken for an empty list. A pick the actor already holds
+ * adds another copy (a rank is a count of copies).
  * @param {Actor} actor
  * @param {"class"|"general"} list
  * @param {{ask?: Function}} [options] replaces the dialog (the offline tests')
  */
 export async function addProficiency(actor, list, { ask = askProficiency } = {}) {
   if (!actor?.isOwner || !PROFICIENCY_LISTS[list]) return null;
-  // A shelf not yet loaded reads as an empty list, which would skip the picker
-  // and make a blank: wait for the library and the class first.
+  // A shelf still loading reads as an empty list and would skip the picker.
   await whenReady();
   const options = proficiencyOptions(actor, list, await classForActorAsync(actor));
   const answer = options.length ? await ask(list, options) : { blank: true };

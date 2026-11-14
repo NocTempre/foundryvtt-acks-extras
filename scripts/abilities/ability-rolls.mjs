@@ -189,9 +189,7 @@ export function throwModifiers(actor, item, roll = null) {
   return out;
 }
 
-/**
- * A number with its sign always shown, the way a modifier is written.
- */
+/** A number with its sign always shown. */
 const signed = (n) => `${n >= 0 ? "+" : ""}${n}`;
 
 /**
@@ -313,7 +311,7 @@ function itemized(parts) {
  * How a throw READS on a control — "15+", "3-", "12", a measure's dice, the
  * cell a lettered rung prints, or "—" when nothing resolved.
  *
- * THE one place this string is built, for all four surfaces that show it (the
+ * The one place this string is built, for every surface that shows it (the
  * Rolls tab, the expanded row's tag strip, Favorites, the cycle control's
  * tooltip).
  */
@@ -374,7 +372,7 @@ function withModifiers(target, roll, parts) {
 }
 
 /**
- * Every roll an ability offers — THE read path. Folds core's singleton fields
+ * Every roll an ability offers: the read path. Folds core's singleton fields
  * in when this module's store is empty; core's schema defaults (`1d20`,
  * target 0) are not a roll.
  *
@@ -480,7 +478,7 @@ export const blankRoll = () => ({
 export const readRolls = (item) => foundry.utils.deepClone(rollsOf(item));
 
 /**
- * Persist an ability's rolls — THE write path. Settles keys first. An emptied
+ * Persist an ability's rolls: the write path. Settles keys first. An emptied
  * list also resets core's singleton roll fields to their schema initials, or
  * rollsOf() would fold the deleted throw back in.
  */

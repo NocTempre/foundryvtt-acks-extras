@@ -32,9 +32,8 @@ const loc = makeLoc(LANG);
 const windows = new Map();
 
 /**
- * An id for a new-character window. A window that imported keeps the id it
- * opened with, so the next new one takes a free id beside it: a second window
- * under the same id would take over the first's frame.
+ * An id for a new-character window: a free one, since a window that imported
+ * keeps the id it opened with and a second under it would take over its frame.
  */
 function newWindowId() {
   let id = "acks-extras-sheetpdf-new";
@@ -141,11 +140,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #exportNote = null;
   #busy = false;
   #bookHook = null;
-  /**
-   * The key this window is kept under in `windows`. A field of its own:
-   * an application's options are frozen once it is constructed, so the key
-   * an import moves the window to cannot be written back into them.
-   */
+  /** The key this window is kept under in `windows`; options are frozen after construction, so it cannot live there. */
   #windowKey = "";
 
   constructor(options = {}) {

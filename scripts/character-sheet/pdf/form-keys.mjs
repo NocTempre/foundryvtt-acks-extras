@@ -4,10 +4,11 @@
  * local rules shelf; do not edit by hand.
  *
  * Each entry is `hash36(field name)` → `[module key, kind]`. The form's own
- * field names never ship (docs/character-sheet/DECISIONS.md, 2026-10-15): a
- * field is found by hashing the name the reader's copy carries, so the table
- * proves a field is the one it means without saying what it is called. Kinds:
- * `t` text, `m` multi-line text, `r` radio button, `c` checkbox.
+ * field names never ship: a field is found by hashing the name the reader's
+ * copy carries, so the table proves a field is the one it means without saying
+ * what it is called. See docs/character-sheet/DECISIONS.md, "The official
+ * sheet's field names ship hashed". Kinds: `t` text, `m` multi-line text,
+ * `r` radio button, `c` checkbox.
  */
 export const FORM_FIELDS = Object.freeze({
   "1bts90": ["ac.armour", "t"],

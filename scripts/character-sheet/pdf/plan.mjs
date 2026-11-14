@@ -1,5 +1,5 @@
 /**
- * What a filled official sheet SAYS, read into this module's terms before
+ * What a filled official sheet says, read into this module's terms before
  * anything is matched against the world: scores as numbers, proficiencies as
  * name / pick / rank, gear as place / count / name, a henchman as a record.
  * Foundry-free; `apply.mjs` matches the plan against the library and writes.

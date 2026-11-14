@@ -27,7 +27,7 @@ import { clean, countAndName, finite, lastNumber, listEntries, numText, signedTe
 /** The region boxes, left to right, as the classification each one ticks. */
 export const REGION_KEYS = Object.freeze(["outlands", "borderlands", "civilized"]);
 
-/** The income rows the page prints a name for, as revenue lines, top to bottom. The fifth row is the reader's own. */
+/** The income rows the page names, as revenue lines, top to bottom. The fifth row is the reader's own. */
 export const INCOME_ROWS = Object.freeze(["land", "service", "tax", "trade"]);
 
 /** The expense rows, as expense lines, top to bottom. */
@@ -132,10 +132,9 @@ function hexKey(number) {
  *
  * A revenue or expense row is written to the side its families column
  * matches — the peasant count, the urban count, or both together — and a
- * row whose families match none is not written at all: a rate laid on the
- * wrong families is a wrong month, where an unwritten one is only an unset
- * line. A blank families column is the peasants' where the domain has no
- * urban families.
+ * row whose families match none is left unwritten and reported in `unplaced`.
+ * A blank families column is the peasants' where the domain has no urban
+ * families.
  * @param {object} page `domainPagePlan`
  * @param {object} current the domain's record now; `{}` for a new domain
  * @param {object} [opts]

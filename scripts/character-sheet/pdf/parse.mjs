@@ -3,9 +3,9 @@
  * a running tally, a signed bonus, a throw written "11+", a percentage, a
  * dice formula, a list, and a line of gear with its count. Foundry-free.
  *
- * Hand-filled sheets are untidy on purpose — a player keeps a tally of hit
- * points or coin in one box — so every reader here takes what it can and
- * says null for what it cannot, and the caller keeps the whole text for notes.
+ * A player may keep a tally of hit points or coin in one box, so every reader
+ * here takes what it can and says null for what it cannot; the caller keeps the
+ * whole text for notes.
  */
 
 /** Any dash a keyboard or a word processor makes, read as a minus. */
