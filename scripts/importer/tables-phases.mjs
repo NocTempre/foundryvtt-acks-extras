@@ -43,13 +43,9 @@ import { syncHeldRaceTongues } from "./cookbook.mjs";
 import { getDoc } from "../lib/tables.mjs";
 
 /**
- * The single-document bindings — the land-travel documents, the delve's, and
- * experience — each with the assembler that turns its raw page reads into the
- * engine tables acks-extras declares.
- *
- * A table rather than near-identical blocks: they differ only in which
- * document they answer for, and one loop cannot drift the way copies of a
- * try/catch do.
+ * The single-document bindings, each with the assembler that turns its raw
+ * page reads into the engine tables acks-extras declares. They differ only in
+ * which document they answer for, so one loop runs them all.
  */
 export const SIMPLE_BINDINGS = Object.freeze([
   { id: SURVIVAL_DOC_ID, apply: applySurvivalImport },
@@ -151,9 +147,8 @@ export async function applyReadTables(docIds, { repair = null } = {}) {
       console.error(`${MODULE_ID} | class-builder binding failed`, err);
       ui.notifications.warn(`${MODULE_ID} | class builder: ${err.message}`);
     }
-    // The same document's armour limits on abilities: one row on each skill the
-    // page restricts, stamped after the builder write so a failure in either
-    // leaves the other standing.
+    // The same document's armour limits on abilities, stamped after the builder
+    // write so a failure in either leaves the other standing.
     try {
       const limited = await applyThiefLimitImport();
       console.log(`${MODULE_ID} | armour-limit binding`, limited);
@@ -168,9 +163,7 @@ export async function applyReadTables(docIds, { repair = null } = {}) {
     try {
       const table = getDoc(LANGUAGES_DOC_ID)?.tables?.tree;
       const made = table ? await applyLanguageImport(table, { repair }) : { created: 0, present: 0, adopted: 0 };
-      // Adoptions are work the seat should hear about too: a run that creates
-      // nothing, because every tongue was already there under a Judge's own
-      // name, has still changed the world.
+      // An adopted tongue counts as work landed, though nothing was created.
       const landed = made.created + made.adopted;
       if (landed) {
         ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.tables.languagesApplied`, { created: landed }));

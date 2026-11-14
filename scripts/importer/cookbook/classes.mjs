@@ -28,8 +28,7 @@ import { byCategory } from "./abilities.mjs";
 /*  Classes (kind.class → acks-extras.class)    */
 /* -------------------------------------------- */
 
-/* The book prints WIL where the system's score key is wis. */
-// WIL is the ACKS II print vocabulary; BTA (and classic sources) print WIS.
+// The ACKS II print vocabulary spells the system's `wis` key WIL; other sources print WIS.
 const ATTR_KEY = { STR: "str", INT: "int", WIL: "wis", WIS: "wis", DEX: "dex", CON: "con", CHA: "cha" };
 
 /** "Key Attribute:.............STR" → "STR" (label and dot leaders off). */
@@ -49,26 +48,21 @@ const splitList = (s) =>
     .filter(Boolean);
 
 /**
- * Can a printed name-list on a class spread award this entry?
- *
- * A class's Proficiency List and a template's Proficiencies cell name
- * proficiencies, skills and powers. They never name a LANGUAGE — the taxonomy
- * is its own tree — so languages stay out of both tokenizers. Being in them
- * only gives short common words ("Orc", "Ithean", "Draconic") a chance to claim
- * the head of a cell that belongs to something else, which the greedy
- * longest-first match cannot undo.
+ * Can a printed name-list on a class spread award this entry? A class's
+ * Proficiency List and a template's Proficiencies cell never name a LANGUAGE
+ * (the taxonomy is its own tree), so languages stay out of both tokenizers: a
+ * short language name would claim the head of a cell that belongs to something
+ * else, which the greedy longest-first match cannot undo.
  */
 const isAwardableByName = (entry) => !NON_ABILITY_KINDS.has(entry?.kind) && entry?.kind !== "kind.language";
 
 /**
  * Every printed SURFACE a class list or template cell can name, resolved
  * once — a definition's own name plus any authored `aliases`. Both the list
- * path and the cell path read this ONE index. Collisions are arbitrated by
+ * path and the cell path read this one index. Collisions are arbitrated by
  * `byCategory`, the same ranking the monster path uses; the world's holdings
- * are deliberately NOT consulted, since what a class's spread means is a
- * fact about the book, not about what has been imported yet. See
- * docs/importer/DECISIONS.md, "A second printed name for a shipped entry is
- * authored on the entry".
+ * are not consulted. See docs/importer/DECISIONS.md, "A second printed name for
+ * a shipped entry is authored on the entry".
  *
  * A definition that withholds its printed name (its name instruction a
  * `heading` read by `hash`) has no surface to spell. It answers to the key of
@@ -159,11 +153,9 @@ const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * A lenient matcher for one printed surface: letters with elastic spacing,
  * because real extraction welds words together.
  *
- * An ALIAS is a truncation the books print with a period after it ("Fighting
- * Style Spec."), so it must not be allowed to claim the head of the longer
- * word it abbreviates — "Spec" may not match "Specialization" — and it must
- * consume the period, or the selection that follows is never seen and the
- * whole style is discarded as unmatched residue.
+ * An ALIAS is a truncation the books print with a period after it, so it must
+ * not claim the head of the longer word it abbreviates, and it consumes the
+ * period, or the selection that follows is never seen.
  */
 const lenientRe = (surface, { alias = false } = {}) =>
   new RegExp(
@@ -204,9 +196,7 @@ export function tokenizeProfs(cellText, menu) {
       continue;
     }
     rest = rest.slice(hit.len).trim();
-    // The rank sits on EITHER side of the selection: the spreads print
-    // a rank after the parenthesis and a rank after a bare name alike (RR p. 82), so a reader that only
-    // looked before the parenthesis brought every selected entry in at rank 1.
+    // The rank sits on either side of the selection (RR p. 82).
     const takeRank = () => {
       const m = /^(\d)\b/.exec(rest);
       if (!m) return null;
@@ -230,9 +220,7 @@ export function tokenizeProfs(cellText, menu) {
 /**
  * Every way this catalogue prints ONE name: head-first with its qualifier
  * after a comma rotated back to the cell's English order, and slash
- * alternatives expanded to one row per word. The HEAD alone is deliberately
- * not a form, or a qualified row would answer for a bare name that is
- * another row's own. See docs/importer/DECISIONS.md, "The catalogue's
+ * alternatives expanded to one row per word. The head alone is not a form. See docs/importer/DECISIONS.md, "The catalogue's
  * conventions are rules; what is left is authored".
  */
 export function nameForms(name) {
@@ -383,11 +371,11 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     .map(([k, v]) => ({ text: k, fold: fold(k), ref: typeof v === "string" ? v : (v?.ref ?? "") }))
     .filter((a) => a.fold && a.ref)
     .sort((a, b) => b.fold.length - a.fold.length);
-  // A contained name resolves a descriptor's printed wording ("smooth-worn
-  // staff") to a catalogue item. Six characters is the bare-containment floor;
-  // shorter names must match a whole word (trailing plural included). ACKS
-  // Extras applies the same floors to world documents (`bestBaseMatch` in
-  // classes/template-packages.mjs) and the two must agree.
+  // A contained name resolves a descriptor's printed wording to a catalogue
+  // item. LOOSE_FLOOR is the bare-containment floor; shorter names must match a
+  // whole word (trailing plural included). `bestBaseMatch` in
+  // classes/template-packages.mjs applies the same floors to world documents
+  // and the two must agree.
   // See docs/importer/DECISIONS.md, "A template's equipment menu is BOTH pipelines, and a short name is a whole word".
   const LOOSE_FLOOR = 6;
   const WORD_FLOOR = 4;
@@ -435,14 +423,10 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   };
 
   /**
-   * Is this descriptor, WHOLE, one item the menu already knows?
-   *
-   * A different question from `resolve`, and it has to be asked differently.
-   * The pair rule below splits "X and Y" only when the whole thing is not
-   * already a known item. `resolve`'s containment fallback is too generous
-   * for this question, so this matches the whole descriptor and nothing
-   * less: an exact menu name (with or without its bracketed qualifier) or an
-   * exact alias key.
+   * Is this descriptor, WHOLE, one item the menu already knows? The pair rule
+   * below splits "X and Y" only when it is not. Unlike `resolve`, no
+   * containment fallback: an exact menu name (with or without its bracketed
+   * qualifier) or an exact alias key.
    */
   const resolveWhole = (descriptor) => {
     const f = fold(descriptor);
@@ -451,12 +435,10 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   };
   const items = [];
   const push = (descriptor, note = "") => {
-    // Nothing but connective tissue is not a thing — taking the coin out of a
-    // clause can strand a bare remainder with no gear word in it.
+    // Taking the coin out of a clause can strand a remainder of connective words.
     if (!descriptor || descriptor.split(/\s+/).every((w) => FUNCTION_WORD.has(w.toLowerCase().replace(/[^a-z]/g, "")))) return;
     const qty = parseInt(/^(\d+)\s/.exec(descriptor)?.[1] ?? "1", 10);
-    // A bracketed amount prices the item in front of the reader and overrides
-    // a base's price when there is one.
+    // A bracketed amount prices the item and overrides a base's price.
     // See docs/importer/DECISIONS.md, "What the page says a thing is worth is imported with it".
     const priced = /\((\d[\d,]*)\s*gp[^)]*\)/i.exec(descriptor);
     const cost = priced ? parseInt(priced[1].replace(/,/g, ""), 10) : null;
@@ -469,28 +451,23 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       ...(Number.isFinite(cost) && cost > 0 ? { cost } : {}),
     });
   };
-  // Semicolons separate too, alongside commas; one inside brackets is left
-  // alone for the same reason a comma is.
   /* --- chunking, and the two clauses that span chunks --------------------- */
   //
-  // The separators split a cell into chunks; two printed constructions are
-  // written ACROSS them and are rejoined below before anything is read.
-  // A full stop can be a separator too — only one followed by the start of
-  // another descriptor, and never inside brackets, where the abbreviations
-  // live.
+  // Commas and semicolons split a cell into chunks, never inside brackets. A
+  // full stop splits only where another descriptor starts. Two printed
+  // constructions are written ACROSS chunks and are rejoined below before
+  // anything is read.
   // See docs/importer/DECISIONS.md, "Two things read off a cell that were never in it".
   const chunks = text
     .split(/[,;](?![^(]*\))|\.(?![^(]*\))(?=\s+[a-z0-9])/i)
-    // Trim before stripping a leading connective — every chunk after the
-    // first begins with the separator's space, which a pre-trim strip would
-    // miss.
+    // Trim before stripping a leading connective: a chunk after the first
+    // begins with the separator's space.
     .map((raw) => raw.replace(/\s+/g, " ").trim().replace(/[.]$/, "").trim())
     .filter(Boolean);
 
-  // A book's contents are an English list: commas until the last item, which
-  // carries the "and". Rejoined from the "…book with" chunk up to and
-  // including the chunk that opens with "and", only if the list actually
-  // closes that way within a few chunks.
+  // A book's contents are an English list closed by an "and" item. Rejoined
+  // from the "…book with" chunk through the chunk opening with "and", only if
+  // the list closes that way within a few chunks.
   // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
   const BOOK_WITH = /\b(?:spell\s*book|spellbook|prayer\s*book|book)\s+with\b/i;
   const LIST_TAIL = /^and\s+/i;
@@ -501,8 +478,8 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       let end = -1;
       for (let j = i + 1; j <= Math.min(i + LIST_REACH, chunks.length - 1); j++) {
         if (LIST_TAIL.test(chunks[j])) { end = j; break; }
-        // A chunk the menu already knows is gear, not another spell title —
-        // the list ended at the comma before it and never carried an "and".
+        // A chunk the menu knows is gear, not another spell title: the list
+        // ended before it.
         if (resolve(chunks[j])) break;
       }
       if (end > i) {
@@ -511,9 +488,8 @@ export function parseEquipment(cellText, menu, aliases = {}) {
         continue;
       }
     }
-    // A stray comma inside one printed name: rejoining is allowed only when
-    // the menu knows the two chunks together as one item, so an ordinary list
-    // is never welded.
+    // A stray comma inside one printed name rejoins only when the menu knows
+    // the two chunks together as one item.
     const prev = joined[joined.length - 1];
     if (prev && LIST_TAIL.test(chunks[i]) && resolveWhole(`${prev} ${chunks[i]}`)) {
       joined[joined.length - 1] = `${prev} ${chunks[i]}`;
@@ -525,9 +501,9 @@ export function parseEquipment(cellText, menu, aliases = {}) {
   for (const chunk of joined) {
     const descriptor = chunk.replace(/^and\s+/i, "").trim();
     if (!descriptor) continue;
-    // A counted container splits into itself and its contents; only a digit
-    // after "with" splits, and never when the menu already resolves the
-    // whole descriptor as a catalogue set.
+    // A counted container splits into itself and its contents: only a digit
+    // after "with", and never when the menu resolves the whole descriptor as a
+    // catalogue set.
     // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
     const container = /^(.+?)\s+with\s+(\d+)\s+(.+)$/i.exec(descriptor);
     if (container && !resolve(descriptor)) {
@@ -535,9 +511,8 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       push(`${container[2]} ${container[3]}`, `carried in ${container[1].toLowerCase()}`);
       continue;
     }
-    // A closing bracket can end a descriptor with no comma after it; the same
-    // guard as the pair rule below, splitting only when what follows the
-    // bracket is itself a known item.
+    // A closing bracket can end a descriptor with no comma after it; splits
+    // only when what follows is itself a known item, as the pair rule below.
     // See docs/importer/DECISIONS.md, "Two things read off a cell that were never in it".
     const bracketed = /^(.*\))\s+(\S.*)$/.exec(descriptor);
     if (bracketed && resolve(bracketed[1]) && resolve(bracketed[2])) {
@@ -545,13 +520,10 @@ export function parseEquipment(cellText, menu, aliases = {}) {
       push(bracketed[2]);
       continue;
     }
-    // A pair splits only when BOTH halves resolve to known equipment —
-    // two weapons joined by "and" are two items, while a garment pair priced
-    // as one outfit (RR pp. 25, 27, 33, 35; JJ p. 449) is a known item WHOLE and stays whole. The
-    // whole-descriptor test is `resolveWhole`, never `resolve`: see there.
-    //
-    // "Under" pairs the same way — the templates dress a character in both at
-    // once.
+    // A pair splits only when BOTH halves resolve to known equipment; a pair
+    // priced as one outfit (RR pp. 25, 27, 33, 35; JJ p. 449) is a known item
+    // WHOLE and stays whole, tested by `resolveWhole`, never `resolve`.
+    // "Under" pairs the same way.
     // See docs/importer/DECISIONS.md, "The catalogue's conventions are rules; what is left is authored".
     const pair = /^(.+?)\s+(?:and|under)\s+(.+)$/i.exec(descriptor);
     if (pair && !resolveWhole(descriptor) && resolve(pair[1]) && resolve(pair[2])) {
@@ -602,9 +574,8 @@ export function liftBookSpells(items, { known = null } = {}) {
         spells.push({ uuid: "", name });
         continue;
       }
-      // The key is what makes the pick the SAME pick across a re-import and a
-      // re-materialize, where the row's position is not stable. Built from the
-      // book it came out of and which offer on that book it is.
+      // The key (the book, and which offer on it) keeps the pick the same pick
+      // across a re-import and a re-materialize, where position is not stable.
       offered += 1;
       spells.push({
         uuid: "",
@@ -675,11 +646,9 @@ export function classGainsFor(gainsNode, className) {
 
 /**
  * The same `{l4: "C", l5: "G", …}` cell shape parsed from a spread's own
- * "Proficiency Progression" prose. The RR grid names only RR's classes;
- * another book's class states its schedule in sentences — "select one class
- * proficiency … at 4th and 8th level" — so the levels come out of the
- * reader's text. Extraction joins can drop or add spaces around digits,
- * hence the loose \s* seams.
+ * "Proficiency Progression" prose: the RR grid names only RR's classes, while
+ * another book's class states its schedule in sentences. Seams are loose `\s*`
+ * because extraction joins can drop or add spaces around digits.
  */
 export function proseGainSchedule(body) {
   const text = String(body ?? "");
@@ -689,20 +658,18 @@ export function proseGainSchedule(body) {
     const key = `l${lvl}`;
     if (!String(cells[key] ?? "").includes(tag)) cells[key] = cells[key] ? `${cells[key]}+${tag}` : tag;
   };
-  // Anchored to the SELECT sentence — plain "at 1st level" also opens damage-
-  // ladder sentences ("+1 at 1st level, and an additional +1 at 3rd…").
-  // A spread may instead state the starting picks as what the class "starts
-  // with", beside the one it is given outright.
+  // Anchored to the SELECT sentence: a plain first-level phrase also opens
+  // damage-ladder sentences. A spread may instead state the starting picks as
+  // what the class "starts with".
   const start =
     /at\s*1\s*st\s*level\s*,?[^.]{0,40}?select\s*one[^.]{0,240}/i.exec(text)?.[0] ??
     /starts\s*with[^.]{0,60}?\bone\s*(?:general|class)\s*proficienc[^.]{0,80}/i.exec(text)?.[0] ??
     "";
   if (/one\s*class\s*proficienc/i.test(start)) add(1, "C");
   if (/one\s*general\s*proficienc/i.test(start)) add(1, "G");
-  // The level list runs to four entries on the longer classes ("at 3rd, 6th,
-  // 9th, and 12th level") — capture the whole span, then read every number.
-  // The gain is "an additional" one or plainly "a" one; "one" stays the
-  // starting sentence's word and is never read here.
+  // The level list can run to several entries: capture the whole span, then
+  // read every number. The gain is "an additional" one or plainly "a" one;
+  // "one" is the starting sentence's word and is never read here.
   const later = /(?:additional|\ban?)\s*(class|general)\s*proficienc\w*\s*at\s*((?:\d+\s*(?:st|nd|rd|th)\s*(?:,|and|\s)*)+)level/gi;
   for (const m of text.matchAll(later)) {
     const tag = m[1].toLowerCase() === "class" ? "C" : "G";
@@ -822,17 +789,15 @@ export function proseDamageLadder(body, spec) {
 const DASHES = new Set(["-", "\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2015", "\u2212"]);
 
 /**
- * A grid keyed on a NAME rather than on a level, as one LADDER per row \u2014
- * each row's cells sorted by the header's level scale into `{atLevel, value}`
- * or `{atLevel, outcome, text}` rungs.
- *
- * The cell rule is structural and holds no printed letter: a numeric cell is
- * a target, a dash is a rung the character cannot act on, anything else
- * non-empty is a rung reached without a throw.
- * See docs/importer/DECISIONS.md, "A grid may be keyed on a name, and its cells need not be numbers".
+ * A grid keyed on a NAME rather than on a level, as one LADDER per row: each
+ * row's cells sorted by the header's level scale into `{atLevel, value}` or
+ * `{atLevel, outcome, text}` rungs. A numeric cell is a target, a dash is a
+ * rung the character cannot act on, anything else non-empty is a rung reached
+ * without a throw.
  *
  * The one derivation of these keys, so an ability naming a ladder and the
- * class publishing it cannot disagree about what it is called.
+ * class publishing it cannot disagree about what it is called. See
+ * docs/importer/DECISIONS.md, "A grid may be keyed on a name, and its cells need not be numbers (2026-08-30)".
  */
 export function gridLadders(grid, prefix) {
   const scale = new Map();
@@ -843,8 +808,7 @@ export function gridLadders(grid, prefix) {
   if (!scale.size) return [];
   const out = [];
   for (const row of grid?.rows ?? []) {
-    // The label may carry a footnote marker; the marker is about the row, not
-    // part of its name.
+    // A footnote marker on the label is not part of the row's name.
     const name = String(row.label ?? "").replace(/[*\u2020\u2021\s]+$/, "").trim();
     if (!name) continue;
     const values = [];
@@ -869,12 +833,11 @@ export function gridLadders(grid, prefix) {
 
 /**
  * The ladders a `fromLadders` spec expands over, read from the class entry
- * that publishes them. Resolved from the cookbook rather than a world
- * document, so it does not matter whether the class has been imported yet.
+ * that publishes them. Resolved from the cookbook, not a world document, so
+ * the class need not be imported yet.
  *
  * @returns {Promise<Array<{key: string, label: string}>>} empty when the class
- *   entry, its book, or the grid is unreachable \u2014 a missing table drops the
- *   throws rather than inventing any.
+ *   entry, its book, or the grid is unreachable
  */
 export async function laddersForEntry(entry, { pageCache = null } = {}) {
   const specs = (entry?.fields?.rolls?.specs ?? []).filter((sp) => sp?.fromLadders);
@@ -897,9 +860,8 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
 
 /**
  * Bind one executed class entry to `acks-extras.class` item data. Everything
- * numeric or listed comes from `node` (the reader's own book). An import
- * never calls this with a null node (`readForImport` passes the entry over);
- * a stub already in a world is what the constructor sheet explains.
+ * numeric or listed comes from `node`, the reader's own book; an import never
+ * calls this with a null node (`readForImport` passes the entry over).
  * `opts.gains` is this class's Proficiencies-Gained-per-Level row — each C
  * becomes a class-proficiency ChoiceSpec award, each G a general one.
  * `opts.gear` is the grid-materialized half of the equipment menu (see
@@ -922,7 +884,7 @@ export function bindClass(
   const body = bodyParts.join(" ");
 
   /* Fixed column vocabulary; anything else a progression table carries is a
-   * named LADDER (AC bonus, backstab dice, the assassin/bard skill columns). */
+   * named LADDER. */
   const FIXED_COLS = new Set(["xp", "title", "hd", "band", "attackBand", "paralysis", "death", "blast", "implements", "spells", "attackThrow", "s1", "s2", "s3", "s4", "s5", "s6"]);
 
   const levels = [];
@@ -938,8 +900,8 @@ export function bindClass(
       hd: String(row.cells.hd ?? "").replace(/\*/g, "").trim(),
     });
     // Slot columns: s1..s6 (single tradition) or a1..a6 / d1..d6 (a
-    // two-tradition class's arcane and divine groups). Anything else non-fixed is a
-    // named ladder.
+    // two-tradition class's arcane and divine groups); any other non-fixed
+    // column is a named ladder.
     const perPrefix = { s: {}, a: {}, d: {} };
     const any = { s: false, a: false, d: false };
     for (const [key, cell] of Object.entries(row.cells)) {
@@ -961,8 +923,8 @@ export function bindClass(
       if (any[p]) (slotRowsBy[p] ??= []).push({ atLevel: level, ...perPrefix[p] });
     }
   }
-  // A standalone skill-progression table (the nightblade's) contributes its
-  // columns as ladders keyed by column.
+  // A standalone skill-progression table contributes its columns as ladders
+  // keyed by column.
   for (const row of f.skillTable?.rows ?? []) {
     const level = intFrom(row.label);
     if (level == null) continue;
@@ -999,15 +961,13 @@ export function bindClass(
     if (damage) ladders.push(damage);
   }
 
-  // A grid keyed on a NAME rather than on a level (the crusader's rebuking
-  // table) — see `gridLadders`.
+  // A grid keyed on a name rather than a level — see `gridLadders`.
   ladders.push(...gridLadders(f.rebuking, "rebuke"));
 
-  // One combined attack-and-saves table, or the split pair the priestess and
-  // witch print (crusader saves beside mage attacks) — read whichever exists.
-  // A table may also print the attack sub-table with its OWN level column
-  // (`attackBand`, the BTA gnostic classes): the attack rows band by it, and
-  // where it is dashed out the save band still stands on its own.
+  // One combined attack-and-saves table, or a split pair — read whichever
+  // exists. A table may print the attack sub-table with its OWN level column
+  // (`attackBand`): the attack rows band by it, and where it is dashed out the
+  // save band still stands on its own.
   const saves = [];
   const attack = [];
   for (const tableKey of ["attackSaves", "savesTable", "attackTable"]) {
@@ -1053,8 +1013,8 @@ export function bindClass(
     };
   });
 
-  // RR joins key attributes with "and"; BTA's plural form lists them with
-  // commas ("Prime Requisites: INT, WIS") — split on either.
+  // RR joins key attributes with "and"; other books list them with commas —
+  // split on either.
   const keyAttributes = stripBullet(f.keyAttribute)
     .split(/\s*,\s*|\s+and\s+/i)
     .map((a) => ATTR_KEY[a.trim().toUpperCase()])
@@ -1068,17 +1028,16 @@ export function bindClass(
     }
   }
 
-  // Every printed surface, resolved once and read by BOTH the class list here
-  // and the template cells below — one decision, so the two cannot disagree
-  // about what a printed name means.
+  // Every printed surface, resolved once and read by both the class list here
+  // and the template cells below, so the two cannot disagree.
   const surfaces = abilitySurfaceIndex();
 
   // The printed class list, token-matched against every content cookbook;
   // what fails to match is KEPT, visibly, on unresolvedProfs.
   const classProfs = [];
   const unresolvedProfs = [];
-  // BTA's capture can fuse the label ("ProficiencyList:"), so the strip
-  // tolerates missing inter-word space.
+  // A capture can fuse the label ("ProficiencyList:"), so the strip tolerates
+  // missing inter-word space.
   const listText = String(f.profList ?? "").replace(/^.*?Proficiency\s*List:\s*/i, "");
   for (const name of splitList(listText)) {
     const bare = name.replace(/\([^)]*\)/g, "");
@@ -1095,8 +1054,7 @@ export function bindClass(
       const m = new RegExp(a.from.pattern).exec(body);
       if (m?.[1] != null) atLevel = parseInt(m[1], 10);
     }
-    // A chef CHOICE award: a pick among named refs (the warlock's dark path,
-    // the witch's tradition, the earthforger's sigil) — the chooser offers
+    // A chef CHOICE award: a pick among named refs — the chooser offers
     // exactly the listed options and grants the one taken.
     if (a.choice?.refs?.length) {
       return {
@@ -1114,8 +1072,8 @@ export function bindClass(
         note: atLevel == null ? "level unresolved" : (a.note ?? ""),
       };
     }
-    // A pattern that finds nothing parks the award at level 0 — visible and
-    // never auto-granted — rather than silently landing at 1st.
+    // A pattern that finds nothing parks the award at level 0: visible, never
+    // auto-granted.
     return {
       atLevel: atLevel ?? 0,
       kind: "fixed",
@@ -1157,18 +1115,16 @@ export function bindClass(
   // Bookless (no body), both stay empty.
   // See docs/importer/DECISIONS.md, "2026-08-16 — who speaks which: read off the spread, defaulted off the chapter".
   const tongues = body ? parseTongues(body) : null;
-  // Multilingual / Linguistics: picks the reader fills from their own campaign,
-  // which ride on top of whichever list the class starts from.
+  // Bonus-language picks the reader fills from their own campaign ride on top
+  // of whichever list the class starts from.
   const bonus = body ? parseBonusLanguages(body) : 0;
   const languages = tongues
     ? { granted: tongues.granted, count: bonus }
     : { granted: body && commonName ? [commonName] : [], count: (body ? 1 : 0) + bonus };
-  // The race this class is an expression of. DECLARED in the register where
-  // the spread's own runin cannot be trusted to say it — the Spellsword's page
-  // interleaves its proficiency list through the sentence — and the class is
-  // an elf class whether or not its page parses. The declaration classifies;
-  // the LIST still comes from the reader's book, inherited from a sibling of
-  // the same race whose page reads cleanly (see `inheritRaceTongues`).
+  // The race this class is an expression of. Declared in the register where the
+  // spread's own runin cannot be trusted to say it; the declaration classifies,
+  // and the list still comes from the reader's book, inherited from a sibling
+  // of the same race whose page reads cleanly (see `inheritRaceTongues`).
   const raceKey = entry.meta?.race ?? (tongues ? tongues.race.toLowerCase() : null);
 
   let cleaves = {};
@@ -1185,17 +1141,15 @@ export function bindClass(
   // class because the spreads do not all print it under the same one.
   const training = entry.training?.runin ? readTraining(bodyParts, entry.training.runin) : null;
 
-  // The eight printed starting templates: proficiency cells tokenized against
-  // every known ability name, equipment cells split into skinned descriptors.
+  // The printed starting templates: proficiency cells tokenized against every
+  // known ability name, equipment cells split into skinned descriptors.
   const tplMenu = surfaces.menu;
   const eqMenu = equipmentMenu(gear);
   const templates = (f.templates?.rows ?? []).map((row) => {
     const band = row.cells.band ?? {};
     const rawName = capFirst(String(row.cells.template ?? "").replace(/\s+/g, " ").trim());
     const ann = /^(.*?)\s*\(([^)]+)\)$/.exec(rawName);
-    // Book-wide equivalences first, this class's own wording over the top: an
-    // exception authored for one spread must be able to override the general
-    // one, and most of them recur across every class in the book.
+    // Book-wide equivalences first, this class's own wording over the top.
     const eq = parseEquipment(row.cells.equipment, eqMenu, {
       ...(data.registers?.tables?.equipmentPhrase ?? {}),
       ...(entry.equipAliases ?? {}),
@@ -1239,11 +1193,10 @@ export function bindClass(
       attackChassis: entry.meta?.chassis?.attack ?? "",
       factored: !!entry.meta?.factored,
       core: !!entry.meta?.core,
-      // How much Intellect bonus this class's printed TEMPLATES already spend.
-      // The studious spellcasters' packages are built assuming one, so chargen
-      // must not offer it a second time — and must withhold what the character
-      // cannot hold when their Intellect is lower. A structural fact about how
-      // the spread is arranged, like `factored` beside it.
+      // How much Intellect bonus this class's printed templates already spend,
+      // so chargen does not offer it a second time and withholds what a lower
+      // Intellect cannot hold. A structural fact about the spread, like
+      // `factored` beside it.
       templatesAssumeIntBonus: Number(entry.meta?.templatesAssumeIntBonus) || 0,
       saves,
       attack,
@@ -1259,8 +1212,7 @@ export function bindClass(
       languages,
       templates,
       // The class's mutually exclusive options: its printed variant table where
-      // the spread prints one, and its starting templates, which are a group of
-      // the same kind rather than a parallel mechanism.
+      // the spread prints one, and its starting templates.
       paths: buildPaths(f.training?.rows, entry.class?.tables?.training?.labelHeader ?? "", templates.length > 0),
     },
     ...(training ? { effects: [trainingEffect(entry, training)] } : {}),
@@ -1436,16 +1388,16 @@ export function readTraining(bodyParts, runin) {
 
 /**
  * What a class is TRAINED to fight with, read off its own spread's run-in
- * paragraph (weapons, then armour, then fighting styles, in that fixed
- * order; the run-in label is declared per class in the register).
+ * paragraph (weapons, armour, fighting styles, in that fixed order; the run-in
+ * label is declared per class in the register).
  *
- * Weapons: an unqualified "all" clause is unrestricted, a size clause is a set of size
- * grants, an "all" clause over the missile group is the missile grant (RR p. 15; JJ p. 290), otherwise a named
- * list — a parenthesized enumeration after a group name overrides the group.
- * An "except" clause returns no weapon grant at all. Armour: the heaviest
- * rung named (a denial is the bottom rung). Styles: the positive clause
- * only, with the exclusion clause cut before reading; the two mandatory
- * styles are not emitted, since the consumer already holds them.
+ * Weapons: an unqualified "all" clause is unrestricted, a size clause is a set
+ * of size grants, an "all" clause over the missile group is the missile grant
+ * (RR p. 15; JJ p. 290), otherwise a named list, where a parenthesized
+ * enumeration after a group name overrides the group. An "except" clause
+ * returns no weapon grant. Armour: the heaviest rung named (a denial is the
+ * bottom rung). Styles: the positive clause only; the two mandatory styles
+ * are not emitted, since the consumer holds them.
  * See docs/importer/DECISIONS.md, "A class's training paragraph is read by three grammars, one per domain".
  *
  * @param {string} body the spread's raw body text, in reading order
@@ -1457,26 +1409,21 @@ export function parseCombatTraining(body, runin) {
   const label = String(runin ?? "").trim();
   if (!text || !label) return null;
   // Extraction joins lines by concatenation, so a space the page shows is
-  // routinely absent from the text — "fighting styleproficiency",
-  // "armorproficiencywithlightandverylight". EVERY seam below is therefore
-  // optional rather than required; a parser written against the spacing the
-  // page displays reads almost nothing off the file it is actually given.
+  // routinely absent from the text: every seam below is optional.
   const loose = (s) => s.replace(/ /g, "\\s*");
   const at = text.search(new RegExp(loose(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "i"));
   if (at < 0) return null;
   const after = text.slice(at).replace(new RegExp(`^${loose(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))}`, "i"), "");
-  // To the next run-in label — a capitalised phrase closing on a colon, which
-  // the same joins can leave welded to the previous sentence ("…styles).Combat
-  // Progression:"), so no separating space is required of it either.
+  // To the next run-in label, a capitalised phrase closing on a colon, which
+  // the same joins can leave welded to the previous sentence.
   const para = after.slice(0, /(?:^|[.)\s])[A-Z][a-z]+(?:\s*[A-Za-z]+){0,3}:/.exec(after)?.index ?? 900);
 
-  // None of these paragraphs prints a number, so a digit means a level
-  // table's cells are folded through the sentence and no part of it can be
-  // trusted.
+  // None of these paragraphs prints a number, so a digit means a table's cells
+  // are folded through the sentence and none of it can be trusted.
   if (/\d/.test(para)) return null;
 
-  // Segment by the three phrases themselves: the shortest spreads state all
-  // three in ONE sentence, so sentence boundaries do not divide them.
+  // Segment by the three phrases themselves: a short spread states all three
+  // in one sentence, so sentence boundaries do not divide them.
   const marks = [
     ["weapons", /weapon\s*proficiency/i],
     ["armour", /(?:armor|armour)\s*proficiency|proficiency\s*with\s*(?:armor|armour)/i],
@@ -1488,17 +1435,13 @@ export function parseCombatTraining(body, runin) {
   if (!marks.length) return parseTrainingProse(para);
   const seg = {};
   marks.forEach((m, i) => {
-    // A segment ends at its own sentence, not at the next phrase: the shortest
-    // spreads run all three through one sentence (so the next phrase arrives
-    // first), and the longest give each its own (so the sentence does). Taking
-    // whichever comes first is what stops "…and staffs." from reading on into
-    // "They have no armour…" and turning the next clause into a weapon name.
+    // A segment ends at whichever comes first, the next phrase (a short spread
+    // runs all three through one sentence) or its own sentence's end, so a
+    // following sentence never reads on into a weapon name.
     const upto = i + 1 < marks.length ? marks[i + 1].at : para.length;
     const slice = para.slice(m.at, upto);
-    // A sentence ends at a full stop that STARTS another one. The styles are
-    // spelled out in an "(i.e. …)" aside on the shortest spreads, and treating
-    // its stop as the end of the sentence cuts the list off before it begins.
-    // The space after the stop is optional for the same reason as every other.
+    // A sentence ends at a full stop that starts another one: the stop inside an
+    // "(i.e. …)" aside is not an end. The space after the stop is optional.
     seg[m.key] = slice.slice(0, /\.\s*[A-Z]|\.$/.exec(slice)?.index ?? slice.length);
   });
 
@@ -1506,16 +1449,14 @@ export function parseCombatTraining(body, runin) {
   const weapons = [];
   const wSeg = seg.weapons ?? "";
   if (/\bexcept\b/i.test(wSeg)) {
-    // Stated as a subtraction — see the header. Nothing is granted.
+    // Stated as a subtraction: nothing is granted.
   } else if (/all\s*weapons/i.test(wSeg)) {
-    // No word boundary in front: a table footnote can land welded to the
-    // phrase ("proficiency with*no adjustment fromall weapons") and the
-    // sentence still says what it says.
+    // No word boundary in front: a table footnote can land welded to the phrase.
     weapons.push("all");
   } else {
     // The group phrasings are consumed as they are recognised, so whatever
-    // remains is a plain list of names. Leaving them in would read the sizes
-    // a second time, as weapons called "tiny" and "small".
+    // remains is a plain list of names and a size is never read a second time
+    // as a weapon.
     let rest = wSeg;
     const eat = (re, take) => {
       const m = re.exec(rest);
@@ -1542,11 +1483,9 @@ export function parseCombatTraining(body, runin) {
   /* --- armour ----------------------------------------------------------- */
   let armour = "";
   const aSeg = seg.armour ?? "";
-  // The sentence names every rung it includes, so the answer is the HEAVIEST
-  // named — a sentence naming both the light and very light rungs (RR p. 26;
-  // JJ p. 290) is a light class, not a very light one.
-  // "very light" is removed before looking for "light" so the qualifier cannot
-  // be read as the bare rung it contains.
+  // The sentence names every rung it includes, so the answer is the heaviest
+  // named (RR p. 26; JJ p. 290). "very light" is removed before looking for
+  // "light" so the qualifier is not read as the bare rung it contains.
   const aBare = aSeg.replace(/very\s*light/gi, " ");
   const RUNGS = [
     [/heavy/i, aBare, "heavy"],
@@ -1573,15 +1512,14 @@ export function parseCombatTraining(body, runin) {
 }
 
 /**
- * The second grammar: a spread that states its training in sentences
- * (a fight-with or wield lead-in verb; RR p. 15, JJ pp. 316, 329, MM p. 95) rather than in the RR formula the
- * segmenter above keys on.
+ * The second grammar: a spread that states its training in sentences (a
+ * fight-with or wield lead-in verb; RR p. 15, JJ pp. 316, 329, MM p. 95)
+ * rather than in the RR formula the segmenter above keys on.
  *
- * Both books' readers converge on the one grant vocabulary the consumer
- * already publishes (`classifyGrantToken`): `all`, `missile:all`,
- * `melee:<size>`, a weapon-category, or a weapon name. Exclusions are
- * dropped, never inverted — a denied clause grants nothing rather than the
- * thing denied, the same rule the formula reader follows.
+ * Both grammars converge on the grant vocabulary the consumer publishes
+ * (`classifyGrantToken`): `all`, `missile:all`, `melee:<size>`, a
+ * weapon-category, or a weapon name. Exclusions are dropped, never inverted:
+ * a denied clause grants nothing.
  * See docs/importer/DECISIONS.md, "A class's training paragraph is read by three grammars, one per domain".
  */
 export function parseTrainingProse(para) {
@@ -1593,14 +1531,13 @@ export function parseTrainingProse(para) {
 
   /* --- weapons: the fight-with lead-in ------------------------------------ */
   const weapons = [];
-  // "can only fight with" is the same sentence; and extraction welds, so the
-  // seams are `\s*` and the word boundary before a welded noun ("weararmor")
-  // cannot be required of any of them.
+  // "can only fight with" is the same sentence; extraction welds, so the seams
+  // are `\s*` and no word boundary is required before a welded noun.
   const wRaw = /can\s*(?:only\s*)?fight\s*with([^.]*)/i.exec(text)?.[1] ?? "";
   const wSeg = positive(wRaw);
   if (wSeg) {
-    // A "broad selection … including X, Y" names the group and then enumerates
-    // it; the ENUMERATION is what is read, exactly as the formula reader does.
+    // A group named and then enumerated ("including …"): the enumeration is
+    // what is read, as the formula reader does.
     const list = /\bincluding\b([^.]*)/i.exec(wSeg)?.[1] ?? wSeg;
     for (const raw of list.split(/,| and | or /i)) {
       const part = raw.trim();
@@ -1688,17 +1625,16 @@ export function readTrainingCells(cells = {}) {
 
 /**
  * The PATH GROUPS a class offers: its printed variant table where it has one,
- * and its starting templates, which are a group like any other.
+ * and its starting templates.
  *
- * The class model owns the shape (`system.paths`, DECISIONS 2026-08-22); this side
- * fills it from the reader's own page. A templates group carries NO options —
- * its `source` points at `system.templates`, which stays exactly where it is.
+ * The class model owns the shape (`system.paths`); this side fills it from the
+ * reader's own page. A templates group carries no options: its `source` points
+ * at `system.templates`. See docs/classes/DECISIONS.md, "2026-08-22 — a class's mutually exclusive options are PATHS, and a starting template is one".
  */
 export function buildPaths(trainingRows, labelHeader, hasTemplates) {
   const paths = [];
   const rows = (trainingRows ?? []).filter((r) => {
-    // The grid's own header line arrives as a row; it names the columns rather
-    // than a variant, and every cell it holds is a column title.
+    // The grid's own header line arrives as a row of column titles, not a variant.
     const key = slug(r.label);
     return key && key !== slug(labelHeader || "") && !/proficiencies/i.test(String(r.cells?.weapons ?? "").slice(0, 24));
   });
@@ -1749,9 +1685,9 @@ function singularWeapon(raw) {
 /**
  * The tongues a class's spread prints, parsed from its Racial Traits runin
  * (`<Race> Tongues:`), sometimes in two clauses ("can speak … and can also
- * speak …") — both are read. List items keep the book's own capitalization,
- * drop the article and the trailing "tongues"/"languages"; anything not
- * shaped like a proper name is discarded rather than granted.
+ * speak …"), both read. List items keep the book's own capitalization and drop
+ * the article and the trailing "tongues"/"languages"; anything not shaped like
+ * a proper name is discarded.
  *
  * A spread with no Tongues runin (every human class) returns null, which
  * routes the class to the human default.
@@ -1761,17 +1697,13 @@ function singularWeapon(raw) {
  */
 export function parseTongues(body) {
   const text = String(body ?? "");
-  // Every \s is \s* here, not \s+: raw body extraction drops inter-run spaces
-  // (the cleave pattern folds them for the same reason), so the runin arrives
-  // as "ElfTongues:" as often as "Elf Tongues:" and a required space misses
-  // the trait entirely.
-  // One word: the label's subject is the race ("Dwarf", "Elf"),
-  // and reaching further back swallows the section heading when the space
-  // between them is one of the dropped ones.
+  // Every \s is \s*: raw body extraction drops inter-run spaces, so the runin
+  // arrives welded as often as spaced. One word only: the label's subject is
+  // the race, and reaching further back swallows the section heading when the
+  // space between them is a dropped one.
   const runin = /([A-Z][a-z]+)\s*Tongues\s*:/.exec(text);
   if (!runin) return null;
-  // The runin's own span: up to the next runin label or a bounded window —
-  // the speak-clause scan below only reads inside it.
+  // The runin's own span: up to the next runin label or a bounded window.
   const rest = text.slice(runin.index + runin[0].length);
   const next = /\s[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*:/.exec(rest);
   const window = rest.slice(0, Math.min(next?.index ?? 600, 600));
@@ -1784,14 +1716,14 @@ export function parseTongues(body) {
   for (const clause of window.matchAll(/can\s*(?:also\s*)?speak\s*([^.]{0,80}?)(?=\s*(?:tongues|languages)\b|\.|$)/g)) {
     for (const piece of clause[1].replace(/^the\s*/i, "").split(/,|\band\b/)) {
       // Strip the glued terminator, then re-open a space the extraction
-      // dropped inside a name ("AncientElven") — book names carry no
-      // internal capitals, so a case boundary is a lost space.
+      // dropped inside a name: book names carry no internal capitals, so a
+      // case boundary is a lost space.
       const name = piece
         .trim()
         .replace(/(tongues|languages)$/i, "")
         .trim()
         .replace(/([a-z])([A-Z])/g, "$1 $2");
-      // A tongue is a proper name; a lowercase "(as the spell)" clause is not (RR p. 79; JJ pp. 145, 312, 325).
+      // A tongue is a proper name; a lowercase parenthetical clause is not (RR p. 79; JJ pp. 145, 312, 325).
       if (/^[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*$/.test(name) && !granted.includes(name)) granted.push(name);
     }
   }
@@ -1806,10 +1738,8 @@ const NUMBER_WORD = Object.freeze({
 
 /**
  * How many EXTRA languages of the reader's own choosing a spread grants,
- * beyond any it names — a Multilingual or Linguistics class power. These are
- * open picks, never names, so they land in `languages.count`.
- *
- * Takes the largest grant found rather than the sum.
+ * beyond any it names. These are open picks, never names, so they land in
+ * `languages.count`. Takes the largest grant found, not the sum.
  * See docs/importer/DECISIONS.md, "2026-08-16 — a class is its race's whether or not its page reads".
  *
  * @param {string} body the spread's raw body text
@@ -1832,13 +1762,11 @@ export function parseBonusLanguages(body) {
 
 /**
  * Lend a race's tongues to a class of that race whose own page did not
- * parse, taken from a sibling of the same race whose page did.
- *
- * Only a class that ended with no named tongues is filled, and only from a
- * sibling that has some; a class the parse already answered is left alone.
- * `borrowers` are the classes this run wrote and `lenders` every held class:
- * a borrow gives a slot back, so it is never repeated over a class a run did
- * not write.
+ * parse, taken from a sibling of the same race whose page did. Only a class
+ * with no named tongues is filled, and only from a sibling that has some.
+ * `borrowers` are the classes this run wrote and `lenders` every held class: a
+ * borrow gives a slot back, so it is never repeated over a class a run did not
+ * write.
  * See docs/importer/DECISIONS.md, "2026-08-16 — a class is its race's whether or not its page reads".
  */
 async function inheritRaceTongues(borrowers, lenders = borrowers) {
@@ -1847,24 +1775,22 @@ async function inheritRaceTongues(borrowers, lenders = borrowers) {
   for (const d of (lenders ?? []).filter(Boolean)) {
     const t = d.flags?.[MODULE_ID]?.tongues;
     const granted = d.system?.languages?.granted ?? [];
-    // Only a class that read its OWN runin may lend; a human-default list
-    // would otherwise propagate itself around the race.
+    // Only a class that read its own runin may lend; a human-default list
+    // would propagate itself around the race.
     if (t?.race && t.parsed && granted.length && !byRace.has(t.race)) byRace.set(t.race, granted);
   }
   let lent = 0;
   for (const d of docs) {
     const t = d.flags?.[MODULE_ID]?.tongues;
-    // Its OWN page answered, so nothing is borrowed. A class that fell to
-    // the human default has a declared race and no parse of its own — that
-    // is the one this exists for, and its default list is not evidence.
+    // Its own page answered, so nothing is borrowed. A class that fell to the
+    // human default has a declared race and no parse of its own: that is the
+    // one this exists for, and its default list is not evidence.
     if (!t?.race || t.parsed) continue;
     const race = t.race;
     const granted = byRace.get(race);
     if (!granted) continue;
-    // It reached here on the HUMAN default, which spends one slot on a
-    // homeland tongue a demi-human does not get — this is a class whose own
-    // page would not parse, not a human. Give that slot back, keeping only
-    // what its spread granted on top (a Multilingual power, say).
+    // The human default spends one slot on a homeland tongue a demi-human does
+    // not get. Give that slot back, keeping only what its spread granted on top.
     const bonus = Math.max(0, (Number(d.system?.languages?.count) || 0) - 1);
     await d.update({ "system.languages": { granted, count: bonus } });
     lent++;
@@ -1879,14 +1805,11 @@ async function heldImportedClasses() {
 }
 
 /**
- * Bring the race documents' tongues in step with what the class spreads
- * read, so a custom class built on a race document owes its character the
- * same tongues the race's own imported classes get. Only a race whose list
- * is still EMPTY is written — a Judge's own edit is never replaced, and a
- * race that has a list is left as it stands. Races and classes arrive in
- * either order, so `syncHeldRaceTongues` reads every held class and a race
- * that landed after its classes is filled by the next run, whatever that run
- * makes.
+ * Bring the race documents' tongues in step with what the class spreads read,
+ * so a custom class built on a race document gets the same tongues the race's
+ * imported classes do. Only a race whose list is still empty is written; a
+ * Judge's edit is never replaced. Races and classes arrive in either order,
+ * so `syncHeldRaceTongues` reads every held class.
  */
 async function syncRaceTongues(classDocs) {
   const items = await importedDocs("Item");
@@ -1918,16 +1841,13 @@ export async function syncHeldRaceTongues() {
 /**
  * GM: import every class the cookbook holds that this world does not.
  *
- * `only`, a Set of cookbook ids, narrows the pass to those entries — how the
- * entry picker rebuilds exactly what it deleted, where a whole pass would also
- * import every class the world never had. The same option narrows the other
- * five entry-driven importers.
+ * `only`, a Set of cookbook ids, narrows the pass to those entries: the entry
+ * picker rebuilds exactly what it deleted. The same option narrows the other
+ * entry-driven importers.
  */
 export async function importClasses({ only = null } = {}) {
-  // The macro that runs this is labelled "(GM)" and is executable by every
-  // seat. Without the guard a player with item-creation rights adds a second
-  // set of all 31 classes to the world just by pressing it — which is what a
-  // player browsing for a class to play does first.
+  // The macro that runs this is executable by every seat; the guard stops a
+  // player with item-creation rights importing every class by pressing it.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   if (!CONFIG.Item.dataModels?.[CLASS_ITEM_TYPE]) {
     ui.notifications?.warn(`${MODULE_ID} | the class item type is not registered in this world.`);
@@ -1975,11 +1895,11 @@ export async function importClasses({ only = null } = {}) {
 /**
  * Materialize template packages for a set of class documents: each printed
  * template row becomes a core `bundle` Item of repairable documents on the
- * class's own shelf, and the class gains a generated 3d6 RollTable linking
- * them. The classes feature owns the shape (`materializeTemplates`) — this
- * side only names the shelves and the folders on them, so a package lands
- * beside the library it was built from, filed `Class Templates / <Class>`.
- * Idempotent; a no-op for a document that carries no template rows.
+ * class's own shelf, and the class gains a generated RollTable linking them.
+ * The classes feature owns the shape (`materializeTemplates`); this side only
+ * names the shelves and the folders on them, so a package lands beside the
+ * library it was built from, filed `Class Templates / <Class>`. Idempotent; a
+ * no-op for a document that carries no template rows.
  */
 async function materializeClassTemplates(docs, { create = true } = {}) {
   const totals = { created: 0, relinked: 0, skippedEdited: 0, unresolved: 0 };
@@ -2001,9 +1921,9 @@ async function materializeClassTemplates(docs, { create = true } = {}) {
 
 /**
  * GM: build (or repair the links of) every class's template packages.
- * Document-driven — works off the class documents already in the world, so a
- * world imported long ago upgrades with NO book connected. Re-running never
- * clobbers a Judge's repair: an edited document is skipped and counted.
+ * Document-driven: works off the class documents already in the world, with no
+ * book connected. Re-running never clobbers a Judge's repair: an edited
+ * document is skipped and counted.
  */
 export async function importTemplatePackages() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
@@ -2022,16 +1942,14 @@ export async function importTemplatePackages() {
 /**
  * Re-execute and REWRITE every imported class document's generated surface
  * (name, img, the whole system object, its minted effects) through
- * `refreshImported` under `REPAIR.class`. Class documents are wholly
- * generated in this phase — a hand-tuned document keeps its edits only until
- * Update, and the confirm says so. Two things stay: a description a Judge
- * wrote in, and an effect a Judge took over (the training editor unmints what
- * it writes), which also stops the build's twin of it being added. A level's
- * experience or title the build could not read keeps what a Judge typed.
+ * `refreshImported` under `REPAIR.class`. Hand edits are replaced, and the
+ * confirm says so. Three things stay: a description a Judge wrote in, an effect
+ * a Judge took over (the training editor unmints what it writes), which also
+ * stops the build's twin of it being added, and a level's experience or title
+ * the build could not read.
  *
- * A class whose book is not open on this seat, or whose entry read nothing,
- * is left exactly as it is: this write takes the build's rows whole, and a
- * rebuild with nothing read is the entry's shape without its content.
+ * A class whose book is not open on this seat, or whose entry read nothing, is
+ * left as it is: this write takes the build's rows whole.
  *
  * @param {object} [opts]
  * @param {Set<string>|null} [opts.only] cookbook ids to consider; every class when null
@@ -2069,8 +1987,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
     }));
   if (!ok) return 0;
   // The follow-up passes below take only what this loop rewrote: lending a
-  // race's tongues gives back a slot each time it runs, so a class it passes
-  // over must stay out of them.
+  // race's tongues gives back a slot each run, so a class passed over stays out.
   const written = [];
   let unread = closed;
   const gainsNode = await executeProfGains();
@@ -2103,10 +2020,9 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
   }
   await inheritRaceTongues(written, await heldImportedClasses());
   await syncHeldRaceTongues();
-  // The update above replaced each document's whole `system`, which wipes the
-  // rows' cached bundle uuids — this re-derives them from the bundles' own
-  // flags and re-strips the arrays it restored, so a package is never handed
-  // over twice.
+  // The update above replaced each document's whole `system`, wiping the rows'
+  // cached bundle uuids; this re-derives them from the bundles' own flags and
+  // re-strips the arrays it restored, so a package is never handed over twice.
   await materializeClassTemplates(written);
   ui.notifications?.info(
     `${MODULE_ID} | classes updated: ${written.length}${unread ? `; ${unread} left untouched — their book is not open on this seat, or read nothing` : ""}.`,

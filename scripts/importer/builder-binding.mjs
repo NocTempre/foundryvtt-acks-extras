@@ -8,8 +8,7 @@
  *
  * The assembly functions are pure (Node tests run them against the reference
  * PDFs); only the appliers at the bottom touch Foundry. Every number here is
- * ALREADY world data — extracted from the seat's own book by the table
- * import — so reshaping it is mechanical, never a promotion.
+ * already world data, read from the seat's own book by the table import.
  */
 import { cookbookContentFile, createDoc, ensureItemFolder, importedDocs, importedItemFor, importedItemsByName, refForPrintedName } from "./cookbook.mjs";
 import { MODULE_ID } from "./constants.mjs";
@@ -144,17 +143,16 @@ export function assembleBuilderTables(raw) {
   if (raw.xpRules && [raw.xpRules.crusaderThief, raw.xpRules.fighter, raw.xpRules.mage].every(isNum)) {
     budget.postEight = { crusaderThief: raw.xpRules.crusaderThief, fighter: raw.xpRules.fighter, mage: raw.xpRules.mage };
   }
-  // The level those increments start after is a read of its own: missing it
-  // costs the schedule past the 2nd level, never the increments.
+  // The level those increments start after is a separate read: missing it
+  // costs `xpFlatAfter`, never the increments.
   if (isNum(raw.xpRules?.afterLevel)) budget.xpFlatAfter = raw.xpRules.afterLevel;
-  // The HIT-POINT rates past the last die level pair the chassis differently from the
-  // post-8th XP increments above — crusader+mage and fighter+thief, not
-  // crusader+thief / fighter / mage — so the two cannot share keys. The
-  // printed pairing is kept here and expanded by the consumer, as postEight
-  // is. All-or-nothing: both rates come from one sentence on one page, so a
-  // half-read is a broken read and must not present as a complete one. The
-  // level they begin after is a read of its own: missing it costs the dice
-  // cells, never the rates, and missing a rate never costs it.
+  // The hit-point rates past the last die level pair the chassis differently
+  // from the post-8th XP increments above, so the two cannot share keys; the
+  // printed pairing is kept and the consumer expands it. All-or-nothing: both
+  // rates come from one sentence, so a half-read is a broken read. The level
+  // they begin after is a separate read: missing it costs the dice cells,
+  // never the rates, and missing a rate never costs it.
+  // See docs/importer/DECISIONS.md, "A printed floor and a printed rate are read, not shipped (2026-08-29)".
   const hp = {};
   if ([raw.hpAfterNine?.crusaderMage, raw.hpAfterNine?.fighterThief].every(isNum)) {
     hp.crusaderMage = raw.hpAfterNine.crusaderMage;
@@ -167,11 +165,10 @@ export function assembleBuilderTables(raw) {
       .filter(([, r]) => r && !r.__missing && isNum(r.maxLevel))
       .map(([points, r]) => ({ points: Number(points), maxLevel: r.maxLevel }));
   }
-  // A human class's maximum level. No page states it outright: JJ 297 prints
-  // the class list's proficiency count as a total less the maximum level, and
-  // gives the count a typical class ends up with. That a typical class is a
-  // human one is this module's inference (docs/classes/DECISIONS.md), so the
-  // cap exists only when both integers were read and the difference is a level.
+  // A human class's maximum level: JJ 297 prints the class list's proficiency
+  // count as a total less the maximum level, and the count a typical class ends
+  // up with. The cap exists only when both integers were read and the
+  // difference is a level. See docs/classes/DECISIONS.md, "a human class's maximum level is the proficiency count's difference".
   if (isNum(raw.proficiencyCount?.total) && isNum(raw.proficiencyCount?.typical) && raw.proficiencyCount.total - raw.proficiencyCount.typical >= 1) {
     budget.humanMaxLevel = raw.proficiencyCount.total - raw.proficiencyCount.typical;
   }
@@ -271,8 +268,8 @@ export function assembleBuilderTables(raw) {
             .replace(/^damage\./, "Damage: ")
             .replace(/([a-z])([A-Z])/g, "$1 → $2"),
           powersGained,
-          // The printed penalty applies to weapon narrowing, and only once a
-          // class fights at value 2 or higher.
+          // Only weapon narrowing carries the printed penalty, and only from a
+          // minimum fighting value.
           xpDelta: weapon ? per * powersGained : 0,
           xpDeltaMinFighting: weapon ? 2 : 0,
         };
@@ -414,8 +411,8 @@ export function builderUpdate(parsed) {
     "system.builder.thievery.value": parsed.thievery ?? 0,
     "system.builder.magic": parsed.magic,
     "system.builder.race.value": parsed.race?.value ?? -1,
-    // The paragraph names the trade-offs in prose; keep it whole so the
-    // Judge elects them by hand with the source in view.
+    // The paragraph's prose names the trade-offs; kept whole so the Judge
+    // elects them by hand.
     "system.builder.notes": parsed.notes,
   };
 }
@@ -425,22 +422,17 @@ export function builderUpdate(parsed) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Resolve an ability by printed name to its cookbook-or-uuid ref.
+ * Resolve an ability by printed name to its cookbook-or-uuid ref. An imported
+ * item answering to that exact name wins; failing that the name goes through
+ * the `powerSource` register, since a rung prints a short name where the
+ * definition carries the full one.
  *
- * An imported item answering to that exact name wins: it is what this seat
- * holds and what its GM meant. Failing that the name goes through the
- * `powerSource` register, because a rung prints the SHORT name while the
- * definition carries the full one — "Hardy" is `def.power.hardyPeople`, and
- * neither "Dwarf Tongues" nor "Elf Tongues" is any item's name at all.
+ * A register hit is returned even with nothing imported: a `def.*` id is a ref
+ * in its own right. Only a name the register cannot place stays unresolved,
+ * which is what the rung's note carries.
  *
- * A register hit is returned even when nothing is imported yet: a `def.*` id is
- * a ref in its own right, so the rung points at the definition and lights up
- * the moment those powers arrive. Only a name the register cannot place stays
- * unresolved, which is what the rung's note is for.
- *
- * @param byName lower-cased name → imported item, from `importedItemsByName()`.
- *   Passed in rather than looked up: the caller asks it once per run, where a
- *   per-name compendium read would be dozens.
+ * @param byName lower-cased name → imported item, from `importedItemsByName()`,
+ *   passed in so a run reads it once.
  */
 function abilityRefByName(name, byName) {
   const item = byName.get(String(name).toLowerCase());
@@ -487,8 +479,7 @@ export async function applyBuilderImport({ repair = null } = {}) {
   const { races } = assembleBuilderTables(doc.tables ?? {});
 
   // --- race items (acks-extras.race), stamped def.race.<key> ---
-  // One index read for the whole run: every rung of every race resolves its
-  // powers against it.
+  // One index read serves every rung of every race.
   const byName = await importedItemsByName();
   for (const race of Object.values(races ?? {})) {
     const cookbookId = `def.race.${race.key}`;
@@ -509,9 +500,8 @@ export async function applyBuilderImport({ repair = null } = {}) {
         note: rung.powerNames.filter((n) => !abilityRefByName(n, byName)).join(", "),
       })),
     };
-    // Written through createDoc, into the shelf ensureItemFolder names — a race
-    // is an import like any other, and a bare Item.create here put two of them
-    // in the sidebar while the rest of the library sat in the pack.
+    // Written through createDoc, into the shelf ensureItemFolder names, like
+    // every import.
     const existing = await importedItemFor(cookbookId);
     if (existing) {
       await existing.update({ name: race.name, system });
@@ -528,9 +518,8 @@ export async function applyBuilderImport({ repair = null } = {}) {
   }
 
   // --- Ready-for-Play builds onto the matching class documents ---
-  // Each run-in label is matched against the class documents of ids the
-  // cookbook ships now, so a document left under an id that has since left
-  // the cookbook is never written.
+  // Each run-in label is matched against the class documents whose ids the
+  // cookbook ships, so a document under an id the cookbook lacks is never written.
   const classEntries = cookbookContentFile("classes")?.entries ?? {};
   const classes = (await importedDocs("Item"))
     .filter((d) => d.type === CLASS_TYPE && classEntries[d.flags?.[MODULE_ID]?.cookbook?.id])
