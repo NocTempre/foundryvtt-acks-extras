@@ -3583,8 +3583,7 @@ What a scripted walk meets:
   in-lair side in units or states no count (lair 111's monster is one), with
   a Scene where it has one. Kept.
 - `importer/le-lair-bound` — a lair whose printed stat line binds to its own
-  monster (step 2's pair-covered lines of lair 4 or lair 70), and its Scene.
-  Kept.
+  monster (step 9 states the criterion), and its Scene. Kept.
 - `importer/le-lair-party` — a party actor in a formation, built as
   `docs/formation/TESTING.md` "Fixtures" builds one; its token is created on
   and deleted from the lair Scenes by the steps below. Kept, left in delve.
@@ -3646,21 +3645,29 @@ What a scripted walk meets:
    group's row is gone).
 7. A lair that counts units. Place the party token on
    `importer/le-lair-units`'s Scene (or press its sheet's Roll where it has
-   none). *Observable:* no group is made, `lair.noted` is `units`, one
+   none). *Observable:* no group is made, `lair.noted` is `units` (`none` for
+   a lair whose monster states no count), one
    whispered card says why and names the place; entering or pressing again
    posts no second card.
-8. The sheet. Open `importer/le-lair-roll`'s sheet as a GM (Actors sidebar →
-   the lair → Contents tab → Lair): the monster's name, the group's name with
-   its count, the count's tooltip naming the formula, the line and the page; the
+8. The sheet. Open `importer/le-lair-roll`'s sheet as a GM (the lair's world
+   copy in the Actors sidebar, or its shelf place under Compendium Packs → the
+   book's Judge shelf of Actors; Contents tab → Lair): the monster's name, the
+   group's name with its count, the count's tooltip naming the formula, the line
+   and the page; the
    Roll button is disabled and the group row, not only a tooltip, says why.
    Delete the group: the row reads the Roll as available and the button works.
-   On a lair with no Scene (any of the 129 without a plate), Roll makes the
-   group with the button and nothing else. A lair whose monster is not
+   On a lair with no Scene (any of the 129 without a plate), which is held only
+   on the shelf, Roll makes the group with the button and nothing else; assert
+   the write landed on the shelf place's flag and roster (the shelf is not
+   locked). A lair with a Scene is two documents, the shelf place and its world
+   copy, each with its own `lair.group`: assert what a Roll on the one does to
+   the other (nothing, by the code) and record it. A lair whose monster is not
    imported reads "Not imported" in the monster row. A Player seat's sheet of
    the same place has no Lair section. *Observable:* each, read from the sheet's
    DOM; the button carries an `aria-label`; a keyboard reaches it.
-9. A lair whose printed line binds. On `importer/le-lair-bound`, whose roster
-   already holds a stat line bound to the monster, enter or press Roll.
+9. A lair whose printed line binds. On `importer/le-lair-bound`, a lair whose
+   roster holds a row whose uuid is `lairMonster(place)`'s and for which
+   `planLair` is ok (find one over the 38 plated lairs), enter or press Roll.
    *Observable:* the group is made all the same ("Yes, roll anyway") and the
    roster holds the bound row and the group's.
 
