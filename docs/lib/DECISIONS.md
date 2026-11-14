@@ -184,3 +184,17 @@ reads", shows the loads gone.
 **Rejected.** A default body kept in source (the doctrine's "no figure stands in its place"); reading the swimming share and doubling it (a second place stating the relation); a null body that counts as no weight.
 
 *Cost:* lib `apiVersion` is 47 (`RIDER_BODY6` is gone; `borneBy6`, `load6` and `loadStone` can answer `null`; `capacity` gains `riderBody6`, `riderBodySource`, `riderBodyTip`, `bodyWeight6`, `statedBodyStone`, `declareCapacityTables`). A world that has not imported the Revised Rulebook's tables shows a ridden mount's load blank and offers every mount and wagon regardless of what the rider weighs. a statblock's load group for a ridden mount is open (see the report).
+
+## 2026-11-14 — A container's retrieval side is imported; the two kinds stay ids
+
+**Ruled.** RR p. 294 (Movement Actions) prints one bullet naming the carriers whose contents cost an action in lieu of movement to retrieve and, in a parenthesis, the carriers whose contents do not. The module holds neither list. A `proseValues` recipe, `gearAccess.retrieval` (`importer/table-recipes.mjs`), reads both from the Judge's own Revised Rulebook with a new `nounList` take (`importer/table-extract.mjs`), each list anchored on its verb phrase and cut where the clause after it begins, so no carrier's name is in source. `vocab.mjs` `retrievalAccess(name)` answers a carrier's side from them and `retrievalAccessSource()` says where they came from. `equipment/config.mjs` `GEAR_PROFILES` and `POUCH` carry no `access`, `inferGear` takes `retrievalAccess(item.name)`, annotate writes a blank access to nothing, and the item sheet's Access row carries the three-state tooltip.
+
+**The session's call, owner may overrule: the two kinds stay in source.** `ACCESS_COSTS` keeps the ids `free` and `action` and loses its English labels. The page prints no table of kinds, only a procedure (whether retrieval costs the action), so the roadmap row's "registered rather than shipped" reaches only the membership. The select's labels stay in lang. The strongest counter-argument, moderate: the crowbar clause in the IP doctrine says which items trigger a procedure is the procedure, so the membership could ship; it is moderate because the 2026-11-14 ruling names a categorical table a page prints, and nothing reads the field.
+
+**The session's call, owner may overrule: a carrier the page does not name goes blank.** A profile that carried an access and whose name matches no listed word infers none, and the Judge sets it from the select; no module synonym stands in. Of the 13 profiles that carried an access, 8 match a listed word by name (the architect's count; the session recounted it against the local read) and 5 go blank.
+
+**The session's call, owner may overrule: a tie answers blank.** The longest imported word the folded name contains decides, and the same length on both sides decides nothing.
+
+**Rejected.** Keeping the profiles' access as a fallback beside the import (a default the book does not print for those carriers); a migration of stamped values (no previous-version tools, 2026-11-11 and 22:30Z 2026-11-14): a stored access stays valid and annotate never overwrites a held one, and a later table edit does not reach access already stamped.
+
+*Cost:* lib `apiVersion` is 49 (`ACCESS_COSTS` entries lose `label`; `vocab` gains `GEAR_ACCESS_DOC`, `RETRIEVAL_TABLE`, `declareGearAccessTables`, `retrievalAccess`, `retrievalAccessSource`). A world that has not imported the Revised Rulebook's tables stamps no access on a carrier.

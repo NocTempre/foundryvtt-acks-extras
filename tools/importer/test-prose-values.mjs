@@ -154,6 +154,30 @@ check("a clause naming no size reads nothing", sizes.none === undefined && sizes
 check("sizes read in order, a word outside the size vocabulary skipped", JSON.stringify(sizes.mason) === JSON.stringify(["tiny", "small", "large"]));
 check("a size is listed once, and words after the list's end are not read", JSON.stringify(sizes.cook) === JSON.stringify(["tiny", "medium"]));
 
+/* --- the nounList take: a comma list cut where the clause after it begins --- */
+
+const nouns = read(
+  [
+    "A porter fetches a crate, hamper, or sack and stows it. (A runner fetching a wicker basket, lantern case, pouch, hook, or flask does not pause.)",
+    "A hawker names a lone cart and nothing more.",
+    "A clerk files the writs.",
+  ],
+  [
+    { key: "stowed", find: "a porter fetches", take: "nounList", until: "\\s+and\\s+stows", span: 80 },
+    { key: "unpausing", find: "a runner fetching", take: "nounList", until: "\\s+(?:does|do)\\s+not\\b", span: 100 },
+    { key: "alone", find: "a hawker names", take: "nounList", until: "\\s+and\\s+nothing", span: 40 },
+    { key: "uncut", find: "a clerk files", take: "nounList", span: 30 },
+    { key: "absent", find: "a clerk burns", take: "nounList", span: 30 },
+    { key: "uncutEnd", find: "a porter fetches", take: "nounList", until: "\s+and\s+sweeps", span: 80 },
+  ],
+);
+check("a list reads in order, the leading article and the final 'or' dropped", JSON.stringify(nouns.stowed) === JSON.stringify(["crate", "hamper", "sack"]));
+check("a list ends at its cut and keeps a two-word noun whole", JSON.stringify(nouns.unpausing) === JSON.stringify(["wicker basket", "lantern case", "pouch", "hook", "flask"]));
+check("one noun is a list of one", JSON.stringify(nouns.alone) === JSON.stringify(["lone cart"]));
+check("with no cut the window's words are read to its end", Array.isArray(nouns.uncut) && nouns.uncut[0] === "writs");
+check("an anchor the page does not hold reads nothing", !("absent" in nouns));
+check("a cut the window does not hold reads nothing, never the whole window", !("uncutEnd" in nouns));
+
 /* --- a word named by its key: `findKey` finds it and `take: "anchor"` reads it as printed --- */
 
 // The words are invented; the recipe holds only their keys, computed here.

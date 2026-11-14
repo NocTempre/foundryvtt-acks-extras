@@ -1113,6 +1113,28 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // Which carriers cost an action in lieu of movement to retrieve from, and
+  // which do not (RR 294, Movement Actions): two lists
+  // in one bullet, each anchored on its verb phrase and cut where the clause
+  // that follows the list begins, so the recipe holds no carrier's name.
+  // lib/vocab.mjs `retrievalAccess` answers a carrier's side from them, and
+  // blank while they are not imported.
+  gearAccess: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 294" },
+    tables: {
+      retrieval: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 294,
+        locate: "retrieve an item from",
+        locateBare: true,
+        values: [
+          { key: "action", find: "retrieve an item from", take: "nounList", until: "\\s+and\\s+equip", span: 120 },
+          { key: "free", find: "retrieving an item from", take: "nounList", until: "\\s+(?:does|do)\\s+not\\b", span: 120 },
+        ],
+      },
+    },
+  },
   // What a man-sized body is assumed to weigh for purposes of carrying
   // capacity (RR 161, Encumbrance and Equipment): one figure in one sentence,
   // read after the clause that names the assumption, which carries none. lib/capacity.mjs `riderBody6` answers

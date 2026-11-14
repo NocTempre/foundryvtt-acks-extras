@@ -132,7 +132,7 @@ export async function annotateItem(item) {
   if (inferred) {
     const held = gearOf(item);
     if (!declaresSlots(item)) updates[`${G}.slots`] = inferred.slots;
-    if (!held.access) updates[`${G}.access`] = inferred.access;
+    if (!held.access && inferred.access) updates[`${G}.access`] = inferred.access;
     if (inferred.holds && held.holds == null) updates[`${G}.holds`] = true;
     if ("relief" in inferred && reliefOf(item) == null) updates[`${G}.relief`] = inferred.relief;
     if ("loaded6" in inferred && !Number.isFinite(held.loaded6)) updates[`${G}.loaded6`] = inferred.loaded6;

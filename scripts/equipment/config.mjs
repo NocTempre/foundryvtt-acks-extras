@@ -101,8 +101,8 @@ export const MASTERWORK = Object.freeze({
 export const SILVER = Object.freeze({ quality: "silver", variation: "material.silver" });
 
 // A pouch under the names a Judge types, without core's "(holds …)" suffix:
-// where it rides and what reaching into it costs are the device's.
-const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
+// where it rides is the device's.
+const POUCH = Object.freeze({ slots: [SLOT.belt] });
 
 /**
  * RAW carrying devices (RR pp. 142–145, 293–294). Core's
@@ -110,11 +110,13 @@ const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
  * them in place (see the Annotate macro) rather than duplicating them.
  *
  * One table, because these are all the same fact about one piece of gear:
- * `holds` says it takes other gear, `slots` where it rides, and `access` what
- * it costs to get something out — free from rigging worn on the body
- * (harness, belt pouch, bowcase, quiver, sheath), an action in lieu of movement
- * from a pack (backpack, rucksack, sack). A container with no slots is not worn
- * at all: a barrel and an ironbound chest sit on the floor.
+ * `holds` says it takes other gear and `slots` where it rides. A container
+ * with no slots is not worn at all: a barrel and an ironbound chest sit on the
+ * floor.
+ *
+ * What it costs to get something out is never here: RR p. 294 names which
+ * carriers cost an action in lieu of movement and which do not, and the
+ * importer reads that list (`lib/vocab.mjs` `retrievalAccess`).
  *
  * How MUCH a container holds is never here: the price grid prints it in the
  * row's label and the importer writes it to the item's `gear.capacity`
@@ -122,27 +124,27 @@ const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
  * capacity for holds without a limit and shows no capacity.
  */
 export const GEAR_PROFILES = Object.freeze({
-  // Rigging — worn, and RAW-free to draw from.
-  adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
-  bowquiver: { slots: [SLOT.back], access: "free", holds: true, bowquiver: true },
-  quiver: { slots: [SLOT.belt], access: "free", holds: true },
+  // Rigging worn on the body.
+  adventurersharness: { slots: [SLOT.belt], harness: true },
+  bowquiver: { slots: [SLOT.back], holds: true, bowquiver: true },
+  quiver: { slots: [SLOT.belt], holds: true },
   // The bolt case. Generic enough to want the comment: the only `case` in
   // the RAW equipment list is the bolt case.
-  case: { slots: [SLOT.belt], access: "free", holds: true },
-  scabbard: { slots: [SLOT.belt], access: "free" },
+  case: { slots: [SLOT.belt], holds: true },
+  scabbard: { slots: [SLOT.belt] },
   pouchpurse: { ...POUCH, holds: true },
   // Without keys of their own, "Belt Pouch" falls through to the garment
   // patterns, which claim the word "belt" and annotate it as a belt that
   // holds nothing.
   beltpouch: POUCH,
   purse: POUCH,
-  // Packs — worn, but an action to open.
-  backpack: { slots: [SLOT.back], access: "action", holds: true },
-  rucksack: { slots: [SLOT.back], access: "action", holds: true },
-  sacklarge: { slots: [SLOT.back], access: "action", holds: true },
-  sacksmall: { slots: [SLOT.back], access: "action", holds: true },
+  // Packs worn on the back.
+  backpack: { slots: [SLOT.back], holds: true },
+  rucksack: { slots: [SLOT.back], holds: true },
+  sacklarge: { slots: [SLOT.back], holds: true },
+  sacksmall: { slots: [SLOT.back], holds: true },
   // Rides the mount, not the rider — so no slot on a character.
-  saddlebag: { access: "action", holds: true },
+  saddlebag: { holds: true },
   // Fixed containers: never worn.
   chestironbound: { holds: true },
   barrel: { holds: true },

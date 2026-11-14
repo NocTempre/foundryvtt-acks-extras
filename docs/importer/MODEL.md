@@ -1415,6 +1415,13 @@ Two sentences of RR read as `proseValues` windows of the `equipment` document:
 the sizes Weapon Finesse takes (`weaponFinesse`, the `sizeList` take) and the
 unarmed strike's die (`unarmedStrike`, the `dice` take).
 
+The retrieval rule on RR 294 reads as a `gearAccess` document of its own
+(`retrieval`, the `nounList` take): two lists of carrier words, each anchored on
+its verb phrase and cut at the clause that ends the list (`until`), so the
+recipe holds no carrier's name. `lib/vocab.mjs` `retrievalAccess` answers a
+carrier's side from them, and blank with nothing imported (`docs/lib/MODEL.md`,
+"Slots").
+
 Item loss reads JJ 398 into two more `equipment` tables: `itemLoss` (six
 `proseValues` figures) and `itemLossMaterials`, a `gridRows` whose row keys are
 `lib/vocab.mjs` `DAMAGE_TYPES` keys and whose one cell, `materials`, is read by

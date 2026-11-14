@@ -80,8 +80,10 @@ character (or the whole world) owns:
 
 - garments land on the body part they name — cloaks on the shoulders, boots on
   the feet, gloves on the hands, belts and sashes at the belt;
-- carrying gear lands where it rides, with whether drawing from it is **Free**
-  or costs an **Action in lieu of movement** (RR pp. 293–294);
+- carrying gear lands where it rides, and, for a carrier the imported rulebook
+  lists (RR p. 294), with whether drawing from it is **Free** or costs an
+  **Action in lieu of movement**; a carrier it does not list stays **Unset**
+  until you choose on the item sheet;
 - rations, tools, rope, loot and coin declare nothing, because they are carried
   rather than worn — that is what keeps them plain goods.
 

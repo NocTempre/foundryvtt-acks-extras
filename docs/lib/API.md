@@ -1,4 +1,4 @@
-# lib API (apiVersion 48)
+# lib API (apiVersion 49)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 48,
+  apiVersion: 49,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1029,7 +1029,8 @@ Slot keys and their capacities come from `vocab.mjs` `WEAR_SLOTS` / `SLOT` /
 `slotCapacity`. The ring place's capacity is imported (the `wearSlots` document,
 JJ p. 144): `slotCapacity("ring")` answers `null` until it is, `slotUse` then
 reports `cap: null` and never `full`, and `slotCapacitySource` says where the
-figure came from. `ACCESS_COSTS` is the RAW retrieval cost (RR pp. 293–294).
+figure came from. `ACCESS_COSTS` names the two retrieval kinds (`free`, `action`; RR p. 294) as ids and holds no label.
+Which carriers sit on which side is imported (the `gearAccess` document, table `retrieval`, `{action, free}` lists of the page's carrier words): `retrievalAccess(name)` answers `"free"`, `"action"` or `""` (the longest imported word the folded name contains decides; a tie, an unlisted name and an empty import answer `""`), and `retrievalAccessSource()` says whether the lists are a page's, the Judge's or absent. `GEAR_ACCESS_DOC`, `RETRIEVAL_TABLE` and `declareGearAccessTables` name and declare it (apiVersion 49).
 
 ### `storage` — goods kept somewhere other than on you
 

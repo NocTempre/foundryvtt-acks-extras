@@ -972,7 +972,7 @@ check("self-referencing containers do not hang", contentsWeight6(withItems([loop
 
 // Container profiles must match core's REAL item names in acks-adventuring-
 // equipment (we annotate those in place rather than duplicating them).
-const { gearProfileFor } = await import(new URL("config.mjs", S));
+const { gearProfileFor, GEAR_PROFILES } = await import(new URL("config.mjs", S));
 // The names below state INVENTED capacities: a profile never reads one.
 check("backpack profile from core's name, which states a capacity the profile never reads", gearProfileFor("Backpack (holds 11 stone)").holds === true && !("capacity" in gearProfileFor("Backpack (holds 11 stone)")));
 check("rucksack, large sack and saddlebag hold gear and carry no figure", ["Rucksack (holds 12 stone)", "Sack, Large (holds 13 stone)", "Saddlebag (holds 14 stone)"].every((n) => gearProfileFor(n).holds === true && !("capacity" in gearProfileFor(n))));
@@ -986,12 +986,23 @@ check("a sword is not a container", gearProfileFor("Sword") === null);
 const { inferGear, inferredGearFlag } = await import(new URL("profiles.mjs", S));
 const clothing = (name) => ({ name, type: "item", system: { cost: 0, weight6: 0, subtype: "clothing" }, getFlag: () => undefined });
 const goods = (name) => ({ name, type: "item", system: { cost: 0, weight6: 1, subtype: "item" }, getFlag: () => undefined });
-check("the harness rides the belt and is free to reach (RR pp293-294)", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "free");
-check("a backpack rides the back and costs an action to open", inferGear(goods("Backpack (holds 11 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 11 stone)")).access === "action");
-check("a belt pouch and a quiver are free; a sack is not", inferGear(goods("Pouch/Purse (holds 1/3 stone)")).access === "free" && inferGear(goods("Quiver, 7 Arrows")).access === "free" && inferGear(goods("Sack, Small (holds 12 stone)")).access === "action");
+// What reaching into a carrier costs is the imported list's, never a profile's:
+// this membership is INVENTED.
+const ACCESS_LISTS = { action: ["adventurer's harness", "belt pouch", "quiver", "bowcase"], free: ["backpack", "rucksack", "sack"] };
+const { registerTable: regAccess, unregisterTable: unregAccess, PRIORITY: ACCESS_P } = await import(new URL("../lib/tables.mjs", S));
+const registerAccess = () => regAccess({ id: "gearAccess", tables: { retrieval: ACCESS_LISTS } }, { priority: ACCESS_P.WORLD, source: "test" });
+registerAccess();
+check("the harness rides the belt and costs what the imported list says", inferGear(goods("Adventurer's Harness")).slots.join() === "belt" && inferGear(goods("Adventurer's Harness")).access === "action");
+check("a backpack rides the back and costs what the imported list says", inferGear(goods("Backpack (holds 11 stone)")).slots.join() === "back" && inferGear(goods("Backpack (holds 11 stone)")).access === "free");
+check("a carrier on the list takes its side; one the list does not name is blank", inferGear(goods("Pouch/Purse (holds 1/3 stone)")).access === "" && inferGear(goods("Quiver, 7 Arrows")).access === "action" && inferGear(goods("Sack, Small (holds 12 stone)")).access === "free" && inferGear(goods("Saddlebag (holds 14 stone)")).access === "");
 check("a belt pouch by the name a Judge types is the pouch, not a belt — and does not hold gear on its own",
-  inferGear(goods("Belt Pouch")).slots.join() === "belt" && inferGear(goods("Belt Pouch")).access === "free"
+  inferGear(goods("Belt Pouch")).slots.join() === "belt" && inferGear(goods("Belt Pouch")).access === "action"
   && inferGear(goods("Belt Pouch")).holds === false && !gearProfileFor("Purse").holds);
+check("no profile carries an access of its own", Object.values(GEAR_PROFILES).every((p) => !("access" in p)));
+unregAccess("gearAccess", { priority: ACCESS_P.WORLD });
+check("with nothing imported no carrier is inferred an access", ["Adventurer's Harness", "Backpack (holds 11 stone)", "Quiver, 7 Arrows", "Belt Pouch"].every((n) => inferGear(goods(n)).access === ""));
+check("with nothing imported the inferred flag declares no access", JSON.stringify(inferredGearFlag(goods("Backpack (holds 11 stone)"))) === JSON.stringify({ slots: ["back"], access: "", holds: true }));
+registerAccess();
 // What a harness secures is read off the item's own text, in stone, fractions
 // included; a harness that says nothing states nothing.
 const described = (text) => ({ ...goods("Adventurer's Harness"), system: { ...goods("").system, description: text } });
@@ -1006,7 +1017,7 @@ check("a bowquiver that says nothing states no loaded count; a pack never does",
 check("a silent harness states no relief", inferGear(goods("Adventurer's Harness")).relief === null && inferGear(goods("Backpack (holds 11 stone)")).relief === null);
 check("a barrel holds things but is worn nowhere", inferGear(goods("Barrel (19 gallon)")).slots.length === 0 && gearProfileFor("Barrel (19 gallon)").holds === true);
 check("inference says a container holds gear and never how much", inferGear(goods("Backpack (holds 11 stone)")).holds === true && !("capacity" in inferGear(goods("Backpack (holds 11 stone)"))) && inferGear(goods("Rope, 50'")).holds === false);
-check("inferred flag declares holds and no capacity", JSON.stringify(inferredGearFlag(goods("Backpack (holds 11 stone)"))) === JSON.stringify({ slots: ["back"], access: "action", holds: true }));
+check("inferred flag declares holds and no capacity", JSON.stringify(inferredGearFlag(goods("Backpack (holds 11 stone)"))) === JSON.stringify({ slots: ["back"], access: "free", holds: true }));
 // A garment gets NO capacity guessed for it: whether a coat has usable pockets
 // is a ruling about that coat, not something its name can be read for.
 check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, Hooded")).holds === false && !("capacity" in inferGear(clothing("Cloak, Silk, Hooded"))));
@@ -1015,8 +1026,8 @@ check("no capacity is invented for a garment", inferGear(clothing("Cloak, Silk, 
 // keeps where it rides and what it costs to draw from — both facts about the
 // quiver — and loses the capacity that showed a full one as "0 / 1 st, empty".
 const { bundledAmmoCount } = await import(new URL("config.mjs", S));
-check("a loaded quiver keeps its belt slot and free draw",
-  inferGear(goods("Quiver, 7 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 7 Arrows")).access === "free");
+check("a loaded quiver keeps its belt slot and its listed side",
+  inferGear(goods("Quiver, 7 Arrows")).slots.join() === "belt" && inferGear(goods("Quiver, 7 Arrows")).access === "action");
 check("a loaded quiver is not a container", inferGear(goods("Quiver, 7 Arrows")).holds === false);
 check("a loaded bolt case is not a container", inferGear(goods("Case, 5 Bolts")).holds === false);
 check("the load is read off the name so the tracker can spend it",
@@ -1473,6 +1484,12 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const freshKey = await api.annotateItem(fresh);
   check("a fresh bundle annotates to its bundle size", freshKey === "gear" && fresh.writes[0]?.[`${GEAR_KEY}.per`] === 7);
   check("annotate leaves a fresh bundle's count to core", !wrote(fresh, "system.quantity.value"));
+  check("annotate stamps the imported side of the retrieval list", fresh.writes[0]?.[`${GEAR_KEY}.access`] === "action");
+  unregAccess("gearAccess", { priority: ACCESS_P.WORLD });
+  const unlisted = bundled(1);
+  await api.annotateItem(unlisted);
+  check("with nothing imported annotate writes no access", !wrote(unlisted, `${GEAR_KEY}.access`));
+  registerAccess();
   const spent = bundled(7, { slots: ["belt"], access: "free", capacity: null, per: 7 });
   await api.annotateItem(spent);
   check("a half-spent bundle keeps its count", !wrote(spent, "system.quantity.value"));

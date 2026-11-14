@@ -74,17 +74,6 @@ edits:
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
 
-## Printed values still in lib's source
-
-Each moves onto the import the way `acks-printed-value` describes: the importer
-reads it from the Judge's own copy, a Judge can edit it, and with nothing
-imported the field stays blank with the page as its tooltip.
-
-- **A container's access.** `ACCESS_COSTS` in `scripts/lib/vocab.mjs` (RR pp.
-  293–294 for the access kinds), and which carriers are free against an action
-  in `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
-  reader picks from, so it is registered rather than shipped.
-
 ## What the carry does not do for a token
 
 An unlinked token is found as a rider, a passenger or a draft animal

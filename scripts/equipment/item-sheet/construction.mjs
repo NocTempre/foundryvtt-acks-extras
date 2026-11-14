@@ -37,7 +37,7 @@ import { setBaseType } from "../variation-items.mjs";
 import { baseTypesFor, baseTypeIsDeclared, baseTypeOf, BASE_TYPE_FLAG } from "../base-types.mjs";
 import { inferBaseType } from "../base-type-infer.mjs";
 import { declaresSlots, slotsOf, gearOf, reliefOf } from "../../lib/item-model.mjs";
-import { ACCESS_COSTS, slotCapacity, slotCapacitySource, ITEM_TYPE } from "../../lib/vocab.mjs";
+import { ACCESS_COSTS, retrievalAccessSource, slotCapacity, slotCapacitySource, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { LABELABLE } from "../../lib/a11y.mjs";
 import { helmetType } from "../overlays/enclosing-helm.mjs";
 import { materialVocabulary, itemLossMaterials, isVulnerable, setMaterial, materialOf } from "../overlays/item-loss.mjs";
@@ -466,12 +466,17 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
 
   // RETRIEVAL COST — only meaningful once something can be inside it. The
   // capacity that makes it a container is the Details tab's own switch.
+  // The row says where the carrier list the importer reads came from: the page
+  // it read, the Judge's own edit of it, or with nothing imported the page that
+  // prints it.
   if (isContainer(item)) {
-    row("ACKS-EQUIPMENT.props.access", select(
+    const accessRow = row("ACKS-EQUIPMENT.props.access", select(
       [{ value: SLOT_AUTO, label: loc("props.accessUnset") }, ...Object.keys(ACCESS_COSTS).map((k) => ({ value: k, label: game.i18n.localize(`ACKS-EQUIPMENT.access.${k}`) }))],
       gearOf(item).access || SLOT_AUTO,
       (v) => setGearAccess(item, v),
     ));
+    const source = retrievalAccessSource();
+    accessRow.dataset.tooltipText = source.state === "judge" ? loc("props.slotCapacityJudge") : (source.state === "page" && source.cite) || loc("props.accessCite");
   }
 
   return section;

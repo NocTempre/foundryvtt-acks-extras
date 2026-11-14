@@ -1237,11 +1237,68 @@ export function slotCapacitySource(key) {
   return { state: "page", cite: citeOf(WEAR_SLOTS_DOC, spec.table) };
 }
 
-/** Retrieval cost of a container's contents (RR pp. 293-294); per container, so it lives on the gear rather than the slot. */
+/**
+ * The two kinds of retrieval from a container (RR p. 294): reaching in either
+ * costs an action in lieu of movement (`action`) or does not (`free`). Per
+ * container, so it lives on the gear rather than the slot. The kinds are the
+ * procedure and stay ids; which carriers sit on which side is printed, and
+ * arrives in the `GEAR_ACCESS_DOC` document (`retrievalAccess`). The select's
+ * labels are lang strings (`ACKS-EQUIPMENT.access.<kind>`).
+ */
 export const ACCESS_COSTS = {
-  free: { label: "Free" },
-  action: { label: "Action in lieu of movement" },
+  free: {},
+  action: {},
 };
+
+/** The registered document the carriers of each retrieval kind arrive in (RR p. 294). */
+export const GEAR_ACCESS_DOC = "gearAccess";
+/** Its table: `{action, free}`, each a list of the carrier words the page names for that side. */
+export const RETRIEVAL_TABLE = "retrieval";
+
+/**
+ * Declare the retrieval table, so an import names it as missing until it lands.
+ * The id is a literal because the validate gates read this call from source.
+ */
+export function declareGearAccessTables() {
+  expectTables("gearAccess", ["retrieval"]);
+}
+
+/** The imported carrier words of one retrieval side, folded for matching; empty where not read. */
+function retrievalWords(kind) {
+  if (!hasDoc(GEAR_ACCESS_DOC)) return [];
+  const list = getDoc(GEAR_ACCESS_DOC)?.tables?.[RETRIEVAL_TABLE]?.[kind];
+  return Array.isArray(list) ? list.map(slug).filter(Boolean) : [];
+}
+
+/**
+ * The retrieval kind (`"free"` or `"action"`) the imported page lists a
+ * carrier under, by its name. The longest imported word that the name's folded
+ * form contains decides; a name that holds no listed word, one whose longest
+ * words tie across the two sides, and a world with nothing imported all answer
+ * `""`, never a guess.
+ * @param {string} name a carrier's name, as the Judge's book or the Judge writes it
+ * @returns {"free"|"action"|""}
+ */
+export function retrievalAccess(name) {
+  const key = slug(name);
+  if (!key) return "";
+  const longest = (kind) => retrievalWords(kind).reduce((best, w) => (key.includes(w) && w.length > best ? w.length : best), 0);
+  const [free, action] = [longest("free"), longest("action")];
+  if (free === action) return "";
+  return free > action ? "free" : "action";
+}
+
+/**
+ * Where the retrieval membership came from, at render: `{state: "judge"}` where
+ * the Judge's own edit holds the table, `{state: "page", cite}` where the import
+ * recorded the page it read, `{state: "none"}` where nothing is imported.
+ * @returns {{state: "judge"|"page"|"none", cite: string|null}}
+ */
+export function retrievalAccessSource() {
+  if (!retrievalWords("free").length && !retrievalWords("action").length) return { state: "none", cite: null };
+  if (getLayer(GEAR_ACCESS_DOC, PRIORITY.OVERRIDE)?.tables?.[RETRIEVAL_TABLE] != null) return { state: "judge", cite: null };
+  return { state: "page", cite: citeOf(GEAR_ACCESS_DOC, RETRIEVAL_TABLE) };
+}
 
 /* ---------------------------------------------------------------- */
 /*  LevelValue — the level-scaling spine                             */

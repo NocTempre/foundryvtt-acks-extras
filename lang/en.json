@@ -1867,6 +1867,7 @@
       "slotCapacityJudge": "set by the Judge",
       "access": "Retrieve from it",
       "accessUnset": "Unset",
+      "accessCite": "RR p. 294",
       "relief": "Secures (stone)",
       "reliefNone": "unstated",
       "baseType": "Base type",

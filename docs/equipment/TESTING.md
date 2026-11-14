@@ -1653,3 +1653,19 @@ cards the system posts and the tooltips.
    touching the gate fields stays on the table.
 7. Teardown. The run's tracked documents are swept by ledger; the override is
    cleared.
+
+## A container's retrieval side (unwalked)
+
+### Fixtures
+
+- **Kept, `equipment/retrieval-carriers`**: a `character` actor with three plain `item` documents named as three carriers of the imported page's two lists (one from each, and one on neither), found by marker; built by `api.fixture`. Each run annotates them fresh: clear `flags.acks-extras.gear` first, so no held access survives.
+- A disposable `gearAccess` Judge override (a Ruledata Browser edit of the `retrieval` table), cleared at teardown.
+
+### Steps
+
+1. With the Revised Rulebook imported, run the **Annotate Equipment (RAW profiles)** macro (ACKS Extras Macros compendium) on the three items. *Observable:* each listed carrier's `gear.access` holds the side its list gives; the unlisted one holds none.
+2. Open each on the item sheet, Construction tab, Access row. *Observable:* the select shows the stamped side or "Unset"; hovering the row names the page the lists were read from.
+3. Override the `retrieval` table in the Ruledata Browser (Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables → Open Ruledata Browser), moving a word to the other side, then clear the item's flag and annotate again. *Observable:* the stamp follows the override; the row's tooltip says the lists are the Judge's.
+4. Clear the override and the imported `gearAccess` document, clear the flag and annotate. *Observable:* no `gear.access` is written on any of the three, the select reads "Unset", the tooltip names the page alone, and nothing throws.
+5. Pick a side by hand on the unlisted item. *Observable:* it stays after a re-render and a second annotate.
+6. Teardown. The run's tracked documents are swept by ledger; the override is cleared.

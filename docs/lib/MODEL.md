@@ -1300,6 +1300,8 @@ how to wear it there). `wearableSlotsOf`, `canWear` and `wearAt` are the
 readers a lib surface such as the follower card calls; `isWearable` stays the
 declaration's answer, and with nothing registered the three fall back to it.
 
+`gear.access` is the cost of reaching into a carrier: an action in lieu of movement (`action`) or none (`free`), the two ids of `vocab.mjs` `ACCESS_COSTS`. The kinds are procedure; which carriers fall on each side is printed (RR p. 294, Movement Actions) and imported: a `proseValues` recipe, `gearAccess.retrieval`, reads the page's two lists of carrier words into the `gearAccess` document (`{action, free}`), and `retrievalAccess(name)` folds the name and answers the side whose longest listed word it contains. A name the lists do not hold, a word on both sides at the same length, and a world with nothing imported answer blank, and the annotate pass then writes no access. Nothing in lib applies a consequence of it today: the item sheet's Access row sets it, and its tooltip names the page the lists were read from, the Judge's edit of them, or with nothing imported the page alone (`retrievalAccessSource`).
+
 ### Goods handed to an actor, and bundles
 
 `bundles.mjs` `deliverItems(actor, goods)` is the one way goods arrive on an

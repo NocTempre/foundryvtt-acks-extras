@@ -20,7 +20,7 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SIZE, STYLE, WEAPON_CATEGORY, IMPROVISED_THROWN, gearProfileFor, clothingSlotsFor } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
-import { SLOT, slug, nameKeys, ITEM_TYPE } from "../lib/vocab.mjs";
+import { SLOT, slug, nameKeys, ITEM_TYPE, retrievalAccess } from "../lib/vocab.mjs";
 import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
 import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 
@@ -65,7 +65,8 @@ export function isHelmet(item) {
  * to go switches the wear features off.
  *
  * @returns {{slots: string[], access: string, holds: boolean, relief: number|null, loaded6: number|null}}
- *   `access` is blank unless the item holds something; `holds` says only that
+ *   `access` is the retrieval side the imported page lists the name under, blank
+ *   where it lists none or nothing is imported; `holds` says only that
  *   it takes gear, never how much (the capacity is the item's own, read from
  *   the page by the importer); `relief` is null unless the item is a harness
  *   whose own text states the weight it secures, and `loaded6` unless it is a
@@ -79,7 +80,9 @@ export function inferGear(item) {
   if (profile) {
     return {
       slots: [...(profile.slots ?? [])],
-      access: profile.access ?? "",
+      // Which side of the retrieval list the name falls on, from the import: blank
+      // for a name the page does not list and while nothing is imported.
+      access: retrievalAccess(item.name ?? ""),
       holds: profile.holds === true,
       // A harness's relief is read off the item's own name or description,
       // never from a profile.

@@ -2498,6 +2498,53 @@ t("wear slots: an imported cap says whether it was read from a page, set by the 
   assert.equal(vocab.slotCapacitySource("elbow"), null);
 });
 
+/** Register the retrieval lists as an import would (invented words), run `fn`, and withdraw them. */
+const withRetrieval = (lists, fn, priority = T.PRIORITY.WORLD, extra = {}) => {
+  T.registerTable({ id: vocab.GEAR_ACCESS_DOC, ...extra, tables: { [vocab.RETRIEVAL_TABLE]: lists } }, { priority, source: "import" });
+  try { return fn(); } finally { T.unregisterTable(vocab.GEAR_ACCESS_DOC, { priority }); }
+};
+
+t("retrieval: the two kinds are ids, and a carrier's side is the import's", () => {
+  assert.deepEqual(Object.keys(vocab.ACCESS_COSTS), ["free", "action"]);
+  assert.ok(Object.values(vocab.ACCESS_COSTS).every((v) => !("label" in v)), "no English label rides in source");
+  assert.deepEqual(vocab.choicesOf(vocab.ACCESS_COSTS), { free: "free", action: "action" });
+  const lists = { action: ["crate", "wicker hamper"], free: ["satchel", "ring-bag"] };
+  // Nothing imported: no side is guessed.
+  assert.equal(vocab.retrievalAccess("Crate"), "");
+  withRetrieval(lists, () => {
+    assert.equal(vocab.retrievalAccess("Crate"), "action");
+    assert.equal(vocab.retrievalAccess("Satchel, Large (holds 3 stone)"), "free");
+    assert.equal(vocab.retrievalAccess("Ring-Bag"), "free", "punctuation and case fold away");
+    assert.equal(vocab.retrievalAccess("Wicker Hamper"), "action");
+    assert.equal(vocab.retrievalAccess("Lantern"), "", "a name the lists do not hold is blank");
+    assert.equal(vocab.retrievalAccess(""), "");
+    assert.equal(vocab.retrievalAccess(null), "");
+  });
+});
+
+t("retrieval: the longest listed word wins, and a tie answers blank", () => {
+  withRetrieval({ action: ["hip satchel"], free: ["satchel"] }, () => {
+    assert.equal(vocab.retrievalAccess("Hip Satchel"), "action", "the longer listed word decides");
+    assert.equal(vocab.retrievalAccess("Satchel, Small"), "free");
+  });
+  withRetrieval({ action: ["satchel"], free: ["satchel"] }, () => {
+    assert.equal(vocab.retrievalAccess("Satchel"), "", "the same word on both sides decides nothing");
+  });
+  withRetrieval({ action: ["satchel"] }, () => {
+    assert.equal(vocab.retrievalAccess("Satchel"), "action", "one side may be unread");
+    assert.equal(vocab.retrievalAccess("Crate"), "");
+  });
+  withRetrieval({ action: "satchel", free: null }, () => assert.equal(vocab.retrievalAccess("Satchel"), "", "a malformed list is none"));
+});
+
+t("retrieval: the lists say whether they were read from a page, set by the Judge, or are not imported", () => {
+  const lists = { action: ["crate"], free: ["satchel"] };
+  assert.deepEqual(vocab.retrievalAccessSource(), { state: "none", cite: null });
+  assert.deepEqual(withRetrieval(lists, () => vocab.retrievalAccessSource(), T.PRIORITY.WORLD, { source: { pages: "XX 9" } }), { state: "page", cite: "XX 9" });
+  assert.deepEqual(withRetrieval(lists, () => vocab.retrievalAccessSource(), T.PRIORITY.OVERRIDE), { state: "judge", cite: null });
+  assert.deepEqual(withRetrieval({}, () => vocab.retrievalAccessSource()), { state: "none", cite: null }, "empty lists are none");
+});
+
 t("isGoods: coin is goods despite failing the physical schema probe", () => {
   // The system gives `money` no cost and no weight6 — the gap that grew a
   // `|| i.type === "money"` rider at fifteen call sites.

@@ -95,6 +95,8 @@ const TABLES = {
   ],
   // The ring place's capacity: one count the wear-slot reader answers from.
   wearSlots: ["ringCapacity"],
+  // Which carriers cost an action to retrieve from and which do not: two lists of words.
+  gearAccess: ["retrieval"],
   // The weight a man-sized body is assumed to have: one count in one sentence.
   capacity: ["riderBody"],
   // The sea's prose windows (RR ch. 7), among them the Seafaring rank a master mariner is named by.
@@ -461,6 +463,21 @@ VERIFY["wages.commandCapacity"] = (out, recipe, fail) => {
 VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.capacity) && !(Number.isInteger(out.capacity) && out.capacity > 0)) fail("capacity: not a positive whole number");
+};
+// The two carrier lists of a retrieval rule: each a short list of short words, no
+// word on both sides, and none a whole clause (a cut that missed its end welds
+// the sentence on). Shape only; no word is named.
+VERIFY["gearAccess.retrieval"] = (out, recipe, fail) => {
+  const lists = {};
+  for (const key of ["action", "free"]) {
+    const list = out?.[key];
+    if (!Array.isArray(list) || !list.length) { fail(`${key}: not a list`); continue; }
+    lists[key] = list;
+    if (list.length < 2 || list.length > 8) fail(`${key}: ${list.length} entries, not a short list`);
+    for (const w of list) if (!isText(w) || w.split(/\s+/).length > 3) fail(`${key}: an entry is not a short noun`);
+  }
+  const both = (lists.action ?? []).filter((w) => (lists.free ?? []).includes(w));
+  if (both.length) fail("a word sits on both sides");
 };
 // The man-sized body's weight: a whole number above zero, the shape `riderBody6`
 // accepts. Shape only; no figure is named.
