@@ -52,6 +52,7 @@
         { "box": 2, "find": "(?<=- )VAaurr(?= GATES)", "flags": "", "to": "VAULT", "hits": 1, "pile": "c" },
         { "box": 4, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
         { "box": 4, "find": "(?<=discern )magica\\b", "flags": "", "to": "magic", "hits": 1, "pile": "b" },
+        { "box": 4, "find": "(?<=\\bmagic )(?=\\d)", "flags": "", "to": "a ", "hits": 1, "pile": "b" },
         { "box": 5, "find": "(?<=- )Stasis(?= CHAMBER)", "flags": "", "to": "STASIS", "hits": 1, "pile": "c" },
         { "box": 6, "find": "(?<=chrome )i(?= surround)", "flags": "", "to": "sarcophagi", "hits": 1, "pile": "b" },
         { "box": 7, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
