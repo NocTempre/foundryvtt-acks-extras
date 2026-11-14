@@ -3,15 +3,11 @@
  * The client's configuration on Foundry: two hidden world settings, one
  * writer each, and the two commands the client reads and announces through.
  *
- * The window writes `bridgeClient` — the Judge's answers, with the bot token
- * sealed to the key the client published. The client writes `bridgeAgent` —
- * its key, what it can see of itself, how it is faring. Neither side edits
- * the other's record, so a browser saving the form and a bot announcing at
- * the same moment cannot lose each other's fields.
- *
- * `revision` rises on every save. A client compares `configDigest`, not the
- * revision, before restarting: a form saved with nothing changed must not
- * bounce a running bot.
+ * The window writes `bridgeClient` (the Judge's answers, the bot token sealed
+ * to the key the client published); the client writes `bridgeAgent` (its key,
+ * what it can see of itself, how it is faring). Neither edits the other's
+ * record. `revision` rises on every save; a client compares `configDigest`,
+ * not the revision, before restarting.
  */
 import { MODULE_ID, SETTING_CLIENT, SETTING_AGENT } from "./constants.mjs";
 import { emptyClientConfig, normalizeClientConfig, emptyAgent, normalizeAgent } from "./client-config-logic.mjs";
@@ -43,8 +39,7 @@ export async function writeClientConfig(config) {
 /**
  * Ask a running client to restart: the stamp moves, the digest moves with
  * it, and the client leaves for its service manager to bring back. Nothing
- * on the host is reached — a client that is not running hears nothing, which
- * is why the window offers this only while one has been heard from.
+ * on the host is reached; a client that is not running hears nothing.
  */
 export async function requestRestart() {
   return writeClientConfig({ ...readClientConfig(), restartNonce: Date.now() });
@@ -67,8 +62,7 @@ export async function writeAgent(patch) {
  * round trip both reports and refreshes.
  *
  * Judge commands: a client reaches them with `asSeat`, whose user is the
- * seat's own Assistant GM. No bound member ever needs them, and a member
- * whose user is a GM sees only what the settings UI would already show them.
+ * seat's own Assistant GM.
  */
 export function registerClientConfigCommands(registry) {
   registry.register("config", {

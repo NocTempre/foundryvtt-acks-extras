@@ -4,6 +4,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 
+/** Register the henchmen feature's world settings. Called once at `init`. */
 export function registerSettings() {
   const reg = (key, data) => game.settings.register(MODULE_ID, key, data);
 
@@ -13,7 +14,7 @@ export function registerSettings() {
     scope: "world",
     config: true,
     type: Number,
-    default: 28, // four weekly stages to a month: JJ ch. 3, Campaign Turn
+    default: 28, // JJ ch. 3, Campaign Turn
   });
   reg("autoRollCalamity", {
     name: "ACKS-HENCHMEN.setting.autoRollCalamity",
@@ -75,6 +76,7 @@ export function registerSettings() {
   });
 }
 
+/** The current value of this module's world setting `key`. */
 export function getSetting(key) {
   return game.settings.get(MODULE_ID, key);
 }

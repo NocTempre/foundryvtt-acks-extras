@@ -2,20 +2,15 @@
  * The command registry, Foundry-free: one name → one handler, and ONE guard
  * before any handler runs.
  *
- * The seat a bridge client drives has Assistant GM power, so the guard is
- * what keeps a client's user inside their own rights: every command runs as
- * the Foundry user the client identity is BOUND to, and a handler asks that
- * user's permission on the document it touches (`requireOwner`, below), never
- * the seat's. A Judge command additionally requires the bound user to be a
- * GM. The two facts Foundry owns — who an identity is bound to, whether a
- * user is a GM — are injected, which is what lets the Node tests run the
- * whole guard without a world.
+ * Every command runs as the Foundry user the client identity is BOUND to, and
+ * a handler asks that user's permission on the document it touches
+ * (`requireOwner`), never the seat's. A Judge command additionally requires the
+ * bound user to be a GM. Who an identity is bound to and whether a user is a GM
+ * are injected, so the whole guard runs without a world.
  *
- * `asSeat` is the one bypass: the seat holder sets it when its OWN operator
- * configuration names the caller as a Judge, and the command then runs as
- * the seat's user. The seat holder runs on the operator's machine with full
- * access to the page anyway; this only makes the bootstrap (binding the
- * first Judge) expressible through the same path as everything else.
+ * `asSeat` is the one bypass: the seat holder sets it when its operator
+ * configuration names the caller as a Judge, and the command runs as the
+ * seat's user. See docs/bridge/DECISIONS.md, "The guard runs as the bound user, never the seat".
  *
  * Handlers never throw across the boundary: a result is always
  * `{ok: true, data}` or `{ok: false, code, message}`, JSON both ways.

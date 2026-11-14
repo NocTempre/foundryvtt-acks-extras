@@ -7,7 +7,7 @@
 
 export { MODULE_ID } from "../lib/constants.mjs";
 
-/** The core ACKS actor type this module enhances (we do NOT invent a new one). */
+/** The core ACKS actor type the monster feature enhances. */
 export const MONSTER_TYPE = "monster";
 
 /** Flag scope + the single object holding all extended stat-block data. */

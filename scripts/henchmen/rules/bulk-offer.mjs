@@ -7,7 +7,7 @@
  * The row splits by the answers. The heads not offered stay on the row under
  * its own id; every group that answered alike becomes a row of its own, a copy
  * of the original (segment, arrival time, wage, earlier refusals) with its own
- * quantity, so the weekly churn and the next offer read it as the same people.
+ * quantity.
  */
 
 /** Outcome effects in table order, worst first; the split writes them in this order. */

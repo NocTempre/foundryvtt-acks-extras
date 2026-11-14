@@ -1,12 +1,11 @@
 /* global game, ui, foundry, Roll */
 /**
- * The shared Throw Dialog — one ApplicationV2 dialog parameterized entirely
- * by a throw definition of the `throws` ruledata document
- * (`data/throws-data.mjs`), with:
+ * The shared Throw Dialog: one ApplicationV2 dialog parameterized by a throw
+ * definition of the `throws` ruledata document (`data/throws-data.mjs`), with:
  *
  *  - dynamic modifiers: effect-derived rows injected at open time via
  *    `context.dynamicModifiers` (built by effects.mjs from the actor's
- *    proficiency/power Active Effects — the data-driven modifier contract);
+ *    proficiency/power Active Effects);
  *  - secret throws: resolved GM-side, whispered to GMs, with a "Reveal
  *    outcome" button that posts a sanitized public card;
  *  - natural-roll clamps by OUTCOME (an outcome table's `naturalClamps`);
@@ -16,7 +15,7 @@
  *
  * Modifier kinds: "auto" (derived, locked; GM can unlock) and "situational"
  * (the user ticks what applies). Controls: checkbox / stepper / select.
- * A free "misc" field is always present. A live total updates on change.
+ * A free "misc" field is always present; a live total updates on change.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { getThrowDef, getTable } from "../rules/tables.mjs";

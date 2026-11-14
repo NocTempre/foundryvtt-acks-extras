@@ -1,7 +1,7 @@
 /* global game, fromUuidSync, ChatMessage, Hooks, canvas, CONST, foundry, document, Roll, User */
 /**
- * The v1 verbs. Each is a permission guard over a function another feature
- * already owns; none knows a rule and none renders.
+ * The bridge's verbs. Each is a permission guard over a function another
+ * feature already owns; none knows a rule and none renders.
  *
  *   whoami · characters · use · sheet · rolls · roll · say · password  — a bound user
  *   link · unlink · enroll · bindings · users · parties · party · map  — a Judge
@@ -12,16 +12,14 @@
  * BOUND user — the seat's own Assistant GM rights never decide anything.
  *
  * `roll` is the one command whose output is not its return value: core's
- * rollers post their card without awaiting the create, so the card lands a
- * beat after the roll resolves. The command marks the actor in flight for
- * the event tap, collects the messages this client creates for that speaker
- * while it runs, and waits a short settle for the last one.
+ * rollers post their card without awaiting the create, so it lands a beat
+ * after the roll resolves. The command marks the actor in flight for the event
+ * tap, collects the messages this client creates for that speaker, and waits a
+ * short settle for the last one.
  *
- * The two account verbs write User documents, which the SEAT performs with
- * its own role: Foundry lets an Assistant create and delete users below a
- * Gamemaster and change any non-Gamemaster's password, and refuses the rest
- * server-side whatever this file asks. `enroll` makes a Player and nothing
- * higher; `password` is a user's own, and never a Gamemaster's, from here.
+ * The account verbs write User documents as the SEAT, whose Assistant role
+ * Foundry limits server-side. `enroll` makes a Player and nothing higher;
+ * `password` is a user's own, never a Gamemaster's.
  */
 import { ERR } from "./constants.mjs";
 import { BridgeError, requireOwner } from "./registry-logic.mjs";
@@ -44,7 +42,7 @@ const LIST_MAX = 100;
 const SETTLE_AFTER_FIRST_MS = 250;
 const SETTLE_MAX_MS = 1500;
 const SAY_MAX = 2000;
-/** A dice formula's ceiling, and how many dice one may ask for: `10000d10000` is a request to hang the seat. */
+/** A dice formula's length ceiling, and the most dice one throw may hold. */
 const FORMULA_MAX = 200;
 const DICE_MAX = 1000;
 
@@ -261,7 +259,7 @@ function findFormation(id) {
   return f;
 }
 
-/** Register the v1 verbs on a registry. */
+/** Register the bridge's verbs on a registry. */
 export function registerCommands(registry) {
   registry.register("commands", {
     allowUnbound: true,
@@ -328,8 +326,7 @@ export function registerCommands(registry) {
     run: async (ctx, args) => {
       const actor = actorFor(ctx, args);
       const id = str(args.id, "roll id");
-      // The inventory is the vocabulary: an id it does not list is refused
-      // here, because core throws on a save or throw it has never heard of.
+      // An id the inventory does not list is refused here; core throws on one it does not know.
       if (!flattenInventory(rollInventory(actor)).some((r) => r.id === id)) throw new BridgeError(ERR.notFound, `nothing on ${actor.name} is called "${id}"`);
       const { result, messages } = await captureMessages(actor, ctx.client, () => rollById(actor, id, { event: skipEvent() }));
       if (result === false) throw new BridgeError(ERR.notFound, `nothing on ${actor.name} is called "${id}"`);
@@ -371,8 +368,7 @@ export function registerCommands(registry) {
         messageId: null,
         actor: null,
       };
-      // The world keeps what its characters roll. An unbound member, or a
-      // bound one with no character chosen, rolls in the client alone.
+      // Only an owned active character's roll lands in the world's chat; otherwise it stays in the client.
       const actor = ctx.user ? activeActor(ctx.user) : null;
       if (actor && actor.testUserPermission(ctx.user, "OWNER")) {
         const msg = await roll.toMessage({ speaker: speakerFor(actor), flavor: args.flavor ? foundry.utils.escapeHTML(String(args.flavor)).slice(0, 200) : undefined, flags: flagsFor(ctx.client, { command: "dice" }) });
@@ -388,8 +384,7 @@ export function registerCommands(registry) {
     run: async (ctx, args) => {
       const problem = passwordProblem(args.password);
       if (problem) throw new BridgeError(ERR.invalid, problem === "tooShort" ? `a password is at least ${PASSWORD_MIN} characters` : "that password is too long");
-      // Foundry refuses this to an Assistant seat on its own; the rule stands
-      // here too so a seat run as a full Gamemaster does not quietly widen it.
+      // Foundry refuses this to an Assistant seat itself; the check also holds for a seat run as a full Gamemaster.
       if (ctx.user.role >= CONST.USER_ROLES.GAMEMASTER) throw new BridgeError(ERR.forbidden, "a Gamemaster's password is never set from outside Foundry");
       await ctx.user.update({ password: String(args.password) });
       return { user: userInfo(ctx.user), changed: true };
@@ -491,11 +486,8 @@ export function registerCommands(registry) {
     judge: true,
     describe: "view the party's scene on the seat and answer the board's clip for a capture",
     run: async (ctx, args) => {
-      // This is the only command that reads the canvas, and a seat without a
-      // GPU has none — it tears the canvas down at join, because drawing a
-      // scene in software on the page's own thread starves every other command
-      // the client makes. The refusal comes FIRST: `scene.view()` below would
-      // otherwise draw the canvas back and take the seat with it.
+      // The only command that reads the canvas; a seat without a GPU has none.
+      // The refusal comes FIRST: `scene.view()` below would draw the canvas back.
       if (!canvas?.ready) throw new BridgeError(ERR.unavailable, "this seat draws no canvas");
       let formation = null;
       const fid = args.formationId ?? (ctx.client?.channel ? partyOf(readStore(), ctx.client.kind, ctx.client.channel) : null);

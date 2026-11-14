@@ -18,9 +18,11 @@
  */
 import { getDoc, hasDoc, citeOf, isMissingRow } from "../lib/tables.mjs";
 
-/** The registry document and tables the procedure is read from. */
+/** The registry document the procedure is read from. */
 export const LEADER_DOC = "monsters";
-export const LEADER_TABLES = Object.freeze({ ladder: "leaderLadder", steps: "leaderSteps" });
+
+/** The tables of `LEADER_DOC` the procedure is read from: the ladder's rungs and the per-rank steps. */
+export const LEADER_TABLES =Object.freeze({ ladder: "leaderLadder", steps: "leaderSteps" });
 
 /** The ranks the procedure builds, by role key. */
 export const DERIVED_ROLES = Object.freeze(["champion", "subChieftain", "chieftain"]);

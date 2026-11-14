@@ -1,7 +1,7 @@
 /* global game */
 /**
  * Who a monster hireling answers to. Core's roster refuses a non-character, so
- * a monster's employment is held in four places that must agree: the
+ * a monster's employment is held in three places that must agree: the
  * employer's `FLAG_MONSTER_LIST`, the monster's `retainer.managerid`, and the
  * `employerUuid` of its record. `assignMonsterEmployer` is the one writer of
  * all of them for a monster changing hands.

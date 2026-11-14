@@ -10,18 +10,15 @@
  * Each enumeration is a plain object keyed by the stored value; the value
  * carries an English `label`. A row holds no printed figure: sizes, rates and
  * modifiers arrive through the importer from the Judge's own copy. Labels are
- * plain strings (single source of truth); the sheet's
- * `{{selectOptions ... localize=true}}` passes unknown strings through
- * unchanged. `choicesOf()` derives the `{ key: label }` map that Foundry
- * DataModel `choices` and `<select>` builders use.
+ * plain strings; the sheet's `{{selectOptions ... localize=true}}` passes
+ * unknown strings through unchanged. `choicesOf()` derives the `{ key: label }`
+ * map that DataModel `choices` and `<select>` builders use.
  */
 
-// Enums shared across the features (damage, natural-weapon, vision, sense
-// and movement types, alignment) and the `{ key: label }` choices-map helper
-// are defined once in lib and re-exported here, so this feature's consumers
-// import them from ./config.mjs. `USAGE` is lib's `SPELL_LIKE_FREQ`: one
-// frequency vocabulary for monster powers, abilities and item powers.
-// Monster-specific enums (types, sizes, body forms, saves LUT, …) stay below.
+// Enums shared across the features (damage, natural-weapon, vision, sense and
+// movement types, alignment) and the `choicesOf` helper live in lib and are
+// re-exported here. `USAGE` is lib's `SPELL_LIKE_FREQ`. Monster-specific enums
+// stay below.
 export {
   choicesOf,
   DAMAGE_TYPES,

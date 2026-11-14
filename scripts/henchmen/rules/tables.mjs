@@ -1,14 +1,9 @@
 /**
- * Table access — delegates to the lib feature's layered registry
+ * Table access: thin wrappers over the lib subsystem's layered registry
  * (`globalThis.acksExtras.lib.tables`). This feature ships NO tables of its
- * own: book tables are imported per world through the importer's extraction
- * (→ the `ruledata-import` contract → the registry at world priority). These
- * thin wrappers keep the ~14 rules call sites (getTable/getDoc/getThrowDef/
- * bracketRow) unchanged, so a table read is identical whether the data came
- * from an import, a premium catalog, or (future) a sample layer.
- *
- * Pure delegation, resolved at call time — lib attaches the registry at
- * module evaluation, before any of these run.
+ * own; book tables are imported per world through the importer (the
+ * `ruledata-import` contract, into the registry at world priority). Pure
+ * delegation, resolved at call time.
  */
 const reg = () => globalThis.acksExtras.lib.tables;
 
@@ -44,11 +39,9 @@ export function hasDoc(docId) {
 
 /**
  * Table lookup that returns `null` instead of throwing when the document or
- * table has not been imported yet. Callers that can degrade gracefully (a
- * candidate's age, appearance, occupation, or class-distribution roll) use
- * this so a market still rolls on partial coverage — as more of the book is
- * imported, candidates simply gain detail. Features that truly require a
- * table keep using getTable and surface the missing-tables notice.
+ * table has not been imported yet. For callers that degrade gracefully; a
+ * feature that requires the table uses `getTable` and surfaces the
+ * missing-tables notice.
  */
 export function optTable(docId, tableId) {
   const t = globalThis.acksExtras?.lib?.tables;

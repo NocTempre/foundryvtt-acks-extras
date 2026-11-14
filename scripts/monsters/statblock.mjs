@@ -186,8 +186,7 @@ export function derivationTips(snap, loc) {
     if (Number(l.ac) === Number(snap.ac)) {
       acTip = loc("statblock.tip.acDerived", { ac: l.ac, baseAc: l.baseAc, acAdd: signed(num(l.acAdd)), cite: l.cite || "—" });
     }
-    // A kit worked out at generation replaced the leader's armour class on
-    // purpose; the leader is intact while the kit was worked out from it.
+    // A generated kit replaces the leader's armour class; the leader counts as intact while the kit was worked out from it.
     const kitHeld = d.kit?.value != null && Number(d.kit.value) === Number(snap.ac) && d.kit.leaderAc != null;
     const leaderAc = kitHeld ? d.kit.leaderAc : snap.ac;
     const intact = Number(l.ac) === Number(leaderAc) && Number(l.damage) === Number(snap.damageMod ?? 0);

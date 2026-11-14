@@ -8,34 +8,30 @@ export { MODULE_ID } from "../lib/constants.mjs";
 export const LANG = "ACKS-BRIDGE";
 
 /**
- * World setting holding the binding store: which external identity is which
- * Foundry user, which external channel is which party, which character each
- * user is speaking as. Hidden from the settings UI — it is edited through the
- * api and the Judge's `link` / `party` commands, never by hand.
+ * Hidden world setting holding the binding store: external identity to Foundry
+ * user, external channel to party, user to active character. Edited through the
+ * api and the Judge's `link` / `party` commands.
  */
 export const SETTING_BINDINGS = "bridgeBindings";
 
 /**
- * World setting holding the client's own configuration — which Discord
- * server, which relay channel, how the seat is sized, and the bot's token
- * sealed to the key the seat published. Written by the Judge's config window
- * and read by the client through the `config` command. Hidden from the
- * settings UI: the window owns it.
+ * Hidden world setting holding the client's configuration: Discord server,
+ * relay channel, seat size, and the bot's token sealed to the key the seat
+ * published. Written by the Judge's config window, read by the client through
+ * the `config` command.
  */
 export const SETTING_CLIENT = "bridgeClient";
 
 /**
- * World setting the CLIENT writes and the config window reads: the public
- * key a token is sealed to, what the client can see of itself (its
- * application, the servers and channels it reaches) and how it is faring.
- * A client announces; nobody edits this by hand.
+ * Hidden world setting the CLIENT writes and the config window reads: the
+ * public key a token is sealed to, what the client can see of itself, and how
+ * it is faring.
  */
 export const SETTING_AGENT = "bridgeAgent";
 
 /**
  * Flag key under `flags["acks-extras"]` stamped on every document a bridge
- * command writes, and on every chat message a command's roll posts. A write
- * made from outside Foundry stays identifiable after the session is gone.
+ * command writes and every chat message a command's roll posts.
  */
 export const BRIDGE_FLAG = "bridge";
 
@@ -46,7 +42,7 @@ export const BRIDGE_FLAG = "bridge";
  */
 export const EMIT_BINDING = "acksExtrasBridgeEmit";
 
-/** Client kinds a binding may name. Discord is the first; the store is keyed so a second can share it. */
+/** Client kinds a binding may name. */
 export const CLIENT_KINDS = Object.freeze(["discord"]);
 
 /** Events kept in the page for a seat that reconnects and drains what it missed. */
@@ -63,9 +59,7 @@ export const ERR = Object.freeze({
   notFound: "notFound",
   noActive: "noActive",
   invalid: "invalid",
-  // The command is registered and the caller is entitled to it, but this seat
-  // cannot serve it. Distinct from `failed` because nothing is wrong and
-  // retrying will not help — the client says so instead of offering hope.
+  // Registered and permitted, but this seat cannot serve it; unlike `failed`, retrying will not help.
   unavailable: "unavailable",
   failed: "failed",
 });

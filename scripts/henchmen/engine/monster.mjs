@@ -1,10 +1,9 @@
 /* global game, ui, Hooks, ChatMessage */
 /**
  * Monstrous henchmen (MM 351). Core `addHenchman` accepts only `character`
- * actors, and the core system stays as-is — so monster henchmen live on the
- * employer flag `monsterHenchmenList` and are merged into the roster by
- * RosterApp / checkHenchmanLimit. Monsters carry the shared `retainer`
- * schema natively, so wage/loyalty/manager fields work unchanged.
+ * actors, so monster henchmen live on the employer flag `monsterHenchmenList`
+ * and are merged into the roster by RosterApp / checkHenchmanLimit. Monsters
+ * carry the shared `retainer` schema, so wage, loyalty and manager fields apply.
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
@@ -39,8 +38,7 @@ export function validateMonsterRecruit(monster, employer) {
     errors.push(game.i18n.format("ACKS-HENCHMEN.monster.hdCap", { hd, level }));
   }
   const kinds = collectStringFlags(employer, "recruitKinds");
-  // Sapient monster types are open to everyone; animals are gated (MM 351).
-  // Without monster stat-block typing we can't detect animals reliably — warn only.
+  // Animals are gated (MM 351) but not reliably detectable, so this only warns.
   if (!kinds.size) {
     warnings.push(game.i18n.localize("ACKS-HENCHMEN.monster.animalGate"));
   }
@@ -63,9 +61,7 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
   }
   const throwId = captured ? "irrefusableOffer" : "reactionToHiring";
 
-  // The captured-monster offer is influence-hosted when available (apiVersion
-  // 6+); the peaceful offer is an ordinary hiring reaction and already routes
-  // through the hiring page elsewhere.
+  // The captured-monster offer is influence-hosted when available (apiVersion 6+).
   if (captured) {
     try {
       const integration = globalThis.acksExtras?.henchmen?.integrations?.influence;
@@ -82,16 +78,13 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
     }
   }
 
-  // The peaceful offer's result column is the Judge's imported hiring table;
-  // with none read there is no outcome to apply, so the throw does not open.
+  // The peaceful offer needs the imported hiring table; with none, the throw does not open.
   const printed = captured ? null : hiringOffer();
   if (!captured && !printed.outcomes) {
     ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
     return;
   }
-  // The captured offer's column and opposite-alignment figure are the
-  // Judge's imported MM 351 table; unread, the throw still rolls, names no
-  // result and hires nothing.
+  // The captured offer's outcomes and opposite-alignment figure are imported; unread, the throw rolls, names no result and hires nothing.
   let irrefusable = {};
   if (captured) {
     const outcomes = irrefusableOutcomes();
@@ -195,8 +188,7 @@ export async function hireMonster(monster, employer, opts = {}) {
     special: { irrefusableResult: opts.irrefusableOutcome ?? "" },
   });
   await monster.setFlag(MODULE_ID, FLAG_RECORD, record.toObject());
-  // After the record: a monster hired away from another employer leaves that
-  // employer's list, and the record already names the new one.
+  // After the record, which already names the new employer.
   const { previous } = await assignMonsterEmployer(monster, employer);
   await HenchmanRecord.logEvent(monster, {
     type: "hired",

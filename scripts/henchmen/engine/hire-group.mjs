@@ -2,15 +2,11 @@
 /**
  * Hire a whole unit from the market as ONE lib group (skirmish scale).
  *
- * Troop rows become counted merc STACKS — per-body HP and casualties, no
- * `retainer.quantity` label and no actor-per-body — and an optional officer is
- * hired as a lone leveled actor (a unique individual keeps the full `hire()`
- * pipeline) and LINKED as the group's commander (RR 171). A troop stack's
- * prototype is one hidden stat-block actor the group snapshots on `addStack`; a
- * platoon of 30 is then one prototype + one stack of 30, not 30 actors.
- *
- * Scope: this is the skirmish-scale unit. Domain-scale command (how many units
- * an officer leads across an army) and Battles integration belong to the army scale, not this one.
+ * Troop rows become counted merc STACKS (per-body HP and casualties, no
+ * actor-per-body), and an optional officer is hired as a lone leveled actor
+ * through the full `hire()` pipeline and LINKED as the group's commander
+ * (RR 171). A stack's prototype is one hidden stat-block actor the group
+ * snapshots on `addStack`. Army-scale command is not this file's.
  */
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
@@ -30,15 +26,12 @@ async function takeCandidateHeads(location, candidateId, count) {
   await location.update({ "system.market.candidates": candidates });
 }
 
-/** Group pay state lives in a henchmen flag on the group actor — a group is a
- *  paid unit that never enters the core `henchmenList` (so it costs no PC
- *  henchman-cap slot). `{ lastPaidTime, arrearsGp }`. */
+/** Flag on the group actor holding its pay state, `{ lastPaidTime, arrearsGp }`; a group never enters the core `henchmenList`. */
 export const FLAG_GROUP_PAY = "groupPay";
 
 const acksGroups = () => globalThis.acksExtras?.lib?.groups ?? null;
 
-/** Mounted troop types — they count DOUBLE toward the RR 169 command capacity
- *  (a platoon is 30 infantry OR 15 cavalry). */
+/** Mounted troop types, which weigh more toward the RR 169 command capacity. */
 const MOUNTED_TYPES = new Set([
   "lightCavalry", "mountedCrossbowman", "horseArcher", "mediumCavalry", "heavyCavalry",
   "cataphractCavalry", "camelArcher", "camelLancer", "warElephant", "beastRider",
@@ -47,8 +40,7 @@ const MOUNTED_TYPES = new Set([
 /** The mercenary-officer title from a specialist type ("mercOfficerCaptain" → "captain"). */
 const officerTitle = (specialistType) => (String(specialistType ?? "").match(/^mercOfficer(.+)$/i)?.[1] ?? "").toLowerCase();
 
-/** The officer's RR 171 morale modifier (mercOfficer* from the table; marshals /
- *  master mariners +1 per the RR 166 role group; else 0). */
+/** The officer's RR 171 morale modifier: a mercOfficer* row from the table, a marshal or master mariner by the RR 166 role group, else 0. */
 function officerMoraleModifier(specialistType) {
   const title = officerTitle(specialistType);
   if (title) {
@@ -58,10 +50,7 @@ function officerMoraleModifier(specialistType) {
   return /^(marshal|marinerMaster)/i.test(specialistType ?? "") ? 1 : 0;
 }
 
-/** The COMMAND level for RR 169 capacity: a hired mercOfficer's RR 171 rank if
- *  present (lieutenant 4 … general 10), else the employer's level — the employer
- *  personally leads. A marshal trains and lifts morale but does not field-command,
- *  so it never sets this. */
+/** The COMMAND level for RR 169 capacity: a hired mercOfficer's RR 171 rank if present, else the employer's level. A marshal never sets it. */
 function commandLevel(specialistType, employer) {
   const title = officerTitle(specialistType);
   if (title) {
@@ -94,11 +83,7 @@ function getCandidate(location, id) {
   return (location.system.candidates ?? []).find((c) => c.id === id) ?? null;
 }
 
-/** A bare stat-block prototype actor for a troop type — the body every stack
- *  member copies; the group snapshots it on addStack. Created
- *  through the base `Actor.create`, never `Actor.implementation.create`: the
- *  system's create override replaces `system` (and seeds money items) on a
- *  character created without `items`. */
+/** A bare stat-block prototype actor for a troop type, snapshotted by the group on addStack. Created through the base `Actor.create`, never `Actor.implementation.create`: the system's create override replaces `system` on a character created without `items`. */
 async function createTroopPrototype(candidate, employer) {
   const data = {
     name: candidate.troopType || candidate.occupation || candidate.name || game.i18n.localize("ACKS-HENCHMEN.candidate.unnamed"),
@@ -115,10 +100,7 @@ async function createTroopPrototype(candidate, employer) {
   return Actor.create(data);
 }
 
-/** Find the employer's existing merc group, else create one named for them.
- *  The unit block is set with a post-create update: the system's create
- *  override that `Actor.implementation.create` runs replaces create-time
- *  `system` data on an actor created without `items`; an update keeps it. */
+/** Find the employer's existing merc group, else create one named for them. The unit block is set by a post-create update: the system's create override drops create-time `system` data. */
 async function findOrCreateGroup(employer, location) {
   const existing = game.actors.find((a) => a.type === GROUP_TYPE && a.system?.unit?.employerUuid === employer.uuid);
   if (existing) return existing;
@@ -132,11 +114,10 @@ async function findOrCreateGroup(employer, location) {
       "system.unit.category": "mercenary",
       "system.unit.employerUuid": employer.uuid,
       "system.unit.locationUuid": location?.uuid ?? "",
-      // Default field commander is the employer personally; a hired mercOfficer
-      // overrides this with its higher rank.
+      // The employer commands until a hired mercOfficer overrides this.
       "system.unit.officerLevel": Number(employer.system?.details?.level ?? 0) || 0,
     });
-    // Start the wage clock — the unit is a paid retainer from this month.
+    // Start the wage clock.
     await group.setFlag(MODULE_ID, FLAG_GROUP_PAY, { lastPaidTime: now(), arrearsGp: 0 });
   }
   return group;
@@ -173,7 +154,7 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     const key = await groups.addStack(group, proto, { count });
     if (key) {
       stacks.push(key);
-      // Troops addendum: cavalry weight (command capacity) + RR 166 base morale.
+      // Mounted weight (command capacity) and RR 166 base morale.
       const mounted = MOUNTED_TYPES.has(candidate.troopType);
       const baseMorale = mercenaryMorale(candidate.troopType) ?? 0;
       await groups.patchStack(group, key, (s) => {
@@ -185,9 +166,8 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     await takeCandidateHeads(location, pick.candidateId, count);
   }
 
-  // Officer → a lone leveled actor (full individual hire), linked as commander,
-  // with the RR 171 morale modifier + level cached so command-morale and command
-  // capacity are computable without loading the officer.
+  // Officer: a lone leveled actor, linked as commander, with the RR 171 morale
+  // modifier and level cached on the group.
   let officer = null;
   if (officerCandidateId) {
     const offCand = getCandidate(location, officerCandidateId);
@@ -203,9 +183,7 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     }
   }
 
-  // RR 169: warn if the unit is larger than its commander can personally lead
-  // (needs a higher-rank officer, or past a platoon the army command structure).
-  // Advisory — the hire still stands.
+  // RR 169: warn when the unit is larger than its commander can lead; the hire still stands.
   const settled = game.actors.get(group.id) ?? group;
   if (settled.system.overCommand) {
     ui.notifications?.warn(

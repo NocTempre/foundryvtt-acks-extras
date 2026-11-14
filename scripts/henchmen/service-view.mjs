@@ -127,8 +127,7 @@ function wageTip(terms, { actor, henchman }) {
  * The experience credited to a creature the system keeps none for, as the
  * row's figure and its tooltip: each source's points, named, adding up to the
  * figure. Null for a character, whose experience is its own sheet's field.
- * Nothing about advancing is read or shown: no imported table gives a
- * monster's thresholds.
+ * Nothing about advancing is read or shown.
  */
 export function experienceView(actor) {
   if (!keepsExperienceOnFlag(actor)) return null;
@@ -216,8 +215,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
       : loc("shareSplit", { treasure: shareLabel(terms.treasureShare), xp: shareLabel(terms.xpShare) }),
     shareTip: shareTip(terms),
     shareUnset: terms.treasureShare == null && terms.xpShare == null,
-    // A bonus the employer could not pay at hire reads as owed, on the row's
-    // face as well as in its tooltip.
+    // An unpaid signing bonus reads as owed on the row's face and in its tooltip.
     signingBonus: terms.signingOwed > 0 ? loc("signingOwedValue", { gp: terms.signingOwed }) : loc("gp", { gp: terms.signingBonus }),
     signingTip: terms.signingOwed > 0 ? loc("tip.signingOwed", { gp: terms.signingBonus || terms.signingOwed }) : loc("tip.signing"),
     signingOwed: terms.signingOwed > 0,

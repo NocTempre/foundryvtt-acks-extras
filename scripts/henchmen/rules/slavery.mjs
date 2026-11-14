@@ -1,7 +1,7 @@
 /**
  * Slavery rules (JJ 409-410) — OPTIONAL, gated behind the `enableSlavery`
- * world setting (callers gate; this module is pure shape access over the
- * imported `slavery` ruledata doc). No book values live here — every number
+ * world setting (callers gate). Pure shape access over the imported
+ * `slavery` ruledata doc; no book values live here — every number
  * comes from the world's imported tables; absent tables read as null.
  */
 import { optTable } from "./tables.mjs";
@@ -36,12 +36,12 @@ export function commonSlave(type) {
   return row && Object.values(row).some((v) => v != null) ? { type, ...row } : null;
 }
 
-/** [min%, max%] of hirelings displaced where slaves are sold. */
+/** The imported `[min%, max%]` of hirelings displaced where slaves are sold, or null. */
 export function hirelingDisplacement() {
   return optTable("slavery", "commonSlaves")?.hirelingDisplacement ?? null;
 }
 
-/** Monthly upkeep for slave soldiers (ogres cost more; missing it = calamity). */
+/** The imported monthly upkeep for slave soldiers, with an ogre figure where one is imported; null without the table. */
 export function slaveUpkeep(race = "man") {
   const rules = optTable("slavery", "soldierRules");
   if (!rules) return null;
@@ -49,10 +49,9 @@ export function slaveUpkeep(race = "man") {
 }
 
 /**
- * Loyalty for how a slave entered servitude (JJ ~410, imported prose):
- * enslaved as an adult carries the book's penalty; enslaved as a child and
- * still serving the trainer carries its bonus. Null until imported —
- * never a hardcoded stand-in.
+ * The imported loyalty figure for how a slave entered servitude (JJ ~410):
+ * the adult-enslavement figure, or the trainer bonus for a child still serving
+ * the trainer. Null until imported.
  * @param {object} o - { enslavedAsAdult, servingTrainer }
  */
 export function slaveLoyalty({ enslavedAsAdult = true, servingTrainer = false } = {}) {

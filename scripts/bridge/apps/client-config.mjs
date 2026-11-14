@@ -1,19 +1,13 @@
 /* global game, ui, foundry */
 /**
- * BridgeClientConfigApp — the Judge's window for the Discord bot: the server
- * it answers on, the channel the world's chat reaches, who may run a Judge
- * command before anyone is linked, how its seat is sized, and its token.
+ * The Judge's window for the Discord bot: server, chat channel, who may run a
+ * Judge command before anyone is linked, seat size, and token.
  *
- * The window talks to a bot it cannot call. Everything it shows of the bot —
- * whether one is running, which servers and channels it reaches, the key a
- * token must be sealed to — comes from the announcement the bot writes into
- * the world; everything it sets reaches the bot the same way back. So the
- * form renders dropdowns when the bot has announced a catalogue and plain
- * fields when it has not, and a token can only be set once a key has arrived.
- *
- * The token is sealed to that key before it is stored (`sealing.mjs`) and is
- * never read back: a window that could show it would be a window a player's
- * console could ask for the same value from.
+ * It never calls the bot: what it shows comes from the announcement the bot
+ * writes into the world, and what it sets reaches the bot the same way. The
+ * form renders dropdowns once the bot has announced a catalogue and plain
+ * fields before, and a token can be set only once a key has arrived. The token
+ * is sealed to that key (`sealing.mjs`) and never read back.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { readClientConfig, readAgent, writeClientConfig, requestRestart } from "../client-config.mjs";
@@ -22,9 +16,10 @@ import { seal, keyIdOf, hintOf } from "../sealing.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
-/** How long an announcement stays fresh enough to call the bot present — over twice its heartbeat, so a running bot never flickers. */
+/** How long an announcement counts as the bot being present; over twice its heartbeat. */
 const SEEN_FRESH_MS = 25 * 60 * 1000;
 
+/** The Discord bot's configuration window (Judge only). */
 export class BridgeClientConfigApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-bridge-client",
@@ -85,7 +80,7 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
     this.render();
   }
 
-  /** Ask the running bot to restart. Only offered while one has been heard from: the request travels through the world, and a bot that is not running hears nothing. */
+  /** Ask the running bot to restart, through the world; offered only while a bot has been heard from. */
   static async #onRestart() {
     await requestRestart();
     ui.notifications.info(game.i18n.localize(`${LANG}.config.restartRequested`));
@@ -101,9 +96,8 @@ export class BridgeClientConfigApp extends HandlebarsApplicationMixin(Applicatio
   }
 
   /**
-   * Save. The token field is write-only: blank leaves the stored secret
-   * alone, and a value is sealed to the announced key or refused — storing a
-   * token in the clear would publish it to every client in the world.
+   * Save. The token field is write-only: blank leaves the stored secret alone,
+   * and a value is sealed to the announced key or refused, never stored clear.
    */
   static async #onSubmit(_event, _form, formData) {
     const data = foundry.utils.expandObject(formData.object);

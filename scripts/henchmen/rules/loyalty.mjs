@@ -1,7 +1,7 @@
 /**
  * Loyalty & morale bookkeeping rules (RR 166-167). Pure module.
  *
- * The stored data shape is HenchmanRecord (scripts/data/henchman-record.mjs):
+ * The stored data shape is HenchmanRecord (scripts/henchmen/data/henchman-record.mjs):
  *   loyalty: { start, permanents: [{time, delta, reason, note, compensated}] }
  *   morale:  { base, permanents: [...] }
  * Employer-derived pieces (CHA, effect bonuses) are computed at read time so
@@ -68,16 +68,14 @@ import { clampScore } from "../../lib/score-bounds.mjs";
 export { clampScore };
 
 /**
- * Whether a ledger entry still counts. RR 166 penalties apply "while
- * uncompensated": the Judge marks one `compensated` and it stops scoring
- * without leaving the ledger, so the history stays readable and the ruling
- * is reversible.
+ * Whether a ledger entry still counts. A `compensated` entry (RR 166, penalties
+ * apply while uncompensated) stays in the ledger but stops scoring.
  */
 export function isActivePermanent(entry) {
   return !entry?.compensated;
 }
 
-/** Σ of the deltas that still apply (compensated entries are suspended). */
+/** The sum of the deltas that still apply. */
 export function sumPermanents(permanents = []) {
   return permanents.reduce((s, p) => (isActivePermanent(p) ? s + Number(p.delta ?? 0) : s), 0);
 }
@@ -93,7 +91,7 @@ export function reasonKey(track, reason) {
 
 /**
  * Effective loyalty score = start + Σ permanents + employer CHA loyalty mod
- * + employer baseLoyalty effect bonuses (Blood of Kings…), held to `bounds`.
+ * + employer baseLoyalty effect bonuses, held to `bounds`.
  * @param {object} record - HenchmanRecord-shaped plain object
  * @param {{chaLoyalty:number, baseLoyaltyBonus:number}} employer
  * @param {{min?: number, max?: number}} [bounds] the hireling's loyalty field's range
@@ -135,11 +133,10 @@ export function outcomeLeavesService(outcome) {
 }
 
 /**
- * Loyalty penalties that last only "while uncompensated" (RR 166): permanent
- * wounds critical -1, grievous -2, mortal -3; tampering-with-mortality side
- * effects moderate -1, major -2. The Judge records one from the roster
- * (reason "wound"/"tampering"), and lifts it by marking that ledger entry
- * compensated once the wound is healed or restitution is made.
+ * The loyalty penalties that last only while uncompensated (RR 166), by
+ * permanent-wound and tampering-side-effect severity. The Judge records one
+ * from the roster (reason "wound"/"tampering") and lifts it by marking that
+ * ledger entry compensated.
  */
 export const WOUND_PENALTIES = Object.freeze({
   critical: -1,

@@ -1,13 +1,13 @@
 /**
- * Slave-market chat card — the GM-facing surface for the optional RAW
- * slavery rules (JJ 409-410). Posts nothing unless the `enableSlavery`
- * world setting is on AND the slavery tables have been imported. Whispered
- * to GMs: what the market offers is the Judge's to reveal.
+ * Slave-market chat card for the optional slavery rules (JJ 409-410). Posts
+ * nothing unless the `enableSlavery` world setting is on AND the slavery
+ * tables have been imported; whispered to GMs.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { commonSlave, hirelingDisplacement, slaveUpkeep } from "../rules/slavery.mjs";
 import * as adapter from "../acks-adapter.mjs";
 
+/** Whether the `enableSlavery` world setting is on; false when it cannot be read. */
 export function slaveryEnabled() {
   try {
     return !!game.settings.get(MODULE_ID, "enableSlavery");

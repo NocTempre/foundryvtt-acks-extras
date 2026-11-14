@@ -18,6 +18,7 @@ function outcomeText(outcome) {
 }
 
 /**
+ * Post a throw card: the secret ones whisper to the Judges, the rest go to chat.
  * @param {object} o - { def, title, roll, natural, parts, total, outcome,
  *                       secret, speaker, actor }
  */
@@ -82,13 +83,15 @@ export async function postEventCard(o) {
   });
 }
 
-/** Delegated click routing for event-card buttons. */
+/** Handlers for event-card button actions, keyed by action name. */
 const _handlers = new Map();
 
+/** Register the handler `bindCardListeners` calls (with the button's payload and the click event) for a card button's action. */
 export function registerCardAction(action, handler) {
   _handlers.set(action, handler);
 }
 
+/** Wire the click handlers of the event-card buttons under a rendered message's HTML. */
 export function bindCardListeners(html) {
   const root = elementOf(html);
   if (!root) return;

@@ -2,24 +2,20 @@
 /**
  * The event tap: what a seat holder hears from the world.
  *
- * Hooks the bridge cares about are folded into one plain-JSON event stream —
- * chat, the vitals of an actor, the clock, the henchmen ledger, and the
- * client's own configuration being saved — kept in a
- * bounded buffer in the page and pushed, when a seat holder has installed the
- * global named `EMIT_BINDING`, as they happen. A seat that connects late or
- * reconnects calls `drain(lastSeq)` for what it missed; the buffer is the
- * page's, so a reload starts it over, which the seat's `seq` going backwards
- * tells it.
+ * Hooks the bridge cares about (chat, an actor's vitals, the clock, the
+ * henchmen ledger, the client's configuration being saved) are folded into one
+ * plain-JSON event stream, kept in a bounded buffer in the page and pushed as
+ * they happen when a seat holder has installed the global named `EMIT_BINDING`.
+ * A seat that connects late calls `drain(lastSeq)` for what it missed; a page
+ * reload restarts the buffer, which shows as `seq` going backwards.
  *
  * Visibility travels WITH the event: `whisper` and `blind` are carried as the
- * message has them, so the client routes a secret rather than flattening it.
+ * message has them.
  *
- * Provenance: a chat message posted while a bridge command is running for
- * its speaker is the command's own output (core's rollers create their card
- * without awaiting it, so the create lands a beat after the command returns).
- * The tap marks such an event with the command's client stamp and writes the
- * same stamp onto the message, so a relay can tell a roll made from Discord
- * from one made at the table.
+ * Provenance: a chat message posted while a bridge command runs for its
+ * speaker is the command's own output (core's rollers create their card
+ * without awaiting it). The tap marks such an event with the command's client
+ * stamp and writes the same stamp onto the message.
  */
 import { MODULE_ID, BRIDGE_FLAG, EMIT_BINDING, EVENT_BUFFER, SETTING_CLIENT } from "./constants.mjs";
 import { stampFor, provenanceOf } from "./provenance.mjs";
@@ -114,9 +110,7 @@ export function registerEventTap() {
 
   Hooks.on("updateWorldTime", (worldTime, dt) => emit("time", { worldTime: Math.floor(worldTime), dt }));
 
-  // The client's own configuration moved. A client hears this the moment a
-  // Judge saves the window and decides for itself whether the change is one
-  // it must restart for; without it the change waits for the next poll.
+  // The client's configuration was saved; the client decides whether it must restart.
   Hooks.on("updateSetting", (setting) => {
     if (setting?.key !== `${MODULE_ID}.${SETTING_CLIENT}`) return;
     emit("config", { revision: Number(readClientConfig().revision) || 0 });

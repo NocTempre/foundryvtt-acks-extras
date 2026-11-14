@@ -1,9 +1,8 @@
 /**
- * What a hireling's record reads as — the plain decisions behind the Service
- * panel a hireling's own sheet carries and behind a row of the employer's
- * roster. Pure: every input is a plain value or a HenchmanRecord-shaped
- * object, so `tools/test-service-view.mjs` pins each decision without a world.
- * The Foundry readers that feed these are `scripts/henchmen/service-view.mjs`.
+ * What a hireling's record reads as: the plain decisions behind the Service
+ * panel a hireling's sheet carries and behind a row of the employer's roster.
+ * Pure: every input is a plain value or a HenchmanRecord-shaped object. The
+ * Foundry readers that feed these are in `scripts/henchmen/service-view.mjs`.
  */
 import { sumPermanents, isActivePermanent, clampScore } from "./loyalty.mjs";
 import { clampPct, num, signed } from "../../lib/frame-model.mjs";
@@ -181,8 +180,8 @@ export const ROLLED_SCORES = Object.freeze(["str", "int", "wil", "dex", "con", "
  * The recorded rolls as the panel prints them: the six scores in order, or
  * null where none was recorded; the hit points rolled at hire with each
  * level's roll (`hpSteps`), or why none were (`hpUnrolled`). `judgePick` is a
- * class roll that left the class to the Judge; a hire recorded before such a
- * hire was told apart from a missing class reads "judgePick" for "noClass".
+ * class roll that left the class to the Judge; its `noClass` reason reads
+ * "judgePick".
  */
 export function rolledOf(record) {
   const r = record?.rolled ?? {};
@@ -232,8 +231,8 @@ export const judgePickHitPoints = () => ({ hpRoll: null, hpSteps: [], hpUnrolled
 
 /**
  * Whether the Service panel offers Pick class: a Judge's seat, a class roll
- * that left the class to the Judge, and no class bound on the actor yet (an
- * older hire wrote the roll's key there, which binds nothing).
+ * that left the class to the Judge, and no class bound on the actor yet (the
+ * roll's own key there binds nothing).
  */
 export function offersClassPick(rolled, boundClass, { isGM = false } = {}) {
   const bound = String(boundClass ?? "").trim();

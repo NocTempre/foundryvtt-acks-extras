@@ -1,14 +1,13 @@
 /* global game, foundry, Hooks, document */
 /**
- * Item-sheet flag injector. The core weapon / ability / item schemas can't hold
- * the Monstrous Manual enum metadata (damage type, ability category, spoil
- * component data), so — when such an item is owned by a `monster` — we inject a
- * compact "ACKS Monster" fieldset that reads/writes `flags["acks-extras"]`.
- * The monster sheet's abilities and spoils tabs render tags from these flags;
- * consumers otherwise read them raw.
+ * Item-sheet flag injector. Core's weapon / ability / item schemas cannot hold
+ * the monster enum metadata (damage type, ability category, spoil component
+ * data), so an item owned by a `monster` gets an "ACKS Monster" fieldset that
+ * reads and writes `flags["acks-extras"]`; the monster sheet's abilities and
+ * spoils tabs render tags from those flags.
  *
- * Uses the generic `renderApplicationV2` hook (fires for every ApplicationV2,
- * including the system's item sheet) and keys off `app.document`.
+ * Hooks the generic `renderApplicationV2` (it fires for the system's item
+ * sheet too) and keys off `app.document`.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, NATURAL_WEAPONS, SPECIAL_ABILITIES, USAGE, choicesOf } from "./config.mjs";
@@ -82,14 +81,14 @@ async function writeFlag(item, field, target) {
       .filter(Boolean);
   } else value = target.value;
 
-  // A picked frequency is the Judge's own, so the phrase the importer read
-  // for the previous one no longer describes it.
+  // A picked frequency replaces the importer's phrase for the previous one.
   if (field === "usage" && item.getFlag(MODULE_ID, "usageText") !== undefined) await item.unsetFlag(MODULE_ID, "usageText");
   const empty = value === "" || value === false || (Array.isArray(value) && value.length === 0);
   if (empty) await item.unsetFlag(MODULE_ID, field);
   else await item.setFlag(MODULE_ID, field, value);
 }
 
+/** Register the render hook that injects the annotation fieldset into monster-owned item sheets. */
 export function registerItemAnnotations() {
   Hooks.on("renderApplicationV2", (app, element) => {
     try {

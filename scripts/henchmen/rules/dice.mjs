@@ -3,19 +3,20 @@
  * no Foundry dependency; `rollAvailability` accepts an async dice function so
  * tests can inject a deterministic roller while Foundry injects `Roll`.
  *
- * The ACKS availability tables (RR 164–165) use expressions like:
- *   "4d100"        — roll dice
- *   "2d4×50"       — roll dice, multiply
- *   "1"            — fixed quantity
- *   "1 (85%)"      — one available 85% of the time
- *   "1d2 (50%)"    — 50% chance of 1d2
- *   "1d4-3"        — dice with flat modifier (spell availability)
+ * The availability tables (RR 164–165) give a quantity as an expression:
+ *   "NdM"          — roll dice
+ *   "NdM×K"        — roll dice, multiply
+ *   "N"            — fixed quantity
+ *   "N (P%)"       — N available P% of the time
+ *   "NdM (P%)"     — P% chance of NdM
+ *   "NdM-K"        — dice with a flat modifier
  *   "-"            — never available
  */
 
 const EXPR_RE = /^(?:(\d+)d(\d+))?\s*([+-]\d+)?\s*(?:[x×]\s*(\d+))?\s*(?:\((\d+)%\))?$/i;
 
 /**
+ * Parse an availability expression into dice count, die, modifier, multiplier and percent chance.
  * @param {string|number} expr
  * @returns {{count: number, die: number, mod: number, mult: number, chance: number}|null}
  *   null when the expression means "not available".
@@ -25,7 +26,7 @@ export function parseAvailability(expr) {
   if (typeof expr === "number") return { count: 0, die: 0, mod: expr, mult: 1, chance: 100 };
   const text = String(expr).trim();
   if (!text || text === "-" || text === "—") return null;
-  // Fixed quantity with optional chance, e.g. "1", "1 (85%)", "2"
+  // Fixed quantity with optional chance: "N" or "N (P%)".
   const fixed = text.match(/^(\d+)\s*(?:\((\d+)%\))?$/);
   if (fixed) return { count: 0, die: 0, mod: parseInt(fixed[1], 10), mult: 1, chance: fixed[2] ? parseInt(fixed[2], 10) : 100 };
   const m = text.match(EXPR_RE);

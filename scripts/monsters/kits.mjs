@@ -7,31 +7,33 @@
  * modifier converts to from the same issue's conversion table, all into the
  * `monsters` registry document, and passed in.
  *
- * What ships is the procedure. A troop row's figures stand for the rank and
- * file of its kind as printed. A kit nobody printed a figure for is worked out
- * at generation (`kitArmourClass`): a leader in a troop's kit wears that kit
- * over its own advantage on its warrior, so its armour class is the row's plus
- * the difference between the leader's armour class and its warrior's; an
- * unarmoured creature has its kind's natural armour class, with the same
- * difference for a leader.
+ * A kit with no printed figure is worked out at generation (`kitArmourClass`):
+ * a leader's armour class is its troop row's (or its kind's natural armour
+ * class, unarmoured) plus the leader's armour class less its warrior's.
  */
 import { citeOf, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 
-/** The registry document and tables the kits are read from. */
+/** The registry document the kits are read from. */
 export const KIT_DOC = "monsters";
+
+/** The tables of `KIT_DOC` the kits are read from, by role. */
 export const KIT_TABLES = Object.freeze({ troops: "beastmanTroops", byType: "beastmenByType", dice: "damageDieConversion" });
 
-/** The Kit axis's key, its default (the creature's own stat block) and the unarmoured option's key. */
+/** The Kit axis's key. */
 export const KIT_AXIS = "kit";
+
+/** The Kit axis's default: the creature's own stat block. */
 export const OWN_KIT = "own";
+
+/** The Kit axis's unarmoured option. */
 export const UNARMOURED = "unarmoured";
 
 /**
- * A troop row's damage cell as the creature's own modifier: "BW" is 0,
- * "BW-1" is -1, "BW +3" is 3. A row that prints a second figure after a slash
- * (a natural attack beside the weapon) is read for its weapon figure. Null
- * for a cell naming no weapon.
+ * A troop row's damage cell as the creature's own modifier: the weapon marker
+ * alone is 0, and a signed number after it is that number. A second figure
+ * after a slash (a natural attack beside the weapon) is ignored. Null for a
+ * cell naming no weapon.
  */
 export function troopDamage(text) {
   const first = String(text ?? "").split("/")[0].replace(/[−–—]/g, "-");
@@ -119,8 +121,7 @@ export function kitArmourClass(kit, resolvedAc) {
  * line `noteLine(kit)` returns. A creature with no kit is left as it is.
  * `kits` is the world's tables as `importedKits` reads them; given, an
  * unarmoured kit naming its kind takes that kind's natural armour class from
- * them at generation, so an override or a blanked row counts without a
- * rebuild, and a kind the table no longer holds leaves the stat block's.
+ * them, and a kind the table no longer holds leaves the stat block's.
  * Returns the derivation written, or null.
  */
 export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null } = {}) {
@@ -150,9 +151,9 @@ export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null }
 
 /**
  * The die a weapon's die and a damage modifier convert to, as the imported
- * conversion table prints it ("1d8 or 2d4"), or null where the table is not
- * imported or prints no cell for the pair. The header row says which
- * modifier each column stands for.
+ * conversion table prints it, or null where the table is not imported or
+ * prints no cell for the pair. The header row says which modifier each column
+ * stands for.
  */
 export function convertedDie(dice, formula, mod) {
   if (!dice || !formula || !Number.isInteger(mod)) return null;

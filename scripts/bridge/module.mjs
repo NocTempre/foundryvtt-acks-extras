@@ -2,14 +2,12 @@
 /**
  * The bridge: a command surface for a client outside Foundry.
  *
- * A seat holder — the Discord service is the first — joins the world as a
- * dedicated user, evaluates `acksExtras.bridge.run(name, args)` in page
- * context, and hears the world back through the event tap. Nothing here
- * renders and nothing here knows a rule: every command is a permission guard
- * over a function another feature already owns (the sheet's roll-by-id, the
- * frame snapshot, core's chat), run as the Foundry user the client identity
- * is bound to. The bindings, the guard, the stamp and the tap are the whole
- * feature; how a client presents them is the client's.
+ * A seat holder (the Discord service) joins the world as a dedicated user,
+ * evaluates `acksExtras.bridge.run(name, args)` in page context, and hears the
+ * world back through the event tap. Every command is a permission guard over a
+ * function another feature already owns, run as the Foundry user the client
+ * identity is bound to. The bindings, the guard, the stamp and the tap are the
+ * whole feature; this file registers them and publishes `acksExtras.bridge`.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import { MODULE_ID, LANG, EMIT_BINDING, ERR, CLIENT_KINDS } from "./constants.mjs";

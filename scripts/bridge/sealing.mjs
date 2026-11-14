@@ -1,26 +1,19 @@
 /**
  * Sealing a secret to the client that must read it.
  *
- * Every world setting is vended whole to every connected client, so a bot
- * token typed into a Foundry window is a token every player can read out of
- * their own console. The client therefore holds a key pair on the machine it
- * runs on and publishes only the public half; the window encrypts to that
- * half and stores the ciphertext. What reaches a player is unreadable, and
- * the private half never enters the world.
+ * The client holds a key pair and publishes only the public half; the window
+ * encrypts a bot token to it and stores the ciphertext, so what a world setting
+ * vends to every player is unreadable and the private half never enters the
+ * world.
  *
- * RSA-OAEP with SHA-256, interoperable with WebCrypto in both directions —
- * but the SEALING half is written out by hand here (SHA-256, MGF1, and a
- * modular exponentiation over BigInt) because `crypto.subtle` exists only in
- * a secure context and a Foundry server on a LAN is usually plain http. A
- * window that could not seal on the most ordinary install would be a window
- * that pushes the token back to the terminal. `getRandomValues` carries no
- * such condition and is what the padding's seed comes from.
- *
- * The opening half is WebCrypto: it runs where the private key is, which is
- * a Node process, where the API is always there.
+ * RSA-OAEP with SHA-256, interoperable with WebCrypto both ways. The SEALING
+ * half is written out by hand (SHA-256, MGF1, BigInt modular exponentiation);
+ * `getRandomValues` supplies the padding seed. The opening half is WebCrypto,
+ * run in the client's Node process. See docs/bridge/DECISIONS.md, "The sealing
+ * half is written out by hand, and that is not gold-plating."
  */
 
-/** The one algorithm both halves use. A 2048-bit OAEP/SHA-256 key carries up to 190 bytes — a bot token is under 100. */
+/** The one algorithm both halves use; a 2048-bit OAEP/SHA-256 key carries up to 190 bytes. */
 export const SEAL = Object.freeze({ name: "RSA-OAEP", hash: "SHA-256", modulusLength: 2048, hLen: 32 });
 
 const subtle = () => {
@@ -175,8 +168,7 @@ export async function generateSealingPair() {
 
 /**
  * Seal a secret to a public JWK. Base64 ciphertext, openable by WebCrypto's
- * RSA-OAEP/SHA-256 with the matching private key. Runs anywhere — no secure
- * context needed.
+ * RSA-OAEP/SHA-256 with the matching private key; needs no secure context.
  */
 export function seal(publicJwk, secret) {
   const n = bytesToBigInt(fromBase64Url(publicJwk?.n));
@@ -194,11 +186,7 @@ export async function unseal(privateJwk, sealed) {
   return new TextDecoder().decode(clear);
 }
 
-/**
- * A stable short name for a key, so a window can tell the operator which key
- * a stored secret was sealed to and a client can tell that a secret is not
- * sealed to its own. The modulus's tail is public and identifies the key.
- */
+/** A short stable name for a key: the tail of its public modulus. */
 export const keyIdOf = (jwk) => String(jwk?.n ?? "").slice(-16);
 
 /** What a window may show of a secret it can no longer read: its length and last four characters. */

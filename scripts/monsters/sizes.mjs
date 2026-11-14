@@ -14,9 +14,13 @@
  */
 import { citeOf, expectTables, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 
-/** The registry document and table the frontage cells are read from, and the row they sit on. */
+/** The registry document the frontage cells are read from. */
 export const SIZE_DOC = "monsters";
+
+/** The table of `SIZE_DOC` holding the frontage cells. */
 export const SIZE_TABLE = "sizeFrontage";
+
+/** The row of the frontage and square tables the cells sit on. */
 export const SIZE_ROW = "squares";
 
 /** The table holding what one battle-grid square is worth in feet, on the same row. */

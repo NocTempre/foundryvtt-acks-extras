@@ -4,13 +4,9 @@
  * Three maps: which external identity (a Discord user) is which Foundry user,
  * which external channel is which formation (the party), and which character
  * each Foundry user is currently speaking as. Every function returns a NEW
- * store; the Foundry side persists what it is handed and never mutates in
- * place, so a failed write leaves the setting exactly as it was.
- *
- * A binding is Judge-made, never self-claimed: nothing here decides who may
- * call these — the registry's guard does — but the shape makes the claim
- * impossible to forge, because the store is world-scoped and only a GM client
- * can write it.
+ * store; nothing mutates in place, so a failed write leaves the setting as it
+ * was. Who may call these is the registry's guard; the store is world-scoped,
+ * so only a GM client writes it.
  */
 
 /** An empty store. */

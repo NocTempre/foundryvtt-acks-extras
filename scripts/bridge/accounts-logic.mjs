@@ -1,18 +1,17 @@
 /**
- * The arithmetic of a Foundry account reached from outside Foundry, with no
- * Foundry in it: what a password must be before the world is asked to take
- * it, what a new user's name must be, and the secret a new user is born with.
- *
- * A user a client creates gets a password nobody knows. The member then sets
- * their own from the client, so no secret ever passes through the Judge who
- * made the account — and until they do, nobody can join as that user.
+ * The Foundry-free arithmetic of an account reached from outside Foundry: what
+ * a password and a new user's name must be, and the secret a new user starts
+ * with. A user a client creates gets a password nobody knows; the member sets
+ * their own from the client.
  */
 
-/** The floor on a password set from a chat command. Foundry has none; a one-letter password typed into Discord is a footgun. */
+/** The shortest password a chat command may set. */
 export const PASSWORD_MIN = 8;
+
+/** The longest password a chat command may set. */
 export const PASSWORD_MAX = 128;
 
-/** Foundry caps nothing here; the window and the join screen both get unreadable past this. */
+/** The longest a user name may be. */
 export const USER_NAME_MAX = 64;
 
 /** Why a password is refused, as a code the client words — or "" when it is fine. */
@@ -34,13 +33,12 @@ export function userNameProblem(name) {
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 /**
- * A secret nobody is told: the password a created user starts with. From
- * `getRandomValues`, which every context has; 32 characters of a 62-letter
- * alphabet is far past anything a join screen can be guessed against.
+ * A random alphanumeric secret from `getRandomValues`: the password a created
+ * user starts with.
  */
 export function randomSecret(length = 32) {
-  // Bytes at or past the last whole multiple of the alphabet are skipped, so
-  // every letter is equally likely rather than the first eight slightly more.
+  // Bytes at or past the last whole multiple of the alphabet are skipped so
+  // every letter is equally likely.
   const limit = 256 - (256 % ALPHABET.length);
   let out = "";
   while (out.length < length) {

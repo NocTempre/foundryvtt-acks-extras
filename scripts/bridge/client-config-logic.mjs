@@ -3,9 +3,8 @@
  * Judge sets, the shape of what a client announces about itself, and the
  * digest a running client compares to know its configuration moved.
  *
- * Two records with one writer each — the window writes the configuration,
- * the client writes the announcement — so neither side merges the other's
- * fields and there is no write race between a browser and a bot.
+ * Two records with one writer each: the window writes the configuration, the
+ * client writes the announcement; neither merges the other's fields.
  */
 
 /** Log levels a client may be set to, coarsest first. */
@@ -15,7 +14,7 @@ export const LOG_LEVELS = Object.freeze(["error", "warn", "info", "debug"]);
 export const AGENT_STATES = Object.freeze(["unseen", "starting", "awaiting", "online", "error"]);
 
 const str = (v) => String(v ?? "").trim();
-/** A Discord snowflake, or "" — the window and the client both refuse anything else silently rather than storing junk. */
+/** A Discord snowflake, or "": anything else is refused silently. */
 const id = (v) => (/^[0-9]{5,25}$/.test(str(v)) ? str(v) : "");
 const int = (v, fallback, min, max) => {
   const n = Math.round(Number(v));
@@ -53,23 +52,19 @@ export function normalizeClientConfig(raw) {
       width: int(s.width, base.seat.width, 640, 4096),
       height: int(s.height, base.seat.height, 480, 4096),
       readySeconds: int(s.readySeconds, base.seat.readySeconds, 10, 900),
-      // Off is the answer for the headless host a bot usually runs on, and the
-      // one a world that predates the field upgrades into: a seat with no GPU
-      // draws its scene on the page's own thread and starves everything the
-      // bot awaits. On costs that and buys `map`.
+      // Off by default. See docs/bridge/DECISIONS.md, "The seat draws no canvas, and `map` is what pays for one".
       gpu: !!s.gpu,
     },
     service: { logLevel: LOG_LEVELS.includes(str(v.logLevel)) ? str(v.logLevel) : base.service.logLevel },
     token: { sealed: str(t.sealed), keyId: str(t.keyId), hint: str(t.hint) },
-    // A stamp the window sets to ask for a restart and nothing else reads:
-    // it is in the digest, so moving it restarts a running client.
+    // Set by the window to ask for a restart; it is in the digest, so moving it restarts a running client.
     restartNonce: int(r.restartNonce, 0, 0, Number.MAX_SAFE_INTEGER),
     revision: int(r.revision, 0, 0, Number.MAX_SAFE_INTEGER),
     updatedAt: int(r.updatedAt, 0, 0, Number.MAX_SAFE_INTEGER),
   };
 }
 
-/** How many members a client remembers having heard from. A table's roster is dozens; the cap is against a public server. */
+/** How many members a client remembers having heard from. */
 export const MEMBER_CAP = 200;
 
 /** The announcement of a client that has never announced. */
@@ -120,10 +115,6 @@ export function normalizeAgent(raw) {
  * Remember a member the client has heard from, most recent first, one entry
  * per id, capped. Answers the same list when nothing changed, so a caller
  * can tell whether an announcement is due by identity.
- *
- * The list exists because enumerating a server's members needs a privileged
- * intent; a member who has run any command has named themselves, and that is
- * enough for a window to offer them in a dropdown.
  */
 export function noteMember(members, member) {
   const m = { id: id(member?.id), name: str(member?.name), displayName: str(member?.displayName) };
@@ -162,7 +153,7 @@ export function configGaps(config, agent) {
   if (!c.token.sealed) gaps.push("noToken");
   else if (a.keyId && c.token.keyId && a.keyId !== c.token.keyId) gaps.push("staleToken");
   if (!c.discord.guildId) gaps.push("noGuild");
-  // Only once a server is chosen: a fresh configuration is a checklist, not a scolding.
+  // The channel gap is raised only once a server is chosen.
   else if (c.discord.relay && !c.discord.chatChannelId) gaps.push("noChannel");
   return gaps;
 }

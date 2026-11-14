@@ -2,8 +2,7 @@
  * Chat content as plain text, for a client that renders no HTML.
  *
  * In a page the browser's own parser reads it; under Node a tag strip stands
- * in, which is enough for the tests and for nothing else — a card's layout is
- * lost either way, and a client wanting the card asks for the message id.
+ * in. A card's layout is lost either way.
  */
 const ENTITIES = { "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'" };
 

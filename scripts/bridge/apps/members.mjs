@@ -1,18 +1,12 @@
 /* global game, ui, foundry, CONST, User, fromUuidSync */
 /**
- * BridgeMembersApp — the Judge's window for who in Discord is who in the
- * world: every binding the store holds, a row to make one, and a button to
- * make the Foundry user first when the member has none.
+ * The Judge's window for who in Discord is who in the world: every binding the
+ * store holds, a row to make one, and a button to create the Foundry user first.
  *
- * The members it offers are the ones the bot has heard from — anyone who
- * has run a command — because listing a server's members outright needs a
- * privileged intent. A member the bot has not met is linked by id, pasted
- * into the second field. Everything here writes the same binding store the
- * Judge's `/link` writes, through the same arithmetic.
- *
- * A user this window creates is a Player with a password nobody knows; the
- * member sets their own from Discord (`/account password`), so no secret
- * passes through the Judge.
+ * It offers the members the bot has heard from; one the bot has not met is
+ * linked by pasted id. It writes the same binding store `/link` writes, through
+ * the same arithmetic. A user it creates is a Player with a password nobody
+ * knows; the member sets their own from Discord (`/account password`).
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { readStore, writeStore } from "../bindings.mjs";
@@ -26,6 +20,7 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 const KIND = "discord";
 const ID = /^[0-9]{5,25}$/;
 
+/** The Discord member to Foundry user linking window (Judge only). */
 export class BridgeMembersApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-bridge-members",

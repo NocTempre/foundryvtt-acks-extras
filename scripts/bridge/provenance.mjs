@@ -3,10 +3,7 @@
  *
  * Which client, which identity there, which channel and message asked for the
  * write. It rides under `flags["acks-extras"].bridge` on the document (and on
- * every chat message a command's roll posts, stamped by the event tap), so a
- * write made from outside Foundry can still be told apart from one made at
- * the table long after the seat is gone — the same reasoning as the
- * importer's provenance contract.
+ * every chat message a command's roll posts, stamped by the event tap).
  */
 import { MODULE_ID, BRIDGE_FLAG } from "./constants.mjs";
 
