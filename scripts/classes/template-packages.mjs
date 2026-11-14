@@ -229,9 +229,9 @@ async function importPacks() {
 async function findInPacks({ ref = "", name = "", types = [] }) {
   const wanted = fold(name);
   for (const { pack, rows } of await importPacks()) {
-    let row = ref ? rows.find((r) => cookbookId(r) === ref && usableAsSource(r)) : null;
+    let row = ref ? rows.find((r) => cookbookId(r) === ref) : null;
     if (!row && wanted) {
-      row = rows.find((r) => (!types.length || types.includes(r.type)) && fold(r.name) === wanted && usableAsSource(r));
+      row = rows.find((r) => (!types.length || types.includes(r.type)) && fold(r.name) === wanted);
     }
     if (!row) continue;
     const doc = await pack.getDocument(row._id).catch(() => null);
@@ -239,20 +239,6 @@ async function findInPacks({ ref = "", name = "", types = [] }) {
   }
   return null;
 }
-
-/**
- * Can this document stand as the SOURCE a package is built from?
- *
- * A part this module minted with nothing behind it — a placeholder
- * proficiency, a bare gear item — never can. It is a document with the
- * printed NAME and no content, so a search by name matches it, and cloning
- * it "resolves" the gap with the emptiness that defined it: the placeholder
- * is deleted, its replacement is flagged resolved, and the Judge's signal
- * that a real definition is still missing goes quiet without anyone having
- * repaired anything. A part that DID resolve stays usable, so a copy made
- * from a compendium on an earlier run is linked again rather than doubled.
- */
-export const usableAsSource = (doc) => !doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART]?.unresolved;
 
 /**
  * The document a template entry names, and whether a package may LINK it.
@@ -269,23 +255,17 @@ export const usableAsSource = (doc) => !doc?.flags?.[MODULE_ID]?.[TEMPLATE_PART]
  * importer's packs, so a ref can resolve to either.
  *
  * @param {object} [options]
- * @param {string[]} [options.exclude] uuids that may not answer — the
- *   document being upgraded names itself here, so a second pass can never
- *   close a gap with the placeholder that marks it.
  * @returns {Promise<{doc: object|null, linkable: boolean}>}
  */
-export async function findSource({ ref = "", name = "", types = [], exclude = [] } = {}) {
-  const allowed = (doc) => doc && usableAsSource(doc) && !exclude.includes(doc.uuid);
+export async function findSource({ ref = "", name = "", types = [] } = {}) {
   const found = (doc) => ({ doc, linkable: !doc.pack || isLibraryPack(doc.pack) });
   if (ref) {
     const byRef = findByRef(ref);
-    if (allowed(byRef)) return found(byRef);
+    if (byRef) return found(byRef);
   }
   const wanted = fold(name);
   if (wanted) {
-    const byName = libraryItems().find(
-      (i) => (!types.length || types.includes(i.type)) && fold(i.name) === wanted && allowed(i),
-    );
+    const byName = libraryItems().find((i) => (!types.length || types.includes(i.type)) && fold(i.name) === wanted);
     if (byName) return found(byName);
   }
   // The pack INDEX, for a library this session has not instantiated: the
@@ -298,20 +278,18 @@ export async function findSource({ ref = "", name = "", types = [], exclude = []
  * Resolve a template item entry to its BASE world item (null = no base).
  *
  * A base is something the world IMPORTED or a Judge made — never a document
- * this feature minted. Excluding its own parts stops two mistakes: a bare
- * placeholder exact-matching its own descriptor on a later pass and
- * "resolving" itself, and a finished skin being treated as the base for a
- * second skin of the same name.
+ * this feature minted: a finished skin is not the base for a second skin of
+ * the same name.
  */
-export function resolveBase(entry, { exclude = [] } = {}) {
-  const eligible = (i) => GEAR_TYPES.includes(i.type) && !partOf(i) && !exclude.includes(i.uuid);
+export function resolveBase(entry) {
+  const eligible = (i) => GEAR_TYPES.includes(i.type) && !partOf(i);
   if (entry.ref) {
     if (entry.ref.startsWith("name:")) {
       const name = entry.ref.slice(5);
       return libraryItems().find((i) => eligible(i) && i.name.toLowerCase() === name.toLowerCase()) ?? null;
     }
     const doc = findByRef(entry.ref);
-    if (doc && usableAsSource(doc) && !exclude.includes(doc.uuid)) return doc;
+    if (doc) return doc;
   }
   return bestBaseMatch(entry.name, libraryItems().filter(eligible));
 }
@@ -323,12 +301,12 @@ export function resolveBase(entry, { exclude = [] } = {}) {
  * gemstone" to the imported Staff rather than minting a bare item). The
  * system's shipped equipment is never a base; see `importPacks`.
  */
-export async function resolveBaseDoc(entry, { exclude = [] } = {}) {
-  const world = resolveBase(entry, { exclude });
+export async function resolveBaseDoc(entry) {
+  const world = resolveBase(entry);
   if (world) return world;
   for (const { pack, rows } of await importPacks()) {
     // The same exclusion `resolveBase` applies: a part is never a base.
-    const imports = rows.filter((r) => !partOf(r) && !exclude.includes(`Compendium.${pack.collection}.Item.${r._id}`));
+    const imports = rows.filter((r) => !partOf(r));
     let row = entry.ref ? imports.find((r) => cookbookId(r) === entry.ref) : null;
     if (!row) row = bestBaseMatch(entry.name, imports.filter((r) => GEAR_TYPES.includes(r.type)));
     if (!row) continue;
@@ -351,9 +329,9 @@ export async function resolveBaseDoc(entry, { exclude = [] } = {}) {
  * dropped.
  * @returns {Promise<{data: object, resolution: "base"|"root"|"bare"}>}
  */
-export async function buildGearData(entry, { exclude = [] } = {}) {
+export async function buildGearData(entry) {
   const skinName = templateItemName(entry);
-  const base = await resolveBaseDoc(entry, { exclude });
+  const base = await resolveBaseDoc(entry);
   if (base) {
     const data = base.toObject();
     delete data._id;
@@ -556,7 +534,7 @@ const listRow = (doc, quantity = 1) => ({
  * Remove from a template row every printed entry its bundle already
  * represents — matched the way the materializer placed them: an ability by
  * its ref (the linked document's own ref, or the `grantedFrom` a specialized
- * copy or placeholder carries) or by name, gear by the skinned name or the
+ * copy carries) or by name, gear by the skinned name or the
  * descriptor on its skin flag, a spell by uuid or folded name.
  *
  * ONE owner: what the bundle carries, the row no longer states. The safety
@@ -606,7 +584,7 @@ export function stripRepresented(row, bundle) {
  *
  * **A package never consumes what it points at.** `deleteDocuments` removes
  * only documents carrying this module's own `templatePart` stamp — the
- * bundles, skins, copies and placeholders it minted. An IMPORT a package
+ * bundles, skins and copies it minted. An IMPORT a package
  * links or was skinned from (the imported Sword a template names, the shared
  * Adventuring proficiency) carries no such stamp and is never touched: the
  * item library is a source, not a package's private contents.
@@ -723,9 +701,8 @@ function stampPart(data, part, stamp) {
  * into items, and the class's 3d6 RollTable — idempotent, and driven by the
  * class DOCUMENT alone, so it runs with no book connected.
  *
- * A row whose bundle already resolves is left alone (gear still flagged
- * unresolved is retried when it is unedited); a row with none gets one. Gear
- * is deduped per class by descriptor, so all bands share one repairable
+ * A row whose bundle already resolves is left alone; a row with none gets
+ * one. Gear is deduped per class by descriptor, so all bands share one repairable
  * document. The RollTable is rebuilt every run — it is a generated view.
  * Materialized entries are removed from the row arrays; what stays on a row
  * is what resolved to nothing.
@@ -796,7 +773,7 @@ export async function materializeTemplates(
     // because this is where the descriptor and the base are both still in hand.
     if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
     foundry.utils.setProperty(data, "system.quantity.value", 1);
-    stampPart(data, { ...identity, kind: "gear", unresolved: false }, stamp);
+    stampPart(data, { ...identity, kind: "gear" }, stamp);
     if (shelf) data.folder = shelf;
     return { data, nameKey };
   };
@@ -833,7 +810,7 @@ export async function materializeTemplates(
     const nameKey = fold(data.name);
     const existing = ownAbilities().find((a) => fold(a.name) === nameKey);
     if (existing) return { doc: existing };
-    stampPart(data, { ...identity, kind: "ability", unresolved: false }, stamp);
+    stampPart(data, { ...identity, kind: "ability" }, stamp);
     if (shelf) data.folder = shelf;
     return { data, nameKey };
   };
@@ -858,7 +835,7 @@ export async function materializeTemplates(
     if (linkable) return { doc: source };
     const existing = libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
     if (existing) return { doc: existing };
-    const data = stampPart(copyOf(source), { ...identity, kind: "spell", unresolved: false }, stamp);
+    const data = stampPart(copyOf(source), { ...identity, kind: "spell" }, stamp);
     if (shelf) data.folder = shelf;
     return { data, nameKey: fold(source.name) };
   };
@@ -901,94 +878,6 @@ export async function materializeTemplates(
       if (plan.doc) report.created.push(plan.doc.name);
     }
     for (const plan of plans) if (plan.shareWith) plan.doc = plan.shareWith.doc;
-  };
-
-  /**
-   * Second chances: a part minted before anything could define it — a bare
-   * gear item, a placeholder proficiency — is REPLACED once the world or a
-   * compendium can answer for it. The replacement is created, every bundle
-   * row pointing at the old document is repointed, and the placeholder is
-   * deleted. Replacing rather than retyping in place because an item's `type`
-   * is what has to change (a plain item becoming a weapon), and a Judge's
-   * repair is never overwritten: an edited placeholder is kept and reported.
-   */
-  const upgradeUnresolved = async (bundles) => {
-    const swaps = new Map();
-    const stale = [];
-    for (const doc of [...ownGear(), ...ownAbilities()]) {
-      const part = partOf(doc);
-      if (!part?.unresolved) continue;
-      if (editedSinceImport(doc)) {
-        report.skippedEdited.push(doc.name);
-        continue;
-      }
-      // The document being upgraded is never its own answer: it is the
-      // placeholder that MARKS the gap, and cloning it would close the gap
-      // with the emptiness that defined it.
-      const exclude = [doc.uuid];
-      let fresh = null;
-      let replacement = { doc: null, linkable: false };
-      if (part.kind === "gear") {
-        const built = await buildGearData(
-          {
-            name: doc.flags?.[MODULE_ID]?.skin?.descriptor ?? doc.name,
-            skinName: doc.name,
-            qty: 1,
-            // The placeholder holds the one number the page gave for it; a
-            // replacement built from a base would otherwise arrive priced as
-            // the shop list's plain version of the thing.
-            cost: doc.system?.cost ?? 0,
-          },
-          { exclude },
-        );
-        if (built.resolution !== "bare") fresh = built.data;
-      } else {
-        replacement = await findSource({
-          ref: doc.flags?.[MODULE_ID]?.grantedFrom ?? "",
-          name: doc.name,
-          types: [ITEM_TYPE.ability],
-          exclude,
-        });
-        if (replacement.doc) fresh = copyOf(replacement.doc);
-      }
-      if (!fresh) {
-        // Still nothing to answer with. Reported on EVERY pass, not only the
-        // one that minted it: a gap the Judge has yet to fill is a standing
-        // fact about the package, and a run that says nothing reads as a run
-        // that found nothing wrong.
-        report.unresolved.push(doc.name);
-        continue;
-      }
-      // A proficiency the LIBRARY itself defines is LINKED, not copied — the
-      // same rule the create path follows, so an upgrade does not leave the
-      // world holding a redundant twin of an ability it already had. Gear is
-      // always a copy, because a skin is by definition a copy of its base.
-      const made =
-        replacement.linkable && part.kind === "ability"
-          ? replacement.doc
-          : await (async () => {
-              stampPart(fresh, { ...identity, kind: part.kind, unresolved: false }, stamp);
-              if (shelf) fresh.folder = shelf;
-              return Item.implementation.create(fresh, itemOpts);
-            })();
-      if (!made) continue;
-      swaps.set(doc.uuid, made);
-      stale.push(doc);
-      report.created.push(`${made.name} (resolved)`);
-    }
-    if (!swaps.size) return;
-    for (const bundle of bundles) {
-      const rows = foundry.utils.deepClone(bundle.system.itemList ?? []);
-      let dirty = false;
-      for (const r of rows) {
-        const made = swaps.get(r.uuid);
-        if (!made) continue;
-        Object.assign(r, listRow(made, r.quantity || 1));
-        dirty = true;
-      }
-      if (dirty) await bundle.update({ "system.itemList": rows });
-    }
-    for (const doc of stale) await doc.delete();
   };
 
   /**
@@ -1041,7 +930,6 @@ export async function materializeTemplates(
 
   const templates = foundry.utils.deepClone(classItem.system.toObject?.().templates ?? classItem.system.templates);
   const ownBundles = libraryItems().filter((i) => i.type === ITEM_TYPE.bundle && isMine(i) && partOf(i).kind === "bundle");
-  await upgradeUnresolved(ownBundles);
   let changed = false;
 
   for (const row of templates) {
@@ -1060,9 +948,8 @@ export async function materializeTemplates(
       }
     }
     if (bundle) {
-      // Contents already exist (unresolved parts were given their second
-      // chance above, before any row was read; a spell the row kept because
-      // its document did not exist yet gets its own here). An importer Update
+      // Contents already exist (a spell the row kept because its document did
+      // not exist yet gets its second chance here). An importer Update
       // rewrites the whole `system`, putting the printed arrays back on a row
       // whose bundle already carries them — left there the package would be
       // handed over twice, so the represented entries go again.

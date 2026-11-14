@@ -1239,7 +1239,7 @@ await atest("a tradition's list narrows the spell offer and its grid caps it by 
 
 /* ---------------------- template packages ------------------------- */
 
-const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, stripRepresented, usableAsSource } =
+const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, stripRepresented } =
   await import("../scripts/classes/template-packages.mjs");
 
 const { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, templateSelection, templateOptionKey } =
@@ -1477,28 +1477,10 @@ test("stripping is evidence-based: what the bundle lacks stays printed", () => {
   assert.equal(row.abilities.length + row.items.length + row.spells.length, 3);
 });
 
-test("a placeholder can never resolve itself", () => {
-  // An unresolved part is never a source — a name search must not match a
-  // placeholder and clone its own emptiness as the "resolution".
-  const placeholder = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: true } } } };
-  const resolvedCopy = { flags: { "acks-extras": { templatePart: { kind: "ability", unresolved: false } } } };
-  const anImport = { flags: { "acks-extras": { cookbook: { id: "def.prof.alertness" } } } };
-  assert.equal(usableAsSource(placeholder), false);
-  // A part that DID resolve stays usable, so an earlier copy is relinked
-  // rather than doubled on the next pass.
-  assert.equal(usableAsSource(resolvedCopy), true);
-  assert.equal(usableAsSource(anImport), true);
-
+test("a skin is never the base of another skin", () => {
   const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
-  assert.match(src, /const exclude = \[doc\.uuid\];/, "and the document being upgraded excludes itself by uuid");
-  // A standing gap is reported on EVERY pass, not only the one that minted
-  // the placeholder — a later run that says nothing reads as a clean run.
-  assert.match(src, /report\.unresolved\.push\(doc\.name\);/, "an unfilled gap is re-reported each run");
-  // An upgrade to a definition the library holds LINKS it, matching the create
-  // path, so the world never ends up holding a redundant twin of its own ability.
-  assert.match(src, /replacement\.linkable && part\.kind === "ability"/, "a library source is linked, not copied");
-  // Gear bases exclude every part this feature minted, so a bare item cannot
-  // exact-match its own descriptor and a skin cannot become a second skin's base.
+  // Gear bases exclude every part this feature minted, so a finished skin
+  // cannot become a second skin's base.
   assert.match(src, /GEAR_TYPES\.includes\(i\.type\) && !partOf\(i\)/, "a base is an import, never our own output");
 });
 
@@ -1506,15 +1488,13 @@ test("a package never consumes the imports it points at", () => {
   // A template naming a sword must leave the imported Sword alone: the item
   // library is a SOURCE, not a package's private contents. Every deletion is
   // therefore gated on this module's own templatePart stamp (its bundles,
-  // skins, copies and placeholders), which a linked import never carries.
+  // skins and copies), which a linked import never carries.
   const src = readFileSync(new URL("../scripts/classes/template-packages.mjs", import.meta.url), "utf8");
   const deletions = [...src.matchAll(/await (\w+)\.delete\(\)/g)];
-  assert.equal(deletions.length, 3, "three deletion sites: detach's items and tables, and a replaced placeholder");
+  assert.equal(deletions.length, 2, "two deletion sites: detach's items and tables");
   // Detach deletes only what `mine` (partOf → templatePart) admits.
   assert.match(src, /const mine = \(doc\) => \{\s*const part = partOf\(doc\);/, "detach filters by this module's stamp");
   assert.match(src, /libraryItems\(\)\.filter\(mine\)/, "and never by a bare type or name scan");
-  // The replacement path only ever deletes a placeholder it itself minted.
-  assert.match(src, /if \(!part\?\.unresolved\) continue;/, "upgrades touch only unresolved parts");
   // Gear is SKINNED FROM a base by copying it — the base is read, never moved.
   assert.match(src, /const data = base\.toObject\(\)/, "a base item is copied, not consumed");
 });

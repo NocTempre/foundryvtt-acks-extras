@@ -104,38 +104,26 @@ pack document is **copied into the world**, never linked: a locked pack
 document is what a Judge cannot repair.
 
 So: gear becomes an already-skinned copy deduped per class by descriptor,
-else the equipment root's strict name classification, else a bare `item`
-flagged unresolved; a plain proficiency the WORLD defines is linked (one
+else the equipment root's strict name classification; gear nothing can
+type stays on the row and is reported unresolved; a plain proficiency the WORLD defines is linked (one
 shared document), one only a pack defines is copied, one with a printed
 selection becomes a specialized copy stamped `grantedFrom` so `ownsRef` still
 dedupes it, and one **nothing defines yet stays on the class row** and is
 reported unresolved — it is not minted (DECISIONS 2026-08-24). A row that is
 an OFFER rather than a grant also stays on the row and becomes a marker on the
 character instead; see *Open picks*. Spells resolve the same way.
-`upgradeUnresolved` runs before any row is read — it repairs a part minted
-with nothing behind it: a
-placeholder the world can now answer for is replaced (the `type` must
-change), every bundle row repointed and the old document deleted, unless it
-was edited — a Judge's repair is skipped and reported; an upgrade to a
-definition the WORLD holds links it rather than copying, the same rule the
-create path follows, and a gap still unfilled is re-reported on every pass
-rather than only the one that minted it. A spell a row still names in print —
-one no document answered for when the bundle was built — gets its second
-chance on every pass too (`relinkSpells`): each named, non-offer entry with
-no uuid is planned again; what resolves is written (a copy only on a create
-pass) and listed on the bundle, its `asImported` snapshot following so the
-write does not read as a Judge's edit, and the entry takes the uuid so the
-represented pass strips it; an edited bundle is skipped and reported.
-**An unresolved part is never a
-source** (`usableAsSource`), and the document being upgraded excludes itself
-by uuid: a placeholder carries the printed name and nothing
-else, so without that it answers its own name search and closes the gap it
-exists to mark. Gear bases exclude every part this feature minted, so a skin
+A spell a row still names in print — one no document answered for when the
+bundle was built — gets its second chance on every pass (`relinkSpells`): each
+named, non-offer entry with no uuid is planned again; what resolves is written
+(a copy only on a create pass) and listed on the bundle, its `asImported`
+snapshot following so the write does not read as a Judge's edit, and the entry
+takes the uuid so the represented pass strips it; an edited bundle is skipped
+and reported. Gear bases exclude every part this feature minted, so a skin
 never becomes the base of a second skin.
 
 **A package never consumes the imports.** Gear is a COPY skinned from its
 base, a world proficiency is LINKED, and every deletion — `detachTemplate
-Packages`' optional cleanup, a replaced placeholder — is gated on this
+Packages`' optional cleanup — is gated on this
 module's own `templatePart` stamp. The imported Sword a template names, and
 the shared Adventuring proficiency it links, carry no such stamp and are
 never touched: the item library is a source, not a package's private

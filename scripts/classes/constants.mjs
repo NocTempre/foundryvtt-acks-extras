@@ -31,7 +31,7 @@ export const FLAG_CLASSES = "classes";
 /**
  * Item flag key under `flags["acks-extras"]` naming what a document is a PART
  * of: `{classUuid, classKey, kind: "bundle"|"gear"|"ability"|"spell"|"table",
- * band?, unresolved?}`. Written by template-packages.mjs, and read anywhere a
+ * band?}`. Written by template-packages.mjs, and read anywhere a
  * lookup must tell a class's own copy of something from the thing itself.
  */
 export const FLAG_TEMPLATE_PART = "templatePart";

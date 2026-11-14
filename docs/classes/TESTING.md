@@ -211,10 +211,9 @@ gear the world does not hold. A disposable character.
    onto the class's shelf, because a skin is a copy by nature; a definition
    in a foreign compendium is copied too. *Observable:* the bundle's abilities
    open as editable documents wherever they sit; nothing is left on the row
-   except what genuinely resolved nowhere. A name nothing defines is a
-   **placeholder** ability — named as printed, empty, and repairable; re-run
-   materialize after importing the real definition and it is replaced, the
-   bundle repointed, the placeholder deleted.
+   except what genuinely resolved nowhere. A name nothing defines stays on
+   the class row, printed, and is named in `report.unresolved`; re-run
+   materialize after importing the real definition and it is picked up.
 1c. **A class on a shelf.** Repeat step 1 on a class the importer put in
    "ACKS Cookbook — Item" (one holding template rows).
    *Observable:* its bundles, skins and copies are in that pack under
@@ -227,18 +226,17 @@ gear the world does not hold. A disposable character.
    that the code ran), name is the printed descriptor, `flags["acks-extras"]
    .skin.baseName === "Staff"`.
 3. The second row's gear.
-   *Observable:* a bare `item` whose `templatePart.unresolved` is true —
-   visible, never dropped.
+   *Observable:* an entry nothing can type stays printed on the row and is
+   named in `report.unresolved`; no bundle document is minted for it.
 3a. **Run materialize a SECOND time with nothing else changed**, on a class
    whose package still holds a genuinely-undefined proficiency.
-   *Observable:* the placeholder is still flagged `unresolved` and still
-   named in `report.unresolved`. A placeholder silently becoming "resolved"
-   here is it answering its own name search — the defect this step exists to
-   catch.
-4. Repair-once: hand-edit the bare item (set a type/damage), re-run
-   `materializeTemplates` and `importTemplatePackages()` (importer side).
-   *Observable:* the repaired document untouched, counted in
-   `skippedEdited`; nothing duplicated (idempotence).
+   *Observable:* the entry is still on the row and still named in
+   `report.unresolved`; nothing is created.
+4. Repair-once: hand-edit a bundle whose row still names a spell no document
+   answered for, re-run `materializeTemplates` and `importTemplatePackages()`
+   (importer side).
+   *Observable:* the edited bundle untouched, counted in `skippedEdited`;
+   nothing duplicated (idempotence).
 5. Generate a character from the repaired template (Scores Generator, and the
    picker's opt-in package).
    *Observable:* the character's staff is a `weapon` and equips from the
@@ -291,7 +289,7 @@ looks fine until someone tries to swing it.
 | `Torches` ×6 | `def.equip.torch` | `item` (a carried stack), base `Torch` |
 | `war hammer carved with clan emblem` | `def.weapon.warhammer` | `weapon`, base `Warhammer` — NOT the carpentry `Hammer (small)` |
 | `Feathered darts` ×5 | *(none)* | `weapon`, base `Dart` — resolved by name, plural |
-| `Weighted net` | *(none)* | bare `item`, `unresolved: true`, named in `report.unresolved` |
+| `Weighted net` | *(none)* | no document; kept printed on the row, named in `report.unresolved` |
 
 *Also observable on every one of them:* `flags["acks-extras"]` is present. A
 skin that keeps the base's importer stamp answers ref lookups meant for the
@@ -307,15 +305,6 @@ base.
    *Observable:* `polished sword and dagger` → TWO items, `def.weapon.sword`
    and `def.weapon.dagger`; `wool tunic and pants` → ONE
    (`def.equip.tunicAndPants`); `Torches` → `def.equip.torch`.
-10. **The field-repair path**, which is what an already-broken world runs.
-   Create a bare `item` named for the descriptor, flagged
-   `templatePart.unresolved`, with `asImported` set from its own `toObject()`
-   (name/type/system — otherwise `editedSinceImport` reads it as hand-edited
-   and skips it); point a bundle row at it and delete the document it
-   displaced. Re-run `materializeTemplates`.
-   *Observable:* `report.created` names `<descriptor> (resolved)`, the bundle
-   row now points at a `weapon`, and the bare item is gone.
-
 ### Combat training reaches the CHARACTER, not just the class
 
 The class document has always carried the training as an ActiveEffect. Asserting
