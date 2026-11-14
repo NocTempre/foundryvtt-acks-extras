@@ -412,8 +412,10 @@ the Books tab. Its five tabs:
   for when its documents were deleted or a book was connected after the
   chain ran. Every step passes over what the world already holds. **Repair
   everything**, beside it, repairs in place every book open on this seat and
-  every open adventure book, after one confirm that lists the parts; it ends
-  by reading the rules tables again.
+  every open adventure book, after one confirm that lists the parts. Once you
+  confirm, it reads the rules tables before the first book is repaired, and
+  when the last pass is done it applies them to the races, classes, skills and
+  languages those tables describe.
 - **Rebuild** — a shelf, a book or the rules tables, repaired in place: pick
   one and press **Go**. The same choices as **Reimport One Shelf**.
 - **Adventures** — each adventure book open on this seat, with what its

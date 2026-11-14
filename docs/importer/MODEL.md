@@ -71,13 +71,22 @@ questions. Five tabs:
   the Books tab alone: `_prepareContext` drops the other four tabs, reads
   neither `rebuildOptions` nor `adventureBooks`, and every action that writes
   the world refuses. The settings-menu entry stays restricted.
-- **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`) in
-  its order, numbered, run whole (`runImportEverything`) or one step at a
-  time (`runImportStep(key)`, `api.importStep`). Run whole, each step is
-  handed `{quiet: true}`: the journals, keyed-places and maps steps, finding
-  nothing in the open books to write, resolve null without a notice, as they
-  do when a book's rebuild scopes them to that book; run alone, they say what
-  is missing. Beside **Import everything**, which runs the chain,
+- **Import** — the chain (`GM_STEPS`, exported from `getting-started.mjs`, 21
+  steps) in its order, numbered, run whole (`runImportEverything`) or one step
+  at a time (`runImportStep(key)`, `api.importStep`). Run whole, the chain
+  shares one run object, and each step is handed `{quiet: true, run}`. The
+  rules tables are split over two steps. `stepTables` runs first and reads
+  them (the page read, then the store's assembly of the builder and travel
+  tables), keeping its report in `run.tables`. `stepTablesApply` runs after
+  `stepClasses` and before template packages, and applies only the documents
+  that report names: races, class builds, skill armour-limit rows and
+  languages, then the race-tongue sync. Class pricing reads the assembled
+  tables during `stepClasses`. Either step run alone reads and applies in its own call. The
+  split and its reasons are DECISIONS 2026-11-13, "The rules tables are read
+  first and applied after the classes". The journals, keyed-places and maps
+  steps, finding nothing in the open books to write, resolve null without a
+  notice, as they do when a book's rebuild scopes them to that book; run
+  alone, they say what is missing. Beside **Import everything**, which runs the chain,
   **Repair everything** runs the merged repair (below) over every open book
   and every open adventure book (`host.runEverything("repair")`, which calls
   `api.reimportEverything()`), asked once. `everything.mjs` runs each part first with an `ask` that records the
@@ -88,9 +97,11 @@ questions. Five tabs:
   repair imports the entries the world lacks. The lines go into one confirm
   under each part's label, and a Yes runs each part that asked with its
   confirm answered, every part under one tally per pass, so the edits all of
-  them held are put to the Judge together. The first pass closes on the
-  rules tables re-read in place; each adventure book's Adventure is written
-  once, after the last pass.
+  them held are put to the Judge together. The rules tables are read once,
+  after the Yes and before the first part runs (`before`), and applied once in
+  `finish`, after the last pass and before each adventure book's Adventure is
+  written. A class repair rewrites the class whole, so an apply run in pass one
+  would be undone by pass two; a No reads and writes nothing.
 - **Rebuild** — the shelf, book and rules-table options of
   `rebuildOptions()`, run by `runRebuildPick(value)`: a shelf or a book runs
   the merged repair, the rules tables are re-read in place. The Reimport One Shelf dialog draws
@@ -103,6 +114,15 @@ questions. Five tabs:
 - **Tools** — the entry picker, the audit, the repair window on the
   importer's checks (every check where it registers none), the merchandise
   build, overhead token art (below) and Remove All Imports.
+
+**The rules tables' phases.** `scripts/importer/tables-phases.mjs` holds what
+runs after the page read: the assembly of the store's tables (`assembleReadTables`),
+the apply to races, builds, skills and languages with the race-tongue sync
+(`applyReadTables`), and the simple table bindings. Each takes the ids of the
+documents a read produced and touches only those. `module.mjs` keeps the guards, the page read and its
+notices, and calls these. `cookbookImportTables` takes a `phase` of `"read"`,
+`"apply"` or `"both"`; the chain's two steps and the repairs' read and finish
+use the first two, and every other caller uses `"both"`.
 
 One run at a time: the window names what runs in a status line and disables
 its buttons until the run resolves, then re-renders.
@@ -252,7 +272,9 @@ built from a connected table, not from an entry. `importWeapons`,
 `importArmor`, `importPricedGear`, `applyLanguageImport` and
 `applyBuilderImport` take `{repair}`: a row this world already holds is written
 over under `REPAIR.weapon`, `armor`, `ammunition`, `priced` or `language` and
-counted, where an import passes it over. `TABLE_REPAIRS` and `TABLE_BOOKS` tie
+counted, where an import passes it over. `applyBuilderImport` writes races and
+class builds only; its table assembly, `assembleBuilderImport`, writes no
+document (the split is under "Import" in the manager, above). `TABLE_REPAIRS` and `TABLE_BOOKS` tie
 a shelf and a book to the importers that rebuild its rows, and `isTableRow`
 tells a shelf's repair which documents are rows. A row of a table whose book is
 not open on this seat is left.
@@ -1704,7 +1726,13 @@ cut by kind and layer:
   predicates, small parsers, the debugging `api`.
 - `read.mjs`: reading one entry off the seat's own book for an import or a
   repair (`readForImport`, `repairFromEntry`), the passed-over tally, the
-  per-run page cache.
+  per-run page cache, and the per-repair read memo (`holdingReads`). The memo
+  is opened by `runMerged` and lasts for one merged repair, both passes and
+  the finish, including the wait on the Judge's choice dialog, then is gone.
+  Inside it an entry's executed node is kept per open book and entry id, and
+  each read hands back a copy of that node. Nodes only, never pages. A read
+  that passes any option but the page cache bypasses the memo, and no import
+  run opens one.
 - `target.mjs`: import targets, the world or a compendium, the item shelves,
   the library name index, the document writers.
 - `abilities.mjs`: binding an executor ability to its document, the ability
@@ -1728,9 +1756,9 @@ cut by kind and layer:
 
 **Layering.** The files above are in import order: a file imports only files
 listed before it, `state.mjs` imports no sibling, and nothing under
-`cookbook/` imports the facade, so there is no cycle. `read.mjs` holds the four
-read helpers shared by the binders and the repair: one place where an entry is
-read off the book.
+`cookbook/` imports the facade, so there is no cycle. `read.mjs` holds the read
+helpers and the repair's memo, shared by the binders and the repair: one place
+where an entry is read off the book.
 
 **Cross-book seams.** No file is per book, and none is cross-book: the join of
 a place two books print lives in the file where its kind lives

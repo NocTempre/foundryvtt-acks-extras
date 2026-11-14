@@ -9532,7 +9532,7 @@ hyphenated spelling the text layer splits.
 *Cost:* a world that imported the compendium's tables before this has no
 derived leaders until it imports them again; the printed leaders stand.
 
-## 2026-11-04 — Import everything takes the three modes, over every open book, asked once
+## 2026-11-04 — Import everything takes the three modes, over every open book, asked once — SUPERSEDED IN PART 2026-11-13
 
 > **Superseded in part 2026-11-11** by "One repair, in place, and the Judge
 > chooses what it writes over" and "The manager draws only the one repair, and
@@ -10372,3 +10372,87 @@ read one scene per id, so the pass has to visit every import.
 - A row from a twinned map to a map with no twin stays on the original.
 - Only `@UUID` and `data-uuid` links are rewritten; the importer writes no
   other link form.
+
+## 2026-11-13 — The rules tables are read first and applied after the classes
+
+**Ruled by the owner.** Two rulings, verbatim:
+
+- Plan §21.0f: "I am okay with leaving a duplicate import source unbuilt for
+  now, but I would still like the import structure to rework into phase 1
+  unload from book, phase 2 organize in foundry. I suspect a lot of wonkiness
+  is getting driven by attempts to one-shot it"
+- Plan §36.6, the options A, B and C offered, answered: "A: tables-first slice"
+
+**Ruled.** Import Everything reads the rules tables first and applies them
+after the classes. The read is `stepTables`: the page read, then the store's
+assembly of the builder and travel tables, with its report kept in the chain's
+run object. The apply is `stepTablesApply`, after `stepClasses` and before
+template packages, and it writes only the documents that report names: races,
+class builds, skill armour-limit rows and languages. Then it syncs race
+tongues. The split falls there because class pricing needs the assembled
+builder tables, and races and builds need the abilities and classes the chain
+has just made. A chain never applies a table it did not read in the same run.
+A standalone step run from the Import tab reads and applies in its own call.
+
+Repair everything reads the rules tables once, after the Yes and before the
+first part runs, and applies them once in `finish`, after the last pass and
+before the adventures write. The apply waits for the last pass because a class
+repair rewrites the class's whole system, so a second pass that re-ran the
+class step would wipe the builds an earlier apply had stamped. The read waits
+for the Yes because the asking pass writes nothing and a No must leave the
+world as it was, and the read writes the table store and its materialized
+tables.
+
+Race tongues: the sync runs over every held imported class, not only the
+classes the run made, and fills only a race whose list is empty. It runs when
+an apply runs, which happens only when the read named the builder or language
+document. Borrowing for a new class takes its lenders from every held class;
+the borrowers stay the classes the run wrote, because a borrow is not
+idempotent: each one gives a slot back.
+
+A repair's read memo (`holdingReads`, `read.mjs`) is opened by `runMerged` and
+lasts for that one merged repair, both passes, the finish and the Judge's
+choice dialog. It is gone when the repair ends. Import runs open none. It holds
+executed nodes, never pages, and each read gets a copy.
+
+This is a reordering and a read seam. It is not the two-phase structure the
+owner asked for in §21.0f, which heads the next roadmap.
+
+**Evidence for superseding in part** the 2026-11-04 rule that a repair closes
+on the rules tables re-read in place: the dependency graph traced call by
+call. Class pricing reads the builder budget, which exists only after the
+assembly; a class repair rewrites the class whole, so a repair's apply cannot
+run in pass one.
+
+**Stands:** "One repair, in place, and the Judge chooses what it writes over"
+(2026-11-11; the two passes are unchanged). "Book repair reaches a book's own
+rows and vehicles (T-0458)" (2026-11-13; a book repair still reads no table).
+"A bulk import reads each page once (T-0353)" (2026-11-13; the call caches are
+unchanged, and the memo above is a separate store).
+
+**Rejected:**
+
+- Running the tables import twice in the chain, once at the head and once after
+  the classes: a second full page read (41 s on a live run, 2026-11-13 timing)
+  and every store write and materialize done twice.
+- Moving the whole tables step after the classes: the classes still price without
+  a budget. Moving it to the head whole: the races and builds find no classes.
+- Creating race Items at the head: a document write before the abilities exist,
+  so a rung power the register cannot place lands in the note, not the list.
+- A hold over Import Everything, or a page cache in the hold: the memory is
+  unmeasured and the cross-step overlap is small.
+- Reading the tables before Repair everything's asking pass: it writes before a No.
+- Applying the stored tables with no read in the run: the store may hold an
+  earlier run's read, and a step that writes documents from it writes what no
+  book open now confirmed.
+
+The 2026-11-04 entry "Import everything takes the three modes, over every open
+book, asked once" is marked superseded in part for its rule that a repair
+closes on the rules tables re-read in place; the rest of it stands.
+
+*Cost:* a 21st step and one more file (`tables-phases.mjs`). A repair that stops
+before its finish leaves the classes it rewrote without builds until a tables
+apply runs; the same gap for a shelf repair of classes is registered (T-0541)
+and is not walked. The read memo's memory over a whole Repair everything is unmeasured:
+the node count logged when the hold ends is the probe. Nothing in this entry
+is walked live yet; the fresh-world step in TESTING is the first walk.

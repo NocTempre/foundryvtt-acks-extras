@@ -541,6 +541,67 @@ counting, run offline in `tools/importer/test-import-manager.mjs` and
 Close the window. Nothing was built; the roll-table step and the table
 re-read wrote in place.
 
+## A fresh world's first Import Everything reads the tables before the classes
+
+Import Everything with no Repair. Reading and applying the rules tables is
+split across two steps of the chain (DECISIONS 2026-11-13, "The rules tables
+are read first and applied after the classes"); this walk shows the first
+run completes what a Repair used to, on its own.
+
+### Fixtures
+
+No document carries a marker: the fixture is the world's absence of imports,
+which setup must make true and which the step asserts before it starts, so
+setup is the subject. Before it, find out who is seated (`live-testing.md`,
+Concurrency): emptying the imports takes every importer walk's corpus with it,
+so it waits while a peer drives an importer surface. The ledger is empty; the
+step builds nothing with `api.create`, so nothing is swept.
+
+The books the walk needs are the GM's own, open on the GM seat: the Rulebook
+and one book that prints a creature template family with leaders, a priced
+class, a race that grants tongues, and a skill the book restricts by armour.
+Name them by kind in the run's log, never by printed name.
+
+### Steps
+
+1. Empty the world's imports. Manage Imports → Tools → **Remove ALL imports**,
+   confirm. That removes the documents and the materialized tables but keeps
+   the table DATA registered (`ruledata-import`'s `removeMaterializedDocs`), so
+   then log the `ruledata-import` service's `listDocs()` and call
+   `removeDoc(id)` for each world-priority entry. *Observable:* the library
+   holds no imported race, class, skill or creature, and `listDocs()` returns
+   no world-priority entry. Record the counts found in the run's log; a
+   non-empty state after setup is a failed setup, and the walk stops.
+2. Manage Imports → Import → **Import everything**, once. Do not press
+   Repair, Rebuild or any Rebuild option. Wait for the status line to clear,
+   in rounds if one evaluation cannot cover it, and log the seconds.
+3. Import tab: the steps are listed numbered in `GM_STEPS` order, 21 of them,
+   and step 10 is *Applying the rules tables to races, classes, skills and
+   languages…*, directly after the classes step and before template packages.
+   *Observable:* that numbering, read off the window.
+4. A creature template family whose members print leaders: a member's throws
+   are derived (set, not the absent state) and its kit axis is set. *Observable:*
+   the member sheet's throw figures and its kit field, with the tooltip on each
+   naming where the figure came from.
+5. A priced class: each of its levels carries an experience figure, and the
+   class Item's `system.builder` is set (its build provenance). *Observable:*
+   the level rows on the class sheet, and the Item's `system.builder` read back.
+6. A race that grants tongues: the race Item's `system.languages` lists the
+   granted tongues. *Observable:* the race Item read back, with a character of
+   that race showing the tongues on its languages.
+7. A skill the book restricts by armour: the skill's gate carries the
+   armour-limit row. *Observable:* the skill's item read back, and the
+   armour-limit line on its sheet.
+
+Each observable is read on a fresh read of the document, not from the window
+that wrote it.
+
+### Teardown
+
+None. The imported world is the fixture later walks reuse. A walk that needs
+the empty state again empties it by step 1 under the setup rule above, after
+reading what the world holds.
+
 ## Rebuild or repair an adventure book
 
 `acksExtras.importer.cookbookReimportAdventure(bookId)`, from the Adventures
