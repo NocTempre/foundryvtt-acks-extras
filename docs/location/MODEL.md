@@ -86,7 +86,11 @@ sibling features (henchmen today; domains later) read through lib.
 Depositing is gated on being able to reach the place; **retrieving is not** —
 a player who cannot get their own goods back is a worse failure than one who
 withdraws from a distance. A refusal returns its reason, because a control that
-has quietly vanished reads as a broken module.
+has quietly vanished reads as a broken module. The gate binds a player: a
+Judge's deposit control stays on an out-of-reach place (its tooltip the
+reason), and the deposit goes through with a warning that says what the
+automation would have refused (`lib/storage.mjs` `stash`). A deposit a player
+asked for and the Judge's seat replays is still the player's and is refused.
 
 Being **carried by** a place comes before both halves: a character aboard a
 vehicle — directly, or through a chain of carriers, such as a rider on a horse

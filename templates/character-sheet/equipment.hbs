@@ -149,7 +149,7 @@
         {{#if place.pinned}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.equipment.pinned"}}</span>{{/if}}
         {{#if eq.editable}}
         <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
-          {{#if place.canReach}}<button type="button" class="acks-extras-frame__ctl" data-action="placeDeposit" data-tooltip="{{localize 'ACKS-LOCATION.storage.deposit'}}"><i class="fa-solid fa-down-long" inert></i></button>{{/if}}
+          {{#if place.canDeposit}}<button type="button" class="acks-extras-frame__ctl" data-action="placeDeposit" data-tooltip="{{localize 'ACKS-LOCATION.storage.deposit'}}"><i class="fa-solid fa-down-long" inert></i></button>{{/if}}
           {{#if place.canRetrieve}}<button type="button" class="acks-extras-frame__ctl" data-action="placeRetrieveAll" data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieveAll'}}"><i class="fa-solid fa-up-long" inert></i></button>{{/if}}
           <button type="button" class="acks-extras-frame__ctl{{#if place.pinned}} is-on{{/if}}" data-action="placePin" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.pinPlace'}}"><i class="fa-solid fa-thumbtack" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl" data-action="placeOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openPlace'}}"><i class="fa-solid fa-chevron-right" inert></i></button>

@@ -1075,6 +1075,28 @@ await test("the Judge moves goods only for the seat that owns the character, and
     game.user = JUDGE;
   }
 });
+await test("a Judge's own deposit out of reach goes through with a warning; a player's relayed one is still refused", async () => {
+  const hero = makeActor({ id: "hero", name: "Hero", items: [gold(40, { _id: "g" })] });
+  worldActors.set(hero.id, hero);
+  const abbey = judgesPlace("abbey");
+  connectJudge();
+  const { location } = acksExtras;
+  acksExtras.location = { reach: { depositReach: () => ({ can: false, reason: "notHere", scene: { name: "The Road" } }) } };
+  try {
+    warnings.length = 0;
+    const done = await storage.stash(hero, abbey, [{ id: "g" }]);
+    assert.equal(done.ok, true, "the Judge's seat deposits past the refusal");
+    assert.deepEqual([purse(hero), keptAt(abbey, hero), warnings], [[], ["Gold ×40"], ["ACKS-LIB.storage.judgeReach"]], "and is told what the automation would have refused");
+    const bob = makeActor({ id: "bob", name: "Bob", items: [gold(5, { _id: "b" })] });
+    worldActors.set(bob.id, bob);
+    warnings.length = 0;
+    const relayedAsk = await getSocket().executeAsGM("libMoveGoods", { kind: "stash", sourceUuid: bob.uuid, targetUuid: abbey.uuid, spec: [{ id: "b" }], requestUserId: PLAYER.id });
+    assert.deepEqual([relayedAsk.ok, relayedAsk.reason, purse(bob)], [false, "outOfReach", ["Gold ×5"]], "a deposit replayed on the Judge's seat for a player is still the player's");
+  } finally {
+    acksExtras.location = location;
+    game.user = JUDGE;
+  }
+});
 await test("a seat that owns the place writes its own move", async () => {
   const hero = makeActor({ id: "hero", name: "Hero", items: [gold(12, { _id: "g" })] });
   worldActors.set(hero.id, hero);

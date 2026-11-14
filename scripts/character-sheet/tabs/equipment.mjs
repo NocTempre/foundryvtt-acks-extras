@@ -206,6 +206,7 @@ function placeRow(actor, provider, items, coinGC, pinned, scan) {
     count: items.length,
     coinGC,
     canReach: reach.can,
+    canDeposit: reach.can || !!game.user?.isGM,
     reachReason: reach.can ? "" : game.i18n.format(`ACKS-LOCATION.storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     pinned,
     canRetrieve: items.length > 0,

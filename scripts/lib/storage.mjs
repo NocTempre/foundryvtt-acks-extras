@@ -351,12 +351,33 @@ async function transfer(source, target, spec, { hook, stampOwner, preserveOwner 
   return { ok: true, manifest };
 }
 
+/**
+ * A deposit the Judge makes for a character out of reach of the place: the
+ * automation would have refused it, so it says what it would have refused and
+ * lets the move go. Only the Judge's own seat (`judgeDeclares`) takes this
+ * path; a deposit relayed to the Judge's seat for a player is refused by
+ * `moveForSeat` and never reaches it.
+ */
+async function warnJudgeReach(source, provider) {
+  if (!game.user?.isGM) return;
+  const reach = globalThis.acksExtras?.location?.reach?.depositReach?.(source, provider);
+  if (!reach || reach.can) return;
+  const { judgeDeclares } = await transport();
+  if (!judgeDeclares()) return;
+  const key = `${LANG_PREFIX}.money.reach.${reach.reason}`;
+  const why = game.i18n?.has?.(key)
+    ? game.i18n.format(key, { who: source.name, place: provider.name, scene: reach.scene?.name ?? "" })
+    : String(reach.reason ?? "");
+  ui.notifications?.warn(loc("storage.judgeReach", { why }));
+}
+
 /** Character → place. The goods leave the character entirely. */
 export async function stash(source, provider, spec) {
   if (!isProvider(provider)) {
     warn("notProvider");
     return { ok: false, reason: "notProvider" };
   }
+  await warnJudgeReach(source, provider);
   return transfer(source, provider, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true, relay: "stash" });
 }
 

@@ -1,0 +1,1 @@
+A Judge can deposit for a character who is out of reach of a place. The deposit button stays on the core character sheet's Storage tab and on the character sheet's Equipment tab (Kept elsewhere) for a Judge, with the reason as its tooltip, and the deposit goes through with a warning that says what the automation would have refused. A player is still blocked.

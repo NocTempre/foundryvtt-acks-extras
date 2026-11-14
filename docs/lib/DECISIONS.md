@@ -160,3 +160,15 @@ reads", shows the loads gone.
 **Rejected.** A guard in each remaining caller (item sheet `rollById`, the character sheet's weapon rows): core's own sheet and `Item#use` stay open.
 
 *Cost:* an attacker with no throw cannot roll an attack at all, where before it rolled against the armour class alone, which was a figure the page never printed. Supersedes the "What it cost" clause of the monsters entry named above.
+
+## 2026-11-14 — Where the automation would refuse, a player is blocked and a Judge is warned
+
+**Ruled.** `depositReach` refused a deposit for a character out of reach of the place, and its clauses are about the character, not the client, so the Judge's own deposit was refused as a player's is. The owner was asked "(a) the Judge bypasses reach; (b) reach stands" and answered, verbatim: **"5A, general automation rule for repo, players get blocks, judges get warnings"**. The repo's rule for automation: where the module would refuse an action, a player is blocked and a Judge is warned and proceeds. The warning names what the automation would have refused, and it is a lang string, never a rule sentence.
+
+**Built here.** A Judge's own deposit for a character out of reach goes through. `lib/storage.mjs` `stash` asks `depositReach` and, on the Judge's own seat (`judgeDeclares`), says so with `ACKS-LIB.storage.judgeReach` before moving the goods; the Storage tab's and the Equipment tab's deposit controls stay on a place out of reach for a Judge (`canDeposit`), the reason as the tooltip. A deposit a player asked for and the Judge's seat replays (`moveForSeat`, `requestUserId` set) is still the player's and is refused with its reason. A deposit made by a seat that owns both ends writes directly and has no reach check; that is unchanged.
+
+**What this entry does not do.** It does not rebuild the other surfaces now. A market's payments, its changer, the recruiting fee and the signing bonus already pass `judge`; every other surface that refuses a Judge is the list the lib ROADMAP row "The Judge's override on every surface" holds, each to be read against this rule when it is next touched.
+
+**Rejected.** (b), reach stands for the Judge: the Judge's seat is the one that decides what a character can reach.
+
+*Cost:* a Judge's mis-click deposits goods to a place the character cannot reach, with a warning and no confirmation; the move is the ordinary retrieve to undo.

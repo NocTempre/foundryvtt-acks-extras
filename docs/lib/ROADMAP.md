@@ -46,10 +46,14 @@ edits:
 - **Coin on the road.** The reach rule makes carrying coin to a market
   necessary. Nothing prices or endangers the carrying; that is played at the
   table.
-- **The Judge's override on every surface.** A market's payments, its changer,
-  the fee that opens a recruiting post and a hire's signing bonus pass `judge`.
-  The deposit controls of the Storage tab and the Equipment tab still answer the
-  Judge as they answer a player.
+- **The Judge's override on every surface.** The repo's rule for automation
+  (DECISIONS 2026-11-14, "Where the automation would refuse, a player is
+  blocked and a Judge is warned") is built on a market's payments, its changer,
+  the fee that opens a recruiting post, a hire's signing bonus and a deposit at
+  a place out of reach. What remains is the list of surfaces that still block a
+  Judge, which no census has made: each refusal in `scripts/` that a Judge's
+  seat can reach is read against the rule, and one that blocks is changed to a
+  warning that says what it would have refused.
 
 ## What the repair tool only reports
 

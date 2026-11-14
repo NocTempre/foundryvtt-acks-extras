@@ -20,8 +20,8 @@
           <span class="acks-location-coin">{{place.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
         {{/if}}
         <span class="acks-location-place-tools">
-          {{#if place.canReach}}
-            <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="deposit">
+          {{#if place.canDeposit}}
+            <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="deposit"{{#unless place.canReach}} data-tooltip-text="{{place.reachReason}}"{{/unless}}>
               <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
             </button>
           {{else}}
