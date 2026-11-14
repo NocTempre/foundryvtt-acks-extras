@@ -21,9 +21,36 @@ export function arrivalLevelCite() {
 }
 
 /**
- * True where every table the follower roll reads beside the arrival level is
- * imported: the grants by class, the troop type tables, the companion level
- * roll and the follower loyalty table.
+ * The number of troops that make one platoon (RR 335), as the world imported
+ * it; null where the table is absent or its figure is not a whole number above
+ * zero.
+ */
+export function platoonSize() {
+  const troops = optTable("followers", "platoonSize")?.troops;
+  return Number.isInteger(troops) && troops > 0 ? troops : null;
+}
+
+/** The page the platoon size was read from; null where none is recorded or a Judge's override holds it. */
+export function platoonSizeCite() {
+  return optCite("followers", "platoonSize");
+}
+
+/**
+ * How many troop type rolls `troops` call for: one per platoon or fraction of
+ * one, so the count rounds up and no troops call for none. Null while the
+ * platoon size is unread, never a count made without it.
+ */
+export function platoonCount(troops) {
+  const size = platoonSize();
+  if (size == null) return null;
+  return Number.isFinite(troops) && troops > 0 ? Math.ceil(troops / size) : 0;
+}
+
+/**
+ * True where the four tables the follower roll reads beside the arrival level
+ * are imported: the grants by class, the troop type tables, the companion level
+ * roll and the follower loyalty table. The platoon size is not among them: the
+ * roll runs without it and lists no platoon types.
  */
 export function followerTablesImported() {
   return !!(

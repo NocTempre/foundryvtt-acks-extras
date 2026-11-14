@@ -789,9 +789,23 @@ grants once the character reaches the level the followers rules name (RR
   it as a whole number above zero, else null; `arrivalLevelCite` answers the
   page, null for a Judge's override. The level notification interpolates the
   figure and the page from the import.
+- **The platoon size** is the `followers` document's `platoonSize` table (key
+  `troops`), read from RR 335 by a `proseValues` recipe anchored on the unit's
+  name and its opening bracket. `rules/followers.mjs` `platoonSize` answers it
+  as a whole number above zero, else null, and `platoonCount(troops)` answers
+  how many type rolls a troop grant makes: one per platoon or fraction of one, so
+  the count rounds up, no troops make none, and null stands for a size not read.
+  A troop line carries its platoon types, with the page the size was read from
+  (`platoonSizeCite`, absent for a Judge's override), only when the count is a
+  number; with the size unread no type is rolled and the line
+  lists none.
 - **Four tables no recipe reads yet**: followers by class, the troop type
   tables, the companion level roll and the follower loyalty table
   (`followerTablesImported`). Their grants carry the levels the card shows.
+
+The troop type roll's die is still a literal in `rollTroopType` and in the
+card's label: the book prints it with the troop type table, so it moves with
+that table's recipe (ROADMAP, "Four followers tables have no producer").
 
 Without the arrival level, or without any of the four tables, the dialog
 returns at once: no dialog, no notification, no card. Today no import supplies

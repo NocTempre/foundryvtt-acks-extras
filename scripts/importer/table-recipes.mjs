@@ -4599,12 +4599,13 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // The followers rules (RR 334). The only table read so far is the class level
-  // at which followers begin to arrive; the follower grants by class, the troop
-  // type tables, the companion level roll and the follower loyalty table have
-  // no recipe yet (docs/henchmen/ROADMAP.md).
+  // The followers rules (RR 334-335). Two figures are read so far: the class
+  // level at which followers begin to arrive and the troops that make one
+  // platoon; the follower grants by class, the troop type tables, the companion
+  // level roll and the follower loyalty table have no recipe yet
+  // (docs/henchmen/ROADMAP.md).
   followers: {
-    source: { book: "ACKS II Revised Rulebook", pages: "RR 334" },
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 334-335" },
     tables: {
       // The class level followers begin to arrive at, in the opening sentence of
       // the followers rules: the figure follows the clause that names the event.
@@ -4617,6 +4618,17 @@ export const TABLE_RECIPES = {
         locate: "begin to attract followers",
         locateBare: true,
         values: [{ key: "level", findRe: "upon\\s*reaching", take: "int", span: 10 }],
+      },
+      // The troops that make one platoon, in the sentence that sends a Judge to
+      // the troop type table once per platoon: the figure follows the opening
+      // bracket after the unit's name.
+      platoonSize: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 335,
+        locate: "or fraction thereof",
+        locateBare: true,
+        values: [{ key: "troops", findRe: "every\\s*platoon\\s*\\(", take: "int", span: 10 }],
       },
     },
   },

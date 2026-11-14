@@ -61,7 +61,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
     followers by class, troop type tables, companion levels and follower
     loyalty from the `followers` document, and no recipe reads them off a page.
     The dialog does nothing until all four are imported, so no import enables
-    it; the arrival level is read ([MODEL.md](MODEL.md), "The followers roll").
+    it; the arrival level and the platoon size are read ([MODEL.md](MODEL.md),
+    "The followers roll"). The troop type table's die is printed with the table
+    and is a literal in `rollTroopType` and the card's label until the table's
+    recipe supplies it.
   - `wages.mercenaryOfficers`: a mercenary officer's own morale modifier and
     command level (`engine/hire-group.mjs`, `rules/wages.mjs`
     `officerMoraleModifier`) read rows no `wages` recipe writes, so the

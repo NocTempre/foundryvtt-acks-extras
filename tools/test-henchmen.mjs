@@ -1486,14 +1486,14 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-// ---- the followers roll's arrival level: imported, never shipped ----
+// ---- the followers roll's arrival level and platoon size: imported, never shipped ----
 // Every figure and every word but the recipe's anchor is invented. The roll
-// reads the arrival level and four tables; it does nothing without any of them,
+// reads the arrival level, the platoon size and four tables; it does nothing without the level or any table,
 // and a level a table did not print is left off the card.
 {
   const { extractTable } = await import(new URL("../scripts/importer/table-extract.mjs", import.meta.url));
   const { TABLE_RECIPES } = await import(new URL("../scripts/importer/table-recipes.mjs", import.meta.url));
-  const { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel } = await import(new URL("../scripts/henchmen/rules/followers.mjs", import.meta.url));
+  const { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel, platoonSize, platoonSizeCite, platoonCount } = await import(new URL("../scripts/henchmen/rules/followers.mjs", import.meta.url));
   const { openFollowersDialog } = await import(new URL("../scripts/henchmen/apps/followers-dialog.mjs", import.meta.url));
   const { bracketRow } = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
   const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
@@ -1504,6 +1504,10 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const anchor = recipe.values[0].findRe.replace(/\\s\*/g, " ");
   assert.deepStrictEqual(extractTable(page([`Badger text: ${anchor} 4 th level, a heron can begin.`]), recipe), { level: 4 }, "the recipe reads the figure after its clause, past a suffix word");
   assert.deepStrictEqual(extractTable(page(["Badger text: a heron can begin."]), recipe), {}, "a page without the clause reads nothing");
+  const platoonRecipe = TABLE_RECIPES.followers.tables.platoonSize;
+  const platoonAnchor = platoonRecipe.values[0].findRe.replace(/\\s\*/g, " ").replace(/\\\(/g, "(");
+  assert.deepStrictEqual(extractTable(page([`Badger text: ${platoonAnchor}20 mice) or a part of one, a heron rolls.`]), platoonRecipe), { troops: 20 }, "the platoon recipe reads the figure inside the bracket after its unit's name");
+  assert.deepStrictEqual(extractTable(page(["Badger text: a heron rolls once for every flock of mice."]), platoonRecipe), {}, "a page without the clause reads nothing");
 
   const savedAcks = globalThis.acksExtras;
   const savedGlobals = Object.fromEntries(["game", "ui", "foundry", "Roll", "ChatMessage"].map((k) => [k, globalThis[k]]));
@@ -1527,20 +1531,21 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     followerLoyalty: { fanatic: { classes: [] } },
   };
   let totals = {};
-  const seen = { warn: [], info: [], chat: [], prompt: 0 };
+  const seen = { warn: [], info: [], chat: [], prompt: 0, rolled: [] };
   const actorAt = (level) => ({ name: "Hero", system: { details: { class: "alder", level } }, items: [], getFlag: () => null });
   const run = async (docs, level, cite) => {
-    Object.assign(seen, { warn: [], info: [], chat: [], prompt: 0 });
+    Object.assign(seen, { warn: [], info: [], chat: [], prompt: 0, rolled: [] });
     globalThis.acksExtras = { lib: lib(docs, cite) };
     globalThis.game = { i18n: { format: (k, d) => `${k}|${JSON.stringify(d)}`, localize: (k) => k }, modules: new Map(), user: { isGM: true }, users: [{ id: "gm", isGM: true }] };
     globalThis.ui = { notifications: { warn: (m) => seen.warn.push(m), info: (m) => seen.info.push(m) } };
     globalThis.foundry = { applications: { api: { DialogV2: { prompt: async () => { seen.prompt++; return "alder"; } } } } };
-    globalThis.Roll = class { constructor(f) { this.f = f; } async evaluate() { return { total: totals[this.f] ?? 1 }; } };
+    globalThis.Roll = class { constructor(f) { this.f = f; } async evaluate() { seen.rolled.push(this.f); return { total: totals[this.f] ?? 1 }; } };
     globalThis.ChatMessage = { create: (m) => seen.chat.push(m), getSpeaker: () => ({}) };
     await openFollowersDialog(actorAt(level));
   };
   try {
     const arrival = { arrivalLevel: { level: 4 } };
+    const platoon = { platoonSize: { troops: 20 } };
     const silent = (label) => assert.deepStrictEqual([seen.warn, seen.info, seen.chat, seen.prompt], [[], [], [], 0], `${label}: no dialog, no notice, no card`);
 
     await run({}, 12);
@@ -1581,7 +1586,44 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     await run({ followers: { ...FOUR, ...arrival } }, 4);
     assert.match(seen.chat[0].content, /companionsUnleveled\|\{"count":2,"class":"alder","levels":""\}/, "a roll that lands on a row printing no level leaves the level off");
 
+    // The platoon size is a figure of its own: unread, a troop grant is listed
+    // with no platoon types and no type is rolled.
+    totals = { F1: 45, F2: 2, F3: 1, F4: 3, "1d100": 7, "1d6": 2 };
+    await run({ followers: { ...FOUR, ...arrival } }, 4);
+    assert.strictEqual(seen.chat.length, 1, "the card posts without the platoon size");
+    assert.doesNotMatch(seen.chat[0].content, /troopsTypes/, "no platoon types without the size");
+    assert.ok(!seen.rolled.includes("1d100"), "and no type is rolled");
+    for (const bad of [{}, { troops: "20" }, { troops: 0 }, { troops: 2.5 }]) {
+      await run({ followers: { ...FOUR, ...arrival, platoonSize: bad } }, 4);
+      assert.doesNotMatch(seen.chat[0].content, /troopsTypes/, `a platoon size of ${JSON.stringify(bad)} is unread`);
+    }
+    const typedLines = async (count) => {
+      totals.F1 = count;
+      await run({ followers: { ...FOUR, ...arrival, ...platoon } }, 4);
+      const lines = seen.chat[0].content.match(/<li>.*?<\/li>/g);
+      return lines.slice(0, 2).map((l) => (l.match(/troopsTypes\|\{\\"list\\":\\"(.*?)\\",\\"cite\\":\\"(.*?)\\"\}/)?.[1] ?? "").split("; ").filter(Boolean).length);
+    };
+    const citeOnCard = () => seen.chat[0].content.match(/troopsTypes\|\{\\"list\\":\\"(.*?)\\",\\"cite\\":\\"(.*?)\\"\}/)?.[2];
+    assert.deepStrictEqual(await typedLines(45), [3, 3], "a type roll for each platoon of the imported size and one for the fraction");
+    assert.strictEqual(citeOnCard(), " (TEST 1)", "the types name the page the size was read from");
+    await run({ followers: { ...FOUR, ...arrival, ...platoon } }, 4, null);
+    assert.strictEqual(citeOnCard(), "", "a Judge's override names no page");
+    assert.deepStrictEqual(await typedLines(40), [2, 2], "an exact multiple makes no extra platoon");
+    assert.deepStrictEqual(await typedLines(41), [3, 3], "one troop over a multiple makes another");
+    assert.deepStrictEqual(await typedLines(1), [1, 1], "a fraction of one platoon is still rolled once");
+    assert.deepStrictEqual(await typedLines(0), [0, 0], "no troops, no type roll");
+    assert.strictEqual(seen.rolled.filter((f) => f === "1d100").length, 0, "no type is rolled for no troops");
+
+    globalThis.acksExtras = { lib: lib({ followers: { ...FOUR, ...arrival, ...platoon } }) };
+    assert.strictEqual(platoonSize(), 20, "the reader answers the imported size");
+    assert.strictEqual(platoonSizeCite(), "TEST 1", "and the page it was read from");
+    globalThis.acksExtras = { lib: lib({ followers: { ...FOUR, ...arrival, ...platoon } }, null) };
+    assert.strictEqual(platoonSizeCite(), null, "a Judge's override has no page to name");
+    globalThis.acksExtras = { lib: lib({ followers: { ...FOUR, ...arrival, ...platoon } }) };
+    assert.deepStrictEqual([0, 1, 20, 21, 61].map(platoonCount), [0, 1, 1, 2, 4], "a count rounds up and zero troops make no platoon");
+    assert.strictEqual(platoonCount(Number.NaN), 0, "an unreadable count makes no platoon");
     globalThis.acksExtras = { lib: lib({ followers: { ...FOUR, ...arrival } }) };
+    assert.strictEqual(platoonCount(45), null, "no size, no count of platoons");
     assert.strictEqual(followerTablesImported(), true, "every table present");
     assert.deepStrictEqual([0, 1, 12].map(knownLevel), [0, 1, 12], "a whole number of zero or more is a level");
     assert.deepStrictEqual([undefined, null, "3", -1, 1.5, Number.NaN].map(knownLevel), [null, null, null, null, null, null], "anything else is unknown, never a stand-in");
@@ -1594,4 +1636,4 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
-console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus, followers arrival level)`);
+console.log(`test-henchmen: OK (${macros.length} macros, bulk offers, network step, power values, henchman limit, network posting, classes never offered, arrival split, hiring offer, hosted pages, spend receipt, refused signing bonus, followers arrival level, platoon size)`);

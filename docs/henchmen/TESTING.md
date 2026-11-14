@@ -1172,8 +1172,19 @@ walked in docs/lib/TESTING.md, "The repair tool".
     Browser: the gate follows it, and the warning's page part is absent.
     *Levels.* With a stand-in grant that prints no level, the card's troop line
     reads without a level and the companion line without a levels list (no
-    first or zeroth level stands in); a grant that prints one shows it. The reader
-    and the dialog's gate are checked offline (`tools/test-henchmen.mjs`; the
+    first or zeroth level stands in); a grant that prints one shows it.
+    *Platoons.* Import the Rules tables and open the Ruledata Browser: `followers`
+    lists `platoonSize` with its page (RR 335); compare with the page and report
+    the match, never the figure. With the stand-in tables registered and a
+    stand-in `platoonSize` layer (an invented size), a stand-in troop grant lists
+    one platoon type, with its roll, for each full platoon of that size and one
+    more for a part of one: a count of exactly two platoons lists two, a count
+    one troop over lists three, and a count of zero lists none; the types name
+    the page. With
+    `platoonSize` unread (the layer cleared) the same grant posts its troop line
+    with no platoon types. *Override.* Write
+    `platoonSize` as a Judge's table: the count follows it. The reader and the
+    dialog's gate are checked offline (`tools/test-henchmen.mjs`; the
     recipe's shape against the book, `tools/importer/test-recipe-content.mjs`).
     Teardown: the layers lifted, the chat cards the run posted swept by their
     ids. Not walked live when written.

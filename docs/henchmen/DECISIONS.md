@@ -240,3 +240,40 @@ where its table held none. These are the session's calls, owner may overrule:
   row); keeping the old literal as a default for a world without the import (a
   default is the value the ruling removes). *Cost:* no world sees a change until
   the four tables are imported.
+
+## 2026-11-14 — The followers' platoon size is read from RR 335, and a platoon count waits for it
+
+Owner rulings behind it: a printed figure is imported, and "missing imports stay
+blank" with the page as the clue. The followers dialog divided a troop grant by
+a literal to count the troop type rolls. These are the session's calls, owner
+may overrule:
+
+- **A second table, `platoonSize`, in the `followers` document.** A
+  `proseValues` recipe on RR 335 reads the figure inside the bracket after the
+  unit's name in the sentence that sends the Judge to the troop type table once
+  per platoon, so the source holds an anchor and no figure. It is declared with
+  `expectTables` beside `arrivalLevel`, and the recipe is its producer.
+- **It is not in the dialog's gate.** The roll still opens on the arrival level
+  and the four tables; an unread size costs the troop line its platoon types and
+  nothing else, since the count of troops, the companions and the apprentices do
+  not depend on it. A line that lists no types is the blank, and no count of
+  platoons is made without the figure. Example: a world with the arrival level
+  and the four tables but no platoon size posts "40 × troops" with no type
+  rolled; with a size imported it posts the same line and the types.
+- **The floor of one is gone, and its reading is structure replaced by the
+  page.** The old `Math.max(1, …)` made a grant of no troops roll once. The page
+  prints a roll for every platoon and for a part of one, which is the round-up:
+  any positive count rolls at least once without a floor, and a count of zero
+  rolls none. The floor guarded only the case the page does not cover, so it was
+  an invented rule and not procedure.
+- **The troop type die stays a literal here, and moves with its table.** The
+  die of the troop type table is printed with the table itself, a table no
+  recipe reads (ROADMAP, "Four followers tables have no producer"), and the
+  sibling `companionLevel` table carries its own `formula`. Reading it from the
+  rows' spans would stand on a shape nothing yet produces, so it is left for
+  that table's recipe, and the ROADMAP row says so. *Cost:* the card's label
+  and the roll still carry a die.
+- Rejected: gating the dialog on the size (it would switch the roll off for a
+  figure that touches one line of the card); keeping the size as a default for
+  a world without the import (a default is the value the ruling removes).
+  *Cost:* no world sees a change until the four tables are imported.

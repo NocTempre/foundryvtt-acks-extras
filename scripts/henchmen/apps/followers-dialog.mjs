@@ -7,15 +7,16 @@
  * roll each), and apprentices. Results post as a GM-visible chat card; hiring
  * the companions/apprentices as no-slot henchmen is a follow-up the Judge does
  * with the normal tools (the card records everything needed). The roll does
- * nothing until the arrival level and the tables it reads are imported, and a
- * level a table did not print is left off the card.
+ * nothing until the arrival level and the tables it reads are imported, a
+ * level a table did not print is left off the card, and a troop grant lists no
+ * platoon types while the platoon size is unread.
  *
  * The stronghold prerequisite resolves through the "has X" chain
  * (scripts/facts.mjs): structures-module API → flag → inventory marker item
  * ("Stronghold: Castle", cost = value) → GM confirm.
  */
 import { bracketRow, getTable } from "../rules/tables.mjs";
-import { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel } from "../rules/followers.mjs";
+import { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel, platoonCount, platoonSizeCite } from "../rules/followers.mjs";
 import { getStronghold } from "../facts.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { gmIds } from "../acks-adapter.mjs";
@@ -95,7 +96,10 @@ export async function openFollowersDialog(actor) {
   for (const grant of row.grants) {
     const count = await roll(grant.formula);
     if (grant.kind === "troops") {
-      const platoons = Math.max(1, Math.ceil(count / 30));
+      // One type roll per platoon or fraction of one; with the platoon size
+      // unread there is no count of platoons, so no type is rolled.
+      const platoons = platoonCount(count) ?? 0;
+      const platoonCite = platoonSizeCite() ? ` (${platoonSizeCite()})` : "";
       const types = [];
       for (let i = 0; i < platoons; i++) {
         const t = row.troopTable ? await rollTroopType(row.troopTable) : null;
@@ -106,7 +110,11 @@ export async function openFollowersDialog(actor) {
         kind: grant.kind,
         text: game.i18n.format(
           troopLevel == null ? "ACKS-HENCHMEN.followers.troopsUnleveled" : "ACKS-HENCHMEN.followers.troopsResult",
-          { count, level: troopLevel, types: types.join("; ") }
+          {
+            count,
+            level: troopLevel,
+            types: types.length ? game.i18n.format("ACKS-HENCHMEN.followers.troopsTypes", { list: types.join("; "), cite: platoonCite }) : "",
+          }
         ),
       });
     } else if (grant.kind === "companions") {
