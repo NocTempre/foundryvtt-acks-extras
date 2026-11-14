@@ -10887,9 +10887,10 @@ Room keys stay in the prose until a reader for inline keys is built.
 ## 2026-11-13 — Every Lairs & Encounters listing is a lair row, numbered in print order
 
 Chapter 3's outline holds 168 items under it: 167 listings and one how-to
-section, which is the `le.lairs` container. The owner's "All 168 listings" is
-read as those 168 items, and whether it meant a 168th listing is pending (no
-heading in the chapter's pages is left over). So the book has 167
+section, which is the `le.lairs` container. "168" was the orchestrator's
+count of those outline items, written into the option the owner picked; the
+owner's choice is every listing, and no heading in the chapter's pages is left
+over. So the book has 167
 `le.lair<n>` rows, and `n` is the
 listing's place in print order (pages ascending, the left column before the
 right, top to bottom): the first plated listing, once `le.lair1`, is
@@ -10908,11 +10909,11 @@ names and a `meta.of`; the register files are written from its output and
   five, and eight pointer lines are read into a neighbouring listing's notes,
   since the pointer is body-size text. One pointer stands in a listing
   before the one it names, so that lair's pages do not include it.
-- **A plate shared by two listings is pinned to one row, pending the owner.**
-  A scene names one `place`, so the shared plate is pinned to the listing
-  whose text holds its pointer; whether the other listing gets the same plate
-  as a second scene is the owner's to say, and until then it is a place
-  without a map.
+- **A plate shared by two listings is one scene on one row.** A scene names
+  one `place`, so the shared plate is the scene of the listing whose text
+  holds its pointer, and the other listing is a place without a map. A second
+  scene of the same raster would be the duplicate the owner ruled against
+  ("It should link without creating duplicates").
 - **The book's two columns are a declared grid** (`AX_BOOK_BANDS.le.columns`).
   Detection read a third column on three pages, which dropped four stat lines
   of one listing and cut another's notes, and read a page with art in one
