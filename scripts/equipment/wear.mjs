@@ -3,13 +3,9 @@
  *
  * The answer comes from the item's own DECLARATION where it has one
  * (`flags.acks-extras.gear`, read through the lib's `wornSlotOf`), and is
- * DERIVED where it does not: core's `system.equipped` plus flags this module
- * already sets (helmet, worn hand, shield strap, containedIn) and the loadout's
- * two-handed inference. So the sheet, the loadout summary and the container UI
- * describe the same reality whether or not a world has been annotated.
- *
- * A declaration, once present, wins outright — deriving afterwards would let a
- * name heuristic overrule a Judge who set the slot deliberately.
+ * DERIVED where it does not: core's `system.equipped`, this module's flags
+ * (helmet, worn hand, shield strap, containedIn) and the loadout's two-handed
+ * inference. A declaration, once present, wins outright.
  *
  * @see lib/vocab.mjs WEAR_SLOTS for the canonical slot list; config.mjs
  *      WEAR adds the two buckets that are states rather than places.
@@ -31,26 +27,18 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
  * @returns {string} a WEAR key
  */
 export function wearLocation(actor, item, loadout = getLoadout(actor)) {
-  // Inside a container beats everything: a stowed cloak is stowed, whatever
-  // slot it would occupy if you put it on.
+  // Inside a container beats everything.
   if (containedIn(item)) return WEAR.stowed;
 
-  // The mapper's kit is in hand for as long as the role is held, quill in the
-  // main hand and parchment in the off hand (the loadout's `mappingKit`, in
-  // that order). It is held without being worn — a plain item with no place
-  // of its own — so it is placed before the worn gate, and the hand count it
-  // already carries is then explained by a row.
+  // The mapper's kit is held, not worn, so it is placed before the worn gate:
+  // quill in the main hand, parchment in the off hand (the loadout's `mappingKit`).
   const kitAt = loadout.mappingKit?.findIndex((k) => k.id === item.id) ?? -1;
   if (kitAt === 0) return WEAR.mainHand;
   if (kitAt === 1) return WEAR.offHand;
 
-  // IS IT ON? BEFORE WHERE IT GOES. A declared slot says where a thing sits
-  // when it is worn; it cannot say that it is. The two stores drift the moment
-  // core's own equip toggle writes `system.equipped = false`, which knows
-  // nothing of this flag and leaves `wornAt` behind — and this bucketed the
-  // armour under BODY on the strength of the stale half while the loadout,
-  // reading `equipped`, gave the character no AC at all. Worn and wielded is
-  // then a list of things doing nothing.
+  // Whether it is worn comes before where it goes: a declared slot cannot say
+  // the item is on. See docs/equipment/DECISIONS.md, "Whether it is on comes
+  // before where it goes".
   if (!isWorn(item)) return WEAR.carried;
 
   const declared = wornSlotOf(item);
@@ -68,12 +56,10 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
   if (item.type === ITEM_TYPE.weapon) {
     const entry = loadout.weapons.find((w) => w.item.id === item.id);
     if (entry?.wieldTwoHanded) return WEAR.bothHands;
-    // `hand` names the hand a weapon was drawn into. Without it a weapon is in
-    // the main hand unless another one-hand weapon already holds that — the
-    // one drawn there by name, or the earlier of the unnamed — and the off
-    // hand is open. A shield in hand keeps the off hand, so a second weapon
-    // beside one lists in the main hand as the overflow it is. Never list two
-    // unnamed weapons in one hand: the second is what the off hand is for.
+    // `hand` names the hand a weapon was drawn into. An unnamed weapon takes the
+    // main hand unless another one-hand weapon holds it (one named there, or an
+    // earlier unnamed one), then the off hand; a shield in hand keeps the off
+    // hand, so a second weapon beside one lists in the main hand as overflow.
     const hand = item.getFlag?.(MODULE_ID, ITEM_FLAGS.WORN_HAND);
     if (hand === "off") return WEAR.offHand;
     if (hand === "main") return WEAR.mainHand;
@@ -85,8 +71,7 @@ export function wearLocation(actor, item, loadout = getLoadout(actor)) {
   }
 
   // Worn non-armour, non-weapon gear (clothing, cloaks, boots) that declares no
-  // slot. Reachable only through the gear model — core's `item` type carries no
-  // `equipped` field, so nothing else can put one here.
+  // slot; core's `item` type carries no `equipped`, so only the gear model puts one here.
   return WEAR.worn;
 }
 

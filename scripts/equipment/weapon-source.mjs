@@ -4,18 +4,13 @@
  * readers ask for.
  *
  * Nothing here ships a weapon. The `weapons` ruledata document (published by
- * `weapon-rows.mjs` from the minted library weapons) holds one row per printed
- * weapon, and `lib/weapons.mjs` `resolveRows` places each row on a proficiency
- * category, a Weapon Focus group and a damage type from the `weaponLists`
- * document. This file only renames that answer to the fields the classifier,
- * the training units and the sheets read (`cat`, `type`, `twoHandedForced`)
- * and adds the procedure the module runs for each kind of thrown thing. A
- * world that imported no weapons has no rows, and every reader's answer is
- * "not imported".
- *
- * The seam reads the registry at every call; the adapted rows are memoized on
- * the resolver's own (itself memoized) answer, so a row keeps its identity
- * until the registry changes.
+ * `weapon-rows.mjs`) holds one row per printed weapon, and `lib/weapons.mjs`
+ * `resolveRows` places each on a proficiency category, a Weapon Focus group and
+ * a damage type from the `weaponLists` document. This file renames that answer
+ * to the fields the readers use (`cat`, `type`, `twoHandedForced`) and adds the
+ * procedure for each kind of thrown thing. The seam reads the registry at every
+ * call; adapted rows are memoized on the resolver's answer, so a row keeps its
+ * identity until the registry changes.
  */
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { resolveRows, weaponLists } from "../lib/weapons.mjs";

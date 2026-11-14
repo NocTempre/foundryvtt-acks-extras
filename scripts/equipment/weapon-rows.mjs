@@ -4,28 +4,22 @@
  *
  * The importer mints one core `weapon` item per printed row of the seat's own
  * weapons grid (`def.weapon.*`), writing the row's figures into the system's
- * own fields: size, melee and missile, the special qualities, the cleave
- * limit, the base and alternate damage and the damage types. This module reads
- * those fields back and registers them as the `weapons` ruledata document at
- * WORLD priority, table `grid`, one row per weapon, so a reader asks the
- * registry for a weapon's row instead of the source for a constant. A world
- * with no minted weapons publishes nothing, and every reader's answer is null.
+ * own fields. This module reads those fields back and registers them as the
+ * `weapons` ruledata document at WORLD priority, table `grid`, one row per
+ * weapon. A world with no minted weapons publishes nothing, and every reader's
+ * answer is null.
  *
  * A row is keyed by the tail of the item's mint id (`def.weapon.<tail>`) folded
- * to lowercase letters and digits: the key is what the page printed and
- * nothing the module knows about weapons, so the key space stays the grid's own
- * and no table of names has to exist for a row to be found. A row carries what
- * the library item carries: its name, the grid sub-header the row was filed
- * under (`block`), the system's figures and the item's own damage types. An
- * item that does not carry the system's structured weapon fields yields no
- * row; nothing is inferred to stand in for it. The row's citation is the item's stored one, so a figure's
- * tooltip can name the page.
+ * to lowercase letters and digits, and carries the library item's name, grid
+ * sub-header (`block`), the system's figures, its own damage types and its
+ * stored citation. An item without the system's structured weapon fields
+ * yields no row.
  *
- * Readers that must wait for the first publication await `rowsReady()`, and an
- * action a user starts awaits `rowsSettled()`, which is bounded; one that
- * redraws on a change listens for `ROWS_CHANGED_HOOK`. Every reader of a
- * weapon asks the weapon seam, whose registered source (`weapon-source.mjs`)
- * reads this document.
+ * Readers that must wait for the first publication await `rowsReady()`, an
+ * action a user starts awaits `rowsSettled()` (bounded), and one that redraws
+ * on a change listens for `ROWS_CHANGED_HOOK`. Every reader of a weapon asks
+ * the weapon seam, whose registered source (`weapon-source.mjs`) reads this
+ * document.
  */
 import { registerTable, unregisterTable, PRIORITY } from "../lib/tables.mjs";
 import { libraryItems, cookbookId, whenReady } from "../lib/library.mjs";
@@ -175,13 +169,10 @@ function announceRowsChanged() {
 export const rowsReady = () => _first;
 
 /**
- * `rowsReady` for an ACTION a user starts: a draw, a readied torch, a loadout
- * rebuild, an attack throw. It classifies a weapon from the rows, so it waits
- * for the first publication and its answer equals the one given long after load.
- * A world with no weapon rows imported settles too (the publication lands with
- * zero rows, and every reader then answers "not imported"); a publication that
- * never lands releases the action after `timeoutMs`, with a warning, so no
- * action hangs.
+ * `rowsReady` for an ACTION a user starts (a draw, a readied torch, a loadout
+ * rebuild, an attack throw), which classifies a weapon from the rows. A world
+ * with no weapon rows settles too; a publication that never lands releases the
+ * action after `timeoutMs`, with a warning.
  *
  * @param {object} [opts]
  * @param {number} [opts.timeoutMs] the longest to wait, in milliseconds

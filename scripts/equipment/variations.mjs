@@ -1,34 +1,13 @@
 /**
- * VARIATIONS — an inventory of the ways one item differs from its plain self.
+ * VARIATIONS: the pure rules for the ways one item differs from its plain self
+ * (docs/equipment/MODEL.md, "Base types and variations").
  *
- * An item is a pristine base (`properties.mjs`) plus the variations applied to
- * it. Not one slot per kind: masterwork, a dent, silver plating, a crest and a
- * name can all be true of the same blade at once, and they are added and
- * removed the way its contents are — because they ARE its contents. Each is an
- * `acks-extras.variation` Item flagged `containedIn` at the base
- * (`variation-items.mjs`).
- *
- * This file is Foundry-free. It answers questions about ENTRIES — plain
- * `{id, key, hidden, read, data}` objects — and DEFINITIONS, which say what a
- * key means. `entryOf` and `definitionFrom` read both out of a variation
- * document, so the rules are stated once and a test can exercise them without
- * a document at all.
- *
- * Three rules carry most of the design:
- *
- *  - **Conflict is derived, not authored.** The only exclusivity the books
- *    state is one value for one field, and the key is already namespaced, so
- *    two entries clash when their keys share a prefix. Nothing is declared and
- *    nothing can be declared wrong. A printed cross-family rule (magic
- *    supersedes masterwork) is a definition's `supersedes`, which stays empty
- *    unless a page fills it.
- *  - **`hidden` and `read` are different questions.** `hidden` is "do they know
- *    it is there"; `read` is "do they know what it means". A concealed maker's
- *    mark is the first, an inscription in an unknown script the second, and
- *    collapsing them would make unreadable writing invisible.
- *  - **Hidden governs presentation, never mechanics.** A disguised magic sword
- *    still hits as a magic sword. Deltas always apply in full; hiding decides
- *    what the apparent name, image and price are computed from.
+ * Foundry-free. It answers questions about ENTRIES (plain
+ * `{id, key, hidden, read, data}` objects) and DEFINITIONS (what a key means);
+ * `entryOf` and `definitionFrom` read both out of a variation document, which
+ * `variation-items.mjs` applies. Three rules: conflict is derived from the key's
+ * family, `hidden` and `read` are separate questions, and hidden governs
+ * presentation, never mechanics.
  */
 
 /** How a variation is described. Kind is prose about it, never the conflict rule. */
@@ -42,12 +21,8 @@ export const VARIATION_KIND = Object.freeze({
 });
 
 /**
- * The family an entry belongs to: its key up to the first dot.
- *
- * `masterwork.weaponToHit` → `masterwork`. This IS the exclusivity group, and
- * deriving it is the whole point — an authored `slot` field would have to be
- * filled in correctly on every imported definition, forever, to reproduce what
- * the namespace already says.
+ * The family an entry belongs to: its key up to the first dot
+ * (`masterwork.weaponToHit` → `masterwork`). It is the exclusivity group.
  */
 export const familyOf = (key) => String(key ?? "").split(".")[0];
 
@@ -57,8 +32,7 @@ export const familyOf = (key) => String(key ?? "").split(".")[0];
 
 /**
  * The ENTRY a variation document is: which variation, and what is true of this
- * one. Its `id` is the document's, so removing by identity removes the right
- * copy when a blade carries two of the same family in different states.
+ * one. Its `id` is the document's.
  */
 export const entryOf = (variation) => ({
   id: variation?.id ?? null,
@@ -70,11 +44,8 @@ export const entryOf = (variation) => ({
 
 /**
  * The DEFINITION a variation document carries: what this variation means.
- *
- * Definition and instance travel in one document on purpose — the copy applied
- * to a sword holds its own numbers, so re-importing the register cannot revalue
- * a blade a Judge already priced, and an item exported to a world that imported
- * nothing still reads correctly.
+ * Definition and instance travel in one document. See docs/equipment/DECISIONS.md,
+ * "A variation is a document, and applying it is putting it inside".
  */
 export function definitionFrom(variation) {
   const s = variation?.system;
@@ -96,11 +67,8 @@ export function definitionFrom(variation) {
 /* -------------------------------------------- */
 
 /**
- * Why this key may not be added, or null if it may.
- *
- * Every refusal names the entry it collides with, because "cannot add that" is
- * useless when a blade already carries four variations and the Judge cannot see
- * which one objected.
+ * Why this key may not be added, or null if it may. A refusal names the entry
+ * it collides with in `key`.
  *
  * @param {object[]} entries what the item carries now
  * @param {object} definition the definition being added
@@ -113,8 +81,7 @@ export function definitionFrom(variation) {
 export function addRefusal(entries, definition, { baseType = null, define = () => null } = {}) {
   if (!definition?.key) return { reason: "unknownVariation" };
 
-  // What it may go ON. `appliesTo` empty means "anything" — most variations do
-  // not care, and requiring every definition to enumerate would be noise.
+  // An empty `appliesTo` means any base type.
   const appliesTo = definition.appliesTo ?? [];
   if (appliesTo.length && baseType && !appliesTo.includes(baseType)) {
     return { reason: "wrongBaseType", key: definition.key };
@@ -124,8 +91,7 @@ export function addRefusal(entries, definition, { baseType = null, define = () =
   const clash = (entries ?? []).find((e) => familyOf(e.key) === family);
   if (clash) return { reason: "familyClash", key: clash.key };
 
-  // A printed cross-family rule, in either direction. Empty unless a page
-  // filled it — magic superseding masterwork is the one known example.
+  // A cross-family `supersedes`, checked in either direction.
   for (const existing of entries ?? []) {
     if ((definition.supersedes ?? []).some((k) => matches(k, existing.key))) {
       return { reason: "supersedes", key: existing.key };
@@ -152,17 +118,10 @@ function matches(pattern, key) {
 /**
  * Sum the deltas of a set of entries.
  *
- * The cost slots are the ones `properties.mjs` already established, and the
- * ORDER they resolve in is that file's ruling, kept: `costBaseMul` scales the
- * item's own listed price, `costAdd` is then added, and `costMul` scales the
- * whole. Silver multiplies a weapon's price and so must not multiply a flat
- * masterwork surcharge; a scavenged item is worth a fraction of whatever it
- * would otherwise fetch.
- *
- * A definition contributes EITHER flat `deltas` or, when its contribution is
- * not a constant, whatever `contribute(entry, ctx)` computes — a named weapon's
- * bonuses come from its own stored ladder against the wielder's level, and
- * there is no constant for a definition to hold.
+ * The cost slots and their order are `properties.mjs`'s: `costBaseMul` scales
+ * the item's own listed price, `costAdd` is then added, and `costMul` scales
+ * the whole. A definition contributes EITHER flat `deltas` or, where its
+ * contribution is not a constant, whatever `contribute(entry, ctx)` computes.
  *
  * @param {object[]} entries
  * @param {(key: string) => object|null} define
@@ -206,10 +165,8 @@ export const visibleVariations = (entries) => (entries ?? []).filter((e) => !e.h
 /**
  * What the item is worth, twice over.
  *
- * `true` counts every entry; `apparent` counts only the ones on show. That one
- * split does both jobs the design asks of it — an unidentified magic sword
- * reads as a plain one AND is priced as a plain one, because the price falls
- * out of the same resolution rather than being stored a second time.
+ * `true` counts every entry; `apparent` counts only the ones not hidden, both
+ * from the same resolution.
  */
 export function values(base, entries, define, ctx = {}) {
   return {
@@ -221,10 +178,7 @@ export function values(base, entries, define, ctx = {}) {
 /**
  * Conditional value claims that might bear on a sale, gathered for the Judge.
  *
- * NEVER applied. Who the buyer is, what they owe, and whether a dead lord's
- * crest is an asset or evidence in this city are facts the world holds and this
- * schema does not. The module says a claim exists and what it would be worth;
- * a human decides it applies — the same line the trap riders sit on.
+ * Never applied: the claim is offered, and a person decides it applies.
  */
 export function conditionalClaims(entries, define) {
   const out = [];
@@ -239,9 +193,8 @@ export function conditionalClaims(entries, define) {
 /**
  * Can this entry's legend be read here?
  *
- * An appearance entry may be in a language. Seeing the inscription is
- * `!hidden`; understanding it needs the language, which is a fact about the
- * reader and so is passed in rather than looked up.
+ * Seeing an inscription is `!hidden`; reading it needs the language, which the
+ * caller passes in as `languages`.
  */
 export function isLegible(entry, definition, { languages = [] } = {}) {
   if (entry?.read === false) return false;

@@ -7,23 +7,12 @@ import { inferBaseType } from "./base-type-infer.mjs";
 import { recomputeItemFields, masterworkTierOf, scavengedOf, silveredFlagOf } from "./properties.mjs";
 
 /**
- * Variations as CONTENTS — applying one is putting a document inside another.
- *
- * A variation Item sits in the same collection as the item it changes, flagged
- * `containedIn` at it, which is the relation `containers.mjs` already uses for
- * gear in a backpack. Everything that relation buys comes along: the sheet
- * lists it under its owner, dragging moves it, deleting removes it, and no new
- * storage shape had to be invented for a second kind of "inside".
- *
- * What does NOT come along is `storeIn`. That verb is about cargo — it checks
- * capacity, refuses through a shut lock, and unequips what it stows. A
- * variation is none of those things; it goes on a sword the sword is wielding,
- * weighs nothing, and is refused for reasons of its own (a family already
- * spoken for, a base type it cannot go on). So the write is here, sharing the
- * flag and nothing else.
- *
- * A variation is non-physical by schema, so encumbrance never sees it and
- * `isStowable` is false — a Judge cannot put one in a sack by mistake.
+ * Variations as CONTENTS: applying one puts a variation Item in the same
+ * collection as the item it changes, flagged `containedIn` at it (the relation
+ * `containers.mjs` uses for gear in a pack). The write here shares that flag
+ * and not `storeIn`'s capacity, lock or unequip checks. See
+ * docs/equipment/DECISIONS.md, "A variation is a document, and applying it is
+ * putting it inside".
  */
 
 /* The three reads below are function DECLARATIONS, not arrows. `properties.mjs`
@@ -56,10 +45,9 @@ export function baseItemOf(variation) {
 export const itemBaseType = (item) => baseTypeOf(item, { infer: inferBaseType });
 
 /**
- * Declare what an item IS.
- *
- * Refused where core would be left computing from underneath it — an `armor`
- * document cannot become a gem, because core reads AC off armour documents.
+ * Declare what an item IS, or clear the declaration with a falsy `baseType`.
+ * Refused (false, with a warning) where the base type is not allowed on the
+ * item's document type.
  */
 export async function setBaseType(item, baseType) {
   if (baseType && !baseTypeAllowed(baseType, item?.type)) {
@@ -72,10 +60,8 @@ export async function setBaseType(item, baseType) {
 }
 
 /**
- * Why this variation may not go on this item, or null if it may.
- *
- * Delegates to the pure rule so the refusal a test asserts and the refusal a
- * Judge is shown are the same one.
+ * Why this variation may not go on this item, or null if it may. The family
+ * and base-type rules are `addRefusal`'s; a flag-held family refuses first.
  */
 export function applyRefusal(base, variation) {
   if (!base || !isVariationItem(variation)) return { reason: "unknownVariation" };
@@ -90,10 +76,9 @@ export function applyRefusal(base, variation) {
 
 /**
  * The families the item's flag layers speak for, and what they hold.
- *
- * `layerDeltas` sums the flags and the variations together, so an item carrying
- * a masterwork FLAG and a masterwork variation would count masterwork twice.
- * A flag owns its family, and the variation is refused by name.
+ * `layerDeltas` sums flags and variations together, so a flag owns its family
+ * and a variation of it is refused. See docs/equipment/DECISIONS.md, "A
+ * variation is a document, and applying it is putting it inside".
  *
  * @returns {string|null} what the flag holds, for the refusal to quote
  */
@@ -115,13 +100,8 @@ function legacyFamily(base, family) {
 }
 
 /**
- * Put a variation on an item.
- *
- * The source is COPIED, never moved: a variation dragged off a compendium is a
- * published description of masterwork, and the blade needs its own so that
- * re-importing the register cannot revalue a sword the Judge already priced.
- * Dragging one from another item moves it instead — that is the same document
- * changing hands, which is what the gesture means.
+ * Put a variation on an item. The source is COPIED unless `move` is set, so a
+ * compendium variation stays published and the item holds its own.
  *
  * @param base the item being changed
  * @param source a variation Item, from anywhere
@@ -168,10 +148,7 @@ export async function removeVariation(variation) {
 }
 
 /**
- * Edit one in place.
- *
- * Every write recomputes the base item, so its numbers are always the sum of
- * what is on it now and never a residue of an earlier edit.
+ * Edit one in place, then recompute the base item.
  */
 export async function updateVariation(variation, patch = {}) {
   await variation.update(patch);
@@ -181,13 +158,14 @@ export async function updateVariation(variation, patch = {}) {
 }
 
 /**
- * Show or hide one from the players.
- *
- * Un-hiding is what identifying an item IS — there is no separate
- * identification step, and a named blade whose legend the party has just
- * uncovered is the same call as a disguise coming off.
+ * Show or hide one from the players. Un-hiding is the identification step;
+ * there is no other.
  */
 export const revealVariation = (variation) => updateVariation(variation, { "system.hidden": false });
+
+/**
+ * Hide a variation from the players (the reverse of `revealVariation`).
+ */
 export const concealVariation = (variation) => updateVariation(variation, { "system.hidden": true });
 
 /** Foundry's Item class, resolved late so this module imports offline. */

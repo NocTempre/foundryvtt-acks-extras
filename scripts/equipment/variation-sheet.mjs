@@ -7,19 +7,13 @@ const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 /**
- * Sheet for a variation Item — the hand-editing half of the document.
+ * Sheet for a variation Item: the hand-editing half of the document, for a
+ * variation a Judge invents rather than imports.
  *
- * A Judge who has imported their books picks a published variation and never
- * opens this; a Judge inventing one — a dent, a crest, a family blade — fills
- * it in. Both are first-class, which is the same bargain the trap sheet makes.
- *
- * Its own sheet is not optional. The system renders an item's details from a
- * partial named after the document type, so a sub-type with no sheet of its own
- * cannot be opened at all: the fallback goes looking for
- * `details-acks-extras.variation.hbs` and the whole application fails to render.
- *
- * The fields are the model's, in the order a Judge answers them: what it is,
- * what it changes, what it costs, and who may know about it.
+ * The sub-type needs a sheet of its own: the system renders an item's details
+ * from a partial named after the document type, and with no sheet the fallback
+ * looks for `details-acks-extras.variation.hbs` and the application fails to
+ * render.
  */
 export default class VariationSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -42,8 +36,7 @@ export default class VariationSheet extends HandlebarsApplicationMixin(ItemSheet
     // editor needs the item's uuid, so hand the item over by name.
     context.item = this.item;
 
-    // Never the bare `TextEditor` global — v14 serves it from
-    // foundry.applications.ux and the global is deprecated.
+    // Core 14 serves TextEditor from foundry.applications.ux; the bare global is deprecated.
     context.descriptionHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       this.item.system.description ?? "",
       { relativeTo: this.item, secrets: this.item.isOwner },
@@ -54,9 +47,7 @@ export default class VariationSheet extends HandlebarsApplicationMixin(ItemSheet
       { value: "", label: label("kindUnset") },
       ...Object.values(VARIATION_KIND).map((value) => ({ value, label: label(`kind.${value}`) })),
     ];
-    // `appliesTo` and `supersedes` are lists, edited as one comma-separated line
-    // each: they are usually empty or one entry, and a repeating sub-form for a
-    // field that rarely holds anything is more chrome than the answer is worth.
+    // `appliesTo` and `supersedes` are lists, edited as one comma-separated line each.
     context.appliesToText = (this.item.system.appliesTo ?? []).join(", ");
     context.supersedesText = (this.item.system.supersedes ?? []).join(", ");
     context.baseTypeHint = Object.values(BASE_TYPE).join(", ");
@@ -64,8 +55,7 @@ export default class VariationSheet extends HandlebarsApplicationMixin(ItemSheet
   }
 
   /**
-   * Split the two comma-separated lines back into arrays before they are
-   * stored. Everything else submits as itself.
+   * Split the two comma-separated lines back into arrays before they are stored.
    */
   _processFormData(event, form, formData) {
     const data = super._processFormData(event, form, formData);

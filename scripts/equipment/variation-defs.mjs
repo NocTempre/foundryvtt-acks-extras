@@ -1,23 +1,12 @@
 import { usableSpecs } from "../lib/field-spec.mjs";
 
 /**
- * What a BASE TYPE records, from the GM's own books by way of the importer
- * and the lib's ruledata registry.
+ * What a BASE TYPE records: the field specs a category carries, read from the
+ * lib's ruledata registry, where the importer puts them. Variations are
+ * documents and carry their own figures.
  *
- * Variations themselves are documents and carry their own numbers
- * (`data/variation-data.mjs`) — they arrive as a compendium, not as a table.
- * What is left here is the other half the importer supplies: the field specs a
- * category records, which belong to no single document because they describe
- * every gem rather than one.
- *
- * **Nothing here ships a value.** The module knows that a base type records
- * fields; it does not know that a gem has a carat. That is a page value, and
- * `lib/tables.mjs` has said "no book values, no fallback samples" since the
- * extraction program.
- *
- * The honest consequence: **a world that has imported nothing records nothing
- * extra.** The same bargain the thief ladders made, said out loud rather than
- * shown as an empty list pretending to be finished.
+ * Nothing here ships a value; a world that has imported nothing records nothing
+ * extra.
  */
 
 /** The ruledata document these live in. */
@@ -48,10 +37,7 @@ function table(id) {
 
 /**
  * The field specs a base type records, and the ones this version cannot render.
- *
- * A spec naming a field kind a later importer knows is reported rather than
- * dropped: the reader's data is still there, and saying "this version cannot
- * show `resonance`" is the only honest thing to put in its place.
+ * A spec naming a field kind unknown here is reported, not dropped.
  */
 export function baseTypeFields(baseType) {
   return usableSpecs(table(TABLES.baseTypeFields)[baseType] ?? []);
