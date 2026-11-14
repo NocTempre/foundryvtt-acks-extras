@@ -223,9 +223,9 @@ turns that state into a PLAN:
 - **Hit-dice cells** — one die per level up to the last die level, then the
   printed flat accumulating at the chassis's per-level rate. Both the level and
   the rates are read from the JJ custom-class chapter into
-  `budget.hpAfterNine` (`afterLevel`, `crusaderMage`, `fighterThief`), each read
+  `budget.hpPastLastDie` (`afterLevel`, `crusaderMage`, `fighterThief`), each read
   on its own: without the rates the cells carry no flat and
-  `missingHpAfterNine` is named; without the last die level no level's dice
+  `missingHpPastLastDie` is named; without the last die level no level's dice
   count is known, so no cell is written and `missingLastDieLevel` is named.
 - **Attack** — an imported attack-throw grid if one exists, else the chassis
   class the fighting row names (its printed table is already in the world),

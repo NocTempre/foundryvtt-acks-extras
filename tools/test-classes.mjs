@@ -77,7 +77,7 @@ const TABLES = {
     smoothing: { level: 7, nearest: 5000 },
     postEight: { crusaderThief: 100000, fighter: 120000, mage: 150000 },
     xpFlatAfter: 6,
-    hpAfterNine: { crusaderMage: 3, fighterThief: 5, afterLevel: 6 },
+    hpPastLastDie: { crusaderMage: 3, fighterThief: 5, afterLevel: 6 },
     // Invented figures: a cap per total of build points, and the one a human
     // class takes; none is a figure the book prints.
     racialCaps: [
@@ -152,8 +152,8 @@ const ELF = {
   stacksWith: "arcane",
   stackXpDiscount: 125,
   postEight: [{ chassis: "", delta: 50000 }],
-  // The elf prints no post-9th hit-point rate; null is the printed absence.
-  hpAfter9: null,
+  // The elf prints no hit-point rate past the last hit die; null is the printed absence.
+  hpPastLastDie: null,
   minimumAttributes: [{ attr: "int", min: 9 }],
   values: [
     { value: 1, label: "Elf + 33% Arcane", xpCost: 750, powers: ["def.power.elfTongues"] },
@@ -167,7 +167,7 @@ const DWARF = {
     { chassis: "fighter", delta: 10000 },
     { chassis: "crusaderThief", delta: 30000 },
   ],
-  hpAfter9: 2,
+  hpPastLastDie: 2,
   minimumAttributes: [{ attr: "con", min: 9 }],
   values: [{ value: 0, label: "Dwarf", xpCost: 200, powers: ["def.power.hardy", "def.power.dwarfTongues"] }],
 };
@@ -400,7 +400,7 @@ test("derivePlan assembles a racial build end-to-end (the spellsword shape)", ()
   assert.equal(u.levels[9].hd, "6d6+20");
 });
 
-test("a race's post-9th hit points add to the chassis rate, and the flat is cumulative", () => {
+test("a race's hit points past the last hit die add to the chassis rate, and the flat is cumulative", () => {
   // The shared DWARF fixture deliberately has no value-3 rung (another test
   // asserts that gap is reported), so this build supplies one.
   const dwarf = { ...DWARF, values: [...DWARF.values, { value: 3, label: "Dwarf +3", xpCost: 900, powers: [] }] };
@@ -412,7 +412,7 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
   });
   const u = plan.update;
   assert.equal(u.saveChassis, "crusader"); // fairie saves as crusader
-  assert.ok(!plan.issues.some((i) => i.key === "missingHpAfterNine"));
+  assert.ok(!plan.issues.some((i) => i.key === "missingHpPastLastDie"));
   // crusader -> crusaderMage fixture rate, plus the dwarf's own = 5 per level.
   assert.equal(u.levels[5].hd, "6d6");
   assert.equal(u.levels[6].hd, "6d6+5");
@@ -420,10 +420,10 @@ test("a race's post-9th hit points add to the chassis rate, and the flat is cumu
 });
 
 test("the level hit dice stop rising at is read from the budget, and a missing read costs only itself", () => {
-  const plan = (hpAfterNine) =>
+  const plan = (hpPastLastDie) =>
     derivePlan({
       builder: { hdValue: 1, fighting: { value: 2, sub: "" }, magic: [], race: NO_RACE, tradeoffs: [], powers: [] },
-      tables: { ...TABLES, budget: { ...TABLES.budget, hpAfterNine } },
+      tables: { ...TABLES, budget: { ...TABLES.budget, hpPastLastDie } },
       race: null,
       chassisAttack: CHASSIS_ATTACK,
     });
@@ -431,23 +431,23 @@ test("the level hit dice stop rising at is read from the budget, and a missing r
   // Another last die level moves where the dice stop and the flat starts.
   const moved = plan({ crusaderMage: 3, fighterThief: 5, afterLevel: 4 });
   assert.deepEqual([moved.update.levels[3].hd, moved.update.levels[4].hd], ["4d6", "4d6+5"]);
-  assert.ok(!has(moved, "missingLastDieLevel") && !has(moved, "missingHpAfterNine"));
+  assert.ok(!has(moved, "missingLastDieLevel") && !has(moved, "missingHpPastLastDie"));
   // No last die level: no level's dice count is known, so no cell is written.
   const noLevel = plan({ crusaderMage: 3, fighterThief: 5 });
   assert.ok(noLevel.update.levels.every((r) => r.hd === ""), "no hit-dice cell without the level");
   assert.ok(has(noLevel, "missingLastDieLevel"));
-  assert.ok(!has(noLevel, "missingHpAfterNine"), "a rate that was read is not reported missing");
+  assert.ok(!has(noLevel, "missingHpPastLastDie"), "a rate that was read is not reported missing");
   // Neither read: both gaps are named, since the rate cannot be ruled out as needed.
   const neither = plan({});
-  assert.ok(has(neither, "missingLastDieLevel") && has(neither, "missingHpAfterNine"));
+  assert.ok(has(neither, "missingLastDieLevel") && has(neither, "missingHpPastLastDie"));
   assert.equal(noLevel.update.hitDie, "1d6", "the hit die itself is unaffected");
   // No rates: the dice rise to the last die level and carry no flat, and the gap is named.
   const noRate = plan({ afterLevel: 6 });
   assert.deepEqual([noRate.update.levels[5].hd, noRate.update.levels[9].hd], ["6d6", "6d6"]);
-  assert.ok(has(noRate, "missingHpAfterNine") && !has(noRate, "missingLastDieLevel"));
+  assert.ok(has(noRate, "missingHpPastLastDie") && !has(noRate, "missingLastDieLevel"));
   // A class that never passes the last die level needs no rate.
   const short = plan({ afterLevel: 20 });
-  assert.ok(!has(short, "missingHpAfterNine"), "a cap under the last die level has no flat to price");
+  assert.ok(!has(short, "missingHpPastLastDie"), "a cap under the last die level has no flat to price");
   assert.equal(short.update.levels.at(-1).hd, `${short.update.levels.length}d6`);
 });
 
@@ -558,7 +558,7 @@ test("derivePlan skips what a partial table set cannot answer", () => {
   assert.ok(plan.issues.some((i) => i.key === "missingPostEight"));
   // A rate the world never imported is named, and the cell simply carries no
   // flat — never an invented one.
-  assert.ok(plan.issues.some((i) => i.key === "missingHpAfterNine"));
+  assert.ok(plan.issues.some((i) => i.key === "missingHpPastLastDie"));
   assert.ok(plan.issues.some((i) => i.key === "missingLastDieLevel"));
   assert.ok(plan.update.levels.every((r) => r.hd === ""), "no last die level, no hit-dice cell");
 });
@@ -602,7 +602,7 @@ test("a human build with no imported cap has none, writes no rows, and names the
   assert.equal(plan.summary.maxLevel, null);
   assert.ok(hasIssue(plan, "missingHumanMaxLevel"));
   assert.equal(plan.update.hitDie, "1d6", "what the cap does not touch is still derived");
-  assert.ok(!hasIssue(plan, "missingHpAfterNine"), "with no rows there is no flat to price");
+  assert.ok(!hasIssue(plan, "missingHpPastLastDie"), "with no rows there is no flat to price");
   // A cap that is not a whole level is no cap.
   for (const bad of [0, -3, 2.5, "9", null, NaN]) assert.ok(hasIssue(planWith(BUILD(), { ...TABLES.budget, humanMaxLevel: bad }), "missingHumanMaxLevel"), `${bad}`);
   // A racial build never reads it.
@@ -657,9 +657,9 @@ test("racial value -1 is no racial category and 0 or more is one: the racial row
 });
 
 test("a printed rate absent and no cap: no hit-point rate is demanded, with a cap it is", () => {
-  const { hpAfterNine: _hp, ...NO_RATES } = TABLES.budget;
-  assert.ok(!hasIssue(planWith(BUILD(), { ...NO_RATES, humanMaxLevel: undefined }), "missingHpAfterNine"));
-  assert.ok(hasIssue(planWith(BUILD(), NO_RATES), "missingHpAfterNine"));
+  const { hpPastLastDie: _hp, ...NO_RATES } = TABLES.budget;
+  assert.ok(!hasIssue(planWith(BUILD(), { ...NO_RATES, humanMaxLevel: undefined }), "missingHpPastLastDie"));
+  assert.ok(hasIssue(planWith(BUILD(), NO_RATES), "missingHpPastLastDie"));
 });
 
 test("with no cap, attack bands and traditions take what the imported tables hold", () => {

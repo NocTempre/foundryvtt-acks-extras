@@ -206,7 +206,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         options: new ArrayField(pathOption()),
       });
 
-    /** One printed starting template (8 per class, 3d6 bands). */
+    /** One printed starting template: a band of the template roll and what it grants (RR ch. 2). */
     const template = () =>
       new SchemaField({
         rollMin: int(3, { min: 3, max: 18 }),
@@ -218,7 +218,7 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         items: new ArrayField(templateItem()),
         spells: new ArrayField(templateSpell()),
         // Printed starting coin. Most templates pay in gold; a few pay partly
-        // or wholly in silver ("20sp for alms", "1gp, 8sp"), and a template
+        // or wholly in silver, and a template
         // that prints only silver leaves a character with nothing at all if
         // only the gold is read.
         gp: num(),

@@ -688,7 +688,7 @@ rate; clearing that field shrinks it back. With the builder tables NOT imported,
 the cells carry no flat at all; with the rates read but not the last die
 level, no hit-dice cell is written — never an invented number. The derive
 report shows no line for either gap (the plan's issues carry
-`missingHpAfterNine` and `missingLastDieLevel` as codes).
+`missingHpPastLastDie` and `missingLastDieLevel` as codes).
 
 **Teardown.** Delete the class document; restore the race field if you changed
 a race the importer materialized (a re-import will also restore it).

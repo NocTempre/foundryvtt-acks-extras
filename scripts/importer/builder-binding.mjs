@@ -29,7 +29,7 @@ export const BUILDER_DOC_ID = "acks.classBuilder";
  */
 export const PRODUCES = Object.freeze({
   [BUILDER_DOC_ID]: {
-    budget: ["basePoints", "savesRule", "smoothing", "xpRules", "hpAfterNine", "racialCaps", "proficiencyCount", "tradeoffPenalty"],
+    budget: ["basePoints", "savesRule", "smoothing", "xpRules", "hpPastLastDie", "racialCaps", "proficiencyCount", "tradeoffPenalty"],
     hd: "hdRaw",
     fighting: "fightingRaw",
     thievery: "thieveryRaw",
@@ -154,12 +154,12 @@ export function assembleBuilderTables(raw) {
   // never the rates, and missing a rate never costs it.
   // See docs/importer/DECISIONS.md, "A printed floor and a printed rate are read, not shipped (2026-08-29)".
   const hp = {};
-  if ([raw.hpAfterNine?.crusaderMage, raw.hpAfterNine?.fighterThief].every(isNum)) {
-    hp.crusaderMage = raw.hpAfterNine.crusaderMage;
-    hp.fighterThief = raw.hpAfterNine.fighterThief;
+  if ([raw.hpPastLastDie?.crusaderMage, raw.hpPastLastDie?.fighterThief].every(isNum)) {
+    hp.crusaderMage = raw.hpPastLastDie.crusaderMage;
+    hp.fighterThief = raw.hpPastLastDie.fighterThief;
   }
-  if (isNum(raw.hpAfterNine?.afterLevel)) hp.afterLevel = raw.hpAfterNine.afterLevel;
-  if (Object.keys(hp).length) budget.hpAfterNine = hp;
+  if (isNum(raw.hpPastLastDie?.afterLevel)) hp.afterLevel = raw.hpPastLastDie.afterLevel;
+  if (Object.keys(hp).length) budget.hpPastLastDie = hp;
   // The rows' keys are ordinals; a row's build-point total is the integer its
   // label read, so a row whose label did not read is dropped and its total is
   // answered by no row.
@@ -313,7 +313,7 @@ export function assembleBuilderTables(raw) {
       minimumAttributes: FLOOR_ATTRS.filter((a) => isNum(floorOf(a))).map((attr) => ({ attr, min: floorOf(attr) })),
       stacksWith,
       ...(stacksWith ? { stackXpDiscount: rules.arcaneDiscount ?? null } : {}),
-      hpAfter9: rules.hpAfter9 ?? null,
+      hpPastLastDie: rules.hpPastLastDie ?? null,
       postEight: [
         ...(isNum(rules.post8) ? [{ chassis: "", delta: rules.post8 }] : []),
         ...(isNum(rules.post8Fighter) ? [{ chassis: "fighter", delta: rules.post8Fighter }] : []),
@@ -498,7 +498,7 @@ export async function applyBuilderImport({ repair = null } = {}) {
       minimumAttributes: race.minimumAttributes,
       stacksWith: race.stacksWith,
       stackXpDiscount: race.stackXpDiscount ?? null,
-      hpAfter9: race.hpAfter9 ?? null,
+      hpPastLastDie: race.hpPastLastDie ?? null,
       postEight: race.postEight,
       values: race.values.map((rung) => ({
         value: rung.value,

@@ -15,7 +15,7 @@
  * priority.
  */
 
-import { HIT_POINTS_DOC, HP_AFTER_NINE_TABLE } from "./hitpoint-tables.mjs";
+import { HIT_POINTS_DOC, HP_PAST_LAST_DIE_TABLE } from "./hitpoint-tables.mjs";
 import { MERCHANDISE_KEYS } from "../markets/merchandise-keys.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
 
@@ -3895,7 +3895,7 @@ export const TABLE_RECIPES = {
       // Printed in the saves section, because the rate keys on the chassis —
       // but its subject is hit points, so it is read under its own name
       // (hitpoint-tables.mjs) rather than as two more values on savesRule.
-      hpAfterNine: HP_AFTER_NINE_TABLE,
+      hpPastLastDie: HP_PAST_LAST_DIE_TABLE,
       // JJ 297, the custom-class chapter's proficiency count. The page states a
       // class's maximum level only through it: the count is a total less the
       // maximum level, and the sentence after gives the count a typical class
@@ -4008,7 +4008,7 @@ export const TABLE_RECIPES = {
         colSplit: 295,
         values: [
           { key: "con", find: "require a minimum constitution", take: "int" },
-          { key: "hpAfter9", find: "receive an extra", take: "int" },
+          { key: "hpPastLastDie", find: "receive an extra", take: "int" },
           // Superscript ordinal runs interleave into the phrase, so the anchor
           // stops at the printed level; the two sentences (fighter, then
           // crusader/thief) disambiguate by occurrence.

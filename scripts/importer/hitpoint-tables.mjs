@@ -48,7 +48,7 @@ export const HIT_POINTS_DOC = Object.freeze({
  * level a custom class's hit dice rise at. It is a value of its own, so a read
  * that misses it costs the dice cells and not the rates.
  */
-export const HP_AFTER_NINE_TABLE = Object.freeze({
+export const HP_PAST_LAST_DIE_TABLE = Object.freeze({
   shape: "proseValues",
   book: "jj",
   printedPage: 297,

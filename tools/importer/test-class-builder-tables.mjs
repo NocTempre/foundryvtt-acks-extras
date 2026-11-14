@@ -126,9 +126,9 @@ check("post-8 increments read as three positive integers, carried unchanged", [r
 check("smoothing reads a level and a rounding step, both positive integers", isPosInt(raw.smoothing?.level) && isPosInt(raw.smoothing?.nearest) && asm.budget.smoothing.level === raw.smoothing.level && asm.budget.smoothing.nearest === raw.smoothing.nearest);
 check("the level the post-8 increments start after reads as an integer, from the same sentence", isInt(raw.xpRules?.afterLevel) && raw.xpRules.afterLevel > 1);
 check("budget carries that level beside the increments", asm.budget.xpFlatAfter === raw.xpRules.afterLevel);
-check("post-9 hit points per level read as their own table", isInt(raw.hpAfterNine?.crusaderMage) && isInt(raw.hpAfterNine?.fighterThief) && raw.hpAfterNine.fighterThief > raw.hpAfterNine.crusaderMage);
-check("the level the post-9 rates begin after reads as an integer, from the same table", isInt(raw.hpAfterNine?.afterLevel) && raw.hpAfterNine.afterLevel > 1);
-check("the post-9 level falls inside the grids' level range", raw.hpAfterNine.afterLevel < allGrids[0].length);
+check("hit points past the last hit die read as their own table", isInt(raw.hpPastLastDie?.crusaderMage) && isInt(raw.hpPastLastDie?.fighterThief) && raw.hpPastLastDie.fighterThief > raw.hpPastLastDie.crusaderMage);
+check("the level the past-last-die rates begin after reads as an integer, from the same table", isInt(raw.hpPastLastDie?.afterLevel) && raw.hpPastLastDie.afterLevel > 1);
+check("the last die level falls inside the grids' level range", raw.hpPastLastDie.afterLevel < allGrids[0].length);
 
 // The proficiency count is the page's only statement of a class's maximum
 // level: two integers, read apart, whose difference is the cap.
@@ -169,13 +169,13 @@ check("every race's post-8 increment is a positive integer", races.every((r) => 
 check("a stacking discount is carried only by a race that stacks", !!raw.elfRules?.stacksWithArcane && asm.races.elf.stacksWith === "arcane" && isPosInt(asm.races.elf.stackXpDiscount) && races.every((r) => (r.stacksWith === "") === !("stackXpDiscount" in r)));
 check("the races whose pages say their value stacks with the arcane one are read as stacking", asm.races.dwarf.stacksWith === "" && asm.races.people1.stacksWith === "" && asm.races.people2.stacksWith === "arcane");
 
-check("budget assembles the post-9 hit-point rates, keyed as the book pairs them", isInt(asm.budget.hpAfterNine?.crusaderMage) && isInt(asm.budget.hpAfterNine?.fighterThief));
-check("budget assembles the last die level beside the rates", asm.budget.hpAfterNine?.afterLevel === raw.hpAfterNine.afterLevel);
+check("budget assembles the hit-point rates past the last hit die, keyed as the book pairs them", isInt(asm.budget.hpPastLastDie?.crusaderMage) && isInt(asm.budget.hpPastLastDie?.fighterThief));
+check("budget assembles the last die level beside the rates", asm.budget.hpPastLastDie?.afterLevel === raw.hpPastLastDie.afterLevel);
 check("a missing last die level costs only itself", (() => {
-  const lost = assembleBuilderTables({ ...raw, hpAfterNine: { ...raw.hpAfterNine, afterLevel: null } }).budget.hpAfterNine;
-  const rates = assembleBuilderTables({ ...raw, hpAfterNine: { afterLevel: raw.hpAfterNine.afterLevel } }).budget.hpAfterNine;
+  const lost = assembleBuilderTables({ ...raw, hpPastLastDie: { ...raw.hpPastLastDie, afterLevel: null } }).budget.hpPastLastDie;
+  const rates = assembleBuilderTables({ ...raw, hpPastLastDie: { afterLevel: raw.hpPastLastDie.afterLevel } }).budget.hpPastLastDie;
   return lost.afterLevel === undefined && isInt(lost.crusaderMage) && isInt(lost.fighterThief)
-    && rates.afterLevel === raw.hpAfterNine.afterLevel && rates.crusaderMage === undefined;
+    && rates.afterLevel === raw.hpPastLastDie.afterLevel && rates.crusaderMage === undefined;
 })());
 check("budget assembles the human maximum level as the total less the typical count", asm.budget.humanMaxLevel === raw.proficiencyCount.total - raw.proficiencyCount.typical && asm.budget.humanMaxLevel >= 1);
 check("a half-read count assembles no human maximum level, and nothing else changes", (() => {
@@ -185,8 +185,8 @@ check("a half-read count assembles no human maximum level, and nothing else chan
   const inverted = assembleBuilderTables({ ...raw, proficiencyCount: { total: 3, typical: 9 } }).budget;
   return [total, typical, none, inverted].every((b) => b.humanMaxLevel === undefined && b.racialCaps?.length > 0 && b.basePoints === asm.budget.basePoints);
 })());
-check("races: the dwarf's post-9 hit points survive assembly", isInt(asm.races.dwarf.hpAfter9) && asm.races.dwarf.hpAfter9 === raw.dwarfRules.hpAfter9);
-check("races: the elf prints no post-9 hit points, and assembly says so", asm.races.elf.hpAfter9 === null);
+check("races: the dwarf's hit points past the last hit die survive assembly", isInt(asm.races.dwarf.hpPastLastDie) && asm.races.dwarf.hpPastLastDie === raw.dwarfRules.hpPastLastDie);
+check("races: the elf prints none past the last hit die, and assembly says so", asm.races.elf.hpPastLastDie === null);
 
 /* --------------- Printed class builds: parse, then price against the ladders --------------- */
 

@@ -74,7 +74,7 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
       /** Printed XP discount on the stacked category's cost; null when none. */
       stackXpDiscount: num({ integer: true }),
       /** Extra hit points per level past the last die level the race prints. */
-      hpAfter9: num({ integer: true }),
+      hpPastLastDie: num({ integer: true }),
       /** Post-8th-level XP increases: `chassis` is a saves-chassis key,
        *  "crusaderThief" for the shared tier, or "" for every chassis. */
       postEight: new ArrayField(new SchemaField({ chassis: str(), delta: num({ integer: true }) })),

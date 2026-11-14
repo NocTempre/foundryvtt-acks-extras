@@ -70,7 +70,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-11 — [each level's hit point roll is recorded on the character](DECISIONS-through-v11.14.5.md#2026-11-11--each-levels-hit-point-roll-is-recorded-on-the-character)
 - 2026-11-11 — [The level-up wizard ships the rules' procedure only](DECISIONS-through-v11.14.5.md#2026-11-11--the-level-up-wizard-ships-the-rules-procedure-only)
 - 2026-11-11 — [the sheet's hit dice roll never hands off to the system's roll](DECISIONS-through-v11.14.5.md#2026-11-11--the-sheets-hit-dice-roll-never-hands-off-to-the-systems-roll)
-- 2026-11-11 — [the level cap and the builder's last die level are read, not supplied](DECISIONS-through-v11.14.5.md#2026-11-11--the-level-cap-and-the-builders-last-die-level-are-read-not-supplied)
+- 2026-11-11 — [the level cap and the builder's last die level are read, not supplied](DECISIONS-through-v11.14.5.md#2026-11-11--the-level-cap-and-the-builders-last-die-level-are-read-not-supplied) — qualified in part by "2026-11-14 — The hit points past the last hit die carry no level in their names"
 - 2026-11-11 — [a human class's maximum level is the proficiency count's difference](DECISIONS-through-v11.14.5.md#2026-11-11--a-human-classs-maximum-level-is-the-proficiency-counts-difference)
 - 2026-11-11 — [the racial value is -1 for no racial category, and saved builders are corrected once](DECISIONS-through-v11.14.5.md#2026-11-11--the-racial-value-is--1-for-no-racial-category-and-saved-builders-are-corrected-once) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md §29)
 
@@ -93,3 +93,13 @@ This qualifies "only a class that leaves the choice to the player asks for it" (
 **Rejected.** Reading the election off the character's page: the stat block prints a damage total that folds several terms, and no line says which side was chosen, so a side derived from it would be a guess written as an answer. Defaulting to one side or to both: an invented election, and one the flag would then refuse to re-ask. Holding the dialog to the end of the import: still a dialog an unattended run stops at. Making unattended the default of `applyClass`: every hand path would stop asking. The Judge's own sheet import (the character sheet's PDF import) keeps asking, since a Judge runs it for one character and is there to answer.
 
 **Cost.** An imported character of such a class rolls damage without the class's bonus until someone elects on its Class tab or re-applies the class by hand. A new import path that applies a class without `unattended` asks again; `tools/test-class-unattended.mjs` pins the cookbook path.
+
+## 2026-11-14 — The hit points past the last hit die carry no level in their names
+
+**Ruled.** The owner, 2026-11-14: "NO legacy support was ruled long ago. They got one line in the release to start fresh and all lang, warning, checks even are dropped." The session's call, owner may overrule: the two identifiers that spelled a page's level number now say what the field is, one name for both. `budget.hpAfterNine` and the race's `hpAfter9` are `hpPastLastDie`; the builder issue code `missingHpAfterNine` is `missingHpPastLastDie`; the table constant is `HP_PAST_LAST_DIE_TABLE`; the race sheet's lang keys follow. The last die level stays `afterLevel`, since it already names a position and not a figure. Example: a world's builder tables read `budget.hpPastLastDie.fighterThief`.
+
+This supersedes in part "the level cap and the builder's last die level are read, not supplied", whose bullet kept the two identifiers because renaming them was a migration.
+
+**Rejected.** An alias for the old key, or a read that falls back to it: the owner's ruling is that no tool serves previous-version data.
+
+**Cost.** A world that imported the builder tables or materialized a race under the old names shows the field blank until the next import of them.

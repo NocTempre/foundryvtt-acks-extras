@@ -539,12 +539,12 @@ export function derivePlan({
   // invented number; a last die level it has not imported is an issue code and
   // no hit-dice cell at all, since without it no level's dice count is known.
   const HP_GROUP = { crusader: "crusaderMage", mage: "crusaderMage", fighter: "fighterThief", thief: "fighterThief" };
-  const hpRates = budget.hpAfterNine ?? {};
+  const hpRates = budget.hpPastLastDie ?? {};
   const lastDie = isNum(hpRates.afterLevel) ? hpRates.afterLevel : null;
   let hpPerLevel = isNum(hpRates[HP_GROUP[chassis]]) ? hpRates[HP_GROUP[chassis]] : null;
   if (lastDie == null) issues.push({ key: "missingLastDieLevel" });
-  if (maxLevel != null && hpPerLevel == null && (lastDie == null || maxLevel > lastDie)) issues.push({ key: "missingHpAfterNine", chassis });
-  if (hpPerLevel != null && racialValue > 0 && isNum(race?.hpAfter9)) hpPerLevel += race.hpAfter9;
+  if (maxLevel != null && hpPerLevel == null && (lastDie == null || maxLevel > lastDie)) issues.push({ key: "missingHpPastLastDie", chassis });
+  if (hpPerLevel != null && racialValue > 0 && isNum(race?.hpPastLastDie)) hpPerLevel += race.hpPastLastDie;
 
   // Rows run to the cap, so a class with none gets none: no number of rows is
   // known, and a short table written as if it were whole would read as one.

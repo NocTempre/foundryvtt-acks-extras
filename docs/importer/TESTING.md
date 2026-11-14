@@ -1775,7 +1775,7 @@ idempotent and no documents are created.
    `acks.classBuilder` budget.
 
 **Observable.** `hitPoints.tables.firstLevel.dieMinimum` is a whole number, and
-`budget.hpAfterNine` carries both chassis rates. Both come from the seat's own
+`budget.hpPastLastDie` carries both chassis rates. Both come from the seat's own
 books; neither is in the module.
 
 **Note for the tester.** The rules-table documents are deleted by the *Remove

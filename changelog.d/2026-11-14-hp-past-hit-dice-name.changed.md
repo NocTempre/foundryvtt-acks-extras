@@ -1,0 +1,1 @@
+- **Classes, race item sheet:** the field for extra hit points per level past the last hit die (Items sidebar tab → a race → its sheet) and the class builder's matching hit-point rates are stored under names that no longer carry a level number.

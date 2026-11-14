@@ -125,7 +125,7 @@ side effect of whatever comes next.
   for consistency; the whole question is one item, not five.
 - **Race-sheet fields still unreachable.** `stacksWith`, `stackXpDiscount` and
   `postEight` have readers and no editor. They are deferred together with the
-  question they share with `hpAfter9`: a re-import rebuilds a materialized
+  question they share with `hpPastLastDie`: a re-import rebuilds a materialized
   race's `system` wholesale, so a Judge's typing is replaced rather than
   merged.
 - **`templateItem.choice`** — an item a package offers rather than grants. The
@@ -185,10 +185,6 @@ built.
   one. No recipe carries it and the sweep did not find it printed for levels
   past the first; the `hpAudit.stepNone` text names the two maxima and no
   amount.
-- **A printed level in an identifier.** `hpAfterNine` (the builder budget key in
-  `builder-binding.mjs` and `builder-logic.mjs`) and `hpAfter9` (the race
-  field in `race-data.mjs`) carry a page's level number in their names. Rename
-  them to say what the field is.
 - **The class-level-cap walk's literal points.** `tools/live/classes-level-cap.mjs`
   asserts printed point figures as literals; it wants them read from the
   imported table.
