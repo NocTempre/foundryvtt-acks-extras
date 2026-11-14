@@ -694,11 +694,13 @@ it.
 **Steps.**
 
 1. Clear the Attack throw field on the Classification tab and read
-   `actor.system.attack.throw`. Core declares the field with a default and no
-   null, so it may restore a number; if it does, drive the render directly:
-   import `scripts/monsters/statblock.mjs` in page context and call
-   `statblockColumns` and `attackReading` with a snapshot whose `attackThrow`
-   is absent.
+   `actor.system.attack.throw`.
+   *Observable:* it reads `null`. Core's field is nullable, and a cleared field
+   cleans to null (monsters DECISIONS, "2026-11-14 — Core's attack throw holds
+   a blank"). If it reads a number, that is a finding: record it, then drive
+   the render directly. Import `scripts/monsters/statblock.mjs` in page context
+   and call `statblockColumns` and `attackReading` with a snapshot whose
+   `attackThrow` is absent.
 2. Read the Statblock tab's Attacks group and the right rail's attack button.
    *Observable:* each attack row's throw cell is empty (no `NaN+`, `null+` or
    `0+`), the group's caption reads `throw`, the rail button shows no figure,

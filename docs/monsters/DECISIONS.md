@@ -59,7 +59,7 @@ differently, and one of the forty stored keys does differ from the print.
 shows its key as an orphan option and no band name until the Judge picks the
 printed form. A world without the Rules tables imported shows a blank Body Form.
 
-## 2026-11-14 — An attack throw that is not a number shows no figure
+## 2026-11-14 — An attack throw that is not a number shows no figure — SUPERSEDED IN PART 2026-11-14
 
 **Ruled (owner).** "Caught printed values are fixed on the spot" (2026-11-04);
 "a figure a page prints is imported; stop asking" (2026-11-14); and "Missing
@@ -98,3 +98,22 @@ sheet's Equipment tab is not refused and takes core's target. Core declares the
 field with a default and no null, so a sheet may clean a blank back to a number;
 the blank face is reached by an actor whose data holds none, and no live walk
 has made one (monsters TESTING, "An actor with no attack throw").
+
+## 2026-11-14 — Core's attack throw holds a blank
+
+Supersedes in part the entry above: its "What it cost" sentence that core
+declares the field "with a default and no null, so a sheet may clean a blank
+back to a number". **New evidence, since that entry is under a week old:**
+core declares `attack.throw` as `NumberField({ required: true, initial: 10 })`
+(`actor-common-template.mjs`), and Foundry 14's `NumberField` is nullable unless
+told otherwise. Probed against the installed common code: `nullable` true,
+`clean(null)` null, `clean("")` null, `validate(null)` passes; only an absent
+value (`clean(undefined)`) takes the initial. So clearing the Classification
+tab's field stores null, and the blank face is reachable from the sheet. The
+same default is what let a hire's loyalty be blank (henchmen DECISIONS,
+"2026-11-14 — A hire's starting loyalty is the figure an import read, or
+blank").
+
+**Ruled.** The correction only: nothing in the attack-throw fix is rebuilt on
+it now. That an item sheet's or the Equipment tab's weapon roll is not refused
+while the field is blank stays as that entry's cost, and is a ROADMAP row.

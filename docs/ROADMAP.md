@@ -180,6 +180,14 @@ what a stocked hex holds for this creature (`formation/hex-stock.mjs`) is not
 read back onto the sheet, because the hex exposes no read keyed by actor. A
 reading of the lair's stock and its place on the map waits on that read.
 
+**A weapon roll with a blank attack throw is not refused everywhere.** Core's
+`attack.throw` holds null when the field is cleared (monsters DECISIONS,
+"2026-11-14 — Core's attack throw holds a blank"). The module's attack buttons
+refuse a missing throw, but a weapon rolled from its own item sheet or from the
+character sheet's Equipment tab still takes core's target. A wrapper on core's
+attack roll, the shape lib `patches/loyalty-roll.mjs` takes for loyalty, would
+refuse it at the one place every button ends.
+
 ---
 
 ## Groups
