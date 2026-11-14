@@ -18,6 +18,7 @@ import {
   REVEAL,
   ROLL_CONTEXT_HOOK,
   ROLL_KIND,
+  countOrigin,
   encounterFace,
   fullCaption,
   isCreatureStack,
@@ -156,6 +157,25 @@ async function postRollCard(group, { context, found, lair, plan, noun }) {
 
 /** A creature's page, where the importer recorded one. */
 export const citeOf = (source) => source?.getFlag?.(MODULE_ID, "cookbook")?.cite ?? source?.flags?.[MODULE_ID]?.cookbook?.cite ?? "";
+
+/**
+ * Where a stack's count came from, with the group's own numbers: what the
+ * count's tooltip says, on the group sheet and on a lair's row.
+ * @param {object} stack
+ * @param {object} [source] the stack's creature
+ * @returns {string}
+ */
+export function countTip(stack, source) {
+  const { kind, total } = countOrigin(stack);
+  return loc(`roll.tip.${kind}`, {
+    total,
+    formula: stack.size?.formula ?? "",
+    found: stack.rolled?.state ? loc(`roll.state.${stack.rolled.state}`) : "",
+    where: stack.rolled?.context ? loc(`roll.context.${stack.rolled.context}`) : "",
+    name: stack.template?.label ?? "",
+    cite: citeOf(source) || loc("roll.noCite"),
+  });
+}
 
 /**
  * What the first Roll adds to an encounter's update: the reveal, the art and the

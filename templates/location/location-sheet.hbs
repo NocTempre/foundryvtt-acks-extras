@@ -201,6 +201,40 @@
       {{/if}}
     </details>
 
+    {{!-- ---- The monster this place is the lair of, and the group it rolled ---- --}}
+    {{#if lair}}
+    <details class="section" open>
+      <summary>{{localize "ACKS-LOCATION.place.lair.title"}}</summary>
+      <div class="section-actions">
+        <button type="button" class="inline-add" data-action="rollLair"
+                {{#unless lair.canRoll}}disabled{{/unless}}
+                aria-label="{{localize 'ACKS-LOCATION.place.lair.rollLabel'}}"
+                data-tooltip-text="{{#if lair.canRoll}}{{localize 'ACKS-LOCATION.place.lair.rollHint'}}{{else}}{{lair.why}}{{/if}}">
+          <i class="fas fa-dice-d20"></i> {{localize "ACKS-LOCATION.place.lair.roll"}}
+        </button>
+      </div>
+      <ul class="acks-extras-place-list">
+        <li class="acks-extras-place-row" data-place-uuid="{{lair.monster.uuid}}">
+          <span class="acks-extras-place-hint">{{localize "ACKS-LOCATION.place.lair.monster"}}</span>
+          {{#if lair.monster}}
+          <a data-action="openPlace" class="acks-extras-place-name" data-tooltip-text="{{lair.monster.tip}}">{{lair.monster.name}}</a>
+          {{else}}
+          <span class="acks-extras-place-name">{{localize "ACKS-LOCATION.place.lair.notImported"}}</span>
+          {{/if}}
+        </li>
+        <li class="acks-extras-place-row" data-place-uuid="{{lair.group.uuid}}">
+          <span class="acks-extras-place-hint">{{localize "ACKS-LOCATION.place.lair.group"}}</span>
+          {{#if lair.group}}
+          <a data-action="openPlace" class="acks-extras-place-name">{{lair.group.name}}</a>
+          {{#if lair.group.countLabel}}<span class="acks-tag" data-tooltip-text="{{lair.group.tip}}">{{lair.group.countLabel}}</span>{{/if}}
+          {{else}}
+          <span class="acks-extras-place-name">{{lair.why}}</span>
+          {{/if}}
+        </li>
+      </ul>
+    </details>
+    {{/if}}
+
     {{!-- ---- The domain this place answers to ---- --}}
     {{#if domainHere}}
     <p class="acks-extras-place-domain" data-place-uuid="{{domainHere.uuid}}">

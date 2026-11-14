@@ -1,5 +1,6 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
 import { ROLL_CONTEXT_HOOK } from "../lib/group-encounter-logic.mjs";
+import { rollLair } from "../lib/lair.mjs";
 import { elementOf, isPrimaryGM, replacementToken } from "../lib/util.mjs";
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
 import {
@@ -1269,6 +1270,16 @@ Hooks.on("preCreateToken", (tokenDoc) => {
   return false;
 });
 
+/* A party standing on the Scene of a monster's lair has entered it: the lair
+ * rolls its encounter once (`lib/lair.mjs`), on the wilderness line. The place
+ * is read through the location api, which a world without the feature lacks,
+ * and a place that is no lair answers at once. */
+function enterLair(scene) {
+  const place = acksExtras.location?.scenes?.locationOfScene?.(scene);
+  if (!place) return;
+  rollLair(place, { context: "wilderness" }).catch((err) => console.error(`${MODULE_ID} | lair roll failed`, err));
+}
+
 /* Placing a party actor's token adopts it as THE party token (also how a
  * formation moves between scenes after its old token was removed), and the
  * country under it is read once it stands there. */
@@ -1277,7 +1288,10 @@ Hooks.on("createToken", (tokenDoc) => {
   // A lost party's true-position marker is a token of the party actor too,
   // and is never the party token.
   if (tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
-  const arrived = () => requestCountryRefresh(tokenDoc.parent?.id);
+  const arrived = () => {
+    requestCountryRefresh(tokenDoc.parent?.id);
+    enterLair(tokenDoc.parent);
+  };
   // Module-created tokens carry the formation flag and `ensurePartyToken`
   // records their linkage itself; adopting them here too would write back a
   // stale copy read mid-`addMember`. Only a manual placement needs adoption.

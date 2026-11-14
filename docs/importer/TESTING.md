@@ -3573,17 +3573,32 @@ What a scripted walk meets:
   `mm.dragon` (a template actor), found and marked the same way. Kept.
 - `importer/le-lair-map` — the world scene the maps step makes from
   `le.lair4Map`, read back from `created.scenes` and marked. Kept.
+- `importer/le-lair-roll` — the world copy of a plated lair whose monster's
+  in-lair side counts bodies (one of lairs 49, 55, 102, 116, 117, 118, 141, 149
+  and 164; read the monster's imported `extras.encounter.wilderness.lair` and
+  take one with a `number` and no `unit`), and its linked Scene, marked
+  `importer/le-lair-roll` and `importer/le-lair-roll-scene`. Kept. Step 6
+  asserts at its start that `lair.group` is unset or its group is gone.
+- `importer/le-lair-units` — the world copy of a lair whose monster counts its
+  in-lair side in units or states no count (lair 111's monster is one), with
+  a Scene where it has one. Kept.
+- `importer/le-lair-bound` — a lair whose printed stat line binds to its own
+  monster (step 2's pair-covered lines of lair 4 or lair 70), and its Scene.
+  Kept.
+- `importer/le-lair-party` — a party actor in a formation, built as
+  `docs/formation/TESTING.md` "Fixtures" builds one; its token is created on
+  and deleted from the lair Scenes by the steps below. Kept, left in delve.
 
 ### Steps
 
 1. Run `cookbookImportPoiPlaces({ books: ["le"] })`. *Observable:* `made` is
    168 (`le.lairs` and the 167 lairs), `created.places` one more (the book's
    own place, `adventurePlaceId("le")`, which `le.lairs` sits in), nothing
-   refused; each lair's `system.parentUuid` is `le.lairs`'s; each lair's roster ends with one hidden
-   row linking the library actor of its `meta.of` (no world copy, quantity 1),
-   and no row of any roster points at a second actor stamped with the same MM
-   id; a lair with no `meta.of` has no such row; `importer/le-lair-dragon`'s
-   last row links the `mm.dragon` template actor.
+   refused; each lair's `system.parentUuid` is `le.lairs`'s; each lair whose row
+   has a `meta.of` carries `flags["acks-extras"].lair` with `of` that id and
+   no `group`, and no roster row links its monster (a roster holds the stat
+   lines only, and is empty for a lair with none); a lair with no `meta.of` has
+   no `lair` flag; `importer/le-lair-dragon`'s `of` is `mm.dragon`.
 2. Read what the stat lines did, from step 1's result and the rosters.
    *Observable:* `creatures` (lines made from their own text, each claimed
    under `le.lair<n>-o<i>`) is 231 of the book's 355 stat lines when every
@@ -3604,19 +3619,54 @@ What a scripted walk meets:
    checked offline). The p207 pair are two scenes on two lairs; the
    shared p214 plate is one scene.
 4. Run the step of step 1 again. *Observable:* `made` 0, `already` 168, no
-   creature made, no roster grows.
+   creature made, no roster grows, and no lair's `lair` flag changes.
 5. Setup check, the lair imported before its monster: pick a lair other than
    the fixtures whose `meta.of` monster no other lair names; delete its place
    and the MM library actor stamped with that `meta.of` (walks may clear test
    world items, owner 2026-11-11), tracking neither; run step 1 (the lair is
-   made with no host row); import the monster again with
-   `cookbookImportIds` and track nothing (it is the library's); then Repair
-   everything on the Import tab (Settings tab → Game Settings → ACKS II —
-   Extras → Manage imports). *Observable:* the repair lists that lair's roster as a held edit
-   when it holds made creatures, and writes the linked roster when taken; an
-   empty roster takes the host row with no question.
+   made, with `lair.of` and no group); `lairMonster(place)` answers null; import
+   the monster again with `cookbookImportIds` and track nothing (it is the
+   library's). *Observable:* `lairMonster(place)` now answers the library actor
+   with no Repair, and never a world copy or a group's base actor stamped with
+   the same id (drag a copy of the monster into the world first and assert it is
+   not the answer).
+6. Arrival. The lair's rolling is the primary GM's window. Create
+   `importer/le-lair-party`'s token on `importer/le-lair-roll-scene` (a Token
+   create, as a party placed from the sidebar is; a core teleport fires the same
+   hook, so teleport it from another scene once as well). *Observable:* one
+   encounter group (an `acks-extras.group` in the Encounters folder, one stack
+   whose `template.uuid` is the library monster's) is made; its stack was rolled
+   on the `lair` side and the `wilderness` line (`rolled.state`,
+   `rolled.context`); the lair's `lair.group` is its uuid and its roster holds
+   one hidden row for it, whose quantity is the stack's `size.current`; one
+   whispered roll card to the GMs, none to a Player seat. Delete the token and
+   create it again: nothing new is made, no card posted (re-entry rolls
+   nothing). Delete the group and create the token again: a second group is
+   made, `lair.group` names it, and the roster holds its row alone (the deleted
+   group's row is gone).
+7. A lair that counts units. Place the party token on
+   `importer/le-lair-units`'s Scene (or press its sheet's Roll where it has
+   none). *Observable:* no group is made, `lair.noted` is `units`, one
+   whispered card says why and names the place; entering or pressing again
+   posts no second card.
+8. The sheet. Open `importer/le-lair-roll`'s sheet as a GM (Actors sidebar →
+   the lair → Contents tab → Lair): the monster's name, the group's name with
+   its count, the count's tooltip naming the formula, the line and the page; the
+   Roll button is disabled and the group row, not only a tooltip, says why.
+   Delete the group: the row reads the Roll as available and the button works.
+   On a lair with no Scene (any of the 129 without a plate), Roll makes the
+   group with the button and nothing else. A lair whose monster is not
+   imported reads "Not imported" in the monster row. A Player seat's sheet of
+   the same place has no Lair section. *Observable:* each, read from the sheet's
+   DOM; the button carries an `aria-label`; a keyboard reaches it.
+9. A lair whose printed line binds. On `importer/le-lair-bound`, whose roster
+   already holds a stat line bound to the monster, enter or press Roll.
+   *Observable:* the group is made all the same ("Yes, roll anyway") and the
+   roster holds the bound row and the group's.
 
 ### Teardown
 
-The three marked fixtures are kept. A setup check's made documents are swept
-with `api.sweepTracked()` and its result is quoted.
+The marked fixtures are kept. Each group a step rolled is the run's own: it is
+tracked with `api.track` from the lair's `lair.group` read the moment the roll
+resolves, and `api.sweepTracked()` deletes them, its result quoted. A setup
+check's made documents are swept the same way.

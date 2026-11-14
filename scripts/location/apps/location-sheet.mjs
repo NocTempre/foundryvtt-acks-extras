@@ -18,6 +18,7 @@
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { droppedGoods } from "../../lib/bundles.mjs";
+import { lairState, rollLair } from "../../lib/lair.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { GATE_ROLE, gateMarketOf } from "../gate.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
@@ -127,6 +128,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       splitStack: LocationSheet.#onSplitStack,
       openScene: LocationSheet.#onOpenScene,
       unlinkScene: LocationSheet.#onUnlinkScene,
+      rollLair: LocationSheet.#onRollLair,
       // --- trade tab (handlers live in the markets feature) ---
       ...TRADE_TAB_ACTIONS,
       // --- the market gate ---
@@ -307,6 +309,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         missing: !LocationSheet.#exists(row.uuid),
       }));
     context.headcount = places.headcount(context.occupants);
+    context.lair = game.user.isGM ? await LocationSheet.#lairView(actor) : null;
 
     context.scene = scene ? { uuid: scene.uuid, name: scene.name, active: scene.active } : null;
     context.stackCount = actor.system.instanceCount;
@@ -337,6 +340,23 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         context.gateEntry.entryFor = game.i18n.format(`${LANG_PREFIX}.place.gate.entryFor`, { market: market.name });
       } else if (game.user.isGM) context.gateEntry = { none: true };
     }
+  }
+
+  /**
+   * The Judge's lair section: the monster this place is the lair of (or that it
+   * is not imported), the group it rolled (or why none), and whether a Roll
+   * would do anything. Null for a place that is no lair.
+   */
+  static async #lairView(actor) {
+    const state = await lairState(actor);
+    if (!state) return null;
+    const { monster, group } = state;
+    return {
+      monster: monster && { ...monster, tip: monster.cite ? loc("place.lair.monsterTip", { cite: monster.cite }) : loc("place.lair.monsterNoCite") },
+      group: group && { ...group, countLabel: group.total == null ? "" : `×${group.total}` },
+      why: state.why,
+      canRoll: state.canRoll,
+    };
   }
 
   /**
@@ -1219,6 +1239,13 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   static async #onOpenScene() {
     const scene = await fromUuid(this.actor.system.sceneUuid).catch(() => null);
     scene?.view?.();
+  }
+
+  /** Roll this lair's encounter on the wilderness line; a refusal is said on the sheet and the group opens from its row. */
+  static async #onRollLair() {
+    const result = await rollLair(this.actor);
+    if (!result.ok && result.text) ui.notifications.warn(result.text);
+    this.render();
   }
 
   /** Break the scene link from the place side. The scene's flag is authoritative,

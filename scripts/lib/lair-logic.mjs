@@ -10,7 +10,7 @@ import { ROLL_KIND, isCreatureStack, planStack } from "./group-encounter-logic.m
 /** The key under `flags["acks-extras"]` that marks a place as a monster's lair. The importer writes `of` at creation; lair.mjs writes the rest. */
 export const LAIR_KEY = "lair";
 
-/** Every reason a lair gives for making no group; each has words under `ACKS-LIB.lair.why`. `noted` holds the last one told to the Judges. */
+/** Every reason a lair gives for making no group; each has words under the lair lang root's `why` block. `noted` holds the last one told to the Judges. */
 export const LAIR_REASONS = Object.freeze(["notImported", "template", "units", "none", "invalid", "failed", "rolled"]);
 
 /**

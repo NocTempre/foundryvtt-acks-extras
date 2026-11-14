@@ -1698,6 +1698,13 @@ wilderness line; a Judge re-rolls the other from the group's sheet. A group the
 Judge deletes is rolled again at the next entry, and its stale row leaves the
 roster with the new one.
 
+Two things call it. A party token created on the Scene a place is
+(`formation/module.mjs`' `createToken` path, which a teleport also fires, through
+the location api's `locationOfScene`) rolls the lair on the primary GM's window.
+The location sheet's Lair section (Contents tab, GM seats) shows the monster or
+"not imported", the group or why there is none, and a Roll button, which is the
+way to roll a lair that has no Scene.
+
 A repair of the book writes the flag back with the rest of a held place's build,
 and a flag key the build does not carry (`group`, `noted`) is left as the place
 holds it. A stat line that bound to a monster before it was imported is bound by

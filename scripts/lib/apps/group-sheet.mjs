@@ -29,13 +29,12 @@
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
-import { citeOf, defaultRollContext, groupNoun, judgeCaption, rollEncounter, rollRefusal, stackSource } from "../group-encounter.mjs";
+import { citeOf, countTip, defaultRollContext, groupNoun, judgeCaption, rollEncounter, rollRefusal, stackSource } from "../group-encounter.mjs";
 import {
   BY_LAIR_CHANCE,
   REVEAL,
   ROLL_CONTEXTS,
   ROLL_STATES,
-  countOrigin,
   isCreatureStack,
   lairChanceOf,
   lineReading,
@@ -177,15 +176,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
 
   /** Where a stack's count came from, with the group's own numbers. */
   static #countTip(stack, source) {
-    const { kind, total } = countOrigin(stack);
-    return loc(`roll.tip.${kind}`, {
-      total,
-      formula: stack.size?.formula ?? "",
-      found: stack.rolled?.state ? loc(`roll.state.${stack.rolled.state}`) : "",
-      where: stack.rolled?.context ? loc(`roll.context.${stack.rolled.context}`) : "",
-      name: stack.template?.label ?? "",
-      cite: citeOf(source) || loc("roll.noCite"),
-    });
+    return countTip(stack, source);
   }
 
   /** What a Roll cannot do with this stack, said on the sheet before anyone presses it. */

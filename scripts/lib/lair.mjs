@@ -12,9 +12,9 @@
  * roster row. The roster row names the group, whose headcount is the bodies it
  * rolled; the monster itself is never a row. The decisions are lair-logic.mjs.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LAIR_LANG_PREFIX } from "./constants.mjs";
 import { byCookbookId, whenReady } from "./library.mjs";
-import { citeOf, makeEncounter, rollEncounter } from "./group-encounter.mjs";
+import { citeOf, countTip, makeEncounter, rollEncounter } from "./group-encounter.mjs";
 import { LAIR_KEY, lairOf, planLair } from "./lair-logic.mjs";
 import { occupantRow } from "./place.mjs";
 import { postToJudges } from "./roll-audience.mjs";
@@ -22,7 +22,7 @@ import { docOf, escape as esc, makeLoc } from "./util.mjs";
 
 export { LAIR_KEY, lairData, lairOf, planLair } from "./lair-logic.mjs";
 
-const loc = makeLoc(`${LANG_PREFIX}.lair`);
+const loc = makeLoc(LAIR_LANG_PREFIX);
 
 /** The line a lair rolls on unless the caller names another: the wilderness line. */
 const DEFAULT_CONTEXT = "wilderness";
@@ -128,8 +128,9 @@ export function rollLair(place, { context = DEFAULT_CONTEXT } = {}) {
 
 /**
  * What the location sheet shows of a lair: its monster (with the page the
- * importer read it from), its group (with the count it rolled), and whether a
- * Roll would do anything and why not. Null for a place that is no lair.
+ * importer read it from), its group (with the count it rolled and where that
+ * count came from), and whether a Roll would do anything and why not. Null for
+ * a place that is no lair.
  * @param {Actor} place
  * @param {{context?: "dungeon"|"wilderness"}} [options]
  */
@@ -140,18 +141,9 @@ export async function lairState(place, { context = DEFAULT_CONTEXT } = {}) {
   const held = heldGroup(lair);
   const plan = planLair(monster, context);
   const stack = held?.system?.stacks?.[0];
-  const total = stack?.rolled?.total ?? null;
   return {
     monster: monster ? { uuid: monster.uuid, name: monster.name, cite: citeOf(monster) } : null,
-    group: held
-      ? {
-          uuid: held.uuid,
-          name: held.name,
-          total,
-          formula: stack?.size?.formula ?? "",
-          cite: citeOf(monster),
-        }
-      : null,
+    group: held ? { uuid: held.uuid, name: held.name, total: stack?.rolled?.total ?? null, tip: stack ? countTip(stack, monster) : "" } : null,
     canRoll: plan.ok && !held,
     why: held ? lairWhy("rolled") : plan.ok ? "" : lairWhy(plan.reason, plan),
   };

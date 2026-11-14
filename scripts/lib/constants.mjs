@@ -28,6 +28,8 @@ export const TEMPLATE_TYPE = `${MODULE_ID}.template`;
 
 /** The lang root of the group actor's strings. */
 export const GROUP_LANG_PREFIX = `${LANG_PREFIX}.group`;
+/** The lang root of a lair's strings. */
+export const LAIR_LANG_PREFIX = `${LANG_PREFIX}.lair`;
 /** The Item sub-type a variation document is — one way an item differs from its plain self. */
 export const VARIATION_TYPE = `${MODULE_ID}.variation`;
 

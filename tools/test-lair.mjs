@@ -367,7 +367,8 @@ await ok("the sheet reads the monster, the group and whether a Roll would do any
   await rollLair(place);
   state = await lairState(place);
   assert.equal(state.group.total, 4);
-  assert.equal(state.group.formula, "2d6*10");
+  assert.match(state.group.tip, /2d6\*10/, "the count's tooltip names the formula it was rolled on");
+  assert.match(state.group.tip, /Page 9/, "and the page the monster's line was read from");
   assert.equal(state.canRoll, false);
   assert.equal(state.why, lairWhy("rolled"));
   const units = await lairState(lairPlace({ of: "zz.troops" }));
@@ -383,10 +384,45 @@ await ok("the sheet reads the monster, the group and whether a Roll would do any
 
 const src = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
+await ok("the arrival path rolls the lair from every exit of the party token's creation", () => {
+  const formation = src("scripts/formation/module.mjs");
+  const hook = formation.slice(formation.indexOf('Hooks.on("createToken"'), formation.indexOf("function adoptSceneSystem"));
+  assert.match(hook, /const arrived = \(\) => \{\s+requestCountryRefresh\(tokenDoc\.parent\?\.id\);\s+enterLair\(tokenDoc\.parent\);/);
+  assert.equal(hook.split(".then(arrived)").length - 1, 2, "both adoption paths end in the arrival");
+  const enter = formation.slice(formation.indexOf("function enterLair"), formation.indexOf('Hooks.on("createToken"'));
+  assert.ok(enter.includes("acksExtras.location?.scenes?.locationOfScene?.(scene)"), "the place is read through the location api, never imported");
+  assert.ok(enter.includes('rollLair(place, { context: "wilderness" }).catch('));
+});
+
+const { default: Handlebars } = await import("handlebars");
+await ok("the sheet's Lair section is the Judge's alone, names its button, and holds no control in a summary", () => {
+  const hb = Handlebars.create();
+  hb.registerHelper("localize", (key) => String(key));
+  const template = src("templates/location/location-sheet.hbs");
+  const from = template.indexOf("The monster this place is the lair of");
+  const to = template.indexOf("The domain this place answers to");
+  assert.ok(from > 0 && to > from, "the lair section was found");
+  const section = template.slice(template.lastIndexOf("{{!--", from), template.lastIndexOf("{{!--", to));
+  assert.doesNotMatch(section, /\sid=/, "a window may be open twice: no literal id");
+  assert.doesNotMatch(section, /<summary>[^]*<(button|a)\b[^]*<\/summary>/, "no control inside the disclosure toggle");
+  const render = hb.compile(section);
+  assert.equal(render({ lair: null }).trim(), "", "a place that is no lair, or a seat that is not the Judge's, draws nothing");
+  const rolled = render({ lair: { monster: { uuid: "M", name: "Beast", tip: "Read from Page 9" }, group: { uuid: "G", name: "Beast encounter", countLabel: "×4", tip: "Rolled" }, why: "", canRoll: false } });
+  assert.match(rolled, /data-action="rollLair"[^>]*disabled/);
+  assert.ok(rolled.includes('aria-label="ACKS-LOCATION.place.lair.rollLabel"'));
+  assert.match(rolled, /data-tooltip-text="Read from Page 9"/, "the monster's page is a tooltip taken at render");
+  assert.match(rolled, /data-tooltip-text="Rolled"[^>]*>×4/, "the rolled count carries where it came from");
+  const open = render({ lair: { monster: null, group: null, why: "Nothing to roll", canRoll: false } });
+  assert.ok(open.includes("ACKS-LOCATION.place.lair.notImported"));
+  assert.match(open, /Nothing to roll/, "why there is no group is on the surface, not only in a tooltip");
+  assert.doesNotMatch(render({ lair: { monster: { uuid: "M", name: "Beast", tip: "" }, group: null, why: "", canRoll: true } }), /rollLair"[^>]*disabled/);
+});
+
 await ok("the lair flag has one writer: nothing outside lair.mjs and the importer's creation names the key", () => {
   const lib = src("scripts/lib/lair.mjs");
-  assert.match(lib, /LAIR_KEY\}\.group/);
-  assert.doesNotMatch(src("scripts/location/apps/location-sheet.mjs"), /flags\.\$\{MODULE_ID\}\.lair|"lair"\)/);
+  assert.ok(lib.includes("LAIR_KEY}.group"));
+  const sheet = src("scripts/location/apps/location-sheet.mjs");
+  assert.ok(!sheet.includes("MODULE_ID}.lair") && !sheet.includes('"lair")') && !sheet.includes("LAIR_KEY"), "the sheet reads a lair through lairState and writes none");
 });
 
 console.log(`lair: ${passed} cases passed`);
