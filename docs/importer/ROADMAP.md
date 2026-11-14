@@ -757,6 +757,13 @@ list as its specialty (`ax3.npc20`). Each wants a ruling of its own: an alias
 authored on the definition it means, a definition, or a documented skip. The
 other four were extraction and text-layer defects (DECISIONS, 2026-09-23).
 
+## A character's spells when the world holds none (T-0540)
+
+A character import resolves the spells its spellbook names against the spells
+the world already holds; with none imported, every one is listed as missing.
+Proficiencies are imported on demand (`resolveAbilities`); spells are not.
+Importing a named spell from its book at that moment is a new surface.
+
 ## An NPC description that carries its own statline
 
 `ax3.npc26`'s last description paragraph holds its own statline and the prose
@@ -836,6 +843,9 @@ Encounter field, and a notes block into Notes (MODEL, the spoils bound). Left:
   new actor type, or an extension of the monster group/encounter actor, that
   "should link without creating duplicates". Either way the Encounter field
   stays the text's only holder until then.
+- **A lair as a place.** A lair imported as a place with its roster of
+  monsters, its treasure as items, and the monster book's lairs gathered in
+  an Adventure of their own (owner, 2026-11-13: next roadmap).
 - **Spoils no register row points at.** Three entries print a Spoils block
   that no `spoilsPage` names, so the block is left unclaimed: two human
   variants and the mummy lord. Seven more carry a Spoils label
