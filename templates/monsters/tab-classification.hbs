@@ -24,9 +24,9 @@
           <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.size"}}</span>
           <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.size">{{selectOptions choices.size selected=extras.size localize=true blank=""}}</select>
         </label>
-        <label class="acks-extras-frame__fact">
+        <label class="acks-extras-frame__fact" data-tooltip-text="{{bodyForm.tip}}">
           <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.bodyForm"}}</span>
-          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.bodyForm">{{selectOptions choices.bodyForm selected=extras.bodyForm localize=true blank=""}}</select>
+          <select class="acks-input acks-extras-frame__fact-input" name="{{x}}.bodyForm" {{#unless bodyForm.imported}}disabled{{/unless}}>{{selectOptions bodyForm.options selected=extras.bodyForm blank=""}}</select>
         </label>
         <label class="acks-extras-frame__fact">
           <span class="acks-extras-frame__fact-label">{{localize "ACKS-MONSTERS.field.intelligence"}}</span>

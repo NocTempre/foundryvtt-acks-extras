@@ -306,3 +306,44 @@ release has no `sizeFrontage` until they are imported again, so its monsters'
 tokens are not sized to a scene until then, and monsters imported meanwhile
 carry Foundry's default token. Monsters already imported keep the prototype
 token they were given.
+
+## 2026-11-14 — The body-form list is imported
+
+**Ruled (owner).** Asked: "The monster sheet's Body form dropdown ships 40
+body-form names in code, each with an example creature in brackets ("<name>
+(<sample>)"), taken from the Monstrous Manual's body-form table. What should
+happen to that list?" with the options "Import it (Recommended)", "Trim the
+examples" and "Leave it, roadmap it", the owner answered **"Import it
+(Recommended)"**. And, the same day: **"Missing imports stay blank with page
+reference as a subtle clue on where they could get that info. Fields that
+require imports stay blank period. How a feature behaves without imports is not
+really a concern for this project as long as long as it fails in a non-breaking
+way"**. (The example in the question is left out of this quotation: a printed
+name is the book's, and this file ships.)
+
+So `BODY_FORMS` is gone from `config.mjs`. The table is read from MM p. 389 into
+`monsters` / `bodyForms` (MODEL, "The body forms"), the select offers what was
+read, and a Judge's override replaces the list whole. With nothing imported the
+select is blank and disabled and its tooltip is the page reference; no text
+says "not imported". The one thing a missing import must not do is lose data, so
+`bodyForm` is a plain string field, a stored key the table lacks keeps an option
+of its own, and the disabled select is left out of the form data so the stored
+key never meets a submit. `acksExtras.monsters.config.BODY_FORMS` goes with it,
+and the lib API version moves to 43.
+
+**Glyph locator.** The band's glyph map keeps its 32 assignments, keyed by
+`printKey` of each form's key (the hash of its folded letters,
+`importer/printed-name.mjs`), because the map is a second place a printed name
+would ship. A glyph is looked up by hashing the key, and a form with none wears
+the paw. `test-recipe-content` holds every glyph hash to a row the local book
+reads, so a hash that matches nothing fails there.
+
+**Rejected.** Trimming the examples and keeping the names: the names are the
+table of options the doctrine says is registered, not shipped. A list of named
+row specs in the recipe: it ships the names. Keeping a `choices` list on
+`bodyForm`: validation would drop a stored key the imported table spells
+differently, and one of the forty stored keys does differ from the print.
+
+**What it cost.** A monster that stored the spelling that differs from the print
+shows its key as an orphan option and no band name until the Judge picks the
+printed form. A world without the Rules tables imported shows a blank Body Form.

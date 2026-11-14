@@ -1393,6 +1393,14 @@ the `wordList` cell pattern: a sentence-shaped list of kinds, with its commas,
 closing "and", quotes, bracket of examples and the word "items" dropped, and a
 cell reading "none" as an empty list.
 
+A `gridRows` recipe with `keyByLabel` names no row in source. Its specs are a
+generic run of optional label patterns, each claiming the next row, and the
+row's key is `slugLabel` of the label it claimed (the rule the executor's grids
+use) with the row's `label` set to the tidied print; a label that folds to no
+key or repeats one is dropped. The monsters document's `bodyForms` (MM p. 389)
+is read this way, its sample column through the `tidyNames` cell pattern, which
+restores each comma part's small-capped opening letter.
+
 ## An entry's heading line
 
 An AX book's entry is anchored on, and its flow stopped by, heading LINES

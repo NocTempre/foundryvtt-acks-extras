@@ -203,4 +203,32 @@ check("the other print column never joins a cell", !ranges.some((r) => /across/.
   check("labelInt reads a bare integer label and nothing else", applyCellPattern("12", "labelInt")?.label === 12 && applyCellPattern("12 pts", "labelInt") === null);
 }
 
+/* --- keyByLabel: rows keyed by what the page prints --------------------------- */
+{
+  // The body-form recipe on invented runs: the name column splits a small-caps
+  // opening letter into a run of its own, a name repeats, a lone marker sits
+  // beside a label, and a header above the grid and a footnote below it hold
+  // label-shaped text.
+  const forms = TABLE_RECIPES.monsters.tables.bodyForms;
+  const page = [
+    run("Kind", 76, 290), run("Samples", 136, 290),
+    run("z", 76, 303, 5), run("orvine", 81, 303, 30), run("q", 136, 303, 5), run("uill (any)", 141, 303, 40),
+    run("Brindle", 76, 314, 35), run("fen cat, wisp", 136, 314, 60),
+    run("z", 76, 325, 5), run("orvine", 81, 325, 30), run("again", 136, 325, 30),
+    run("7 stray", 76, 336, 30),
+    run("Mirth", 76, 347, 25), run("*", 100, 347, 3), run("plain", 136, 347, 25),
+    run("*", 72, 749, 3), run("footnote", 81, 749, 40),
+  ];
+  const got = extractTable(page, forms);
+  check("each row is keyed by the slug of its printed label, in print order", Object.keys(got).join() === "zorvine,brindle,mirth");
+  check("the label is the tidied print, its small-caps opening letter restored and a marker dropped",
+    got.zorvine.label === "Zorvine" && got.brindle.label === "Brindle" && got.mirth.label === "Mirth");
+  check("the sample cell is read with each part's opening letter restored",
+    got.zorvine.example === "Quill (any)" && got.brindle.example === "Fen cat, Wisp");
+  check("a repeated label is dropped and the first row stands", got.zorvine.example === "Quill (any)" && Object.keys(got).length === 3);
+  check("a header above the grid and a footnote below it are no rows", !("kind" in got) && !("footnote" in got));
+  check("no generic spec key and no missing row survives", Object.keys(got).every((k) => !/^form\d/.test(k)) && Object.values(got).every((r) => !r.__missing));
+  check("tidyNames restores the opening letter of every comma part", applyCellPattern("aa (any), bb, cc", "tidyNames") === "Aa (any), Bb, Cc");
+}
+
 console.log(`test-grid-rows: all ${pass} checks passed`);

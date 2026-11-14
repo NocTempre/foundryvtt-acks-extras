@@ -79,7 +79,7 @@ submit `null` when empty via FormDataExtended.
 const api = game.modules.get("acks-extras").api.monsters; // also globalThis.acksExtras.monsters
 api.getExtras(actor);      // → MonsterExtras (typed view of the flag)
 api.MonsterExtras;         // the DataModel class
-api.config;                // all enum tables (MONSTER_TYPES, BODY_FORMS, …)
+api.config;                // all enum tables (MONSTER_TYPES, SIZES, …)
 api.FLAG_EXTRAS;           // "extras"
 ```
 
@@ -107,7 +107,8 @@ monster's band and rails show is this feature's, decided on plain data in
 by `tools/test-monster-sheet.mjs`.
 
 **The band** carries the body form's glyph (`BODY_FORM_ICONS`; the paw where
-no form is set; a click goes to Classification), the Hit Dice rating before
+no form shows; a click goes to Classification, and the glyph's tooltip names the
+form, or the field's provenance where none shows), the Hit Dice rating before
 the name (`hdRating`, falling back to core's roll formula), the name field,
 an in-service chip naming the employer while `system.retainer` names one (a
 click goes to Service; a dot on it says a calamity's loyalty throw is owed),
@@ -244,6 +245,27 @@ an unread row, or a cell holding no figure answers null for that category, and
 a world with no square answers null for every one, so the battlemap leaves the
 token as it is and a monster is imported with Foundry's default token. The
 weight, length and feet lines of the same table are not read.
+
+**The body forms** are the Monster Body Form table (MM Monster Creation p.
+389), imported into the same `monsters` document as table `bodyForms`: one row
+per form, `{label, example}`, the key minted from the printed name by the
+importer's `gridRows` `keyByLabel` (so the table names no form in source) and
+the sample monsters beside it as the row's `example`. The columns past the
+samples are not read. `scripts/monsters/body-forms.mjs` reads them:
+`bodyFormRows()` in table order, `bodyFormOrigin()` (imported with its page,
+the Judge's override, or missing) and `bodyFormView(stored, loc)`, which gives
+the Classification tab's Body Form select its options (`name — sample
+monsters`) and its tooltip, and the band its form's name. `bodyForm` in the
+extras schema is a plain string, so any stored key survives validation. A
+stored key the table does not hold gets an option of its own showing the raw
+key, so a submit from another field cannot erase it; the band names no form for
+it and wears the paw. With nothing imported the select is blank and `disabled`,
+its tooltip is the page reference alone, and the stored key is untouched: a
+disabled field is left out of the form data, and `_prepareSubmitData` merges
+the submit over the stored flag. The Judge edits the list in the Ruledata
+Browser, where an override replaces the table whole. The band's glyph map
+(`statblock.mjs` `BODY_FORM_ICONS`) is keyed by `printKey` of the form's key,
+the hash of its folded letters, so it names no form either.
 
 **The load rule and the default score** are two more `monsters` tables, read
 by `scripts/monsters/load-rule.mjs`. `loadRule` is the Normal Load entry (MM

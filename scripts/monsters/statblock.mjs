@@ -15,51 +15,57 @@
 import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
 import { convertedDie } from "./kits.mjs";
 import { loadStanding } from "./load-rule.mjs";
+import { printKey } from "../importer/printed-name.mjs";
 
 /**
- * The glyph a body form puts on the band. A form with no glyph of its own
- * wears the paw; a monster with no form recorded wears it too.
+ * The glyph a body form puts on the band, keyed by `printKey` of the form's
+ * key: the hash of its folded letters, so the table holds no printed name. A
+ * form with no glyph of its own wears the paw; a monster with no form recorded
+ * wears it too.
  */
 export const BODY_FORM_ICONS = Object.freeze({
-  humanoid: "fa-solid fa-person",
-  simian: "fa-solid fa-person",
-  draconine: "fa-solid fa-dragon",
-  dinosaurian: "fa-solid fa-dragon",
-  serpentine: "fa-solid fa-staff-snake",
-  equine: "fa-solid fa-horse",
-  cameline: "fa-solid fa-horse",
-  canine: "fa-solid fa-dog",
-  feline: "fa-solid fa-cat",
-  piscine: "fa-solid fa-fish",
-  selachian: "fa-solid fa-fish-fins",
-  cetacean: "fa-solid fa-fish-fins",
-  arachnine: "fa-solid fa-spider",
-  apian: "fa-solid fa-bug",
-  formic: "fa-solid fa-bug",
-  coleopteran: "fa-solid fa-bug",
-  dipterous: "fa-solid fa-bug",
-  scolopendrine: "fa-solid fa-bug",
-  accipitrine: "fa-solid fa-crow",
-  aquiline: "fa-solid fa-crow",
-  pterosaurian: "fa-solid fa-crow",
-  vespertilionine: "fa-solid fa-crow",
-  bovine: "fa-solid fa-cow",
-  monadine: "fa-solid fa-droplet",
-  vermian: "fa-solid fa-worm",
-  octopine: "fa-solid fa-shrimp",
-  cancrine: "fa-solid fa-shrimp",
-  ranine: "fa-solid fa-frog",
-  crocodilian: "fa-solid fa-frog",
-  lacertine: "fa-solid fa-frog",
-  salamandrine: "fa-solid fa-frog",
-  basilicine: "fa-solid fa-frog",
+  "1drveiq": "fa-solid fa-person",
+  "1qvyz90": "fa-solid fa-person",
+  "mrkyvk": "fa-solid fa-dragon",
+  "178y1pe": "fa-solid fa-dragon",
+  "14t22ci": "fa-solid fa-staff-snake",
+  "18y6uew": "fa-solid fa-horse",
+  "z6ktb5": "fa-solid fa-horse",
+  "182p075": "fa-solid fa-dog",
+  "kov1ra": "fa-solid fa-cat",
+  "105tmhq": "fa-solid fa-fish",
+  "5sfp8r": "fa-solid fa-fish-fins",
+  "pzwcd5": "fa-solid fa-fish-fins",
+  "1n53w9e": "fa-solid fa-spider",
+  "1pbfygk": "fa-solid fa-bug",
+  "1e4vkff": "fa-solid fa-bug",
+  "1wyrnqh": "fa-solid fa-bug",
+  "1xa1jwe": "fa-solid fa-bug",
+  "16xys0": "fa-solid fa-bug",
+  "pwluv6": "fa-solid fa-crow",
+  "rwlyov": "fa-solid fa-crow",
+  "1duxbis": "fa-solid fa-crow",
+  "1mfiunt": "fa-solid fa-crow",
+  "1dx5x5i": "fa-solid fa-cow",
+  "f7plaq": "fa-solid fa-droplet",
+  "x29eln": "fa-solid fa-worm",
+  "1xfltwk": "fa-solid fa-shrimp",
+  "1k9tini": "fa-solid fa-shrimp",
+  "18d71o4": "fa-solid fa-frog",
+  "14gzmt8": "fa-solid fa-frog",
+  "1j676t2": "fa-solid fa-frog",
+  "1le737m": "fa-solid fa-frog",
+  "2pxemu": "fa-solid fa-frog",
 });
 
 /** The default band glyph: what every form without one wears. */
 export const DEFAULT_GLYPH = "fa-solid fa-paw";
 
-/** The glyph for a body form key, the paw where it has none. */
-export const bodyFormIcon = (form) => BODY_FORM_ICONS[form] ?? DEFAULT_GLYPH;
+/**
+ * The glyph for a body form key, the paw where it has none. `icons` is the
+ * map the key is looked up in, by its `printKey`.
+ */
+export const bodyFormIcon = (form, icons = BODY_FORM_ICONS) => icons[printKey(form)] ?? DEFAULT_GLYPH;
 
 /**
  * The Hit Dice rating as the band prints it: count, a range where there is

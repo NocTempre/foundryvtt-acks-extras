@@ -641,3 +641,43 @@ build it with `api.fixture("monsters/natural-weapons", "Actor", {type:
 
 **Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
 built.
+
+## The body-form list
+
+The Classification tab's Body Form select and the band's glyph (MODEL, "The
+body forms"). Needs the Monstrous Manual connected on a GM seat and the Rules
+tables import run (Settings tab → Game Settings → ACKS II — Extras → Manage
+imports → Rules tables).
+
+**Fixtures.** A disposable `monster` actor carrying `flags.world.fixture` =
+`monsters/body-form`. Find it by the marker; build it with
+`api.fixture("monsters/body-form", "Actor", {type: "monster", name: <any>})`.
+
+**Steps.**
+
+1. Open the fixture's sheet, Classification tab, and open the Body Form select.
+   *Observable:* it holds one option per row of the imported table, each
+   reading `name — sample monsters`; hovering its label shows `Body Form` and
+   the page the table cites (MM p. 389).
+2. Pick a form, then read `actor.flags["acks-extras"].extras.bodyForm`.
+   *Observable:* the key stored is the form's printed name, folded to letters;
+   the band's overline names the form and the glyph follows it, the paw for a
+   form with no glyph of its own.
+3. Open the Ruledata Browser on `monsters` and override `bodyForms` with a table
+   of one row of your own, then reopen the sheet. Clear the override.
+   *Observable:* the select holds only your row and its tooltip says it is the
+   Judge's own table; the form picked in step 2 shows as an option reading its
+   raw key while the override stands; clearing returns the imported list.
+4. Set `extras.bodyForm` to a key the table does not hold, then edit another
+   field on the sheet (the Subtype) and read the key back.
+   *Observable:* the key is still there, offered as the select's selected
+   option under its raw key, and the band names no form.
+5. Take the world layer of `monsters` off the registry, as in battlemap TESTING
+   6a, and reopen the sheet with a form stored. Edit another field and read the
+   key back. Re-import to restore.
+   *Observable:* the select is disabled and blank, hovering its label shows the
+   page reference alone, the band wears the paw and names no form, and the
+   stored key is unchanged after the edit.
+
+**Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
+built.

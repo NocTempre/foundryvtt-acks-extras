@@ -16,7 +16,6 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import {
   MONSTER_TYPES,
   SIZES,
-  BODY_FORMS,
   SAVE_CLASSES,
   INTELLIGENCE,
   YOUNG_TYPES,
@@ -62,7 +61,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       types: choiceSet(MONSTER_TYPES),
       subtype: str(), // open qualifier, e.g. "wild", "Demon"
       size: choice(SIZES),
-      bodyForm: choice(BODY_FORMS),
+      bodyForm: str(), // a key of the imported body-form table (`body-forms.mjs`); any stored key is kept
       mass: new SchemaField({ stone: num(), lbs: num() }),
 
       // --- Hit Dice rating (core hp.hd stays the roll formula). countMax lets

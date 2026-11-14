@@ -17,7 +17,9 @@
 import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
-import { extractTable } from "../../scripts/importer/table-extract.mjs";
+import { extractTable, slugLabel } from "../../scripts/importer/table-extract.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
+import { BODY_FORM_ICONS } from "../../scripts/monsters/statblock.mjs";
 import { cultureNames, locatePageNumber, recipeLocates } from "../../scripts/importer/tables-binding.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { isMissingRow, missingRowKeys, quantity } from "../../scripts/lib/tables.mjs";
@@ -97,8 +99,8 @@ const TABLES = {
   // The frontage a monster size category occupies on a battle grid, and what
   // one of its squares is worth in feet; the load rule's two figures and the
   // default attribute score; the natural weapons each damage type is listed
-  // against and the edges of the extraordinary-damage rule.
-  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule"],
+  // against, the edges of the extraordinary-damage rule, and the body forms.
+  monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms"],
   // The armour limits on abilities.
   "acks.classBuilder": ["thiefLimits"],
   // The jumping and fall figures, the Spelunking grids' stretch and targets
@@ -547,6 +549,24 @@ VERIFY["monsters.extraordinaryRule"] = (out, recipe, fail) => {
     if (hd !== undefined && !(Number.isInteger(hd?.count) && hd.count > 0 && Number.isInteger(hd?.bonus))) fail(`${key}: not whole hit dice`);
   }
   if (out?.animalSize !== undefined && !SIZE_ORDER.includes(out.animalSize)) fail("animalSize: not a size category the vocabulary declares");
+};
+// The body forms: rows minted from the print, so each key is the slug of the
+// row's own label and each row holds a text sample cell; fewer rows than the
+// generic spec run, so the run was not exhausted; and every glyph the band
+// wears is keyed to a row that was read. Shape only; no form is named.
+VERIFY["monsters.bodyForms"] = (out, recipe, fail) => {
+  const rows = Object.entries(out ?? {});
+  if (!rows.length) fail("no row read");
+  if (rows.length >= recipe.rows.length) fail("as many rows as specs: the run may have stopped short");
+  for (const [key, row] of rows) {
+    if (isMissingRow(row)) fail(`row ${key}: read missing`);
+    else if (!isText(row.label) || slugLabel(row.label) !== key) fail(`row ${key}: key is not the slug of its label`);
+    else if (!isText(row.example)) fail(`row ${key}: no sample text`);
+    else if (/\d/.test(row.example) || row.example.length > 120) fail(`row ${key}: sample is not a plain list of names`);
+  }
+  const hashes = new Set(rows.map(([key]) => printKey(key)));
+  const unread = Object.keys(BODY_FORM_ICONS).filter((hash) => !hashes.has(hash));
+  if (unread.length) fail(`${unread.length} glyph key(s) match no row read`);
 };
 // The armour limits on abilities: a skill list the binding can split, a phrase
 // holding a ladder word the consumer maps to a rung, and a shield window. Shape

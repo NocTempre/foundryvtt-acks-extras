@@ -5998,9 +5998,14 @@
       "roleHint": "Two separate questions: what this animal was schooled for, and whether its kind can carry a rider at all.",
       "loadHint": "What it carries is set on the Classification tab and drawn on Inventory."
     },
+    "bodyForm": {
+      "page": "MM p. 389",
+      "read": "{label} ({cite})",
+      "judge": "{label} (the Judge's own table)",
+      "option": "{name} — {example}"
+    },
     "frame": {
       "glyphTitle": "{form} — open Classification",
-      "noForm": "No body form set",
       "hd": "HD {hd}",
       "hdTitle": "Hit Dice rating — set on Classification",
       "inServiceTitle": "In service — open the Service tab",

@@ -33,6 +33,7 @@ import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
 import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
+import { bodyFormView } from "./body-forms.mjs";
 import { importedKits } from "./kits.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
 import { makeLoc, plainRoll } from "../lib/util.mjs";
@@ -146,7 +147,6 @@ function choices() {
   return {
     types: CFG.choicesOf(CFG.MONSTER_TYPES),
     size: CFG.choicesOf(CFG.SIZES),
-    bodyForm: CFG.choicesOf(CFG.BODY_FORMS),
     saveClass: CFG.choicesOf(CFG.SAVE_CLASSES),
     movement: CFG.choicesOf(CFG.MOVEMENT_TYPES),
     vision: CFG.choicesOf(CFG.VISION_TYPES),
@@ -287,6 +287,9 @@ export function createFullMonsterSheet(Base) {
       context.carriedItems = items.filter((i) => !i.getFlag(MODULE_ID, "spoil"));
       context.encumbrance = computeEncumbrance(actor, extras);
       context.choices = choices();
+      // The Body Form select: the imported rows, or a disabled blank one.
+      const bodyForm = bodyFormView(extras.bodyForm, loc);
+      context.bodyForm = bodyForm;
       context.scores = CFG.ABILITY_SCORES;
       // The placeholder of a blank attribute: the imported default, or nothing.
       context.defaultScore = defaultScore() ?? "";
@@ -346,12 +349,11 @@ export function createFullMonsterSheet(Base) {
       const tabs = this.#frameTabs(context);
 
       const bio = String(extras.description?.appearance ?? "");
-      const formLabel = labelOf(CFG.BODY_FORMS, extras.bodyForm);
       const art = {
         img: actor.img,
         alt: actor.name,
         changeTitle: loc("frame.tools.changeArt"),
-        overline: [...snap.typeLabels, snap.sizeLabel, formLabel, actor.system?.details?.alignment].filter(Boolean).join(" · "),
+        overline: [...snap.typeLabels, snap.sizeLabel, bodyForm.label, actor.system?.details?.alignment].filter(Boolean).join(" · "),
         prose: context.enrichedDesc.appearance,
         proseSource: bio,
         proseField: `${context.x}.description.appearance`,
@@ -375,10 +377,10 @@ export function createFullMonsterSheet(Base) {
         cells: this.#railCells(snap),
         band: {
           glyph: {
-            icon: bodyFormIcon(extras.bodyForm),
+            icon: bodyFormIcon(bodyForm.label ? extras.bodyForm : ""),
             action: "goTab",
             attrs: attr({ tab: "classification" }),
-            title: loc("frame.glyphTitle", { form: formLabel || loc("frame.noForm") }),
+            title: loc("frame.glyphTitle", { form: bodyForm.label || bodyForm.tip }),
           },
           rank: snap.hdText ? loc("frame.hd", { hd: snap.hdText }) : "",
           rankTitle: loc("frame.hdTitle"),

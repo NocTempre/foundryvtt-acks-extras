@@ -10,8 +10,9 @@
  */
 import assert from "node:assert";
 import {
-  hdRating, bodyFormIcon, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows,
+  hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows,
 } from "../scripts/monsters/statblock.mjs";
+import { printKey } from "../scripts/importer/printed-name.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -36,9 +37,24 @@ test("no count means no rating, so the band falls back to the formula", () => {
   assert.equal(hdRating({ count: "" }), null);
 });
 test("a body form with no glyph wears the paw, and so does no form", () => {
-  assert.equal(bodyFormIcon("no-such-form"), DEFAULT_GLYPH);
-  assert.equal(bodyFormIcon(undefined), DEFAULT_GLYPH);
-  assert.notEqual(bodyFormIcon("humanoid"), DEFAULT_GLYPH);
+  const icons = { [printKey("zorvine")]: "fa-solid fa-test" };
+  assert.equal(bodyFormIcon("no-such-form", icons), DEFAULT_GLYPH);
+  assert.equal(bodyFormIcon(undefined, icons), DEFAULT_GLYPH);
+  assert.equal(bodyFormIcon("", icons), DEFAULT_GLYPH);
+});
+test("a body form's glyph is found by the hash of its key, however the key is cased or spaced", () => {
+  const icons = { [printKey("zorvine")]: "fa-solid fa-test" };
+  assert.equal(bodyFormIcon("zorvine", icons), "fa-solid fa-test");
+  assert.equal(bodyFormIcon("Zor-Vine", icons), "fa-solid fa-test");
+});
+test("the glyph map is keyed by hashes, each naming one Font Awesome glyph", () => {
+  const entries = Object.entries(BODY_FORM_ICONS);
+  assert.ok(entries.length > 0);
+  for (const [key, glyph] of entries) {
+    assert.match(key, /^[0-9a-z]{4,7}$/, "a base-36 hash of a folded name");
+    assert.match(glyph, /^fa-solid fa-[a-z-]+$/);
+  }
+  assert.equal(new Set(entries.map(([key]) => key)).size, entries.length);
 });
 
 console.log("monster sheet: the right rail");

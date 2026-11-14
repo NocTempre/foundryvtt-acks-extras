@@ -1,8 +1,8 @@
 /**
  * The monster sheet's enumerations: type, size, intelligence, save-as class,
  * treasure type, age category, trained role, young type, interval unit,
- * ability score, special-ability category and body form (MM ch. 1 Monster
- * Overview, Monster Creation and Monster Rules).
+ * ability score and special-ability category (MM ch. 1 Monster Overview,
+ * Monster Creation and Monster Rules).
  *
  * PURE DATA, with no `foundry` references, so the runtime (data model and
  * sheet) and the Node tooling import it alike.
@@ -206,52 +206,4 @@ export const SPECIAL_ABILITIES = {
   triggeredAttack: { label: "Triggered Attack" },
   viciousAttack: { label: "Vicious Attack" },
   unusual: { label: "Unusual" },
-};
-
-/* -------------------------------------------- */
-/*  Body forms (Creation pp.389, 397; Org p.395)*/
-/* -------------------------------------------- */
-
-/** Body-form vocabulary a monster's `bodyForm` is chosen from; the sheet reads only the label. */
-export const BODY_FORMS = {
-  accipitrine: { label: "Accipitrine (raptor)" },
-  aquiline: { label: "Aquiline (roc)" },
-  apian: { label: "Apian (giant bee)" },
-  arachnine: { label: "Arachnine (spider)" },
-  basilicine: { label: "Basilicine (basilisk)" },
-  bovine: { label: "Bovine (herd animal)" },
-  cameline: { label: "Cameline (camel)" },
-  cancrine: { label: "Cancrine (giant crab)" },
-  canine: { label: "Canine (dog/wolf)" },
-  cetacean: { label: "Cetacean (whale)" },
-  coleopteran: { label: "Coleopteran (beetle)" },
-  crocodilian: { label: "Crocodilian (crocodile)" },
-  dinosaurian: { label: "Dinosaurian (dinosaur)" },
-  dipterous: { label: "Dipterous (carnivorous fly)" },
-  draconine: { label: "Draconine (dragon)" },
-  elephantine: { label: "Elephantine (elephant)" },
-  equine: { label: "Equine (horse)" },
-  feline: { label: "Feline (large cat)" },
-  formic: { label: "Formic (giant ant)" },
-  humanoid: { label: "Humanoid" },
-  lacertine: { label: "Lacertine (giant lizard)" },
-  monadine: { label: "Monadine (ooze)" },
-  murine: { label: "Murine (giant rat)" },
-  musteline: { label: "Musteline (weasel/ferret)" },
-  octopine: { label: "Octopine (octopus/squid)" },
-  piscine: { label: "Piscine (giant fish)" },
-  porcine: { label: "Porcine (boar)" },
-  pterosaurian: { label: "Pterosaurian (pterodactyl)" },
-  ranine: { label: "Ranine (giant frog/toad)" },
-  rhinocerine: { label: "Rhinocerine (rhinoceros)" },
-  salamandrine: { label: "Salamandrine (salamander)" },
-  scolopendrine: { label: "Scolopendrine (centipede)" },
-  selachian: { label: "Selachian (shark)" },
-  serpentine: { label: "Serpentine (snake)" },
-  simian: { label: "Simian (baboon/gorilla)" },
-  soricine: { label: "Soricine (giant shrew)" },
-  ursine: { label: "Ursine (bear)" },
-  vermian: { label: "Vermian (giant worm)" },
-  vespertilionine: { label: "Vespertilionine (bat)" },
-  wyverine: { label: "Wyverine (wyvern)" },
 };

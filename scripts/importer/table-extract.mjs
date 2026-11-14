@@ -95,6 +95,10 @@ export function applyCellPattern(text, pattern = "raw") {
   switch (pattern) {
     case "raw":
       return t;
+    case "tidyNames":
+      // A comma list of printed names, each part's small-capped opening letter
+      // restored (`tidyRowName`).
+      return tidyRowName(t);
     case "int": {
       const m = t.match(/-?\d[\d,]*/);
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
@@ -374,7 +378,12 @@ function wrapLines(rows, claims, recipe, start, end) {
  * on the page like `xMin`/`xMax`. `wrapRows` reads cells printed over several
  * lines (see `wrapLines`). A row spec's own `cellPattern` reads every cell of
  * that row, over its columns' and the recipe's: a header row prints its
- * column scales in another notation than the body under it.
+ * column scales in another notation than the body under it. `keyByLabel`
+ * mints each row's key from the label it claimed (`slugLabel`, the rule the
+ * executor's grids use) and sets the row's `label` to that label's tidied
+ * print; the specs are then a generic run, each one only claiming the next
+ * row, and a row whose label folds to no key or to one already minted is
+ * dropped.
  */
 export function extractGridRows(items, recipe) {
   const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
@@ -426,6 +435,8 @@ export function extractGridRows(items, recipe) {
       if (!spec.optional) out[spec.key] = { __missing: true };
       continue;
     }
+    const key = recipe.keyByLabel ? slugLabel(matchedLabel) : spec.key;
+    if (recipe.keyByLabel && (!key || Object.hasOwn(out, key))) continue;
     // A wrapped row's lines carry their order, so a windowed cell reads them
     // top to bottom rather than interleaved by x.
     const lines = blocks.get(idx) ?? [rows[idx]];
@@ -562,7 +573,8 @@ export function extractGridRows(items, recipe) {
     // fields merge onto the row beside the cells.
     if (spec.labelPattern) Object.assign(row, applyCellPattern(matchedLabel, spec.labelPattern) ?? {});
     if (spec.set) Object.assign(row, spec.set);
-    out[spec.key] = row;
+    if (recipe.keyByLabel) row.label = tidyRowName(matchedLabel.replace(/\W+$/, ""));
+    out[key] = row;
   }
   return out;
 }

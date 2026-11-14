@@ -4972,7 +4972,7 @@ export const TABLE_RECIPES = {
   // Monster figures a binder works out rather than reads off the creature's
   // own block. `importer/leader-roles.mjs` keys the ladder rows.
   monsters: {
-    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 12, 13, 349" },
+    source: { book: "ACKS II Revised Rulebook + AXIOMS Compendium + ACKS II Monstrous Manual", pages: "RR 296, 441; AXIOMS 43-44; MM 11, 12, 13, 349, 389" },
     tables: {
       // Attack Throws by Level and HD (RR ch. 6): the Monster HD column and
       // the throw value at its far right. The class-level columns between are
@@ -5222,6 +5222,26 @@ export const TABLE_RECIPES = {
           { key: "animalSize", findRe: "more than [\\d+ -]+h\\s*d\\s+and of", take: "sizeWord", span: 16 },
           { key: "otherHd", find: "vermin with more than", take: "hitDice", span: 14 },
         ],
+      },
+      // The body forms a monster is classed under (MM Monster Creation p. 389,
+      // Monster Body Form), one row per form with its sample monsters. The
+      // rows are minted from the print (`keyByLabel`), never named here, so
+      // the spec list is a generic run longer than the table; `yMin` ends the
+      // grid below the table above it and `yMax` above the footnote. The
+      // columns past the samples are not read. `monsters/body-forms.mjs` reads
+      // the rows.
+      bodyForms: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 389,
+        locate: "Monster Body Form",
+        column: { xMin: 70, xMax: 590, yMin: 297, yMax: 745 },
+        labelMaxX: 130,
+        rowTol: 4,
+        joinGap: 1,
+        keyByLabel: true,
+        cellColumns: [{ key: "example", x: 136, w: 105, row: true, pattern: "tidyNames" }],
+        rows: Array.from({ length: 60 }, (_, i) => ({ key: `form${i + 1}`, labelRe: "^[a-z]+\\W*$", optional: true })),
       },
     },
   },
