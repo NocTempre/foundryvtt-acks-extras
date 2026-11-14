@@ -28,7 +28,7 @@ const SAMPLE = {
     ],
     movingQuarry: -3,
     specificTarget: -5,
-    turnsPerThrow: 6,
+    turnsPerThrow: 4,
     aerialTurnsPerThrow: 3,
     canopyTerrains: ["forest", "jungle", "swamp"],
     canopyPenalty: -9,
@@ -72,10 +72,10 @@ ok("a bracket answers at its own edges", () => {
   assert.equal(searchTarget("nonsense"), null);
 });
 
-ok("a search costs an hour and always owes an encounter throw", () => {
+ok("a search costs its imported cadence in hours and always owes an encounter throw", () => {
   unregisterTable(SEARCHING_DOC); load();
   const spec = searchSpec({ milesPerDay: 30 });
-  assert.equal(spec.costsHours, 1);
+  assert.equal(spec.costsHours, 4 / 6, "the invented four turns, in hours of six turns");
   assert.equal(spec.owesEncounterThrow, true, "looking around gets you noticed");
 });
 
@@ -160,16 +160,29 @@ ok("over open country the air buys MORE throws, not a better target", () => {
   const walked = searchSpec({ milesPerDay: 30, terrain: "hills" });
   const flown = searchSpec({ milesPerDay: 30, mode: "aerial", terrain: "hills" });
   assert.equal(flown.target, walked.target, "the target is the same");
-  assert.equal(walked.turnsPerThrow, 6);
-  assert.equal(flown.turnsPerThrow, 3, "but the throws come twice as often");
+  assert.equal(walked.turnsPerThrow, 4);
+  assert.equal(flown.turnsPerThrow, 3, "but the throws come more often");
   assert.equal(flown.costsHours, 0.5);
   assert.ok(flown.notes.includes("openGround"));
+});
+
+ok("with no cadence imported a search on foot refuses and names it; open ground from the air needs only its own", () => {
+  unregisterTable(SEARCHING_DOC);
+  const { turnsPerThrow, ...rest } = SAMPLE.tables;
+  registerTable({ ...SAMPLE, tables: rest }, { priority: PRIORITY.WORLD, source: "test" });
+  const walked = searchSpec({ milesPerDay: 30, terrain: "hills" });
+  assert.equal(walked.ok, false);
+  assert.equal(walked.missing, "turnsPerThrow");
+  assert.equal(searchSpec({ milesPerDay: 30, mode: "aerial", terrain: "forest" }).missing, "turnsPerThrow");
+  const flown = searchSpec({ milesPerDay: 30, mode: "aerial", terrain: "hills" });
+  assert.equal(flown.ok, true);
+  assert.equal(flown.turnsPerThrow, 3);
 });
 
 ok("over canopy the air buys the SAME throws at a worse target", () => {
   unregisterTable(SEARCHING_DOC); load();
   const flown = searchSpec({ milesPerDay: 30, mode: "aerial", terrain: "forest" });
-  assert.equal(flown.turnsPerThrow, 6, "no faster — the foliage is in the way");
+  assert.equal(flown.turnsPerThrow, 4, "no faster — the foliage is in the way");
   assert.equal(flown.modifier, -9);
   assert.ok(flown.notes.includes("canopy"));
 });

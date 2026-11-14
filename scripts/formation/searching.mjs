@@ -10,6 +10,7 @@
  */
 import { getDoc, hasDoc, bracketRow } from "../lib/tables.mjs";
 import { numOrNull } from "../lib/util.mjs";
+import { TURNS_PER_HOUR } from "./constants.mjs";
 
 /** The registered document these derivations read. */
 export const SEARCHING_DOC = "searching";
@@ -115,7 +116,7 @@ export function searchSpec({
   const skyTracking = tracking ? (numOrNull(weatherTracking) ?? 0) : 0;
   if (skyTracking) add("weatherTracking", skyTracking);
 
-  let turnsPerThrow = numOrNull(table("turnsPerThrow")) ?? 6;
+  let turnsPerThrow = numOrNull(table("turnsPerThrow"));
   if (mode === "aerial") {
     const closed = table("canopyTerrains");
     if (Array.isArray(closed) && closed.includes(terrain)) {
@@ -130,10 +131,11 @@ export function searchSpec({
       notes.push("openGround");
     }
   }
+  if (turnsPerThrow == null) return { ok: false, missing: "turnsPerThrow", subject };
 
   return {
     ok: true, target, modifier, parts, subject, mode, notes,
-    turnsPerThrow, costsHours: turnsPerThrow / 6, owesEncounterThrow: true,
+    turnsPerThrow, costsHours: turnsPerThrow / TURNS_PER_HOUR, owesEncounterThrow: true,
   };
 }
 

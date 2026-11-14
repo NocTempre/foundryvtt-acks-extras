@@ -21,6 +21,7 @@ import { getFormation, getPartyScene, hasAbility, realMembers } from "./formatio
 import { hasCapability } from "./ability-bridge.mjs";
 import { hexContext, spendSearchHour } from "./journey.mjs";
 import { searchSpec, searchOutcome, SEARCH_SUBJECTS } from "./searching.mjs";
+import { TURNS_PER_HOUR } from "./constants.mjs";
 import { conditionsOf } from "./weather.mjs";
 import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 import { postEncounterThrow } from "./encounter-card.mjs";
@@ -120,7 +121,7 @@ export async function runSearchHour(formation, {
   const thereIsOne = !elsewhere && (mode === "yes" || pool.length > 0);
 
   // An hour is six turns; a faster cadence buys proportionally more throws.
-  const throws = Math.max(1, Math.round(6 / (spec.turnsPerThrow || 6)));
+  const throws = Math.max(1, Math.round(TURNS_PER_HOUR / (spec.turnsPerThrow || TURNS_PER_HOUR)));
   const attempts = [];
   let found = false;
   for (let n = 0; n < throws && !found; n++) {
