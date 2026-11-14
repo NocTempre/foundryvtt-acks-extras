@@ -1075,3 +1075,12 @@ Retrieval stays ungated, and a Judge's own coin acts still pass.
 
 **Ruled.** The manager is a GM tool, so its writes go direct with no sockets. Two GMs driving it at once is last-write-wins on distinct items, which is documented rather than defended against.
 **Rejected.** The socket-and-claim-token machinery: it exists for player-triggered flows, not for two people sharing one admin screen.
+
+## 2026-11-13 — A market's till float is stored, and a null one derives once
+
+**Ruled.** `system.market.tillTargetGp`, the till float a market keeps in coin, is stored and never a buried derivation, because it is a knob other systems turn. Null means derive once and write it back: families × income from the imported tables, a placeholder setting otherwise. The month sweep tops the house coin up to it, and `tillRefreshTime` is that sweep's watermark.
+
+## 2026-11-13 — The Judge's record of a place is a second field, not a gate on the shared notes
+
+**Ruled.** `system.gmNotes` is a second field beside `system.notes`, so the two are visibly different records instead of one field whose audience depends on a setting; the notes are shared. It renders only inside the sheet's GM region, which is the whole of its protection: the same UI convention the roster's `hidden` follows, not a security boundary.
+**Rejected.** A gate on `notes` that varies its audience by a setting.
