@@ -1,37 +1,32 @@
 /* global game, foundry, fromUuid, fromUuidSync, Item, RollTable, Folder, console */
 /**
  * Template packages: a class's printed starting templates materialized as
- * repairable documents on the class's own shelf.
+ * repairable documents on the class's own shelf (docs/classes/MODEL.md,
+ * "Template packages").
  *
- * Each template row on a class may bind a core `bundle` Item — a container of
- * uuid links to REAL documents: the abilities it grants (shared links, or
- * specialized copies), its gear as already-skinned items (the printed
- * descriptor over the base's mechanics), and its spells. Repairing one linked
- * document — retyping a mis-imported staff to a weapon, fixing its damage —
- * repairs every character generated from that template afterwards. A 3d6
- * RollTable per class links the bundles as a generated VIEW: nothing in code
- * reads it, so it cannot drift into a second authority.
+ * Each template row on a class may bind a core `bundle` Item holding uuid links
+ * to real documents: the abilities it grants (shared links, or specialized
+ * copies), its gear as already-skinned items (the printed descriptor over the
+ * base's mechanics), and its spells. A 3d6 RollTable per class links the
+ * bundles as a generated view; nothing in code reads it.
  *
- * A package lands beside its class. A class held on one of the library's
- * shelves — the importer's world packs — writes its parts to that line's Item
- * and RollTable shelves, filed `Class Templates / <Class>`; those packs are
- * unlocked world packs, so a part in one is as repairable as a part in the
- * directory. A class in the sidebar, a Judge's own, keeps its parts in the
- * sidebar, where Remove Imports (which deletes the library's packs whole)
- * cannot reach them.
+ * A package lands beside its class: a class held on one of the library's
+ * shelves writes its parts to that line's Item and RollTable shelves, filed
+ * `Class Templates / <Class>`; a class in the sidebar keeps its parts in the
+ * sidebar, out of Remove Imports' reach. See docs/classes/DECISIONS.md,
+ * "a package lands beside its class".
  *
  * Ownership: the class row keeps the printed band, name, annotation, caste,
- * coin and encumbrance note; the bundle owns WHAT the package contains; each
- * linked item owns what one piece of gear IS. A materialized entry is removed
- * from the row's arrays, so the sheet, the preview and the grant all read one
- * list; printed cells that resolved to nothing stay on the row, visibly.
+ * coin and encumbrance note; the bundle owns what the package contains; each
+ * linked item owns what one piece of gear is. A materialized entry is removed
+ * from the row's arrays; printed cells that resolved to nothing stay on the row.
  *
  * Identity lives on the bundle (`flags["acks-extras"].templatePart`), not on
- * the row — an importer Update pass replaces the whole `system` object, so
- * the row's `bundle` uuid is a cache re-derived from that flag afterwards.
- * Documents this file creates carry an `asImported` snapshot; any pass that
- * would replace one compares the live document against it first, and an
- * edited document is skipped and reported, never clobbered.
+ * the row: an importer Update pass replaces the whole `system` object, so the
+ * row's `bundle` uuid is a cache re-derived from that flag. Documents this
+ * file creates carry an `asImported` snapshot; a pass that would replace one
+ * compares the live document against it first, and an edited document is
+ * skipped and reported.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
@@ -45,9 +40,7 @@ import { isOffer } from "./pending-choices.mjs";
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Flag key (under `flags["acks-extras"]`) naming what a document is a part of.
- *  Stated in `constants.mjs`, where every lookup that must tell a class's own
- *  copy from the definition it copied can reach it without importing this file. */
+/** Flag key (under `flags["acks-extras"]`) naming what a document is a part of; defined in `constants.mjs`. */
 export const TEMPLATE_PART = FLAG_TEMPLATE_PART;
 
 const loc = (key, data) => game.i18n?.format?.(`${LANG_PREFIX}.${key}`, data) ?? null;
@@ -59,11 +52,10 @@ const loc = (key, data) => game.i18n?.format?.(`${LANG_PREFIX}.${key}`, data) ??
 /**
  * Is the candidate name a whole WORD of the printed descriptor?
  *
- * The escape hatch that lets a short base name be found at all. A trailing
- * plural belongs to the word: a cell printing "torches" or "darts" names the
- * Torch and the Dart the world holds, and reading them as unknown gear left a
- * character carrying a bundle of sticks with no damage on it. Seams inside a
- * multi-word name are `\s*`, because real extraction welds words together.
+ * A trailing plural belongs to the word, and seams inside a multi-word name
+ * are `\s*`, because real extraction welds words together. See
+ * docs/classes/DECISIONS.md, "a short base name is a whole word, and a plural
+ * is part of it".
  */
 function wholeWordIn(candidateName, descriptor) {
   const body = String(candidateName).trim().split(/\s+/).map(escapeRe).join("\\s*");
@@ -76,12 +68,11 @@ function wholeWordIn(candidateName, descriptor) {
  * requires a folded length of 6, or 4–5 as a whole word of the raw descriptor
  * — never a bare substring, which would find nothing for "mace" and too much
  * for "grimace". Every variant of the candidate's name is
- * tried (`nameVariants`), including its paren-stripped form: an embellished
- * instance contains "spellbook", never "(blank)".
+ * tried (`nameVariants`), including its paren-stripped form.
  *
- * ACKS Importer applies the same rules when it resolves a printed descriptor
- * against the equipment menu (`parseEquipment` in its `cookbook/classes.mjs`); the two
- * must agree, or a descriptor points at one base and skins itself over another.
+ * The importer applies the same rules when it resolves a printed descriptor
+ * against the equipment menu (`parseEquipment` in `importer/cookbook/classes.mjs`);
+ * the two must agree.
  */
 export function bestBaseMatch(name, candidates) {
   const f = fold(name);
@@ -110,8 +101,7 @@ export function bestBaseMatch(name, candidates) {
 
 /**
  * The embellishment a printed descriptor adds over its base's name: the
- * descriptor with the base name (or its paren-stripped form) excised —
- * "Crudely-crafted shortbow" over Short Bow leaves "Crudely-crafted".
+ * descriptor with the base name (or its paren-stripped form) excised.
  * Empty when the base's folded name is under 4 characters or never appears.
  */
 export function parseEmbellishment(entryName, baseName) {
@@ -154,12 +144,11 @@ export function applyShortfall(rows, short = { profs: 0, spells: 0 }) {
 }
 
 /**
- * What one template equipment entry is CALLED.
+ * What one template equipment entry is called.
  *
- * The count lives on the quantity field — an entry printed "2 lanterns" is two
- * of an item called "Lanterns" (RR p. 46), never one item with a numeral in its
- * name. The page that lists a package and the grant that materializes it read
- * this one rule, so neither says "3 javelins ×3".
+ * The count lives on the quantity field, never as a numeral in the name (RR
+ * p. 46). The page that lists a package and the grant that materializes it
+ * both read this rule.
  */
 export function templateItemName(entry) {
   const printed = (entry.qty > 1 ? String(entry.name ?? "").replace(/^\d+\s+/, "") : String(entry.name ?? "")).replace(
@@ -177,8 +166,7 @@ export function templateItemName(entry) {
 const GEAR_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item];
 
 /** Index fields every pack lookup needs: the type, the importer's stamp, and
- *  this module's own part stamp — a shelf holds the parts it built beside
- *  the imports they were built from, and a row must say which it is. */
+ *  this module's own part stamp, so a row says whether it is a part or an import. */
 const INDEX_FIELDS = ["type", `flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.${TEMPLATE_PART}`];
 
 /** One pack's index, or null when it cannot be read (never fatal). */
@@ -190,19 +178,10 @@ async function packIndex(pack) {
 }
 
 /**
- * The IMPORTS, in pack form — and nothing else.
- *
- * A package is built from what the GM imported from their own book, never
- * from the system's shipped compendium: a shipped "Staff" carries the
- * system's own values, and pulling one would put content into a template
- * that the reader's book never supplied. The imported document is the one
- * this module reads; the shipped pack stays in the sidebar and is simply not
- * a source a package resolves against.
- *
- * The importer's compendium mode creates a **world-level** pack (its
- * `packFor`), so a qualifying source is a world-level Item pack whose index
- * actually carries the importer's stamp. Module- and system-level packs are
- * never read.
+ * The imports held in packs, and nothing else: a world-level Item pack whose
+ * index carries the importer's stamp. Module- and system-level packs are never
+ * read. See docs/classes/DECISIONS.md, "a package resolves through the
+ * IMPORTS, and mints what it cannot find".
  */
 async function importPacks() {
   const out = [];
@@ -219,12 +198,8 @@ async function importPacks() {
 
 /**
  * Find a definition among the imports: by the importer's cookbook stamp
- * first, then by exact folded name among the wanted types.
- *
- * The importer can be configured to import into a pack rather than the world,
- * and `findByRef` only ever looks at `game.items` — so without this a
- * compendium-mode world resolves no proficiency and no base item, and every
- * package materializes empty.
+ * first, then by exact folded name among the wanted types. `findByRef` reads
+ * only `game.items`, so a world importing into packs resolves through this.
  */
 async function findInPacks({ ref = "", name = "", types = [] }) {
   const wanted = fold(name);
@@ -243,16 +218,11 @@ async function findInPacks({ ref = "", name = "", types = [] }) {
 /**
  * The document a template entry names, and whether a package may LINK it.
  *
- * `linkable: true` means the caller may simply point at it — a plain
- * proficiency the sidebar or one of the library's own shelves already holds.
- * Those shelves are unlocked world packs, so a link into one is as repairable
- * as a link into the directory. A document in any other compendium is copied
- * onto the class's shelf instead: a package exists to be repaired, and a
- * locked module pack is not where a Judge repairs anything.
+ * `linkable: true` means the caller may point at it — a document the sidebar
+ * or one of the library's own shelves holds. A document in any other
+ * compendium is copied onto the class's shelf instead.
  *
- * The distinction is read off the document (`doc.pack`), never assumed from
- * which search found it: the library searches span the sidebar AND the
- * importer's packs, so a ref can resolve to either.
+ * Read off the document (`doc.pack`), never assumed from which search found it.
  *
  * @param {object} [options]
  * @returns {Promise<{doc: object|null, linkable: boolean}>}
@@ -277,9 +247,8 @@ export async function findSource({ ref = "", name = "", types = [] } = {}) {
 /**
  * Resolve a template item entry to its BASE world item (null = no base).
  *
- * A base is something the world IMPORTED or a Judge made — never a document
- * this feature minted: a finished skin is not the base for a second skin of
- * the same name.
+ * A base is something the world imported or a Judge made, never a document
+ * this feature minted.
  */
 export function resolveBase(entry) {
   const eligible = (i) => GEAR_TYPES.includes(i.type) && !partOf(i);
@@ -297,9 +266,7 @@ export function resolveBase(entry) {
 /**
  * The base a piece of gear is an instance of — the world's own imported gear
  * first, else the imports held in a pack (fuzzy-matched over its index the
- * same way, so a compendium-mode world resolves "staff tipped with glass
- * gemstone" to the imported Staff rather than minting a bare item). The
- * system's shipped equipment is never a base; see `importPacks`.
+ * same way). The system's shipped equipment is never a base; see `importPacks`.
  */
 export async function resolveBaseDoc(entry) {
   const world = resolveBase(entry);
@@ -325,8 +292,7 @@ export async function resolveBaseDoc(entry) {
  * printed descriptor. Resolution ladder: the entry's ref / a base item from
  * the world or the compendia (a copy inheriting its type and mechanics),
  * else the equipment root's strict name classification (a typed item built
- * from its stats), else a bare named `item` — visible and repairable, never
- * dropped.
+ * from its stats), else a bare named `item`.
  * @returns {Promise<{data: object, resolution: "base"|"root"|"bare"}>}
  */
 export async function buildGearData(entry) {
@@ -338,22 +304,17 @@ export async function buildGearData(entry) {
     delete data.folder;
     delete data.sort;
     delete data.ownership;
-    // A SKIN IS NOT THE IMPORT IT COPIES. `toObject` brings the base's whole
-    // flag set with it, importer stamp included, so an unstripped skin
-    // advertises itself as the definition and answers ref lookups meant for
-    // the base — one template's reworded staff (RR p. 66) standing in for Staff.
-    // Only the importer's own keys under `flags[MODULE_ID]` are stripped
-    // (`cookbook`, `minted`); this feature's own keys there, including the
-    // `skin` flag below, stay.
+    // `toObject` carries the importer stamp, which would make the skin answer
+    // ref lookups meant for the base. Only the importer's keys under
+    // `flags[MODULE_ID]` (`cookbook`, `minted`) are stripped.
     if (data.flags?.[MODULE_ID]) {
       delete data.flags[MODULE_ID].cookbook;
       delete data.flags[MODULE_ID].minted;
     }
     data.name = skinName;
     foundry.utils.setProperty(data, "system.quantity.value", entry.qty || 1);
-    // A PRICE THE PAGE STATES ABOUT THIS PIECE OUTRANKS THE BASE'S. The cell
-    // that says a staff is worth 45gp is describing the gemstone on this one,
-    // not the shop list's plain staff.
+    // A price the template cell prints outranks the base's own. See
+    // docs/classes/DECISIONS.md, "a template item carries the price its page printed for it".
     if (entry.cost > 0) foundry.utils.setProperty(data, "system.cost", entry.cost);
     const embellishment = parseEmbellishment(entry.name, base.name);
     data.flags = {
@@ -372,11 +333,7 @@ export async function buildGearData(entry) {
   }
   const klass = equipmentClass(entry.name) ?? equipmentClass(skinName);
   const skinFlags = { [MODULE_ID]: { skin: { base: null, descriptor: entry.name } } };
-  // WHAT THE PAGE DID SAY, EVEN WHEN NOTHING ANSWERS FOR WHAT IT IS. Most of
-  // the gear that reaches this point is priced in the cell and nowhere else —
-  // a bladedancer's head dress, a silver amulet, a crystal ball — because the
-  // shop list has no row for it. Dropping the one number the page gave would
-  // hand the Judge an item to repair with nothing to repair it from.
+  // The cell's price is kept even when no base answers for the item.
   const priced = entry.cost > 0 ? { cost: entry.cost } : {};
   if (klass) {
     const system =
@@ -412,10 +369,9 @@ function copyOf(source) {
   return data;
 }
 
-
 /**
  * Build the specialized ability copy a template entry with a printed
- * selection needs (an entry such as "Ability (Pick)", RR p. 25): the source's
+ * selection needs (RR p. 25): the source's
  * data with the selection written where every consumer reads it and stamped
  * `grantedFrom`, so `ownsRef` recognises the copy against the base ref.
  * Null when the entry has no selection, or when neither the passed source nor
@@ -448,9 +404,8 @@ export function buildProfData(entry, sourceDoc = null) {
  * A template's contents as the row-entry shapes the panels label.
  *
  * The bundle's cached itemList (no document resolution, so the preview stays
- * synchronous) PLUS whatever printed entries the row still holds — the two
- * are disjoint, because materializing removes exactly what it bundled. A
- * bundle that is empty or gone leaves the row answering alone.
+ * synchronous) plus whatever printed entries the row still holds; the two are
+ * disjoint. A bundle that is empty or gone leaves the row answering alone.
  */
 export function templateContents(template) {
   const bundle = template?.bundle ? fromUuidSync(template.bundle) : null;
@@ -479,12 +434,8 @@ export function templateContents(template) {
 
 /**
  * The keys a pick list is matched against to keep a package's own abilities
- * off it.
- *
- * Two keys because the two contents shapes carry different ones: a row entry
- * holds a `ref`, while a bundled row holds only the name of the document it
- * clones. The name is therefore the only key both sides always share, and it
- * is normalized on the way in so a caller compares like with like.
+ * off it: `refs` from row entries, and `names` (lowercased), the only key a
+ * bundled row and a row entry always share.
  */
 export function templateGrantKeys(template) {
   const names = new Set();
@@ -537,11 +488,8 @@ const listRow = (doc, quantity = 1) => ({
  * copy carries) or by name, gear by the skinned name or the
  * descriptor on its skin flag, a spell by uuid or folded name.
  *
- * ONE owner: what the bundle carries, the row no longer states. The safety
- * is that removal is per-entry and evidence-based — an entry the bundle does
- * NOT carry stays on the row and keeps applying the printed way, so a
- * partial package can never silently shorten a starting kit. Returns whether
- * anything was stripped. Mutates `row`.
+ * Removal is per-entry and evidence-based: an entry the bundle does not carry
+ * stays on the row. Returns whether anything was stripped. Mutates `row`.
  */
 export function stripRepresented(row, bundle) {
   const list = (bundle?.system?.itemList ?? []).map((r) => ({ row: r, doc: fromUuidSync(r.uuid) }));
@@ -578,18 +526,12 @@ export function stripRepresented(row, bundle) {
 
 /**
  * Detach every package from a class: the rows' `bundle` links and the
- * table's cleared, so the class applies from its own printed entries again,
- * with no package standing between them. The documents are left on their
- * shelf unless `deleteDocuments`, because they may hold a Judge's repairs.
+ * table's are cleared, so the class applies from its own printed entries
+ * again. The documents stay on their shelf unless `deleteDocuments`.
  *
- * **A package never consumes what it points at.** `deleteDocuments` removes
- * only documents carrying this module's own `templatePart` stamp — the
- * bundles, skins and copies it minted. An IMPORT a package
- * links or was skinned from (the imported Sword a template names, the shared
- * Adventuring proficiency) carries no such stamp and is never touched: the
- * item library is a source, not a package's private contents.
- *
- * This is the way back. Adding containers must never be a one-way door.
+ * `deleteDocuments` removes only documents carrying this module's own
+ * `templatePart` stamp (the bundles, skins and copies it minted); an import a
+ * package links or was skinned from is never touched.
  */
 export async function detachTemplatePackages(classItem, { deleteDocuments = false } = {}) {
   const removed = [];
@@ -603,8 +545,7 @@ export async function detachTemplatePackages(classItem, { deleteDocuments = fals
     const part = partOf(doc);
     return part && (part.classUuid === classItem.uuid || part.classKey === classKey);
   };
-  // The whole library, because the parts sit wherever the class does: the
-  // sidebar directory or a pack shelf.
+  // The whole library: the parts sit in the sidebar or on a pack shelf.
   for (const doc of libraryItems().filter(mine)) {
     removed.push(doc.name);
     await doc.delete();
@@ -656,11 +597,9 @@ const templatesRootName = () => game.i18n?.localize?.(`${LANG_PREFIX}.templates.
 
 /**
  * Where packages land when no caller supplies a folder (the sheet's own
- * build): `Class Templates / <Class>` on the shelf the parts are written to —
- * inside the pack when there is one, else in the sidebar — so every
- * materialized document is findable, and therefore repairable, instead of
- * loose at the top of a directory. The importer passes its own cookbook
- * folder and never reaches this.
+ * build): `Class Templates / <Class>` on the shelf the parts are written to,
+ * inside the pack when there is one, else in the sidebar. The importer passes
+ * its own cookbook folder and never reaches this.
  */
 async function defaultFolder(classItem, packId = null) {
   const rootName = templatesRootName();
@@ -702,10 +641,9 @@ function stampPart(data, part, stamp) {
  * class DOCUMENT alone, so it runs with no book connected.
  *
  * A row whose bundle already resolves is left alone; a row with none gets
- * one. Gear is deduped per class by descriptor, so all bands share one repairable
- * document. The RollTable is rebuilt every run — it is a generated view.
- * Materialized entries are removed from the row arrays; what stays on a row
- * is what resolved to nothing.
+ * one. Gear is deduped per class by descriptor, so all bands share one
+ * document. The RollTable is rebuilt every run. Materialized entries are
+ * removed from the row arrays; what stays on a row is what resolved to nothing.
  *
  * @param {object} [options]
  * @param {object} [options.stamp] opaque flags merged onto every created
@@ -729,11 +667,8 @@ export async function materializeTemplates(
 ) {
   const report = { created: [], relinked: [], skippedEdited: [], unresolved: [], unidentified: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
-  // A class ROW in a compendium builds its package on that same shelf. The
-  // registry reads the library's packs (`lib/library.mjs` spans the sidebar
-  // and the importer's world packs), and every imported class IS a pack
-  // document — refusing one would make template packages a permanent no-op
-  // for exactly the classes that ship with them.
+  // A class row in a compendium builds its package on that same shelf. See
+  // docs/classes/DECISIONS.md, "a class row in a compendium still builds its package".
   const classKey = classItem.system.key || fold(classItem.name);
   const identity = { classUuid: classItem.uuid, classKey };
   const isMine = (doc) => {
@@ -742,8 +677,8 @@ export async function materializeTemplates(
   };
   const shelves = await shelvesFor(classItem, { pack, tablePack });
   const itemOpts = shelves.items ? { pack: shelves.items } : {};
-  // Read across the WHOLE library, never one collection: the parts sit
-  // wherever the class does, in the sidebar directory or on a pack shelf.
+  // Read across the whole library, never one collection: the parts sit in the
+  // sidebar or on a pack shelf.
   const ownGear = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "gear");
   const ownAbilities = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "ability");
   const shelf = folder ?? (await defaultFolder(classItem, shelves.items));
@@ -751,11 +686,8 @@ export async function materializeTemplates(
   /**
    * The gear document for one descriptor, created on first need.
    *
-   * A descriptor nothing can answer for yields NULL rather than an empty item.
-   * The caller keeps such an entry on the row, printed, which is this file's
-   * rule for a cell that resolved to nothing — and a printed cell says "not
-   * imported yet" far better than a document with a name and no mechanics,
-   * which reads as a real thing and gets dragged onto a character.
+   * A descriptor nothing can answer for yields no document; the caller keeps
+   * such an entry on the row, printed.
    */
   const planGear = async (entry) => {
     const nameKey = fold(templateItemName(entry));
@@ -766,11 +698,8 @@ export async function materializeTemplates(
       report.unresolved.push(entry.name);
       return {};
     }
-    // A weapon that resolved to a document but not to a weapon-table ROW is the
-    // half-failure the package shape cannot see: it has damage, it rolls, and
-    // it is silently category-`other`, so the character carrying it is told it
-    // is not proficient with the weapon its own class granted. Reported here
-    // because this is where the descriptor and the base are both still in hand.
+    // A weapon that resolved to a document but not to a weapon-table row is
+    // reported here, where the descriptor and the base are both in hand.
     if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
     foundry.utils.setProperty(data, "system.quantity.value", 1);
     stampPart(data, { ...identity, kind: "gear" }, stamp);
@@ -781,19 +710,14 @@ export async function materializeTemplates(
   /**
    * The document one printed proficiency entry becomes.
    *
-   * A definition that already exists is LINKED, wherever it lives — one shared
-   * document, no duplicate Adventuring per band and no second copy of an
-   * ability the GM imported. Linking a document held in the importer's pack is
-   * the point: those packs are world packs, unlocked and editable, so a copy
-   * made "because a Judge cannot fix a pack document" buys nothing and costs a
-   * duplicate of every granted ability.
+   * A definition that already exists is linked, wherever it lives: one shared
+   * document, no second copy of an ability the GM imported.
    *
-   * A printed SELECTION still becomes its own copy — an "Ability (Pick)" entry
-   * (JJ p. 450) is a different document from the definition it specializes, and writing the
-   * selection onto the shared one would specialize it for everybody.
+   * A printed selection becomes its own copy (JJ p. 450), since writing it onto
+   * the shared definition would specialize it for everybody.
    *
-   * A name nothing defines yields NULL. The caller keeps the entry on the row,
-   * printed, which is this file's rule for a cell that resolved to nothing.
+   * A name nothing defines yields no document; the caller keeps the entry on
+   * the row, printed.
    */
   const planAbility = async (entry) => {
     const { doc: source } = await findSource({
@@ -825,8 +749,7 @@ export async function materializeTemplates(
     }
     const f = fold(entry.name);
     const spells = libraryItems().filter((i) => i.type === ITEM_TYPE.spell);
-    // The printed name whole before a looser read: "slumber" must not land on
-    // "Slumber, Deep" because that copy sorted first.
+    // The printed name whole before a looser read, so a prefix does not win by sort order.
     const exact = f ? spells.find((i) => fold(i.name) === f) : null;
     const loose = exact ?? (f.length >= 6 ? spells.find((i) => fold(i.name).includes(f)) : null);
     if (loose) return { doc: loose };
@@ -841,17 +764,12 @@ export async function materializeTemplates(
   };
 
   /**
-   * Write one ROW's new documents in a single call, and hand each plan its
-   * document back.
-   *
-   * A create costs a round trip whose price is set by how many documents the
-   * collection already holds, not by the payload — so writing a template's gear
-   * one piece at a time is quadratic in the library being built. Materializing
-   * every class took ten minutes that way; a row is written once instead.
+   * Write one row's new documents in a single call, and hand each plan its
+   * document back. A batch that fails is written singly. See
+   * docs/classes/DECISIONS.md, "a template row resolves everything, then writes once".
    *
    * Plans are deduplicated by name key first: two entries on one row can name
-   * the same thing, and deferring the writes means neither sees the other's
-   * document the way an immediate create would have.
+   * the same thing, and deferred writes mean neither sees the other's document.
    */
   const writeRow = async (plans) => {
     const pending = [];
@@ -881,11 +799,10 @@ export async function materializeTemplates(
   };
 
   /**
-   * A kept printed spell's second chance: an entry the row still states
-   * because no document answered for it when the bundle was built. Each
-   * named, non-offer entry with no document is planned again; what resolves
-   * is written (a copy only when `create` allows one — the relink-only pass
-   * links what exists) and listed on the bundle, and the entry takes the
+   * Relink the printed spells a row still states because no document answered
+   * for them when the bundle was built. Each named, non-offer entry with no
+   * document is planned again; what resolves is written (a copy only when
+   * `create` allows one) and listed on the bundle, and the entry takes the
    * document's uuid so the represented pass strips it. A bundle a Judge
    * edited is left as it is and reported. Returns whether the row changed.
    */
@@ -917,8 +834,7 @@ export async function materializeTemplates(
       names.push(plan.doc.name);
     }
     if (names.length) {
-      // The snapshot follows the list: a relink is this module's own write,
-      // and must not read as a Judge's edit on the next pass.
+      // The snapshot follows the list, so a relink does not read as a Judge's edit.
       await bundle.update({
         "system.itemList": rows,
         [`flags.${MODULE_ID}.asImported.system.itemList`]: rows,
@@ -933,7 +849,7 @@ export async function materializeTemplates(
   let changed = false;
 
   for (const row of templates) {
-    // Loaded, never read off the index: a shelf that is not loaded answers
+    // Loaded, never read off the index: an unloaded shelf answers
     // `fromUuidSync` with an entry that can be neither compared nor written.
     let bundle = row.bundle ? await fromUuid(row.bundle).catch(() => null) : null;
     if (bundle?.type !== ITEM_TYPE.bundle) bundle = null;
@@ -948,11 +864,9 @@ export async function materializeTemplates(
       }
     }
     if (bundle) {
-      // Contents already exist (a spell the row kept because its document did
-      // not exist yet gets its second chance here). An importer Update
-      // rewrites the whole `system`, putting the printed arrays back on a row
-      // whose bundle already carries them — left there the package would be
-      // handed over twice, so the represented entries go again.
+      // Contents already exist. An importer Update rewrites the whole `system`,
+      // putting the printed arrays back on a row whose bundle carries them, so
+      // the represented entries are stripped again.
       if (await relinkSpells(row, bundle)) changed = true;
       if (stripRepresented(row, bundle)) changed = true;
       continue;
@@ -961,11 +875,11 @@ export async function materializeTemplates(
 
     const list = [];
     const keptAbilities = [];
-    // Every entry on this row is RESOLVED first and written once at the end.
+    // Every entry on this row is resolved first and written once at the end.
     const plans = [];
     for (const entry of row.abilities ?? []) {
-      // A rung the cell OFFERS rather than grants is a question for the
-      // player, not a document — it stays on the row for chargen to ask.
+      // An offered rung is a question for the player, not a document: it
+      // stays on the row for chargen to ask.
       if (isOffer(entry)) {
         keptAbilities.push(entry);
         continue;
@@ -980,8 +894,7 @@ export async function materializeTemplates(
 
     const keptSpells = [];
     for (const entry of row.spells ?? []) {
-      // Same as the abilities loop above: a spell the package OFFERS is a pick,
-      // not a spell, and is never resolved to a document.
+      // An offered spell is a pick and is never resolved to a document.
       if (isOffer(entry)) {
         keptSpells.push(entry);
         continue;
@@ -991,7 +904,7 @@ export async function materializeTemplates(
       plans.push(plan);
     }
 
-    // Resolution is done; now ONE write for the whole row (see writeRow).
+    // Resolution is done; one write for the whole row.
     await writeRow(plans);
     for (const plan of plans) {
       if (plan.doc) list.push(listRow(plan.doc, plan.qty));
@@ -1019,8 +932,7 @@ export async function materializeTemplates(
     const created = await Item.implementation.create(data, itemOpts);
     if (!created) continue;
     report.created.push(created.name);
-    // One owner: what the bundle now carries leaves the row. What it could
-    // NOT carry stays, and keeps applying the printed way.
+    // What the bundle now carries leaves the row; what it could not carry stays.
     row.bundle = created.uuid;
     row.abilities = keptAbilities;
     row.items = keptItems;
@@ -1068,9 +980,8 @@ async function syncTemplateTable(classItem, templates, { stamp = null, tableFold
         return part?.kind === "table" && (part.classUuid === classItem.uuid || part.classKey === classKey);
       }) ?? null;
   }
-  // A shelf that is not loaded answers `fromUuidSync` with its index entry,
-  // which carries none of the table's results and not always its flags, so
-  // the table is loaded before it is asked whose it is.
+  // An unloaded shelf answers `fromUuidSync` with its index entry, which lacks
+  // the results and not always the flags, so load the table before asking whose it is.
   if (table && !table.results) table = await fromUuid(table.uuid);
   if (table && !partOf(table)) return table.uuid;
   const name = loc("templates.tableName", { class: classItem.name }) ?? `${classItem.name} Templates`;

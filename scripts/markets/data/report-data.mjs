@@ -48,7 +48,7 @@ export default class MarketReportData extends foundry.abstract.TypeDataModel {
       /** Goods the owner may still choose to learn, left by a partial assessment (a false one looks the same). */
       picks: new fields.NumberField({ required: true, integer: true, min: 0, initial: 0 }),
 
-      /** Reserved: prices a trader saw in a market month. Nothing writes it yet. */
+      /** Reserved: prices a trader saw in a market month; nothing writes it. */
       pricesSeen: new fields.ArrayField(
         new fields.SchemaField({
           category: new fields.StringField({ required: true, blank: false }),

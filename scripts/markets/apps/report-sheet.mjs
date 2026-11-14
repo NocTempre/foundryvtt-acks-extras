@@ -1,16 +1,4 @@
 /* global foundry, game, ui, fromUuid */
-/**
- * Sheet for a market report Item: the market, when and by whom, and what the
- * owner believes about each good's demand.
- *
- * Read-mostly. A player holds OBSERVER on the trade house, so the sheet is a
- * plain window rather than a form: nothing on it submits through the document,
- * and what a viewer may change is handled here. The owner (or the Judge) saves
- * their notes and chooses the goods a partial assessment left to choose, both
- * through the GM relay; the Judge alone edits the outcome and the believed
- * modifiers. The stored outcome `false` is shown to a non-GM as partial, on
- * every surface.
- */
 import { MODULE_ID, LANG, REPORT_TYPE } from "../constants.mjs";
 import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
 import { plainReport, performNotes, performChoose } from "../engine/trade-objects.mjs";
@@ -41,6 +29,17 @@ export function ownsReport(item, user = game.user) {
   return !!actor?.testUserPermission(user, "OWNER");
 }
 
+/**
+ * Sheet for a market report Item: the market, when and by whom, and what the
+ * owner believes about each good's demand.
+ *
+ * Read-mostly: players hold OBSERVER on the trade house, so the sheet is a
+ * plain window and nothing on it submits through the document. The owner (or
+ * the Judge) saves their notes and chooses the goods a partial assessment left
+ * to choose, both through the GM relay; the Judge alone edits the outcome and
+ * the believed modifiers. The stored outcome `false` is shown to a non-GM as
+ * partial, on every surface.
+ */
 export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-markets-report-sheet"],
