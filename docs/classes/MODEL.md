@@ -238,6 +238,14 @@ turns that state into a PLAN:
   one side kept → the election named on the builder or `elected` where it
   is blank, both eliminated → no ladder); each chosen thief skill's ladder
   copied from the progenitor thief.
+- **Trade-off pricing** — only weapon narrowing costs experience: the
+  `tradeoffPenalty` recipe (JJ 292) reads, from one sentence, the fighting value
+  the penalty starts from and the experience added per power gained, and each
+  weapon row's price is that figure times its own benefit. A weapon row is
+  charged only when the build's fighting value reaches the imported one. With
+  the penalty, that fighting value or the row's benefit unread, the row's
+  `xpDelta` is null, the base cost carries no charge at any fighting value, and
+  the power count takes nothing from a row whose benefit is unread.
 - **Racial traits and requirements** — every power the race ladder grants
   up to the chosen rung, and the race's attribute floors.
 

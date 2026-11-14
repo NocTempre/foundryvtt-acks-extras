@@ -3908,7 +3908,12 @@ export const TABLE_RECIPES = {
         book: "jj",
         printedPage: 292,
         locate: "Experience Point Penalty",
-        values: [{ key: "perPower", find: "cost of its fighting value by", take: "int" }],
+        // One sentence prints both: the fighting value from which a weapon
+        // narrowing costs experience, and the cost per power gained.
+        values: [
+          { key: "minFighting", findRe: "class\\s*with\\s*a\\s*fighting\\s*value\\s*of", take: "int" },
+          { key: "perPower", find: "cost of its fighting value by", take: "int" },
+        ],
       },
       tradeoffsRaw: {
         shape: "gridRows",

@@ -102,8 +102,8 @@ const TABLES = {
   // default attribute score; the natural weapons each damage type is listed
   // against, the edges of the extraordinary-damage rule, and the body forms.
   monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms"],
-  // The armour limits on abilities.
-  "acks.classBuilder": ["thiefLimits"],
+  // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
+  "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping and fall figures, the Spelunking grids' stretch and targets
   // and their missed-throw outcomes, and the street's two dice.
   formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
@@ -601,6 +601,13 @@ VERIFY["acks.classBuilder.thiefLimits"] = (out, recipe, fail) => {
   else if (limits.names.some((n) => !/^[A-Za-z][A-Za-z' -]*$/.test(n))) fail("skills: a name carries punctuation or a figure");
   if (!limits?.armourMax) fail("forbidden: names no ladder word the consumer maps to a rung");
   if (limits?.noShield === null) fail("noShield: nothing read");
+};
+// The weapon-narrowing penalty: the fighting value it starts from and the
+// experience it adds per power gained, each a positive whole number the
+// builder's assembly prices a row from. Shape only; no figure is named.
+VERIFY["acks.classBuilder.tradeoffPenalty"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["minFighting", "perPower"]) if (isNum(out?.[key]) && !(Number.isInteger(out[key]) && out[key] > 0)) fail(`${key}: not a positive whole number`);
 };
 // Prose tables with nothing beyond declared keys and finite numbers.
 for (const id of [

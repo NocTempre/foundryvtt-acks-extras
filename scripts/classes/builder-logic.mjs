@@ -36,7 +36,8 @@ export const BUILDER_DOC_ID = "acks.classBuilder";
  *   savesAs (chassis key), progenitor (class key), values: [{ value, cost,
  *   fraction, slots?: [slotRow…], delayedSlots?: […] }] } } where a slotRow
  *   is { atLevel, s1..s6, casterLevel }
- * - `tradeoffs` — [{ key, label, powersGained, xpDelta }]
+ * - `tradeoffs` — [{ key, label, powersGained, xpDelta, xpDeltaMinFighting }],
+ *   where a figure the import did not read is null and charges nothing
  *
  * An optional `attackThrows` grid ([{ level, values: {column: throw} }])
  * overrides the per-row attack resolution when a world imports one.
@@ -206,9 +207,9 @@ export function baseXpCost(builder, tables, race, issues = []) {
   const tradeoffRows = tables?.tradeoffs ?? [];
   for (const key of builder?.tradeoffs ?? []) {
     const row = tradeoffRows.find((r) => r.key === key);
-    // A priced trade-off (weapon narrowing) charges only from the fighting
-    // value the book names — a 1a/1b class narrows for free.
-    if (row && isNum(row.xpDelta) && (builder?.fighting?.value ?? 0) >= (row.xpDeltaMinFighting ?? 0)) total += row.xpDelta;
+    // A priced trade-off (weapon narrowing) charges only from the imported
+    // fighting value; a row missing its price or that value charges nothing.
+    if (row && isNum(row.xpDelta) && isNum(row.xpDeltaMinFighting) && (builder?.fighting?.value ?? 0) >= row.xpDeltaMinFighting) total += row.xpDelta;
   }
 
   if (isNum(builder?.xpAdjustment)) total += builder.xpAdjustment;

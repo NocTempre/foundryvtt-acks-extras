@@ -257,11 +257,14 @@ export function assembleBuilderTables(raw) {
 
   // --- tradeoffs ---
   if (raw.tradeoffsRaw) {
-    const per = isNum(budget.tradeInXp) ? budget.tradeInXp : 0;
+    const per = isNum(budget.tradeInXp) ? budget.tradeInXp : null;
+    const minFighting = isNum(raw.tradeoffPenalty?.minFighting) ? raw.tradeoffPenalty.minFighting : null;
     out.tradeoffs = Object.entries(raw.tradeoffsRaw)
       .filter(([, r]) => r && !r.__missing)
       .map(([key, r]) => {
-        const powersGained = int(r.benefit) ?? 1;
+        // A benefit the page did not yield stays null: no power is counted and
+        // no cost is derived from it.
+        const powersGained = int(r.benefit) ?? null;
         const weapon = key.startsWith("weapons.");
         return {
           key,
@@ -273,9 +276,11 @@ export function assembleBuilderTables(raw) {
             .replace(/([a-z])([A-Z])/g, "$1 → $2"),
           powersGained,
           // Only weapon narrowing carries the printed penalty, and only from a
-          // minimum fighting value.
-          xpDelta: weapon ? per * powersGained : 0,
-          xpDeltaMinFighting: weapon ? 2 : 0,
+          // minimum fighting value. With the penalty, that value or the row's
+          // benefit unread the row is unpriced (null): it charges at no
+          // fighting value.
+          xpDelta: !weapon ? 0 : isNum(per) && isNum(powersGained) && isNum(minFighting) ? per * powersGained : null,
+          xpDeltaMinFighting: !weapon ? 0 : minFighting,
         };
       });
   }

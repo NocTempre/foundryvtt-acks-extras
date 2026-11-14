@@ -141,7 +141,17 @@ check("the human maximum level is at least every racial one", asm.budget.humanMa
 
 check("tradeoffs assemble every raw row, each with a benefit", asm.tradeoffs.length === keys(raw.tradeoffsRaw).length && asm.tradeoffs.every((t) => isPosInt(t.powersGained)));
 check("trade-off XP penalty reads as a positive integer", isPosInt(raw.tradeoffPenalty?.perPower) && asm.budget.tradeInXp === raw.tradeoffPenalty.perPower);
-check("only weapon narrowing is priced, at the penalty per power gained", asm.tradeoffs.every((t) => (t.key.startsWith("weapons.") ? t.xpDelta === asm.budget.tradeInXp * t.powersGained && t.xpDeltaMinFighting >= 1 : t.xpDelta === 0 && t.xpDeltaMinFighting === 0)) && asm.tradeoffs.some((t) => t.xpDelta > 0));
+check("the fighting value the penalty starts from reads as a positive integer, from the same sentence", isPosInt(raw.tradeoffPenalty?.minFighting));
+check("only weapon narrowing is priced, at the penalty per power gained, from the value read", asm.tradeoffs.every((t) => (t.key.startsWith("weapons.") ? t.xpDelta === asm.budget.tradeInXp * t.powersGained && t.xpDeltaMinFighting === raw.tradeoffPenalty.minFighting : t.xpDelta === 0 && t.xpDeltaMinFighting === 0)) && asm.tradeoffs.some((t) => t.xpDelta > 0));
+check("with the penalty, its fighting value or a row's benefit unread, a weapon row is unpriced and carries no stand-in", (() => {
+  const weapons = (a) => a.tradeoffs.filter((t) => t.key.startsWith("weapons."));
+  const noPenalty = assembleBuilderTables({ ...raw, tradeoffPenalty: { minFighting: raw.tradeoffPenalty.minFighting } });
+  const noMin = assembleBuilderTables({ ...raw, tradeoffPenalty: { perPower: raw.tradeoffPenalty.perPower } });
+  const noBenefit = assembleBuilderTables({ ...raw, tradeoffsRaw: Object.fromEntries(Object.entries(raw.tradeoffsRaw).map(([k, r]) => [k, { ...r, benefit: undefined }])) });
+  return [noPenalty, noMin, noBenefit].every((a) => weapons(a).length > 0 && weapons(a).every((t) => t.xpDelta === null)
+    && a.tradeoffs.filter((t) => !t.key.startsWith("weapons.")).every((t) => t.xpDelta === 0))
+    && weapons(noMin).every((t) => t.xpDeltaMinFighting === null) && weapons(noBenefit).every((t) => t.powersGained === null);
+})());
 
 /* --------------- races --------------- */
 

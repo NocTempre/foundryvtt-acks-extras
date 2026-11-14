@@ -1374,3 +1374,34 @@ naming B and `system.templateTable` to T.
 
 **Teardown:** delete T, B and C by uuid; `pack.getDocuments()` on both packs
 puts back what the eviction dropped.
+
+## The builder's weapon-narrowing cost (unwalked)
+
+The class sheet's Builder tab, Advanced mode, with the Judges Journal's builder
+tables imported (Settings tab → Game Settings → ACKS II — Extras → Imported
+Rules Tables, the `acks.classBuilder` document). Two seats are unnecessary; the
+GM drives it.
+
+**Fixtures** (marker `classes/builder-narrowing-class`, built by `api.fixture`):
+an empty class in Advanced mode with a Hit Die value and a Fighting value, kept
+between runs. Each step asserts the Fighting value and the ticked trade-offs at
+its start; a kept fixture carries what the last walk left.
+
+**Steps and observables.**
+1. With the tables imported, set a Fighting value below the `xpDeltaMinFighting`
+   the served `tradeoffs` table's weapon rows carry, and read the Accounting
+   line's "XP for 2nd level". Tick one weapon trade-off. *Observable:* the line
+   does not move.
+2. Raise the Fighting value to the imported one and read the line again.
+   *Observable:* the line rises by that row's `xpDelta`, which is the budget's
+   `tradeInXp` times the row's `powersGained`; untick it and the line returns.
+   Tick an armor, damage or style trade-off. *Observable:* no change at any
+   Fighting value.
+3. Put an override layer carrying the run's tag on the `tradeoffs` table whose
+   weapon rows carry no `xpDeltaMinFighting` and a null `xpDelta` (the state an
+   import leaves when the page's figures were not read; removed at the end by
+   that tag alone), at the Fighting value of step 2 with a weapon trade-off
+   ticked. *Observable:* at every Fighting value the line equals its total with
+   the trade-off unticked.
+
+**Teardown:** remove the layer by its tag; the fixture stays.

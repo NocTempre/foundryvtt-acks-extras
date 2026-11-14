@@ -110,13 +110,15 @@ ok("the key stays the entry's own", bindClass(entry, headed("Quillfen Keeper"), 
 
 // Invented tables in the shape `assembleBuilderTables` emits, and an invented
 // race page; the allocation and its race pattern are the shipped row's.
+// Invented: a weapon narrowing charges from this fighting value (the fixture's is higher).
+const MIN_FIGHTING = 1;
 const TABLES = {
   budget: { smoothing: { level: 7, nearest: 1000 }, postEight: { fighter: 7000, crusaderThief: 5000, mage: 9000 }, xpFlatAfter: 6 },
   hd: [{ value: 0, cost: 10 }, { value: 1, cost: 20 }],
   fighting: [{ value: 2, sub: "", cost: 200 }],
   thievery: [{ value: 0, cost: 0 }],
   magicTypes: { arcane: { values: [{ value: 1, cost: 30 }] }, divine: { values: [{ value: 1, cost: 40 }] } },
-  tradeoffs: ["weapons.unrestrictedBroad", "weapons.broadNarrow", "weapons.narrowRestricted"].map((key) => ({ key, xpDelta: 5, xpDeltaMinFighting: 2 })),
+  tradeoffs: ["weapons.unrestrictedBroad", "weapons.broadNarrow", "weapons.narrowRestricted"].map((key) => ({ key, xpDelta: 5, xpDeltaMinFighting: MIN_FIGHTING })),
 };
 const RACE_PAGE = "Catgirl 1: invented.Cost: 99 XP. Catgirl 2:invented features over two lines. Cost:1,111 XP.Catgirl 3: invented. Cost: 7 XP.";
 const priced = { ...entry, build: spec.build };
@@ -144,6 +146,17 @@ ok("a thief or crusader chassis takes their shared step", buildXp(spec.build, RA
 const repairedPrice = refreshPlan({ type: "acks-extras.class", system: { levels: [] }, flags: {} }, pricedClass, REPAIR.class);
 ok("the repair carries the price's provenance onto a held class", repairedPrice.update.flags?.["acks-extras"]?.xpBuild?.base === 1406, JSON.stringify(repairedPrice.update.flags));
 ok("a level a grid read keeps its own figure", bindClass(priced, { fields: { ...pricedNode.fields, progression: { rows: [{ label: "1", cells: { xp: "0", title: "Tyro", hd: "1d6" } }, { label: "2", cells: { xp: "5", title: "B", hd: "2d6" } }] } } }, "def.class.inventedWarden", { builderTables: TABLES }).system.levels[1].xp === 5);
+
+// A weapon narrowing charges only from the imported fighting value, and a row
+// whose price or whose threshold is not imported charges at no fighting value.
+const withTradeoffs = (patch) => ({ ...TABLES, tradeoffs: TABLES.tradeoffs.map((row) => ({ ...row, ...patch })) });
+const base2nd = (tables) => buildXp(spec.build, RACE_PAGE, tables, 9, "fighter").base;
+const charged = base2nd(TABLES);
+const price = 5 * spec.build.tradeoffs.filter((key) => TABLES.tradeoffs.some((row) => row.key === key)).length;
+ok("the build elects priced weapon narrowings", price > 0);
+ok("a weapon narrowing is not charged below the imported fighting value", base2nd(withTradeoffs({ xpDeltaMinFighting: 99 })) === charged - price);
+ok("a threshold not imported charges nothing", base2nd(withTradeoffs({ xpDeltaMinFighting: null })) === charged - price && base2nd(withTradeoffs({ xpDeltaMinFighting: undefined })) === charged - price);
+ok("a price not imported charges nothing", base2nd(withTradeoffs({ xpDelta: null })) === charged - price);
 
 /* --- the repair keeps what a Judge typed into an unread cell ----------------------------- */
 

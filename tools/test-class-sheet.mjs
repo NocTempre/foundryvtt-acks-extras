@@ -116,13 +116,15 @@ const entry = {
 const cut = BODY.indexOf("round per level");
 const RACE_PAGE = "Race 1: invented.Cost: 99 XP. Race 2:invented features over two lines. Cost:1,111 XP.Race 3: invented. Cost: 7 XP.";
 const fields = { hitDie: "1d10", maximumLevel: 9, body1c0: BODY.slice(0, cut), body1c1: BODY.slice(cut) };
+// Invented: a weapon narrowing charges from this fighting value (the fixture's is higher).
+const MIN_FIGHTING = 1;
 const TABLES = {
   budget: { smoothing: { level: 7, nearest: 1000 }, postEight: { fighter: 7000, crusaderThief: 5000, mage: 9000 }, xpFlatAfter: 6 },
   hd: [{ value: 0, cost: 10 }, { value: 1, cost: 20 }],
   fighting: [{ value: 2, sub: "", cost: 200 }],
   thievery: [{ value: 0, cost: 0 }],
   magicTypes: { arcane: { values: [{ value: 1, cost: 30 }] }, divine: { values: [{ value: 1, cost: 40 }] } },
-  tradeoffs: ["weapons.unrestrictedBroad", "weapons.broadNarrow", "weapons.narrowRestricted"].map((key) => ({ key, xpDelta: 5, xpDeltaMinFighting: 2 })),
+  tradeoffs: ["weapons.unrestrictedBroad", "weapons.broadNarrow", "weapons.narrowRestricted"].map((key) => ({ key, xpDelta: 5, xpDeltaMinFighting: MIN_FIGHTING })),
 };
 const read = bindClass(entry, { fields }, "def.class.sheetWarden");
 const priced = bindClass(entry, { fields: { ...fields, race8c0: RACE_PAGE.slice(0, 40), race8c1: RACE_PAGE.slice(40) } }, "def.class.sheetWarden", { builderTables: TABLES });
