@@ -24,22 +24,13 @@ import {
 /*  Import target folders (one tree per type)   */
 /* -------------------------------------------- */
 
-/* -------------------------------------------- */
-/*  GM import dialog                            */
-/* -------------------------------------------- */
-
-
 /**
- * Every import lands in a tree, not a heap:
- *
- *   <book label>                e.g. a book's code plus its title
- *     └── <entry meta.group>    e.g. a section heading, or a heading with a sub-area suffix
- *
- * The PACK is the container; entries without a group sit in the book folder,
- * and content-type items (abilities, equipment) use their own top level
- * instead of a book. Folders are cached for the session and pre-created
- * before any concurrent import starts. Never more than two levels —
- * `ensureFolderPath` refuses a deeper path rather than creating it. See
+ * Every import lands in a two-level tree: the book label, then the entry's
+ * `meta.group`. The pack is the container; entries without a group sit in the
+ * book folder, and content-type items (abilities, equipment) use their own top
+ * level instead of a book. Folders are cached for the session and pre-created
+ * before any concurrent import starts. `ensureFolderPath` refuses a deeper
+ * path. See
  * docs/importer/DECISIONS.md, "The pack is the container: compendium-only,
  * two levels deep".
  */
@@ -53,28 +44,25 @@ export const folderCache = new Map();
 /* -------------------------------------------- */
 
 /**
- * Imports land in WORLD COMPENDIUMS, one per document type, created on first
- * use and cached by type. `createDoc` passes `{pack}` at creation and
- * `ensureFolderPath` builds the tree inside the pack, so nothing is staged in
- * the sidebar and swept up afterwards. World packs are unlocked by default,
- * so an imported document stays editable and draggable. See
+ * Imports land in world compendiums, one per document type and line, created on
+ * first use and cached. `createDoc` passes `{pack}` at creation and
+ * `ensureFolderPath` builds the tree inside the pack. See
  * docs/importer/DECISIONS.md, "The pack is the container: compendium-only,
  * two levels deep".
  */
 export const packCache = new Map();
 
 /**
- * The visible name of a pack — what every "imported into…" message names, and
- * what `cookbookRemoveImports` recognises its own packs by. Every label keeps
- * the `FOLDER_NAME` prefix whatever line it holds. See
+ * The visible name of a pack: what every import message names and what
+ * `cookbookRemoveImports` recognises its own packs by. Every label keeps the
+ * `FOLDER_NAME` prefix. See
  * docs/importer/DECISIONS.md, "The prefix is load-bearing."
  */
 export const packLabel = libraryPackLabel;
 
 /**
  * Every world pack of a type this module owns, whatever line it holds. The
- * read counterpart of `packFor`: a write goes to one shelf, but a presence
- * check has to ask them all, since a batch mixes ids from several lines.
+ * read counterpart of `packFor`: a presence check asks every shelf.
  */
 export const ourPacksOfType = (type) =>
   game.packs.filter(
@@ -85,13 +73,10 @@ export const ourPacksOfType = (type) =>
   );
 
 /**
- * The sidebar documents this module stamped — the other half of the library in
- * a world that holds imports outside the packs.
- * Reads world-then-pack, matching the actor side (`importedIdsOfType`,
- * `importedActor`). Recognised by the cookbook flag, same as
- * `cookbookRemoveImports`; never the class templates' skinned copies, which
- * inherit the definition's cookbook id, and never a copy of an import
- * (`isWorldCopy`), which is the Judge's and survives a rebuild. See
+ * The sidebar documents this module stamped, recognised by the cookbook flag
+ * as `cookbookRemoveImports` does. Never the class templates' skinned copies,
+ * which inherit the definition's cookbook id, and never a copy of an import
+ * (`isWorldCopy`), which is the Judge's. See
  * docs/importer/DECISIONS.md, "The library is the packs AND the sidebar this
  * module stamped".
  */
@@ -105,10 +90,9 @@ const sidebarImports = (type) => {
 /**
  * The pack collection id imports of this type and line go to, or null if it
  * cannot be opened. A null line is the ACKS library's own pack. The cached
- * answer is confirmed against `game.packs` before it is handed out — a pack
- * can go away under a running session (deleted, or swept by Remove Imports on
- * another seat) — and re-resolving simply creates the pack again. Writers
- * only: a presence check reads its shelves through `ourPacksOfType` or
+ * answer is confirmed against `game.packs` before it is handed out, since a
+ * pack can be deleted under a running session; re-resolving creates it again.
+ * Writers only: a presence check reads through `ourPacksOfType` or
  * `findLibraryPack`, which open nothing.
  */
 export async function packFor(type, line = null) {
@@ -119,25 +103,19 @@ export async function packFor(type, line = null) {
     if (id && !game.packs.get(id)) {
       packCache.delete(cacheKey);
       forgetImportedIndex(); // its documents went with the pack
-      // And its FOLDERS. A recreated pack takes the same collection id (Foundry
-      // derives it from the label), so the folder cache's keys still match and
-      // would hand back folder documents that went down with the old one.
+      // A recreated pack takes the same collection id, so the folder cache would hand back the old pack's folders.
       for (const key of [...folderCache.keys()]) if (key.startsWith(`${type}|`)) folderCache.delete(key);
       pending = null;
     }
   }
   if (!pending) {
     pending = (async () => {
-      // The shelf is the lib's to open (`library-target.mjs`): the class
-      // templates and the rules tables write to the same shelves, and one
-      // opener is what keeps three writers on one label per line.
+      // The shelf is the lib's to open (`library-target.mjs`), shared with the class templates and the rules tables.
       const pack = await ensureLibraryPack(type, line);
       if (!pack) throw new Error(`no ${packLabel(type, line)} compendium`);
       return pack.collection;
     })().catch((err) => {
-      // The sidebar is the only place left to put it. Say so loudly: a silent
-      // fall-back to the world is how a library ends up split across two
-      // targets, which is what every dedup check then has to guess about.
+      // The fall-back to the sidebar is announced, since it splits the library across two targets.
       console.error(`${MODULE_ID} | could not open the ${type} compendium — those documents land in the sidebar.`, err);
       ui.notifications?.error(game.i18n.format(`${LANG_PREFIX}.ui.packFailed`, { type }));
       return null;
@@ -149,8 +127,8 @@ export async function packFor(type, line = null) {
 
 /**
  * `{pack}` option for document creation, or `{}` if the pack could not be
- * opened. Exported because a bulk `createDocuments`/`updateDocuments`/
- * `deleteDocuments` cannot go through `createDoc` and still needs the target.
+ * opened. Exported for the bulk `createDocuments`/`updateDocuments`/
+ * `deleteDocuments` calls that cannot go through `createDoc`.
  */
 export const packOptsFor = async (type, line = null) => packOpts(type, line);
 
@@ -166,7 +144,7 @@ const packOpts = async (type, line = null) => {
  * `tally` counts what is written. While it stands, the create an importer
  * would make for a held id is a write over the held document instead
  * (`createDoc`, `claimActorImport`), so one importer body serves both its
- * first import and its repair, and no importer grows a second copy of its build.
+ * first import and its repair.
  */
 export let rewriteScope = null;
 
@@ -215,10 +193,9 @@ export const blockTarget = (id) => rewriteScope?.blocks?.get(id) ?? null;
  * (`rowBlockPatch`), and count the place once in the rewrite's tally, at the
  * first row that settles it. A Judge's edit the rewrite's `decision` does not
  * take is left standing and listed in the tally's `edits`; a row whose only
- * differences are such edits writes nothing and settles nothing, so a later
- * row of the same place still counts it, and the place is reported as held
- * (`edits`), not replaced. A place that already holds the build is counted as
- * written; a write Foundry rejects is logged and counted as left.
+ * differences are such edits settles nothing, so a later row of the same place
+ * still counts it. A place that already holds the build counts as written; a
+ * write Foundry rejects is logged and counted as left.
  * @param {Actor} target the place `blockTarget` answered
  * @param {{id: string, notes?: string, name?: string, after?: string, cite?: string}} row
  * @returns {Promise<Actor>} the place
@@ -268,8 +245,7 @@ async function rewriteHeld(held, data) {
   const policy = { ...actorPolicy(data), retract: rewriteScope.retract ?? [] };
   if (!unrepaired(tally, held)) return held;
   let plan;
-  // A scope that carries a decision writes a Judge's edit only where the
-  // decision takes it, and lists the rest; one without keeps the tally's force.
+  // A scope with a decision writes a Judge's edit only where it takes it; one without follows the tally's force.
   if (!("decision" in rewriteScope)) plan = await refreshImported(held, data, policyFor(policy, tally));
   else {
     // A place's build stamps no cite; its row's own is the page a held edit names.
@@ -493,11 +469,10 @@ export function itemIds(dataList, { type = "Item", pack = null, keepId = false, 
 }
 
 /**
- * A folder handed to a write into another pack is dropped by core without a
- * word, and the document lands at the pack's root. The folder rule and the
- * shelf rule read the same claim, so this fires only when one of them was
- * given a different book than the other — which is the one way a routing
- * change breaks silently.
+ * Warns when a folder is handed to a write into another pack: core drops it
+ * silently and the document lands at the pack's root. The folder rule and the
+ * shelf rule read the same claim, so this fires only when they were given
+ * different books.
  */
 function warnStrayFolder(type, data, pack) {
   const folderId = data?.folder;
@@ -509,9 +484,8 @@ function warnStrayFolder(type, data, pack) {
 }
 
 /**
- * Teach the dedup index about a document the moment it exists. Keyed off the
- * document's own cookbook flag rather than a caller-supplied id, so no
- * creator can forget. Items only: the index is an Item index. See
+ * Teach the dedup index about a document the moment it exists, keyed off the
+ * document's own cookbook flag. Items only: the index is an Item index. See
  * docs/importer/DECISIONS.md, "Every create teaches the dedup index".
  */
 function remembered(doc) {
@@ -522,8 +496,8 @@ function remembered(doc) {
 }
 
 /**
- * Create MANY documents in one write, chunked rather than one giant call so a
- * rejected batch does not take everything down with it. See
+ * Create many documents in chunked writes, so a rejected batch does not take
+ * the rest down. See
  * docs/importer/DECISIONS.md, "Writes are batched, because a write costs
  * what the shelf already holds".
  */
@@ -531,14 +505,12 @@ export const WRITE_CHUNK = 50;
 /** Creates documents in chunks per line and returns one slot per input, null where none was created. */
 export async function createDocs(cls, dataList, opts = {}) {
   if (!dataList.length) return [];
-  // One slot per input, `null` where that document was not created; paired to
-  // inputs by cookbook id below, never by position. See
-  // docs/importer/DECISIONS.md, "A batched write files by identity, never by
-  // position".
+  // One slot per input, null where not created; paired by cookbook id, never by
+  // position. See docs/importer/DECISIONS.md, "A batched write files by
+  // identity, never by position".
   const out = new Array(dataList.length).fill(null);
 
-  // Grouped by LINE: one resolved pack for a mixed list writes everything to
-  // whichever shelf the first document wanted.
+  // Grouped by line: one resolved pack for a mixed list would write everything to one shelf.
   const byLine = new Map();
   dataList.forEach((data, i) => {
     const line = lineOfData(data) ?? opts.line ?? null;
@@ -551,8 +523,7 @@ export async function createDocs(cls, dataList, opts = {}) {
   const createOpts = { ...callerOpts, keepId: true };
   for (const { line, entries: given } of byLine.values()) {
     const packOptions = await packOpts(cls.documentName, line);
-    // Ids are settled over the whole line at once, so no two chunks of it hand
-    // out the same one.
+    // Ids are settled over the whole line at once, so no two chunks hand out the same one.
     const rows = itemIds(given.map((e) => withBlockSums(e.data)), { type: cls.documentName, pack: packOptions.pack ?? null, keepId: !!callerOpts.keepId });
     const entries = given.map((e, n) => ({ ...e, data: rows[n] }));
     for (let i = 0; i < entries.length; i += WRITE_CHUNK) {
@@ -560,16 +531,13 @@ export async function createDocs(cls, dataList, opts = {}) {
       const made = await cls
         .createDocuments(chunk.map((e) => e.data), { ...createOpts, ...packOptions })
         .catch((err) => {
-          // One bad chunk must not lose the rest of the run. Fall back to one
-          // write per document so the offender is isolated and named, and its
-          // neighbours still land.
+          // Falls back to one write per document, isolating the offender.
           console.warn(`${MODULE_ID} | batched create of ${chunk.length} ${cls.documentName}(s) failed — retrying singly`, err);
           return null;
         });
       if (made) {
-        // Matched by cookbook id, never by position: `createDocuments` drops an
-        // invalid document rather than throwing, so `made` can be shorter than
-        // `chunk`. Anything unidentifiable falls into the chunk's first free slot.
+        // `createDocuments` drops an invalid document rather than throwing, so
+        // `made` can be shorter than `chunk`: match by id; an unidentifiable one takes the first free slot.
         const slotsById = new Map();
         for (const e of chunk) {
           const key = e.data?.flags?.[MODULE_ID]?.cookbook?.id;
@@ -604,19 +572,16 @@ export async function createDocs(cls, dataList, opts = {}) {
 }
 
 /**
- * Every Item this module has imported, indexed by cookbook id — the packs a
- * write lands on, and the sidebar ones that carry the cookbook flag (see
- * `sidebarImports`). Excludes the skinned template copies, which inherit the
- * definition's cookbook id. Cached, since dedup is asked once per id across a
- * whole-corpus import; `rememberImported` keeps the cache honest as new ones
- * are created.
+ * Every Item this module has imported, indexed by cookbook id: the packs a
+ * write lands on and the sidebar ones carrying the cookbook flag
+ * (`sidebarImports`). Excludes the skinned template copies. Cached for the
+ * session; `rememberImported` adds new creations.
  */
 export let importedCache = null;
 /** Resolves the imported-Item index, building it on first use. */
 export async function importedIndex() {
   if (importedCache) return importedCache;
-  // Every Item shelf this module owns, whatever line — items are shared across
-  // books, so a line that ever mints one is deduplicated rather than twinned.
+  // Every Item shelf this module owns, whatever line: items are shared across books.
   const collections = ourPacksOfType("Item");
   const docs = [
     ...(await Promise.all(collections.map((c) => c.getDocuments().catch(() => [])))).flat(),
@@ -624,14 +589,11 @@ export async function importedIndex() {
   ];
   const byId = new Map();
   for (const doc of docs) {
-    // A class template's part is a copy that kept its definition's claim; it
-    // never answers for the id, or a grant copies one class's specialty name
-    // ("A template part is not an import", docs/importer/DECISIONS.md).
+    // A class template's part is a copy that kept its definition's claim and never answers
+    // for the id ("A template part is not an import", docs/importer/DECISIONS.md).
     if (doc.getFlag(MODULE_ID, TEMPLATE_PART)) continue;
     const flag = doc.getFlag(MODULE_ID, "cookbook");
-    // Every id the document answers for: its own, and any it absorbed on merge
-    // (see "Same name, two books: merge unless they differ beyond their
-    // source", docs/importer/DECISIONS.md).
+    // Every id the document answers for: its own and any it absorbed on merge.
     for (const key of [flag?.id, ...(flag?.merged ?? [])]) if (key && !byId.has(key)) byId.set(key, doc);
   }
   importedCache = byId;
@@ -645,11 +607,9 @@ export function rememberImported(id, doc) {
 }
 
 /**
- * Imports for a cookbook id that are still being built, keyed by id. The
- * claim is the PROMISE, as `ensureFolderPath` claims a folder: the second
- * caller waits for the first one's document instead of building a twin.
- * Keyed on the cookbook id alone and shared by every item importer, so the
- * class import and the ability import land on the same item. See
+ * Imports for a cookbook id that are still being built, keyed by id. The claim
+ * is the promise, as `ensureFolderPath` claims a folder: the second caller
+ * waits for the first one's document. Shared by every item importer. See
  * docs/importer/DECISIONS.md, "One dedup rule for every importer: ask the
  * shelf you write to, and claim before you build".
  */
@@ -666,10 +626,9 @@ export async function claimImport(id, build) {
 }
 
 /**
- * The ACTOR-side claim: same rule, the actor collection instead of the item
- * index. Nothing is remembered — actors are found by their flag, not by an
- * index. A world copy is the Judge's and answers no claim, as it answers no
- * item index (`isWorldCopy`).
+ * The actor-side claim: the same rule against the actor collection. Nothing is
+ * remembered, since actors are found by their flag. A world copy answers no
+ * claim (`isWorldCopy`).
  */
 export async function claimActorImport(id, build) {
   return claimed(id, (claimId) => importedActor(claimId, { copies: false }), (_id, doc) => doc, build);
@@ -687,8 +646,7 @@ async function claimed(id, present, remember, build) {
   try {
     return await pending;
   } finally {
-    // The claim covers the in-flight window only, never past resolution — see
-    // docs/importer/DECISIONS.md, "a claim is a window, not a cache."
+    // The claim covers the in-flight window only. See docs/importer/DECISIONS.md, "a claim is a window, not a cache."
     inflightImports.delete(id);
   }
 }
@@ -701,8 +659,8 @@ export function forgetImportedIndex() {
 }
 
 /**
- * The imported item for a cookbook id, or null — the question every binding
- * outside this file has to ask before it can point at a document.
+ * The imported item for a cookbook id, or null: what a binding outside this
+ * file asks before it points at a document.
  */
 export const importedItemFor = (id) => importedItem(id);
 
@@ -713,10 +671,8 @@ export const importedItemFor = (id) => importedItem(id);
 export const importedActorFor = (id, opts) => importedActor(id, opts);
 
 /**
- * Every document of a type the library holds — the packs', loaded, and the
- * sidebar's (`sidebarImports`). The one way to enumerate imports; a pass that
- * walks `game.<collection>` alone or the packs alone misses part of the
- * library. See docs/importer/DECISIONS.md, "The library is the packs AND the
+ * Every document of a type the library holds: the packs', loaded, and the
+ * sidebar's (`sidebarImports`). The one way to enumerate imports. See docs/importer/DECISIONS.md, "The library is the packs AND the
  * sidebar this module stamped".
  */
 export async function importedDocs(type) {
@@ -736,10 +692,8 @@ let heldLibrary = null;
 
 /**
  * Run `pass` with one reading of the library per type: every `importedDocs`
- * inside it answers from the first read of its type, copied, so a book's
- * repair asking after another's reads the packs once instead of again. Only
- * for a pass that writes nothing; Import everything's asking pass is one,
- * since every part stops at its confirm. A hold already standing is used.
+ * inside it answers from the first read of its type, copied. Only for a pass
+ * that writes nothing. A hold already standing is used.
  */
 export async function holdingLibrary(pass) {
   if (heldLibrary) return pass();
@@ -754,8 +708,7 @@ export async function holdingLibrary(pass) {
 /** Delete imported documents of a type from wherever the library lives. */
 export async function deleteImported(type, docs) {
   if (!docs.length) return 0;
-  // Grouped by the pack each document is ON, never by one resolved target —
-  // the list can span lines.
+  // Grouped by the pack each document is on: the list can span lines.
   const byPack = new Map();
   for (const doc of docs) {
     const key = doc.pack ?? "";
@@ -774,11 +727,9 @@ export async function deleteImported(type, docs) {
 }
 
 /**
- * Every imported item keyed by lower-cased NAME, for the one lookup an id
- * cannot answer: a printed list that names an ability in words.
- *
- * Built once and handed to a loop rather than asked per name — the index is a
- * compendium read, and a class's rungs ask it dozens of times.
+ * Every imported item keyed by lower-cased name, for the lookup an id cannot
+ * answer: a printed list that names an ability in words. Built once and handed
+ * to a loop, since the index is a compendium read.
  */
 export async function importedItemsByName() {
   const byName = new Map();
@@ -790,18 +741,16 @@ export async function importedItemsByName() {
 }
 
 /**
- * Shelf re-reads in flight, keyed by pack collection id — see `liveCopy`, so
- * every concurrent worker meets an eviction in the same instant rather than
- * each ordering its own full copy of the pack.
+ * Shelf re-reads in flight, keyed by pack collection id (see `liveCopy`), so
+ * concurrent workers share one re-read of an evicted pack.
  */
 const shelfReloads = new Map();
 
 /**
- * The live document behind a cached one, or null once it is really gone. A
- * compendium is a CACHE over the shelf, not the shelf: presence is asked of
- * its INDEX, which survives an eviction, and the document is re-read only
- * once the index says yes. A world document has no eviction and answers from
- * its own collection. See docs/importer/DECISIONS.md, "A compendium is a
+ * The live document behind a cached one, or null once it is really gone.
+ * Presence is asked of a compendium's index, which survives an eviction, and
+ * the document is re-read only once the index says yes. A world document
+ * answers from its own collection. See docs/importer/DECISIONS.md, "A compendium is a
  * cache; presence is asked of its index".
  */
 async function liveCopy(doc) {
@@ -811,8 +760,7 @@ async function liveCopy(doc) {
   if (pack.has(doc.id)) return pack.get(doc.id);
   let pending = shelfReloads.get(doc.pack);
   if (!pending) {
-    // The whole shelf, not the one document: the eviction dropped every id the
-    // caller's loop is about to ask for.
+    // The whole shelf: the eviction dropped every id the caller's loop will ask for.
     pending = pack.getDocuments().catch(() => []);
     shelfReloads.set(doc.pack, pending);
     pending.finally(() => shelfReloads.delete(doc.pack));
@@ -822,21 +770,14 @@ async function liveCopy(doc) {
 }
 
 /**
- * The already-imported item for this cookbook id, or null.
- *
- * The index is cached for a whole session, so it can hold a document the GM has
- * since deleted — and answering "already imported" for a document that is gone
- * would break the one refresh a GM has: delete the item, import again, get the
- * new derived values. So the cached hit is confirmed by `liveCopy` before it is
- * trusted, and a stale one is dropped.
+ * The already-imported item for this cookbook id, or null. A cached hit is
+ * confirmed by `liveCopy` before it is trusted, and a stale one is dropped.
  */
 export const importedItem = async (id) => {
   const cached = (await importedIndex()).get(id) ?? null;
   if (!cached) return null;
   const live = await liveCopy(cached);
-  // A re-read after an eviction builds NEW instances, so the index has to take
-  // the one the pack now holds — the evicted object it was holding answers for
-  // a document nothing else in the session will ever hand out again.
+  // A re-read after an eviction builds new instances; the index takes the pack's current one.
   if (live && live !== cached) importedCache?.set(id, live);
   if (live) return live;
   importedCache?.delete(id);
@@ -844,33 +785,24 @@ export const importedItem = async (id) => {
 };
 
 /**
- * The already-imported ACTOR for this cookbook id, or null — the actor-side
- * counterpart of importedItem, asked of whichever target actors go to. Not
- * indexed: the actor importers already carry `importedIdSet`, and this answers
- * the one question that needs the document itself (an animal, a companion).
- * The world answers first, copies included, so a scene's places link to one
- * another; `copies: false` asks for the library's own document, which is what
- * an "already imported?" check needs (`isWorldCopy`).
+ * The already-imported actor for this cookbook id, or null: the actor-side
+ * counterpart of `importedItem`, not indexed. The world answers first, copies
+ * included, so a scene's places link to one another; `copies: false` asks for
+ * the library's own document (`isWorldCopy`).
  *
- * A read, never a write: the own shelf is FOUND (`findLibraryPack`), never
- * opened through `packFor`, which mints the pack it is asked for. A presence
- * check runs before any import — a census, an "already imported?" gate — and
- * a world it ran in must hold exactly the packs it held before.
+ * A read, never a write: the own shelf is found (`findLibraryPack`), never
+ * opened through `packFor`, which mints the pack it is asked for.
  */
 export async function importedActor(id, { copies = true } = {}) {
-  // A place another book took over answers for the id it was made under too
-  // (`merged`), so a room still finds the place it sits in.
+  // A place another book took over answers for the id it was made under too (`merged`).
   const world = game.actors.find((a) => answersFor(a.getFlag(MODULE_ID, "cookbook"), id) && (copies || !isWorldCopy(a)));
   if (world) return world;
-  // Its OWN shelf first — that is where `createDoc` put it — then the others.
-  // A creature shelved under another line is still found, which is what keeps
-  // a Judge from importing a second copy of it.
+  // Its own shelf first (where `createDoc` put it), then the others.
   const own = findLibraryPack("Actor", lineOf(bookOfCookbookId(id)));
   const others = ourPacksOfType("Actor").filter((p) => p !== own);
   const collections = own ? [own, ...others] : others;
   for (const collection of collections) {
-    // The cookbook flag is not a default index field — ask for it, exactly as
-    // importedIdSet does, or the row is there and the match never fires.
+    // The cookbook flag is not a default index field, so it is asked for.
     const index = await collection.getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`] }).catch(() => null);
     const row = [...(index ?? [])].find((r) => answersFor(r.flags?.[MODULE_ID]?.cookbook, id));
     if (row) return collection.getDocument(row._id);
@@ -883,9 +815,7 @@ export async function ensureFolderPath(type, names, line = null) {
   const pack = await packFor(type, line);
   const collection = pack ? game.packs.get(pack)?.folders : game.folders;
   const path = names.filter(Boolean).map((n) => String(n).trim()).filter(Boolean);
-  // The gate, not a warning: a third level is dropped rather than created, so
-  // the document lands one folder up instead of somewhere a pack would refuse
-  // to make and an ownership dialog would never reach.
+  // A deeper level is dropped rather than created: the document lands one folder up.
   if (path.length > FOLDER_MAX_DEPTH) {
     console.warn(`${MODULE_ID} | folder path "${path.join(" / ")}" is deeper than ${FOLDER_MAX_DEPTH} — truncated.`);
     path.length = FOLDER_MAX_DEPTH;
@@ -893,8 +823,7 @@ export async function ensureFolderPath(type, names, line = null) {
   let parent = null;
   for (const name of path) {
     const key = `${type}|${pack ?? "world"}|${parent?.id ?? "root"}|${name}`;
-    // Cache the PROMISE, not the resolved folder: the second concurrent caller
-    // then awaits the first one's folder instead of creating a duplicate.
+    // The promise is cached, so a concurrent caller awaits the first one's folder.
     let pending = folderCache.get(key);
     if (!pending) {
       const parentId = parent?.id ?? null;
@@ -902,8 +831,7 @@ export async function ensureFolderPath(type, names, line = null) {
         (collection ?? game.folders).find(
           (fo) => fo.type === type && fo.name === name && (fo.folder?.id ?? null) === parentId,
         ) ??
-        // Marked like every document this module makes, so removal can find it;
-        // an adopted folder (one already there under this name) stays unmarked.
+        // Marked so removal can find it; an adopted folder stays unmarked.
         (await Folder.create(
           { name, type, folder: parentId, sorting: "a", flags: { [MODULE_ID]: { cookbook: { id: `folder.${type}.${name}` } } } },
           pack ? { pack } : {},
@@ -914,26 +842,24 @@ export async function ensureFolderPath(type, names, line = null) {
   }
   return parent;
 }
+
 /**
- * The folder an entry of this kind belongs in, creating the path as needed —
- * inside its book's LINE pack, so the tree and the pack always agree.
+ * The folder an entry of this kind belongs in, created as needed inside its
+ * book's line pack.
  */
 export const targetFolder = (type, bookId, group) =>
   ensureFolderPath(type, [bookLabel(bookId), group], lineOf(bookId));
 
 /**
- * Every cookbook id already held for one document type, in WHICHEVER target is
- * configured — the sidebar collection plus, in compendium mode, the pack INDEX
- * (read with the cookbook flag as an index field, so no document is loaded).
- * Every "have I imported this already?" question routes through here. See
+ * Every cookbook id already held for one document type: the sidebar collection
+ * plus every owned pack's index (no document is loaded). Every presence
+ * question routes through here. See
  * docs/importer/DECISIONS.md, "One dedup rule for every importer: ask the
  * shelf you write to, and claim before you build".
  */
 export async function importedIdsOfType(type, worldCollection) {
-  // Never a class template's part: a skinned copy inherits the definition's
-  // id, and counting it would let it answer for the shared definition. Never a
-  // copy of an import either (`isWorldCopy`): counting it would stop a rebuild
-  // putting the library's own document back.
+  // Never a class template's part (it inherits the definition's id) and never a
+  // copy of an import (`isWorldCopy`), which would stop a rebuild restoring the library's own.
   const part = (flags) => !!flags?.[MODULE_ID]?.[TEMPLATE_PART];
   // Every id a document answers for, a merged one included (`claimIds`).
   const ids = new Set(
@@ -941,11 +867,9 @@ export async function importedIdsOfType(type, worldCollection) {
       .filter((d) => !part(d.flags) && !isWorldCopy(d))
       .flatMap((d) => claimIds(d.getFlag(MODULE_ID, "cookbook"))),
   );
-  // Every shelf: a batch mixes lines, so asking one pack answers "not
-  // imported" for every book shelved elsewhere.
+  // Every shelf: a batch mixes lines.
   for (const collection of ourPacksOfType(type)) {
-    // A failed index read must be LOUD — an empty set here reads as "nothing
-    // imported yet" and a bulk run re-creates everything as twins.
+    // A failed index read is loud: an empty set reads as "nothing imported yet".
     const index = await collection
       .getIndex({ fields: [`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`, `flags.${MODULE_ID}.${TEMPLATE_PART}`] })
       .catch((err) => {
@@ -964,18 +888,14 @@ export async function importedIdsOfType(type, worldCollection) {
 }
 
 /**
- * Cookbook ids already held as ACTORS, wherever imports go. A monster import
- * always CREATES — `importOne` has no reuse to fall back on — so every actor
- * import path filters through this, which is what makes "import all" safe to
- * press twice.
+ * Cookbook ids already held as actors, wherever imports go. A monster import
+ * always creates, so every actor import path filters through this.
  */
 export const importedIdSet = () => importedIdsOfType("Actor", game.actors);
 
 /**
- * Actors of one type, wherever imports live (sidebar + configured pack). Never
- * a copy dragged out of the library (`isWorldCopy`): it is the Judge's, and a
- * family or leader template found there would take the import's write, or
- * stand in for the library's document a rebuild puts back.
+ * Actors of one type, wherever imports live (sidebar and packs). Never a copy
+ * dragged out of the library (`isWorldCopy`), which is the Judge's.
  */
 export async function importedActorsOfType(type) {
   const world = game.actors.filter((a) => a.type === type && !isWorldCopy(a));
@@ -986,8 +906,7 @@ export async function importedActorsOfType(type) {
 }
 
 /**
- * Monster TYPE → folder name: the stat block's own taxonomy (Animal, Undead,
- * Beastman, …), which is what a Judge actually browses by.
+ * Monster type key → folder name, following the stat block's own taxonomy.
  */
 const TYPE_FOLDER = {
   animal: "Animals",
@@ -1005,8 +924,8 @@ const TYPE_FOLDER = {
 };
 
 /**
- * The type a block leads with, preferring the SPECIFIC one when it prints
- * several ("Humanoid, Beastman" files under Beastmen — the useful bucket).
+ * Type keys in filing priority: when a block prints several, the first listed
+ * here wins.
  */
 const TYPE_PRIORITY = ["beastman", "incarnation", "undead", "construct", "ooze", "plant", "giant", "vermin", "monstrosity", "animal", "humanoid", "enchanted"];
 /** The one type key a node files under: the first in priority order among its type keys, else its first. */
@@ -1018,7 +937,7 @@ export function primaryTypeOf(node) {
   return keys[0];
 }
 
-/** Folder for a type key ("undead" → "Undead"), or null. */
+/** Folder name for a type key, or null. */
 const typeFolderOf = (key) => (key ? TYPE_FOLDER[String(key).toLowerCase()] ?? null : null);
 
 /**
@@ -1030,11 +949,9 @@ function actorGroupOf(found, id, { type = null } = {}) {
   const authored = found?.entry?.meta?.group;
   if (authored) return authored;
   const kind = found?.entry?.kind;
-  // A family/monster TEMPLATE is a generator, not a creature — it has no stat
-  // block to type, and mixing generators in with monsters hides both.
+  // A family or monster template is a generator with no stat block to type.
   if (kind === "kind.monsterFamily" || kind === "kind.monsterTemplate") return "Templates";
-  // A vehicle is one row of a printed table, not a creature; it has no type
-  // either, and its own shelf is what keeps a book folder browsable.
+  // A vehicle is a table row with no type either.
   if (kind === "kind.vehicle") return "Vehicles";
   const byType = typeFolderOf(type);
   if (byType) return byType;
@@ -1044,13 +961,10 @@ function actorGroupOf(found, id, { type = null } = {}) {
 }
 
 /**
- * THE one destination rule for a cookbook ACTOR — every actor importer asks
- * it, so no two of them can disagree about where a creature belongs.
+ * The one destination rule for a cookbook actor; every actor importer asks it.
  */
 export function actorFolderFor(id, found = cookbookEntry(id), opts = {}) {
-  // The Animals shelf is cross-book, but not cross-LINE: it is built in
-  // whichever pack this entry's own book writes to, because the folder and the
-  // document have to end up in the same compendium.
+  // The Animals shelf is cross-book but built in the pack the entry's own book writes to.
   if (isAnimalEntry(found?.entry)) return ensureFolderPath("Actor", ["Animals"], lineOfClaim(id, bookOf(found)));
   return targetFolder("Actor", bookOf(found), actorGroupOf(found, id, opts));
 }
@@ -1073,9 +987,7 @@ export async function prepareFolders(type, ids) {
 export const IMPORT_CONCURRENCY = 4;
 
 /**
- * Actor-kind entry ids across EVERY connected book, in book then page order.
- * The single-book `openBooks[0]` this replaced meant a seat with three books
- * open could only ever import from the first one.
+ * Actor-kind entry ids across every open book, in book then page order.
  */
 export function actorEntriesAcrossBooks() {
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
@@ -1085,8 +997,7 @@ export function actorEntriesAcrossBooks() {
     for (const [id, e] of Object.entries(cb.entries)) {
       if (actorKindOf(e)) rows.push({ id, entry: e, bookId });
     }
-    // Families ride the same list as synthesized rows (one generator template
-    // per family); their members stay listed too, for direct import.
+    // Families ride the same list as synthesized rows; their members stay listed too.
     for (const id of Object.keys(cb.families ?? {})) {
       rows.push({ id, entry: cookbookEntry(id).entry, bookId });
     }
@@ -1109,17 +1020,13 @@ export const sysObject = (doc) =>
   typeof doc?.system?.toObject === "function" ? doc.system.toObject() : foundry.utils.deepClone(doc?.system ?? {});
 
 /**
- * Items are filed by CONTENT TYPE, not by book: a proficiency spans every book
- * that prints it, and the whole point of the shared ability item is that one
- * copy serves every actor. `id` picks the shelf ("def.prof.x" -> Proficiencies).
+ * Items are filed by content type, not by book. The id's namespace picks the
+ * shelf.
  */
 export const ITEM_SHELF = {
   "def.prof": "Proficiencies",
   "def.power": "Class Powers",
-  // Beastman drawbacks are `kind.power` items but carry their own id namespace
-  // (reclassified off `def.power` in the content audit). Without this line they
-  // fall through itemShelfFor to the pack's top level, unsorted — so give them
-  // their own shelf beside Class Powers.
+  // Drawbacks are `kind.power` items with their own id namespace.
   "def.drawback": "Drawbacks",
   "def.skill": "Skills",
   "def.language": "Languages",
@@ -1131,17 +1038,15 @@ export const ITEM_SHELF = {
   "def.spell": "Spells",
   "def.variation": "Variations",
   "def.merchandise": "Merchandise",
-  // The price list's own rows — see importPriceList for why they cannot join
-  // the described entries' group shelves.
+  // The price list's own rows cannot join the described entries' group shelves (see importPriceList).
   "def.priced": "Equipment",
-  // Races are `acks-extras.race` items the class builder binds, not abilities.
+  // Races are `acks-extras.race` items the class builder binds.
   "def.race": "Races",
 };
 
 /**
- * Sub-shelf a whole NAMESPACE takes, where the shelf alone would be the wrong
- * bucket. Read before the entry's own group, because a priced row has no entry
- * to ask.
+ * Sub-shelf a whole namespace takes, read before the entry's own group since a
+ * priced row has no entry to ask.
  */
 const SHELF_SUB = { "def.priced": "Price List" };
 
@@ -1150,22 +1055,14 @@ export const shelfKeyOf = (id) => String(id ?? "").split(".").slice(0, 2).join("
 const itemShelfFor = (id) => {
   const key = shelfKeyOf(id);
   const shelf = ITEM_SHELF[key] ?? null;
-  // An unmapped namespace would land silently at the top level, loose above the
-  // shelves. It is a missing ITEM_SHELF row every time, so say which one.
+  // An unmapped namespace is a missing ITEM_SHELF row: say which.
   if (!shelf && key) console.warn(`${MODULE_ID} | no item shelf for id namespace "${key}" — filing at the top level.`);
   return shelf;
 };
 
 /**
- * Sub-shelves under a top shelf, from the entry's own `meta.group`.
- *
- * The equipment chapter is not one list: 147 entries span carried gear,
- * clothing, animals, structures and vehicles, and a single "Equipment" folder
- * reproduces the flat pile one level down. The register already records which
- * group each entry belongs to, so the shelf just reads it — no new data, and a
- * group nobody declared simply lands on the top shelf.
- *
- * Titles are display strings for a folder, not book values.
+ * Sub-shelves under a top shelf, from the entry's own `meta.group`; a group
+ * nobody declared lands on the top shelf. Titles are folder display strings.
  */
 const GROUP_SHELF = {
   gear: "Adventuring Gear",
@@ -1179,10 +1076,8 @@ const GROUP_SHELF = {
 };
 
 /**
- * Alphabet bands for a shelf whose SOURCE is a flat alphabetical dictionary —
- * the JJ class-powers list declares no taxonomy at all, and 316 entries in one
- * folder is unbrowsable. Bands mirror how the book itself is read (a dictionary
- * is looked up by letter), inventing nothing.
+ * Alphabet bands for a shelf whose source is a flat alphabetical list (the JJ
+ * class powers declare no taxonomy).
  */
 const LETTER_BANDS = [["A", "D"], ["E", "H"], ["I", "L"], ["M", "P"], ["Q", "T"], ["U", "Z"]];
 const letterBand = (name) => {
@@ -1191,19 +1086,14 @@ const letterBand = (name) => {
   return band ? `${band[0]}–${band[1]}` : null;
 };
 
-/** THE one destination rule for a cookbook ITEM: shelf → sub-shelf. */
+/** The one destination rule for a cookbook item: shelf, then sub-shelf. */
 function itemShelfPath(id) {
   const shelf = itemShelfFor(id);
   if (!shelf) return [];
-  // A namespace that takes a fixed sub-shelf is answered before the entry,
-  // because the rows that need it (the price list) have no entry to ask.
   const fixed = SHELF_SUB[shelfKeyOf(id)];
   if (fixed) return [shelf, fixed];
   const entry = cookbookEntry(id)?.entry;
-  // Proficiencies: the RR's OWN split — every proficiency is printed on the
-  // General list, the Class lists, or is one of the combat picks (weapon/
-  // armour/fighting-style). Authored data (`meta.general` + the kind), not
-  // a guess.
+  // Proficiencies split general / class / combat, from `meta.general` and the kind.
   if (shelf === "Proficiencies") {
     const sub =
       entry?.kind === "kind.combatProficiency" ? "Combat"
@@ -1212,20 +1102,16 @@ function itemShelfPath(id) {
       : null;
     return [shelf, sub];
   }
-  // Class powers: no authored grouping exists (see letterBand) — file by letter.
+  // Class powers have no authored grouping: file by letter.
   if (shelf === "Class Powers") return [shelf, letterBand(entry?.name ?? "")];
   return [shelf, GROUP_SHELF[entry?.meta?.group] ?? null];
 }
 
 /**
- * The folder a definition id's item files under, created on demand. Every
- * item importer asks this and none builds its own path. The shelf comes from
- * the id's first two segments alone, so callers whose ids have no register
- * entry (languages, read from the seat's own book) still land on their shelf.
- * The PACK the shelf is built in is the claim's line (`lineOfClaim`): the
- * book the entry names, or the one given, so a series' "Classes" folder is
- * made in the series' Item pack, where the class is written.
- * See docs/importer/DECISIONS.md, "Organize is deleted, because destination
+ * The folder a definition id's item files under, created on demand; every item
+ * importer asks this. The shelf comes from the id's first two segments alone,
+ * so an id with no register entry still lands on its shelf. The pack the shelf
+ * is built in is the claim's line (`lineOfClaim`). See docs/importer/DECISIONS.md, "Organize is deleted, because destination
  * has one author".
  */
 export async function ensureItemFolder(id = null, book = bookOf(cookbookEntry(id))) {
@@ -1235,13 +1121,11 @@ export async function ensureItemFolder(id = null, book = bookOf(cookbookEntry(id
 /** Create every item shelf (and equipment sub-shelf) before parallel imports. */
 export async function prepareItemShelves() {
   for (const shelf of new Set(Object.values(ITEM_SHELF))) await ensureFolderPath("Item", [shelf]);
-  // Only groups the shipped cookbook actually uses — never the whole table, so
-  // an empty folder is never created for content this world does not have.
+  // Only groups the shipped cookbook uses, so no empty folder is created.
   const groups = new Set();
   for (const id of cookbookEquipmentIds()) {
     const entry = cookbookEntry(id)?.entry;
-    // Animals file under Actors when the world can hold them (`canImportAnimals`), so their item shelf
-    // would stand empty — the one thing this loop exists to avoid.
+    // Animals file under Actors when the world can hold them (`canImportAnimals`).
     if (isAnimalEntry(entry) && canImportAnimals()) continue;
     const g = entry?.meta?.group;
     if (GROUP_SHELF[g]) groups.add(GROUP_SHELF[g]);
@@ -1255,12 +1139,9 @@ export async function prepareItemShelves() {
 /* -------------------------------------------- */
 
 /**
- * Library documents keyed by every printed form of their name.
- *
- * Cached for the session beside `importedIndex`, and dropped by the same
- * `forgetImportedIndex`, because it answers the same kind of question about the
- * same shelf. Rebuilt lazily; `rememberName` keeps it true as documents arrive
- * so a run that imports two books never has to rebuild it mid-way.
+ * Library documents keyed by every printed form of their name. Cached beside
+ * `importedIndex` and dropped by the same `forgetImportedIndex`; `rememberName`
+ * keeps it current as documents arrive.
  */
 let nameIndexCache = null;
 /** The imported Items grouped by name key, built once and shared by the run. */
@@ -1290,9 +1171,8 @@ function rememberName(doc) {
 }
 
 /**
- * The name a document was PRINTED under, before any book tag was added. Kept
- * on the flag and used to judge collisions, so a rewritten (tagged) name
- * cannot escape being reconsidered. See docs/importer/DECISIONS.md, "Same
+ * The name a document was printed under, before any book tag was added; kept
+ * on the flag to judge collisions. See docs/importer/DECISIONS.md, "Same
  * name, two books: merge unless they differ beyond their source".
  */
 export const printedName = (doc) => doc.getFlag(MODULE_ID, "cookbook")?.printed ?? doc.name;

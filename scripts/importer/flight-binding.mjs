@@ -2,16 +2,11 @@
  * Flight assembly: the raw RR ch. 6 air-movement reads → the engine-shaped
  * `flight` ruledata tables acks-extras declares.
  *
- * Three factors and one exception. A creature that can stay up all day covers
- * twice the ground; wind costs half of that; a flier carrying more than its
- * normal load moves at half speed. The exception — that wind is the ONE
- * weather condition air movement does not take in the ordinary way — is the
- * rule's own shape and lives in the flight code, not in this table.
- *
- * The page states all three in words rather than figures ("doubled", "halve",
- * "at half speed"), which is still a printed value: it is the size of the
- * effect, and the reader must not assume it. So the words are read into the
- * factors they name, here, once. Like every binding here, no value ships.
+ * Three factors: the day-aloft factor, the wind factor and the heavy-load
+ * factor. The page states them in words rather than figures, which is still a
+ * printed value, so the words are read here into the factors they name. How
+ * wind is treated as a weather condition lives in the flight code, not in this
+ * table. No value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -35,12 +30,9 @@ export const PRODUCES = Object.freeze({
 /* ------------------------------------------------------------------ */
 
 /**
- * A factor written as a word or a figure: "doubled" → 2, "halve"/"half" →
- * 0.5, "×1/3" → 1/3, "25%" → 0.25.
- *
- * Deliberately word-first. On these pages the numeral in the sentence is
- * usually an EXAMPLE ("an exploration speed of 120’… would have an air speed
- * of 48 miles"), and a figure-first reader takes the example for the rule.
+ * A factor written as a word, a fraction or a percentage, as a number; null
+ * when none reads. Word-first: a numeral in these sentences is usually a worked
+ * example, which a figure-first reader would take for the rule.
  */
 export function parseFactor(text) {
   const t = String(text ?? "").toLowerCase();
@@ -56,10 +48,9 @@ export function parseFactor(text) {
 }
 
 /**
- * The load clause states BOTH factors in one sentence — full speed under the
- * normal load, half speed above it — so the half is read from the part after
- * the comma. Reading the whole sentence would find "full" first and price a
- * heavy flier as an unburdened one.
+ * The heavy-load factor. The clause states both the normal and the heavy
+ * factor, so it is read from the part after the split word; the whole sentence
+ * would read the normal one first.
  */
 export function parseHeavyLoadFactor(text) {
   const t = String(text ?? "").toLowerCase();
@@ -72,15 +63,13 @@ export function parseHeavyLoadFactor(text) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The engine tables from the raw ones. Pure — the committed tests feed it
- * invented prose.
+ * The engine tables from the raw ones. Pure.
  */
 export function assembleFlightTables(raw = {}) {
   const out = {};
   const air = raw.airProse ?? {};
 
-  // Either sentence names the day-aloft factor; the second exists so a drifted
-  // first window does not cost the table.
+  // The second sentence is the fallback for a drifted first window.
   const aloft = parseFactor(air.aloft) ?? parseFactor(air.partial);
   if (aloft != null) out.aloftFactor = aloft;
 

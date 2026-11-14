@@ -1,12 +1,11 @@
 /**
- * PDF text extraction engine (pdf.js) — column-first reconstruction validated
- * against the real ACKS II PDFs in a Node harness before shipping.
+ * PDF text extraction engine (pdf.js): column-first reconstruction of a page's
+ * text runs.
  *
- * Runs identically in the browser (Foundry client) and Node (tools/test
- * harness): the worker is only wired up when the module boots in Foundry
- * (setWorker below); under Node pdf.js falls back to its fake worker.
- *
- * Nothing here persists — callers receive plain strings and decide caching.
+ * Runs identically in the browser and in Node (the tools harness): the worker
+ * is only wired up when the module boots in Foundry (`setWorker`); under Node
+ * pdf.js falls back to its fake worker. Nothing here persists; callers
+ * receive plain strings and decide caching.
  */
 import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mjs";
 import { BOOKS } from "./books.mjs";
@@ -32,27 +31,27 @@ const COL_MAX_CROSS = 0.1; // lines that may reach across a gutter and leave it 
 const COL_MIN_SOLO = 0.15; // lines of a rescued column alone on their baseline; a table's cell never is
 const COL_MIN_MEASURE = 0.5; // a rescued column's median line against the page's widest measure
 
-// Spoil component: "name (W st, Ngp, effects…)" where W = "2", "2 3/6", or
-// "4/6" — the whole-stone part is OPTIONAL (fractional-only weights are
-// common), the stone unit may close with a period ("st.,"), and the effects
-// group is paren-aware so an effect list containing its own parentheses still
-// captures whole. Shared with executor.mjs, which imports it from here rather
-// than the reverse to avoid a cycle (executor.mjs already imports
-// pageItems/pageArtInfo from this module).
+/**
+ * A spoil component, `name (weight st, cost gp, effects)`: the whole-stone
+ * part of the weight is optional, the stone unit may close with a period, and
+ * the effects group is paren-aware. Shared with executor.mjs, which imports it
+ * from here to avoid a cycle.
+ */
 export const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st\.?,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
 
+/** Points pdf.js at its worker script; the module calls it once at boot. */
 export function setWorker(url) {
   GlobalWorkerOptions.workerSrc = url;
 }
 
 /**
- * Where the wasm image decoders live (openjpeg/jbig2/qcms). The AX books
- * embed their illustrations as JPEG2000, which pdf.js can only decode through
- * these; without them the image objects never resolve and a page render that
- * needs one hangs. Browser-only (the module sets it at boot); the offline
- * tools never decode pixels.
+ * Where the wasm image decoders live (openjpeg/jbig2/qcms). JPEG2000 images
+ * decode only through these; without them a page render that needs one hangs.
+ * Browser-only (the module sets it at boot); the offline tools never decode
+ * pixels.
  */
 let WASM_URL = null;
+/** Sets the wasm decoder directory read by `openBook`. */
 export function setWasmUrl(url) {
   WASM_URL = url;
 }
@@ -67,9 +66,7 @@ export async function openBook(data, { book = null } = {}) {
   const doc = await getDocument({
     data: new Uint8Array(data),
     useSystemFonts: true,
-    // Errors only: pdf.js warns about image headers it then corrects itself,
-    // and a printing that differs from the one a recipe was cut from is
-    // reported by the book's own fingerprint check.
+    // Errors only: pdf.js warns about image headers it then corrects itself.
     verbosity: 0,
     ...(WASM_URL ? { wasmUrl: WASM_URL } : {}),
   }).promise;
@@ -79,41 +76,34 @@ export async function openBook(data, { book = null } = {}) {
 }
 
 /**
- * The strip furniture can occupy, as a share of the trim. Generous, because the
- * profile inside it does the deciding; proportional, because a constant
- * measured on one page size reaches into the last line of type on a smaller one
- * and falls short of the folio on a larger one.
+ * The strip furniture can occupy, as a share of the trim. Proportional to page
+ * height, since a fixed distance misses the folio on a larger page and reaches
+ * type on a smaller one.
  */
 const footerZone = (height) => Math.max(FOOTER_BAND, height * FOOTER_ZONE_SHARE);
 
 /**
- * A footer line's identity: page parity, baseline, type size.
- *
- * Parity is part of it because furniture mirrors recto to verso — a folio can
- * sit on a different baseline on facing pages, and merging the two halves the
- * evidence for each. Type size is part of it because a book set on a tight
- * bottom margin drops its last line of type onto a baseline within a point of
- * the folio's; the sizes still differ, and that is what keeps the line.
+ * A footer line's identity: page parity, baseline, type size. Parity because
+ * furniture mirrors recto to verso; type size because a last line of type can
+ * land within a point of the folio's baseline.
  */
 const footerKey = (pageNo, it) => `${pageNo % 2}@${it.transform[5].toFixed(1)}@${it.height.toFixed(1)}`;
 
 /**
  * A page's non-empty text runs, coincident duplicates removed.
  *
- * Faux-bold headings and folios are DOUBLE-STRUCK: the same glyph painted twice
- * at the same coordinates ("eencountersncounters", "Black BlobBlack Blob").
- * Dropping exact (str,x,y) coincidences makes a heading read once and a folio
- * count as one run, which the footer profile's width test depends on. Runs
- * before the footer test so compiler and runtime dedupe identically and boxes
- * still line up.
+ * Faux-bold headings and folios are double-struck: the same glyph painted twice
+ * at the same coordinates. Dropping exact (str,x,y) coincidences makes a
+ * heading read once and a folio count as one run, which the footer profile's
+ * width test depends on. Runs before the footer test so compiler and runtime
+ * dedupe identically.
  */
 function textRuns(content) {
   const seen = new Set();
   const runs = [];
-  // pdf.js sets the word space of a tightly set run as its own zero-width " "
-  // item, and marks a line end with an empty one. Neither is a run, but the
-  // boundary each marks is kept on the run that follows (`spaceBefore`), so a
-  // joiner can put the space back where the x-gap alone reads as nothing.
+  // pdf.js sets a tight word space as its own zero-width " " item and marks a
+  // line end with an empty one. Neither is a run; the boundary is kept on the
+  // run that follows (`spaceBefore`) so a joiner can restore the space.
   let spaceBefore = false;
   for (const it of content.items) {
     if (typeof it.str !== "string") continue;
@@ -143,11 +133,10 @@ function footerLines(pageNo, runs, zone) {
 }
 
 /**
- * The pages a profile is built from: consecutive PAIRS spread through the
- * document, so both page parities are sampled. An even stride lands on one
- * parity and leaves the other unprofiled, which is a whole book's worth of
- * folios left in the text. Derived from the page count alone, so the compiler
- * and the runtime executor learn the same profile from the same document.
+ * The pages a profile is built from: consecutive pairs spread through the
+ * document, so both page parities are sampled (an even stride lands on one).
+ * Derived from the page count alone, so the compiler and the runtime executor
+ * learn the same profile.
  */
 function profilePages(numPages) {
   const pairs = Math.max(1, Math.min(Math.ceil(numPages / 2), Math.floor(PROFILE_PAGES / 2)));
@@ -160,20 +149,17 @@ function profilePages(numPages) {
   return [...out].filter((p) => p >= 1 && p <= numPages).sort((a, b) => a - b);
 }
 
-/** Footer profiles, one per open document; the promise is cached so concurrent
- *  page reads share a single sampling pass. */
+/** Footer profiles, one per open document; the promise is cached so concurrent page reads share one sampling pass. */
 const profiles = new WeakMap();
 
 /**
  * Which lines of this document are page furniture.
  *
- * Furniture is what REPEATS: a folio or a running foot prints on nearly every
- * page of its parity, on one baseline, in one size, a few runs wide. Body type
- * in the same strip is content — it arrives there only when a column happens to
- * fill, and when it does it is a whole line of runs. BOTH tests are needed:
- * recurrence alone cannot separate a justified block that bottoms out on a
- * fixed grid from the folio beside it, and thinness alone calls every short
- * line furniture.
+ * Furniture is what repeats: a folio or running foot prints on nearly every
+ * page of its parity, on one baseline, in one size, a few runs wide. Both
+ * tests are needed: recurrence alone cannot separate a justified block that
+ * bottoms out on a fixed grid from the folio, and thinness alone calls every
+ * short line furniture.
  *
  * @returns `{ keys, parity }` — the footer keys to drop, and per page parity
  *          whether the sample is enough to trust them.
@@ -188,8 +174,7 @@ async function footerProfile(doc) {
       const page = await doc.getPage(p);
       const vp = page.getViewport({ scale: 1 });
       const runs = textRuns(await page.getTextContent());
-      // A plate or a blank leaf carries no furniture and says nothing about
-      // where it sits; counted as a page, it argues the folio away.
+      // A plate or blank leaf says nothing about where furniture sits.
       if (runs.length < PROFILE_MIN_RUNS) continue;
       evidence[p % 2]++;
       for (const [key, n] of footerLines(p, runs, footerZone(vp.height))) {
@@ -208,10 +193,8 @@ async function footerProfile(doc) {
       keys.add(key);
       found[+key[0]]++;
     }
-    // A parity sampled well enough and yielding NO furniture line has not
-    // learned that the book has none: it has failed to recognise the one it
-    // has. Trusting the profile there would leak a folio into every page it
-    // filters, so such a parity keeps the flat band instead.
+    // A parity sampled well and yielding no furniture line keeps the flat band:
+    // trusting its empty profile would leak a folio into every page.
     return {
       keys,
       parity: [
@@ -226,16 +209,12 @@ async function footerProfile(doc) {
 
 /**
  * Mark an opened document with its book's declared typography (`typography`
- * on the registry row), where the row declares one. Every size test in the
- * engine — the heading floor, the body ceilings, the superscript band — is
- * calibrated to the family's 9–10pt body, so a book set at another size is
- * read on that ladder: `bodyPt` scales every run's height by
- * `FAMILY_BODY_PT / bodyPt` before any test sees it. `glyphs` maps the code
- * points a book's text layer prints for its ligatures to the letters they
- * stand for, run by run, before any pattern reads them. Both apply in
- * `pageItems`, so the compiler and the runtime read one book identically;
- * the compiler and the seat each call this once, when they open a book by
- * its id. A document carrying no declaration is untouched.
+ * on the registry row), where the row declares one. `bodyPt` scales every
+ * run's height by `FAMILY_BODY_PT / bodyPt`, since every size test is
+ * calibrated to the family body size; `glyphs` maps a book's ligature code
+ * points to the letters they stand for. Both apply in `pageItems`, so the
+ * compiler and the runtime read one book identically; each calls this once
+ * when it opens a book by its id. A document with no declaration is untouched.
  */
 export function useTypography(doc, bookId) {
   const typography = BOOKS[bookId]?.typography;
@@ -265,18 +244,13 @@ export async function pageItems(doc, pageNo) {
   const hScale = typography?.bodyPt > 0 ? FAMILY_BODY_PT / typography.bodyPt : 1;
   const items = runs
     .filter((it) => {
-      // The DTRPG stamp carries a buyer's name and order number and is not set
-      // on a repeatable baseline in every printing, so it answers to its own
-      // test wherever it lands.
+      // The retailer's order stamp is not on a repeatable baseline, so it is dropped wherever it lands.
       if (/Order #\d+/.test(it.str)) return false;
       if (it.transform[5] > zone) return true;
-      // No profile — a document too short for furniture to repeat in, or a
-      // parity whose furniture was not recognised — leaves the flat band as the
-      // only stop there is.
+      // No profile (too short a document, or an unrecognised parity): the flat band is the only stop.
       if (!profiled) return it.transform[5] > FOOTER_BAND;
       const key = footerKey(pageNo, it);
-      // A footer line carrying a whole line of type on THIS page is a
-      // collision, not furniture: keep the line, and lose the folio inside it.
+      // A footer line carrying a whole line of type on this page is a collision: keep the line.
       return !(profile.keys.has(key) && lines.get(key) <= FOOTER_LINE_RUNS);
     })
     .map((it) => ({
@@ -287,8 +261,7 @@ export async function pageItems(doc, pageNo) {
       h: it.height * hScale,
       alias: it.fontName,
       sp: it.spaceBefore === true,
-      // A run that is nothing but a ligature, for `fuseRuns`: the book's own
-      // glyph code points, or a standard ligature pdf.js already spelt out.
+      // A run that is nothing but a ligature, for `fuseRuns`.
       ...(glyphs && it.str && (LIGATURES.has(it.str) || [...it.str].every((ch) => /^[a-z]+$/.test(glyphs[ch] ?? "")))
         ? { lig: true }
         : {}),
@@ -297,8 +270,7 @@ export async function pageItems(doc, pageNo) {
     items: typography ? fuseRuns(items, typography) : items,
     width: vp.width,
     height: vp.height,
-    // The book's declared measures ride with the page for the readers that
-    // need them (paragraph gap, leading, body top); absent where none is.
+    // The book's declared measures (paragraph gap, leading, body top) ride with the page.
     ...(typography ? { typography } : {}),
   };
 }
@@ -308,13 +280,12 @@ const LIGATURES = new Set(["fi", "fl", "ff", "ffi", "ffl"]);
 
 /**
  * Two run shapes a book's text layer may set, put back the way a reader sees
- * the line. `ligatureRuns`: the layer sets each ligature as a run of its own
- * ("A" "tt" "acks"), so a word arrives in pieces and no per-run test finds
- * it; a ligature run rejoins the run it touches on either side, unless a word
- * space opens between them. `labelColon`: a label's colon is set with the
- * value ("Type" ": Humanoid"), so no label ends in one; the colon moves onto
- * the touching run before it. Touching is a gap under 1.5pt on one baseline.
- * Items keep their order; a run absorbed into another, or left empty, goes.
+ * the line. `ligatureRuns`: each ligature is a run of its own, so a word
+ * arrives in pieces; a ligature run rejoins the run it touches on either side
+ * unless a word space opens between them. `labelColon`: a label's colon is set
+ * with the value, so no label ends in one; the colon moves onto the touching
+ * run before it. Touching is a gap under 1.5pt on one baseline. Items keep
+ * their order; a run absorbed into another, or left empty, goes.
  */
 function fuseRuns(items, { ligatureRuns = false, labelColon = false } = {}) {
   const strip = ({ lig: _lig, ...it }) => it;
@@ -362,11 +333,11 @@ function fuseRuns(items, { ligatureRuns = false, labelColon = false } = {}) {
 
 /**
  * Ordered text runs containing any of the given codepoints, with their fill
- * colors, from the page's operator list. MECHANICAL (no judgment): stream
- * order is deterministic per printing; run indexes are stable because only
- * runs containing the target codepoints are counted (per-customer watermark
- * text never contains PUA glyphs). Used by the executor's glyphColor
- * instruction and by the compiler to choose pick indexes.
+ * colors, from the page's operator list. Stream order is deterministic per
+ * printing, and run indexes are stable because only runs containing the target
+ * codepoints are counted (a retailer's watermark never contains them). Used by
+ * the executor's glyphColor instruction and by the compiler to choose pick
+ * indexes.
  */
 export async function glyphColorRuns(doc, pageNo, codepoints) {
   const want = new Set(codepoints.map((c) => (typeof c === "number" ? c : c.codePointAt(0))));
@@ -405,18 +376,11 @@ export async function glyphColorRuns(doc, pageNo, codepoints) {
 
 /**
  * The page's printed lines, each as the blocks of type that touch along it.
- *
  * pdf.js emits a run per style change, so one printed line arrives as several
- * items sharing a baseline, and a run's x is its own origin rather than the
- * line's. Joining runs that touch and cutting where a hole is wider than a
- * stretched word space recovers the two measurements a histogram of run
- * origins cannot make: where a line STARTS, and how far it reaches.
- *
- * Each line's runs are ordered by x before they are joined. The page sort is
- * by baseline first, so two runs a fraction of a point apart in y arrive in
- * whatever order their y put them — and a left-hand run reaching a segment
- * that began to its right would be swallowed by it, filing the line's start at
- * the right-hand column's edge.
+ * items sharing a baseline; joining runs that touch and cutting at a hole
+ * wider than a stretched word space recovers where a line starts and how far
+ * it reaches. Runs are ordered by x before they are joined, so a left-hand run
+ * is never swallowed by a segment that began to its right.
  */
 function textLines(body) {
   const rows = [];
@@ -440,26 +404,15 @@ function textLines(body) {
  * Column left edges from a histogram of body-item x origins, with columns the
  * histogram starves recovered from the page's lines.
  *
- * The histogram asks a 10pt bin to hold 8% of the page's body runs. That level
- * is what separates a column's edge from the background of runs that merely
- * BEGIN at some x mid-line, which is why it stays; but it counts line starts in
- * the numerator against every run in the denominator, so the bar rises with the
- * page's typographic fragmentation rather than with its column count. A column
- * of stat blocks or small caps runs several runs to the line and starves the
- * quieter column beside it — the page then reports one column, a span covers
- * the whole width, and a passage ends at a heading printed in the other column.
- *
- * The rescue re-asks the question of the page's LINES, the population a column
- * edge can actually supply, and admits an edge only where the page's extents
- * agree it is one: nothing reaches across either gutter that bounds it, its
- * lines stand alone on their baselines often enough (a table's cells never do —
- * every cell shares its row with the rest), and its measure matches the widest
- * the page already sets, which is what a marginal tab and a numeral stub fail.
- * A page whose histogram found no column at all is left alone: with nothing set
- * in columns to extend, a table's stops are all a line-start histogram finds.
- *
- * The rescue only ever ADDS. A column the histogram named is never moved or
- * dropped, so a page it already reads correctly cannot change.
+ * The histogram counts line starts against every run, so its bar rises with
+ * the page's typographic fragmentation: a column of stat blocks or small caps
+ * starves the quieter column beside it. The rescue re-asks the question of the
+ * page's lines and admits an edge only where the page's extents agree: nothing
+ * reaches across either gutter that bounds it, its lines stand alone on their
+ * baselines often enough (a table's cells never do), and its measure matches
+ * the widest the page already sets. A page whose histogram found no column is
+ * left alone, and the rescue only adds: a column the histogram named is never
+ * moved or dropped.
  */
 export function detectColumns(items) {
   const body = items.filter((it) => it.h < HEADING_MIN_H);
@@ -510,9 +463,8 @@ export function detectColumns(items) {
   const candidates = [];
   for (const group of groups) {
     if (group.at.length < floor) continue;
-    // The edge is where most of the group's lines start. A hanging indent and a
-    // numeral centred on a tab both sit inboard of the measure and would carry
-    // the column a few points to the right of where its paragraphs open.
+    // The edge is where most of the group's lines start; a hanging indent or a
+    // tab-centred numeral would carry it inboard.
     let edge = group.lo;
     let most = 0;
     for (let i = 0; i < group.at.length; ) {
@@ -534,10 +486,8 @@ export function detectColumns(items) {
     held.push(x);
     candidates.push({ x, edge });
   }
-  // The gutter on a candidate's RIGHT is tested once every candidate is known.
-  // Testing it while the list is still being built asks the question against
-  // whichever edges happened to be found first, so on a page rescuing two
-  // columns the boundary between them would never be examined at all.
+  // The gutter on a candidate's right is tested once every candidate is known,
+  // so the boundary between two rescued columns is examined.
   const all = held.slice().sort((a, b) => a - b);
   const extras = candidates
     .filter(({ x }) => {
@@ -548,6 +498,7 @@ export function detectColumns(items) {
   return [...cols, ...extras].sort((a, b) => a - b);
 }
 
+/** The index of the column whose left edge `x` falls at or after (within 5pt). */
 export const colOf = (x, cols) => {
   let best = 0;
   for (let i = 0; i < cols.length; i++) if (x >= cols[i] - 5) best = i;
@@ -575,7 +526,7 @@ function displayHeadings(items, cols) {
 
 /**
  * Every extraction anchor detected on a page, for interactive browsing:
- * display headings plus run-in candidates (line-initial "Name:" body items).
+ * display headings plus run-in candidates (line-initial `Name:` body items).
  * Returned in column/reading order with the mode each anchor needs.
  */
 export function listHeadings({ items }) {
@@ -601,9 +552,8 @@ export function extractDisplay({ items, height }, heading) {
   const heads = displayHeadings(items, cols);
   const anchor = heads.find((h) => h.text.toLowerCase().startsWith(heading.toLowerCase()));
   if (!anchor) return null;
-  // Collect same-column segments; a parent heading (e.g. "STATUE, ANIMATED"
-  // directly over its variant "BRONZE") may own almost no prose of its own, so
-  // keep extending past sub-headings until enough text accumulates.
+  // A parent heading directly over a variant may own almost no prose, so keep
+  // extending past sub-headings until enough text accumulates.
   const later = heads
     .filter((h) => h.col === anchor.col && h.y > anchor.y + 2)
     .sort((a, b) => a.y - b.y);
@@ -622,10 +572,9 @@ export function extractDisplay({ items, height }, heading) {
 }
 
 /**
- * Run-in mode: the entry heading is body-size bold ("Grappling Hook:"). Find
- * it by text, learn the bold font's alias FROM the match (self-calibrating —
- * pdf.js aliases are per-document, so nothing is hardcoded), then collect
- * until the next line-initial item with that same alias (= next entry).
+ * Run-in mode: the entry heading is body-size bold. Find it by text, learn the
+ * bold font's alias from the match (pdf.js aliases are per-document), then
+ * collect until the next line-initial item with that alias (the next entry).
  */
 export function extractRunin({ items, height }, heading) {
   const cols = detectColumns(items);
@@ -654,9 +603,9 @@ export function extractRunin({ items, height }, heading) {
 
 
 /**
- * Spoils subsection: a bold run-in "Spoils" header followed by component
- * bullets of the form `name (weight, cost, effects…)` (MM p. 169).
- * Self-calibrating like extractRunin. Returns [{name, weight6, cost, effects}].
+ * Spoils subsection: a bold run-in header followed by component bullets of
+ * the form `name (weight, cost, effects)` (MM p. 169). Calibrates its font
+ * alias like `extractRunin`. Returns [{name, weight6, cost, effects}].
  */
 export function extractSpoils({ items, height }) {
   const cols = detectColumns(items);
@@ -702,9 +651,8 @@ export async function pageArtInfo(doc, pageNo) {
   }
   const out = [];
   for (const name of names) {
-    // Timeout-guarded: Node's fake pdf.js worker can stall object delivery on
-    // pages after the first (the browser's real worker resolves normally) —
-    // never hang, just report the image as unavailable.
+    // Timeout-guarded: Node's fake pdf.js worker can stall object delivery after
+    // the first page; an unresolved image is reported as unavailable.
     const img = await new Promise((resolve) => {
       let done = false;
       const finish = (value) => {
@@ -730,12 +678,10 @@ export async function pageArtInfo(doc, pageNo) {
 }
 
 /**
- * Placed image rectangles from the page's operator list — a PURE operator walk
- * (no object delivery, so it cannot stall under Node's fake worker; the same
- * reason glyphColorRuns is safe offline). Top-origin y like pageItems. The
- * offline compiler uses PLACEMENT to associate an entry with the illustration
- * printed inside its claimed region; pixel dimensions are irrelevant to that
- * judgment.
+ * Placed image rectangles from the page's operator list: a pure operator walk
+ * with no object delivery, so it cannot stall under Node's fake worker. Top-origin
+ * y like `pageItems`. The offline compiler uses placement to associate an entry
+ * with the illustration printed inside its claimed region.
  */
 export async function pageArtPlacements(doc, pageNo) {
   const page = await doc.getPage(pageNo);
@@ -789,11 +735,9 @@ export function pickArt(infos) {
 }
 
 /**
- * Extract a REGION of the rendered page as a PNG blob (browser only). Used
+ * Extract a region of the rendered page as a PNG blob (browser only). Used
  * when the cookbook ships a placement box: rendering sidesteps XObject
- * delivery entirely (the AX PDFs paint their illustrations inside Form
- * XObjects, whose image objects never register on page.objs), and the crop is
- * exactly what the printed page shows at that spot.
+ * delivery, which never registers images painted inside Form XObjects.
  */
 export async function extractPageArtRegion(doc, pageNo, box) {
   if (typeof document === "undefined") return null;
@@ -803,9 +747,7 @@ export async function extractPageArtRegion(doc, pageNo, box) {
   const canvas = document.createElement("canvas");
   canvas.width = vp.width;
   canvas.height = vp.height;
-  // Race a hard timeout: a render that waits on an undecodable image (a wasm
-  // decoder missing on this seat) must degrade to "no art", never hang the
-  // import.
+  // Raced against a timeout: a render waiting on an undecodable image degrades to "no art".
   const task = page.render({ canvasContext: canvas.getContext("2d"), viewport: vp });
   const done = await Promise.race([
     task.promise.then(() => true),
@@ -833,14 +775,11 @@ export async function extractPageArtRegion(doc, pageNo, box) {
 }
 
 /**
- * Render a CROP of a page as a map picture, turned upright (browser only).
- *
- * `frame` is `sceneFrame(recipe)` and is the only authority on size and turn:
- * the crop is rendered straight into a canvas of the frame's cut size through
- * an offset viewport, so a page point lands on the pixel the frame says it
- * does, and nothing outside the crop — a page footer least of all — is ever
- * painted into the picture. The cut is then drawn through the frame's own
- * transform. WebP where the browser encodes it, PNG where it answers with one.
+ * Render a crop of a page as a map picture, turned upright (browser only).
+ * `frame` is `sceneFrame(recipe)` and the only authority on size and turn: the
+ * crop is rendered into a canvas of the frame's cut size through an offset
+ * viewport, so nothing outside the crop is painted, then drawn through the
+ * frame's transform. WebP where the browser encodes it, PNG otherwise.
  *
  * @param {{x: number, y: number}} crop the recipe's crop, in page points
  * @param {{scale: number, cut: {w: number, h: number}, width: number, height: number}} frame
@@ -854,11 +793,9 @@ export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
   const cut = document.createElement("canvas");
   cut.width = frame.cut.w;
   cut.height = frame.cut.h;
-  // The PRINT intent, because a display render is paced by animation frames and
-  // a tab that is not in front is given none: a Judge who starts a long import
-  // and looks at something else would otherwise get no map. The race is the one
-  // the illustration crop runs, given longer — a city map at a pixel to the
-  // foot is several times the pixels of a page at scale 2.
+  // The print intent: a display render is paced by animation frames, which a
+  // background tab is never given. The timeout race is longer than the
+  // illustration crop's, since a map crop is several times its pixels.
   const task = page.render({ canvasContext: cut.getContext("2d"), viewport: vp, intent: "print" });
   const done = await Promise.race([
     task.promise.then(() => true),
@@ -886,11 +823,10 @@ export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
 }
 
 /**
- * Render a CROP of a page to gray for a wall trace (browser only): one byte
+ * Render a crop of a page to gray for a wall trace (browser only): one byte
  * per pixel, top-left first, at `scale` pixels to the page point and never
- * turned, so a pixel maps back to a page point by the crop's corner and the
- * scale alone. Rendered with the print intent and raced against a timeout,
- * as the map picture is (`extractPageMap`).
+ * turned. Rendered with the print intent and raced against a timeout, as in
+ * `extractPageMap`.
  *
  * @param {{x: number, y: number, w: number, h: number}} crop the recipe's crop, in page points
  * @returns {Promise<{gray: Uint8Array, width: number, height: number}|null>}
@@ -925,14 +861,13 @@ export async function extractPageGray(doc, pageNo, crop, scale) {
 }
 
 /**
- * Extract the page illustration as a PNG blob (browser only — needs canvas).
+ * Extract the page illustration as a PNG blob (browser only; needs canvas).
  * Handles pdf.js bitmap images and raw RGB/RGBA/gray data.
  */
 export async function extractPageArt(doc, pageNo, name = null) {
   if (typeof document === "undefined") return null;
   const infos = await pageArtInfo(doc, pageNo);
-  // A shipped XObject name is a compile-time ASSOCIATION (this entry's own
-  // illustration on a multi-entry page) and outranks the largest-image rule.
+  // A shipped XObject name is a compile-time association and outranks the largest-image rule.
   const chosen = (name ? infos.find((i) => i.name === name) : null) ?? pickArt(infos);
   if (!chosen) return null;
   const { img, width, height } = chosen;

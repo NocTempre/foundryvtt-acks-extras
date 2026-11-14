@@ -3,16 +3,11 @@
  * `foraging` ruledata tables acks-extras declares (its forage, hunt, dog-pack
  * and grazing derivations read them via `expectTables`).
  *
- * Living off the country is four throws with different shapes — firewood is
- * per forager and repeatable, water is one throw per group, food is per
- * forager once a day, hunting costs the whole day — and the recipe reads them
- * as four prose windows. This step turns each into a target, the modifiers
- * that move it, and what a success is worth.
- *
- * The three modifiers are kept APART rather than pre-summed into a target:
- * hard country, settled country whose forage is somebody's crop, and the
- * proficiency are different rules that happen to add, and a reader that was
- * handed one number could not say why. Like every binding here, no value ships.
+ * Four throws (firewood, water, food, hunting) are read from four prose
+ * windows, each into a target, the modifiers that move it and what a success
+ * is worth. The terrain, territory and proficiency modifiers stay apart rather
+ * than pre-summed, so a reader can say why a target is what it is. No value
+ * ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -54,12 +49,8 @@ export const PRODUCES = Object.freeze({
 
 /**
  * Every "<n>+ in <terrains>" clause in a window, as {target, terrains[]}.
- *
- * Split on the TARGETS rather than matched as one pattern: a terrain list is
- * itself comma-separated ("14+ in clear, forest, hills, jungle, mountains, or
- * swamp terrain"), so any pattern that ends a clause at punctuation reads only
- * the first terrain and drops five. Each clause instead runs from its own
- * target to wherever the next one begins.
+ * Split on the targets: a terrain list is itself comma-separated, so each
+ * clause runs from its own target to where the next begins.
  */
 export function parseTargetClauses(text) {
   const t = String(text ?? "").toLowerCase();
@@ -82,10 +73,8 @@ export function parseTargetClauses(text) {
 }
 
 /**
- * A per-terrain target map from those clauses.
- *
- * A clause naming "other terrain" becomes the `any` fallback, which is how the
- * firewood throw is printed: one good case and everywhere else.
+ * A per-terrain target map from those clauses. A clause naming "other
+ * terrain" becomes the `any` fallback.
  */
 export function targetsFromClauses(text, { fallback = null } = {}) {
   const clauses = parseTargetClauses(text);
@@ -101,18 +90,14 @@ export function targetsFromClauses(text, { fallback = null } = {}) {
 }
 
 /**
- * A penalty clause list: "-4 penalty … in civilized territory, but gain a +2
- * bonus in outlands territory, and +4 in unsettled" → {civilized:-4, …}.
- *
- * `noun` is "territory" or "terrain", which is the only thing separating the
- * two otherwise identical shapes on this page.
+ * A modifier clause list ("<±n> … in <country> <noun>") → a map of country to
+ * modifier. `noun` is "territory" or "terrain", the only thing separating the
+ * two shapes on this page.
  */
 export function parseModifierClauses(text, noun) {
   const t = String(text ?? "").toLowerCase();
   const out = {};
-  // The gap is generous because the clause names the throw between the
-  // modifier and the country ("-4 penalty to their Hunting proficiency throws
-  // in civilized territory"), which is nearly fifty characters on its own.
+  // The gap is generous: the clause names the throw between the modifier and the country.
   const re = new RegExp(`([+-]\\s*\\d+)[^.]{0,70}?\\bin\\s+([a-z\\s,]+?)\\s+${noun}`, "g");
   for (const m of t.matchAll(re)) {
     const value = Number(m[1].replace(/\s+/g, ""));
@@ -125,14 +110,10 @@ export function parseModifierClauses(text, noun) {
 }
 
 /**
- * A list of kinds or terrains named at the head of a clause.
- *
- * BOTH the printed word and its singular are emitted when they differ. The
- * page is not consistent with itself — the same country is "barrens" in one
- * sentence and "deserts" in another where the terrain key is "desert" — and
- * the reader tests membership, so an extra alias only ever helps. Stripping
- * the plural instead would turn "barrens", a terrain key in its own right,
- * into one that matches nothing.
+ * A list of kinds or terrains named at the head of a clause. Both the printed
+ * word and its singular are emitted when they differ: the page is not
+ * consistent about plurals, the reader tests membership, and stripping a
+ * plural would break a terrain key that is itself plural.
  */
 export function parseKindList(text, re) {
   const m = re.exec(String(text ?? "").trim());
@@ -171,9 +152,8 @@ export function parseYield(text) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The engine tables from the raw ones. Pure — the committed tests feed it
- * invented prose. Each half assembles independently, so a window that missed
- * costs only what it carried.
+ * The engine tables from the raw ones. Pure. Each half assembles
+ * independently, so a missed window costs only what it carried.
  */
 export function assembleForagingTables(raw = {}) {
   const out = {};
@@ -191,38 +171,33 @@ export function assembleForagingTables(raw = {}) {
   const water = raw.waterProse ?? {};
   const waterTargets = targetsFromClauses(water.targets);
   if (waterTargets) targets.water = keyTerrainMap(waterTargets);
-  // Water's yield is counted in DAYS, not stone: the throw finds a source, and
-  // what it is worth is how long it lasts the people who found it.
+  // Water's yield is counted in days, not stone.
   const waterDays = countFrom(String(water.yield ?? ""), /meet\s+(\S+)\s+days?/i);
   if (waterDays != null) yields.water = { amount: waterDays, unit: "days" };
-  // The size one throw covers. Its window is anchored on "Parties larger
-  // than", so the figure is the window's own first token — the phrases that
-  // introduce it are behind the anchor, not inside the text.
+  // The size one throw covers; the window's anchor sits before the figure, so
+  // the figure is the window's first token.
   const group = countFrom(String(water.group ?? ""), /^\s*(\S+)\s+man-?sized/i)
     ?? countFrom(String(water.group ?? ""), /(?:up\s+to|larger\s+than)\s+(\S+)\s+man-?sized/i);
   if (group != null) out.partyGroupSize = group;
 
   const food = raw.foodProse ?? {};
-  // The window opens ON the target, so the bare figure is its first token; the
-  // reader is given the phrase it expects rather than a second pattern.
+  // The window opens on the target; the reader is handed the phrase it expects.
   const foodTarget = parseThrowTarget(`throw of ${food.target ?? ""}`);
   if (foodTarget != null) targets.food = { any: foodTarget };
   const foodYield = parseYield(food.target ?? food.yield);
   if (foodYield) yields.food = foodYield;
-  // Both modifier sentences are the TAIL of this paragraph, past the yield.
+  // Both modifier sentences are the tail of this paragraph, past the yield.
   const foodTail = String(food.modifiers ?? food.yield ?? "");
   const foodTerrain = parseModifierClauses(foodTail, "terrain");
   if (foodTerrain) forageTerrain.food = keyTerrainMap(foodTerrain);
   const foodTerritory = parseModifierClauses(foodTail, "territory");
   if (foodTerritory) forageTerritory.food = foodTerritory;
 
-  // The proficiency is worth the same on every forage the page describes, so
-  // it is one figure rather than one per kind (RR p. 27, JJ p. 68, MM p. 19).
+  // One proficiency figure serves every forage (RR p. 27, JJ p. 68, MM p. 19).
   const survival = parseSignedClause(wood.survival ?? food.yield ?? water.yield ?? "");
   if (survival != null) out.survivalBonus = survival;
 
-  // Hunting is two paragraphs: its own throw and yield, then how settled
-  // country moves it.
+  // Hunting is two paragraphs: its throw and yield, then its territory modifiers.
   const hunt = raw.huntProse ?? {};
   const hunting = raw.huntingProse ?? {};
   const huntTarget = parseThrowTarget(hunt.throw ?? "");
@@ -240,8 +215,7 @@ export function assembleForagingTables(raw = {}) {
   const cap = /maximum\s+bonus\s+of\s*([+-]?\s*\d+)/i.exec(String(dogs.pack ?? ""));
   if (cap) out.dogHelpCap = Math.abs(Number(cap[1].replace(/\s+/g, "")));
 
-  // Grazing: which kinds feed themselves on ancillary hours alone, and which
-  // country feeds nothing that is not already living in it.
+  // Grazing: the kinds that feed on ancillary hours alone, and the barren country.
   const grazing = raw.grazingRules ?? {};
   const ancillary = parseKindList(grazing.ancillary, /^(.+?)\s+can\s+graze\s+for\s+their\s+full/i);
   if (ancillary) out.efficientGrazers = ancillary;

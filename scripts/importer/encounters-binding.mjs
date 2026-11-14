@@ -2,12 +2,10 @@
  * Encounter-table assembly: the raw JJ/RR reads → the engine-shaped
  * `encounters` ruledata tables acks-extras declares (its formation
  * encounter chain reads them via `expectTables`). The raw tables keep the
- * pages' shapes — outcome rows across five columns, 2-point d100 bands,
- * dice-and-average cells, captured prose windows; this step turns them into
- * bracket bands per column, parses each cell's dice and figures, repairs
- * the small-caps welds in creature names, and reads the printed numbers out
- * of every window — judgments the recipes must not make and the reader must
- * not repeat. Like every binding here, no value ships.
+ * pages' shapes; this step turns them into bracket bands per column, parses
+ * each cell's dice and figures, repairs the small-caps welds in creature
+ * names and reads the printed numbers out of every prose window. No value
+ * ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -95,7 +93,7 @@ export const CIVILIZED_GROUPS = Object.freeze({
 /*  Cell parsers                                                       */
 /* ------------------------------------------------------------------ */
 
-/** "2 – 11" → {min:2,max:11}; "18" → {min:18,max:18}; "-" → null. */
+/** A band cell (`a – b` or a single number) → `{min, max}`; a dash or junk → null. */
 export function parseBand(cell) {
   const s = String(cell ?? "").trim();
   if (!s || s === "-" || s === "–") return null;
@@ -105,24 +103,22 @@ export function parseBand(cell) {
   return one ? { min: Number(one[1]), max: Number(one[1]) } : null;
 }
 
-/** A row key like "01-02" or "99-00" or "96-100" → its d100 bounds. */
+/** A d100 row key (`aa-bb`) → its bounds; a max below the min is the wrap to 100. */
 export function bandFromKey(key) {
   const m = /^(\d+)-(\d+)$/.exec(String(key));
   if (!m) return null;
   const min = Number(m[1]);
   let max = Number(m[2]);
-  if (max < min) max = 100; // "99-00" prints the wrap
+  if (max < min) max = 100; // the page prints the wrap as 00
   return { min, max };
 }
 
 /**
- * A creature name out of the text layer. Small-caps welds arrive as a
- * stranded single letter ("c amel", "Herd a nimal") — the letter folds
- * into the word that follows it; a glued comma gets its space back; then
- * the case the layer dropped rises at the name's joints — the first
- * letter and each letter after ", ". Mid-name capitals the small caps
- * flattened ("Herd animal") stay flat: the fold is cosmetic and the
- * name-form matching downstream is case-blind.
+ * A creature name out of the text layer. A small-caps weld arrives as a
+ * stranded single letter, which folds into the word after it; a glued comma
+ * gets its space back; the first letter and each letter after ", " rise.
+ * Mid-name capitals stay flat, since name-form matching downstream is
+ * case-blind.
  */
 export function repairName(cell) {
   let s = String(cell ?? "").replace(/\s+/g, " ").trim();
@@ -134,7 +130,7 @@ export function repairName(cell) {
     .replace(/, ./g, (c) => c.toUpperCase());
 }
 
-/** "4d6 × 30' (420')" → {dice:"4d6", mult:30, avg:420}; junk → null. */
+/** A distance cell (`NdM × K (average)`) → `{dice, mult, avg}`; junk → null. */
 export function parseDistanceCell(cell) {
   const s = String(cell ?? "");
   const m = /(\d+\s*d\s*\d+)\s*[×x]\s*(\d+)[^(]*\(\s*([\d,]+)/.exec(s);
@@ -142,7 +138,7 @@ export function parseDistanceCell(cell) {
   return { dice: m[1].replace(/\s+/g, ""), mult: Number(m[2]), avg: Number(m[3].replace(/,/g, "")) };
 }
 
-/** The size-band header window (a run of ascending ranges ending open-ended) → the upper edges of the closed bands, e.g. [6,14,30,60] (RR p. 284). */
+/** The size-band header window (a run of ascending ranges ending open-ended) → the upper edges of the four closed bands (RR p. 284). */
 export function parseSizeEdges(window) {
   const s = String(window ?? "").toLowerCase();
   const first = /(\d+)\s*-/.exec(s);
@@ -155,9 +151,8 @@ const WORD_FRACTIONS = { half: 0.5, third: 1 / 3, quarter: 0.25 };
 
 /**
  * A result cell as a reader reads it: whitespace collapsed and the first
- * letter raised, which the small caps set lowercase ("aqueduct"). Unlike
- * `repairName` it leaves every other letter alone — a result can be a
- * sentence, and a comma inside one opens no new name.
+ * letter raised, which the small caps set lowercase. Unlike `repairName` it
+ * leaves every other letter alone, since a result can be a sentence.
  */
 export function sentenceCell(cell) {
   const s = String(cell ?? "").replace(/\s+/g, " ").trim();
@@ -166,9 +161,8 @@ export function sentenceCell(cell) {
 }
 
 /**
- * Treasure-type letters out of the small caps: "n,d" → "N, D", "o×2" →
- * "O×2", "Q, n" → "Q, N" — each comma-separated entry's leading letter
- * raised, entries joined the way the page sets them.
+ * Treasure-type letters out of the small caps: each comma-separated entry's
+ * leading letter raised, entries joined with ", ".
  */
 export function treasureLetters(cell) {
   const s = String(cell ?? "").replace(/\s+/g, "");
@@ -177,7 +171,7 @@ export function treasureLetters(cell) {
   return parts.length ? parts.join(", ") : null;
 }
 
-/** "+2" → 2, "0" → 0, "−1" → -1; junk → null. */
+/** A signed figure (hyphen, en dash or minus for negative) → a number; junk → null. */
 export function signedCell(cell) {
   const m = /([+\-−–]?)\s*(\d+)/.exec(String(cell ?? ""));
   if (!m) return null;
@@ -189,9 +183,9 @@ const DICE = new Set([2, 3, 4, 6, 8, 10, 12, 20, 100]);
 
 /**
  * A lairs-per-hex dice cell as the ASCII expression the engine rolls:
- * `NdM`, `NdM+K` or `NdM-K`. The modifier's sign may arrive as a hyphen, an
- * en or em dash or a minus sign, and the text layer welds spaces anywhere in
- * the cell ("2 d 4 + 1"). A zero count or zero faces is no die; junk → null.
+ * `NdM`, `NdM+K` or `NdM-K`. The modifier's sign may arrive as a hyphen, a
+ * dash or a minus sign, and the text layer welds spaces anywhere in the cell.
+ * A zero count or zero faces is no die; junk → null.
  */
 export function parseLairDice(cell) {
   const s = String(cell ?? "").replace(/\s+/g, "");
@@ -210,11 +204,9 @@ const LAIR_BAND_KINDS = [["valuable", "valuable"], ["dangerous", "dangerous"], [
 
 /**
  * The random-substitution window → `[{min, max, kind}]`: each `N, words` or
- * `N-M, words` clause (hyphen, en dash or minus between the faces) read as a
- * band, its words mapped to a kind by common noun. Null unless every clause
- * names a kind and the bands tile 1 to a die's top with no gap or overlap —
- * the same proof `assembleSubTable` makes, since a band lost to the page would
- * otherwise read as a smaller die.
+ * `N-M, words` clause read as a band, its words mapped to a kind by common
+ * noun. Null unless every clause names a kind and the bands tile 1 to a die's
+ * top with no gap or overlap (the proof `assembleSubTable` makes).
  */
 export function parseSubstitutionBands(window) {
   const bands = [];
@@ -237,12 +229,10 @@ const COUNT_WORDS = { one: 1, two: 2, three: 3 };
 
 /**
  * The settled-territory window → `{ [territory]: fraction }`. A figure is a
- * percent ("33%"), a numeric fraction ("1/3") or a word fraction ("one-third",
- * "two thirds", "half"); it belongs to the last territory named between the
- * previous figure and itself, and a first figure with no name before it is
- * the civilized share (the page's heading lists the classes in that order).
- * Fractions are numbers in (0, 1]. Null when a territory is claimed twice or
- * nothing reads.
+ * percent, a numeric fraction or a word fraction; it belongs to the last
+ * territory named between the previous figure and itself, and a first figure
+ * with no name before it is the civilized share. Fractions are numbers in
+ * (0, 1]. Null when a territory is claimed twice or nothing reads.
  */
 export function parseSettledShares(window) {
   const text = String(window ?? "").toLowerCase();
@@ -274,8 +264,7 @@ export function parseSettledShares(window) {
 /**
  * One raw sub-table → ascending `[{min, max, name}]`, each result's cells
  * joined " — " in reading order. Null unless its bands tile 1 to a die's top
- * with no gap or overlap: a row lost to the page would otherwise read as a
- * smaller die, or as a face that rolls nothing.
+ * with no gap or overlap, so a lost row never reads as a smaller die.
  */
 export function assembleSubTable(raw, { cells = ["name"], letters = null } = {}) {
   const rows = [];
@@ -333,10 +322,8 @@ function assembleNameGrid(raw, columns) {
 }
 
 /**
- * The engine tables from the raw ones. Pure — the committed tests feed it
- * invented cells. Each half assembles independently, so a partial import
- * (one monster batch, the grids without the prose) still yields what its
- * pages held.
+ * The engine tables from the raw ones. Pure. Each half assembles
+ * independently, so a partial import still yields what its pages held.
  */
 export function assembleEncounterTables(raw = {}) {
   const out = {};
@@ -429,13 +416,13 @@ export function assembleEncounterTables(raw = {}) {
     };
     const rows = [vis.party, vis.platoon, vis.company, vis.battalion].map(scaleRow).filter(Boolean);
     if (rows.length) {
-      // Below the smallest printed band the formation is ordinary men: ×1.
+      // Below the smallest printed band the adjustment is zero.
       const floor = Math.min(...rows.map((r) => r.min)) - 1;
       visibility.formationScale = [{ min: null, max: floor, pct: 0 }, ...rows.sort((a, b) => a.min - b.min)];
     }
 
-    // The window opens AFTER its find (the mounted-count sentence, RR pp. 281, 284), so the
-    // first figure is the mounted/large count with its lead-in cut off.
+    // The window opens after its find (RR pp. 281, 284), so the first figure is
+    // the mounted/large count with its lead-in cut off.
     const heads = String(vis.heads ?? "").toLowerCase();
     const head = (re) => {
       const m = re.exec(heads);
@@ -460,8 +447,7 @@ export function assembleEncounterTables(raw = {}) {
 
   const mods = raw.evasionModsProse;
   if (mods) {
-    // The executor keys valueBlocks results by block id; flatten every
-    // block back to the sentence keys (top-level keys ride for tests).
+    // The executor keys valueBlocks results by block id; flatten them back to the sentence keys.
     const flat = Object.assign(
       {},
       ...Object.values(mods).filter((v) => v && typeof v === "object"),
@@ -493,8 +479,7 @@ export function assembleEncounterTables(raw = {}) {
   }
   if (Object.keys(subTables).length) out.terrainSubTables = subTables;
 
-  // The two lookups keep the terrain groups their rows print, as keyed by
-  // the recipe; formation maps each encounter terrain onto one.
+  // The lookups keep the terrain groups their rows print; formation maps each encounter terrain onto one.
   const lookup = (rows, field, parse) => {
     const table = {};
     for (const [group, cells] of Object.entries(rows ?? {})) {
@@ -522,9 +507,9 @@ export function assembleEncounterTables(raw = {}) {
 }
 
 /**
- * Merge the engine-shaped tables into the imported `encounters` doc — the
- * travel-binding pattern: raw tables stay beside the assembled ones, so a
- * re-import or a later monster batch grows the doc instead of replacing it.
+ * Merge the engine-shaped tables into the imported `encounters` doc. Raw
+ * tables stay beside the assembled ones, so a re-import grows the doc instead
+ * of replacing it.
  */
 export async function applyEncountersImport() {
   const svc = services.get("ruledata-import");

@@ -3,13 +3,10 @@
  * the scalar `die`, `every`, `target` and `distance` tables
  * formation/constants.mjs `importedEncounterCadence` reads.
  *
- * Two windows (JJ p. 36). The sentence that opens on the encounter throw
- * names its die and how many turns lie between throws, and the one after it
- * names the throw that meets a wandering monster, written with a trailing
- * plus. The distance step names the dice of the encounter distance, with the
- * factor they are multiplied by. A figure that did not read is left absent,
- * so the delve throws nothing, or rolls no distance, on it; nothing is
- * defaulted. No value ships.
+ * Two windows (JJ p. 36): the cadence sentences name the die, the turns
+ * between throws and the throw that meets a monster; the distance step names
+ * the distance dice and their factor. A figure that did not read is left
+ * absent and nothing is defaulted. No value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -27,7 +24,7 @@ export const PRODUCES = Object.freeze({
   [DELVE_ENCOUNTER_DOC_ID]: { die: "cadenceProse", every: "cadenceProse", target: "cadenceProse", distance: "cadenceProse" },
 });
 
-/** Dice as prose prints them, with an optional factor: `2d6 × 10`, `1d8`. */
+/** Dice as prose prints them, with an optional trailing factor. */
 const DICE = /(?<!\d)(\d+)\s*d\s*(\d+)(?:\s*[×x*]\s*(\d+))?/;
 
 /**

@@ -173,8 +173,7 @@ export function buildExtras(node) {
   }
   const tv = raw("trainedValue");
   if (tv && !/^none/i.test(tv)) {
-    // Schema: array of { role (enum), value (gp num), note }. "315gp (war
-    // mount) 40gp (work beast)" -> two rows; unknown roles -> other + note.
+    // Schema: array of { role (enum), value (gp num), note }; an unknown role becomes `other` with a note.
     const list = [];
     for (const m of tv.matchAll(/([\d,]+)\s*gp\s*(?:\(([^)]+)\))?/g)) {
       const label = (m[2] ?? "").trim();
@@ -209,9 +208,8 @@ export function buildExtras(node) {
 /**
  * A size key's prototype token footprint in grid squares, `{width, height}`,
  * read from the imported frontage table; null where the world holds none for
- * the key, which leaves Foundry's default token size alone.
- * `largeHugeGigantic` has no cell: that register key names a printed range, and
- * picking a single footprint for it would be inventing one.
+ * the key, which leaves Foundry's default token size alone. `largeHugeGigantic`
+ * names a range and has no cell.
  */
 const tokenSize = (key) => {
   const squares = sizeSquares(key);
@@ -219,17 +217,14 @@ const tokenSize = (key) => {
 };
 
 /**
- * Map the SCALAR stat fields to system paths — the shared half of the binding,
- * used whole-block by bindMonster and per-grid-row by the template importer
- * (one mapping owner; a template row is just a partial stat block).
+ * Map the scalar stat fields to system paths: the shared half of the binding,
+ * used whole-block by `bindMonster` and per grid row by the template importer.
  */
 export function bindStatsScalars(s) {
   const system = {};
 
   if (Number.isInteger(s.armorClass)) system.ac = { value: s.armorClass };
 
-  // A fraction of a die rolls a smaller die (a ½ rating is 1d4), which is what
-  // lets a sub-1-HD animal read back as one — the familiar rule's whole test.
   const hd = parseHitDice(s.hitDice);
   if (hd) {
     const bonus = hd.bonus ?? 0;
@@ -244,8 +239,7 @@ export function bindStatsScalars(s) {
     system.saves = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, { value: v }]));
   }
 
-  // "N/A" morale (mindless undead) is not 0 (=always flees): leave it unset and
-  // flag it, rather than writing a misleading number.
+  // "N/A" morale is not 0: it is left unset and flagged.
   const moraleNA = s.morale === "N/A";
   system.details = {
     ...(typeof s.morale === "number" ? { morale: s.morale } : {}),
@@ -272,13 +266,11 @@ export function bindStatsScalars(s) {
  * imported documents — and the slot block it casts from.
  *
  * Three readings of the prose (`scanMonsterSpells`). A spell named outright
- * ("(as the spell X)", "X (as the spell)", a "spell-like abilities:" list)
- * becomes a copy whose usage is the frequency printed beside it. "Casts
- * spells as a Nth-level <class>" sets the slot block from that class's grid
- * at that level and, with no printed repertoire, draws one to the slots from
- * the class's own list. A printed repertoire ("1st - a, b; 2nd - c") is
- * copied as printed, and its counts are the slots when no class grid says
- * otherwise. A name no document answers stays in the prose the sheet shows.
+ * becomes a copy whose usage is the frequency printed beside it. A "casts as a
+ * level-N class" sentence sets the slot block from that class's grid and, with
+ * no printed repertoire, draws one to the slots from the class's own list. A
+ * printed repertoire is copied as printed, and its counts are the slots when
+ * no class grid says otherwise. A name no document answers stays in the prose.
  * A creature that only names spells draws nothing: those are its abilities.
  * See docs/monsters/DECISIONS.md, "A spellcasting monster carries the imported spells".
  */
@@ -310,8 +302,7 @@ function bindMonsterSpells(paras) {
   } else if (cls && slots) {
     for (const doc of repertoireFor(cls, slots, { level: cast.level })) carry(doc);
   }
-  // The tab that lists them is on for any creature carrying a spell; its
-  // slots stay at zero unless a grid or a printed repertoire fills them.
+  // The spell tab is on for any creature carrying a spell; slots stay zero unless a grid or repertoire fills them.
   if (slots) out.spells = coreSlotsPatch(slots).spells;
   else if (out.items.length) out.spells = { enabled: true };
   return out;
@@ -320,8 +311,7 @@ function bindMonsterSpells(paras) {
 /**
  * What a stat block's proficiency names resolve against: every definition id
  * by name, and the ability items the library already holds by definition id.
- * Built once per block; `loadedAbilityIndex` reads a compendium library only
- * through the warm `importedIndex()` cache.
+ * Built once per block.
  */
 export function proficiencyPools() {
   return { nameIndex: abilityNameIndex(), loadedById: loadedAbilityIndex() };
@@ -329,7 +319,7 @@ export function proficiencyPools() {
 
 /**
  * A resolver for callers that hold names and no node: it warms the library
- * index, builds the pools once and answers `bindProficiency` for each name.
+ * index, builds the pools once and answers `bindProficiency` per name.
  * @returns {Promise<(name: string) => object>} name to the ability item for it
  */
 export async function proficiencyResolver() {
@@ -343,11 +333,9 @@ export async function proficiencyResolver() {
  * the item the library already holds, else the definition the cookbook carries
  * built as `bindAbility` builds it, else the unclassified namesake. The first
  * two carry the definition's own extras, category included; the namesake
- * carries a blank category and every reader answers that as unknown.
- *
- * A name is matched as printed, then as a power's printed name the register
- * maps to a definition, so a block that lists a class power among its
- * proficiencies resolves too.
+ * carries a blank category, which every reader answers as unknown. A name is
+ * matched as printed, then as a power's printed name the register maps to a
+ * definition.
  * @param {{text: string, ref?: string, target?: number, convertedFrom?: string}} prof
  *   `ref` is an authored definition id and wins outright; `target` is the
  *   creature's own throw, split off the name; `convertedFrom` the older name
@@ -356,23 +344,17 @@ export async function proficiencyResolver() {
 export function bindProficiency(prof, pools = proficiencyPools()) {
   const { nameIndex, loadedById } = pools;
   const present = new Set(loadedById.keys());
-  // When the stat block named it by an older name, the EMBEDDED copy records
-  // the rename (not the shared world item — that would stamp one source's
-  // history onto everyone's). The sheet then explains why the name on the
-  // page and the name in the book differ.
+  // The embedded copy records a rename, never the shared world item.
   const renamed = prof.convertedFrom ? { conversionStatus: "renamed", conversionFrom: prof.convertedFrom } : {};
 
-  // An authored `ref` wins outright; without one, the name is resolved against
-  // the ids this world already holds before category preference applies.
+  // An authored `ref` wins outright; otherwise the name resolves against the ids this world holds.
   const guess = prof.ref ? null : idForName(nameIndex, prof.text, present);
   const id = prof.ref ?? guess?.id ?? refForPrintedName(prof.text);
-  // Once per distinct resolution: a bulk import walks hundreds of blocks with
-  // the same handful of shared names.
+  // Reported once per distinct resolution.
   reportGuess(prof.text, guess);
 
-  // The creature's own throw target ("climbing 6+"), split off by stripRoll,
-  // outranks the definition's generic ladder — bindAbility resolves that only
-  // at 1st level, with no actor to read.
+  // The creature's own throw target (split off by stripRoll) outranks the
+  // definition's generic ladder, which `bindAbility` resolves only at 1st level.
   const withTarget = (item) =>
     prof.target == null
       ? item
@@ -386,12 +368,11 @@ export function bindProficiency(prof, pools = proficiencyPools()) {
           },
         };
 
-  // 1. ALREADY LOADED — copy the item the world holds; it already materialized
-  //    its throws and effects, and carries whatever the GM tuned.
+  // 1. Already loaded: copy the world item, which carries its throws, effects and the GM's tuning.
   const loaded = id ? loadedById.get(id) : null;
   if (loaded) {
     const src = loaded.toObject();
-    // Identity and filing belong to the world item, not to this copy of it.
+    // Identity and filing belong to the world item.
     delete src._id;
     delete src.folder;
     delete src.sort;
@@ -402,13 +383,11 @@ export function bindProficiency(prof, pools = proficiencyPools()) {
     return withTarget(src);
   }
 
-  // 2. COULD BE LOADED — the cookbook carries the definition, so embed THAT
-  //    ability (descriptor, classification, shared cookbook id) rather
-  //    than a bare namesake.
+  // 2. The cookbook carries the definition: embed that ability, not a bare namesake.
   const shared = id ? cookbookEntry(id) : null;
   if (shared) return withTarget(bindAbility(shared.entry, null, id, renamed));
 
-  // 3. Nothing to point at — a named ability of unknown category, never a failure.
+  // 3. Nothing to point at: a named ability of unknown category.
   return withTarget(namesakeAbility(prof.text));
 }
 
@@ -424,13 +403,10 @@ export function bindMonster(node) {
     if (atk.text) system.attacks = atk.text;
   }
 
-  // Each attack MODE is an OR-alternative (weapon OR claws+bite). Build a
-  // weapon item per segment; only mode 0 is equipped by default, later modes
-  // are tagged so the GM can swap. Duplicate names within a mode get a #suffix.
-  // A "by weapon ±N" segment's modifier is the creature's, not the item's: it
-  // moves to `system.damage.mod`, where it rides every weapon the creature
-  // swings, and the item keeps "By weapon". The first such modifier is the
-  // creature's; a segment printing another one keeps it in its own text.
+  // Each attack mode is an alternative: a weapon item per segment, only mode 0
+  // equipped, later modes tagged. A repeated name within a mode gets a number.
+  // A "by weapon ±N" modifier is the creature's, so it moves to `system.damage.mod`;
+  // the first such modifier wins and a segment printing another keeps it in its text.
   const items = [];
   let weaponMod = null;
   for (const [mi, mode] of (atk?.modes ?? []).entries()) {
@@ -464,8 +440,7 @@ export function bindMonster(node) {
   }
   // Melee and missile alike: the page gives the modifier no delivery.
   if (weaponMod) system.damage = { mod: { melee: weaponMod, missile: weaponMod } };
-  // The pools are built once per monster and only when there is a token to
-  // spend them on (most monsters print none).
+  // The pools are built once per monster, and only when it prints a proficiency.
   const profs = (f.stats?.proficiencies ?? []).filter((p) => p.text && !/^none/i.test(p.text));
   const pools = profs.length ? proficiencyPools() : null;
   for (const prof of profs) items.push(bindProficiency(prof, pools));
@@ -479,15 +454,12 @@ export function bindMonster(node) {
     });
   }
 
-  // What the prose says the creature casts — by name, as a class of a level,
-  // or from a printed repertoire — rides as the imported spells themselves.
+  // What the prose says the creature casts rides as the imported spells themselves.
   const cast = bindMonsterSpells(f.description ?? []);
   if (cast.spells) system.spells = cast.spells;
   items.push(...cast.items);
 
-  // A Gigantic monster on a 1×1 token is wrong before anyone reads a stat, and
-  // the size is right there in the block. Only set what the table actually
-  // says: an unrecognised or ranged size leaves Foundry's default alone.
+  // An unrecognised or ranged size leaves Foundry's default token alone.
   const token = tokenSize(s.size?.key);
 
   return {
@@ -499,24 +471,11 @@ export function bindMonster(node) {
 }
 
 /**
- * How many monsters to import at once. Each import is a PIPELINE of work that
- * uses different resources — pdf.js page extraction (one shared worker), image
- * decode + PNG encode (main thread), art upload (network), and a document write
- * (DB) — so running a handful concurrently overlaps stages that would otherwise
- * idle waiting on each other. The cap is deliberate and small: firing all ~287
- * at once would pin every page's decoded artwork in memory and flood the single
- * worker's queue, trading one bottleneck for a worse one. 4 keeps each resource
- * busy without oversubscribing any.
- */
-/**
  * The two prose channels every imported monster gets: the whole passage for a
  * core `biography`, and the Full Monster Sheet extras (description sections
- * routed onto its fields + the classification/senses/defenses block). Shared by
- * importOne and the family importer so a family variant is byte-for-byte the
- * same creature a direct import produces.
- *
- * The Description tab stacks its fields in FIELD_ORDER, so the page reference
- * closes the last field that received text and the creature carries it once.
+ * routed onto its fields plus the classification, senses and defenses block).
+ * Shared by `importOne` and the family importer. The page reference closes the
+ * last field in FIELD_ORDER that received text, so the creature carries it once.
  */
 export function monsterProseChannels(node, id, cite) {
   const paras = node.fields.description ?? [];
@@ -552,8 +511,7 @@ export const warmSpellPacksOnce = () => (spellPacksWarm ??= warmSpellPacks().cat
 
 /* -------------------------------------------- */
 
-/** A label's parenthesised range suffix is dropped (MM p. 106), and smallcap
- *  case is healed to title case — the short piece generated names use. */
+/** A label with its parenthesised range suffix dropped (MM p. 106) and small caps healed to title case, for generated names. */
 const nameLabelOf = (label) =>
   String(label ?? "")
     .replace(/\s*\([^)]*\)\s*/g, " ")
@@ -566,9 +524,8 @@ const CORE_VARIES_BY_WEAPON = "variesByWeapon";
 
 /**
  * Does the running system's weapon schema accept this damage-type key? Read
- * from the field's own choices, so a key the system dropped is never written
- * into a Set that would refuse the whole item; with no schema to ask (offline),
- * the module's own vocabulary answers.
+ * from the field's own choices, so an unknown key never refuses the whole item;
+ * with no schema to ask (offline), the module's own vocabulary answers.
  */
 function systemKnowsDamageType(key) {
   let choices = null;
@@ -586,8 +543,7 @@ function systemKnowsDamageType(key) {
  * A weapon's `system.damage` in the system's shape: the printed die as the
  * base formula, the extract's damage-type key as the base type where the
  * system knows the key, and the extraordinary mark where the page coloured it.
- * The stamped `damageType` flag still carries the key for the module's own
- * reading whether or not the system took it.
+ * The `damageType` flag carries the key whether or not the system took it.
  */
 export function weaponDamage(formula, typeKey = null, extraordinary = false) {
   const key = typeKey === "varies" ? CORE_VARIES_BY_WEAPON : typeKey;
@@ -616,14 +572,12 @@ const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, 
 });
 
 /**
- * Weapon items from a FORM's attack routine + one damage cell, via the shared
- * attackModel (no parallel parser). The form tables separate attack names with
- * "/" where stat lines use "," — normalize inside the parenthetical only.
- * `types` is the form's glyph-mapped damage-type list, in segment order.
- * A "by weapon ±N" segment's modifier is the creature's, as `bindMonster`
- * takes it: the first such modifier is returned as `mod` and the item keeps
- * "By weapon"; a segment printing another one keeps it in its own text.
- * `{items, mod}`, `mod` null where no segment prints one.
+ * Weapon items from a form's attack routine and one damage cell, via the
+ * shared `attackModel`. Form tables separate attack names with "/" where stat
+ * lines use ","; only the parenthetical is normalized. `types` is the form's
+ * damage-type list in segment order. The first "by weapon ±N" modifier is the
+ * creature's, as in `bindMonster`. Returns `{items, mod}`, `mod` null where no
+ * segment prints one.
  */
 function weaponsFromRoutine(routine, damageText, types) {
   if (!routine || !damageText) return { items: [], mod: null };
@@ -655,9 +609,8 @@ function weaponsFromRoutine(routine, damageText, types) {
 }
 
 /**
- * Generic color-word → hex vocabulary for token TINTS (a dragon wears its
- * hide color on the canvas). Purely lexical English mapping — the WORDS come
- * from the seat's own extracted hideColor text; the first recognized one wins.
+ * Generic color-word to hex vocabulary for token tints. The words come from the
+ * seat's own extracted hideColor text; the first recognized one wins.
  */
 const COLOR_HEX = {
   black: "#3a3a3a", charcoal: "#464646", grey: "#8c8c8c", gray: "#8c8c8c", slate: "#708090",
@@ -701,10 +654,9 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
     xp: intFrom(cells.xpSpeechless) ?? intFrom(cells.xpSpeaking) ?? intFrom(cells.xp) ?? undefined,
   });
 
-  // Attack throw: printed on the row (thrall "weapon 10+") outranks the row of
-  // the Judge's imported ladder its rating stands on (a hit-point bonus rounds
-  // the dice up a row); with neither, the generated actor keeps defaults and
-  // its sheet says the ladder is not imported.
+  // Attack throw: printed on the row outranks the Judge's imported ladder row
+  // for its rating; with neither, the generated actor keeps defaults and its
+  // sheet says the ladder is not imported.
   const printedThrow = /(-?\d+)\s*\+/.exec(String(cells.attacks ?? ""))?.[1];
   const ladderThrow = printedThrow == null ? monsterThrowForHd(hitDice, ladder?.rows) : null;
   let derived = null;
@@ -716,9 +668,8 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
 
   if (cells.attacks) system.attacks = [cells.attacks, cells.damage].filter(Boolean).join(" — ");
 
-  // A single-axis damage die with no routine (the elemental tiers): one
-  // generic natural attack; forms with routines get their weapons in `cells`.
-  // A "by weapon ±N" cell's modifier is the creature's (`damage.mod`).
+  // A single-axis damage die with no routine gets one generic natural attack;
+  // forms with routines get their weapons in `cells`.
   const items = [];
   if (cells.damage && !cells.attackRoutine && !cells.attacks) {
     const lift = splitWeaponModifier(cells.damage);
@@ -726,9 +677,8 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
     items.push(weaponPayload("Strike", lift?.formula ?? (diceOf(cells.damage) || String(cells.damage)), { naturalWeapon: "strike" }));
   }
 
-  // A row's slot column is the slot block the generated creature casts from.
-  // What it casts as is the prose's word, kept beside the level the row
-  // prints, so the generator can draw the repertoire the block holds.
+  // A row's slot column is the slot block the creature casts from; the prose's
+  // class word is kept beside the printed level so the generator can draw a repertoire.
   const slots = slotsFromCells(cells.spells);
   if (slots) Object.assign(system, coreSlotsPatch(slots));
   const casterLevel = intFrom(cells.casterLevel);
@@ -748,8 +698,7 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
     `${secKey ? ` ${escapeText(sectionText.get(secKey))}` : ""}` +
     `${notes.length ? ` <em>${notes.join("; ")}</em>` : ""}</p>`;
 
-  // Presentation channels the page itself prints: an age row's SIZE category
-  // scales the token; a type row's HIDE COLOR tints it.
+  // An age row's size scales the token; a type row's hide color tints it.
   const sizeWord = (/^\s*([A-Za-z-]+)/.exec(String(cells.size ?? ""))?.[1] ?? "").toLowerCase().split("-")[0];
   const token = tokenSize(sizeWord) ?? {};
 
@@ -772,10 +721,9 @@ export function templateOption(ax, row, cells, { id, cite, sectionText, spellSou
 
 /**
  * A member's whole XP cell, read again as text beside the first figure the
- * stat block keeps: a cell that prints one figure per role ("N (role)") is
- * what the Role axis's cells take their XP from (`proseLeaderRoles`). The
- * same instruction the entry ships, at the `raw` pattern; "" where the entry
- * has none or the page did not answer.
+ * stat block keeps: a cell printing one figure per role is what the Role axis's
+ * cells take their XP from (`proseLeaderRoles`). The entry's own instruction at
+ * the `raw` pattern; "" where the entry has none or the page did not answer.
  */
 async function wholeXpCell(doc, cb, id, entry) {
   const instr = entry?.fields?.["stats.xp"];
@@ -786,10 +734,9 @@ async function wholeXpCell(doc, cb, id, entry) {
 }
 
 /**
- * A bound creature as a template's variant option: a complete preset, the
- * same system, minted items, extras and token size a direct import writes,
- * named exactly as a direct import (`name`), and stamped with the cookbook id
- * it was read from.
+ * A bound creature as a template's variant option: a complete preset with the
+ * system, minted items, extras and token size a direct import writes, named as
+ * a direct import is, and stamped with the cookbook id it was read from.
  */
 function creatureOption({ key, label, name, art = "", system, items, flags, extras, prototypeToken, id, cite }) {
   return {
@@ -826,8 +773,7 @@ const familyMember = (id) =>
  * Judge's copy is imported and the creature is of a type it builds for
  * (`entryLeaderTemplate`). Nothing is minted for an entry whose page names no
  * leader, or one a family template already holds. A template held under the
- * same id is written over in place, so an import, a Rebuild and a repair of
- * the creature all leave one. Never throws: a failed build costs the
+ * same id is written over in place. Never throws: a failed build costs the
  * template, not the creature.
  *
  * @param {{id: string, found: object, node: object, bound: object, extras: object, folder: string|null, bindDoc: object, img?: string}} args
@@ -839,7 +785,7 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
     const text = (node.fields.description ?? []).map((p) => p.text).join(" ");
     const types = node.fields?.stats?.type?.keys ?? (node.fields?.stats?.type?.key ? [node.fields.stats.type.key] : []);
     const proc = procedureBuildsFor(types) ? importedLeaderProcedure() : null;
-    // Most creatures name no leader: they cost no second read of the XP cell.
+    // A creature naming no leader costs no second read of the XP cell.
     if (!proc && !Object.keys(readRoleSentences(text)).length) return null;
     const name = printedNameOf(node, found.entry.name);
     const option = creatureOption({
@@ -867,8 +813,7 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
       ladderCite: ladder.cite,
     });
     if (!built) return null;
-    // The troop kits its kind fields, where the Judge's tables hold them; a
-    // kit alone mints no template.
+    // Kits its kind fields where the Judge's tables hold them; a kit alone mints no template.
     kitPresets({ options: [option], axes: built.axes, cells: built.cells, kits: importedKits() });
     const templateId = leaderTemplateId(id);
     const label = game.i18n.format(`${LANG_PREFIX}.leaderTemplate.name`, { name });
@@ -893,10 +838,9 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, folde
 }
 
 /**
- * ONE-OFF family enrichments, layered AFTER the general prose-leader pass —
- * bespoke shapes a specific family needs (framework where it pays, plain
- * code where a one-off is faster). Each runs inside the same try/catch: a
- * failing enrichment costs its extras, never the family.
+ * One-off family enrichments, layered after the general prose-leader pass.
+ * Each runs inside the same try/catch: a failing enrichment costs its extras,
+ * never the family.
  */
 const FAMILY_ONE_OFFS = {};
 
@@ -937,13 +881,12 @@ function carryMergedVariants(held, axes, cells, lore = new Set()) {
 }
 
 /**
- * kind.monsterFamily -> ONE `acks-extras.template` generator whose variant axis
- * options are the family's member creatures, each a COMPLETE preset: the same
- * bindMonster output a direct import produces (system, weapons, abilities,
- * FMS extras, token size, per-variant art), packed as engine-ready patches.
- * "Start with a baseline and select the special case" instead of N top-level
- * actors; a member can still be imported directly from the dialog. Families
- * with description-variant prose get ONE-OFF role axes (FAMILY_ONE_OFFS).
+ * kind.monsterFamily -> one `acks-extras.template` generator whose variant axis
+ * options are the family's member creatures, each a complete preset: the same
+ * `bindMonster` output a direct import produces (system, weapons, abilities,
+ * extras, token size, per-variant art), packed as engine-ready patches. A
+ * member can still be imported directly from the dialog. Families with
+ * description-variant prose get one-off role axes (`FAMILY_ONE_OFFS`).
  */
 export async function importFamily(bookId, famId, folderId) {
   const found = cookbookEntry(famId);
@@ -970,10 +913,9 @@ export async function importFamily(bookId, famId, folderId) {
       if (node.ok) lore = entryText(node, member.id, entry.cite);
       continue;
     }
-    // CROSS-BOOK: a member reprinted in another open book binds the NEWER
-    // printing (the per-entry defer rule, per variant) — the option keeps this
-    // family's variant label but takes its stats, text and cookbook id from
-    // the revising book, so merge/dedup sees the same creature.
+    // A member reprinted in another open book binds the newer printing (the
+    // per-entry defer rule): the option keeps this family's variant label but
+    // takes its stats, text and cookbook id from the revising book.
     let bindId = member.id;
     let bindCb = cb;
     let bindDoc = session.doc;
@@ -993,9 +935,8 @@ export async function importFamily(bookId, famId, folderId) {
       ui.notifications.warn(`${MODULE_ID} | ${entry.name}: page did not match the cookbook — variant skipped.`);
       continue;
     }
-    // Per-member kind dispatch: MM-style monsters bind rich (stats + FMS
-    // extras); legacy appendix blocks bind through their own translator and
-    // carry biography only — the same split the direct importers use.
+    // Per-member kind dispatch: stat-block monsters bind rich; legacy blocks bind
+    // through their own translator and carry biography only, as in the direct importers.
     const legacy = entry.kind === "kind.monsterLegacy";
     await warmSpellPacksOnce();
     const { system, items, flags, prototypeToken } = legacy ? bindLegacyMonster(node) : bindMonster(node);
@@ -1007,16 +948,13 @@ export async function importFamily(bookId, famId, folderId) {
     } else {
       const channels = monsterProseChannels(node, bindId, entry.cite);
       extras = channels.extras;
-      // Both prose channels ship on the option: biography for the core sheet,
-      // extras flags for the Full Monster Sheet — whichever is active at
-      // GENERATE time uses its own; the other is inert.
+      // Both prose channels ship on the option; the sheet active at generate time uses its own.
       system.details = { ...(system.details ?? {}), biography: channels.biography };
     }
 
     let art = "";
     if (node.fields.art && ctx.uploadPageArt) {
-      // Hard-bounded, per the render-timeout doctrine: one undecodable image
-      // must cost this variant its portrait, never hang the family import.
+      // Timeout-bounded: one undecodable image costs this variant its portrait, not the import.
       const artInstr = entry.fields?.art ?? {};
       const up = await Promise.race([
         ctx
@@ -1050,13 +988,12 @@ export async function importFamily(bookId, famId, folderId) {
   const axes = [{ key: "variant", label: "Variant", roll: "", derive: { from: "", max: null }, options }];
   const cells = [];
   const out = { nameFormat: fam.nameFormat ?? "{variant}" };
-  // General prose-leader pass first, then any bespoke one-off; either failing
-  // costs its enrichment, never the family import.
+  // General prose-leader pass first, then any one-off; a failure costs only its enrichment.
   try {
     const ladder = importedThrowLadder();
     proseLeaderRoles({ options, memberText, memberXp, axes, cells, out, ladder: ladder.rows, ladderCite: ladder.cite });
-    // The AXIOMS leader procedure, where the Judge's copy is imported: a second
-    // source beside the printed leaders, and the only one where none is printed.
+    // The leader procedure, where the Judge's copy is imported: a second source
+    // beside the printed leaders, and the only one where none is printed.
     derivedLeaderRoles({
       options, axes, cells, out, memberXp,
       proc: importedLeaderProcedure(), deriveLeader,
@@ -1065,8 +1002,7 @@ export async function importFamily(bookId, famId, folderId) {
   } catch (err) {
     console.warn(`${MODULE_ID} | ${famId}: prose-role pass failed — importing without roles.`, err);
   }
-  // The troop kits each kind fields, after the roles so a leader's kit cells
-  // know which ranks the variant has.
+  // Kits run after the roles so a leader's kit cells know which ranks the variant has.
   try {
     kitPresets({ options, axes, cells, kits: importedKits() });
   } catch (err) {
@@ -1078,15 +1014,12 @@ export async function importFamily(bookId, famId, folderId) {
     console.warn(`${MODULE_ID} | ${famId}: one-off enrichment failed — importing without its extras.`, err);
   }
 
-  // CROSS-BOOK MERGE: the same conceptual family already imported (from this
-  // or another book) gains this book's NEW variants instead of a twin. Two
-  // identity signals: a shared member id (revisedBy-deferred variants land on
-  // the revising id) and a shared family suffix across books.
+  // Cross-book merge: a family already imported gains this book's new variants
+  // instead of a twin, matched by a shared member id or a shared family suffix.
   const optionIdOf = (o) => o.flags?.[MODULE_ID]?.cookbook?.id ?? null;
   const famSuffix = famId.split(".")[1] ?? famId;
   const incomingIds = new Set(options.map(optionIdOf).filter(Boolean));
-  // ACKS II names win (the conversion guide's direction): a legacy family
-  // name the guide RENAMES matches its ACKS II family for identity.
+  // ACKS II names win: a legacy family name the conversion guide renames matches its ACKS II family.
   const canonicalName = (n) => {
     const conv = convertName(data.registers, String(n ?? ""));
     return (conv?.status === "renamed" && conv.to ? conv.to : String(n ?? "")).toLowerCase();
@@ -1128,8 +1061,7 @@ export async function importFamily(bookId, famId, folderId) {
       }
       // The kit axis is chosen last, after the role its cells are keyed by.
       if (addedCells.some((c) => (c.by ?? []).includes("kit"))) unionKitAxis(exAxes, axes);
-      // The ACKS II core printing owns the NAME: an adventure-created template
-      // a core family merges into takes the core family's name and id.
+      // The core printing owns the name: an adventure-created template a core family merges into takes its name and id.
       const CORE_BOOKS = new Set(["mm", "rr", "jj"]);
       const exFam = existing.getFlag(MODULE_ID, "cookbook")?.id ?? "";
       const rename =
@@ -1155,9 +1087,8 @@ export async function importFamily(bookId, famId, folderId) {
       return existing;
     }
   }
-  // A repair in place writes this build over the held template whole
-  // (`createDoc` under `withRewrite`); the variants another book merged into
-  // it, and their cells, are carried over as they stand.
+  // A repair in place writes this build over the held template whole (`createDoc`
+  // under `withRewrite`); variants another book merged into it are carried over.
   if (existing && isRewriting(famId)) {
     carryMergedVariants(existing, axes, cells, loreIds);
     if (axes.some((a) => a.key === "role")) out.nameFormat = "{variant} {role}";
@@ -1184,10 +1115,10 @@ export async function importFamily(bookId, famId, folderId) {
 }
 
 /**
- * A GENERATION sub-roll enumerated by an ability's own prose, parsed from
- * THIS seat's extracted text at import. A play-time roll is deliberately not
- * matched: the phrase must close with a colon right after the die / "twice" /
- * a short "for X" qualifier. Returns `{die, twice?, outcomes: [{min, max,
+ * A generation sub-roll enumerated by an ability's own prose, parsed from this
+ * seat's extracted text. A play-time roll is not matched: the phrase must
+ * close with a colon right after the die, "twice" or a short "for" qualifier.
+ * Returns `{die, twice?, outcomes: [{min, max,
  * text}]}` or null; an enumeration stops at the first non-numbered segment.
  * Nested rolls inside an outcome stay text for the Judge.
  */
@@ -1206,11 +1137,10 @@ function subRollFromProse(text) {
 }
 
 /**
- * kind.monsterTemplate -> an `acks-extras.template` GENERATOR actor. All
- * book-parsing happens HERE, once, at import: grid rows map through the same
- * scalar binder as full stat blocks, form routines through the same
- * attackModel, and the template actor stores only engine-ready patches —
- * one owner per mapping.
+ * kind.monsterTemplate -> an `acks-extras.template` generator actor. All
+ * book-parsing happens here, once, at import: grid rows map through the scalar
+ * binder, form routines through `attackModel`, and the template actor stores
+ * only engine-ready patches.
  */
 export async function importTemplate(bookId, id, folderId) {
   const found = cookbookEntry(id);
@@ -1225,17 +1155,15 @@ export async function importTemplate(bookId, id, folderId) {
   const gridRows = (name) => node.fields.grids?.[name]?.rows ?? [];
 
   const paras = node.fields.description ?? [];
-  // Section-joined prose: what an option row prints under its own heading, and
-  // what the sub-roll enumerations are read out of ("roll 1d8 for the type of
-  // aura: …"). Built before the axes because the options materialize from it.
+  // Section-joined prose: what an option row prints under its own heading and
+  // what the sub-roll enumerations are read from. Built before the axes.
   const sectionText = new Map();
   for (const p of paras) {
     if (!p.section) continue;
     sectionText.set(p.section, `${sectionText.get(p.section) ?? ""} ${p.text}`.trim());
   }
 
-  // What the family casts as — a tradition or a class word — is said once in
-  // the prose and holds for every row that prints a slot column.
+  // What the family casts as is said once in the prose and holds for every row with a slot column.
   const spellSource = castSourceOf(paras.map((p) => p.text).join(" "));
   // A row with no printed throw takes its rating's row of the Judge's ladder.
   const ladder = importedThrowLadder();
@@ -1251,8 +1179,7 @@ export async function importTemplate(bookId, id, folderId) {
       return templateOption(ax, row, cells, { id, cite, sectionText, spellSource, ladder });
     });
     if (!options.length) console.warn(`${MODULE_ID} | ${id}: axis "${ax.key}" materialized no options.`);
-    // AUTHORED per-option art (the body-form portraits on the dragon's own
-    // pages, associated by XObject name) — uploaded once, hard-bounded.
+    // Authored per-option art, associated by XObject name; uploaded once, timeout-bounded.
     for (const [optKey, spec2] of Object.entries(ax.art ?? {})) {
       const option = options.find((o) => o.key === optKey);
       if (!option || !ctx.uploadPageArt) continue;
@@ -1271,8 +1198,7 @@ export async function importTemplate(bookId, id, folderId) {
     });
   }
 
-  // N-dimensional refinements: each 2D damage cell becomes typed weapon items
-  // via the FORM axis's routine + glyph-mapped damage types.
+  // Each two-axis damage cell becomes typed weapon items via the form axis's routine and damage types.
   const cells = [];
   for (const c of spec.cells ?? []) {
     const [aKey, bKey] = c.by ?? [];
@@ -1329,10 +1255,9 @@ export async function importTemplate(bookId, id, folderId) {
     folder: folderId,
     system: {
       output: { actorType: "monster", nameFormat: spec.nameFormat ?? "" },
-      // The FIXED foundation: rows the template page prints as plain values
-      // ("Type: Monstrosity", vision, morale) bind through the same scalar
-      // binder + sheet-extras mapping as any monster; "varies by …" rows
-      // simply failed their patterns and contribute nothing.
+      // The fixed foundation: rows printed as plain values bind through the same
+      // scalar binder and extras mapping as any monster; "varies" rows fail their
+      // patterns and contribute nothing.
       base: {
         merge: bindStatsScalars(node.fields.stats ?? {}).system,
         flags: { [MODULE_ID]: { extras: buildExtras(node) } },
@@ -1361,14 +1286,12 @@ export async function importTemplate(bookId, id, folderId) {
 }
 
 /**
- * Re-read an already-imported monster from this seat's book — same extraction
- * and binding as `importOne`, but UPDATES rather than creates. Returns null
- * when the actor is not ours; otherwise `{ ok }` with a `reason` the caller
- * can explain — `book-closed`, `no-match`, or `no-stats` for an entry this
- * binding cannot read a stat block from. See docs/importer/DECISIONS.md, "A
- * refill retracts only what its entry claimed to fill".
- *
- * By default only the stats are written and embedded items are left alone.
+ * Re-read an already-imported monster from this seat's book: the extraction and
+ * binding of `importOne`, but it updates rather than creates. Returns null
+ * when the actor is not ours; otherwise `{ ok }` with a `reason`:
+ * `book-closed`, `no-match`, or `no-stats` for an entry with no stat block.
+ * See docs/importer/DECISIONS.md, "A refill retracts only what its entry
+ * claimed to fill". By default only the stats are written and embedded items are left alone.
  * `whole` repairs the monster in place (`REPAIR.monster`): its minted
  * attacks are replaced and its prose is rewritten field by field, except a
  * field a Judge wrote in; `keptProse` names those. With `force` that field is
@@ -1385,10 +1308,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
   if (!session) return { ok: false, reason: "book-closed", book: bookId, name: found.entry.name };
   const node = await executeEntry(session.doc, found.cb, data.registers, found.id);
   if (!node.ok) return { ok: false, reason: "no-match", book: bookId, name: found.entry.name };
-  // Never retract fields the entry never claimed — an entry with no
-  // `stats.*` fields would otherwise retract every path at once. See
-  // docs/importer/DECISIONS.md, "A refill retracts only what its entry
-  // claimed to fill".
+  // An entry with no `stats.*` fields retracts nothing (see the DECISIONS entry above).
   if (!node.fields.stats || !Object.keys(node.fields.stats).length) {
     return { ok: false, reason: "no-stats", book: bookId, name: found.entry.name };
   }
@@ -1407,8 +1327,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
         flags: {
           [MODULE_ID]: {
             cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
-            // Written either way: a stale "no morale" would outlive the morale a
-            // corrected read now finds.
+            // Written either way, so a stale "no morale" does not outlive a corrected read.
             moraleNA: !!flags?.[MODULE_ID]?.moraleNA,
             extras,
           },
@@ -1418,8 +1337,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
       repair && "decision" in repair ? repair : { force },
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
-    // The creature's leaders are rebuilt from the same read, and minted where
-    // a world holds the creature without them.
+    // Leaders are rebuilt from the same read, and minted where the world holds the creature without them.
     await mintLeaderTemplate({
       id, found, node, bound: { system, items, flags, prototypeToken }, extras,
       folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "",
@@ -1436,9 +1354,9 @@ export async function refillMonster(actor, { whole = false, force = false, repai
 }
 
 /**
- * Defer-to-newest: an adventure entry reprinted in a book this seat has OPEN
- * (meta.revisedBy, e.g. ax2.khepri -> mm.khepri) imports from there instead —
- * the ACKS II printing outranks the adventure's ACKS I block when present.
+ * Defer-to-newest: an adventure entry reprinted in a book this seat has open
+ * (`meta.revisedBy`) imports from there instead; the ACKS II printing outranks
+ * the adventure's ACKS I block.
  */
 export function deferTarget(id) {
   const rev = cookbookEntry(id)?.entry?.meta?.revisedBy;
@@ -1458,9 +1376,8 @@ export function bindLegacyMonster(node) {
   });
   const atkText = [s.attacks, s.damage].filter(Boolean).join(" — ");
   if (atkText) bound.system.attacks = atkText;
-  // One weapon item when the era's "N (name)" attack + dice damage parse. A
-  // "by weapon ±N" damage is the creature's modifier (`damage.mod`, as
-  // `bindMonster` takes it) and the item keeps "By weapon".
+  // One weapon item when the attack and dice damage parse; a "by weapon ±N"
+  // damage is the creature's modifier (`damage.mod`, as in `bindMonster`).
   const m = /^\s*\d*\s*\(?\s*([A-Za-z][A-Za-z' -]*)\)?/.exec(String(s.attacks ?? ""));
   const lift = splitWeaponModifier(s.damage);
   if (lift?.mod) bound.system.damage = damageTotal(lift.mod);
@@ -1484,10 +1401,9 @@ export function bindLegacyMonster(node) {
 
 /**
  * A parsed quick-stat block (the `statline` pattern) onto a monster-type
- * actor. Values persist in world fields (the GM's hand-typed equivalence);
- * ability scores and gear notes go to flags — the monster schema has no score
- * fields — and the entry's own text is written into the biography. The items
- * it builds carry the `minted` stamp.
+ * actor. Ability scores and gear notes go to flags, since the monster schema
+ * has no score fields, and the entry's own text is written into the biography.
+ * The items it builds carry the `minted` stamp.
  */
 export function bindNpc(node) {
   const sl = node.fields.statline ?? {};
@@ -1497,8 +1413,7 @@ export function bindNpc(node) {
     const hdCount = parseInt(String(sl.hd ?? sl.class?.level ?? 1), 10) || 1;
     system.hp = { value: sl.hp, max: sl.hp, hd: `${hdCount}d8` };
   }
-  // Save row from printed save level (else class level). NOTE: the shared LUT
-  // is the fighter line — the MM approximation this module already uses.
+  // Save row from the printed save level, else the class level; the shared table is the fighter line.
   const level = sl.save?.level ?? sl.class?.level ?? 0;
   const row = savesForLevel(level);
   system.saves = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, { value: v }]));

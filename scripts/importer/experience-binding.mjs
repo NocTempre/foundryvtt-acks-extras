@@ -4,12 +4,10 @@
  * ch. 6, JJ ch. 9) and the implicit general slots (RR ch. 3) → the
  * engine-shaped `experience` ruledata tables acks-extras declares.
  *
- * The Key Attribute page prints score bands beside a percentage adjustment;
- * the band edges and the percentages are printed values, read here from the
- * reader's own book. Which attribute governs a class with two is the rule's
- * shape and lives in `classes/xp-bonus.mjs`; how the reserve, a funeral and a
- * will use their percentages lives in `classes/legacy-logic.mjs`. Like every
- * binding here, no value ships.
+ * The band edges and percentages are read from the reader's own book. Which
+ * attribute governs a class with two lives in `classes/xp-bonus.mjs`; how the
+ * reserve, a funeral and a will use their percentages lives in
+ * `classes/legacy-logic.mjs`. No value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -35,7 +33,7 @@ export const PRODUCES = Object.freeze({
   },
 });
 
-/** "+5%" → 5, "-10%" → -10, "0" → 0; null when the cell holds no figure. */
+/** A signed percentage cell (`+n%`, `-n%`, `0`) → its number; null when the cell holds no figure. */
 export function parseAdjustment(text) {
   const m = /([+\-–−]?)\s*(\d+(?:\.\d+)?)/.exec(String(text ?? ""));
   if (!m) return null;
@@ -47,9 +45,7 @@ export function parseAdjustment(text) {
  * The engine tables from the raw ones: `keyAttributeXp` as `[{min, max,
  * bonus}]`; `reserveRate`, `funeralRate`, `bankFee` as percentages;
  * `zeroLevelXp` as `{assumed?, base?, perProficiency?}`; `implicitSlots` as a
- * count. A row or figure the extractor could not read is left out rather than
- * guessed.
- * Pure — the committed tests feed it invented reads.
+ * count. A row or figure the extractor could not read is left out. Pure.
  */
 export function assembleExperienceTables(raw = {}) {
   const rows = Object.values(raw.keyAttributeRaw ?? {})
@@ -58,8 +54,7 @@ export function assembleExperienceTables(raw = {}) {
     .filter((r) => r.bonus != null)
     .sort((a, b) => a.min - b.min);
   const out = rows.length ? { keyAttributeXp: rows } : {};
-  // Each percentage stands alone: a page that would not parse costs its own
-  // table, never the others.
+  // Each percentage stands alone: an unparsed page costs only its own table.
   const pct = (v) => (Number.isFinite(v) && v >= 0 && v <= 100 ? v : null);
   const reserve = pct(raw.reserveProse?.rate);
   if (reserve != null) out.reserveRate = reserve;
@@ -67,9 +62,8 @@ export function assembleExperienceTables(raw = {}) {
   if (funeral != null) out.funeralRate = funeral;
   const fee = pct(raw.bankProse?.fee);
   if (fee != null) out.bankFee = fee;
-  // What 0th level takes to leave: the Judges Journal's figures where it was
-  // read, and the Rulebook's flat figure standing in for an unknown count
-  // where it was not. The formula is kept only whole.
+  // The Judges Journal's figures where read; otherwise the Rulebook's flat
+  // figure stands in for the count. The formula is kept only whole.
   const count = (v) => (Number.isFinite(v) && v >= 0 ? v : null);
   const advance = raw.zeroLevelAdvance ?? {};
   const assumed = count(advance.assumed) ?? count(raw.zeroLevelProse?.xp);

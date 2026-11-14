@@ -13,9 +13,8 @@ import { DEMAND_AGE_HEADERS_SETTING } from "../../markets/merchandise-keys.mjs";
 import { planMerchandise, bindMerchandiseRow, planDemand, describeUnmapped } from "../merchandise-binding.mjs";
 import { TRAP_ITEM_TYPE } from "../../formation/constants.mjs";
 import { TRAP_LEVELS } from "../../formation/trap-rules.mjs";
-// The spell primitive's DataModel is not imported here: this file loads under
-// plain Node in the offline harness, and the model needs `foundry`. The bind
-// writes the plain shape `spellFromStat` returns; the model coerces on read.
+// The spell DataModel is not imported: this file loads under plain Node, and the
+// model needs `foundry`. The bind writes the plain shape `spellFromStat` returns.
 import { SPELL_TYPE, FLAG_SPELL } from "../../magic/constants.mjs";
 import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../../magic/spell-logic.mjs";
 import {
@@ -43,18 +42,15 @@ async function readEntryGrids(id) {
 }
 
 /**
- * Import the printed merchandise, one ITEM per good, then append the demand
- * layers onto them.
- *
- * The dedup claim is per GOOD (`<entry id>.<key>`), not per entry: one entry
- * covers the whole table. A good the world already holds is passed over, or
- * with `repair` written over in place (`REPAIR.merchandise`). The demand
+ * Import the printed merchandise, one item per good, then append the demand
+ * layers onto them. The dedup claim is per good (`<entry id>.<key>`), since one
+ * entry covers the whole table. A good the world already holds is passed over,
+ * or with `repair` written over in place (`REPAIR.merchandise`). The demand
  * append runs whenever the goods do and rewrites the environment and racial
  * layers from the book each time; it is skipped, with a notice, when the book
- * that prints it is not open. A label or named good that maps to no key is
- * reported once at the end, on the console and in one GM notification, and
- * never dropped silently. The age-band header text lands in the world setting
- * `marketsDemandAgeHeaders`, which is read-only content and never ships.
+ * that prints it is not open. A label or good that maps to no key is reported
+ * once at the end, on the console and in one GM notification. The age-band
+ * header text lands in the world setting `marketsDemandAgeHeaders`.
  */
 export async function importMerchandise({ only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
@@ -148,8 +144,7 @@ async function appendDemand(held, unmapped) {
       }
       const update = {};
       if (Object.keys(layers.environment).length) update["system.environment"] = layers.environment;
-      // Replaced whole, never merged: a race the book no longer names for
-      // this good must not survive the write.
+      // Replaced whole, not merged, so a race the book no longer names does not survive.
       if (Object.keys(layers.racial).length) update["system.racial"] = foundry.data.operators.ForcedReplacement.create(layers.racial);
       if (!Object.keys(update).length) continue;
       try {
@@ -167,13 +162,10 @@ async function appendDemand(held, unmapped) {
 
 /**
  * Build one `acks-extras.variation` from an entry and its materialized
- * numbers. The register declares what kind of difference this is, what it
- * may go on, and what it supersedes; every number comes from
- * `node.fields.variation`, and a locator that did not match drops its whole
- * spec rather than defaulting.
- *
- * `deltas.stoneLighter` is the one unit translation: the located stone count
- * is negated and scaled to the sixths the schema counts in.
+ * numbers. The register declares the kind, what it may go on and what it
+ * supersedes; every number comes from `node.fields.variation`, and a locator
+ * that did not match drops its whole spec. `deltas.stoneLighter` is negated and
+ * scaled to the sixths the schema counts in.
  */
 export function bindVariation(entry, node, id) {
   const meta = entry.meta ?? {};
@@ -200,23 +192,18 @@ export function bindVariation(entry, node, id) {
         break;
       default:
         // `data.<key>` is the open half of the schema: what a variation records
-        // about ITSELF, against the specs in `dataFields`. A shield's armour
-        // class and encumbrance land here rather than in `deltas` because they
-        // are not one number added to the item — they differ by how the shield
-        // is being carried, and the consumer that will read them keys on the
-        // enum rather than summing. Keyed so it can be read later; prose could
-        // not be.
+        // about itself, against the specs in `dataFields`. Figures that differ
+        // by how the item is carried are keyed here rather than summed in `deltas`.
         if (found.field?.startsWith("data.")) data[found.field.slice(5)] = amount;
-        break; // a field this version does not know is left for a later one
+        break; // an unknown field is left out
     }
   }
   return {
     name: entry.name,
     type: VARIATION_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
-    // The stamp Remove ALL Imports finds documents by; without it a world could
-    // import these and never get them back out. `read` is the figures the page
-    // gave, so a reader can tell a Judge's later edit from the import's own.
+    // The stamp Remove ALL Imports finds documents by; `read` is the figures the
+    // page gave, to tell a Judge's later edit from the import's own.
     flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book), read: { deltas: { ...deltas }, cost: { ...cost } } } } },
     system: {
       key: meta.key ?? "",
@@ -225,9 +212,7 @@ export function bindVariation(entry, node, id) {
       supersedes: meta.supersedes ?? [],
       ...(Object.keys(deltas).length ? { deltas } : {}),
       ...(Object.keys(cost).length ? { cost } : {}),
-      // What this variation records about itself, and the specs to read it by.
-      // `dataFields` is the SHAPE and ships from the register; `data` is the
-      // page's numbers and does not.
+      // `dataFields` is the shape and ships from the register; `data` is the page's numbers.
       ...(Object.keys(data).length ? { data } : {}),
       ...(meta.dataFields?.length ? { dataFields: meta.dataFields } : {}),
       ...(Object.keys(data).length ? { data } : {}),
@@ -240,11 +225,7 @@ export function bindVariation(entry, node, id) {
 
 /**
  * Import the published variations, one document per purchasable difference.
- *
- * Guarded twice for the same two reasons the traps are: a player pressing a GM
- * macro would mint a second set, and a world that has not registered the
- * variation sub-type has no data model to put them in.
- *
+ * GM only, and only where the variation sub-type is registered.
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place (`REPAIR.variation`) instead of passing over it.
  */
@@ -280,29 +261,21 @@ export async function importVariations({ only = null, repair = null } = {}) {
 }
 
 /**
- * Where one printed level begins.
- *
- * The book sets each tier as "1st level:" inside one flowed paragraph, so the
- * split is the book's OWN numbering rather than a reading of what the sentence
- * means — the same kind of structural split `parseEquipment` makes on a
- * starting-equipment cell. The ordinal is a superscript run in the PDF and
- * survives extraction, so it anchors the split; the digit is what is captured,
- * because that is the level being stated.
+ * Where one printed level begins: the ordinal-and-"level" marker the book sets
+ * inside one flowed paragraph. The split is the book's own numbering, and the
+ * captured digit is the level stated.
  */
 const TIER_RE = /(\d)\s*(?:st|nd|rd|th)\s*level\s*:\s*/gi;
 
-/** First dice expression in a tier's sentence, or "" — the frozen `dice` shape. */
+/** The first dice expression in a tier's sentence. */
 const TIER_DICE = /\b\d+d\d+(?:\s*[+-]\s*\d+)?\b/;
 
 /**
  * Split a trap's materialized description into the part that describes the trap
- * and the six that describe its levels.
- *
- * Everything before the first tier marker is the trap; each marker opens a
- * level and runs to the next. A trap whose text carries no marker at all yields
- * six empty rows and keeps the whole passage as the description, which is the
- * right answer for a book that phrased one differently — nothing is dropped and
- * nothing is invented.
+ * and the six that describe its levels. Everything before the first tier
+ * marker is the trap; each marker opens a level and runs to the next. A trap
+ * with no marker yields six empty rows and keeps the whole passage as the
+ * description.
  *
  * @param {string[]} blocks the `text` op's paragraphs, in reading order
  * @returns {{description: string, levels: object[]}}
@@ -319,8 +292,7 @@ export function splitTrapTiers(blocks = []) {
     if (!Number.isFinite(level) || level < 1 || level > TRAP_LEVELS) continue;
     const from = marks[i].index + marks[i][0].length;
     const text = whole.slice(from, marks[i + 1]?.index ?? whole.length).trim();
-    // A book that states a level twice gets the LAST word, not a concatenation:
-    // rewriting is what a reprint does, and two half-sentences would be neither.
+    // A level stated twice takes the last statement, not a concatenation.
     levels[level - 1] = { text, damageFormula: TIER_DICE.exec(text)?.[0]?.replace(/\s+/g, "") ?? "" };
   }
   return { description, levels };
@@ -328,10 +300,9 @@ export function splitTrapTiers(blocks = []) {
 
 /**
  * Build one `acks-extras.trap` from a trap entry and its materialized text.
- * Only two things are read out of the seat's prose: the tier split (the
- * book's own numbering) and the damage dice. Everything a Judge would have
- * to judge — the throw type, which save, the effect's reach — is left at its
- * default with the printed sentence sitting beside it on the sheet.
+ * Only the tier split and the damage dice are read out of the seat's prose;
+ * the throw type, the save and the effect's reach stay at their defaults beside
+ * the printed sentence.
  */
 export function bindTrap(entry, node, id) {
   const cite = entry.cite ?? "";
@@ -341,13 +312,11 @@ export function bindTrap(entry, node, id) {
     name: entry.name,
     type: TRAP_ITEM_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
-    // The stamp Remove ALL Imports finds documents by; without it a world could
-    // import these and never get them back out.
+    // The stamp Remove ALL Imports finds documents by.
     flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) } } },
     system: {
       source: { book: entry.book ?? "jj", cite, ref: id },
-      // The passage that precedes the first tier is the trap's description;
-      // the plain split above is what fills the rows.
+      // The passage before the first tier is the description; the split fills the rows.
       description: bookText([description], cite, { id, book: entry.book, page: entry.pages?.[0] }),
       level: 1,
       levels: levels.map((row) => ({ text: row.text, damageFormula: row.damageFormula })),
@@ -356,12 +325,8 @@ export function bindTrap(entry, node, id) {
 }
 
 /**
- * Import the printed traps, one document per trap, all six levels on it.
- *
- * Guarded twice, for the two ways this fails without one: a player pressing a
- * GM macro would mint a second set of thirteen, and a world that has not
- * registered the trap sub-type has no data model to put them in.
- *
+ * Import the printed traps, one document per trap, all six levels on it. GM
+ * only, and only where the trap sub-type is registered.
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place (`REPAIR.trap`) instead of passing over it.
  */
@@ -422,8 +387,7 @@ export function bindSpell(entry, node, id) {
     name: printed.replace(/\*\s*$/, "").trim(),
     type: SPELL_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
-    // The stamp Remove ALL Imports finds documents by; without it a world could
-    // import these and never get them back out.
+    // The stamp Remove ALL Imports finds documents by.
     flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) }, [FLAG_SPELL]: extras } },
     system: {
       ...coreFieldsFrom(extras),
@@ -434,8 +398,7 @@ export function bindSpell(entry, node, id) {
 
 /**
  * Import the printed spells, one core spell Item per printed entry, its stat
- * block on the primitive and its prose as the description. GM only: a player
- * pressing the control would mint a second set.
+ * block on the primitive and its prose as the description. GM only.
  *
  * `repair`, a tally, writes each entry this world already holds over its
  * document in place (`REPAIR.spell`) instead of passing over it.
