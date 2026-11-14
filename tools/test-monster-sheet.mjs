@@ -150,6 +150,17 @@ test("an attack's damage tag carries the creature's own modifier, and its toolti
   assert.equal(modded[1].damage, "—", "no die, nothing to add to");
   assert.equal(statblockColumns({ ...snap(), damageMod: -1 }, loc).columns[1][0].rows[0].damage, "1d4 −1");
 });
+test("a leader's kit damage is named on the attack even at none, and a blank one carries the row's page alone", () => {
+  const kit = { troop: "bowmen", label: "Bowmen", role: "champion", compute: true, cite: "QQ p.41" };
+  const tipOf = (damage, damageMod) => statblockColumns({ ...snap(), kit, derived: { kit: { cite: "QQ p.41", damage } }, damageMod }, loc).columns[1][0].rows[0];
+  const worked = tipOf({ value: 0, base: 2, step: -2, leaderDamage: 1, memberDamage: 3 }, 0);
+  assert.equal(worked.damage, "1d4", "a modifier of none adds nothing to the die");
+  assert.match(worked.damageTip, /^statblock\.tip\.damageKitLeader:/);
+  const blank = tipOf({ missing: true, value: null }, 0);
+  assert.equal(blank.damage, "1d4");
+  assert.equal(blank.damageTip, "QQ p.41");
+  assert.equal(tipOf({ value: null, missing: false }, 0).damageTip, "", "an empty record names nothing");
+});
 test("the Loyalty row: none for a creature that serves nobody, blank with the page for an empty field, signed for a score", () => {
   const loyaltyRows = (s) => statblockColumns(s, loc).columns.flat().find((g) => g.key === "reactions").rows.filter((r) => r.id === "loyalty");
   assert.deepEqual(loyaltyRows(snap()), [], "null is a creature in nobody's service");

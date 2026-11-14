@@ -160,6 +160,18 @@ function carriedTip(leader, loc) {
 }
 
 /**
+ * The damage modifier a troop kit worked out for a leader, from the extras
+ * `derived` block: `{value, base, step, leaderDamage, memberDamage}`, or
+ * `{missing: true}` where it could not be; null where the kit worked none out
+ * (the schema holds an empty record then).
+ */
+function kitDamageRecord(derived) {
+  const kd = derived?.kit?.damage;
+  if (!kd) return null;
+  return kd.missing ? kd : kd.value != null ? kd : null;
+}
+
+/**
  * The tooltips naming what an import worked a throw and a save row out from
  * (`snap.derived`, the extras `derived` block): each only while the actor still
  * carries the figure it wrote, so a figure a Judge has since typed is not
@@ -168,7 +180,10 @@ function carriedTip(leader, loc) {
  * page, or the leader procedure's parts); `acTip` its armour class alone, for
  * the rail, and a kit's (`snap.kit`) over a leader's where the actor holds the
  * kit's; `moraleTip` and `damageTip` the kit's troop row, where the actor holds
- * its figure. `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
+ * its figure; for a leader in a troop kit `damageTip` names the parts its
+ * damage modifier was worked out from while the actor holds that figure, and
+ * is the row's page alone where a part was not a number and the modifier was
+ * left at none. `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
  * "" where there is nothing to name.
  */
 export function derivationTips(snap, loc) {
@@ -203,7 +218,13 @@ export function derivationTips(snap, loc) {
     // A generated kit replaces the leader's armour class; the leader counts as intact while the kit was worked out from it.
     const kitHeld = d.kit?.value != null && Number(d.kit.value) === Number(snap.ac) && d.kit.leaderAc != null;
     const leaderAc = kitHeld ? d.kit.leaderAc : snap.ac;
-    const intact = Number(l.ac) === Number(leaderAc) && Number(l.damage) === Number(snap.damageMod ?? 0);
+    // The same for the damage modifier a troop kit worked out: the leader's own
+    // is the one the kit was worked out from, or the leader's record while the
+    // kit left the modifier at none.
+    const kd = kitDamageRecord(d);
+    const damageHeld = Number(snap.damageMod ?? 0);
+    const leaderDamage = kd?.missing ? (damageHeld === 0 ? l.damage : damageHeld) : kd && Number(kd.value) === damageHeld ? kd.leaderDamage : damageHeld;
+    const intact = Number(l.ac) === Number(leaderAc) && Number(l.damage) === Number(leaderDamage);
     leaderTip = intact
       ? loc("statblock.tip.leaderDerived", {
           cite: l.cite || "—",
@@ -237,6 +258,22 @@ export function derivationTips(snap, loc) {
     }
     if (k.morale != null && Number(k.morale) === Number(snap.morale)) moraleTip = loc("statblock.tip.kitFigure", { label, cite: k.cite || "—" });
     if (!k.compute && k.damage != null && Number(k.damage) === Number(snap.damageMod ?? 0)) damageTip = loc("statblock.tip.kitFigure", { label, cite: k.cite || "—" });
+    // A leader's modifier the kit worked out names its parts while the actor
+    // holds it; one it could not work out is the row's page alone.
+    const kd = kitDamageRecord(d);
+    const damageHeld = Number(snap.damageMod ?? 0);
+    if (kd?.missing && damageHeld === 0) damageTip = dk?.cite || k.cite || "";
+    else if (kd && !kd.missing && Number(kd.value) === damageHeld) {
+      damageTip = loc("statblock.tip.damageKitLeader", {
+        damage: signed(num(kd.value)),
+        base: signed(num(kd.base)),
+        label,
+        cite: dk?.cite || k.cite || "—",
+        step: signed(num(kd.step)),
+        leaderDamage: signed(num(kd.leaderDamage)),
+        memberDamage: signed(num(kd.memberDamage)),
+      });
+    }
   }
   return { throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip };
 }
@@ -270,9 +307,11 @@ export function statblockColumns(snap, loc) {
   const { throwTip, savesTip, leaderTip, moraleTip, damageTip: kitDamageTip } = derivationTips(snap, loc);
   // An attack's damage tooltip: its die and the creature's modifier, where
   // the modifier came from a kit's row, and the die the imported conversion
-  // table makes of the pair.
+  // table makes of the pair. A modifier of none carries the kit's tip only
+  // where the kit worked that figure out.
   const attackDamageTip = (formula) => {
-    if (!snap.damageMod || !formula) return "";
+    if (!formula) return "";
+    if (!snap.damageMod) return kitDamageRecord(snap.derived) ? kitDamageTip : "";
     const parts = [loc("statblock.row.damageWithMod", { formula, mod: signed(snap.damageMod) })];
     if (kitDamageTip) parts.push(kitDamageTip);
     const die = convertedDie(snap.dice?.rows, formula, Number(snap.damageMod));

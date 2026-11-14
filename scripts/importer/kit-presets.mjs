@@ -9,16 +9,17 @@
  * for, with the kit's own words and the row's citation on `extras.kit`. A row
  * stands for a variant only where the variant is that kind and its Hit Dice
  * are the row's, so a row read under the wrong heading never dresses another
- * kind. A leader in a troop's kit, and any creature with the kit taken off,
- * have no printed armour class: their cells carry `extras.kit.compute` and the
- * monsters feature works it out at generation (`kitArmourClass`).
+ * kind. A leader in a troop's kit has no printed armour class or damage
+ * modifier, and a creature with the kit taken off no printed armour class:
+ * their cells carry `extras.kit.compute` and the monsters feature works the
+ * figures out at generation (`kitArmourClass`, `kitDamage`).
  *
  * Model: docs/monsters/MODEL.md, "The Kit axis". Rulings:
  * docs/importer/DECISIONS.md, 2026-11-04.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { damageTotal, hdOf, ratingText, STANDARD_ROLE } from "./leader-roles.mjs";
-import { KIT_AXIS, OWN_KIT, UNARMOURED } from "../monsters/kits.mjs";
+import { damageModOf, KIT_AXIS, OWN_KIT, UNARMOURED } from "../monsters/kits.mjs";
 
 /** The troop keys, in the order the axis lists them, with their labels. */
 const TROOP_LABELS = {
@@ -69,6 +70,7 @@ export function kitPresets({ options, axes, cells, kits }) {
     const kind = String(option.key ?? "").toLowerCase();
     const rating = ratingOf(option);
     const memberAc = Number(option.merge?.ac?.value);
+    const memberDamage = damageModOf(option.merge?.damage?.mod?.melee);
     const roles = hasRole ? rolesOf(cells, option.key) : new Set();
     const keyOf = (role, troop) => (hasRole ? `${option.key}|${role}|${troop}` : `${option.key}|${troop}`);
     const by = hasRole ? ["variant", "role", KIT_AXIS] : ["variant", KIT_AXIS];
@@ -85,9 +87,10 @@ export function kitPresets({ options, axes, cells, kits }) {
       if (!rating || ratingText(hdOf(row.hd)) !== rating) continue;
       const kit = { troop: row.troop, label: TROOP_LABELS[row.troop], note: row.note, ac: row.ac, damage: row.damage, move: row.move, morale: row.morale, cite: kits.troopsCite ?? "" };
       push(STANDARD_ROLE, row.troop, { ac: { value: row.ac }, damage: damageTotal(row.damage), ...moveAndMorale(row.move, row.morale) }, { ...kit, role: STANDARD_ROLE });
-      // A leader keeps its own damage total and takes the kit's move and
-      // morale; its armour class has no page and is worked out at generation.
-      for (const role of roles) push(role, row.troop, moveAndMorale(row.move, row.morale), { ...kit, role, memberAc: Number.isFinite(memberAc) ? memberAc : null, compute: true });
+      // A leader takes the kit's move and morale; its armour class and damage
+      // modifier have no page and are worked out at generation from the row's,
+      // the leader's and its warrior's (`memberDamage`).
+      for (const role of roles) push(role, row.troop, moveAndMorale(row.move, row.morale), { ...kit, role, memberAc: Number.isFinite(memberAc) ? memberAc : null, memberDamage, compute: true });
     }
     const natural = kits.byType?.[kind];
     if (natural) {

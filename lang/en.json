@@ -6172,6 +6172,7 @@
         "acKitNatural": "Armour class {ac}: the kind's natural armour class, unarmoured ({cite}), worked out at generation",
         "acKitNaturalLeader": "Armour class {ac}: the kind's natural armour class {base}, unarmoured ({cite}), {step} for the leader's armour class {leaderAc} over its warrior's {memberAc}, worked out at generation",
         "kitFigure": "From the {label} troop row ({cite})",
+        "damageKitLeader": "Damage modifier {damage}: the {label} troop row's {base} ({cite}) {step} for the leader's damage modifier {leaderDamage} over its warrior's {memberDamage}, worked out at generation",
         "dieConverted": "As a die: {die} ({cite})"
       }
     },

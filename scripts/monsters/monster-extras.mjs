@@ -136,7 +136,10 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         }),
         // An armour class a kit no page prints was worked out from at
         // generation (monsters/kits.mjs `kitArmourClass`): the troop row's or
-        // the natural figure, and a leader's armour over its warrior's.
+        // the natural figure, and a leader's armour over its warrior's. A
+        // leader's damage modifier in a troop kit is worked out the same way
+        // (`kitDamage`): `damage` holds its parts, or `missing` where a part
+        // was not a number and the modifier was left at none.
         kit: new SchemaField({
           value: num({ integer: true }),
           base: num({ integer: true }),
@@ -147,6 +150,14 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           troop: str(),
           label: str(),
           cite: str(),
+          damage: new SchemaField({
+            value: num({ integer: true }),
+            base: num({ integer: true }),
+            step: num({ integer: true }),
+            leaderDamage: num({ integer: true }),
+            memberDamage: num({ integer: true }),
+            missing: bool(false),
+          }),
         }),
         // Figures an import's picture read left unread (importer/unread-figures.mjs):
         // the actor path, the value the actor held there when created, and the
@@ -164,7 +175,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       // --- The troop kit a template generated the creature in
       //     (importer/kit-presets.mjs): the troop type, its own words, the
       //     figures its row printed and the row's citation. `compute` marks a
-      //     kit whose armour class was worked out at generation. ---
+      //     kit whose armour class (and a leader's damage modifier, from
+      //     `memberDamage`, its warrior's) was worked out at generation. ---
       kit: new SchemaField({
         troop: str(),
         label: str(),
@@ -173,6 +185,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         ac: num({ integer: true }),
         naturalAc: num({ integer: true }),
         memberAc: num({ integer: true }),
+        memberDamage: num({ integer: true }),
         damage: num({ integer: true }),
         move: num({ integer: true }),
         morale: num({ integer: true }),
