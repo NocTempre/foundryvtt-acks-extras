@@ -3616,9 +3616,10 @@ What a scripted walk meets:
    never the same-name row.
 3. Run `cookbookImportScenes({ books: ["le"] })`. *Observable:* 40 scenes,
    `missing` 0; each is linked to its lair's world copy
-   (`flags.acks-extras.location`) and named as that place is; its battlemap
-   `mapSystem` is `delve`; its grid is square with `distance` 5 and its drawn
-   squares sit under the scene's grid on `importer/le-lair-map` and on the
+   (`flags.acks-extras.location`) and named as that place is (bar the two parts
+   of step 10); its battlemap `mapSystem` is `delve`; its grid is square with
+   `distance` 5 (bar p. 214's gridless plate and lair 112's inset, step 10) and
+   its drawn squares sit under the scene's grid on `importer/le-lair-map` and on the
    plates whose fit rests on fewest lines or least checking (frame the canvas,
    compare by eye): p204, p207 left, p208, p215 and p220 (`grid.pixels` 62);
    every turned plate reads upright (4 of the 26 were checked offline). The

@@ -596,7 +596,7 @@ Several scenes of one place are told apart by `part: n` (a whole number from 1;
 the place. It carries `SCENE_PART_FLAG` (location's, `flags.acks-extras
 .scenePart`), and location's own mirror code skips such a scene, so the place
 still opens its full map: `mirrorCreatedLinks`, `linkScene`, `unlinkScene`, the
-`updateScene` sync and the Adventure's `linkFields` neither write nor clear the
+`updateScene` sync, the place sheet's Scene drop and the Adventure's `linkFields` neither write nor clear the
 place's `sceneUuid` for it. The register lint holds a place that has parts to
 exactly one scene without `part` (`scenePartProblems`).
 
