@@ -10542,7 +10542,7 @@ browser with another JS and wasm engine was not compared.
 **Ruled.** Update asks about every name-adopted ability whose description it would replace in one dialog for the whole run, with apply-to-all on both choices (rename aside, overwrite). Dismissal returns an empty map: every ambiguous item is left as it was, because a closed dialog is not consent. A moved-aside original takes a marked name that must stop folding to the definition: folded names are how Update adopts an unflagged item, so a marker that folds away to nothing would let the next run adopt the item again and take the prose after all. Folding drops case and punctuation, so the marker carries letters; a counter is appended in the pathological case where a shipped definition prints the marked name, which is bounded because each attempt is a distinct name and only the finitely many in the index can collide.
 **Rejected.** A per-item prompt: a world that imported the corpus produces collisions by the hundred, and a prompt a GM cannot answer in bulk gets clicked through, which is the same data loss with more steps.
 
-## 2026-11-13 — A picture's text is read by an `ocr` field op over a per-page recipe, once per opened book
+## 2026-11-13 — A picture's text is read by an `ocr` field op over a per-page recipe, once per opened book — SUPERSEDED IN PART 2026-11-13
 
 The way the JJ's scenario pictures (the entry above, "The JJ's scenario
 pictures are read by OCR at import, with post-read corrections") reach the
@@ -10775,3 +10775,34 @@ split at a page turn"). Also rejected: a new `anchor.as` sort for the notice
 board, which would widen the register lint for a single row.
 
 **Cost.** One ax1 entry added and one ax3 entry changed. No other book moves.
+
+## 2026-11-13 — A picture recipe names its picture by sample size, not by XObject name
+
+Supersedes the first bullet of "A picture's text is read by an `ocr` field op
+over a per-page recipe, once per opened book" (same day) in one respect: what
+the recipe names the picture by.
+
+**New evidence.** That entry named the picture by pdf.js's XObject name, as the
+`art` op does. Measured afterwards over the JJ's nine scenario pages: the name
+depends on which pages the document has already evaluated, because pdf.js
+shares the page-frame images once a second page paints them. One scenario
+picture is one name opened cold and another after the two pages before it,
+every page after the first shifts when read in order, and in reverse order the
+first page's name moves too. An import reaches the pages in whatever order its
+rows and other passes take, and a Repair in a fresh session reads one page
+cold, so no single name is right for both. The picture's decoded sample size
+did not move under any order, and on each of the nine pages exactly one
+painted picture has the scenario picture's size.
+
+**Ruled:** the recipe carries `size: { w, h }` in samples. At import, compile
+and verify, the page's painted pictures are listed and the one of exactly that
+size is read; none or two of that size throws. No name fallback.
+
+**Rejected:** recording both and preferring the name (the name is the part
+that is wrong); the largest picture on the page (frame art is larger); a hash
+of the samples (it costs a decode of every picture to choose one, and a size
+already decides).
+
+*Cost:* a book that paints two pictures of one size on a page cannot be read
+this way until a recipe can tell them apart, for example by placement as a
+scene's crop does.
