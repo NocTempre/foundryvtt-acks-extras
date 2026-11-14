@@ -1563,13 +1563,79 @@ export function parseStatline(text) {
  * capitalised word before it (a list's last token), and an unknown label of
  * two words is not a label at all — a generic two-word match took the token
  * before every "Class Abilities" with it. Every label opens a clause: the
- * known ones read into fields, the rest keep their text.
+ * known ones read into fields, the rest keep their text. An unknown label may
+ * join two capitalised words with a slash. The label's space is left for the
+ * next label to open on, so a label with an empty body does not hide the one
+ * after it.
  */
 const WRITEUP_LABEL =
-  /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Ability Scores|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Class Powers|Abilities|Inventory|Equipment|Spells|Repertoire|Languages|Alignment|Movement|MV|XP|[A-Z][a-z]+):\s+/g;
+  /(?:^|\s)(HP|Hit Points|AC|Armou?r Class|Saves?|Saving Throws|Attacks?|Attack Throw|Damage|Ability Scores|Attributes|Stat Line|Class Proficiencies|General Proficiencies|Proficiencies|Racial Abilities|Class Abilities|Class Powers|Abilities|Inventory|Equipment|Spellcasting|Spells|Spell Repertoire|Repertoire|Languages|Alignment|Movement|MV|XP|Side Effects|Permanent Wounds|[A-Z][a-z]+(?:\/[A-Z][a-z]+)?):(?=\s)/g;
 
 /** A write-up's class line set level first: "Level <n> <alignment> <class> (<title>)". */
 const WRITEUP_LEVEL_FIRST = /^Level\s+(\d+)\s+(Lawful|Neutral|Chaotic)\s+([A-Za-z][A-Za-z' -]*?)\s*(?:\(([^)]*)\))?\s*$/i;
+
+/** A write-up's class line set with an ordinal: "<n>th level <class> (<title>)". */
+const WRITEUP_ORDINAL_FIRST = /^(\d+)(?:st|nd|rd|th)\s+level\s+([A-Za-z][A-Za-z' -]*?)\s*(?:\(([^)]*)\))?\s*$/i;
+
+/** The keys a labelled stat line's clauses open with. */
+const WRITEUP_STAT_KEY = /^(AC|Spd|HP|ATK|Dmg|Init|Surprise|ML|AL)\b\s*(.*)$/i;
+
+/** A key as the printer capitalises it, read where a clause runs on into the next without a comma. */
+const WRITEUP_STAT_RUN_ON = /^(?:ATK|Dmg|Init|Surprise|ML|AL|HP|AC|Spd)\b/;
+
+/**
+ * A labelled stat line's clauses, as `[KEY, body]` pairs: the line splits at
+ * its top-level commas, a piece that opens with no key belongs to the clause
+ * before it (a damage list's own commas), and a key that follows a clause
+ * with no comma between them opens a clause of its own.
+ */
+function statLineClauses(body) {
+  const clauses = [];
+  for (const piece of splitTop(body)) {
+    let depth = 0;
+    let from = 0;
+    const cuts = [];
+    for (let i = 0; i < piece.length; i++) {
+      if (piece[i] === "(") depth++;
+      else if (piece[i] === ")") depth = Math.max(0, depth - 1);
+      else if (depth === 0 && /\s/.test(piece[i]) && WRITEUP_STAT_RUN_ON.test(piece.slice(i + 1))) cuts.push(i);
+    }
+    for (const cut of [...cuts, piece.length]) {
+      const part = piece.slice(from, cut).trim();
+      from = cut + 1;
+      const m = WRITEUP_STAT_KEY.exec(part);
+      if (m) clauses.push([m[1].toUpperCase(), m[2].trim()]);
+      else if (clauses.length && part) clauses.at(-1)[1] += `, ${part}`;
+    }
+  }
+  return clauses;
+}
+
+/**
+ * A labelled stat line, read into `out`: the armour class (the first value
+ * printed, its bracket left unread), the hit points, the attack's routine as
+ * printed with its first throw, the damage, morale and alignment. The speed
+ * is left to the class's own derivation; initiative and surprise have no
+ * field and stay in `text`.
+ */
+function readLabelledStatLine(body, out) {
+  for (const [key, value] of statLineClauses(body)) {
+    const n = /^-?\d+/.exec(value);
+    if (key === "AC" && n) out.ac = parseInt(n[0], 10);
+    else if (key === "HP" && n) out.hp = parseInt(n[0], 10);
+    else if (key === "ATK" && value) {
+      const th = /(-?\d+)\s*\+/.exec(value);
+      out.atk = { routine: value, ...(th ? { throw: parseInt(th[1], 10) } : {}) };
+    } else if (key === "DMG" && value) out.dmg = value;
+    else if (key === "ML") {
+      const ml = /^[+-]?\d+/.exec(value);
+      if (ml) out.ml = parseInt(ml[0], 10);
+    } else if (key === "AL") {
+      const al = /^[A-Za-z]+/.exec(value);
+      if (al) out.al = al[0][0].toUpperCase() + al[0].slice(1).toLowerCase();
+    }
+  }
+}
 
 /** The unlabelled stat line a level-first head carries after its class line. */
 const WRITEUP_STAT_LINE = /\bAC\s+-?\d/;
@@ -1620,6 +1686,12 @@ function readStatLine(line, out) {
  * <n>, ATK <routine>", with the scores under their own label. The alignment
  * and the title are read from the class line, and the stat line's ATK clause
  * runs to the end of the head.
+ *
+ * A head may also open with an ordinal — "<n>th level <class> (<title>)" —
+ * leaving the alignment to the stat line, which then stands under its own
+ * label, "Stat Line:", and reads by comma-separated clause (`readLabelledStatLine`).
+ * "Attributes" is the scores' label as "Ability Scores" is, "Spellcasting"
+ * joins `spells`, and "Spell Repertoire" is `repertoire`.
  */
 export function parseWriteup(text) {
   const out = { text };
@@ -1640,8 +1712,11 @@ export function parseWriteup(text) {
   const classText = (firstScore >= 0 ? head.slice(0, firstScore) : head).replace(/\*+/g, "").replace(/[,;]\s*$/, "").trim();
   const cls = /^([A-Za-z][A-Za-z' -]*?)\s+(\d+)$/.exec(classText);
   const levelFirst = WRITEUP_LEVEL_FIRST.exec(classText);
+  const ordinalFirst = WRITEUP_ORDINAL_FIRST.exec(classText);
   if (cls) out.class = { name: cls[1].trim(), level: parseInt(cls[2], 10) };
-  else if (levelFirst) {
+  else if (ordinalFirst) {
+    out.class = { name: ordinalFirst[2].trim(), level: parseInt(ordinalFirst[1], 10), ...(ordinalFirst[3]?.trim() ? { note: ordinalFirst[3].trim() } : {}) };
+  } else if (levelFirst) {
     out.class = { name: levelFirst[3].trim(), level: parseInt(levelFirst[1], 10), ...(levelFirst[4]?.trim() ? { note: levelFirst[4].trim() } : {}) };
     out.al = levelFirst[2][0].toUpperCase() + levelFirst[2].slice(1).toLowerCase();
   } else if (classText) out.extra = [classText];
@@ -1671,7 +1746,8 @@ export function parseWriteup(text) {
         out.ac = parseInt(ac[1], 10);
         if (ac[2]?.trim()) out.acNote = ac[2].trim();
       }
-    } else if (key === "ability scores") readScores(body);
+    } else if (key === "stat line") readLabelledStatLine(body, out);
+    else if (key === "ability scores" || key === "attributes") readScores(body);
     else if (/^saves?$/.test(key) || key === "saving throws") out.saves = body;
     else if (/^attacks?$/.test(key)) {
       const th = /(\d+)\s*\+/.exec(body);
@@ -1682,8 +1758,8 @@ export function parseWriteup(text) {
     else if (key === "racial abilities") out.racialAbilities = body;
     else if (key === "class abilities" || key === "class powers" || key === "abilities") out.classAbilities = body;
     else if (key === "inventory" || key === "equipment") out.equipment = body;
-    else if (key === "spells") out.spells = body;
-    else if (key === "repertoire") out.repertoire = body;
+    else if (key === "spells" || key === "spellcasting") out.spells = out.spells ? `${out.spells}; ${body}` : body;
+    else if (key === "repertoire" || key === "spell repertoire") out.repertoire = body;
     else if (key === "languages") out.languages = body;
     else if (key === "alignment") out.al = body;
     else if (key === "movement" || key === "mv") out.mv = body;

@@ -219,6 +219,62 @@ await t("the scores sit under their own label, and Class Powers are the class ab
   assert.equal(w.equipment, "glaive; knife; sling with 20 stones; 30gp");
 });
 
+/* ---------------- a write-up with an ordinal class line and a labelled stat line ---------------- */
+
+const ORDINAL =
+  "4th level Kiln Warden Stat Line: AC 6 (7 vs. fire), Spd 30’ / 90’, HP 21, ATK 1 (glaive +1 8+ or knife -2+), Dmg 1d8+2, 1d6+2, or 1d4 Init +1, Surprise 0 (+1 underground), ML+2, AL Neutral Attributes: STR 11, INT 9, WIL 14, DEX 13, CON 10, CHA 8 Saving Throws: Class Powers: Banked fire Proficiencies: Adventuring, Kiln Lore 2 Languages: Common Spellcasting: Caster Level 4, Spells per Day 2 1st, 1 2nd Spell Repertoire: Ember Table. Equipment: glaive, knife, 30gp Mount: Pony, saddle Holdings: A kiln-house (value 900gp). Followers/Mercenaries: Four stokers. Side Effects: Soot lung";
+
+await t("an ordinal-first head gives the class and level, and the alignment comes from the stat line", () => {
+  const w = parseWriteup(ORDINAL);
+  assert.deepEqual(w.class, { name: "Kiln Warden", level: 4 });
+  assert.equal(w.al, "Neutral");
+  assert.equal(w.extra?.some((e) => e.startsWith("Stat")), false, "the stat line is read, not kept as text");
+});
+
+await t("a labelled stat line reads by comma at the top level: the armour class without its bracket, hit points, the attack, damage, morale", () => {
+  const w = parseWriteup(ORDINAL);
+  assert.equal(w.ac, 6);
+  assert.equal(w.acNote, undefined, "a bracket after the armour class is not worn armour");
+  assert.equal(w.hp, 21);
+  assert.equal(w.mv, undefined, "the speed is left to the class");
+  assert.equal(w.atk.routine, "1 (glaive +1 8+ or knife -2+)", "the routine stops at its own bracket");
+  assert.equal(w.atk.throw, 8);
+  assert.equal(w.dmg, "1d8+2, 1d6+2, or 1d4", "a damage list's commas stay in it, and a key with no comma before it opens a clause");
+  assert.equal(w.ml, 2);
+});
+
+await t("a negative throw keeps its sign and a bracketless attack reads no throw", () => {
+  assert.equal(parseWriteup("1st level Lampwright Stat Line: AC 3, HP 4, ATK 1 (lamp -2+), Dmg 1d4, ML 0, AL Lawful").atk.throw, -2);
+  const w = parseWriteup("1st level Lampwright Stat Line: AC 3, HP 4, ATK 1 (lamp), Dmg 1d4, ML 0, AL Lawful");
+  assert.equal(w.atk.throw, undefined);
+  assert.equal(w.ml, 0);
+});
+
+await t("Attributes are the scores, Spellcasting the spells and Spell Repertoire the repertoire", () => {
+  const w = parseWriteup(ORDINAL);
+  assert.deepEqual(w.abilities, { str: 11, int: 9, wis: 14, dex: 13, con: 10, cha: 8 });
+  assert.equal(w.spells, "Caster Level 4, Spells per Day 2 1st, 1 2nd");
+  assert.equal(w.repertoire, "Ember Table.");
+  assert.equal(w.equipment, "glaive, knife, 30gp");
+});
+
+await t("a label with an empty body does not hide the label after it", () => {
+  const w = parseWriteup(ORDINAL);
+  assert.equal(w.saves, "");
+  assert.equal(w.classAbilities, "Banked fire");
+  assert.deepEqual(w.proficiencies, ["Adventuring", "Kiln Lore 2"]);
+});
+
+await t("labels with no field keep their text under their printed name, a slashed one apart from the one before", () => {
+  const w = parseWriteup(ORDINAL);
+  assert.deepEqual(w.extra, [
+    "Mount: Pony, saddle",
+    "Holdings: A kiln-house (value 900gp).",
+    "Followers/Mercenaries: Four stokers.",
+    "Side Effects: Soot lung",
+  ]);
+});
+
 /* ---------------- a value read in parts ---------------- */
 
 const run = (str, x, y) => ({ str, x, y, w: str.length * 5, h: 10, sp: false });
