@@ -1543,8 +1543,11 @@ The rule that surprises people, and the reason the target is not a constant:
 path, so its target improves as its daily distance rises. The relationship is
 the rule; the ladder of distances is printed and bracketed.
 
-Two things bite. A search costs an hour and buys ONE throw, so a day holds only
-as many searches as the board has spare slots — a forced march has none.
+Two things bite. A search costs an hour, and its throws come at the cadence
+read from the book (`searching.turnsPerThrow`, RR p. 274; the aerial cadence
+beside it), so a day holds only as many searches as the board has spare slots —
+a forced march has none. With no cadence imported a search on foot or under
+canopy refuses and names it; open ground from the air needs only its own.
 And **searching draws attention**: every search owes an encounter throw, which
 is what makes a lost party's hunt for its landmark a genuinely dangerous act
 rather than a formality.

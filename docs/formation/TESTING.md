@@ -2209,6 +2209,14 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
 13. Break a record by hand (`scene.setFlag` a point without an id) and run
     the repair macro. *Observable:* the finding names the scene; the fix
     mints the id. Then **Clear** → the key is gone from the flag.
+14. **The cadence is read, never assumed.** Register the invented `searching`
+    layer without `turnsPerThrow`. *Observable:* the camp's search line shows
+    the unpriced hint, and **Search an hour** on foot posts the unpriced
+    whisper naming `turnsPerThrow` and rolls no die. Put `turnsPerThrow` back
+    with a figure of the walk's own, other than the page's, and search again:
+    the card rolls six turns' worth of throws at that cadence, rounded, never
+    fewer than one. With the layer gone, the Ruledata Browser shows the
+    imported cadence citing RR p. 274.
 
 Drive mechanics (walked 2026-10-09 through the capture driver). Rig the d20
 through `CONFIG.Dice.randomUniform`, never `Math.random` (ids are minted from
