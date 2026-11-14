@@ -100,6 +100,10 @@ export const MASTERWORK = Object.freeze({
  */
 export const SILVER = Object.freeze({ quality: "silver", variation: "material.silver" });
 
+// A pouch under the names a Judge types, without core's "(holds …)" suffix:
+// where it rides and what reaching into it costs are the device's.
+const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
+
 /**
  * RAW carrying devices (RR pp. 142–145, 293–294). Core's
  * acks-adventuring-equipment pack already ships these items, so we ANNOTATE
@@ -117,10 +121,6 @@ export const SILVER = Object.freeze({ quality: "silver", variation: "material.si
  * (`importer/gear-prices.mjs` `labelCapacity`). A container the grid states no
  * capacity for holds without a limit and says it is not imported.
  */
-// A pouch under the names a Judge types, without core's "(holds …)" suffix:
-// where it rides and what reaching into it costs are the device's.
-const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
-
 export const GEAR_PROFILES = Object.freeze({
   // Rigging — worn, and RAW-free to draw from.
   adventurersharness: { slots: [SLOT.belt], access: "free", harness: true },
@@ -243,7 +243,7 @@ export function clothingSlotsFor(name) {
  * these keys — the ACKS character sheet and the loadout summary — so the two
  * cannot disagree.
  *
- * The SLOTS come from acks-lib (`vocab.mjs` WEAR_SLOTS), which is where the
+ * The SLOTS come from the lib subsystem (`vocab.mjs` WEAR_SLOTS), which is where the
  * declaration on an item points, and which carries each slot's capacity. This
  * feature adds the two buckets that are states rather than places: gear on the
  * character but not worn, and gear inside a container. Nothing here re-declares

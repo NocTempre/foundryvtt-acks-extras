@@ -15,6 +15,7 @@ import { abilityMod } from "../lib/actor-read.mjs";
 const LANG_PREFIX = "ACKS-FORMATION.doors";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+/** The Judge's door dialog window. */
 export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-door",

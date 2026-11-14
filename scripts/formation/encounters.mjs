@@ -152,8 +152,11 @@ const FOLLOW_UPS = new Map(Object.entries(TERRAIN_FOLLOW_UPS).map(([k, v]) => [f
 
 /** One face of a die of `faces` sides, 1 to `faces`, from a [0, 1) source. */
 export const die = (faces, rng) => 1 + Math.floor(rng() * faces);
+/** One d20 face from a [0, 1) source. */
 export const d20 = (rng) => die(20, rng);
+/** One d100 face from a [0, 1) source. */
 export const d100 = (rng) => die(100, rng);
+/** One d12 face from a [0, 1) source. */
 export const d12 = (rng) => die(12, rng);
 
 /**

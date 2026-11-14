@@ -31,7 +31,8 @@ import { STAR_FLAG, stones, hdText, withMod, rankLine, saveTargets, savesLine, a
 
 export { STAR_FLAG };
 
-export const FOLLOWER_CARD_TEMPLATE = `modules/${MODULE_ID}/templates/lib/follower-card.hbs`;
+/** The path of the template both card surfaces render. */
+export const FOLLOWER_CARD_TEMPLATE =`modules/${MODULE_ID}/templates/lib/follower-card.hbs`;
 
 /**
  * Fired with `(actor, ctx)` once the lib has built a card's context, before

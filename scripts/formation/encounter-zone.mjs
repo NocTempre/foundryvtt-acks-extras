@@ -20,7 +20,8 @@ import { composeZones, sourceLayers } from "./zone-layers.mjs";
  * lives in `zones.mjs`, which also states why these extend `RegionBehaviorType`.
  */
 
-export const ENCOUNTER_ZONE_TYPE = `${MODULE_ID}.encounterZone`;
+/** The region behavior type id of an encounter zone. */
+export const ENCOUNTER_ZONE_TYPE =`${MODULE_ID}.encounterZone`;
 
 /**
  * How a zone paces a journey's throws, besides inheriting (blank): one throw

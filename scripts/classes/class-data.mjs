@@ -28,6 +28,7 @@ export const AWARD_KINDS = {
   choice: { label: "Choice" },
 };
 
+/** The data model for the `acks-extras.class` Item sub-type. */
 export default class ClassData extends foundry.abstract.TypeDataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = [

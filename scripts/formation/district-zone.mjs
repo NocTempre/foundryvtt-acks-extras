@@ -35,6 +35,7 @@ function reactionWhereChoices() {
   return out;
 }
 
+/** The region behavior type that gives a drawn Region a district's encounter figures. */
 export class DistrictBehavior extends foundry.data.regionBehaviors.RegionBehaviorType {
   static LOCALIZATION_PREFIXES = ["ACKS-FORMATION.DISTRICT"];
 

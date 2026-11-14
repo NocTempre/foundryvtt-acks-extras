@@ -127,12 +127,13 @@ export function overCapacity(doc) {
   return cap !== null && load6(doc) > cap;
 }
 
-/* Stone views, for display. */
+/** The document's capacity in stone, for display; null when none is stated. */
 export const capacityStone = (doc) => {
   const cap = capacity6(doc);
   return cap === null ? null : cap / STONE;
 };
-export const loadStone = (doc) => load6(doc) / STONE;
+/** What the document is holding, in stone, for display. */
+export const loadStone =(doc) => load6(doc) / STONE;
 
 /**
  * The exploration speed in feet per turn that the system's own movement

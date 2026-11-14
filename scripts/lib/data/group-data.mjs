@@ -32,6 +32,7 @@ export const GROUP_CATEGORY = Object.freeze({
   follower: "ACKS-LIB.group.category.follower",
 });
 
+/** The data model for the group actor sub-type, a list of stacks. */
 export default class GroupData extends foundry.abstract.TypeDataModel {
   /**
    * Array paths, so a sheet's FormDataExtended (numeric-keyed objects) round-trips

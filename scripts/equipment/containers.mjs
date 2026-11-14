@@ -290,7 +290,7 @@ export function overCapacity(actor, container) {
   return contentsWeight6(actor, container.id) > cap * STONE;
 }
 
-/** Every container on the actor, with its load — for the popout UI. */
+/** Every container on the actor, with its capacity, load, lock state and, where visible, its contents. */
 export function containerReport(actor) {
   return actor.items
     .filter(isContainer)

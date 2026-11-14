@@ -32,6 +32,7 @@ import { lighten } from "../lib/color.mjs";
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
+/** The region flag holding the painted cells as offset keys. */
 export const HEXES_FLAG = "terrainHexes";
 
 /**
@@ -711,6 +712,7 @@ class TerrainPaintSession {
   }
 }
 
+/** The one terrain-paint session the scene controls drive. */
 export const terrainPaint = new TerrainPaintSession();
 
 /**

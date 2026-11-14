@@ -27,8 +27,10 @@ export function isGroupActor(actor) {
 
 /** Token/flag keys linking a deployed token back to its group, stack, and member. */
 export const GROUP_FLAG = "group"; // on the token: the group actor's uuid
-export const STACK_FLAG = "stack"; // on the token: the stack's key within the group
-export const MEMBER_FLAG = "member"; // on the token: the roster member's key
+/** The token flag holding the stack's key within the group. */
+export const STACK_FLAG = "stack";
+/** The token flag holding the roster member's key. */
+export const MEMBER_FLAG = "member";
 
 /**
  * The tokens on `scenes` that stand for `group`'s bodies, found by the group

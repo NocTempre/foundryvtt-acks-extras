@@ -47,6 +47,7 @@ const optionsOf = (enumObj, current, { blankLabel } = {}) => {
   return out;
 };
 
+/** The class constructor sheet. */
 export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-classes-sheet"],

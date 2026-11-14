@@ -142,7 +142,8 @@ export const ROLES = Object.freeze({
   CARRIER: "carrier",
 });
 
-export const ROLE_ORDER = Object.freeze([
+/** The roles in the order they are listed. */
+export const ROLE_ORDER =Object.freeze([
   ROLES.SCOUT,
   ROLES.MAPPER,
   ROLES.POLE,
@@ -151,7 +152,8 @@ export const ROLE_ORDER = Object.freeze([
   ROLES.CARRIER,
 ]);
 
-export const ROLE_LABELS = Object.freeze({
+/** The lang key of each role's label. */
+export const ROLE_LABELS =Object.freeze({
   [ROLES.MAPPER]: "ACKS-FORMATION.role.mapper",
   [ROLES.SCOUT]: "ACKS-FORMATION.role.scout",
   [ROLES.REARGUARD]: "ACKS-FORMATION.role.rearguard",
@@ -160,7 +162,8 @@ export const ROLE_LABELS = Object.freeze({
   [ROLES.CARRIER]: "ACKS-FORMATION.role.carrier",
 });
 
-export const ROLE_HINTS = Object.freeze({
+/** The lang key of each role's hint. */
+export const ROLE_HINTS =Object.freeze({
   [ROLES.MAPPER]: "ACKS-FORMATION.role.mapperHint",
   [ROLES.SCOUT]: "ACKS-FORMATION.role.scoutHint",
   [ROLES.REARGUARD]: "ACKS-FORMATION.role.rearguardHint",

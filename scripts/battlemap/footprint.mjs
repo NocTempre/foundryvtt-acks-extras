@@ -15,6 +15,7 @@ import { sizeSquares } from "../monsters/sizes.mjs";
  * unclickable in practice — 0.25 keeps every token grabbable.
  */
 export const SPAN_STEP = 0.25;
+/** The smallest token span, in squares. */
 export const SPAN_MIN = 0.25;
 
 /**

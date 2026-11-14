@@ -189,6 +189,7 @@ export async function annotateItem(item) {
   return key;
 }
 
+/** Builds the equipment feature's public API object, grouped by area. */
 export function buildApi() {
   const api = {
     // Mounted combat (overlays/mounted.mjs): the action-economy card and the

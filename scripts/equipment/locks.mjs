@@ -191,7 +191,8 @@ export async function destroyContainer(actor, container) {
 
 /** Is a lock-defeating action available to this actor at all? */
 export const canPick = (actor) => !!findAbility(actor, PICK_NAMES);
-export const canBash = (actor) => !!findAbility(actor, BASH_NAMES);
+/** Does the actor have an ability that lets them bash a container open? */
+export const canBash =(actor) => !!findAbility(actor, BASH_NAMES);
 
 /** Localised notification; falls back to the key when unlocalised. */
 function notify(level, key, data = {}) {

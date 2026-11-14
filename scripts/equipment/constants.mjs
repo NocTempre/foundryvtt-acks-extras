@@ -191,9 +191,13 @@ export const HOOKS = Object.freeze({
 
 /** The label of the module-managed loadout Active Effect on actors. */
 export const LOADOUT_EFFECT_NAME = "Equipment Loadout";
-export const LOADOUT_EFFECT_FLAG = "loadout"; // flags.acks-extras.loadout = true marks our managed AE
-// flags.acks-extras.loadoutParts: the ledger naming what wrote each change of
-// the loadout effect, index for index (effects.mjs `buildLoadoutParts`).
+/** The flag key (`flags.acks-extras.loadout = true`) that marks the managed loadout effect. */
+export const LOADOUT_EFFECT_FLAG = "loadout";
+/**
+ * The flag key (`flags.acks-extras.loadoutParts`) of the ledger naming what
+ * wrote each change of the loadout effect, index for index (effects.mjs
+ * `buildLoadoutParts`).
+ */
 export const LOADOUT_PARTS_FLAG = "loadoutParts";
 
 /**

@@ -31,6 +31,7 @@ import { showStoredInputs } from "../patches/stored-inputs.mjs";
 /** The actions that only look, kept live on a seat that cannot edit. */
 const VIEW_ACTIONS = new Set(["fcOpenFull", "fcShowItem"]);
 
+/** The compact Follower Card, as an actor's own sheet. */
 export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.sheets.ActorSheetV2,
 ) {

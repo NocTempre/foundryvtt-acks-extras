@@ -29,6 +29,7 @@
 import { WEAR_SLOTS, ACCESS_COSTS, choicesOf } from "../vocab.mjs";
 import { MODULE_ID, FLAG_GEAR } from "../constants.mjs";
 
+/** The data model for the gear extras stored on an item's `acks-extras` flag. */
 export default class GearExtras extends foundry.abstract.DataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = ["slots"];

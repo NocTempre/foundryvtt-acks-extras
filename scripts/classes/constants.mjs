@@ -5,6 +5,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 export { MODULE_ID };
+/** The root of this feature's lang keys. */
 export const LANG_PREFIX = "ACKS-CLASSES";
 
 /** The class Item sub-type (declared in module.json `documentTypes.Item`). */

@@ -7,6 +7,7 @@
 export { MODULE_ID } from "../lib/constants.mjs";
 export { TRAVEL_MODES } from "../lib/vocab.mjs";
 
+/** The root of this feature's lang keys. */
 export const LANG_PREFIX = "ACKS-BATTLEMAP";
 
 /**

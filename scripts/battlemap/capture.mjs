@@ -44,16 +44,19 @@ function imageScale() {
   };
 }
 
+/** Maps a canvas point to background-image pixels. */
 export function canvasToImage(pt) {
   const { sx, sy, ox, oy } = imageScale();
   return { x: (pt.x - ox) * sx, y: (pt.y - oy) * sy };
 }
 
+/** Maps a background-image pixel point back to the canvas. */
 export function imageToCanvas(pt) {
   const { sx, sy, ox, oy } = imageScale();
   return { x: pt.x / sx + ox, y: pt.y / sy + oy };
 }
 
+/** The screen-covering pointer catcher that records and draws calibration samples. */
 export class CaptureOverlay {
   /**
    * @param {object} host  Owns the state: `host.samples` =

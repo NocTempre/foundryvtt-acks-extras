@@ -11,6 +11,7 @@
 import { acksCompatStubs, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
 
+/** The data model for the template (generator) actor sub-type. */
 export default class TemplateData extends foundry.abstract.TypeDataModel {
   /** Array paths, so FormDataExtended round-trips arrays (system convention). */
   static ARRAY_PATHS = ["axes", "cells", "menu.rows"];

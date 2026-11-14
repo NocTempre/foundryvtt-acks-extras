@@ -22,6 +22,7 @@ export { coinTotalGC };
 
 /** The flag scope/key attribution lives under, on both providers and stored items. */
 export const LIB_ID = "acks-extras";
+/** The flag key the storage record lives under. */
 export const STORAGE_KEY = "storage";
 
 /**

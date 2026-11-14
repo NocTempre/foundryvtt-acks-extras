@@ -71,6 +71,7 @@ const RMS_FULL_BAR = 0.03;
 /** Foundry's own floor for `grid.size`, with a fallback for a bare context. */
 const gridMinPx = () => globalThis.CONST?.GRID_MIN_SIZE ?? 50;
 
+/** The map setup panel window. */
 export default class BattlemapAssistant extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "acks-extras-battlemap",

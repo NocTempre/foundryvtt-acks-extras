@@ -136,6 +136,7 @@ function onRenderCharacterSheet(app, element) {
   }
 }
 
+/** Hooks the character sheet's render so its effects tab gains the class modifiers section. */
 export function registerClassModifiers() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("renderActorSheetV2", onRenderCharacterSheet);

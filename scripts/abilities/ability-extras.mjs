@@ -15,6 +15,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { num, str, bool, choice, refList, effectsField, defensesField, rollsField } from "../lib/fields.mjs";
 import { ABILITY_CATEGORIES, CONVERSION_STATUS, namedPicks } from "../lib/vocab.mjs";
 
+/** The data model for the extras stored on an ability item's `acks-extras` flag. */
 export default class AbilityExtras extends foundry.abstract.DataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = ["effects", "rolls", "choice.options", "selections"];

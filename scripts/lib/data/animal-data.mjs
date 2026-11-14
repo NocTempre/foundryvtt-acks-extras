@@ -28,6 +28,7 @@ export const ANIMAL_TRAINING = Object.freeze({
   herding: "ACKS-LIB.animal.training.herding",
 });
 
+/** The data model for the animal actor sub-type. */
 export default class AnimalData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     const { BooleanField, NumberField, SchemaField, StringField } = foundry.data.fields;

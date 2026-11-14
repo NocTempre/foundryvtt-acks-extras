@@ -75,4 +75,5 @@ export async function onDropLanguage(item) {
   return true;
 }
 
-export const LANGUAGE_ACTIONS = { pickLanguage, clearLanguage };
+/** The sheet actions `pickLanguage` and `clearLanguage`, keyed by action name. */
+export const LANGUAGE_ACTIONS ={ pickLanguage, clearLanguage };

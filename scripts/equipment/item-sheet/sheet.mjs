@@ -58,6 +58,7 @@ const loc = makeLoc(LANG);
 const enrich = (html, item) =>
   foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", { relativeTo: item, secrets: item.isOwner });
 
+/** The item sheet shared by every kind of gear. */
 export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin(ItemSheetV2)) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.
