@@ -104,7 +104,7 @@
       "grid": { "page": 54, "y0": 643, "y1": 758, "dieX0": 30, "dieX1": 50, "cellX0": 56, "cellX1": 150, "claimDie": true, "headerSkip": [629, 642] },
       "rollAt": { "page": 54, "box": { "x0": 30, "x1": 50, "y0": 630, "y1": 640 } },
       "skips": [{ "page": 54, "box": { "x0": 150, "x1": 578, "y0": 629, "y1": 758 }, "reason": "stat-columns" }],
-      "descStopY": 620,
+      "descStopY": [620, 88],
       "details": {
         "by": "name",
         "regions": [

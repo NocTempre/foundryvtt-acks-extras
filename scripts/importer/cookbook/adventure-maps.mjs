@@ -51,7 +51,10 @@ import { regionSiteClaim, heldMapOf, heldMapsOf, quarterPlaceIds, claimControlle
  * The formula comes from the page (dice locator) or, when the rows start at
  * 1, mechanically from the shipped range structure. `repair`, a tally
  * (`repairTally`), writes each table this world already holds over in place
- * (`rewriteTable`) instead of passing it over.
+ * (`rewriteTable`) instead of passing it over. A row the compiler marked `open`
+ * (its die printed bounded on one side) has its range widened on that side
+ * AFTER the formula is read off the printed ranges, so a roll modified past the
+ * bound lands on it and the die is still the printed one.
  */
 export async function cookbookImportRollTables({ books = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates roll tables).`);
@@ -98,7 +101,11 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
           if (p.detail) rowText.set(key, `${prev ?? ""}<p>${p.text}</p>`);
           else rowText.set(key, prev === undefined ? p.text : `${prev} ${p.text}`);
         }
+        // The executor does not carry a row's `open` mark, so it is read off the
+        // compiled paragraphs, by section.
+        const openSide = new Map((e.fields?.rows?.paras ?? []).filter((p) => p.open).map((p) => [p.section, p.open]));
         const results = [];
+        const opened = new Map();
         for (const [sec, text] of rowText) {
           const m = /^r([\d,-]+)$/.exec(sec);
           if (!m) continue;
@@ -109,7 +116,9 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
             if (!g) continue;
             const lo = parseInt(g[1], 10);
             const hi = g[2] ? parseInt(g[2], 10) : lo;
-            results.push({ type: CONST.TABLE_RESULT_TYPES.TEXT, text, range: [lo, hi] });
+            const result = { type: CONST.TABLE_RESULT_TYPES.TEXT, text, range: [lo, hi] };
+            results.push(result);
+            if (openSide.has(sec)) opened.set(result, openSide.get(sec));
           }
         }
         if (!results.length) continue;
@@ -119,6 +128,7 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
         const formula =
           (typeof node.fields.roll === "string" && node.fields.roll) ||
           (Math.min(...lows) === 1 ? `1d${Math.max(...his)}` : "");
+        for (const [result, side] of opened) result.range = openRange(result.range, side);
         if (held) {
           skipped++;
           // The library's own table, never a copy a Judge dragged out of it.
@@ -155,6 +165,24 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
   }
   ui.notifications.info(`${MODULE_ID} | roll tables: ${made} created, ${skipped} already present, in "${packLabel("RollTable")}".`);
   return { made, skipped };
+}
+
+/** How far past a printed bound a widened result's range reaches; the sheet shows it as the open end. */
+const OPEN_REACH = 999;
+
+/**
+ * A result's `[lo, hi]` widened on the side its die leaves open: `below` takes
+ * the floor out to `-OPEN_REACH`, `above` the ceiling out to `OPEN_REACH`, so a
+ * roll modified past the printed bound still finds the row. Any other side
+ * leaves the range as it is.
+ * @param {number[]} range the printed `[lo, hi]`
+ * @param {"below"|"above"} side
+ * @returns {number[]}
+ */
+export function openRange([lo, hi], side) {
+  if (side === "below") return [Math.min(lo, -OPEN_REACH), hi];
+  if (side === "above") return [lo, Math.max(hi, OPEN_REACH)];
+  return [lo, hi];
 }
 
 /** What an imported list adds after dark, read from its own rows and die (`afterDarkShift`). */

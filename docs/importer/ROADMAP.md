@@ -1049,23 +1049,6 @@ What each book still owes, in the order it is worth doing:
   location (25 to AX4, 44 and 46 to AX5, 52 to AX6) opens that adventure's
   document. AX1's (27 and 28) are planned with AX1's own work.
 
-## A die cell bounded on one side
-
-A roll-table row whose die cell reads `<n> or less` or `<n> or more`
-(`AX_DIE_OPEN` in `gridBandParas`) is stored as `<n>` alone, so its range is
-that one result. A roll modified past the bound finds no row. An open range
-needs the row's bound carried into the compiled section and the RollTable's
-range widened to the die's floor or ceiling at import.
-
-## A roll table's description that turns a column
-
-AX1's second wandering table (AX1 p.53) opens its section with a description
-that ends at the head of the next column, above the first result's details.
-`descStopY` ends a table's description flow in the column it opens in, so
-that paragraph is read by neither the table nor the level, which stops
-short of the section (`excludeBoxes`). A description bound per column, or a
-stop at the first detail region, would carry it.
-
 ## AX1's text no row reads
 
 `verify-cookbook ax1` lists the runs of each page that no row claims. Once

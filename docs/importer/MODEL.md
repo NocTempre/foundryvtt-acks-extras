@@ -1664,7 +1664,16 @@ two per band. A die the printer fused with the first run of its cell ("15 The
 members…") is read off the run's head and stripped from the text by character
 count, in every mode. A row whose cell column holds no run is a compile error
 naming its die, unless the band says `keepEmpty`: the row then ships
-`empty: true` and reads as an empty result text.
+`empty: true` and reads as an empty result text. A die cell printed
+"<n> or less" or "<n> or more" ships under `r<n>` with `open: "below"` or
+`open: "above"` on its paragraph; the executor does not carry the mark, so
+`cookbookImportRollTables` reads it off the compiled entry and, after the
+formula is read off the printed ranges, widens that result's range on the
+open side (`openRange`), so a roll modified past the bound lands on it.
+
+A table's description ends at `assists.descStopY`, a y, or a list of them
+for a description that turns a column: the first bounds the anchor's column
+and each later one the column after it, read from that column's top.
 
 `assists.details = {by, regions}` (`rollTableDetails`) appends the text that
 explains each row, printed beside the table or on later pages. `regions`

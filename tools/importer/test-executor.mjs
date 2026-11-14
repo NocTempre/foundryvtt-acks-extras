@@ -22,7 +22,9 @@ import { CLAUSE_FIELDS, effectScan, executeEntry, locateCondition, materializeEf
 import {
   CONDITION_LABELS, CONSEQUENCE_LABELS, RESTRICTION_LABELS, bareLabel, citeLabel, conditionProblem, fieldProblem, isConditionLabel, isLabel, noteProblem,
 } from "../../scripts/importer/condition-labels.mjs";
-import { axAsideBoxes, displayHeadByHash, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
+import { axAsideBoxes, compileRollTable, displayHeadByHash, gridBandParas, rollTableDetails } from "./compile-cookbook.mjs";
+import { pageItems } from "../../scripts/importer/extract.mjs";
+import { openRange } from "../../scripts/importer/cookbook/adventure-maps.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let n = 0;
@@ -453,8 +455,55 @@ await ta("a die bounded on one side only is its number, and its words open no ro
     run("2-11", 32, 112), run("QQ ripples", 62, 112),
     run("12 or more", 32, 124), run("QQ surge", 62, 124),
   );
-  const out = await readRows({ 1: pd }, gridBandParas(pd, GRID, where));
+  const compiled = gridBandParas(pd, GRID, where);
+  const out = await readRows({ 1: pd }, compiled);
   assert.deepEqual(out.map((p) => [p.section, p.text]), [["r1", "QQ calm"], ["r2-11", "QQ ripples"], ["r12", "QQ surge"]]);
+  assert.deepEqual(compiled.map((p) => p.open), ["below", undefined, "above"], "the open side rides the row's paragraph, and a bounded die carries none");
+  assert.ok(!("open" in compiled[1]), "a bounded row has no open key at all");
+  assert.deepEqual([openRange([1, 1], "below"), openRange([12, 12], "above"), openRange([2, 11], undefined)], [[-999, 1], [12, 999], [2, 11]], "the import widens the open side only");
+  assert.deepEqual(openRange([-5000, 1], "below"), [-5000, 1], "a range already wider is not narrowed");
+});
+
+await ta("a roll table's description turns into the next column and ends at the stop given for it", async () => {
+  const H = 792;
+  const draw = (str, x, y, h = 9) => ({ str, transform: [1, 0, 0, 1, x, H - y], width: str.length * 5, height: h, fontName: "F1" });
+  const items = [
+    draw("QQ TABLE", 30, 300, 14),
+    draw("QQ intro opens in the first column and", 30, 320), draw("turns at the foot of it, roll below.", 30, 332),
+    draw("QQ the turn resumes at the next column top.", 310, 70), draw("QQ it ends here.", 310, 82),
+    draw("QQ DETAIL for the first row.", 310, 200),
+    draw("1", 32, 650), draw("QQ first row", 60, 650), draw("2", 32, 662), draw("QQ second row", 60, 662),
+    draw("QQ stat column", 320, 650),
+  ];
+  const doc = {
+    numPages: 1,
+    async getPage() {
+      return {
+        getViewport: () => ({ width: 612, height: H }),
+        getTextContent: async () => ({ items }),
+        getOperatorList: async () => ({ fnArray: [], argsArray: [] }),
+      };
+    },
+  };
+  const grid = { page: 1, y0: 640, y1: 700, dieX0: 30, dieX1: 50, cellX0: 56, cellX1: 150, claimDie: true };
+  const entry = (descStopY) => ({
+    id: "qq.table", kind: "kind.rolltable", book: "qq", name: "QQ TABLE", anchor: { display: "QQ TABLE" }, pages: [1],
+    assists: { columns: [30, 310], grid, descStopY },
+  });
+  const textOf = async (out) => {
+    const pd = await pageItems(doc, 1);
+    const node = await executeEntry(null, { schema: "acks-cookbook/3", entries: { "qq.table": out } }, {}, "qq.table", { pageCache: new Map([[1, pd]]) });
+    return (node.fields.description ?? []).map((p) => p.text);
+  };
+  const single = await compileRollTable(doc, entry(620), {});
+  assert.equal((await textOf(single)).join(" ").includes("resumes"), false, "one stop ends the flow in the anchor's column, as before");
+  const both = await compileRollTable(doc, entry([620, 100]), {});
+  const read = await textOf(both);
+  assert.ok(read.join(" ").includes("opens in the first column") && read.join(" ").includes("resumes") && read.join(" ").includes("ends here"), "the turned column's lines are read");
+  assert.ok(!read.join(" ").includes("DETAIL"), "the second stop ends the flow above the next block");
+  assert.ok(!read.join(" ").includes("stat column"), "nothing below the second stop is read");
+  assert.deepEqual(both.fields.rows.paras.map((p) => p.section), ["r1", "r2"]);
+  await assert.rejects(compileRollTable(doc, entry([620, 100, 60]), {}), /descStopY names column 3 after the anchor's/);
 });
 
 await ta("a paragraph beside a sidebar reads around the sidebar's head as well as its type", async () => {

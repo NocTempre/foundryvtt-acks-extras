@@ -1813,8 +1813,9 @@ const AX_DIE_RE = /^\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*$/
 const AX_DIE_FUSED = /^(\s*\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)(\s+)(?=\S)/;
 // A die cell that bounds its row on one side only ("1 or less", "12 or more"):
 // the whole run is the die, read as its number, so its words never open the
-// row's text the way a fused die's do.
-const AX_DIE_OPEN = /^(\d+)\s+or\s+(?:less|more)$/i;
+// row's text the way a fused die's do. The side it leaves open (`less` is
+// below the number, `more` above it) rides the row's paragraph as `open`.
+const AX_DIE_OPEN = /^(\d+)\s+or\s+(less|more)$/i;
 const axColOf = (x, cols) => colOf(x + AX_HANG, cols);
 
 const collapse = (s) => s.replace(/\s+/g, " ").trim();
@@ -3078,7 +3079,11 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
  * of its cell ("15 The members…") is read off the run's head and stripped
  * from the text by character count. A row whose cell column holds no run
  * throws, naming the die, unless the band carries `keepEmpty`: the row then
- * ships `empty: true`, which the executor reads as a row with no text.
+ * ships `empty: true`, which the executor reads as a row with no text. A die
+ * cell printed "<n> or less" or "<n> or more" ships its row under `r<n>` with
+ * `open: "below"` or `open: "above"`: the executor does not carry the mark, so
+ * the import reads it off the compiled paragraph and widens that result's range
+ * on the open side.
  * @param {{items: object[]}} gpd the band's page data
  * @param {object} g the band's assist
  * @param {{entryId: string, gpage: number, page: number}} where the entry, the band's page, and the entry's page
@@ -3087,14 +3092,14 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
 export function gridBandParas(gpd, g, { entryId, gpage, page }) {
   const rows = [];
   // A run in the die column that is a die ("12", "3-4", "8, 18", "1 or less"),
-  // or opens with one and a space before its cell's text: `{label, fusedLen}`,
-  // or null.
+  // or opens with one and a space before its cell's text: `{label, fusedLen}`
+  // (and `open` for a die bounded on one side), or null.
   const dieOf = (it) => {
     if (it.x < g.dieX0 || it.x > g.dieX1) return null;
     const s = it.str.trim();
     if (AX_DIE_RE.test(s)) return { label: s, fusedLen: 0 };
     const open = AX_DIE_OPEN.exec(s);
-    if (open) return { label: open[1], fusedLen: 0 };
+    if (open) return { label: open[1], fusedLen: 0, open: open[2].toLowerCase() === "less" ? "below" : "above" };
     const m = AX_DIE_FUSED.exec(it.str);
     return m ? { label: m[1].trim(), fusedLen: m[0].length } : null;
   };
@@ -3158,12 +3163,13 @@ export function gridBandParas(gpd, g, { entryId, gpage, page }) {
     // the shared edge must fall in exactly one entry's cell band. A fused die
     // run starts in the die column and IS the cell's text, so its row's box
     // reaches the die column whether or not the band claims its dies.
-    const { label: die, fusedLen } = dieOf(r.die);
+    const { label: die, fusedLen, open } = dieOf(r.die);
     const x0 = g.claimDie || fusedLen ? g.dieX0 : g.cellX0;
     const [y0, y1] = r.band ? [r.band.y0, r.band.y1] : [r.lines[0].y - 4, r.lines[r.lines.length - 1].y + 4];
     const para = {
       box: { x0, x1: g.cellX1, y0, y1 },
       section: `r${die.replace(/\s*[-–]\s*/g, "-").replace(/\s*,\s*/g, ",")}`,
+      ...(open ? { open } : {}),
     };
     if (gpage !== page) para.page = gpage;
     // The cell column alone decides emptiness: a claimed die is in the box
@@ -3380,8 +3386,16 @@ export function rollTableDetails(pages, details, rowParas, page, entryId) {
  * roll formula materializes from them (or assists.rollAt).
  * Either shape takes `assists.details` (rollTableDetails); its regions are
  * kept out of the entry's own flow.
+ * `assists.descStopY` is a y, or a list of them for a description that turns
+ * a column: the first bounds the anchor's column, and each later one bounds the
+ * column after it (read from the column's top), so the flow ends where the
+ * list does. A list-shape table's flow takes the first alone.
+ * @param {object} doc the opened book
+ * @param {object} entry the register row
+ * @param {object} kindRow the kind's registry row (unused: the shape is the entry's own assists)
+ * @returns {Promise<object>} the cookbook entry
  */
-async function compileRollTable(doc, entry, kindRow) {
+export async function compileRollTable(doc, entry, kindRow) {
   const assists = entry.assists ?? {};
   const page = entry.pages[0];
   const fields = {};
@@ -3408,7 +3422,12 @@ async function compileRollTable(doc, entry, kindRow) {
 
   // The detail regions are the rows' text, never the entry's own flow.
   const regions = assists.details?.regions ?? [];
-  const flowAssists = regions.length ? { ...assists, excludeBoxes: [...(assists.excludeBoxes ?? []), ...regions] } : assists;
+  const descStops = [].concat(assists.descStopY ?? []);
+  const flowAssists = {
+    ...assists,
+    descStopY: descStops[0],
+    ...(regions.length ? { excludeBoxes: [...(assists.excludeBoxes ?? []), ...regions] } : {}),
+  };
   const gridList = assists.grids ?? (assists.grid ? [assists.grid] : null);
   if (gridList) {
     // Several grid configs merge into ONE table: a d% table printed as two
@@ -3426,6 +3445,13 @@ async function compileRollTable(doc, entry, kindRow) {
     // grid (bounded by assists.descStopY, which also ends the flow).
     if (opened) {
       const segs = await axFlow(doc, entry, flowAssists, { page, pd, cols: opened.cols, col: opened.a.col, endY: opened.a.endY });
+      // Each stop after the first bounds the next column, whose flow starts at
+      // the column's top.
+      for (let i = 1; i < descStops.length; i++) {
+        const col = opened.a.col + i;
+        if (col >= opened.cols.length) throw new Error(`${entry.id}: descStopY names column ${i + 1} after the anchor's, and p.${page} has no such column`);
+        segs.push(...(await axFlow(doc, entry, { ...flowAssists, descStopY: descStops[i] }, { page, pd, cols: opened.cols, col, endY: axTop(pd) - 2 })));
+      }
       const { paras: dparas } = axParas(segs, page, { iconTags: entry.book === "ax2" });
       if (dparas.length) fields.description = { op: "text", page, paras: dparas };
     }

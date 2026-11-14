@@ -1,0 +1,1 @@
+- **Importer, AX1 roll tables:** a result whose die the book prints as bounded on one side ("or less", "or more") catches a roll modified past that bound instead of finding no result, and the level-2 wandering table's description reads whole where it turns into the next column.
