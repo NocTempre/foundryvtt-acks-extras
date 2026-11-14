@@ -5520,7 +5520,16 @@
         }
       ],
       "training": {
-        "runin": "Combat Proficiencies:"
+        "runin": "Combat Proficiencies:",
+        "page": 98,
+        "boxes": [
+          {
+            "x0": 40,
+            "x1": 190,
+            "y0": 570,
+            "y1": 666
+          }
+        ]
       }
     }
   },

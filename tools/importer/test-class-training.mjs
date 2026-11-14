@@ -9,7 +9,8 @@
  * file is a repo file and ships no book text.
  */
 import assert from "node:assert/strict";
-import { parseCombatTraining } from "../../scripts/importer/cookbook.mjs";
+import { parseCombatTraining, bindClass } from "../../scripts/importer/cookbook.mjs";
+import { trainingOf } from "../../scripts/classes/training-logic.mjs";
 
 let n = 0;
 const check = (label, got, want) => {
@@ -196,5 +197,32 @@ assert.equal(
   null,
 );
 n++;
+
+/* --- a bounded paragraph is read before the body ------------------------- */
+// The register bounds a paragraph the level table interleaves, and the binder
+// reads the field the box produces ahead of the body columns, which hold the
+// folded text. Absent the field, the body is still the source.
+const folded =
+  "Field Training:Yaks Title Rank Dice have weapon proficiency with long" +
+  "rank spears, boar spears, and two-0 Faint 1 1d4 ------edged blades. They have " +
+  "armorproficiencywithallarmor. They have fighting style proficiency with the weapon and shield style.";
+const clean =
+  "Field Training: Yaks have weapon proficiency with long spears and boar spears. " +
+  "They have armor proficiency with all armor. They have fighting style proficiency " +
+  "with the dual weapon style.";
+globalThis.game ??= {};
+const entry = { kind: "kind.class", name: "Invented Yak", book: "cat", cite: "CAT p.1", meta: { key: "inventedYak" }, training: { runin: RUNIN } };
+const changesOf = (fields) => bindClass(entry, { fields }, "def.class.inventedYak").effects?.[0]?.changes ?? null;
+check("folded body alone: no training", changesOf({ body1c0: folded }), null);
+const bounded = trainingOf(changesOf({ body1c0: folded, trainingProse: clean }));
+check("bounded paragraph: weapons", bounded.weapons, ["long spear", "boar spear"]);
+check("bounded paragraph: armour", bounded.armour, "heavy");
+check("bounded paragraph: styles", bounded.styles, ["dual"]);
+check("clean body, no field: still read", trainingOf(changesOf({ body1c0: clean })), bounded);
+// Both sources parse and differ: the field wins, wherever the body sits.
+const other = "Field Training: Yaks have weapon proficiency with clubs. They have no armor proficiency.";
+check("the field is read first", trainingOf(changesOf({ body1c0: other, trainingProse: clean })), bounded);
+check("an empty field falls back to the body",trainingOf(changesOf({ body1c0: clean, trainingProse: "" })), bounded);
+check("a field that does not parse falls back to the body", trainingOf(changesOf({ body1c0: clean, trainingProse: "No such paragraph." })), bounded);
 
 console.log(`test-class-training: all ${n} checks passed`);

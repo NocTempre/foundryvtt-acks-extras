@@ -4990,6 +4990,29 @@ async function compileClass(doc, entry, kindRow) {
   // cost from the page the race prints it on, column by column like the body.
   if (spec.build?.race?.pages?.length) await rawColumns("race", spec.build.race.pages);
 
+  // A spread whose training paragraph shares baselines with its level table
+  // cannot be read out of a body column: the table's cells fold through the
+  // sentence. The register bounds the paragraph (`training.boxes`, on
+  // `training.page`, default the anchor page) and the field carries only those
+  // coordinates; the binder reads the training from it before the body. The
+  // joins that restore a space the line turn dropped ship; the hyphen merge
+  // does not, because a line turned inside a hyphenated weapon or style name
+  // must keep the hyphen the grant vocabulary spells it with.
+  if (spec.training?.boxes?.length) {
+    const tPage = spec.training.page ?? page;
+    const tpd = tPage === page ? pd : await pageItems(doc, tPage);
+    const boxes = spec.training.boxes.map((b) => ({ x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 }));
+    const prose = withFixes(
+      { op: "value", page: tPage, ...(boxes.length > 1 ? { boxes } : { box: boxes[0] }), pattern: "raw" },
+      tpd, null, null,
+    );
+    if (prose.fixes) {
+      delete prose.fixes.mergeHyphen;
+      if (!Object.keys(prose.fixes).length) delete prose.fixes;
+    }
+    fields.trainingProse = prose;
+  }
+
   return {
     kind: entry.kind,
     name: entry.name,
@@ -5023,7 +5046,7 @@ async function compileClass(doc, entry, kindRow) {
     ...(spec.build ? { build: spec.build } : {}),
     // The run-in the spread states its combat training under — declared per
     // class because the label is not the same on every spread.
-    ...(spec.training ? { training: spec.training } : {}),
+    ...(spec.training ? { training: { runin: spec.training.runin } } : {}),
     ...(spec.casting?.length ? { casting: spec.casting } : {}),
     ...(spec.skills?.length ? { skills: spec.skills } : {}),
     ...(spec.equipAliases ? { equipAliases: spec.equipAliases } : {}),
