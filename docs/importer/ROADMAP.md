@@ -1134,13 +1134,6 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 - **A pair's parent in the earlier book's Adventure.** The place is carried
   with its parent in library form, so importing that Adventure into a world
   without the later book's places gives the place a library parent.
-- **AX1's region encounter area as a zone.** The region map stands its
-  places, but the area the book keys its wilderness encounters to is no
-  zone over it yet, and neither is AX3's over its own region map.
-
-- **A region place that holds nothing.** The places step makes a book's
-  region place whenever its region rows import, so a book whose every site
-  pairs onto another book's gets a region place holding only its map.
 - **AX3 places split at a page turn.** Four AX3 rows (two points of interest
   and two people) break a sentence where their text turns a page, so each
   reads one paragraph as two. `assists.joinTurns` joins such a turn on the
