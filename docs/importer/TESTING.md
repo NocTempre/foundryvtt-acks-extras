@@ -3727,11 +3727,12 @@ a key space `jj.scenario<N>` with its areas, the creature rows
 
 ### Fixtures
 
-- `importer/jj-scenario`: the first scenario's place (`jj.scenario1`) in the
-  Judge-only library, in a world with the JJ open on the GM seat. Built when
-  nothing carries the marker by the steps below, then `api.mark(uuid,
-  "importer/jj-scenario")` on the place stamped `jj.scenario1`. The library's
-  documents are never tracked or swept.
+- The scenarios' own import in the Judge-only library, in a world with the JJ
+  open on the GM seat. It is found by its stamp, `flags.acks-extras.cookbook.id`
+  `jj.scenario1` on the first scenario's place, and carries no marker: the
+  capture driver's `api.mark` refuses a compendium document. Built when no
+  document carries the stamp by steps 1 to 4. The library's documents are
+  never tracked or swept.
 - The monster book's rows in the library, for the roster links that name one
   (`mm.*`); without them the links wait, and step 2 counts them.
 
@@ -3758,6 +3759,13 @@ a key space `jj.scenario<N>` with its areas, the creature rows
   `background`.
 
 ### Steps
+
+Steps 1 to 4 state a first import: the counts created, and the picture bar,
+are those of a library holding no `jj.scenario*` document. A library that
+holds them reports them as already held, as step 6 does, and walking the
+create path again needs them absent, which is a setup check's delete
+(`.claude/rules/live-testing.md`, step 4). Steps 6 to 8 are derived from the
+code and have no walk behind them.
 
 1. Connect the JJ and press the monsters step (`stepMonsters`), answering its
    question. *Observable:* a bar per page, *Reading picture text, PDF page
@@ -3795,5 +3803,5 @@ a key space `jj.scenario<N>` with its areas, the creature rows
 
 ### Teardown
 
-The fixture is kept. Step 7's place is the library's own and comes back by
+The import is kept. Step 7's place is the library's own and comes back by
 the step itself; nothing is swept.
