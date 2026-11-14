@@ -10933,3 +10933,40 @@ eight plates.
 notes until a reader trims it. A listing's stat-line creatures bind by name in
 the next slice, and a listing whose creature the guide renames needs its own
 replacement pair there.
+
+## 2026-11-13 — A lair's plate is cut inside its frame and gridded off its own lattice
+
+Each of the 37 plated lairs has a `kind.scene` (`le.lair<n>Map`, `Lair <n> Map`,
+`register/le/p190-p225-plate-scenes.json`) naming its lair as `place`, with
+`travel: "delve"`, no walls and no pins. The owner ruled "5 ft per square
+(Recommended)" and "Place actor (Recommended)", and "It should link without
+creating duplicates." The plate-to-lair pairing is `PLATES` in
+`test-le-cookbook.mjs`, the only copy.
+
+**Ruled:**
+
+- **The grid box is the drawn lattice's pitch in page points**, fitted off the
+  plate's own raster (the pitch of the finest line that every node carries,
+  each axis, averaged when they agree within 1.5%), and `centre` is the middle
+  of the drawn cell nearest the plate's middle. The distance is 5 ft on every
+  plate, never read off a scale bar (2026-11-13, "Lairs & Encounters is a
+  Judge's book…"). The pitches run from 3.7 to 55 points.
+- **The crop is the drawing inside its thick frame**, a point in from the
+  frame's inner edge, and two points in from an edge that has no frame. The
+  folio and the buyer's mark stand outside every image.
+- **`turn` follows how the page paints the image**: an image whose top is
+  painted toward the page's right is turned 1, toward its left 3, and an
+  upright one has none (26 turned, 11 upright). The plan reads upright through
+  that turn on every plate looked at (one in each direction on four).
+- **A picture is at most 12000 pixels on a side.** `grid.pixels` is 70, and is
+  lowered toward 50 on a plate whose lattice is fine enough to pass that (one
+  plate, at 62); `test-le-cookbook` pins it.
+- **The page's two plates on p. 207 pair in caption order**, left then right,
+  confirmed against each listing's inline copy of its plan.
+
+*Cost:* a 5 ft square is the owner's figure, not the page's: one plate
+(p. 214) draws its lattice on an inset only and prints its scale bar in another
+unit than feet, and the finest lattices (p. 220, 221, 202, 199) make a picture of
+many small squares. Lattice phase on plates with few drawn
+lines (p. 204, 207, 208, 215) rests on a handful of lines and is the
+first thing to check on a live walk.
