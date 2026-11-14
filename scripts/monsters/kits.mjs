@@ -152,8 +152,9 @@ export function kitDamage(kit, resolvedDamage) {
  * class gets the one `kitArmourClass` works out, with its parts on
  * `extras.derived.kit`; a leader in a troop kit gets the damage modifier
  * `kitDamage` works out, written to both attack kinds with its parts on
- * `extras.derived.kit.damage`, or core's none (0) with `{missing: true}` there
- * where a part is not a number; and the kit's own words are added to both prose
+ * `extras.derived.kit.damage`, or a blank (null, which core's damage roll reads
+ * as no bonus) with `{missing: true}` there where a part is not a number; and
+ * the kit's own words are added to both prose
  * channels, the system biography and the Full Monster Sheet's notes, as the
  * line `noteLine(kit)` returns. A creature with no kit is left as it is.
  * `kits` is the world's tables as `importedKits` reads them; given, an
@@ -179,7 +180,9 @@ export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null }
     }
     const damage = kitDamage(kit, system.damage?.mod?.melee);
     if (damage) {
-      const written = damage.missing ? 0 : damage.value;
+      // The field is nullable and every system roll path drops a null modifier,
+      // so a part that is not a number leaves the field blank, never a 0.
+      const written = damage.missing ? null : damage.value;
       system.damage = { ...(system.damage ?? {}), mod: { ...(system.damage?.mod ?? {}), melee: written, missile: written } };
       extras.derived = { ...(extras.derived ?? {}), kit: { ...(extras.derived?.kit ?? named), damage } };
     }

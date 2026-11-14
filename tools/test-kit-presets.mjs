@@ -263,7 +263,7 @@ ok("a leader's kit damage follows the row below the warrior's, over a warrior wi
   assert.equal(none.flags[MID].extras.derived.kit.damage.missing, undefined);
 });
 
-ok("a kit damage part that is not a number leaves the modifier blank at none, never the leader's own total", () => {
+ok("a kit damage part that is not a number leaves the modifier blank (null), never 0 and never the leader's own total", () => {
   assert.equal(kitDamage({ troop: "bowmen", role: STANDARD_ROLE, damage: 2, memberDamage: 1 }, 3), null, "a rank and file has none to work out");
   assert.equal(kitDamage({ troop: UNARMOURED, role: "champion", damage: 2, memberDamage: 1 }, 3), null, "unarmoured changes the armour class alone");
   assert.equal(kitDamage(null, 3), null);
@@ -276,7 +276,9 @@ ok("a kit damage part that is not a number leaves the modifier blank at none, ne
   assert.equal(damageModOf(-2), -2);
   const r = { system: { damage: { mod: { melee: 3, missile: 3 } } }, flags: { [MID]: { extras: { kit: { troop: "bowmen", label: "Bowmen", role: "champion", damage: 2, compute: true, cite: "QQ p.41" } } } } };
   applyGeneratedKit(r);
-  assert.deepEqual(r.system.damage.mod, { melee: 0, missile: 0 }, "the leader's own 3 does not stand in the kit's place");
+  assert.deepEqual(r.system.damage.mod, { melee: null, missile: null }, "the leader's own 3 does not stand in the kit's place, and no 0 does either");
+  assert.strictEqual(r.system.damage.mod.melee, null);
+  assert.strictEqual(r.system.damage.mod.missile, null);
   const dk = r.flags[MID].extras.derived.kit;
   assert.deepEqual(dk.damage, { missing: true });
   assert.equal(dk.cite, "QQ p.41");
@@ -419,6 +421,9 @@ ok("the tooltips name the kit's row only while the actor holds its figure", () =
   const heldBlank = { kit: leaderKit, derived: { kit: { ...dk, damage: blank }, leader }, ac: 8, damageMod: 0 };
   assert.equal(derivationTips(heldBlank, loc).damageTip, "QQ p.41", "a part not a number: the row's page alone");
   assert.match(derivationTips(heldBlank, loc).leaderTip, /^statblock\.tip\.leaderDerived\|/, "the blank the kit left is not an edit");
+  const heldNull = { ...heldBlank, damageMod: null };
+  assert.equal(derivationTips(heldNull, loc).damageTip, "QQ p.41", "a stored blank reads as none held: the row's page alone");
+  assert.match(derivationTips(heldNull, loc).leaderTip, /^statblock\.tip\.leaderDerived\|/, "and the blank the kit left is not an edit");
   assert.equal(derivationTips({ ...heldBlank, damageMod: 2 }, loc).damageTip, "");
   assert.match(derivationTips({ ...heldBlank, damageMod: 2 }, loc).leaderTip, /^statblock\.tip\.leaderDerivedEdited\|/);
   const emptyRecord = { value: null, base: null, step: null, leaderDamage: null, memberDamage: null, missing: false };

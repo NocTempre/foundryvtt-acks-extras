@@ -159,6 +159,9 @@ test("a leader's kit damage is named on the attack even at none, and a blank one
   const blank = tipOf({ missing: true, value: null }, 0);
   assert.equal(blank.damage, "1d4");
   assert.equal(blank.damageTip, "QQ p.41");
+  const blankNull = tipOf({ missing: true, value: null }, null);
+  assert.equal(blankNull.damage, "1d4", "a field left blank adds nothing to the die and prints no figure");
+  assert.equal(blankNull.damageTip, "QQ p.41");
   assert.equal(tipOf({ value: null, missing: false }, 0).damageTip, "", "an empty record names nothing");
 });
 test("the Loyalty row: none for a creature that serves nobody, blank with the page for an empty field, signed for a score", () => {

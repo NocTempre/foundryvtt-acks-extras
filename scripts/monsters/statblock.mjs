@@ -183,7 +183,7 @@ function kitDamageRecord(derived) {
  * its figure; for a leader in a troop kit `damageTip` names the parts its
  * damage modifier was worked out from while the actor holds that figure, and
  * is the row's page alone where a part was not a number and the modifier was
- * left at none. `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
+ * left blank (the snapshot reads a blank field as 0, so the held figure is 0). `{throwTip, savesTip, leaderTip, acTip, moraleTip, damageTip}`,
  * "" where there is nothing to name.
  */
 export function derivationTips(snap, loc) {
