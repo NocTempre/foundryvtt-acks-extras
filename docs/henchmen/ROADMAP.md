@@ -83,10 +83,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
-- **A hired unit's loyalty is a stored zero.** `lib/data/group-data.mjs`
-  declares `unit.loyalty` as an integer with initial 0, so a unit hired through
-  the group path carries a figure no page was read for. It wants the nullable
-  shape the hire's record took ([DECISIONS.md](DECISIONS.md), 2026-11-14).
 - **Blank figures that have no page reference yet.** Fields left blank when
   nothing is imported carry a page-reference tooltip only where one was
   written. These carry none, and each needs its page looked up:

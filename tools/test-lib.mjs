@@ -3973,6 +3973,7 @@ await (async () => {
   const groupSource = readFileSync(new URL("../scripts/lib/data/group-data.mjs", import.meta.url), "utf8");
   assert.ok(!/Math\.max\(\s*-?\d+\s*,\s*Math\.min\(\s*-?\d+/.test(groupSource), "a group's morale holds no literal range");
   assert.equal((groupSource.match(/clampScore\(.*moraleBounds\(ACTOR_TYPE\.character\)\)/g) ?? []).length, 2, "both group morale reads clamp to the system's range");
+  assert.match(groupSource, /loyalty: new NumberField\(\{ required: false, nullable: true, integer: true, initial: null,/, "a unit's loyalty starts blank, never a stored zero");
   n++;
   console.log("ok - score bounds: the system's schema range per type, an open side stays open, a group reads it too");
 }

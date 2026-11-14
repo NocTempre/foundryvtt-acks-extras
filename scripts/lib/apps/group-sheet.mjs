@@ -29,6 +29,7 @@
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { GROUP_CATEGORY, GROUP_STATE } from "../data/group-data.mjs";
 import * as groups from "../group.mjs";
+import { blankLoyaltyCite } from "../score-bounds.mjs";
 import { citeOf, countTip, defaultRollContext, groupNoun, judgeCaption, rollEncounter, rollRefusal, stackSource } from "../group-encounter.mjs";
 import {
   BY_LAIR_CHANCE,
@@ -149,6 +150,8 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const order = coinOrderView(this.actor);
     const gold = (rows) => coinTotalGC(rows).toLocaleString(game.i18n.lang);
     context.isMonsterBand = sys.unit?.category === "monster";
+    // A blank unit loyalty carries the page that prints the figures, nothing else.
+    context.unitLoyaltyTip = sys.unit?.loyalty == null ? blankLoyaltyCite() : "";
     context.purse = {
       shown: !context.isMonsterBand || coin.length > 0,
       rows: coin.map((row) => ({ id: row.id, name: row.name, img: row.img, count: coinCount(row), gp: gold([row]) })),

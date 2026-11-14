@@ -221,7 +221,7 @@
         </label>
         {{#unless isMonsterBand}}
           <label>{{localize "ACKS-LIB.group.loyalty"}}
-            <input type="number" name="system.unit.loyalty" value="{{system.unit.loyalty}}" min="-4" max="4" />
+            <input type="number" name="system.unit.loyalty" value="{{system.unit.loyalty}}" min="-4" max="4"{{#if unitLoyaltyTip}} data-tooltip-text="{{unitLoyaltyTip}}"{{/if}} />
           </label>
         {{/unless}}
       </div>
