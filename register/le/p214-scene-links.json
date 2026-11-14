@@ -1,0 +1,113 @@
+[
+  {
+    "id": "le.link1",
+    "kind": "kind.sceneLink",
+    "book": "le",
+    "name": "Link 1",
+    "pages": [
+      214
+    ],
+    "link": {
+      "mode": "teleport",
+      "confirm": true,
+      "ends": [
+        {
+          "scene": "le.lair111Map",
+          "box": {
+            "x0": 376.0,
+            "x1": 388.0,
+            "y0": 382.5,
+            "y1": 394.5
+          },
+          "place": "le.lair111",
+          "note": "The location's dot on the plate, a drawn dot wide."
+        },
+        {
+          "scene": "le.lair111Map1",
+          "box": {
+            "x0": 384.0,
+            "x1": 396.0,
+            "y0": 468.6,
+            "y1": 480.6
+          },
+          "note": "The inset's edge the plate's arrow enters, one drawn square deep."
+        }
+      ],
+      "note": "The plate and the inset, both ways; each end asks first, so a party walking past the dot is not diverted."
+    }
+  },
+  {
+    "id": "le.link2",
+    "kind": "kind.sceneLink",
+    "book": "le",
+    "name": "Link 2",
+    "pages": [
+      214
+    ],
+    "link": {
+      "mode": "teleport",
+      "confirm": true,
+      "ends": [
+        {
+          "scene": "le.lair111Map",
+          "box": {
+            "x0": 131.8,
+            "x1": 143.8,
+            "y0": 374.7,
+            "y1": 386.7
+          },
+          "place": "le.lair111",
+          "note": "The location's dot on the plate, a drawn dot wide."
+        },
+        {
+          "scene": "le.lair111Map2",
+          "box": {
+            "x0": 166.0,
+            "x1": 178.0,
+            "y0": 560.24,
+            "y1": 572.24
+          },
+          "note": "The inset's edge the plate's arrow enters, one drawn square deep."
+        }
+      ],
+      "note": "The plate and the inset, both ways; each end asks first, so a party walking past the dot is not diverted."
+    }
+  },
+  {
+    "id": "le.link3",
+    "kind": "kind.sceneLink",
+    "book": "le",
+    "name": "Link 3",
+    "pages": [
+      214
+    ],
+    "link": {
+      "mode": "teleport",
+      "confirm": true,
+      "ends": [
+        {
+          "scene": "le.lair111Map",
+          "box": {
+            "x0": 272.3,
+            "x1": 284.3,
+            "y0": 164.0,
+            "y1": 176.0
+          },
+          "place": "le.lair112",
+          "note": "The location's dot on the plate, a drawn dot wide."
+        },
+        {
+          "scene": "le.lair112Map",
+          "box": {
+            "x0": 334.92,
+            "x1": 346.92,
+            "y0": 180.5,
+            "y1": 192.5
+          },
+          "note": "The inset's edge the plate's arrow enters, one drawn square deep."
+        }
+      ],
+      "note": "The plate and the inset, both ways; each end asks first, so a party walking past the dot is not diverted."
+    }
+  }
+]

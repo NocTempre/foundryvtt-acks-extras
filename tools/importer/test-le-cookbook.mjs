@@ -9,15 +9,16 @@
  * ships no word of it. `PLATES` pins each plated lair to the page its listing's
  * own pointer names and the page it points at, as `harvest-lairs.mjs` read
  * them; the scenes pair by this table: one `kind.scene` per plated lair, on
- * the plate's page, naming that lair as its `place`.
+ * the plate's page, naming that lair as its `place`. One plate is a map with
+ * insets, and a place's scenes beyond its own map are `part`s of it.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { lairOfProblems, replacementProblems } from "./register-rules.mjs";
-import { isRegionRecipe, placementHolding, recipeContext, recipeProblems, sceneFrame } from "../../scripts/importer/scene-binding.mjs";
+import { lairOfProblems, replacementProblems, scenePartProblems } from "./register-rules.mjs";
+import { isLinkRow, isRegionRecipe, isSceneRecipe, placementHolding, recipeContext, recipeProblems, sceneFrame } from "../../scripts/importer/scene-binding.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
@@ -43,7 +44,10 @@ for (const book of ["mm", "le"]) {
 const lairRows = [...rows.values()].filter((r) => r.book === "le" && r.meta?.space === "le.lairs");
 const ordinal = (id) => Number(/^le\.lair(\d+)$/.exec(id)?.[1]);
 
-/** The listings that print a full-page plate: row id -> [the page its pointer stands on, the plate page it names]. */
+/**
+ * The listings that print a full-page plate: row id -> [the page its pointer stands on, the plate page it names].
+ * One plate is shared by two listings and carries the pointer of the first.
+ */
 const PLATES = {
   "le.lair4": [17, 190],
   "le.lair5": [17, 191],
@@ -73,6 +77,7 @@ const PLATES = {
   "le.lair109": [82, 215],
   "le.lair110": [83, 210],
   "le.lair111": [85, 214],
+  "le.lair112": [85, 214],
   "le.lair116": [89, 216],
   "le.lair117": [90, 217],
   "le.lair118": [93, 218],
@@ -176,9 +181,9 @@ t("print order: the number rises with page, then column, then height", () => {
 
 t("a plate's lair is the row whose pages hold its pointer, bar the one captioned above it", () => {
   const ids = Object.keys(PLATES);
-  assert.equal(ids.length, 37);
+  assert.equal(ids.length, 38);
   assert.equal(new Set(Object.values(PLATES).map(([, plate]) => plate)).size, 36);
-  assert.equal(Object.values(PLATES).filter(([, plate]) => plate === 207).length, 2);
+  for (const shared of [207, 214]) assert.equal(Object.values(PLATES).filter(([, plate]) => plate === shared).length, 2, `plate ${shared}`);
   for (const [id, [pointer, plate]] of Object.entries(PLATES)) {
     const row = rows.get(id);
     assert.ok(row?.meta?.space === "le.lairs", id);
@@ -191,9 +196,17 @@ t("a plate's lair is the row whose pages hold its pointer, bar the one captioned
 /** The book's scene rows, as authored: the register's, by id. */
 const sceneRows = [...rows.values()].filter((r) => r.book === "le" && r.kind === "kind.scene");
 
-t("a plate is one scene on its lair's page, named by id and by place", () => {
-  assert.equal(sceneRows.length, 37);
-  assert.deepEqual(sceneRows.map((r) => r.id).sort(), Object.keys(PLATES).map((id) => `${id}Map`).sort());
+/** The plate that is a map with insets, and what is drawn on it: its lair, the lair of each inset, the parts of its own lair. */
+const MAP_WITH_INSETS = { page: 214, whole: "le.lair111Map", parts: ["le.lair111Map1", "le.lair111Map2"], other: "le.lair112Map" };
+const insetIds = [...MAP_WITH_INSETS.parts, MAP_WITH_INSETS.other];
+const squareRows = sceneRows.filter((r) => r.scene.grid);
+
+t("a plate is one scene on its lair's page, named by id and by place; a plate with insets has a scene to each", () => {
+  assert.equal(sceneRows.length, 40);
+  assert.deepEqual(
+    sceneRows.map((r) => r.id).sort(),
+    [...Object.keys(PLATES).map((id) => `${id}Map`), ...MAP_WITH_INSETS.parts].sort(),
+  );
   for (const [id, [, plate]] of Object.entries(PLATES)) {
     const row = rows.get(`${id}Map`);
     assert.equal(row.name, `Lair ${ordinal(id)} Map`, id);
@@ -201,30 +214,99 @@ t("a plate is one scene on its lair's page, named by id and by place", () => {
     assert.equal(row.scene.place, id, id);
     assert.ok(rows.get(row.scene.place)?.meta?.space === "le.lairs", id);
   }
+  MAP_WITH_INSETS.parts.forEach((id, i) => {
+    const row = rows.get(id);
+    assert.equal(row.name, `${rows.get(MAP_WITH_INSETS.whole).name} ${i + 1}`, id);
+    assert.deepEqual(row.pages, [MAP_WITH_INSETS.page], id);
+    assert.equal(row.scene.place, rows.get(MAP_WITH_INSETS.whole).scene.place, id);
+    assert.equal(row.scene.part, i + 1, id);
+  });
   assert.deepEqual([...new Set(sceneRows.map((r) => r.pages[0]))].sort((a, b) => a - b), Array.from({ length: 36 }, (_, i) => 190 + i));
-  assert.equal(new Set(sceneRows.map((r) => r.scene.place)).size, 37);
+  assert.equal(new Set(sceneRows.map((r) => r.scene.place)).size, 38);
+  assert.deepEqual(scenePartProblems(rows), []);
 });
 
-t("no lair scene reads as the book's region map: each names a place and a square grid of 5 ft", () => {
+t("a lair scene is a square grid of 5 ft that no region map reads as, bar the plate drawn in miles and the inset drawn smaller", () => {
   for (const r of sceneRows) {
     const { scene } = r;
     assert.equal(isRegionRecipe(scene), false, r.id);
     assert.equal(scene.travel, "delve", r.id);
     assert.equal(scene.walls, undefined, r.id);
     assert.equal(scene.places, undefined, r.id);
+    assert.ok(scene.turn === undefined || [1, 2, 3].includes(scene.turn), r.id);
+    if (!scene.grid) continue;
     assert.equal(scene.grid.family, "square", r.id);
-    assert.equal(scene.grid.distance, 5, r.id);
+    assert.equal(scene.grid.distance, r.id === MAP_WITH_INSETS.other ? 2.5 : 5, r.id);
     assert.equal(scene.grid.units, "ft", r.id);
     assert.equal(scene.grid.box.w, scene.grid.box.h, r.id);
     assert.ok(scene.grid.pixels >= 50 && scene.grid.pixels <= 70, r.id);
-    assert.ok(scene.turn === undefined || [1, 2, 3].includes(scene.turn), r.id);
   }
   assert.equal(sceneRows.filter((r) => r.scene.turn === undefined).length, 11);
-  assert.equal(sceneRows.filter((r) => r.scene.turn !== undefined).length, 26);
+  assert.equal(sceneRows.filter((r) => r.scene.turn !== undefined).length, 29);
+  assert.equal(squareRows.length, 39);
+});
+
+t("the plate drawn in miles is a gridless map at a tenth of a mile to the cell, and its three insets are 5 ft and 2.5 ft squares", () => {
+  const whole = rows.get(MAP_WITH_INSETS.whole).scene;
+  assert.equal(whole.grid, undefined);
+  assert.deepEqual(whole.cell, { distance: 0.1, units: "mi" });
+  assert.equal(whole.place, "le.lair111");
+  assert.equal(whole.part, undefined);
+  assert.equal(whole.travel, "delve");
+  assert.equal(whole.turn, 1);
+  // The picture is drawn at the cell's scale: a few thousand pixels, where a pixel to the foot would pass the canvas ceiling.
+  const frame = sceneFrame(whole);
+  assert.ok(Math.max(frame.width, frame.height) > 1000 && Math.max(frame.width, frame.height) <= 12000, `${frame.width}x${frame.height}`);
+  const footFrame = sceneFrame({ ...whole, cell: undefined });
+  assert.ok(Math.max(footFrame.width, footFrame.height) > 12000);
+  const [one, two, other] = insetIds.map((id) => rows.get(id).scene);
+  assert.deepEqual([one.part, two.part, other.part], [1, 2, undefined]);
+  assert.deepEqual([one.place, two.place, other.place], ["le.lair111", "le.lair111", "le.lair112"]);
+  assert.deepEqual([one.grid.distance, two.grid.distance, other.grid.distance], [5, 5, 2.5]);
+  // Each inset lies on the plate it is cut from, turned as the plate is.
+  for (const id of insetIds) {
+    const { crop, turn } = rows.get(id).scene;
+    const c = whole.crop;
+    assert.ok(crop.x >= c.x && crop.y >= c.y && crop.x + crop.w <= c.x + c.w && crop.y + crop.h <= c.y + c.h, id);
+    assert.equal(turn, whole.turn, id);
+  }
+});
+
+t("each inset is reached from its lair's dot on the plate by a confirmed teleport that runs both ways", () => {
+  const linkRows = [...rows.values()].filter((r) => r.book === "le" && r.kind === "kind.sceneLink");
+  assert.deepEqual(linkRows.map((r) => r.id).sort(), ["le.link1", "le.link2", "le.link3"]);
+  const whole = rows.get(MAP_WITH_INSETS.whole).scene;
+  const reached = [];
+  for (const r of linkRows) {
+    assert.equal(r.name, `Link ${r.id.slice("le.link".length)}`, r.id);
+    assert.equal(r.link.mode, "teleport", r.id);
+    assert.equal(r.link.confirm, true, r.id);
+    assert.equal(r.link.both, undefined, r.id);
+    assert.equal(r.link.ends.length, 2, r.id);
+    const [dot, edge] = r.link.ends;
+    assert.equal(dot.scene, MAP_WITH_INSETS.whole, r.id);
+    assert.ok(dot.box.x0 >= whole.crop.x && dot.box.x1 <= whole.crop.x + whole.crop.w && dot.box.y0 >= whole.crop.y && dot.box.y1 <= whole.crop.y + whole.crop.h, r.id);
+    assert.equal(dot.place, rows.get(edge.scene).scene.place, `${r.id}: the dot stands for the lair its inset is`);
+    assert.equal(edge.place, undefined, r.id);
+    reached.push(edge.scene);
+  }
+  assert.deepEqual(reached.sort(), [...insetIds].sort());
+  // No two dots overlap, so a party standing on one is asked about that one.
+  const spots = linkRows.map((r) => r.link.ends[0].box);
+  for (let i = 0; i < spots.length; i++) {
+    for (let k = i + 1; k < spots.length; k++) {
+      const [a, b] = [spots[i], spots[k]];
+      assert.ok(a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0, `${linkRows[i].id} and ${linkRows[k].id} overlap`);
+    }
+  }
 });
 
 t("each scene is compiled over its plate: the placement holds the crop, and the recipe passes the checks", () => {
-  assert.deepEqual(Object.keys(scenes).sort(), sceneRows.map((r) => r.id).sort());
+  const compiled = Object.entries(scenes).filter(([, row]) => isSceneRecipe(row)).map(([id]) => id);
+  assert.deepEqual(compiled.sort(), sceneRows.map((r) => r.id).sort());
+  const links = Object.entries(scenes).filter(([, row]) => isLinkRow(row)).map(([id]) => id);
+  assert.deepEqual(links.sort(), ["le.link1", "le.link2", "le.link3"]);
+  assert.equal(Object.keys(scenes).length, compiled.length + links.length);
   const placed = new Map();
   for (const r of sceneRows) {
     const row = scenes[r.id];
@@ -238,15 +320,21 @@ t("each scene is compiled over its plate: the placement holds the crop, and the 
     assert.deepEqual(recipeProblems(recipe, recipeContext(entries)), [], r.id);
     assert.equal(isRegionRecipe(recipe), false, r.id);
     // The picture is cut at the grid's scale; one past the browser's canvas ceiling is never rendered.
-    const frame = sceneFrame(recipe, { pixelsPerPoint: recipe.grid.pixels / recipe.grid.box.w });
+    const frame = recipe.grid ? sceneFrame(recipe, { pixelsPerPoint: recipe.grid.pixels / recipe.grid.box.w }) : sceneFrame(recipe);
     assert.ok(Math.max(frame.width, frame.height) <= 12000, `${r.id}: picture ${frame.width}x${frame.height}`);
-    const [cx, cy] = recipe.grid.centre;
-    assert.ok(cx > recipe.crop.x && cx < recipe.crop.x + recipe.crop.w && cy > recipe.crop.y && cy < recipe.crop.y + recipe.crop.h, r.id);
+    if (recipe.grid) {
+      const [cx, cy] = recipe.grid.centre;
+      assert.ok(cx > recipe.crop.x && cx < recipe.crop.x + recipe.crop.w && cy > recipe.crop.y && cy < recipe.crop.y + recipe.crop.h, r.id);
+    }
     placed.set(page, [...(placed.get(page) ?? []), placement]);
   }
   const two = placed.get(207);
   assert.equal(two.length, 2);
   assert.notDeepEqual(two[0], two[1]);
+  // The four scenes of the plate with insets are cut from the one image.
+  const shared = placed.get(MAP_WITH_INSETS.page);
+  assert.equal(shared.length, 4);
+  assert.ok(shared.every((p) => JSON.stringify(p) === JSON.stringify(shared[0])));
 });
 
 t("the creature replacements are reviewed for this book, key no name, and bind a lair's stat line to an ACKS II monster", () => {

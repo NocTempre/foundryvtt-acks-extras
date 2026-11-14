@@ -55281,20 +55281,232 @@
         "turn": 1,
         "place": "le.lair111",
         "travel": "delve",
+        "feetPerPoint": 21.15,
+        "cell": {
+          "distance": 0.1,
+          "units": "mi"
+        }
+      }
+    },
+    "le.lair111Map1": {
+      "kind": "kind.scene",
+      "name": "Lair 111 Map 1",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "scene": {
+        "page": 214,
+        "placement": {
+          "x": 58.76,
+          "y": 36,
+          "w": 504.23,
+          "h": 720
+        },
+        "crop": {
+          "x": 278.5,
+          "y": 468.6,
+          "w": 254.8,
+          "h": 277.3
+        },
+        "turn": 1,
+        "place": "le.lair111",
+        "part": 1,
+        "travel": "delve",
         "grid": {
           "family": "square",
           "box": {
-            "w": 12.019,
-            "h": 12.019
+            "w": 12.03,
+            "h": 12.03
           },
           "centre": [
-            315.18,
-            392.02
+            411.65,
+            608.09
           ],
           "distance": 5,
           "units": "ft",
           "pixels": 70
         }
+      }
+    },
+    "le.lair111Map2": {
+      "kind": "kind.scene",
+      "name": "Lair 111 Map 2",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "scene": {
+        "page": 214,
+        "placement": {
+          "x": 58.76,
+          "y": 36,
+          "w": 504.23,
+          "h": 720
+        },
+        "crop": {
+          "x": 134.24,
+          "y": 560.24,
+          "w": 108.28,
+          "h": 107.44
+        },
+        "turn": 1,
+        "place": "le.lair111",
+        "part": 2,
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 11.995,
+            "h": 11.995
+          },
+          "centre": [
+            183.24,
+            608.04
+          ],
+          "distance": 5,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "le.lair112Map": {
+      "kind": "kind.scene",
+      "name": "Lair 112 Map",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "scene": {
+        "page": 214,
+        "placement": {
+          "x": 58.76,
+          "y": 36,
+          "w": 504.23,
+          "h": 720
+        },
+        "crop": {
+          "x": 334.92,
+          "y": 147.48,
+          "w": 95.44,
+          "h": 95.2
+        },
+        "turn": 1,
+        "place": "le.lair112",
+        "travel": "delve",
+        "grid": {
+          "family": "square",
+          "box": {
+            "w": 12.02,
+            "h": 12.02
+          },
+          "centre": [
+            387.43,
+            199.21
+          ],
+          "distance": 2.5,
+          "units": "ft",
+          "pixels": 70
+        }
+      }
+    },
+    "le.link1": {
+      "kind": "kind.sceneLink",
+      "name": "Link 1",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "link": {
+        "mode": "teleport",
+        "confirm": true,
+        "ends": [
+          {
+            "scene": "le.lair111Map",
+            "box": {
+              "x0": 376,
+              "x1": 388,
+              "y0": 382.5,
+              "y1": 394.5
+            },
+            "place": "le.lair111"
+          },
+          {
+            "scene": "le.lair111Map1",
+            "box": {
+              "x0": 384,
+              "x1": 396,
+              "y0": 468.6,
+              "y1": 480.6
+            }
+          }
+        ]
+      }
+    },
+    "le.link2": {
+      "kind": "kind.sceneLink",
+      "name": "Link 2",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "link": {
+        "mode": "teleport",
+        "confirm": true,
+        "ends": [
+          {
+            "scene": "le.lair111Map",
+            "box": {
+              "x0": 131.8,
+              "x1": 143.8,
+              "y0": 374.7,
+              "y1": 386.7
+            },
+            "place": "le.lair111"
+          },
+          {
+            "scene": "le.lair111Map2",
+            "box": {
+              "x0": 166,
+              "x1": 178,
+              "y0": 560.24,
+              "y1": 572.24
+            }
+          }
+        ]
+      }
+    },
+    "le.link3": {
+      "kind": "kind.sceneLink",
+      "name": "Link 3",
+      "cite": "LE p.214",
+      "pages": [
+        214
+      ],
+      "link": {
+        "mode": "teleport",
+        "confirm": true,
+        "ends": [
+          {
+            "scene": "le.lair111Map",
+            "box": {
+              "x0": 272.3,
+              "x1": 284.3,
+              "y0": 164,
+              "y1": 176
+            },
+            "place": "le.lair112"
+          },
+          {
+            "scene": "le.lair112Map",
+            "box": {
+              "x0": 334.92,
+              "x1": 346.92,
+              "y0": 180.5,
+              "y1": 192.5
+            }
+          }
+        ]
       }
     },
     "le.lair109Map": {

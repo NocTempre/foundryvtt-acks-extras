@@ -3540,11 +3540,14 @@ that copy by its id.
 
 Walked on `main` after `topic/lair-maps` lands. Every listing of Chapter 3 is
 a place `le.lair<n>` inside `le.lairs`, numbered in print order; a row whose
-`meta.of` names an ACKS II monster is that monster's lair, and the 37 plated
+`meta.of` names an ACKS II monster is that monster's lair, and the 38 plated
 lairs have a scene recipe `le.lair<n>Map` naming them as `place` ("A lair is a
-place with its monster" in MODEL; DECISIONS 2026-11-13). The cookbook's rows
-(`cookbook/le.json`) say what each should be: `meta.of` on the place rows, the
-scene rows' `place`, `grid` and `turn`, the stat lines' `occupants.<i>.name`.
+place with its monster" in MODEL; DECISIONS 2026-11-13). One plate (p. 214) is
+a map with insets: its own scene is gridless at a tenth of a mile to the cell,
+with one scene for each of its three gridded insets and a link to each. The
+cookbook's rows (`cookbook/le.json`) say what each should be: `meta.of` on the
+place rows, the scene rows' `place`, `grid`, `cell`, `part` and `turn`, the
+link rows' ends, the stat lines' `occupants.<i>.name`.
 `tools/importer/test-le-cookbook.mjs` (`PLATES`) is the one list of which lair
 owns which plate. Nothing of the page is read to check it.
 
@@ -3584,6 +3587,10 @@ What a scripted walk meets:
   a Scene where it has one. Kept.
 - `importer/le-lair-bound` — a lair whose printed stat line binds to its own
   monster (step 9 states the criterion), and its Scene. Kept.
+- `importer/le-p214-plate`, `importer/le-p214-part1`, `importer/le-p214-part2`,
+  `importer/le-p214-other` — the world scenes the maps step makes from
+  `le.lair111Map`, `le.lair111Map1`, `le.lair111Map2` and `le.lair112Map`, read
+  back from `created.scenes` and marked. Kept.
 - `importer/le-lair-party` — a party actor in a formation, built as
   `docs/formation/TESTING.md` "Fixtures" builds one; its token is created on
   and deleted from the lair Scenes by the steps below. Kept, left in delve.
@@ -3607,16 +3614,16 @@ What a scripted walk meets:
    line a replacement pair covers links the actor of the pair's `ref`
    (`register/_refs/creatureReplacement.json`), never a made creature and
    never the same-name row.
-3. Run `cookbookImportScenes({ books: ["le"] })`. *Observable:* 37 scenes,
+3. Run `cookbookImportScenes({ books: ["le"] })`. *Observable:* 40 scenes,
    `missing` 0; each is linked to its lair's world copy
    (`flags.acks-extras.location`) and named as that place is; its battlemap
    `mapSystem` is `delve`; its grid is square with `distance` 5 and its drawn
    squares sit under the scene's grid on `importer/le-lair-map` and on the
    plates whose fit rests on fewest lines or least checking (frame the canvas,
-   compare by eye): p204, p207 left, p208, p215, p214's gridded inset and p220
-   (`grid.pixels` 62); every turned plate reads upright (4 of the 26 were
-   checked offline). The p207 pair are two scenes on two lairs; the
-   shared p214 plate is one scene.
+   compare by eye): p204, p207 left, p208, p215 and p220 (`grid.pixels` 62);
+   every turned plate reads upright (4 of the 26 were checked offline). The
+   p207 pair are two scenes on two lairs; p. 214 is four scenes (step 10), and
+   the 3 links join in the same run.
 4. Run the step of step 1 again. *Observable:* `made` 0, `already` 168, no
    creature made, no roster grows, and no lair's `lair` flag changes.
 5. Setup check, the lair imported before its monster: pick a lair other than
@@ -3670,6 +3677,36 @@ What a scripted walk meets:
    `planLair` is ok (find one over the 38 plated lairs), enter or press Roll.
    *Observable:* the group is made all the same ("Yes, roll anyway") and the
    roster holds the bound row and the group's.
+10. The plate with insets (p. 214), over the four `importer/le-p214-*` scenes
+    and the links step 3 joined. Assert each scene's shape at the start, then
+    walk. *Observable:*
+    - **The gridless scale.** The plate's grid is `type` 0, `size` 100,
+      `distance` 0.1, `units` `mi`, with its battlemap flag's `distance` 0.1
+      and `mapSystem` `delve`; its `width` and `height` are about 2000 by 2860,
+      never the 15,000-odd a pixel to the foot would make. With the ruler,
+      measure from one dot to another and read the distance against the plate's
+      own bar (the two agree to a few percent).
+    - **The parts.** The two parts are named `<lair 111's name> (1)` and `(2)`,
+      carry `flags["acks-extras"].scenePart` 1 and 2 and the plate's
+      `flags["acks-extras"].location`; their grids are square, 5 ft. Lair 112's
+      inset is that lair's own map, square at 2.5 ft, with no `scenePart`.
+    - **The place still opens its plate.** Lair 111's `system.sceneUuid` is the
+      plate's uuid after the maps step, after step 4's second run, and after
+      the Judge links and unlinks a part from the Scene configuration's Place
+      row (a part's flag is written and cleared; the place's mirror is not).
+    - **The teleports.** Each of the three dots on the plate has a Region
+      named for its place and a compass word (two dots stand for lair 111) whose
+      Teleport Token behaviour asks first (`choice`), and each inset has one on
+      the edge the plate's arrow enters, leading back to the dot. Drag the party
+      token onto a dot: the question appears; Cancel leaves the token on the
+      plate, and Yes puts it on the inset's edge region, where formation adopts
+      the inset's scene as `delve`. Drag it back off through the inset's region:
+      it is on the plate at the dot.
+    - **A party on a part is at the lair.** With the party on a part, the place
+      the location module reports for the scene (`locationOfScene`) is lair
+      111's, and arriving there is the lair's arrival of step 6 (lair 111's
+      monster counts units, so step 7's single card, not a group). On lair
+      112's inset the same walk makes nothing and posts nothing (no monster).
 
 ### Teardown
 

@@ -876,7 +876,7 @@
       214
     ],
     "scene": {
-      "note": "Geometry in page points, top-left origin: the crop is the plate's drawing inside its frame; the grid block is one drawn square near the middle of the plate, measured off the drawing's own lattice; the distance is the 5 ft the owner ruled for every plate, not read off the plate's scale bar.",
+      "note": "Geometry in page points, top-left origin: the crop is the plate's drawing inside its frame, gridless; the cell is the owner's tenth of a mile to a hundred-pixel cell, and feetPerPoint is measured off the plate's own distance bar.",
       "crop": {
         "x": 61.09,
         "y": 39.0,
@@ -886,17 +886,115 @@
       "turn": 1,
       "place": "le.lair111",
       "travel": "delve",
+      "feetPerPoint": 21.15,
+      "cell": {
+        "distance": 0.1,
+        "units": "mi"
+      }
+    }
+  },
+  {
+    "id": "le.lair111Map1",
+    "kind": "kind.scene",
+    "book": "le",
+    "name": "Lair 111 Map 1",
+    "pages": [
+      214
+    ],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: an inset of the plate, cut inside its frame and one more scene of its place (part); the grid block is one drawn square near the middle of the inset, measured off its own lattice; the distance is the 5 ft the owner ruled for every plate.",
+      "crop": {
+        "x": 278.5,
+        "y": 468.6,
+        "w": 254.8,
+        "h": 277.3
+      },
+      "turn": 1,
+      "place": "le.lair111",
+      "part": 1,
+      "travel": "delve",
       "grid": {
         "family": "square",
         "box": {
-          "w": 12.019,
-          "h": 12.019
+          "w": 12.03,
+          "h": 12.03
         },
         "centre": [
-          315.18,
-          392.02
+          411.65,
+          608.09
         ],
         "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  },
+  {
+    "id": "le.lair111Map2",
+    "kind": "kind.scene",
+    "book": "le",
+    "name": "Lair 111 Map 2",
+    "pages": [
+      214
+    ],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: an inset of the plate, cut inside its frame and one more scene of its place (part); the grid block is one drawn square near the middle of the inset, measured off its own lattice; the distance is the 5 ft the owner ruled for every plate.",
+      "crop": {
+        "x": 134.24,
+        "y": 560.24,
+        "w": 108.28,
+        "h": 107.44
+      },
+      "turn": 1,
+      "place": "le.lair111",
+      "part": 2,
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": {
+          "w": 11.995,
+          "h": 11.995
+        },
+        "centre": [
+          183.24,
+          608.04
+        ],
+        "distance": 5,
+        "units": "ft",
+        "pixels": 70
+      }
+    }
+  },
+  {
+    "id": "le.lair112Map",
+    "kind": "kind.scene",
+    "book": "le",
+    "name": "Lair 112 Map",
+    "pages": [
+      214
+    ],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: an inset of the plate, cut inside its frame; the grid block is one drawn square near the middle of the inset, measured off its own lattice; the distance is the 2.5 ft the owner ruled for a drawn square of this inset.",
+      "crop": {
+        "x": 334.92,
+        "y": 147.48,
+        "w": 95.44,
+        "h": 95.2
+      },
+      "turn": 1,
+      "place": "le.lair112",
+      "travel": "delve",
+      "grid": {
+        "family": "square",
+        "box": {
+          "w": 12.02,
+          "h": 12.02
+        },
+        "centre": [
+          387.43,
+          199.21
+        ],
+        "distance": 2.5,
         "units": "ft",
         "pixels": 70
       }
