@@ -15,7 +15,7 @@
  */
 
 // Pure modules only, so this file stays Node-importable.
-import { getDoc, hasDoc } from "./tables.mjs";
+import { citeOf, expectTables, getDoc, getLayer, hasDoc, PRIORITY } from "./tables.mjs";
 import { cookbookId } from "./library.mjs";
 import { CONDITIONS } from "./conditions.mjs";
 
@@ -1158,6 +1158,19 @@ export const VALUE_ROUNDING = {
 /*  Wear slots — where a piece of gear sits                          */
 /* ---------------------------------------------------------------- */
 
+/** The registered document the ring place's printed capacity arrives in (JJ p. 144; Treasure Tome p. 74). */
+export const WEAR_SLOTS_DOC = "wearSlots";
+/** Its table holding how many magic rings one wearer benefits from: `{capacity}`. */
+export const RING_CAPACITY_TABLE = "ringCapacity";
+
+/**
+ * Declare the wear-slot tables, so an import names them as missing until they
+ * land. The id is a literal because the validate gates read this call from source.
+ */
+export function declareWearSlotTables() {
+  expectTables(WEAR_SLOTS_DOC, ["ringCapacity"]);
+}
+
 /**
  * WEAR SLOTS — the canonical set of places a piece of gear can be worn or
  * wielded, and the family's single source for them (the equipment feature's
@@ -1165,9 +1178,11 @@ export const VALUE_ROUNDING = {
  *
  * A slot is an exclusion: `capacity` is how many magic items the place takes,
  * which `item-model.mjs` `slotUse` counts against; what the body can physically
- * carry twice is a second count there. `capacity: null` means unlimited. See
- * docs/lib/DECISIONS.md, "A wear slot is an exclusion counted against magic
- * items".
+ * carry twice is a second count there. `capacity: null` means unlimited. A slot
+ * with `imported` in place of `capacity` takes its figure from the named table
+ * of the `WEAR_SLOTS_DOC` document, and `slotCapacity` answers null for it
+ * until that is imported. See docs/lib/DECISIONS.md, "A wear slot is an
+ * exclusion counted against magic items".
  *
  * Keys are in display order, head to foot then off-body. Foundry-free: `icon`
  * is a Font Awesome class the sheet layers consume, and `label` is the English
@@ -1182,7 +1197,7 @@ export const WEAR_SLOTS = {
   worn: { label: "Worn", capacity: null, icon: "fa-mitten" }, // clothing and other worn-not-armour gear
   // Uncapped: several different forms hang from the belt, and from the back.
   belt: { label: "Belt", capacity: null, icon: "fa-grip-lines" }, // belt, girdle, sash — and the pouches on it
-  ring: { label: "Ring", capacity: 2, icon: "fa-ring" },
+  ring: { label: "Ring", imported: { table: RING_CAPACITY_TABLE, key: "capacity" }, icon: "fa-ring" }, // JJ p. 144
   hands: { label: "Hands", capacity: 1, icon: "fa-hand-sparkles" }, // gloves, gauntlets, bracers
   feet: { label: "Feet", capacity: 1, icon: "fa-shoe-prints" }, // boots, sandals
   mainHand: { label: "Main Hand", capacity: 1, icon: "fa-hand-fist" },
@@ -1201,14 +1216,42 @@ export const SLOT = Object.freeze(Object.fromEntries(WEAR_SLOT_ORDER.map((k) => 
 /** Is this a slot key we know? */
 export const isWearSlot = (key) => !!WEAR_SLOTS[key];
 
+/** One imported slot figure as a whole number above zero, or null for anything not read. */
+function importedCapacity({ table, key }) {
+  if (!hasDoc(WEAR_SLOTS_DOC)) return null;
+  const raw = getDoc(WEAR_SLOTS_DOC)?.tables?.[table]?.[key];
+  const n = Number(raw);
+  return raw != null && raw !== "" && Number.isInteger(n) && n > 0 ? n : null;
+}
+
 /**
- * How many items the slot holds. An unknown slot answers 1, neither 0 nor Infinity.
+ * How many items the slot holds. An unknown slot answers 1, neither 0 nor
+ * Infinity. A slot whose figure is imported answers null until it is: a caller
+ * treats that as no cap known, never as a full place.
+ * @returns {number|null}
  */
 export const slotCapacity = (key) => {
   if (!isWearSlot(key)) return 1;
-  const cap = WEAR_SLOTS[key].capacity;
-  return cap === null ? Infinity : cap;
+  const spec = WEAR_SLOTS[key];
+  if (spec.imported) return importedCapacity(spec.imported);
+  return spec.capacity === null ? Infinity : spec.capacity;
 };
+
+/**
+ * Where an imported slot figure came from, at render: `{state: "judge"}` where
+ * the Judge's own edit holds its table, `{state: "page", cite}` where the import
+ * recorded the page it read, and `{state: "none"}` where it is not imported.
+ * Null for a slot whose figure is not imported at all.
+ * @param {string} key a wear-slot key
+ * @returns {{state: "judge"|"page"|"none", cite: string|null}|null}
+ */
+export function slotCapacitySource(key) {
+  const spec = WEAR_SLOTS[key]?.imported;
+  if (!spec) return null;
+  if (importedCapacity(spec) === null) return { state: "none", cite: null };
+  if (getLayer(WEAR_SLOTS_DOC, PRIORITY.OVERRIDE)?.tables?.[spec.table] != null) return { state: "judge", cite: null };
+  return { state: "page", cite: citeOf(WEAR_SLOTS_DOC, spec.table) };
+}
 
 /** Retrieval cost of a container's contents (RR pp. 293-294); per container, so it lives on the gear rather than the slot. */
 export const ACCESS_COSTS = {

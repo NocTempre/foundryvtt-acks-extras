@@ -1,4 +1,4 @@
-# lib API (apiVersion 45)
+# lib API (apiVersion 46)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 45,
+  apiVersion: 46,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1022,7 +1022,10 @@ character. `declaresSlots` separates "declared to sit nowhere" from "never
 annotated"; name-heuristic fallbacks must gate on it.
 
 Slot keys and their capacities come from `vocab.mjs` `WEAR_SLOTS` / `SLOT` /
-`slotCapacity`; `ACCESS_COSTS` is the RAW retrieval cost (RR pp. 293–294).
+`slotCapacity`. The ring place's capacity is imported (the `wearSlots` document,
+JJ p. 144): `slotCapacity("ring")` answers `null` until it is, `slotUse` then
+reports `cap: null` and never `full`, and `slotCapacitySource` says where the
+figure came from. `ACCESS_COSTS` is the RAW retrieval cost (RR pp. 293–294).
 
 ### `storage` — goods kept somewhere other than on you
 

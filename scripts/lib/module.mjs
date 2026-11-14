@@ -145,7 +145,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 45,
+  apiVersion: 46,
   vocab,
   fields,
   /**
@@ -445,6 +445,7 @@ Hooks.once("init", () => {
   light.declareLightTables();
   senses.declareSenseTables();
   movementScales.declareMovementTables();
+  vocab.declareWearSlotTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
   // Before the first write to a compendium document.

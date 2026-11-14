@@ -614,14 +614,16 @@ export function itemsInSlot(actor, slot) {
  * @param {string} slot a wear-slot key
  * @param {Item[]} items what is at that place, as the caller resolved it
  * @returns {{equip:number, magic:number, cap:number, used:number, full:boolean}}
- *   `cap` the magic capacity (Infinity when uncapped); `used` the larger of
- *   the two counts, for a badge; `full` when either rule is broken
+ *   `cap` the magic capacity (Infinity when uncapped, null while an imported
+ *   figure is not read); `used` the larger of the two counts, for a badge;
+ *   `full` when either rule is broken, and never while `cap` is null
  */
 export function slotUse(slot, items) {
   const cap = slotCapacity(slot);
   const equip = items.filter(isEquippable).length;
   const magic = items.filter(isMagical).length;
-  return { equip, magic, cap, used: Math.max(equip, magic), full: magic > cap || (cap !== Infinity && equip > 1) };
+  const full = cap !== null && (magic > cap || (cap !== Infinity && equip > 1));
+  return { equip, magic, cap, used: Math.max(equip, magic), full };
 }
 
 /** Is the slot carrying more than it can, by either rule? */

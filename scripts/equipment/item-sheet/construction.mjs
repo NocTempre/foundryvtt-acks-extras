@@ -37,7 +37,7 @@ import { setBaseType } from "../variation-items.mjs";
 import { baseTypesFor, baseTypeIsDeclared, baseTypeOf, BASE_TYPE_FLAG } from "../base-types.mjs";
 import { inferBaseType } from "../base-type-infer.mjs";
 import { declaresSlots, slotsOf, gearOf, reliefOf } from "../../lib/item-model.mjs";
-import { ACCESS_COSTS, slotCapacity, ITEM_TYPE } from "../../lib/vocab.mjs";
+import { ACCESS_COSTS, slotCapacity, slotCapacitySource, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { LABELABLE } from "../../lib/a11y.mjs";
 import { helmetType } from "../overlays/enclosing-helm.mjs";
 import { materialVocabulary, itemLossMaterials, isVulnerable, setMaterial, materialOf } from "../overlays/item-loss.mjs";
@@ -438,8 +438,16 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
   // A slot with a capacity is the only mechanic RAW hangs on one (TT: you
   // cannot wear two of the same thing), so say what it is rather than leaving
   // the control looking decorative.
+  // A place whose cap is an imported figure says where it came from, and says
+  // nothing until it is imported.
   const cap = effective[0] ? slotCapacity(effective[0]) : null;
-  if (Number.isFinite(cap)) note(loc("props.slotCapacity", { n: cap, slot: wearLabel(effective[0]) }));
+  if (Number.isFinite(cap)) {
+    const source = slotCapacitySource(effective[0]);
+    const slot = wearLabel(effective[0]);
+    if (!source) note(loc("props.slotCapacity", { n: cap, slot }));
+    else if (source.state === "judge") note(loc("props.slotCapacityRead", { n: cap, slot, source: loc("props.slotCapacityJudge") }));
+    else if (source.cite) note(loc("props.slotCapacityRead", { n: cap, slot, source: source.cite }));
+  }
 
   // WHAT A HARNESS SECURES — the book's figure, read from the item's own text
   // by the annotate pass or typed here. Unstated secures nothing.

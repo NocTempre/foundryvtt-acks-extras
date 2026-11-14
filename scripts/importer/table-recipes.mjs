@@ -1095,6 +1095,24 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // How many magic rings one wearer benefits from (JJ 144, the Rings
+  // introduction; the Treasure Tome prints it too): written as a count word,
+  // read after the clause that names the benefit, which carries no figure.
+  // lib/vocab.mjs `slotCapacity` answers it for the ring place, and null
+  // while it is not imported.
+  wearSlots: {
+    source: { book: "ACKS II Judges Journal", pages: "JJ 144" },
+    tables: {
+      ringCapacity: {
+        shape: "proseValues",
+        book: "jj",
+        printedPage: 144,
+        locate: "rings at the same time",
+        locateBare: true,
+        values: [{ key: "capacity", findRe: "can\\s*only\\s*benefit\\s*from", take: "wordInt", span: 14 }],
+      },
+    },
+  },
   // The weapon facts the weapons grid does not state: which kinds of weapon a
   // proficiency names, what a hand weapon deals, what a thrown flask deals and
   // which weapons need both hands. Each is prose on its own folio, so each table

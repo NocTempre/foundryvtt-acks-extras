@@ -14,7 +14,7 @@ import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
-  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, storedSystem, carriesMorale, partyMenuModel, standingBySpell,
+  effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, slotBadge, storedSystem, carriesMorale, partyMenuModel, standingBySpell,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 import { buildThrows } from "../scripts/character-sheet/tabs/stats.mjs";
@@ -471,6 +471,27 @@ test("the spanning row lists what both hands hold first and is full past two thi
   const places = bridgeHands([place("mainHand", [{ id: "a" }]), place("offHand", [{ id: "b" }]), place("bothHands", [{ id: "gs" }])]);
   assert.deepEqual(places[0].rows.map((r) => r.id), ["gs", "a", "b"]);
   assert.equal(places[0].full, true);
+});
+
+console.log("character sheet: a place's count badge");
+// A localizer that names the key and the data it was handed, so a test reads what the badge asked for.
+const badgeLoc = (key, d = {}) => `${key}|${JSON.stringify(d)}`;
+const use = (over = {}) => ({ magic: 1, equip: 0, used: 1, cap: 3, ...over });
+test("an uncapped place has no badge and nothing to explain", () => {
+  assert.deepEqual(slotBadge("belt", use({ cap: Infinity }), null, badgeLoc), { capacity: null, capacityHint: "" });
+});
+test("a capped place shows its larger count against the cap and names the page an imported cap was read from", () => {
+  const { capacity, capacityHint } = slotBadge("ring", use(), { state: "page", cite: "XX 7" }, badgeLoc);
+  assert.equal(capacity, "1 / 3");
+  assert.ok(capacityHint.startsWith('equipment.slotUse|{"magic":1,"cap":3,"equip":0} '), "the two counts lead");
+  assert.ok(capacityHint.endsWith('equipment.slotCap.page|{"cite":"XX 7"}'), "the page follows");
+});
+test("a Judge's override is named as theirs, and a figure of the slot's own carries no source", () => {
+  assert.ok(slotBadge("ring", use(), { state: "judge", cite: null }, badgeLoc).capacityHint.endsWith("equipment.slotCap.judge|{}"));
+  assert.equal(slotBadge("head", use({ cap: 1 }), null, badgeLoc).capacityHint, 'equipment.slotUse|{"magic":1,"cap":1,"equip":0}');
+});
+test("an imported cap not read leaves the figure blank and points at the page that prints it", () => {
+  assert.deepEqual(slotBadge("ring", use({ cap: null }), { state: "none", cite: null }, badgeLoc), { capacity: "1 /", capacityHint: "equipment.slotCap.none.ring|{}" });
 });
 
 console.log("character sheet: the editable fields");

@@ -138,3 +138,13 @@ reads", shows the loads gone.
 **Rejected.** Keeping the first rung as an interpretation beside the two printed ones; converting cavalry to infantry-equivalents at a fixed ratio, which the page's own counts contradict.
 
 *Cost:* the group's `troopStrength`, `commandCapacity` and `overCommand` getters are removed for `troopCounts` and `commandStatus(rungs)`, so lib `apiVersion` is 45. A world that has not imported the Rules tables hires an over-large unit with no warning.
+
+## 2026-11-14 — The ring place's capacity is imported; an unknown cap is never full
+
+**Ruled.** The count of magic rings one wearer benefits from is printed on JJ p. 144 (the Rings introduction) and in the Treasure Tome (p. 74). The module holds no figure for it: a `proseValues` recipe, `wearSlots.ringCapacity`, reads it from the Judge's own Judges Journal (`importer/table-recipes.mjs`), and `vocab.mjs` `WEAR_SLOTS.ring` names that table (`imported`) in place of a `capacity`. `slotCapacity("ring")` answers `null` until it is read, and `slotCapacitySource` says whether the figure is a page's, the Judge's override or absent.
+
+**The session's call, owner may overrule: an unknown cap enforces nothing.** `slotUse` with a null cap reports `full: false`, which also drops the one-equippable-thing-per-place count at that place (the ring place holds jewellery, not armour or weapons, so the second count had nothing to refuse there). The Equipment tab's badge shows the count with the figure after the slash blank and a tooltip naming both pages, and the item sheet's slot note is left out.
+
+**Rejected.** A fallback figure of one, which would tint a place the book permits; reading the Treasure Tome page as well, which would add a second recipe for one figure.
+
+*Cost:* lib `apiVersion` is 46 (`WEAR_SLOTS.ring.capacity` is gone, `slotCapacity` and `slotUse` can answer `null`, and `vocab` gains `WEAR_SLOTS_DOC`, `RING_CAPACITY_TABLE`, `declareWearSlotTables` and `slotCapacitySource`). A world that has not imported the Judges Journal shows no ring cap and flags no overfilled ring place. The other places keep the module's own capacities, which the Treasure Tome's form table prints and this page does not.

@@ -213,8 +213,11 @@ feature's `wearLocation`), a worn container with its capacity bar, its
 header controls and its contents nested, and an empty slot as a hint. The
 badge on a capped place is the lib's `slotUse`: magic items against the
 form's capacity, armour and weapons against the one the body allows, clothing
-against neither; it shows the larger count, carries both in its tooltip, and
-the place is tinted when either rule is broken.
+against neither; it shows the larger count (`slotBadge`), carries both in its tooltip, and
+the place is tinted when either rule is broken. A cap that is an imported
+figure (the ring place's, lib MODEL "Slots") adds the page it was read from or
+that the Judge set it to the tooltip; unread, the figure after the slash is
+blank, the tooltip names the pages that print it, and the place is never tinted.
 `bridgeHands` folds the both-hands place into the main hand's when a weapon
 is held in both — one row carrying both hands' labels and everything held,
 keyed by the main hand so a drop on it still draws — and lists nothing for

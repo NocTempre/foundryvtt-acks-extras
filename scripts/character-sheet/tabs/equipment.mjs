@@ -11,7 +11,7 @@
  * for what is inside what — so this tab and the item sheet cannot disagree.
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
-import { loadBar, bridgeHands } from "../view-model.mjs";
+import { loadBar, bridgeHands, slotBadge } from "../view-model.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { companionSlots } from "../../abilities/companions.mjs";
 import { carriedWeight6, capacity6, load6 } from "../../lib/capacity.mjs";
@@ -33,7 +33,7 @@ import { isEquippable, isWorn, weight6Of, isGoods, isClothing, isCurrency, stack
 import { wearableSlots } from "../../equipment/profiles.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { coinOrderView } from "../../lib/coin-order.mjs";
-import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE } from "../../lib/vocab.mjs";
+import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE, slotCapacitySource } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../location/reach.mjs";
 
@@ -270,7 +270,7 @@ export function buildEquipmentTab(actor) {
     if (kit) {
       use.equip += kit;
       use.used = Math.max(use.equip, use.magic);
-      use.full = use.full || (use.cap !== Infinity && use.equip > 1);
+      use.full = use.full || (use.cap !== null && use.cap !== Infinity && use.equip > 1);
     }
     return {
       key,
@@ -279,8 +279,7 @@ export function buildEquipmentTab(actor) {
       rows: items.map((i) => rowOf(actor, i, ctx)),
       empty: !items.length,
       hint: loc(`equipment.slotHint.${key}`),
-      capacity: use.cap === Infinity ? null : `${use.used} / ${use.cap}`,
-      capacityHint: use.cap === Infinity ? "" : loc("equipment.slotUse", { magic: use.magic, cap: use.cap, equip: use.equip }),
+      ...slotBadge(key, use, slotCapacitySource(key), loc),
       full: use.full,
       equip: use.equip,
       magic: use.magic,

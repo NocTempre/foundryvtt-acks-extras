@@ -42,7 +42,7 @@
           {{#each place.rows}}{{> "modules/acks-extras/templates/character-sheet/gear-row.hbs" this}}{{/each}}
           {{/if}}
         </div>
-        {{#if place.capacity}}<span class="acks-extras-frame__slot-cap acks-nums"{{#if place.capacityHint}} data-tooltip="{{place.capacityHint}}"{{/if}}>{{place.capacity}}</span>{{/if}}
+        {{#if place.capacity}}<span class="acks-extras-frame__slot-cap acks-nums"{{#if place.capacityHint}} data-tooltip-text="{{place.capacityHint}}"{{/if}}>{{place.capacity}}</span>{{/if}}
       </div>
       {{/each}}
     </div>

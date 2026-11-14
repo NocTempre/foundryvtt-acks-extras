@@ -1244,14 +1244,21 @@ bucket for clothing), each gated on a field their own item type cannot carry.
 ### Slots
 
 `vocab.mjs` `WEAR_SLOTS` is the canonical list — fourteen places, each with a
-`capacity`. A slot is fundamentally an **exclusion**: the Treasure Tome's
+`capacity` (the ring's is `imported`, below). A slot is fundamentally an **exclusion**: the Treasure Tome's
 Miscellaneous Magic Item Form table states the only wear mechanic ACKS II has,
-that a character may not wear two MAGIC items of the same form at once, and
-its Rings entry sets the one capacity above 1 (a third stops all of them
-working). So `capacity` is a place's **magic** capacity, and `slotUse` counts
-a place twice: magic items against that, and what the body cannot carry twice
-— armour and weapons, anything core can equip — against one. Clothing and
-plain gear count against neither: a coif under a helm and a magic circlet over
+that a character may not wear two MAGIC items of the same form at once. The
+ring place is the one capacity the module does not hold: the Rings
+introduction (JJ p. 144) and the Treasure Tome (p. 74) print how many magic
+rings one wearer benefits from, the importer reads it from JJ into the
+`wearSlots` document's `ringCapacity` table, and `slotCapacity("ring")`
+answers `null` until it is imported (a Judge can edit it in the Ruledata
+Browser; `slotCapacitySource` says which). A null capacity is no cap known:
+`slotUse` reports `cap: null` and never `full`, and the character sheet's
+Equipment tab shows that place's count with the figure after the slash blank
+and a tooltip naming the pages. So `capacity` is a place's **magic**
+capacity, and `slotUse` counts a place twice: magic items against that, and
+what the body cannot carry twice — armour and weapons, anything core can
+equip — against one. Clothing and plain gear count against neither: a coif under a helm and a magic circlet over
 both are three things at one place and none of them over, while a second helm
 or a second magic circlet is. The belt and the back are uncapped (`null`): a
 belt, a pouch, a scabbard, a quiver and a harness are five forms hung from one

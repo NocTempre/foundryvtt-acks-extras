@@ -89,6 +89,8 @@ const TABLES = {
     // A spell book's pages, a blank book's price and one scribed level's value.
     "spellBookPages", "spellBookBlank", "spellBookScribing",
   ],
+  // The ring place's capacity: one count the wear-slot reader answers from.
+  wearSlots: ["ringCapacity"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -444,6 +446,12 @@ VERIFY["wages.commandCapacity"] = (out, recipe, fail) => {
     if (!(a.infantry > b.infantry && b.infantry > c.infantry)) fail("infantry counts: not falling from the largest unit to the smallest");
     if (!(a.cavalry > b.cavalry && b.cavalry > c.cavalry)) fail("cavalry counts: not falling from the largest unit to the smallest");
   }
+};
+// The ring place's capacity: a whole number above zero, the shape `slotCapacity`
+// accepts. Shape only; no figure is named.
+VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.capacity) && !(Number.isInteger(out.capacity) && out.capacity > 0)) fail("capacity: not a positive whole number");
 };
 // The officer-role morale modifier: a positive whole number, the sign the reader keeps.
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {

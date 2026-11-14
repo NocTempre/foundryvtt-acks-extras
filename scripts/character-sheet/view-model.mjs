@@ -234,6 +234,28 @@ export function tabList({ caster = false, trader = false, retainer = false, cala
 /* -------------------------------------------- */
 
 /**
+ * A place's count badge and what it says on hover. A capped place shows its
+ * larger count against the cap, and gives its two counts, plus — where the cap
+ * is an imported figure — the page it was read from or that the Judge set it.
+ * An imported cap not read yet leaves the figure after the slash blank and the
+ * hover names the pages that print it; an uncapped place has no badge.
+ * @param {string} key a wear-slot key
+ * @param {{magic:number, equip:number, used:number, cap:number|null}} use `slotUse`'s answer
+ * @param {{state:string, cite:string|null}|null} source `slotCapacitySource`'s answer
+ * @param {(key:string, data?:object) => string} loc the Equipment tab's localizer
+ * @returns {{capacity: string|null, capacityHint: string}}
+ */
+export function slotBadge(key, use, source, loc) {
+  if (use.cap === Infinity) return { capacity: null, capacityHint: "" };
+  if (use.cap === null) return { capacity: `${use.used} /`, capacityHint: loc(`equipment.slotCap.none.${key}`) };
+  const counts = loc("equipment.slotUse", { magic: use.magic, cap: use.cap, equip: use.equip });
+  let hint = counts;
+  if (source?.state === "judge") hint = `${counts} ${loc("equipment.slotCap.judge")}`;
+  else if (source?.state === "page" && source.cite) hint = `${counts} ${loc("equipment.slotCap.page", { cite: source.cite })}`;
+  return { capacity: `${use.used} / ${use.cap}`, capacityHint: hint };
+}
+
+/**
  * The hands on the body map. A weapon held in both hands has no place of its
  * own: it spans the main and off hand, so those two places fold into one row
  * carrying both labels and whatever is held. With nothing held in both hands

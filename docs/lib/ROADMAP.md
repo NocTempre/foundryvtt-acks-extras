@@ -76,12 +76,10 @@ Each moves onto the import the way `acks-printed-value` describes: the importer
 reads it from the Judge's own copy, a Judge can edit it, and with nothing
 imported the field stays blank with the page as its tooltip.
 
-- **A slot's capacity and a container's access.** The `ring` entry of
-  `WEAR_SLOTS` and `ACCESS_COSTS` in `scripts/lib/vocab.mjs` (RR pp. 293–294
-  for the access kinds), and which carriers are free against an action in
-  `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
-  reader picks from, so it is registered rather than shipped. The ring figure
-  is printed on JJ p. 144 as well as in the Treasure Tome.
+- **A container's access.** `ACCESS_COSTS` in `scripts/lib/vocab.mjs` (RR pp.
+  293–294 for the access kinds), and which carriers are free against an action
+  in `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
+  reader picks from, so it is registered rather than shipped.
 - **The progression shorthand still drives one effect.** `PROGRESSION_LEVELS`
   in `scripts/lib/vocab.mjs` is kept only to decode stored values (abilities
   DECISIONS, 2026-08-30), and the `progressionAs` effect still takes it as its

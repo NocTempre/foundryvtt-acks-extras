@@ -878,6 +878,47 @@ for carrying no roll, and its figure is read where a Judge hears it. Every
 tab's panel is in the sheet's DOM, and the Abilities tab lists each ability's
 throws, so a row count is taken inside `section[data-tab="rolls"]`.
 
+## The ring place's capacity badge, imported and absent
+
+Unwalked.
+
+**Fixtures.** A disposable `character` (`api.create`, tracked) with three
+magic items worn at the ring place: an `item` carrying
+`flags["acks-extras"].gear` `{slots: ["ring"], wornAt: "ring"}` and
+`flags["acks-extras"].markets.magic` true, three times; and one plain item
+worn at the head place, `{slots: ["head"], wornAt: "head"}`. The `wearSlots`
+document's `ringCapacity` table, in the world layer once the Rules tables
+import has run for the `wearSlots` document (the import manager's Rebuild
+tab, Tables group). "Absent" is a Judge's override written through the
+Ruledata Browser's `setOverride` with the `capacity` field blank, never an
+edit of the imported layer; an override the run did not write fails the step
+by name.
+
+**Steps.**
+1. Run the import for `wearSlots` with the Judge's Judges Journal connected.
+   *Observable:* `acksExtras.lib.vocab.slotCapacity("ring")` is a whole number
+   above zero and `slotCapacitySource("ring")` is `{state: "page"}` with a
+   page.
+2. Open the character sheet, Equipment tab, and read the ring place's badge.
+   *Observable:* the badge reads the used count against that figure, and
+   hovering it gives the two counts and the page read. The place is tinted
+   exactly when the count of magic rings is above the figure; add and remove
+   a ring until it flips both ways.
+3. Open one of the rings' item sheet and read the slot row's note.
+   *Observable:* it names the ring place with the same figure and the same page.
+4. Override `ringCapacity.capacity` with an invented figure through the
+   Ruledata Browser. *Observable:* the badge and the item sheet's note follow
+   it, and both say the Judge set it in place of a page.
+5. Override the field blank (the table absent). *Observable:* the badge shows
+   the used count and a slash with nothing after it; hovering it names JJ and
+   Treasure Tome pages and no figure; the place is not tinted whatever it
+   holds; the item sheet's slot row shows no capacity note; the console is
+   clean.
+6. Read the head place's badge. *Observable:* unchanged by steps 4 and 5.
+
+**Teardown.** Remove the override through the Ruledata Browser by the key the
+run wrote; delete the character by its uuid.
+
 ## A field an effect changes
 
 **Fixtures.** A disposable `character` with `system.ac.mod` and

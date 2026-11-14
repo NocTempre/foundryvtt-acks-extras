@@ -2450,8 +2450,19 @@ const mkItem = (type, system = {}, gear = null) => ({
 });
 const physical = (over = {}) => ({ cost: 0, weight6: 1, ...over });
 
-t("wear slots: the vocabulary carries capacity, and rings are the Tome's two", () => {
-  assert.equal(vocab.slotCapacity("ring"), 2);
+/** Register the ring place's capacity as an import would (an invented figure), run `fn`, and withdraw it. */
+const withRingCapacity = (capacity, fn, priority = T.PRIORITY.WORLD, extra = {}) => {
+  T.registerTable({ id: vocab.WEAR_SLOTS_DOC, ...extra, tables: { [vocab.RING_CAPACITY_TABLE]: { capacity } } }, { priority, source: "import" });
+  try { return fn(); } finally { T.unregisterTable(vocab.WEAR_SLOTS_DOC, { priority }); }
+};
+
+t("wear slots: the vocabulary carries capacity, and the ring place's is the import's", () => {
+  assert.equal(withRingCapacity(3, () => vocab.slotCapacity("ring")), 3);
+  // Nothing imported: no cap is known, which is neither unlimited nor a number to count against.
+  assert.equal(vocab.slotCapacity("ring"), null);
+  assert.equal(withRingCapacity("", () => vocab.slotCapacity("ring")), null, "a blank figure is none");
+  assert.equal(withRingCapacity(0, () => vocab.slotCapacity("ring")), null, "a figure below one is none");
+  assert.equal(withRingCapacity(2.5, () => vocab.slotCapacity("ring")), null, "a figure that is not whole is none");
   assert.equal(vocab.slotCapacity("head"), 1);
   assert.equal(vocab.slotCapacity("worn"), Infinity); // unlimited
   // Different forms hung from one place: a belt, a pouch and a scabbard, a
@@ -2462,6 +2473,15 @@ t("wear slots: the vocabulary carries capacity, and rings are the Tome's two", (
   assert.equal(vocab.slotCapacity("elbow"), 1);
   assert.ok(vocab.isWearSlot("mainHand") && !vocab.isWearSlot("elbow"));
   assert.equal(vocab.SLOT.mainHand, "mainHand");
+});
+
+t("wear slots: an imported cap says whether it was read from a page, set by the Judge, or is not imported", () => {
+  assert.deepEqual(vocab.slotCapacitySource("ring"), { state: "none", cite: null });
+  assert.deepEqual(withRingCapacity(3, () => vocab.slotCapacitySource("ring"), T.PRIORITY.WORLD, { source: { pages: "XX 7" } }), { state: "page", cite: "XX 7" });
+  assert.deepEqual(withRingCapacity(3, () => vocab.slotCapacitySource("ring"), T.PRIORITY.OVERRIDE), { state: "judge", cite: null });
+  // A slot with a figure of its own has no import to account for.
+  assert.equal(vocab.slotCapacitySource("head"), null);
+  assert.equal(vocab.slotCapacitySource("elbow"), null);
 });
 
 t("isGoods: coin is goods despite failing the physical schema probe", () => {
@@ -2581,14 +2601,19 @@ t("slot use: magic counts by form, armour and weapons by the place, clothing not
   // The markets feature's declaration is one way to be magic.
   const magic = (slot) => ({ ...mkItem("item", physical(), { slots: [slot], wornAt: slot }), flags: { "acks-extras": { gear: { slots: [slot], wornAt: slot }, markets: { magic: true } } } });
   const ring = () => magic("ring");
-  const actor = { items: [ring(), ring()] };
-  assert.equal(itemsInSlot(actor, "ring").length, 2);
-  assert.equal(slotOverfilled(actor, "ring"), false);
+  const actor = { items: [ring(), ring(), ring()] };
+  assert.equal(itemsInSlot(actor, "ring").length, 3);
+  // The ring place's cap is the registered one (an invented three here).
+  assert.equal(withRingCapacity(3, () => slotOverfilled(actor, "ring")), false);
   actor.items.push(ring());
-  assert.equal(slotOverfilled(actor, "ring"), true, "a third magic ring overfills");
+  assert.equal(withRingCapacity(3, () => slotOverfilled(actor, "ring")), true, "one magic ring past the registered cap overfills");
+  assert.deepEqual(withRingCapacity(3, () => slotUse("ring", actor.items)), { equip: 0, magic: 4, cap: 3, used: 4, full: true });
+  // Nothing imported: the count stands, the cap is null, and the place is never full.
+  assert.deepEqual(slotUse("ring", actor.items), { equip: 0, magic: 4, cap: null, used: 4, full: false });
+  assert.equal(slotOverfilled(actor, "ring"), false, "an unknown cap is never full");
   // Three plain rings are jewellery.
   const plain = { items: Array.from({ length: 3 }, () => mkItem("item", physical(), { slots: ["ring"], wornAt: "ring" })) };
-  assert.equal(slotOverfilled(plain, "ring"), false);
+  assert.equal(withRingCapacity(2, () => slotOverfilled(plain, "ring")), false);
   // A coif under a helm takes no room; a second helm does; a magic circlet over both is still fine.
   const helm = () => mkItem("armor", { ...physical(), equipped: true, type: "light" }, { slots: ["head"], wornAt: "head" });
   const coif = () => mkItem("item", { ...physical(), subtype: "clothing" }, { slots: ["head"], wornAt: "head" });
