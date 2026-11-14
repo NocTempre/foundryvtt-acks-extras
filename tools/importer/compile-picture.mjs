@@ -3,7 +3,7 @@
  * read through them.
  *
  * A `kind.picture` row IS the recipe for the picture on one page (`picture`:
- * the XObject, the boxes to read with a page segmentation mode each, the
+ * the picture's sample size, the boxes to read with a page segmentation mode each, the
  * corrections applied to a box's text), and passes into the book cookbook's
  * `pictures` block unchanged less its notes. An entry row on that page carries
  * `ocr: {<field>: <instruction>}` in place of an anchor; each instruction is
@@ -19,7 +19,7 @@
  * warnings naming rows and indices, never a read word.
  */
 import { executeEntry } from "../../scripts/importer/executor.mjs";
-import { pageArtPlacements } from "../../scripts/importer/extract.mjs";
+import { pagePictures } from "../../scripts/importer/ocr.mjs";
 import { citeFor } from "../../scripts/importer/books.mjs";
 import { pictureRuns, seedPictureRead } from "../../scripts/importer/picture-text.mjs";
 import { loadRead } from "./ocr-author-read.mjs";
@@ -29,9 +29,20 @@ export const PICTURE_KIND = "kind.picture";
 
 /** A picture row's recipe as the cookbook ships it: the register's block less every authoring note. */
 export function pictureBlock(row) {
-  const { name, read = [], corrections = [] } = row.picture ?? {};
+  const { size, read = [], corrections = [] } = row.picture ?? {};
   const bare = ({ note: _note, ...rest }) => rest;
-  return { name, read: read.map(bare), corrections: corrections.map(bare) };
+  return { size, read: read.map(bare), corrections: corrections.map(bare) };
+}
+
+/**
+ * Holds the recipe's size against the page's painted pictures: exactly one has
+ * that width and height, or it throws. The same count `pictureBySize` takes at
+ * import, read here from the compile's own document.
+ */
+async function paintedAtSize(doc, page, size) {
+  const { w, h } = size ?? {};
+  const held = (await pagePictures(await doc.getPage(page))).filter((p) => p.width === w && p.height === h);
+  if (held.length !== 1) throw new Error(`p.${page} paints ${held.length} pictures of ${w}x${h} samples, not one`);
 }
 
 /** The instruction an entry row's `ocr` field becomes: an `ocr` op on the row's page, with a `value`'s `unread` lifted onto it. */
@@ -133,7 +144,7 @@ async function checkAgainstRead({ row, entries, registers, warn }) {
 
 /**
  * The compile loop's route for a `kind.picture` row or an entry row carrying
- * `ocr`. A picture row is checked against the page's own XObjects, passes into
+ * `ocr`. A picture row's size is checked against the page's painted pictures, passes into
  * `out.pictures[<page>]`, and is checked against the author's read; an entry row
  * becomes an entry of `out.entries`.
  *
@@ -146,8 +157,7 @@ export async function compilePictureRow(doc, row, { list, out, registers, warn }
   try {
     if (row.kind === PICTURE_KIND) {
       const block = pictureBlock(row);
-      const placed = await pageArtPlacements(doc, page);
-      if (!placed.some((p) => p.name === block.name)) throw new Error(`p.${page} paints no picture named ${block.name}`);
+      await paintedAtSize(doc, page, block.size);
       (out.pictures ??= {})[page] = block;
       console.error(`OK   ${row.id}: picture (${block.read.length} box(es), ${block.corrections.length} correction(s))`);
       const entries = list.filter((e) => e.ocr && e.pages?.[0] === page && !(e.status && e.status !== "active"));

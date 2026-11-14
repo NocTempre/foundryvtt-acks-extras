@@ -40,6 +40,12 @@ flags("a keyed area under an unscoped id", spaceProblems(rowsOf(level1, keyed("a
 flags("a space that names no row", spaceProblems(rowsOf(keyed("ax1.fort9", "Fort 9", "9.", { space: "ax1.keep" }))), /no row defines/);
 flags("a space of another book", spaceProblems(rowsOf(loc("ax3.fort", { name: "Fort" }), keyed("ax1.fort9", "Fort 9", "9.", { space: "ax3.fort" }))), /another book/);
 flags("a space anchored by its words", spaceProblems(rowsOf({ ...fort, anchor: { display: "x" } }, building)), /key space anchors by hash/);
+
+const read = (id, name, heading, meta) => ({ id, book: id.split(".")[0], kind: "kind.location", name, ocr: { name: { op: "heading", box: {}, ...heading } }, ...(meta ? { meta } : {}) });
+const readSpace = read("ax9.scenario2", "Scenario 2", { hash: "abc" });
+none("a picture-read space and area anchor by their heading", spaceProblems(rowsOf(readSpace, read("ax9.scenario2-4a", "Scenario 2 4a", { number: "4a" }, { space: "ax9.scenario2" }))));
+flags("a picture-read space with no hash", spaceProblems(rowsOf(read("ax9.scenario2", "Scenario 2", {}), read("ax9.scenario2-4", "Scenario 2 4", { number: "4" }, { space: "ax9.scenario2" }))), /key space anchors by hash/);
+flags("a picture-read area under the wrong id", spaceProblems(rowsOf(readSpace, read("ax9.scenario24", "Scenario 2 4", { number: "4" }, { space: "ax9.scenario2" }))), /has the id "ax9\.scenario2-4"/);
 flags("spaces do not nest", spaceProblems(rowsOf(fort, { ...level1, meta: { space: "ax1.fort" } }, keyed("ax1.l1-12", "Level 1 12", "12.", { space: "ax1.l1" }))), /do not nest/);
 flags("a row in a space anchored by its words", spaceProblems(rowsOf(fort, loc("ax1.fortGate", { anchor: { display: "x" }, meta: { space: "ax1.fort" } }))), /key number or by hash/);
 none("a section of a space anchors by hash", spaceProblems(rowsOf(level1, loc("ax1.l1-area1", { meta: { space: "ax1.l1", parent: "ax1.l1" } }))));

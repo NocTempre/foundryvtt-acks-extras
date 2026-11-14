@@ -167,15 +167,17 @@ beside it.
 
 ```jsonc
 "pictures": { "417": {
-  "name": "img_p416_6",                  // the picture's XObject, as pdf.js names it
+  "size": { "w": 1342, "h": 1034 },      // the picture's decoded sample size; exactly one painted picture on the page has it
   "read": [ { "box": {x0,x1,y0,y1}, "psm": 3 } ],   // reading order; upright source samples; psm explicit
   "corrections": [ { "box": 0, "find": "…", "flags": "g", "to": "…", "hits": 2, "pile": "a", "glyph": "fire" } ]
 } }
 ```
 
 - **Reading.** `scripts/importer/picture-text.mjs` opens its own pinned copy of the
-  PDF from the session document's bytes (`doc.getData()`), takes the XObject's raw
-  samples, scales them 2×, cuts each box padded by 4 source samples and reads it
+  PDF from the session document's bytes (`doc.getData()`), takes the raw samples
+  of the page's one painted picture of the recipe's `size` (an error when none or
+  several match; the size, not pdf.js's XObject name, because those names shift
+  with the pages a document has evaluated before), scales them 2×, cuts each box padded by 4 source samples and reads it
   at its `psm` through `ocr.mjs`. A page is read once per document and its
   corrected lines are kept as long as the document is; the engine and the pinned
   copy close when idle and on `closePictureReads()`.

@@ -23,12 +23,10 @@
  * Box and line numbers are 0-based, the indices `pictureRuns` uses. A recipe
  * is the page's `kind.picture` row in the register unless `--recipe` names a
  * register file, a cookbook, or a file holding one row or one `picture` block.
- * A picture's XObject name depends on which pages the document has already
- * evaluated: pdf.js shares the page frame's images between pages once a second
- * page paints them, so a page read after others is named lower than the same
- * page opened cold. `hashes` reads the pages in order, as J0's file names them;
- * every other command opens the book afresh, so the names it prints and the
- * ones `pictureNameOf` keeps are cold-open names.
+ * A picture is found by its sample size, the way a recipe's `size` finds it:
+ * pdf.js's XObject names shift with the pages a document evaluated before, so
+ * no name is kept. A page with no recipe is read at the size of its one picture
+ * in the scenario band (`scenarioSizeOf`).
  *
  * A box read is kept in `<OCR_READS>\jj\kit\p<page>-reads.json` by box and mode,
  * so a correction-only edit re-scores without reading again; `--fresh` reads
@@ -39,7 +37,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { OPS } from "../../vendor/pdfjs/pdf.mjs";
-import { createReader, openPinned, pagePictures, pictureSamples, scaledPicture, toPgm } from "../../scripts/importer/ocr.mjs";
+import { createReader, openPinned, pagePictures, pictureBySize, scaledPicture, toPgm } from "../../scripts/importer/ocr.mjs";
 import { SCALE, BOX_PAD, sampleBox, readBoxReads, pictureRuns } from "../../scripts/importer/picture-text.mjs";
 import { pageArtPlacements } from "../../scripts/importer/extract.mjs";
 import { sceneFrame } from "../../scripts/importer/scene-binding.mjs";
@@ -72,12 +70,12 @@ const ensure = (dir) => fs.mkdirSync(dir, { recursive: true });
 
 /* ----------------------------------------------------------------- inputs */
 
-/** J0's rows, `{page, name, samples, scaled, text}`. */
+/** J0's rows, `{page, samples, scaled, text}` (each hash a SHA-256; a row's own `name` is not read). */
 function j0Rows() {
   return JSON.parse(fs.readFileSync(J0_HASHES, "utf8")).pages;
 }
 
-/** The recipe of a page as `{name, read, corrections}`, or null when there is none. */
+/** The recipe of a page as `{size, read, corrections}`, or null when there is none. */
 function loadRecipe(page, file) {
   let block = null;
   if (file) {
@@ -87,7 +85,7 @@ function loadRecipe(page, file) {
   } else block = recipeOf(BOOK, page);
   if (!block) return null;
   const bare = ({ note: _note, ...rest }) => rest;
-  return { name: block.name, read: (block.read ?? []).map(bare), corrections: (block.corrections ?? []).map(bare) };
+  return { size: block.size, read: (block.read ?? []).map(bare), corrections: (block.corrections ?? []).map(bare) };
 }
 
 /** The recipe of a page, or a thrown error naming where it looked. */
@@ -98,32 +96,20 @@ function needRecipe(page, file) {
 }
 
 /**
- * The scenario picture on a page, by the size the proof harness chose it by (about
- * 1340 x 1034; the larger pictures are the page's frame art and masks): its
- * XObject name, or null.
+ * The size `{w, h}` of the scenario picture on a page, by the band the proof
+ * harness chose it by (about 1340 x 1034; the larger pictures are the page's
+ * frame art and masks), or null.
  */
-async function scenarioPictureOf(pdfPage) {
-  return (await pagePictures(pdfPage)).find((img) => img.width >= 1300 && img.width <= 1400 && img.height >= 1000 && img.height <= 1060)?.name ?? null;
+async function scenarioSizeOf(pdfPage) {
+  const found = (await pagePictures(pdfPage)).find((img) => img.width >= 1300 && img.width <= 1400 && img.height >= 1000 && img.height <= 1060);
+  return found ? { w: found.width, h: found.height } : null;
 }
 
-const namesFile = path.join(OUT, "kit", "names.json");
-
-/**
- * The XObject a page's scenario picture goes by: the recipe's, else the kit's
- * kept answer, else the page's picture of the scenario's size (kept), named by a
- * cold document. J0's file is not consulted: it names pictures as a document
- * that has read the pages before does.
- */
-async function pictureNameOf(page, file) {
-  const named = loadRecipe(page, file)?.name;
-  if (named) return named;
-  const kept = fs.existsSync(namesFile) ? JSON.parse(fs.readFileSync(namesFile, "utf8")) : {};
-  if (kept[page]) return kept[page];
-  const found = await withPinned(async (pinned) => scenarioPictureOf(await pinned.getPage(page)));
+/** The size a page's picture is found by: the recipe's, else the page's scenario picture. */
+async function pictureSizeOf(page, recipe) {
+  if (recipe?.size) return recipe.size;
+  const found = await withPinned(async (pinned) => scenarioSizeOf(await pinned.getPage(page)));
   if (!found) throw new Error(`p.${page} paints no picture of the scenario's size`);
-  kept[page] = found;
-  ensure(path.dirname(namesFile));
-  fs.writeFileSync(namesFile, JSON.stringify(kept) + "\n");
   return found;
 }
 
@@ -137,13 +123,14 @@ async function withPinned(fn) {
   }
 }
 
-/** A page's picture samples and its pdf.js page, inside `withPinned`. */
-async function samplesOf(pinned, page, name) {
+/** A page's picture samples at a size, and its pdf.js page, inside `withPinned`. */
+async function samplesOf(pinned, page, size) {
   const pdfPage = await pinned.getPage(page);
-  const samples = await pictureSamples(pdfPage, name);
-  if (!samples) throw new Error(`p.${page} paints no picture named ${name}`);
-  return { pdfPage, samples };
+  return { pdfPage, samples: await pictureBySize(pdfPage, size) };
 }
+
+/** Two sizes `{w, h}` are the same picture's. */
+const sameSize = (a, b) => a?.w === b?.w && a?.h === b?.h;
 
 /* --------------------------------------------------------- the box reads */
 
@@ -158,16 +145,17 @@ const readsFile = (page) => path.join(OUT, "kit", `p${page}-reads.json`);
  */
 async function boxReadsFor(page, recipe, { fresh = false } = {}) {
   const file = readsFile(page);
-  let kept = { name: recipe.name, scale: SCALE, pad: BOX_PAD, boxes: {} };
+  const size = await pictureSizeOf(page, recipe);
+  let kept = { size, scale: SCALE, pad: BOX_PAD, boxes: {} };
   if (!fresh && fs.existsSync(file)) {
     const stored = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (stored.name === recipe.name && stored.scale === SCALE && stored.pad === BOX_PAD) kept = stored;
+    if (sameSize(stored.size, size) && stored.scale === SCALE && stored.pad === BOX_PAD) kept = stored;
   }
   const missing = recipe.read.filter((spec) => !kept.boxes[boxKey(spec)]);
   if (missing.length) {
     const t0 = Date.now();
     await withPinned(async (pinned) => {
-      const { samples } = await samplesOf(pinned, page, recipe.name);
+      const { samples } = await samplesOf(pinned, page, size);
       const scaled = scaledPicture(samples, SCALE);
       kept.samples = { width: samples.width, height: samples.height };
       const reader = await createReader();
@@ -201,10 +189,9 @@ const rawLineOf = (read, j) => Math.min(j, read.lines.length - 1);
 
 /**
  * `hashes`: reproduce J0's hashes through the shipping code (samples, scaled
- * grey, whole-picture PSM 3 text), one document and one reader for every page,
- * the pages in order as J0 read them. Each page is named as J0's file names it:
- * a document that has evaluated earlier pages names a later page's pictures
- * differently from a cold one (see the header).
+ * grey, whole-picture PSM 3 text), one document and one reader for every page.
+ * Each page's picture is found by its size, so the hashes do not depend on the
+ * pages the document read before.
  */
 async function cmdHashes([first, last]) {
   const keys = ["samples", "scaled", "text"];
@@ -215,7 +202,9 @@ async function cmdHashes([first, last]) {
     try {
       for (const row of rows) {
         const t0 = Date.now();
-        const { samples } = await samplesOf(pinned, row.page, row.name);
+        const size = await scenarioSizeOf(await pinned.getPage(row.page));
+        if (!size) throw new Error(`p.${row.page} paints no picture of the scenario's size`);
+        const { samples } = await samplesOf(pinned, row.page, size);
         const big = scaledPicture(samples, SCALE);
         const got = { samples: sha(samples.data), scaled: sha(big.grey) };
         got.text = sha(new TextEncoder().encode((await reader.read(toPgm(big.grey, big.width, big.height))).text));
@@ -240,17 +229,16 @@ const wholeFile = (page) => path.join(OUT, `p${page}-whole.json`);
 async function wholeFor(page, { fresh = false } = {}) {
   const file = wholeFile(page);
   if (!fresh && fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
-  const name = await pictureNameOf(page);
+  const size = await pictureSizeOf(page);
   const t0 = Date.now();
   const out = await withPinned(async (pinned) => {
-    const { samples } = await samplesOf(pinned, page, name);
+    const { samples } = await samplesOf(pinned, page, size);
     const big = scaledPicture(samples, SCALE);
     const reader = await createReader();
     try {
       const read = await reader.read(toPgm(big.grey, big.width, big.height));
       const box = (b) => ({ x0: round1(b.x0 / SCALE), y0: round1(b.y0 / SCALE), x1: round1(b.x1 / SCALE), y1: round1(b.y1 / SCALE) });
       return {
-        name,
         scale: SCALE,
         samples: { width: samples.width, height: samples.height, sha256: sha(samples.data) },
         confidence: read.confidence,
@@ -364,8 +352,8 @@ async function cmdShow([pageArg, boxArg, lineArg], flags) {
 /* -------------------------------------------------------------------- crop */
 
 /** Write a PNG of an upright pixel rectangle of a page's picture and print its path. */
-async function writeCrop(page, name, rect, scale, tag) {
-  const { rgb, width, height } = await withPinned(async (pinned) => cropRgb((await samplesOf(pinned, page, name)).samples, rect, scale));
+async function writeCrop(page, size, rect, scale, tag) {
+  const { rgb, width, height } = await withPinned(async (pinned) => cropRgb((await samplesOf(pinned, page, size)).samples, rect, scale));
   const file = path.join(OUT, "crops", `p${page}-${tag}.png`);
   ensure(path.dirname(file));
   fs.writeFileSync(file, encodePng(rgb, width, height));
@@ -382,7 +370,7 @@ async function cmdCrop([pageArg, ...rest], flags) {
     if (!spec) throw new Error(`the recipe reads boxes 0-${recipe.read.length - 1}`);
     if (flags.line === undefined && flags.word === undefined) {
       const [x, y, ww, hh] = sampleBox(spec.box);
-      return writeCrop(page, recipe.name, [x, y, x + ww, y + hh], flags.scale ?? 2, `box${b}`);
+      return writeCrop(page, await pictureSizeOf(page, recipe), [x, y, x + ww, y + hh], flags.scale ?? 2, `box${b}`);
     }
     const { boxReads, fulls } = await boxReadsFor(page, recipe, { fresh: flags.fresh });
     const read = boxReads[b];
@@ -396,11 +384,11 @@ async function cmdCrop([pageArg, ...rest], flags) {
       tag += `-word${w}`;
     }
     const [x0, y0, x1, y1] = toSource(read, bbox);
-    return writeCrop(page, recipe.name, [x0 - margin, y0 - margin, x1 + margin, y1 + margin], flags.scale ?? 4, tag);
+    return writeCrop(page, await pictureSizeOf(page, recipe), [x0 - margin, y0 - margin, x1 + margin, y1 + margin], flags.scale ?? 4, tag);
   }
   const rect = rest.map(Number);
   if (rect.length !== 4 || rect.some((n) => !Number.isFinite(n))) throw new Error("crop <page> <x0> <y0> <x1> <y1> | --box i | --line box line | --word box line tok");
-  return writeCrop(page, await pictureNameOf(page, flags.recipe), rect, flags.scale ?? 2, rect.map(Math.round).join("-"));
+  return writeCrop(page, await pictureSizeOf(page, loadRecipe(page, flags.recipe)), rect, flags.scale ?? 2, rect.map(Math.round).join("-"));
 }
 
 /* -------------------------------------------------------------------- stat */
@@ -476,18 +464,19 @@ async function placementOf(pdfPage, name) {
 
 async function cmdPins([pageArg, ...rest], flags) {
   const page = Number(pageArg);
-  const name = await pictureNameOf(page, flags.recipe);
+  const size = await pictureSizeOf(page, loadRecipe(page, flags.recipe));
   await withPinned(async (pinned) => {
-    const { pdfPage, samples } = await samplesOf(pinned, page, name);
+    const { pdfPage, samples } = await samplesOf(pinned, page, size);
+    const name = (await pagePictures(pdfPage)).find((p) => p.width === size.w && p.height === size.h).name;
     const { top, paints, view, rotate } = await placementOf(pdfPage, name);
-    if (!top) throw new Error(`p.${page} paints no picture named ${name}`);
+    if (!top) throw new Error(`p.${page} paints no picture of ${size.w}x${size.h} samples`);
     const { width: W, height: H } = samples;
     const corners = [[0, 0], [W, 0], [0, H], [W, H]].map(([x, y]) => pixelToPoint(top, W, H, x, y));
     const rect = { x: Math.min(...corners.map((c) => c[0])), y: Math.min(...corners.map((c) => c[1])), w: 0, h: 0 };
     rect.w = Math.max(...corners.map((c) => c[0])) - rect.x;
     rect.h = Math.max(...corners.map((c) => c[1])) - rect.y;
     const turn = turnOf(top, W, H);
-    console.log(`p.${page} ${name} ${W}x${H} samples; page view [${view.join(" ")}], rotate ${rotate}, painted ${paints}x`);
+    console.log(`p.${page} ${W}x${H} samples; page view [${view.join(" ")}], rotate ${rotate}, painted ${paints}x`);
     console.log(`placement (page points, top-left origin): x ${rect.x.toFixed(2)} y ${rect.y.toFixed(2)} w ${rect.w.toFixed(2)} h ${rect.h.toFixed(2)}; matrix [${top.map((v) => +v.toFixed(5)).join(" ")}]`);
     console.log(`turn to stand the picture upright (kind.scene recipe "turn", counter-clockwise quarter turns): ${turn ?? "none (mirrored or skewed)"}`);
     // The placement against the module's own: a walk that disagrees names the page.

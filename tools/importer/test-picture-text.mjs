@@ -5,6 +5,7 @@
  * word are invented: no PDF, no engine, no Foundry.
  */
 import assert from "node:assert/strict";
+import { OPS } from "../../vendor/pdfjs/pdf.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 import { SCALE, BOX_PAD, sampleBox, pictureRuns, seedPictureRead, pictureReadFor, readBoxReads, pictureScaled, closePictureReads } from "../../scripts/importer/picture-text.mjs";
@@ -29,7 +30,7 @@ async function run(picture, reads, fields, opts = {}) {
   if (reads) seedPictureRead(doc, 7, picture, reads);
   return executeEntry(doc, bookOf({ 7: picture }, { e: entryOf(fields) }), REGISTERS, "e", opts);
 }
-const P = (corrections = [], read = [{ box: { x0: 0, x1: 400, y0: 0, y1: 400 }, psm: 3 }]) => ({ name: "img_test", read, corrections });
+const P = (corrections = [], read = [{ box: { x0: 0, x1: 400, y0: 0, y1: 400 }, psm: 3 }]) => ({ size: { w: 400, h: 400 }, read, corrections });
 
 /* ---------------------------------------------------------------- the runs */
 
@@ -226,12 +227,23 @@ await t("the boxes are cut padded, at the recipe's mode, from one scaled picture
   assert.deepEqual(reads[0].lines, [{ bbox: { x0: 0, y0: 0, x1: 1, y1: 1 }, words: ["w"] }]);
 });
 
-await t("the picture is taken by its XObject name, and a page that paints none says so", async () => {
+await t("the picture is taken by its sample size, whatever name pdf.js gave it, and a page with none or two says so", async () => {
   const img = { width: 2, height: 1, kind: 2, data: Uint8Array.of(0, 0, 0, 255, 255, 255) };
-  const page = (found) => ({ getOperatorList: async () => ({ fnArray: [], argsArray: [] }), objs: { get: (name, cb) => cb(name === "img_test" && found ? img : null) }, cleanup() {} });
-  const got = await pictureScaled({ getPage: async () => page(true) }, 7, "img_test");
-  assert.deepEqual([got.scaled.k, got.scaled.width, got.scaled.height], [2, 4, 2]);
-  await assert.rejects(pictureScaled({ getPage: async () => page(false) }, 7, "img_test"), /paints no picture named img_test/);
+  const frame = { width: 5, height: 5, kind: 2, data: new Uint8Array(75) };
+  /** A page painting the named objects, in order. */
+  const page = (objs) => ({
+    getOperatorList: async () => ({ fnArray: Object.keys(objs).map(() => OPS.paintImageXObject), argsArray: Object.keys(objs).map((k) => [k]) }),
+    objs: { get: (name, cb) => cb(objs[name] ?? null) },
+    cleanup() {},
+  });
+  const scaledOf = (objs, size = { w: 2, h: 1 }) => pictureScaled({ getPage: async () => page(objs) }, 7, size);
+  for (const name of ["img_p6_2", "img_p6_4"]) {
+    const got = await scaledOf({ frame_a: frame, [name]: img });
+    assert.deepEqual([got.scaled.k, got.scaled.width, got.scaled.height], [2, 4, 2]);
+  }
+  await assert.rejects(scaledOf({ frame_a: frame }), /p\.7: the page paints 0 pictures of 2x1 samples/);
+  await assert.rejects(scaledOf({ one: img, two: { ...img } }), /p\.7: the page paints 2 pictures of 2x1 samples/);
+  await assert.rejects(scaledOf({ one: img }, { w: 2, h: 2 }), /paints 0 pictures of 2x2/);
 });
 
 console.log(`\n${n} checks`);

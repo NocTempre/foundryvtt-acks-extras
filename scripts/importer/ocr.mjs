@@ -78,7 +78,8 @@ export async function pictureSamples(page, name) {
 
 /**
  * Every picture a page paints, `{ name, width, height, kind }`, largest first.
- * A recipe names the one it wants; the largest on a page is often frame art.
+ * A recipe picks the one it wants by size (`pictureBySize`); the largest on a
+ * page is often frame art.
  *
  * @param {object} page a pdf.js page
  */
@@ -92,6 +93,24 @@ export async function pagePictures(page) {
     if (img) out.push({ name, width: img.width, height: img.height, kind: img.kind });
   }
   return out.sort((a, b) => b.width * b.height - a.width * a.height);
+}
+
+/**
+ * The decoded samples of the one picture a page paints at an exact sample
+ * size, `{ width, height, kind, data }`. pdf.js's object names depend on which
+ * pages the document evaluated before (it shares frame images once a second
+ * page paints them), so a size is the order-independent way to name a picture.
+ * Throws when no painted picture or more than one has that size.
+ *
+ * @param {object} page a pdf.js page
+ * @param {{w: number, h: number}} size the picture's width and height in samples
+ */
+export async function pictureBySize(page, { w, h }) {
+  const held = (await pagePictures(page)).filter((p) => p.width === w && p.height === h);
+  if (held.length !== 1) throw new Error(`the page paints ${held.length} pictures of ${w}x${h} samples, not one`);
+  const samples = await pictureSamples(page, held[0].name);
+  if (!samples) throw new Error(`the ${w}x${h} picture never arrived`);
+  return samples;
 }
 
 /** A page's object by name, null when it does not arrive in time. */

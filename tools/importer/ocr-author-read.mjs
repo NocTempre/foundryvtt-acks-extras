@@ -12,7 +12,7 @@
  *
  * Usage: node tools/importer/ocr-author-read.mjs <book> <page>
  *        node tools/importer/ocr-author-read.mjs <book> <page> --probe
- * `--probe` lists the page's pictures (name, size) and reads nothing.
+ * `--probe` lists the page's pictures (size, kind) and reads nothing.
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -52,7 +52,7 @@ export function loadRead(book, page, picture) {
   const file = readPath(book, page);
   if (!fs.existsSync(file)) return { reads: null, file };
   const stored = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (stored.name !== picture.name || stored.scale !== SCALE || stored.pad !== BOX_PAD) return { reads: null, file, stale: "made at another picture, scale or padding" };
+  if (stored.samples?.width !== picture.size.w || stored.samples?.height !== picture.size.h || stored.scale !== SCALE || stored.pad !== BOX_PAD) return { reads: null, file, stale: "made at another picture size, scale or padding" };
   const reads = picture.read.map((spec) => stored.boxes?.[boxKey(spec)]);
   if (reads.some((r) => !r)) return { reads: null, file, stale: "holds no read for one of the recipe's boxes" };
   return { reads, file, samples: stored.samples };
@@ -69,18 +69,17 @@ async function main() {
   let reader = null;
   try {
     if (flag === "--probe") {
-      for (const p of await pagePictures(await pinned.getPage(page))) console.log(`${p.name} ${p.width}x${p.height} kind ${p.kind}`);
+      for (const p of await pagePictures(await pinned.getPage(page))) console.log(`${p.width}x${p.height} kind ${p.kind}`);
       return;
     }
     const picture = recipeOf(book, page);
     if (!picture) throw new Error(`no kind.picture row on p.${page} of ${book}`);
-    const { samples, scaled } = await pictureScaled(pinned, page, picture.name);
+    const { samples, scaled } = await pictureScaled(pinned, page, picture.size);
     reader = await createReader();
     const reads = await readBoxReads(reader, scaled, picture);
     const boxes = {};
     picture.read.forEach((spec, i) => (boxes[boxKey(spec)] = reads[i]));
     const out = {
-      name: picture.name,
       scale: SCALE,
       pad: BOX_PAD,
       samples: { width: samples.width, height: samples.height, sha256: crypto.createHash("sha256").update(samples.data).digest("hex") },

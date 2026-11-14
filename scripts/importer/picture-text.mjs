@@ -3,7 +3,7 @@
  * Judge's own copy and handed to the executor's own ops.
  *
  * A page's recipe (`bookCookbook.pictures[<page>]`) names the picture by its
- * XObject, lists the boxes to read in reading order, each with a page
+ * sample size `{w, h}`, lists the boxes to read in reading order, each with a page
  * segmentation mode, and lists the corrections applied to a box's text after
  * the read. `pictureRuns` turns the corrected lines into the text runs the
  * executor's ops take (`{str, x, y, w, h}` in the picture's source samples), and
@@ -19,7 +19,7 @@
  * not: they close when idle (the timer never holds a Node process open) and on
  * `closePictureReads`, and the next page read opens them again.
  */
-import { openPinned, pictureSamples, scaledPicture, createReader } from "./ocr.mjs";
+import { openPinned, pictureBySize, scaledPicture, createReader } from "./ocr.mjs";
 
 /** The integer scale a picture is read at. */
 export const SCALE = 2;
@@ -54,17 +54,19 @@ function boxReadOf(spec, read, k) {
 
 /**
  * A picture of a page in grey and scaled once, with its samples: `{ samples,
- * scaled }`, or throws when the page paints no picture of that name.
+ * scaled }`, or throws when the page paints no picture, or more than one, of
+ * that size.
  *
  * @param {object} pinned a document opened by `openPinned`
  * @param {number} page
- * @param {string} name the picture's XObject
+ * @param {{w: number, h: number}} size the picture's width and height in samples
  */
-export async function pictureScaled(pinned, page, name) {
+export async function pictureScaled(pinned, page, size) {
   const pdfPage = await pinned.getPage(page);
   try {
-    const samples = await pictureSamples(pdfPage, name);
-    if (!samples) throw new Error(`p.${page} paints no picture named ${name}`);
+    const samples = await pictureBySize(pdfPage, size).catch((err) => {
+      throw new Error(`p.${page}: ${err.message}`);
+    });
     return { samples, scaled: scaledPicture(samples, SCALE) };
   } finally {
     pdfPage.cleanup?.();
@@ -221,7 +223,7 @@ export function pictureReadFor(doc, page, picture) {
   const held = st.pages.get(page);
   if (held?.picture === picture) return held.result;
   const result = withEngine(doc, st, async ({ pinned, reader }) => {
-    const { scaled } = await pictureScaled(pinned, page, picture.name);
+    const { scaled } = await pictureScaled(pinned, page, picture.size);
     const boxReads = await readBoxReads(reader, scaled, picture);
     return { ...pictureRuns(boxReads, picture), boxReads };
   });

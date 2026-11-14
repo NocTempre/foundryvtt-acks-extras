@@ -44,10 +44,13 @@ export function spaceKeyed(space, number) {
  * anchors by hash and sits in no space itself. A row in a space anchors by its
  * key number, under the id and label `spaceKeyed` derives, or by hash. A
  * `meta.parent` names a location row of the same book whose space is the
- * row's own, or is the row's space itself; parents never run in a cycle.
+ * row's own, or is the row's space itself; parents never run in a cycle. A
+ * row read from a picture anchors by its `ocr.name` heading's number or hash,
+ * which stands in for `anchor`.
  */
 export function spaceProblems(rows) {
   const out = [];
+  const anchorOf = (r) => r.anchor ?? (r.ocr?.name?.op === "heading" ? r.ocr.name : undefined);
   const spaces = new Set();
   for (const r of rows.values()) if (r.meta?.space !== undefined) spaces.add(r.meta.space);
   // The space a row's children sit in: its own, or itself when it is one.
@@ -56,12 +59,13 @@ export function spaceProblems(rows) {
 
   for (const id of spaces) {
     const s = rows.get(id);
-    if (s && s.kind === "kind.location" && s.meta?.space === undefined && s.anchor?.hash === undefined) {
+    if (s && s.kind === "kind.location" && s.meta?.space === undefined && anchorOf(s)?.hash === undefined) {
       out.push(`${id}: a key space anchors by hash on its heading, never by its printed words`);
     }
   }
   for (const r of rows.values()) {
     const { id, meta = {} } = r;
+    const anchor = anchorOf(r);
     if (meta.space !== undefined) {
       const s = rows.get(meta.space);
       if (r.kind !== "kind.location") out.push(`${id}: meta.space belongs on a location row only`);
@@ -69,13 +73,13 @@ export function spaceProblems(rows) {
       else if (s.book !== r.book) out.push(`${id}: meta.space names ${s.id}, a key space of another book`);
       else if (s.kind !== "kind.location") out.push(`${id}: meta.space names ${s.id}, which is not a location row`);
       else if (s.meta?.space !== undefined) out.push(`${id}: meta.space names ${s.id}, which is itself in a key space; spaces do not nest`);
-      else if (r.anchor?.number !== undefined) {
-        if (KEY_NUMBER.test(String(r.anchor.number))) {
-          const want = spaceKeyed(s, r.anchor.number);
+      else if (anchor?.number !== undefined) {
+        if (KEY_NUMBER.test(String(anchor.number))) {
+          const want = spaceKeyed(s, anchor.number);
           if (r.name !== want.label) out.push(`${id}: a keyed area of ${s.id} is named "${want.label}"; its printed name is read at import`);
-          if (id !== want.id) out.push(`${id}: a keyed area of ${s.id} keyed ${JSON.stringify(r.anchor.number)} has the id "${want.id}"`);
+          if (id !== want.id) out.push(`${id}: a keyed area of ${s.id} keyed ${JSON.stringify(anchor.number)} has the id "${want.id}"`);
         }
-      } else if (r.anchor?.hash === undefined) {
+      } else if (anchor?.hash === undefined) {
         out.push(`${id}: a row in a key space anchors by its key number or by hash, never by its printed words`);
       }
     }

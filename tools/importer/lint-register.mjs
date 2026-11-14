@@ -43,7 +43,7 @@ const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "ef
 // by a box. Never `expect` (a printed label would ship), never `ocr` itself.
 const OCR_THEN_OPS = new Set(["heading", "text", "value", "grid"]);
 // What a picture recipe's `read` boxes, `corrections` and `unread` paths may carry.
-const PICTURE_KEYS = new Set(["name", "read", "corrections", "note"]);
+const PICTURE_KEYS = new Set(["size", "read", "corrections", "note"]);
 const CORRECTION_KEYS = new Set(["box", "find", "flags", "to", "hits", "pile", "glyph", "note"]);
 const CORRECTION_PILES = ["a", "r", "b", "c"];
 const UNREAD_PATH = /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*$/;
@@ -86,7 +86,7 @@ const isBox = (b) => !!b && typeof b === "object" && ["x0", "x1", "y0", "y1"].ev
 
 /**
  * A picture recipe's shape problems (`kind.picture`, and `pictures[<page>]` in a
- * cookbook, where `shipped` forbids the authoring notes): the XObject's name,
+ * cookbook, where `shipped` forbids the authoring notes): the picture's size,
  * the boxes read with a page segmentation mode each, and the corrections. A
  * correction is an offline fix to one misread: `find` compiles, `to` carries
  * no newline and only `$1`-`$9`, `$&` and `$$` as references, both are
@@ -101,7 +101,9 @@ function pictureProblems(p, shipped) {
   if (!p || typeof p !== "object") return ["is not an object"];
   for (const k of Object.keys(p)) if (!PICTURE_KEYS.has(k)) out.push(`carries "${k}", which a picture recipe does not`);
   if (shipped && p.note !== undefined) out.push("ships its authoring note");
-  if (typeof p.name !== "string" || !p.name) out.push("needs the picture's XObject name");
+  const size = p.size;
+  if (!size || typeof size !== "object" || !Number.isInteger(size.w) || !Number.isInteger(size.h) || size.w < 1 || size.h < 1) out.push("needs the picture's size {w, h} in samples, positive integers");
+  else for (const k of Object.keys(size)) if (k !== "w" && k !== "h") out.push(`size carries "${k}"`);
   const read = Array.isArray(p.read) ? p.read : [];
   if (!read.length) out.push("needs a read list of at least one box");
   read.forEach((r, i) => {
