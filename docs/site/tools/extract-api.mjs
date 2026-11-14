@@ -31,8 +31,11 @@ const ROOTS = {
   lib: { object: "localImpl", extra: ["movementScales"] },
 };
 
-/** How deep a nested literal or a namespace is followed before it is listed as one row. */
-const MAX_DEPTH = 3;
+/**
+ * How deep a nested literal or a namespace is followed before it is listed as
+ * one row: a group row whose key has this many segments is not expanded.
+ */
+export const MAX_DEPTH = 3;
 
 const rel = (file) => path.relative(REPO, file).split(path.sep).join("/");
 const lineOf = (src, index) => src.slice(0, index).split("\n").length;
@@ -316,6 +319,24 @@ function readLiteral(ctx, file, open, prefix, depth) {
     ctx.unresolved.push({ feature: ctx.feature, key: prefix || "(root)", why: `unbalanced literal in ${rel(file)}` });
     return;
   }
+  // A file's `export const publicApi = {` is a manifest: every row read inside
+  // it, nested reads included, carries the file as its route.
+  const manifest = MANIFEST_HEAD.test(bare.slice(Math.max(0, open - 80), open)) ? rel(file) : null;
+  const from = ctx.rows.length;
+  ctx.literals.push({ file: rel(file), index: open, manifest });
+  readEntries(ctx, file, open, close, prefix, depth);
+  if (manifest) for (let i = from; i < ctx.rows.length; i++) ctx.rows[i].manifest ??= manifest;
+}
+
+/** A file that declares `export const publicApi` in any shape. */
+const PUBLIC_API = /^export\s+const\s+publicApi\b/m;
+
+/** What directly precedes the `{` of a manifest literal. */
+const MANIFEST_HEAD = /^[\s\S]*\bexport\s+const\s+publicApi\s*=\s*$/;
+
+/** The entries of the literal whose braces are at `open` and `close`. */
+function readEntries(ctx, file, open, close, prefix, depth) {
+  const { src, bare } = read(file);
   for (const [start, end] of splitEntries(bare, open, close)) {
     const at = start + bare.slice(start, end).match(/^\s*/)[0].length;
     const text = bare.slice(at, end).trim();
@@ -419,6 +440,25 @@ function spread(ctx, file, name, prefix, depth, note) {
 }
 
 /**
+ * The keys a namespace reaches more than once, among its leaf rows.
+ *
+ * @param {object[]} rows a namespace's rows before repeats are dropped
+ * @returns {Array<{key: string, manifest: boolean}>} `manifest` is true where
+ *   at least one of the routes was a file's `publicApi`
+ */
+export function repeatedKeys(rows) {
+  const byKey = new Map();
+  for (const row of rows) {
+    if (row.group) continue;
+    if (!byKey.has(row.key)) byKey.set(row.key, []);
+    byKey.get(row.key).push(row);
+  }
+  return [...byKey]
+    .filter(([, list]) => list.length > 1)
+    .map(([key, list]) => ({ key, manifest: list.some((r) => r.manifest) }));
+}
+
+/**
  * The public namespace, one entry per feature key.
  *
  * @returns {{features: Array<{feature: string, file: string, line: number, doc: string, rows: object[]}>,
@@ -430,6 +470,9 @@ export function extractApi() {
   const features = [];
   const unresolved = [];
   const seen = new Set();
+  const literals = [];
+  const declaring = new Set();
+  for (const file of walk(SCRIPTS)) if (PUBLIC_API.test(read(file).bare)) declaring.add(rel(file));
   const assign = /^[ \t]*acksExtras\.([a-zA-Z]+)\s*=\s*/gm;
 
   for (const file of walk(SCRIPTS).sort()) {
@@ -438,7 +481,7 @@ export function extractApi() {
       const feature = m[1];
       if (seen.has(feature)) continue;
       const at = m.index + m[0].length;
-      const ctx = { feature, rows: [], unresolved };
+      const ctx = { feature, rows: [], unresolved, literals };
       const expr = bare.slice(at, bare.indexOf("\n", at));
       let found = null;
 
@@ -460,6 +503,19 @@ export function extractApi() {
         continue;
       }
       seen.add(feature);
+      for (const { key, manifest } of repeatedKeys(ctx.rows)) {
+        // A repeat between two spreads or hand keys is left to the last-wins rule below.
+        if (manifest) unresolved.push({ feature, key, why: `reached twice, at least once through a publicApi manifest; a key has one route` });
+      }
+      for (const row of ctx.rows) {
+        if (row.group) continue;
+        if (row.manifest && !row.doc) {
+          unresolved.push({ feature, key: row.key, why: `published through ${row.manifest}'s publicApi with no docstring on its declaration (${rel(row.file)}); the API page prints it` });
+        }
+        if (declaring.has(rel(row.file)) && row.manifest !== rel(row.file)) {
+          unresolved.push({ feature, key: row.key, why: `reaches ${rel(row.file)}, which publishes through its publicApi; add it there` });
+        }
+      }
       // Two spreads can carry one name; the later spread is the value the
       // object holds, so the later row is the one kept.
       const last = new Map(ctx.rows.map((row, i) => [row.key, i]));
@@ -472,6 +528,11 @@ export function extractApi() {
         rows: ctx.rows.map(({ index, file: f, ...row }) => ({ ...row, file: rel(f), line: lineOf(read(f).src, index) })),
       });
     }
+  }
+  // A manifest no namespace read publishes nothing.
+  const reached = new Set(literals.filter((l) => l.manifest).map((l) => l.manifest));
+  for (const file of declaring) {
+    if (!reached.has(file)) unresolved.push({ feature: "(none)", key: "publicApi", why: `${file}'s publicApi is reached by no acksExtras key` });
   }
   features.sort((a, b) => a.feature.localeCompare(b.feature));
   return { features, unresolved };

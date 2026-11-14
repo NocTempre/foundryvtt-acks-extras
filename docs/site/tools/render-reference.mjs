@@ -11,6 +11,8 @@
  */
 import { extractImports, featureOfPath, groupOf } from "./extract-imports.mjs";
 import { extractApi } from "./extract-api.mjs";
+import { apiPathProblems, docFiles } from "./api-paths.mjs";
+import { REPO } from "./parse.mjs";
 
 /** Internal import edges above which a feature's files are tabled and not charted. */
 const CHART_MAX_EDGES = 40;
@@ -220,6 +222,7 @@ export function renderReference(link) {
   const problems = [
     ...graph.missing.map((m) => `${m.from} imports "${m.specifier}", which is no file`),
     ...api.unresolved.map((u) => `acksExtras.${u.feature}.${u.key}: ${u.why}`),
+    ...apiPathProblems(api.features, docFiles(REPO)),
   ];
 
   const entries = api.features.map((f) => ({ ...f, dir: featureOfPath(f.file) }));

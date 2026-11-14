@@ -13,7 +13,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { renderReference } from "../docs/site/tools/render-reference.mjs";
-import { extractApi } from "../docs/site/tools/extract-api.mjs";
+import { extractApi, repeatedKeys } from "../docs/site/tools/extract-api.mjs";
+import { apiPathProblems } from "../docs/site/tools/api-paths.mjs";
 import { extractImports } from "../docs/site/tools/extract-imports.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -54,12 +55,53 @@ ok("every namespace holds keys, and each key names a file and a line that exist"
   }
 });
 
-ok("a key is listed once per namespace", () => {
-  for (const feature of api.features) {
-    const keys = feature.rows.filter((r) => !r.group).map((r) => r.key);
-    const twice = keys.filter((k, i) => keys.indexOf(k) !== i);
-    assert.deepEqual([...new Set(twice)], [], `${feature.feature} repeats a key`);
-  }
+ok("a key a publicApi manifest reaches is reached once: the repeat detector sees it, and the extractor reports it", () => {
+  const rows = [
+    { key: "a", manifest: "scripts/x/api.mjs" },
+    { key: "a" },
+    { key: "b" },
+    { key: "b" },
+    { key: "g", group: true },
+    { key: "g", group: true },
+    { key: "c", manifest: "scripts/x/api.mjs" },
+  ];
+  assert.deepEqual(repeatedKeys(rows), [{ key: "a", manifest: true }, { key: "b", manifest: false }]);
+  assert.ok(!api.unresolved.some((u) => /reached twice/.test(u.why)), "a manifest key has two routes");
+});
+
+const fake = [
+  {
+    feature: "formation",
+    rows: [
+      { key: "marchingOrders", group: true },
+      { key: "marchingOrders.save", kind: "function" },
+      { key: "shape", kind: "object" },
+      { key: "a", group: true },
+      { key: "a.b", group: true },
+      { key: "a.b.c", group: true },
+    ],
+  },
+  { feature: "importer", rows: [{ key: "run", kind: "function" }] },
+];
+const docs = (text) => [{ file: "docs/x/TESTING.md", text }];
+
+ok("a doc path the namespace holds passes, whether written plain, optional-chained or on globalThis", () => {
+  assert.deepEqual(apiPathProblems(fake, docs("call acksExtras.formation.marchingOrders.save(x)\nthen acksExtras?.formation?.marchingOrders?.save, or globalThis.acksExtras.importer.run().")), []);
+});
+
+ok("a doc path the namespace does not hold fails, naming file and line", () => {
+  assert.deepEqual(apiPathProblems(fake, docs("one\ntwo acksExtras.formation.marchingOrders.saveOrder(x)")), [
+    "docs/x/TESTING.md:2 names acksExtras.formation.marchingOrders.saveOrder, which the namespace does not hold",
+  ]);
+});
+
+ok("a hook name, a bare namespace and a placeholder are skipped", () => {
+  assert.deepEqual(apiPathProblems(fake, docs("Hooks.on('acksExtras.hexEntered')\nthe acksExtras.formation object\nacksExtras.importer.<fn>()")), []);
+});
+
+ok("a path under an unexpanded leaf, or under a group at the follow depth, passes; under a shallower group it fails", () => {
+  assert.deepEqual(apiPathProblems(fake, docs("acksExtras.formation.shape.anything.deep\nacksExtras.formation.a.b.c.d.e")), []);
+  assert.equal(apiPathProblems(fake, docs("acksExtras.formation.marchingOrders.nope")).length, 1);
 });
 
 ok("the entry point's imports are the graph's", () => {
