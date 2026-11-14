@@ -111,7 +111,8 @@ export const GM_STEPS = [
   // against the classes, so they follow both; they also reach classes a world
   // already holds, which importClasses skips.
   ["stepTemplatePackages", (api) => api.importTemplatePackages()],
-  ["stepMonsters", (api) => api.cookbookImportMonsters()],
+  // Inside the chain the Judge's click on Import Everything is the consent; run alone, the step asks.
+  ["stepMonsters", (api, o) => api.cookbookImportMonsters({ confirmed: !!o?.run })],
   ["stepCompanions", (api) => api.cookbookFillCompanions()],
   // The second argument is the chain's `{quiet: true}`: a step with nothing to
   // write says nothing inside the chain, and warns when it is run on its own.

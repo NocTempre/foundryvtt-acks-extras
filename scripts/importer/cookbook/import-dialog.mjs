@@ -367,9 +367,10 @@ export async function cookbookImport() {
 
 /**
  * GM: import every monster the open book's cookbook ships, skipping what the
- * world already has.
+ * world already has. Asks for the go-ahead first unless `confirmed`: a caller
+ * that already holds the Judge's consent (the Import Everything chain) passes it.
  */
-export async function cookbookImportMonsters() {
+export async function cookbookImportMonsters({ confirmed = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
   const openBooks = [...data.books.keys()].filter((b) => ctx.sessionDocs.has(b));
   if (!openBooks.length) {
@@ -386,7 +387,7 @@ export async function cookbookImportMonsters() {
     return ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.cookbookAllPresent`, { n: ids.length }));
   }
   // Reading a whole book is long and makes many actors: confirm first.
-  const ok = await foundry.applications.api.DialogV2.confirm({
+  const ok = confirmed || await foundry.applications.api.DialogV2.confirm({
     window: { title: game.i18n.localize(`${LANG_PREFIX}.ui.cookbookTitle`) },
     classes: ["acks-ui", "acks-extras-importer-dialog"],
     content: `<p>${game.i18n.format(`${LANG_PREFIX}.ui.cookbookAllConfirm`, {
