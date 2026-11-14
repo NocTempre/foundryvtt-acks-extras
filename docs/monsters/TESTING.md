@@ -711,3 +711,36 @@ it.
 
 **Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
 built.
+
+## A figure the import left unread
+
+MODEL "A figure the import left unread". No shipped row leaves a figure
+unread, so the fixture carries the list by hand, with invented figures.
+
+**Fixture.** `monsters/unread-figure`: a `monster` actor built with
+`api.fixture` whose `flags["acks-extras"].extras.derived.unread` lists
+`system.saves.death.value`, `system.details.morale`, `system.attack.throw`,
+`system.hp.max`, `system.hp.hd` and `system.ac.value`, each
+`{path, held, cite}` with `held` read off the created actor at that path and
+`cite` an invented reference such as `XX p. 1`. A step that needs the list
+whole asserts each `held` still equals the actor's value at its start and
+rewrites the list where it does not.
+
+**Steps.**
+
+1. Open the sheet's Statblock tab.
+   *Observable:* the save, morale, attack-throw, hit-point and hit-dice rows
+   listed draw no figure; the unlisted saves draw theirs. Each blank row's
+   value span carries `data-tooltip-text` equal to the `cite` and nothing
+   else. Armour class draws its figure though it is listed.
+2. On the edit tab, change the death save to another number and return.
+   *Observable:* that row draws the new figure; the other listed rows stay
+   blank.
+3. Set the death save back to the held value.
+   *Observable:* the row is blank again (ROADMAP, importer, "An unread figure
+   blanks on the Statblock tab alone").
+4. Read the rail and the band.
+   *Observable:* they show core's values for the listed figures (the same
+   ROADMAP row).
+
+**Teardown.** The fixture stays.

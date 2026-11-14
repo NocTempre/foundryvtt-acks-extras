@@ -3717,3 +3717,83 @@ The marked fixtures are kept. Each group a step rolled is the run's own: it is
 tracked with `api.track` from the lair's `lair.group` read the moment the roll
 resolves, and `api.sweepTracked()` deletes them, its result quoted. A setup
 check's made documents are swept the same way.
+
+## The Judges Journal's scenarios: places, plans and creatures read from pictures
+
+MODEL "A picture's text" and "The Judges Journal's scenarios". The nine
+scenarios (JJ, Appendix A, PDF pp. 417–425): per page one `kind.picture` row,
+a key space `jj.scenario<N>` with its areas, the creature rows
+`jj.scenario<N>-npc<I>` (21) and a plan `jj.scenario<N>Map`.
+
+### Fixtures
+
+- `importer/jj-scenario`: the first scenario's place (`jj.scenario1`) in the
+  Judge-only library, in a world with the JJ open on the GM seat. Built when
+  nothing carries the marker by the steps below, then `api.mark(uuid,
+  "importer/jj-scenario")` on the place stamped `jj.scenario1`. The library's
+  documents are never tracked or swept.
+- The monster book's rows in the library, for the roster links that name one
+  (`mm.*`); without them the links wait, and step 2 counts them.
+
+### Drive mechanics (learned live)
+
+- A step is pressed in the manager: `acksExtras.importer.openImportManager({
+  tab: "import" })`, then `button[data-action='runStep'][data-step='<key>']`.
+  The step is over when no `runStep` button is disabled.
+- The monsters step asks before it imports (a `DialogV2` with a `yes`
+  button). Other dialogs can open over an unattended run: importing the
+  prepared parties in the same step raised the classes' damage-bonus dialog
+  twice, each waiting on its `ok`.
+- A page is read when a step first needs it and kept for the session
+  document, so the read lands in the monsters step and the later steps reuse
+  it. `acksExtras.importer.cookbookDebug("jj.scenario1")` reads one page in a
+  fresh client without importing anything.
+- The engine is a dedicated worker at
+  `modules/acks-extras/vendor/tesseract/worker.min.js`. To see every request
+  it makes, attach to the page over the DevTools protocol with
+  `Target.setAutoAttach` and `waitForDebuggerOnStart`, enable `Network` on
+  each worker target and resume it; a watcher attached after the worker
+  starts misses the worker's own fetches.
+- A plan's picture is on the scene's level (`levels`), not on a top-level
+  `background`.
+
+### Steps
+
+1. Connect the JJ and press the monsters step (`stepMonsters`), answering its
+   question. *Observable:* a bar per page, *Reading picture text, PDF page
+   N…*, for pages 417 to 425, stepping once a box; the engine's requests are
+   the worker script, its core and its language data, all under
+   `modules/acks-extras/vendor/tesseract/`, and none leaves the origin. The
+   library's JJ folder holds folders Scenario 1 to Scenario 9 with 21
+   `monster` actors stamped `jj.scenario<N>-npc<I>`, each named by its page
+   and not by its neutral label, each with hit points, none with
+   `extras.derived.unread`. They carry 25 weapons between them, one a
+   routine: one creature prints no attack and has none, five have two, and
+   every weapon but one carries `flags.acks-extras.damageType`.
+2. Press the points-of-interest step (`stepPoi`). *Observable:* no picture
+   bar (the read is reused); the notice counts 77 places created and the
+   occupants rostered, with the links waiting on a creature the library does
+   not hold; no place is refused. The Scenario folders hold 9 scenario places
+   and 68 areas, every one named by its heading and carrying notes, and every
+   roster row is hidden.
+3. Press the maps step (`stepScenes`). *Observable:* nine scenes
+   `jj.scenario<N>Map`, each with its picture, a 10 ft grid, no walls, and one
+   hidden token per pinned area: 5, 3, 10, 9, 11, 5, 8, 10 and 6.
+4. Press the adventures step (`stepAdventures`). *Observable:* the JJ's
+   Adventure holds the nine scenes and Actor folders Scenario 1 to Scenario 9.
+5. Wait half a minute after the last read. *Observable:* the engine's worker
+   and the pinned copy's PDF worker have ended (`IDLE_MS`).
+6. Press the monsters and points-of-interest steps again in the same client.
+   *Observable:* no picture bar, nothing created.
+7. Delete one area's place from the library and press the points-of-interest
+   step. *Observable:* the place returns under its id with its parent and
+   roster, at one page's read in a fresh client.
+8. With a link waiting, import the creature it names and repair the JJ from
+   the Adventures tab. *Observable:* a place whose roster was empty takes the
+   link; a place that already held rows lists the longer roster as an edit to
+   take.
+
+### Teardown
+
+The fixture is kept. Step 7's place is the library's own and comes back by
+the step itself; nothing is swept.
