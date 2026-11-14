@@ -7,7 +7,7 @@ import { BOOKS } from "../books.mjs";
 import { executeEntry } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { escape as esc } from "../../lib/util.mjs";
-import { data, ctx, cookbookEntry, bookOf, bookLabel } from "./state.mjs";
+import { data, ctx, cookbookEntry, bookOf, bookLabel, actorKindOf } from "./state.mjs";
 import { runPageCache } from "./read.mjs";
 import { packLabel, importedIdSet, actorEntriesAcrossBooks, familyMemberIds } from "./target.mjs";
 import { importMany } from "./actor-import.mjs";
@@ -233,15 +233,30 @@ export async function cookbookDebug(entryId) {
 /**
  * GM/dev: import an explicit id list through the same bounded pool the dialog
  * and import-all use, folders included. Builds only the actor kinds `importOne`
- * dispatches (the `actorKindOf` set); any other kind returns null and goes
- * uncounted.
+ * dispatches (the `actorKindOf` set); an id that names no entry of an open
+ * book, or an entry of another kind, is left out of the run and named in one
+ * warning, so the count returned is of what the list asked for that this
+ * import builds.
  */
 export async function cookbookImportIds(ids) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
+  const wanted = [];
+  const declined = [];
+  for (const id of ids ?? []) {
+    const found = cookbookEntry(id);
+    // The entries of an open book cookbook only, as `actorEntriesAcrossBooks`
+    // lists them: a content cookbook has no `book`, and an entry with no kind
+    // would otherwise pass for a monster.
+    const bookId = found?.cb?.book?.id;
+    (bookId && ctx.sessionDocs.has(bookId) && actorKindOf(found.entry) ? wanted : declined).push(id);
+  }
+  if (declined.length) {
+    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.cookbookIdsDeclined`, { n: declined.length, list: declined.join(", ") }));
+  }
   // Already-present ids are filtered out: a monster import always creates, so
   // an unfiltered list would leave two actors claiming one cookbook id.
   const present = await importedIdSet();
-  return importMany((ids ?? []).filter((id) => !present.has(id)), game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
+  return importMany(wanted.filter((id) => !present.has(id)), game.i18n.localize(`${LANG_PREFIX}.ui.cookbookWorking`));
 }
 
 /** Opens the actor import dialog listing the entries of every open book; GM only. */

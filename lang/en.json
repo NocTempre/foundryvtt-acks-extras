@@ -8030,6 +8030,7 @@
   "ACKS-IMPORTER.ui.cookbookAllPresent": "All {n} monsters from this book are already imported — nothing to do.",
   "ACKS-IMPORTER.ui.cookbookDone": "{done}/{picked} imported into the \"{pack}\" compendium (details in console).",
   "ACKS-IMPORTER.ui.cookbookSkipped": "{skipped} skipped as already imported.",
+  "ACKS-IMPORTER.ui.cookbookIdsDeclined": "{n} id(s) left out: each names no entry of an open book, or an entry this import does not build as an actor ({list}).",
   "ACKS-IMPORTER.ui.debugTitle": "Cookbook debug — raw extraction",
   "ACKS-IMPORTER.ui.debugPick": "Entry",
   "ACKS-IMPORTER.ui.debugGo": "Extract & inspect",

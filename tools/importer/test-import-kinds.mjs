@@ -27,7 +27,7 @@ import {
 import { placePairs } from "../../scripts/importer/place-pair.mjs";
 import {
   IMPORT_KINDS, ENTRY_SOURCES, SHELF_REFILL, REPAIR_RUNS, TABLE_BOOKS, cookbookRunSet, cookbookReimportShelf, cookbookReimportBook,
-  cookbookImportMonsters, cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
+  cookbookImportMonsters, cookbookImportIds, cookbookReimportAdventure, cookbookReimportEntries, reimportableShelves, initCookbook, loadCookbook, isRewriting, placeBlockRows,
   withRewrite, createDoc, keepsJudgeProse, keepsJudgeFigure, marketTakes, recreateUnderId, rewriteTable, repairPregens, writeRowBlock,
   writeJournalPage, cookbookCount,
 } from "../../scripts/importer/cookbook.mjs";
@@ -558,6 +558,47 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("run alone, the creatures step asks for the go-ahead", (await asked(null)) === 1);
   check("inside the chain it builds no dialog, the click on Import Everything being the consent", (await asked({ quiet: true, run: {} })) === 0);
   check("the api's own call still asks by default", (await asked(null, (a) => a.cookbookImportMonsters())) === 1);
+}
+
+/* --- an id list names what it leaves out --- */
+
+{
+  const { format, localize } = game.i18n;
+  const warned = [];
+  const warn = ui.notifications.warn;
+  game.i18n.format = (key, args) => (warned.push({ key, args }), "");
+  ui.notifications.warn = () => {};
+  /** The declined-ids warnings a call raised, over a library holding none of the creatures. */
+  const declinedBy = async (ids) => {
+    emptyShelves();
+    warned.length = 0;
+    await drive(async () => {
+      try {
+        await cookbookImportIds(ids);
+      } catch {
+        // the mock library's missing compendium
+      }
+    });
+    return warned.filter((w) => w.key.endsWith(".ui.cookbookIdsDeclined"));
+  };
+  try {
+    const mixed = await declinedBy(["mm.alpha", "ax1.area", "no.such.id", "ax1.npc1", "def.prof.alpha"]);
+    check("a list mixing builds and non-builds raises one warning", mixed.length === 1);
+    same("it names the count and the ids left out, in the list's order (a content entry with no kind among them)",
+      mixed[0]?.args, { n: 3, list: "ax1.area, no.such.id, def.prof.alpha" });
+    const closed = OPEN.get("ax1");
+    OPEN.delete("ax1");
+    try {
+      same("an actor entry of a book that is not open is left out too", (await declinedBy(["mm.alpha", "ax1.npc1"]))[0]?.args, { n: 1, list: "ax1.npc1" });
+    } finally {
+      OPEN.set("ax1", closed);
+    }
+    check("a list of actor entries raises none", (await declinedBy(["mm.alpha", "ax1.pregen1"])).length === 0);
+    check("an empty list raises none", (await declinedBy([])).length === 0 && (await declinedBy(undefined)).length === 0);
+  } finally {
+    Object.assign(game.i18n, { format, localize });
+    ui.notifications.warn = warn;
+  }
 }
 
 /* --- a shelf: the command and the derivation agree --- */
