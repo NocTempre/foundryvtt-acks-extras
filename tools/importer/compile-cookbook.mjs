@@ -1755,6 +1755,15 @@ const AX_FOOT_Y = 750;
  * The community book `cat` sets body type down to y752 above a folio the
  * page reader's footer filter already drops, so only its foot differs from
  * the defaults: at AX_FOOT_Y an item's last line is read as a folio.
+ *
+ * The ACKS I supplement `le` sets 10pt prose from y48 to y756 under an 8pt
+ * running head at y25, hangs its headings at x28 on odd pages, and ends a line
+ * with a hyphen as far right as x580 on even ones, which the default right
+ * edge of 40 cuts along with the word the hyphen splits. Its top
+ * band sits above the first body line (a heading at y48 is below it, where the
+ * default 60 would take it for a running head and let one listing's flow run
+ * on into the next) and its foot below the last (its folios are dropped by the
+ * page reader's footer profile).
  */
 const AX_BOOK_BANDS = Object.freeze({
   ax1: Object.freeze({
@@ -1762,6 +1771,7 @@ const AX_BOOK_BANDS = Object.freeze({
     columns: Object.freeze({ even: Object.freeze([30, 310]), odd: Object.freeze([40, 320]) }),
   }),
   cat: Object.freeze({ footY: 760 }),
+  le: Object.freeze({ topBand: 40, footY: 765, headX0: 20, rightEdge: 22 }),
 });
 // A book's declared typography (`bodyTop`, `paraGap` in the registry) answers
 // where its bands say nothing: the measures are the page's, whichever reader

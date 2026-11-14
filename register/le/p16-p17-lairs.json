@@ -1,0 +1,31 @@
+[
+  {
+    "id": "le.lairs",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lairs",
+    "anchor": {
+      "hash": "150mqz6"
+    },
+    "pages": [
+      16
+    ]
+  },
+  {
+    "id": "le.lair1",
+    "kind": "kind.location",
+    "book": "le",
+    "name": "Lair 1",
+    "anchor": {
+      "hash": "1g6osek"
+    },
+    "pages": [
+      17
+    ],
+    "meta": {
+      "space": "le.lairs",
+      "parent": "le.lairs",
+      "of": "mm.gorillaCave"
+    }
+  }
+]

@@ -1,0 +1,279 @@
+{
+  "schema": "acks-cookbook/2",
+  "book": {
+    "id": "le",
+    "label": "Lairs & Encounters",
+    "short": "LE",
+    "pages": 229,
+    "titleRe": "Lairs\\s*(?:and|&)\\s*Encounters"
+  },
+  "entries": {
+    "le.lairs": {
+      "kind": "kind.location",
+      "name": "Lairs",
+      "cite": "LE p.16",
+      "pages": [
+        16
+      ],
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 16,
+          "box": {
+            "x0": 35,
+            "x1": 305,
+            "y0": 34,
+            "y1": 53
+          },
+          "hash": "150mqz6",
+          "caps": true
+        },
+        "description": {
+          "op": "text",
+          "page": 16,
+          "paras": [
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 57,
+                "y1": 135
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 153,
+                "y1": 195
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 26,
+                "x1": 305,
+                "y0": 213,
+                "y1": 291
+              },
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "mergeHyphen": [
+                  1,
+                  4
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "le.lair1": {
+      "kind": "kind.location",
+      "name": "Lair 1",
+      "cite": "LE p.17",
+      "pages": [
+        17
+      ],
+      "meta": {
+        "space": "le.lairs",
+        "parent": "le.lairs",
+        "of": "mm.gorillaCave"
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 17,
+          "box": {
+            "x0": 25,
+            "x1": 295,
+            "y0": 382,
+            "y1": 401
+          },
+          "hash": "1g6osek",
+          "caps": true
+        },
+        "description": {
+          "op": "text",
+          "page": 17,
+          "paras": [
+            {
+              "box": {
+                "x0": 16,
+                "x1": 295,
+                "y0": 405,
+                "y1": 411
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 16,
+                "x1": 295,
+                "y0": 429,
+                "y1": 651
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  21,
+                  22,
+                  23
+                ],
+                "mergeHyphen": [
+                  9,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 16,
+                "x1": 295,
+                "y0": 669,
+                "y1": 699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        "creatures.0": {
+          "op": "value",
+          "page": 17,
+          "pattern": "raw",
+          "table": "creature",
+          "stripColon": true,
+          "stripParen": true,
+          "box": {
+            "x0": 26,
+            "x1": 30,
+            "y0": 669.5,
+            "y1": 674.5
+          }
+        },
+        "occupants.0.name": {
+          "op": "value",
+          "page": 17,
+          "pattern": "raw",
+          "table": "creature",
+          "stripColon": true,
+          "stripParen": true,
+          "box": {
+            "x0": 26,
+            "x1": 30,
+            "y0": 669.5,
+            "y1": 674.5
+          }
+        },
+        "occupants.0.count": {
+          "op": "value",
+          "page": 17,
+          "pattern": "countParen",
+          "stripColon": true,
+          "box": {
+            "x0": 26,
+            "x1": 30,
+            "y0": 669.5,
+            "y1": 674.5
+          }
+        },
+        "occupants.0.stats": {
+          "op": "value",
+          "page": 17,
+          "pattern": "statline",
+          "box": {
+            "x0": 25,
+            "x1": 295.02879999999993,
+            "y0": 668,
+            "y1": 700
+          },
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2
+            ],
+            "drop": [
+              0
+            ]
+          }
+        }
+      }
+    }
+  },
+  "skips": {
+    "17": [
+      {
+        "x0": 0,
+        "x1": 612,
+        "y0": 0,
+        "y1": 40,
+        "reason": "running-head"
+      },
+      {
+        "x0": 0,
+        "x1": 34,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      },
+      {
+        "x0": 578,
+        "x1": 612,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      }
+    ]
+  }
+}

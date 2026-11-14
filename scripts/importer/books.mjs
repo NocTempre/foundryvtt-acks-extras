@@ -156,6 +156,18 @@ export const REGISTRY = {
     printedOffset: 2,
     judge: true,
   },
+  // An ACKS I supplement that prints keyed lairs and a plate for some of them
+  // (2016). Its printing carries no metadata title, so the count alone names
+  // it; the pattern matches the stock filename. No `line`, as for the AX books.
+  le: {
+    label: "Lairs & Encounters",
+    short: "LE",
+    published: 2016,
+    pages: 229,
+    titleRe: /Lairs\s*(?:and|&)\s*Encounters/i,
+    printedOffset: 0,
+    judge: true,
+  },
   // An ACKS-compatible community title, authored. The printing carries no
   // metadata title, so the fingerprint gates on the page count; the pattern
   // matches the stock filename. Set in 12pt body type from a word processor: `typography` reads it on the engine's size ladder and

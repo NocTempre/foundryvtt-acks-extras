@@ -99,6 +99,12 @@ pass++;
 check("every AX download placed, none left over", !ax.unmatched.length);
 check("the printed AX5 title also names the book", BOOKS.ax5.titleRe.test("Eyrie of the Dread Eye"));
 
+/* The ACKS I supplement carries no metadata title either: its stock filename
+ * names it, and no AX book's. */
+const supplement = matchFilesToBooks([file("AUT_1013_Lairs_and_Encounters_-_Bookmarked.pdf"), ...axStock], ["le", "ax1", "ax3", "ax4", "ax5", "ax6"], NONE);
+check("the stock supplement download names its book", named(supplement).le === "AUT_1013_Lairs_and_Encounters_-_Bookmarked.pdf");
+check("the supplement takes none of the adventures' files", named(supplement).ax1 === "AX1Sinister_Stone_of_Sakkara_(hirez).pdf" && !supplement.unmatched.length);
+
 /* The character sheet carries no metadata title in either printing, so its
  * downloads are named by their filenames: colour, monochrome and welded. */
 const sheets = matchFilesToBooks(

@@ -12,6 +12,9 @@ import fs from "node:fs";
 export const LIB = "C:\\Proj\\acks-reference\\ACKSII";
 export const LIB_AX = "C:\\Proj\\acks-reference\\AX";
 
+/** The ACKS I supplements, on the ACKS shelf. */
+export const LIB_ACKSI = "C:\\Proj\\acks-reference\\ACKSI";
+
 /** Community titles written for ACKS, on the ACKS shelf beside the core books. */
 export const LIB_COMMUNITY = "C:\\Proj\\acks-reference\\Community";
 
@@ -31,6 +34,7 @@ export const FILES = {
   ax4: `${LIB_AX}\\AX4_Ruined_City_of_Cyfandir.pdf`,
   ax5: `${LIB_AX}\\Autarch_EyrireDreadEye_ACKS_March2019_digital.pdf`,
   ax6: `${LIB_AX}\\AX6_Sepulcher_of_the_Sorceress-Queen.pdf`,
+  le: `${LIB_ACKSI}\\AUT_1013_Lairs_and_Encounters_-_Bookmarked.pdf`,
   scg: `${LIB}\\ACKSII_System_Compatibility_Guide_FINAL_r4_2nd_Printing.pdf`,
   axc: `${LIB_AXIOMS}\\AXIOMS_1-8_ACKS_AxiomsCompendium_Bookmarked.pdf`,
 };
