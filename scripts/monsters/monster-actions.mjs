@@ -131,4 +131,5 @@ async function rollHitPoints() {
   await this.actor.rollHP();
 }
 
+/** The monster sheet's action handlers, keyed by the `data-action` name each control carries. */
 export const ACTIONS = { addRow, removeRow, serveAsHenchman, createSpoil, rollSave, rollHitPoints };

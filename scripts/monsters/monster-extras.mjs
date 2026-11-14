@@ -43,6 +43,7 @@ import {
 
 const fields = foundry.data.fields;
 
+/** The data model for a monster's extended stat block, stored in an actor flag. */
 export default class MonsterExtras extends foundry.abstract.DataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = ["speeds", "otherSenses", "variants", "secondary.trainedValue"];

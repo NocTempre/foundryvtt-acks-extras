@@ -47,6 +47,7 @@ const loc = makeLoc(ROSTER_LANG_PREFIX);
 /** How many events an open row lists, newest first. */
 const ROW_EVENTS = 8;
 
+/** The window listing an employer's merged hireling roster. */
 export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ employer, ...options } = {}) {
     super(options);
@@ -466,6 +467,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/** Opens a `RosterApp` for `employer`. */
 export function openRosterApp(employer) {
   new RosterApp({ employer }).render(true);
 }

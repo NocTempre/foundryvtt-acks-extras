@@ -6,6 +6,7 @@
  */
 const fields = foundry.data.fields;
 
+/** The data model for the `attitude` Item subtype. */
 export default class AttitudeData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {

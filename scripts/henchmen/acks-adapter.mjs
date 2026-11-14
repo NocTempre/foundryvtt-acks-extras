@@ -26,7 +26,8 @@ import { acksExtras } from "../namespace.mjs";
 
 /* ------------------------------ reads ------------------------------ */
 
-export const getChaMod = (actor) => abilityMod(actor, "cha");
+/** The actor's Charisma modifier. */
+export const getChaMod =(actor) => abilityMod(actor, "cha");
 
 /** The Charisma modifier as the loyalty modifier; a core that still derives `cha.loyalty` is read first. */
 export function getChaLoyalty(actor) {
@@ -74,8 +75,10 @@ export function getRetainMax(actor) {
   return base + sumEffectModifiers(actor, "retainBonus") + (Number.isFinite(manual) ? manual : 0);
 }
 
+/** The actor's class level, as the lib subsystem reads it. */
 export const getLevel = classLevel;
 
+/** The actor's morale score, 0 where none is stored. */
 export function getMorale(actor) {
   return Number(actor?.system?.details?.morale ?? 0);
 }
@@ -83,6 +86,7 @@ export function getMorale(actor) {
 /** The score ranges are `lib/score-bounds.mjs`'s; the adapter re-exports them for its callers. */
 export { loyaltyBounds, moraleBounds };
 
+/** The actor's core retainer block, each field coerced to its type with a default for a missing one. */
 export function getRetainer(actor) {
   const r = actor?.system?.retainer ?? {};
   return {
@@ -95,10 +99,12 @@ export function getRetainer(actor) {
   };
 }
 
+/** True where the actor's retainer block is enabled. */
 export function isRetainer(actor) {
   return !!actor?.system?.retainer?.enabled;
 }
 
+/** The world actor named by the retainer's `managerid`, or null where none is set. */
 export function getManager(actor) {
   const id = actor?.system?.retainer?.managerid;
   return id ? game.actors.get(id) : null;
@@ -217,6 +223,7 @@ export async function addHenchman(employer, hirelingId) {
   throw new Error(`${MODULE_ID}: employer.addHenchman missing — incompatible acks version?`);
 }
 
+/** Removes a hireling from the employer's roster through the system's own `delHenchman`; throws where the system lacks it. */
 export async function delHenchman(employer, hirelingId) {
   if (typeof employer?.delHenchman === "function") return employer.delHenchman(hirelingId);
   throw new Error(`${MODULE_ID}: employer.delHenchman missing — incompatible acks version?`);

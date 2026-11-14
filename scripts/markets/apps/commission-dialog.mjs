@@ -15,6 +15,7 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** The window that commissions a catalog item at a location. */
 export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, item, ...options } = {}) {
     super(options);
@@ -83,6 +84,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
   }
 }
 
+/** Opens a `CommissionDialog` for the catalog row `item` at `location`. */
 export function openCommissionDialog(location, item) {
   new CommissionDialog({ location, item }).render(true);
 }

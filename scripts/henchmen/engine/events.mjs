@@ -900,6 +900,7 @@ async function onUpdateActor(actor, changes) {
 
 /* ------------------------- registration ------------------------- */
 
+/** Registers the actor-update watcher, the wages-due queue on world-time advance, and the engine's chat-card actions. */
 export function registerEventEngine() {
   Hooks.on("updateActor", (actor, changes) => {
     onUpdateActor(actor, changes).catch((err) => console.error(`${MODULE_ID} | event watcher failed`, err));

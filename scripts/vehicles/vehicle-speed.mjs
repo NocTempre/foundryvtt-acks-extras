@@ -32,8 +32,10 @@ import { getTable, hasDoc, bracketRow } from "../lib/tables.mjs";
 
 /** The registered ruledata documents this module's ground and wind read. */
 export const TRAVEL_DOC = "travel";
+/** The id of the registered `voyages` document. */
 export const VOYAGES_DOC = "voyages";
-export const WEATHER_DOC = "weather";
+/** The id of the registered `weather` document. */
+export const WEATHER_DOC ="weather";
 
 /** A registered table, or null — absent doc and absent table read the same. */
 export function readTable(docId, tableId) {

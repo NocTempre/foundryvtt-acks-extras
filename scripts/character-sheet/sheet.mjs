@@ -100,6 +100,7 @@ const enrich = (html, actor) =>
 /** `data-*` attributes for a cell or the band's glyph, rendered raw by the partial. */
 const attr = (o) => Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
 
+/** The ACKS character sheet: the window the file header describes, registered as the default for `character`. */
 export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.

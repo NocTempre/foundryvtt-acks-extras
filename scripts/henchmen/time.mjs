@@ -10,10 +10,12 @@ import { SECONDS_PER_DAY } from "./constants.mjs";
 import { getSetting } from "./settings.mjs";
 import { mayAdvanceWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 
+/** The world time in whole seconds. */
 export function now() {
   return Math.floor(game.time.worldTime);
 }
 
+/** The length of a market month in seconds: the `daysPerMonth` setting, 28 where it is unset. */
 export function secondsPerMonth() {
   // No-calendar fallback: 4 weeks (28 days), per RAW's weekly market cadence.
   return (Number(getSetting("daysPerMonth")) || 28) * SECONDS_PER_DAY;

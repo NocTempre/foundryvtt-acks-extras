@@ -19,6 +19,7 @@ const employerChaMod = {
   min: -5, max: 5, derive: "chaMod", label: "ACKS-HENCHMEN.mod.employerCha",
 };
 
+/** The `throws` table doc: each social throw's dice, controls and derive keys, with no result column. */
 export const THROWS_DATA = {
   id: "throws",
   source: { note: "Module roll-automation config (module vocabulary; not book data)." },

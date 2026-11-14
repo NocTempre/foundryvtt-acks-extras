@@ -25,6 +25,7 @@ const fields = () => foundry.data.fields;
 /** One demand layer: a modifier per merchandise-type key. */
 const demandRows = (f) => new f.ArrayField(new f.SchemaField({ category: str(), modifier: int(0) }));
 
+/** Builds the `SchemaField` for a market's goods subtree, which `marketSchema()` composes. */
 export function goodsSchema() {
   const f = fields();
   return new f.SchemaField({

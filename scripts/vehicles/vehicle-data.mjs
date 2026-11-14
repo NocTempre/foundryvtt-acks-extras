@@ -70,6 +70,7 @@ export const CARRIAGE = Object.freeze({
 // occupants feeder) — the class itself is only ever instantiated by Foundry.
 const TypeDataModel = globalThis.foundry?.abstract?.TypeDataModel ?? class {};
 
+/** The data model for the `vehicle` Actor sub-type. */
 export default class VehicleData extends TypeDataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric keys. */
   static ARRAY_PATHS = ["team.animals", "speeds.tiers", "crew.roles"];

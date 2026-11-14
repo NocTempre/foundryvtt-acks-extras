@@ -17,6 +17,7 @@ import { hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** The form window that creates a recruitment posting on a location. */
 export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, ...options } = {}) {
     super(options);
@@ -258,6 +259,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/** Opens a `PostingDialog` for `location`. */
 export function openPostingDialog(location) {
   new PostingDialog({ location }).render(true);
 }

@@ -32,6 +32,7 @@ async function rollTroopType(tableId) {
   return { die, type: row?.type ?? "?" };
 }
 
+/** Rolls the follower grants for `actor` and posts the results as a GM-visible chat card; warns and stops where the followers tables are not imported. */
 export async function openFollowersDialog(actor) {
   if (!hasDoc("followers")) {
     ui.notifications.warn("ACKS Extras | the followers tables are not imported yet (RR 334-337) — follower generation is disabled until then.");

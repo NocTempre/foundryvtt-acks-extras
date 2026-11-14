@@ -125,6 +125,7 @@ export async function dismissMonster(employer, monster) {
   Hooks.callAll(HOOKS.ROSTER_CHANGED, { employer }); // employer update re-renders its sheet → grid rebuilds
 }
 
+/** Registers the `renderActorSheetV2` hook that rebuilds a character sheet's Hirelings tab as the follower-card grid. */
 export function installHirelingsGrid() {
   Hooks.on("renderActorSheetV2", (app, element) => {
     gridifyHirelings(app, element).catch((err) => console.warn(`${MODULE_ID} | hirelings grid failed`, err));

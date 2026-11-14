@@ -15,6 +15,7 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** The window that buys one catalog item at a market. */
 export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, item, ...options } = {}) {
     super(options);
@@ -125,6 +126,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/** Opens a `PurchaseDialog` for `item` at `location`. */
 export function openPurchaseDialog(location, item) {
   new PurchaseDialog({ location, item }).render(true);
 }

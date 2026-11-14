@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, LANG, TRADE_HOUSE_SETTING, CATALOG_EXCLUDED_SETTING } from "./constants.mjs";
 
+/** Registers the markets feature's world settings. */
 export function registerSettings() {
   const reg = (key, data) => game.settings.register(MODULE_ID, key, data);
 
@@ -85,4 +86,5 @@ export function registerSettings() {
   });
 }
 
-export const getSetting = (key) => game.settings.get(MODULE_ID, key);
+/** Reads the world setting `key` under the module id. */
+export const getSetting =(key) => game.settings.get(MODULE_ID, key);

@@ -7,8 +7,10 @@
  */
 import { requireNumber } from "./required.mjs";
 
+/** Seconds in a day. */
 export const SECONDS_PER_DAY = 86400;
-export const SECONDS_PER_WEEK = 7 * SECONDS_PER_DAY;
+/** Seconds in a week of days. */
+export const SECONDS_PER_WEEK =7 * SECONDS_PER_DAY;
 
 /**
  * The hub kinds an order can source from, each with the key of the market-rules

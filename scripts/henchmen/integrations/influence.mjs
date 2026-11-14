@@ -22,8 +22,11 @@ import * as adapter from "../acks-adapter.mjs";
 import { offeredRows, unvaluedNoteRows } from "../effects.mjs";
 import { hiringOffer } from "../rules/hiring-offer.mjs";
 
-/* module.api is the whole acksExtras namespace; the influence surface —
- * apiVersion, open() — hangs off its feature key. */
+/**
+ * The influence surface (`apiVersion`, `open()`), or null where it is absent.
+ * `module.api` is the whole acksExtras namespace; the influence surface hangs
+ * off its feature key.
+ */
 export function influenceApi() {
   return globalThis.acksExtras?.influence ?? null;
 }
@@ -175,6 +178,7 @@ export async function applyIrrefusableResult(payload, context, { hire } = {}) {
 /** Recently applied roll resolutions (signature → ms) — see the dedupe below. */
 const _seenResolutions = new Map();
 
+/** Registers the `acksExtras.influenceRollComplete` hook that applies the consequences of a hosted hiring or loyalty roll. */
 export function registerInfluenceIntegration() {
   Hooks.on("acksExtras.influenceRollComplete", async (payload) => {
     try {

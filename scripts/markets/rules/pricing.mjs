@@ -8,8 +8,10 @@
  */
 import { requireNumber } from "./required.mjs";
 
+/** Converts a gp amount to integer copper. */
 export const toCopper = (gp) => Math.round(Number(gp || 0) * 100);
-export const toGp = (cp) => Math.round(Number(cp || 0)) / 100;
+/** Converts a copper amount to gp. */
+export const toGp =(cp) => Math.round(Number(cp || 0)) / 100;
 
 /**
  * One demand-modifier step as a fraction of the item's value, derived from an

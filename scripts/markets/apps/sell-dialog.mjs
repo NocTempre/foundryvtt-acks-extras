@@ -11,6 +11,7 @@ import { toGp } from "../rules/pricing.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** The window that sells one carried item at a market. */
 export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, seller, item, ...options } = {}) {
     super(options);
@@ -84,6 +85,7 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/** Opens a `SellDialog` for `seller`'s `item` at `location`. */
 export function openSellDialog(location, seller, item) {
   new SellDialog({ location, seller, item }).render(true);
 }

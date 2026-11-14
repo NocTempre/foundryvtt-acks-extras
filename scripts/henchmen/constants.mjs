@@ -83,4 +83,5 @@ export const HOOKS = Object.freeze({
 
 /** Seconds per day/week for worldTime math (month length is a setting). */
 export const SECONDS_PER_DAY = 86400;
-export const SECONDS_PER_WEEK = 7 * SECONDS_PER_DAY;
+/** Seconds in a week of days. */
+export const SECONDS_PER_WEEK =7 * SECONDS_PER_DAY;

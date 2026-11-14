@@ -65,6 +65,7 @@ function wireSteppers(element) {
   });
 }
 
+/** Opens the "Hire as Group" dialog over the troops and officers available at `location`, for an employer the user picks. */
 export async function openHireGroupDialog(location) {
   const employer = await pickEmployer(game.user.character);
   if (!employer) return ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.group.noEmployer"));

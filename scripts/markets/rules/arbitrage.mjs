@@ -14,7 +14,8 @@ const TWO_D6 = Object.freeze({ min: 2, max: 12 });
 
 /** The result rungs of a 2d6 result column, in the order the book lists them. */
 export const ASSESSMENT_RESULTS = Object.freeze(["false", "failed", "expertise", "partial", "success"]);
-export const NEGOTIATION_RESULTS = Object.freeze(["outrage", "refusal", "continue", "grudging", "agreement"]);
+/** The result rungs of a spot-price negotiation, in the order the code lists them. */
+export const NEGOTIATION_RESULTS =Object.freeze(["outrage", "refusal", "continue", "grudging", "agreement"]);
 
 /**
  * How a party's characters enter a market (RR ch. 8, Entering the Market,

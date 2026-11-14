@@ -14,6 +14,7 @@ import { toGp } from "../rules/pricing.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** The window that trades merchandise for a trader's venture at a location. */
 export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, trader, ...options } = {}) {
     super(options);
@@ -101,6 +102,7 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
   }
 }
 
+/** Opens a `VentureTradeDialog` for `trader` at `location`. */
 export function openVentureTradeDialog(location, trader) {
   new VentureTradeDialog({ location, trader }).render(true);
 }

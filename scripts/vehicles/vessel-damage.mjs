@@ -106,8 +106,10 @@ export function speedFactor(vehicle, { roles = null } = {}) {
  * only ever a cosmetic difference.
  */
 const grain = (key) => Number(readTable(VOYAGES_DOC, "rounding")?.[key]) || 1;
+/** Rounds a voyage speed in miles to the imported voyage grain. */
 export const roundVoyage = (miles) => Math.round((Number(miles) || 0) / grain("voyageMiles")) * grain("voyageMiles");
-export const roundCombat = (feet) => Math.round((Number(feet) || 0) / grain("combatFeet")) * grain("combatFeet");
+/** Rounds a combat speed in feet to the imported combat grain. */
+export const roundCombat =(feet) => Math.round((Number(feet) || 0) / grain("combatFeet")) * grain("combatFeet");
 
 /**
  * What it takes to put a hull back together.

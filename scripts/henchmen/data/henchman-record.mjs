@@ -25,6 +25,7 @@ function ledgerEntry() {
   });
 }
 
+/** The data model for one hireling's module-owned record, stored in an actor flag. */
 export default class HenchmanRecord extends foundry.abstract.DataModel {
   static ARRAY_PATHS = ["loyalty.permanents", "morale.permanents", "events", "rolled.doubleD100", "rolled.hpSteps"];
 
