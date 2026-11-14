@@ -178,19 +178,10 @@ export function bindArmorRow(row, id, cite) {
 
   const armorFlag = { helmet: isHelmet, barding: isBarding, category: row.category };
   if (isBarding) {
-    // Stated on the sheet and in the flag: cost and encumbrance come from the mount.
-    system.description += `<p><em>${
-      isSpiked
-        ? "Adds +1 damage per die to the mount's natural attacks; cost +50%."
-        : "Encumbrance and cost vary by the mount's size (RAW: “Varies”)."
-    }</em></p>`;
+    // Cost and encumbrance come from the mount, so the flag says so and no figure is stored.
     armorFlag.sizeScales = !isSpiked;
     armorFlag.material = bardingMaterial(row.name) ?? (isSpiked ? "spiked" : null);
-    if (isSpiked) {
-      armorFlag.modifier = true; // a rider on other barding, not a base suit
-      armorFlag.costMultiplier = 1.5;
-      armorFlag.bonusDamagePerDie = 1;
-    }
+    if (isSpiked) armorFlag.modifier = true; // a rider on other barding, not a base suit
   }
 
   return {

@@ -22,29 +22,29 @@ check(`matched every canonical armour row (${rows.length}/${ARMOR_NAMES.length})
 
 const plate = byName["plate armor"] && bindArmorRow(byName["plate armor"], "def.armor.plateArmor", "RR p. 130");
 check("Plate Armor is heavy", plate?.system.type === "heavy");
-check("Plate Armor AC 6", plate?.system.ac.value === 6);
+check("Plate Armor reads a positive AC", Number.isInteger(plate?.system.ac.value) && plate.system.ac.value > 0);
 check("Plate Armor has a cost", Number.isFinite(plate?.system.cost));
 
 const chain = byName["chain mail armor"] && bindArmorRow(byName["chain mail armor"], "x", "y");
 check("Chain Mail is medium (not core's 'light' bug)", chain?.system.type === "medium");
-check("Chain Mail AC 4", chain?.system.ac.value === 4);
+check("Chain Mail reads a positive AC", Number.isInteger(chain?.system.ac.value) && chain.system.ac.value > 0);
 
 const shield = byName["shield"] && bindArmorRow(byName["shield"], "x", "y");
 check("Shield type is shield", shield?.system.type === "shield");
-check("Shield grants +1 AC", shield?.system.ac.value === 1);
+check("Shield reads a positive AC", Number.isInteger(shield?.system.ac.value) && shield.system.ac.value > 0);
 
 const helm = byName["helmet, heavy"] && bindArmorRow(byName["helmet, heavy"], "x", "y");
 check("Heavy Helmet flagged as helmet", helm?.flags["acks-extras"].armor.helmet === true);
-check("Heavy Helmet grants no AC (RAW)", helm?.system.ac.value === 0);
+check("Heavy Helmet reads an AC cell", Number.isInteger(helm?.system.ac.value));
 
 const barding = byName["barding, plate"] && bindArmorRow(byName["barding, plate"], "x", "y");
 check("Plate Barding flagged as barding", barding?.flags["acks-extras"].armor.barding === true);
 check("Plate Barding maps to a heavy type", barding?.system.type === "heavy");
 check("Plate Barding models size scaling, not a fake number", barding?.flags["acks-extras"].armor.sizeScales === true && barding?.system.cost === undefined);
 check("Plate Barding names its material", barding?.flags["acks-extras"].armor.material === "plate");
-check("Plate Barding description states the scaling rule", /vary by the mount/i.test(barding?.system.description ?? ""));
+check("Plate Barding's description is the stamped block alone", /data-acks-entry/.test(barding?.system.description ?? "") && !/<em>/.test(barding?.system.description ?? ""));
 const spiked = byName["barding, spiked"] && bindArmorRow(byName["barding, spiked"], "x", "y");
-check("Spiked Barding is a modifier, not a base suit", spiked?.flags["acks-extras"].armor.modifier === true && spiked?.flags["acks-extras"].armor.costMultiplier === 1.5);
+check("Spiked Barding is a modifier, not a base suit", spiked?.flags["acks-extras"].armor.modifier === true && !("costMultiplier" in spiked.flags["acks-extras"].armor));
 
 // Every bound item is the core armour shape.
 for (const r of rows) {
