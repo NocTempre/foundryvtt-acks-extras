@@ -3900,7 +3900,8 @@
       ],
       "meta": {
         "market": "mkt5",
-        "place": "adventure"
+        "place": "adventure",
+        "gateToll": "city"
       },
       "fields": {
         "name": {

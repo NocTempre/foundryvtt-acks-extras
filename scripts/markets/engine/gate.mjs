@@ -5,7 +5,9 @@
  * the capacity the party brings, the tariff on the merchandise it brings in
  * to sell, the daily moorage and stabling of its ships, vehicles and animals
  * (Engaging in Mercantile Ventures), and the Ruler's Privilege that waives
- * all three. A good the party smuggles is not assessed, and a party that
+ * all three. A market may instead charge its city's toll on the merchandise
+ * and a duty on what comes in (`gateTollOf`, AX3 p. 56). A good the party
+ * smuggles is not assessed, and a party that
  * sneaks in pays neither toll nor tariff; its stay is still charged. The
  * attempt is the Judge's to resolve. One quote serves the Enter dialog's
  * preview and the entry that pays it. The entry quotes again on the seat
@@ -14,6 +16,7 @@
  * (`entryQuote`), never through this file.
  */
 import { parseTollCpPerSt, parseTariffPct, tariffOn, diceRange } from "../rules/arbitrage.mjs";
+import { cityTollOn, dutyOn, diceSpan, merchandiseStonesOf } from "../rules/gate-toll.mjs";
 import { marketsFlagOf } from "../rules/goods.mjs";
 import { stayPerDay, defaultStabledAs, STABLED_AS } from "../rules/stay.mjs";
 import { merchandiseTierOf } from "../merchandise-keys.mjs";
@@ -22,14 +25,14 @@ import { getSetting } from "../settings.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
 import { findRow } from "../../lib/tables.mjs";
 import { coinReach } from "../../lib/money.mjs";
-import { isMagical, stackCountOf } from "../../lib/item-model.mjs";
+import { isMagical, stackCountOf, weightStoneOf } from "../../lib/item-model.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
 import { manifestOf } from "./manifest.mjs";
 import { partyOf, partyMembers } from "./parties.mjs";
-import { categoryOf } from "./trade.mjs";
-import { tariffDice, printedError, stayRates } from "./printed.mjs";
+import { categoryOf, marketMonthStart, buyQuote } from "./trade.mjs";
+import { tariffDice, printedError, stayRates, cityGateTolls } from "./printed.mjs";
 
 const TIERS = Object.freeze(["precious", "common"]);
 const tierOf = (load) => (load.tier === "precious" ? "precious" : "common");
@@ -85,7 +88,8 @@ export const goodKey = (holderUuid, itemId) => `${holderUuid}|${itemId}`;
  * they carry that is not a load and not magic, has a merchandise type
  * (`categoryOf`: the item's own override, else the type its kind belongs
  * to), has a cost, and is in hand.
- * @returns {{itemId: string, name: string, category: string, quantity: number, costGp: number}[]}
+ * `weightSt` is the stack's weight in stone.
+ * @returns {{itemId: string, name: string, category: string, quantity: number, costGp: number, weightSt: number}[]}
  */
 export function saleCandidates(member) {
   const out = [];
@@ -97,7 +101,7 @@ export function saleCandidates(member) {
     if (!category || !merchandiseFor(category)) continue;
     const quantity = stackCountOf(item) ?? 1;
     const costGp = Number(data.system?.cost) || 0;
-    if (quantity > 0 && costGp > 0) out.push({ itemId: item.id, name: item.name, category, quantity, costGp });
+    if (quantity > 0 && costGp > 0) out.push({ itemId: item.id, name: item.name, category, quantity, costGp, weightSt: weightStoneOf(item) });
   }
   return out;
 }
@@ -113,7 +117,8 @@ export function saleCandidates(member) {
  * A good named in `smuggled` (`goodKey`) is smuggled, and so is everything
  * where the party sneaks in. Each row carries its key, its good's base price
  * per unit (the catalogue's per stone for a load, else the load's own cost;
- * an item's cost), its tier and its exemption.
+ * an item's cost), its tier and its exemption. An item's `stones` counts its
+ * pieces and its `weightSt` weighs the stack.
  * @param {object} o
  * @param {Actor[]} o.members - `gateHolders`' members
  * @param {Actor[]} [o.owners] - `gateHolders`' owners; `members` where omitted
@@ -142,7 +147,7 @@ export function enteringLoads({ members, owners = members, vehicles = [], forSal
       const key = goodKey(member.uuid, c.itemId);
       if (!brought.has(key)) continue;
       const { tier, exempt } = goodOf(c.category);
-      place({ key, category: c.category, label: c.name, holderName: member.name, stones: c.quantity, basePriceGp: c.costGp, tier, exempt, kind: "item" });
+      place({ key, category: c.category, label: c.name, holderName: member.name, stones: c.quantity, weightSt: c.weightSt, basePriceGp: c.costGp, tier, exempt, kind: "item" });
     }
   }
   return out;
@@ -194,6 +199,45 @@ function stayOf(vehicles, { at, animals, stabled }) {
   return stayPerDay({ rates: stayRates(), at, ships, vehicles: land, animals });
 }
 
+/** Which charge a market's gate takes: `"city"` where its goods say so, else the class's (`"class"`). */
+export const gateTollOf = (location) => (location?.system?.market?.goods?.gateToll === "city" ? "city" : "class");
+
+/**
+ * The city's charges on the goods assessed (`rules/gate-toll.mjs`): the toll
+ * on their stones and, where the page prints a duty, the duty on their value.
+ * A load is priced at `prices`' row for its category this month and an item
+ * at what the market sells it for (`buyQuote`); a good with no price is named
+ * in `unpriced` and leaves the duty's range null.
+ */
+function cityCharges({ location, loads, prices, tolls }) {
+  const merchandiseSt = merchandiseStonesOf(loads);
+  const { dice, perStones } = tolls.toll;
+  const toll = { dice, perStones, merchandiseSt, ...cityTollOn({ merchandiseSt, dice, perStones }) };
+  if (!tolls.duty) return { toll, duty: null };
+  const monthStart = marketMonthStart();
+  const goods = location.system.market?.goods;
+  const unpriced = [];
+  const lines = loads.map((l) => {
+    const stones = Math.max(0, Number(l.stones) || 0);
+    let unitCp = null;
+    if (l.kind === "item") {
+      const itemData = { flags: { [MODULE_ID]: { [ITEM_FLAG]: { category: l.category } } } };
+      const priced = buyQuote({ itemData, costGp: l.basePriceGp, magic: false, magicBaseGp: null, goods });
+      unitCp = priced.error ? null : priced.unitCp;
+    } else {
+      const row = (prices ?? []).find((p) => p.category === l.category && Number(p.monthStartTime) === monthStart);
+      unitCp = row ? Number(row.priceCp) : null;
+    }
+    const known = Number.isFinite(unitCp) && unitCp >= 0;
+    if (!known && !unpriced.includes(l.category)) unpriced.push(l.category);
+    return { category: l.category, label: l.label, holderName: l.holderName ?? "", kind: l.kind ?? "load", stones, valueCp: known ? stones * unitCp : null };
+  });
+  const pctRange = diceSpan(tolls.duty.dicePercent);
+  const at = (end) => dutyOn(lines, pctRange[end]).totalCp;
+  const range = unpriced.length ? null : { minCp: at("min"), maxCp: at("max") };
+  return { toll, duty: { dice: tolls.duty.dicePercent, pctRange, lines, range, unpriced } };
+}
+
 /** The charges a Judge's script added through the hook: each kept where it has a label and a whole number of coppers above none. */
 function judgeCharges(extra) {
   return (Array.isArray(extra) ? extra : [])
@@ -225,7 +269,15 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  *   only the entrant's own rule does, and the goods are those `gateHolders`
  *   gives;
  * - a party that sneaks in (`sneak`) is charged no toll and no tariff, and
- *   everything it brings is smuggled. Its stay is figured as any other's.
+ *   everything it brings is smuggled. Its stay is figured as any other's;
+ * - a market whose gate charges the city's way (`gateTollOf`) takes, in place
+ *   of the class toll and tariff, the imported toll on the stones of
+ *   merchandise assessed (`toll`: whole units, one scaled throw, so `tollCp`
+ *   is null until `settleToll` throws it, or 0 where no unit is owed) and the
+ *   duty on those goods at this month's market price (`duty`: lines, the range
+ *   of what it can come to, and the categories with no price this month in
+ *   `unpriced`, which leave the range null). `rates`, `dice` and `tariff`
+ *   stay null; `settleTariff` throws the duty. The waivers above hold.
  *
  * Then the `acksExtras.marketGateQuote` hook is called with
  * `(quote, {location, trader, separately})` on every seat that quotes, the
@@ -237,8 +289,8 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  * preview and the payment disagree.
  *
  * Refuses `noCharacteristics` where the class's row is unread; the printed
- * error where its tariff cell, the dice a randomized tariff needs, or a
- * moorage rate something brought needs cannot be read; and `stayNoShp` with
+ * error where its tariff cell, the dice a randomized tariff needs, the city's
+ * gate tolls, or a moorage rate something brought needs cannot be read; and `stayNoShp` with
  * the `vehicle` where a ship's rate is by size and it has none.
  * @param {Actor} location
  * @param {Actor} trader - the member the entry is posted under, who pays
@@ -253,9 +305,10 @@ export const extraCpOf = (quote) => (quote?.extra ?? []).reduce((n, c) => n + c.
  * @param {Record<string, number>} [o.animals] - animals brought besides the vehicles' teams, by `STAY_ANIMALS` key
  * @param {Record<string, string>} [o.stabled] - how each land vehicle is stabled, by uuid (`STABLED_AS`)
  * @param {string|null} [o.requestUserId] - the seat declaring, whose sight bounds the party (`gateParty`)
- * @returns {{error: string, table?: string, vehicle?: string}|{capacitySt: number, sneaked: boolean, privilege: {uuid: string, name: string}|null, tollCp: number, loads: object[], smuggled: object[], rates: {precious: number, common: number}|null, dice: {precious: string|null, common: string|null}|null, range: {minCp: number, maxCp: number}|null, tariff: {totalCp: number, lines: object[]}|null, stay: {at: string, cpPerDay: number, lines: object[], privilege: {uuid: string, name: string}|null}, extra: {label: string, cp: number}[]}}
+ * @param {object[]} [o.prices] - the market's `merchPrices` rows the duty prices loads from; the location's own where omitted
+ * @returns {{error: string, table?: string, vehicle?: string}|{capacitySt: number, sneaked: boolean, gateToll: "class"|"city", privilege: {uuid: string, name: string}|null, tollCp: number|null, toll: {dice: string, perStones: number, merchandiseSt: number, units: number, formula: string|null, range: {minCp: number, maxCp: number}}|null, duty: {dice: string, pctRange: {min: number, max: number}|null, lines: object[], range: {minCp: number, maxCp: number}|null, unpriced: string[]}|null, loads: object[], smuggled: object[], rates: {precious: number, common: number}|null, dice: {precious: string|null, common: string|null}|null, range: {minCp: number, maxCp: number}|null, tariff: {totalCp: number, lines: object[]}|null, stay: {at: string, cpPerDay: number, lines: object[], privilege: {uuid: string, name: string}|null}, extra: {label: string, cp: number}[]}}
  */
-export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, separately = false, stayAt = "berth", animals = {}, stabled = {}, requestUserId = null } = {}) {
+export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSale = [], smuggled = [], sneak = false, separately = false, stayAt = "berth", animals = {}, stabled = {}, requestUserId = null, prices = location.system.market?.goods?.merchPrices ?? [] } = {}) {
   const capacitySt = Math.round(Math.round(Math.max(0, Number(otherSt) || 0)) + vehicles.reduce((n, v) => n + Math.max(0, holdOf(v)?.capacity ?? 0), 0));
   const ch = characteristicsFor(location.system.marketClass);
   if (!ch) return { error: "noCharacteristics" };
@@ -267,11 +320,17 @@ export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSa
   if (stay.error) return printedError("moorageRates");
   const ruled = privilegeDomain(location, members);
   const ruledBy = ruled ? { uuid: ruled.uuid, name: ruled.name } : null;
-  const quote = { capacitySt, sneaked, privilege: null, tollCp: 0, loads: sorted.loads, smuggled: sorted.smuggled, rates: null, dice: null, range: null, tariff: null, stay: { ...stay, privilege: ruledBy }, extra: [] };
+  const city = gateTollOf(location) === "city";
+  const quote = { capacitySt, sneaked, gateToll: city ? "city" : "class", privilege: null, tollCp: 0, toll: null, duty: null, loads: sorted.loads, smuggled: sorted.smuggled, rates: null, dice: null, range: null, tariff: null, stay: { ...stay, privilege: ruledBy }, extra: [] };
   const domain = sneaked ? null : ruled;
   if (sneaked || domain) {
     const free = { precious: 0, common: 0 };
     Object.assign(quote, { privilege: domain ? ruledBy : null, rates: free, tariff: tariffOn(quote.loads, free) });
+  } else if (city) {
+    const tolls = cityGateTolls();
+    if (!tolls) return printedError("gateTolls");
+    const charges = cityCharges({ location, loads: quote.loads, prices, tolls });
+    Object.assign(quote, { toll: charges.toll, duty: charges.duty, tollCp: charges.toll.units > 0 ? null : 0 });
   } else {
     quote.tollCp = Math.ceil(parseTollCpPerSt(ch.toll) * capacitySt);
     const printed = parseTariffPct(ch.tariff);
@@ -298,12 +357,34 @@ export function entryQuote(location, trader, { vehicles = [], otherSt = 0, forSa
 export const stayCpPerDayOf = (quote) => (quote?.stay && !quote.stay.privilege ? quote.stay.cpPerDay : 0);
 
 /**
+ * The toll the gate takes on a quote, in coppers: the class's as quoted, or
+ * the city's thrown now, one throw of the scaled dice in gp. Nothing is thrown
+ * where no unit of stones is owed. `roll` records the throw, null where none was.
+ * @returns {Promise<{tollCp: number, roll: {formula: string, total: number}|null}>}
+ */
+export async function settleToll(quote) {
+  if (!quote.toll) return { tollCp: quote.tollCp, roll: null };
+  if (!quote.toll.formula) return { tollCp: 0, roll: null };
+  const total = (await new Roll(quote.toll.formula).evaluate()).total;
+  return { tollCp: Math.max(0, Math.round(total * 100)), roll: { formula: quote.toll.formula, total } };
+}
+
+/**
  * The tariff the gate takes on a quote: its own where the rates are printed,
  * or thrown now — once per tier the quote has dice for and a good to tax —
- * where the Judge randomizes it. `rolls` records each throw.
+ * where the Judge randomizes it. A city quote throws its duty's percent once,
+ * and only where it has a good to assess, applying it to every line
+ * (`dutyOn`), the same rate under both tiers. `rolls` records each throw.
  * @returns {Promise<{totalCp: number, lines: object[], rates: {precious: number, common: number}, rolls: {tier: string, formula: string, total: number}[]}>}
  */
 export async function settleTariff(quote) {
+  if (quote.toll) {
+    const lines = quote.duty?.lines ?? [];
+    if (!lines.length) return { totalCp: 0, lines: [], rates: { precious: 0, common: 0 }, rolls: [] };
+    const total = (await new Roll(quote.duty.dice).evaluate()).total;
+    const pct = Math.max(0, total);
+    return { ...dutyOn(lines, pct), rates: { precious: pct, common: pct }, rolls: [{ tier: "duty", formula: quote.duty.dice, total }] };
+  }
   if (!quote.dice) return { ...quote.tariff, rates: quote.rates, rolls: [] };
   const rates = { precious: 0, common: 0 };
   const rolls = [];

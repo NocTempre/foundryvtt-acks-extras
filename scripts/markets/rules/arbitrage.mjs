@@ -116,6 +116,14 @@ export function tariffOn(loads, rates) {
   return { totalCp: sum > 0 ? Math.ceil(sum - 1e-9) : 0, lines };
 }
 
+/** The nearest whole number, a half going to the even one: 0.5 → 0, 1.5 → 2, 2.5 → 2. */
+export function roundHalfEven(x) {
+  const f = Math.floor(x);
+  const frac = x - f;
+  if (Math.abs(frac - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
+  return Math.round(x);
+}
+
 /**
  * Market impact (RR §VIII.6 step 2): cargo capacity over the baseline,
  * rounded half-to-even; capped at the printed maximum (the one class whose
@@ -138,18 +146,12 @@ export function tariffOn(loads, rates) {
  *   is the figure at the market's own class before any drop, capped; `cap` the maximum
  */
 export function marketImpact({ cargoSt, baselineCargoSt, marketClass, urbanFamilies = 0, baselineOfClass, impactCap, familyScaledClass, familiesPerImpact, entrants = 0 }) {
-  const roundEven = (x) => {
-    const f = Math.floor(x);
-    const frac = x - f;
-    if (Math.abs(frac - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
-    return Math.round(x);
-  };
   const top = requireNumber("impactCap", impactCap);
   const scaledClass = requireNumber("familyScaledClass", familyScaledClass);
   const perImpact = requireNumber("familiesPerImpact", familiesPerImpact);
   const shares = Math.floor(Number(entrants) || 0);
   const cap = shares > 1 ? Math.floor(top / shares) : marketClass === scaledClass ? Math.max(top, Math.floor((Number(urbanFamilies) || 0) / perImpact)) : top;
-  const at = (baseline) => (baseline > 0 ? Math.min(cap, roundEven(cargoSt / baseline)) : 0);
+  const at = (baseline) => (baseline > 0 ? Math.min(cap, roundHalfEven(cargoSt / baseline)) : 0);
   let cls = marketClass;
   let baseline = baselineCargoSt;
   let impact = at(baseline);

@@ -123,12 +123,13 @@ export function goodsResolver(catalog = []) {
  * @param {object} args
  * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object, labels?: object}>} args.grids executed grid
  *   outputs; a sideways grid's `labels` are its goods' printed names, which its column-keyed `header` does not hold
- * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null, familiesErratum?: string|null}>} [args.records]
+ * @param {Record<string, {families?: string, marketClass?: string, gridClassErratum?: string|null, familiesErratum?: string|null, gateToll?: string|null}>} [args.records]
  *   domain-record reads by market key; `gridClassErratum` says the grid's class for that row is a
- *   misprint, `familiesErratum` that the record's own family count is one, so none is read from it
+ *   misprint, `familiesErratum` that the record's own family count is one, so none is read from it;
+ *   `gateToll` "city" switches the market to its city's own gate toll
  * @param {(column: string, header?: string) => string|null} args.resolve see `goodsResolver`
  * @returns {Array<{market: string, marketClass: number|null, gridClass: number|null, recordClass: number|null,
- *   families: number|null, familiesErratum: string|null, demand: Array<{category: string, modifier: number}>,
+ *   families: number|null, familiesErratum: string|null, gateToll: "city"|null, demand: Array<{category: string, modifier: number}>,
  *   unmapped: Array<{column: string, header: string}>, duplicates: string[], classConflict: boolean}>}
  */
 export function marketProfiles({ grids = [], records = {}, resolve }) {
@@ -182,6 +183,7 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
         // the place keeps whatever count it holds.
         families: record?.familiesErratum ? null : parseFamilies(record?.families),
         familiesErratum: record?.familiesErratum ?? null,
+        gateToll: record?.gateToll ?? null,
         demand,
         unmapped,
         duplicates,
@@ -237,18 +239,20 @@ export function baseIsForceable(goods, source) {
 /**
  * The update that lands a profile on a place. Class and families are written
  * only where the place holds none; the base demand only where
- * `baseIsImportable`. A place with no market yet gains the whole subtree. A
+ * `baseIsImportable`. The gate toll a record switches to (`profile.gateToll`) is
+ * written only where the place holds none, so a Judge's explicit choice stands.
+ * A place with no market yet gains the whole subtree. A
  * `corrected` market (one a grid's errata names) whose base this same page
  * stocked takes the class with the base: an earlier import wrote both from the
  * band the erratum moves it off.
  * @param {object|null} market the place's current `system.market`
  * @param {object} profile one `marketProfiles` row
  * @param {{book: string, page: string}} source
- * @param {{corrected?: boolean, force?: boolean|{marketClass?: boolean, families?: boolean, demand?: boolean}}} [options]
- *   `force` writes the class and families over what the place holds, and the
- *   base unless a later printing wrote it (`baseIsForceable`): `true` for all
- *   three, or per field
- * @returns {{update: object, wrote: {marketClass: boolean, families: boolean, demand: boolean}}}
+ * @param {{corrected?: boolean, force?: boolean|{marketClass?: boolean, families?: boolean, demand?: boolean, gateToll?: boolean}}} [options]
+ *   `force` writes the class, families and gate toll over what the place holds,
+ *   and the base unless a later printing wrote it (`baseIsForceable`): `true`
+ *   for all four, or per field
+ * @returns {{update: object, wrote: {marketClass: boolean, families: boolean, demand: boolean, gateToll: boolean}}}
  */
 export function marketProfileUpdate(market, profile, source, { corrected = false, force = false } = {}) {
   const forces = (field) => force === true || !!force?.[field];
@@ -256,7 +260,8 @@ export function marketProfileUpdate(market, profile, source, { corrected = false
   const writeClass = profile.marketClass !== null && (forces("marketClass") || !market?.marketClassOverride || restocked);
   const writeFamilies = profile.families !== null && (forces("families") || (market?.urbanFamilies ?? null) === null);
   const writeDemand = profile.demand.length > 0 && (forces("demand") ? baseIsForceable(market?.goods, source) : baseIsImportable(market?.goods, source));
-  const wrote = { marketClass: writeClass, families: writeFamilies, demand: writeDemand };
+  const writeGateToll = (profile.gateToll ?? null) !== null && (forces("gateToll") || (market?.goods?.gateToll ?? null) === null);
+  const wrote = { marketClass: writeClass, families: writeFamilies, demand: writeDemand, gateToll: writeGateToll };
   if (!market) {
     return {
       wrote,
@@ -264,7 +269,10 @@ export function marketProfileUpdate(market, profile, source, { corrected = false
         "system.market": {
           ...(writeClass ? { marketClassOverride: profile.marketClass } : {}),
           ...(writeFamilies ? { urbanFamilies: profile.families } : {}),
-          goods: writeDemand ? { demand: profile.demand, dmProfile: { source } } : {},
+          goods: {
+            ...(writeDemand ? { demand: profile.demand, dmProfile: { source } } : {}),
+            ...(writeGateToll ? { gateToll: profile.gateToll } : {}),
+          },
         },
       },
     };
@@ -276,6 +284,7 @@ export function marketProfileUpdate(market, profile, source, { corrected = false
     update["system.market.goods.demand"] = profile.demand;
     update["system.market.goods.dmProfile.source"] = source;
   }
+  if (writeGateToll) update["system.market.goods.gateToll"] = profile.gateToll;
   return { update, wrote };
 }
 

@@ -913,6 +913,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
         place: e.meta.place ?? null,
         gridClassErratum: e.meta.gridClassErratum ?? null,
         familiesErratum: e.meta.familiesErratum ?? null,
+        gateToll: e.meta.gateToll ?? null,
         cite: e.cite ?? "",
         page: e.pages?.[0],
       };
@@ -993,7 +994,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
           else if (record?.familiesErratum) await noteErratum(place, entryId, "erratumFamilies", record.familiesErratum, record);
           if (fresh) counts.made++;
           else if (paired) counts.paired++;
-          else if (wrote.marketClass || wrote.families || wrote.demand) counts.updated++;
+          else if (wrote.marketClass || wrote.families || wrote.demand || wrote.gateToll) counts.updated++;
           else counts.kept++;
         }
         // A corrected market no band holds: the page prints its name and no

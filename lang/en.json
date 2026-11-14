@@ -6863,6 +6863,7 @@
   "ACKS-MARKETS.ventures.table.priceShiftProse": "Monthly Price Shifts",
   "ACKS-MARKETS.ventures.table.negotiationProse": "Reaction to Negotiation",
   "ACKS-MARKETS.ventures.table.tariffProse": "Randomized Tariff",
+  "ACKS-MARKETS.ventures.table.gateTolls": "City Gate Tolls",
   "ACKS-MARKETS.ventures.table.moorageRates": "Moorage and Stabling",
   "ACKS-MARKETS.ventures.table.rangeOfTrade": "Range of Trade",
   "ACKS-MARKETS.trade.error.printedMissing": "The {table} table has not been imported, so this cannot be priced or resolved. Bring it in with Import everything in Manage Imports (or Rules tables in Reimport One Shelf, ACKS Extras Macros).",

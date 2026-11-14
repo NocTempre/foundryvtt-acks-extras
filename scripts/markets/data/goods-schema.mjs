@@ -19,6 +19,7 @@ import { num, str, int } from "../../lib/fields.mjs";
 import { DEMAND_WATER, DEMAND_BIOMES, DEMAND_ELEVATIONS } from "../rules/demand.mjs";
 import { NETWORK_MODES } from "../rules/arbitrage.mjs";
 import { STAY_AT } from "../rules/stay.mjs";
+import { GATE_TOLLS } from "../rules/gate-toll.mjs";
 
 const fields = () => foundry.data.fields;
 
@@ -86,6 +87,9 @@ export function goodsSchema() {
     // masterwork gear enters this market's catalog only when the party has
     // the right contact or skilled help here.
     masterworkContact: new f.BooleanField({ initial: false }),
+    // Which charge the market's gate takes on entry (engine/gate.mjs): the
+    // class's toll and tariff, or the city's toll and duty. Null defers to "class".
+    gateToll: new f.StringField({ required: false, nullable: true, initial: null, choices: [...GATE_TOLLS] }),
     // Demand modifiers, one row per merchandise-type key; price shifts one
     // step per point. Three layers, read only through `trueDemand`
     // (rules/demand.mjs): `demand` is the BASE (generated, or supplied by a

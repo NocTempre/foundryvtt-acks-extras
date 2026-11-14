@@ -192,7 +192,7 @@ ok("an erratum note cites the page it corrects, lands once, and follows the note
 ok("a place with no market gains the whole subtree", () => {
   const [p] = marketProfiles({ grids: [GRID], records: { mkt1: { families: "90", marketClass: "V" } }, resolve: goodsResolver([]) });
   const { update, wrote } = marketProfileUpdate(null, p, SOURCE);
-  assert.deepEqual(wrote, { marketClass: true, families: true, demand: true });
+  assert.deepEqual(wrote, { marketClass: true, families: true, demand: true, gateToll: false });
   assert.equal(update["system.market"].marketClassOverride, 5);
   assert.equal(update["system.market"].urbanFamilies, 90);
   assert.deepEqual(update["system.market"].goods.dmProfile.source, SOURCE);
@@ -202,8 +202,38 @@ ok("an import never overwrites what the Judge set", () => {
   const [p] = marketProfiles({ grids: [GRID], records: { mkt1: { families: "90", marketClass: "V" } }, resolve: goodsResolver([]) });
   const judged = { marketClassOverride: 2, urbanFamilies: 12, goods: { demand: [{ category: "salt", modifier: -1 }], dmProfile: { source: null } } };
   const { update, wrote } = marketProfileUpdate(judged, p, SOURCE);
-  assert.deepEqual(wrote, { marketClass: false, families: false, demand: false });
+  assert.deepEqual(wrote, { marketClass: false, families: false, demand: false, gateToll: false });
   assert.deepEqual(update, {});
+});
+
+ok("a record's gate toll lands where the place holds none, and never over the Judge's choice unless forced", () => {
+  const records = { mkt1: { families: "90", marketClass: "V", gateToll: "city" } };
+  const [p] = marketProfiles({ grids: [GRID], records, resolve: goodsResolver([]) });
+  assert.equal(p.gateToll, "city");
+  assert.equal(marketProfiles({ grids: [GRID], resolve: goodsResolver([]) })[0].gateToll, null);
+  // A fresh market subtree gains it beside the base.
+  const fresh = marketProfileUpdate(null, p, SOURCE);
+  assert.equal(fresh.wrote.gateToll, true);
+  assert.equal(fresh.update["system.market"].goods.gateToll, "city");
+  // A market that holds none, null or absent, takes it.
+  for (const goods of [{ gateToll: null }, {}]) {
+    const { update, wrote } = marketProfileUpdate({ marketClassOverride: 2, urbanFamilies: 12, goods }, p, SOURCE);
+    assert.equal(wrote.gateToll, true);
+    assert.equal(update["system.market.goods.gateToll"], "city");
+  }
+  // An explicit "class" is the Judge's and stands; force writes over it.
+  const judged = { marketClassOverride: 2, urbanFamilies: 12, goods: { gateToll: "class" } };
+  const kept = marketProfileUpdate(judged, p, SOURCE);
+  assert.equal(kept.wrote.gateToll, false);
+  assert.equal("system.market.goods.gateToll" in kept.update, false);
+  const forced = marketProfileUpdate(judged, p, SOURCE, { force: true });
+  assert.equal(forced.wrote.gateToll, true);
+  assert.equal(forced.update["system.market.goods.gateToll"], "city");
+  // A record that names none writes none, even under force.
+  const [plain] = marketProfiles({ grids: [GRID], resolve: goodsResolver([]) });
+  const none = marketProfileUpdate(judged, plain, SOURCE, { force: true });
+  assert.equal(none.wrote.gateToll, false);
+  assert.equal("system.market.goods.gateToll" in none.update, false);
 });
 
 ok("a base from the same source refreshes; from another source it stands", () => {
@@ -240,7 +270,7 @@ ok("a forced repair writes the class, families and base over the Judge's, but ne
   const [p] = marketProfiles({ grids: [GRID], records: { mkt1: { families: "90", marketClass: "V" } }, resolve: goodsResolver([]) });
   const judged = { marketClassOverride: 2, urbanFamilies: 12, goods: { demand: [{ category: "salt", modifier: -1 }], dmProfile: { source: null } } };
   const { update, wrote } = marketProfileUpdate(judged, p, SOURCE, { force: true });
-  assert.deepEqual(wrote, { marketClass: true, families: true, demand: true });
+  assert.deepEqual(wrote, { marketClass: true, families: true, demand: true, gateToll: false });
   assert.equal(update["system.market.marketClassOverride"], 5);
   assert.deepEqual(update["system.market.goods.demand"], p.demand);
   const later = { ...judged, goods: { demand: [{ category: "salt", modifier: 1 }], dmProfile: { source: { book: "ax3", page: "ax3 p.1" } } } };
@@ -342,7 +372,7 @@ ok("a made market carries its column's base and the page it was read from, nothi
   const profiles = marketProfiles({ grids: [SIDEWAYS], resolve: STOCKED });
   for (const p of profiles) {
     const { update, wrote } = marketProfileUpdate(null, p, SOURCE);
-    assert.deepEqual(wrote, { marketClass: false, families: false, demand: true });
+    assert.deepEqual(wrote, { marketClass: false, families: false, demand: true, gateToll: false });
     const goods = update["system.market"].goods;
     assert.deepEqual(goods.demand, p.demand);
     assert.deepEqual(goods.dmProfile.source, SOURCE);

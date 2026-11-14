@@ -15,12 +15,13 @@
  */
 import { LANG } from "../constants.mjs";
 import { RARITIES } from "../config.mjs";
-import { optTable } from "../../henchmen/rules/tables.mjs";
+import { optTable, optCite } from "../../henchmen/rules/tables.mjs";
 import { numOrNull } from "../../lib/util.mjs";
 import { tiersNamed } from "../rules/identification.mjs";
 import { stepFractionOf } from "../rules/pricing.mjs";
 import { HUBS, parseHubWait } from "../rules/imports.mjs";
 import { diceRange, parseStayFee } from "../rules/arbitrage.mjs";
+import { parseDiceTerm } from "../rules/gate-toll.mjs";
 import { parseMiles } from "../rules/routes.mjs";
 import { findRow, isMissingRow } from "../../lib/tables.mjs";
 import { merchandiseFor } from "./merchandise.mjs";
@@ -202,4 +203,26 @@ export function rangeOfTradeFor(marketClass) {
 export function stepFractionFor(category) {
   const row = category ? merchandiseFor(category) : null;
   return row ? stepFractionOf({ pricePerStone: row.pricePerStoneGp, priceStep: row.priceStepGp }) : null;
+}
+
+/* ------------------------------- city gates -------------------------------- */
+
+/**
+ * The city gate's imported toll and duty: the toll's dice in gp and the
+ * stones one throw covers, and the duty's percent dice where the page prints
+ * one (`duty` is null where it does not), with the page they were read from.
+ * Null when the table is not imported, its toll dice do not read as one dice
+ * term or its stones are not above none, or it holds a duty that does not
+ * read: a charge the gate cannot read is never a free one.
+ * @returns {{toll: {dice: string, perStones: number}, duty: {dicePercent: string}|null, cite: string|null}|null}
+ */
+export function cityGateTolls() {
+  const t = flat(optTable("cityTravel", "gateTolls"));
+  const dice = typeof t?.toll?.dice === "string" ? t.toll.dice.trim() : "";
+  const perStones = numOrNull(t?.toll?.perStones);
+  if (!parseDiceTerm(dice) || !(perStones > 0)) return null;
+  const hasDuty = t.duty !== undefined && t.duty !== null;
+  const dutyDice = typeof t.duty?.dicePercent === "string" ? t.duty.dicePercent.trim() : "";
+  if (hasDuty && !parseDiceTerm(dutyDice)) return null;
+  return { toll: { dice, perStones }, duty: hasDuty ? { dicePercent: dutyDice } : null, cite: optCite("cityTravel", "gateTolls") };
 }

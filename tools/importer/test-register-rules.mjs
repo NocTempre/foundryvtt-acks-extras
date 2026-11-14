@@ -156,6 +156,9 @@ flags("a revision between same-year books nothing orders", rowMetaProblems({ id:
 none("a person bound to a character", rowMetaProblems({ id: "ax1.npc1", book: "ax1", kind: "kind.npc", meta: { actor: "character" } }));
 flags("an actor of another sort", rowMetaProblems({ id: "ax1.npc1", book: "ax1", kind: "kind.npc", meta: { actor: "monster" } }), /not an actor/);
 flags("an actor on a place", rowMetaProblems({ id: "ax1.poi1", book: "ax1", kind: "kind.location", meta: { actor: "character" } }), /npc row only/);
+none("a market record switched to its city's gate toll", rowMetaProblems({ id: "ax3.mkt5", book: "ax3", kind: "kind.marketRecord", meta: { market: "mkt5", gateToll: "city" } }));
+flags("a gate toll on a row that is no market record", rowMetaProblems({ id: "ax3.poi1", book: "ax3", kind: "kind.location", meta: { gateToll: "city" } }), /market record only/);
+flags("a gate toll other than the city's", rowMetaProblems({ id: "ax3.mkt5", book: "ax3", kind: "kind.marketRecord", meta: { market: "mkt5", gateToll: "class" } }), /is not a gate toll/);
 
 /* --- the kinds labelled by ordinal --- */
 

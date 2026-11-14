@@ -319,6 +319,9 @@ export const errataIdsOf = (markdown) =>
  * later printing, so it names a row of a book `laterBook` ranks after the
  * row's own. `meta.actor` binds a person to a core character instead of a
  * monster and is read off an npc row only, with the one value "character".
+ * `meta.gateToll` switches the market a record binds to the toll of its
+ * city's own gate, and is read off a market record only, with the one value
+ * "city".
  */
 export function rowMetaProblems(e) {
   const out = [];
@@ -331,6 +334,10 @@ export function rowMetaProblems(e) {
   if (meta.actor !== undefined) {
     if (e.kind !== "kind.npc") out.push(`${id}: meta.actor belongs on an npc row only`);
     else if (meta.actor !== "character") out.push(`${id}: meta.actor ${JSON.stringify(meta.actor)} is not an actor a person binds to (character)`);
+  }
+  if (meta.gateToll !== undefined) {
+    if (e.kind !== "kind.marketRecord") out.push(`${id}: meta.gateToll belongs on a market record only`);
+    else if (meta.gateToll !== "city") out.push(`${id}: meta.gateToll ${JSON.stringify(meta.gateToll)} is not a gate toll a record switches to (city)`);
   }
   return out;
 }

@@ -1235,4 +1235,200 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   globalThis.Hooks = saved.Hooks;
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources)");
+// ---- the city gate's toll and duty: the pure rules ----
+{
+  const { roundHalfEven } = await import(new URL("../scripts/markets/rules/arbitrage.mjs", import.meta.url));
+  const { parseDiceTerm, scaleDice, diceSpan, merchandiseStonesOf, cityTollOn, dutyOn } = await import(new URL("../scripts/markets/rules/gate-toll.mjs", import.meta.url));
+
+  assert.deepStrictEqual([0.5, 1.5, 2.5, 3.5, 2.56, 0.49, 0].map(roundHalfEven), [0, 2, 2, 4, 3, 0, 0], "a half goes to the even whole; anything else to the nearest");
+
+  assert.deepStrictEqual(parseDiceTerm(" 4D6 + 2 "), { count: 4, faces: 6, mod: 2 }, "spaces and case are tolerated");
+  assert.deepStrictEqual(parseDiceTerm("d6"), { count: 1, faces: 6, mod: 0 }, "a bare die is one die");
+  assert.deepStrictEqual(parseDiceTerm("2d8-1"), { count: 2, faces: 8, mod: -1 }, "a negative modifier");
+  for (const junk of ["", null, "6", "2d", "0d6", "2d0", "2d6x", "2d6+", "a few"]) assert.strictEqual(parseDiceTerm(junk), null, `${JSON.stringify(junk)} is no dice term`);
+
+  assert.strictEqual(scaleDice("4d6+2", 3), "12d6+6", "the count and the modifier both multiply");
+  assert.strictEqual(scaleDice("2d8-1", 2), "4d8-2", "a negative modifier scales too");
+  assert.strictEqual(scaleDice("d6", 2), "2d6", "a bare die gains its count");
+  assert.strictEqual(scaleDice("3d4", 2), "6d4", "no modifier, none written");
+  assert.strictEqual(scaleDice("4d6+2", 0), null, "no unit, no throw");
+  assert.strictEqual(scaleDice("4d6+2", -1), null, "a negative unit count is no throw");
+  assert.strictEqual(scaleDice("4d6+2", 1.5), null, "units are whole");
+  assert.strictEqual(scaleDice("lots", 2), null, "junk dice scale to nothing");
+
+  assert.deepStrictEqual(diceSpan("2d6+3"), { min: 5, max: 15 }, "the modifier moves both ends");
+  assert.deepStrictEqual(diceSpan("d4-1"), { min: 0, max: 3 }, "a negative modifier");
+  assert.strictEqual(diceSpan("lots"), null, "junk has no span");
+
+  const rows = [
+    { kind: "load", stones: 12, weightSt: 99 },
+    { kind: "item", stones: 40, weightSt: 3 },
+    { kind: "load", stones: 1.5 },
+  ];
+  assert.strictEqual(merchandiseStonesOf(rows), 16.5, "a load counts its stones, an item the weight of its stack and not its pieces");
+  assert.strictEqual(merchandiseStonesOf(null), 0, "no rows, no stones");
+
+  assert.deepStrictEqual(cityTollOn({ merchandiseSt: 12, dice: "2d4+1", perStones: 5 }), { units: 2, formula: "4d4+2", range: { minCp: 600, maxCp: 1800 } }, "12 stones over 5 are 2 units; the range is in copper");
+  assert.deepStrictEqual(cityTollOn({ merchandiseSt: 2, dice: "2d4+1", perStones: 5 }), { units: 0, formula: null, range: { minCp: 0, maxCp: 0 } }, "under half a unit owes nothing");
+  assert.strictEqual(cityTollOn({ merchandiseSt: 2.5, dice: "d4", perStones: 5 }).units, 0, "half a unit rounds to the even zero");
+  assert.strictEqual(cityTollOn({ merchandiseSt: 7.5, dice: "d4", perStones: 5 }).units, 2, "one and a half units round to the even two");
+  assert.strictEqual(cityTollOn({ merchandiseSt: 12, dice: "2d4+1", perStones: 0 }).formula, null, "stones per throw not above none owes nothing");
+
+  const goods = [
+    { category: "salt", label: "Salt", valueCp: 1001, exempt: true, kind: "load" },
+    { category: "weapons", label: "Sword", valueCp: 1000, kind: "item" },
+    { category: "silk", label: "Silk", valueCp: null, kind: "load" },
+  ];
+  const duty = dutyOn(goods, 3);
+  assert.deepStrictEqual(duty.lines.map((l) => [l.category, l.pct, l.cp]), [["salt", 3, 31], ["weapons", 3, 30], ["silk", 3, 0]], "each line rounds up to a copper; an exempt good and an item are charged; an unvalued line is not");
+  assert.strictEqual(duty.totalCp, 61, "the total is the lines'");
+  assert.strictEqual(dutyOn(goods, 0).totalCp, 0, "a rate of none charges nothing");
+  assert.strictEqual(dutyOn(goods, -2).totalCp, 0, "a rate below none charges nothing");
+}
+
+// ---- the city gate's toll and duty: the quote and its settlement ----
+{
+  const { MODULE_ID } = await import(new URL("../scripts/markets/constants.mjs", import.meta.url));
+  const monthStart = 0;
+  const STORE = {
+    mercantile: {
+      merchandiseTypes: { rows: [{ type: "salt", pricePerStone: 20, priceStep: 3 }, { type: "armorWeapons", pricePerStone: 0, priceStep: 0 }] },
+      marketCharacteristics: { rows: [{ marketClass: 3, toll: "2cp/st", tariff: "4% precious, 2% common" }] },
+    },
+    cityTravel: { gateTolls: { toll: { dice: "2d4+1", perStones: 5 }, duty: { dicePercent: "1d6" } } },
+  };
+  let domain = null;
+  globalThis.acksExtras = {
+    lib: { tables: { hasDoc: (doc) => !!STORE[doc], getTable: (doc, table) => { if (!STORE[doc]?.[table]) throw new Error("no such table"); return STORE[doc][table]; }, citeOf: (doc, table) => `${doc}/${table}` } },
+    domains: { domainOf: () => domain },
+  };
+  globalThis.game = {
+    i18n: { localize: (key) => `«${key}»` },
+    settings: { get: (_m, key) => (key === "marketsRandomTariff" ? false : key === "marketParties" ? [] : null) },
+    users: { get: () => null },
+    user: { isGM: true },
+    actors: [],
+    items: [],
+    time: { worldTime: 0 },
+  };
+  globalThis.Hooks = { on() {}, once() {}, callAll() {} };
+  let next = 0;
+  const thrown = [];
+  globalThis.Roll = class {
+    constructor(formula) { this.formula = formula; }
+    async evaluate() { thrown.push(this.formula); this.total = next; return this; }
+  };
+  const plain = (data) => ({ ...data, toObject() { return this; } });
+  const sacks = plain({ _id: "sacks", id: "sacks", type: "item", name: "Sacks", flags: { [MODULE_ID]: { markets: { merchandise: true, category: "salt" } } }, system: { quantity: { value: 12 }, cost: 20, weight6: 0 } });
+  const blade = plain({ _id: "blade", id: "blade", type: "weapon", name: "Blade", system: { cost: 10, weight6: 18 } });
+  const trader = { uuid: "Actor.trader", id: "trader", name: "Trader", items: [sacks, blade], testUserPermission: () => true };
+  const place = (gateToll, prices = [{ category: "salt", monthStartTime: monthStart, priceCp: 2500 }]) => ({
+    system: { marketClass: 3, market: { goods: { gateToll, merchPrices: prices, demand: [], demandOverrides: [], demandDerived: [] } } },
+  });
+  const gate = await import(new URL("../scripts/markets/engine/gate.mjs", import.meta.url));
+  const withBlade = { forSale: ["Actor.trader|blade"] };
+
+  assert.strictEqual(gate.gateTollOf(place("city")), "city", "a market set to the city's toll charges it");
+  assert.strictEqual(gate.gateTollOf(place(null)), "class", "a market that names none defers to the class's");
+  assert.strictEqual(gate.gateTollOf(place("class")), "class", "the class's, named");
+  assert.strictEqual(gate.gateTollOf({ system: {} }), "class", "a place with no goods is the class's");
+
+  const printedTolls = await import(new URL("../scripts/markets/engine/printed.mjs", import.meta.url));
+  assert.deepStrictEqual(printedTolls.cityGateTolls(), { toll: { dice: "2d4+1", perStones: 5 }, duty: { dicePercent: "1d6" }, cite: "cityTravel/gateTolls" }, "the accessor reads the toll, the duty and the page");
+
+  // The city's way: 12 stones of salt and a blade of 3 stone are 15 stones, 3 whole units.
+  const q = gate.entryQuote(place("city"), trader, withBlade);
+  assert.strictEqual(q.error, undefined, "the quote reads");
+  assert.strictEqual(q.gateToll, "city", "the quote says whose way it is");
+  assert.deepStrictEqual(q.toll, { dice: "2d4+1", perStones: 5, merchandiseSt: 15, units: 3, formula: "6d4+3", range: { minCp: 900, maxCp: 2700 } }, "the toll counts the load's stones and the item's weight, not its pieces");
+  assert.strictEqual(q.tollCp, null, "the toll is thrown at the gate, so it is not yet a figure");
+  assert.deepStrictEqual([q.rates, q.dice, q.tariff, q.range], [null, null, null, null], "the class's tariff does not apply");
+  assert.strictEqual(q.duty.dice, "1d6", "the duty's dice are the imported ones");
+  assert.deepStrictEqual(q.duty.pctRange, { min: 1, max: 6 }, "its percent runs the dice's ends");
+  assert.deepStrictEqual(q.duty.unpriced, [], "every good has a price");
+  assert.deepStrictEqual(q.duty.lines.map((l) => [l.kind, l.category, l.valueCp]), [["load", "salt", 30000], ["item", "armorWeapons", 1000]], "a load is valued at this month's market price, an item at the market's buy price");
+  assert.deepStrictEqual(q.duty.range, { minCp: 300 + 10, maxCp: 1800 + 60 }, "the duty's range is each line's, rounded up, at the percent's ends");
+  assert.strictEqual(q.stay.cpPerDay, 0, "the stay is figured as ever");
+
+  // A price from another month is no price.
+  const stale = gate.entryQuote(place("city", [{ category: "salt", monthStartTime: 99, priceCp: 2500 }]), trader, withBlade);
+  assert.deepStrictEqual(stale.duty.unpriced, ["salt"], "a category with no price this month is named");
+  assert.strictEqual(stale.duty.range, null, "and the range is unknown while any good is unpriced");
+  assert.strictEqual(stale.toll.units, 3, "the toll does not depend on prices");
+  assert.strictEqual(gate.entryQuote(place("city", []), trader, { prices: [{ category: "salt", monthStartTime: monthStart, priceCp: 100 }] }).duty.lines[0].valueCp, 1200, "the prices option stands in for the location's own");
+
+  // Smuggled goods are in neither base.
+  const hidden = gate.entryQuote(place("city"), trader, { smuggled: ["Actor.trader|blade"] });
+  assert.strictEqual(hidden.toll.merchandiseSt, 12, "a smuggled item adds nothing to the toll's base");
+  assert.deepStrictEqual(hidden.duty.lines.map((l) => l.category), ["salt"], "nor to the duty's");
+  assert.strictEqual(hidden.smuggled.length, 1, "it is carried as smuggled");
+  const lone = gate.entryQuote(place("city"), trader, { smuggled: ["Actor.trader|sacks"] });
+  assert.strictEqual(lone.toll.merchandiseSt, 0, "a smuggled load adds nothing either");
+  assert.deepStrictEqual([lone.toll.units, lone.tollCp, lone.toll.formula], [0, 0, null], "no unit owed is a toll of nothing, not an unthrown one");
+
+  // Waivers.
+  const sneaked = gate.entryQuote(place("city"), trader, { ...withBlade, sneak: true });
+  assert.deepStrictEqual([sneaked.tollCp, sneaked.toll, sneaked.duty, sneaked.gateToll], [0, null, null, "city"], "sneaking in pays neither");
+  domain = { uuid: "Actor.domain", name: "Domain", system: { rulerUuid: "Actor.trader" } };
+  const ruled = gate.entryQuote(place("city"), trader, withBlade);
+  assert.deepStrictEqual([ruled.tollCp, ruled.toll, ruled.duty], [0, null, null], "the Ruler's Privilege waives both");
+  assert.deepStrictEqual(ruled.privilege, { uuid: "Actor.domain", name: "Domain" }, "and names whose it is");
+  assert.deepStrictEqual(await gate.settleToll(ruled), { tollCp: 0, roll: null }, "a waived toll throws nothing");
+  assert.strictEqual((await gate.settleTariff(ruled)).totalCp, 0, "a waived duty charges nothing");
+  domain = null;
+
+  // A table the page did not give.
+  delete STORE.cityTravel;
+  assert.deepStrictEqual(gate.entryQuote(place("city"), trader, withBlade), { error: "printedMissing", table: "«ACKS-MARKETS.ventures.table.gateTolls»" }, "without the imported tolls the gate refuses and names them");
+  assert.strictEqual(gate.entryQuote(place("class"), trader, withBlade).error, undefined, "a class market does not need them");
+  STORE.cityTravel = { gateTolls: { toll: { dice: "lots", perStones: 5 } } };
+  assert.strictEqual(gate.entryQuote(place("city"), trader).error, "printedMissing", "toll dice that do not read refuse");
+  STORE.cityTravel = { gateTolls: { toll: { dice: "d4", perStones: 0 } } };
+  assert.strictEqual(gate.entryQuote(place("city"), trader).error, "printedMissing", "stones per throw not above none refuse");
+  STORE.cityTravel = { gateTolls: { toll: { dice: "d4", perStones: 5 }, duty: { dicePercent: "lots" } } };
+  assert.strictEqual(gate.entryQuote(place("city"), trader).error, "printedMissing", "a duty that does not read refuses");
+  STORE.cityTravel = { gateTolls: { toll: { dice: "2d4+1", perStones: 5 } } };
+  const bare = gate.entryQuote(place("city"), trader, withBlade);
+  assert.strictEqual(bare.duty, null, "a table with no duty charges none");
+  assert.strictEqual(printedTolls.cityGateTolls().duty, null, "the accessor reports no duty as none");
+  assert.deepStrictEqual(await gate.settleTariff(bare), { totalCp: 0, lines: [], rates: { precious: 0, common: 0 }, rolls: [] }, "and throws nothing for it");
+  assert.strictEqual(thrown.length, 0, "no throw has been made yet");
+  STORE.cityTravel = { gateTolls: { toll: { dice: "2d4+1", perStones: 5 }, duty: { dicePercent: "1d6" } } };
+
+  // The class's way is as it was.
+  const rr = gate.entryQuote(place(null), trader, withBlade);
+  assert.strictEqual(rr.gateToll, "class", "a market with no switch is the class's");
+  assert.strictEqual(rr.tollCp, 0, "the class's toll is on capacity, and none was declared");
+  assert.deepStrictEqual(rr.tariff.lines.map((l) => l.category), ["salt", "armorWeapons"], "its tariff assesses the same goods");
+  assert.deepStrictEqual([rr.toll, rr.duty], [null, null], "and carries no city charge");
+  assert.deepStrictEqual(rr.rates, { precious: 4, common: 2 }, "its tariff rates are the printed ones");
+  const rrOther = gate.entryQuote(place("class"), trader, { otherSt: 3 });
+  assert.strictEqual(rrOther.tollCp, 6, "the class toll on 3 stones");
+  assert.deepStrictEqual(await gate.settleToll(rrOther), { tollCp: 6, roll: null }, "the class's toll is not thrown");
+  assert.deepStrictEqual((await gate.settleTariff(rrOther)).rolls, [], "nor its tariff");
+
+  // Settlement: one throw each, in gp for the toll and a percent for the duty.
+  next = 9;
+  assert.deepStrictEqual(await gate.settleToll(q), { tollCp: 900, roll: { formula: "6d4+3", total: 9 } }, "the toll is one throw of the scaled dice, in gp");
+  assert.deepStrictEqual(thrown, ["6d4+3"], "thrown once");
+  thrown.length = 0;
+  next = 4;
+  const settled = await gate.settleTariff(q);
+  assert.deepStrictEqual(thrown, ["1d6"], "the duty is thrown once, as one percent");
+  assert.deepStrictEqual(settled.rolls, [{ tier: "duty", formula: "1d6", total: 4 }], "recorded");
+  assert.deepStrictEqual(settled.rates, { precious: 4, common: 4 }, "the same percent under both tiers");
+  assert.strictEqual(settled.totalCp, 1200 + 40, "4% of the load and the item, each rounded up");
+  assert.deepStrictEqual(settled.lines.map((l) => l.cp), [1200, 40], "per line");
+  thrown.length = 0;
+  const free = { ...q, toll: { ...q.toll, units: 0, formula: null } };
+  assert.deepStrictEqual(await gate.settleToll(free), { tollCp: 0, roll: null }, "no unit, no throw");
+  assert.deepStrictEqual(thrown, [], "nothing thrown");
+  assert.strictEqual((await gate.settleTariff({ ...q, duty: { ...q.duty, lines: [] } })).rolls.length, 0, "a duty with no goods to assess is not thrown");
+
+  delete globalThis.acksExtras;
+  delete globalThis.game;
+  delete globalThis.Hooks;
+  delete globalThis.Roll;
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty)");

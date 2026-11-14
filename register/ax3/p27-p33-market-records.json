@@ -12,7 +12,8 @@
     ],
     "meta": {
       "market": "mkt5",
-      "place": "adventure"
+      "place": "adventure",
+      "gateToll": "city"
     },
     "assists": {
       "nameBox": {
