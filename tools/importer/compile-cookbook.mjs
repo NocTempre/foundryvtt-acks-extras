@@ -6488,6 +6488,10 @@ async function main() {
     const pendingScenes = [];
     const pendingOrganisations = [];
     const pendingStrengthGrids = [];
+    // A picture row reads its page's painted pictures, and an image's XObject
+    // name depends on which pages the document read before it. These rows wait
+    // until every row that finds its art by that name has compiled.
+    const pendingPictures = [];
     for (const entry of list.sort((a, b) => a.pages[0] - b.pages[0])) {
       const kindRow = kinds[entry.kind];
       if (!kindRow) {
@@ -6498,7 +6502,10 @@ async function main() {
         console.error(`SKIP ${entry.id}: status "${entry.status}" (pending review)`);
         continue;
       }
-      if (entry.kind === PICTURE_KIND || entry.ocr) { await compilePictureRow(doc, entry, { list, out, registers, warn }); continue; }
+      if (entry.kind === PICTURE_KIND || entry.ocr) {
+        pendingPictures.push(entry);
+        continue;
+      }
       if (entry.kind === "kind.class" || entry.kind === "kind.classMeta") {
         try {
           const compiled =
@@ -6679,6 +6686,7 @@ async function main() {
         );
       }
     }
+    for (const entry of pendingPictures) await compilePictureRow(doc, entry, { list, out, registers, warn });
     for (const entry of pendingOrganisations) {
       try {
         const { _skips, ...ship } = await compileOrganisation(doc, entry, out.entries);
