@@ -340,12 +340,15 @@ function splitOwed(actor, rungs, seen) {
 /**
  * The awards a character is owed for holding `level` in this class: every
  * rung of the ladder at or below it, not merely the one just reached — the
- * same reading a level-up climbs one rung at a time.
+ * same reading a level-up climbs one rung at a time. A rung parked at level 0
+ * (the importer's mark for a level it could not read) is owed at no level: it
+ * stays on the class's award list for the Judge to place, never granted or
+ * asked here.
  */
 export function awardsThrough(actor, classItem, level, taken = []) {
   return splitOwed(
     actor,
-    keyedAwards(classItem).filter(({ award }) => (award.atLevel ?? 1) <= level),
+    keyedAwards(classItem).filter(({ award }) => (award.atLevel ?? 1) >= 1 && (award.atLevel ?? 1) <= level),
     new Set(taken),
   );
 }

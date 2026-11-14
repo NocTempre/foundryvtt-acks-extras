@@ -24,7 +24,7 @@ import { whenReady } from "../../lib/library.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../../lib/money.mjs";
-import { applyClass } from "../../classes/apply.mjs";
+import { applyClass, grantFixedAwards } from "../../classes/apply.mjs";
 import { FLAG_CLASSES } from "../../classes/constants.mjs";
 import { normalizeHd } from "../../classes/hitpoints.mjs";
 import { rankedCopies } from "../../classes/grants.mjs";
@@ -621,10 +621,12 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  * @param {boolean} [options.writeDomain] write the domain page into a domain, where the seat may
  * @param {boolean} [options.record] write the notes block, the import record and the chat card;
  *   false leaves all three to the caller, which reads the notes rows off `report.noted`
+ * @param {boolean} [options.fixedAwards] with a class bound, also grant the class's fixed awards at
+ *   the held level, after the sheet's own abilities so none the sheet names is doubled
  * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`,
  *   with `noted` (the notes rows besides the unmatched) when `record` is false
  */
-export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, record = true } = {}) {
+export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, record = true, fixedAwards = false } = {}) {
   await whenReady();
   const plan = buildPlan(values);
   let target = actor;
@@ -655,6 +657,13 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   if (plan.className && classUnbound(cls, bound)) report.unmatched.push({ kind: "className", name: plan.className });
 
   await grantAbilities(target, plan.abilities, report);
+  if (fixedAwards && bound) {
+    const grants = await grantFixedAwards(target, cls, Number(target.system?.details?.level) || 1);
+    for (const g of grants) {
+      if (g.missing) report.unmatched.push({ kind: "power", name: g.name });
+      else report.granted.push(g.name);
+    }
+  }
   await grantLanguages(target, plan.languages, report);
   await landGear(target, plan.gear, report);
   await landWeapons(target, plan.weapons, report);

@@ -8,10 +8,8 @@ import { claimIds } from "../place-pair.mjs";
 import { handWrittenProse, REPAIR, countRepair, unrepaired } from "../refresh.mjs";
 import { decides, heldEdit } from "../held-edits.mjs";
 import {
-  poiGroupOf, districtPlaceId, isRegionSite, isRegionOverview, regionPlaceId, keySpacesOf, isKeyedPlace, keyedParentId,
-  adventurePlaceId,
+  isRegionSite, isRegionOverview, regionPlaceId, keySpacesOf, isKeyedPlace, keyedParentId, adventurePlaceId,
 } from "../poi-binding.mjs";
-import { controlledRegions } from "../faction-binding.mjs";
 import { printedNameOf } from "../printed-name.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy, isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt,
@@ -44,7 +42,7 @@ import { repairFromEntry } from "./read.mjs";
 import {
   packLabel, ourPacksOfType, createDoc, WRITE_CHUNK, claimImport, importedItem, targetFolder, importedIdsOfType,
 } from "./target.mjs";
-import { regionSiteClaim } from "./adventure-places.mjs";
+import { regionSiteClaim, heldMapOf, heldMapsOf, quarterPlaceIds, claimControlledQuarters } from "./adventure-places.mjs";
 
 /**
  * Roll tables: ranges are shipped structure (r<lo> / r<lo>-<hi> sections);
@@ -547,38 +545,6 @@ export async function cookbookImportScenes({ books = null, quiet = false } = {})
 }
 
 /**
- * Hand a new map's quarters to the organisations that control them: every
- * faction of the book now in the world has its flagged quarter ids turned
- * into the regions this scene drew. A Region it held that no longer exists
- * is dropped in the same write; one on some other scene is kept.
- * @returns {Promise<number>} how many factions were written to
- */
-async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
-  const regionOf = new Map();
-  for (const [i, district] of (recipe.districts ?? []).entries()) {
-    const region = scene.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.place === district.place);
-    if (region) regionOf.set(districtIds[i], region.uuid);
-  }
-  const exists = (uuid) => {
-    try {
-      return !!fromUuidSync(uuid);
-    } catch {
-      return false;
-    }
-  };
-  let written = 0;
-  for (const faction of game.actors.filter((a) => a.type === FACTION_TYPE && a.getFlag(MODULE_ID, "cookbook")?.book === bookId)) {
-    const quarterIds = faction.getFlag(MODULE_ID, "cookbook")?.controls ?? [];
-    if (!quarterIds.length) continue;
-    const next = controlledRegions([...(faction.system.controls ?? [])], quarterIds, regionOf, exists);
-    if (!next) continue;
-    await faction.update({ "system.controls": next });
-    written++;
-  }
-  return written;
-}
-
-/**
  * The cookbook ids a map stands on. A settlement's: the place the map is (the
  * recipe's `place`, else the book's own), each quarter's, each keyed place's,
  * and in `all` every place a keyed one sits in, up to the book's own.
@@ -599,9 +565,8 @@ function mapIds(bookId, recipe) {
     const all = [...new Set([mapPlaceId, ...placeIds, ...keyedAbove(cb, bookId, placeIds)])];
     return { mapPlaceId, districtIds: [], placeIds, all, region: true };
   }
-  const quarterOf = (entryId) => poiGroupOf(cb.entries[entryId]?.meta?.group)?.district ?? "";
   const mapPlaceId = recipe.place ?? adventurePlaceId(bookId);
-  const districtIds = (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
+  const districtIds = quarterPlaceIds(bookId, recipe);
   const placeIds = (recipe.places ?? []).map((p) => p.id);
   const all = [...new Set([mapPlaceId, ...districtIds, ...placeIds, ...keyedAbove(cb, bookId, [mapPlaceId, ...placeIds])])];
   return { mapPlaceId, districtIds, placeIds, all, region: false };
@@ -949,12 +914,6 @@ async function importScene({ bookId, id, row }, counts, tick) {
   await ensureSceneThumb(scene);
 }
 
-/** The world's map for a recipe id: an import before any copy of one (`isWorldCopy`), or null. */
-const heldMapOf = (sceneId) => {
-  const mine = game.scenes.filter((s) => s.getFlag(MODULE_ID, "cookbook")?.id === sceneId);
-  return mine.find((s) => !isWorldCopy(s)) ?? mine[0] ?? null;
-};
-
 /**
  * Where a held map's picture sits and how it is framed: the recipe's frame at
  * the scale the map was made at (the cookbook flag's `pixelsPerPoint`, else
@@ -1215,10 +1174,22 @@ const linkEndRegion = (slot, name) => linkRegionData({
  * their dead destinations are dropped and missing ones added, and a teleport
  * that came to lead to several is made to ask (`linkQuestion`). A destination
  * the Judge added stays, and a behaviour the Judge removed is not put back. No
- * book has to be open: a link is ids and boxes. Counts into `counts`.
+ * book has to be open: a link is ids and boxes. Counts into `counts`. A recipe
+ * the world holds as more than one import (`heldMapsOf`) is joined once per
+ * import, each pass on the n-th import of every map: a twin's ends lead to
+ * its own Regions, and a row waits on a twin only for a map that has none.
+ * Waiting and refused rows are counted by the first pass alone.
  */
 async function joinLinks(counts) {
-  const ends = linkSlots(heldMapOf, counts);
+  for (let n = 0; ; n++) {
+    const ends = linkSlots(n ? (id) => heldMapsOf(id)[n] ?? null : heldMapOf, n ? null : counts);
+    if (n && !ends.size) return;
+    await joinEnds(ends, counts);
+  }
+}
+
+/** One pass of the link join (`joinLinks`) over the ends of a set of maps, each end's Region held or made, then where each teleport leads. */
+async function joinEnds(ends, counts) {
   // Every end's Region first, so each destination has a uuid to be named by.
   const names = placeLinkEnds(ends);
   for (const slot of ends.values()) {
@@ -1480,9 +1451,9 @@ function carriedSource(type, doc, id) {
  * world's ids, the zones another book laid over one of its maps as the world
  * scene holds them, the lists the maps and zones roll on, and the folders all
  * of it is filed in, mirroring where each document is filed now. Every
- * reference an actor or a map makes to a carried document is in world form
- * (`adventureRefs`); one to anything else, and every one a list, a journal or
- * an item makes, stays as the library wrote it. The stamp records the
+ * reference an actor, a map, a list's result, a journal page's link or an
+ * item's link makes to a carried document is in world form (`adventureRefs`);
+ * one to anything else stays as the library wrote it. The stamp records the
  * `sourcesHash` of the rest. See docs/importer/DECISIONS.md, "A book is in the library as one
  * Adventure" and "How a book's Adventure is assembled and kept current".
  */
@@ -1603,7 +1574,8 @@ async function bookAdventureSource(bookId) {
   for (const scene of scenes) scene.folder = fileIn("Scene", []);
   const actorFolder = new Map(carried.filter((e) => e.type === "Actor").map((e) => [e.source._id, fileIn("Actor", e.names)]));
   for (const actor of actors) actor.folder = actorFolder.get(actor._id) ?? null;
-  const ofType = (type) => carried.filter((e) => e.type === type).map((e) => ({ ...e.source, folder: fileIn(type, e.names) }));
+  const ofType = (type) => carried.filter((e) => e.type === type)
+    .map((e) => ({ ...adventureRefs(type, e.source, uuidMap), folder: fileIn(type, e.names) }));
   const tables = ofType("RollTable");
   const journal = ofType("JournalEntry");
   const items = ofType("Item");

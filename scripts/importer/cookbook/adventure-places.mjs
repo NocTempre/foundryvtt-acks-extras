@@ -14,10 +14,11 @@ import {
 } from "../poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, isStrengthGridRow, strengthPlan,
-  strengthFromGrid,
+  strengthFromGrid, controlledRegions,
 } from "../faction-binding.mjs";
 import { printedNameOf, withoutKeyNumber } from "../printed-name.mjs";
-import { isWorldCopy } from "../scene-binding.mjs";
+import { isWorldCopy, isSceneRecipe, isRegionRecipe } from "../scene-binding.mjs";
+import { FACTION_TYPE } from "../../factions/constants.mjs";
 import { isPlaceRole } from "../../location/constants.mjs";
 import { occupantRow } from "../../lib/place.mjs";
 import { BOOKS, laterBook } from "../books.mjs";
@@ -671,26 +672,53 @@ async function claimMarketPlace(id, pairs, built, build) {
 }
 
 /**
+ * Whether a book carries a region's map recipe. The map stands on the
+ * region's place and waits for it, so the places step makes that place for
+ * such a book whether or not a row of it needs a parent.
+ */
+const carriesRegionMap = (bookId) =>
+  Object.values(data.books.get(bookId)?.scenes ?? {}).some((row) => isSceneRecipe(row) && isRegionRecipe(row.scene));
+
+/**
+ * Whether joining a row onto the place its pair stands as can write the
+ * region as that place's parent: a bind fills a parent only where the place
+ * holds none, and a takeover moves the parent of the place it takes over
+ * (`bindPatch`, `takeoverPatch`).
+ */
+const pairWritesParent = ({ place, takesOver }) => takesOver || !place.system?.parentUuid;
+
+/**
  * One region row, as `cookbookImportPoiPlaces` takes a quarter's: the
- * region's place is claimed first (`regionPlaceData`, once per book); its
- * overview is that place's notes, and a site is a place under it, or is bound
- * onto the market or settlement its row names (`regionSiteClaim`), or joins
- * the place its pair already stands as (`joinPaired`). Presence and held notes
- * are asked of the library's own document before the page is read, as for a
- * point of interest. Counts into `tally`; a place it makes is listed in
- * `run.created`.
+ * region's place (`regionPlaceData`, once per book) is claimed on the first
+ * need of this book's rows: its overview is that place's notes, a site made
+ * is a place under it, and a bound or paired place takes it as parent only
+ * where it holds none, so a book whose every site binds onto a place that
+ * has its parent makes none. A book that carries a region's map always makes
+ * it, for the map stands on it. A site is a place under the region, or is
+ * bound onto the market or settlement its row names (`regionSiteClaim`), or
+ * joins the place its pair already stands as (`joinPaired`). Presence and
+ * held notes are asked of the library's own document before the page is read,
+ * as for a point of interest. Counts into `tally`; a place it makes is listed
+ * in `run.created`.
  */
 async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const cb = data.books.get(bookId);
   const label = bookLabel(bookId);
   const folder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
-  const heldRegion = await importedActor(regionPlaceId(bookId), { copies: false });
-  const place = heldRegion ?? (await claimActorImport(regionPlaceId(bookId), () =>
-    createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder }))));
-  if (place && !heldRegion) run.created.places.push(place.uuid);
+  let regionPlace;
+  const claimRegion = async () => {
+    if (regionPlace !== undefined) return regionPlace;
+    const held = await importedActor(regionPlaceId(bookId), { copies: false });
+    regionPlace = held ?? (await claimActorImport(regionPlaceId(bookId), () =>
+      createDoc(Actor, regionPlaceData({ book: bookId, bookLabel: label, folderId: folder }))));
+    if (regionPlace && !held) run.created.places.push(regionPlace.uuid);
+    return regionPlace;
+  };
+  // The region's uuid for a place that may take it as parent, "" where it is owed none.
+  const parentFor = async (owed) => (owed ? (await claimRegion())?.uuid ?? "" : "");
+  if (carriesRegionMap(bookId)) await claimRegion();
   const read = () => executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
   const role = e.meta?.role ?? "";
-  const parentUuid = place?.uuid ?? "";
 
   // A repair writes this row's block over in place on the place it
   // shares (`blockTarget`); what a Judge changed there is held (`rowBlockPatch`).
@@ -705,6 +733,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   }
 
   if (region === "overview") {
+    const place = await claimRegion();
     if (!place || place.system?.notes) return void tally.already++;
     const node = await read();
     if (!node?.ok) return void tally.refused++;
@@ -724,7 +753,7 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   // A bound place whose notes are written needs no page: only its parent and
   // role can still be owed. An erratum note alone is not its text.
   if (held && !isRewriting(claim.claimId) && heldErratumNotes(held.system?.notes, claimIds(held.getFlag?.(MODULE_ID, "cookbook"))).rest.trim()) {
-    const patch = siteBindPatch(held, { parentUuid, role });
+    const patch = siteBindPatch(held, { parentUuid: await parentFor(!held.system?.parentUuid), role });
     if (Object.keys(patch).length) await held.update(patch);
     return void tally.already++;
   }
@@ -735,9 +764,11 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
   if (claim.onto === "site") {
     const paired = await pairedPlace(run.pairs, id);
     if (paired) {
+      const parentUuid = await parentFor(pairWritesParent(paired));
       await joinPaired(paired, { id, book: bookId, name, notes, parentUuid, region: label, role });
       return void tally.paired++;
     }
+    const parentUuid = await parentFor(true);
     const made = await claimActorImport(id, () =>
       createDoc(Actor, poiLocationData({ name, entryId: id, notes, book: bookId, bookLabel: label, parentUuid, folderId: folder, role })));
     if (made && !isRewriting(id)) {
@@ -746,6 +777,10 @@ async function importRegionRow({ bookId, id, e, region }, tally, run) {
     }
     return;
   }
+  // A place made here holds no parent, so the region is claimed ahead of it; a
+  // held one or a pair's place is owed the region only where it holds none.
+  const pair = held || claim.onto !== "market" ? null : await pairedPlace(run.pairs, claim.claimId);
+  const parentUuid = await parentFor(held ? !held.system?.parentUuid : !pair || pairWritesParent(pair));
   let target = held;
   if (!target && claim.onto === "market") {
     // A market an earlier book's grid already made is taken over, not doubled.
@@ -1024,6 +1059,88 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
 }
 
 /**
+ * Every world map carrying a recipe id, in the world's order: the imports,
+ * where the world holds any (a twin, an import beside another, follows the
+ * first), else the first copy (`isWorldCopy`). Empty where the world holds no
+ * map for it.
+ */
+export const heldMapsOf = (sceneId) => {
+  const mine = game.scenes.filter((s) => s.getFlag(MODULE_ID, "cookbook")?.id === sceneId);
+  const imports = mine.filter((s) => !isWorldCopy(s));
+  return imports.length ? imports : mine.slice(0, 1);
+};
+
+/**
+ * The world's map for a recipe id: an import before any copy of one
+ * (`isWorldCopy`), or null. The first of `heldMapsOf`.
+ */
+export const heldMapOf = (sceneId) => heldMapsOf(sceneId)[0] ?? null;
+
+/**
+ * The quarter place ids a settlement recipe draws, one per `recipe.districts`
+ * row and in its order: the quarter the row's place sits in, as that quarter's
+ * place id.
+ * @returns {string[]}
+ */
+export function quarterPlaceIds(bookId, recipe) {
+  const entries = data.books.get(bookId)?.entries ?? {};
+  const quarterOf = (entryId) => poiGroupOf(entries[entryId]?.meta?.group)?.district ?? "";
+  return (recipe.districts ?? []).map((d) => districtPlaceId(bookId, quarterOf(d.place)));
+}
+
+/**
+ * Hand a map's quarters to the organisations that control them: every faction
+ * of the book now in the world has its flagged quarter ids turned into the
+ * regions this scene drew. A Region it held that no longer exists is dropped
+ * in the same write; one on some other scene is kept. The single writer of the
+ * claim: the map step calls it for a map it has just made, the organisations
+ * step for a map already held. A claim already in place writes nothing.
+ * @returns {Promise<number>} how many factions were written to
+ */
+export async function claimControlledQuarters(bookId, scene, recipe, districtIds) {
+  const regionOf = new Map();
+  for (const [i, district] of (recipe.districts ?? []).entries()) {
+    const region = scene.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.place === district.place);
+    if (region) regionOf.set(districtIds[i], region.uuid);
+  }
+  const exists = (uuid) => {
+    try {
+      return !!fromUuidSync(uuid);
+    } catch {
+      return false;
+    }
+  };
+  let written = 0;
+  for (const faction of game.actors.filter((a) => a.type === FACTION_TYPE && a.getFlag(MODULE_ID, "cookbook")?.book === bookId)) {
+    const quarterIds = faction.getFlag(MODULE_ID, "cookbook")?.controls ?? [];
+    if (!quarterIds.length) continue;
+    const next = controlledRegions([...(faction.system.controls ?? [])], quarterIds, regionOf, exists);
+    if (!next) continue;
+    await faction.update({ "system.controls": next });
+    written++;
+  }
+  return written;
+}
+
+/**
+ * The claim for every settlement map of a book that the world already holds,
+ * so the organisations step hands quarters out whichever of the two steps ran
+ * first. A region's map draws no quarters and is passed over; a recipe whose
+ * map is not in the world is left for the map step.
+ * @returns {Promise<number>} how many faction writes were made
+ */
+export async function claimHeldMaps(bookId) {
+  let written = 0;
+  for (const [id, row] of Object.entries(data.books.get(bookId)?.scenes ?? {})) {
+    if (!isSceneRecipe(row) || isRegionRecipe(row.scene)) continue;
+    const scene = heldMapOf(id);
+    if (!scene) continue;
+    written += await claimControlledQuarters(bookId, scene, row.scene, quarterPlaceIds(bookId, row.scene));
+  }
+  return written;
+}
+
+/**
  * Organisations, as FACTION actors (`faction-binding.mjs` says which entries
  * are one, and of which sort): named and seated from the entry's `organisation`
  * block, at its own keyed place or its quarter's. Presence is asked by
@@ -1031,7 +1148,9 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
  * absent and never rewrites a row that is there. Relations are written
  * last, once every organisation they could name exists, and then the
  * strength grids: each read once, its columns written onto the factions they
- * belong to, and a faction already carrying figures keeps them. See
+ * belong to, and a faction already carrying figures keeps them. A settlement
+ * map the world already holds hands the organisations their quarters here
+ * (`claimHeldMaps`), as the map step does for one it makes. See
  * docs/importer/DECISIONS.md, "An organisation the book introduces by name
  * is an authored row", "A body becomes a faction one way: a row that was
  * read" and "A body's unnamed people are a grid the page prints".
@@ -1048,7 +1167,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
       else if (isStrengthGridRow(e)) grids.push({ bookId, id, e, plan: strengthPlan(e) });
     }
   }
-  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, relationsKept: 0, counted: 0, figuresKept: 0, rewritten: 0 };
+  const counts = { made: 0, already: 0, rostered: 0, missing: 0, refused: 0, related: 0, relationsKept: 0, counted: 0, figuresKept: 0, rewritten: 0, controlled: 0 };
   // Narrowed to books that print no organisation, the step has nothing to say.
   if (!authored.length) return books ? counts : ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
 
@@ -1189,6 +1308,10 @@ export async function cookbookImportFactions({ books = null } = {}) {
         counts.counted++;
       }
     }
+
+    // Every faction of a book exists by now, so a map held from an earlier run
+    // can hand them their quarters.
+    for (const bookId of new Set(authored.map((a) => a.bookId))) counts.controlled += await claimHeldMaps(bookId);
   } finally {
     bar.finish();
   }

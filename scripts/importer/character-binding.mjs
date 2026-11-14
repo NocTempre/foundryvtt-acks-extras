@@ -83,10 +83,15 @@ export function classBehindQualifier(name, matchClass) {
  * @param {object} [options]
  * @param {(kind: "class"|"proficiency"|"spell", name: string) => string} [options.rename]
  *   the library's name for a printed one
+ * @param {(piece: string) => string[]} [options.bookSpells]
+ *   the spell names an equipment piece's book holds, `[]` for a piece that is no book;
+ *   called once per equipment piece, and the piece still lands whole in the gear list
+ * @param {(name: string) => number|null} [options.spellLevel]
+ *   the level a spell's name is cast at, null where the library does not know it
  * @returns {{values: Record<string, string>, morale: number|null, unplaced: Array<{kind: string, name: string}>}}
- *   `unplaced` is what the sheet has no row left for
+ *   `unplaced` is what the sheet has no row left for; a book's spell with no level is among them
  */
-export function sheetValuesFromStatline(sl, { rename = (kind, name) => name } = {}) {
+export function sheetValuesFromStatline(sl, { rename = (kind, name) => name, bookSpells = () => [], spellLevel = () => null } = {}) {
   const values = {};
   const unplaced = [];
   const set = (key, value) => {
@@ -131,6 +136,7 @@ export function sheetValuesFromStatline(sl, { rename = (kind, name) => name } = 
 
   const worn = splitOutside(sl.acNote ?? "", /[,&]/).filter((p) => /[a-z]/i.test(p));
   const coins = {};
+  const bookNames = [];
   // A thousands comma is part of its number, not a list's separator.
   for (const piece of splitOutside(String(sl.equipment ?? "").replace(/(\d),(?=\d{3}(?!\d))/g, "$1"), /[,;]/)) {
     // A coin's closing bracket is a note about it ("(banked)"), not a piece of gear.
@@ -138,7 +144,10 @@ export function sheetValuesFromStatline(sl, { rename = (kind, name) => name } = 
     if (coin) {
       const box = coin[2].toLowerCase();
       coins[box] = (coins[box] ?? 0) + Number(coin[1].replace(/,/g, ""));
-    } else worn.push(piece);
+    } else {
+      worn.push(piece);
+      bookNames.push(...bookSpells(piece));
+    }
   }
   set("gear.worn.list", worn.join("\n"));
   for (const [box, count] of Object.entries(coins)) set(`coin.${box}`, count);
@@ -150,12 +159,29 @@ export function sheetValuesFromStatline(sl, { rename = (kind, name) => name } = 
     perDay[m[2]] = (perDay[m[2]] ?? 0) + Number(m[1]);
   }
   for (const [level, count] of Object.entries(perDay)) set(`spells.perDay.${level}`, count);
+  const spellKey = (name) => String(name).trim().toLowerCase();
+  const printed = new Set();
   for (const { level, names } of repertoireLevels(sl.repertoire)) {
     names.forEach((n, r) => {
       const name = rename("spell", n);
+      printed.add(spellKey(name));
       if (level >= 1 && level <= SHEET_ROWS.spellLevels && r < SHEET_ROWS.spellsPerLevel) set(`spell.${level}.${r}`, name);
       else unplaced.push({ kind: "spell", name });
     });
+  }
+  // A spellbook in the equipment fills the same rows, below what the
+  // repertoire named: a spell the repertoire already placed is not written
+  // twice, and one the library cannot give a level to is reported, not placed.
+  for (const n of bookNames) {
+    const name = rename("spell", n);
+    if (printed.has(spellKey(name))) continue;
+    printed.add(spellKey(name));
+    const level = Number(spellLevel(name));
+    const row = Number.isInteger(level) && level >= 1 && level <= SHEET_ROWS.spellLevels
+      ? Array.from({ length: SHEET_ROWS.spellsPerLevel }, (_, r) => r).find((r) => !(`spell.${level}.${r}` in values))
+      : undefined;
+    if (row === undefined) unplaced.push({ kind: "spell", name });
+    else set(`spell.${level}.${row}`, name);
   }
   return { values, morale: Number.isInteger(sl.ml) ? sl.ml : null, unplaced };
 }

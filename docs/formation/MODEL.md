@@ -2562,6 +2562,11 @@ painted pick or the Judge's word names another (§The country), and a missing ta
 prints no row for, like a river's distance — resolves to a "draw from
 your book" line, never a guess. A drawn creature resolves against the
 world's actors and the imported library through the name-form fold, and
+only when neither holds its keys through `lib/vocab.mjs`
+`looseCreatureName` over both together (a family's head, the singular or
+plural, a word cut short, the first words of a longer name; the last two
+only when exactly one name fits), so an exact match anywhere outranks a
+loose one; a cell that fits two names, or none, stays the printed name, and
 the whole chain lands as ONE Judge-whispered card: every roll shown, the
 encounter distance (each side's own terrain when they differ, the longer
 roll detecting, capped by how far a formation of that many heads can be

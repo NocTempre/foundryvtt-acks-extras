@@ -624,6 +624,23 @@ assert.deepEqual(encounterWhen({ activity: "hunt", clock, nights: 4 }), [], "a p
 assert.deepEqual(encounterWhen({ activity: "traps", clock, mileHex: 6 }), []);
 assert.deepEqual(encounterWhen({ activity: "entry", clock, mileHex: 6 }), []);
 
+// A printed creature name resolves exactly first, then through the loose fold over the world and the library together.
+{
+  const { resolveCreature } = await import("../scripts/formation/encounter-card.mjs");
+  const worldActors = [{ name: "Moor Grazer" }, { name: "Fen Drone, Medium Wasp" }];
+  worldActors.contents = worldActors;
+  const shelved = [{ name: "Moor Grazer, Large" }, { name: "Hollow Imp" }];
+  game.actors = worldActors;
+  game.packs = [{ metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", contents: shelved, size: 2, index: { size: 2 } }];
+  const named = (label) => resolveCreature(label)?.name ?? null;
+  assert.equal(named("Moor Grazer, Large"), "Moor Grazer, Large", "an exact name in the library outranks the loose family head in the world");
+  assert.equal(named("Moor Grazer, Small (dunbuck)"), "Moor Grazer", "a family member falls to the world's head row");
+  assert.equal(named("Fen Drone, Med. Wasp"), "Fen Drone, Medium Wasp", "an abbreviation is read");
+  assert.equal(named("Hollow Imp (3)"), "Hollow Imp", "a library row answers when the world has none");
+  assert.equal(named("Marsh Strider, Giant"), null, "a miss stays a miss");
+  delete game.packs;
+}
+
 delete globalThis.game;
 delete globalThis.foundry;
 

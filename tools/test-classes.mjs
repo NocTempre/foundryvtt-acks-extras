@@ -25,7 +25,7 @@ import {
   valueRow,
   xpSchedule,
 } from "../scripts/classes/builder-logic.mjs";
-import { classUpdateData, damageBonusLadder, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
+import { classUpdateData, damageBonusLadder, grantFixedAwards, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
 import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
@@ -752,6 +752,30 @@ test("a fixed award the character already carries is not offered again", () => {
 test("an award with no printed level is a first-level award", () => {
   const cls = { system: { awards: [{ kind: "fixed", ref: "def.power.unlevelled" }] } };
   assert.equal(awardsThrough({ items: [] }, cls, 1).fixed.length, 1);
+});
+
+test("a rung parked at level 0 is owed at no level, fixed or choice", () => {
+  const cls = { system: { awards: [
+    { atLevel: 1, kind: "fixed", ref: "def.power.lanternWard", name: "Lantern Ward" },
+    { atLevel: 0, kind: "fixed", ref: "def.power.emberTongue", name: "Ember Tongue", note: "level unresolved" },
+    { atLevel: 0, kind: "choice", choice: { label: "Lampwright path", from: "custom", refs: ["def.power.lanternWard"], count: 1 }, note: "level unresolved" },
+    { atLevel: 3, kind: "fixed", ref: "def.power.emberTongue", name: "Ember Tongue" },
+  ] } };
+  for (const level of [1, 3, 14]) {
+    const owed = awardsThrough({ items: [] }, cls, level);
+    assert.ok(!owed.choices.length, `no parked choice is asked at level ${level}`);
+    assert.deepEqual(
+      owed.fixed.map((a) => [a.ref, a.atLevel]),
+      level >= 3 ? [["def.power.lanternWard", 1], ["def.power.emberTongue", 3]] : [["def.power.lanternWard", 1]],
+      `only placed rungs are granted at level ${level}`,
+    );
+  }
+  assert.deepEqual(awardsThrough({ items: [] }, cls, 0).fixed, [], "level 0 owes nothing, not the parked rungs");
+  // Keys stay positional over the whole list, so a parked rung shifts none.
+  assert.equal(awardsThrough({ items: [] }, { system: { awards: [
+    ...cls.system.awards,
+    { atLevel: 2, kind: "choice", choice: { label: "Later", from: "generalList", count: 1 } },
+  ] } }, 5).choices[0].key, "4:2");
 });
 
 /* A world that has materialized its class templates holds one specialized copy
@@ -2358,6 +2382,78 @@ await atest("a rung's pick is granted as the type of the list it was picked from
   } finally {
     globalThis.fromUuidSync = prior;
   }
+});
+
+/* A character from a page holds its class's fixed awards (`grantFixedAwards`). */
+await atest("fixed awards through the held level are granted at the copies owed, and nothing else is written", async () => {
+  const world = {
+    "Item.ward": { name: "Lantern Ward", type: "ability" },
+    "Item.tongue": { name: "Ember Tongue", type: "ability" },
+    "Item.later": { name: "Distant Light", type: "ability" },
+    "Item.parked": { name: "Parked Light", type: "ability" },
+  };
+  const docs = Object.fromEntries(Object.entries(world).map(([uuid, d]) => [uuid, {
+    documentName: "Item", uuid, ...d,
+    toObject: () => ({ _id: "src", name: d.name, type: d.type, system: {}, flags: {} }),
+  }]));
+  const lampwright = { system: { awards: [
+    { atLevel: 1, kind: "fixed", ref: "uuid:Item.ward", name: "Lantern Ward" },
+    { atLevel: 1, kind: "choice", choice: { label: "Class proficiency", from: "classInventory", filter: "any", count: 1 } },
+    { atLevel: 2, kind: "fixed", ref: "uuid:Item.tongue", name: "Ember Tongue" },
+    { atLevel: 3, kind: "fixed", ref: "uuid:Item.ward", name: "Lantern Ward" },
+    { atLevel: 6, kind: "fixed", ref: "uuid:Item.later", name: "Distant Light" },
+    { atLevel: 0, kind: "fixed", ref: "uuid:Item.parked", name: "Parked Light" },
+    { atLevel: 2, kind: "fixed", ref: "uuid:Item.absent", name: "Gone" },
+  ] } };
+  const prior = globalThis.fromUuidSync;
+  globalThis.fromUuidSync = (uuid) => docs[uuid] ?? null;
+  try {
+    const mine = (items) => {
+      const made = [];
+      let updated = 0;
+      const actor = {
+        items,
+        update: async () => void updated++,
+        setFlag: async () => void updated++,
+        createEmbeddedDocuments: async (_type, data) => {
+          made.push(...data);
+          items.push(...data.map((d) => ({ ...d, type: d.type })));
+        },
+      };
+      return { actor, made, updates: () => updated };
+    };
+    const held = mine([]);
+    const grants = await grantFixedAwards(held.actor, lampwright, 3);
+    assert.deepEqual(held.made.map((d) => d.name), ["Lantern Ward", "Ember Tongue", "Lantern Ward"], "rungs through the level, a second copy where a second rung prints it");
+    assert.ok(held.made.every((d) => d.flags["acks-extras"].grantedFrom), "each copy is stamped with where it came from");
+    assert.ok(!held.made.some((d) => /Distant|Parked/.test(d.name)), "a higher rung and a level-0 rung are skipped");
+    assert.deepEqual(grants.filter((g) => g.missing).map((g) => g.name), ["uuid:Item.absent"], "a ref the world lacks is named, not dropped");
+    assert.equal(held.updates(), 0, "no actor update, no award record");
+    const again = await grantFixedAwards(held.actor, lampwright, 3);
+    assert.equal(held.made.length, 3, "a second run grants nothing");
+    assert.deepEqual(again.filter((g) => !g.missing), []);
+
+    // A copy the stat line granted with a pick, stamped, counts as held.
+    const picked = mine([{ name: "Lantern Ward (steady)", type: "ability", flags: { "acks-extras": { grantedFrom: "uuid:Item.ward" } } }]);
+    await grantFixedAwards(picked.actor, lampwright, 1);
+    assert.deepEqual(picked.made.map((d) => d.name), [], "the picked copy blocks the bare one");
+  } finally {
+    globalThis.fromUuidSync = prior;
+  }
+});
+
+test("a character's page import grants fixed awards after the stat line's own grants, under the option, bound only", () => {
+  const src = readFileSync(new URL("../scripts/character-sheet/pdf/apply.mjs", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("export async function importSheet"));
+  const own = body.indexOf("await grantAbilities(target, plan.abilities, report)");
+  const fixed = body.indexOf("if (fixedAwards && bound)");
+  assert.ok(own > 0 && fixed > own, "the stat line's copies are held before the class owes its own");
+  assert.match(body, /grantFixedAwards\(target, cls, /);
+  const hench = src.slice(src.indexOf("async function fillHenchman"), src.indexOf("async function fillHenchman") + 1200);
+  assert.doesNotMatch(hench, /grantFixedAwards|fixedAwards/, "a henchman's sheet import grants no class awards");
+  const apply = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
+  const fn = apply.slice(apply.indexOf("export async function grantFixedAwards"));
+  assert.doesNotMatch(fn, /awardsTaken|grantLanguages|ChatMessage|DialogV2|actor\.update/, "no record, tongue, card or dialog");
 });
 
 test("the wizard writes its level before anything else, and the successor's start is uncapped", () => {

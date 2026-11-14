@@ -361,6 +361,20 @@ single rung a level-up climbs, `grantAbility` writes one item, deduped by ref)
 the rung it climbed, so neither passes the flag and neither has the whole
 ladder handed over underneath it.
 
+A rung the importer parked at level 0 because its level pattern missed is owed
+at no level: `awardsThrough` reads rungs from 1 up, so neither a set level's
+grant nor the picker's pick questions touch it, and a zero-level advance counts
+only first-level rungs. It waits on the class's award list, with its "level
+unresolved" note, for the Judge to give it a level.
+
+**A character from the page holds its fixed awards.** `grantFixedAwards`
+(`apply.mjs`) hands a character its class's Adventuring and every fixed rung
+from level 1 up to its level, each up to the copies owed, with no choice rung,
+no `awardsTaken` write, no dialog and no card. Only the importer's character
+import calls it, through the sheet import's `fixedAwards`, and after the stat
+line's own grants, so a power the line names is never doubled; a second run
+grants nothing.
+
 **A pick is the proficiency its rung asked for.** A definition on both the
 class list and the general list is imported general, and the character sheet
 files an ability by its `proficiencytype`. So a rung's pick is granted as the

@@ -459,9 +459,13 @@ writes one Adventure per open Judge's book to its line's Adventure shelf
   folder's id where the world has that type, name and parent.
 
 An actor's and a map's references to carried documents are rewritten to world
-form (`adventureRefs`); a list's, a journal's and an item's are carried as they
-stand. The maps' links are laid one map after another (`linkFields`), and an
-organisation keeps the regions it controls on the other maps.
+form (`adventureRefs`), and so are a list result's document, a journal page's
+links and an item's description links (the text slots read `@UUID[…]` and
+`data-uuid`); a link to a page follows its entry. The maps' links are laid one
+map after another (`linkFields`), and an organisation keeps the regions it
+controls on the other maps. A recipe the world holds as more than one import
+is joined once per import (`heldMapsOf`), so a twin's ends lead to its own
+Regions.
 
 The stamp counts what it carries (`contents`), and records `sourcesHash`
 (`sourcesHashOf`, the source without any `_stats`) and `writtenAt`, the stored
@@ -536,6 +540,12 @@ hundred feet to the cell, settlement travel, the same picture key. A map
 with no quarters checks no place against one. `offsetsInside` keeps the cells
 whose centres an outline holds; the shift itself is the battlemap's
 `hexAlignment` ([../battlemap/MODEL.md](../battlemap/MODEL.md)).
+
+A settlement map hands its quarters' Regions to the organisations that
+control them (`claimControlledQuarters`, in `cookbook/adventure-places.mjs`).
+The organisations step makes the same claim from every settlement map of the
+book the world already holds (`claimHeldMaps`), so the two steps end in the
+same claims in either order, and a repeat writes nothing.
 
 The map step builds a grid recipe through `gridScenePlan`, asked of an
 UNSAVED `Scene`: `hexProbe` measures Foundry's cell for the recipe's family
@@ -848,9 +858,14 @@ nothing that reads quarters sees a region. `regionPlaceId` and
 `regionPlaceData` build the region's own place under the book's label, and a
 scene recipe may place a region site as it places a point of interest.
 
-The points-of-interest step takes a region's rows too (`importRegionRow`). The
-region's place is claimed once per book; the overview is its notes, written
-only while they are empty. A site lands where `regionSiteClaim` says: a row
+The points-of-interest step takes a region's rows too (`importRegionRow`). A
+book's region place is made once, on the first need among its rows: its
+overview's notes, a site made under it, or a bound or paired place that holds
+no parent (a takeover always counts). A book that carries a region's map
+recipe always makes it, since the map stands on it (`carriesRegionMap`); a book
+whose every site joins a place that already has its parent, and that prints no
+overview or region map, makes none. The overview is its notes, written only
+while they are empty. A site lands where `regionSiteClaim` says: a row
 naming a market (`meta.market: "mkt<n>"`) on that market's place
 (`<book>.mkt<n>`, the id the market-profile step claims, made here with
 `marketActorData` when it is not there yet), or on the book's settlement when
@@ -1100,10 +1115,22 @@ becomes a character, and the derivation wins".
   printed damage carries the bonuses. The line's XP is the defeat award and
   is not written, and the save code is left to the class. Morale is written
   here, clamped to the system's own bounds.
+- **Its spellbook and its awards.** A book in the equipment written
+  `<book> (with …)` or `<book> with …` (`liftBookSpells`: the head names a
+  spell or prayer book, the contents open with "with", and a figure after
+  "with" is a load) fills the repertoire: each spell goes through the names
+  below, is skipped when the repertoire already placed it, and takes the next
+  free row of the level the library gives it, or is reported as missing; the
+  piece stays whole in the gear. After the line's own grants, the sheet import
+  (`fixedAwards`, passed only from here) hands over the class's Adventuring and
+  fixed awards through the printed level (`grantFixedAwards`,
+  docs/classes/MODEL.md), so a power the line names is held once; a choice
+  award is left open.
 - **Its names.** Every class, proficiency and spell name passes through
   `libraryNameFor` first: a class or spell the library answers keeps its
   name, else the conversion table's rename of that category
-  (`registers.tables.conversion`). A class neither answers is then read
+  (`registers.tables.conversion`); a spell renamed to two alternatives takes
+  the one the library answers, and keeps the rename when none or both do. A class neither answers is then read
   behind its qualifier (`classBehindQualifier`: the longest run of trailing
   words the library answers, as a tradition set before the class), and the
   block notes the class it was read as. A proficiency resolves through the

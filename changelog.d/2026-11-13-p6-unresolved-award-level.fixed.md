@@ -1,0 +1,1 @@
+- **A class award with no level is not granted until a Judge gives it one.** An imported class award whose level could not be read stays on the class sheet's award list marked level unresolved; assigning the class to a character (the class picker) neither grants it nor asks for its pick, and it does not count as a first-level award.

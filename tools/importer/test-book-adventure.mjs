@@ -224,6 +224,43 @@ const sourceWorld = (drop = []) => ({
   const zoned = { ...scene, regions: [{ _id: id16("rz"), flags: {}, behaviors: [{ type: "zone", system: { tableUuid: `${LIBT}.${I.t1}` } }] }] };
   const zoneMoved = adventureRefs("Scene", zoned, new Map([[`${LIBT}.${I.t1}`, `RollTable.${I.t1}`]]));
   check("a zone's list is carried in world form", zoneMoved.regions[0].behaviors[0].system.tableUuid, `RollTable.${I.t1}`);
+
+  // A list's result, a journal page and an item name what the Adventure carries.
+  const list = {
+    _id: I.t1,
+    results: [
+      { _id: id16("ra"), type: "document", documentUuid: `${LIB}.${I.n1}` },
+      { _id: id16("rb"), type: "text", documentUuid: "" },
+      { _id: id16("rc"), type: "document", documentUuid: `${LIBI}.${id16("i1")}` },
+    ],
+  };
+  const carriedMap = new Map([[`${LIB}.${I.n1}`, `Actor.${I.n1}`], [`${LIBJ}.${id16("j1")}`, `JournalEntry.${id16("j1")}`]]);
+  const listMoved = adventureRefs("RollTable", list, carriedMap);
+  check("a result's document follows the carried copy", listMoved.results.map((r) => r.documentUuid), [`Actor.${I.n1}`, "", `${LIBI}.${id16("i1")}`]);
+  check("a result's document names the carried actor", [...refsOf("RollTable", listMoved)], [k("Actor", "n1")]);
+  check("a result naming the library is no reference an import creates", [...refsOf("RollTable", list)], []);
+  const note = (uuid, label = "here") => `<p>See @UUID[${uuid}]{${label}} and <a class="content-link" data-link data-uuid="${uuid}">${label}</a>.</p>`;
+  const journal = { _id: id16("j1"), pages: [
+    { _id: id16("pa"), type: "text", text: { content: `${note(`${LIB}.${I.n1}`)} ${note(`${LIBJ}.${id16("j1")}.JournalEntryPage.${id16("pa")}`, "page")}` } },
+    { _id: id16("pb"), type: "image", src: "a.webp" },
+    { _id: id16("pc"), type: "text", text: { content: `<p>${note(`${LIBT}.${I.t1}`)}</p>` } },
+  ] };
+  const journalMoved = adventureRefs("JournalEntry", journal, carriedMap);
+  const text = journalMoved.pages[0].text.content;
+  check("a page's link and its anchor follow the carried actor", text.includes(`@UUID[Actor.${I.n1}]{here}`) && text.includes(`data-uuid="Actor.${I.n1}"`), true);
+  check("a link to a page follows its entry", text.includes(`@UUID[JournalEntry.${id16("j1")}.JournalEntryPage.${id16("pa")}]{page}`), true);
+  check("a link the Adventure does not carry stands", journalMoved.pages[2].text.content, journal.pages[2].text.content);
+  check("a page with no text is left as it is", journalMoved.pages[1], journal.pages[1]);
+  check("a page's links are references", [...refsOf("JournalEntry", journalMoved)].sort(), [k("Actor", "n1"), k("JournalEntry", "j1")].sort());
+  const dropped = adventureRefs("JournalEntry", journal, new Map([[`${LIB}.${I.n1}`, ""]]));
+  check("a link mapped to nothing stands as written", dropped.pages[0].text.content, journal.pages[0].text.content);
+  const item = { _id: id16("i1"), type: "item", system: { description: note(`${LIB}.${I.n2}`), cost: 3 } };
+  const itemMoved = adventureRefs("Item", item, new Map([[`${LIB}.${I.n2}`, `Actor.${I.n2}`]]));
+  check("an item's description link follows the carried actor", itemMoved.system.description, note(`Actor.${I.n2}`));
+  check("an item's other fields stand", itemMoved.system.cost, 3);
+  check("an item's links are references", [...refsOf("Item", itemMoved)], [k("Actor", "n2")]);
+  check("an item with no description names nothing", [...refsOf("Item", { _id: id16("i2"), system: {} })], []);
+  check("the input is not changed by a text rewrite", item.system.description, note(`${LIB}.${I.n2}`));
 }
 
 // --- the world's ids over a rebuilt map ----------------------------------------------------
@@ -631,6 +668,15 @@ const sourceWorld = (drop = []) => ({
   ok("a map's tokens are set down hidden", /hidden: true/.test(body(cookbook, "export async function mapCreateData(")));
   ok("the Adventure lays its ways on its own scenes before their references are rewritten",
     source.includes("withAdventureLinks(") && source.indexOf("withAdventureLinks(") < source.indexOf('adventureRefs("Scene"'));
+  ok("the Adventure's lists, journals and items are rewritten through the one table",
+    /const ofType = [\s\S]*?adventureRefs\(type, e\.source, uuidMap\)/.test(source));
+  // A recipe the world holds as two imports is joined once per import.
+  const join = body(cookbook, "async function joinLinks(");
+  ok("the link pass joins every import of a map, not the first alone",
+    join.includes("heldMapsOf(id)[n]") && join.includes("heldMapOf") && /if \(n && !ends\.size\) return;/.test(join));
+  ok("a twin's pass counts no waiting or refused row", /n \? null : counts/.test(join));
+  const held = cookbook.slice(cookbook.indexOf("export const heldMapsOf = "), cookbook.indexOf("export const heldMapOf = "));
+  ok("a copy is visited only where the world holds no import", /imports\.length \? imports : mine\.slice\(0, 1\)/.test(held));
   const ensure = body(cookbook, "async function ensureBookAdventure(");
   ok("a failed Adventure is counted, never thrown at the run", /catch \(err\) \{\s*counts\.failed\+\+/.test(ensure));
   const tryPart = ensure.slice(0, ensure.indexOf("} catch"));

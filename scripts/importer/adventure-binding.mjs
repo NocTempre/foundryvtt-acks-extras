@@ -70,15 +70,35 @@ const ACTOR_ROWS = [
 const BEHAVIOR_TABLES = ["tableUuid", "wantedTableUuid", "specialTableUuid"];
 
 /**
+ * The links inside a text: `@UUID[<uuid>]` as written, and the `data-uuid`
+ * attribute of the anchor a rich-text editor stores in its place.
+ */
+const TEXT_LINK = /@UUID\[([^\]\s]+)\]|data-uuid="([^"\s]+)"/g;
+
+/** The part of a journal page's uuid that follows its entry's. */
+const PAGE_SUFFIX = /^(.+)(\.JournalEntryPage\.[A-Za-z0-9]{16})$/;
+
+/**
  * Every reference slot of one source, as `[holder, key, form, slot]`:
- * `holder[key]` holds a uuid ("uuid"), a token's bare Actor id ("actorId"), or
- * a list of uuids ("list"). One table, so the reader (`refsOf`) and the
- * rewriter (`adventureRefs`) cannot disagree about what a slot is.
+ * `holder[key]` holds a uuid ("uuid"), a token's bare Actor id ("actorId"), a
+ * list of uuids ("list"), or a text with links in it ("text"). One table, so
+ * the reader (`refsOf`) and the rewriter (`adventureRefs`) cannot disagree
+ * about what a slot is.
  */
 function slotsOf(type, data) {
   const out = [];
   const str = (v) => typeof v === "string" && v !== "";
-  if (type === "Actor") {
+  if (type === "RollTable") {
+    for (const result of Array.isArray(data?.results) ? data.results : []) {
+      if (str(result?.documentUuid)) out.push([result, "documentUuid", "uuid", "result"]);
+    }
+  } else if (type === "JournalEntry") {
+    for (const page of Array.isArray(data?.pages) ? data.pages : []) {
+      if (str(page?.text?.content)) out.push([page.text, "content", "text", "page"]);
+    }
+  } else if (type === "Item") {
+    if (str(data?.system?.description)) out.push([data.system, "description", "text", "description"]);
+  } else if (type === "Actor") {
     const sys = data?.system ?? {};
     for (const key of ACTOR_UUIDS) if (str(sys[key])) out.push([sys, key, "uuid", key]);
     for (const [list, keys] of ACTOR_ROWS) {
@@ -106,13 +126,17 @@ function slotsOf(type, data) {
   return out;
 }
 
-/** A world-form reference to an Actor, a Scene (or a Region of one) or a RollTable. */
-const WORLD_REF = /^(Actor|Scene|RollTable)\.([A-Za-z0-9]{16})(?:\.Region\.[A-Za-z0-9]{16})?$/;
+/**
+ * A world-form reference to an Actor, an Item, a JournalEntry (or a page of
+ * one), a Scene (or a Region of one) or a RollTable.
+ */
+const WORLD_REF = /^(Actor|Item|JournalEntry|Scene|RollTable)\.([A-Za-z0-9]{16})(?:\.(?:Region|JournalEntryPage)\.[A-Za-z0-9]{16})?$/;
 
 /**
  * The documents a source names in world form, as `Type.<id>` keys; a Region
- * names its Scene. A compendium uuid is not reported: it names the library,
- * which an import never creates. A folder is not a reference here.
+ * names its Scene and a page its entry. A compendium uuid is not reported: it
+ * names the library, which an import never creates. A folder is not a
+ * reference here.
  */
 export function refsOf(type, data) {
   const out = new Set();
@@ -123,6 +147,7 @@ export function refsOf(type, data) {
   for (const [holder, key, form] of slotsOf(type, data)) {
     if (form === "list") holder[key].forEach(add);
     else if (form === "actorId") add(`Actor.${holder[key]}`);
+    else if (form === "text") for (const m of holder[key].matchAll(TEXT_LINK)) add(m[1] ?? m[2]);
     else add(holder[key]);
   }
   return out;
@@ -133,16 +158,29 @@ export function refsOf(type, data) {
  * through `map` (uuid to uuid; a folder is looked up as `Folder.<id>`). A slot
  * mapped to "" is dropped: a uuid field is emptied, a list loses the entry, a
  * folder becomes none. A token's actor id changes only to another world Actor,
- * the one thing a token can name. `data` is not changed.
+ * the one thing a token can name. A link inside a text is rewritten in place,
+ * a page of a mapped entry following its entry; one mapped to "" stays as it
+ * was written. `data` is not changed.
  */
 export function adventureRefs(type, data, map) {
   const copy = JSON.parse(JSON.stringify(data ?? {}));
   const to = (uuid) => (map.has(uuid) ? map.get(uuid) : uuid);
+  const toLink = (uuid) => {
+    if (map.has(uuid)) return map.get(uuid) || uuid;
+    const page = PAGE_SUFFIX.exec(uuid);
+    return page && map.get(page[1]) ? `${map.get(page[1])}${page[2]}` : uuid;
+  };
   for (const [holder, key, form] of slotsOf(type, copy)) {
     if (form === "list") holder[key] = holder[key].map(to).filter(Boolean);
     else if (form === "actorId") {
       const next = /^Actor\.([A-Za-z0-9]{16})$/.exec(to(`Actor.${holder[key]}`) ?? "");
       if (next) holder[key] = next[1];
+    } else if (form === "text") {
+      holder[key] = holder[key].replace(TEXT_LINK, (whole, at, attr) => {
+        const uuid = at ?? attr;
+        const next = toLink(uuid);
+        return next === uuid ? whole : whole.replace(uuid, () => next);
+      });
     } else holder[key] = to(holder[key]) ?? "";
   }
   if (typeof copy.folder === "string" && copy.folder) {

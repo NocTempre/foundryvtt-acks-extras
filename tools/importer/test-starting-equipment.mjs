@@ -204,6 +204,16 @@ check("but the sentence offering it survives", /one spell of character’s choic
 check("a book with no pick offers nothing", liftBookSpells([{ name: "Plain spellbook with hush", note: "" }]).some((s) => s.offer) === false);
 check("a counted load is not a library", liftBookSpells([{ name: "satchel with 12 pebbles", note: "" }]).length === 0);
 
+// The contents may sit inside the piece's closing bracket.
+const bracketed = [{ name: "Tallow spellbook (with Glimmerward, Fogstep, and Tallow Sight)", note: "" }];
+check("a bracketed book's spells are lifted", liftBookSpells(bracketed).map((s) => s.name).join("|") === "Glimmerward|Fogstep|Tallow Sight");
+check("and the book is left named as a book", bracketed[0].name === "Tallow spellbook");
+check("with the bracket's sentence kept on its note", /holds Glimmerward, Fogstep, and Tallow Sight/.test(bracketed[0].note));
+check("a bracketed prayer book reads the same way", liftBookSpells([{ name: "Wax prayer book (with Fogstep)", note: "" }]).map((s) => s.name).join("|") === "Fogstep");
+check("a counted load in a bracket is not a library", liftBookSpells([{ name: "Tallow spellbook (with 2 candles)", note: "" }]).length === 0);
+check("a book bracket that does not open with 'with' is a note", liftBookSpells([{ name: "Tallow spellbook (blank)", note: "" }]).length === 0);
+check("a bracket on something that is no book is a note", liftBookSpells([{ name: "oilskin coat (with hood)", note: "" }]).length === 0);
+
 /* --- What the page says this one is worth ---------------------------------- */
 //
 // Most of what carries a bracketed price has no catalogue row at all — the cell

@@ -114,6 +114,54 @@ await t("every class, proficiency and spell name passes through rename, by kind"
   assert.deepEqual([...new Set(seen)].sort(), ["class", "proficiency", "spell"]);
 });
 
+/* ---------------- a spellbook in the equipment ---------------- */
+
+const BOOK_LINE = "Lampwright 3; MV 90’, AC 0, HD 3, hp 9, #AT 1, D 1d4; Repertoire: 1st-glimmerward; Equipment: oilskin coat, Tallow spellbook (with Glimmerward, Fogstep, Tallow Sight), 3 candles";
+const LEVELS = { glimmerward: 1, fogstep: 1, "tallow sight": 2 };
+const bookOpts = {
+  bookSpells: (piece) => (/spellbook \(with (.+)\)$/i.exec(piece)?.[1] ?? "").split(/,\s*/).filter(Boolean),
+  spellLevel: (name) => LEVELS[name.toLowerCase()] ?? null,
+};
+
+await t("a book's spells land at their levels, after what the repertoire named", () => {
+  const { values, unplaced } = sheetValuesFromStatline(parseStatline(BOOK_LINE), bookOpts);
+  assert.equal(values["spell.1.0"], "glimmerward");
+  assert.equal(values["spell.1.1"], "Fogstep", "the next free row of its level");
+  assert.equal(values["spell.2.0"], "Tallow Sight");
+  assert.deepEqual(unplaced, []);
+});
+
+await t("a spell the repertoire already placed is not written twice", () => {
+  const { values } = sheetValuesFromStatline(parseStatline(BOOK_LINE), bookOpts);
+  assert.equal(Object.values(values).filter((v) => /^glimmerward$/i.test(v)).length, 1);
+});
+
+await t("a spell with no level is handed back, never placed", () => {
+  const { values, unplaced } = sheetValuesFromStatline(parseStatline(BOOK_LINE), { ...bookOpts, spellLevel: (n) => (/fog/i.test(n) ? null : LEVELS[n.toLowerCase()] ?? null) });
+  assert.deepEqual(unplaced, [{ kind: "spell", name: "Fogstep" }]);
+  assert.ok(!Object.values(values).includes("Fogstep"));
+});
+
+await t("a book's names go through rename, and the piece stays whole in the gear", () => {
+  const rename = (kind, name) => (kind === "spell" ? `lib ${name}` : name);
+  const { values } = sheetValuesFromStatline(parseStatline(BOOK_LINE), { ...bookOpts, rename, spellLevel: () => 3 });
+  assert.equal(values["spell.1.0"], "lib glimmerward", "the repertoire's, renamed");
+  assert.deepEqual([values["spell.3.0"], values["spell.3.1"], values["spell.3.2"]], ["lib Fogstep", "lib Tallow Sight", undefined], "its name matches the renamed repertoire spell, so it is not placed again");
+  assert.ok(values["gear.worn.list"].split("\n").includes("Tallow spellbook (with Glimmerward, Fogstep, Tallow Sight)"));
+});
+
+await t("each equipment piece is asked once", () => {
+  const asked = [];
+  sheetValuesFromStatline(parseStatline(BOOK_LINE), { bookSpells: (p) => (asked.push(p), []) });
+  assert.deepEqual(asked, ["oilskin coat", "Tallow spellbook (with Glimmerward, Fogstep, Tallow Sight)", "3 candles"]);
+});
+
+await t("with the options left off the output is what it was", () => {
+  const base = sheetValuesFromStatline(parseStatline(BOOK_LINE));
+  assert.deepEqual(sheetValuesFromStatline(parseStatline(BOOK_LINE), { bookSpells: () => [], spellLevel: () => 1 }), base);
+  assert.equal(Object.keys(base.values).filter((k) => k.startsWith("spell.")).length, 1);
+});
+
 /* ---------------- what the sheet has no row for ---------------- */
 
 await t("names past the sheet's last row are handed back, never dropped", () => {

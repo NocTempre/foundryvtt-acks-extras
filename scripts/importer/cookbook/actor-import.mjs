@@ -23,7 +23,7 @@ import {
   bindMonster, monsterProseChannels, warmSpellPacksOnce, mintLeaderTemplate, importFamily, importTemplate, deferTarget,
   bindLegacyMonster, bindNpc,
 } from "./monster.mjs";
-import { laddersForEntry } from "./classes.mjs";
+import { laddersForEntry, liftBookSpells } from "./classes.mjs";
 
 /**
  * Run a list of entry ids through importOne with a progress bar, bounded to
@@ -267,7 +267,14 @@ function libraryNameFor({ matchClass, matchSpell }, read = []) {
       if (base) read.push({ printed: name, as: base });
       return base ?? name;
     }
-    if (kind === "spell") return matchSpell(name) ? name : renamed(name, "spell");
+    if (kind === "spell") {
+      if (matchSpell(name)) return name;
+      const to = renamed(name, "spell");
+      // A conversion that names two spells ("X or Y") resolves to the one the
+      // library holds; with none or both held the target stands as written.
+      const held = to === name ? [] : to.split(/\s+or\s+/i).map((s) => s.trim()).filter((s) => s && matchSpell(s));
+      return held.length === 1 ? held[0] : to;
+    }
     const guess = idForName(nameIndex, name, present);
     return (guess && cookbookEntry(guess.id)?.entry?.name) || name;
   };
@@ -312,12 +319,20 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // this module is also loaded where no Foundry runs.
   const [{ importSheet }, matchers] = await Promise.all([import("../../character-sheet/pdf/apply.mjs"), import("../../character-sheet/pdf/match.mjs")]);
   const read = [];
-  const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename: libraryNameFor(matchers, read) });
+  const rename = libraryNameFor(matchers, read);
+  // A pregen's bracketed spellbook fills its repertoire: the piece is read
+  // for the spells it holds, each placed at the level the library gives it.
+  const bookSpells = (piece) =>
+    liftBookSpells([{ name: piece }], { known: (n) => !!matchers.matchSpell(rename("spell", n)) })
+      .filter((s) => !s.offer)
+      .map((s) => s.name);
+  const spellLevel = (n) => matchers.matchSpell(n)?.system?.lvl ?? null;
+  const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename, bookSpells, spellLevel });
   // The sheet import grants what the library holds, so a proficiency the
   // cookbook can supply is imported first, through the tiers a monster's list
   // resolves by; what nothing supplies is reported below as unmatched.
   await resolveAbilities([...(sl.proficiencies ?? []), ...(sl.classProficiencies ?? [])]);
-  const report = await importSheet({ actor, values, writeDomain: false, record: false });
+  const report = await importSheet({ actor, values, writeDomain: false, record: false, fixedAwards: true });
   // What the sheet import granted is the import's own, stamped so a repair can
   // tell it from an item a Judge gave the character.
   const granted = actor.items.filter((i) => !standing.has(i.id) && !i.flags?.[MODULE_ID]?.minted);

@@ -938,34 +938,13 @@ would undo "a re-read that finds nothing keeps what it had".
 - **A repair check for a token that names an inactive package.** Uninstalling
   the source leaves a broken path until Restore.
 
-## A map made before its book's organisations
-
-A map imported before the organisations step hands no quarters until the map
-is deleted and imported again (DECISIONS, 2026-09-17, Cost). Wanted: the
-organisations step claims quarters from a held map.
-
-## A book Adventure's lists, journals and items link to the library
-
-A carried list's rows, a journal's links and an item's references keep the
-library uuids they were written with, though the Adventure carries what they
-name (DECISIONS, 2026-10-17, "How a book's Adventure is assembled", Cost).
-Wanted: `adventureRefs` slots for a table result's document, a journal page's
-`@UUID` links and an item's references.
-
 ## A pregen's portrait and spellbook
 
 AX1's pregens import as characters from their write-ups (DECISIONS,
-2026-10-24, "A pregen is a write-up read across its columns"). Two things the
-page prints still do not reach the sheet:
-
-- **The portrait.** The rows carry no `art` op, so each character takes the
-  default image. An inhabitant's art path (`adventureActorArt`) would serve
-  once the rows name the picture's placement.
-- **The spells a spellbook names.** A caster's spellbook lists its spells
-  inside the equipment clause, with no "Repertoire:" label, so the class
-  binding gives the slots and the repertoire stays empty. Reading the
-  spellbook's bracket as a repertoire needs a rule for telling a spell list
-  from an item's note.
+2026-10-24, "A pregen is a write-up read across its columns"). The portrait
+the page prints does not reach the sheet: the rows carry no `art` op, so each
+character takes the default image. An inhabitant's art path
+(`adventureActorArt`) would serve once the rows name the picture's placement.
 
 ## A book's Adventure in another world
 
@@ -1127,10 +1106,9 @@ seven classes:
   per-instance hit points as notes. A structured hit-point field, or members
   as a group actor's deltas (`docs/lib/GROUPS.md`), waits for something that
   deploys them onto a scene and reads them back.
-- **A character's class awards.** A character from the page is bound without
-  `grantAwards`, so it holds its class's powers only where its stat line
-  names them. A choice award needs an answer the page does not give; the
-  fixed awards and Adventuring could land without one.
+- **A character's choice awards.** A character from the page holds its
+  class's fixed awards and Adventuring; a choice award needs an answer the
+  page does not give, and stays open.
 - **AX3's people as characters.** They stay monster NPCs. Converting them
   means re-minting stable ids and re-pointing every organisation and roster
   slot that names them.
@@ -1161,9 +1139,6 @@ seven classes:
 - **AX1's region encounter area as a zone.** The region map stands its
   places, but the area the book keys its wilderness encounters to is no
   zone over it yet, and neither is AX3's over its own region map.
-- **A region place that holds nothing.** The places step makes a book's
-  region place whenever its region rows import, so a book whose every site
-  pairs onto another book's gets a region place holding only its map.
 - **One AX3 site's paragraph split at a column turn** (`ax3.site35`). Its
   block breaks mid-sentence where the column turns; AX1's pair keeps none of
   its own paragraphs, so the place reads AX3's text as split.
@@ -1185,9 +1160,6 @@ seven classes:
     and the way between the first level's key 75 and the second's key 1;
   - the later book's site that is the first level (`ax3.site27`), on that
     book's region map, to the first level's plan.
-- **A twin Adventure's links.** An Adventure imported where its scenes take
-  other ids keeps destinations naming the world's Regions, and the link pass
-  never visits it.
 
 ## The OSR Catgirl: what the first cut leaves
 

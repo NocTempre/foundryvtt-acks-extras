@@ -120,6 +120,59 @@ export function creatureKeys(raw) {
   return keys;
 }
 
+/** A creature name's words with its parentheticals dropped: `{ w, abbr }`, `abbr` when a period follows the word. */
+const creatureWords = (raw) =>
+  [...String(raw ?? "").replace(/\([^)]*\)/g, " ").toLowerCase().matchAll(/([\p{L}\p{N}]+)(\.?)/gu)].map((m) => ({ w: m[1], abbr: m[2] === "." }));
+
+/** Whether a cell's words are the row's first words: each equal, or with `abbreviations` a cut-short word the row's begins with. */
+const wordsStandFor = (cell, row, abbreviations) =>
+  cell.length <= row.length &&
+  cell.every((c, i) => c.w === row[i].w || (abbreviations && c.abbr && c.w.length > 1 && row[i].w.startsWith(c.w)));
+
+/**
+ * The closest catalogue name to a creature as a page labels it, when no name
+ * holds the label's own keys: an index into `names`, or null. Tried in order,
+ * each only after the one before finds nothing:
+ *
+ * 1. **Family head** — "Head, member" and "Head (member)" name a member of the
+ *    family a row of the same name as the head stands for.
+ * 2. **Number** — the label and the name differ only in the singular or plural
+ *    of the last word (`creatureKeys`).
+ * 3. **Abbreviation** — a word cut short with a period ("Med.", "const.")
+ *    stands for the word of a same-length name it begins.
+ * 4. **Truncation** — the label's words are the first words of a longer name,
+ *    at least two of them; read word for word first, then with abbreviations.
+ *
+ * The last two answer only when exactly one distinct name fits, since a cut-off
+ * form that fits two names names neither. Never builds a map of printed names,
+ * and never returns a name an exact match would have found.
+ */
+export function looseCreatureName(raw, names) {
+  const list = [...names].map((n) => String(n ?? ""));
+  const cell = creatureWords(raw);
+  if (!cell.length) return null;
+  const headOf = String(raw).replace(/\([^)]*\)/g, " ").split(",")[0];
+  const head = nameKeys(headOf);
+  const family = String(raw).includes(",") || /\(/.test(String(raw));
+  if (family) {
+    const i = list.findIndex((n) => [...nameKeys(n)].some((k) => head.has(k)));
+    if (i >= 0) return i;
+  }
+  const mine = new Set([...nameKeys(String(raw).replace(/\([^)]*\)/g, " ")), ...creatureKeys(raw)]);
+  const number = list.findIndex((n) => [...creatureKeys(n)].some((k) => mine.has(k)));
+  if (number >= 0) return number;
+  for (const [whole, abbreviations] of [[true, true], [false, false], [false, true]]) {
+    const fits = [];
+    list.forEach((n, i) => {
+      const row = creatureWords(n);
+      if (!row.length || (whole ? cell.length !== row.length : cell.length < 2 || cell.length >= row.length)) return;
+      if (wordsStandFor(cell, row, abbreviations)) fits.push(i);
+    });
+    if (new Set(fits.map((i) => slug(list[i]))).size === 1) return fits[0];
+  }
+  return null;
+}
+
 // NOTE deliberately NO normalizeAlignment here. The one feature that classifies
 // alignment (influence) keeps its OWN token set (law/chaos/neutral/other, baked
 // into published effect flags) and translates at its boundary on purpose — see

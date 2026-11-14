@@ -576,6 +576,9 @@ export function parseEquipment(cellText, menu, aliases = {}) {
  * See docs/importer/DECISIONS.md, "A printed pick rides as an offer, not as a dropped sentence".
  *
  * A digit after "with" is a load, not a library: "quiver with 20 arrows".
+ * The contents may also sit inside the piece's closing bracket, "<book>
+ * (with …)"; a book bracket that does not open with "with" is a note and is
+ * left alone.
  *
  * `known` is a predicate on a printed spell title (a `titleIndex`'s `has`):
  * with one, an "and" inside a title is the title's own word and does not
@@ -583,10 +586,11 @@ export function parseEquipment(cellText, menu, aliases = {}) {
  */
 export function liftBookSpells(items, { known = null } = {}) {
   const BOOK_CONTENTS = /^(.*?(?:spell\s*book|spellbook|prayer\s*book))\s+with\s+(.+)$/i;
+  const BOOK_BRACKET = /^(.*?(?:spell\s*book|spellbook|prayer\s*book))\s*\(\s*with\s+(.+?)\s*\)$/i;
   const CHOICE_PHRASE = /\b(choice|choosing|chooses|any)\b/i;
   const spells = [];
   for (const it of items ?? []) {
-    const m = BOOK_CONTENTS.exec(it.name ?? "");
+    const m = BOOK_CONTENTS.exec(it.name ?? "") ?? BOOK_BRACKET.exec(it.name ?? "");
     if (!m || /\d/.test(m[2].split(/\s+/)[0] ?? "")) continue;
     it.name = m[1];
     it.note = it.note ? `${it.note}; holds ${m[2]}` : `holds ${m[2]}`;

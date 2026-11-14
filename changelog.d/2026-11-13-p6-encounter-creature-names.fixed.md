@@ -1,0 +1,1 @@
+- **A wilderness encounter card opens more of the creatures it draws.** A drawn creature named as a member of a family entry, with a word cut short, in the singular of a plural entry, or by the first words of a longer entry name opens that monster from the world's actors or the imported library. An exact name still wins, and a name that could be two entries stays as printed.

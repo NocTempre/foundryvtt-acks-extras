@@ -1459,6 +1459,14 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const character = fnOf("async function importCharacter");
   check("a character import records its play stamp as its last write, over what it wrote",
     /await actor\.update\(\{ \[`flags\.\$\{MODULE_ID\}\.playStamp`\]: playStamp\(actor\.toObject\(\)\) \}\);\s*return actor;$/.test(character));
+  check("a character import has the sheet import grant the class's fixed awards, and reads a pregen's spellbook",
+    /importSheet\(\{ actor, values, writeDomain: false, record: false, fixedAwards: true \}\)/.test(character)
+      && /sheetValuesFromStatline\(sl, \{ rename, bookSpells, spellLevel \}\)/.test(character)
+      && /matchers\.matchSpell\(n\)\?\.system\?\.lvl/.test(character));
+  check("the grants are stamped minted before the play stamp lands",
+    character.indexOf("importSheet(") < character.indexOf("flags.${MODULE_ID}.minted") && character.indexOf("flags.${MODULE_ID}.minted") < character.indexOf("playStamp(actor.toObject())"));
+  const libraryName = fnOf("function libraryNameFor");
+  check("a conversion naming two spells resolves to the one the library holds", /\\s\+or\\s\+/.test(libraryName) && /held\.length === 1 \? held\[0\] : to/.test(libraryName));
   const keyed = fnOf("async function importKeyedPlace");
   check("a keyed place's block row skips the held read", /isRewriting\(id\) \|\| block \? null :/.test(keyed));
   check("and writes its block before any pair takeover can run again",

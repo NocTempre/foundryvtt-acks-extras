@@ -475,6 +475,35 @@ const BOOK_FILES = {
     schema: SCHEMA, book: { id: "st" },
     entries: { "st.region": loc("Region — Overview"), "st.site1": { ...loc("Region — Sites"), name: "Later Site" } },
   },
+  // Four sites the later book pq prints, each one an earlier book's: pa prints
+  // only that site, pb adds an overview, pm adds a region map, pd adds a site of its own.
+  pq: {
+    schema: SCHEMA, book: { id: "pq" },
+    entries: {
+      "pq.region": loc("Region — Overview"),
+      "pq.site1": { ...loc("Region — Sites"), name: "Later One" },
+      "pq.site2": { ...loc("Region — Sites"), name: "Later Two" },
+      "pq.site3": { ...loc("Region — Sites"), name: "Later Three" },
+      "pq.site4": { ...loc("Region — Sites"), name: "Later Four" },
+    },
+  },
+  pa: { schema: SCHEMA, book: { id: "pa" }, entries: { "pa.site1": { ...loc("Region — Sites", { sameAs: "pq.site1", unique: [] }), name: "Earlier One" } } },
+  pb: {
+    schema: SCHEMA, book: { id: "pb" },
+    entries: { "pb.region": loc("Region — Overview"), "pb.site1": { ...loc("Region — Sites", { sameAs: "pq.site2", unique: [] }), name: "Earlier Two" } },
+  },
+  pm: {
+    schema: SCHEMA, book: { id: "pm" },
+    entries: { "pm.site1": { ...loc("Region — Sites", { sameAs: "pq.site3", unique: [] }), name: "Earlier Three" } },
+    scenes: { "pm.map": { ...REGION_MAP, scene: { ...REGION_MAP.scene, places: [{ id: "pm.site1", at: [200, 180] }] } } },
+  },
+  pd: {
+    schema: SCHEMA, book: { id: "pd" },
+    entries: {
+      "pd.site1": { ...loc("Region — Sites", { sameAs: "pq.site4", unique: [] }), name: "Earlier Four" },
+      "pd.site2": { ...loc("Region — Sites"), name: "Own Five" },
+    },
+  },
   // One market two books print. The earlier book's sideways grid names the
   // later book's market in its first column and a place of its own in its
   // second; the later book seats the market at a region site and prints it in
@@ -1102,6 +1131,49 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("and is the site the other order makes, moved into the later book's region", shape(earlier), bindShape);
   sessions.delete("ss");
   sessions.delete("st");
+}
+
+// --- a book's region place is made on a need: a row's parent, its overview, or its map ---------
+{
+  const docOf = (uuid) => pack.docs.get(String(uuid ?? "").split(".").pop());
+  const idOf = (d) => d?.flags?.[MODULE_ID]?.cookbook?.id;
+  const books = ["pq", "pa", "pb", "pm", "pd"];
+  for (const b of books) sessions.set(b, { doc: pdf([]) });
+  await cookbookImportPoiPlaces({ books: ["pq"] });
+  ok("the later book's region place holds the four sites it printed",
+    ["pq.site1", "pq.site2", "pq.site3", "pq.site4"].every((s) => idOf(docOf(shelved(s)?.system.parentUuid)) === "pq.region"));
+
+  const all = await cookbookImportPoiPlaces({ books: ["pa"] });
+  check("a book whose only site joins a place that has its parent counts one join and makes nothing", [all.paired, all.made, all.regions], [1, 0, 0]);
+  ok("and makes no region place of its own", !shelved("pa.region"));
+  check("the place it joined keeps its parent", idOf(docOf(shelved("pq.site1").system.parentUuid)), "pq.region");
+  check("nothing it made is listed", all.created.places, []);
+
+  const withOverview = await cookbookImportPoiPlaces({ books: ["pb"] });
+  ok("a book with an overview makes its region place, holding the overview", !!shelved("pb.region")?.system?.notes && withOverview.regions === 1);
+  check("and lists it", withOverview.created.places, [shelved("pb.region")?.uuid]);
+  ok("the place its site joined keeps the parent it had", idOf(docOf(shelved("pq.site2").system.parentUuid)) === "pq.region");
+
+  const withMap = await cookbookImportPoiPlaces({ books: ["pm"] });
+  ok("a book that carries a region map makes its region place though every site joins", !!shelved("pm.region") && withMap.paired === 1 && withMap.made === 0);
+  ok("the map's place holds no notes of an overview it does not print", !shelved("pm.region").system.notes);
+
+  const own = await cookbookImportPoiPlaces({ books: ["pd"] });
+  const site = shelved("pd.site2");
+  ok("a book that makes a site of its own makes its region place, and the site stands under it",
+    !!shelved("pd.region") && idOf(docOf(site?.system.parentUuid)) === "pd.region");
+  check("the run lists the region before its site, and not the joined place", own.created.places, [shelved("pd.region")?.uuid, site?.uuid]);
+
+  // A joined place that holds no parent is owed the region, and the region is made for it.
+  for (const d of pack.docs.filter((x) => ["pq", "pa"].includes(x.flags?.[MODULE_ID]?.cookbook?.book))) pack.docs.delete(d.id);
+  forgetImportedIndex();
+  await cookbookImportPoiPlaces({ books: ["pq"] });
+  const bare = shelved("pq.site1");
+  await bare.update({ "system.parentUuid": "" });
+  const filled = await cookbookImportPoiPlaces({ books: ["pa"] });
+  ok("a joined place with no parent takes the book's region, which is made for it",
+    !!shelved("pa.region") && bare.system.parentUuid === shelved("pa.region").uuid && filled.created.places[0] === shelved("pa.region").uuid);
+  for (const b of books) sessions.delete(b);
 }
 
 // --- a market two books print: every order, one market, the later book's demand --------------

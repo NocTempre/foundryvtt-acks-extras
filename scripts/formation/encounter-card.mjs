@@ -23,7 +23,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
-import { nameKeys } from "../lib/vocab.mjs";
+import { looseCreatureName, nameKeys } from "../lib/vocab.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { DAY_SECONDS, travelOf, trueTravelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
@@ -70,7 +70,10 @@ export const encountersOn = () => {
 /**
  * A printed creature name against the world's actors and the imported
  * library, matched through the name-form fold so "Horse, War" finds "War
- * Horse". Returns the actor or null — a miss is a book line, not an error.
+ * Horse". A name no actor's keys meet falls to `looseCreatureName` (a family
+ * head, a number, an abbreviation, a truncation) over the world's actors and
+ * the library together, so an exact match anywhere outranks a loose one.
+ * Returns the actor or null — a miss is a book line, not an error.
  */
 export function resolveCreature(name) {
   const wanted = nameKeys(name);
@@ -79,7 +82,15 @@ export function resolveCreature(name) {
       for (const k of nameKeys(a?.name ?? "")) if (wanted.has(k)) return true;
       return false;
     });
-  return hits(game.actors?.contents ?? []) ?? hits(libraryActors() ?? []) ?? null;
+  const world = game.actors?.contents ?? [];
+  const worldHit = hits(world);
+  if (worldHit) return worldHit;
+  const library = libraryActors() ?? [];
+  const libraryHit = hits(library);
+  if (libraryHit) return libraryHit;
+  const pool = [...world, ...library];
+  const at = looseCreatureName(name, pool.map((a) => a?.name ?? ""));
+  return at === null ? null : pool[at];
 }
 
 /** Deepest indent class a nested line takes. */

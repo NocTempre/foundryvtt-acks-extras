@@ -611,3 +611,25 @@ export async function applyClass(
   }
   return { applied: true, update, missing, grants };
 }
+
+/**
+ * Hand a character the fixed awards its class owes at `level`: Adventuring,
+ * then every fixed rung from level 1 up to `level`, each ability up to the
+ * copies its rungs owe. Choice rungs stay open, nothing is written to the
+ * actor but the granted items, and no dialog or chat card is made. A ref the
+ * ability is already held under (`heldCount`, picks included) grants nothing,
+ * so running it again, or after a stat line's own grants, doubles nothing.
+ * @param {Actor} actor
+ * @param {Item} cls the class item
+ * @param {number} level the level the character holds
+ * @param {Array<{ref: string, name: string, missing?: boolean}>} [grants] filled with each grant, a ref the world lacks marked `missing`
+ * @returns {Promise<Array<{ref: string, name: string, missing?: boolean}>>} `grants`
+ */
+export async function grantFixedAwards(actor, cls, level, grants = []) {
+  await grantAdventuring(actor, grants);
+  for (const a of awardsThrough(actor, cls, level).fixed) {
+    if ((a.atLevel ?? 1) < 1) continue;
+    await grantAbility(actor, a.ref, grants, { upTo: a.copies });
+  }
+  return grants;
+}

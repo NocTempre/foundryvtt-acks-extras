@@ -105,6 +105,32 @@ const t = (name, fn) => {
   console.log(`ok - ${name}`);
 };
 
+t("looseCreatureName: a family head, a number, an abbreviation or a truncation names one row", () => {
+  const rows = ["Moor Grazer", "Fen Drone, Medium Wasp", "Fen Drone, Large Wasp", "Ember Cairns", "Lantern Moth, Giant Pale", "Lantern Moth, Giant Dusky", "Hollow Imp"];
+  const at = (label) => {
+    const i = vocab.looseCreatureName(label, rows);
+    return i === null ? null : rows[i];
+  };
+  assert.equal(at("Moor Grazer, Large (dunbuck)"), "Moor Grazer", "Head, qualifier (member)");
+  assert.equal(at("Moor Grazer (dunbuck)"), "Moor Grazer", "Head (member)");
+  assert.equal(at("Moor grazer, V. Large (tuskhorn or dunbuck)"), "Moor Grazer", "the head folds like any name");
+  assert.equal(at("Ember Cairn"), "Ember Cairns", "a singular label meets a plural row");
+  assert.equal(at("Fen Drone, Med. Wasp"), "Fen Drone, Medium Wasp", "an abbreviated word stands for the one word it begins");
+  assert.equal(at("Fen Drone, Lar. Wasp"), "Fen Drone, Large Wasp");
+  assert.equal(at("Fen Drone, L. Wasp"), null, "a one-letter stem is no abbreviation");
+  assert.equal(at("Fen Drone, Giant Wasp"), null, "a word no row holds is no abbreviation");
+  assert.equal(at("Hollow. Imp"), "Hollow Imp", "a stray period folds away");
+  assert.equal(at("Lantern Moth, Giant Pale"), "Lantern Moth, Giant Pale", "a whole name is itself");
+  assert.equal(at("Lantern Moth, Giant"), null, "a truncation that fits two rows names neither");
+  assert.equal(at("Fen. Drone"), null, "two rows begin with a cut-short form: none is named");
+  assert.equal(vocab.looseCreatureName("Fen", ["Fen Drone, Medium Wasp"]), null, "a truncation of one word is not read");
+  assert.equal(vocab.looseCreatureName("Fen Drone, Medium", ["Fen Drone, Medium Wasp"]), 0, "a truncation at a word edge is read");
+  assert.equal(at("Marsh Strider, Giant"), null, "a head no row holds finds nothing");
+  assert.equal(at("Marsh Strider"), null);
+  assert.equal(at(""), null);
+  assert.equal(vocab.looseCreatureName("Moor Grazer, Large", ["Moor Grazer", "Moor Grazer"]), 0, "a repeated name answers with the first");
+});
+
 t("choicesOf maps {key:{label}} -> {key:label}", () => {
   assert.deepEqual(choicesOf(vocab.ROLL_TYPES), { result: "=", above: "≥", below: "≤" });
 });

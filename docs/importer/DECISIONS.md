@@ -10343,3 +10343,32 @@ found by name, and any doc that points at a symbol points at its file. A
 reader following a stack trace lands in a file of 100 to 2,100 lines
 rather than one of 13,600. The cut script and its verifier are not kept in the
 repository; the result is the tree, and the cut is not meant to be run again.
+
+## 2026-11-13 — A book Adventure's lists, journals and items name its own copies, and a twin is joined
+
+Lifts two Costs: "How a book's Adventure is assembled and kept current"
+(2026-10-17), the link from a list, a journal or an item that stayed a library
+link; and "The map step joins the maps by their link rows" (2026-10-25), the
+twin whose destinations kept naming the world's Regions.
+
+**Ruled.** `adventureRefs` has one slot table (`slotsOf`) for every document
+the Adventure carries: a list result's `documentUuid`, a journal page's text
+and an item's description join the actor's and the map's slots. A text slot
+rewrites `@UUID[…]` and the `data-uuid` an editor stores; a link to a page
+follows its entry's mapping, and a link mapped to nothing stays as written.
+The link pass joins a recipe once per import the world holds (`heldMapsOf`):
+the first pass is the one it always was, and each later pass joins the
+rows whose every end has that many imports.
+
+**Rejected:** matching the twin by another flag in `heldMapOf`. A twin
+carries the recipe's own cookbook id; what kept it unjoined is that the pass
+read one scene per id, so the pass has to visit every import.
+
+*Cost:*
+- Every book Adventure whose lists, journals or items name a carried document
+  gets a new `sourcesHash` and rebuilds once.
+- The fill now also brings an absent item or journal that a carried journal or
+  item links to, as it already did for an actor.
+- A row from a twinned map to a map with no twin stays on the original.
+- Only `@UUID` and `data-uuid` links are rewritten; the importer writes no
+  other link form.
