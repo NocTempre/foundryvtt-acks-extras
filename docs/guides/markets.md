@@ -269,7 +269,13 @@ resolve as game time passes:
      the market's class on each good's base price; a good marked exempt on
      its merchandise sheet pays nothing. The Enter dialog shows every
      charge, good by good, before you confirm. The trader pays it all, in
-     one payment; who in the party chips in is yours to settle.
+     one payment; who in the party chips in is yours to settle. A market
+     the Judge sets to charge its city's own toll and duty (Actors sidebar →
+     the market's sheet → Ventures tab → **Gate toll**) takes those instead
+     of the class's toll and tariff: a toll on the merchandise aboard and a
+     duty on its value, each thrown once at the gate from the tables your
+     import holds, shown in the dialog as the span the throw can come to,
+     and paid in the same one payment.
    - **No charge.** If a member at the market rules the domain the market
      lies in, the gate takes neither charge. A good you tick **Smuggled**
      pays no tariff. Tick **The party sneaks in** and the gate takes no

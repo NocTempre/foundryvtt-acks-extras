@@ -858,7 +858,7 @@ needs `items: []` ([../vehicles/TESTING.md](../vehicles/TESTING.md)).
 ## The gate walk (toll, tariff, smuggled goods, sneaking in, the Ruler's Privilege)
 
 Steps G0–G7 and P0–P5 of `tools/live/markets.mjs`, in the order below;
-`STAGE=gate` stops the run after them.
+`STAGE=gate` stops the run after them. G8 is walked by hand.
 
 **Fixtures** (kept by marker, Fixtures above): market G of class III with
 `marketCharacteristics` imported (and `tariffProse` for G6–G7); three world
@@ -994,6 +994,31 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
   *Observable:* the tariff is the top of the span, the toll is G2's, the
   detail records each throw (`… → N%`), and T paid their sum. Unregister the
   layers and put the setting back.
+- **G8.** The city's own toll. *Fixture:* a market with `gateToll: "city"`,
+  marker `markets/city-gate` (the AX3 capital after a settlement import
+  sets it, or a class III market switched below), the `cityTravel`
+  document's `gateTolls` table imported, and T's party as above with a load
+  whose category has no price rolled this month. GM seat: open G's Ventures
+  tab. *Observable:* the toolbar's **Gate toll** control reads "Gate toll:
+  market class" with the tooltip "RR 372" while the market has no switch;
+  click it: the control reads "Gate toll: the city's own", is marked
+  active, its tooltip is the imported table's page reference, and
+  `system.market.goods.gateToll` is `"city"` (click again: `"class"`; the
+  Player seat sees no control). Player seat, Enter with VH: the block shows
+  the toll as the gp span its throw gives (or "none" with no whole unit of
+  merchandise stones aboard) and the duty as its percent span, the gp span
+  while every good is priced and none while one is not, with a line per
+  good; hover each figure: the toll's tooltip reads units × dice for the
+  stones aboard and the stones a unit, and the duty's the dice, its percent
+  span and the month's price, each ending in the page. Confirm with every
+  die at its top face (as G7): the unpriced category's month price is rolled
+  and written to `merchPrices` with the entry, the toll and the duty are
+  thrown once each, T pays their sum in one payment, the action's `tollCp`
+  and `tariffCp` equal the driver's figures (`tariffCp` is the duty), its
+  detail and the ledger note name both throws, and the transfer's reason
+  names them. Ruler's Privilege (ruler T, as G5) and the sneak tick (as P4)
+  show and charge neither. Switch G back to class: the quote is G2's again.
+  Put `gateToll` back as found.
 
 **Teardown**: D, VH, the characters, the goods and G stay for the next run,
 and the cards are marked; the setting is restored, the roster removed by its

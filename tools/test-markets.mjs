@@ -1298,12 +1298,13 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     cityTravel: { gateTolls: { toll: { dice: "2d4+1", perStones: 5 }, duty: { dicePercent: "1d6" } } },
   };
   let domain = null;
+  let cited = true;
   globalThis.acksExtras = {
-    lib: { tables: { hasDoc: (doc) => !!STORE[doc], getTable: (doc, table) => { if (!STORE[doc]?.[table]) throw new Error("no such table"); return STORE[doc][table]; }, citeOf: (doc, table) => `${doc}/${table}` } },
+    lib: { tables: { hasDoc: (doc) => !!STORE[doc], getTable: (doc, table) => { if (!STORE[doc]?.[table]) throw new Error("no such table"); return STORE[doc][table]; }, citeOf: (doc, table) => (cited ? `${doc}/${table}` : null) } },
     domains: { domainOf: () => domain },
   };
   globalThis.game = {
-    i18n: { localize: (key) => `«${key}»` },
+    i18n: { localize: (key) => `«${key}»`, format: (key, data = {}) => `${key}|${Object.entries(data).map(([k, v]) => `${k}=${v}`).join(",")}` },
     settings: { get: (_m, key) => (key === "marketsRandomTariff" ? false : key === "marketParties" ? [] : null) },
     users: { get: () => null },
     user: { isGM: true },
@@ -1313,10 +1314,11 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   };
   globalThis.Hooks = { on() {}, once() {}, callAll() {} };
   let next = 0;
+  const rigged = {};
   const thrown = [];
   globalThis.Roll = class {
     constructor(formula) { this.formula = formula; }
-    async evaluate() { thrown.push(this.formula); this.total = next; return this; }
+    async evaluate() { thrown.push(this.formula); this.total = rigged[this.formula] ?? next; return this; }
   };
   const plain = (data) => ({ ...data, toObject() { return this; } });
   const sacks = plain({ _id: "sacks", id: "sacks", type: "item", name: "Sacks", flags: { [MODULE_ID]: { markets: { merchandise: true, category: "salt" } } }, system: { quantity: { value: 12 }, cost: 20, weight6: 0 } });
@@ -1425,10 +1427,143 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.deepStrictEqual(thrown, [], "nothing thrown");
   assert.strictEqual((await gate.settleTariff({ ...q, duty: { ...q.duty, lines: [] } })).rolls.length, 0, "a duty with no goods to assess is not thrown");
 
+  // ---- the entry: one payment of the thrown toll and duty, the Enter dialog's figures, the Judge's switch ----
+  STORE.mercantile.impactProse = { impactCap: 7, familyScaledClass: 2, familiesPerImpact: 3 };
+  STORE.mercantile.priceShiftProse = { largeClassEdge: 1, largeClassShift: 2, smallClassEdge: 6, smallClassShift: 2, sowingShift: 1, harvestShift: 1 };
+  globalThis.foundry = {
+    utils: {
+      deepClone: (x) => structuredClone(x),
+      randomID: () => "rid",
+      escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;"),
+    },
+    applications: { api: { ApplicationV2: class {}, DialogV2: class {}, HandlebarsApplicationMixin: (B) => B }, sheets: { ItemSheetV2: class {}, ActorSheetV2: class {} } },
+  };
+  game.users = { get: () => null, filter: () => [] };
+  globalThis.ChatMessage = { create: async () => ({}), getSpeaker: () => ({}) };
+  const spends = [];
+  let purse = true;
+  const ns = (await import(new URL("../scripts/namespace.mjs", import.meta.url))).acksExtras;
+  const savedLib = ns.lib;
+  ns.lib = { ...(ns.lib ?? {}), money: { transferCoin: async (o) => { spends.push({ gp: o.gp, reason: o.reason }); return { ok: purse }; } } };
+  globalThis.fromUuid = async (uuid) => (uuid === trader.uuid ? trader : null);
+  globalThis.fromUuidSync = (uuid) => (uuid === trader.uuid ? trader : null);
+  const ventures = await import(new URL("../scripts/markets/engine/ventures.mjs", import.meta.url));
+  const tab = await import(new URL("../scripts/markets/apps/trade-tab.mjs", import.meta.url));
+
+  const market = (gateToll, prices) => {
+    const location = { uuid: "Actor.market", name: "Market", updates: [], ...place(gateToll, prices) };
+    Object.assign(location.system.market.goods, { actions: [], ventures: [], marketLog: [], solicitations: [] });
+    location.update = async function (data) { this.updates.push(data); };
+    return location;
+  };
+  const enter = (location, extra = {}) => ventures.postVentureAction(location, { kind: "enter", actorUuid: trader.uuid, forSale: ["Actor.trader|blade"], ...extra });
+  const reset = () => { spends.length = 0; thrown.length = 0; for (const k of Object.keys(rigged)) delete rigged[k]; purse = true; };
+
+  // A city entry with the month's salt price not yet rolled: rolled now, written with the entry, the duty on it.
+  reset();
+  Object.assign(rigged, { "6d4+3": 9, "1d6": 4, "4d4": 12 });
+  const fresh = market("city", []);
+  assert.deepStrictEqual(await enter(fresh), { ok: true, resolveTime: 86400 }, "a city entry is posted");
+  assert.deepStrictEqual(thrown, ["4d4", "6d4+3", "1d6"], "the missing price is rolled, then the toll and the duty are thrown once each");
+  assert.strictEqual(spends.length, 1, "one payment for toll and duty");
+  assert.strictEqual(spends[0].gp, (900 + Math.ceil(12 * 2600 * 0.04) + 40) / 100, "toll 9gp, duty 4% of 12 st at the rolled price of 26gp and of the blade's 10gp");
+  assert.match(spends[0].reason, /^«ACKS-MARKETS\.ventures\.gateToll\.reason» \(toll 6d4\+3 → 9gp; duty 1d6 → 4%\)$/, "the spend reason names both throws");
+  const wrote = fresh.updates[0];
+  assert.deepStrictEqual(wrote["system.market.goods.merchPrices"].map((p) => [p.category, p.monthStartTime, p.priceCp]), [["salt", monthStart, 2600]], "the rolled price is written with the entry");
+  const action = wrote["system.market.goods.actions"][0];
+  assert.match(action.detail, /toll 9gp \(6d4\+3 → 9gp\); duty 12\.88gp \(1d6 → 4%\)/, "the posted detail names the toll's throw and the duty's");
+  assert.deepStrictEqual([action.tollCp, action.tariffCp], [900, 1288], "the action keeps what each came to, the duty in the tariff's field");
+  assert.match(wrote["system.market.marketLog"][0].note, /\(21\.88gp: toll 9gp, duty 12\.88gp \(toll 6d4\+3 → 9gp; duty 1d6 → 4%\) paid\)/, "the ledger note names both throws");
+  assert.strictEqual(wrote["system.market.marketLog"][0].gp, -21.88, "and the one payment");
+
+  // A price already rolled this month is not rolled again, and nothing is written for it.
+  reset();
+  Object.assign(rigged, { "6d4+3": 5, "1d6": 2 });
+  const priced = market("city");
+  await enter(priced);
+  assert.deepStrictEqual(thrown, ["6d4+3", "1d6"], "no price roll");
+  assert.strictEqual(spends[0].gp, (500 + Math.ceil(12 * 2500 * 0.02) + 20) / 100, "the duty is on the month's price as it stands");
+  assert.strictEqual("system.market.goods.merchPrices" in priced.updates[0], false, "no price to write");
+
+  // The class's way is as it was: the toll on capacity, the tariff's printed rates, nothing thrown.
+  reset();
+  const classic = market(null);
+  await enter(classic, { cargoSt: 3 });
+  assert.deepStrictEqual(thrown, [], "nothing is thrown");
+  assert.strictEqual(spends[0].gp, (6 + Math.ceil(12 * 2000 * 0.02) + Math.ceil(1000 * 0.02)) / 100, "toll 2cp a stone on 3 st, then the tariff at the class's printed common rate on the goods' base prices");
+  assert.strictEqual(spends[0].reason, "«ACKS-MARKETS.ventures.tollTariffReason»", "the class's reason");
+  assert.match(classic.updates[0]["system.market.goods.actions"][0].detail, /toll 0\.06gp; tariff /, "its detail says tariff, with no throw");
+  assert.strictEqual("system.market.goods.merchPrices" in classic.updates[0], false, "and writes no price");
+
+  // The waivers pay nothing and throw nothing.
+  reset();
+  domain = { uuid: "Actor.domain", name: "Domain", system: { rulerUuid: "Actor.trader" } };
+  const waived = market("city");
+  await enter(waived);
+  assert.deepStrictEqual([spends.length, thrown.length], [0, 0], "the Ruler's Privilege pays and throws nothing");
+  domain = null;
+  const slipped = market("city");
+  await enter(slipped, { sneak: true });
+  assert.deepStrictEqual([spends.length, thrown.length], [0, 0], "sneaking in pays and throws nothing");
+
+  // A purse that falls short pays none, and the entry is not posted.
+  reset();
+  purse = false;
+  Object.assign(rigged, { "6d4+3": 9, "1d6": 4, "4d4": 12 });
+  const broke = market("city", []);
+  assert.deepStrictEqual(await enter(broke), { error: "insufficientGold" }, "refused");
+  assert.strictEqual(broke.updates.length, 0, "nothing is written, the rolled price included");
+
+  // The Judge's switch writes the name of the toll now in force's other.
+  const actions = tab.TRADE_TAB_ACTIONS;
+  const sheet = (location) => ({ actor: location, rendered: 0, render() { this.rendered++; } });
+  const judge = market(null);
+  const judgeSheet = { ...sheet(judge), updates: [] };
+  judge.update = async function (data) { this.updates.push(data); Object.assign(this.system.market.goods, { gateToll: data["system.market.goods.gateToll"] }); };
+  await actions.toggleGateToll.call(judgeSheet);
+  assert.deepStrictEqual(judge.updates, [{ "system.market.goods.gateToll": "city" }], "a market with no switch goes to the city's");
+  await actions.toggleGateToll.call(judgeSheet);
+  assert.deepStrictEqual(judge.updates[1], { "system.market.goods.gateToll": "class" }, "and back to the class's, written by name");
+  game.user.isGM = false;
+  await actions.toggleGateToll.call(judgeSheet);
+  assert.strictEqual(judge.updates.length, 2, "a player cannot switch it");
+  game.user.isGM = true;
+
+  // The Enter dialog's figures and the tooltips that give their parts.
+  const html = tab.gateQuoteHtml(market("city"), trader, withBlade);
+  const tips = [...html.matchAll(/data-tooltip-text="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(html.includes("ventures.quote.cityToll|min=9,max=27"), "the toll shows as the gp it can come to");
+  assert.ok(html.includes("ventures.quote.cityDuty|min=1,max=6,minGp=3.1,maxGp=18.6"), "the duty shows its percent span and the gp it comes to");
+  assert.deepStrictEqual(tips.slice(0, 2), [
+    "ACKS-MARKETS.ventures.quote.cityTollTip|units=3,dice=2d4+1,stones=15,per=5 (cityTravel/gateTolls)",
+    "ACKS-MARKETS.ventures.quote.cityDutyTip|dice=1d6,min=1,max=6 (cityTravel/gateTolls)",
+  ], "the toll's and the duty's tooltips name their parts with the quote's numbers and the page");
+  assert.deepStrictEqual(tips.slice(2), [
+    "ACKS-MARKETS.ventures.quote.cityLineLoadTip|stones=12,price=25",
+    "ACKS-MARKETS.ventures.quote.cityLineItemTip|stones=1,price=10",
+  ], "each good's value says where its price came from");
+  assert.ok(!/title=/.test(html), "no title attribute");
+  assert.ok(!/ventures\.quote\.cityDutyOpen/.test(html), "every good is priced, so the duty's gp are shown");
+  cited = false;
+  assert.ok(!/\(cityTravel/.test(tab.gateQuoteHtml(market("city"), trader, withBlade)), "with no page recorded the tooltip carries none and no empty brackets");
+  assert.ok(!/\(\)/.test(tab.gateQuoteHtml(market("city"), trader, withBlade)), "no empty brackets");
+  cited = true;
+  const open = tab.gateQuoteHtml(market("city", []), trader, withBlade);
+  assert.ok(open.includes("ventures.quote.cityDutyOpen|min=1,max=6"), "a good with no price this month leaves the duty's gp out");
+  assert.ok(!/minGp/.test(open), "no gp figure in its place");
+  assert.ok(tab.gateQuoteHtml(market("city"), trader, { smuggled: ["Actor.trader|sacks"] }).includes("ventures.quote.cityTollNone"), "no unit of stones owed reads as no toll");
+  assert.ok(tab.gateQuoteHtml(market(null), trader, withBlade).includes("ventures.quote.toll|"), "a class market's dialog is the class's");
+  assert.ok(!/cityToll/.test(tab.gateQuoteHtml(market(null), trader, withBlade)), "and shows nothing of the city's");
+
+  ns.lib = savedLib;
+  delete globalThis.foundry;
+  delete globalThis.fromUuid;
+  delete globalThis.fromUuidSync;
+  delete globalThis.ChatMessage;
   delete globalThis.acksExtras;
   delete globalThis.game;
   delete globalThis.Hooks;
   delete globalThis.Roll;
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty)");
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty, the city entry's payment, the Enter dialog's figures and the Judge's switch)");

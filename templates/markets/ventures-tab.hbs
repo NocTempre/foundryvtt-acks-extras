@@ -13,6 +13,10 @@
       <i class="fas fa-eye"></i> {{localize "ACKS-MARKETS.trade.playersSeeDemand"}}:
       {{#if playersSeeDemand}}{{localize "ACKS-MARKETS.on"}}{{else}}{{localize "ACKS-MARKETS.off"}}{{/if}}
     </button>
+    <button type="button" class="acks-location-btn {{#if gateToll.city}}active{{/if}}" data-action="toggleGateToll"
+            aria-label="{{gateToll.aria}}" data-tooltip-text="{{gateToll.tip}}">
+      <i class="fas fa-archway"></i> {{gateToll.label}}
+    </button>
     {{/if}}
   </div>
 

@@ -205,8 +205,9 @@ export function goodsSchema() {
         // enter: how the party's solicitations use a mercantile network this visit.
         networkMode: new f.StringField({ required: true, initial: "auto", choices: NETWORK_MODES }),
         // enter: what the gate took when the day was posted (engine/gate.mjs) —
-        // the toll (null on a row that stores none), the tariff, and
-        // the domain whose ruler's privilege waived both.
+        // the toll (null on a row that stores none), the tariff (the duty, at
+        // a market set to its city's own toll), and the domain whose ruler's
+        // privilege waived both.
         tollCp: new f.NumberField({ required: false, nullable: true, integer: true, initial: null }),
         tariffCp: int(0),
         privilegeUuid: str(),

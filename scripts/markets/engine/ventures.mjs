@@ -46,7 +46,7 @@ import { partyOf, partyMembers } from "./parties.mjs";
 import { marketMonthStart, abilityRanks, awayFromMarket } from "./trade.mjs";
 import { impactLimits, assessmentBands, priceShifts, negotiation, printedError } from "./printed.mjs";
 import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
-import { characteristicsFor, entryQuote, settleTariff, extraCpOf, stayCpPerDayOf, stabledAsOf } from "./gate.mjs";
+import { characteristicsFor, entryQuote, gateTollOf, settleToll, settleTariff, extraCpOf, stayCpPerDayOf, stabledAsOf } from "./gate.mjs";
 import { writeReport } from "./trade-objects.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
@@ -164,11 +164,33 @@ export function ventureFor(location, actor, monthStart = marketMonthStart()) {
 /** How a good smuggled past the gate reads on a card: its label, how much, and whose it is. */
 const smuggledText = (row) => `${row.label} (${row.kind === "item" ? row.stones : `${row.stones} st`}, ${row.holderName})`;
 
-/** The ledger's account of a gate: what was charged and paid, and what was smuggled past it. */
-function gateNote(gate, tariffCp) {
-  const paidCp = gate.tollCp + tariffCp + extraCpOf(gate);
+/**
+ * How a city gate's throws read: the toll's, in gp, and the duty's, as a
+ * percent, each as formula and total. Empty for the class's way, whose toll
+ * is not thrown and whose tariff names its tiers.
+ */
+function cityThrows(gate, { tollRoll, tariff }) {
+  if (!gate?.toll) return "";
+  return [tollRoll ? `toll ${tollRoll.formula} → ${tollRoll.total}gp` : "", ...(tariff?.rolls ?? []).map((r) => `duty ${r.formula} → ${r.total}%`)].filter(Boolean).join("; ");
+}
+
+/**
+ * The ledger's account of a gate: what was charged and paid, and what was
+ * smuggled past it. `settled` carries the settled toll and tariff (`tollCp`,
+ * `tariffCp`, `tollRoll`, `tariff`); a city gate's note names its throws.
+ */
+function gateNote(gate, settled) {
+  const { tollCp, tariffCp } = settled;
+  const paidCp = tollCp + tariffCp + extraCpOf(gate);
+  const throws = cityThrows(gate, settled);
   const charges = [
-    gate.sneaked ? "sneaked in" : gate.privilege ? "ruler's privilege" : `toll ${toGp(gate.tollCp)}gp, tariff ${toGp(tariffCp)}gp`,
+    gate.sneaked
+      ? "sneaked in"
+      : gate.privilege
+        ? "ruler's privilege"
+        : gate.toll
+          ? `toll ${toGp(tollCp)}gp, duty ${toGp(tariffCp)}gp${throws ? ` (${throws})` : ""}`
+          : `toll ${toGp(tollCp)}gp, tariff ${toGp(tariffCp)}gp`,
     ...gate.extra.map((c) => `${c.label} ${toGp(c.cp)}gp`),
   ].join(", ");
   const paid = paidCp > 0 ? `${toGp(paidCp)}gp: ${charges} paid` : `${charges}, nothing paid`;
@@ -267,6 +289,8 @@ export async function postVentureAction(location, payload) {
   let tariff = null;
   let privilege = null;
   let gate = null;
+  let tollPaid = null;
+  let rolledPrices = null;
   let entrants = 0;
   const bribe = kind === "assess" ? Math.max(0, Number(bribeGp) || 0) : 0;
   let capacitySt = 0;
@@ -286,16 +310,34 @@ export async function postVentureAction(location, payload) {
     // capacity (porters, pack animals) stated as a number, the goods declared
     // for sale and those smuggled, or a party sneaking in. The gate assesses
     // the book's charges on it.
-    gate = entryQuote(location, actor, { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, separately: entrants > 0, stayAt, animals, stabled, requestUserId });
+    const declared = { vehicles: brought.docs, otherSt: cargoSt, forSale, smuggled, sneak, separately: entrants > 0, stayAt, animals, stabled, requestUserId };
+    gate = entryQuote(location, actor, declared);
     if (gate.error) return gate;
+    // A city's duty is on this month's price of each load; a price the month
+    // has not rolled is rolled now, and kept with the entry.
+    const unpriced = [...new Set((gate.duty?.lines ?? []).filter((l) => l.kind !== "item" && l.valueCp === null).map((l) => l.category))];
+    if (unpriced.length) {
+      const merchPrices = clone(goods.merchPrices);
+      const known = merchPrices.length;
+      for (const category of unpriced) await ensureMerchPrice(goods, merchPrices, category, Number(location.system.marketClass) || 6, monthStart);
+      if (merchPrices.length > known) {
+        gate = entryQuote(location, actor, { ...declared, prices: merchPrices });
+        if (gate.error) return gate;
+        rolledPrices = merchPrices;
+      }
+    }
     capacitySt = gate.capacitySt;
-    tollCp = gate.tollCp;
     privilege = gate.privilege;
+    tollPaid = await settleToll(gate);
+    tollCp = tollPaid.tollCp;
     tariff = await settleTariff(gate);
     // One payment for all of it, so a purse that falls short pays none.
     const dueCp = tollCp + tariff.totalCp + extraCpOf(gate);
     if (dueCp > 0) {
-      const reason = game.i18n.localize(`${LANG}.ventures.${tariff.totalCp > 0 ? "tollTariffReason" : "tollReason"}`);
+      const throws = cityThrows(gate, { tollRoll: tollPaid.roll, tariff });
+      const reason = gate.toll
+        ? `${game.i18n.localize(`${LANG}.ventures.gateToll.reason`)}${throws ? ` (${throws})` : ""}`
+        : game.i18n.localize(`${LANG}.ventures.${tariff.totalCp > 0 ? "tollTariffReason" : "tollReason"}`);
       const paid = await adapter.spendGold(actor, toGp(dueCp), reason, { to: location, at: location, within: location, judge: judgeDeclares(requestUserId) });
       if (!paid) return err("insufficientGold");
     }
@@ -312,13 +354,14 @@ export async function postVentureAction(location, payload) {
   const total = Number.isInteger(roll?.total) ? roll.total : null;
   const tariffCp = tariff?.totalCp ?? 0;
   const stayCp = stayCpPerDayOf(gate);
-  const thrown = (tariff?.rolls ?? []).map((r) => `${r.tier} ${r.formula} → ${r.total}%`).join(", ");
+  const city = !!gate?.toll;
+  const thrown = (tariff?.rolls ?? []).map((r) => (city ? `${r.formula} → ${r.total}%` : `${r.tier} ${r.formula} → ${r.total}%`)).join(", ");
   const detail = [
     entrants > 0 ? `separately, one of ${entrants}` : "",
     brought.names.length ? `with ${brought.names.join(", ")}` : "",
     privilege ? `ruler's privilege (${privilege.name})` : "",
-    tollCp > 0 ? `toll ${toGp(tollCp)}gp` : "",
-    tariffCp > 0 ? `tariff ${toGp(tariffCp)}gp${thrown ? ` (${thrown})` : ""}` : "",
+    tollCp > 0 ? `toll ${toGp(tollCp)}gp${tollPaid?.roll ? ` (${tollPaid.roll.formula} → ${tollPaid.roll.total}gp)` : ""}` : "",
+    tariffCp > 0 ? `${city ? "duty" : "tariff"} ${toGp(tariffCp)}gp${thrown ? ` (${thrown})` : ""}` : "",
     gate?.sneaked ? "sneaked in" : "",
     stayCp > 0 ? `stay ${toGp(stayCp)}gp a day${gate.stay.at === "anchor" ? " outside" : ""}` : "",
     ...(gate?.extra ?? []).map((c) => `${c.label} ${toGp(c.cp)}gp`),
@@ -356,7 +399,7 @@ export async function postVentureAction(location, payload) {
   const paidGp = toGp(gate ? tollCp + tariffCp + extraCpOf(gate) : 0) + bribe;
   // An entry's payment is itemized (toll, tariff, any charge a Judge's hook
   // added) beside what was smuggled, so the ledger keeps them apart.
-  const paidNote = gate ? gateNote(gate, tariffCp) : paidGp > 0 ? ` (${paidGp}gp paid)` : "";
+  const paidNote = gate ? gateNote(gate, { tollCp, tariffCp, tollRoll: tollPaid?.roll ?? null, tariff }) : paidGp > 0 ? ` (${paidGp}gp paid)` : "";
   log.push({
     time: t,
     type: "ventureAction",
@@ -367,6 +410,7 @@ export async function postVentureAction(location, payload) {
   await location.update({
     "system.market.goods.actions": [...actions, action],
     "system.market.marketLog": log.slice(-MARKET_LOG_CAP),
+    ...(rolledPrices ? { "system.market.goods.merchPrices": rolledPrices } : {}),
   });
   if (gate) {
     await rememberStabling(brought.docs, stabled);
@@ -642,7 +686,7 @@ export async function processVentureActions(location, log, t) {
         ? game.i18n.localize(`${LANG}.ventures.paidSneaked`)
         : row.privilegeUuid
           ? game.i18n.localize(`${LANG}.ventures.paidPrivilege`)
-          : game.i18n.format(`${LANG}.ventures.paidLine`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
+          : game.i18n.format(`${LANG}.ventures.${gateTollOf(location) === "city" ? "paidLineCity" : "paidLine"}`, { toll: toGp(row.tollCp), tariff: toGp(row.tariffCp) });
       const entered = game.i18n.format(`${LANG}.ventures.${entrants ? "enteredSeparatelyLine" : "enteredLine"}`, { name: actor.name, location: location.name, impact, n: entrants });
       const stay = row.stayCpPerDay > 0 ? `<br>${game.i18n.format(`${LANG}.ventures.stayLine`, { gp: toGp(row.stayCpPerDay), where: game.i18n.localize(`${LANG}.ventures.stayAt.${row.stayAt}`) })}` : "";
       await postCard(actor, `<strong>${entered}</strong><br>${paid}${stay}`);

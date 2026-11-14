@@ -44,7 +44,7 @@ import {
 } from "../engine/trade.mjs";
 import { processImports, performItemSearch, performSearchCancel } from "../engine/imports.mjs";
 import { performVentureAction, performVentureCancel, performVentureLeave, ventureFor, ventureVehicles } from "../engine/ventures.mjs";
-import { entryQuote, enteringMembers, goodKey, saleCandidates, stabledAsOf } from "../engine/gate.mjs";
+import { entryQuote, enteringMembers, gateTollOf, goodKey, saleCandidates, stabledAsOf } from "../engine/gate.mjs";
 import { stayOwed, STAY_AT, STABLED_AS, STAY_ANIMALS } from "../rules/stay.mjs";
 import { manifestOf } from "../engine/manifest.mjs";
 import { VEHICLE_TYPE } from "../../vehicles/constants.mjs";
@@ -55,7 +55,7 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { hasEffectFlag } from "../../henchmen/effects.mjs";
 import { networkSteps } from "../engine/network.mjs";
 import { dayOfWorldTime } from "../../lib/world-time.mjs";
-import { assessmentBands, impactLimits, printedError } from "../engine/printed.mjs";
+import { assessmentBands, cityGateTolls, impactLimits, printedError } from "../engine/printed.mjs";
 import { refusalText, availabilityText } from "../engine/refusal.mjs";
 import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
 import { assessmentPageBands, entryConflict, vehiclesEntered, ventureKey, VENTURE_MODES } from "../rules/arbitrage.mjs";
@@ -265,6 +265,15 @@ export async function prepareTradeTab(sheet, context) {
   });
   context.masterworkContact = !!goods.masterworkContact;
   context.playersSeeDemand = !!goods.playersSeeDemand;
+  // The Judge's gate-toll switch: the procedure in force by name, and the page it is read from.
+  const cityToll = gateTollOf(location) === "city";
+  const tollLabel = loc(`ventures.gateToll.${cityToll ? "city" : "class"}`);
+  context.gateToll = {
+    city: cityToll,
+    label: tollLabel,
+    aria: loc("ventures.gateToll.aria", { current: tollLabel }),
+    tip: cityToll ? (cityGateTolls()?.cite ?? loc("ventures.gateToll.cityPage")) : loc("ventures.gateToll.classPage"),
+  };
   context.extendedSearchOn = game.settings.get(MODULE_ID, "marketsExtendedSearch");
 
   // The acting trader's sellable goods: priced mundane gear, or magic items
@@ -412,7 +421,7 @@ export async function prepareTradeTab(sheet, context) {
   // The catalogue lists a Judge's own goods too.
   context.merchOptions = merchandiseCatalog().map((row) => ({ key: row.key, label: row.label }));
 
-  context.partyBlocks = isGM ? partyBlocks(goods, monthStart, reports) : [];
+  context.partyBlocks = isGM ? partyBlocks(goods, monthStart, reports, gateTollOf(location) === "city") : [];
 }
 
 /** A merchandise category's display name: the catalogue's label (a Judge's own good included), else the key. */
@@ -446,7 +455,7 @@ function demandChips(goods, isGM) {
  * party entered as one, one per character where they entered separately. A
  * party with neither is left out.
  */
-function partyBlocks(goods, monthStart, reports) {
+function partyBlocks(goods, monthStart, reports, cityToll = false) {
   const ventures = (goods.ventures ?? []).map(plain).filter((v) => Number(v.monthStartTime) === monthStart);
   const ids = new Set([DEFAULT_PARTY_ID, ...partiesConfig().map((p) => p.id)]);
   for (const row of [...reports, ...ventures]) if (row.partyId) ids.add(row.partyId);
@@ -468,7 +477,8 @@ function partyBlocks(goods, monthStart, reports) {
       ventureLines: rows.map((venture) =>
         [
           venture.entrantUuid ? `${actorOfUuid(venture.entrantUuid)?.name ?? venture.entrantUuid}, ${loc("ventures.apartMarker", { n: venture.entrants })}` : "",
-          loc("parties.ventureLine", {
+          // A city-toll market's tariff column holds the duty it charged in the tariff's place.
+          loc(cityToll ? "parties.ventureLineCity" : "parties.ventureLine", {
             state: game.i18n.localize(`${LANG}.ventures.${venture.entered ? "entered" : "notEntered"}`),
             cargo: venture.cargoSt,
             impact: venture.impact,
@@ -522,15 +532,65 @@ async function promptNumber({ title, label, value, min, max }) {
   }).catch(() => null);
 }
 
+/** A tooltip's text with the page the imported table was read from after it, where there is one. */
+const citedTip = (text, cite) => (cite ? `${text} (${cite})` : text);
+
+/** An attribute carrying assembled tooltip text: core writes `data-tooltip-text` as text, never as HTML. */
+const tipAttr = (text) => `data-tooltip-text="${foundry.utils.escapeHTML(text)}"`;
+
+/**
+ * The Enter dialog's lines for a city gate's charges (`entryQuote` with a
+ * `toll`): the toll as the gp it can come to, or none where no unit of
+ * merchandise stones is owed, and the duty as its percent span and, where
+ * every good has a price this month, the gp that comes to, with a line per
+ * good assessed. Each figure's tooltip names its parts with the quote's own
+ * numbers and the page the imported table was read from; nothing is said of a
+ * table or a price that is absent beyond leaving its figure out.
+ * @param {object} quote - an `entryQuote` whose `toll` is set
+ * @param {(cp: number) => number} gp - coppers to gp
+ * @returns {string[]} the block's HTML pieces
+ */
+function cityQuoteHtml(quote, gp) {
+  const esc = foundry.utils.escapeHTML;
+  const cite = cityGateTolls()?.cite ?? null;
+  const { toll, duty } = quote;
+  const out = [];
+  const tollTip = citedTip(loc("ventures.quote.cityTollTip", { units: toll.units, dice: toll.dice, stones: Math.round(toll.merchandiseSt * 100) / 100, per: toll.perStones }), cite);
+  out.push(
+    `<p ${tipAttr(tollTip)}>${toll.units > 0 ? loc("ventures.quote.cityToll", { min: gp(toll.range.minCp), max: gp(toll.range.maxCp) }) : loc("ventures.quote.cityTollNone")}</p>`
+  );
+  if (!duty) return out;
+  if (!duty.lines.length) {
+    out.push(`<p>${loc("ventures.quote.cityDutyNone")}</p>`);
+    return out;
+  }
+  const pct = duty.pctRange;
+  const dutyTip = citedTip(loc("ventures.quote.cityDutyTip", { dice: duty.dice, min: pct.min, max: pct.max }), cite);
+  const figures = duty.range ? { min: pct.min, max: pct.max, minGp: gp(duty.range.minCp), maxGp: gp(duty.range.maxCp) } : { min: pct.min, max: pct.max };
+  out.push(`<p ${tipAttr(dutyTip)}>${loc(duty.range ? "ventures.quote.cityDuty" : "ventures.quote.cityDutyOpen", figures)}</p>`);
+  const lineOf = (l) => {
+    const item = l.kind === "item";
+    const text = loc(`ventures.quote.${item ? "item" : "load"}Thrown`, { label: esc(l.label), stones: Math.round(l.stones * 100) / 100 });
+    const each = l.stones > 0 && l.valueCp !== null ? gp(l.valueCp / l.stones) : null;
+    const tip = each === null ? "" : loc(`ventures.quote.cityLine${item ? "Item" : "Load"}Tip`, { stones: Math.round(l.stones * 100) / 100, price: each });
+    const value = l.valueCp === null ? "" : `: <span ${tip ? tipAttr(tip) : ""}>${loc("ventures.quote.cityLineValue", { gp: gp(l.valueCp) })}</span>`;
+    return `<li>${l.holderName ? `<span class="hint">${esc(l.holderName)}:</span> ` : ""}${text}${value}</li>`;
+  };
+  out.push(`<ul>${duty.lines.map(lineOf).join("")}</ul>`);
+  return out;
+}
+
 /**
  * What the gate will charge on a declaration, as the Enter dialog shows it.
  * That is the toll, the tariff with a line per good assessed (or the span a
  * thrown tariff can come to), nothing under the Ruler's Privilege or where
  * the party sneaks in, any charge a Judge's hook added, and what is smuggled
  * past. The figures are the entry's own quote (`entryQuote`), so the payment
- * matches them.
+ * matches them. A market set to charge its city's own toll shows that toll as
+ * the span its throw can come to, and the duty as its percent span and what
+ * that comes to on the goods (`cityQuoteHtml`).
  */
-function gateQuoteHtml(location, trader, declaration) {
+export function gateQuoteHtml(location, trader, declaration) {
   const esc = foundry.utils.escapeHTML;
   const quote = entryQuote(location, trader, declaration);
   if (quote.error) return `<p class="hint">${esc(refusalText(quote.error, quote))}</p>`;
@@ -548,6 +608,7 @@ function gateQuoteHtml(location, trader, declaration) {
   const out = [];
   if (quote.sneaked) out.push(`<p>${loc("ventures.quote.sneaked")}</p>`);
   else if (quote.privilege) out.push(`<p>${loc("ventures.quote.privilege", { domain: esc(quote.privilege.name) })}</p>`);
+  else if (quote.toll) out.push(...cityQuoteHtml(quote, gp));
   else {
     out.push(`<p>${loc("ventures.quote.toll", { gp: gp(quote.tollCp), stone: quote.capacitySt })}</p>`);
     if (!quote.loads.length) out.push(`<p>${loc("ventures.quote.noLoads")}</p>`);
@@ -1081,6 +1142,13 @@ export const TRADE_TAB_ACTIONS = {
     if (!game.user.isGM) return;
     const current = !!this.actor.system.market.goods.playersSeeDemand;
     await this.actor.update({ "system.market.goods.playersSeeDemand": !current });
+    this.render();
+  },
+
+  /** GM gate: whether the market's gate charges its city's own toll and duty or its class's (`gateTollOf`); written as the name of the one now in force. */
+  async toggleGateToll() {
+    if (!game.user.isGM) return;
+    await this.actor.update({ "system.market.goods.gateToll": gateTollOf(this.actor) === "city" ? "class" : "city" });
     this.render();
   },
 };
