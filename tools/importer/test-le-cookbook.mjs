@@ -8,7 +8,8 @@
  * is the lair of; the cookbook reads the name off the page by the hash and
  * ships no word of it. `PLATES` pins each plated lair to the page its listing's
  * own pointer names and the page it points at, as `harvest-lairs.mjs` read
- * them; the scenes that follow pair by this table.
+ * them; the scenes pair by this table: one `kind.scene` per plated lair, on
+ * the plate's page, naming that lair as its `place`.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -16,11 +17,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { lairOfProblems } from "./register-rules.mjs";
+import { isRegionRecipe, placementHolding, recipeContext, recipeProblems, sceneFrame } from "../../scripts/importer/scene-binding.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
 const cb = JSON.parse(fs.readFileSync(path.join(root, "cookbook", "le.json"), "utf8"));
 const entries = cb.entries ?? {};
+const scenes = cb.scenes ?? {};
 
 let n = 0;
 const t = (name, fn) => {
@@ -112,9 +115,9 @@ t("every meta.of names an ACKS II monster or template, and the none are the ones
 });
 
 t("each register row is compiled, with its pages and the hash the page is read by", () => {
-  assert.deepEqual(Object.keys(entries).sort(), [...rows.values()].filter((r) => r.book === "le").map((r) => r.id).sort());
+  assert.deepEqual(Object.keys(entries).sort(), [...rows.values()].filter((r) => r.book === "le" && r.kind === "kind.location").map((r) => r.id).sort());
   for (const r of rows.values()) {
-    if (r.book !== "le") continue;
+    if (r.book !== "le" || r.kind !== "kind.location") continue;
     const e = entries[r.id];
     assert.equal(e.kind, "kind.location", r.id);
     assert.equal(e.name, r.name, r.id);
@@ -183,6 +186,67 @@ t("a plate's lair is the row whose pages hold its pointer, bar the one captioned
     if (POINTER_BEFORE_LISTING.includes(id)) assert.ok(pointer < row.pages[0], id);
     else assert.ok(row.pages.includes(pointer), `${id}: pointer p.${pointer} is outside pages ${row.pages}`);
   }
+});
+
+/** The book's scene rows, as authored: the register's, by id. */
+const sceneRows = [...rows.values()].filter((r) => r.book === "le" && r.kind === "kind.scene");
+
+t("a plate is one scene on its lair's page, named by id and by place", () => {
+  assert.equal(sceneRows.length, 37);
+  assert.deepEqual(sceneRows.map((r) => r.id).sort(), Object.keys(PLATES).map((id) => `${id}Map`).sort());
+  for (const [id, [, plate]] of Object.entries(PLATES)) {
+    const row = rows.get(`${id}Map`);
+    assert.equal(row.name, `Lair ${ordinal(id)} Map`, id);
+    assert.deepEqual(row.pages, [plate], id);
+    assert.equal(row.scene.place, id, id);
+    assert.ok(rows.get(row.scene.place)?.meta?.space === "le.lairs", id);
+  }
+  assert.deepEqual([...new Set(sceneRows.map((r) => r.pages[0]))].sort((a, b) => a - b), Array.from({ length: 36 }, (_, i) => 190 + i));
+  assert.equal(new Set(sceneRows.map((r) => r.scene.place)).size, 37);
+});
+
+t("no lair scene reads as the book's region map: each names a place and a square grid of 5 ft", () => {
+  for (const r of sceneRows) {
+    const { scene } = r;
+    assert.equal(isRegionRecipe(scene), false, r.id);
+    assert.equal(scene.travel, "delve", r.id);
+    assert.equal(scene.walls, undefined, r.id);
+    assert.equal(scene.places, undefined, r.id);
+    assert.equal(scene.grid.family, "square", r.id);
+    assert.equal(scene.grid.distance, 5, r.id);
+    assert.equal(scene.grid.units, "ft", r.id);
+    assert.equal(scene.grid.box.w, scene.grid.box.h, r.id);
+    assert.ok(scene.grid.pixels >= 50 && scene.grid.pixels <= 70, r.id);
+    assert.ok(scene.turn === undefined || [1, 2, 3].includes(scene.turn), r.id);
+  }
+  assert.equal(sceneRows.filter((r) => r.scene.turn === undefined).length, 11);
+  assert.equal(sceneRows.filter((r) => r.scene.turn !== undefined).length, 26);
+});
+
+t("each scene is compiled over its plate: the placement holds the crop, and the recipe passes the checks", () => {
+  assert.deepEqual(Object.keys(scenes).sort(), sceneRows.map((r) => r.id).sort());
+  const placed = new Map();
+  for (const r of sceneRows) {
+    const row = scenes[r.id];
+    assert.equal(row.kind, "kind.scene", r.id);
+    assert.equal(row.cite, `LE p.${r.pages[0]}`, r.id);
+    assert.deepEqual(row.pages, r.pages, r.id);
+    const { page, placement, ...recipe } = row.scene;
+    assert.equal(page, r.pages[0], r.id);
+    assert.deepEqual(recipe, (({ note, ...rest }) => rest)(r.scene), r.id);
+    assert.deepEqual(placementHolding([placement], recipe.crop), placement, r.id);
+    assert.deepEqual(recipeProblems(recipe, recipeContext(entries)), [], r.id);
+    assert.equal(isRegionRecipe(recipe), false, r.id);
+    // The picture is cut at the grid's scale; one past the browser's canvas ceiling is never rendered.
+    const frame = sceneFrame(recipe, { pixelsPerPoint: recipe.grid.pixels / recipe.grid.box.w });
+    assert.ok(Math.max(frame.width, frame.height) <= 12000, `${r.id}: picture ${frame.width}x${frame.height}`);
+    const [cx, cy] = recipe.grid.centre;
+    assert.ok(cx > recipe.crop.x && cx < recipe.crop.x + recipe.crop.w && cy > recipe.crop.y && cy < recipe.crop.y + recipe.crop.h, r.id);
+    placed.set(page, [...(placed.get(page) ?? []), placement]);
+  }
+  const two = placed.get(207);
+  assert.equal(two.length, 2);
+  assert.notDeepEqual(two[0], two[1]);
 });
 
 console.log(`le-cookbook: ${n} checks OK`);
