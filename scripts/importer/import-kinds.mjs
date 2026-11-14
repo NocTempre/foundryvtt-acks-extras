@@ -1,7 +1,7 @@
 /**
  * The pure half of the import kind declaration: which kind owns a cookbook
  * claim, and which importer runs a scope of work needs. Pure, so it runs
- * without Foundry; `cookbook.mjs` declares the kinds (`IMPORT_KINDS`) and
+ * without Foundry; `cookbook/rebuild.mjs` declares the kinds (`IMPORT_KINDS`) and
  * supplies the live reads each kind's `owns`, `book` and `books` close over.
  *
  * A kind is one family of imported documents and the run that makes it:

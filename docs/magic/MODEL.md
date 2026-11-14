@@ -74,7 +74,7 @@ entry that fills one column defeats column detection. The compiler
 fields: `name`, an `expect` or `heading` op over the heading box; `stat`, one
 raw `value` op over the two-line block beneath it; `description`, text
 paragraphs to the next heading, flowing across the column and the page. At
-import `cookbook.mjs` `bindSpell` parses the block (`parseStatBlock` →
+import `cookbook/variations.mjs` `bindSpell` parses the block (`parseStatBlock` →
 `spellFromStat`), reads the asterisk and the reverse's name off the prose,
 and writes one core `spell` Item: the flag, core's strings, the prose as the
 description with its cite, the row's icon, the cookbook stamp. `importSpells`

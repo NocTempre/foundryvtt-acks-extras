@@ -58,7 +58,7 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
     names); the user-visible string `ACKS-HENCHMEN.repair.swept` (a pre-merge module
     prefix, a version, a history claim); `docs/equipment/MODEL.md` lists the `slayer` effect
     domain as consumed, and no script reads it by name.
-  - *Code:* `bindVariation` in `scripts/importer/cookbook.mjs` spreads `data`
+  - *Code:* `bindVariation` in `scripts/importer/cookbook/variations.mjs` spreads `data`
     and `dataFields` twice (harmless).
 - **Provenance tooltips: the retrofit.** `.claude/rules/ui-tooltips.md` asks
   every figure to name where it came from. Done: the henchmen Service panel.

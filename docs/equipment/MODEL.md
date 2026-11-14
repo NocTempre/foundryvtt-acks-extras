@@ -1044,7 +1044,7 @@ reader's own book gave them. Nothing falls back to a shipped number.
   The import stamps the row: `thief-limit-binding.mjs` `applyThiefLimitImport`
   runs after the class-builder tables import, adds or clears the imported row
   on every imported `def.skill.*` ability (world items and the copies on
-  actors) whose name the table names, and `cookbook.mjs` `bindAbility` re-adds
+  actors) whose name the table names, and `cookbook/abilities.mjs` `bindAbility` re-adds
   it through `limitRowsFor` where Update Abilities rewrites `extras`. A Judge's
   ability with no cookbook id is never stamped. `armourLimitedAbilities(actor,
   loadout)` names the actor's blocked abilities and the undecided ones (a row

@@ -4,7 +4,7 @@
  * item each of its rows maps to.
  *
  * Pure, so the harness can drive it with invented grids. The runtime half
- * (creating and updating documents) lives in `cookbook.mjs`
+ * (creating and updating documents) lives in `cookbook/variations.mjs`
  * (`importMerchandise`). Every number here is parsed from a cell the seat's own
  * book supplied; nothing is defaulted, and a label or named good that maps to
  * no key is returned in `unmapped` for the caller to report rather than

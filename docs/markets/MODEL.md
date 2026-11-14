@@ -446,7 +446,7 @@ those fields ships as a value; the importer writes them.
   binding and the `mercantile.merchandiseTypes` table recipe both read it, so
   one label maps to one key on every path.
 - **Import** (`importer/merchandise-binding.mjs`, `importMerchandise` in
-  `importer/cookbook.mjs`): the entries of kind `kind.merchandise` yield one
+  `importer/cookbook/variations.mjs`): the entries of kind `kind.merchandise` yield one
   item per printed row (claim id `<entry>.<key>`, repaired by
   `refreshImported`); the entries of kind `kind.merchandiseDemand` are then
   appended onto those items by key (`environment`, `racial`), and the age-band
@@ -581,7 +581,7 @@ which the column waits for), or `sameAs`, the id a later book's own step
 claims the place under: a market's (`<book>.mkt<n>`, whether its record, a
 site naming it or its grid alone prints it), or a site's that builds its own
 place, where the later grid's column lands. `claimMarketPlace`
-(`cookbook.mjs`) claims a market from a region site, a market step or a
+(`cookbook/adventure-places.mjs`) claims a market from a region site, a market step or a
 column alike: the place that answers for the id, else the pair's place
 joined through `takeoverPatch` or `bindPatch`
 (`place-pair.mjs`), else a new one. A market is named by the record's printed

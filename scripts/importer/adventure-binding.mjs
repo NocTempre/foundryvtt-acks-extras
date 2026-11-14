@@ -3,7 +3,7 @@
  * sources.
  *
  * The adventures step writes one Adventure per book to its line's Adventure
- * shelf (`cookbook.mjs` `ensureBookAdventure`), and core's import of it is
+ * shelf (`cookbook/adventure-maps.mjs` `ensureBookAdventure`), and core's import of it is
  * steered (`book-adventure.mjs`). What both need without Foundry is here: ids
  * derived from a seed, the reference slots a carried document has, those
  * references rewritten, the world scene's ids laid over a map rebuilt from its
@@ -317,7 +317,7 @@ export function linkFields(scene, actors, book) {
  * One stand-in per carried actor (`make` builds it from the source), under
  * every id its place claims (`claimIds`), so a pin of the earlier book's row
  * finds the place a later book took it over into. The first actor to claim an
- * id keeps it, as in the world (`cookbook.mjs` `planCrossing`).
+ * id keeps it, as in the world (`cookbook/adventure-maps.mjs` `planCrossing`).
  * @param {object[]} actors carried actor sources
  * @param {(source: object) => object} make
  * @returns {Map<string, object>} cookbook id to stand-in

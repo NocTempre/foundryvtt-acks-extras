@@ -80,7 +80,7 @@ function wholeWordIn(candidateName, descriptor) {
  * instance contains "spellbook", never "(blank)".
  *
  * ACKS Importer applies the same rules when it resolves a printed descriptor
- * against the equipment menu (`parseEquipment` in its `cookbook.mjs`); the two
+ * against the equipment menu (`parseEquipment` in its `cookbook/classes.mjs`); the two
  * must agree, or a descriptor points at one base and skins itself over another.
  */
 export function bestBaseMatch(name, candidates) {

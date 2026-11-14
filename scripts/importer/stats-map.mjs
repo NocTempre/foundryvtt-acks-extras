@@ -125,7 +125,7 @@ const firstInt = (v) => {
  * name and no more. Its category is written blank, which every reader answers
  * as unknown, so it is never taken for a proficiency, a class power or a skill
  * it was not read as. `mapPairs` mints it when it is given no resolver, and
- * `bindProficiency` (cookbook.mjs) mints it when the name matches no definition.
+ * `bindProficiency` (cookbook/monster.mjs) mints it when the name matches no definition.
  * @param {string} name the name as the stat block prints it
  */
 export function namesakeAbility(name) {

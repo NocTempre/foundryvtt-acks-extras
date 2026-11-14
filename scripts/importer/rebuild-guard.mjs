@@ -1,7 +1,7 @@
 /**
  * The test a rebuild applies before it deletes a library document: something
  * loaded here must be able to put that document back. Pure, so it runs without
- * Foundry; `cookbook.mjs` supplies what it reads (the loaded cookbooks, the
+ * Foundry; `cookbook/rebuild.mjs` supplies what it reads (the loaded cookbooks, the
  * books open on the seat, the books offered).
  */
 
