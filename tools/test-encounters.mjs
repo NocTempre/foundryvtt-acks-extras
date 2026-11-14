@@ -648,14 +648,14 @@ resetTables();
 registerSample();
 
 /* --- a zone's own throw and table ------------------------------------------- */
-// A zone target replaces the territory d20 with a d6 of its own.
+// A zone target replaces the territory d20 with a throw of its own, on the die the caller passes.
 const noZone = { territory: "borderlands", terrain: "grassland" };
 chain = runEncounter({
   ...noZone,
-  zone: { target: 4, table: false },
+  zone: { target: 4, table: false, die: "1d6" },
   rng: rig(face(5, 6), face(1, 20), face(51, 100), face(3, 6), face(3, 6)),
 });
-assert.deepEqual(chain.zone, { roll: 5, target: 4, hit: true }, "a roll at or over the zone's target is a hit");
+assert.deepEqual(chain.zone, { ok: true, die: "1d6", roll: 5, target: 4, hit: true }, "a roll at or over the zone's target is a hit");
 assert.deepEqual(chain.territory, { ok: true, skipped: true }, "the territory throw is marked skipped, not failed");
 assert.equal(chain.outcome, "monster", "a zone's hit is a creature encounter");
 assert.equal(chain.rarity.rarity, "common", "with no zone table the territory's rarity is thrown");
@@ -663,26 +663,43 @@ assert.equal(chain.creature.name, "QQ Stalker", "and the terrain's sub-table nam
 assert.ok(!chain.zoneDraw);
 assert.ok(chain.distance.ok && chain.distance.feet === 180, "the distance still rolls");
 
-chain = runEncounter({ ...noZone, zone: { target: 4, table: false }, rng: rig(face(3, 6)) });
-assert.deepEqual(chain.zone, { roll: 3, target: 4, hit: false }, "a roll under the target misses");
+chain = runEncounter({ ...noZone, zone: { target: 4, table: false, die: "1d6" }, rng: rig(face(3, 6)) });
+assert.deepEqual(chain.zone, { ok: true, die: "1d6", roll: 3, target: 4, hit: false }, "a roll under the target misses");
 assert.equal(chain.outcome, "none");
 assert.ok(!chain.rarity && !chain.creature && !chain.distance, "a miss rolls nothing further");
 
-chain = runEncounter({ ...noZone, zone: { target: 6, table: true }, rng: rig(face(6, 6), face(1, 6), face(1, 6)) });
+chain = runEncounter({ ...noZone, zone: { target: 6, table: true, die: "1d6" }, rng: rig(face(6, 6), face(1, 6), face(1, 6)) });
 assert.equal(chain.zoneDraw, true, "a zone hit with a table hands the creature step to the table");
 assert.ok(!chain.rarity && !chain.creature, "and stops there: no rarity, no sub-table draw");
 assert.ok(chain.distance.ok && chain.distance.feet === 60, "the distance still rolls");
 
 resetTables();
-chain = runEncounter({ ...noZone, zone: { target: 1, table: false }, rng: rig(face(1, 6)) });
+chain = runEncounter({ ...noZone, zone: { target: 1, table: false, die: "1d6" }, rng: rig(face(1, 6)) });
 assert.ok(chain.zone.hit && chain.territory.ok && !chain.territory.missing,
   "a zone throw needs no territory table, and reports none missing");
 assert.equal(chain.rarity.missing, "rarity", "the steps after it still read the registry");
 registerSample();
 
+// The throw is on the die it is handed, and its target is not capped at a d6's face.
+chain = runEncounter({ ...noZone, zone: { target: 9, table: false, die: "1d12" }, rng: rig(face(10, 12), face(1, 20), face(51, 100), face(3, 6), face(3, 6)) });
+assert.deepEqual(chain.zone, { ok: true, die: "1d12", roll: 10, target: 9, hit: true }, "a d12 roll meets a target above 6");
+chain = runEncounter({ ...noZone, zone: { target: 9, table: false, die: "1d12" }, rng: rig(face(8, 12)) });
+assert.equal(chain.zone.hit, false, "and an 8 under a target of 9 misses");
+chain = runEncounter({ ...noZone, zone: { target: 7, table: false, die: "2d4" }, rng: rig(face(4, 4), face(4, 4), face(1, 20), face(51, 100), face(3, 6), face(3, 6)) });
+assert.deepEqual([chain.zone.die, chain.zone.roll, chain.zone.hit], ["2d4", 8, true], "several dice sum before the compare");
+
+// With no die, or one a roll cannot read, the zone throws nothing: the rig is never asked.
+for (const die of [undefined, null, "", "1d8*2", "junk"]) {
+  const never = () => { throw new Error("the zone threw a die it had no figure for"); };
+  chain = runEncounter({ ...noZone, zone: { target: 4, table: false, die }, rng: never });
+  assert.deepEqual(chain.zone, { ok: false, target: 4, missing: "delveEncounters.die" }, `a die of ${JSON.stringify(die)} leaves the throw unmade`);
+  assert.deepEqual(chain.territory, { ok: true, skipped: true }, "and the territory's throw stays skipped");
+  assert.ok(!("outcome" in chain) && !chain.rarity && !chain.creature && !chain.distance, "no outcome and nothing after it");
+}
+
 // Target 0 inherits the territory throw; a table replaces only the creature step.
 const borderRig = () => rig(face(12, 20), face(20, 20), face(3, 6), face(3, 6));
-chain = runEncounter({ ...noZone, zone: { target: 0, table: true }, rng: borderRig() });
+chain = runEncounter({ ...noZone, zone: { target: 0, table: true, die: "1d6" }, rng: borderRig() });
 assert.equal(chain.territory.roll, 12, "a zone with no target leaves the territory throw standing");
 assert.ok(!chain.zone, "and records no zone throw");
 assert.equal(chain.outcome, "monster");

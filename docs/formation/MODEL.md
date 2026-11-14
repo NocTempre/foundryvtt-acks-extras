@@ -2655,9 +2655,18 @@ or blank states nothing. The delve takes the first zone under the party token
 `encounterEvery`, which is in dungeon turns.
 
 - **Target.** A composed `encounterTarget` replaces the territory d20 with a
-  d6 against it (`runEncounter`'s `zone`): a hit is a monster encounter, a
-  miss is none, and the territory step is a skipped marker. The card shows the
-  zone throw in place of the column rolls.
+  throw against it on the delve's imported die (`delveEncounters` `die`, JJ
+  p. 36, read by `importedEncounterCadence`; `postEncounterThrow` passes it as
+  `zone.die`, `runEncounter` stays pure): a hit is a monster encounter, a miss
+  is none, and the territory step is a skipped marker. The card shows the zone
+  throw in place of the column rolls, the die's tooltip naming the page it was
+  read from, a Judge's override, or, with nothing thrown, JJ p. 36 alone; the
+  target's names the zone that set it. With no die imported (or one
+  `rollDice` cannot read) nothing is thrown and no die stands in:
+  `chain.zone` is `{ok: false, target, missing: "delveEncounters.die"}`, the
+  chain has no outcome, the card posts the zone line and the zone-throw line
+  with the die and roll blank and nothing below, and `flags.encounter.outcome`
+  is null.
 - **Table.** A composed `tableUuid` takes the creature step of a creature
   outcome (`chain.zoneDraw`): after a territory monster outcome's rarity, or
   straight after the zone's own hit. `postEncounterThrow` draws it with

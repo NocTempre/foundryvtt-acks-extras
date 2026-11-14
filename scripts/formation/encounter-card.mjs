@@ -26,6 +26,8 @@ import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { looseCreatureName, nameKeys } from "../lib/vocab.mjs";
 import { libraryActors, whenReady } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
+import { citeOf } from "../lib/tables.mjs";
+import { DELVE_ENCOUNTER_DOC, importedEncounterCadence } from "./constants.mjs";
 import { DAY_SECONDS, travelOf, trueTravelOf, storedTravelOf, DAY_KINDS } from "./travel.mjs";
 import {
   ENCOUNTER_OUTCOMES,
@@ -206,7 +208,7 @@ export async function postEncounterThrow(formation, { activity = "travel", night
     night,
     terrain,
     restingOrKnownRoute: t.day?.kind === "camp" || activity === "rest",
-    zone: { target: zones.fields.encounterTarget, table: !!zones.fields.tableUuid },
+    zone: { target: zones.fields.encounterTarget, table: !!zones.fields.tableUuid, die: importedEncounterCadence().die },
     rng,
   });
   const zoneDraw = chain.zoneDraw ? await drawZoneTable(zones) : null;
@@ -262,6 +264,26 @@ export function encounterWhen({
     if (span >= 1) lines.push({ key: night ? "hourDusk" : "hourDawn", n: die(span, rng) });
   }
   return lines;
+}
+
+/**
+ * The zone throw's line on the card: the dice and the roll (null while the
+ * throw was not made), the target, and a tooltip for each saying where it came
+ * from. The die's is the page the delve's die was imported from, a Judge's
+ * override, which holds no page, or, with nothing thrown, the page reference
+ * alone; the target's names the zone that set it.
+ */
+function zoneThrowView(zone, zones) {
+  const made = zone.ok === true;
+  const cite = made ? citeOf(DELVE_ENCOUNTER_DOC, "die") : null;
+  const region = zones?.sources?.encounterTarget?.region?.name ?? "";
+  return {
+    die: made ? zone.die : null,
+    roll: made ? zone.roll : null,
+    target: zone.target,
+    dieTip: !made ? loc("travel.enc.zoneDieCite") : cite ? loc("chat.cadenceFrom.import", { cite }) : loc("chat.cadenceFrom.override"),
+    targetTip: region ? loc("chat.cadenceFrom.zone", { name: region }) : "",
+  };
 }
 
 /** Tags out of a result's description, which is HTML; the card shows its text. */
@@ -328,6 +350,8 @@ export async function postEncounterCard(formation, chain, {
     ? detection({ partyTerrain: terrain, partyHeads: size, light: "daylight", weather: fx.visibility, partyRoll: chain.distance, rng })
     : null;
   const isNone = outcomeKey === "none";
+  // A throw the registry could not answer (the territory's table, the zone's die) leaves the card at its first lines.
+  const missingThrow = !!((chain.territory && !chain.territory.ok) || (chain.zone && !chain.zone.ok));
 
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
   const effects = [];
@@ -381,7 +405,7 @@ export async function postEncounterCard(formation, chain, {
       roll: r.roll,
       outcome: game.i18n.localize(ENCOUNTER_OUTCOMES[r.outcome]?.label ?? ENCOUNTER_OUTCOMES.none.label),
     })),
-    missingTerritory: chain.territory && !chain.territory.ok,
+    missingThrow,
     outcome: game.i18n.localize(ENCOUNTER_OUTCOMES[outcomeKey]?.label ?? ENCOUNTER_OUTCOMES.none.label),
     isNone,
     downgraded: chain.downgraded ? game.i18n.localize(ENCOUNTER_OUTCOMES[chain.downgraded]?.label ?? "") : null,
@@ -404,7 +428,7 @@ export async function postEncounterCard(formation, chain, {
     evasion: evasion.ok ? evasion.target : null,
     evasionMods: (mods.parts ?? []).map((p) => ({ label: loc(`travel.enc.mod.${p.key}`), value: p.value > 0 ? `+${p.value}` : `${p.value}` })),
     zone: (zones?.regions ?? []).map((r) => r?.name).filter(Boolean).join(", ") || null,
-    zoneThrow: chain.zone ? { roll: chain.zone.roll, target: chain.zone.target } : null,
+    zoneThrow: chain.zone ? zoneThrowView(chain.zone, zones) : null,
     zoneDraw: zoneDraw && !zoneDraw.missing ? zoneDraw : null,
     zoneMissing: zoneDraw?.missing ? zoneDraw.zone || "?" : null,
     effects,
@@ -430,7 +454,7 @@ export async function postEncounterCard(formation, chain, {
           activity,
           night: !!night,
           terrain: terrain || null,
-          outcome: outcomeKey,
+          outcome: missingThrow ? null : outcomeKey,
           creature: creature?.name ?? null,
           distance: chain.distance?.ok ? chain.distance.feet : null,
           start: view.start,

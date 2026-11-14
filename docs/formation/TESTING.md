@@ -2308,7 +2308,10 @@ with an invented `QQ` name and one text result left blank; two Regions with
 an `acks-extras.encounterZone` behavior — a WIDE one over most of the map
 stating only `tableUuid` (the table), and a SMALL one inside it, a few hexes
 across and clear of the party's start, stating only `encounterTarget: 1` so
-every zone throw hits. A Region and its behaviour are one
+every zone throw hits. The throw's die is the delve's imported one: register
+a `delveEncounters` document (`registerTable({ id: "delveEncounters", cites: {
+die: "<page>" }, tables: { die: "1d8" } }, { priority: PRIORITY.WORLD })`,
+an invented die) before step 1 and unregister it at teardown. A Region and its behaviour are one
 `scene.createEmbeddedDocuments("Region", [{ name, shapes: [{ type:
 "rectangle", x, y, width, height }], behaviors: [{ type:
 "acks-extras.encounterZone", system }] }])`; track the region by the uuid it
@@ -2317,8 +2320,10 @@ returns. Read every card's message id back the moment its throw resolves and
 
 1. **The zone line and the local throw.** Drag the party into the small zone.
    *Observable:* each card opens with *Encounter zone:* naming both regions,
-   shows *Zone throw d6 — N → 1+* where the column rolls would be, and no
-   column rolls.
+   shows *Zone throw <die> — N → 1+* where the column rolls would be, with
+   the registered die and N within its faces, and no column rolls. Hovering
+   the die names the page it was registered with; hovering the target names
+   the small zone.
 2. **The drawn row.** On the same cards.
    *Observable:* *Drawn from* the table's name with the draw's total, the
    linked row as a document link and the blank row as the Judge-fills line —
@@ -2348,6 +2353,19 @@ returns. Read every card's message id back the moment its throw resolves and
    and the believed hex outside it (§The hex stock, step 7's mechanics), press
    **Encounter throw**.
    *Observable:* the card names the small zone: the throw reads the shadow.
+8. **No die imported** (unwalked). Unregister the `delveEncounters` document
+   (and any override of its `die`), press **Encounter throw** with the party
+   in the small zone.
+   *Observable:* the one card posts with *Encounter zone:* and the zone-throw
+   line, its die and roll blank and its target shown, hovering the blank die
+   gives the page reference alone, and nothing sits below the line: no
+   rarity, creature, drawn rows or distance. The message's
+   `flags["acks-extras"].encounter.outcome` is null.
+9. **An override** (unwalked). Set a `die` override in the Ruledata Browser
+   (`Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables →
+   Open Ruledata Browser`) and press **Encounter throw**.
+   *Observable:* the card's die is the override's, its tooltip says a Judge
+   set it, and a face above a d6's turns up over enough throws.
 
 Teardown: `api.sweepTracked()` — the regions, the table, the actor, the cards
 and the scene's own fixtures go together; close the episode; unregister the

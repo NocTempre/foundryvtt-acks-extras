@@ -3201,6 +3201,7 @@
         "handoff": "Detection and surprise resolve on the system's Surprise Matrix when combat starts; reactions with the influence tools.",
         "zoneLine": "Encounter zone: {names}",
         "zoneThrow": "Zone throw",
+        "zoneDieCite": "JJ p. 36",
         "zoneDrawLine": "Drawn from {table}",
         "zoneRowBlank": "A blank row — the Judge decides what it holds.",
         "zoneTableGone": "The table zone {zone} names cannot be found — draw this step by hand.",

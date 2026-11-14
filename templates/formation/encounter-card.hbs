@@ -10,17 +10,17 @@
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.zoneLine" names=zone}}</p>
   {{/if}}
 
-  {{#unless missingTerritory}}
+  {{#if zoneThrow}}
+  <p>{{localize "ACKS-FORMATION.travel.enc.zoneThrow"}} <span class="hint" data-tooltip-text="{{zoneThrow.dieTip}}">{{#if zoneThrow.die}}{{zoneThrow.die}}{{else}}&emsp;{{/if}}</span> — <strong>{{#if zoneThrow.roll}}{{zoneThrow.roll}}{{else}}&emsp;{{/if}}</strong> → <span {{#if zoneThrow.targetTip}}data-tooltip-text="{{zoneThrow.targetTip}}"{{/if}}>{{zoneThrow.target}}+</span></p>
+  {{/if}}
+
+  {{#unless missingThrow}}
   {{#if rolls.length}}
   <ol class="acks-extras-encounter-card-rolls">
     {{#each rolls}}
     <li>{{column}} — <strong>{{roll}}</strong> → {{outcome}}</li>
     {{/each}}
   </ol>
-  {{/if}}
-
-  {{#if zoneThrow}}
-  <p>{{localize "ACKS-FORMATION.travel.enc.zoneThrow"}} <span class="hint">d6</span> — <strong>{{zoneThrow.roll}}</strong> → {{zoneThrow.target}}+</p>
   {{/if}}
 
   {{#if downgraded}}

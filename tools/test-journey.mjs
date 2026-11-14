@@ -153,7 +153,7 @@ globalThis.game = {
 };
 setClock(12);
 
-const { registerTable, resetTables, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { registerTable, unregisterTable, resetTables, PRIORITY } = await import("../scripts/lib/tables.mjs");
 const { getFormation } = await import("../scripts/formation/formation-model.mjs");
 const { travelOf, freshDay, endDay, DAY_SECONDS } = await import("../scripts/formation/travel.mjs");
 const journey = await import("../scripts/formation/journey.mjs");
@@ -939,14 +939,19 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   });
   makeZone(scene, "Wood", { x: -CELL, y: -CELL, width: 10 * CELL, height: 10 * CELL }, { tableUuid: "RollTable.wood" });
   makeZone(scene, "Hollow", { x: 0, y: 0, width: CELL, height: CELL }, { encounterTarget: 1 });
+  // The zone throws the delve's imported die (invented here), a face above a d6's among them.
+  registerTable({ id: "delveEncounters", cites: { die: "XX p. 7" }, tables: { die: "1d8" } }, { priority: PRIORITY.WORLD, source: "test" });
 
-  const r = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel" }));
+  const r = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel", rng: () => 0.99 }));
   assert.equal(r.chat.length, 1, "the zone's table draws onto the throw's own card: one message");
   assert.deepEqual(draws, [{ displayChat: false }], "drawn without core's own card");
   const view = r.cards[0];
   assert.equal(view.zone, "Wood, Hollow", "the card names every zone that supplied a field");
   assert.equal(view.zoneThrow.target, 1, "the smaller zone's target is the throw");
-  assert.ok(view.zoneThrow.roll >= 1 && view.zoneThrow.roll <= 6, "on a d6");
+  assert.equal(view.zoneThrow.die, "1d8", "on the imported die");
+  assert.equal(view.zoneThrow.roll, 8, "a face above a d6's is thrown");
+  assert.match(view.zoneThrow.dieTip, /cadenceFrom.import.*XX p. 7/, "the die names the page it was read from");
+  assert.match(view.zoneThrow.targetTip, /cadenceFrom.zone.*Hollow/, "the target names the zone that set it");
   assert.deepEqual(view.rolls, [], "no territory throw was made");
   assert.equal(view.zoneDraw.total, 4);
   assert.deepEqual(view.zoneDraw.rows[0], { text: "QQ Pack", link: "@UUID[Actor.qqpack]{QQ Pack}" }, "a row naming a document links it");
@@ -958,6 +963,26 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   const gone = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel" }));
   assert.equal(gone.cards[0].zoneMissing, "Wood", "a table that no longer resolves names its zone");
   assert.equal(gone.cards[0].zoneDraw, null);
+
+  // A Judge's override of the die holds no page.
+  registerTable({ id: "delveEncounters", tables: { die: "1d10" } }, { priority: PRIORITY.OVERRIDE, source: "test" });
+  const overridden = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel", rng: () => 0.99 }));
+  assert.equal(overridden.cards[0].zoneThrow.die, "1d10", "the override's die is thrown");
+  assert.equal(overridden.cards[0].zoneThrow.roll, 10);
+  assert.match(overridden.cards[0].zoneThrow.dieTip, /cadenceFrom.override/, "and says a Judge set it");
+  unregisterTable("delveEncounters", { priority: PRIORITY.OVERRIDE });
+
+  // With no die imported the zone throws nothing: the card posts, its zone line blank, the page named.
+  unregisterTable("delveEncounters", { priority: PRIORITY.WORLD });
+  const noDie = await observe(() => postEncounterThrow(getFormation(id), { activity: "travel", rng: () => { throw new Error("nothing is thrown"); } }));
+  assert.equal(noDie.chat.length, 1, "the card still posts");
+  const blank = noDie.cards[0];
+  assert.equal(blank.zone, "Wood, Hollow", "naming the zones");
+  assert.deepEqual([blank.zoneThrow.die, blank.zoneThrow.roll, blank.zoneThrow.target], [null, null, 1], "its die and roll blank");
+  assert.equal(keyOf(blank.zoneThrow.dieTip), "ACKS-FORMATION.travel.enc.zoneDieCite", "the tooltip is the page reference alone");
+  assert.equal(blank.missingThrow, true, "and nothing below the line");
+  assert.equal(blank.zoneDraw, null, "no creature step was reached");
+  assert.equal(noDie.chat[0].flags["acks-extras"].encounter.outcome, null, "the message records no outcome");
 }
 
 // The zones are read where the party really is: its shadow while astray.

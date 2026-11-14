@@ -572,20 +572,24 @@ export function aftermath({ terrain, rng = Math.random } = {}) {
  * receives every step with its rolls — or the name of the first table the
  * registry could not answer, where the book takes over.
  *
- * `zone` is what the encounter zones the party stands in say, `{target,
- * table}`: `target` (0–6) a d6 target of their own, `table` whether they name
- * a RollTable. A target replaces the territory throw: the d6 is recorded as
- * `chain.zone` (`{roll, target, hit}`), `chain.territory` is a skipped marker
- * (`{ok: true, skipped: true}`), and a hit is a monster encounter. A named
- * table replaces the creature step of a creature outcome with `chain.zoneDraw`
- * — the caller draws it, since the table is a document — after the rarity
- * throw a territory monster outcome still makes; a zone's own hit with a
- * table stops there. Terrain outcomes and the distance roll are untouched.
+ * `zone` is what the encounter zones the party stands in say, `{target, table,
+ * die}`: `target` a target of their own, `die` the dice it is thrown on (the
+ * imported delve throw's, passed in by the caller), `table` whether they name
+ * a RollTable. A target replaces the territory throw: the dice are recorded as
+ * `chain.zone` (`{ok: true, die, roll, target, hit}`), `chain.territory` is a
+ * skipped marker (`{ok: true, skipped: true}`), and a hit is a monster
+ * encounter. With no die, or one `rollDice` cannot read, the zone throws
+ * nothing: `chain.zone` is `{ok: false, target, missing}` and the chain
+ * carries no outcome. A named table replaces the creature step of a creature
+ * outcome with `chain.zoneDraw` — the caller draws it, since the table is a
+ * document — after the rarity throw a territory monster outcome still makes; a
+ * zone's own hit with a table stops there. Terrain outcomes and the distance
+ * roll are untouched.
  */
 export function runEncounter({ territory, road = false, night = false, terrain, restingOrKnownRoute = false, zone = null, rng = Math.random } = {}) {
-  const zoneTarget = Math.max(0, Math.min(6, Math.floor(Number(zone?.target) || 0)));
+  const zoneTarget = Math.max(0, Math.floor(Number(zone?.target) || 0));
   const zoneTable = !!zone?.table;
-  if (zoneTarget > 0) return zoneThrow({ territory, terrain, target: zoneTarget, table: zoneTable, rng });
+  if (zoneTarget > 0) return zoneThrow({ territory, terrain, target: zoneTarget, table: zoneTable, die: zone?.die, rng });
 
   const chain = { territory: territoryThrow({ territory, road, night, rng }) };
   if (!chain.territory.ok) return chain;
@@ -617,14 +621,16 @@ export function runEncounter({ territory, road = false, night = false, terrain, 
 }
 
 /**
- * A zone's own throw in place of the territory's: a d6 against the zone's
- * target, a hit being a monster encounter drawn from the zone's table when it
- * names one, else on the terrain's sub-table at the territory's rarity.
+ * A zone's own throw in place of the territory's: the caller's dice against
+ * the zone's target, a hit being a monster encounter drawn from the zone's
+ * table when it names one, else on the terrain's sub-table at the territory's
+ * rarity. Dice `rollDice` cannot read throw nothing and touch no rng.
  */
-function zoneThrow({ territory, terrain, target, table, rng }) {
-  const roll = die(6, rng);
+function zoneThrow({ territory, terrain, target, table, die: dice, rng }) {
+  const roll = rollDice(dice, rng);
+  if (roll == null) return { territory: { ok: true, skipped: true }, zone: { ok: false, target, missing: "delveEncounters.die" } };
   const hit = roll >= target;
-  const chain = { territory: { ok: true, skipped: true }, zone: { roll, target, hit }, outcome: hit ? "monster" : "none" };
+  const chain = { territory: { ok: true, skipped: true }, zone: { ok: true, die: String(dice).trim(), roll, target, hit }, outcome: hit ? "monster" : "none" };
   if (!hit) return chain;
   if (table) {
     chain.zoneDraw = true;
