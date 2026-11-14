@@ -528,6 +528,12 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const rank = (run) => Math.min(...run.kinds.map((key) => chain.indexOf(IMPORT_KINDS.find((k) => k.key === key).chain)));
   check("and in the chain's order", all.runs.every((run, n) => n === 0 || rank(all.runs[n - 1]) <= rank(run)));
   check("the chain's tail is no kind's", [...tail].every((name) => !IMPORT_KINDS.some((k) => [k.make.run, k.make.whole].includes(name))));
+  check("the tables are read first", chain[0] === "stepTables");
+  check("the tables' documents are written right after the classes, before the packages",
+    chain.indexOf("stepTablesApply") === chain.indexOf("stepClasses") + 1 && chain.indexOf("stepTemplatePackages") === chain.indexOf("stepTablesApply") + 1);
+  check("the adventures are written last", chain.at(-1) === "stepAdventures");
+  check("the chain has twenty-one steps", chain.length === 21);
+  check("run alone, the apply step reads and applies in one call", recorded.stepTablesApply.join() === "cookbookImportTables");
 }
 
 /* --- a shelf: the command and the derivation agree --- */

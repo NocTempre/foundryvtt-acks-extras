@@ -39,28 +39,50 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  * The GM chain, in dependency order — every importer the module ships, in the
  * order that lands prerequisites first:
  *
- *  1. abilities   — proficiencies, powers and skills; everything below resolves
+ *  1. rules tables, read — every importer below that reads a table (class
+ *                   pricing, the creature kits and ladders, the armour limits)
+ *                   finds it already read; this step writes no importer
+ *                   document;
+ *  2. abilities   — proficiencies, powers and skills; everything below resolves
  *                   its ability tokens against these shared items;
- *  2. equipment   — the shop list, the weapon and armour grids, and the animals;
- *  3. classes     — a class's proficiency awards and starting kit are refs into
+ *  3. equipment   — the shop list, the weapon and armour grids, and the animals;
+ *  4. classes     — a class's proficiency awards and starting kit are refs into
  *                   the two above, so a class imported first points at nothing;
- *  4. monsters    — resolve their ability tokens against 1;
- *  5. companions  — an ability's companion slot points at a creature, and
+ *  5. rules tables, applied — the races, class builds, armour-limit rows and
+ *                   languages the tables from 1 build need the abilities and
+ *                   classes above, so they are written once those exist;
+ *  6. monsters    — resolve their ability tokens against 2;
+ *  7. companions  — an ability's companion slot points at a creature, and
  *                   abilities were imported before any creature existed, so the
- *                   link can only be made once 4 has run;
- *  6. journals + roll tables — reference the creatures imported in 4;
- *  7. rules tables — they warn by themselves if the provider is absent;
- *  8. placeholders — book text held as an `@PdfText` tag, wherever a copy
+ *                   link can only be made once 6 has run;
+ *  8. journals + roll tables — reference the creatures imported in 6;
+ *  9. placeholders — book text held as an `@PdfText` tag, wherever a copy
  *                   carried it, read from the books this seat has open;
- *  9. adventures  — each open adventure book as one Adventure on its line's
+ * 10. adventures  — each open adventure book as one Adventure on its line's
  *                   shelf, carrying what every step above made of it.
  *
- * A step missing from this list is a step a GM can only reach by hunting for
- * its macro — which is how the class import came to be run by hand, repeatedly.
- * Each step is idempotent and reports through its own notifications; this only
- * sequences them and narrates which one is running.
+ * The list groups the single-purpose steps (variations, traps, vehicles,
+ * merchandise, spells, template packages, places, markets, scenes) under the
+ * entry they follow. A step missing from this list is a step a GM can only
+ * reach by hunting for its macro — which is how the class import came to be
+ * run by hand, repeatedly. Each step is idempotent and reports through its own
+ * notifications; this only sequences them and narrates which one is running.
+ *
+ * The steps share the world and the run object `runImportEverything` hands
+ * each one, which carries the tables read in 1 to their apply in 5. Run alone
+ * (no run object), the tables step reads and applies in one go.
  */
 export const GM_STEPS = [
+  // Reads every rules table and assembles the engine tables from them, so the
+  // importers below find them. Inside the chain the report waits in `o.run`
+  // for the apply step; run alone it applies at once.
+  [
+    "stepTables",
+    async (api, o) => {
+      if (!o?.run) return api.cookbookImportTables();
+      o.run.tables = (await api.cookbookImportTables(null, { phase: "read" })) ?? { imported: [] };
+    },
+  ],
   // Import CREATES; it steps over every document that already exists, so a
   // description written before this module materialized book text keeps
   // whatever it held. The update pass is the only path that rewrites an
@@ -97,6 +119,16 @@ export const GM_STEPS = [
   // them. That is the gap abilities do not have, and the reason only abilities
   // are refreshed from here.
   ["stepClasses", (api) => api.importClasses()],
+  // Races, class builds, armour-limit rows and languages: the documents the
+  // tables read above build, which point at the abilities and classes just
+  // landed. It applies exactly what this run read; run alone it reads first.
+  [
+    "stepTablesApply",
+    (api, o) =>
+      o?.run
+        ? api.cookbookImportTables(null, { phase: "apply", read: o.run.tables })
+        : api.cookbookImportTables(),
+  ],
   // Template packages resolve their gear against the equipment imported above
   // and their rows against the classes just landed — so they follow both.
   // It also reaches classes a world already holds (importClasses skips classes
@@ -120,7 +152,6 @@ export const GM_STEPS = [
   // A map stands on the places, names the organisations seated in its quarters
   // and wires in the lists, so it follows all three.
   ["stepScenes", (api, o) => api.cookbookImportScenes(o)],
-  ["stepTables", (api) => api.cookbookImportTables()],
   // A book's Adventure is a copy of what the world holds of it, so it is
   // written last, once nothing above has more to add or to bring over.
   ["stepAdventures", (api) => api.cookbookImportAdventures()],
@@ -168,6 +199,7 @@ export async function runImportEverything(root = null) {
   // some never can. What answers "is it still working" is the per-step bar
   // ticking underneath this one; what this answers is "how much is left".
   const overall = progressBar(t("importOverall"), GM_STEPS.length);
+  const chain = {};
   try {
     for (const [key, run] of GM_STEPS) {
       if (status) status.textContent = t(key);
@@ -175,9 +207,9 @@ export async function runImportEverything(root = null) {
       // five steps that draw no bar of their own are still visibly current.
       overall.note(t(key));
       // One failed step must not silence the rest — each importer covers a
-      // different document type and they share no state beyond the world.
+      // different document type, and what they share is the world and `chain`.
       try {
-        await run(api, { quiet: true });
+        await run(api, { quiet: true, run: chain });
       } catch (err) {
         console.error(`${MODULE_ID} | getting started: ${key}`, err);
         ui.notifications.error(`${MODULE_ID} | ${t(key)}: ${err.message}`);

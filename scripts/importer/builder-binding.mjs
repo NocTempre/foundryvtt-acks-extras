@@ -20,7 +20,8 @@ import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { CLASS_TYPE, RACE_TYPE as RACE_ITEM_TYPE } from "../classes/constants.mjs";
 
-const BUILDER_DOC_ID = "acks.classBuilder";
+/** The class-builder ruledata document: the races, builds and armour limits come from it. */
+export const BUILDER_DOC_ID = "acks.classBuilder";
 
 /**
  * The engine tables this binding assembles, each with the raw table(s) it is
@@ -449,20 +450,16 @@ function abilityRefByName(name, byName) {
 
 /**
  * Assemble the imported raw tables and merge the engine-shaped tables into
- * the same ruledata doc; then materialize races and stamp builds.
- * Runs after `importTables` whenever the classBuilder doc gained tables. A race
- * this world holds is written over in place whenever it runs (its name and
- * system fields); `repair`, a tally (`repairTally`), counts each one.
- * @param {{repair?: object|null}} [opts]
- * @returns {Promise<{assembled: string[], races: string[], builds: string[]}>}
+ * the same ruledata doc. Writes the table store only, never a world document:
+ * class pricing reads the result (`budget`) before any race or class exists.
+ * @returns {Promise<{assembled: string[]}>}
  */
-export async function applyBuilderImport({ repair = null } = {}) {
+export async function assembleBuilderImport() {
   const svc = services.get("ruledata-import");
-  const report = { assembled: [], races: [], builds: [] };
+  const report = { assembled: [] };
   const doc = getLayer(BUILDER_DOC_ID, PRIORITY.WORLD);
   if (!svc || !doc) return report;
-  const assembled = assembleBuilderTables(doc.tables ?? {});
-  const { races, ...engineTables } = assembled;
+  const { races, ...engineTables } = assembleBuilderTables(doc.tables ?? {});
   if (Object.keys(engineTables).length) {
     await svc.importDoc(
       assembledDoc(doc, engineTables, PRODUCES[BUILDER_DOC_ID]),
@@ -470,6 +467,24 @@ export async function applyBuilderImport({ repair = null } = {}) {
     );
     report.assembled = Object.keys(engineTables);
   }
+  return report;
+}
+
+/**
+ * Materialize the races and stamp the builds from the imported builder tables.
+ * Runs once the document holds the raw tables, after the abilities and classes
+ * it points at exist. A race this world holds is written over in place
+ * whenever it runs (its name and system fields); `repair`, a tally
+ * (`repairTally`), counts each one. Writes world documents only; the
+ * assembled engine tables are `assembleBuilderImport`'s.
+ * @param {{repair?: object|null}} [opts]
+ * @returns {Promise<{assembled: string[], races: string[], builds: string[]}>}
+ */
+export async function applyBuilderImport({ repair = null } = {}) {
+  const report = { assembled: [], races: [], builds: [] };
+  const doc = getLayer(BUILDER_DOC_ID, PRIORITY.WORLD);
+  if (!doc) return report;
+  const { races } = assembleBuilderTables(doc.tables ?? {});
 
   // --- race items (acks-extras.race), stamped def.race.<key> ---
   // One index read for the whole run: every rung of every race resolves its

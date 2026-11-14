@@ -7866,6 +7866,7 @@
   "ACKS-IMPORTER.gs.stepAdventureItems": "Importing the items each adventure book introduces…",
   "ACKS-IMPORTER.gs.stepAdventures": "Writing each adventure book to the library as one Adventure…",
   "ACKS-IMPORTER.gs.stepTables": "Importing rules tables…",
+  "ACKS-IMPORTER.gs.stepTablesApply": "Applying the rules tables to races, classes, skills and languages…",
   "ACKS-IMPORTER.gs.importOverall": "Importing everything",
   "ACKS-IMPORTER.gs.importDone": "Done — see the chat log and notifications for details.",
   "ACKS-IMPORTER.gs.dismiss": "Don't open this automatically again (this seat)",

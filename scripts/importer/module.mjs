@@ -44,50 +44,8 @@ import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { createDocFor } from "./poc.mjs";
 import { importTables, tableRecipeBooks, tableRecipeCount } from "./tables-binding.mjs";
-import { applyBuilderImport } from "./builder-binding.mjs";
-import { applyThiefLimitImport } from "./thief-limit-binding.mjs";
-import { applyTravelImport, TRAVEL_DOC_ID } from "./travel-binding.mjs";
-import { applyWeatherImport, WEATHER_DOC_ID } from "./weather-binding.mjs";
-import { applyEncountersImport, ENCOUNTERS_DOC_ID } from "./encounters-binding.mjs";
-import { applyVoyagesImport, VOYAGES_DOC_ID } from "./voyages-binding.mjs";
-import { applyLanguageImport, LANGUAGES_DOC_ID } from "./language-binding.mjs";
-import { applySurvivalImport, SURVIVAL_DOC_ID } from "./survival-binding.mjs";
-import { applyConditionsImport, CONDITIONS_DOC_ID } from "./conditions-binding.mjs";
-import { applyForagingImport, FORAGING_DOC_ID } from "./foraging-binding.mjs";
-import { applySearchingImport, SEARCHING_DOC_ID } from "./searching-binding.mjs";
-import { applyCityTravelImport, CITY_TRAVEL_DOC_ID } from "./city-travel-binding.mjs";
-import { applyFlightImport, FLIGHT_DOC_ID } from "./flight-binding.mjs";
-import { applyFormationImport, FORMATION_DOC_ID } from "./formation-binding.mjs";
-import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.mjs";
-import { applyLightImport, LIGHT_DOC_ID } from "./light-binding.mjs";
-import { applyDelveEncounterImport, DELVE_ENCOUNTER_DOC_ID } from "./delve-encounter-binding.mjs";
-import { applyWeaponListsImport, WEAPON_PROSE_DOC_ID } from "./weapon-binding.mjs";
 import { progressBar } from "./progress.mjs";
-
-/**
- * The single-document bindings — the land-travel documents, the delve's, and
- * experience — each with the assembler that turns its raw page reads into the
- * engine tables acks-extras declares.
- *
- * A table rather than near-identical blocks: they differ only in which
- * document they answer for, and one loop cannot drift the way copies of a
- * try/catch do.
- */
-const SIMPLE_BINDINGS = Object.freeze([
-  { id: SURVIVAL_DOC_ID, apply: applySurvivalImport },
-  { id: CONDITIONS_DOC_ID, apply: applyConditionsImport },
-  { id: FORAGING_DOC_ID, apply: applyForagingImport },
-  { id: SEARCHING_DOC_ID, apply: applySearchingImport },
-  { id: CITY_TRAVEL_DOC_ID, apply: applyCityTravelImport },
-  { id: FLIGHT_DOC_ID, apply: applyFlightImport },
-  { id: FORMATION_DOC_ID, apply: applyFormationImport },
-  { id: EXPERIENCE_DOC_ID, apply: applyExperienceImport },
-  { id: LIGHT_DOC_ID, apply: applyLightImport },
-  { id: DELVE_ENCOUNTER_DOC_ID, apply: applyDelveEncounterImport },
-  // Answers for the raw prose document; the lists it assembles are the
-  // `weaponLists` document.
-  { id: WEAPON_PROSE_DOC_ID, apply: applyWeaponListsImport },
-]);
+import { assembleReadTables, applyReadTables } from "./tables-phases.mjs";
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
@@ -104,7 +62,6 @@ import { ImportManagerMenu, installImportManager, openImportManager } from "./ap
 import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from "./token-art.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
-import { getDoc } from "../lib/tables.mjs";
 import { escape as esc } from "../lib/util.mjs";
 import { registerBookAdventureHooks } from "./book-adventure.mjs";
 
@@ -1039,16 +996,33 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
  * (it writes world data). Other features read the result from the lib's tables
  * registry; markets, wages and hiring light up as coverage grows.
  *
+ * The run has two phases. `read` reads the pages and assembles the engine
+ * tables into the store; it writes no importer document. `apply` writes the
+ * documents the read tables build (races, class builds, armour limits,
+ * languages), and reads no page. The import chain runs the read first and the
+ * apply after the classes (getting-started.mjs).
+ *
  * @param {string[]} [only] ruledata document ids to read; omitted, every one.
  *        A full run locates pages for all 138 recipes, so re-reading ONE
  *        document is the difference between seconds and minutes.
- * @param {{repair?: object|null}} [opts] `repair`, a tally (`repairTally`), counts the
+ * @param {object} [opts]
+ * @param {object|null} [opts.repair] a tally (`repairTally`) counting the
  *        language and race items this run writes over in place.
+ * @param {"both"|"read"|"apply"} [opts.phase] `both` reads, then applies what
+ *        it read.
+ * @param {object|null} [opts.read] the report a `read` call returned, which
+ *        `apply` applies; with none, `apply` writes nothing.
+ * @returns {Promise<object|null>} the read report; `apply` returns the one it
+ *        was handed. Null when the GM or provider guard refused or the read threw.
  */
-async function cookbookImportTables(only = null, { repair = null } = {}) {
+async function cookbookImportTables(only = null, { repair = null, phase = "both", read = null } = {}) {
   if (!game.user.isGM) {
     ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.tables.gmOnly`));
     return null;
+  }
+  if (phase === "apply") {
+    if (read?.imported?.length) await applyReadTables(read.imported.map((d) => d.docId), { repair });
+    return read;
   }
   if (!services.get("ruledata-import")) {
     ui.notifications.error(game.i18n.localize(`${LANG_PREFIX}.tables.noProvider`));
@@ -1104,114 +1078,10 @@ async function cookbookImportTables(only = null, { repair = null } = {}) {
       }),
     );
   }
-  // The class-builder tables carry world writes of their own: the assembled
-  // engine-shaped doc, race Items, and builder state on the imported classes.
-  if (report.imported.some((d) => d.docId === "acks.classBuilder")) {
-    try {
-      const built = await applyBuilderImport({ repair });
-      if (built.races.length || built.builds.length) {
-        ui.notifications.info(
-          game.i18n.format(`${LANG_PREFIX}.tables.builderApplied`, {
-            races: built.races.length,
-            builds: built.builds.length,
-          }),
-        );
-      }
-      console.log(`${MODULE_ID} | class-builder binding`, built);
-    } catch (err) {
-      console.error(`${MODULE_ID} | class-builder binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | class builder: ${err.message}`);
-    }
-    // The same document's armour limits on abilities: one row on each skill the
-    // page restricts, stamped after the builder write so a failure in either
-    // leaves the other standing.
-    try {
-      const limited = await applyThiefLimitImport();
-      console.log(`${MODULE_ID} | armour-limit binding`, limited);
-    } catch (err) {
-      console.error(`${MODULE_ID} | armour-limit binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | armour limits: ${err.message}`);
-    }
-  }
-  // The travel doc likewise: the raw page reads assemble into the
-  // engine-shaped tables acks-extras' travel derivations declare.
-  if (report.imported.some((d) => d.docId === TRAVEL_DOC_ID)) {
-    try {
-      const t = await applyTravelImport();
-      if (t.assembled.length) console.log(`${MODULE_ID} | travel tables assembled`, t.assembled);
-    } catch (err) {
-      console.error(`${MODULE_ID} | travel table binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | travel tables: ${err.message}`);
-    }
-  }
-  // And the weather doc: bands, climate modifiers, condition factors and
-  // footing thresholds for the formation feature's daily generator.
-  if (report.imported.some((d) => d.docId === WEATHER_DOC_ID)) {
-    try {
-      const w = await applyWeatherImport();
-      if (w.assembled.length) console.log(`${MODULE_ID} | weather tables assembled`, w.assembled);
-    } catch (err) {
-      console.error(`${MODULE_ID} | weather table binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | weather tables: ${err.message}`);
-    }
-  }
-  // And the encounters doc: the wilderness chain's bands, names, distances,
-  // visibility, evasion and terrain lists for the formation feature.
-  if (report.imported.some((d) => d.docId === ENCOUNTERS_DOC_ID)) {
-    try {
-      const e = await applyEncountersImport();
-      if (e.assembled.length) console.log(`${MODULE_ID} | encounter tables assembled`, e.assembled.length);
-    } catch (err) {
-      console.error(`${MODULE_ID} | encounter table binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | encounter tables: ${err.message}`);
-    }
-  }
-  // And the voyages doc: the wind rows, tacking rate, navigation and hazard
-  // figures, and hull damage shares the sea derivations read.
-  if (report.imported.some((d) => d.docId === VOYAGES_DOC_ID)) {
-    try {
-      const v = await applyVoyagesImport();
-      if (v.assembled.length) console.log(`${MODULE_ID} | voyage tables assembled`, v.assembled);
-    } catch (err) {
-      console.error(`${MODULE_ID} | voyage table binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | voyage tables: ${err.message}`);
-    }
-  }
-  // The single-document bindings all bind the same way — if this run imported
-  // it, assemble its engine tables and register them — so they are a table
-  // rather than copies of one try/catch. A failure in one is reported and the
-  // rest still run: a party that can forage should not lose the ability
-  // because the flight pages would not parse.
-  for (const { id, apply } of SIMPLE_BINDINGS) {
-    if (!report.imported.some((d) => d.docId === id)) continue;
-    try {
-      const result = await apply();
-      if (result.assembled.length) console.log(`${MODULE_ID} | ${id} tables assembled`, result.assembled);
-    } catch (err) {
-      console.error(`${MODULE_ID} | ${id} table binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | ${id} tables: ${err.message}`);
-    }
-  }
-  // The taxonomy is read, not shipped, so the items exist only once a seat has
-  // imported it from their own book.
-  if (report.imported.some((d) => d.docId === LANGUAGES_DOC_ID)) {
-    try {
-      const table = getDoc(LANGUAGES_DOC_ID)?.tables?.tree;
-      const made = table ? await applyLanguageImport(table, { repair }) : { created: 0, present: 0, adopted: 0 };
-      // Adoptions are work the seat should hear about too: a run that creates
-      // nothing, because every tongue was already there under a Judge's own
-      // name, has still changed the world.
-      const landed = made.created + made.adopted;
-      if (landed) {
-        ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.tables.languagesApplied`, { created: landed }));
-      }
-      console.log(`${MODULE_ID} | language binding`, made);
-    } catch (err) {
-      console.error(`${MODULE_ID} | language binding failed`, err);
-      ui.notifications.warn(`${MODULE_ID} | languages: ${err.message}`);
-    }
-  }
+  const docIds = report.imported.map((d) => d.docId);
+  await assembleReadTables(docIds);
   console.log(`${MODULE_ID} | table import`, report);
+  if (phase === "both") await applyReadTables(docIds, { repair });
   return report;
 }
 
