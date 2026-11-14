@@ -57,6 +57,26 @@ export function henchmanLimitBase() {
   return Number.isInteger(base) && base >= 0 ? base : null;
 }
 
+/** The mercenary-officer title from a specialist type ("mercOfficerCaptain" → "captain"), "" for any other type. */
+export const officerTitle = (specialistType) => (String(specialistType ?? "").match(/^mercOfficer(.+)$/i)?.[1] ?? "").toLowerCase();
+
+/**
+ * The morale modifier an officer adds to a hired unit (RR 166, RR 171), or
+ * null where the figure it would read is not imported: a mercOfficer* row
+ * reads its own `wages.mercenaryOfficers` row, a marshal or master mariner
+ * reads the imported `wages.officerMorale` figure, and any other specialist
+ * type adds none. A blank or non-integer figure is unread, never zero.
+ * @param {string} specialistType
+ * @returns {number|null}
+ */
+export function officerMoraleModifier(specialistType) {
+  const known = (v) => (Number.isInteger(v) ? v : null);
+  const title = officerTitle(specialistType);
+  if (title) return known((optTable("wages", "mercenaryOfficers")?.rows ?? []).find((r) => r.title === title)?.moraleModifier);
+  if (/^(marshal|marinerMaster)/i.test(specialistType ?? "")) return known(optTable("wages", "officerMorale")?.modifier);
+  return 0;
+}
+
 /**
  * The permanent morale bonuses a level gain earns (RR 166), as rungs
  * `{level, bonus}` keyed by the level whose reaching earns each. The imported

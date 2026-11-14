@@ -1011,6 +1011,31 @@ walked in docs/lib/TESTING.md, "The repair tool".
     Teardown: the layer restored, the captives taken off the employer's
     monster list, then swept with their cards by ledger.
     Walked by `tools/live/henchmen-hire-terms.mjs`, section 25.
+26. The officer's morale modifier on a hired unit, imported, absent and
+    overridden. On a location with a marshal and a master mariner in its
+    market (the layers are step 16's, the candidates are built through the
+    market as step 20 builds its hires), open the location sheet's Mercenaries
+    tab, **Hire as Group**, take a troop row and the marshal as officer. Read the group's
+    `system.unit.officerMoraleBonus` and the world's `wages` layers.
+    - *Imported.* With `wages.officerMorale` read off the connected book
+      (`TABLE_RECIPES.wages.tables.officerMorale` into the world layer).
+      *Observable:* the field holds the table's figure, no warning appears, and
+      `commandMorale` is the unit's own morale plus it. Compare in page and
+      report the match, never the figure.
+    - *Master mariner.* Repeat with the master mariner as officer.
+      *Observable:* the same figure.
+    - *Override.* Register an invented `officerMorale` at priority 30
+      (`{modifier: 3}`). *Observable:* a new unit's field holds 3; lifting the
+      layer returns the imported figure for the next unit.
+    - *Absent.* Register an empty `wages.officerMorale` (`table: {}`) at
+      priority 30. *Observable:* the field reads `null`, not 0, one warning says
+      the modifier is not imported, and `commandMorale` equals the unit's own
+      morale. A `mercOfficer*` officer with no `wages.mercenaryOfficers` row
+      reads the same.
+    The reader and the recipe are checked offline (`tools/test-henchmen.mjs`);
+    the recipe's shape against the real book is
+    `tools/importer/test-recipe-content.mjs`. Teardown: the layers lifted, the
+    group and officer swept by their tracked uuids.
 
 ## Teardown
 

@@ -2773,6 +2773,20 @@ export const TABLE_RECIPES = {
           { key: "reachBonus", find: "experience level or hd", before: true, span: 80, take: "signed" },
         ],
       },
+      // The morale an officer-role specialist starts with (RR 166 prose, the
+      // paragraph before the level-gain items): one signed figure after the
+      // clause that names the last role of the group the sentence gives it to.
+      // A recipe of its own, so the level-gain read above and this one each
+      // cost only their own figure when a printing words its sentence
+      // differently.
+      officerMorale: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 166,
+        locate: "but rowers and sailors have morale",
+        locateBare: true,
+        values: [{ key: "modifier", find: "officers have morale", take: "signed", span: 12 }],
+      },
       // Mercenary-officer base loyalty (RR 171 prose).
       baseLoyalty: {
         shape: "proseValues",

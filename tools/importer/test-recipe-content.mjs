@@ -70,7 +70,8 @@ const TABLES = {
   // The employer-level cap: the ladder a leveled henchman search is judged on.
   // The level-gain morale bonuses: two levels and the bonus each earns.
   // The henchman shares: a fraction of a full share each, for treasure and for experience.
-  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "treasureShare", "xpShare"],
+  // The officer-role morale modifier: one signed figure.
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die; and item loss's six figures
@@ -413,6 +414,11 @@ VERIFY["wages.levelMorale"] = (out, recipe, fail) => {
   for (const key of ["fromLevel", "reachLevel"]) if (isNum(out?.[key]) && !whole(out[key])) fail(`${key}: not a whole number`);
   for (const key of ["fromBonus", "reachBonus"]) if (isNum(out?.[key]) && !(Number.isInteger(out[key]) && out[key] > 0)) fail(`${key}: not a positive whole number`);
   if (whole(out?.fromLevel) && whole(out?.reachLevel) && !(out.fromLevel + 1 < out.reachLevel)) fail("reachLevel: not above the first rung");
+};
+// The officer-role morale modifier: a positive whole number, the sign the reader keeps.
+VERIFY["wages.officerMorale"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.modifier) && !(Number.isInteger(out.modifier) && out.modifier > 0)) fail("modifier: not a positive whole number");
 };
 // The henchman limit's base: a whole number the reader accepts as it stands.
 VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {

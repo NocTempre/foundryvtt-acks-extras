@@ -401,6 +401,34 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(importedShare("xp"), null, `${label}: no figure`));
   }
 
+  // The officer-role morale modifier: one signed figure after the recipe's
+  // clause, handed to a marshal or master mariner by the reader. The figure and
+  // the sentence around it are invented.
+  const { officerMoraleModifier } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const officerRecipe = TABLE_RECIPES.wages.tables.officerMorale;
+  const officerRead = extractTable(page([`The badger moot: the elders, the scouts and the ${officerRecipe.values[0].find} +3 beside 5 sett-keepers.`]), officerRecipe);
+  assert.deepStrictEqual(officerRead, { modifier: 3 }, "the recipe reads the signed figure after its clause");
+  assert.deepStrictEqual(extractTable(page(["The badger moot: the elders gather by the sett."]), officerRecipe), {}, "a page without the clause reads nothing");
+  withTables({ wages: { officerMorale: officerRead } }, () => {
+    assert.strictEqual(officerMoraleModifier("marshalLightInfantry"), 3, "a marshal takes what the recipe extracts");
+    assert.strictEqual(officerMoraleModifier("marinerMaster"), 3, "so does a master mariner");
+    assert.strictEqual(officerMoraleModifier("marinerSailor"), 0, "a role the figure is not read for adds none");
+    assert.strictEqual(officerMoraleModifier("mercOfficerCaptain"), null, "a mercenary officer reads its own row, not this figure");
+  });
+  withTables({ wages: { officerMorale: officerRead, mercenaryOfficers: { rows: [{ title: "captain", moraleModifier: 2 }, { title: "colonel" }] } } }, () => {
+    assert.strictEqual(officerMoraleModifier("mercOfficerCaptain"), 2, "a mercenary officer's own row wins");
+    assert.strictEqual(officerMoraleModifier("mercOfficerColonel"), null, "a row with no figure is unread, not zero");
+  });
+  withTables({ wages: { officerMorale: { modifier: 0 } } }, () => {
+    assert.strictEqual(officerMoraleModifier("marshalCataphract"), 0, "zero is a figure");
+  });
+  for (const [docs, label] of [[{}, "nothing imported"], [{ wages: { officerMorale: {} } }, "an empty table"], [{ wages: { officerMorale: { modifier: "3" } } }, "a figure read as text"], [{ wages: { officerMorale: { modifier: 1.5 } } }, "a fractional figure"]]) {
+    withTables(docs, () => {
+      assert.strictEqual(officerMoraleModifier("marshalLightInfantry"), null, `${label}: a marshal has no figure`);
+      assert.strictEqual(officerMoraleModifier("marinerMaster"), null, `${label}: nor a master mariner`);
+    });
+  }
+
   // The fallback throw carries no figure of its own for the count.
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");

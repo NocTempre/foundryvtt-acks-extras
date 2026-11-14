@@ -307,6 +307,19 @@ are not imported. A gain made then is not made up by a later import. Entries
 recorded before the levels were imported carry reason `firstLevel` or
 `fifthLevel` and read as the same level-gain label.
 
+Hire as Group links an officer as the unit's commander and caches the
+officer's morale modifier on the group (`unit.officerMoraleBonus`), which
+`commandMorale` adds to the unit's morale. `rules/wages.mjs >
+officerMoraleModifier` answers it: a `mercOfficer*` row reads its own row of
+`wages.mercenaryOfficers` (RR 171), a marshal or master mariner reads the
+imported `wages.officerMorale` table (RR 166, the Morale paragraph's figure
+for the officer roles), and any other specialist type adds none. A table that
+is absent, blank or not a whole number answers null, the group stores null
+(the field is nullable, and `commandMorale` counts a null as nothing) and the
+hire warns that the modifier is not imported. A Judge changes the figure in
+the Ruledata Browser's override layer. A group hired while it was unread keeps
+the null; it is not made up by a later import.
+
 The Hireling Loyalty roll counts a henchman's levels of apparent difference,
 the employer level claimed at hire (`terms.claimedEmployerLevel`) less the
 employer's own (RR 168). What each level costs is the `influence` document's

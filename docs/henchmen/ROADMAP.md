@@ -65,9 +65,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
     `followers` document (troop types, followers by class, companion levels,
     follower loyalty) and stays disabled until it is imported, and no recipe
     reads it off a page, so no import ever enables it.
-  - `wages.mercenaryOfficers`: an officer's morale modifier and command level
-    (`engine/hire-group.mjs`) read rows no `wages` recipe writes, so both take
-    their fallbacks.
+  - `wages.mercenaryOfficers`: a mercenary officer's morale modifier and
+    command level (`engine/hire-group.mjs`) read rows no `wages` recipe
+    writes, so the modifier is unread (null) and the level takes the
+    employer's.
 - **Hire as Group makes no hiring roll.** The unit dialog takes troops and an
   officer straight onto the employer's books, where an offer through the Hire
   button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk

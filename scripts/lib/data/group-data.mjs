@@ -138,9 +138,11 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         // The commanding officer (RR 171): a lone leveled actor, not a stack.
         // Only the skirmish-scale bit lives here (uuid + cached morale
         // modifier, so `commandMorale` computes without loading the officer);
-        // domain-scale command is the army layer's.
+        // domain-scale command is the army layer's. The modifier is null while
+        // the figure it was read from is not imported, and `commandMorale`
+        // counts a null as adding nothing.
         officerUuid: str(),
-        officerMoraleBonus: int(0, { min: 0, max: 4 }),
+        officerMoraleBonus: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: 0, max: 4 }),
         // The commander's level (cached from the officer, or the personally-leading
         // employer) — drives the RR 169 "personally led" command capacity.
         officerLevel: int(0, { min: 0 }),

@@ -11,7 +11,7 @@
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { hire, employerOwnership } from "./hire.mjs";
-import { mercenaryMorale } from "../rules/wages.mjs";
+import { mercenaryMorale, officerMoraleModifier, officerTitle } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 import { takeFromRow } from "../rules/bulk-offer.mjs";
 import { hiredClassName } from "../rules/candidates.mjs";
@@ -36,19 +36,6 @@ const MOUNTED_TYPES = new Set([
   "lightCavalry", "mountedCrossbowman", "horseArcher", "mediumCavalry", "heavyCavalry",
   "cataphractCavalry", "camelArcher", "camelLancer", "warElephant", "beastRider",
 ]);
-
-/** The mercenary-officer title from a specialist type ("mercOfficerCaptain" → "captain"). */
-const officerTitle = (specialistType) => (String(specialistType ?? "").match(/^mercOfficer(.+)$/i)?.[1] ?? "").toLowerCase();
-
-/** The officer's RR 171 morale modifier: a mercOfficer* row from the table, a marshal or master mariner by the RR 166 role group, else 0. */
-function officerMoraleModifier(specialistType) {
-  const title = officerTitle(specialistType);
-  if (title) {
-    const row = (optTable("wages", "mercenaryOfficers")?.rows ?? []).find((r) => r.title === title);
-    if (row) return row.moraleModifier ?? 0;
-  }
-  return /^(marshal|marinerMaster)/i.test(specialistType ?? "") ? 1 : 0;
-}
 
 /** The COMMAND level for RR 169 capacity: a hired mercOfficer's RR 171 rank if present, else the employer's level. A marshal never sets it. */
 function commandLevel(specialistType, employer) {
@@ -175,11 +162,15 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     const result = await hire(location, officerCandidateId, employer, { category: "specialist" });
     officer = result?.actor ?? null;
     if (officer) {
+      // An unread modifier is stored as null (unknown), never as a 0 that
+      // claims the officer adds nothing, and the hire says so.
+      const modifier = officerMoraleModifier(specialistType);
       await group.update({
         "system.unit.officerUuid": officer.uuid,
-        "system.unit.officerMoraleBonus": Math.max(0, officerMoraleModifier(specialistType)),
+        "system.unit.officerMoraleBonus": modifier === null ? null : Math.max(0, modifier),
         "system.unit.officerLevel": commandLevel(specialistType, employer),
       });
+      if (modifier === null) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.group.officerMoraleNotImported"));
     }
   }
 

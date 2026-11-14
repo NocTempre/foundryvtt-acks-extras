@@ -4769,6 +4769,7 @@
   "ACKS-HENCHMEN.group.takeAll": "Take all available",
   "ACKS-HENCHMEN.group.noEmployer": "No employer available to hire for.",
   "ACKS-HENCHMEN.group.noneAvailable": "No troops or officers are available in the market to form a group.",
+  "ACKS-HENCHMEN.group.officerMoraleNotImported": "The officer's morale modifier is not imported (RR 166), so the unit's morale counts none for them. Import the Rules tables, or set the figure in the Ruledata Browser.",
   "ACKS-HENCHMEN.group.overCommand": "This unit ({strength} infantry-equivalents) is larger than its officer can personally lead (limit {cap}, RR 169). Hire a higher-rank officer, or split it.",
   "ACKS-HENCHMEN.unitMorale.menu": "Roll Morale",
   "ACKS-HENCHMEN.gold.insufficient": "{name} cannot pay {gp} gp ({reason}).",
