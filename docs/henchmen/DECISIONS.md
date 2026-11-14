@@ -53,3 +53,34 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-10 — [A search fee the purse refuses buys no search (2026-11-10)](DECISIONS-through-v11.14.5.md#a-search-fee-the-purse-refuses-buys-no-search-2026-11-10)
 - 2026-11-11 — [A signing bonus the employer cannot pay is owed, a calamity, and the hire stands (2026-11-11)](DECISIONS-through-v11.14.5.md#a-signing-bonus-the-employer-cannot-pay-is-owed-a-calamity-and-the-hire-stands-2026-11-11)
 - 2026-11-11 — [A henchman's shares are printed values, and arrive through the importer (2026-11-11)](DECISIONS-through-v11.14.5.md#a-henchmans-shares-are-printed-values-and-arrive-through-the-importer-2026-11-11)
+
+## 2026-11-14 — A market hire's morale base is a troop's imported figure or none
+
+Owner rulings behind it: a printed figure is imported, and "missing imports stay
+blank" with the page as the clue. A market hire used to store a base of zero for
+every kind, which stood in for the bases the page prints by kind (RR p. 166) and
+kept core's own morale field from ever being read.
+
+- `morale.base` on the record is nullable and starts null. A mercenary hired from
+  the market takes its troop type's imported `wages.mercenaryWages` figure
+  (`rules/wages.mjs` `hiredMorale`), read by the type its wage row is keyed by
+  (`wageTroopType`: the combined composite/longbow entry resolves to the
+  settlement's variant, as the market's own wage lookup does). Every other kind,
+  and a troop whose figure is unread, records null.
+- Null reads as the sheet's own morale field: `moraleParts` reports `from:
+  "record"` or `"sheet"` and the Service panel's base tooltip names the sheet's
+  field when the record holds none. Zero stays a figure: only null defers.
+- **Not done, the specialists' printed bases.** Their record base stays null, so
+  a hired specialist reads the sheet's field; the paragraph the `levelMorale` and
+  `officerMorale` recipes window prints them, and no recipe reads them yet. The
+  ROADMAP row that carried this went with the row this entry closes; the
+  remainder is this sentence.
+- **Not done, the starting loyalty (stopped).** The page prints the start per
+  kind, but core's `retainer.loyalty` is a non-nullable integer that every
+  loyalty reader and the four `syncLoyalty` writers fill with a number, so a null
+  start has no figure to write there without choosing one. The stored zero stays,
+  and its ROADMAP row stands.
+- Rejected: reading the specialists' and officers' bases in this change, and
+  leaving the stored zero where a troop's figure is unread (the zero is exactly
+  the stand-in). Cost: a record written before this change keeps its stored zero,
+  with no migration.

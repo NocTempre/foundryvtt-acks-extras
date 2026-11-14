@@ -4938,6 +4938,7 @@
   "ACKS-HENCHMEN.service.tip.morale": "{parts} · RR 166",
   "ACKS-HENCHMEN.service.tip.held": "{parts}, held at {total}",
   "ACKS-HENCHMEN.service.tip.base": "base",
+  "ACKS-HENCHMEN.service.tip.baseSheet": "base, the sheet's own Morale field",
   "ACKS-HENCHMEN.service.tip.permanents": "permanents",
   "ACKS-HENCHMEN.service.tip.start": "recorded at hiring",
   "ACKS-HENCHMEN.service.tip.ledger": "the ledger's entries still counting",

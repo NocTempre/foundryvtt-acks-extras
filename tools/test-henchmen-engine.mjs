@@ -168,6 +168,11 @@ await test("a monster hireling's morale is held to the monster's range, a charac
   assert.equal(effectiveMoraleFor(monster), -5, "inside the monster's floor");
   assert.equal(effectiveMoraleFor(person), -2, "past the character's floor");
 });
+await test("a record whose base is null takes the sheet's morale, and a recorded zero is a base", () => {
+  const sheet = (base) => makeActor({ id: `sheet${base}`, type: "character", system: { details: { morale: 2 } }, flags: { [MODULE]: { record: { morale: { base, permanents: [] } } } } });
+  assert.equal(effectiveMoraleFor(sheet(null)), 2, "no base recorded: the sheet's own field");
+  assert.equal(effectiveMoraleFor(sheet(0)), 0, "a recorded zero is a figure");
+});
 await test("effective loyalty is held to the actor type's range", () => {
   const person = makeActor({ id: "hand2", type: "character", flags: { [MODULE]: { record: { loyalty: { start: 9, permanents: [] } } } } });
   assert.equal(effectiveLoyaltyFor(person), 5);

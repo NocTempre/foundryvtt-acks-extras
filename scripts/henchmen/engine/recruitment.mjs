@@ -40,7 +40,7 @@ import {
 import { parseAvailability } from "../rules/dice.mjs";
 import { rollClassFromDistribution, rollRandomLevel, rollProficiencyLevel } from "../rules/candidates.mjs";
 import { generateIdentity, classInfo } from "../rules/identity.mjs";
-import { henchmanWage } from "../rules/wages.mjs";
+import { henchmanWage, COMPOSITE_TROOP, wageTroopType } from "../rules/wages.mjs";
 import { getTable, optTable, hasDoc } from "../rules/tables.mjs";
 import { collectEffectModifiers } from "../effects.mjs";
 import { getSetting } from "../settings.mjs";
@@ -323,8 +323,8 @@ async function buildCandidates({ location, spec, total, marketClass, segment, pr
       // to their race's wage.
       let wageType = spec.troopType;
       let labelKey = spec.kind === "mercenary" ? `ACKS-HENCHMEN.troop.${spec.troopType}` : `ACKS-HENCHMEN.specialist.${spec.specialistType}`;
-      if (spec.troopType === "compositeBowmanLongbowman") {
-        wageType = location.system.market?.compositeVariant === "longbow" ? "longbowman" : "compositeBowman";
+      if (spec.troopType === COMPOSITE_TROOP) {
+        wageType = wageTroopType(spec.troopType, location.system.market?.compositeVariant);
         labelKey = `ACKS-HENCHMEN.troop.${wageType}`;
       }
       const row =

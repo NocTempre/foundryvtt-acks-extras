@@ -855,7 +855,7 @@ async function onUpdateActor(actor, changes) {
         ...(record.counters ?? {}),
         levelsGainedInService: (record.counters?.levelsGainedInService ?? 0) + (newLevel - known),
       };
-      let morale = record.morale ?? { base: 0, permanents: [] };
+      let morale = record.morale ?? { base: null, permanents: [] };
       // Permanent morale bumps at the levels the imported table names (RR
       // 166), each entry noting the level that earned it. Unread, none is
       // recorded.

@@ -40,6 +40,19 @@ export function mercenaryWage(troopType, race = "man") {
   return row.wages[race] ?? null;
 }
 
+/** The combined composite/longbow market entry's id; a settlement has one of the two. */
+export const COMPOSITE_TROOP = "compositeBowmanLongbowman";
+
+/**
+ * The troop type a market candidate's wage row is keyed by: the combined
+ * composite/longbow entry resolves to the settlement's variant
+ * (`market.compositeVariant`), any other type is its own.
+ */
+export function wageTroopType(troopType, compositeVariant) {
+  if (troopType !== COMPOSITE_TROOP) return troopType;
+  return compositeVariant === "longbow" ? "longbowman" : "compositeBowman";
+}
+
 /**
  * Base morale for a mercenary troop type (RR 166), read from its imported
  * `wages.mercenaryWages` row, or null where the table or the type's row is not
@@ -49,6 +62,16 @@ export function mercenaryWage(troopType, race = "man") {
 export function mercenaryMorale(troopType) {
   const row = (optTable("wages", "mercenaryWages")?.rows ?? []).find((r) => r.type === troopType);
   return Number.isInteger(row?.morale) ? row.morale : null;
+}
+
+/**
+ * The base morale a market hire's record starts with: a mercenary troop's
+ * imported figure (`mercenaryMorale`, read by the wage row's type), and null
+ * for every other kind, whose morale the record leaves to the sheet's own
+ * field. Null is unknown, never zero.
+ */
+export function hiredMorale(category, troopType, compositeVariant) {
+  return category === "mercenary" ? mercenaryMorale(wageTroopType(troopType, compositeVariant)) : null;
 }
 
 /**

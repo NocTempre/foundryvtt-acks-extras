@@ -93,11 +93,19 @@ test("the total is held to the bounds it is handed, and only on the sides they n
   assert.equal(loyaltyParts({ loyalty: { start: 40 } }, {}).total, 40, "no bounds, no clamp: no range is assumed");
 });
 test("morale reads the record's base, else the sheet's, plus the permanents", () => {
-  assert.deepEqual(moraleParts(record, 2), { base: 0, permanents: 1, powers: 0, total: 1 });
-  assert.deepEqual(moraleParts({}, 2), { base: 2, permanents: 0, powers: 0, total: 2 });
+  assert.deepEqual(moraleParts(record, 2), { base: 0, from: "record", permanents: 1, powers: 0, total: 1 });
+  assert.deepEqual(moraleParts({}, 2), { base: 2, from: "sheet", permanents: 0, powers: 0, total: 2 });
+});
+test("a record whose base is null reads the sheet's, and a base of zero is a figure", () => {
+  const unread = moraleParts({ morale: { base: null, permanents: [{ delta: 1 }] } }, 2);
+  assert.deepEqual(unread, { base: 2, from: "sheet", permanents: 1, powers: 0, total: 3 });
+  assert.equal(moraleParts({ morale: { base: null } }, 2, 0, undefined).from, "sheet");
+  assert.equal(moraleParts({ morale: { base: 0 } }, 2).from, "record");
+  assert.equal(moraleParts({ morale: { base: 0 } }, 2).base, 0, "zero is a figure, never a gap");
+  assert.equal(effectiveMorale({ morale: { base: null, permanents: [{ delta: 1 }] } }, 2), 3);
 });
 test("the employer's powers are a part of morale, added after base and permanents are held to the range", () => {
-  assert.deepEqual(moraleParts(record, 2, 1), { base: 0, permanents: 1, powers: 1, total: 2 });
+  assert.deepEqual(moraleParts(record, 2, 1), { base: 0, from: "record", permanents: 1, powers: 1, total: 2 });
   const high = { morale: { base: 6, permanents: [{ delta: 2 }] } };
   assert.equal(moraleParts(high, 0, -1, CHAR_MORALE).total, 5, "held at the ceiling before the power, so the power counts from there");
 });

@@ -1074,6 +1074,24 @@ walked in docs/lib/TESTING.md, "The repair tool".
     the recipe's shape against the real book is
     `tools/importer/test-recipe-content.mjs`. Teardown: none; the tables read
     are the world's own. Not walked live when written.
+28. A market hire's morale base, imported and absent. On a settlement with a
+    mercenary candidate, hire one troop type from the market (location sheet →
+    **Mercenaries** tab → the handshake on its row, **Attempt to recruit**) and
+    open the hireling's sheet, **Service** tab; hover the Morale figure. *Imported.* With `wages.mercenaryWages` read off the connected book,
+    the record's `morale.base` is the troop's row figure and the tooltip's first
+    part reads "base"; compare with the page and report the match, never the
+    figure. Hire the combined composite/longbow entry in a settlement of each
+    variant: the figure follows the variant's own row. *Absent.* With the table
+    unread (a priority-30 empty `wages.mercenaryWages` layer), hire a troop and a
+    henchman: `morale.base` is null on both records, the Morale figure is the
+    sheet's own Morale field, and the tooltip's first part reads "base, the
+    sheet's own Morale field". Set the sheet's Morale and read the Service
+    figure follow it. The starting loyalty is not part of this step: a hire's
+    loyalty start is still stored as a number (see the ROADMAP). The reader and
+    the hire's base are checked offline (`tools/test-henchmen.mjs`,
+    `tools/test-service-view.mjs`, `tools/test-henchmen-engine.mjs`). Teardown:
+    the hirelings swept by their tracked uuids, the layer lifted. Not walked live
+    when written.
 
 ## Teardown
 

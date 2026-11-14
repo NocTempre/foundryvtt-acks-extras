@@ -227,7 +227,11 @@ not undo it.
   `CONFIG.Actor.dataModels[type].schema`: a monster's morale field is
   bounded apart from a character's). The `rules/` helpers take those bounds as
   an argument and hold no range of their own; with none handed in a score is
-  rounded and left open.
+  rounded and left open. `morale.base` is nullable: a market mercenary's is its
+  troop type's imported figure (`rules/wages.mjs` `hiredMorale`), every other
+  hire's is null, and null reads as the sheet's own Morale field
+  (`rules/service.mjs` `moraleParts` says which, `from: "record" | "sheet"`, and
+  the Service panel's base tooltip follows). Zero is a figure.
   Each entry carries `compensated`: RR 166 penalties (permanent wounds,
   tampering side effects) apply only *while uncompensated*, so the Judge
   suspends one from the roster ledger and it stops scoring **without leaving

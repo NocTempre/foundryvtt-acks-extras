@@ -73,16 +73,20 @@ export function loyaltyParts(record, mods = {}, bounds) {
 
 /**
  * The pieces of an effective morale: the base (the record's, else the
- * sheet's), the permanents still counting, and the employer's `moraleBase`
- * powers handed in as `powers`. `total` clamps base and permanents, then
- * clamps again with the powers added, as `effectiveMoraleFor` does; both
- * clamps hold to `bounds`, the hireling's morale field's range.
+ * sheet's) and which of the two it is (`from`: "record" or "sheet"; a record
+ * base of null is none, and zero is a figure), the permanents still counting,
+ * and the employer's `moraleBase` powers handed in as `powers`. `total` clamps
+ * base and permanents, then clamps again with the powers added, as
+ * `effectiveMoraleFor` does; both clamps hold to `bounds`, the hireling's
+ * morale field's range.
  */
 export function moraleParts(record, fallbackBase = 0, powers = 0, bounds) {
-  const base = num(record?.morale?.base, num(fallbackBase));
+  const held = record?.morale?.base;
+  const from = held == null || !Number.isFinite(Number(held)) ? "sheet" : "record";
+  const base = from === "record" ? Number(held) : num(fallbackBase);
   const permanents = sumPermanents(record?.morale?.permanents ?? []);
   const bonus = num(powers);
-  return { base, permanents, powers: bonus, total: clampScore(clampScore(base + permanents, bounds) + bonus, bounds) };
+  return { base, from, permanents, powers: bonus, total: clampScore(clampScore(base + permanents, bounds) + bonus, bounds) };
 }
 
 /**

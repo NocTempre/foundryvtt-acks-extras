@@ -115,7 +115,10 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
         permanents: new fields.ArrayField(ledgerEntry()),
       }),
       morale: new fields.SchemaField({
-        base: int(0),
+        // Null where nothing read a base for this hireling: the readers then
+        // take the sheet's own morale field (`rules/service.mjs`
+        // `moraleParts`). Zero is a figure, so it is never the unset value.
+        base: num({ integer: true }),
         permanents: new fields.ArrayField(ledgerEntry()),
       }),
 

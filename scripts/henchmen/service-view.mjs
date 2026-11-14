@@ -193,7 +193,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     morale: {
       value: moraleValue,
       tip: partsTip([
-        [loc("tip.base"), morale.base],
+        [loc(morale.from === "sheet" ? "tip.baseSheet" : "tip.base"), morale.base],
         [loc("tip.permanents"), morale.permanents],
         [loc("loyaltyPowers"), morale.powers],
       ], morale.total, "tip.morale"),

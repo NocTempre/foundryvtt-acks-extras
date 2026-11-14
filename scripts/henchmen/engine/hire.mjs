@@ -4,7 +4,7 @@
  * generating the people is not this feature's job (docs/ROADMAP.md § Henchmen).
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
-import { henchmanWage } from "../rules/wages.mjs";
+import { henchmanWage, hiredMorale } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 
 /** Normalized package key: lowercase alphanumerics (matches the harvest). */
@@ -577,7 +577,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       lastPaidTime: now(),
     },
     loyalty: { start: loyaltyStart, permanents: [] },
-    morale: { base: opts.baseMorale ?? 0, permanents: [] },
+    morale: { base: opts.baseMorale ?? hiredMorale(category, candidate.troopType, location.system?.market?.compositeVariant), permanents: [] },
     counters: { calamities: 0, levelsGainedInService: 0, startLevel: candidate.level ?? 0 },
     special: {
       skipCalamityLoyalty: hasEffectFlag(employer, "skipCalamityLoyalty"),

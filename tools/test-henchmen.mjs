@@ -481,6 +481,25 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(mercenaryMorale("troopA"), null, `${label}: no base morale`));
   }
 
+  // A market hire's record base: a mercenary troop's imported figure, read by
+  // the type its wage row is keyed by (the combined composite/longbow entry
+  // resolves to the settlement's variant), and null for any other kind or an
+  // unread figure, never a stand-in zero. The rows are invented.
+  const { hiredMorale, wageTroopType, COMPOSITE_TROOP } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const rows = [{ type: "troopA", morale: -1, wages: {} }, { type: "troopB", morale: 0, wages: {} }, { type: "troopC", wages: {} }, { type: "longbowman", morale: 2, wages: {} }, { type: "compositeBowman", wages: {} }];
+  withTables({ wages: { mercenaryWages: { rows } } }, () => {
+    assert.strictEqual(hiredMorale("mercenary", "troopA"), -1, "a troop takes its row's figure");
+    assert.strictEqual(hiredMorale("mercenary", "troopB"), 0, "zero is a figure");
+    assert.strictEqual(hiredMorale("mercenary", "troopC"), null, "a row with no figure is unread");
+    assert.strictEqual(hiredMorale("mercenary", "troopE"), null, "a type with no row is unread");
+    assert.strictEqual(hiredMorale("henchman", "troopA"), null, "a henchman's base is not a troop's");
+    assert.strictEqual(hiredMorale("specialist", "troopA"), null, "nor a specialist's");
+    assert.strictEqual(hiredMorale("mercenary", COMPOSITE_TROOP, "longbow"), 2, "the combined entry reads the settlement's variant");
+    assert.strictEqual(hiredMorale("mercenary", COMPOSITE_TROOP, "composite"), null, "and that variant's row has no figure");
+    assert.strictEqual(wageTroopType("troopA", "longbow"), "troopA", "any other type is its own");
+  });
+  withTables({}, () => assert.strictEqual(hiredMorale("mercenary", "troopA"), null, "nothing imported: no base"));
+
   // The fallback throw carries no figure of its own for the count.
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");

@@ -89,15 +89,14 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
-- **A market hire's morale base is a stored zero.** `engine/hire.mjs` `hire`
-  writes `morale.base` as 0 where no caller passes one, and the record's field
-  (`data/henchman-record.mjs`) cannot be empty, so core's own morale field is
-  never read for a market hire (`rules/loyalty.mjs` `effectiveMorale`,
-  `rules/service.mjs` `moraleParts`). The page prints a base by hireling kind
-  (RR p. 166). First the field becomes nullable and a mercenary takes the base
-  its troop type imports; then the specialists' bases are read from the
-  paragraph the `levelMorale` and `officerMorale` recipes window, and a
-  henchman's stays empty and falls back to core's field.
+- **A specialist's morale base is not read.** A market hire's base is its
+  troop type's imported figure, or none (`rules/wages.mjs` `hiredMorale`);
+  the page prints a base for specialists too (RR p. 166), in the paragraph
+  the `levelMorale` and `officerMorale` recipes window. It wants `values` on
+  that paragraph and a reader passed at hire for a specialist. A henchman's
+  stays empty and falls back to core's field. `engine/hire-group.mjs` reads
+  `mercenaryMorale` without `wageTroopType`, so a combined-entry group gets
+  none.
 - **A hire's starting loyalty is a stored zero.** `engine/hire.mjs` and
   `engine/monster.mjs` call `startingLoyalty` with a base no caller passes; the
   page prints the start by kind (RR ch. 4, Hirelings Loyalty), and the
