@@ -765,7 +765,7 @@ uncapped score at 0 and answering every modifier with 0. `given()` distinguishes
 "not supplied" from "supplied as zero"; both are meaningful here and they are
 not the same.
 
-### 2026-08-15 — The marching-order API is guarded at the boundary, not renamed
+### 2026-08-15 — The marching-order API is guarded at the boundary, not renamed — SUPERSEDED IN PART 2026-11-14
 
 The 4.8.0 release session reached this API from macros and got it wrong four
 times: `saveTemplate`'s arguments reversed, an id handed to `applyTemplate`
@@ -5698,3 +5698,11 @@ append-only, keep them; they are marked superseded in part.
 ## 2026-11-13 — Who goes short when the packs cannot feed everyone is a setting, and even is the default
 
 **Ruled.** The book does not state who goes short when the packs cannot feed everyone: it prices what hunger does, never whom a captain feeds. The choice is therefore a world setting (`provisionSharing`), not a rule, and the kinder reading, `even`, is the default.
+
+## 2026-11-14 — The saved marching orders are published as `marchingOrders`, under names without "template"
+
+**Ruled.** Asked "The formation saved-order calls (saveTemplate, applyTemplate, getTemplate, deleteTemplate, reconcile) were documented as a macro API but are not on the public acksExtras.formation api; the guide section was deleted. Keep them internal or publish them?", the owner answered "These should get grabbed by the api publisher, if not that needs fixed, not this canary case". The publisher is the repo's (repo DECISIONS §31): `marching-templates.mjs` ends with a `publicApi`, placed as `acksExtras.formation.marchingOrders`. Asked where the seven calls the deleted guide section named live, the owner answered "C: grouped and renamed": save, apply, get, list, delete, formUp and reconcile. The exported functions keep their names inside `scripts/`; only what a caller types changed, and the boundary guards name that (`marchingOrders.save: arguments are reversed`). `getFormation` is published too, through `formation-model.mjs`'s own `publicApi`, since the bridge's `parties` and `party` commands call it on the namespace; the ten keys the entry hand-published from that file moved into the same manifest under the same keys. Formation `apiVersion` 24.
+
+**What it supersedes.** The 2026-08-15 entry's "Rejected for now: the rename": the word that misled callers no longer reaches one, and the published `apply` no longer shares a name with `acksExtras.classes.applyTemplate`. The guards and the order-or-id rule of that entry stand.
+
+**Rejected.** Placing the seven under their source names (the recommended option): it would have published "template" into a surface whose removal is a major.

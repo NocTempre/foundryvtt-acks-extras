@@ -1263,3 +1263,70 @@ and a red result there is a finding, not a regression of the retirement.
 `equipment-weapon-nulls` and `location-notes-tab` are red and stay on the
 ledger (T-0531, T-0532), unfixed here; T-0533 and T-0534 carry two IP notes
 the audit found in walks.
+
+## 31. A call meant for callers is published from its own file, and the docs are held to the namespace (2026-11-14)
+
+**Problem.** The formation guide documented seven saved-marching-order calls
+for macros, and none had ever been on `acksExtras.formation`: each feature
+hangs a hand-written object on the namespace, the reference (§26) mirrors
+those objects, and nothing collects a function from the file that defines it.
+A front-door rewrite found the gap and deleted the guide section. Asked "The
+formation saved-order calls (saveTemplate, applyTemplate, getTemplate,
+deleteTemplate, reconcile) were documented as a macro API but are not on the
+public acksExtras.formation api; the guide section was deleted. Keep them
+internal or publish them?", the owner answered: "These should get grabbed by
+the api publisher, if not that needs fixed, not this canary case".
+
+**Ruled.**
+
+- **A file publishes its own calls.** A file holding calls meant for a macro or
+  another module ends with `export const publicApi = { … }`, identifiers only
+  (a `key: identifier` entry renames on the way out), with a docstring naming
+  the namespace that holds it. The feature's entry imports it and places it,
+  as a group (`marchingOrders: marchingOrdersApi`) or spread at the top. The
+  extractor reads it like any other literal, so the API page prints each
+  call's own docstring.
+- **Five checks, in the reference's problems.** R1: a `publicApi` no namespace
+  reaches. R2: a file with a `publicApi` reached any other way (a hand key, a
+  namespace import), so the manifest is the whole of what its file publishes.
+  R3: a call in a manifest with no docstring. R4: a key reached twice where one
+  route is a manifest. R5: an `acksExtras.<namespace>.<path>` in the README or
+  `docs/` (the logs, `wip/`, `releases/`, `site/` aside) that the namespace
+  does not hold; a first segment that is no namespace is a hook name and is
+  skipped. They fail `tools/test-reference.mjs` in `npm test`, the site sync
+  in `validate`, and the pages build.
+- **The 18 hand-written objects stay.** A file converts whole or not at all,
+  and R2 fails a conversion that leaves a hand line behind.
+- **Where the formation calls live.** Asked where the seven live, with A
+  grouped under their source names (recommended), B at formation's top level,
+  or C grouped and renamed, the owner answered "C: grouped and renamed":
+  `acksExtras.formation.marchingOrders` holds save, apply, get, list, delete,
+  formUp and reconcile, and the guards name the call a macro typed.
+
+**What the checks cannot see.** An unmarked function written in a doc by its
+bare name: the canary was written exactly so, and no rule can tell
+`saveTemplate(formation, name)` from prose. The convention closes it: a doc
+names a call by its full `acksExtras.` path, which R5 then holds to the
+namespace. A function nobody marks and nobody documents stays internal, which
+is the intent: 3,210 exports under `scripts/` reach no key.
+
+**Rejected.**
+
+- *A docstring tag (`@api`) read at runtime.* A function's source text at
+  runtime excludes its leading comment, so collecting tags needs generated
+  code in `scripts/`, which the shared tree's edit ledger never attributes.
+- *Hand assembly plus a gate on documented-public exports.* Doc mentions alone
+  cannot define the set (bare names), and adding a tag states "public" twice.
+- *A runtime `publish(fn)` registry.* It depends on import order and turns
+  declarations into values the extractor cannot follow.
+- *A whole-file namespace import.* Right for a file whose every export is
+  public; for the saved orders it would also publish six exports nothing
+  documents as calls.
+
+**Cost.** The ten formation keys the entry hand-published from
+`formation-model.mjs` moved into that file's manifest under the same keys (R2).
+Two repeats with no manifest involved, `henchmen.rules.arrivalSplit` and
+`vehicles.OFFICER_STATIONS`, are still settled by last-wins and not gated;
+generalising R4 waits on their owners. A recipe that reached an unpublished
+function through an `acksExtras` path now imports the function's file in page
+context instead.
