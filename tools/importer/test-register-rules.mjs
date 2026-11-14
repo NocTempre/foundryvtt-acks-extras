@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
   siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -170,6 +170,17 @@ flags("a pregen under its printed name", ordinalProblems({ id: "ax1.pc3", kind: 
 flags("an item under another ordinal's id", ordinalProblems({ id: "ax1.item1", kind: "kind.adventureItem", name: "Item 2", anchor: { hash: "abc" } }, "ax1"), /has the id "ax1\.item2"/);
 flags("a prose section anchored by its words", ordinalProblems({ id: "ax1.prose1", kind: "kind.prose", name: "Prose 1", anchor: { display: "x" } }, "ax1"), /anchors by hash/);
 flags("a link with a text anchor", ordinalProblems({ id: "ax1.link1", kind: "kind.sceneLink", name: "Link 1", anchor: { hash: "abc" } }, "ax1"), /no text anchor/);
+
+/* --- prepared parties: a pregen's group is "Party <n>", introduced by a prose row --- */
+
+const pc = (id, group) => ({ id, book: "ax9", kind: "kind.pregen", name: "PC 1", ...(group === undefined ? {} : { meta: { group } }) });
+const intro = (id, title, book = "ax9") => ({ id, book, kind: "kind.prose", name: "Prose 1", meta: { group: "Parties", title } });
+none("a party introduced by its prose row", partyProblems(rowsOf(intro("ax9.prose1", "Party 2"), pc("ax9.pc1", "Party 2"), pc("ax9.pc2", "Party 2"))));
+none("a pregen with no group", partyProblems(rowsOf(pc("ax9.pc1"))));
+flags("a group that is a printed name", partyProblems(rowsOf(intro("ax9.prose1", "Somebody's Company"), pc("ax9.pc1", "Somebody's Company"))), /"Party <n>"/);
+flags("a party with no prose row", partyProblems(rowsOf(pc("ax9.pc1", "Party 3"))), /no prose row of ax9 titled "Party 3"/);
+flags("a party introduced by another book's row", partyProblems(rowsOf(intro("ax8.prose1", "Party 3", "ax8"), pc("ax9.pc1", "Party 3"))), /no prose row of ax9/);
+flags("a party introduced under another title", partyProblems(rowsOf(intro("ax9.prose1", "Party 4"), pc("ax9.pc1", "Party 3"))), /no prose row/);
 
 /* --- sites: by number where keyed, else by a run-in hash under an ordinal --- */
 

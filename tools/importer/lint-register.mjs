@@ -20,7 +20,7 @@ import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, regionMapProblems, rowMetaProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems,
   sceneLinkProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -643,6 +643,7 @@ for (const { id, scene, table } of zoneRows) {
 /* --- between rows: key spaces and parents, pairs across books, scene links, a book's region map --- */
 for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
+for (const problem of partyProblems(allRows)) err(problem);
 for (const problem of marketColumnProblems(allRows)) err(problem);
 for (const problem of erratumProblems(allRows, errataIdsOf(fs.existsSync(ERRATA) ? fs.readFileSync(ERRATA, "utf8") : ""))) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);

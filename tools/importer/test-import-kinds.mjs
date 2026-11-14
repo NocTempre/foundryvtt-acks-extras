@@ -1646,8 +1646,8 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("every adventure book's own rows are walked by its one run", real.IMPORT_KINDS.filter((k) => k.bookSteps?.length).every((k) => k.own));
   const adventure = index.books.filter((id) => real.cookbookRunSet({ book: id }).runs.some((r) => r.run === ADVENTURE_BOOK_RUN));
   check("every shipped Judge's book is given the own-rows run", index.books.filter((id) => bookIsJudges(id)).every((id) => adventure.includes(id)));
-  same("and so is each rulebook that prints rows of its own: the bestiary's creatures, the rules' journal, the Judge's roll table",
-    adventure.filter((id) => !bookIsJudges(id)).sort(), ["jj", "mm", "rr"]);
+  same("and so is each rulebook that prints rows of its own: the bestiary's creatures, the rules' journal",
+    adventure.filter((id) => !bookIsJudges(id)).sort(), ["mm", "rr"]);
 }
 
 namespace.importer = importerWas;

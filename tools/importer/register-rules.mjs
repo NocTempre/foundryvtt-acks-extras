@@ -369,6 +369,27 @@ export function ordinalProblems(e, bookId) {
 }
 
 /**
+ * A prepared party, over every row at once. A pregen's `meta.group` is absent
+ * or "Party <n>", never a printed name, and each such group is introduced by a
+ * prose row of the same book whose `meta.title` is the same string: the
+ * Adventure's journal carries that row as the party's page.
+ */
+export function partyProblems(rows) {
+  const out = [];
+  const introduced = new Set();
+  for (const r of rows.values()) {
+    if (r.kind === "kind.prose" && typeof r.meta?.title === "string") introduced.add(`${r.book} ${r.meta.title}`);
+  }
+  for (const r of rows.values()) {
+    if (r.kind !== "kind.pregen" || r.meta?.group === undefined) continue;
+    const group = r.meta.group;
+    if (typeof group !== "string" || !/^Party \d+$/.test(group)) out.push(`${r.id}: a pregen's meta.group is "Party <n>", never a printed name`);
+    else if (!introduced.has(`${r.book} ${group}`)) out.push(`${r.id}: ${group} has no prose row of ${r.book} titled "${group}"`);
+  }
+  return out;
+}
+
+/**
  * A region's keyed site. A site its page keys by number anchors by that
  * number (checked with every number-anchored row); a site printed under a
  * run-in title anchors by hash with `as: "runin"` and is labelled and

@@ -2856,18 +2856,32 @@ async function compileWriteup(doc, entry, bookCtx) {
  * description. The class line's paragraph is read to the close of its title's
  * bracket and no further: what the page prints after it there is no field of
  * the sheet.
+ *
+ * Three opt-ins serve a book that sets its write-ups run-in, side by side,
+ * with the stat line on the line under the class line. A row anchored run-in
+ * ends where a sibling pregen's name line opens (`bookCtx.pregenStops`). Under
+ * `writeup.classBracket: "drop"` the class line's own bracket, from its open
+ * parenthesis to its close, is dropped and the text after it stays. Under
+ * `writeup.ordinals: true` a superscript ordinal suffix stays in the block
+ * where it would be dropped with every run set below body size.
  */
-async function compilePregen(doc, entry) {
+async function compilePregen(doc, entry, _kindRow, bookCtx) {
   const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
   const labelKey = assists.writeup?.proseLabelKey != null ? String(assists.writeup.proseLabelKey) : null;
   if (!labelKey) throw new Error("a pregen names the label its prose opens with (assists.writeup.proseLabelKey)");
-  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, new Set(), { stopKeys: assists.stopKeys ?? [] });
+  const dropBracket = assists.writeup?.classBracket === "drop";
+  const keepOrdinals = assists.writeup?.ordinals === true;
+  const stops = (bookCtx?.pregenStops ?? []).filter((s) => s.id !== entry.id);
+  const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, new Set(), { stopKeys: assists.stopKeys ?? [], ...(stops.length ? { stops } : {}) });
   const rows = segs.flatMap((seg) =>
     toLines(seg.items).map((ln) => ({ seg, y: ln.y, items: [...ln.items].sort((p, q) => p.x - q.x) })),
   );
+  // A label's colon may be set as a run of its own after the label's words.
   const opensProse = (r) => {
-    const c = r.items[0].str.indexOf(":");
-    return c > 0 && printKey(r.items[0].str.slice(0, c)) === labelKey;
+    const [first, next] = r.items;
+    const c = first.str.indexOf(":");
+    if (c > 0) return printKey(first.str.slice(0, c)) === labelKey;
+    return !!next && /^\s*:/.test(next.str) && printKey(first.str) === labelKey;
   };
   const cut = rows.findIndex(opensProse);
   if (cut < 0) throw new Error(`no label after the name on p.${page} answers to writeup.proseLabelKey`);
@@ -2876,7 +2890,7 @@ async function compilePregen(doc, entry) {
   const blockItems = new Set(block.flatMap((r) => r.items));
   const hs = [...blockItems].map((i) => i.h).sort((p, q) => p - q);
   const bodyH = hs[Math.floor(hs.length / 2)];
-  const drop = new Set([...blockItems].filter((it) => it.h < bodyH * 0.75));
+  const drop = new Set([...blockItems].filter((it) => it.h < bodyH * 0.75 && !(keepOrdinals && /^(st|nd|rd|th)$/i.test(it.str.trim()))));
   // The class line's paragraph runs to the first paragraph gap; past its
   // title's closing bracket, a run is dropped, or cut where it carries both.
   const keep = new Map();
@@ -2884,7 +2898,26 @@ async function compilePregen(doc, entry) {
   const head = [block[0]];
   for (let i = 1; i < block.length && block[i].seg === block[0].seg && block[i].y - block[i - 1].y < gap; i++) head.push(block[i]);
   const headRuns = head.flatMap((r) => r.items);
-  const close = headRuns.findIndex((it) => it.str.includes(")"));
+  const close = dropBracket ? -1 : headRuns.findIndex((it) => it.str.includes(")"));
+  if (dropBracket) {
+    // The bracket opens on the class line (the rows before the first label,
+    // a superscript's own row among them) and closes within its paragraph; a
+    // run carrying text on the far side of either parenthesis is cut there.
+    const labelAt = head.findIndex((r) => r.items[0].str.includes(":") || /^\s*:/.test(r.items[1]?.str ?? ""));
+    const classRuns = head.slice(0, labelAt < 0 ? head.length : labelAt).flatMap((r) => r.items);
+    const open = classRuns.findIndex((it) => it.str.includes("("));
+    if (open >= 0) {
+      const end = headRuns.findIndex((it, i) => i >= open && it.str.includes(")"));
+      if (end < 0) throw new Error(`the class line's bracket on p.${page} does not close within its paragraph`);
+      if (/[\p{L}\p{N}]/u.test(headRuns[end].str.slice(headRuns[end].str.indexOf(")") + 1))) {
+        throw new Error(`a run carries text past the class line's bracket on p.${page}`);
+      }
+      const before = headRuns[open].str.slice(0, headRuns[open].str.indexOf("("));
+      if (before.trim()) keep.set(headRuns[open], before.length);
+      else drop.add(headRuns[open]);
+      for (const it of headRuns.slice(open + 1, end + 1)) drop.add(it);
+    }
+  }
   if (close >= 0) {
     const run = headRuns[close];
     const at = run.str.indexOf(")") + 1;
@@ -2921,6 +2954,10 @@ async function compilePregen(doc, entry) {
   if (assists.artName) {
     const art = await axPickArt(doc, fields, [], assists);
     if (art) fields.art = art;
+    // An image's XObject name depends on which pages the document read before
+    // it; a name this read does not find ships with no box, and the import
+    // crops by the box alone.
+    if (art && !art.box) warn(`${entry.id}: assists.artName "${assists.artName}" has no placement on p.${art.page}; no box ships`);
   }
   return {
     kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
@@ -6362,6 +6399,14 @@ async function main() {
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) npcStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }
+    // Where each run-in pregen's name line stands, which ends a sibling's
+    // write-up where the page sets them in one column (see compilePregen).
+    const pregenStops = [];
+    for (const e of list) {
+      if (e.kind !== "kind.pregen" || (e.status && e.status !== "active") || e.anchor?.as !== "runin") continue;
+      const opened = await axOpen(doc, e).catch(() => null);
+      if (opened) pregenStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
+    }
     // Where each place of a key space opens, and the space it is in: a keyed
     // area's prose ends where the next place of its space opens, by run-in key
     // or by heading, and a space's own prose ends at its first (see
@@ -6411,6 +6456,7 @@ async function main() {
     }
     const bookCtx = {
       npcStops,
+      pregenStops,
       spaces,
       keyedStops,
       titleStops,

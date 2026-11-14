@@ -64,6 +64,7 @@ export const REGISTRY = {
     pages: 489,
     titleRe: /Judges Journal/i,
     printedOffset: 2,
+    judge: true,
   },
   bta: {
     label: "By This Axe: The Cyclopedia of Dwarven Civilization",
