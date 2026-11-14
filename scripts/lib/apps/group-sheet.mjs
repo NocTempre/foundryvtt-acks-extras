@@ -337,7 +337,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
         ...ROLL_STATES.map((value) => ({ value, label: loc(`roll.state.${value}`) })),
         {
           value: BY_LAIR_CHANCE,
-          label: chance == null ? "" : loc("roll.state.chance", { n: chance }),
+          label: chance == null ? loc("roll.state.chanceBare") : loc("roll.state.chance", { n: chance }),
           disabled: chance == null,
         },
       ],
