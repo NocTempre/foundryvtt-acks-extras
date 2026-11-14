@@ -5,25 +5,17 @@
  * other, and **Add a place** turns one on through its picker; the location
  * sheet's Storage tab offers **Hold goods here** and no deposit while storage
  * is off, and a GM's drop turns it on; a player seat's stash into a place with
- * storage off is refused, and lands once it is on; the once-per-world clearing,
- * run dry, names an empty location left holding goods and spares one with goods
- * on it; the world-start prune, run dry, spares an empty place that holds goods.
+ * storage off is refused, and lands once it is on; the world-start prune, run
+ * dry, spares an empty place that holds goods.
  * A spoil in a place's house pile is released by the Judge's lock: the Player
  * seat's retrieval is refused while it is locked, the GM seat's Storage tab
  * draws the row with the lock and no claim button, pressing the lock marks it
  * retrievable, and the Player seat's retrieval then lands (step 25). Machine
  * values arrive through ./_env.mjs.
  *
- * With `REPLAY_CLEARING=1` the walk also fires the clearing by its real
- * trigger: it unsets the world's marker and reloads the GM seat, so the
- * primary GM's ready clears every empty location in the world that holds goods
- * by default, as an upgrading world's first start does. That is a world-wide
- * write; check who is seated first (`.claude/rules/live-testing.md`,
- * Concurrency).
- *
  * Fixtures, kept and found by marker: `location/intent-place`, a location
- * switched off and on; `location/intent-legacy`, an empty location holding
- * goods, the shape the world-start clearing acts on; `location/intent-stocked`, a
+ * switched off and on; `location/intent-empty`, an empty location with storage
+ * on, the shape the world-start prune spares; `location/intent-stocked`, a
  * location holding one row kept for the house; `location/intent-hero`, a
  * character the player seat owns, carrying a rope; `location/intent-rope`, a
  * world item the GM drops. Each location also carries a plain item no one keeps
@@ -83,11 +75,8 @@ const plate = (name) => path.join(process.env.SHOTS === "1" ? shotDir() : logDir
 /* ------------------------------------------------------------------ */
 
 const P = {
-  /** The seat's census. The clearing runs once the primary GM is elected, seconds after ready, so the marker is waited for up to `waitMarker` seconds. */
-  census: async ({ waitMarker = 0 } = {}) => {
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const marker = () => { try { return game.settings.get("acks-extras", "storageByIntent"); } catch { return "unregistered"; } };
-    for (let i = 0; i < waitMarker * 10 && marker() !== true; i++) await sleep(100);
+  /** The seat's census. */
+  census: async () => {
     return {
       module: game.modules.get("acks-extras")?.version ?? null,
       role: game.user.role,
@@ -95,7 +84,6 @@ const P = {
       activeGMIsSelf: !!game.users.activeGM?.isSelf,
       manager: typeof acksExtras.location?.openStorageManager,
       pinGone: typeof acksExtras.lib?.storage?.setPinned === "undefined" && typeof acksExtras.lib?.storage?.listedProviders === "undefined",
-      cleared: marker(),
     };
   },
 
@@ -360,44 +348,21 @@ const P = {
     };
   },
 
-  /** Whether the clearing and the prune, both run dry, would take each place. Writes nothing. */
+  /** Whether the prune, run dry, would take each place. Writes nothing. */
   dryRuns: async ({ ids }) => {
-    const SI = await import("/modules/acks-extras/scripts/location/storage-intent.mjs");
     const LM = await import("/modules/acks-extras/scripts/location/module.mjs");
-    const cleared = (await SI.clearDefaultStorage({ dryRun: true })).uuids;
     const { doomed } = await LM.pruneEmptyLocations({ dryRun: true });
     const out = {};
     for (const [key, id] of Object.entries(ids)) {
-      const uuid = game.actors.get(id)?.uuid;
-      out[key] = { cleared: cleared.includes(uuid), pruned: doomed.includes(uuid) };
+      out[key] = { pruned: doomed.includes(game.actors.get(id)?.uuid) };
     }
-    out.world = { cleared: cleared.length, pruned: doomed.length };
+    out.world = { pruned: doomed.length };
     return out;
   },
 
   /** What the load recorder saw on this seat. */
   boot: async () => globalThis.__lsiBoot ?? null,
 
-  /** Unset the world's clearing marker, so the next primary-GM ready runs it. */
-  unmark: async () => {
-    await game.settings.set("acks-extras", "storageByIntent", false);
-    return game.settings.get("acks-extras", "storageByIntent");
-  },
-
-  /** After a reload: the marker, waited for up to thirty seconds, and one place's storage. */
-  afterReload: async ({ id }) => {
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const seconds = Date.now();
-    for (let i = 0; i < 300 && game.settings.get("acks-extras", "storageByIntent") !== true; i++) await sleep(100);
-    const house = acksExtras.markets?.tradeObjects?.tradeHouseSync?.() ?? null;
-    return {
-      cleared: game.settings.get("acks-extras", "storageByIntent"),
-      afterSeconds: Math.round((Date.now() - seconds) / 1000),
-      provider: acksExtras.lib.storage.isProvider(game.actors.get(id)),
-      exists: !!game.actors.get(id),
-      house: house ? { provider: acksExtras.lib.storage.isProvider(house), stored: acksExtras.lib.storage.storedItems(house).length } : null,
-    };
-  },
 };
 
 async function run(api, fn, ...args) {
@@ -460,10 +425,9 @@ let opened = [];
 try {
   section("seats");
   const gm = await seat("gm");
-  const census = await run(gm, P.census, { waitMarker: 30 });
+  const census = await run(gm, P.census);
   note("census", census);
   check("the GM seat is the active GM, the page serves the manager, and the storage pin is gone", census.activeGMIsSelf && census.role === 4 && census.manager === "function" && census.pinGone, census);
-  check("the once-per-world clearing has run on this world", census.cleared === true, census.cleared);
   if (!census.activeGMIsSelf) blocked("another GM client is the active GM");
   const player = await seat("player");
   const pc = await run(player, P.census);
@@ -473,41 +437,28 @@ try {
   section("fixtures");
   const ownPlayer = { [pc.userId]: 3 };
   const place = await gm.fixture("location/intent-place", "Actor", { name: "Intent Walk Place", type: LOCATION, items: [LEDGER], flags: { "acks-extras": { storage: { provider: true } } } });
-  const legacy = await gm.fixture("location/intent-legacy", "Actor", { name: "Intent Walk Legacy Place", type: LOCATION, items: [LEDGER], flags: { "acks-extras": { storage: { provider: true } } } });
+  const empty = await gm.fixture("location/intent-empty", "Actor", { name: "Intent Walk Empty Place", type: LOCATION, items: [LEDGER], flags: { "acks-extras": { storage: { provider: true } } } });
   const stocked = await gm.fixture("location/intent-stocked", "Actor", { name: "Intent Walk Stocked Place", type: LOCATION, items: [LEDGER, ROPE], flags: { "acks-extras": { storage: { provider: true } } } });
   const hero = await gm.fixture("location/intent-hero", "Actor", { name: "Intent Walk Hero", type: "character", ownership: { default: 0, ...ownPlayer }, items: [HERO_ROPE] });
   const rope = await gm.fixture("location/intent-rope", "Item", { name: "Intent Walk Dropped Rope", type: "item" });
   const spoilPlace = await gm.fixture("location/intent-spoil", "Actor", { name: "Intent Walk Spoil Place", type: LOCATION, ownership: { default: 0, [pc.userId]: 2 } });
-  const ids = { place: place.id, legacy: legacy.id, stocked: stocked.id };
+  const ids = { place: place.id, empty: empty.id, stocked: stocked.id };
   opened = [...Object.values(ids), spoilPlace.id];
-  note("fixtures", { place: place.built, legacy: legacy.built, stocked: stocked.built, hero: hero.built, rope: rope.built, spoilPlace: spoilPlace.built });
+  note("fixtures", { place: place.built, empty: empty.built, stocked: stocked.built, hero: hero.built, rope: rope.built, spoilPlace: spoilPlace.built });
   const shaped = {
     place: await run(gm, P.shapePlace, { id: place.id, provider: false, ledger: LEDGER }),
-    legacy: await run(gm, P.shapePlace, { id: legacy.id, provider: true, ledger: LEDGER }),
+    empty: await run(gm, P.shapePlace, { id: empty.id, provider: true, ledger: LEDGER }),
     stocked: await run(gm, P.shapePlace, { id: stocked.id, provider: true, stored: [ROPE], ledger: LEDGER }),
     hero: await run(gm, P.shapeHero, { heroId: hero.id, rope: HERO_ROPE }),
   };
   note("shape", shaped);
-  check("the place's storage is off, the legacy place holds goods with nothing kept, the stocked one keeps a row, the hero carries one rope",
-    !shaped.place.provider && shaped.place.held === 0 && shaped.legacy.provider && shaped.legacy.held === 0 && !shaped.legacy.vault && shaped.stocked.provider && shaped.stocked.held === 1 && shaped.hero.ropes === 1, shaped);
+  check("the place's storage is off, the empty place has storage on with nothing kept, the stocked one keeps a row, the hero carries one rope",
+    !shaped.place.provider && shaped.place.held === 0 && shaped.empty.provider && shaped.empty.held === 0 && !shaped.empty.vault && shaped.stocked.provider && shaped.stocked.held === 1 && shaped.hero.ropes === 1, shaped);
 
   section("load recorder");
   // Both seats reload under the recorder, so init, setup and ready are on it.
-  // With REPLAY_CLEARING the marker is unset first: this reload's ready is then
-  // the real trigger, as an upgrading world's first start is.
-  const replay = process.env.REPLAY_CLEARING === "1";
-  if (replay) check("the marker is unset", (await run(gm, P.unmark)) === false);
   note("gm recorded reload ready after (s)", await reloadRecorded(gm, "gm"));
   note("player recorded reload ready after (s)", await reloadRecorded(player, "player"));
-  if (replay) {
-    section("23. the clearing at a world's first start");
-    const after = await run(gm, P.afterReload, { id: legacy.id });
-    check("the primary GM's ready turned the legacy place's storage off and set the marker", after.exists && !after.provider && after.cleared === true, after);
-    const kept = await run(gm, P.afterReload, { id: stocked.id });
-    check("and left the stocked place holding goods", kept.provider, kept);
-    check("and the trade house, where the world has one", after.house === null || after.house.provider, after.house);
-    note("legacy re-shaped", await run(gm, P.shapePlace, { id: legacy.id, provider: true, ledger: LEDGER }));
-  }
 
   section("23. a location made now holds no goods");
   note("retire", await gm.retire("location/intent-new", "Actor"));
@@ -521,7 +472,7 @@ try {
   note("read", r);
   check("the list is exactly the world's places that hold goods, with no pin", r.world.sameSet && r.world.pinButtons === 0 && r.world.addButton, r.world);
   check("the place with storage off is neither listed nor a Move to target", !r.place.listed && !r.place.target, r.place);
-  check("the legacy place and the stocked one are listed", r.legacy.listed && r.stocked.listed && r.stocked.active);
+  check("the empty place and the stocked one are listed", r.empty.listed && r.stocked.listed && r.stocked.active);
   const houseName = await gm.eval(`game.i18n.localize("ACKS-LOCATION.storage.house")`);
   check("the stocked place's house row is grouped under the house, with no gone-owner warning",
     r.world.groups.length === 1 && r.world.groups[0].name === houseName && !r.world.groups[0].dangling, r.world.groups);
@@ -572,11 +523,10 @@ try {
   const dropped = await run(gm, P.drop, { placeId: place.id, itemId: rope.id });
   check("dropping a sidebar item on the sheet turns storage on and keeps the item for the house", dropped.provider && dropped.houseRows === 1, dropped);
 
-  section("23. the clearing and the prune, run dry");
+  section("23. the prune, run dry");
   const dry = await run(gm, P.dryRuns, { ids: { ...ids, made: made.id } });
   note("dry", dry);
-  check("the clearing names the legacy place and spares the stocked one and the place now holding a row", dry.legacy.cleared && !dry.stocked.cleared && !dry.place.cleared, dry);
-  check("the prune spares every place holding goods, and takes the new empty one", !dry.legacy.pruned && !dry.stocked.pruned && !dry.place.pruned && dry.made.pruned, dry);
+  check("the prune spares every place holding goods, and takes the new empty one", !dry.empty.pruned && !dry.stocked.pruned && !dry.place.pruned && dry.made.pruned, dry);
 
   section("25. a spoil in the house pile is released by the Judge's lock");
   const spoil = await run(gm, P.shapeSpoil, { placeId: spoilPlace.id, heroId: hero.id, tag: SPOIL_TAG });

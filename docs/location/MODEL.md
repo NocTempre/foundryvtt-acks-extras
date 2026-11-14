@@ -31,10 +31,7 @@ sibling features (henchmen today; domains later) read through lib.
     place**, or a drop on the location's sheet; the manager's new-place
     target and a vault are made holding goods. The manager lists every
     provider, and its Move to targets are the same list. `pruneEmptyLocations`
-    spares a provider. Once per world, at the primary GM's ready,
-    `storage-intent.mjs` turns storage off on every location holding no
-    stored goods that is not a vault, the trade house or a place a coin order
-    names, and records it in the hidden `storageByIntent` setting.
+    spares a provider.
   - **Table schemas**: typed shapes for the people/economy documents
     (cultures & names, occupations, age tables, class registry +
     distribution grids, wages, availability, followers, slavery, monstrous

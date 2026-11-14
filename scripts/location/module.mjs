@@ -20,7 +20,6 @@ import { hasWrittenNotes } from "./notes.mjs";
 /** World setting: empty, unremarkable locations self-clean at ready. */
 const PRUNE_SETTING = "pruneEmptyLocations";
 import { registerStoreSetting, registerPersisted, ruledataImport } from "./table-store.mjs";
-import { registerStorageIntentSetting, clearDefaultStorageOnce } from "./storage-intent.mjs";
 import { RuledataBrowser, openRuledataBrowser } from "./ruledata-browser.mjs";
 import { LocationData } from "./data/location-data.mjs";
 import { LocationSheet, registerLocationSheet } from "./apps/location-sheet.mjs";
@@ -57,7 +56,6 @@ const TEMPLATES = [
 
 Hooks.once("init", () => {
   registerStoreSetting();
-  registerStorageIntentSetting();
   registerLocationRepairChecks();
 
   // NEVER gate this on an apiVersion check. lib is a sibling feature, not a
@@ -210,11 +208,9 @@ Hooks.once("ready", () => {
   if (game.system?.id !== "acks") return;
   // One window sweeps: it creates actors and moves coin. It waits to learn
   // whether it is the elected one, like every ready-time writer.
-  primaryGMSettled().then(async (primary) => {
+  primaryGMSettled().then((primary) => {
     if (!primary) return;
     runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
-    // The prune reads the storage flag this clearing writes, so it waits for it.
-    await clearDefaultStorageOnce().catch((err) => console.error(`${MODULE_ID} | storage clearing failed`, err));
     pruneEmptyLocations().catch((err) => console.error(`${MODULE_ID} | empty-location prune failed`, err));
   });
 });

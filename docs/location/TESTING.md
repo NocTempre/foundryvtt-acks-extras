@@ -38,9 +38,6 @@ by hand.
 - **A GM's switch reaches a player seat a second or so after it lands.** A
   player-seat read made at once still sees the old state; wait for the
   player's own `isProvider` to change before acting there.
-- **The once-per-world clearing runs seconds after ready**, once the primary
-  GM is elected, not at ready itself. A census read at ready finds the
-  `storageByIntent` marker still false; poll it.
 - Coin stored in a location belongs to `HOUSE_OWNER` unless stamped with an
   `ownerUuid`, and that sentinel is deliberately unresolvable — no character
   can claim house coin.
@@ -404,8 +401,8 @@ by hand.
     `tools/live/location-storage-intent.mjs` walks it
     (`node tools/live/run.mjs location-storage-intent`) on a GM seat and the
     Player seat, both reloaded under a load recorder, on fixtures it keeps:
-    `location/intent-place` (switched off and on), `location/intent-legacy`
-    (an empty location holding goods),
+    `location/intent-place` (switched off and on), `location/intent-empty`
+    (an empty location with storage on),
     `location/intent-stocked` (one holding a row kept for the house),
     `location/intent-hero` (a character the Player seat owns, carrying a rope)
     and `location/intent-rope` (a world item). Each location also carries a
@@ -413,10 +410,6 @@ by hand.
     world-start prune while its storage is off. Each fixture is brought to
     shape at the step's start. `location/intent-new` is retired and built
     again each run: the create hook is its subject.
-    With `REPLAY_CLEARING=1` the walk unsets the `storageByIntent` marker
-    before the GM seat's reload, which is a world-wide write: find out who is
-    seated first. *Observable:* the reload's ready turns `location/intent-legacy`'s
-    storage off and sets the marker, and the stocked place keeps its storage.
     *Observable:* the new location carries no storage flag.
     `openStorageManager(stocked)`. *Observable:* the list is exactly the
     world's providers, with no pin; the place with storage off is neither
@@ -433,12 +426,10 @@ by hand.
     each type, offers no character and no provider, and the picked place is
     listed and open. Turn it off again and hand the sheet's `_onDropItem` the
     world item. *Observable:* storage is on and the item is kept for the
-    house. Run the clearing and the prune dry
-    (`clearDefaultStorage({dryRun: true})` from
-    `scripts/location/storage-intent.mjs`, `pruneEmptyLocations({dryRun:
-    true})`; neither writes). *Observable:* the clearing names
-    `location/intent-legacy` alone of the three; the prune spares every provider and takes the
-    new empty location. *Observable:* both seats' recorders saw init, setup
+    house. Run the prune dry
+    (`pruneEmptyLocations({dryRun: true})`; it writes nothing).
+    *Observable:* the prune spares every provider and takes the new empty
+    location. *Observable:* both seats' recorders saw init, setup
     and ready and no error. `SHOTS=1` takes `location-storage-off.png` (the
     Storage tab with storage off) and `location-storage-manager.png`.
 24. **A place's notes have a tab of their own.**
