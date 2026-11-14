@@ -19,6 +19,9 @@ import { levelFraction } from "../lib/vocab.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
 
+/** Monster description sections that no mechanics scan reads (see `executeEntry`). */
+const UNSCANNED_MONSTER_SECTIONS = new Set(["encounter", "lair", "notes"]);
+
 /**
  * Schema v2 (2026-07-24) is v1 plus the `grid` instruction — nothing existing
  * changed, so every v1 cookbook keeps executing under this executor forever.
@@ -2147,8 +2150,14 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
   // prose, so it leaves the result here, read or not.
   const effectsText = Array.isArray(fields.effectsText) ? fields.effectsText : [];
   delete fields.effectsText;
-  if (fields.description?.length) {
-    const scanned = defenseScan(fields.description, registers);
+  // A monster's encounter, lair and notes sections describe its prepared lair
+  // and the Judge's use of it, often with other creatures' stat lines, so they
+  // never feed the creature's own defenses, effects, rolls or derived values.
+  const mechanics = entry.kind === "kind.monster"
+    ? (fields.description ?? []).filter((p) => !UNSCANNED_MONSTER_SECTIONS.has(p.section))
+    : fields.description;
+  if (mechanics?.length) {
+    const scanned = defenseScan(mechanics, registers);
     if (scanned) fields.defenses = scanned;
     // Structured effects: classified from THIS SEAT'S prose against the shipped
     // vocabulary — UNLESS a chef authored specs for this entry, in which case
@@ -2162,8 +2171,8 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     // anything the scan additionally believes is by definition not part of them.
     const authoredEffects = entry.fields?.effects?.specs;
     const effects = authoredEffects?.length
-      ? materializeEffects(authoredEffects, [...fields.description, ...effectsText])
-      : effectScan(fields.description, registers);
+      ? materializeEffects(authoredEffects, [...mechanics, ...effectsText])
+      : effectScan(mechanics, registers);
     if (effects.length) fields.effects = effects;
     // A VARIATION's numbers: the same materializer, deliberately its own field.
     // Not folded into `effects` because these are not an ability's mechanics —
@@ -2174,7 +2183,7 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     // locator locates nothing, and says so by being empty.
     const variationSpecs = entry.fields?.variation?.specs;
     if (variationSpecs?.length) {
-      const located = materializeEffects(variationSpecs, fields.description);
+      const located = materializeEffects(variationSpecs, mechanics);
       if (located.length) fields.variation = located;
     }
     // The entry's OWN printed numbers, located the same way and kept apart for
@@ -2183,7 +2192,7 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     // so the binding sees the book's number or nothing — never a default.
     const valueSpecs = entry.fields?.values?.specs;
     if (valueSpecs?.length) {
-      const located = materializeEffects(valueSpecs, fields.description);
+      const located = materializeEffects(valueSpecs, mechanics);
       if (located.length) fields.values = located;
     }
     // Every roll the ability offers, each with its own target and progression.
@@ -2191,18 +2200,18 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     // than merging with it: the recipe states how many rolls the entry has, so
     // anything the scan additionally thinks it sees is a duplicate or an
     // artifact. Scans are the draft for entries nobody has read yet.
-    const authored = materializeRolls(entry.fields?.rolls?.specs, fields.description, {
+    const authored = materializeRolls(entry.fields?.rolls?.specs, mechanics, {
       progression: fields.progression,
     });
-    const rolls = entry.fields?.rolls?.specs?.length ? authored : rollScan(fields.description);
+    const rolls = entry.fields?.rolls?.specs?.length ? authored : rollScan(mechanics);
     if (rolls.length) fields.rolls = rolls;
   }
   // Values the books state in PROSE rather than in a labelled field — the
   // custom-class build cost, a "counts as <n> custom powers" clause (JJ pp. 310, 320, 322). The pattern is
   // shipped vocabulary; the NUMBER is read here, from this seat's own extracted
   // text, so no book value ever rides along in the module.
-  if (fields.description?.length) {
-    const text = fields.description.map((p) => p.text).join(" ");
+  if (mechanics?.length) {
+    const text = mechanics.map((p) => p.text).join(" ");
     for (const [key, spec] of Object.entries(registers?.derive ?? {})) {
       let m = null;
       try {

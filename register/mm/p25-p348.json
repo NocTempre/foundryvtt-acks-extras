@@ -60,7 +60,14 @@
     },
     "assists": {
       "spoilsPage": 30,
-      "descColumns": 2
+      "descColumns": 2,
+      "continuation": [
+        {
+          "page": 31,
+          "col": 0,
+          "afterSpoils": true
+        }
+      ]
     }
   },
   {
@@ -1939,7 +1946,13 @@
       "display": "Draugr"
     },
     "assists": {
-      "spoilsPage": 117
+      "spoilsPage": 117,
+      "continuation": [
+        {
+          "page": 117,
+          "col": 1
+        }
+      ]
     }
   },
   {
@@ -2888,14 +2901,21 @@
     "kind": "kind.monster",
     "book": "mm",
     "pages": [
-      197
+      197,
+      198
     ],
     "name": "Kraken",
     "anchor": {
       "display": "Kraken"
     },
     "assists": {
-      "spoilsPage": 198
+      "spoilsPage": 198,
+      "continuation": [
+        {
+          "page": 198,
+          "col": 1
+        }
+      ]
     }
   },
   {
@@ -3404,11 +3424,24 @@
     "kind": "kind.monster",
     "book": "mm",
     "pages": [
-      242
+      242,
+      243
     ],
     "name": "Mummy Lord",
     "anchor": {
       "display": "Mummy Lord"
+    },
+    "assists": {
+      "continuation": [
+        {
+          "page": 243,
+          "col": 0
+        },
+        {
+          "page": 243,
+          "col": 1
+        }
+      ]
     }
   },
   {

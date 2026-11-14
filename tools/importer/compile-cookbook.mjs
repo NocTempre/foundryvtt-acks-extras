@@ -705,18 +705,42 @@ function paragraphBoxes(lines, x0, x1, gapMin = null) {
 }
 
 /**
+ * The MM's run-in section labels, each routed to the description section its
+ * paragraphs carry. A label is its own bold run in the entry's prose column.
+ * A prepared lair or encounter and a closing notes block print after the
+ * Spoils block, under these labels, and end it.
+ */
+const SECTION_LABELS = {
+  "Combat": "combat", "Ecology": "ecology", "Encounter": "encounter",
+  "Special Rules": "specialRules", "Lair": "lair", "Appearance": "appearance",
+  "Behavior": "behavior", "Legends": "lore", "Lore": "lore",
+  "Notes": "notes", "Note": "notes",
+};
+
+/**
+ * Whether a run is a section label of the column whose left box edge is `x0`:
+ * a label opens its line, so a run of the same text further in (a word of a
+ * sentence set as a run of its own) is prose.
+ */
+const isSectionLabel = (it, x0) => !!SECTION_LABELS[it.str.trim()] && it.x - x0 < 14;
+
+/**
  * The columns a passage turns onto, as the body runs of each.
  * `assists.continuation` lists them in reading order ({page, col, y1?}); each
  * is read from the body top to the column's first display heading, to a stop
  * run (`stopRuns`: a label such as "Spoils" opening another block in the
  * column), or to its own `y1` where a printed table closes the column, less
- * any `exclude` box on that page (another field's claim there). A page the
+ * any `exclude` box on that page (another field's claim there). A stop run
+ * ends the read only up to the next `resumeAt` label below it, where the
+ * column's own text resumes. A column marked `afterSpoils` opens with the tail
+ * of a Spoils block begun on the page before: it is read from its first
+ * `resumeAt` label. A page the
  * detector reads as one column when its second is short declares its columns
  * in `assists.pageColumns`. A column holding no body run warns and yields
  * nothing.
  * @returns {Promise<{page: number, pd: object, x0: number, x1: number, items: object[]}[]>}
  */
-async function continuationColumns(doc, entryId, assists, { exclude = [], stopRuns = [] } = {}) {
+async function continuationColumns(doc, entryId, assists, { exclude = [], stopRuns = [], resumeAt = null } = {}) {
   const out = [];
   for (const c of assists.continuation ?? []) {
     const cpd = await pageItems(doc, c.page);
@@ -734,10 +758,25 @@ async function continuationColumns(doc, entryId, assists, { exclude = [], stopRu
     const firstY = (its) => its.map((it) => it.y).sort((a, b) => a - b)[0];
     const headY = firstY(cpd.items.filter((it) => it.h >= HEADING_MIN_H && inCol(it)));
     const stopY = firstY(cpd.items.filter((it) => it.h < HEADING_MIN_H && inCol(it) && stopRuns.includes(it.str.trim())));
-    const end = Math.min(headY != null ? headY - 4 : Infinity, stopY != null ? stopY - 3 : Infinity, c.y1 ?? Infinity, cpd.height);
+    const hardEnd = Math.min(headY != null ? headY - 4 : Infinity, c.y1 ?? Infinity, cpd.height);
+    const end = Math.min(hardEnd, stopY != null ? stopY - 3 : Infinity);
+    const labelBelow = (y) => firstY(cpd.items.filter((it) => it.h < HEADING_MIN_H && inCol(it) && it.y > y && resumeAt && isSectionLabel(it, x0)));
+    let from = -Infinity;
+    if (c.afterSpoils) {
+      const lY = labelBelow(top);
+      if (lY == null) {
+        warn(`${entryId}: continuation p.${c.page} column ${c.col} holds no section label after Spoils`);
+        continue;
+      }
+      from = lY - 3;
+    }
+    const resumeY = stopY != null && resumeAt ? labelBelow(stopY) : null;
+    const resume = resumeY != null ? resumeY - 3 : Infinity;
     const ex = exclude.filter((b) => b.page === c.page);
     const items = cpd.items.filter(
-      (it) => it.h < HEADING_MIN_H && inCol(it) && it.y < end && it.str.trim() && !ex.some((b) => inBoxRaw(it, b.box)),
+      (it) =>
+        it.h < HEADING_MIN_H && inCol(it) && it.y >= from && it.y < hardEnd && it.str.trim() && !ex.some((b) => inBoxRaw(it, b.box)) &&
+        (it.y < end || it.y >= resume),
     );
     if (!items.length) {
       warn(`${entryId}: continuation p.${c.page} column ${c.col} holds no body run`);
@@ -850,8 +889,16 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   let spoilsAnchor = proseItems.find((it) => it.str.trim() === "Spoils");
   let spoilsPd = pd;
   let spoilsPage = page;
+  // A section label below Spoils (a prepared lair or encounter, a notes block)
+  // ends the spoils box: the printed spoils block stops above it, and the
+  // paragraphs from the label down are description, each under its section.
+  const labelBelow = (items, y, x0) => items.filter((it) => it.y > y && isSectionLabel(it, x0)).sort((a, b) => a.y - b.y)[0] ?? null;
+  const tailLabel = spoilsAnchor ? labelBelow(proseItems, spoilsAnchor.y, proseBox.x0) : null;
+  // A run starting within 30pt of the right edge is the page's side tab, never
+  // text, so a paragraph box under a section label stops short of it.
+  const bodyRight = (p, x1) => Math.min(x1, p.width - 30);
   let spoilsBox = spoilsAnchor
-    ? { x0: proseBox.x0, x1: proseBox.x1, y0: spoilsAnchor.y - 3, y1: stopY }
+    ? { x0: proseBox.x0, x1: proseBox.x1, y0: spoilsAnchor.y - 3, y1: tailLabel ? tailLabel.y - 3 : stopY }
     : null;
   const descEnd = spoilsAnchor ? spoilsAnchor.y - 3 : stopY;
   const descItems = proseItems.filter((it) => it.y < descEnd);
@@ -870,13 +917,8 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   // bold runs (same mechanism as the "Spoils" anchor). Classify each paragraph
   // by the nearest label above it; leading unlabeled prose = "appearance".
   // Entries with NO labels are flagged for the classification agents.
-  const SECTION_LABELS = {
-    "Combat": "combat", "Ecology": "ecology", "Encounter": "encounter",
-    "Special Rules": "specialRules", "Lair": "lair", "Appearance": "appearance",
-    "Behavior": "behavior", "Legends": "lore", "Lore": "lore",
-  };
   const sectionAnchors = descItems
-    .filter((it) => SECTION_LABELS[it.str.trim()])
+    .filter((it) => isSectionLabel(it, proseBox.x0))
     .sort((a, b) => a.y - b.y);
   // A paragraph in a further column with no label above it carries NO section:
   // it continues the flow from the column before, and the executor joins a
@@ -896,6 +938,12 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
     paragraphBoxes(toLines(descItems), proseBox.x0, proseBox.x1, paraGap).map((p) => withFixes(p, pd)),
     sectionAnchors,
   );
+  if (tailLabel) {
+    const tx1 = bodyRight(pd, proseBox.x1);
+    const tailItems = proseItems.filter((it) => it.y >= tailLabel.y - 3 && it.x <= tx1);
+    const tailLabels = tailItems.filter((it) => isSectionLabel(it, proseBox.x0)).sort((a, b) => a.y - b.y);
+    descParas.push(...classify(paragraphBoxes(toLines(tailItems), proseBox.x0, tx1, paraGap).map((p) => withFixes(p, pd)), tailLabels));
+  }
 
   // An entry too long for one column continues in the next. This is AUTHORED
   // per entry rather than detected, because everywhere else in the book the
@@ -911,21 +959,17 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
     const x0 = cx - 5;
     const x1 = nx ? nx - 6 : pd.width;
     const head = anchors.filter((a) => a.col === proseCol + k).sort((a, b) => a.y - b.y)[0];
-    const items = bodyIn(pd, x0, x1, bodyTop, head ? head.y - 4 : pd.height);
+    const colItems = bodyIn(pd, x0, x1, bodyTop, head ? head.y - 4 : pd.height);
+    // The Spoils block sharing the column is its own field's: the read stops
+    // above it and resumes at the next section label below it.
+    const spoilsRun = colItems.find((it) => it.str.trim() === "Spoils");
+    const resumeLabel = spoilsRun ? labelBelow(colItems, spoilsRun.y, x0) : null;
+    const items = spoilsRun
+      ? colItems.filter((it) => it.y < spoilsRun.y - 3 || (resumeLabel && it.y >= resumeLabel.y - 3))
+      : colItems;
     if (!items.length) continue;
-    const labels = items.filter((it) => SECTION_LABELS[it.str.trim()]).sort((a, b) => a.y - b.y);
+    const labels = items.filter((it) => isSectionLabel(it, x0)).sort((a, b) => a.y - b.y);
     descParas.push(...classify(paragraphBoxes(toLines(items), x0, x1, paraGap).map((p) => withFixes(p, pd)), labels));
-  }
-  // A description that turns the page: each column `assists.continuation`
-  // names is read whole, short of a "Spoils" block sharing the column, and
-  // its paragraphs carry their own page.
-  for (const c of await continuationColumns(doc, entry.id, assists, { stopRuns: ["Spoils"] })) {
-    const labels = c.items.filter((it) => SECTION_LABELS[it.str.trim()]).sort((a, b) => a.y - b.y);
-    const paras = paragraphBoxes(toLines(c.items), c.x0, c.x1, c.pd.typography?.paraGap).map((p) => ({ ...withFixes(p, c.pd), page: c.page }));
-    descParas.push(...classify(paras, labels, { inherit: true }));
-  }
-  if (!sectionAnchors.length && descParas.length > 2) {
-    console.error(`NOTE ${entry.id}: no section labels in description (${descParas.length} paras) — agent classification candidate`);
   }
   fields.description = { op: "text", page, paras: descParas };
   /* --- stat column (with two-page fallback for multi-page monsters) --- */
@@ -990,7 +1034,22 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
       spoilsAnchor = sp2;
       spoilsPd = spPd;
       spoilsPage = spPage;
-      spoilsBox = { x0: spX0, x1: spX1, y0: sp2.y - 3, y1: later2[0]?.y ? later2[0].y - 4 : spPd.height };
+      const spEnd = later2[0]?.y ? later2[0].y - 4 : spPd.height;
+      const spColItems = spPd.items.filter(
+        (it) => it.h < HEADING_MIN_H && it.x >= spX0 && it.x <= spX1 && it.y > sp2.y && it.y < spEnd && it.str.trim(),
+      );
+      const spTail = labelBelow(spColItems, sp2.y, spX0);
+      spoilsBox = { x0: spX0, x1: spX1, y0: sp2.y - 3, y1: spTail ? spTail.y - 3 : spEnd };
+      if (spTail) {
+        const tx1 = bodyRight(spPd, spX1);
+        const tailItems = spColItems.filter((it) => it.y >= spTail.y - 3 && it.x <= tx1);
+        const tailLabels = tailItems.filter((it) => isSectionLabel(it, spX0)).sort((a, b) => a.y - b.y);
+        const tailParas = paragraphBoxes(toLines(tailItems), spX0, tx1, spPd.typography?.paraGap).map((p) => ({
+          ...withFixes(p, spPd),
+          ...(spPage !== page ? { page: spPage } : {}),
+        }));
+        descParas.push(...classify(tailParas, tailLabels));
+      }
     } else if (assists.spoilsPage) {
       warn(`${entry.id}: assists.spoilsPage ${assists.spoilsPage} has no "Spoils" header`);
     }
@@ -1002,6 +1061,39 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
       dropText: "Spoils",
       box: spoilsBox,
     }, spoilsPd);
+  }
+
+  // A description that turns the page: each column `assists.continuation`
+  // names is read whole, short of a "Spoils" block sharing the column, and
+  // its paragraphs carry their own page.
+  for (const c of await continuationColumns(doc, entry.id, assists, { stopRuns: ["Spoils"], resumeAt: SECTION_LABELS })) {
+    const cx1 = bodyRight(c.pd, c.x1);
+    const items = c.items.filter((it) => it.x <= cx1);
+    const labels = items.filter((it) => isSectionLabel(it, c.x0)).sort((a, b) => a.y - b.y);
+    const paras = paragraphBoxes(toLines(items), c.x0, cx1, c.pd.typography?.paraGap).map((p) => ({ ...withFixes(p, c.pd), page: c.page }));
+    classify(paras, labels, { inherit: true });
+    // A box with no section of its own reads as "appearance", so the column's
+    // boxes carry the section running when it opened. The one exception is its
+    // opening box when the passage before it closed without terminal
+    // punctuation: that box continues it, stays sectionless, and the executor
+    // joins the two.
+    let running = [...descParas].reverse().find((p) => p.section)?.section;
+    const prev = descParas[descParas.length - 1];
+    let joins = false;
+    if (prev && paras[0] && !paras[0].section) {
+      const ppd = prev.page && prev.page !== page ? await pageItems(doc, prev.page) : pd;
+      const prevText = joinRuns(runsIn(ppd, prev), prev.fixes, prev.dropText).trim();
+      joins = !!prevText && !/[.!?:;"”’)\]]$/.test(prevText);
+    }
+    paras.forEach((p, i) => {
+      if (p.section) running = p.section;
+      else if (i === 0 && joins) p.continues = true;
+      else if (running) p.section = running;
+    });
+    descParas.push(...paras);
+  }
+  if (!sectionAnchors.length && descParas.length > 2) {
+    console.error(`NOTE ${entry.id}: no section labels in description (${descParas.length} paras) — agent classification candidate`);
   }
 
   // Stat block ends where the column's line flow breaks after the last label.
@@ -1156,7 +1248,7 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   const claimed = new Set();
   for (const instr of Object.values(fields)) {
     if (instr.page !== page) continue;
-    if (instr.op === "text") for (const p of instr.paras) for (const r of runsIn(pd, p)) claimed.add(r);
+    if (instr.op === "text") for (const p of instr.paras) for (const r of p.page && p.page !== page ? [] : runsIn(pd, p)) claimed.add(r);
     else if (instr.op === "attacks") {
       for (const r of runsIn(pd, { box: instr.attacksBox })) claimed.add(r);
       for (const r of runsIn(pd, { box: instr.damageBox })) claimed.add(r);

@@ -1051,4 +1051,33 @@ await ta("a display heading is located by the key of its letters and ships as a 
   assert.equal(displayHeadByHash(wrapped, wrapHeads, twoLines, printKey("qq grim qq hollow"), 1)?.head, wrapHeads[0]);
 });
 
+await ta("a monster's encounter, lair and notes sections are never scanned for its mechanics", async () => {
+  const registers = JSON.parse(fs.readFileSync(new URL("../../cookbook/registers.json", import.meta.url), "utf8"));
+  // Three invented paragraphs on one page: the creature's own modifier phrase,
+  // a line with no mechanic, and a different modifier phrase in the last one.
+  const pd = page(
+    run("The creature gains a +1 bonus to surprise rolls.", 40, 100, 300),
+    run("Nothing mechanical is printed here at all.", 40, 140, 300),
+    run("The creature gains a +1 bonus to initiative rolls.", 40, 200, 300),
+  );
+  const box = (y) => ({ x0: 35, x1: 400, y0: y - 6, y1: y + 10 });
+  const read = async (kind, lastSection) => {
+    const description = {
+      op: "text",
+      page: 1,
+      paras: [{ box: box(100), section: "combat" }, { box: box(140), section: "combat" }, { box: box(200), section: lastSection }],
+    };
+    const cookbook = { schema: "acks-cookbook/3", entries: { "qq.thing": { kind, name: "QQ", fields: { description } } } };
+    return executeEntry(null, cookbook, registers, "qq.thing", { pageCache: new Map([[1, pd]]) });
+  };
+  const targets = (node) => (node.fields.effects ?? []).map((e) => e.target).sort();
+  assert.deepEqual(targets(await read("kind.monster", "combat")), ["initiative", "surprise"], "a monster's own sections are scanned");
+  for (const section of ["encounter", "lair", "notes"]) {
+    const node = await read("kind.monster", section);
+    assert.deepEqual(targets(node), ["surprise"], `the ${section} paragraph's phrase is not read; the ordinary paragraph's is`);
+    assert.equal(node.fields.description.length, 3, "the section's text is still in the description");
+  }
+  assert.deepEqual(targets(await read("kind.proficiency", "encounter")), ["initiative", "surprise"], "a kind that is not a monster scans every section");
+});
+
 console.log(`\n${n} tests passed`);

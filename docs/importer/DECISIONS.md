@@ -10721,3 +10721,36 @@ sweep marks redundant on other plans, which no render offset was tried on.
 *Cost:* p12 stays over its correction budget at fourteen of twelve, and AX1
 p55's three asserted door cells were never rock, so K4 changes no shipped
 plan.
+
+## 2026-11-13 — A monster's spoils box ends at the section label below it (A3)
+
+**Ruled.** In the Monstrous Manual, a prepared lair or encounter, and a notes
+block, print after an entry's Spoils under run-in labels. Until now the
+compiler read everything from the Spoils run down to the column's end as
+spoils, so that text belonged to no description field. Now the first section
+label below Spoils closes the spoils box, wherever the block sits: the anchor
+column, a spill column, the spoils page or a continuation column. The text
+from the label down is description: a lair or encounter goes to the
+monster's Encounter field and a notes block to Notes. `Notes`/`Note` join the
+section labels, and the label set is hoisted so the continuation reader
+shares it. Three register rows gain continuations (the demonic attercop
+`afterSpoils`, the draugr, the kraken) and the mummy lord gains p.243 of the
+PDF, both columns. Fifteen notes runs are now read on thirteen entries; two
+stay unread. The sixty-eighth lair the audit counted has no lair text on its
+page, only the stat row.
+
+**Rejected.** Copying the lair text into a Lairs journal beside the monster
+would give the same words two holders. The owner answered the shelf question
+"Wait for routing", so no Lairs journal ships until routing by kind; whether a
+lair becomes an actor of its own is on the ROADMAP. Also rejected: letting the
+mechanics scans read the new sections. A first build did, and four monsters'
+effects changed because a lair's occupants' figures were applied to the
+creature. The executor now skips encounter, lair and notes for its defense,
+effect, roll and derive scans.
+
+**Cost.** The paragraph boxes under a section label stop 30 pt short of the
+page's right edge, so the side tab's letters fall out of the prose. One
+catfolk paragraph moves from appearance to combat, a correction. Line-coverage
+residue across the book falls from 2038 items to 1801, with p.243 of the PDF now
+counted.
+Left: ROADMAP, "A monster's lair: what the Encounter field does not reach".

@@ -1491,6 +1491,21 @@ must be stated and `assists.proseColumn` where a monster's prose sits beside
 its block; a proficiency list that turns a column names it
 (`profList.continues`).
 
+A monster's Spoils block ends at the first section label below it (a prepared
+lair or encounter, a notes block; `SECTION_LABELS` in the compiler). The spoils
+box closes above that label, and the paragraphs from the label down are
+description under their sections. This holds in the anchor column, in a spill
+column and on the spoils page. A continuation column stops at a Spoils run and
+resumes at the next label. A continuation column marked `afterSpoils` opens
+with the tail of a Spoils block begun on the page before, so it is read from
+its first label. A continuation column's boxes carry the section that was
+running when the column opened. The one exception is an opening box whose
+predecessor ended without terminal punctuation: that box is marked `continues`
+and joined. Paragraph boxes stop 30 pt short of the page's right edge, where
+the side tab prints. The executor's mechanics scans (defenses, effects, rolls,
+derived values) skip the encounter, lair and notes sections, because those
+describe a lair and its occupants rather than the creature.
+
 ## A run-in keyed area
 
 A keyed area whose key opens its first paragraph (`anchor: {number, as:

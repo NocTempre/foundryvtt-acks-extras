@@ -243,4 +243,27 @@ for (const e of entries.values()) {
   check(`${e.id}: empty and detail marks are only ever true`, paras.every((p) => (p.empty ?? true) === true && (p.detail ?? true) === true));
 }
 
+/* --- a monster's description never reads the spoils block --- */
+
+// The spoils box and the description's paragraph boxes both read the prose
+// column, and a box that runs to the foot of the column takes whatever prints
+// below the Spoils list: a prepared lair or encounter, a notes block. A section
+// label below Spoils ends the spoils box, so no description paragraph box may
+// overlap it, and an encounter or lair paragraph in the spoils' own column
+// sits below it.
+const boxesOverlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+const monsters = [...entries.values()].filter((e) => e.kind === "kind.monster" && e.fields?.spoils?.box);
+check("the shipped cookbook has monsters with a spoils block", monsters.length > 0);
+for (const e of monsters) {
+  const sp = e.fields.spoils;
+  const descPage = e.fields.description?.page;
+  const onSpoilsPage = (e.fields.description?.paras ?? []).filter((p) => (p.page ?? descPage) === sp.page && p.box);
+  const overlapping = onSpoilsPage.filter((p) => boxesOverlap(p.box, sp.box));
+  check(`${e.id}: no description paragraph box overlaps the spoils box${overlapping.length ? ` — ${overlapping.length} do` : ""}`, overlapping.length === 0);
+  const above = onSpoilsPage.filter(
+    (p) => (p.section === "encounter" || p.section === "lair") && p.box.x0 < sp.box.x1 && sp.box.x0 < p.box.x1 && p.box.y0 < sp.box.y1,
+  );
+  check(`${e.id}: every encounter or lair paragraph sharing the spoils column sits below the spoils box${above.length ? ` — ${above.length} do not` : ""}`, above.length === 0);
+}
+
 console.log(`\ntest-cookbook-coherence: all ${pass} checks passed`);

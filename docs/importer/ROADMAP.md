@@ -826,6 +826,25 @@ flow already does — then the seventeen spans widened in the register and each
 entry's paragraph count read against the page. A refill in place then
 completes every affected actor.
 
+## A monster's lair: what the Encounter field does not reach
+
+The lair or encounter printed after a monster's Spoils is read into its
+Encounter field, and a notes block into Notes (MODEL, the spoils bound). Left:
+
+- **A lair of its own.** A Lairs journal of rows waits for routing by kind
+  (owner 2026-11-13: "Wait for routing"). The owner asked whether a lair is a
+  new actor type, or an extension of the monster group/encounter actor, that
+  "should link without creating duplicates". Either way the Encounter field
+  stays the text's only holder until then.
+- **Spoils no register row points at.** Three entries print a Spoils block
+  that no `spoilsPage` names, so the block is left unclaimed: two human
+  variants and the mummy lord. Seven more carry a Spoils label
+  that yields no spoils field.
+- **The kraken's first column on p.198 of the PDF** is still unread: the
+  continuation reads only that page's second column.
+- **The demonic attercop's spoils tail on p.31 of the PDF** sits above its
+  section label and is still part of no field.
+
 ## A family's leaders: what the Role axis does not reach
 
 The family import reads its leaders, casters and dependants into role cells
