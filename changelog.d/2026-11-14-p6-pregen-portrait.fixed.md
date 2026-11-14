@@ -1,0 +1,1 @@
+- **Importer, AX1 pregenerated characters:** a pregen whose page prints a portrait imports with it as the character's image; the others keep the default image, since their pages print none.

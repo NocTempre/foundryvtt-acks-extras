@@ -2918,6 +2918,10 @@ async function compilePregen(doc, entry) {
   const proseSegs = segs.map((seg) => ({ ...seg, items: seg.items.filter((it) => !blockItems.has(it)) })).filter((s) => s.items.length);
   const { paras } = axParas(proseSegs, page);
   if (paras.length) fields.description = { op: "text", page, paras };
+  if (assists.artName) {
+    const art = await axPickArt(doc, fields, [], assists);
+    if (art) fields.art = art;
+  }
   return {
     kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
     ...(entry.meta ? { meta: entry.meta } : {}), fields,

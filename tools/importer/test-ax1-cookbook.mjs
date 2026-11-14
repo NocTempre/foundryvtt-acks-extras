@@ -405,4 +405,24 @@ t("the book's equipment is the rows no other register prints, each read under it
   }
 });
 
+t("a pregen's portrait ships as the art its row names, with the placement box; a page with none ships no art", () => {
+  const rows = JSON.parse(fs.readFileSync(path.join(here, "..", "..", "register", "ax1", "p71-p74-pregens.json"), "utf8"));
+  const pregens = Object.entries(entries).filter(([, e]) => e.kind === "kind.pregen");
+  assert.deepEqual(pregens.map(([id]) => id), rows.map((r) => r.id));
+  const named = rows.filter((r) => r.assists.artName);
+  assert.ok(named.length > 0 && named.length < rows.length, "some pregen pages print a portrait and some do not");
+  for (const [id, e] of pregens) {
+    const row = rows.find((r) => r.id === id);
+    if (!row.assists.artName) {
+      assert.equal(e.fields.art, undefined, `${id} names no picture`);
+      continue;
+    }
+    const art = e.fields.art;
+    assert.equal(art?.op, "art", id);
+    assert.equal(art.name, row.assists.artName, id);
+    assert.equal(art.page, row.assists.artPage ?? e.pages[0], id);
+    assert.ok(art.box && art.box.w > 0 && art.box.h > 0, `${id} ships the placement box the binding crops`);
+  }
+});
+
 console.log(`ax1-cookbook: ${n} checks OK`);

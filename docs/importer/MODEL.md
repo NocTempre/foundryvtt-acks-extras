@@ -1201,6 +1201,11 @@ becomes a character, and the derivation wins".
   under their own label; `parseWriteup` reads both shapes. The class line's
   paragraph is read to its title's closing bracket and no further
   (`fixes.keepPrefix` and `drop`).
+- **A pregen's portrait.** A row whose page prints one names it
+  (`assists.artName`, with `artPage` where the picture stands on another
+  page), and `compilePregen` ships it as an `art` op with its placement box,
+  which `adventureActorArt` crops and uploads as the character's image. A row
+  whose page prints none names nothing and keeps the default image.
 - **What the page printed.** The biography holds the entry's prose
   (`entryText`), then the "as printed" block (`asPrintedBlock`): the stat line
   as printed, a line per check, a line per name the library could not answer,
