@@ -35,7 +35,7 @@ const message = (outcome, extra = {}) => ({ id: "msg1", speaker: { actor: "a" },
 const placed = { id: "target-token" };
 
 /** Run the listener with an attack in flight, its type read as the throw's builder would. */
-async function during({ actor = { type: ACTOR_TYPE.character }, type = "melee", target = placed, spoken = actor } = {}, data) {
+async function during({ actor = { type: ACTOR_TYPE.character, system: { attack: { throw: 10 } } }, type = "melee", target = placed, spoken = actor } = {}, data) {
   speakerActor = spoken;
   game.actors = { get: () => actor };
   game.user.targets = new Set(target ? [{ document: { object: target } }] : []);
@@ -91,8 +91,8 @@ await ok("a whispered or blind attack keeps its result", async () => {
 });
 
 await ok("the fallback row follows the kind of attack and who makes it", async () => {
-  const character = { type: ACTOR_TYPE.character };
-  const creature = { type: ACTOR_TYPE.monster };
+  const character = { type: ACTOR_TYPE.character, system: { attack: { throw: 10 } } };
+  const creature = { type: ACTOR_TYPE.monster, system: { attack: { throw: 10 } } };
   const row = async (actor, type) => (await during({ actor, type }, { workflow: message("hit"), targets: [], extraNames: [] })).extraNames;
   assert.deepEqual(await row(character, "melee"), ["Sword"]);
   assert.deepEqual(await row(creature, "melee"), ["Unarmed Strike"]);

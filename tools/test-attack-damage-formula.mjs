@@ -18,7 +18,8 @@ const registered = {};
 const warnings = [];
 const noop = function () {};
 globalThis.game = { system: { id: "acks" }, i18n: { format: (k, d = {}) => `${k}|${Object.values(d).join(",")}` } };
-globalThis.libWrapper = { register: (_id, path, fn) => { registered[path] = fn; } };
+const wrapperTypes = {};
+globalThis.libWrapper = { register: (_id, path, fn, type) => { registered[path] = fn; wrapperTypes[path] = type; } };
 globalThis.CONFIG = {
   Actor: { documentClass: { prototype: { makeAttackThrow: noop } }, dataModels: {} },
   Item: { dataModels: { weapon: { prototype: { getAttackTypes: noop, getDamageModes: noop, getDamageFormula: noop } } } },
@@ -67,7 +68,7 @@ ok("another weapon with the same text is told about on its own", () => {
   const quiet = console.error;
   console.error = () => {};
   const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
-  const actor = { name: "attacker" };
+  const actor = { name: "attacker", system: { attack: { throw: 10 } } };
   const built = [];
   const attack = makeAttackThrow.call(actor, async () => {
     built.push(attackInFlight(actor) !== null);
@@ -82,6 +83,36 @@ ok("another weapon with the same text is told about on its own", () => {
   assert.equal(attackInFlight(actor), null, "and the attack is released afterwards");
   passed++;
   console.log("ok   an attack waits for a contributor that is still loading, and a failed wait does not hold it");
+}
+
+// A blank or absent attack throw is refused at the seam. The one wrapper on
+// makeAttackThrow is MIXED, because it may skip the system's roll; nothing else is.
+{
+  const path = "CONFIG.Actor.documentClass.prototype.makeAttackThrow";
+  const makeAttackThrow = registered[path];
+  assert.equal(wrapperTypes[path], "MIXED", "a wrapper that may skip the system's roll is registered MIXED");
+  assert.deepEqual(
+    Object.entries(wrapperTypes).filter(([p, t]) => p !== path && t !== "WRAPPER"),
+    [],
+    "every other attack wrapper stays a WRAPPER",
+  );
+  for (const [label, value] of [["a blank", null], ["an absent", undefined], ["a non-number", "12"], ["a NaN", NaN]]) {
+    warnings.length = 0;
+    let rolled = false;
+    const refused = await makeAttackThrow.call({ name: "Blank", system: { attack: { throw: value } } }, async () => { rolled = true; return {}; }, { attackType: "melee" });
+    assert.equal(refused, null, `${label} throw: nothing is rolled, the answer is the dismissed dialog's null`);
+    assert.equal(rolled, false, `${label} throw: core's roll is never reached`);
+    assert.deepEqual(warnings, ["ACKS-LIB.attack.noThrow|Blank"], `${label} throw: the Judge is told once`);
+  }
+  warnings.length = 0;
+  let rolled = false;
+  const quiet = console.error;
+  console.error = () => {}; // the earlier contributor whose wait rejects is still registered
+  const outcome = await makeAttackThrow.call({ name: "Zero", system: { attack: { throw: 0 } } }, async () => { rolled = true; return { hit: true }; }, {});
+  console.error = quiet;
+  assert.deepEqual([rolled, outcome, warnings], [true, { hit: true }, []], "a throw of zero is a figure, and core's roll runs");
+  passed++;
+  console.log("ok   an attack with no attack throw is refused at the seam, and a figure rolls");
 }
 
 console.log(`\n${passed} passed`);

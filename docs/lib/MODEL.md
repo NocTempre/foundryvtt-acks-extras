@@ -1917,6 +1917,11 @@ read something that loads after `ready` also declares `ready()`: the wrapper on
 `makeAttackThrow` awaits every contributor's before it builds the throw, and a
 `ready()` that rejects is logged and stops holding the attack (equipment's is
 the weapon rows' wait, [equipment MODEL](../equipment/MODEL.md), "Weapon rows").
+That wrapper is registered `MIXED`, because it also refuses: an attacker whose
+`system.attack.throw` is no number rolls nothing, warns
+(`ACKS-LIB.attack.noThrow`) and answers null, the system's own answer for a
+dismissed dialog. Every attack button ends there, the item sheet's and the
+Equipment tab's included, so none guards for itself.
 A caller passes what the
 system's call cannot carry in `options.acksLib` — `terms`, `damageTerms`, a
 wanted `damageMode` (honoured by listing it first, since the system opens on

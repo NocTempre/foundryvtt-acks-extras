@@ -710,6 +710,11 @@ it.
 3. Click an attack row.
    *Observable:* a warning says the monster has no attack throw, and no roll
    card is posted.
+4. Roll the weapon from its own item sheet, and from the character sheet's
+   Equipment tab if the fixture is a character.
+   *Observable:* the lib warning (`ACKS-LIB.attack.noThrow`) names the actor,
+   and no dialog opens and no roll card is posted. The refusal is the wrapper on
+   `makeAttackThrow` (lib MODEL, "An attack card is the system's"), unwalked.
 
 **Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
 built.

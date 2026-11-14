@@ -1095,6 +1095,7 @@
   "ACKS-LIB.attack.improvisedThrown": "Improvised (thrown)",
   "ACKS-LIB.loyaltyRoll.blank": "{name} has no loyalty score to roll with. Set one on the sheet's Loyalty field.",
   "ACKS-LIB.attack.badDamage": "{item} lists its damage as \"{formula}\", which is not a dice formula, so its hits roll no damage. Set a damage formula on the item.",
+  "ACKS-LIB.attack.noThrow": "{name} has no attack throw value yet. Set one on its sheet before rolling an attack.",
   "ACKS-LIB.damageType.bludgeoning": "Bludgeoning",
   "ACKS-LIB.damageType.slashing": "Slashing",
   "ACKS-LIB.damageType.piercing": "Piercing",

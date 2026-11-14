@@ -11,7 +11,8 @@
  * `getDamageFormula(mode)`. The dialog's live preview and the skipped-dialog
  * roll ask the same questions, so one answer serves both.
  *
- * This file wraps those questions (one libWrapper WRAPPER per method) and
+ * This file wraps those questions (one libWrapper wrapper per method, a WRAPPER
+ * on each but `makeAttackThrow`, which refuses a blank throw and is MIXED) and
  * answers them from a set of CONTRIBUTORS: the conditions, the equipment
  * feature's per-weapon modifiers, and whatever else a feature registers. A
  * contributor sees the attack in flight — attacker, weapon, target, options —
@@ -173,11 +174,22 @@ export function attackContext(actor, options = {}) {
 }
 
 /**
- * WRAPPER around `AcksActor#makeAttackThrow`: wait for the contributors to be
- * ready, hold the context, fire the hooks. The wait comes first, so the kinds
- * of attack, the grips and every row are answered once, from what has loaded.
+ * MIXED form around `AcksActor#makeAttackThrow`: an attacker whose own attack
+ * throw is no number is refused, as `onRollLoyalty` refuses a blank score, and
+ * nothing is rolled (the system's own null for a dismissed dialog). Core's
+ * builder adds the throw to the target's armour class as it stands, so a blank
+ * rolls against the armour class alone and an absent one against NaN. Every
+ * attack button ends here, the item sheet's and core's own included. Any other
+ * attack waits for the contributors to be ready, holds the context and fires the
+ * hooks; the wait comes first, so the kinds of attack, the grips and every row
+ * are answered once, from what has loaded.
  */
 async function onMakeAttackThrow(wrapped, options = {}) {
+  const throwValue = this.system?.attack?.throw;
+  if (typeof throwValue !== "number" || !Number.isFinite(throwValue)) {
+    globalThis.ui?.notifications?.warn(game.i18n.format("ACKS-LIB.attack.noThrow", { name: this.name }));
+    return null;
+  }
   await contributorsReady();
   const ctx = attackContext(this, options);
   try {
@@ -248,15 +260,19 @@ function onWeaponDamageFormula(wrapped, mode) {
   return "";
 }
 
-/** Register one wrapper, naming what is lost when the target is absent. */
-function wrap(path, wrapper) {
+/**
+ * Register one wrapper, naming what is lost when the target is absent. A
+ * `type` of `"MIXED"` is for a wrapper that may skip `wrapped`: a WRAPPER that
+ * does so breaks libWrapper's contract for the chain.
+ */
+function wrap(path, wrapper, type = "WRAPPER") {
   try {
     const target = path.split(".").reduce((o, k) => o?.[k], globalThis);
     if (typeof target !== "function") {
       console.warn(`${MODULE_ID} | ${path} not found; the attack seam does not reach it.`);
       return false;
     }
-    libWrapper.register(MODULE_ID, path, wrapper, "WRAPPER");
+    libWrapper.register(MODULE_ID, path, wrapper, type);
     return true;
   } catch (err) {
     console.error(`${MODULE_ID} | could not wrap ${path}; the attack seam does not reach it`, err);
@@ -276,7 +292,7 @@ export function installAttackThrowPatch() {
     console.error(`${MODULE_ID} | libWrapper is not active; the attack seam is not installed.`);
     return false;
   }
-  const ok = wrap("CONFIG.Actor.documentClass.prototype.makeAttackThrow", onMakeAttackThrow);
+  const ok = wrap("CONFIG.Actor.documentClass.prototype.makeAttackThrow", onMakeAttackThrow, "MIXED");
   for (const type of Object.keys(CONFIG.Actor.dataModels ?? {})) {
     if (type.includes(".")) continue; // a module sub-type answers for itself
     wrap(`CONFIG.Actor.dataModels.${type}.prototype.getAttackThrowModifiers`, onActorAttackModifiers);

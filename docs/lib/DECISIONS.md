@@ -148,3 +148,15 @@ reads", shows the loads gone.
 **Rejected.** A fallback figure of one, which would tint a place the book permits; reading the Treasure Tome page as well, which would add a second recipe for one figure.
 
 *Cost:* lib `apiVersion` is 46 (`WEAR_SLOTS.ring.capacity` is gone, `slotCapacity` and `slotUse` can answer `null`, and `vocab` gains `WEAR_SLOTS_DOC`, `RING_CAPACITY_TABLE`, `declareWearSlotTables` and `slotCapacitySource`). A world that has not imported the Judges Journal shows no ring cap and flags no overfilled ring place. The other places keep the module's own capacities, which the Treasure Tome's form table prints and this page does not.
+
+## 2026-11-14 — A blank attack throw is refused at the one seam every attack crosses
+
+**New evidence.** The monsters entry "An attack throw that is not a number shows no figure" left a cost standing: the module's own buttons refused a missing throw, and a weapon rolled from its item sheet or the Equipment tab still took core's target. A button-by-button guard cannot reach core's own sheet or `Item#use`; the owner pulled the row into the Beta ("very low hanging fruit in the bugfix category").
+
+**Ruled.** `onMakeAttackThrow` in `patches/attack-throw.mjs` refuses an attacker whose `system.attack.throw` is not a finite number: it warns (`ACKS-LIB.attack.noThrow`, naming the actor) and returns null before anything is built or rolled. The loyalty roll's patch is the shape (`patches/loyalty-roll.mjs`). A throw of zero is a figure and rolls.
+
+**The session's call, owner may overrule: MIXED for that one method.** A WRAPPER that skips `wrapped` breaks libWrapper's contract for the chain, so `wrap()` takes a type and `makeAttackThrow` alone is registered `MIXED`; every other attack wrapper stays a WRAPPER. The buttons that already refused (monster sheet, Rolls tab, Follower Card) keep their own warnings, which come first.
+
+**Rejected.** A guard in each remaining caller (item sheet `rollById`, the character sheet's weapon rows): core's own sheet and `Item#use` stay open.
+
+*Cost:* an attacker with no throw cannot roll an attack at all, where before it rolled against the armour class alone, which was a figure the page never printed. Supersedes the "What it cost" clause of the monsters entry named above.

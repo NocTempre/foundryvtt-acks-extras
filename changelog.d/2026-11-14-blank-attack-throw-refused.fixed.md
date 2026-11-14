@@ -1,0 +1,1 @@
+An attacker whose attack throw is blank no longer rolls an attack against the target's armour class alone. Every attack now refuses with a warning naming the actor and posts no card, including a weapon rolled from its item sheet's attack buttons, a weapon row on the character sheet's Equipment tab, and the system's own sheet. A throw of zero still rolls.
