@@ -795,20 +795,6 @@ would be a guess rather than an answer.
   `audience` is a Judge-read string, not a structured vocabulary — a market
   surface offers the claim and never matches it automatically.
 
-### Scavenged condition (RR p. 160)
-
-The condition rows come from the GM's imported grid alone
-(`overlays/scavenged.mjs`): `importedTable` reads the ruledata registry, where
-a Judge's override in the Ruledata Browser wins over the page, and
-`scavengedSource` tells the control which of the two it is showing. With no
-table, nothing is offered: the Construction tab's control says not imported
-and `scavengeItem` warns and returns null. `rowToEffects` parses a row's own
-words into damage, attack, initiative, encumbrance, armour class, breaks and
-cannot-sneak; a phrase it does not know rides along as a note. Attack and
-armour class penalties stop at the imported floor (`scavengedCaps.penalty`,
-`scavengedPenaltyFloor`) and are not capped while that figure is not
-imported.
-
 `layerDeltas` sums applied variations alongside the flag layers (masterwork,
 silvered, scavenged) into one delta set, sharing the cost order documented
 above. A flag OWNS its family: applying a `masterwork.*` variation to an item whose
@@ -844,6 +830,20 @@ Net row all read one answer.
   repair rewrites the figures and the stamp together.
 - **The weapon-table tag stays structural.** `SILVER.quality` is the tag the
   weapon list marks a silvered row with, read by `silver.mjs`.
+
+### Scavenged condition (RR p. 160)
+
+The condition rows come from the GM's imported grid alone
+(`overlays/scavenged.mjs`): `importedTable` reads the ruledata registry, where
+a Judge's override in the Ruledata Browser wins over the page, and
+`scavengedSource` tells the control which of the two it is showing. With no
+table, nothing is offered: the Construction tab's control says not imported
+and `scavengeItem` warns and returns null. `rowToEffects` parses a row's own
+words into damage, attack, initiative, encumbrance, armour class, breaks and
+cannot-sneak; a phrase it does not know rides along as a note. Attack and
+armour class penalties stop at the imported floor (`scavengedCaps.penalty`,
+`scavengedPenaltyFloor`) and are not capped while that figure is not
+imported.
 
 ## Weapon rows — `weapon-rows.mjs`
 

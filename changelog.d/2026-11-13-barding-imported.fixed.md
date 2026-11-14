@@ -1,0 +1,1 @@
+An imported barding item's description (Items sidebar tab → the item's sheet) holds the book-text block and its page reference alone, and spiked barding stores no multiplier or damage figure of its own; a barding item's cost and encumbrance are marked as depending on the mount.

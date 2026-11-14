@@ -1235,18 +1235,18 @@ check("armour uses the armour/equipment table", tableFor(armor("Plate", "heavy")
 // An invented condition grid in the imported shape; the book's rows arrive through the importer.
 const scRow = (c, e, v, min, max) => ({ category: c, effect: e, value: v, min, max });
 const SCAVENGED_TEST_TABLES = {
-  scavengedPiercingSlashing: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "-1 damage", "-50%", 2, 8), 12: scRow("Gamma", "-1 to attacks", "-50%", 9, 12), 17: scRow("Delta", "-1 to initiative", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
-  scavengedArmorEquipment: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "+1 stone encumbrance", "-50%", 2, 8), 12: scRow("Gamma", "Cannot sneak", "-50%", 9, 12), 17: scRow("Delta", "-1 AC / breaks", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
+  scavengedPiercingSlashing: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "-2 damage", "-50%", 2, 8), 12: scRow("Gamma", "-2 to attacks", "-50%", 9, 12), 17: scRow("Delta", "-2 to initiative", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
+  scavengedArmorEquipment: { 1: scRow("Alpha", "-", "100%", 1, 1), 8: scRow("Beta", "+2 stone encumbrance", "-50%", 2, 8), 12: scRow("Gamma", "Cannot sneak", "-50%", 9, 12), 17: scRow("Delta", "-2 AC / breaks", "-50%", 13, 17), 20: scRow("Roll again twice", "-", "-", 18, 20) },
 };
 registerTable({ id: "equipment", tables: SCAVENGED_TEST_TABLES }, { priority: PRIORITY.WORLD, source: "test" });
 
 // Reuse first: results become updates to fields CORE already owns.
 const upd = toItemUpdates(weapon("Sword", { melee: true, damage: "1d6" }), accumulateImported("piercingSlashing", [7]));
-check("-1 damage becomes a core damage string '1d6-1'", upd["system.damage.base.formula"] === "1d6-1");
+check("-2 damage becomes a core damage string '1d6-2'", upd["system.damage.base.formula"] === "1d6-2");
 const updA = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [15]));
-check("-1 AC becomes a core aac.value", updA["system.ac.value"] === 5);
+check("-2 AC becomes a core aac.value", updA["system.ac.value"] === 4);
 const updE = toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [3]));
-check("+1 stone becomes core weight6 (+6 units)", updE["system.weight6"] === 6);
+check("+2 stone becomes core weight6 (+12 units)", updE["system.weight6"] === 12);
 check("breaks/cannotSneak recorded as a flag for the Judge", toItemUpdates(armor("Plate", "heavy", { ac: 6 }), accumulateImported("armourEquipment", [11]))["flags.acks-extras.scavenged"].cannotSneak === true);
 unregisterTable("equipment", { priority: PRIORITY.WORLD });
 
@@ -2662,24 +2662,24 @@ check("scavenge single non-reroll result = one d20", JSON.stringify(rollScavenge
 
 // Scavenge stamps a condition onto a real-shaped weapon, reversibly. Fields are
 // recomputed from ONE pristine baseline (properties.mjs), so the damage string
-// is normalised ("1d6 - 1") and the snapshot lives under `pristine`.
+// is normalised ("1d6 - 2") and the snapshot lives under `pristine`.
 const scWeapon = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0 });
-await scavengeItem(scWeapon, { roll: () => 7 }); // "Beta" → -1 damage
-check("scavenge stamps -1 damage onto a weapon", scWeapon.system.damage.base.formula === "1d6 - 1");
+await scavengeItem(scWeapon, { roll: () => 7 }); // "Beta" → -2 damage
+check("scavenge stamps -2 damage onto a weapon", scWeapon.system.damage.base.formula === "1d6 - 2");
 check("scavenge captures ONE pristine baseline", scWeapon._flags.pristine?.damage === "1d6");
 await clearScavenged(scWeapon);
 check("clearScavenged restores pristine damage, clears both flags", scWeapon.system.damage.base.formula === "1d6" && scWeapon._flags.scavenged === undefined && scWeapon._flags.pristine === undefined);
 
 // Re-rolling never compounds (always recomputed from pristine).
 await scavengeItem(scWeapon, { roll: () => 7 });
-await scavengeItem(scWeapon, { roll: () => 3 }); // "Beta" again → -1 damage (from pristine, not -2)
-check("re-scavenge starts from pristine (no compounding)", scWeapon.system.damage.base.formula === "1d6 - 1");
+await scavengeItem(scWeapon, { roll: () => 3 }); // "Beta" again → -2 damage (from pristine, not -4)
+check("re-scavenge starts from pristine (no compounding)", scWeapon.system.damage.base.formula === "1d6 - 2");
 await clearScavenged(scWeapon);
 
-// Armour scavenge: -1 AC + a break flag for the Judge.
+// Armour scavenge: -2 AC + a break flag for the Judge.
 const scArmor = mockDoc("armor", { name: "Plate", aac: 6, weight6: 36, armorType: "heavy" });
-await scavengeItem(scArmor, { roll: () => 13 }); // "Delta" → -1 AC, breaks
-check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.value === 5 && scArmor._flags.scavenged?.breaks === true);
+await scavengeItem(scArmor, { roll: () => 13 }); // "Delta" → -2 AC, breaks
+check("scavenge stamps -2 AC on armour + records break flag", scArmor.system.ac.value === 4 && scArmor._flags.scavenged?.breaks === true);
 
 /* --- LAYERING: masterwork + scavenged must coexist and unwind cleanly ----- */
 // A single baseline, never a per-layer snapshot: two layers snapshotting their
@@ -2687,14 +2687,14 @@ check("scavenge stamps -1 AC on armour + records break flag", scArmor.system.ac.
 const both = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, weight6: 6 });
 await setMasterwork(both, "weaponBoth");
 check("masterwork alone: the document's bonus and damage", both.system.bonus.attack === FIG.both.bonus && both.system.damage.base.formula === `1d6 + ${FIG.both.damage}`);
-await scavengeItem(both, { roll: () => 7 }); // Beta: -1 damage
-check("masterwork + scavenged combine numerically (not '1d6 + 2-1')", both.system.damage.base.formula === `1d6 + ${FIG.both.damage - 1}` && both.system.bonus.attack === FIG.both.bonus);
+await scavengeItem(both, { roll: () => 7 }); // Beta: -2 damage
+check("masterwork + scavenged combine numerically: +2 and -2 leave the bare die, not '1d6 + 2-2'", both.system.damage.base.formula === "1d6" && both.system.bonus.attack === FIG.both.bonus);
 await clearScavenged(both);
 check("clearing the condition leaves masterwork intact", both.system.damage.base.formula === `1d6 + ${FIG.both.damage}` && both.system.bonus.attack === FIG.both.bonus);
-await scavengeItem(both, { roll: () => 11 }); // Gamma: -1 attack
-check("scavenged attack penalty stacks onto the masterwork bonus", both.system.bonus.attack === FIG.both.bonus - 1);
+await scavengeItem(both, { roll: () => 11 }); // Gamma: -2 attack
+check("scavenged attack penalty stacks onto the masterwork bonus", both.system.bonus.attack === FIG.both.bonus - 2);
 await setMasterwork(both, "none");
-check("clearing masterwork keeps the condition's -1 attack", both.system.bonus.attack === -1 && !!both._flags.scavenged);
+check("clearing masterwork keeps the condition's -2 attack", both.system.bonus.attack === -2 && !!both._flags.scavenged);
 await clearScavenged(both);
 check("clearing the LAST layer restores the item exactly + drops the baseline",
   both.system.bonus.attack === 0 && both.system.damage.base.formula === "1d6" && both.system.weight6 === 6 && both._flags.pristine === undefined);
@@ -2834,12 +2834,12 @@ const { scavengedOptions } = await import(new URL("actions.mjs", S));
 
 // rowToEffects parses the reader's own row words into mechanics; the labels and figures here are invented.
 const rte = (category, effect, value) => rowToEffects({ category, effect, value });
-check("imported row: '-1 damage' → damage -1, value 50%", (() => { const e = rte("Beta", "-1 damage", "-50%"); return e.damage === -1 && Math.abs(e.value - 0.5) < 0.001; })());
-check("imported row: '-1 to attacks' → attack -1", rte("Gamma", "-1 to attacks", "-50%").attack === -1);
-check("imported row: '-1 to initiative' → initiative -1", rte("Delta", "-1 to initiative", "-50%").initiative === -1);
-check("imported row: '+1 stone encumbrance' → encumbrance +1", rte("Epsilon", "+1 stone encumbrance", "-50%").encumbrance === 1);
+check("imported row: '-2 damage' → damage -2, value 50%", (() => { const e = rte("Beta", "-2 damage", "-50%"); return e.damage === -2 && Math.abs(e.value - 0.5) < 0.001; })());
+check("imported row: '-2 to attacks' → attack -2", rte("Gamma", "-2 to attacks", "-50%").attack === -2);
+check("imported row: '-2 to initiative' → initiative -2", rte("Delta", "-2 to initiative", "-50%").initiative === -2);
+check("imported row: '+2 stone encumbrance' → encumbrance +2", rte("Epsilon", "+2 stone encumbrance", "-50%").encumbrance === 2);
 check("imported row: 'cannot sneak' → cannotSneak", rte("Zeta", "cannot sneak", "-50%").cannotSneak === true);
-check("imported row: small-caps '-1 Ac/ breaks' → ac -1 AND breaks", (() => { const e = rte("Eta", "-1 Ac/ breaks", "-50%"); return e.ac === -1 && e.breaks === true; })());
+check("imported row: small-caps '-2 Ac/ breaks' → ac -2 AND breaks", (() => { const e = rte("Eta", "-2 Ac/ breaks", "-50%"); return e.ac === -2 && e.breaks === true; })());
 check("imported row: a dash effect at 100% → no effects, full value", (() => { const e = rte("Alpha", "-", "100%"); return e.value === 1 && !e.damage && !e.breaks; })());
 check("imported row: 'Roll again twice' flags a reroll", rte("Roll again twice", "-", "-").reroll === true);
 check("imported row: an unrecognised effect is kept as a note (vessels)", rte("Theta", "-5 widgets", "-50%").notes[0] === "-5 widgets");
@@ -2850,12 +2850,12 @@ check("scavengedOptions offers no rows with nothing imported", scavengedOptions(
 
 registerTable({ id: "equipment", tables: { scavengedPiercingSlashing: {
   2: { category: "Alpha", effect: "-", value: "100%", min: 1, max: 2 },
-  6: { category: "Beta", effect: "-1 damage", value: "-50%", min: 3, max: 6 },
+  6: { category: "Beta", effect: "-2 damage", value: "-50%", min: 3, max: 6 },
   20: { category: "Roll again twice", effect: "-", value: "-", min: 7, max: 20 },
 } } }, { priority: PRIORITY.WORLD, source: "test" });
 check("importedTable resolves through the ruledata registry", !!importedTable("piercingSlashing"));
 check("scavengedOptions lists the IMPORTED categories (reroll row excluded)", (() => { const o = scavengedOptions("piercingSlashing"); return o.length === 2 && o[1].label === "Beta"; })());
-check("accumulateImported applies the imported row's mechanics", (() => { const c = accumulateImported("piercingSlashing", [4]); return c.damage === -1 && c.labels[0] === "Beta"; })());
+check("accumulateImported applies the imported row's mechanics", (() => { const c = accumulateImported("piercingSlashing", [4]); return c.damage === -2 && c.labels[0] === "Beta"; })());
 check("accumulateImported: the reroll row itself contributes nothing", accumulateImported("piercingSlashing", [19]).labels.length === 0);
 unregisterTable("equipment", { priority: PRIORITY.WORLD });
 

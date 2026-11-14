@@ -82,7 +82,7 @@ const SCAVENGED_DOC = {
       1: row("Alpha", "-", "100%", 1, 1),
       8: row("Beta", "-2 damage", "-50%", 2, 8),
       12: row("Gamma", "-2 to attacks", "-50%", 9, 12),
-      17: row("Delta", "-1 to initiative", "-50%", 13, 17),
+      17: row("Delta", "-3 to initiative", "-50%", 13, 17),
       20: REROLL(18, 20),
     },
     scavengedArmorEquipment: {
@@ -140,7 +140,7 @@ check("a grid with no recorded page of its own takes the document's pages", scav
 check("a grid the document lacks is not imported, beside ones that are", scav.scavengedSource("bludgeoning").state === "none" && scavengedOptions("bludgeoning").length === 0);
 
 const acc = scav.accumulateImported("piercingSlashing", [18, 5, 14]);
-check("accumulation applies each landed row and skips the reroll row", acc.labels.join() === "Beta,Delta" && acc.damage === -2 && acc.initiative === -1);
+check("accumulation applies each landed row and skips the reroll row", acc.labels.join() === "Beta,Delta" && acc.damage === -2 && acc.initiative === -3);
 check("the resale fractions multiply", Math.abs(acc.valueMultiplier - 0.25) < 1e-9);
 check("a roll in no band contributes nothing", scav.accumulateImported("piercingSlashing", [99]).labels.length === 0);
 check("a placeholder row is neither offered nor landed on", (() => {
@@ -164,7 +164,7 @@ check("an imported floor is read", scav.scavengedPenaltyFloor() === -3);
 check("attack penalties stop at it", scav.accumulateImported("piercingSlashing", seven).attack === -3);
 check("armour class penalties stop at it", scav.accumulateImported("armourEquipment", [15, 15, 15]).ac === -3);
 check("a penalty inside the floor is untouched", scav.accumulateImported("piercingSlashing", [10]).attack === -2 && scav.accumulateImported("armourEquipment", [15]).ac === -2);
-check("the floor does not touch damage, initiative or encumbrance", scav.accumulateImported("piercingSlashing", [5, 5, 5]).damage === -6 && scav.accumulateImported("piercingSlashing", [15, 15, 15, 15]).initiative === -4 && scav.accumulateImported("armourEquipment", [5, 5, 5]).encumbrance === 6);
+check("the floor does not touch damage, initiative or encumbrance", scav.accumulateImported("piercingSlashing", [5, 5, 5]).damage === -6 && scav.accumulateImported("piercingSlashing", [15, 15, 15, 15]).initiative === -12 && scav.accumulateImported("armourEquipment", [5, 5, 5]).encumbrance === 6);
 
 registerTable(withCaps(2), { priority: PRIORITY.OVERRIDE });
 check("a Judge's override wins, and either sign is a floor", scav.scavengedPenaltyFloor() === -2 && scav.accumulateImported("piercingSlashing", seven).attack === -2);
