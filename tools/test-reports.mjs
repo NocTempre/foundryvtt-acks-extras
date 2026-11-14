@@ -1,8 +1,7 @@
 /**
  * Market reports and the trade house: which beliefs a party holds, how two
  * markets compare, what a non-GM is shown of an outcome, who may hand a report
- * over, who counts as a trader, and the move of the legacy per-party beliefs
- * onto report Items (idempotence, permissions) on mocked documents.
+ * over, and who counts as a trader, on mocked documents.
  *
  * Every modifier, name and time below is invented; the tests prove the rules
  * read the data they are handed, never that the book says anything in particular.
@@ -38,7 +37,7 @@ const {
 
 /* ------------------------- outcomes ------------------------- */
 
-check("the outcome vocabulary is the six", REPORT_OUTCOMES.join() === "success,partial,expertise,false,rumor,migrated");
+check("the outcome vocabulary is the five", REPORT_OUTCOMES.join() === "success,partial,expertise,false,rumor");
 check("a non-GM never reads a false outcome", shownOutcome("false", false) === "partial");
 check("the GM reads it as it fell", shownOutcome("false", true) === "false");
 check("every other outcome shows as it is", REPORT_OUTCOMES.filter((o) => o !== "false").every((o) => shownOutcome(o, false) === o));

@@ -607,7 +607,7 @@ market: `acks-extras.marketReport` (`data/report-data.mjs`, sheet
 `apps/report-sheet.mjs`, registered by `report-module.mjs`). The fields are
 `marketUuid` and `marketName` (a snapshot, shown when the market is gone),
 `assessorUuid`, `partyId`, `time`, `outcome`
-(`success|partial|expertise|false|rumor|migrated`), `beliefs`
+(`success|partial|expertise|false|rumor`), `beliefs`
 (`{category, dm}`), `picks` (goods still to be chosen), `pricesSeen`
 (reserved, nothing writes it) and `notes`.
 A report holds only what its owner believes: a false assessment is stored as a

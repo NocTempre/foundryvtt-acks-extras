@@ -10,7 +10,7 @@
  */
 
 /** Every outcome a report can carry. `false` is stored but never shown to a non-GM. */
-export const REPORT_OUTCOMES = Object.freeze(["success", "partial", "expertise", "false", "rumor", "migrated"]);
+export const REPORT_OUTCOMES = Object.freeze(["success", "partial", "expertise", "false", "rumor"]);
 
 /**
  * The outcome as the viewer may see it. A false assessment is indistinguishable
