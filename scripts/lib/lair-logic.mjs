@@ -11,7 +11,24 @@ import { ROLL_KIND, isCreatureStack, planStack } from "./group-encounter-logic.m
 export const LAIR_KEY = "lair";
 
 /** Every reason a lair gives for making no group; each has words under the lair lang root's `why` block. `noted` holds the last one told to the Judges. */
-export const LAIR_REASONS = Object.freeze(["notImported", "template", "units", "none", "invalid", "failed", "rolled"]);
+export const LAIR_REASONS = Object.freeze(["notImported", "template", "units", "none", "invalid", "failed", "rolled", "shelved"]);
+
+/**
+ * Is this place a document of a compendium? An encounter group is a world
+ * document, so only a world place rolls; a shelved place is the template a world
+ * copy is made from, and a roll on both would make two groups for one lair.
+ * @param {object} [place]
+ */
+export const isShelved = (place) => !!place?.pack;
+
+/**
+ * The lair flag a world copy of a shelved place starts with: the monster it is
+ * the lair of and nothing the shelved place rolled, so the copy rolls its own
+ * group. Null where the flag is not a lair's.
+ * @param {object} [flag] the shelved place's `flags["acks-extras"].lair`
+ * @returns {{of: string}|null}
+ */
+export const lairForCopy = (flag) => (flag?.of ? lairData(flag.of) : null);
 
 /**
  * The lair flag the importer writes on a place at import: the cookbook id of

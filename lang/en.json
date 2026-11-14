@@ -851,6 +851,7 @@
   "ACKS-LIB.lair.why.invalid": "The monster's in-lair count is no formula the dice can read.",
   "ACKS-LIB.lair.why.failed": "The encounter group could not be made or rolled.",
   "ACKS-LIB.lair.why.rolled": "This lair already has its encounter group. Delete the group to roll again.",
+  "ACKS-LIB.lair.why.shelved": "A lair rolls from its world copy. Drag this place out of the compendium, then roll there.",
   "ACKS-LIB.group.variant.title": "A stack of {name}",
   "ACKS-LIB.group.variant.press": "Add the stack",
   "ACKS-LIB.group.variant.hint": "Pick the variant these bodies are. An axis left on its die is rolled.",

@@ -357,6 +357,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       group: group && { ...group, countLabel: group.total == null ? "" : `×${group.total}` },
       why: state.why,
       canRoll: state.canRoll,
+      shelved: state.shelved,
     };
   }
 

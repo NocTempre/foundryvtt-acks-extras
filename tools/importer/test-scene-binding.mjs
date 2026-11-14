@@ -275,6 +275,17 @@ check("a library place's storage flag stays behind", worldCopySource(flaggedPlac
 const stockedPlace = { ...flaggedPlace, items: [{ name: "rope", flags: { [MODULE_ID]: { storage: { ownerUuid: "house" } } } }] };
 check("a place with goods stored on it keeps its flag", worldCopySource(stockedPlace, worldIds).flags[MODULE_ID].storage, { provider: true });
 
+const rolledLair = {
+  system: { roster: [{ uuid: "Actor.GroupOne", hidden: true }, { uuid: lib(A), name: "printed" }] },
+  flags: { [MODULE_ID]: { lair: { of: "zz.beast", group: "Actor.GroupOne", noted: "units" } } },
+};
+const lairCopy = worldCopySource(rolledLair, worldIds);
+check("a copy of a lair that had rolled keeps its monster and nothing it rolled", lairCopy.flags[MODULE_ID].lair, { of: "zz.beast" });
+check("and the roster row of that group stays behind", lairCopy.system.roster, [{ uuid: lib(A), name: "printed" }]);
+check("the library's own lair is not touched", rolledLair.flags[MODULE_ID].lair.group, "Actor.GroupOne");
+const freshLair = worldCopySource({ system: { roster: [{ uuid: "Actor.Other" }] }, flags: { [MODULE_ID]: { lair: { of: "zz.beast" } } } }, worldIds);
+check("a lair that never rolled copies as it was", [freshLair.flags[MODULE_ID].lair, freshLair.system.roster], [{ of: "zz.beast" }, [{ uuid: "Actor.Other" }]]);
+
 /* ---------------- a copy of an import is not an import ---------------- */
 
 const stamped = { flags: { [MODULE_ID]: { cookbook: { id: "zz.faction.one" } } } };

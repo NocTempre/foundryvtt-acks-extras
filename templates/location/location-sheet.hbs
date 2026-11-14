@@ -212,6 +212,7 @@
                 data-tooltip-text="{{#if lair.canRoll}}{{localize 'ACKS-LOCATION.place.lair.rollHint'}}{{else}}{{lair.why}}{{/if}}">
           <i class="fas fa-dice-d20"></i> {{localize "ACKS-LOCATION.place.lair.roll"}}
         </button>
+        {{#if lair.shelved}}<span class="acks-extras-place-hint">{{lair.why}}</span>{{/if}}
       </div>
       <ul class="acks-extras-place-list">
         <li class="acks-extras-place-row" data-place-uuid="{{lair.monster.uuid}}">

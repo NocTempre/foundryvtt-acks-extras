@@ -26,6 +26,7 @@
  * meets it.
  */
 import { LANG_PREFIX, MODULE_ID } from "./constants.mjs";
+import { LAIR_KEY, lairForCopy } from "../lib/lair-logic.mjs";
 import { SCENE_LINK_FLAG, SCENE_PART_FLAG } from "../location/constants.mjs";
 import { isKeyedPlace, isPoiEntry, isRegionSite, keySpacesOf, poiGroupOf } from "./poi-binding.mjs";
 import { hash36 } from "./printed-name.mjs";
@@ -1104,6 +1105,10 @@ export function linkRegionData({ name, rect, levels = [], mode, destinations = [
  * (`fromCompendium`'s `clearOwnership: false`). See docs/importer/DECISIONS.md,
  * "A map and what stands on it are world documents, owned by nobody (2026-09-17)".
  *
+ * A lair copy keeps the monster it is the lair of and nothing its library
+ * place rolled (`lairForCopy`): no group, no note, and no roster row for the
+ * group, so the copy rolls its own.
+ *
  * @param {object} source the document's `toObject()`; not changed
  * @param {Map<string, string>} worldIds library id to world id, for every
  *   document that is in the world or on its way there — the same id when the
@@ -1125,6 +1130,13 @@ export function worldCopySource(source, worldIds, { folderId = null, sourceUuid 
   // A copy holds goods only once a GM says so: a library place's storage flag
   // stays behind unless something stored on it comes along.
   if (!(copy.items ?? []).some((item) => item?.flags?.[MODULE_ID]?.storage)) delete copy.flags[MODULE_ID].storage;
+  // A group is a world document: a copy of a lair that had rolled makes its own.
+  const lair = copy.flags[MODULE_ID][LAIR_KEY];
+  if (lair) {
+    const held = lair.group;
+    copy.flags[MODULE_ID][LAIR_KEY] = lairForCopy(lair) ?? lair;
+    if (held && Array.isArray(copy.system?.roster)) copy.system.roster = copy.system.roster.filter((row) => row?.uuid !== held);
+  }
   if (sourceUuid) copy._stats = { ...(copy._stats ?? {}), compendiumSource: sourceUuid };
   const sys = copy.system ?? {};
   for (const key of ["parentUuid", "seatUuid"]) {

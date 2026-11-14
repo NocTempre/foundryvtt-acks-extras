@@ -154,10 +154,11 @@ game.packs = [shelf];
 const stock = (...actors) => { shelf.contents.push(...actors); };
 
 /** A lair place: a location actor holding its roster and its lair flag, writes applied as Foundry applies them. */
-function lairPlace({ of = "zz.beast", name = "Place 7", roster = [] } = {}) {
+function lairPlace({ of = "zz.beast", name = "Place 7", roster = [], pack = null } = {}) {
   const doc = {
     id: uid("loc"),
     name,
+    pack,
     type: "acks-extras.location",
     system: { roster },
     flags: { [MODULE_ID]: { lair: of ? { of } : undefined } },
@@ -167,7 +168,7 @@ function lairPlace({ of = "zz.beast", name = "Place 7", roster = [] } = {}) {
       return doc;
     },
   };
-  doc.uuid = `Actor.${doc.id}`;
+  doc.uuid = pack ? `Compendium.${pack}.Actor.${doc.id}` : `Actor.${doc.id}`;
   docs.set(doc.uuid, doc);
   return doc;
 }
@@ -177,7 +178,7 @@ const LINES = {
   wilderness: { wandering: side("WW", "2d4"), lair: side("WL", "2d6*10") },
 };
 
-const { lairData, lairOf, planLair, LAIR_KEY, LAIR_REASONS } = await import("../scripts/lib/lair-logic.mjs");
+const { lairData, lairOf, planLair, isShelved, lairForCopy, LAIR_KEY, LAIR_REASONS } = await import("../scripts/lib/lair-logic.mjs");
 const { lairMonster, lairState, rollLair, lairWhy } = await import("../scripts/lib/lair.mjs");
 
 let passed = 0;
@@ -305,6 +306,37 @@ await ok("the other line is rolled when it is named", async () => {
 });
 
 /* -------------------------------------------- */
+/*  Only a world place rolls                    */
+/* -------------------------------------------- */
+
+await ok("a place in a compendium makes no group and writes nothing, and says why", async () => {
+  const shelved = lairPlace({ pack: "world.shelf" });
+  assert.deepEqual([isShelved(shelved), isShelved(lairPlace())], [true, false]);
+  const [groups, dice, notes] = [made.length, thrown.length, lairNotes().length];
+  const result = await rollLair(shelved);
+  assert.deepEqual([result.ok, result.reason, result.text], [false, "shelved", lairWhy("shelved")]);
+  assert.deepEqual([made.length, thrown.length, lairNotes().length], [groups, dice, notes], "no group, no die, no card");
+  assert.deepEqual([shelved.flags[MODULE_ID].lair, shelved.system.roster], [{ of: "zz.beast" }, []], "the shelf place is left as it was");
+  assert.equal(shelved.flags[MODULE_ID].lair.group, undefined);
+});
+
+await ok("a lair is rolled on its world copy alone: the shelf place refuses while the copy still rolls", async () => {
+  const shelved = lairPlace({ pack: "world.shelf" });
+  const world = lairPlace();
+  assert.equal((await rollLair(shelved)).reason, "shelved");
+  const result = await rollLair(world);
+  assert.equal(result.ok, true);
+  assert.equal((await rollLair(shelved)).reason, "shelved", "still refused once its copy holds a group");
+  assert.equal(shelved.flags[MODULE_ID].lair.group, undefined);
+});
+
+await ok("a copy of a lair that had rolled starts with its monster alone", () => {
+  assert.deepEqual(lairForCopy({ of: "zz.beast", group: "Actor.g1", noted: "units" }), { of: "zz.beast" });
+  assert.equal(lairForCopy({ group: "Actor.g1" }), null);
+  assert.equal(lairForCopy(undefined), null);
+});
+
+/* -------------------------------------------- */
 /*  Nothing to roll                             */
 /* -------------------------------------------- */
 
@@ -378,6 +410,14 @@ await ok("the sheet reads the monster, the group and whether a Roll would do any
   assert.equal(await lairState(lairPlace({ of: "" })), null);
 });
 
+await ok("the sheet reads a shelf place as one that cannot roll, and says where it rolls", async () => {
+  const state = await lairState(lairPlace({ pack: "world.shelf" }));
+  assert.deepEqual([state.shelved, state.canRoll, state.why], [true, false, lairWhy("shelved")]);
+  assert.equal(state.monster.name, "Beast", "the monster is still read, so the section shows it");
+  const world = await lairState(lairPlace());
+  assert.deepEqual([world.shelved, world.canRoll], [false, true]);
+});
+
 /* -------------------------------------------- */
 /*  Wiring the mocks do not reach               */
 /* -------------------------------------------- */
@@ -412,6 +452,10 @@ await ok("the sheet's Lair section is the Judge's alone, names its button, and h
   assert.ok(rolled.includes('aria-label="ACKS-LOCATION.place.lair.rollLabel"'));
   assert.match(rolled, /data-tooltip-text="Read from Page 9"/, "the monster's page is a tooltip taken at render");
   assert.match(rolled, /data-tooltip-text="Rolled"[^>]*>×4/, "the rolled count carries where it came from");
+  const shelf = render({ lair: { monster: null, group: null, why: "Rolls from its world copy", canRoll: false, shelved: true } });
+  assert.match(shelf, /data-action="rollLair"[^>]*disabled/);
+  assert.match(shelf, /<span class="acks-extras-place-hint">Rolls from its world copy<\/span>/, "the reason is text on the surface, beside the button");
+  assert.doesNotMatch(render({ lair: { monster: null, group: null, why: "x", canRoll: true, shelved: false } }), /Rolls from/);
   const open = render({ lair: { monster: null, group: null, why: "Nothing to roll", canRoll: false } });
   assert.ok(open.includes("ACKS-LOCATION.place.lair.notImported"));
   assert.match(open, /Nothing to roll/, "why there is no group is on the surface, not only in a tooltip");
