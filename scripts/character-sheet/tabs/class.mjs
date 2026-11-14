@@ -10,7 +10,7 @@
 import { LANG, MODULE_ID } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { classForActor, findByRef } from "../../classes/registry.mjs";
-import { classUpdateData } from "../../classes/apply.mjs";
+import { classUpdateData, damageBonusLadder } from "../../classes/apply.mjs";
 import { atLevelCap, levelCap } from "../../classes/level-cap.mjs";
 import { awardsAt } from "../../classes/grants.mjs";
 import { pathGroups, chosenOption, actorPaths, groupLabel } from "../../classes/paths.mjs";
@@ -86,6 +86,24 @@ function legacyFund(actor) {
   return fund || funerals ? fund + funerals : null;
 }
 
+/**
+ * The damage-bonus election row, or null where the bound class's bonus is not
+ * elected. `held` is true once the character holds an election for this class
+ * (it stands once given); `cite` is the class's own citation, or null.
+ */
+function damageBonusRow(actor, classItem) {
+  if (damageBonusLadder(classItem)?.scope !== null) return null;
+  const key = classItem.system?.key || String(classItem.name ?? "").toLowerCase();
+  const record = actor.getFlag(MODULE_ID, FLAG_CLASSES);
+  if (record?.key !== key) return null;
+  const held = record.damageBonus?.class === key ? record.damageBonus.applies ?? null : null;
+  return {
+    held: !!held,
+    cite: classItem.system?.source?.cite || null,
+    options: ["melee", "missile"].map((k) => ({ key: k, on: held === k })),
+  };
+}
+
 /** Build the tab's data. */
 export function buildClassTab(actor) {
   const sys = actor.system ?? {};
@@ -116,6 +134,7 @@ export function buildClassTab(actor) {
     nextLevel: level + 1,
     preview: null,
     paths: [],
+    damageBonus: null,
     editable: actor.isOwner,
     isNew: !!sys.isNew,
     reserveFund: legacyFund(actor),
@@ -135,6 +154,7 @@ export function buildClassTab(actor) {
       granted: fixed.map((a) => findByRef(a.ref)?.name ?? a.name ?? a.ref),
       choices: choices.map((a) => a.choice?.label || a.name || loc("class.aChoice")),
     };
+    out.damageBonus = damageBonusRow(actor, classItem);
     const selections = actorPaths(actor);
     out.paths = pathGroups(classItem.system).filter((g) => g.options.length).map((g) => {
       const chosen = chosenOption(classItem.system, g.key, selections[g.key]);

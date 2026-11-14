@@ -3520,7 +3520,10 @@ the book gets its own Adventure (`cookbookImportAdventures`).
    `jj.pc<n>`, owned by the Judges alone (`ownership.default` NONE), and
    carries its class at the printed level with the as-printed block in its
    biography. 22 of the 27 show their page's portrait as `img`; `jj.pc2` to
-   `jj.pc6` keep the default image.
+   `jj.pc6` keep the default image. The import that made them opened no
+   dialog but the monsters step's own question, and a character whose class
+   elects its damage bonus carries no election (classes TESTING, "An election
+   an import left open").
 2. Open the Parties journal. *Observable:* five pages titled Party 1 to
    Party 5, each the party's introduction text, stamped `data-acks-entry`.
 3. Open the JJ's Adventure on the shelf. *Observable:* it holds the 27

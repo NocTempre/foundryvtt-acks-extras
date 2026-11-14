@@ -100,14 +100,16 @@ function newReport(actor) {
  * that level. Binding again rewrites the class's values over any the reader
  * kept, and recreates its training, which the loadout reads as untrained
  * until it is back.
+ * `unattended` opens no election prompt (`applyClass`): an elected damage
+ * bonus is left unmade.
  * @returns {Promise<{bound: boolean, applied: boolean}>} `applied` when this call bound it
  */
-async function bindClass(actor, cls, level) {
+async function bindClass(actor, cls, level, { unattended = false } = {}) {
   const held = actor.getFlag(MODULE_ID, FLAG_CLASSES);
   const key = cls.system?.key || cls.name.toLowerCase();
   const sameClass = held?.uuid === cls.uuid || held?.key === key;
   if (sameClass && (!finite(level) || Number(actor.system?.details?.level) === Number(level))) return { bound: true, applied: false };
-  const result = await applyClass(actor, cls, { level: finite(level) ? level : undefined, confirm: false });
+  const result = await applyClass(actor, cls, { level: finite(level) ? level : undefined, confirm: false, unattended });
   return { bound: !!result.applied, applied: !!result.applied };
 }
 
@@ -467,14 +469,14 @@ function henchmanText(h) {
   return parts.filter(Boolean).join(" · ");
 }
 
-/** Bring one henchman up to their slot: class, values, abilities and equipment. */
-async function fillHenchman(hench, h, report) {
+/** Bring one henchman up to their slot: class, values, abilities and equipment. `unattended` is `bindClass`'s. */
+async function fillHenchman(hench, h, report, { unattended = false } = {}) {
   const cls = matchClass(h.className);
   const update = henchmanUpdate(h);
   if (cls) {
     delete update["system.details.class"];
     delete update["system.details.level"];
-    await bindClass(hench, cls, h.level);
+    await bindClass(hench, cls, h.level, { unattended });
   }
   if (Object.keys(update).length) await hench.update(update);
   const sub = newReport(hench);
@@ -493,8 +495,9 @@ async function fillHenchman(hench, h, report) {
  * Every henchman slot: a roster member of that name is brought up to the
  * sheet; one not on the roster is made and enrolled where `createHenchmen` is
  * on and the seat may create actors, and goes to notes otherwise.
+ * `unattended` is passed to each henchman's class bind.
  */
-async function landHenchmen(employer, henchmen, report, { createHenchmen = false } = {}) {
+async function landHenchmen(employer, henchmen, report, { createHenchmen = false, unattended = false } = {}) {
   for (const h of henchmen) {
     const label = h.name || loc("pdf.note.henchSlot", { slot: h.slot + 1 });
     const toNotes = () => {
@@ -507,7 +510,7 @@ async function landHenchmen(employer, henchmen, report, { createHenchmen = false
         toNotes();
         continue;
       }
-      await fillHenchman(hench, h, report);
+      await fillHenchman(hench, h, report, { unattended });
       const loyalty = hench.system?.retainer?.loyalty;
       if (finite(h.loyalty) && finite(loyalty) && Number(loyalty) !== h.loyalty) {
         report.checks.push({ label: loc("pdf.field.henchLoyalty", { name: hench.name }), sheet: String(h.loyalty), inForce: String(loyalty) });
@@ -526,7 +529,7 @@ async function landHenchmen(employer, henchmen, report, { createHenchmen = false
     }
     // Enrolled last, so the record's starting level and the wage read the
     // henchman the sheet describes rather than a blank first-level actor.
-    await fillHenchman(made, h, report);
+    await fillHenchman(made, h, report, { unattended });
     await enrollHenchman(employer, made, { loyalty: h.loyalty, morale: h.morale });
     report.henchmen.push({ name: made.name, outcome: "created", uuid: made.uuid });
   }
@@ -617,6 +620,8 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  * @param {Record<string, string|boolean>} options.values what the form holds (`readForm`)
  * @param {boolean} [options.createHenchmen] make and enroll henchmen the roster lacks
  * @param {boolean} [options.writeDomain] write the domain page into a domain, where the seat may
+ * @param {boolean} [options.unattended] open no dialog while binding the class of the character
+ *   or of a henchman: an elected damage bonus is left unmade for the Class tab, never asked
  * @param {boolean} [options.record] write the notes block, the import record and the chat card;
  *   false leaves all three to the caller, which reads the notes rows off `report.noted`
  * @param {boolean} [options.fixedAwards] with a class bound, also grant the class's fixed awards at
@@ -624,7 +629,7 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`,
  *   with `noted` (the notes rows besides the unmatched) when `record` is false
  */
-export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, record = true, fixedAwards = false } = {}) {
+export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, unattended = false, record = true, fixedAwards = false } = {}) {
   await whenReady();
   const plan = buildPlan(values);
   let target = actor;
@@ -646,7 +651,7 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   const cls = matchClass(plan.className);
   let bound = false;
   if (cls) {
-    const result = await bindClass(target, cls, plan.level);
+    const result = await bindClass(target, cls, plan.level, { unattended });
     bound = result.bound;
     if (result.applied) report.written.push({ label: fieldLabel("class"), value: `${cls.name} ${target.system?.details?.level ?? ""}`.trim() });
   }
@@ -673,7 +678,7 @@ export async function importSheet({ actor = null, values, createHenchmen = false
   // export writes these back, since the character never received them.
   const unanswered = report.unmatched.filter((u) => u.kind !== "className").map(({ kind, name, box }) => (box ? { kind, name, box } : { kind, name }));
 
-  await landHenchmen(target, plan.henchmen, report, { createHenchmen });
+  await landHenchmen(target, plan.henchmen, report, { createHenchmen, unattended });
   const held = target.getFlag(MODULE_ID, RECORD_FLAG) ?? {};
   const landed = await landDomain(target, plan, report, { writeDomain, previous: held.domain ?? null });
   if (!record) {

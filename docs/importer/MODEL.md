@@ -1263,8 +1263,9 @@ becomes a character, and the derivation wins".
   like book text, so `stripBookText` takes it with the rest of the import's
   writing. `flags["acks-extras"].printed` counts `{differences, missing}`.
 - **Who owns it.** The Judges alone (`ownership.default` NONE), and the import
-  posts no chat card. A class with an elected damage bonus asks the Judge
-  during the import, as a class apply does anywhere.
+  posts no chat card. The import opens no dialog: a class with an elected
+  damage bonus is applied with the election left open, to be made on the
+  character's Class tab (classes MODEL, "An import does not ask").
 - **What a rebuild and Remove Imports leave.** A `character` a player owns —
   a non-GM user, or the default level, at OWNER — is never deleted by the
   entry picker's rebuild or by Remove Imports (`playersCharacter`); Remove

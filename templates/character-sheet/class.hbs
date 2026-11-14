@@ -85,6 +85,17 @@
         {{/each}}
       </div>
       {{/if}}
+      {{#if c.damageBonus}}
+      <div>
+        <div class="acks-extras-frame__fact" {{#if c.damageBonus.cite}}data-tooltip-text="{{c.damageBonus.cite}}"{{/if}}>
+          <span class="acks-extras-frame__fact-label">{{localize "ACKS-CLASSES.damageBonus.title"}}</span>
+          <select class="acks-input acks-extras-frame__fact-input is-wide" data-damage-election aria-label="{{localize "ACKS-CLASSES.damageBonus.title"}}" {{disabled (or c.damageBonus.held (not @root.editable))}}>
+            <option value="">{{localize "ACKS-CHARACTER.class.unchosen"}}</option>
+            {{#each c.damageBonus.options}}<option value="{{key}}" {{#if on}}selected{{/if}}>{{localize (concat "ACKS-CLASSES.damageBonus." key)}}</option>{{/each}}
+          </select>
+        </div>
+      </div>
+      {{/if}}
     </div>
   </div>
 

@@ -897,6 +897,54 @@ injects on ownership, not on GM.
 **Teardown.** `api.sweepTracked()` — the class Item and both actors are the
 run's own.
 
+## An election an import left open
+
+**Fixtures.** A world whose Judge-only library holds an imported character of
+a class with an `electedDamageBonus` ladder (the Judges Journal's prepared
+parties hold some). It is found by reading the library for a `jj.pc<n>` stamp
+(`flags.acks-extras.cookbook.id`) whose class carries that ladder, and carries
+no marker, being a compendium document. The walk's own fixture is a world copy
+of it (`game.actors.importFromCompendium`), tracked at once. An election is
+for good, so an answered copy cannot serve the next walk: the copy is built
+each run and swept.
+
+**Drive mechanics.** The stored bonus is `actor._source.system.damage.mod`,
+and that object is live: copy it (`JSON.parse(JSON.stringify(…))`) at the
+moment of the read, or a "before" taken by reference shows the value written
+later. The prepared `actor.system.damage.mod` adds what effects give (a
+fighting style), so an unelected character can show a figure there with zero
+stored. The library's character is deleted with the driver's
+`pageSweep([{ uuid, kind: "Actor" }])`, since `api.retire` looks a marker up.
+
+**Steps.**
+1. Setup is the subject: delete the library's character by its own uuid and
+   press the importer's monsters step (`stepMonsters`), answering the step's
+   own question. Record every dialog that opens.
+2. Read the character back from the library.
+3. Copy it into the world and call `applyClass(actor, classForActor(actor),
+   { confirm: false })`, the picker's own call; close the dialog it opens.
+4. Open the copy's sheet on the Class tab and hover the Damage Bonus row.
+5. Choose a side in the row's select, and read the actor and the row back.
+
+**Observable.** Step 1 opens the step's question and no other dialog, and the
+notice counts the character as imported. Step 2: the class is bound at the
+printed level, the flag has no `damageBonus`, and the stored melee and missile
+bonus are both 0. Step 3: the Damage Bonus dialog opens offering melee and
+missile; closing it resolves `{ applied: false }` and writes nothing. Step 4:
+the row's select is empty and enabled, with an empty option before the two
+sides; the tooltip core shows is the class's page reference, and neither the
+row nor the select carries a `title`. Step 5: the flag holds `damageBonus`
+`{ class, applies }`, the stored bonus on that side is the class's rung at the
+character's level and the other side's is 0, `applied` carries the same figure
+under `system.damage.mod.<side>`, and the re-rendered row shows the choice
+and is disabled.
+
+Not walked: the missile side, a player seat electing on a character it owns,
+and reaching the select from the keyboard.
+
+**Teardown.** `api.sweepTracked()` — the world copy. The library's character
+is the import's own and is kept.
+
 ## Level-up safety: the one-level cap, a lowered level, a repeated rung
 
 **Fixtures (Assistant GM seat is enough; every id recorded).** One disposable

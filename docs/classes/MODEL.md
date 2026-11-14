@@ -348,6 +348,16 @@ row in the confirm dialog, because chargen, the level-up wizard and the picker
 all pass `confirm: false` — an election collected there would never be asked
 at all.
 
+**An import does not ask.** A cookbook import applies the class with
+`unattended`: with no answer held, `readyToApply` returns `owed` instead of
+prompting, the class binds with no damage bonus on either side, and the flag
+carries no `damageBonus`, so the next apply by hand asks. Until then the
+character sheet's Class tab shows the election as a Damage Bonus row with an
+empty select; `electDamageBonus` takes the choice made there, writes the one
+side's bonus at the character's level with its line in the `applied` ledger,
+and records the answer. It refuses a class whose column is not elected, a
+character bound to another class, and an election already made.
+
 **A set level grants what it owes.** `{grantAwards: true}` — passed by the
 picker and by a dropped class, the two paths that SET a level — also hands over
 every award at or below it: Adventuring, each fixed award, and one pick per

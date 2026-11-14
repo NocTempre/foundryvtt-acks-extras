@@ -60,6 +60,7 @@ import { hitPointAuditText } from "../classes/hitpoints.mjs";
 import { reopenChargen } from "../classes/reopen-chargen.mjs";
 import { openLegacy } from "../classes/legacy.mjs";
 import { setActorPath } from "../classes/paths.mjs";
+import { electDamageBonus } from "../classes/apply.mjs";
 import { classForActor, classForActorAsync } from "../classes/registry.mjs";
 import { castingStripElement, restPools } from "../classes/casting.mjs";
 import { toggleTraining, toggleTrainingShortcut, resetTraining } from "../classes/training.mjs";
@@ -613,8 +614,22 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     }
   }
 
-  /** A path group's select records the choice on the class ledger, not on the form. */
+  /**
+   * A path group's select records the choice on the class ledger, not on the
+   * form; so does the damage-bonus election's, through `electDamageBonus`,
+   * which ignores an empty value.
+   */
   #bindPathSelects() {
+    for (const select of this.element.querySelectorAll("select[data-damage-election]")) {
+      if (select.dataset.wired) continue;
+      select.dataset.wired = "1";
+      select.addEventListener("change", (ev) => {
+        ev.stopImmediatePropagation();
+        const classItem = classForActor(this.actor);
+        if (!select.value || !classItem) return;
+        electDamageBonus(this.actor, classItem, select.value).catch((err) => console.error(`${MODULE_ID} | damage bonus election failed`, err));
+      });
+    }
     for (const select of this.element.querySelectorAll("select[data-path-group]")) {
       if (select.dataset.wired) continue;
       select.dataset.wired = "1";

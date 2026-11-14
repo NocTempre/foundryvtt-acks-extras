@@ -1466,7 +1466,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("a character import records its play stamp as its last write, over what it wrote",
     /await actor\.update\(\{ \[`flags\.\$\{MODULE_ID\}\.playStamp`\]: playStamp\(actor\.toObject\(\)\) \}\);\s*return actor;$/.test(character));
   check("a character import has the sheet import grant the class's fixed awards, and reads a pregen's spellbook",
-    /importSheet\(\{ actor, values, writeDomain: false, record: false, fixedAwards: true \}\)/.test(character)
+    /importSheet\(\{ actor, values, writeDomain: false, unattended: true, record: false, fixedAwards: true \}\)/.test(character)
       && /sheetValuesFromStatline\(sl, \{ rename, bookSpells, spellLevel \}\)/.test(character)
       && /matchers\.matchSpell\(n\)\?\.system\?\.lvl/.test(character));
   check("the grants are stamped minted before the play stamp lands",

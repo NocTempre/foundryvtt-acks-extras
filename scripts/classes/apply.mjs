@@ -244,18 +244,6 @@ function replacingOwnFlags({ _id, data: { flags = {}, ...rest } }) {
 }
 
 /**
- * Everything an apply refuses on, settled before it writes anything: a class
- * that is no class, a stub, or an elected damage-bonus column left
- * unanswered. The election is asked here where one is owed and none is held
- * for this class (it stands once given; changing class asks again), so a
- * caller that clears the sheet first can ask before it does, and passes the
- * answer on as `applyClass`'s `election`.
- * @param {object} [options]
- * @param {string|null} [options.election] an answer the caller already holds
- * @returns {Promise<{ok: boolean, election?: string|null, classKey?: string}>}
- *   `ok` false on a refusal or a dismissed election
- */
-/**
  * Does binding `classItem` at `level` re-bind the class `actor` already holds,
  * at the level it holds? Such a bind sets nothing the character does not
  * already carry, so the class picker keeps its hit points rather than rolling
@@ -268,12 +256,23 @@ export function rebindsHeldClass(actor, classItem, level) {
 }
 
 /**
- * Checks that `classItem` can be applied to `actor` and settles its damage-bonus
- * election, asking the Judge only when the class has a permanent choice and none
- * is remembered or passed in.
- * Resolves `{ ok: false }` on a refusal or a dismissed election.
+ * Everything an apply refuses on, settled before it writes anything: a class
+ * that is no class, a stub, or an elected damage-bonus column left
+ * unanswered. The election is asked here where one is owed and none is held
+ * for this class (it stands once given; changing class asks again), so a
+ * caller that clears the sheet first can ask before it does, and passes the
+ * answer on as `applyClass`'s `election`. An `unattended` caller is never
+ * asked: where the election is owed and none is held or passed in, the apply
+ * proceeds with the election unmade (`election: null`, `owed: true`), and
+ * nothing is chosen on the character's behalf.
+ * @param {object} [options]
+ * @param {string|null} [options.election] an answer the caller already holds
+ * @param {boolean} [options.unattended] build no dialog; leave an owed election unmade
+ * @returns {Promise<{ok: boolean, election?: string|null, classKey?: string, owed?: boolean}>}
+ *   `ok` false on a refusal or a dismissed election; `owed` true only where
+ *   an unattended apply left the election unmade
  */
-export async function readyToApply(actor, classItem, { election: answer = null } = {}) {
+export async function readyToApply(actor, classItem, { election: answer = null, unattended = false } = {}) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { ok: false };
   if (classItem.system.isStub) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.apply.stub`, { name: classItem.name }));
@@ -286,6 +285,7 @@ export async function readyToApply(actor, classItem, { election: answer = null }
   const remembered = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.damageBonus ?? null;
   const held = remembered?.class === classKey ? remembered.applies : null;
   if (!dmgLadder || dmgLadder.scope) return { ok: true, election: null, classKey };
+  if (!held && !answer && unattended) return { ok: true, election: null, classKey, owed: true };
   const election = held ?? answer ?? (await askDamageBonusElection(actor, classItem));
   // Cancelling a permanent choice cancels the apply rather than picking one.
   return election ? { ok: true, election, classKey } : { ok: false };
@@ -309,6 +309,11 @@ export async function readyToApply(actor, classItem, { election: answer = null }
  * @param {Record<string, string>} [options.answers] award key → the ref
  *   chosen for it, or `picks.ANSWERED`, for a caller (the class picker) that
  *   collected rung answers itself instead of through this function's dialog
+ * @param {boolean} [options.unattended] an apply that opens no election
+ *   prompt: where the class's damage bonus is elected and the character holds
+ *   no election for it, the class applies without that bonus, nothing is
+ *   recorded for it, and the election stays open to the sheet's Class tab
+ *   (`electDamageBonus`)
  * @returns {Promise<{applied: boolean, update?: object, missing?: string[], grants?: object[]}>}
  */
 export async function applyClass(
@@ -323,9 +328,10 @@ export async function applyClass(
     answers = {},
     paths = null,
     election: electionAnswer = null,
+    unattended = false,
   } = {},
 ) {
-  const ready = await readyToApply(actor, classItem, { election: electionAnswer });
+  const ready = await readyToApply(actor, classItem, { election: electionAnswer, unattended });
   if (!ready.ok) return { applied: false };
   const { election, classKey } = ready;
   const targetLevel = level ?? Math.max(1, Number(actor.system?.details?.level) || 1);
@@ -616,6 +622,39 @@ export async function applyClass(
     }
   }
   return { applied: true, update, missing, grants };
+}
+
+/**
+ * Make the damage-bonus election an unattended apply left open: record
+ * `applies` against the class the character is bound to and write the side's
+ * damage mod at the level held, in one update, with the same ledger entries
+ * an apply keeps for the paths it writes. An election stands once given, so
+ * nothing is written, and false is returned, where one is already held for
+ * the class, where the character is not bound to the class, where the class's
+ * damage bonus is not elected, or where `applies` is neither side.
+ * @param {Actor} actor
+ * @param {Item} classItem the class item the character is bound to
+ * @param {"melee"|"missile"} applies which attacks the bonus applies to
+ * @returns {Promise<boolean>} true when the election was written
+ */
+export async function electDamageBonus(actor, classItem, applies) {
+  if (!actor || classItem?.type !== `${MODULE_ID}.class`) return false;
+  if (!DAMAGE_BONUS_OPTIONS.includes(applies)) return false;
+  if (damageBonusLadder(classItem)?.scope !== null) return false;
+  const classKey = classItem.system.key || classItem.name.toLowerCase();
+  const held = actor.getFlag(MODULE_ID, FLAG_CLASSES);
+  if (held?.key !== classKey) return false;
+  if (held?.damageBonus?.class === classKey && held.damageBonus.applies) return false;
+  const level = Math.max(1, Number(actor.system?.details?.level) || 1);
+  const { update } = classUpdateData(actor, classItem, level, { election: applies });
+  const mods = Object.entries(update).filter(([path]) => path.startsWith("system.damage.mod."));
+  const flag = `flags.${MODULE_ID}.${FLAG_CLASSES}`;
+  await actor.update({
+    ...Object.fromEntries(mods),
+    [`${flag}.damageBonus`]: { class: classKey, applies },
+    ...Object.fromEntries(mods.map(([path, value]) => [`${flag}.applied.${path}`, value])),
+  });
+  return true;
 }
 
 /**

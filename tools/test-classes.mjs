@@ -1564,11 +1564,11 @@ test("a class with no damage bonus writes no damage mod at all", () => {
   assert.deepEqual(dmgMods(classUpdateData({}, plain, 3, { election: "both" }).update), { melee: undefined, missile: undefined });
 });
 
-test("the election is asked on every path, not only in the confirm dialog", () => {
+test("every hand path asks the election, not only in the confirm dialog", () => {
   const src = readFileSync(new URL("../scripts/classes/apply.mjs", import.meta.url), "utf8");
   // chargen, the level-up wizard and the picker all pass confirm:false, so an
   // election collected inside the confirm dialog would never be asked at all.
-  const ask = src.indexOf("askDamageBonusElection(actor, classItem)");
+  const ask = src.indexOf("await askDamageBonusElection(");
   const dialog = src.indexOf("DialogV2.confirm");
   assert.ok(ask > 0 && ask < dialog, "the election resolves before the confirm dialog is built");
   assert.match(src, /damageBonus: \{ class: classKey, applies: election \}/, "and is recorded against its class");

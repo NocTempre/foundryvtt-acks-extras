@@ -327,7 +327,7 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // cookbook supplies is imported first; what nothing supplies is reported
   // below as unmatched.
   await resolveAbilities([...(sl.proficiencies ?? []), ...(sl.classProficiencies ?? [])]);
-  const report = await importSheet({ actor, values, writeDomain: false, record: false, fixedAwards: true });
+  const report = await importSheet({ actor, values, writeDomain: false, unattended: true, record: false, fixedAwards: true });
   // What the sheet import granted is the import's own, stamped so a repair can
   // tell it from an item a Judge gave the character.
   const granted = actor.items.filter((i) => !standing.has(i.id) && !i.flags?.[MODULE_ID]?.minted);
