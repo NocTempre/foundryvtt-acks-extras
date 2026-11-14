@@ -10595,7 +10595,7 @@ unmeasured until the smoke import. OCR output passes through `orderRuns` and
 `joinRuns`, so a change there moves picture text too; compile and verify both
 replay every `then` against a read.
 
-## 2026-11-13 — The JJ's scenarios land as keyed places, plans and a roster in the JJ's Adventure
+## 2026-11-13 — The JJ's scenarios land as keyed places, plans and a roster in the JJ's Adventure — SUPERSEDED IN PART 2026-11-14
 
 How the nine scenarios bind. Read with "An adventure's keyed areas are places,
 and their stat lines a roster" (2026-10-24), which governs.
@@ -11167,3 +11167,58 @@ rows that print a regular and a veteran profile. A paired line's creature is
 the library's actor, so each such lair's printed residents bind to its monster;
 the lair still rolls (the owner, "Yes, roll anyway", same day). The morale
 rule reads only the first of two printed figures; the second goes unchecked.
+
+## 2026-11-14 — The JJ scenarios as bound: a roster link carries no count, every area is on its plan, the reading bar names the file's page
+
+Supersedes in part "The JJ's scenarios land as keyed places, plans and a
+roster in the JJ's Adventure" (2026-11-13): its bullet that an unread figure
+shows "not imported". That entry is under seven days old, so the new evidence
+is named: the owner's ruling of 2026-11-14, "Missing imports stay blank with
+page reference as a subtle clue on where they could get that info. Fields that
+require imports stay blank period." An unread figure is a blank field whose
+tooltip carries the page reference, and no surface or lang key says "not
+imported" (`.claude/rules/ui-tooltips.md`).
+
+**Built with the owner away. Each bullet is the building session's call, and
+the owner may overrule it; each says what a reversal takes.**
+
+- **A roster link is a row with no count.** `rosterLinkRows`
+  (`cookbook/roster-links.mjs`) adds one hidden row for each `meta.roster` id
+  the library holds, with the schema's default quantity and empty notes. How
+  many stand there is in the place's notes, which are its page's text.
+  *Rejected:* a note that the count is not imported (the ruling above), and a
+  count read out of the prose (a picture's runs are whole lines, the reason the
+  2026-11-13 entry rejects linking by name). To reverse: one argument.
+- **A link nothing answers waits, and the step says how many do**
+  (`rosterWaiting`, in the places step's notice). A forced repair fills the
+  roster again. A repair that carries a decision lists the longer roster as an
+  edit to take (`heldRoster`), as it does any roster that changed.
+- **Every area is on its plan: pinned, or a part of a room that is**
+  (`meta.parent`). One area of the nine is lettered in the text and has no
+  mark on the plan; it stands on its room's pin. AX1's own gate, every leaf
+  area pinned, is unchanged. To reverse: one pin, and the rule loses its
+  second half.
+- **A key the plan prints on several rooms is pinned once**, on the first in
+  reading order: a place is one token on a scene, and the recipe check refuses
+  an id placed twice. *Cost:* the other rooms carry no pin. To reverse: a
+  scene-binding change that reaches every map.
+- **A picture that draws several floors is one scene.** *Cost:* the floors lie
+  side by side on one canvas. To reverse: a plan row and a crop per floor.
+- **The plans' squares take the dungeon square the Judges Journal's delve
+  chapter assumes** (JJ ch. 8); the plans print no scale. This was the lane's
+  call at authoring and was never put to the owner. To reverse: one figure in
+  each of the nine plan rows.
+- **A list bullet in a scenario's text is dropped**, as a prose icon is. The
+  read gave the mark on some lines and not on others.
+- **A scenario's text still derives effects**, as every keyed place's does.
+- **The reading bar names the page by its number in the file**, where a
+  citation names the folio: the read is handed the page and its recipe, never
+  the book. To reverse: the book's id through the executor's `ocr` dispatch.
+
+**Lint** (`tools/importer/scenario-rules.mjs`): a scenario row carries its
+`Scenario N` group; a scenario is a key space with exactly one plan; a plan
+pins its own areas only; a roster id names a row that imports as a creature or
+a person.
+
+*Cost:* no row carries `meta.roster` yet. The links are authored with the
+creature rows they name, in the next slice.
