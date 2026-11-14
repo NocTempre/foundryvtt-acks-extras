@@ -2194,7 +2194,7 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     const ctx = { doc, registers, getPage, getArt, claims, misses, field };
     let result = null;
     try {
-      result = await execInstruction(instr, ctx);
+      result = instr.op === "ocr" ? await (await import("./picture-text.mjs")).readPictureText(instr, ctx, bookCookbook.pictures?.[instr.page], execInstruction) : await execInstruction(instr, ctx);
     } catch (err) {
       misses.push({ field, error: err.message });
       result = null;

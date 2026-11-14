@@ -1,0 +1,5 @@
+{
+  "id": "kind.picture",
+  "role": "picture",
+  "note": "The recipe for reading the text printed inside one page picture at import: the picture's XObject, the boxes to read with a page segmentation mode each, and the corrections applied to a box's text, each held to its match count by the author's read. Entry rows on the page carry `ocr: {<field>: <instruction>}` in place of an anchor."
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "jj.scenario1",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 1",
+    "pages": [417],
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 460, "y0": 10, "y1": 45 }, "hash": "1ua693h" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 460, "y0": 45, "y1": 1034 } },
+          { "box": { "x0": 460, "x1": 890, "y0": 0, "y1": 1034 } },
+          { "box": { "x0": 890, "x1": 1342, "y0": 0, "y1": 1034 } }
+        ]
+      }
+    }
+  }
+]

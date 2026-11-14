@@ -1,0 +1,14 @@
+[
+  {
+    "id": "jj.picture417",
+    "kind": "kind.picture",
+    "book": "jj",
+    "name": "Picture 417",
+    "pages": [417],
+    "picture": {
+      "name": "img_p416_6",
+      "read": [{ "box": { "x0": 0, "x1": 1342, "y0": 0, "y1": 1034 }, "psm": 3 }],
+      "corrections": []
+    }
+  }
+]

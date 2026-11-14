@@ -92,6 +92,7 @@ mechanically; every judgment already happened at compile time.
 | `grid` *(v2)* | `box`, `label: {x0,x1}`, `cols: [{key,x0,x1,pattern?,table?}]`, `transpose?`, `rowTol?`, `minCells?` | `{rows: [{key,label,cells}]}` | a printed TABLE read by authored geometry — the MM's "characteristics by rank/age/tier" pages. Rows cluster by y; the label span names each row (key = `slugLabel`, shared with the binding); each column span parses through the cell-pattern library (`raw`/`int`/`num`/`dice`/`dashNull`/`intDash`/`rollBand`, plus `glyphs` mapping PUA damage-marks through a shipped table). `transpose` reads a sideways table (properties as rows, options as columns): one output row per COLUMN, cells keyed by slugged property labels. Header rows caught in the band parse almost no cells and are dropped but stay claimed. Values materialize from the seat's page, like every stat. |
 
 | `heading` *(additive, 2026-09-17)* | `box` or `parts: [{box, page?, fixes?, glue?}]`, and one of `number`, `hash` | ok/mismatch, `found`, `title` | `expect` for a name the cookbook does not carry. The runs are joined WITH their fixes; a name the line broke is read in `parts`, a part marked `glue` continuing the word the part before it broke. The check is `number` (the heading's first token folds to exactly this key number, so `36.` never passes on `36U.`) or `hash` (`printKey` of the joined text, `scripts/importer/printed-name.mjs`). On a pass `title` carries the words as printed for the binding to name the document with; on a mismatch it is null and the entry stubs exactly as under `expect`. Nothing v1–v2 changed: an entry that ships its label still uses `expect`. |
+| `ocr` *(additive, 2026-11-13)* | `page`, `then`, `unread?` | what `then` returns | text printed inside a picture, which has no text layer: the page's corrected OCR lines (`pictures`, below) become text runs in the picture's source samples, and `then` — a `heading`, `text`, `value` or `grid` with no `page` of its own, never `expect` — runs over them through the executor's own ops, boxes read in those samples. `unread`, on a `value` only, lists dotted paths into the parse that are deleted after it runs; each is a miss `{field, unread}` with no `error`, echoed as `result.unread`, for a surface to say "not imported". A page with no recipe is a miss of the field. |
 
 **A printed proper name is read, never shipped.** An adventure's own names are
 its expression, so an entry compiled from such a row carries a neutral `name`
@@ -146,10 +147,65 @@ trailing "N+" roll target before lookup), `stripColon` (drop a trailing ":"),
 `stripParen` (drop one trailing parenthetical) — AX quick-stat labels print
 "Skeletons (12):", creature-table keys are clean names.
 
-**Fixes** (text-assembly transformations; never corrected text): 
+**Fixes** (text-assembly transformations; never corrected text, with one
+exception: a picture's OCR read carries post-read corrections, `pictures`
+below, ruled in DECISIONS "2026-11-13 — The JJ's scenario pictures are read by
+OCR at import, with post-read corrections"): 
 `{"joinSpace": [i]}` insert a space between adjacent runs; `{"mergeHyphen": [i]}`
 merge across a line-break hyphen; `{"drop": [i]}` discard a decorative run.
 Indexes are run-ordinals *within the instruction's box* (geometry-stable).
+
+### `pictures`
+
+A book cookbook's top-level `pictures: { "<page>": {...} }` is the read recipe
+for the one picture on a page, compiled from a `kind.picture` row
+(`register/<book>/`, id `<book>.picture<page>`, named `Picture <page>`, the
+recipe in the row's `picture` block) and used by every `ocr` instruction on
+that page. An entry row that reads through it carries `ocr: {<field>: <then>}`
+in place of an anchor; `<then>` is the instruction's `then`, with `unread`
+beside it.
+
+```jsonc
+"pictures": { "417": {
+  "name": "img_p416_6",                  // the picture's XObject, as pdf.js names it
+  "read": [ { "box": {x0,x1,y0,y1}, "psm": 3 } ],   // reading order; upright source samples; psm explicit
+  "corrections": [ { "box": 0, "find": "…", "flags": "g", "to": "…", "hits": 2, "pile": "a", "glyph": "fire" } ]
+} }
+```
+
+- **Reading.** `scripts/importer/picture-text.mjs` opens its own pinned copy of the
+  PDF from the session document's bytes (`doc.getData()`), takes the XObject's raw
+  samples, scales them 2×, cuts each box padded by 4 source samples and reads it
+  at its `psm` through `ocr.mjs`. A page is read once per document and its
+  corrected lines are kept as long as the document is; the engine and the pinned
+  copy close when idle and on `closePictureReads()`.
+- **Runs.** A box's lines are its read words joined by single spaces; the box's
+  text is its lines joined by newlines, and its `corrections` run on that text
+  in list order, each on the previous one's output, as JS `replace(new
+  RegExp(find, flags), to)`. The corrected text is split on newlines again: line
+  *i* keeps raw line *i*'s bounding box, a line past the raw count keeps the last
+  one's. Each is one run `{str: text + " ", x: left edge, y: vertical centre, w,
+  h}` in source samples. The scale, padding and this derivation are constants
+  because the corrections are fitted on them. Line-end word breaks are the text
+  op's `fixes.mergeHyphen`.
+- **Corrections.** `box` indexes `read`; `to` never contains a newline and may use
+  `$1`–`$9`, `$&`, `$$`; `flags` is a subset of `gimu`; `hits` is the number of
+  matches with `g` forced at that point in the list (1 without `g`), held
+  against the author's read at compile and a live read at verify, never at
+  import; `pile` is `a`, `r`, `b` or `c`, the IP review's index; `glyph`, a
+  `damageGlyph` key, marks a correction that writes that key where an icon's
+  misread stands, so `to` less its references equals it. A `find` holds the
+  engine's misread of an ordinary word, at most two ordinary anchor words and
+  shape classes, never a proper name or a figure.
+- **Checks.** `tools/importer/lint-register.mjs` holds the recipe's shape and
+  every `ocr`'s page; `tools/importer/compile-picture.mjs` checks the recipe
+  against the author's read, a LOCAL-ONLY file written by
+  `tools/importer/ocr-author-read.mjs` under the path `OCR_READS` in
+  `reference-lib.mjs` (boxes inside the samples, every `hits`, no match across a
+  line, each entry's `then` replayed over the corrected lines meeting its kind's
+  test, unselected lines reported); `tools/importer/verify-cookbook.mjs` recounts every
+  `hits` on a live read and replays the entries (`VERIFY_NO_OCR=1` leaves both
+  out).
 
 **Executor contract:** pure lookup + mechanical execution; no heuristics, no
 promotion, no writes. Inputs: cookbook + the seat's opened PDF. Output: the

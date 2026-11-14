@@ -39,7 +39,10 @@ RUNTIME   values AND prose/art materialize from the seat's own PDF exactly as
    fixes, reading-order maps, color-derived tables — derived structural
    metadata reproduces nothing without the source. Prose repairs ship as
    *transformations*, never corrected text; literal strings only under the
-   short-label cap (~60 chars: names, labels, headings).
+   short-label cap (~60 chars: names, labels, headings). The one exception is a
+   picture's OCR read, whose post-read corrections may write what the page prints
+   as one misread's replacement: importer DECISIONS, "2026-11-13 — The JJ's
+   scenario pictures are read by OCR at import, with post-read corrections".
 4. **Total capture.** Every text run on every page maps to a node or an
    explicit recorded skip. Line coverage (no unclaimed items after all of a
    page's nodes apply) is the authoritative completeness check; the book

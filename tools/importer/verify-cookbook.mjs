@@ -12,6 +12,10 @@
  *     (goal: zero) and cross-entry double-claims.
  *   - scene recipes: the baked image placement is still on the page, and the
  *     recipe still holds over the entries compiled beside it.
+ *   - picture recipes: every correction's `hits` recounted on a LIVE read of
+ *     the page's picture (the OCR engine; about three minutes for a book's
+ *     nine pages). `VERIFY_NO_OCR=1` leaves every entry that reads a picture,
+ *     and the recount, out.
  *
  * Failures (exit 1): expect mismatch, empty description, zero stats fields.
  * Warnings: stubs, misses, residue.
@@ -24,6 +28,7 @@ import { fileURLToPath } from "node:url";
 import { openBook, pageArtPlacements, pageItems } from "../../scripts/importer/extract.mjs";
 import { placementMatches, recipeContext, recipeProblems } from "../../scripts/importer/scene-binding.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
+import { closePictureReads, pictureReadFor } from "../../scripts/importer/picture-text.mjs";
 import { fingerprintWarning } from "../../scripts/importer/books.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -101,12 +106,15 @@ for (const file of bookFiles) {
   const claimedBy = new Map(); // text item -> entryId, for the kinds that may share one
   const pageCache = new Map();
 
+  // An entry that reads a picture is left out whole with the engine off: its
+  // name would read as missing, which is a failure and not a skip.
+  const readsPicture = (id) => Object.values(cb.entries[id].fields ?? {}).some((instr) => instr.op === "ocr");
   const ids = Object.keys(cb.entries).filter((id) => {
     const p = cb.entries[id].pages[0];
-    return p >= start && p <= end;
+    return p >= start && p <= end && !(process.env.VERIFY_NO_OCR && readsPicture(id));
   });
 
-  const skipOps = process.env.VERIFY_NO_ART ? ["art"] : undefined;
+  const skipOps = [...(process.env.VERIFY_NO_ART ? ["art"] : []), ...(process.env.VERIFY_NO_OCR ? ["ocr"] : [])];
   for (const id of ids) {
     const res = await executeEntry(doc, cb, registers, id, { trackClaims: true, pageCache, skipOps });
     const f = res.fields;
@@ -143,7 +151,8 @@ for (const file of bookFiles) {
     // checked: a heading that proved its box and handed on no words would name
     // the document after its neutral label. A header proved without naming
     // (`names: false`) leaves the row's own name standing.
-    const nameOp = cb.entries[id].fields?.name;
+    const nameField = cb.entries[id].fields?.name;
+    const nameOp = nameField?.op === "ocr" ? nameField.then : nameField;
     const nameOk = f.name?.ok && (nameOp?.op !== "heading" || nameOp.names === false || !!String(f.name?.title ?? "").trim());
     // Pass criteria are KIND-shaped: a location is prose, an npc is a parsed
     // statline, a rolltable is rows; only monster kinds owe a stat block.
@@ -305,6 +314,21 @@ for (const file of bookFiles) {
     }
   }
 
+  // A picture recipe's corrections are fitted on a read; a different engine or
+  // picture shows here as a count that moved. Each `hits` is recounted on a
+  // live read, and no match may cross a line.
+  for (const [page, picture] of Object.entries(process.env.VERIFY_NO_OCR ? {} : (cb.pictures ?? {}))) {
+    if (!(Number(page) >= start && Number(page) <= end)) continue;
+    const live = await pictureReadFor(doc, Number(page), picture);
+    const moved = picture.corrections.map((c, j) => ({ j, want: c.hits, got: live.hits[j], span: live.spans[j] })).filter((c) => c.got !== c.want || c.span);
+    if (moved.length) {
+      console.log(`FAIL picture p${page}: ${moved.map((c) => `correction ${c.j} matches ${c.got} (expects ${c.want})${c.span ? ` with ${c.span} across a line` : ""}`).join("; ")}`);
+      failures++;
+    } else {
+      console.log(`OK   picture p${page}: ${picture.corrections.length} correction(s) hold on a live read of ${picture.read.length} box(es), ${live.runs.length} line(s)`);
+    }
+  }
+
   // Line-coverage residue per touched page (shipped skips count as claimed).
   let residuePages = 0;
   let residueItems = 0;
@@ -327,5 +351,6 @@ if (promo.size) {
   console.log(`\npromotion candidates (unknown tokens):`);
   for (const [k, n] of [...promo.entries()].sort((a, b) => b[1] - a[1])) console.log(`  ${k} x${n}`);
 }
+await closePictureReads();
 console.log(`\nverify done — ${failures} failure(s), ${warnings} warning(s).`);
 process.exit(failures ? 1 : 0);

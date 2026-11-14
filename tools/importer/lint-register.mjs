@@ -38,7 +38,15 @@ const KIND_ID = /^kind\.[a-z][A-Za-z0-9]*$/;
 // What a kind's entries become at import; the binding reads the same rows.
 const BINDS = new Set(["ability"]);
 const SHAPES = new Set(["open", "descriptor", "keyword", "table"]);
-const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid"]);
+const OPS = new Set(["expect", "heading", "text", "value", "attacks", "art", "effects", "progression", "rolls", "grid", "ocr"]);
+// The ops an `ocr` instruction may run over the corrected lines: the ones that read runs
+// by a box. Never `expect` (a printed label would ship), never `ocr` itself.
+const OCR_THEN_OPS = new Set(["heading", "text", "value", "grid"]);
+// What a picture recipe's `read` boxes, `corrections` and `unread` paths may carry.
+const PICTURE_KEYS = new Set(["name", "read", "corrections", "note"]);
+const CORRECTION_KEYS = new Set(["box", "find", "flags", "to", "hits", "pile", "glyph", "note"]);
+const CORRECTION_PILES = ["a", "r", "b", "c"];
+const UNREAD_PATH = /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*$/;
 // `printKey` output: a 32-bit hash in base 36.
 const PRINT_KEY = /^[0-9a-z]{1,7}$/;
 // The sorts of heading a hash anchor may be sought among: a display heading, a
@@ -67,6 +75,144 @@ const readJson = (p, label) => {
     return null;
   }
 };
+
+// The damage-mark keys a correction's `glyph` may name: the vocabulary `glyphWords` writes.
+const DAMAGE_GLYPH_KEYS = new Set(
+  Object.values(readJson(path.join(REGISTER, "_refs", "damageGlyph.json"), "_refs/damageGlyph.json")?.tokens ?? {}).map((t) => t.key),
+);
+
+/** A box `{x0, x1, y0, y1}` of numbers that runs left to right and top to bottom. */
+const isBox = (b) => !!b && typeof b === "object" && ["x0", "x1", "y0", "y1"].every((k) => typeof b[k] === "number") && b.x0 < b.x1 && b.y0 < b.y1;
+
+/**
+ * A picture recipe's shape problems (`kind.picture`, and `pictures[<page>]` in a
+ * cookbook, where `shipped` forbids the authoring notes): the XObject's name,
+ * the boxes read with a page segmentation mode each, and the corrections. A
+ * correction is an offline fix to one misread: `find` compiles, `to` carries
+ * no newline and only `$1`-`$9`, `$&` and `$$` as references, both are
+ * length-capped, `flags` are a subset of `gimu`, `hits` is the match count
+ * with `g` forced (1 without `g`), `pile` is the IP review's index, and a
+ * `glyph` is a damage-mark key that `to` minus its references equals. Whether
+ * `find` holds only a misread of an ordinary word, and `to` only that
+ * misread's replacement, is the reviewer's, never this gate's.
+ */
+function pictureProblems(p, shipped) {
+  const out = [];
+  if (!p || typeof p !== "object") return ["is not an object"];
+  for (const k of Object.keys(p)) if (!PICTURE_KEYS.has(k)) out.push(`carries "${k}", which a picture recipe does not`);
+  if (shipped && p.note !== undefined) out.push("ships its authoring note");
+  if (typeof p.name !== "string" || !p.name) out.push("needs the picture's XObject name");
+  const read = Array.isArray(p.read) ? p.read : [];
+  if (!read.length) out.push("needs a read list of at least one box");
+  read.forEach((r, i) => {
+    if (!isBox(r?.box)) out.push(`read ${i} needs a box {x0, x1, y0, y1} running left to right and top to bottom`);
+    if (!Number.isInteger(r?.psm) || r.psm < 0 || r.psm > 13) out.push(`read ${i} needs an integer psm from 0 to 13`);
+    for (const k of Object.keys(r ?? {})) if (!["box", "psm", "note"].includes(k)) out.push(`read ${i} carries "${k}"`);
+    if (shipped && r?.note !== undefined) out.push(`read ${i} ships its authoring note`);
+  });
+  if (!Array.isArray(p.corrections)) out.push("needs a corrections list, empty if none");
+  (Array.isArray(p.corrections) ? p.corrections : []).forEach((c, j) => {
+    const at = `correction ${j}`;
+    for (const k of Object.keys(c ?? {})) if (!CORRECTION_KEYS.has(k)) out.push(`${at} carries "${k}"`);
+    if (shipped && c?.note !== undefined) out.push(`${at} ships its authoring note`);
+    if (!Number.isInteger(c?.box) || c.box < 0 || c.box >= read.length) out.push(`${at} names box ${JSON.stringify(c?.box)}, which the read list does not hold`);
+    const flags = c?.flags ?? "";
+    if (typeof flags !== "string" || !/^[gimu]*$/.test(flags) || new Set(flags).size !== flags.length) out.push(`${at} flags are a subset of g, i, m, u`);
+    let groups = 0;
+    if (typeof c?.find !== "string" || !c.find || c.find.length > MAX_STR) out.push(`${at} needs a find of 1 to ${MAX_STR} characters`);
+    else {
+      try {
+        groups = new RegExp(`${c.find}|`, flags).exec("").length - 1;
+      } catch (e) {
+        out.push(`${at} find does not compile (${e.message.split(":").pop().trim()})`);
+      }
+    }
+    if (typeof c?.to !== "string" || c.to.length > MAX_STR) out.push(`${at} needs a to of at most ${MAX_STR} characters`);
+    else {
+      if (/[\r\n]/.test(c.to)) out.push(`${at} to carries a line break`);
+      const refs = c.to.replace(/\$\$/g, "");
+      if (/\$(?![1-9&])/.test(refs)) out.push(`${at} to carries a "$" that is no reference ($1-$9, $&, $$)`);
+      for (const [, n] of refs.matchAll(/\$([1-9])/g)) if (+n > groups) out.push(`${at} to refers to group ${n}, which find does not capture`);
+    }
+    if (!Number.isInteger(c?.hits) || c.hits < 1) out.push(`${at} needs hits, the number of matches (1 or more)`);
+    else if (!flags.includes("g") && c.hits !== 1) out.push(`${at} has no g flag and so matches once, not ${c.hits} times`);
+    if (!CORRECTION_PILES.includes(c?.pile)) out.push(`${at} needs a pile (${CORRECTION_PILES.join("|")})`);
+    if (c?.glyph !== undefined) {
+      if (!DAMAGE_GLYPH_KEYS.has(c.glyph)) out.push(`${at} glyph ${JSON.stringify(c.glyph)} is no damage mark`);
+      else if (typeof c.to === "string" && c.to.replace(/\$[1-9&]/g, "").trim() !== c.glyph) out.push(`${at} to, less its references, is not the glyph ${JSON.stringify(c.glyph)}`);
+    }
+  });
+  return out;
+}
+
+/**
+ * One instruction's own problems, as text that follows its location: its op and
+ * pattern are known, a heading proves its box by exactly one of a key number or a
+ * hash and ships no label, a sectioned paragraph's marks are `true`, a grid's
+ * patterns are the library's.
+ */
+function instrProblems(instr) {
+  const out = [];
+  if (!OPS.has(instr.op)) out.push(`unknown op "${instr.op}"`);
+  if (instr.pattern && !PATTERNS.has(instr.pattern)) out.push(`unknown pattern "${instr.pattern}"`);
+  if (instr.op === "heading") {
+    // The op exists so that the words do NOT ship: it is checked by a
+    // pointer, and an instruction that also carries a label has leaked it.
+    if (instr.text !== undefined) out.push('is a heading and ships a label — that is what "expect" is for');
+    const byNumber = typeof instr.number === "string" && KEY_NUMBER.test(instr.number);
+    const byHash = typeof instr.hash === "string" && PRINT_KEY.test(instr.hash);
+    if (byNumber === byHash) out.push("heading needs exactly one of number|hash");
+    if (!instr.box && !(Array.isArray(instr.parts) && instr.parts.length && instr.parts.every((p) => p?.box))) {
+      out.push("heading needs a box, or parts that each carry one");
+    }
+  }
+  // A row printed empty and a row's detail paragraph are both marks on a
+  // sectioned paragraph, and only ever `true`.
+  if (instr.op === "text") {
+    for (const [i, p] of (instr.paras ?? []).entries()) {
+      for (const mark of ["empty", "detail"]) {
+        if (p[mark] === undefined) continue;
+        if (p[mark] !== true || !p.section) out.push(`para ${i} carries ${mark} — it is true, on a sectioned paragraph`);
+      }
+      if (p.empty && p.detail) out.push(`para ${i} is both an empty row and a detail`);
+    }
+  }
+  if (instr.op === "grid") {
+    for (const col of instr.cols ?? []) {
+      if (col.pattern && !GRID_PATTERNS.has(col.pattern)) out.push(`col "${col.key}" unknown grid pattern "${col.pattern}"`);
+    }
+    for (const [prop, over] of Object.entries(instr.props ?? {})) {
+      if (over.pattern && !GRID_PATTERNS.has(over.pattern)) out.push(`prop "${prop}" unknown grid pattern "${over.pattern}"`);
+    }
+  }
+  return out;
+}
+
+/**
+ * An `ocr` instruction's problems: it names a page that has a picture recipe
+ * (`pictures[page]`), and its `then` is one of the ops that read runs by a box,
+ * with no page of its own (the read's page is the instruction's) and never an
+ * `expect`. `unread` lists dotted paths into a parse and belongs on a `value`.
+ * `instrProblems` holds the per-op checks the `then` passes like any instruction.
+ */
+function ocrProblems(instr, pictures) {
+  const out = [];
+  for (const k of Object.keys(instr)) if (!["op", "page", "then", "unread"].includes(k)) out.push(`carries "${k}"`);
+  if (!Number.isInteger(instr.page) || instr.page < 1) out.push("needs a page");
+  else if (!pictures?.has?.(instr.page)) out.push(`reads p.${instr.page}, which has no picture recipe`);
+  const then = instr.then;
+  if (!then || typeof then !== "object") return [...out, "needs a then"];
+  if (then.op === "expect") out.push("then is an expect, which would ship the page's words as a label");
+  else if (!OCR_THEN_OPS.has(then.op)) out.push(`then is "${then.op}", not one of ${[...OCR_THEN_OPS].join("|")}`);
+  if (then.page !== undefined) out.push("then names a page; the read's page is the instruction's");
+  for (const part of [...(then.paras ?? []), ...(then.parts ?? [])]) if (part?.page !== undefined) out.push("a para or part of then names a page");
+  out.push(...instrProblems(then));
+  if (instr.unread !== undefined) {
+    if (then.op !== "value") out.push("unread belongs on a value");
+    if (!Array.isArray(instr.unread) || !instr.unread.length || !instr.unread.every((u) => typeof u === "string" && UNREAD_PATH.test(u))) out.push("unread is a list of dotted paths");
+  }
+  return out;
+}
 
 /**
  * A `pattern` is shipped machine vocabulary (a locator applied to the reader's
@@ -185,6 +331,8 @@ const orgRows = []; // checked against every row once all are read
 const rowShapes = new Map(); // id -> {kind, group}
 const allRows = new Map(); // id -> row, for the rules that hold between rows
 const linkRows = []; // scene links, checked against every row once all are read
+const pictureRows = []; // picture recipes, one a page
+const ocrRows = []; // rows that read through a picture, checked against the picture rows
 function checkOrganisation(e, id, bookId) {
   orgRows.push({ id, o: e.organisation ?? {} });
   const n = /^Organisation (\d+)$/.exec(e.name ?? "")?.[1];
@@ -411,7 +559,22 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       // block: it has no heading of any kind to locate, so it is anchored by
       // an authored box carrying an `expect` instead. Its assists are checked
       // below in place of the anchor.
-      if (e.kind === "kind.constant") {
+      if (e.kind === "kind.picture") {
+        // The recipe for the picture on one page: no text anchor (the compiler
+        // proves the XObject is painted there), identified by its page.
+        if (e.anchor !== undefined) err(`${id}: a picture row has no text anchor — the compiler checks the XObject is painted on the page`);
+        if (e.pages?.length !== 1) err(`${id}: a picture row reads the picture of one page`);
+        else if (e.name !== `Picture ${e.pages[0]}` || id !== `${bookId}.picture${e.pages[0]}`) err(`${id}: the picture row of p.${e.pages[0]} is named "Picture ${e.pages[0]}" and has the id "${bookId}.picture${e.pages[0]}"`);
+        for (const problem of pictureProblems(e.picture, false)) err(`${id}: picture ${problem}`);
+        pictureRows.push(e);
+      } else if (e.ocr !== undefined) {
+        // An entry that reads its fields through a picture's text: `ocr` in
+        // place of an anchor, one instruction per field, checked once every
+        // picture row is known.
+        if (e.anchor !== undefined) err(`${id}: a row that reads a picture has no text anchor, and so no "anchor" beside its "ocr"`);
+        if (!e.ocr || typeof e.ocr !== "object" || Array.isArray(e.ocr) || !Object.keys(e.ocr).length) err(`${id}: ocr is an object of field to instruction`);
+        else ocrRows.push(e);
+      } else if (e.kind === "kind.constant") {
         const a = e.assists ?? {};
         if (!a.expect?.box || typeof a.expect.text !== "string") err(`${id}: constant needs assists.expect {box, text}`);
         if (!a.value?.box) err(`${id}: constant needs assists.value {box}`);
@@ -600,6 +763,24 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
   }
 }
 
+/* --- pictures: one recipe a page, and every row that reads a picture has its page's --- */
+{
+  const seen = new Map(); // `${book}:${page}` -> id
+  for (const e of pictureRows) {
+    const key = `${e.book}:${e.pages?.[0]}`;
+    if (seen.has(key)) err(`${e.id}: p.${e.pages?.[0]} has a second picture row beside ${seen.get(key)}`);
+    seen.set(key, e.id);
+  }
+  for (const e of ocrRows) {
+    const pages = new Set(pictureRows.filter((p) => p.book === e.book).map((p) => p.pages?.[0]));
+    for (const [field, spec] of Object.entries(e.ocr)) {
+      const { unread, ...then } = spec ?? {};
+      const instr = { op: "ocr", page: e.pages?.[0], then, ...(unread !== undefined ? { unread } : {}) };
+      for (const problem of ocrProblems(instr, pages)) err(`${e.id}: ocr.${field} ${problem}`);
+    }
+  }
+}
+
 /* --- organisations: every id a block names is a real row of the right sort --- */
 for (const { id, o } of orgRows) {
   const want = (key, value, test, what) => {
@@ -736,41 +917,18 @@ if (fs.existsSync(COOKBOOK)) {
       if (r.note !== undefined) err(`${label}: scenes.${id} ships its authoring note`);
       for (const problem of recipeProblems(r, known)) err(`${label}: scenes.${id} ${problem}`);
     }
+    // A picture recipe is read by the `ocr` instructions of its page; a page
+    // may have one, and an instruction names a page that does.
+    const pictureRecipes = new Set(Object.keys(cb.pictures ?? {}).map(Number));
+    for (const [page, p] of Object.entries(cb.pictures ?? {})) {
+      if (!Number.isInteger(Number(page)) || Number(page) < 1) err(`${label}: pictures.${page} is not a page`);
+      for (const problem of pictureProblems(p, true)) err(`${label}: pictures.${page} ${problem}`);
+    }
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       for (const problem of specConditionProblems([...(e.fields?.effects?.specs ?? []), ...(e.fields?.rolls?.specs ?? [])])) err(`${label}: ${id} ${problem}`);
       for (const [field, instr] of Object.entries(e.fields ?? {})) {
-        if (!OPS.has(instr.op)) err(`${label}: ${id}.${field} unknown op "${instr.op}"`);
-        if (instr.pattern && !PATTERNS.has(instr.pattern)) err(`${label}: ${id}.${field} unknown pattern "${instr.pattern}"`);
-        if (instr.op === "heading") {
-          // The op exists so that the words do NOT ship: it is checked by a
-          // pointer, and an instruction that also carries a label has leaked it.
-          if (instr.text !== undefined) err(`${label}: ${id}.${field} is a heading and ships a label — that is what "expect" is for`);
-          const byNumber = typeof instr.number === "string" && KEY_NUMBER.test(instr.number);
-          const byHash = typeof instr.hash === "string" && PRINT_KEY.test(instr.hash);
-          if (byNumber === byHash) err(`${label}: ${id}.${field} heading needs exactly one of number|hash`);
-          if (!instr.box && !(Array.isArray(instr.parts) && instr.parts.length && instr.parts.every((p) => p?.box))) {
-            err(`${label}: ${id}.${field} heading needs a box, or parts that each carry one`);
-          }
-        }
-        // A row printed empty and a row's detail paragraph are both marks on a
-        // sectioned paragraph, and only ever `true`.
-        if (instr.op === "text") {
-          for (const [i, p] of (instr.paras ?? []).entries()) {
-            for (const mark of ["empty", "detail"]) {
-              if (p[mark] === undefined) continue;
-              if (p[mark] !== true || !p.section) err(`${label}: ${id}.${field} para ${i} carries ${mark} — it is true, on a sectioned paragraph`);
-            }
-            if (p.empty && p.detail) err(`${label}: ${id}.${field} para ${i} is both an empty row and a detail`);
-          }
-        }
-        if (instr.op === "grid") {
-          for (const col of instr.cols ?? []) {
-            if (col.pattern && !GRID_PATTERNS.has(col.pattern)) err(`${label}: ${id}.${field} col "${col.key}" unknown grid pattern "${col.pattern}"`);
-          }
-          for (const [prop, over] of Object.entries(instr.props ?? {})) {
-            if (over.pattern && !GRID_PATTERNS.has(over.pattern)) err(`${label}: ${id}.${field} prop "${prop}" unknown grid pattern "${over.pattern}"`);
-          }
-        }
+        for (const problem of instrProblems(instr)) err(`${label}: ${id}.${field} ${problem}`);
+        if (instr.op === "ocr") for (const problem of ocrProblems(instr, pictureRecipes)) err(`${label}: ${id}.${field} ${problem}`);
       }
     }
   }

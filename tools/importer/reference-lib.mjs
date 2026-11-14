@@ -21,6 +21,9 @@ export const LIB_COMMUNITY = "C:\\Proj\\acks-reference\\Community";
 /** The AXIOMS zine issues and compendia, on the ACKS shelf. */
 export const LIB_AXIOMS = "C:\\Proj\\acks-reference\\AXIOMS";
 
+/** LOCAL-ONLY, outside every repo: an author's OCR read of a book's pictures, `<book>\p<page>.json` (`ocr-author-read.mjs`). */
+export const OCR_READS = "C:\\Proj\\acks-rules\\importer\\ocr-reads";
+
 /** Book id -> the exact printing the register's page numbers were read from. */
 export const FILES = {
   rr: `${LIB}\\ACKSII_Revised_Rulebook_DIGITAL_FINAL_r10_2nd_Printing.pdf`,

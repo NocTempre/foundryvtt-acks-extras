@@ -31,6 +31,7 @@ import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { LABELLED_FIELDS, citeLabel } from "../../scripts/importer/condition-labels.mjs";
 import { FILES, COMMUNITY_FILES } from "./reference-lib.mjs";
+import { PICTURE_KIND, compilePictureRow } from "./compile-picture.mjs";
 import { useTypography } from "../../scripts/importer/extract.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -6497,6 +6498,7 @@ async function main() {
         console.error(`SKIP ${entry.id}: status "${entry.status}" (pending review)`);
         continue;
       }
+      if (entry.kind === PICTURE_KIND || entry.ocr) { await compilePictureRow(doc, entry, { list, out, registers, warn }); continue; }
       if (entry.kind === "kind.class" || entry.kind === "kind.classMeta") {
         try {
           const compiled =
