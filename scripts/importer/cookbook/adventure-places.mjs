@@ -28,7 +28,7 @@ import { progressBar } from "../progress.mjs";
 import { journalCookbookId } from "../adventure-binding.mjs";
 import { nameKeys, creatureKeys } from "../../lib/vocab.mjs";
 import {
-  goodsResolver, heldErratumNotes, marketProfiles, marketProfileUpdate, marketActorData, marketEntryId, marketOrdinal,
+  goodLabel, goodsResolver, heldErratumNotes, marketProfiles, marketProfileUpdate, marketActorData, marketEntryId, marketOrdinal,
   placeName, unprintedMarketUpdate, withErratumNote,
 } from "../market-profile-binding.mjs";
 import { merchandiseCatalog, primeMerchandiseCatalog } from "../../markets/engine/merchandise.mjs";
@@ -960,7 +960,7 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
         for (const profile of marketProfiles({ grids: [grid], records: recordOf, resolve })) {
           const record = recordOf[profile.market] ?? null;
           for (const u of profile.unmapped) unmapped.set(u.column, u.header);
-          for (const column of profile.duplicates) duplicates.set(column, String(grid.header?.[column] ?? column));
+          for (const column of profile.duplicates) duplicates.set(column, goodLabel(grid, column));
           if (profile.classConflict) conflicts.push(record?.name || profile.market);
           const entryId = marketEntryId(bookId, profile.market);
           // A grid printed sideways heads each market's column with its name,

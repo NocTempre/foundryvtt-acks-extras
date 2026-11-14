@@ -119,6 +119,16 @@ export function goodsResolver(catalog = []) {
 }
 
 /**
+ * The name a report gives a good: its column's header where the grid has one,
+ * a sideways grid's property label otherwise, the column key last. Reports
+ * only; it never feeds `goodsResolver`.
+ * @param {{header?: object, labels?: object}} grid executed grid output
+ * @param {string} column the good's column key
+ * @returns {string}
+ */
+export const goodLabel = (grid, column) => String(grid?.header?.[column] ?? grid?.labels?.[column] ?? column);
+
+/**
  * One profile per market row across a book's grids.
  * @param {object} args
  * @param {Array<{rows: Array<{key: string, cells: object}>, header?: object, labels?: object}>} args.grids executed grid
@@ -136,7 +146,6 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
   const out = [];
   for (const grid of grids) {
     const header = grid?.header ?? {};
-    const labels = grid?.labels ?? {};
     for (const row of grid?.rows ?? []) {
       if (!row?.key) continue;
       const demand = [];
@@ -157,7 +166,7 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
           // The report names the good as printed: the column's header where
           // the grid has one, a sideways grid's property label otherwise. The
           // label never feeds `resolve`, so what maps does not depend on it.
-          unmapped.push({ column, header: String(header[column] ?? labels[column] ?? column) });
+          unmapped.push({ column, header: goodLabel(grid, column) });
           continue;
         }
         // Two columns feeding one good: the first in the order above stands,

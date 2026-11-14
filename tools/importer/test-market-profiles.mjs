@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import {
-  ACKS1_GOODS, baseIsForceable, baseIsImportable, erratumStamp, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
+  ACKS1_GOODS, baseIsForceable, baseIsImportable, erratumStamp, goodLabel, goodsResolver, heldErratumNotes, marketActorData, marketEntryId, marketOrdinal,
   marketProfileUpdate, marketProfiles, parseDm, parseFamilies, parseMarketClass, placeName, unprintedMarketUpdate, withErratumNote,
 } from "../../scripts/importer/market-profile-binding.mjs";
 import { MERCHANDISE_TYPES } from "../../scripts/markets/config.mjs";
@@ -455,6 +455,20 @@ await ok("a grid with no property labels reports a good by its column key", () =
   const bare = { rows: [{ key: "mkt1", cells: { brineCasks: "+1" } }], header: { mkt1: "Qa" } };
   const [p] = marketProfiles({ grids: [bare], resolve: goodsResolver([]) });
   assert.deepEqual(p.unmapped, [{ column: "brineCasks", header: "brineCasks" }]);
+});
+
+await ok("a sideways grid's duplicate goods are named by their printed label, as unmapped goods are", () => {
+  const sideways = {
+    header: { mkt1: "Qa" },
+    labels: { woolBolts: "Wool Bolts", linenBolts: "Linen Bolts" },
+    rows: [{ key: "mkt1", cells: { woolBolts: "+1", linenBolts: "+2" } }],
+  };
+  const resolve = goodsResolver([{ key: "clothing", aliases: ["woolBolts", "linenBolts"] }]);
+  const [p] = marketProfiles({ grids: [sideways], resolve });
+  assert.deepEqual(p.duplicates, ["linenBolts"]);
+  assert.equal(goodLabel(sideways, "linenBolts"), "Linen Bolts");
+  assert.equal(goodLabel({ ...sideways, header: { linenBolts: "Header" } }, "linenBolts"), "Header", "a header wins where the grid has one");
+  assert.equal(goodLabel({ header: {} }, "linenBolts"), "linenBolts", "the key is the last fallback");
 });
 
 console.log(`\ntest-market-profiles: ${passed} passed`);
