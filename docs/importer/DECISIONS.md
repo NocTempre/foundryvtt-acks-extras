@@ -10821,8 +10821,9 @@ asked: "New lair actor type needed? Possible extension of the monster
 group/encounter actor type? It should link without creating duplicates." Asked
 again with options on 2026-11-13, the owner picked:
 
-- Scope: "All 168 listings". Each of Chapter 3's 168 listings is a lair; the
-  37 that print a full-page plate also get its Scene.
+- Scope: "All 168 listings". Every listing of Chapter 3 is a lair (167; the
+  168 counted the chapter's how-to, below); the 37 that print a full-page
+  plate also get its Scene.
 - Shape: "Place actor (Recommended)".
 - Text: "As AX books do": the listing is the place's notes and every stat line
   is a creature, bound as an ACKS I adventure's are.
@@ -10845,9 +10846,10 @@ again with options on 2026-11-13, the owner picked:
   Judge's-book Repair.
 - **Stat lines bind as 2026-10-17 "An ACKS I adventure binds to ACKS II"
   rules**: to the ACKS II monster where the line names one or a registered
-  replacement, otherwise reported and made. That is what keeps "without
-  creating duplicates": an L&E stat line never makes a second copy of an MM
-  monster.
+  replacement, otherwise reported and made. A bound line makes no second copy
+  of its MM monster; a line naming a creature no pair covers is made, and may
+  stand beside the MM's row of the same creature until a pair is registered
+  (below, "A lair links to its monster…").
 - **A lair's map is its plate** (Appendix Two). Each plate is a `kind.scene`
   recipe with the AX fields, a square grid of 5 ft, and `place` naming its
   lair. A plate is paired with its listing by the listing's own pointer to the

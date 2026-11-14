@@ -3561,9 +3561,10 @@ What a scripted walk meets:
 
 ### Fixtures
 
-- `importer/le-mm` — no document: the Monstrous Manual's monsters in the
-  library (Import everything has run on the MM), so a `meta.of` resolves.
-  Asserted at the start: the library actor stamped `mm.gorillaCave` exists.
+- Precondition, not a fixture: the Monstrous Manual's monsters, and the other
+  books' creatures, in the library (Import everything has run on them), so a
+  `meta.of` and a paired stat line resolve. Asserted at the start: the
+  library actor stamped `mm.gorillaCave` exists.
 - `importer/le-lair` — the place under `le.lair4` (the first plated lair, its
   `meta.of` a plain monster), found by its cookbook id
   (`flags["acks-extras"].cookbook.id`), and marked with `api.mark` once the
@@ -3575,36 +3576,47 @@ What a scripted walk meets:
 
 ### Steps
 
-1. Run `cookbookImportPoiPlaces({ books: ["le"] })`. *Observable:* 168 places
-   made (`le.lairs` and 167 lairs), nothing refused; each lair's
-   `system.parentUuid` is `le.lairs`'s; each lair's roster ends with one hidden
+1. Run `cookbookImportPoiPlaces({ books: ["le"] })`. *Observable:* `made` is
+   168 (`le.lairs` and the 167 lairs), `created.places` one more (the book's
+   own place, `adventurePlaceId("le")`, which `le.lairs` sits in), nothing
+   refused; each lair's `system.parentUuid` is `le.lairs`'s; each lair's roster ends with one hidden
    row linking the library actor of its `meta.of` (no world copy, quantity 1),
    and no row of any roster points at a second actor stamped with the same MM
    id; a lair with no `meta.of` has no such row; `importer/le-lair-dragon`'s
    last row links the `mm.dragon` template actor.
-2. Count the documents stamped with an MM cookbook id before and after step 1.
-   *Observable:* equal — no stat line made a second copy of an MM monster. A
-   stat line made from its own text is claimed under `le.lair<n>-o<i>` and
-   counted in `creatures`.
+2. Read what the stat lines did, from step 1's result and the rosters.
+   *Observable:* `creatures` (lines made from their own text, each claimed
+   under `le.lair<n>-o<i>`) is 231 of the book's 355 stat lines when every
+   other book's creatures are in the library, and more where some are not; the
+   other 124 rows link a library actor of another book. On `importer/le-lair`
+   and on lair 70 (whose same-name ACKS II row is another creature), the stat
+   line a replacement pair covers links the actor of the pair's `ref`
+   (`register/_refs/creatureReplacement.json`), never a made creature and
+   never the same-name row.
 3. Run `cookbookImportScenes({ books: ["le"] })`. *Observable:* 37 scenes,
    `missing` 0; each is linked to its lair's world copy
    (`flags.acks-extras.location`) and named as that place is; its battlemap
    `mapSystem` is `delve`; its grid is square with `distance` 5 and its drawn
-   squares sit under the scene's grid on `importer/le-lair-map` and on one
-   turned plate (frame the canvas, compare by eye, note the plate pages); a
-   turned plate reads upright. The p207 pair are two scenes on two lairs; the
+   squares sit under the scene's grid on `importer/le-lair-map` and on the
+   plates whose fit rests on fewest lines or least checking (frame the canvas,
+   compare by eye): p204, p207 left, p208, p215, p214's gridded inset and p220
+   (`grid.pixels` 62); every turned plate reads upright (4 of the 26 were
+   checked offline). The p207 pair are two scenes on two lairs; the
    shared p214 plate is one scene.
 4. Run the step of step 1 again. *Observable:* `made` 0, `already` 168, no
    creature made, no roster grows.
-5. Setup check: with the MM's actor for one lair's `meta.of` absent (a world
-   where the MM is not yet imported; build it in a scratch world or skip and
-   say so), run step 1, then import the MM, then Repair everything on the
-   Import tab (Settings tab → Game Settings → ACKS II — Extras → Manage
-   imports). *Observable:* the repair lists that lair's roster as a held edit
+5. Setup check, the lair imported before its monster: pick a lair other than
+   the fixtures whose `meta.of` monster no other lair names; delete its place
+   and the MM library actor stamped with that `meta.of` (walks may clear test
+   world items, owner 2026-11-11), tracking neither; run step 1 (the lair is
+   made with no host row); import the monster again with
+   `cookbookImportIds` and track nothing (it is the library's); then Repair
+   everything on the Import tab (Settings tab → Game Settings → ACKS II —
+   Extras → Manage imports). *Observable:* the repair lists that lair's roster as a held edit
    when it holds made creatures, and writes the linked roster when taken; an
    empty roster takes the host row with no question.
 
 ### Teardown
 
-The four marked fixtures are kept. A setup check's made documents are swept
+The three marked fixtures are kept. A setup check's made documents are swept
 with `api.sweepTracked()` and its result is quoted.
