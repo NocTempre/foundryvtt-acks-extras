@@ -6,17 +6,16 @@
  * Source order (reuse → override → lookup → default):
  *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`)
  *   2. per-item overrides `flags.acks-extras.{size,grips,category,style,damageType}`
- *   3. the RAW table row the item is identified as (`weaponIdentity`)
+ *   3. the weapon-table row the item is identified as (`weaponIdentity`)
  *   4. default: melee, one-handed; a size, class or damage die nothing above
- *      states is null (the die ""), never invented
+ *      states is null (the die "")
  *
- * The annotate macro stamps (2) onto existing core `acks-all-equipment` items so
- * classification is exact; without it, (1)+(3) still classify the RAW weapons.
+ * The annotate macro stamps (2) onto existing core `acks-all-equipment` items;
+ * without it, (1)+(3) still classify the table's weapons.
  *
- * Step (3) is the whole of what makes a sword a sword here: WHICH weapon a
- * document is decides its proficiency category, size, hand cost, damage type
- * and Weapon Focus group. `weaponIdentity` is where that is decided and where
- * the answer's provenance is reported.
+ * Step (3), `weaponIdentity`, decides WHICH weapon a document is, and so its
+ * proficiency category, size, hand cost, damage type and Weapon Focus group,
+ * and reports the answer's provenance.
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SIZE, STYLE, WEAPON_CATEGORY, IMPROVISED_THROWN, gearProfileFor, clothingSlotsFor } from "./config.mjs";
@@ -32,8 +31,7 @@ import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
 /**
  * Is this armour item a shield?
  *
- * Core's own field, not a heuristic — `system.type` carries the armour ladder
- * plus `shield`, so there is nothing to infer and nothing to declare.
+ * Read from core's `system.type`, which carries the armour ladder plus `shield`.
  */
 export function isShield(item) {
   return item?.system?.type === "shield";
@@ -42,14 +40,9 @@ export function isShield(item) {
 /**
  * Is this armour item a helmet?
  *
- * A DECLARATION, ONCE PRESENT, REPLACES THE HEURISTIC ENTIRELY. Gear that
- * declares where it sits has already answered this, and consulting the name
- * afterwards would let "Great Helm" override a Judge who deliberately set the
- * slot to the body. The name test survives only for gear nobody has annotated,
- * which is every world until the annotate pass runs over it.
- *
- * Core keys its own Mortal Wounds bonus off the same name shape, so the
- * fallback deliberately matches what core would say.
+ * A declaration, once present, replaces the heuristic entirely: gear that
+ * declares its slots answers by them. The name test is for gear nobody has
+ * annotated, and matches the name shape core keys its Mortal Wounds bonus off.
  */
 export function isHelmet(item) {
   if (item?.type !== ITEM_TYPE.armor) return false;
@@ -61,17 +54,15 @@ export function isHelmet(item) {
 /**
  * Infer where a piece of gear sits and what it costs to reach into.
  *
- * A BEST GUESS, and treated as one: the annotate step stamps it as the item's
- * declaration and the item sheet offers a slot control to correct it. RAW gives
- * a slot only one job — you cannot wear two of the same thing (Treasure Tome,
- * Miscellaneous Magic Item Form) — so a wrong guess mis-scopes exclusivity and
- * nothing worse. That is what makes inferring acceptable at all.
+ * A best guess: the annotate step stamps it as the item's declaration and the
+ * item sheet offers a slot control to correct it. A slot's one job is that you
+ * cannot wear two of the same thing, so a wrong guess mis-scopes exclusivity
+ * and nothing more.
  *
- * Order: the named gear profiles (RAW carrying devices), then armour's own
- * shape, then the clothing patterns, then nothing. Returning no slots is the
- * common and correct answer — rations, loot, tools and coin are goods you carry,
- * not gear you wear, and they get the wear features switched off by declaring
- * nowhere to go.
+ * Order: the named gear profiles (carrying devices), then armour's own shape,
+ * then the clothing patterns, then nothing. No slots is the common answer:
+ * rations, loot, tools and coin are carried, not worn, and declaring nowhere
+ * to go switches the wear features off.
  *
  * @returns {{slots: string[], access: string, holds: boolean, relief: number|null, loaded6: number|null}}
  *   `access` is blank unless the item holds something; `holds` says only that
@@ -90,17 +81,16 @@ export function inferGear(item) {
       slots: [...(profile.slots ?? [])],
       access: profile.access ?? "",
       holds: profile.holds === true,
-      // What a harness secures is the book's figure, and it arrives with the
-      // item — read off its own name or description — never from a profile.
+      // A harness's relief is read off the item's own name or description,
+      // never from a profile.
       relief: profile.harness ? reliefStated(item) : null,
-      // The same for a bowquiver's loaded count: the item's own text, or none.
+      // The same for a bowquiver's loaded count.
       loaded6: profile.bowquiver ? loadedStated(item) : null,
     };
   }
 
   if (item.type === ITEM_TYPE.armor) {
-    // A shield is the one piece of gear with a real choice of place: in the
-    // hand, or slung (JJ variants). Both are declared; the wearer picks.
+    // A shield declares both places, hand and slung; the wearer picks.
     if (isShield(item)) return { ...none, slots: [SLOT.offHand, SLOT.strapped] };
     return { ...none, slots: [isHelmet(item) ? SLOT.head : SLOT.body] };
   }
@@ -110,12 +100,8 @@ export function inferGear(item) {
   const garment = clothingSlotsFor(item.name);
   if (garment) return { ...none, slots: [...garment] };
 
-  // Clothing the patterns did not name is still worn — a chiton, a cassock, a
-  // loincloth. `worn` is uncapped, so guessing it costs nothing.
-  //
-  // NO CAPACITY IS INVENTED for a garment. Whether a coat has pockets deep
-  // enough to matter is a Judge's call about that coat, not something a name
-  // can be read for, so it is set on the item rather than guessed here.
+  // Clothing the patterns did not name is still worn, in the uncapped `worn`
+  // slot. A garment gets no capacity: that is set on the item.
   if (isClothing(item)) return { ...none, slots: [SLOT.worn] };
 
   return none;
@@ -133,8 +119,8 @@ export function inferredGearFlag(item) {
     slots: gear.slots,
     access: gear.access,
     ...(gear.holds ? { holds: true } : {}),
-    // Only when the item's own text states it: a silent harness keeps
-    // whatever the Judge typed on its sheet.
+    // Only when the item's own text states it; a silent harness keeps the
+    // Judge's figure.
     ...(gear.relief != null ? { relief: gear.relief } : {}),
     ...(gear.loaded6 != null ? { loaded6: gear.loaded6 } : {}),
   };
@@ -142,9 +128,8 @@ export function inferredGearFlag(item) {
 
 /**
  * The places an item may be worn: its declaration where it has one, else the
- * inferred guess. Gear that was never annotated — every price-list row an
- * import writes, and every template copy cut from one — declares nothing, so
- * the declaration alone would leave a leather belt with no Wear control at all. A declaration of nowhere (`[]`) stays nowhere.
+ * inferred guess (gear never annotated declares nothing). A declaration of
+ * nowhere (`[]`) stays nowhere.
  */
 export function wearableSlots(item) {
   return declaresSlots(item) ? slotsOf(item) : inferGear(item).slots;
@@ -201,8 +186,8 @@ export function perStoneStated(item) {
 
 /**
  * Collect the lowercased tag tokens on a core weapon: its custom tags, the
- * special properties it declares, and the `{title, value}` tags an item made
- * before the system's weapon schema carried either.
+ * special properties it declares, and its `{title, value}` tags where the item
+ * carries them.
  */
 function tagTokens(item) {
   const out = new Set();
@@ -232,10 +217,9 @@ function mflag(item, key) {
 /**
  * Exact-or-alias resolution of one written name, or null.
  *
- * Every form `nameKeys` reads a name in is tried, the name as written first: a
- * catalogue name printed head-first ("Sword, Two-Handed") is the same weapon
- * as the one printed the other way round, and missing it drops the item to the
- * loose rung, where the one-handed sword its name contains answers for it.
+ * Every form `nameKeys` reads a name in is tried, the name as written first,
+ * so a head-first catalogue name ("Sword, Two-Handed") resolves to the same
+ * weapon as the reordered one.
  */
 function namedKey(name) {
   if (!name) return null;
@@ -249,11 +233,8 @@ function namedKey(name) {
 /**
  * The longest catalogue name a written name CONTAINS, or null.
  *
- * Longest first, because table order would otherwise let a shorter key that is
- * contained in a longer one win on the strength of being declared earlier:
- * "Silver Dagger, masterwork" contains both `dagger` and `silverdagger`, and
- * `dagger` is declared first — so the answer was a plain dagger and the Silver
- * quality went with it.
+ * Longest first, so a key contained in a longer one does not win by table
+ * order ("Silver Dagger, masterwork" is `silverdagger`, not `dagger`).
  */
 function containedKey(name) {
   const key = slug(name);
@@ -272,15 +253,10 @@ function refKey(ref) {
 }
 
 /**
- * Which RAW weapon a document IS, and on whose authority.
- *
- * A DECLARATION OUTRANKS AN INFERENCE, and the name is an inference. It is the
- * only source that can be wrong about an item everything else describes
- * correctly: a starting template renames the gear it grants to the words its
- * own page printed, so a hand axe can arrive under a regional name and a
- * sword under a descriptive one (RR p. 50). Reading those gives no axe at all and
- * the wrong sword — and the answer is not a longer alias list, because the
- * descriptor is a Judge's or a book's prose and there is no end to it.
+ * Which table weapon a document IS, and on whose authority. A declaration
+ * outranks an inference, and the name is an inference (a starting template
+ * renames its gear to the words its page printed, RR p. 50). See
+ * docs/equipment/DECISIONS.md, "What a weapon IS is declared, not read off its name (2026-09-07)".
  *
  * The ladder, most authoritative first:
  *
@@ -333,11 +309,10 @@ export function weaponKey(item) {
 /**
  * A weapon document the module cannot place among the imported weapon rows.
  *
- * Nothing throws, which is what makes it worth naming. Its size, damage type,
- * Weapon Focus group and proficiency CATEGORY are whatever the item itself
- * declares and otherwise unstated ("not imported"), so no grant can decide the
- * weapon and it is never refused; a Judge names its Weapon type on the sheet's
- * Construction panel.
+ * Its size, damage type, Weapon Focus group and proficiency CATEGORY are
+ * whatever the item itself declares and otherwise unstated ("not imported"), so
+ * no grant can decide the weapon and it is never refused; a Judge names its
+ * Weapon type on the sheet's Construction panel.
  */
 export function isUnidentifiedWeapon(item) {
   return item?.type === ITEM_TYPE.weapon && !weaponIdentity(item).key;
@@ -345,25 +320,21 @@ export function isUnidentifiedWeapon(item) {
 
 /**
  * Exact-or-alias key resolution of the name exactly as written — no reordered
- * form, no substring match (see equipmentClass). Narrower than `namedKey` on
- * purpose: this decides which core type the importer mints a gear row as, and
- * reading a reordered form here re-types price-list rows the importer mints as
- * plain inventory.
+ * form, no substring match (see equipmentClass). Narrower than `namedKey`:
+ * this decides which core type the importer mints a gear row as, and a
+ * reordered form would re-type price-list rows minted as plain inventory.
  */
 function strictWeaponKey(name) {
   return keyForName(name);
 }
 
 /**
- * The family's EQUIPMENT ROOT — gear is a special class of item, and shares its
- * root. Given only a NAME, say which core item type a piece of gear should
- * become and the stats that type needs — so a
- * torch (a light-weapon) and a flask of military oil / holy water (thrown
- * splash flasks) import as WEAPONS, while a lantern/candle stay plain
- * light-bearing items. The importer CONSUMES this rather than re-hardcoding the
- * rules; the weapon table (`lib/weapons.mjs`) stays the single source of truth. Uses strict
- * (exact/alias) matching so ordinary gear is never reclassified by a loose
- * substring hit.
+ * Given only a NAME, which core item type a piece of gear should become and
+ * the stats that type needs: a torch (a light-weapon) and a thrown splash
+ * flask import as WEAPONS, while a lantern or candle stays a plain
+ * light-bearing item. The importer consumes this; the weapon table
+ * (`lib/weapons.mjs`) is the single source. Matching is strict (exact or
+ * alias), so ordinary gear is never reclassified by a loose substring hit.
  * @returns {{type:string, damage?:string, melee?:boolean, missile?:boolean,
  *   thrown?:boolean, handy?:boolean, light?:boolean, splash?:boolean,
  *   consumable?:boolean, damageType?:string}|null} null if unrecognised.
@@ -373,10 +344,8 @@ export function equipmentClass(name) {
   if (key) {
     const w = weaponRow(key);
     const special = w.special ?? [];
-    // A THROWN melee weapon is usable as a missile too (RR p. 296), so it
-    // imports with BOTH melee and missile set, and the system offers each as
-    // its own kind of attack. A pure-thrown missile (dart, oil) is already
-    // missile-only.
+    // A THROWN melee weapon imports with BOTH melee and missile set (RR
+    // p. 296), and the system offers each as its own kind of attack.
     const missile = !!(w.missile || w.thrown);
     const base = {
       damage: w.damage || "",
@@ -389,28 +358,22 @@ export function equipmentClass(name) {
       splash: special.includes("splash"),
       consumable: special.includes("consumable"),
     };
-    // A TORCH is carried as a STACK — a bundle you keep in a pack — and only
-    // becomes a light-WEAPON when one is READIED for use (see prepareTorch in
-    // actions.mjs). So the root imports it as a light ITEM (quantity-bearing),
-    // recording the weapon stats the prepare step needs under `prepareAs`. Torch
-    // is the only weapon-table entry tagged `light`.
+    // A torch is a STACK that becomes a light-WEAPON only when one is readied
+    // (`prepareTorch` in actions.mjs), so it imports as a light ITEM carrying
+    // the weapon stats under `prepareAs`. It is the only weapon-table entry
+    // tagged `light`.
     if (base.light) return { type: "item", prepareAs: "weapon", ...base };
     return { type: "weapon", ...base };
   }
-  // A lantern (device) or candle stays a plain item but is flagged a light
-  // source so the content/sheet layers can treat it as equippable/holdable.
+  // A lantern or candle stays a plain item flagged a light source.
   if (/\b(lantern|candle)\b/i.test(name)) return { type: "item", light: true };
   return null;
 }
 
 /**
- * The grips a weapon may be held in, as a Judge declares them.
- *
- * RR p. 127 derives these from SIZE — tiny and small take one hand, large takes
- * two, medium takes either — which is right for the printed table and silent
- * about everything else. A weapon whose size nobody could resolve defaults to
- * medium and so silently reads as versatile; one a Judge built has no printed
- * row to derive anything from. Declaring the grips answers both.
+ * The grips a weapon may be held in, as a Judge declares them (RR p. 127
+ * derives them from size). A declared grip set answers ahead of size, for a
+ * weapon whose size is unresolved or that has no printed row.
  */
 export const GRIPS = Object.freeze(new Set(["1h", "versatile", "2h"]));
 
@@ -442,10 +405,9 @@ export function twoHandedDamage(damage, row) {
  * @returns {{key,size,melee,missile,thrown,handy,twoHandedForced,damage,damage2h,type,cat,special,grips}}
  */
 export function classifyWeapon(item) {
-  // `mflag`, not `getFlag`: the classifier is asked about payload OBJECTS as
-  // well as documents — a template's build data is checked before it is created
-  // — and a `getFlag`-only read answers undefined for every one of them, which
-  // reads as "no overrides declared" rather than as an unreadable flag.
+  // `mflag`, not `getFlag`: the classifier is also asked about payload OBJECTS
+  // (a template's build data, checked before it is created), which a
+  // `getFlag`-only read answers as "no overrides declared".
   const flag = (k) => mflag(item, k);
   const key = weaponKey(item);
   const base = key ? weaponRow(key) : null;
@@ -460,7 +422,7 @@ export function classifyWeapon(item) {
 
   // (2) overrides win; the item's own declared size and special properties
   // come before the table's row, and a property the item leaves off is no
-  // declaration — the row still answers it.
+  // declaration.
   const sizeOverride = flag(ITEM_FLAGS.SIZE);
   const coreSize = CORE_SIZES[item.system?.size] ?? null;
   const size = sizeOverride ?? coreSize ?? base?.size ?? null;
@@ -481,9 +443,7 @@ export function classifyWeapon(item) {
     damage,
     damage2h: alternate ?? twoHandedDamage(damage, base),
     type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
-    // The declared class outranks the row's, and an unknown value is no
-    // declaration at all — a hand-edited flag degrades to the row, never to a
-    // class no grant can name.
+    // The declared class outranks the row's; an unknown value is no declaration.
     cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? null,
     special: base?.special ?? [],
     anyoneThrows: false,
@@ -496,16 +456,12 @@ export function classifyWeapon(item) {
 
 /**
  * Does every character throw this proficiently, whatever their class (RR ch.
- * 1, Weapon Proficiency: bottles, flasks, rocks, sticks and torches)?
+ * 1, Weapon Proficiency)?
  *
- * A weapon row says so (`weaponThrowsAsAnyone`): a throwables kind, or a
- * thrown row whose printed name is one of the improvised throwables. Beyond the
- * rows, two readings reach what the rows do not mark: anything that bursts
- * where it lands (`splash`, the row's or a custom tag the item carries) is a
- * flask or a bottle whatever it holds, and a thrown weapon the table cannot
- * place is read by its name, so a Judge's "Flask of acid" counts where nothing
- * else could say so. A table-placed weapon is never read by name — a
- * "Stick-handled mace" is the mace.
+ * A weapon row says so (`weaponThrowsAsAnyone`). Two readings reach what the
+ * rows do not mark: anything that bursts where it lands (`splash`, the row's
+ * or a custom tag the item carries), and a thrown weapon the table cannot
+ * place, read by its name. A table-placed weapon is never read by name.
  */
 function throwsAsAnyone(item, profile, tags) {
   const special = profile.special ?? [];
@@ -518,9 +474,9 @@ function throwsAsAnyone(item, profile, tags) {
 /**
  * Hand cost of a weapon given whether it is being wielded two-handed.
  *
- * RR p. 127: tiny/small = 1; medium = 1 or 2; large = 2; missile = 2 unless
- * Handy or Thrown; net/staff-sling forced 2H. A declared grip set answers ahead
- * of all of it.
+ * Hands follow weapon size, missile use, the Handy and Thrown properties and a
+ * forced two-handed row (RR p. 127). A declared grip set answers ahead of all
+ * of it.
  */
 export function handCost(profile, { twoHanded = false } = {}) {
   if (profile.grips === "1h") return 1;
@@ -528,7 +484,7 @@ export function handCost(profile, { twoHanded = false } = {}) {
   if (profile.grips === "versatile") return twoHanded ? 2 : 1;
   if (profile.twoHandedForced) return 2;
   if (profile.missile && !profile.melee) return profile.handy || profile.thrown ? 1 : 2;
-  // A size nothing states leaves the hands unknown, and unknown is one hand.
+  // An unstated size is one hand.
   if (profile.size == null) return 1;
   switch (profile.size) {
     case SIZE.TINY:

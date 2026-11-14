@@ -2484,3 +2484,32 @@ never loads would freeze every draw and attack.
 late instead of early and wrong. Core's own equip toggle in `veto` mode is
 judged in `preUpdateItem`, which cannot wait, and a sheet opened in the window
 shows the early answers until it redraws.
+
+## 2026-11-13 — The lock is the Judge's, and a player has to beat it
+
+**Ruled.** Three owner controls each open a locked container in one click: Unlock (there is no key item to check, so it is a free pass), Empty and Unmake. Only the GM gets them, because at a table the Judge is who opens it for you, including when the character legitimately holds the key. A player facing a locked container gets the two controls that have to beat it, pick and bash, both of which roll, and each is offered only when the character has the proficiency. Locking is always available, since shutting your own box is not a bypass.
+**Rejected.** Giving every owner all three controls: the lock would be the whole feature undone, since nobody would pick a lock they can click off.
+
+## 2026-11-13 — Light controls never wait on a formation
+
+**Ruled.** A character in no formation keeps its lights as a flag on its own actor, written directly with no GM and no declaration card, and the Light / Douse / Shutter controls render without a party record. A character in a formation declares through `requestPartyAction`, which relays to the active GM's client; a GM calls straight through, which keeps a Judge lighting a lamp out of the public "declared" card.
+**Rejected.** Requiring a party record to hold the state (a formation of one): a lone character had no way to light anything and the lantern showed no control.
+*Cost:* the lone path has no burn-down, since outside a formation there is no dungeon-turn clock.
+
+## 2026-11-13 — A named item keeps no renown or experience track of its own
+
+**Ruled.** Unlocking a named item's bonuses is tied to levels of experience earned while wielding it (an unlock per level gained), never to any renown or XP track the item holds itself.
+**Rejected.** A renown or XP track on the item.
+
+## 2026-11-13 — Two shield effects stay with the Judge
+
+**Ruled.** The overlay does not automate the loss of a shield's benefit while the wielder is vulnerable, which needs per-attack context the system has no model for, nor the mounted choice between protecting self and protecting the mount, which is a player's choice each round and not a derivable fact. Both are surfaced in the item descriptions for the Judge.
+
+## 2026-11-13 — A spell book is a recognised item class and holds its spells as data
+
+**Ruled.** The Spell Book the importer generates from the equipment list is the spell book, and only it carries the page and value model; the model is not a property switched on for arbitrary gear. Recognition is by name or by an already-stored spell list, so a configured book keeps its identity if renamed. Its spells are stored as data on the book (name and level), not as links to the finder's spell documents, so a looted book's formulae travel with it and appear on nobody's Spells tab until learned.
+**Rejected.** Linking the finder's own spell documents.
+
+## 2026-11-13 — Uninstall strips what the module wrote, and reverts stat layers only on request
+
+**Ruled.** The cleanup deletes the managed Equipment Loadout effect, because with the module off it would keep applying stale modifiers invisibly, the one leftover that actively corrupts play. It always reveals disguised items first, because the mask writes a fake identity into core fields and stripping the flag first would make it permanent. It reverts the masterwork, scavenged and item-loss stat layers to the pristine snapshot only when asked (`revertLayers`, off by default), because most tables want to keep what the fiction earned; unlocked named-item rungs stay in core fields either way as earned state. It then removes every `flags.acks-extras.*` on actors and items.

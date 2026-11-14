@@ -3,19 +3,17 @@
  * Overlay: special maneuvers (RR pp. 305–306; equipment RULES.md §10).
  * Gated by the `overlayManeuvers` world setting.
  *
- * Core models no maneuvers at all, so this is genuinely new rules code rather
- * than a correction to core behaviour. It stays a pure calculator plus a macro:
- * it computes the attack penalty and the target's saving-throw modifier, then
- * hands the actual attack to the system's own attack throw, the manoeuvre
- * declared through `options.acksLib.maneuver` and its penalty riding the
- * throw as a labelled row. Nothing about core's roll is replaced.
+ * Core models no maneuvers. This is a pure calculator plus a macro: it
+ * computes the attack penalty and the target's saving-throw modifier, then
+ * hands the attack to the system's own attack throw, the manoeuvre declared
+ * through `options.acksLib.maneuver` and its penalty riding the throw as a
+ * labelled row. Core's roll is not replaced.
  *
- * The procedure is what ships: which manoeuvres exist, which save each allows,
- * whether it deals damage, whether size adjusts it, and what stacks on the
- * penalty. Every SIZE is the Judge's import (the `equipment` document's
+ * The procedure ships: which manoeuvres exist, which save each allows, whether
+ * it deals damage, whether size adjusts it, and what stacks on the penalty.
+ * Every size is the Judge's import (the `equipment` document's
  * `maneuverDisarm`, `maneuverPenalties`, `combatTrickery`, `maneuverQualities`
- * and `hookedWeapon` tables), and a part that is not read leaves the figure it
- * would have sized null instead of answering without it.
+ * and `hookedWeapon` tables); a part not read leaves the figure it sizes null.
  *
  * What stacks:
  *   - the manoeuvre's own penalty (sunder's depends on what is sundered);
@@ -69,6 +67,7 @@ const QUALITY_BONUS = Object.freeze({
   incapacitating: ["incapacitate"],
 });
 
+/** Whether the `overlayManeuvers` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_MANEUVERS);
 
 /** One figure of an `equipment` table as a finite number, or null when the table, the field or its number is not there. */

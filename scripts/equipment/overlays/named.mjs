@@ -3,24 +3,20 @@
  * Overlay: named arms & armour (JJ p. 399; equipment RULES.md §13).
  * Gated by the `overlayNamed` world setting.
  *
- * The name is the MECHANISM, not flavour: speaking it is what unlocks the
- * item's powers.
+ * Speaking an item's name unlocks its powers:
  *
- *  - Speaking the TRUE name → all powers unlock at once.
- *  - An unsure character may GUESS ONCE, and may not guess again until reaching
- *    a higher level of experience — so guesses are tracked per character, per
- *    level.
+ *  - Speaking the TRUE name unlocks all powers at once.
+ *  - An unsure character may GUESS ONCE, and not again until reaching a higher
+ *    level of experience, so guesses are tracked per character, per level.
  *  - Re-naming instead unlocks ONE point of bonus in one category, then one more
  *    per level of experience earned while wielding/wearing it.
- *  - The JUDGE sets the unlock order — this never auto-picks it.
+ *  - The JUDGE sets the unlock order; it is never auto-picked.
  *  - Progress lives on the ITEM and survives its wielder: a new wielder inherits
- *    the points unlocked so far, and advances them on their own level-ups.
+ *    the points unlocked so far and advances them on their own level-ups.
  *
- * NOT RAW, deliberately absent: any renown/XP track of the item's own. RAW ties
- * unlocking to levels of experience earned while wielding.
- *
- * Reuse first: unlocked points are applied to fields core already owns
- * (bonus.attack, the base damage formula, ac.value, weight6) — same as masterwork.
+ * The item keeps no renown or XP track of its own.
+ * Unlocked points are applied to fields core already owns (bonus.attack, the
+ * base damage formula, ac.value, weight6), as masterwork does.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
@@ -36,18 +32,14 @@ export const NAMED_CATEGORIES = Object.freeze({
   power: { label: "a special power or ceremonial spell", field: null },
 });
 
+/** Whether the `overlayNamed` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_NAMED);
 
 /**
- * Should this viewer see the named-item badge/tracker?
- *
- * - A NAMED item shows its tracker (state on the item is always visible) —
- *   EXCEPT to a non-GM while the item wears an apparent identity: a disguise
- *   must hide that the item is anything special, and a "named" badge on a
- *   rusty sword gives the game away.
- * - A GM additionally gets the badge on unnamed gear (to name it) while the
- *   overlay is enabled.
- * Pure on its inputs so the rule is testable offline.
+ * Should this viewer see the named-item badge/tracker? A named item shows its
+ * tracker, except to a non-GM while the item wears an apparent identity; a GM
+ * also gets the badge on unnamed gear (to name it) while the overlay is on.
+ * Pure on its inputs.
  */
 export function trackerVisible({ isNamed: namedItem, disguised, isGM, overlayOn }) {
   if (namedItem) return isGM || !disguised;
@@ -58,14 +50,15 @@ export function trackerVisible({ isNamed: namedItem, disguised, isGM, overlayOn 
 export function namedOf(item) {
   return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.NAMED) ?? null;
 }
+
+/** Whether the item carries a named-item record. */
 export function isNamed(item) {
   return !!namedOf(item);
 }
 
 /**
  * The ladder the Judge set: an ordered list of category keys, one entry per
- * point of bonus. e.g. ["damage","hit","damage","hit","damage","hit"] is the
- * Tooth-Breaker example's +3/+3.
+ * point of bonus, e.g. ["damage","hit","damage","hit"].
  */
 export function ladderOf(item) {
   const rec = namedOf(item);
@@ -105,9 +98,9 @@ export function nameMatches(item, spoken) {
 }
 
 /**
- * May this character guess the name right now? RAW: one guess, then none until
- * the next level of experience (JJ p. 399) — so a guess is allowed only if the
- * character has never guessed, or has gained a level since their last guess.
+ * May this character guess the name right now? One guess, then none until the
+ * next level of experience (JJ p. 399): allowed only if the character has never
+ * guessed, or has gained a level since their last guess.
  */
 export function canGuess(item, actor) {
   const rec = namedOf(item);
@@ -141,15 +134,14 @@ export function resolveGuess(item, actor, spoken) {
 }
 
 /**
- * The item's mundane stats, captured once so unlocking can be applied
- * idempotently: every application recomputes from the BASE rather than adding to
- * the already-modified value (which would compound on each level-up).
+ * The item's mundane stats, captured once so unlocking is idempotent: every
+ * application recomputes from this base, never from the modified value.
  */
 export function captureBase(item) {
   return {
     bonus: attackBonusOf(item),
     damage: damageFormulaOf(item) || "1d6",
-    // The record's key predates the system's `ac`; the stored shape stays.
+    // The stored record names the armour class `aac`.
     aac: Number(item.system?.ac?.value ?? 0),
     weight6: Number(item.system?.weight6 ?? 0),
   };
@@ -161,9 +153,8 @@ export function baseOf(item) {
 }
 
 /**
- * Re-name a found item. RAW: naming it grants one point immediately, and the
- * item is thereafter called by that name — so the item document is renamed.
- * Captures the mundane base stats on first naming.
+ * Re-name a found item: naming it grants one point immediately and renames the
+ * item document. Captures the mundane base stats on first naming.
  */
 export function renameUpdates(item, givenName, wielderLevel) {
   const rec = namedOf(item) ?? {};
@@ -188,8 +179,7 @@ export function applyUpdates(item) {
 
 /**
  * Advance every named item the actor currently wields, then restate its bonuses.
- * RAW counts levels of experience EARNED while wielding, so this is driven by a
- * level-up rather than the wielder's absolute level.
+ * Driven by a level-up, not the wielder's absolute level.
  * @returns {{item, updates:object}[]}
  */
 export function advanceWieldedOnLevelUp(actor) {
@@ -208,10 +198,8 @@ export function advanceWieldedOnLevelUp(actor) {
 }
 
 /**
- * Advance the ladder when the current wielder gains a level. RAW counts levels
- * of experience EARNED while wielding, so this is driven by a level-up event
- * rather than by the wielder's absolute level (an item does not leap forward
- * when a high-level character picks it up).
+ * Advance the ladder when the current wielder gains a level: driven by the
+ * level-up event, never by the wielder's absolute level.
  * @returns {object|null} item updates, or null when nothing advances
  */
 export function advanceOnLevelUp(item) {

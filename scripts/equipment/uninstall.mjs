@@ -6,21 +6,13 @@
  * What the module persists, and what happens to each here:
  *
  *   • The managed "Equipment Loadout" Active Effect on characters — DELETED.
- *     With the module off it would keep applying stale AC/initiative/attack/
- *     damage modifiers forever, invisibly; this is the one piece of leftover
- *     data that actively corrupts play.
- *   • Disguised items (the GM apparent-value mask) — ALWAYS revealed. The mask
- *     writes fake name/cost/damage/AC into core fields with the truth kept only
- *     in our flag; stripping the flag without revealing first would make the
- *     fake identity permanent.
- *   • Masterwork / scavenged / item-loss stat layers — OPTIONALLY reverted to the pristine
- *     snapshot (`revertLayers`). Off by default: a masterwork blade genuinely
- *     is +1 and most tables want to keep what the fiction earned. Named-item
- *     rungs already unlocked stay in core fields either way (they are earned
- *     state, not machinery).
- *   • Every `flags.acks-extras.*` on actors and items — REMOVED. This is
- *     container structure, grips, ammo state, proficiency profiles, named-item
- *     trackers: all meaningless without the module.
+ *   • Disguised items (the GM apparent-value mask) — ALWAYS revealed, since the
+ *     mask writes fake name/cost/damage/AC into core fields with the truth kept
+ *     only in our flag.
+ *   • Masterwork / scavenged / item-loss stat layers — OPTIONALLY reverted to
+ *     the pristine snapshot (`revertLayers`, off by default). Named-item rungs
+ *     already unlocked stay in core fields either way.
+ *   • Every `flags.acks-extras.*` on actors and items — REMOVED.
  *
  * Scope: world actors (with their items), world items, and the synthetic
  * actors of unlinked scene tokens. World compendiums are not touched.

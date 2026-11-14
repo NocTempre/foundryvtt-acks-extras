@@ -22,9 +22,6 @@
  * writes (`applyItemLoss`) and the Judge's dialog live in `item-loss-flow.mjs`;
  * magic items' saving throws, which the wielder rolls with their own
  * progression, are the Judge's.
- *
- * This needed containers first: two of the positions are container contents,
- * so without the container model the order could not be resolved.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
@@ -60,6 +57,7 @@ export const ITEM_LOSS_TABLES = Object.freeze({ figures: "itemLoss", materials: 
 /** The figures the `itemLoss` table carries; the plan needs every one. */
 export const ITEM_LOSS_FIGURE_KEYS = Object.freeze(["threshold", "step", "clothingStones", "lightMax", "heavyMin", "acPerStone"]);
 
+/** Whether the `overlayItemLoss` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_ITEM_LOSS);
 
 /** One table of the `equipment` document as the layers merge it, or null. */
@@ -215,9 +213,8 @@ export function categoryOf(item, loadout) {
 const CLOAK_NAME = /cloak|cape/i;
 
 /**
- * Is this a cloak? Declaration first — a garment that says where it sits has
- * already answered, and consulting the name after would let "Cape of the
- * Magistrate" overrule a Judge who slotted it elsewhere.
+ * Is this a cloak? A garment that declares its slots answers by them; the
+ * name is consulted only for one that declares none.
  */
 function isCloak(item) {
   if (declaresSlots(item)) return slotsOf(item).includes(SLOT.shoulders);

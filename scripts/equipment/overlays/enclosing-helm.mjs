@@ -4,24 +4,21 @@
  * Gated by the `overlayEnclosingHelm` world setting.
  *
  * A heavy helm modifies surprise rolls, Listening throws and the Mortal Wounds
- * roll. Division of labour with core (which is frozen):
- *  - **Mortal Wounds is ALREADY core** — `AcksActor#hasHeavyHelm()` +
- *    CharacterMortalWoundsApp apply it, detecting a heavy helm by NAME ("heavy"
- *    and "helmet"). We do NOT re-apply it (that would double for named helms).
- *  - **Surprise** is a real actor field (`system.surprise.avoidsurprise`, read
- *    by the surprise matrix), so it is folded into the managed loadout effect.
- *  - **Listening** is a proficiency THROW with no actor field to modify, so it
- *    is surfaced as a note/flag for the Judge (and for the abilities feature to consume).
+ * roll, split with core:
+ *  - **Mortal Wounds** is core's (`AcksActor#hasHeavyHelm()` and
+ *    CharacterMortalWoundsApp, which detect a heavy helm by NAME); it is never
+ *    re-applied here.
+ *  - **Surprise** is a real actor field (`system.surprise.avoidsurprise`), so
+ *    it is folded into the managed loadout effect.
+ *  - **Listening** is a proficiency throw with no actor field to modify, so it
+ *    is surfaced as a note/flag for the Judge and the abilities feature.
  *
- * "Enclosing" is the same fact core keys Mortal Wounds off — a heavy helmet — so
- * the recommended way to get the full RAW effect is a helmet named with "heavy"
- * and "helmet"; the light/heavy control here also sets an explicit flag for
- * helmets core's name test would miss.
+ * The light/heavy control sets an explicit flag for helmets core's name test
+ * would miss.
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
-// "Is this a helmet at all" is armour classification, and profiles.mjs owns it
-// for the whole feature — this overlay only decides which KIND of helmet.
+// profiles.mjs owns "is this a helmet at all"; this overlay decides which KIND.
 import { isHelmet } from "../profiles.mjs";
 import { isWorn } from "../../lib/item-model.mjs";
 import { hasDoc, getDoc } from "../../lib/tables.mjs";
@@ -29,7 +26,7 @@ import { RULEDATA_DOC } from "./scavenged.mjs";
 
 /**
  * The equipment table the heavy helmet's modifiers are imported into (RR
- * ch. 4, Armor, "Helmet, Heavy"); the Judge's override of it wins.
+ * ch. 4); the Judge's override of it wins.
  */
 export const HELM_TABLE = "heavyHelm";
 
@@ -53,6 +50,7 @@ export function helmFigures() {
 /** Name patterns that read as an enclosing (face-covering) helmet. */
 const ENCLOSING_NAME = /\b(heavy|great\s?helm|close\s?helm|armet|barbute|hounskull|corinthian|visor(ed)?)\b/i;
 
+/** Whether the `overlayEnclosingHelm` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_ENCLOSING_HELM);
 
 /**

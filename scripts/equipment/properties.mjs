@@ -4,22 +4,15 @@
  *
  * Masterwork (RR p159) and a scavenged condition (RR p160) both express
  * themselves in the SAME core fields: `system.bonus.attack`, the base damage
- * formula, `system.ac.value`, `system.weight6`. A layer that stamped those
- * fields and snapshotted its own "base" to restore later would be wrong the
- * moment both are present: clearing one restores a baseline that already
- * contains the other's delta, leaving residue (a "pristine" item still reading
- * 1d6-1) or silently discarding the other layer.
- *
- * So there is exactly ONE snapshot — `flags.acks-extras.pristine`, captured
- * the first time any layer is applied — and every change RECOMPUTES the fields
- * from it:
+ * formula, `system.ac.value`, `system.weight6`. So there is exactly ONE
+ * snapshot, `flags.acks-extras.pristine`, captured the first time any layer is
+ * applied, and every change RECOMPUTES the fields from it:
  *
  *     pristine → + masterwork → + scavenged → − item loss → written to the item
  *
  * Clearing the last layer restores the pristine values exactly and drops the
- * snapshot, so an item can always get back to what it was. Damage deltas are
- * combined NUMERICALLY (a +1 masterwork and a -1 dent cancel to "1d6", not
- * "1d6 + 1-1"), which is also what a reader expects to see on the sheet.
+ * snapshot. Damage deltas are combined NUMERICALLY (a +1 and a -1 cancel to
+ * "1d6", not "1d6 + 1-1").
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
@@ -35,8 +28,7 @@ export const PRISTINE = "pristine";
 /**
  * The reader's explicit answer about silver plating: `true` plated, `false`
  * explicitly not, `null` never stated (so `isSilvered` in silver.mjs guesses).
- * The price layer below keys on `true` alone — only plating a reader ASKED for
- * bills them for it.
+ * The price layer below keys on `true` alone.
  */
 export function silveredFlagOf(item) {
   const v = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
@@ -66,8 +58,8 @@ export function withFlatDelta(damage, delta) {
 }
 
 /**
- * The die a weapon item deals: the system's base damage formula, or the
- * damage string an item made before the system's weapon schema carried one.
+ * The die a weapon item deals: the system's base damage formula, or a bare
+ * `system.damage` string where the item carries one.
  */
 export function damageFormulaOf(item) {
   const damage = item?.system?.damage;
@@ -75,7 +67,7 @@ export function damageFormulaOf(item) {
   return damage?.base?.formula ?? "";
 }
 
-/** A weapon's attack bonus: the system's field, or the bare number an item made before the split carried. */
+/** A weapon's attack bonus: the system's field, or a bare `system.bonus` number where the item carries one. */
 export function attackBonusOf(item) {
   const bonus = item?.system?.bonus;
   return Number((typeof bonus === "object" && bonus !== null ? bonus.attack : bonus) ?? 0);
@@ -114,10 +106,9 @@ export function layerDeltas(
   { masterwork = masterworkTierOf(item), scavenged = scavengedOf(item), silvered = silveredFlagOf(item) === true, itemLossAc = itemLossAcOf(item) } = {},
 ) {
   // `costBaseMul` scales the weapon's OWN listed price, `costAdd` is then added,
-  // and `costMul` scales the whole. The order is the rules': silver multiplies
-  // the listed price of the weapon (RR ch.4) and so cannot multiply a masterwork
-  // surcharge, which RAW states as a flat addition (RR p. 159); a scavenged item
-  // is then worth a fraction of whatever it would otherwise fetch (RR p. 160).
+  // and `costMul` scales the whole: silver (RR ch.4) cannot multiply a
+  // masterwork surcharge (RR p. 159), and a scavenged item's fraction (RR
+  // p. 160) applies last.
   const d = { bonus: 0, damage: 0, ac: 0, weight6: 0, costAdd: 0, costMul: 1, costBaseMul: 1 };
   // Both layers read the imported variation documents (`printed-layers.mjs`);
   // a layer whose document is not imported applies nothing.
@@ -142,11 +133,8 @@ export function layerDeltas(
   }
   d.ac -= itemLossAc;
 
-  // The open-ended half. The flag layers above are a closed set; a variation
-  // is a DOCUMENT applied to this one and carries its own numbers, so a new
-  // kind of difference needs no change here. Both halves share one delta set
-  // and one cost order, which is what keeps a masterwork flag and a masterwork
-  // variation from double-counting.
+  // Variations: documents applied to this item that carry their own numbers.
+  // Both halves share one delta set and one cost order.
   const applied = variationItemsOf(item);
   if (applied.length) {
     const byKey = new Map(applied.map((v) => [v.system?.key, definitionFrom(v)]));
@@ -172,8 +160,8 @@ export function layerDeltas(
  */
 export async function recomputeItemFields(item, overrides = {}) {
   if (!item) return;
-  // The layers' figures are library documents, read synchronously; a shelf
-  // still loading would answer null and write the item back to pristine.
+  // The layers' figures are library documents read synchronously; wait for the
+  // shelf so a still-loading one does not write the item back to pristine.
   await whenReady();
   const masterwork = "masterwork" in overrides ? overrides.masterwork : masterworkTierOf(item);
   const scavenged = "scavenged" in overrides ? overrides.scavenged : scavengedOf(item);
@@ -183,8 +171,7 @@ export async function recomputeItemFields(item, overrides = {}) {
     !!(masterwork && masterwork !== "none") || !!scavenged || silvered || itemLossAc > 0 || variationItemsOf(item).length > 0;
 
   const stored = item.getFlag?.(MODULE_ID, PRISTINE) ?? null;
-  // With no snapshot yet, the item as it stands IS pristine — capture it before
-  // the first layer writes over it.
+  // With no snapshot yet, the item as it stands IS pristine.
   const base = stored ?? pristineOf(item);
 
   const update = {};
@@ -278,8 +265,7 @@ export function layerSummary(item) {
   if (sc?.cannotSneak) bits.push("cannot sneak");
   if (sc?.initiative) bits.push(`${sc.initiative} init`);
   for (const n of sc?.notes ?? []) bits.push(n);
-  // Say what happened to the PRICE, since that is the whole point of a resale
-  // percentage and the number on the sheet otherwise looks unexplained.
+  // The price effect, so the sheet's figure is explained.
   const base = pristineOf(item);
   if (d.costAdd || d.costMul !== 1 || d.costBaseMul !== 1) {
     const priced = Math.round((Number(base.cost ?? 0) * d.costBaseMul + d.costAdd) * d.costMul * 100) / 100;

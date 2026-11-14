@@ -1,7 +1,6 @@
 /**
- * Armour limits on abilities (JJ ch. 12, "Limitations on Thief Skill Usage",
- * p. 292): which abilities refuse a heavy suit or a shield, read from the
- * Judge's own book.
+ * Armour limits on abilities (JJ ch. 12, p. 292): which abilities refuse a
+ * heavy suit or a shield, read from the Judge's own book.
  *
  * The limit is a `limitation` row on the ability itself, `gate.kind`
  * `armourCeiling`. A row the importer wrote carries no figure: it names no

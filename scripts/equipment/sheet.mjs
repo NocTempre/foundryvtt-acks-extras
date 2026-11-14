@@ -3,21 +3,15 @@
  * ACKS character-sheet integration — wear-location buckets on the Inventory tab.
  *
  * Core groups inventory strictly by ITEM TYPE (weapons / armour / items /
- * clothing / money), so "what is this character actually wearing, and where?"
- * was only answerable through theripper93's Paper Doll — a separate premium
- * module — or the Loadout Inspector macro. This puts the same information on
- * the sheet every table already has.
+ * clothing / money); this shows what a character is wearing, and where, on the
+ * sheet every table already has.
  *
- * Technique (deliberately non-invasive): core's sheet is an ApplicationV2 whose
- * `[data-action]` handlers are bound by DELEGATION on the application root. So
- * we do not re-render, re-template, or clone anything — we MOVE core's own
- * `<li>` rows into our buckets. Every core control on those rows (equip toggle,
- * favourite, summary expand, delete, drag) keeps working untouched, and the
- * next re-render rebuilds core's markup from scratch, so nothing is persisted
- * or corrupted. Rows we do not claim stay exactly where core put them.
- *
- * HANDOFF: if the system ever groups inventory by an extensible bucket list of
- * its own, this file should be deleted in favour of contributing to it.
+ * Technique: core's sheet is an ApplicationV2 whose `[data-action]` handlers
+ * are bound by DELEGATION on the application root, so core's own `<li>` rows are
+ * MOVED into our buckets, never re-rendered, re-templated or cloned. Every core
+ * control on those rows keeps working, the next re-render rebuilds core's markup
+ * from scratch, and rows we do not claim stay where core put them. See
+ * docs/equipment/DECISIONS.md, "Our controls get their own box in the inventory row".
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { WEAR, WEAR_ICONS } from "./config.mjs";
@@ -71,8 +65,7 @@ function bucketHeader(iconKey, label, note) {
 function claimRows(tab, items, list, wearKey) {
   let claimed = 0;
   for (const item of items) {
-    // Scope the lookup to core's own lists so we never re-claim a row we have
-    // already moved (which would reorder buckets on a double fire).
+    // Scoped to core's own lists so a row already moved is never re-claimed.
     const row = tab.querySelector(`.item-list > li.item[data-item-id="${item.id}"]`);
     if (!row) continue;
     row.dataset.wear = wearKey;
@@ -90,11 +83,9 @@ function buildWornSection(actor, tab, loadout) {
   const head = el("div", "acks-equipment-wear__title");
   head.append(el("span", "acks-equipment-wear__title-text", game.i18n.localize("ACKS-EQUIPMENT.wear.section")));
 
-  // The two facts a player checks constantly, next to the gear that drives them.
   const style = loadout.styleProficient ? "" : ` — ${game.i18n.localize("ACKS-EQUIPMENT.wear.untrained")}`;
-  // The hands a torch or the mapper's kit is using hold nothing this section
-  // lists, so the total has to name them or it cannot be reconciled with the
-  // gear under it.
+  // Hands held by a torch or the mapper's kit hold nothing this section lists,
+  // so the total names them.
   const held = heldHandsClause(loadout);
   const status = el(
     "span",
@@ -105,9 +96,8 @@ function buildWornSection(actor, tab, loadout) {
       style: wearLabel(`style.${loadout.activeStyle}`),
     }) + (held ? ` · ${held}` : "") + style,
   );
-  // Where the armour limits abilities carry were read from: the page the import
-  // cites, the Judge's own edit, or nothing yet. Composed at render, so it is
-  // text, not a lang key.
+  // Where the armour limits were read from: the import's page, the Judge's own
+  // edit, or nothing yet. Composed at render, so text rather than a lang key.
   const source = armourLimitSource();
   status.dataset.tooltipText = source?.judge
     ? game.i18n.localize("ACKS-EQUIPMENT.wear.armourSourceJudge")
@@ -132,8 +122,8 @@ function buildWornSection(actor, tab, loadout) {
     if (!claimed) continue;
     moved += claimed;
     injectGripControls(list, loadout);
-    // A weapon in both hands has no place of its own: its bucket is headed by
-    // the two hands it spans, with the grip named as the note.
+    // A weapon in both hands is headed by the two hands it spans, with the grip
+    // as the note.
     const header = key === WEAR.bothHands
       ? bucketHeader(WEAR.mainHand, `${wearLabel(WEAR.mainHand)} · ${wearLabel(WEAR.offHand)}`, wearLabel(key))
       : bucketHeader(key, wearLabel(key));
@@ -141,9 +131,8 @@ function buildWornSection(actor, tab, loadout) {
     section.append(bucket);
   }
 
-  // Unarmed: an empty-handed character always has a strike (RR p. 299) — a
-  // mode, not the absence of one. Shown whenever no weapon is wielded, so it
-  // appears even for a character carrying nothing at all.
+  // Unarmed (RR p. 299): shown whenever no weapon is wielded, even for a
+  // character carrying nothing.
   let unarmed = false;
   if (!loadout.weapons.length) {
     const bucket = el("div", "acks-equipment-wear__bucket acks-equipment-wear__bucket--unarmed");
@@ -169,17 +158,13 @@ function buildWornSection(actor, tab, loadout) {
   return moved || unarmed ? section : null;
 }
 
-/** Which light source an item is, by name (lib/light.mjs `lightTypeOf`): a torch
- * is a WEAPON once readied and the stack an item, so the controls this gates
- * and the ready step they lead to recognise the same names. Re-exported for
- * the character sheet, which offers the same controls. */
+/** Which light source an item is, by name (lib/light.mjs `lightTypeOf`); re-exported for the character sheet, which offers the same controls. */
 export { lightTypeOf };
 
 /**
  * The same three actions for a character in no formation, written to their own
- * actor flag. Same record shape, same three verbs; what it does NOT do is track
- * burn-down, because outside a formation there is no dungeon-turn clock to burn
- * against. The flame lights, shutters and goes out when told.
+ * actor flag. Same record shape and verbs, but no burn-down, since there is no
+ * dungeon-turn clock outside a formation.
  */
 function lightAlone(actor, type, payload) {
   const lights = globalThis.acksExtras?.lib?.light;
@@ -198,18 +183,11 @@ function lightAlone(actor, type, payload) {
  * Declare one light action on `actor`'s behalf, by the route the party sheet
  * uses for the same three buttons.
  *
- * The light record lives in a formation, which lives in a **world setting only a
- * GM may write**. So a player cannot call the mutators at all — the write is
- * refused and the button does nothing, silently. A player DECLARES instead:
- * `requestPartyAction` relays to the active GM's client, which validates
- * ownership against the declaring user and executes there.
- *
- * A GM calls straight through. The relay would execute a GM's declaration too,
- * but only the direct call keeps their own click out of the public "so-and-so
- * declared" card — a Judge lighting a lamp is narration, not a request.
- *
- * The formation is re-read on every click: the record these rows were built from
- * may be many renders old.
+ * The light record lives in a formation, a **world setting only a GM may
+ * write**, so a player DECLARES: `requestPartyAction` relays to the active GM's
+ * client, which validates ownership against the declaring user and executes
+ * there. A GM calls straight through, which keeps their own click out of the
+ * public "declared" card. The formation is re-read on every click.
  *
  * @param {string} type              a party-request type: light | lightToggle | lightShield
  * @param {object} payload           `{lightType, bearerId}` to light, `{lightId}` to douse/shutter
@@ -217,11 +195,8 @@ function lightAlone(actor, type, payload) {
 export function declareLightAction(actor, type, payload) {
   const fm = globalThis.acksExtras?.formation;
   const formation = fm?.getFormationForActor?.(actor.id);
-  // NO FORMATION, NO RELAY. The lights of a character marching with nobody are
-  // their own — a flag on their own actor — so the write needs no GM and no
-  // declaration card. This is the whole reason the lone path exists rather
-  // than being a formation of one: a player alone in a corridor can strike a
-  // light, which through the party record they never could.
+  // No formation, no relay: a lone character's lights are a flag on their own
+  // actor, so the write needs no GM and no declaration card.
   if (!formation) return lightAlone(actor, type, payload);
   // NEVER gate this on the executing client: a relayed declaration runs on a GM
   // client, where `game.user.isGM` is true for whoever declared it.
@@ -244,15 +219,9 @@ export function declareLightAction(actor, type, payload) {
  * the formation's light record when the actor is in one and to the actor's own
  * flag when they are not.
  *
- * NEVER GATE THESE ON A FORMATION. A character alone with a lantern is the
- * ordinary case, not the exceptional one, and requiring a party record to hold
- * the state meant a lone character had no way to light anything at all — the
- * lantern simply showed no control. `bearerLights` already answers "whose
- * record owns this actor's lights" for every reader; the controls ask it too.
- *
- * Owner-gated like every other injector here: an observer's click could only be
- * refused GM-side, and a control that answers "request sent" then nothing is
- * worse than no control.
+ * Never gate these on a formation: a lone character lights their own flame.
+ * `bearerLights` answers "whose record owns this actor's lights" for every
+ * reader. Owner-gated like every injector here.
  */
 function injectLightControls(list, actor) {
   if (!actor?.isOwner) return;
@@ -260,17 +229,14 @@ function injectLightControls(list, actor) {
   for (const li of list.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
     const type = lightTypeOf(item);
-    // A light source is type `item` and has no `equipped` field — the control
-    // shows on the item itself; "held" is the formation light record, below.
+    // A light source is type `item` with no `equipped` field; "held" is the
+    // formation light record, below.
     if (!type || li.querySelector(".acks-equipment-light")) continue;
-    // Nothing is lit inside a pack. This control names a light TYPE rather than
-    // this document, so it cannot bring this lantern out on the way — the row
-    // offers Take out instead, and the flame follows.
+    // Nothing is lit inside a pack: the control names a light TYPE, not this
+    // document, so the row offers Take out instead.
     if (containedIn(item)) continue;
-    // A TORCH carried as a STACK (an `item`, not a wielded weapon) gets a "Ready"
-    // control instead — but that is a pure equipment action, so it lives in
-    // injectTorchReady (which runs without the formation feature). Skip it here so a
-    // torch bundle never also picks up a formation Light control.
+    // A torch STACK gets "Ready" from injectTorchReady instead, never a
+    // formation Light control.
     if (type === "torch" && item.type === ITEM_TYPE.item) continue;
     const lit = mine.find((l) => l.type === type && l.lit);
     const held = lit || mine.find((l) => l.type === type && l.shielded);
@@ -299,11 +265,9 @@ function injectLightControls(list, actor) {
 }
 
 /**
- * Put a grip control on each versatile weapon's row. A versatile weapon can be
- * wielded one- or two-handed; the control shows the resolved grip and cycles
- * the player's choice (Auto → 1H → 2H). Two-handing needs both hands free — a
- * "2H" choice that cannot be honoured (a shield or second weapon is in the way)
- * shows as BLOCKED, which is the visible "check against free hands".
+ * Put a grip control on each versatile weapon's row: it shows the resolved grip
+ * and cycles the player's choice (Auto → 1H → 2H). A "2H" choice that cannot be
+ * honoured (a shield or second weapon is in the way) shows as BLOCKED.
  */
 function injectGripControls(list, loadout) {
   for (const li of list.querySelectorAll("li.item[data-item-id]")) {
@@ -329,20 +293,10 @@ function injectGripControls(list, loadout) {
 }
 
 /**
- * The box our injected controls go in — created on first use, sitting just
- * before core's own controls in the row.
- *
- * Deliberately NOT core's `.list-header__controls`: core gives that column a
- * FIXED width sized to fit exactly its own icons and nothing more
- * (`.controls__weapon { width: 84px }`, `.controls__armor { 60px }`,
- * `.controls__item { 35px }`, none of which grow). Anything we add there
- * overflows it, and because the box is centred the overflow spills past the
- * row's right edge, where the sheet clips it — which is how Delete became a
- * sliver. Widening the window never helped: the column is a fixed width, so the
- * extra space all goes to the flexible name/tag columns instead.
- *
- * With our controls in their own auto-sized box, core's column holds exactly
- * the four controls it was measured for and every one of them stays clickable.
+ * The box our injected controls go in, created on first use just before
+ * core's own controls in the row. Never core's `.list-header__controls`, whose
+ * fixed width (`.controls__weapon`, `.controls__armor`, `.controls__item`)
+ * would clip anything added. See docs/equipment/DECISIONS.md, "Our controls get their own box in the inventory row".
  */
 function rowControls(li) {
   const existing = li.querySelector(".acks-equipment-row-controls");
@@ -360,9 +314,7 @@ function rowControls(li) {
 /**
  * "Ready" control on every torch STACK (a light `item` bundle). Pulls one torch
  * out as a wieldable light-weapon (prepareTorch) and decrements the bundle.
- * Independent of the formation feature — readying a torch is a pure equipment action —
- * so unlike the light/douse controls it renders whether or not the actor is in a
- * party formation.
+ * Renders whether or not the actor is in a party formation.
  */
 function injectTorchReady(tab, actor) {
   if (!actor?.isOwner) return;
@@ -383,10 +335,8 @@ function injectTorchReady(tab, actor) {
 
 /**
  * Draw / sheathe every weapon row: a wielded weapon gets a Sheathe control, a
- * carried one a Draw control — core's equip toggle with a combat verb, sitting in
- * the same control row as grip and masterwork (the "Equip / Unequip on a separate
- * button" of the grip UI brief). A thrown-away weapon is skipped: it is recovered
- * when picked up, not re-drawn.
+ * carried one a Draw control (core's equip toggle with a combat verb). A
+ * thrown-away weapon is skipped: it is recovered when picked up, not re-drawn.
  */
 function injectDrawSheathe(tab, actor) {
   if (!actor?.isOwner) return;
@@ -410,17 +360,13 @@ function injectDrawSheathe(tab, actor) {
 /**
  * Wear / remove control on every row core cannot equip.
  *
- * Core renders its equip toggle in the weapons and armours sections only,
- * because `system.equipped` exists on those two types alone. So a cloak, a pair
- * of gloves, an adventurer's harness and a backpack — all worn in the books —
- * have no control anywhere, and the RAW rules that ask whether they are worn
- * (harness encumbrance, gloves blocking lockpicks) could never fire. This is
- * that control.
+ * Core renders its equip toggle on weapons and armours only, since
+ * `system.equipped` exists on those two types alone; this is the control for
+ * the rest (a cloak, gloves, a harness, a backpack).
  *
- * Only rows with somewhere to be worn get one — declared, or inferred where
- * nothing is declared (`wearableSlots`); plain goods keep core's layout
- * untouched. A multi-slot item puts it in the first of those slots, which is
- * the one the sheet groups it under.
+ * Only rows with somewhere to be worn get one, declared or inferred
+ * (`wearableSlots`); plain goods keep core's layout. A multi-slot item is worn
+ * in the first of its slots, the one the sheet groups it under.
  */
 function injectWearControls(tab, actor) {
   if (!actor?.isOwner) return;
@@ -444,19 +390,17 @@ function injectWearControls(tab, actor) {
 }
 
 /**
- * Strap control on every shield row (gated on the shield-variant overlay). A
- * shield can be carried IN HAND (ready) or slung to BACK / FRONT; strapped it
- * costs no hand (RR/JJ p407), which is how a hand is freed for a torch while the
- * shield still rides. Cycles hand → back → front, skipping any position the
- * shield cannot take (a kite/phalanx shield has no back).
+ * Strap control on every shield row (gated on the shield-variant overlay): a
+ * shield is carried IN HAND or slung to BACK / FRONT, and strapped it costs no
+ * hand (RR/JJ p407). Cycles hand → back → front, skipping any position the
+ * shield cannot take.
  */
 function injectStrapControls(tab, actor) {
   if (!actor?.isOwner || !shieldOverlayEnabled()) return;
   for (const li of tab.querySelectorAll("li.item[data-item-id]")) {
     const item = actor.items.get(li.dataset.itemId);
     if (item?.type !== ITEM_TYPE.armor || item.system?.type !== "shield" || li.querySelector(".acks-equipment-strap")) continue;
-    // Hand, back or front are places on the BODY. A shield in a chest is in
-    // none of them, so there is no position to cycle between.
+    // Hand, back and front are places on the BODY; a stowed shield has none.
     if (containedIn(item)) continue;
     const strap = strapOf(item);
     const a = el("a", `item-control acks-equipment-strap acks-equipment-strap--${strap}`);
@@ -473,23 +417,13 @@ function injectStrapControls(tab, actor) {
 
 
 /**
- * Take-out control on every stowed row.
- *
- * Taking gear back out is otherwise a DRAG — the row has to be dropped on one
- * of core's type lists, which is a long gesture past every bucket in between,
- * onto a target that gives no sign it is a target until the drop lands. The
- * control performs the same write in one click.
- *
- * It takes no destination, and does not need one: `takeOut` only clears
- * `containedIn`, so the item lands loose in core's own list for its type. An
- * unworn item occupies no wear slot, so there is nothing to choose between —
- * the item sheet's Contents tab offers the same one-click control, and this is
- * that control where the gear is actually read.
+ * Take-out control on every stowed row: the one-click form of dragging the row
+ * onto one of core's type lists. `takeOut` only clears `containedIn`, so the
+ * item lands loose in core's list for its type and no destination is needed.
  *
  * Only rendered inside a bucket whose contents are already on screen, so the
- * lock rule is inherited rather than restated: a locked container shows its
- * contents to the GM alone, and only the GM gets a control to empty it a row
- * at a time.
+ * lock rule is inherited: a locked container shows its contents to the GM
+ * alone.
  */
 function injectTakeOutControls(list, actor) {
   if (!actor?.isOwner) return;
@@ -525,15 +459,11 @@ function ctrl(icon, tooltipKey, onClick, extraClass = "") {
 
 /**
  * One container's header: name, load, and its controls.
- *
- * The container sits on the equipment tab next to the gear it holds, and
- * "opening" it here is the same gesture as opening it at the table.
  */
 function containerHeader(actor, c, onRerender) {
   const header = el("header", "acks-equipment-wear__bucket-header acks-equipment-container__header");
 
-  // Open/collapse is the primary gesture, so the whole header toggles it — but
-  // a locked container has nothing to show, so it does not pretend to open.
+  // A locked container has nothing to show, so it does not fold.
   const foldable = c.visible;
   const icon = el("i", `fas ${c.locked ? "fa-lock" : c.concealed ? "fa-box" : "fa-box-open"}`);
   header.append(icon, el("span", "acks-equipment-wear__bucket-label", c.item.name));
@@ -545,13 +475,9 @@ function containerHeader(actor, c, onRerender) {
 
   const controls = el("div", "acks-equipment-container__controls");
 
-  // THE LOCK IS THE JUDGE'S. Three owner controls each open a locked container
-  // in one click — Unlock (there is no key item to check, so it is a free
-  // pass), Empty, and Unmake — which is the whole feature undone: why pick a
-  // lock you can simply click off? A player facing a locked container gets the
-  // two controls that have to BEAT it, pick and bash, both of which roll. The
-  // GM keeps all three, because at a table the Judge is who opens it for you
-  // (including when the character legitimately holds the key).
+  // The lock is the Judge's: Unlock, Empty and Unmake each open a locked
+  // container in one click, so only the GM gets them; a player gets pick and
+  // bash, which roll. See docs/equipment/DECISIONS.md, "The lock is the Judge's, and a player has to beat it".
   const mayBypassLock = !c.locked || game.user.isGM;
 
   if (foldable) {
@@ -568,8 +494,7 @@ function containerHeader(actor, c, onRerender) {
   }
 
   if (actor.isOwner) {
-    // Lock / unlock. Locking is always available (shutting your own box is not
-    // a bypass); UNlocking is the free pass, so it follows the lock rule above.
+    // Locking is always available; unlocking follows the lock rule above.
     if (mayBypassLock) {
       controls.append(
         ctrl(c.locked ? "fa-unlock" : "fa-lock", c.locked ? "ACKS-EQUIPMENT.container.unlock" : "ACKS-EQUIPMENT.container.lock", async () => {
@@ -581,8 +506,7 @@ function containerHeader(actor, c, onRerender) {
     }
 
     if (c.locked) {
-      // Only offered when the character actually has the proficiency — a
-      // control that always fails teaches nothing.
+      // Only offered when the character has the proficiency.
       if (canPick(actor)) {
         controls.append(
           ctrl("fa-key", "ACKS-EQUIPMENT.container.pick", async () => {
@@ -594,8 +518,8 @@ function containerHeader(actor, c, onRerender) {
       if (canBash(actor)) {
         controls.append(
           ctrl("fa-hammer", "ACKS-EQUIPMENT.container.bash", async () => {
-            // Bashing destroys the container, and a fragile one takes its
-            // contents with it. That is not undoable, so it is confirmed.
+            // Bashing destroys the container (a fragile one takes its contents
+            // with it) and cannot be undone, so it is confirmed.
             const warning = c.fragile
               ? game.i18n.format("ACKS-EQUIPMENT.container.bashConfirmFragile", { name: c.item.name })
               : game.i18n.format("ACKS-EQUIPMENT.container.bashConfirm", { name: c.item.name });
@@ -644,10 +568,8 @@ function buildStowedSection(actor, tab) {
   const head = el("div", "acks-equipment-wear__title");
   head.append(el("span", "acks-equipment-wear__title-text", game.i18n.localize("ACKS-EQUIPMENT.wear.stowedSection")));
 
-  // Turning gear into containers is a bulk action over the whole inventory, so
-  // it stays at the section level rather than repeating on every row. Coin is
-  // swept with the carrying gear: its weight is a declaration the same pass
-  // reads off the coin's own text.
+  // A bulk action over the whole inventory, so it sits at section level. Coin is
+  // swept too: the same pass reads its weight declaration off its own text.
   if (actor.isOwner) {
     head.append(
       ctrl("fa-wand-magic-sparkles", "ACKS-EQUIPMENT.container.annotateAll", async () => {
@@ -672,47 +594,35 @@ function buildStowedSection(actor, tab) {
       const claimed = claimRows(tab, c.contents, list, "stowed");
       injectTakeOutControls(list, actor);
       bucket.append(list);
-      // An empty container is a place to put things, so say so on the thing you
-      // put them on. Without this the bucket is a bare header with a silent drop
-      // zone under it, which reads as "broken", not "empty".
+      // An empty container says so, since a bare header over a drop zone reads
+      // as broken.
       if (!claimed) bucket.append(el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.container.emptyHint")));
     } else if (!c.visible) {
-      // A locked container HIDES ITS CONTENTS — and a content row still sitting
-      // in core's ordinary inventory list IS the contents, in plain sight. The
-      // rows are claimed into a list that is never attached, so the gear is out
-      // of view for whoever cannot see inside. `c.contents` is deliberately
-      // empty in the report for this case, so ask the model directly.
-      // The header's LOAD still shows: you cannot see inside a locked chest,
-      // but you can feel that it is heavy, which is exactly right.
+      // A locked container hides its contents, so its rows are claimed into a
+      // list that is never attached, taking them out of core's list. The
+      // report's `c.contents` is empty here, so ask the model directly. The
+      // header's load still shows.
       claimRows(tab, contentsOf(actor, c.item.id), el("ul", "item-list unlist"), "stowed");
-      // Say WHY it is empty. A locked chest showing nothing looks like a bug;
-      // a locked chest saying it is locked is the game working.
       bucket.append(el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.container.lockedHint")));
     }
 
     section.append(bucket);
   }
 
-  // With no containers at all, say how to make one rather than showing a box.
+  // With no containers at all, say how to make one.
   if (!report.length) {
     const hint = el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.wear.noContainers"));
     section.append(hint);
   }
 
-  // ALWAYS render, even with nothing in a bucket. The only way to fill a
-  // container is to drop onto its bucket, so a section that hides until it is
-  // non-empty can never become non-empty — it would take the bucket, its
-  // controls, its drop zone and the create-container button with it.
+  // Always renders, even with nothing in a bucket. See docs/equipment/DECISIONS.md, "Container sections always render (bug-driven)".
   return section;
 }
 
 /**
- * Make the container buckets accept dropped gear.
- *
- * Core's own inventory rows are already draggable and emit the standard
- * `{type:"Item", uuid}` payload, so dragging from the type lists into a
- * container works without touching how core builds those rows. Dropping onto
- * the "loose" zone takes an item back out.
+ * Make the container buckets accept dropped gear. Core's rows already emit the
+ * standard `{type:"Item", uuid}` payload; dropping onto the "loose" zone takes
+ * an item back out.
  */
 function wireDropTargets(actor, root) {
   // The framework helper owns the drop wiring and the payload parse; a non-item
@@ -730,9 +640,8 @@ function wireDropTargets(actor, root) {
         if (data?.type !== "Item" || !data.uuid) return;
 
         const item = await fromUuid(data.uuid);
-        // Only this actor's own embedded items are stowed. A drop from a
-        // compendium or another actor is a copy operation we deliberately
-        // do not perform behind the player's back.
+        // Only this actor's own embedded items are stowed; a drop from
+        // elsewhere would be a copy, which is refused.
         if (!item || item.parent?.id !== actor.id) {
           ui.notifications.warn(game.i18n.localize("ACKS-EQUIPMENT.container.foreignItem"));
           return;
@@ -746,10 +655,9 @@ function wireDropTargets(actor, root) {
 }
 
 /**
- * One companion slot as an inventory row. Not one of core's rows moved here —
- * a companion is not an Item — but the same row anatomy, so it sits in the
- * list like the gear around it: icon, name, which ability confers it, and the
- * controls (open the creature's sheet and release it, or choose one).
+ * One companion slot as an inventory row, built (a companion is not an Item)
+ * in core's row anatomy: icon, name, which ability confers it, and the controls
+ * (open the creature's sheet and release it, or choose one).
  */
 function companionRow(actor, slot) {
   const li = el("li", "item acks-equipment-companion");
@@ -793,8 +701,7 @@ function companionRow(actor, slot) {
 /**
  * Build the "Companions" section — one row per slot an ability confers — or
  * null when the character holds no such ability. The slot and its pointer are
- * the abilities feature's (`abilities/companions.mjs`); this only lays them
- * out beside the gear, which is where a player looks for what they have.
+ * the abilities feature's (`abilities/companions.mjs`); this only lays them out.
  */
 function buildCompanionSection(actor, tab) {
   const slots = companionSlots(actor);
@@ -826,17 +733,11 @@ function regroup(actor, tab) {
   const after = anchor?.nextSibling ?? column.firstChild;
   for (const node of [worn, companions, stowed].filter(Boolean)) column.insertBefore(node, after);
 
-  // Core's own type lists are the "take it back out" target: dragging a stowed
-  // item back down to the ordinary inventory un-stows it. The section belongs to
-  // core, so it is also tagged with the module class: the drop-hover rendering
-  // keys on that class rather than on the bare `[data-drop-target]` attribute,
-  // which as a selector would reach every feature's drop zone.
-  //
-  // EVERY such list, never the first one found. The lists are split by item type
-  // — Weapons, Armor, Items, Clothes, Money — and a player drags a rope back to
-  // Items, which is where a rope lives. Wiring one of them makes un-stowing work
-  // only when the gesture happens to land on whichever list core printed first,
-  // and reads as a drag-out that does nothing.
+  // Core's own type lists are the "take it back out" target. Each carries the
+  // module class too, which the drop-hover rendering keys on, since the bare
+  // `[data-drop-target]` selector would reach every feature's drop zone.
+  // EVERY such list is wired, never the first found: they are split by item
+  // type, and a drop on any of them must un-stow.
   for (const loose of column.querySelectorAll(".item-list-section:not(.acks-equipment-wear)")) {
     loose.dataset.dropTarget = "loose";
     loose.classList.add("acks-equipment-drop-loose");
@@ -846,10 +747,9 @@ function regroup(actor, tab) {
 }
 
 /**
- * TRAINING row — the follower card's build strip (fighting styles, weapon
- * classes, armour ladder) at the top of the Inventory tab, beside the gear it
- * governs. The strip is lib's (proficiency-strip.mjs builds it from the same
- * profile API the card reads); this only frames it as an inventory section.
+ * TRAINING row: the follower card's build strip (fighting styles, weapon
+ * classes, armour ladder) at the top of the Inventory tab. The strip is lib's
+ * (proficiency-strip.mjs); this only frames it as an inventory section.
  * Renders nothing when the actor has no profile to state.
  */
 function injectTrainingStrip(actor, tab) {
@@ -867,10 +767,8 @@ function injectTrainingStrip(actor, tab) {
 
 function onRenderCharacterSheet(app, element) {
   try {
-    // `renderApplicationV2` offers EVERY ApplicationV2, and plenty of other
-    // modules' windows expose an `.actor` (Paper Doll's own does) — so the gate
-    // is "this is an Actor's sheet", not "this has an actor". Without it a
-    // foreign window reaches the injectors below and gets dressed as a sheet.
+    // `renderApplicationV2` offers EVERY ApplicationV2, and other modules'
+    // windows expose an `.actor`, so the gate is "this is an Actor's sheet".
     if (app?.document?.documentName !== "Actor" || app.document.type !== ACTOR_TYPE.character) return;
     const tab = element?.querySelector?.(".sheet-inventory");
     // Dedupe: ApplicationV2 fires a render hook per class in the chain, and we
@@ -878,17 +776,16 @@ function onRenderCharacterSheet(app, element) {
     if (!tab || tab.querySelector(".acks-equipment-wear")) return;
     regroup(app.actor, tab);
     injectTrainingStrip(app.actor, tab); // After regroup: lands between encumbrance and Worn.
-    // These controls attach to gear WHEREVER it renders — a torch stack and a
-    // carried weapon stay in core's own lists, not a worn bucket — so each scans
-    // the whole tab with its own per-row dedupe.
+    // These controls attach to gear wherever it renders (a torch stack and a
+    // carried weapon stay in core's lists), so each scans the whole tab with its
+    // own per-row dedupe.
     injectLightControls(tab, app.actor); // Light a lantern/candle/torch-weapon (needs formation)
     injectTorchReady(tab, app.actor); // Ready a torch from a stack (formation-independent)
     injectDrawSheathe(tab, app.actor); // Draw / sheathe every weapon
     injectWearControls(tab, app.actor); // Wear / remove the gear core cannot equip
     injectStrapControls(tab, app.actor); // Sling a shield (overlay-gated)
-    // NOTE masterwork, the scavenged condition and a shield's VARIANT describe
-    // what the item IS, not how it is being carried — they live on the item
-    // sheet's Details tab (item-sheet/sheet.mjs).
+    // Masterwork, the scavenged condition and a shield's variant describe what
+    // the item IS; they live on the item sheet's Details tab (item-sheet/sheet.mjs).
   } catch (err) {
     console.error(`${MODULE_ID} | inventory regrouping failed; core's layout stands`, err);
   }
@@ -924,10 +821,11 @@ export function redrawWeaponReaders() {
   }
 }
 
+/** Hook the inventory regrouping into the character sheet's render, and the weapon-row redraw into the rows-changed hook. */
 export function registerSheet() {
-  // v13/v14 ApplicationV2 fires render hooks across the inheritance chain; the
-  // base-class names fire regardless of the system sheet's class name, and the
-  // handler dedupes, so multiple firings are harmless.
+  // ApplicationV2 fires render hooks across the inheritance chain; the
+  // base-class names fire whatever the system sheet's class is called, and the
+  // handler dedupes.
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
   Hooks.on("renderActorSheetV2", onRenderCharacterSheet);
   Hooks.on("renderACKSCharacterSheetV2", onRenderCharacterSheet);

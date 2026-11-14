@@ -82,14 +82,11 @@ export function registerSettings() {
   overlay(SETTINGS.OVERLAY_ITEM_LOSS);
   overlay(SETTINGS.OVERLAY_NAMED);
   overlay(SETTINGS.OVERLAY_SCAVENGED);
-  // Enclosing helm (RR ch. 4, "Helmet, Heavy"): a heavy helmet's surprise
-  // modifier is applied by overlays/enclosing-helm.mjs through the loadout
-  // effect, at the figure the import holds; its Mortal Wounds modifier is
-  // already core (AcksActor#hasHeavyHelm), name-based.
+  // Enclosing helm (RR ch. 4): applied by overlays/enclosing-helm.mjs through
+  // the loadout effect; its Mortal Wounds modifier is core's.
   overlay(SETTINGS.OVERLAY_ENCLOSING_HELM);
-  // Mounted combat (RR p. 308): the staying-mounted save prompts and the
-  // action-economy card — overlays/mounted.mjs, riding the lib's mounted
-  // state. A toggle is registered only for an overlay with rules behind it.
+  // Mounted combat (RR p. 308): overlays/mounted.mjs, riding the lib's mounted
+  // state.
   overlay(SETTINGS.OVERLAY_MOUNTED);
 }
 

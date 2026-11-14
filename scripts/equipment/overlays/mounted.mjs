@@ -2,29 +2,22 @@
 /**
  * Overlay: mounted combat (RR p. 308; equipment RULES.md §15).
  * Gated by the `overlayMounted` world setting. The lib's attachment layer
- * knows who rides what, and this overlay hangs the RULES' bookkeeping off it.
- *
- * What it automates is the STRUCTURE — the triggers and the action economy:
+ * knows who rides what; this overlay hangs the bookkeeping off it. It carries
+ * the structure only (triggers and action economy), no figures:
  *
  *  - **Staying-mounted saves.** After every attack by a mounted rider or by
  *    a ridden mount, a rider without Riding or Mounted Combat owes a
  *    Paralysis save (the post-attack seam, `POST_ATTACK_HOOK`). Whenever the
  *    rider or the mount takes damage, a rider without a military saddle owes
- *    one too — waived only by holding BOTH proficiencies. The overlay
- *    whispers the save prompt to the Judge and the rider's player; rolling
- *    it and applying the page's consequence stay at the table.
- *  - **The action-economy card.** Who may act — {rider, passengers, mount} ×
+ *    one too, waived only by holding BOTH proficiencies. The prompt is
+ *    whispered to the Judge and the rider's player; rolling it stays at the
+ *    table.
+ *  - **The action-economy card.** Who may act ({rider, passengers, mount} by
  *    {mount moved, stationary, charged}, a war-trained mount joining the
- *    charge — and the vehicle mirror for TRANSPORTERS (a back-carrier may
- *    fight where a puller may only join a charge, and a hand-carrier never
- *    fights), rendered as a chat card on demand.
+ *    charge) and the vehicle mirror for transporters, rendered as a chat card
+ *    on demand.
  *
- * What it deliberately does NOT automate yet: the proficiencies' printed
- * attack bonuses and the subjacent height-advantage modifier. Those are
- * VALUES that arrive with the imported abilities; pushing them into the
- * attack term stack waits on the abilities→attack effects bridge
- * (docs/equipment/ROADMAP.md). The card states that they apply; the numbers
- * come from the reader's own imported proficiency.
+ * See docs/equipment/DECISIONS.md, "The mounted overlay ships its structure; the numbers wait".
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
@@ -34,6 +27,7 @@ import { abilityRank } from "../../lib/capabilities.mjs";
 import { gmIds, isPrimaryGM, numOrNull } from "../../lib/util.mjs";
 import { SIZES } from "../../monsters/config.mjs";
 
+/** Whether the `overlayMounted` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_MOUNTED);
 
 const L = (key, data = {}) => game.i18n.format(`ACKS-EQUIPMENT.mounted.${key}`, data);
@@ -52,9 +46,9 @@ export const sizeRankOf = (key) => {
 };
 
 /**
- * Height advantage: the rider's mount stands taller than the target — or the
- * target's own mount — so the target counts as subjacent. The comparison is
- * structural; what subjacency is WORTH is the combat rule's own number.
+ * Height advantage: the rider's mount stands taller than the target, or the
+ * target's own mount, so the target counts as subjacent. Structural only; it
+ * carries no modifier.
  */
 export function heightAdvantage({ attackerMountSize, defenderSize, defenderMountSize = null }) {
   return sizeRankOf(attackerMountSize) > sizeRankOf(defenderMountSize ?? defenderSize);
@@ -172,8 +166,9 @@ function promptOnHpFall(actor, _changed, options) {
 }
 
 /**
- * The seams. Registered once by equipment's module.mjs; every handler gates
- * on the world setting so the toggle works without a reload.
+ * Register the overlay's hooks (called once by the equipment feature's
+ * module.mjs); every handler gates on the world setting, so the toggle works
+ * without a reload.
  */
 export function registerMountedOverlay() {
   // After every attack: the attacker as rider, or the attacker as mount.

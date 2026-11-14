@@ -2,17 +2,14 @@
 /**
  * Spell books — RR p. 145 (the item) and p. 391 (value of a scribed spell).
  *
- * A spell book is a RECOGNISED item class, not a property switched on for
- * arbitrary gear: the RR "Spell Book" (which the importer generates from the
- * equipment list) IS the spell book, and only it carries the page/value model.
- * Recognition is by name, or by an already-stored spell list so a configured
- * book keeps its identity even if renamed.
+ * A spell book is a RECOGNISED item class (the RR "Spell Book" the importer
+ * generates from the equipment list), and only it carries the page/value model.
+ * Recognition is by name, or by an already-stored spell list.
  *
  * A book's pages fill by spell level, and its weight is the item's own whatever
  * it holds (RR p. 145). Its spells are stored as DATA on the book (name +
- * level) rather than by linking the finder's own spell documents — so a looted
- * book's formulae travel with it and appear on nobody's Spells tab until they
- * are actually learned.
+ * level), not as links to spell documents, so a looted book's formulae appear
+ * on nobody's Spells tab until learned.
  *
  * A book's worth is its blank cost plus the scribing value of every spell in
  * it, by level (RR p. 391).
@@ -20,9 +17,12 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
-export const SPELLBOOK_PAGES = 100; // RR p145
-export const SPELL_VALUE_PER_LEVEL = 1000; // RR p391
-export const BLANK_SPELLBOOK_VALUE = 20; // RR p145
+/** Pages in a spell book (RR p145). */
+export const SPELLBOOK_PAGES = 100;
+/** Scribing value of one spell level, in gp (RR p391). */
+export const SPELL_VALUE_PER_LEVEL = 1000;
+/** Value of a blank spell book, in gp (RR p145). */
+export const BLANK_SPELLBOOK_VALUE = 20;
 
 /** Names that read as a spell book — the RR canonical item plus a common synonym. */
 export const SPELLBOOK_NAME = /\bspell\s*book\b|\bgrimoire\b/i;
@@ -33,9 +33,9 @@ export function spellbookOf(item) {
 }
 
 /**
- * Is this item a spell book? A recognised class — the RR "Spell Book" — by name,
- * or by an already-stored spell list (a configured book keeps its identity if
- * renamed). Never true for a weapon, a backpack, or ordinary gear.
+ * Is this item a spell book? By name, or by an already-stored spell list (a
+ * configured book keeps its identity if renamed). Only an `item`-type document
+ * qualifies.
  */
 export function isSpellbook(item) {
   if (item?.type !== ITEM_TYPE.item) return false;
@@ -48,7 +48,7 @@ export function spellbookSpells(item) {
   return Array.isArray(s) ? s : [];
 }
 
-/** Page capacity (RR default 100). */
+/** Page capacity: the book's stored `pages`, else `SPELLBOOK_PAGES`. */
 export function pagesCapacity(item) {
   return Number(spellbookOf(item)?.pages ?? SPELLBOOK_PAGES);
 }
@@ -63,7 +63,7 @@ export function overCapacity(item) {
   return pagesUsed(item) > pagesCapacity(item);
 }
 
-/** RAW value: blank cost + 1,000gp × the level of every spell scribed. */
+/** The book's value: the blank cost plus the per-level value of every spell scribed. */
 export function spellbookValue(item) {
   return BLANK_SPELLBOOK_VALUE + spellbookSpells(item).reduce((gp, sp) => gp + SPELL_VALUE_PER_LEVEL * Math.max(0, Number(sp.lvl ?? 0)), 0);
 }

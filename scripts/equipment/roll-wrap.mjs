@@ -67,23 +67,14 @@ function onAttackResolved(actor, ctx, outcome) {
 }
 
 /**
- * WRAPPER around AcksActor#computeEncumbrance.
+ * WRAPPER around AcksActor#computeEncumbrance, which the formation feature
+ * reads (`system.encumbrance`, `movementacks`) for party speed. Core's own sum
+ * runs untouched and the total is adjusted afterwards by `encumbranceDelta6`
+ * (harness, bowquiver, bundles, and the part-stone of a purse core rounds
+ * away); where none applies the delta is 0 and this is a pass-through.
  *
- * FLAGGED: this wraps a core method that the formation feature depends on (it reads the
- * resulting system.encumbrance / movementacks for party speed). It is an
- * ENHANCE, not a replacement — core's own sum runs untouched and we adjust the
- * total afterwards, so formation keeps reading one consistent number and the two
- * modules cannot disagree. Only what a flat sum gets wrong is corrected
- * (`encumbranceDelta6`: harness, bowquiver, bundles, and the part-stone of a
- * purse core rounds away); where none of it applies the delta is 0 and this
- * is a pass-through.
- *
- * Core calls _calculateMovement() at the END of computeEncumbrance, so any
- * adjustment must recompute movement or speed would reflect the pre-correction
- * weight.
- *
- * HANDOFF: a core `system.encumbrance.mod` field (the way `ac.mod` lets us
- * correct AC without a patch) would let this wrap be deleted entirely.
+ * Core calls _calculateMovement() at the END of computeEncumbrance, so an
+ * adjustment must recompute movement.
  */
 function onComputeEncumbrance(wrapped, ...args) {
   const result = wrapped(...args);

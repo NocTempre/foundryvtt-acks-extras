@@ -106,8 +106,9 @@ export function nonProficientFigures() {
   };
 }
 
-/** The system's kinds of attack and damage modes, as its `ATTACK_TYPE` and `DAMAGE_MODE` spell them. */
+/** The system's kinds of attack, as its `ATTACK_TYPE` spells them. */
 export const ATTACK_TYPE = Object.freeze({ melee: "melee", missile: "missile", thrown: "thrown" });
+/** The system's damage modes, as its `DAMAGE_MODE` spells them. */
 export const DAMAGE_MODE = Object.freeze({ base: "base", alternate: "alternate" });
 
 const num = (v) => Number(v ?? 0) || 0;
@@ -161,12 +162,9 @@ function weaponContext(actor, item, attackType = null) {
 /**
  * The rows this feature adds to the attack throw of one attack.
  *
- * Non-proficient use is one labelled row for the whole package — the untrained
- * throw and the cancelled attribute bonus — so the reader sees why the throw
- * dropped, not a weapon that seems to carry a penalty of its own. Weapon
- * Finesse is the character's election, so it applies only when DEX is the
- * better score, and never while non-proficiently equipped, when no attribute
- * grants a bonus to swap.
+ * Non-proficient use is one labelled row for the whole package (the untrained
+ * throw and the cancelled attribute bonus). Weapon Finesse applies only when
+ * DEX is the better score, and never while non-proficiently equipped.
  *
  * @param {Actor} actor
  * @param {Item} item  the weapon

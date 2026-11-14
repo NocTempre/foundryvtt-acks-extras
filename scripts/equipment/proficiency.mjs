@@ -1,11 +1,11 @@
 /* global game */
 /**
- * Proficiency resolution — weapon and armour proficiency, and the armour gates.
+ * Proficiency resolution: weapon and armour proficiency, and the armour gates.
  *
- * RAW proficiency comes from a character's class, which the core system does not
- * store. So the actor carries a per-actor proficiency profile via flags
- * (permissive defaults until a GM narrows them), extended by data-driven effect
- * flags from proficiency items (Martial Training, Armour Training):
+ * Proficiency comes from a character's class, which the core system does not
+ * store, so the actor carries a per-actor profile via flags (permissive until a
+ * GM narrows it), extended by effect flags from proficiency items (Martial
+ * Training, Armour Training):
  *   flags.acks-extras.weaponProficiency  "all" | CSV of categories/weapon keys
  *   flags.acks-extras.armorMax           unarmored|veryLight|light|medium|heavy
  *   flags.acks-extras.martialWeapons     (effect) CSV of added weapon categories
@@ -25,22 +25,16 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
 /**
  * Is proficiency ENFORCEMENT live?
  *
- * This module infers proficiency from its own `flags.acks-extras.*` actor
- * flags and effect markers — what the class's training sets (character sheet →
- * Stats tab → Training block) and what imported proficiency abilities carry:
- * weapon and armour proficiency lists, and fighting styles. The weapon and
- * armour resolvers stay PERMISSIVE when the actor carries no such flags (no
- * list ⇒ proficient), so an un-configured character is not penalised for those.
- * A trained fighting STYLE, however, is required to use any weapon at all
- * (RR p. 15), so a weapon-wielding character with no trained style reads as
- * non-proficient once enforcement is on — configure the class's training (a
- * style plus the weapon/armour lists) or give the character the proficiency
- * abilities, and the gate is correct.
- *
- * The abilities feature owns a richer model of the same facts but cannot yet
- * express the base class proficiency LISTS; its POSITIVE grants (Weapon
+ * Proficiency is inferred from the actor's `flags.acks-extras.*` flags and
+ * effect markers (the class's training from the character sheet's Stats tab →
+ * Training block, and what imported proficiency abilities carry): weapon and
+ * armour lists, and fighting styles. The weapon and armour resolvers stay
+ * PERMISSIVE when the actor carries no such flags (no list means proficient).
+ * A trained fighting STYLE is required to use any weapon at all (RR p. 15), so
+ * a weapon-wielding character with no trained style reads as non-proficient
+ * once enforcement is on. The abilities feature's POSITIVE grants (Weapon
  * Finesse, a specialization's style, Martial/Armour Training, Weapon Focus)
- * still apply through the bridge regardless of this setting.
+ * apply through the bridge regardless of this setting.
  *
  * The `proficiencyEnforcement` world setting selects the policy:
  *   "on"   (default) — always enforce; a declared training limit is real.
@@ -49,10 +43,9 @@ import { collectStringFlags, sumEffectModifiers } from "./effects.mjs";
  *                      init, so in a running world this reads as "off".
  *   "off"            — never enforce; all proficiency gating goes permissive.
  *
- * Scope: this toggles the PENALTIES (the non-proficient use package, RR p. 15:
- * attacks as a 0th-level fighter, no attribute bonus to attack or AC), not the
- * module. Equip limits, containers, wear buckets, the loadout effect, and
- * bridged abilities bonuses are unaffected.
+ * Scope: this toggles the PENALTIES (the non-proficient use package, RR p. 15),
+ * not the module. Equip limits, containers, wear buckets, the loadout effect
+ * and bridged abilities bonuses are unaffected.
  */
 export function enforcementActive() {
   let mode = "on";
@@ -85,13 +78,9 @@ const CATEGORY_TOKENS = new Set(["axe", "bowcrossbow", "flailhammermace", "sword
 const SIZE_TOKENS = new Set(["tiny", "small", "medium", "large"]);
 
 /**
- * Canonicalise a grant token.
- *
- * The only liberty taken is the bare SIZE: the book writes broad choices i and
- * ii by melee weapon size, so `tiny,small,medium` is what a Judge types — and both size-based choices are melee, so a bare size can
- * only mean `melee:<size>`. Accepting it here means the shorthand works
- * everywhere a grant is read (the macro, an actor flag, a class-training effect)
- * rather than in one of them.
+ * Canonicalise a grant token: trimmed and lowercased, with a bare SIZE read as
+ * `melee:<size>` (both size-based broad choices are melee). Applied wherever a
+ * grant is read: the macro, an actor flag and a class-training effect.
  */
 export function normalizeGrantToken(token) {
   const t = String(token ?? "").trim().toLowerCase();
@@ -137,9 +126,8 @@ export function grantVerdict(token, profile) {
     if (!profile.melee) return false;
     return profile.size == null ? null : String(profile.size).toLowerCase() === t.slice(6);
   }
-  // `weapon:<key>` names ONE weapon even where the bare key is also a category:
-  // the category reading wins on a bare token, so a writer that means the
-  // single weapon says so.
+  // `weapon:<key>` names ONE weapon even where the bare key is also a category
+  // (the category reading wins on a bare token).
   const named = (name) => {
     const key = weaponTokenKey(name);
     if (!key) return hasWeaponRows() ? false : null;
@@ -159,21 +147,19 @@ export function grantVerdict(token, profile) {
  * CSV of tokens; the class's selection chunks are expressed with these:
  *   all                 unrestricted
  *   missile:all         every missile weapon (broad choice v)
- *   melee:<size>        melee weapons of that size — broad choices i and ii are
- *                       size-based, not category-based, so sizes are
- *                       first-class here. A
- *                       bare `tiny` / `small` / `medium` / `large` means this.
+ *   melee:<size>        melee weapons of that size (broad choices i and ii); a
+ *                       bare `tiny` / `small` / `medium` / `large` means this
  *   <category>          axe | bowCrossbow | flailHammerMace | swordDagger |
  *                       spearPolearm | other
  *   <weaponKey>         a single named weapon (the restricted list), by any name
- *                       the weapon table knows — "Great Sword" reaches twohandedsword
+ *                       the weapon table knows ("Great Sword" reaches twohandedsword)
  *   weapon:<key>        the same, written so it cannot be read as a category
  *                       where the key is also one
  *
- * A token outside the grammar (`classifyGrantToken` → "unknown") matches
- * nothing. That is not a silent no-op: a profile with ONLY unknown tokens still
- * counts as a declared restriction, so the actor reads as non-proficient with
- * everything. The Configure Proficiencies macro warns rather than let that pass.
+ * A token outside the grammar (`classifyGrantToken` returns "unknown") matches
+ * nothing, and a profile with ONLY unknown tokens still counts as a declared
+ * restriction, so the actor reads as non-proficient with everything. The
+ * Configure Proficiencies macro warns about it.
  */
 export function grantMatches(token, profile) {
   return grantVerdict(token, profile) === true;
@@ -216,14 +202,11 @@ export function weaponProficiency(actor) {
   for (const t of collectStringFlags(actor, EFFECT_DOMAINS.MARTIAL_WEAPONS)) add(t);
   const flag = actor.getFlag?.(MODULE_ID, ACTOR_FLAGS.WEAPON_PROF);
   if (flag != null) String(flag).split(",").forEach(add);
-  // No profile and no training chunks: stay permissive rather than penalise
-  // every un-configured character. A profile that parses to NO tokens (blank,
-  // or nothing but separators) is likewise no profile — reading it as
-  // "proficient with nothing" turned a slip of the keyboard into a character
-  // non-proficient with every weapon it owns, and said nothing about it.
+  // No profile and no training chunks stays permissive. A profile that parses
+  // to NO tokens (blank, or only separators) is likewise no profile.
   if (!tokens.size) return { all: true, tokens };
-  // An imported proficiency's training widens a declared list; it never
-  // declares one, so a character with no list stays permissive above.
+  // An imported proficiency's training widens a declared list and never
+  // declares one.
   for (const t of abilityWeaponTokens(actor)) tokens.add(t);
   return { all: tokens.has("all"), tokens };
 }
@@ -231,11 +214,10 @@ export function weaponProficiency(actor) {
 /**
  * Is a weapon (resolved profile) one the actor is proficient with?
  *
- * Something every character may throw (`profile.anyoneThrows`: a flask, a
- * bottle, a rock, a torch — RR ch. 1, Weapon Proficiency) is proficient
- * whatever the grants say, except swung in melee: only the throw is everyone's.
- * With no `attack` the question is whether carrying it equipped is the
- * non-proficient use package, and it is not, since every class can throw it.
+ * Something every character may throw (`profile.anyoneThrows`, RR ch. 1) is
+ * proficient whatever the grants say, except swung in melee: only the throw is
+ * everyone's. With no `attack`, carrying it equipped is not the non-proficient
+ * use package.
  *
  * A weapon the grants cannot decide is proficient: where a figure a grant asks
  * of the weapon is not imported (`grantVerdict` null) and no grant covers it,
@@ -281,8 +263,7 @@ export function weaponProficiencyDecided(actor, profile, prof = weaponProficienc
  * Highest armour category the actor may wear without penalty: the best of the
  * per-actor profile flag, any class-training chunk and the armour training an
  * imported proficiency item states, then raised by Armour Training. With
- * neither flag nor chunk we stay permissive ("heavy") rather than penalise an
- * un-configured character.
+ * neither flag nor chunk it is permissive ("heavy").
  */
 export function armorMax(actor) {
   const granted = [...collectStringFlags(actor, EFFECT_DOMAINS.ARMOR_PROF)];
@@ -336,8 +317,8 @@ export function armourCeiling(loadout, { armourMax = "", noShield = null } = {})
  * Whether the character fights lightly equipped, by a `lightlyEquipped`
  * gate's arguments: armour no heavier than `armourMax` and a load of no more
  * than `loadMax` stone. Both arguments are read off the ability's own page
- * by its import (Swashbuckling, RR ch. 3; the bladedancer's powers, RR ch. 2
- * and JJ ch. 6), so a gate missing either cannot be decided and answers null.
+ * by its import (RR ch. 3, RR ch. 2, JJ ch. 6), so a gate missing either
+ * cannot be decided and answers null.
  * @param {Actor} actor
  * @param {{armor?: Item|null}} loadout
  * @param {{armourMax?: string, loadMax?: number|null}} [gate]
