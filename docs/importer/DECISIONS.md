@@ -10541,3 +10541,102 @@ browser with another JS and wasm engine was not compared.
 
 **Ruled.** Update asks about every name-adopted ability whose description it would replace in one dialog for the whole run, with apply-to-all on both choices (rename aside, overwrite). Dismissal returns an empty map: every ambiguous item is left as it was, because a closed dialog is not consent. A moved-aside original takes a marked name that must stop folding to the definition: folded names are how Update adopts an unflagged item, so a marker that folds away to nothing would let the next run adopt the item again and take the prose after all. Folding drops case and punctuation, so the marker carries letters; a counter is appended in the pathological case where a shipped definition prints the marked name, which is bounded because each attempt is a distinct name and only the finitely many in the index can collide.
 **Rejected.** A per-item prompt: a world that imported the corpus produces collisions by the hundred, and a prompt a GM cannot answer in bulk gets clicked through, which is the same data loss with more steps.
+
+## 2026-11-13 — A picture's text is read by an `ocr` field op over a per-page recipe, once per opened book
+
+The way the JJ's scenario pictures (the entry above, "The JJ's scenario
+pictures are read by OCR at import, with post-read corrections") reach the
+cookbook.
+
+**Ruled:**
+
+- **A book cookbook's `pictures` block holds one recipe per page.** Each names
+  the picture (pdf.js's XObject name, as the `art` op uses), its read boxes in
+  reading order with a page segmentation mode each, and the post-read
+  corrections.
+- **An entry field reads the page through `{ op: "ocr", page, then }`.** The
+  page is read once and corrected; its lines become runs, and `then` is an
+  ordinary heading, text, value or grid instruction run over them. Key checks,
+  paragraph assembly and the stat-line and creature lookups therefore stay the
+  code every other page uses.
+  - The op enters `executeEntry` by one line, because `execInstruction`'s
+    context carries no cookbook data.
+- **Corrections run in list order, each on the previous one's output.** The
+  count of places each changes is checked when the recipe is compiled, against
+  the author's read on the local shelf, and by `verify-cookbook` against a
+  live read; never at import. A correction's `find` may hold the engine's
+  misread of a word and ordinary words beside it, because the owner asked for
+  regexes "targeted at specific lines or words that come out wrong". It never
+  holds a proper name or a figure; those reach a recipe only in a
+  correction's replacement, under the entry above.
+- **A figure the recipe cannot make right is named in `unread`** on the op,
+  dropped from the parse and recorded as a miss with no error.
+- **The read is cached per opened book document**, beside a pinned copy
+  opened from the same bytes (`doc.getData()`), so the session's book is not
+  reopened with the picture flags. Every step and repair of a session reuses
+  the corrected lines, and the reader tears down when idle. This outlives a
+  run, which `runPageCache` deliberately does not. A page read costs about
+  20 s, against milliseconds for a text page, and the corrected lines are a
+  few kilobytes.
+
+**Rejected:**
+
+- A switch in `pageItems` on a tagged document: implicit, and any scan across
+  the pictured pages would start a read.
+- One page-level op fanning out to the areas: repair, presence and flags are
+  keyed by entry id.
+- The recipe inlined into each instruction: the corrections would ship once
+  per field that reads the box.
+- Reopening the session's book pinned for every read: the pinned copy is
+  opened once per session.
+
+*Cost:* a second copy of the PDF in memory while the read is cached,
+unmeasured until the smoke import. OCR output passes through `orderRuns` and
+`joinRuns`, so a change there moves picture text too; compile and verify both
+replay every `then` against a read.
+
+## 2026-11-13 — The JJ's scenarios land as keyed places, plans and a roster in the JJ's Adventure
+
+How the nine scenarios bind. Read with "An adventure's keyed areas are places,
+and their stat lines a roster" (2026-10-24), which governs.
+
+**Ruled:**
+
+- **The Judges Journal is a Judge's book** (`judge: true`). Its keyed rows file
+  on the Judge's line and it gets an Adventure; its `def.` rows stay on the
+  open shelf. A world that already holds the JJ's settlement encounter table
+  keeps it where it is.
+- **Each scenario is a key space** `Scenario N`, with its keyed areas as places
+  under it (lettered sub-keys under their base key). Everything of a scenario
+  files under a `Scenario N` folder, and the Adventure mirrors that folder.
+- **A scenario's notes** are its introduction plus the sections after its last
+  area. An area's notes are its own text.
+- **A scenario's tables are read as paragraphs of its description**, never as
+  setting-table rows. A setting table binds a journal page, which would split
+  one scenario across two documents and read its page again on every fresh
+  session.
+- **Each plan is a scene with pins** at the recipe's key points. It has no
+  traced walls.
+- **Each scenario-only stat block is a monster actor** through the existing
+  stat-line binding. An area names the creatures it holds in a new
+  `meta.roster` of cookbook ids: its scenario's own creature rows, or a
+  library monster for a creature the text only names. A roster row that
+  resolves nothing yet is counted and filled by the next repair.
+- **A figure the recipe leaves unread shows "not imported"** on the actor
+  while the actor still holds the value its create left. Nothing derived from
+  an unread figure is written.
+- **No new manager row and no new chain step.** The scenarios ride the
+  existing steps, and the Adventures tab's JJ row repairs them. The reading
+  shows a progress bar wherever a read starts.
+
+**Rejected:**
+
+- A second book id for the appendix: a book id stands for one PDF.
+- A region or site place per scenario: a book has one region place.
+- Linking an area's creatures by name: a picture's runs are whole lines, so a
+  phrase inside a line cannot be boxed, and a miss mints a blank creature.
+
+*Cost:* a table's grid is lost, and a cell of several lines joins its row as
+prose. About seventy area-to-creature links are authored by hand from the
+picture, and lint checks only that each id exists. The JJ's own rows are
+repaired from its adventure row, not from the Books tab.
