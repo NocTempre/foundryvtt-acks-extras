@@ -3672,7 +3672,7 @@ What a scripted walk meets:
    the copy makes the group with the button and nothing else (assert the write
    landed on the copy's flag and roster, and that the copy carries no
    `lair.group` before the press). A lair whose monster is not
-   imported reads "Not imported" in the monster row. A Player seat's sheet of
+   imported has a blank monster row. A Player seat's sheet of
    the same place has no Lair section. *Observable:* each, read from the sheet's
    DOM; the button carries an `aria-label`; a keyboard reaches it.
 9. A lair whose printed line binds. On `importer/le-lair-bound`, a lair whose

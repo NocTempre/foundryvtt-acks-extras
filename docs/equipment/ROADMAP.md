@@ -105,6 +105,14 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   through the row editor), and a change to which skills the page names reaches
   the abilities only at the next class-builder tables import or Update
   Abilities; the rung and the shield rule follow an override live.
+- **The named-item bonus categories are still a set in source.**
+  `overlays/named.mjs` `NAMED_CATEGORIES` lists the categories a named item's
+  points go to (JJ p. 399). Its labels now name fields and carry no size. The
+  set itself ships on the building session's call that it is procedure
+  ([DECISIONS.md](DECISIONS.md), "2026-11-14 — A named item's bonus categories
+  are procedure, and their labels name fields"); the owner has not ruled. If
+  it is a table of options, it wants an importer recipe and a registered
+  table, with `toItemUpdates` reading which field each category writes.
 - **A core `system.encumbrance.mod` would let a wrapper go.**
   `roll-wrap.mjs` `onComputeEncumbrance` corrects the stored encumbrance after
   core computes it, because core has no adjustment field. If the system gains
