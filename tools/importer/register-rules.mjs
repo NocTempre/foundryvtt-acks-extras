@@ -1,6 +1,6 @@
 /**
  * Register rules over an adventure's rows that a suite can feed invented rows:
- * key spaces and parents, the pairing of a place two books print, the places
+ * key spaces and parents, the monster a lair is the lair of, the pairing of a place two books print, the places
  * a market grid's columns name, the printing errors its rows declare, revisions,
  * the kinds labelled by ordinal, the shape of a scene link, and a book's one
  * region map. `lint-register.mjs` reports what they return. Each returns a
@@ -100,6 +100,35 @@ export function spaceProblems(rows) {
       if (at.meta.parent === r.id) out.push(`${r.id}: meta.parent runs in a cycle back to this row`);
       break;
     }
+  }
+  return out;
+}
+
+/** The kinds of ACKS II row a lair is the lair of, and the book that prints them. */
+const LAIR_OF_KINDS = Object.freeze(["kind.monster", "kind.monsterTemplate"]);
+const LAIR_OF_BOOK = "mm";
+
+/**
+ * A lair's `meta.of`, over every row at once (`rows`: id -> row). It names the
+ * ACKS II monster or monster template the place is the lair of, by the row id
+ * the Monstrous Manual's rows carry, and is read off a keyed place only: a row
+ * carrying `meta.space`. It is authored, so a row naming a row nobody defines
+ * (a typo, a withdrawn monster) is reported here and never guessed at import.
+ */
+export function lairOfProblems(rows) {
+  const out = [];
+  for (const r of rows.values()) {
+    const { id, meta = {} } = r;
+    if (meta.of === undefined) continue;
+    if (r.kind !== "kind.location" || meta.space === undefined) {
+      out.push(`${id}: meta.of belongs on a keyed place (a location row in a key space) only`);
+      continue;
+    }
+    const to = rows.get(meta.of);
+    if (typeof meta.of !== "string" || !ROW_ID.test(meta.of)) out.push(`${id}: meta.of is the row id of an ACKS II monster`);
+    else if (!to) out.push(`${id}: meta.of names ${meta.of}, which no row defines`);
+    else if (bookOf(to.id) !== LAIR_OF_BOOK) out.push(`${id}: meta.of names ${to.id}, which is no ACKS II monster (a row of ${LAIR_OF_BOOK})`);
+    else if (!LAIR_OF_KINDS.includes(to.kind)) out.push(`${id}: meta.of names ${to.id}, which is no monster or monster template row`);
   }
   return out;
 }

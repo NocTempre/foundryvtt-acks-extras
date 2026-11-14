@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
   siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -57,6 +57,21 @@ flags("a row parented by itself", spaceProblems(rowsOf(loc("ax1.site1", { meta: 
 const cycle = spaceProblems(rowsOf(loc("ax1.a", { meta: { parent: "ax1.b" } }), loc("ax1.b", { meta: { parent: "ax1.a" } }), loc("ax1.c", { meta: { parent: "ax1.a" } })));
 check("each row on a cycle reports it", cycle.filter((p) => /cycle/.test(p)).length === 2);
 check("a row leading into a cycle does not", !cycle.some((p) => p.startsWith("ax1.c:")));
+
+/* --- a lair's monster: an ACKS II monster or template, on a keyed place --- */
+
+const beast = { id: "mm.beast", book: "mm", kind: "kind.monster", name: "Beast" };
+const template = { id: "mm.beastkind", book: "mm", kind: "kind.monsterTemplate", name: "Beastkind" };
+const lair = (id, of, extra = {}) => loc(id, { name: "Lair 1", anchor: { hash: "abc" }, meta: { space: "ax1.fort", of }, ...extra });
+none("a keyed place that is the lair of a monster", lairOfProblems(rowsOf(fort, beast, lair("ax1.lair1", "mm.beast"))));
+none("a keyed place that is the lair of a monster template", lairOfProblems(rowsOf(fort, template, lair("ax1.lair1", "mm.beastkind"))));
+none("a keyed place with no monster", lairOfProblems(rowsOf(fort, beast, lair("ax1.lair1", undefined, { meta: { space: "ax1.fort" } }))));
+flags("a monster no row defines", lairOfProblems(rowsOf(fort, lair("ax1.lair1", "mm.nowhere"))), /ax1\.lair1: meta\.of names mm\.nowhere, which no row defines/);
+flags("a monster of an ACKS I book", lairOfProblems(rowsOf(fort, { ...beast, id: "ax2.beast", book: "ax2" }, lair("ax1.lair1", "ax2.beast"))), /no ACKS II monster/);
+flags("a row of another sort", lairOfProblems(rowsOf(fort, { ...beast, kind: "kind.location" }, lair("ax1.lair1", "mm.beast"))), /no monster or monster template row/);
+flags("an id that is no row id", lairOfProblems(rowsOf(fort, lair("ax1.lair1", "Beast"))), /row id of an ACKS II monster/);
+flags("meta.of on a place outside a key space", lairOfProblems(rowsOf(beast, loc("ax1.lair1", { meta: { of: "mm.beast" } }))), /keyed place/);
+flags("meta.of on a person", lairOfProblems(rowsOf(beast, { ...loc("ax1.npc1"), kind: "kind.npc", meta: { space: "ax1.fort", of: "mm.beast" } })), /keyed place/);
 
 /* --- pairs: on the earlier book's row, with the reviewer's unique list --- */
 
