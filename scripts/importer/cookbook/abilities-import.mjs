@@ -363,7 +363,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       [`flags.${MODULE_ID}.extras`]: extras,
     });
   };
-  // Counted first, so the bar has a total: the walk covers every ability in the world, actors included.
+  // Counted first: this walks every ability in the world, actors included, so the bar has a total.
   const all = await allAbilities();
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressUpdate`), all.length);
   try {
@@ -405,7 +405,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
         ...(ladderCache.get(id) ? { ladders: ladderCache.get(id) } : {}),
       });
       built.flags[MODULE_ID].extras.effects = await resolveCompanions(built.flags[MODULE_ID].extras.effects);
-      // Authorship of the item and of its description differ: an annotated description is the Judge's.
+      // Authorship of the ITEM and of its description differ: an annotated description is the Judge's.
       const prose = doc.system?.description;
       // A forced repair writes the description of a document this module made;
       // an unflagged document is still the Judge's and waits for an answer.
