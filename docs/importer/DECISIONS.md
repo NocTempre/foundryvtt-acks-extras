@@ -10809,6 +10809,8 @@ scene's crop does.
 
 ## 2026-11-13 — Lairs & Encounters is a Judge's book whose lairs are places and whose plates are their Scenes
 
+## 2026-11-13 — Lairs & Encounters is a Judge's book whose lairs are places and whose plates are their Scenes — SUPERSEDED IN PART 2026-11-14
+
 The owner asked for lair maps: "The lairs from the MM was an ask for the maps,
 not just journals." The MM prints none (a census of its 67 lair pages and the
 page after each found only art), so the owner was asked where maps should come
@@ -10886,7 +10888,7 @@ and about 4 have no ACKS II monster, so these are L&E's own lairs, not maps of
 the MM's. Each `meta.of` and each replacement pair costs a reviewer's read.
 Room keys stay in the prose until a reader for inline keys is built.
 
-## 2026-11-13 — Every Lairs & Encounters listing is a lair row, numbered in print order
+## 2026-11-13 — Every Lairs & Encounters listing is a lair row, numbered in print order — SUPERSEDED IN PART 2026-11-14
 
 Chapter 3's outline holds 168 items under it: 167 listings and one how-to
 section, which is the `le.lairs` container. "168" was the orchestrator's
@@ -11044,3 +11046,46 @@ Asked once the lairs, plates and bindings were built, the owner answered:
   as an encounter group when the lair is entered.
 
 The shapes of the last two are designed before they are built.
+
+## 2026-11-14 — A lair rolls its monster's lair encounter on entry, and the p. 214 plate is a map with insets
+
+The design of the two answers above (the architect's ruling, kept locally) put
+two more questions; the owner answered:
+
+- Whether a lair whose printed stat line already binds to its monster still
+  rolls on entry: "Yes, roll anyway".
+- Lair 112's inset, whose bar puts a drawn square at about 2.4 ft: "2.5 ft per
+  square".
+
+**Ruled:**
+
+- **The hidden host row goes.** A lair place carries
+  `flags["acks-extras"].lair.of`, the cookbook id of its monster, written at
+  import; it resolves whenever the MM is imported, with no Repair. One lib
+  module owns the flag (`lib/lair.mjs`): it finds the monster's library actor
+  (never a world copy or a template's base actor) and rolls the lair once: an
+  encounter group sized from the monster's imported in-lair ecology
+  (`makeEncounter`, `rollEncounter`), linked by a hidden roster row and by
+  `lair.group`. It rolls beside any printed resident rows. A monster whose
+  in-lair side gives no count (units, nothing, a template) makes nothing, and
+  the Judges are told why once.
+- **"Upon entry" is a party's arrival on the lair's Scene** (formation's
+  `createToken` path, which a teleport also fires); the location sheet shows
+  the monster, the group or why none, and a Roll button for the lairs with no
+  Scene. The context is the wilderness line; the Judge can re-roll the other
+  from the group sheet.
+- **The p. 214 plate** is `le.lair111Map`, gridless at a tenth of a mile a
+  cell, with its two gridded insets as `le.lair111Map1`/`Map2` (5 ft squares)
+  and lair 112's inset as `le.lair112Map` (2.5 ft squares), each linked from its
+  dot on the full map by a confirmed teleport. A gridless recipe may declare
+  its `cell`; several scenes of one place are told apart by `part`.
+
+**Rejected:** rolling when the sheet opens (it rolls during the Judge's
+preparation); an event-driven Region behaviour (none exists in the module); a
+group made per lair at import, which this entry supersedes "Lairs &
+Encounters is a Judge's book…" (2026-11-13) in part to allow at roll time,
+the owner's answer being the new evidence.
+
+*Cost:* of the 38 mapped lairs, the ones whose monster's in-lair side counts
+bodies roll; those counting units or printing no count do not. A lair rolls
+once; a deleted group rolls again on the next entry.
