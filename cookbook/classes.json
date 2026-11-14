@@ -10631,7 +10631,8 @@
         "pattern": "cleave[\\s\\S]{0,200}?once\\s*per\\s*round\\s*per\\s*(class\\s*level|two\\s*class\\s*levels)"
       },
       "training": {
-        "runin": "Combat Proficiencies:"
+        "runin": "Combat Proficiencies:",
+        "labelHeader": "Region"
       },
       "fields": {
         "name": {

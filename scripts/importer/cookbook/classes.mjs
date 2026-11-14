@@ -1216,7 +1216,7 @@ export function bindClass(
       templates,
       // The class's mutually exclusive options: its printed variant table where
       // the spread prints one, and its starting templates.
-      paths: buildPaths(f.training?.rows, entry.class?.tables?.training?.labelHeader ?? "", templates.length > 0),
+      paths: buildPaths(f.training?.rows, entry.training?.labelHeader ?? "", templates.length > 0),
     },
     ...(training ? { effects: [trainingEffect(entry, training)] } : {}),
     flags: {

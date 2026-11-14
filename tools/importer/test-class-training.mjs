@@ -225,4 +225,19 @@ check("the field is read first", trainingOf(changesOf({ body1c0: other, training
 check("an empty field falls back to the body",trainingOf(changesOf({ body1c0: clean, trainingProse: "" })), bounded);
 check("a field that does not parse falls back to the body", trainingOf(changesOf({ body1c0: clean, trainingProse: "No such paragraph." })), bounded);
 
+/* --- a variant grid's path group is named by the entry's declared heading -- */
+// The compiled entry carries the grid's label-column heading beside the run-in,
+// and the binder names the group from it; an entry that declares none gets the
+// generic group.
+const gridRows = [
+  { label: "Lodge", key: "lodge", cells: { armour: "Armor", weapons: "Weapon Proficiencies", styles: "Styles" } },
+  { label: "Fenwick", key: "fenwick", cells: { armour: "Light", weapons: "sling, dagger", styles: "dual weapon" } },
+];
+const groupOf = (declared) =>
+  bindClass({ ...entry, training: declared }, { fields: { training: { rows: gridRows } } }, "def.class.inventedYak").system.paths[0];
+const named = groupOf({ runin: RUNIN, labelHeader: "Lodge" });
+check("a declared heading names the group", [named.key, named.label], ["lodge", "Lodge"]);
+check("and the header line is no option of it", named.options.map((o) => o.key), ["fenwick"]);
+check("no heading declared: the generic group", [groupOf({ runin: RUNIN }).key, groupOf({ runin: RUNIN }).label], ["variant", "Variant"]);
+
 console.log(`test-class-training: all ${n} checks passed`);

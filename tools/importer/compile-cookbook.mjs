@@ -5045,8 +5045,17 @@ async function compileClass(doc, entry, kindRow) {
     // binder prices it against the world's builder tables.
     ...(spec.build ? { build: spec.build } : {}),
     // The run-in the spread states its combat training under — declared per
-    // class because the label is not the same on every spread.
-    ...(spec.training ? { training: { runin: spec.training.runin } } : {}),
+    // class because the label is not the same on every spread — and the
+    // heading its variant grid's label column carries, which names the path
+    // group the grid becomes.
+    ...(spec.training || spec.tables?.training?.labelHeader
+      ? {
+          training: {
+            runin: spec.training?.runin,
+            ...(spec.tables?.training?.labelHeader ? { labelHeader: spec.tables.training.labelHeader } : {}),
+          },
+        }
+      : {}),
     ...(spec.casting?.length ? { casting: spec.casting } : {}),
     ...(spec.skills?.length ? { skills: spec.skills } : {}),
     ...(spec.equipAliases ? { equipAliases: spec.equipAliases } : {}),
