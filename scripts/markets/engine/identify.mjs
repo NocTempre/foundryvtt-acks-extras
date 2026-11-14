@@ -55,34 +55,44 @@ function throwTarget(actor, abilityName) {
  */
 export const METHODS = Object.freeze({
   trialUse: {
+    /** Any item. */
     applies: () => true,
+    /** Any identifier. */
     qualifies: () => true,
     throwOf: null,
     depth: "partial",
     risky: true, // curses and poisons fire on trial
   },
   sipPotion: {
+    /** Potions only. */
     applies: (f) => f.kind === "potion",
+    /** Any identifier. */
     qualifies: () => true,
     throwOf: null,
     depth: "full",
     risky: true,
   },
   weaponBonus: {
+    /** Weapons and armor only. */
     applies: (f, item) => item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor,
+    /** Any identifier. */
     qualifies: () => true, // proficiency with the weapon is the Judge's call
     throwOf: null,
     depth: "partial",
     risky: true,
   },
   alchemy: {
+    /** Potions only. */
     applies: (f) => f.kind === "potion",
+    /** An identifier with the Alchemy proficiency. */
     qualifies: (actor) => abilityRanks(actor, "Alchemy") > 0,
     throwOf: "Alchemy",
     depth: "full",
   },
   arcaneDabbling: {
+    /** Miscellaneous magic items and scrolls. */
     applies: (f) => ["misc", "scroll"].includes(f.kind),
+    /** An identifier with the Arcane Dabbling proficiency. */
     qualifies: (actor) => abilityRanks(actor, "Arcane Dabbling") > 0,
     throwOf: "Arcane Dabbling",
     depth: "partial",
@@ -90,20 +100,25 @@ export const METHODS = Object.freeze({
     needs: ["dabblingBackfire"],
   },
   magicalEngineering: {
+    /** Items whose rarity is one of the imported engineering tiers. */
     applies: (f, item, printed) => printed.engineeringTiers.has(f.rarity ?? "common"),
+    /** An identifier with the Magical Engineering proficiency. */
     qualifies: (actor) => abilityRanks(actor, "Magical Engineering") > 0,
     throwOf: "Magical Engineering",
     depth: "partial",
     needs: ["engineeringTiers"],
   },
   loremastery: {
+    /** Items whose rarity is outside the imported engineering tiers. */
     applies: (f, item, printed) => !printed.engineeringTiers.has(f.rarity ?? "common"),
+    /** An identifier with the Loremastery proficiency. */
     qualifies: (actor) => abilityRanks(actor, "Loremastery") > 0,
     throwOf: "Loremastery",
     depth: "partial",
     needs: ["engineeringTiers"],
   },
   magicResearch: {
+    /** Any item. */
     applies: () => true,
     qualifies: canResearch,
     throwOf: "Magic Research",
