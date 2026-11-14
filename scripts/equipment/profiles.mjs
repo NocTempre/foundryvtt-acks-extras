@@ -310,7 +310,7 @@ export function weaponKey(item) {
  * A weapon document the module cannot place among the imported weapon rows.
  *
  * Its size, damage type, Weapon Focus group and proficiency CATEGORY are
- * whatever the item itself declares and otherwise unstated ("not imported"), so
+ * whatever the item itself declares and otherwise unstated (blank), so
  * no grant can decide the weapon and it is never refused; a Judge names its
  * Weapon type on the sheet's Construction panel.
  */

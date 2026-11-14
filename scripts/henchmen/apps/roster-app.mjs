@@ -164,7 +164,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
       note: unknown
         ? loc("limitNoteUnknown", { count: limit.count })
         : loc("limitNote", { count: limit.count, max: limit.max, cha: signed(mods.chaLoyalty), powers: signed(mods.baseLoyaltyBonus) }),
-      hint: limit.why === "import" ? "ACKS-HENCHMEN.roster.limitNotImported" : limit.why === "charisma" ? "ACKS-HENCHMEN.roster.limitUnknown" : "ACKS-HENCHMEN.roster.limitHint",
+      hint: limit.why === "import" ? "" : limit.why === "charisma" ? "ACKS-HENCHMEN.roster.limitUnknown" : "ACKS-HENCHMEN.roster.limitHint",
     };
     // The limit and loyalty powers held by name with no imported value: both
     // figures above leave them out, and the meter says so.

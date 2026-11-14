@@ -648,12 +648,11 @@ t("a condition's figure is a row, and what the roll leaves out is a note", () =>
     { label: "exempt:aa", note: true },
     { label: "applied:bb", value: 3 },
     { label: "pending:cc", note: true },
-    { label: "unpriced:dd", note: true },
-  ]);
+  ], "an unpriced condition has no row");
   // The roller keeps the figure in its total and draws the notes beside it.
   const kept = externalRows(rows);
   assert.equal(kept.reduce((sum, r) => sum + r.value, 0), 3);
-  assert.equal(kept.filter((r) => r.note).length, 3);
+  assert.equal(kept.filter((r) => r.note).length, 2);
 });
 
 t("a creature with no conditions adds no row", () => {
@@ -728,7 +727,7 @@ t("a tone page declares each row's figure by key and ships no figure", () => {
   }
 });
 
-t("with nothing imported a figured row is disabled, contributes nothing and says not imported", () => {
+t("with nothing imported a figured row is disabled and contributes nothing", () => {
   resetTables();
   for (const tone of Object.values(INFLUENCE_TONE)) {
     const declared = toneRowsDeclared().filter((row) => row.tone === tone).map((row) => row.mod);
@@ -1013,9 +1012,7 @@ t("the bribery charge mark is the page's, or none", () => {
   assert.equal(figureOrigin(BRIBE_CRIME_PAGE.table, INFLUENCE_DOC).state, "override", "and the note names the override");
   resetTables();
   const lang = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
-  for (const key of ["ACKS-INFLUENCE.note.bribeCrime", "ACKS-INFLUENCE.note.bribeCrimeUnread"]) {
-    assert.equal(/\d/.test(lang[key].replace(/\bRR \d+\b/g, "")), false, `${key}: states no figure`);
-  }
+  assert.equal(/\d/.test(lang["ACKS-INFLUENCE.note.bribeCrime"].replace(/\bRR \d+\b/g, "")), false, "the note states no figure");
 });
 
 t("no lang string of the tone pages carries a magnitude", () => {

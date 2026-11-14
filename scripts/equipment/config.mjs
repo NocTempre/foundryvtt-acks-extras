@@ -119,7 +119,7 @@ const POUCH = Object.freeze({ slots: [SLOT.belt], access: "free" });
  * How MUCH a container holds is never here: the price grid prints it in the
  * row's label and the importer writes it to the item's `gear.capacity`
  * (`importer/gear-prices.mjs` `labelCapacity`). A container the grid states no
- * capacity for holds without a limit and says it is not imported.
+ * capacity for holds without a limit and shows no capacity.
  */
 export const GEAR_PROFILES = Object.freeze({
   // Rigging — worn, and RAW-free to draw from.

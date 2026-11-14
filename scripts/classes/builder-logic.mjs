@@ -533,10 +533,10 @@ export function derivePlan({
   // increment above (crusader+mage and fighter+thief, not crusader+thief /
   // fighter / mage), which is why the two read different keys of the budget.
   // A race may add to it, on the same "only when the class spends a racial
-  // value" gate as its four siblings. A rate the world has not imported is a
-  // named issue and a flat-less cell, never an invented number; a last die
-  // level it has not imported is a named issue and no hit-dice cell at all,
-  // since without it no level's dice count is known.
+  // value" gate as its four siblings. A rate the world has not imported is an
+  // issue code (no line is shown for it) and a flat-less cell, never an
+  // invented number; a last die level it has not imported is an issue code and
+  // no hit-dice cell at all, since without it no level's dice count is known.
   const HP_GROUP = { crusader: "crusaderMage", mage: "crusaderMage", fighter: "fighterThief", thief: "fighterThief" };
   const hpRates = budget.hpAfterNine ?? {};
   const lastDie = isNum(hpRates.afterLevel) ? hpRates.afterLevel : null;

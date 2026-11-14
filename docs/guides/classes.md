@@ -313,8 +313,8 @@ Everything numeric comes from your own book: run **Import everything** with
 the Judges Journal connected, and the builder tables, the race documents it
 prints, and its Ready-for-Play builds stamped onto their classes all land
 together — open any of those classes on the Builder tab and Derive works from
-the build it carries. Without the builder tables the tab says so; it can
-record your choices but derives nothing.
+the build it carries. Without the builder tables the tab can record your
+choices but derives nothing, and Derive stays disabled.
 
 A **race document** (its own item type) carries the racial value ladder:
 each rung's XP cost and granted powers, the race's attribute floors, how it
@@ -447,7 +447,7 @@ no recipe for. Importing the race again overwrites what you typed.
 
 A build that spends this race's value picks the bonus up on the next Derive; the
 class's level table then shows the printed flat on every row past the last die
-level. Where the world has not imported the class-side rate, the derive reports
-that gap by name and writes no flat at all rather than guessing one; where it
-has not imported the level the dice stop at, the derive names that too and
-writes no hit-dice cell, since no row's dice count is known without it.
+level. Where the world has not imported the class-side rate, the derive writes
+no flat at all rather than guessing one; where it has not imported the level
+the dice stop at, the derive writes no hit-dice cell, since no row's dice count
+is known without it.

@@ -1,0 +1,1 @@
+- **Sheets, cards and dialogs, figures read from your books:** a field whose figure has not been imported is left blank, and hovering it names the book and page that print it. Nothing posts a notice or a chat line only to say a table is missing.

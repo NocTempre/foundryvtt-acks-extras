@@ -16,7 +16,7 @@
     <div class="acks-extras-item-sheet__fact">
       <span class="acks-extras-item-sheet__fact-label">{{localize 'ACKS-EQUIPMENT.itemLoss.fact'}}</span>
       <span class="acks-spacer"></span>
-      <span class="acks-extras-item-sheet__fact-value" data-tooltip-text="{{durability.itemLoss.tip}}">{{localize (concat 'ACKS-EQUIPMENT.itemLoss.state.' durability.itemLoss.state)}}</span>
+      <span class="acks-extras-item-sheet__fact-value"{{#if durability.itemLoss.tip}} data-tooltip-text="{{durability.itemLoss.tip}}"{{/if}}>{{#unless (eq durability.itemLoss.state 'notImported')}}{{localize (concat 'ACKS-EQUIPMENT.itemLoss.state.' durability.itemLoss.state)}}{{/unless}}</span>
     </div>
     {{/if}}
     {{#if durability.acLine}}

@@ -157,17 +157,14 @@ export function signingTierFromParts(parts) {
  * `applyIrrefusableOutcome` reads from the import, exactly as the fallback
  * throw does. The page names its results in this feature's own vocabulary
  * (`IRREFUSABLE_OUTCOMES`). A roll that named no result (the column is not
- * imported) hires nothing and says so.
+ * imported) hires nothing.
  * @param {object} payload - the roll-complete payload
  * @param {object} context - the context `openIrrefusableViaInfluence` was given
  * @param {object} [seams] - `hire(monster, employer, outcome)`, the hiring call, replaceable by a test
  * @returns {Promise<object|null>} what the hire returned, or null where nothing was hired
  */
 export async function applyIrrefusableResult(payload, context, { hire } = {}) {
-  if (!payload.outcome) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"));
-    return null;
-  }
+  if (!payload.outcome) return null;
   const monster = context.actorUuid ? await fromUuid(context.actorUuid) : null;
   const employer = context.employerUuid ? await fromUuid(context.employerUuid) : null;
   if (!monster || !employer) return null;
@@ -262,7 +259,7 @@ export function registerInfluenceIntegration() {
 /**
  * Open the core influence roller for an employer with the location's slander
  * against the party injected (RR 162): the count times the imported per-slander
- * figure, or a note giving the count while that figure is not imported.
+ * figure, or nothing while that figure is not imported.
  */
 export function openInfluenceFor(employer, location = null, targetActor = null) {
   const api = influenceApi();
@@ -271,11 +268,9 @@ export function openInfluenceFor(employer, location = null, targetActor = null) 
   const slanderCount = location?.system?.slanderCountFor?.({ employerUuid: employer?.uuid }) ?? 0;
   if (slanderCount > 0) {
     const perSlander = hiringOffer().slanderPenalty;
-    modifiers.push(
-      perSlander === null
-        ? { label: game.i18n.format("ACKS-HENCHMEN.influence.slanderUnread", { name: location.name, count: slanderCount }), note: true }
-        : { label: game.i18n.format("ACKS-HENCHMEN.influence.slanderLabel", { name: location.name }), value: slanderCount * perSlander }
-    );
+    if (perSlander !== null) {
+      modifiers.push({ label: game.i18n.format("ACKS-HENCHMEN.influence.slanderLabel", { name: location.name }), value: slanderCount * perSlander });
+    }
   }
   return api.open(employer, { targetActor, modifiers });
 }

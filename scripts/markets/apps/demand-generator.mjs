@@ -19,6 +19,7 @@ import { MODULE_ID, LANG } from "../constants.mjs";
 import { DEMAND_AGE_HEADERS_SETTING } from "../merchandise-keys.mjs";
 import { merchandiseCatalog } from "../engine/merchandise.mjs";
 import { applyGenerated } from "../engine/demand.mjs";
+import { refusalText } from "../engine/refusal.mjs";
 import {
   STEP_A_ROLL,
   RANDOM_GOOD_DIE,
@@ -160,7 +161,6 @@ export class DemandGenerator extends PicksMixin(HandlebarsApplicationMixin(Appli
     context.countsLine = counts
       ? t("counts", { plus: counts.plus, plusDelta: signed(counts.plusDelta), minus: counts.minus, minusDelta: signed(counts.minusDelta) })
       : "";
-    context.countsMissing = s.landRevenueGp != null && !counts;
     context.canRollPicks = !!counts && hasRandomBands(catalog);
 
     const labelOf = new Map(catalog.map((row) => [row.key, row.label]));
@@ -227,7 +227,7 @@ export class DemandGenerator extends PicksMixin(HandlebarsApplicationMixin(Appli
   /** Draw Step C's picks from the imported counts on the random bands. */
   static async #onRollPicks() {
     const counts = countsFor(this.draft.landRevenueGp);
-    if (!counts) return void ui.notifications.warn(t("countsMissing"));
+    if (!counts) return;
     const catalog = merchandiseCatalog();
     if (!hasRandomBands(catalog)) return void ui.notifications.warn(t("noBands"));
     const { picks, short } = await drawLandPicks(catalog, counts, rollGood);
@@ -307,7 +307,11 @@ export class DemandGenerator extends PicksMixin(HandlebarsApplicationMixin(Appli
       },
       results,
     });
-    if (result?.error) return void ui.notifications.warn(game.i18n.localize(`${LANG}.trade.error.${result.error}`));
+    if (result?.error) {
+      const text = refusalText(result.error, result);
+      if (text) ui.notifications.warn(text);
+      return;
+    }
     ui.notifications.info(t("applied", { n: result.written }));
     this.sheet?.render();
     await this.close();

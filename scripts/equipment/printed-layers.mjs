@@ -121,12 +121,9 @@ export function capacitySource(item) {
 
 /**
  * The tooltip of an item's capacity figure: its provenance when one is
- * stated, and that it is not imported, with no number, when none is.
+ * stated, and empty when none is.
  */
 export function capacityTip(item) {
-  if (capacityOf(item) === null) return game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip");
+  if (capacityOf(item) === null) return "";
   return provenanceTip(capacitySource(item));
 }
-
-/** The tooltip for a layer whose document is not imported, naming the key to make or import. */
-export const notImportedTip = (key) => game.i18n.format("ACKS-EQUIPMENT.printed.notImportedTip", { key });

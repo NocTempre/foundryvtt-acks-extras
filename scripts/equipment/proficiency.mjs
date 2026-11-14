@@ -221,8 +221,8 @@ export function weaponProficiency(actor) {
  *
  * A weapon the grants cannot decide is proficient: where a figure a grant asks
  * of the weapon is not imported (`grantVerdict` null) and no grant covers it,
- * nothing refuses it. `weaponProficiencyDecided` names that state for a surface
- * that says "not imported".
+ * nothing refuses it. `weaponProficiencyDecided` names that state for a caller
+ * that needs to tell an undecided weapon from a trained one.
  *
  * @param {{attack?: "melee"|"missile"|"thrown"|null, grantsOnly?: boolean}} [options]
  *   `grantsOnly` answers what the grants cover and nothing else — the Training

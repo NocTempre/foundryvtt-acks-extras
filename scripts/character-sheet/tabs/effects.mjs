@@ -95,9 +95,7 @@ export function buildEffectsTab(actor) {
     // The burn time is imported (RR p. 265); without it the light never burns down.
     const turns = num(lightFigures(light.type).turns);
     const remaining = Number.isFinite(light.remaining) ? light.remaining : null;
-    const line = !(turns > 0)
-      ? loc("effects.burningUnimported")
-      : remaining == null ? loc("effects.burning") : loc("effects.burningLeft", { left: remaining, of: turns });
+    const line = turns > 0 && remaining != null ? loc("effects.burningLeft", { left: remaining, of: turns }) : loc("effects.burning");
     timers.push({
       id: `light:${light.id}`,
       kind: "light",

@@ -184,8 +184,9 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     const identity = weaponIdentity(item);
     const profile = classifyWeapon(item);
     const auto = weaponIdentity(item, { ignoreDeclared: true });
-    const notImported = game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
-    const classLabel = (cat) => (cat ? game.i18n.localize(`ACKS-LIB.weaponCat.${cat}`) : notImported);
+    const classLabel = (cat) => (cat ? game.i18n.localize(`ACKS-LIB.weaponCat.${cat}`) : "");
+    // The "Auto" option of a control whose table answer is blank carries no guess.
+    const autoLabel = (key, guess) => (guess ? loc(key, { guess }) : loc("props.auto"));
     // What the weapon table's row says, beside what the item declares: the
     // "Auto" answer of the class and size controls, and each figure's tooltip.
     const figures = weaponRow(identity.key) ?? {};
@@ -208,13 +209,16 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     // An unidentified weapon has no class and no size beyond what the item
     // declares; naming the consequence here connects this control to the badge
     // that sent the reader.
-    note(identity.key
-      ? loc("props.weaponTypeNote", {
+    // With no weapon table the note is left out: nothing can name the weapon.
+    if (identity.key) {
+      note(loc("props.weaponTypeNote", {
         weapon: weaponName(identity.key),
         category: classLabel(profile.cat),
         source: game.i18n.localize(`ACKS-EQUIPMENT.props.weaponTypeSource.${identity.source}`),
-      })
-      : loc(hasWeaponRows() ? "props.weaponTypeNone" : "props.weaponTypeNoTable"));
+      }));
+    } else if (hasWeaponRows()) {
+      note(loc("props.weaponTypeNone"));
+    }
 
     // CLASS — the six the character sheet's training lists, in its order
     // and its words. The table row's class is the "Auto" answer; declaring
@@ -222,7 +226,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     const declaredClass = item.getFlag(MODULE_ID, ITEM_FLAGS.CATEGORY);
     const classDeclared = WEAPON_CATEGORY_VALUES.has(declaredClass) ? declaredClass : null;
     withTip(row("ACKS-EQUIPMENT.props.weaponClass", select(
-      [{ value: SLOT_AUTO, label: loc("props.weaponClassAuto", { guess: classLabel(figures.cat) }) },
+      [{ value: SLOT_AUTO, label: autoLabel("props.weaponClassAuto", classLabel(figures.cat)) },
         ...CATEGORY_TOKENS.map((c) => ({ value: c.cat, label: game.i18n.localize(c.label) }))],
       classDeclared ?? SLOT_AUTO,
       (v) => setWeaponCategory(item, v),
@@ -230,7 +234,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
 
     const sizeDeclared = item.getFlag(MODULE_ID, ITEM_FLAGS.SIZE);
     withTip(row("ACKS-EQUIPMENT.props.weaponSize", select(
-      [{ value: SLOT_AUTO, label: loc("props.weaponSizeAuto", { guess: figures.size ? game.i18n.localize(`ACKS-EQUIPMENT.size.${figures.size}`) : notImported }) },
+      [{ value: SLOT_AUTO, label: autoLabel("props.weaponSizeAuto", figures.size ? game.i18n.localize(`ACKS-EQUIPMENT.size.${figures.size}`) : "") },
         ...Object.values(SIZE).map((s) => ({ value: s, label: game.i18n.localize(`ACKS-EQUIPMENT.size.${s}`) }))],
       String(sizeDeclared ?? SLOT_AUTO),
       (v) => setWeaponSize(item, v),
@@ -249,7 +253,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       onToggle: (k) => setWeaponGrips(item, nextGrips(grips, k) ?? SLOT_AUTO),
     }));
     // Auto reads the size: with none imported the hands are unknown and count
-    // as one, and the note says so rather than citing a size nothing states.
+    // as one, and the note names the grips without citing a size nothing states.
     const gripsFromSize = !grips.declared && profile.melee && profile.size == null && !profile.twoHandedForced;
     withTip(gripsRow, "size", grips.declared, "ACKS-EQUIPMENT.props.grips");
     note(loc(grips.declared ? "props.gripsNote" : gripsFromSize ? "props.gripsAutoNoSize" : "props.gripsAuto", { grips: game.i18n.localize(`ACKS-EQUIPMENT.grip.${grips.declared ?? grips.inferred}`) }));
@@ -311,12 +315,12 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     // CONDITION — pick a row of the applicable scavenged table directly, or
     // roll it. Both read the reader's OWN imported table (RR p160, extracted
     // by the importer); with none imported there are no rows and no roll, and
-    // the control says so. "Pristine" clears either way.
+    // the control is blank with the page as its tooltip. "Pristine" clears either way.
     const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
     const tableKey = tableFor(item, profile);
     const opts = scavengedOptions(tableKey);
     const source = scavengedSource(tableKey);
-    const sourceTip = source.state === "none" ? loc("props.conditionNotImportedTip")
+    const sourceTip = source.state === "none" ? loc("props.conditionPageCite")
       : source.state === "judge" ? loc("props.conditionJudge")
         : source.cite ? loc("props.conditionCite", { cite: source.cite }) : loc("props.conditionImported");
     const sc = scavengedOf(item);
@@ -337,12 +341,11 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
     const g = el("div", "acks-extras-item-sheet__prop-group");
     g.append(picker, rollButton);
     if (source.state === "none") {
-      // Nothing to roll on: the button stays visible, disabled, and the
-      // reason is on the surface as well as in the tooltip.
+      // Nothing to roll on: the button stays visible and disabled, and its
+      // tooltip is the page.
       rollButton.disabled = true;
       delete rollButton.dataset.tooltip;
       rollButton.dataset.tooltipText = sourceTip;
-      g.append(el("span", "acks-extras-item-sheet__prop-note", loc("props.conditionNotImported")));
     }
     row("ACKS-EQUIPMENT.props.condition", g);
 
@@ -374,7 +377,7 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
       (v) => setSilvered(item, v === "auto" ? "auto" : v === "true"),
     ));
     // The note says which state is in force, so a picker whose price layer
-    // reads "not imported" never reads as one that does nothing.
+    // has no figure never reads as one that does nothing.
     note(loc(isSilvered(item) ? "props.silverNote" : "props.silverNoneNote"));
   }
 
@@ -391,10 +394,10 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
   ));
   // Material has no standing modifier — it decides WHICH damage types can
   // destroy the item (JJ p398 item loss). Saying so stops it reading as a
-  // setting that silently does nothing; with the table unread it says that.
+  // setting that silently does nothing; with the table unread there is no note.
   const mat = materialOf(item);
   const harms = lossTable ? Object.keys(lossTable).filter((dt) => isVulnerable(mat, dt, lossTable)) : null;
-  note(!lossTable ? loc("props.materialNotImportedNote") : harms.length ? loc("props.materialNote", { types: harms.join(", ") }) : loc("props.materialNoneNote"));
+  if (lossTable) note(harms.length ? loc("props.materialNote", { types: harms.join(", ") }) : loc("props.materialNoneNote"));
 
   if (item.type === ITEM_TYPE.armor && item.system?.type === "shield") {
     row("ACKS-EQUIPMENT.props.variant", select(

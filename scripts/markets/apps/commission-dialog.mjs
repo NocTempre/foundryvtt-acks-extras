@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performCommission } from "../engine/imports.mjs";
+import { refusalText } from "../engine/refusal.mjs";
 import { commissionPlan } from "../rules/commissions.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
@@ -55,7 +56,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
         label: game.i18n.localize(`${LANG}.commissions.worker.${row.worker}`),
         planLine: plan
           ? game.i18n.format(`${LANG}.commissions.planLine`, { days: plan.days, wages: toGp(plan.wagesCp) })
-          : game.i18n.localize(`${LANG}.commissions.noRate`),
+          : "",
       };
     });
     context.noRates = !context.workers.length;
@@ -73,7 +74,8 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {
-      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result }));
+      const text = refusalText(result.error, result);
+      if (text) ui.notifications.warn(text);
       return;
     }
     if (result?.ok) {

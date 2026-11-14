@@ -24,7 +24,7 @@ import { citeOf } from "../../lib/tables.mjs";
 import { isSpellbook, spellbookSpells } from "../spellbook.mjs";
 import { containerOf, isLocked } from "../containers.mjs";
 import { pickLock, bashOpen, canPick, canBash, wearingGloves } from "../locks.mjs";
-import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
+import { isWeaponProficient } from "../proficiency.mjs";
 import { figureState, figureTip, heldDieTip } from "../weapon-figures.mjs";
 import { ATTACK_TYPE, DAMAGE_MODE, heldGrip } from "../attack-mods.mjs";
 import { damageGlyphOf, damageTypeLabel, damageTypeOf } from "../../lib/damage-type.mjs";
@@ -42,13 +42,11 @@ const MANEUVER_MNEMONIC = Object.freeze({
  * Where a manoeuvre's penalty came from, as the tooltip on the figure: the
  * parts that make it up, each named and carrying its own number, and the page
  * (or the Judge's hand) each was read from. A penalty with a part not
- * imported names the missing tables and states no number.
+ * imported has no tooltip.
  * @param {{attackPenalty: number|null, missing: string[], parts: {part: string, value: number, table: string}[]}} mods a `maneuverMods` result
  */
 function maneuverTip(mods) {
-  if (mods.attackPenalty == null) {
-    return loc("itemSheet.rolls.maneuver.notImportedTip", { tables: mods.missing.join(", ") });
-  }
+  if (mods.attackPenalty == null) return "";
   const names = {
     base: () => loc("itemSheet.rolls.maneuver.part.base"),
     trickery: () => loc("itemSheet.rolls.maneuver.part.trickery"),
@@ -88,8 +86,8 @@ export function rollGroups(item, actor = rollerFor(item)) {
     const glyph = damageGlyphOf(item);
     const typeLabel = damageTypeOf(item) ? damageTypeLabel(damageTypeOf(item)) : "";
     const damage = damageFormulaOf(item) || profile.damage;
-    // No die stated by the item or a row reads "not imported", never a die.
-    const dieShown = damage || game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
+    // No die stated by the item or a row is blank, never a die.
+    const dieShown = damage || "";
     const bonus = attackBonusOf(item);
     // Where the die came from: the item's own, the weapon row's with its page,
     // or nothing imported. It rides the row's line, which names the die.
@@ -98,11 +96,10 @@ export function rollGroups(item, actor = rollerFor(item)) {
     // Asked per mode: a weapon every class may throw can still be one a class
     // may not swing, and the tag has to agree with the roll's own rows.
     // A weapon the grants cannot decide (a figure they ask of it is not
-    // imported) is no refusal, and says so instead.
+    // imported) is no refusal and carries no tag.
     const nonProficient = (attack) => {
       if (actor?.type !== ACTOR_TYPE.character) return [];
-      if (!isWeaponProficient(actor, profile, undefined, { attack })) return [loc("itemSheet.rolls.mod.nonProficient")];
-      return weaponProficiencyDecided(actor, profile) ? [] : [loc("itemSheet.rolls.mod.proficiencyNotImported")];
+      return isWeaponProficient(actor, profile, undefined, { attack }) ? [] : [loc("itemSheet.rolls.mod.nonProficient")];
     };
     const meleeMods = nonProficient(ATTACK_TYPE.melee);
     const missileMods = nonProficient(ATTACK_TYPE.missile);
@@ -119,7 +116,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
         v: held.formula || null,
         twoHanded: twoHandedDie,
         label: loc(twoHandedDie ? "itemSheet.rolls.row.twoHanded" : "itemSheet.rolls.row.melee"),
-        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${held.formula || game.i18n.localize("ACKS-EQUIPMENT.printed.notImported")} ${typeLabel}`.trim()].join(" · "),
+        line: [`${signed(bonus)} ${loc("itemSheet.rolls.throw")}`, `${held.formula || ""} ${typeLabel}`.trim()].filter(Boolean).join(" · "),
         tip: heldDieTip(held, loc("itemSheet.rolls.dieLabel")),
         mods: twoHandedDie ? [...meleeMods, loc("itemSheet.rolls.mod.noShield")] : [...meleeMods],
         rollable: !!actor,
@@ -145,9 +142,8 @@ export function rollGroups(item, actor = rollerFor(item)) {
     if (maneuverOverlayEnabled() && actor?.type === ACTOR_TYPE.character) {
       const trickery = trickeryFor(actor);
       // The penalty the throw will carry: this actor's Combat Trickery and this
-      // weapon's qualities included. One not imported reads "not imported" and
-      // no figure; the row still rolls, as the weapon die's does, and the roll
-      // says what it went without.
+      // weapon's qualities included. One not imported has a blank figure; the
+      // row still rolls, as the weapon die's does, without the penalty.
       const manRows = Object.entries(MANEUVERS).map(([key, m]) => {
         const man = maneuverMods(actor, profile, key);
         const penalty = man.attackPenalty;
@@ -156,9 +152,9 @@ export function rollGroups(item, actor = rollerFor(item)) {
           id: `man:${key}`,
           m: MANEUVER_MNEMONIC[key] ?? key.slice(0, 3).toUpperCase(),
           glyph: null,
-          v: penalty == null ? DASH : signed(penalty),
+          v: penalty == null ? "" : signed(penalty),
           label: m.label,
-          line: [penalty == null ? loc("itemSheet.rolls.maneuver.notImported") : `${signed(penalty)} ${loc("itemSheet.rolls.throw")}`, saveLine].join(" · "),
+          line: [penalty == null ? "" : `${signed(penalty)} ${loc("itemSheet.rolls.throw")}`, saveLine].filter(Boolean).join(" · "),
           tip: maneuverTip(man),
           mods: trickery.has(key.toLowerCase()) ? [loc("itemSheet.rolls.mod.trickery")] : [],
           rollable: true,
@@ -267,11 +263,7 @@ export async function rollById(item, id, { event } = {}) {
   if (kind === "man") {
     if (!MANEUVERS[key]) return false;
     // A penalty not imported is no penalty to invent: the throw goes out
-    // without the row, and the Judge is told which tables it lacked.
-    const man = maneuverMods(actor, classifyWeapon(item), key);
-    if (man?.attackPenalty == null) {
-      ui.notifications?.warn(loc("itemSheet.rolls.maneuver.rolledWithout", { name: MANEUVERS[key].label, tables: man?.missing.join(", ") ?? "" }));
-    }
+    // without the row.
     await actor.makeAttackThrow({ item, attackType: "melee", skipDialog, acksLib: { maneuver: key } });
     return true;
   }

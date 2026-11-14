@@ -5,9 +5,7 @@
     <span>{{item.costGp}}gp</span>
   </div>
 
-  {{#if noRates}}
-  <p class="hint">{{localize "ACKS-MARKETS.commissions.noRatesHint"}}</p>
-  {{else}}
+  {{#unless noRates}}
   <div class="form-group">
     <label>{{localize "ACKS-MARKETS.purchase.buyer"}}</label>
     <select name="buyerUuid">
@@ -26,7 +24,7 @@
     <label>{{localize "ACKS-MARKETS.commissions.workerLabel"}}</label>
     <select name="worker">
       {{#each workers}}
-      <option value="{{id}}">{{label}} — {{planLine}}</option>
+      <option value="{{id}}">{{label}}{{#if planLine}} — {{planLine}}{{/if}}</option>
       {{/each}}
     </select>
   </div>
@@ -35,5 +33,5 @@
   <footer class="form-footer">
     <button type="submit"><i class="fas fa-hammer"></i> {{localize "ACKS-MARKETS.commissions.submit"}}</button>
   </footer>
-  {{/if}}
+  {{/unless}}
 </div>

@@ -112,7 +112,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `aria-label`. With the `voyages` document's `crew` table present (imported,
    or the invented doc of step 11 registered) the group head states its
    effective strength ("Rowers 1 / 4 … effective"); without it the head
-   carries the unweighed note and no lesser figure. An empty navigator seat
+   carries no effective-strength note and no lesser figure. An empty navigator seat
    states its consequence, a filled one stops. The chip's name and × are `<button>`s, and so is every
    icon-only control on the sheet (`.acks-extras-vehicle-icon`), each named
    and drawn as a bare glyph.
@@ -125,7 +125,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `acksExtras.lib.tables.registerTable({id:"travel", tables:{…}}, {priority: 20})`
    with a couple of invented rows).
    *Observable:* without tables every ground and wind factor is ×1 and the
-   reasons list carries the one `tablesMissing` line; with them the day's
+   reasons list carries no line for it (the derivation holds the one
+   `tablesMissing` reason); with them the day's
    miles scale per the registered rows. An impassable terrain refuses through
    `canEnter` (structural — no table needed) rather than returning a number.
    The miles-per-day cell reads "Not imported" until the `expedition` table is
@@ -166,9 +167,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 11. The sea's registry reads. On a
     disposable VESSEL with `shp.max` set: damage her below zero with NO
     `voyages` tables registered, open the sheet.
-    *Observable:* the hull block renders the UNPRICED sinking line (no
-    formula, no "null"); part-damage her instead and the repair line reads
-    the unpriced variant. Then register the invented `voyages` doc from
+    *Observable:* the hull block renders the bare sinking line (no
+    formula, no "null"); part-damage her instead and the repair line is
+    blank. Then register the invented `voyages` doc from
     `tools/test-vehicles.mjs`'s SAMPLE_VOYAGES and re-render: the sinking
     line carries the invented die, the repair line the invented gang and
     fraction. In page context, `navigationThrow`/`hazardThrow` return null

@@ -193,10 +193,7 @@ export async function buildMerchandiseFromTables() {
     return { made: [], skipped: [] };
   }
   const rows = tableRows();
-  if (!rows.length) {
-    ui.notifications?.warn(game.i18n.localize(`${LANG}.merchandise.migrate.noTable`));
-    return { made: [], skipped: [] };
-  }
+  if (!rows.length) return { made: [], skipped: [] };
   await primeMerchandiseCatalog();
   const present = new Set(merchandiseCatalog().filter((row) => row.source !== CATALOG_SOURCE.table).map((row) => row.key));
   const page = citeOf("mercantile", "merchandiseTypes") ?? "";

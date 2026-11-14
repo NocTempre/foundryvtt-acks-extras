@@ -78,7 +78,7 @@ export async function syncLoyalty(actor) {
 /**
  * A printed figure's provenance as one line a card, a ledger note or a
  * tooltip carries: the page the import read it from (else `cite`), a Judge's
- * override in the Ruledata Browser, or that it is not imported.
+ * override in the Ruledata Browser, or the page alone when it is not imported.
  * @param {{docId: string, tableId: string, cite: string}} from the table the figure is read from, and the page that prints it
  * @param {boolean} [read=true] whether the figure itself was read; a table holding the rest of its page but not this figure is not imported for it
  */
@@ -86,20 +86,16 @@ export function originText({ docId, tableId, cite }, read = true) {
   const origin = read ? optOrigin(docId, tableId) : { state: "missing", cite: null };
   if (origin.state === "override") return game.i18n.localize("ACKS-HENCHMEN.figure.override");
   if (origin.state === "imported") return game.i18n.format("ACKS-HENCHMEN.figure.imported", { cite: origin.cite ?? cite });
-  return game.i18n.format("ACKS-HENCHMEN.figure.missing", { cite });
+  return cite ?? "";
 }
 
 /**
  * What an Accept with élan adds to a hire's starting loyalty: the imported
- * figure (RR 166) when `elan` is set, else 0. Unread, it adds nothing and the
- * Judge is warned, naming the hire.
+ * figure (RR 166) when `elan` is set, else 0. Unread, it adds nothing.
  */
 export function elanFigure(name, elan) {
   if (!elan) return 0;
-  const figure = loyaltyChange("elan");
-  if (figure !== null) return figure;
-  ui.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.elan", { name }));
-  return 0;
+  return loyaltyChange("elan") ?? 0;
 }
 
 /** Append a permanent loyalty ledger entry and resync. */
@@ -160,7 +156,7 @@ export async function setPermanentCompensated(actor, { track = "loyalty", index,
 /**
  * Apply a resolved Hireling Loyalty outcome: event log, the permanent change
  * a Grudging or Fanatic result applies (the imported figure, its provenance
- * in the ledger note; unread, none is applied and the Judge is warned), a
+ * in the ledger note; unread, none is applied), a
  * departure card when the hireling leaves service, and the LOYALTY_ROLLED
  * hook. Shared by the module's ThrowDialog and the influence-hosted loyalty
  * page.
@@ -174,12 +170,7 @@ export async function applyLoyaltyOutcome(actor, { outcome, total = null, note =
     outcome,
   });
   const delta = loyaltyDeltaForOutcome(outcome);
-  if (delta === null) {
-    ui.notifications?.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.outcome", {
-      name: actor.name,
-      result: game.i18n.localize(`ACKS-HENCHMEN.outcome.${outcome}`),
-    }));
-  } else if (delta !== 0) {
+  if (delta !== null && delta !== 0) {
     await addLoyaltyPermanent(actor, delta, outcome === "fanatic" ? "fanatic" : "grudging", originText(LOYALTY_CHANGES));
   }
   if (outcomeLeavesService(outcome)) {
@@ -240,7 +231,7 @@ export function openLoyaltyRoll(actor, opts = {}) {
 
   const dynamicModifiers = employer ? toDialogModifiers(collectEffectModifiers(employer, "loyaltyRoll")) : [];
   // The stepper counts the levels; what each is worth is the import's. Unread,
-  // the count adds nothing, so a count above zero is named for the Judge.
+  // the count adds nothing.
   const perLevel = apparentLevelPenalty();
   // The result column is the import's; unread, the throw posts its total and
   // names no result, and applyLoyaltyOutcome then applies none.
@@ -251,10 +242,6 @@ export function openLoyaltyRoll(actor, opts = {}) {
     ...(outcomes ? { outcomes } : {}),
     derived: { effectiveLoyalty: effectiveLoyaltyFor(actor), apparentLevelDiff },
     stepValues: perLevel === null ? {} : { apparentLevelDiff: perLevel },
-    infoText:
-      perLevel === null && apparentLevelDiff > 0
-        ? game.i18n.format("ACKS-HENCHMEN.throwUi.apparentLevelUnread", { count: apparentLevelDiff })
-        : "",
     dynamicModifiers,
     onResolve: (result) => applyLoyaltyOutcome(actor, { outcome: result.outcome, total: result.total, note: opts.reason ?? "" }),
   });
@@ -303,7 +290,7 @@ export function openObedienceRoll(actor, opts = {}) {
  * Apply an obedience result — log it, and on a refusal offer the "insist"
  * card (RR 167: insisting costs the page's permanent loyalty and forces a
  * reroll). The button's tooltip names the penalty and the page it was read
- * from, or says the penalty is not imported and is not applied.
+ * from, or the page alone when the penalty is not imported.
  *
  * Shared by the module's own ThrowDialog and the influence-hosted page, so the
  * consequences do not depend on which UI produced the roll.
@@ -312,10 +299,8 @@ export async function applyObedienceOutcome(actor, { outcome, total, note = "" }
   await HenchmanRecord.logEvent(actor, { type: "obedienceRoll", note, rollTotal: total, outcome });
   if (outcome !== "refuses") return;
   const penalty = insistPenalty();
-  const tooltip =
-    penalty === null
-      ? game.i18n.localize("ACKS-HENCHMEN.card.insistTipUnread")
-      : game.i18n.format("ACKS-HENCHMEN.card.insistTip", { penalty, cite: optCite("morale", "hirelingObedience") ?? "RR 167" });
+  const cite = optCite("morale", "hirelingObedience") ?? "RR 167";
+  const tooltip = penalty === null ? cite : game.i18n.format("ACKS-HENCHMEN.card.insistTip", { penalty, cite });
   await postEventCard({
     titleKey: "ACKS-HENCHMEN.card.refusesTitle",
     bodyKey: "ACKS-HENCHMEN.card.refusesBody",
@@ -873,7 +858,7 @@ async function onUpdateActor(actor, changes) {
       let morale = record.morale ?? { base: 0, permanents: [] };
       // Permanent morale bumps at the levels the imported table names (RR
       // 166), each entry noting the level that earned it. Unread, none is
-      // recorded and the card says so.
+      // recorded.
       const crossed = levelMoraleBumps(known, newLevel);
       const bumps = (crossed ?? []).map(({ level, bonus }) => ({
         time: now(),
@@ -887,7 +872,7 @@ async function onUpdateActor(actor, changes) {
       await addLoyaltyPermanent(actor, newLevel - known, "levelGain");
       await postEventCard({
         titleKey: "ACKS-HENCHMEN.card.levelGainTitle",
-        bodyKey: crossed === null ? "ACKS-HENCHMEN.card.levelGainBodyUnread" : "ACKS-HENCHMEN.card.levelGainBody",
+        bodyKey: "ACKS-HENCHMEN.card.levelGainBody",
         data: { name: actor.name, level: newLevel },
         buttons: [
           { action: "rollLoyaltySecret", label: "ACKS-HENCHMEN.card.rollLoyalty", icon: "fas fa-user-secret", payload: { actorUuid: actor.uuid, reason: game.i18n.localize("ACKS-HENCHMEN.loyaltyReason.levelGain") } },
@@ -918,10 +903,9 @@ export function registerEventEngine() {
   registerCardAction("insistOrder", async ({ actorUuid }) => {
     const actor = await fromUuid(actorUuid);
     if (!actor) return;
-    // The penalty is the page's; unread, nothing is applied and the Judge is told.
+    // The penalty is the page's; unread, nothing is applied.
     const penalty = insistPenalty();
-    if (penalty === null) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.card.insistUnread"));
-    else if (penalty > 0) await addLoyaltyPermanent(actor, -penalty, "insistence");
+    if (penalty > 0) await addLoyaltyPermanent(actor, -penalty, "insistence");
     openObedienceRoll(actor, { reason: game.i18n.localize("ACKS-HENCHMEN.card.insisted") });
   });
   registerCardAction("payWages", async ({ employerUuid }) => {

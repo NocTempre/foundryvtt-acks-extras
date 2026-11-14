@@ -326,9 +326,9 @@ export const itemLossCite = () => citeOf(RULEDATA_DOC, ITEM_LOSS_TABLES.figures)
 /**
  * What the Durability tab says about item loss for one item, or null when the
  * overlay is off or the item is not a thing with a weight. `state` is the
- * item's class against the imported weights (`lossClassOf`) or `notImported`;
- * `tip` says where the answer came from: the weight and the bounds with their
- * page, or the tables still to import.
+ * item's class against the imported weights (`lossClassOf`) or `notImported`,
+ * which the tab shows as a blank value; `tip` says where the answer came from:
+ * the weight and the bounds with their page, and is empty when not imported.
  *
  * @param {Item} item
  * @param {object} [figures] the `itemLossFigures` shape; the import's when omitted
@@ -337,9 +337,7 @@ export const itemLossCite = () => citeOf(RULEDATA_DOC, ITEM_LOSS_TABLES.figures)
 export function itemLossFact(item, figures = itemLossFigures()) {
   if (!overlayEnabled() || !isPhysical(item)) return null;
   const missing = lossMissing({ figures, materials: itemLossMaterials() });
-  if (missing.length) {
-    return { state: "notImported", tip: game.i18n.format("ACKS-EQUIPMENT.itemLoss.notImportedTip", { tables: missing.join(", ") }) };
-  }
+  if (missing.length) return { state: "notImported", tip: "" };
   const weight6 = isClothing(item) ? figures.clothingStones * STONE : Number(item.system?.weight6 ?? 0);
   const state = lossClassOf(weight6, figures);
   const cite = citeOf(RULEDATA_DOC, ITEM_LOSS_TABLES.figures);

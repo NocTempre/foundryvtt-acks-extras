@@ -9,12 +9,9 @@ export { MODULE_ID };
 export const LANG = "ACKS-MARKETS";
 
 /**
- * Book-table document ids this feature reads, named to the GM at `ready` when
- * the tables declared for them are not all readable — so this list must match
- * the `expectTables` declarations in module.mjs, which are what the check
- * reads. The
- * `availability` doc is shared with henchmen and already announced there —
- * only ids no other feature announces belong here.
+ * Book-table document ids this feature reads, matching the `expectTables`
+ * declarations in module.mjs. The `availability` doc is shared with henchmen;
+ * only ids no other feature owns belong here.
  */
 export const RULEDATA = Object.freeze(["mercantile", "magicItems", "construction", "demand"]);
 

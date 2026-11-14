@@ -130,7 +130,6 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
 
   // Troops → counted merc stacks (one hidden prototype each).
   const stacks = [];
-  let baseMoraleUnread = false;
   for (const pick of troops) {
     const candidate = getCandidate(location, pick.candidateId);
     if (!candidate || candidate.status === "hired") continue;
@@ -145,9 +144,8 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
       // Mounted weight (command capacity) and RR 166 base morale.
       const mounted = MOUNTED_TYPES.has(candidate.troopType);
       // An unread base is stored as null (unknown), never as a 0 that claims
-      // the troop type adds nothing, and the hire says so once.
+      // the troop type adds nothing.
       const baseMorale = mercenaryMorale(candidate.troopType);
-      if (baseMorale === null) baseMoraleUnread = true;
       await groups.patchStack(group, key, (s) => {
         if (candidate.troopType) s.template.label = candidate.troopType;
         s.mounted = mounted;
@@ -156,7 +154,6 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     }
     await takeCandidateHeads(location, pick.candidateId, count);
   }
-  if (baseMoraleUnread) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.group.baseMoraleNotImported"));
 
   // Officer: a lone leveled actor, linked as commander, with the RR 171 morale
   // modifier and level cached on the group.
@@ -168,14 +165,13 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     officer = result?.actor ?? null;
     if (officer) {
       // An unread modifier is stored as null (unknown), never as a 0 that
-      // claims the officer adds nothing, and the hire says so.
+      // claims the officer adds nothing.
       const modifier = officerMoraleModifier(specialistType);
       await group.update({
         "system.unit.officerUuid": officer.uuid,
         "system.unit.officerMoraleBonus": modifier === null ? null : Math.max(0, modifier),
         "system.unit.officerLevel": commandLevel(specialistType, employer),
       });
-      if (modifier === null) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.group.officerMoraleNotImported"));
     }
   }
 

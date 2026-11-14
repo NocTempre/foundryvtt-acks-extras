@@ -48,9 +48,10 @@ agreement moves the price (`mercantile.impactProse`,
 randomized tariff's dice (`mercantile.tariffProse`, RR 372). The
 demand step fraction is derived per category from the merchandise row's own
 step and price. `engine/printed.mjs` is the one reader: it returns `null` for
-a value the world lacks, and the action that needs it refuses with a notice
-naming the missing table (`ACKS-MARKETS.ventures.table.*`,
-`trade.error.printedMissing`). No rule falls back to a stand-in number: a
+a value the world lacks, and the action that needs it refuses with
+`printedMissing`, the result naming the table (`ACKS-MARKETS.ventures.table.*`);
+a refusal whose only content is a missing table shows no text (`engine/refusal.mjs`).
+No rule falls back to a stand-in number: a
 demand step with no derivable fraction quotes unadjusted, a magic price with
 no multiple is `unpriced`, an identification method whose threshold is
 missing is not offered, and a till with no stated families has target 0 and
@@ -104,8 +105,8 @@ party's find.
   carries `magic` and `magicBaseGp`, and availability, the purchase preview,
   purchases, import orders and directed searches all band and price a magic
   row the same way. When the magic grid is not imported the equipment grid
-  stands in; the result carries `gridFallback`, the GM gets a whisper note on
-  the receipt and one console and screen warning per session. A magic item a
+  stands in; the result carries `gridFallback` and the console gets one warning
+  per session. A magic item a
   sale leaves embedded on the location is a catalog row of its own (`held`,
   `heldItemId`); buying it moves that item to the buyer, priced as magic
   stock and outside the monthly grid. Receipts whisper to the buyer's owners
@@ -365,7 +366,7 @@ party's find.
     `impactStep` this feature's `flags.acks-extras.marketImpact` (an Active
     Effect, or the typed effect the importer locates on the power), every one
     of which is the network's. A power held by name alone has neither, and
-    the Enter dialog says its value is not imported. The ledger note and
+    the Enter dialog shows no line for it. The ledger note and
     the card name the option used.
   - **A party may leave the market** (`leaveMarket`, `leaveVentureMarket`),
     in the venture the trader acts in: the month's row stays with `entered`

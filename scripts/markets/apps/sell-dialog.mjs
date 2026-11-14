@@ -6,7 +6,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performSell, salePlan, demandStepsFor, categoryOf, availabilityFor } from "../engine/trade.mjs";
-import { tableLabel } from "../engine/printed.mjs";
+import { refusalText, availabilityText } from "../engine/refusal.mjs";
 import { toGp } from "../rules/pricing.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -46,7 +46,6 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     context.item = { name: this.item.name, img: this.item.img, costGp: Number(itemData.system?.cost ?? 0) };
     context.previewGp = toGp(plan.unitCp);
     context.basis = game.i18n.localize(`${LANG}.sale.basis.${plan.basis}`);
-    context.tableNote = plan.missing ? game.i18n.format(`${LANG}.trade.error.printedMissing`, { table: tableLabel(plan.missing) }) : "";
     context.stackable = itemData.type === "item";
     context.carried = Number(itemData.system?.quantity?.value ?? 1) || 1;
     const avail = availabilityFor(this.location, {
@@ -57,7 +56,7 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       magic: plan.magic,
       magicBaseGp: plan.bandValueGp,
     });
-    context.availability = game.i18n.format(`${LANG}.availability.${avail.status}`, avail);
+    context.availability = availabilityText(avail);
     return context;
   }
 
@@ -72,9 +71,8 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {
-      ui.notifications.warn(
-        game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result })
-      );
+      const text = refusalText(result.error, result);
+      if (text) ui.notifications.warn(text);
       return;
     }
     if (result?.ok) {

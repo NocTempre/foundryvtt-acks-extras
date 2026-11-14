@@ -319,9 +319,9 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
      undefined. The same armour with no loss never shows the button. This is
      also how a loss fixture is reset.
    - **Absent.** Unregister the tables (or use a world that never imported):
-     *Observable:* the macro's dialog says what is not imported and offers no
-     form, `planItemLoss` answers `ready: false`, and the Durability tab's Item
-     loss fact and the Materials note read not imported.
+     *Observable:* the macro opens no window, `planItemLoss` answers
+     `ready: false`, and the Durability tab's Item loss fact value and the
+     Materials note are blank.
    - **The setting off.** *Observable:* the macro warns that the overlay is off,
      `applyItemLoss` refuses, and the Durability tab has no Item loss fact.
    An override set in the Ruledata Browser on `equipment.itemLoss` wins and
@@ -511,8 +511,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     *Observable:* the snapshot reads `1d10` after the typing, damage reads
     `1d10` after each clear, and `flags.acks-extras.pristine` is gone after the
     last. With the library variation absent, the tier stamps nothing, the
-    Details ledger lists the layer as *not imported* with no figure, and its
-    tooltip names the key; with it present the ledger line's tooltip names the
+    Details ledger lists the layer with a blank figure and no tooltip; with it present the ledger line's tooltip names the
     document and its page, or *Set by hand* on a hand-made one. The
     importer's library notices stack over the top of a sheet at load; move the
     sheet below them before clicking the pencil.
@@ -542,8 +541,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 17. **The scavenged condition reads the imported grid alone.** With no
     condition table imported, open the Battle Axe's Construction tab.
     *Observable:* the condition picker offers Pristine alone, the roll button
-    is disabled, "not imported" shows beside them, and
-    `api.equipment.scavengeItem(item)` warns and returns null with the item
+    is disabled with the page as its tooltip, and
+    `api.equipment.scavengeItem(item)` returns null with no notice and the item
     unchanged. Import the equipment tables (or set the condition rows in
     `Settings tab → Game Settings → ACKS II — Extras → Imported Rules
     Tables`). *Observable:* the picker lists the imported rows, hovering it
@@ -935,7 +934,7 @@ removed, what it could not find and what refused.
 
 The step an Armour Training ability raises the armour rungs by is its
 imported `modifies`/`armor` row's value times its rank; with no row the
-Stats tab says the step is not imported (MODEL, "Armour Training's step").
+Stats tab's line is blank, with no tooltip (MODEL, "Armour Training's step").
 Walked by `tools/live/typed-modifiers.mjs` (`STAGE=3`), which marks the two
 items `equipment/armour-step-hand` and `equipment/armour-step-row`.
 
@@ -985,9 +984,9 @@ items `equipment/armour-step-hand` and `equipment/armour-step-row`.
 5. Give the character two more hand-made "Armour Training" copies (rank 3,
    built and swept by the run). On the first one's sheet, Add a row: kind
    Modifies, Domain Armor, Value Flat 2. *Observable:* its Stats line now
-   reads the rungs it adds (step 2 × rank 3), the other two copies still say
-   "step not imported", and the rungs end at Heavy. Delete the row again.
-   *Observable:* "step not imported" is back. Delete the two extra copies.
+   reads the rungs it adds (step 2 × rank 3), the other two copies' lines are
+   still blank, and the rungs end at Heavy. Delete the row again.
+   *Observable:* the line is blank again. Delete the two extra copies.
 6. **Player seat** owning the fixture: open both item sheets. *Observable:*
    the Imported mechanics rows show no Edit, Delete or Add controls; the
    Stats tab lines and their tooltips read as on the GM seat.
@@ -1251,11 +1250,11 @@ the imported documents").
    documents' figures; the ledger lines' tooltips name the document and its
    page. A hand-made `masterwork.weaponDamage` variation reads *Set by hand*.
 3. Remove the variations from the library. *Observable:* the next recompute
-   stamps nothing, the ledger lists each layer as *not imported* with no
-   figure, its tooltip names the variation key, and the Net row says so.
+   stamps nothing, the ledger lists each layer with a blank figure and no
+   tooltip, and the Net row leaves the layers out.
 4. **Player seat** (`connect({user: "Player"})`): repeat step 2's recompute
    on an owned item. *Observable:* the figures read as the GM seat read them;
-   a seat that cannot open the shelf reads *not imported*, which is the case
+   a seat that cannot open the shelf reads them blank, which is the case
    this step is looking for.
 5. Where a minted variation's figure came from (`printed-layers.mjs`
    `sourceOf`, `provenanceTip`) is checked offline: the import stamp's
@@ -1304,17 +1303,16 @@ book", below, walks the rows themselves and the layers of the registry.)
    *read from the weapon table's row* tooltip as `data-tooltip-text` on the
    row, never on the select (a select disabled until the sheet is armed raises
    no pointer events); the type row carries the *set on this item* one. No
-   "not imported" text in the notes, the class and size rows, the Rolls lines
-   or the Rolls tags. The container that states a capacity shows it and no
-   note; the one that only holds gear reads *capacity not imported* with the
-   explanatory tooltip.
+   text of any kind where a figure is missing: the notes, the class and size
+   rows, the Rolls lines and the Rolls tags are blank. The container that
+   states a capacity shows it; the one that only holds gear shows its load with
+   no capacity and no tooltip.
 3. Register an empty source, and render a fresh item sheet and a fresh
-   character sheet inside the one `try`. *Observable:* the type note says no
-   table is imported, the grips note says the size is not imported, the class
-   and size rows read *not imported*, all four figures carry the *not
-   imported* tooltip, and a Rolls row carries *Proficiency not imported*
-   instead of a refusal. The character sheet still renders the weapon and
-   both containers.
+   character sheet inside the one `try`. *Observable:* there is no type note,
+   the grips note names the grips alone, the class and size rows show an Auto
+   option with no guess, all four figures carry no tooltip, and a Rolls row
+   carries no proficiency tag and no refusal. The character sheet still renders
+   the weapon and both containers.
 4. After the `finally`. *Observable:* the first row is the same object, the key
    count is the one found, and a fresh item sheet reads from the row again.
 5. *Observable:* no console error on either seat over the whole walk.
@@ -1403,13 +1401,13 @@ prints booleans and counts, never a page figure or a row's name.
 2. The container bound from a price row. *Observable:* the Details tab shows
    Holds other items ticked and a filled capacity field, whose label tooltip
    is `printed.fromPage` with the stamp's citation; the Contents tab shows the
-   figure with the same tooltip and no "not imported". Press the pencil, type a
+   figure with the same tooltip. Press the pencil, type a
    capacity over it: the tooltip becomes `editedByHand`. Clear the field:
-   `holds` stays, the capacity is gone, the tooltip is the not-imported one and
-   carries no digit. The Player seat's model reads the same.
+   `holds` stays, the capacity is gone and the tooltip is empty. The Player
+   seat's model reads the same.
 3. The container with no stated capacity. *Observable:* a container with no
-   limit; the capacity field is empty, its tooltip the not-imported one, and
-   the Contents tab says "not imported" beside no figure.
+   limit; the capacity field is empty with no tooltip, and the Contents tab
+   shows the load with no capacity figure.
 4. Holds other items. Press the pencil on the plain sack, then the checkbox.
    *Observable:* `gear.holds` is true and no capacity is stated; the capacity
    field appears empty; a figure typed there reads `byHand`; unticking the box
@@ -1432,15 +1430,15 @@ prints booleans and counts, never a page figure or a row's name.
    none.
 6. The unarmed strike. *Observable:* imported, the strike's formula is the
    table's die. With an override holding none, the formula is blank and
-   `rollUnarmed` says `unarmedNoDie` and posts its attack card (tracked, swept
+   `rollUnarmed` says nothing and posts its attack card (tracked, swept
    by id). An invented die in the override wins; text that is not `NdM` counts
    as none.
 7. Clear the run's two overrides. *Observable:* none left, and the registry
    serves the imported counts again on both seats.
 
 What it cannot reach: the equipment tab's container header (the actor sheet's
-bucket note), the Effects tab's Granted While Equipped row an undecided finesse
-size leaves a tooltip on (needs a finesse effect, an equipped weapon and roll automation on), and a
+bucket note), the Effects tab's Granted While Equipped row for a finesse effect
+(needs an equipped weapon and roll automation on), and a
 rebuild that rewrites a stamped capacity (`REPAIR` is covered by the unit
 suites only).
 
@@ -1493,11 +1491,11 @@ prints booleans and counts, never a page figure.
    a page, and the other rows do not move. Clear it; the imported figure
    returns.
 5. The absent case. Blank `maneuverPenalties.knockDown` in an override.
-   *Observable:* the Knock Down row says *penalty not imported*, shows no digit
-   on its line, its pinned cell and its tooltip, and is still rollable; Roll
-   warns naming `maneuverPenalties.knockDown`; the attack dialog carries no
-   manoeuvre row; the other rows are unchanged. Blank `combatTrickery.reduction`
-   instead: the Trickery rows go to *not imported* and a plain row does not.
+   *Observable:* the Knock Down row shows no digit on its line, its pinned
+   cell and its tooltip, and is still rollable; Roll posts no notice; the attack
+   dialog carries no manoeuvre row; the other rows are unchanged. Blank
+   `combatTrickery.reduction` instead: the Trickery rows go blank and a plain
+   row does not.
 6. Read the five tables on the Player seat. *Observable:* the same key counts.
 7. Clear the run's overrides. *Observable:* none left, and the registry serves
    the imported counts again on both seats.
@@ -1548,8 +1546,8 @@ connected. The walk prints booleans and counts, never a page figure.
    capacity tooltip names the Ruledata Browser, and saving the spells warns
    with the used and capacity counts. Clear it; the imported figure returns.
 5. The absent case. Blank `spellBookPages.pages` in an override. *Observable:*
-   the Pages line shows the pages used and "not imported", no capacity digit
-   and no bar; its tooltip says not imported; `pagesCapacity` answers null and
+   the Pages line shows the pages used alone, no capacity digit
+   and no bar; its tooltip is empty; `pagesCapacity` answers null and
    saving the spells never warns. Create a second spell book and save a spell:
    its flag record holds the spell and no `pages`.
 6. Blank `spellBookBlank.value`, then restore it and blank
@@ -1647,8 +1645,8 @@ cards the system posts and the tooltips.
    *Observable:* the header follows with no re-import, and its tooltip now
    says the figures are the Judge's.
 5. Clear the override, then clear the class-builder tables. *Observable:* the
-   ability reads as undecided, the tooltip says "not imported" and shows no
-   figure.
+   ability reads as undecided, the header lists none and its tooltip is
+   empty.
 6. Open the Judge-own ability's limitation row in the row editor, choose a
    rung and tick the shield box. *Observable:* the row keeps the editor's
    figures after a re-render, an imported row opened and closed without

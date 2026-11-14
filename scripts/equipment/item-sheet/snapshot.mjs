@@ -11,10 +11,10 @@
 import { MODULE_ID, ITEM_FLAGS, LANG, EFFECT_DOMAINS, SETTINGS } from "../constants.mjs";
 import { FLAG_GEAR } from "../../lib/constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { finesseTakes, finesseSizesImported } from "../attack-mods.mjs";
+import { finesseTakes } from "../attack-mods.mjs";
 import { isDisguised, readiedWeaponData } from "../actions.mjs";
 import { masterworkTierOf, scavengedOf, itemLossAcOf, silveredFlagOf, pristineOf, layerDeltas, unstatedLayers } from "../properties.mjs";
-import { silverFigure, masterworkFigure, provenanceTip, notImportedTip, capacityTip } from "../printed-layers.mjs";
+import { silverFigure, masterworkFigure, provenanceTip, capacityTip } from "../printed-layers.mjs";
 import { variationItemsOf, itemBaseType } from "../variation-items.mjs";
 import { containerOf, isContainer, isLocked, canSeeInside } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, pagesUsed, pagesCapacity, spellbookFigureTip } from "../spellbook.mjs";
@@ -24,7 +24,7 @@ import { classifyWeapon, inferGear, isShield, isHelmet } from "../profiles.mjs";
 import { wearLabel } from "../wear.mjs";
 import { collectEffectModifiers, hasEffectFlag, stringFlagValue } from "../effects.mjs";
 import { getLoadout } from "../loadout.mjs";
-import { isWeaponProficient, weaponProficiencyDecided } from "../proficiency.mjs";
+import { isWeaponProficient } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
@@ -170,14 +170,8 @@ function inheritedGrants(item, actor) {
     const finesse = !!loadout && game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION) &&
       !loadout.nonProficientUse && !usingNonProfWeapon && dex > str &&
       finesseTakes(profile.size) !== false && hasEffectFlag(actor, EFFECT_DOMAINS.FINESSE);
-    // A figure the gate could not decide is taken as no refusal, and the row
-    // says which figure it is: the size, the proficiency, or both.
-    const undecided = [
-      profile.size == null ? loc("itemSheet.grant.finesseSizeUnknown") : "",
-      !finesseSizesImported() ? loc("itemSheet.grant.finesseSizesNotImported") : "",
-      !!loadout && !weaponProficiencyDecided(actor, profile) ? loc("itemSheet.grant.proficiencyUndecided") : "",
-    ].filter(Boolean).join(" ");
-    if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute"), tip: undecided });
+    // A figure the gate could not decide is taken as no refusal.
+    if (finesse && dex) out.push({ label: loc("itemSheet.grant.dexterity", { n: scores.dex?.value ?? "" }), detail: `${signed(dex)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
     else if (str) out.push({ label: loc("itemSheet.grant.strength", { n: scores.str?.value ?? "" }), detail: `${signed(str)} ${loc("itemSheet.grant.attackMelee")}`, src: loc("itemSheet.src.attribute") });
 
     // Mirrors roll-wrap.mjs's damage-attribute substitution: a domain-named
@@ -255,11 +249,10 @@ function priceOf(item, marketsFlag) {
     : null;
   const svFigure = silveredFlagOf(item) === true ? silverFigure() : null;
   // A layer the item is set to whose document is not imported is a line with
-  // no figure, so the ledger says so rather than leaving the layer out.
+  // a blank figure and no tooltip, so the layer stays listed.
   const unstated = unstatedLayers(item).map((u) => ({
     key: u.layer,
     label: u.layer === "silver" ? loc("itemSheet.ledger.silver") : game.i18n.localize(`ACKS-EQUIPMENT.masterwork.${u.tier}`),
-    tip: notImportedTip(u.key),
   }));
   const sc = scavengedOf(item);
   const ledger = priceLedger({

@@ -199,7 +199,7 @@ function ambientLight(actor) {
  * The brightest light this character is carrying lit and unshuttered, with its
  * burn-down. `reach` and `turns` are the imported figures (RR p. 265), null
  * when not imported; a lit source with no reach still answers, so the cell can
- * say the light burns and that its reach is not imported. `cite` is the page
+ * name the light that burns with a blank reach. `cite` is the page
  * the figures were read from.
  */
 function litSource(actor) {
@@ -217,8 +217,8 @@ function litSource(actor) {
 
 /**
  * The dark-sense this character sees by, if any: its kind and its reach. A
- * sense whose radius is not imported answers a null `range`, so the cell says
- * so and shows no figure.
+ * sense whose radius is not imported answers a null `range`, so the cell shows
+ * no figure.
  */
 function darkSense(actor) {
   const profile = senseProfile(actor);

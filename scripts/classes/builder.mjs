@@ -147,9 +147,18 @@ function planLines(plan) {
   return lines;
 }
 
-/** Localize one engine issue. */
+/**
+ * Localize one engine issue. An issue whose only content would be that a
+ * table is not imported has no string and answers "".
+ */
 export function issueLabel(issue) {
-  return game.i18n.format(`${LANG_PREFIX}.builder.issues.${issue.key}`, issue);
+  const key = `${LANG_PREFIX}.builder.issues.${issue.key}`;
+  return game.i18n.has(key) ? game.i18n.format(key, issue) : "";
+}
+
+/** The shown lines of a plan's issues: one per issue that has a string. */
+export function issueLabels(issues) {
+  return issues.map(issueLabel).filter(Boolean);
 }
 
 /**
@@ -160,7 +169,7 @@ export function issueLabel(issue) {
 export async function applyBuilder(classItem) {
   const plan = planFor(classItem);
   const lines = planLines(plan);
-  const issues = plan.issues.map(issueLabel);
+  const issues = issueLabels(plan.issues);
   const content = [
     `<p>${esc(game.i18n.localize(`${LANG_PREFIX}.builder.confirmIntro`))}</p>`,
     `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`,

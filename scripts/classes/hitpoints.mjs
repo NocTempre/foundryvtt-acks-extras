@@ -150,7 +150,7 @@ export function hdAt(classItem, level) {
  * @param {object} [options]
  * @param {number|null} [options.dieMinimum] the printed 1st-level floor;
  *   defaults to whatever the world has imported, and null (no floor, recorded
- *   as not imported) where it has none
+ *   as null) where it has none
  * @returns {Promise<{max: number, steps: object[]}|null>} `steps` are the
  *   record's (`hpRollStep`), one per level; null, with nothing rolled, where
  *   the class prints no hit-dice cell
@@ -269,7 +269,7 @@ function stepText(s) {
   const faces = Array.isArray(s.faces) ? s.faces.join(", ") : fmt("facesUnknown");
   const parts = [fmt("conPerDie", { con: signedMod(s.con) })];
   if (s.flat) parts.push(fmt("flat", { flat: signedMod(s.flat) }));
-  if (s.floor !== undefined) parts.push(s.floor == null ? fmt("floorNone") : fmt("floor", { floor: s.floor }));
+  if (s.floor != null) parts.push(fmt("floor", { floor: s.floor }));
   const text = fmt(s.whole ? "stepWhole" : "stepRoll", { ...data, formula: s.formula ?? "", faces, parts: parts.join(", ") });
   return s.prior !== undefined ? `${text} ${fmt("prior", { prior: s.prior })}` : text;
 }

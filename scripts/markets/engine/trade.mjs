@@ -167,12 +167,9 @@ async function postGmNote({ trader, html }) {
   });
 }
 
-/** The GM-only lines behind a receipt: the scarce-goods roll record and the grid-fallback note. */
-const gmDetailLines = ({ existRow, gridFallback }) =>
-  [
-    existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null,
-    gridFallback ? game.i18n.localize(`${LANG}.trade.gridFallbackNote`) : null,
-  ].filter(Boolean);
+/** The GM-only lines behind a receipt: the scarce-goods roll record. */
+const gmDetailLines = ({ existRow }) =>
+  [existRow ? `${game.i18n.localize(`${LANG}.trade.existence`)}: ${existRow.detail}` : null].filter(Boolean);
 
 /** Append a market-log line, capped to the recent past. */
 function appendLog(logRows, entry) {
@@ -470,13 +467,13 @@ export async function purchase(location, payload) {
   // scarce-goods roll record and any grid diagnostic go to the GM alone.
   const lines = [
     `<strong>${game.i18n.format(`${LANG}.trade.boughtLine`, { buyer: buyer.name, qty, name: itemData.name, location: location.name })}</strong>`,
-    ...priced.breakdown.map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
+    ...priced.breakdown.filter((b) => b.label !== "demandUnpriced").map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
     opposed ? opposed.detail : null,
     `<strong>${game.i18n.format(`${LANG}.trade.totalLine`, { total: totalGp })}</strong>`,
   ].filter(Boolean);
   await postReceipt({ location, trader: buyer, html: lines.join("<br>") });
   const gridFallback = !!monthState?.gridFallback;
-  const gmLines = gmDetailLines({ existRow: monthState?.existRow, gridFallback });
+  const gmLines = gmDetailLines({ existRow: monthState?.existRow });
   if (gmLines.length) await postGmNote({ trader: buyer, html: gmLines.join("<br>") });
 
   Hooks.callAll(HOOKS.PURCHASED, { location, buyer, itemName: itemData.name, qty, totalGp });
@@ -678,10 +675,10 @@ let gridFallbackWarned = false;
 
 /**
  * The availability grid a trade prices volume on — `{rows, fallback}` — or
- * null when the world has not imported it: a market without its tables must
- * degrade to a message, never break the sheet. A magic trade whose own grid is
- * missing falls back to the equipment grid (`fallback: true`) and the GM is
- * told once per session.
+ * null when the world has not imported it: a market without its tables
+ * answers null, never breaks the sheet. A magic trade whose own grid is
+ * missing falls back to the equipment grid (`fallback: true`) and the console
+ * is told once per session.
  */
 export function bandGridFor(magic) {
   if (magic) {
@@ -694,12 +691,11 @@ export function bandGridFor(magic) {
   return { rows, fallback: !!magic };
 }
 
-/** Warn the console, and the GM's screen, once per session that magic trades are on the equipment grid. */
+/** Warn the console once per session that magic trades are on the equipment grid. */
 function noteGridFallback() {
   if (gridFallbackWarned) return;
   gridFallbackWarned = true;
   console.warn(`${MODULE_ID} | the magic-item transaction grid is not imported; magic trades use the equipment availability grid`);
-  if (game.user?.isGM) ui?.notifications?.warn(game.i18n.localize(`${LANG}.trade.gridFallback`));
 }
 
 /**
@@ -814,12 +810,12 @@ export async function sell(location, payload) {
 
   const lines = [
     `<strong>${game.i18n.format(`${LANG}.trade.soldLine`, { seller: seller.name, qty, name: itemData.name, location: location.name })}</strong>`,
-    ...plan.breakdown.map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
+    ...plan.breakdown.filter((b) => b.label !== "demandUnpriced").map((b) => `${game.i18n.localize(`${LANG}.trade.stage.${b.label}`)}: ${toGp(b.cp)}gp`),
     opposed ? opposed.detail : null,
     `<strong>${game.i18n.format(`${LANG}.trade.earnedLine`, { total: totalGp })}</strong>`,
   ].filter(Boolean);
   await postReceipt({ location, trader: seller, html: lines.join("<br>") });
-  const gmLines = gmDetailLines({ existRow, gridFallback });
+  const gmLines = gmDetailLines({ existRow });
   if (gmLines.length) await postGmNote({ trader: seller, html: gmLines.join("<br>") });
 
   Hooks.callAll(HOOKS.SOLD, { location, seller, itemName: itemData.name, qty, totalGp });

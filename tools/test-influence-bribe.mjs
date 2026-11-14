@@ -278,7 +278,7 @@ await test("with no reaction table imported the roll names no result and moves n
   resetTables();
   const { card, payload } = await rollDiplomacy({ attempt: 0, currentAttitude: 3 });
   assert.equal(card.bandLabel, "");
-  assert.equal(card.noResult, "ACKS-INFLUENCE.tone.noResult");
+  assert.equal("noResult" in card, false, "and the card carries no line about it");
   assert.equal(card.resultAttitude, INFLUENCE_ATTITUDE_LABELS.diplomacy[3], "the attitude stays where it was");
   assert.equal(payload.band, null);
   assert.equal(payload.newAttitude, 3);

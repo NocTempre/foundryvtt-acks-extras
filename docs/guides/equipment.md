@@ -153,7 +153,7 @@ Any weapon can be silvered, not only the one the price list names (RR p. 159).
 Open the weapon, go to its **Details** tab, then **Construction**, and set
 *Silver* to **Silvered** — the price is scaled by the silvering figure your
 import read from your own book, and nothing else about the weapon changes. With
-the figure not imported, the field says *not imported* and applies nothing; a
+the figure not imported, the field shows no figure and applies nothing; a
 variation of your own can stand in
 ([writing your own](#writing-your-own)).
 
@@ -421,8 +421,8 @@ the art, its toolbar wrapped onto a second row above the text.*
   the character's own Lockpicking or Dungeon Bashing. A manoeuvre's row shows
   the penalty the throw will carry, its tooltip naming the parts and the pages
   they were read from; the figures come from your own books on import, and a
-  manoeuvre whose penalty is not imported says so, shows no figure and rolls
-  without one, telling you which tables it went without.
+  manoeuvre whose penalty is not imported shows no figure and rolls
+  without one.
 - **Chart** — drop a Scene on any item and it becomes a chart of that scene;
   *Update From Exploration* captures the explored fog of war and records how
   much of the scene is charted.
@@ -451,7 +451,7 @@ that names what it accepts.*
   variations, the feature switches (*Holds other items*, capacity, *Will
   Accept* kinds and the refusal message; an imported container's capacity is the
   one its price row in the book states, and a container whose row states none
-  reads *not imported* until you type one), the construction controls (their shape is *Worn at*,
+  shows no capacity until you type one), the construction controls (their shape is *Worn at*,
   above), and the core record fields.
 
 An item with nothing to roll, no effects, no durability and no contents — coin,
@@ -480,8 +480,8 @@ character when nothing is selected.
   an area attack (JJ p. 398): it asks for the hit points after the attack, the
   damage type and the direction, shows which items are destroyed or damaged,
   and on Apply marks them on their own sheets (the item sheet's Durability
-  tab). It runs on the figures your own Judges Journal imported and says what
-  is not imported when they are missing. The **Overlay: item loss from damage
+  tab). It runs on the figures your own Judges Journal imported and opens no
+  window when they are missing. The **Overlay: item loss from damage
   (JJ)** setting must be on in Game Settings.
 - **Recover Thrown Weapons** clears the thrown state of the actor's weapons,
   so they are back in hand and weigh again.

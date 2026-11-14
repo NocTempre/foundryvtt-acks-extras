@@ -42,8 +42,6 @@
     <strong>{{#if isContinuing}}{{localize 'ACKS-INFLUENCE.chat.attitude'}}{{else}}{{localize 'ACKS-INFLUENCE.chat.initialAttitude'}}{{/if}}:</strong>
     {{startAttitude}} &rarr; <span class="influence-chat-new">{{resultAttitude}}</span>
   </div>
-  {{else}}
-  <div class="influence-chat-band">{{noResult}}</div>
   {{/if}}
 
   {{#if shiftDescription}}
@@ -65,13 +63,6 @@
     <div class="influence-chat-bewitched">
       <i class="fa-solid fa-wand-magic-sparkles"></i>
       <span><strong>{{localize 'ACKS-INFLUENCE.chat.bewitchedLabel'}}:</strong> {{localize 'ACKS-INFLUENCE.chat.bewitched'}}</span>
-    </div>
-  {{/if}}
-
-  {{#if bewitchUnread}}
-    <div class="influence-chat-bewitched">
-      <i class="fa-solid fa-wand-magic-sparkles"></i>
-      <span><strong>{{localize 'ACKS-INFLUENCE.chat.bewitchedLabel'}}:</strong> {{localize 'ACKS-INFLUENCE.chat.bewitchUnread'}}</span>
     </div>
   {{/if}}
 

@@ -99,7 +99,7 @@ export async function settleAdvance(actor, classItem, before) {
       .join("");
   const count =
     limit == null
-      ? loc("limitUnread", { general })
+      ? loc("held", { general })
       : loc("limit", { general, limit, levelPicks, intBonus: Math.max(0, intBonus), implicitSlots, over });
   const content = `
     <div class="acks-extras-classes-levelup-body">

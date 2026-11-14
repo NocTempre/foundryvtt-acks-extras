@@ -80,16 +80,12 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
 
   // The peaceful offer needs the imported hiring table; with none, the throw does not open.
   const printed = captured ? null : hiringOffer();
-  if (!captured && !printed.outcomes) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
-    return;
-  }
+  if (!captured && !printed.outcomes) return;
   // The captured offer's outcomes and opposite-alignment figure are imported; unread, the throw rolls, names no result and hires nothing.
   let irrefusable = {};
   if (captured) {
     const outcomes = irrefusableOutcomes();
     const opposite = oppositeAlignmentFigure();
-    if (!outcomes) ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"));
     irrefusable = {
       ...(outcomes ? { outcomes } : {}),
       stepValues: opposite === null ? {} : { oppositeAlignment: opposite },
@@ -131,20 +127,13 @@ export function recruitMonster(monster, employer, { captured = false } = {}) {
  * Hire a captured monster on its Irrefusable Offer result (MM 351), at the
  * imported start `irrefusableStart` gives it; a feigned acceptance is still
  * hired, and the GM is told. Nothing is hired for a roll that named no
- * result, or a result whose start is not imported, and the latter is warned.
+ * result, or a result whose start is not imported.
  * @returns {Promise<{actor: Actor}|null>}
  */
 export async function applyIrrefusableOutcome(monster, employer, outcome) {
   const start = irrefusableStart(outcome);
   if (!start) return null;
-  if (start.figure === null) {
-    ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.loyaltyUnread.irrefusable", {
-      name: monster.name,
-      result: game.i18n.localize(`ACKS-HENCHMEN.outcome.${outcome}`),
-      cite: start.cite,
-    }));
-    return null;
-  }
+  if (start.figure === null) return null;
   return hireMonster(monster, employer, { irrefusableOutcome: outcome, irrefusable: start.figure, startOrigin: originText(start) });
 }
 

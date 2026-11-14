@@ -453,9 +453,8 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     r.grip.title = r.grip.held
       ? loc("rail.grip", { weapons: snap.grip.weapons.map((w) => w.name).join(", "), cleaves: snap.grip.cleaves })
       : loc("rail.gripEmpty");
-    // A carried source's reach names the page it was read from, or says it is
-    // not imported.
-    // A dark sense's radius that is not imported says so the same way.
+    // A carried source's reach names the page it was read from; with the reach
+    // or the radius of a dark sense not imported the title names the source alone.
     const darkSense = r.light.key === "shadowy" || r.light.key === "lightless";
     r.light.title = r.light.imported === false
       ? darkSense

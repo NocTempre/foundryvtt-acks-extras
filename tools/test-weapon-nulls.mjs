@@ -258,7 +258,7 @@ check("a row with no recorded page says so instead of a page", figures.figureTip
 const decl = figures.figureState({ key: "zorgle", field: "size", declared: "large" });
 check("a figure the item declares says it outranks the row", decl.state === figures.FIGURE_STATE.DECLARED && figures.figureTip(decl, "Size").includes("figureDeclared"));
 const miss = figures.figureState({ key: "quib", field: "size" });
-check("a figure the row leaves out is not imported", miss.state === figures.FIGURE_STATE.MISSING && figures.figureTip(miss, "Size").includes("figureMissing"));
+check("a figure the row leaves out is not imported and has no tooltip", miss.state === figures.FIGURE_STATE.MISSING && figures.figureTip(miss, "Size") === "");
 check("a weapon no row holds is not imported either, and a blank declaration is none", figures.figureState({ key: null, field: "size" }).state === figures.FIGURE_STATE.MISSING && figures.figureState({ key: "quib", field: "size", declared: "" }).state === figures.FIGURE_STATE.MISSING);
 check("the row itself is a figure: present, or missing", figures.figureState({ key: "zorgle", field: null }).state === figures.FIGURE_STATE.ROW && figures.figureState({ key: "nothing", field: null }).state === figures.FIGURE_STATE.MISSING);
 check("the tooltip of a missing figure carries no number", !/\d/.test(figures.figureTip(miss, "Size")));

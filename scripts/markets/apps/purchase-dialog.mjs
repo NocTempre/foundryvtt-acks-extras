@@ -8,6 +8,7 @@ import { MODULE_ID, LANG } from "../constants.mjs";
 import { performPurchase, availabilityFor, buyQuote } from "../engine/trade.mjs";
 import { performImportOrder } from "../engine/imports.mjs";
 import { hubWait, marketRules } from "../engine/printed.mjs";
+import { refusalText, availabilityText } from "../engine/refusal.mjs";
 import { toGp } from "../rules/pricing.mjs";
 import { magicBasisOf } from "../rules/goods.mjs";
 import { partySize, partyOf } from "../engine/parties.mjs";
@@ -62,17 +63,14 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
           magic,
           magicBaseGp: baseGp,
         });
-    let label = game.i18n.format(`${LANG}.availability.${avail.status}`, avail);
-    if (avail.gridFallback && game.user.isGM) label += ` ${game.i18n.localize(`${LANG}.trade.gridFallbackNote`)}`;
-    context.availability = { ...avail, label };
+    context.availability = { ...avail, label: availabilityText(avail) };
     // Preview at list conditions: demand steps included, Bargaining not —
     // the swing depends on who buys and what the merchant rolls. Magic stock
     // has neither: the flat Tower price. A price the imported tables cannot
-    // support previews as zero with the missing table named.
+    // support previews as zero.
     const goods = this.location.system.market.goods;
     const preview = buyQuote({ itemData: this.item, costGp: this.item.costGp, magic, magicBaseGp: baseGp, goods });
     context.previewGp = preview.error ? 0 : toGp(preview.unitCp);
-    context.tableNote = preview.error ? game.i18n.format(`${LANG}.trade.error.printedMissing`, { table: preview.table }) : "";
     const crowd = marketRules(["crowdSize"]);
     context.partyLarge = !!(first && crowd && partySize(partyOf(first).id) >= crowd.crowdSize);
     // A hub's wait shows only as imported; unread, the option names the hub alone.
@@ -110,9 +108,8 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
           ...(this.item.held ? { heldItemId: this.item.heldItemId } : {}),
         });
     if (result?.error) {
-      ui.notifications.warn(
-        game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result })
-      );
+      const text = refusalText(result.error, result);
+      if (text) ui.notifications.warn(text);
       return;
     }
     if (!result?.ok) return;

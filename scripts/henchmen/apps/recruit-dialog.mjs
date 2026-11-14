@@ -118,10 +118,7 @@ async function launchOffer({ location, employer, offer }) {
 
   // Fallback: the module's own throw dialog, which needs every printed figure.
   const printed = hiringOffer();
-  if (!hiringOfferComplete(printed)) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.recruit.hiringNotImported"));
-    return;
-  }
+  if (!hiringOfferComplete(printed)) return;
   const optionLabels = { signingBonus: {} };
   for (const [tier, gp] of Object.entries(signing.tiers)) {
     optionLabels.signingBonus[`tier${tier}`] = game.i18n.format("ACKS-HENCHMEN.mod.signingBonusTierLabel", {

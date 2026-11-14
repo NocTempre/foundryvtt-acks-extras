@@ -96,21 +96,20 @@ function buildWornSection(actor, tab, loadout) {
       style: wearLabel(`style.${loadout.activeStyle}`),
     }) + (held ? ` · ${held}` : "") + style,
   );
-  // Where the armour limits were read from: the import's page, the Judge's own
-  // edit, or nothing yet. Composed at render, so text rather than a lang key.
+  // Where the armour limits were read from: the import's page or the Judge's
+  // own edit; with neither the status carries no tooltip. Composed at render,
+  // so text rather than a lang key.
   const source = armourLimitSource();
-  status.dataset.tooltipText = source?.judge
+  const sourceTip = source?.judge
     ? game.i18n.localize("ACKS-EQUIPMENT.wear.armourSourceJudge")
     : source?.cite
       ? game.i18n.format("ACKS-EQUIPMENT.wear.armourSourceCite", { cite: source.cite })
-      : game.i18n.localize("ACKS-EQUIPMENT.wear.armourSourceNone");
+      : "";
+  if (sourceTip) status.dataset.tooltipText = sourceTip;
   head.append(status);
   const limits = loadout.armourLimits ?? { blocked: [], undecided: [] };
   if (limits.blocked.length) {
     head.append(el("span", "acks-equipment-wear__status advisory", game.i18n.format("ACKS-EQUIPMENT.wear.armourBlocked", { abilities: limits.blocked.join(", ") })));
-  }
-  if (limits.undecided.length) {
-    head.append(el("span", "acks-equipment-wear__status advisory", game.i18n.format("ACKS-EQUIPMENT.wear.armourUndecided", { abilities: limits.undecided.join(", ") })));
   }
   section.append(head);
 
@@ -469,8 +468,9 @@ function containerHeader(actor, c, onRerender) {
   header.append(icon, el("span", "acks-equipment-wear__bucket-label", c.item.name));
 
   const note = c.capacityStone ? `${st(c.load6)} / ${c.capacityStone} st` : `${st(c.load6)} st`;
-  const noteEl = el("span", "acks-equipment-wear__bucket-note", c.capacityUnimported ? `${note} · ${game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImported")}` : note);
-  noteEl.dataset.tooltipText = capacityTip(c.item);
+  const noteEl = el("span", "acks-equipment-wear__bucket-note", note);
+  const capTip = capacityTip(c.item);
+  if (capTip) noteEl.dataset.tooltipText = capTip;
   header.append(noteEl);
 
   const controls = el("div", "acks-equipment-container__controls");

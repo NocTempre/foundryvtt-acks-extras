@@ -146,9 +146,9 @@ t("a figure that is not a positive number is not read", () => {
   assert.equal(nightLightFactor(), null, "a table that is absent reads nothing");
 });
 
-t("the character sheet's light cell says a radius is not imported, with no figure", () => {
+t("the character sheet's light cell shows a radius that is not imported as a blank figure", () => {
   const unread = lightCell({ ambient: "dark", sense: { kind: "shadowy", range: null } });
-  assert.deepEqual([unread.key, unread.sub, unread.imported], ["shadowy", "—", false]);
+  assert.deepEqual([unread.key, unread.sub, unread.imported], ["shadowy", "", false]);
   const read = lightCell({ ambient: "dark", sense: { kind: "shadowy", range: SHADOWY, cite: "ZZ p. 9" } });
   assert.deepEqual([read.sub, read.cite, read.imported], [`${SHADOWY}′`, "ZZ p. 9", undefined]);
   assert.equal(lightCell({ ambient: "dark", sense: { kind: "lightless", range: 61 } }).sub, "61′", "a lightless sense is unchanged");

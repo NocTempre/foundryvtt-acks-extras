@@ -32,28 +32,29 @@ export const EVENTS_SHOWN = 50;
 
 const localizeIf = (key, fallback = "") => (key ? locOr(key, fallback) : fallback);
 
-/** The words for a share kind from `shareKind`, or "not imported" for the null a missing figure leaves. */
-const shareLabel = (share) => (share == null ? loc("shareUnimported") : share.kind === "pct" ? loc("shareKind.pct", { pct: share.pct }) : loc(`shareKind.${share.kind}`));
+/** The words for a share kind from `shareKind`, or blank for the null a missing figure leaves. */
+const shareLabel = (share) => (share == null ? "" : share.kind === "pct" ? loc("shareKind.pct", { pct: share.pct }) : loc(`shareKind.${share.kind}`));
 
 /** Whether two shares read the same: both missing, or one kind and figure. */
 const sameShare = (a, b) => (a == null || b == null ? a == b : a.kind === b.kind && a.pct === b.pct);
 
 /**
  * Where the two shares came from, as `termsOf` names them: the record's own
- * term, the imported table with the page its import recorded (or "no page
- * recorded" where a Judge's override stands), or not imported. One sentence
- * where both say the same, else each named.
+ * term, or the imported table with the page its import recorded (or "no page
+ * recorded" where a Judge's override stands). A share with neither has no
+ * words. One sentence where both say the same, else each named.
  */
 function shareTip(terms) {
   const part = (kind) => {
     const from = terms.shareFrom[kind];
     if (from === "record") return loc("tip.shareRecord");
     if (from === "imported") return loc("tip.shareImported", { page: importedShareCite(kind) ?? loc("tip.noPage") });
-    return loc("tip.shareUnimported");
+    return "";
   };
   const treasure = part("treasure");
   const xp = part("xp");
-  return treasure === xp ? treasure : loc("tip.shareSplit", { treasure, xp });
+  if (treasure === xp) return treasure;
+  return treasure && xp ? loc("tip.shareSplit", { treasure, xp }) : treasure || xp;
 }
 
 /** A ledger entry with its words: the track, the reason and the toggle's tooltip. */
@@ -111,7 +112,7 @@ function partsTip(parts, total, key) {
 }
 
 /** Where the wage in force came from, as `termsOf` names it, with the ladder's page where it was read. */
-function wageTip(terms, { actor, henchman }) {
+function wageTip(terms, { actor }) {
   if (terms.wageFrom === "agreed") return loc("tip.wageAgreed");
   if (terms.wageFrom === "sheet") return loc("tip.wageSheet");
   if (terms.wageFrom === "ladder") {
@@ -120,7 +121,7 @@ function wageTip(terms, { actor, henchman }) {
       page: henchmanWageCite() ?? loc("tip.noPage"),
     });
   }
-  return loc(henchman ? "tip.wageUnset" : "tip.wageUnsetOther");
+  return loc("tip.wageUnsetOther");
 }
 
 /**
@@ -207,7 +208,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const clock = clockFor(record);
   const termsView = {
     wage: terms.wageUnset ? loc("wageUnset") : loc("wageValue", { gp: terms.wage }),
-    wageTip: wageTip(terms, { actor, henchman }),
+    wageTip: wageTip(terms, { actor }),
     wageUnset: terms.wageUnset,
     basis: loc(`wageBasis.${basisKey}`, { n: adapter.getWageLevel(actor) }),
     share: sameShare(terms.treasureShare, terms.xpShare)
@@ -278,8 +279,8 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
 
 /**
  * The Recorded rolls' hit-point row: the maximum rolled at hire with each
- * level's roll in its tooltip, "not imported" with what was missing, or that
- * the class was the Judge's to pick.
+ * level's roll in its tooltip, a blank value with what was missing in the
+ * tooltip, or that the class was the Judge's to pick.
  * Null where the record holds neither.
  */
 function hitPointsView(rolled) {
@@ -290,7 +291,7 @@ function hitPointsView(rolled) {
   if (!rolled.hpUnrolled) return null;
   if (rolled.hpUnrolled === "judgePick") return { value: loc("hpJudgePick"), unset: true, tip: loc("tip.hpJudgePick") };
   return {
-    value: loc("hpUnimported"),
+    value: "",
     unset: true,
     tip: loc(rolled.hpUnrolled === "noDice" ? "tip.hpNoDice" : "tip.hpNoClass", { class: rolled.classKey || "—" }),
   };

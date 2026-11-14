@@ -381,7 +381,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       ? {
           ...spellbook,
           // With no capacity imported there is no verdict and no bar, only the
-          // pages used and that the capacity is not imported.
+          // pages used.
           hasCap: spellbook.pagesCap != null,
           over: spellbook.pagesCap != null && spellbook.pagesUsed > spellbook.pagesCap,
           pct: pctLabel(spellbook.pagesCap ? spellbook.pagesUsed / spellbook.pagesCap : 0),

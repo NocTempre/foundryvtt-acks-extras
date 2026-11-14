@@ -622,8 +622,8 @@ shown as the two figures side by side, since a hand edit, a level lowered by
 hand and core's own roll all leave it), or the record ends at another level than the one held
 (`level`), or there is none. Levels below the last step that carry none, and
 above any `whole` step, are named. `hitPointAuditText` assembles the maximum's tooltip — each step's
-formula, faces, Constitution part, flat and floor ("not imported" where none
-was), its figure and the maximum, the citation RR ch. 1, Hit Points, and the
+formula, faces, Constitution part, flat and floor (the floor is left out where none
+was recorded), its figure and the maximum, the citation RR ch. 1, Hit Points, and the
 figure effects put in force — and the compact line shown under the field
 (each level's faces and maximum, then the same notes). Nothing is derived to
 fill a gap: a character built before the record reads "no roll recorded".

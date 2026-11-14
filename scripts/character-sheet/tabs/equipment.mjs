@@ -178,9 +178,9 @@ function rowOf(actor, item, ctx, depth = 0) {
       pct: cap6 > 0 ? Math.min(100, Math.round((report.load6 / cap6) * 100)) : 0,
       ticks: cap6 > 0 ? [25, 50, 75] : [],
       // A container that declares it holds gear and states no size: no limit is
-      // counted, and the row says the capacity is not imported.
-      load: `${stoneLabel(report.load6)}${report.capacityStone ? ` / ${report.capacityStone}` : ""} st${report.capacityUnimported ? ` · ${game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImported")}` : ""}`,
-      capacityTip: report.capacityUnimported ? game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip") : "",
+      // counted, and the row shows the load alone.
+      load: `${stoneLabel(report.load6)}${report.capacityStone ? ` / ${report.capacityStone}` : ""} st`,
+      capacityTip: "",
       over: report.over,
       locked: report.locked,
       concealed: report.concealed,

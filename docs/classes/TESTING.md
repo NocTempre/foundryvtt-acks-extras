@@ -670,10 +670,10 @@ document.
 the next row carries a flat that grows by the per-level rate on each row
 (cumulative, not per-level). The racial build's flat is larger by the race's own
 rate; clearing that field shrinks it back. With the builder tables NOT imported,
-the cells carry no flat at all and the derive report names
-`missingHpAfterNine`; with the rates read but not the last die level, no
-hit-dice cell is written and the report names `missingLastDieLevel` — never an
-invented number.
+the cells carry no flat at all; with the rates read but not the last die
+level, no hit-dice cell is written — never an invented number. The derive
+report shows no line for either gap (the plan's issues carry
+`missingHpAfterNine` and `missingLastDieLevel` as codes).
 
 **Teardown.** Delete the class document; restore the race field if you changed
 a race the importer materialized (a re-import will also restore it).
@@ -694,7 +694,7 @@ and JJ books connected. Two seats (GM, Player).
    (`cookbookImportTables(only)`). *Observable:* the GM and Player registries
    both hold the builder's last die level, its rates and the floor.
 2. Open the class sheet on the open class. *Observable:* the Maximum level field
-   is empty and reads "not set" with the not-imported tooltip; typing a figure
+   is empty and reads "not set" with the class's page reference as its tooltip; typing a figure
    stores it and the tooltip says it was set on the sheet; clearing it stores
    `null`, never a stand-in; the capped class's tooltip names its citation.
    Typing `2d6` in the Levels table's HD cell at level 1 stores it on the
@@ -708,13 +708,13 @@ and JJ books connected. Two seats (GM, Player).
 4. Run chargen from the picker on each class. *Observable:* a 1st-level
    character with one recorded roll and the floor recorded as imported.
 5. Hide the floor table with an override layer carrying the run's tag (the
-   layer is removed at the end by that tag alone) and repeat the climb. *Observable:* the step records the floor as not imported and the
-   tooltip says so.
+   layer is removed at the end by that tag alone) and repeat the climb. *Observable:* the step records no floor and the
+   tooltip names none.
 6. Derive the builder class with the tables, then with the last die level
    hidden the same way, then with it and the rates hidden. *Observable:* the dice rise to the
-   imported level and the flat begins after it; absent level, the Builder tab
-   and the Derive dialog name it and no hit-dice cell is written; both absent,
-   both gaps are named.
+   imported level and the flat begins after it; absent level, no hit-dice cell
+   is written and the Builder tab and the Derive dialog show no line for the
+   gap; both absent, no cell and no line.
 7. Set the builder class's racial value to -1 (no racial category) with four
    points spent on its categories and Derive. *Observable:* it takes the
    imported human maximum level (the Rules tables import reads it from the
@@ -725,8 +725,8 @@ and JJ books connected. Two seats (GM, Player).
    *Observable:* it takes the racial table's row on its total, not the human
    figure, and no points-off report. Hide the human maximum level
    with an override layer and Derive. *Observable:* the Builder tab and the
-   Derive dialog name `missingHumanMaxLevel`, the summary reads "not set", and
-   no cap and no level row is written.
+   Derive dialog show no line for it, the summary reads "not set", and
+   no cap and no level row is written (the plan carries `missingHumanMaxLevel`).
 8. Open Settings tab → Game Settings → Imported Rules Tables → Open Ruledata
    Browser, press Edit on the builder's budget row, put a figure in
    `humanMaxLevel` and Save. *Observable:* the registry serves it and Derive
@@ -1092,8 +1092,8 @@ the boot recorder, and once after it.
     `_source.system.hp.max`. The line under Hit points
     (`.acks-extras-classes-hp-record`) lists both levels' faces and maxima,
     and the `system.hp.max` input's `data-tooltip-text` names each level's
-    formula, faces, Constitution part and the floor ("not imported" where
-    none was), and RR ch. 1.* Hovering the input shows that text.
+    formula, faces, Constitution part and the floor (left out where
+    none was recorded), and RR ch. 1.* Hovering the input shows that text.
     Climb to 3 through the wizard. *A third step, its faces the wizard's kept
     roll's and its `max` the applied maximum; the earlier two unchanged.*
     Type a different maximum into the field. *The line and the tooltip give

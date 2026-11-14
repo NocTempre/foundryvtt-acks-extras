@@ -114,7 +114,7 @@ check("an unknown table key has no rows", scavengedOptions("nope").length === 0 
 const mail = armour();
 writes = 0;
 check("a roll with no table returns nothing", (await scavengeItem(mail, { roll: () => 5 })) === null);
-check("and warns once, in the module's own words", warned.length === 1 && /scavengeNotImported/.test(warned[0]));
+check("and says nothing", warned.length === 0);
 check("and writes nothing to the item", writes === 0 && mail._flags.scavenged === undefined && mail._flags.pristine === undefined && mail.system.ac.value === 6);
 check("picking a row with no table refuses and writes nothing", (await setScavengedRow(mail, "armourEquipment", 8)) === null && writes === 0);
 check("a roll is one d20 with no table to spawn another", JSON.stringify(rollScavengedD20s("piercingSlashing", () => 19)) === "[19]");

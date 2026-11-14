@@ -425,7 +425,7 @@ export function bridgeContributions(actor) {
       }
       // Armour Training has no name case: its step is the page's figure, so
       // it applies only through the typed spec above, and a copy carrying
-      // none is reported by `armourTrainingRows` as not imported.
+      // none is reported by `armourTrainingRows` with a null step.
       default:
         break;
     }

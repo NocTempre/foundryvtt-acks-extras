@@ -77,11 +77,10 @@ a step it does not name is walked by hand.
   `acksExtras.lib.tables.getDoc("throws")` lists them. As shipped they include
   `reactionToHiring`, `irrefusableOffer`, `hirelingLoyalty`,
   `hirelingObedience`, `liberationLoyalty`.
-- **Followers are gated twice and say so out loud.** Without the followers
-  tables imported the dialog refuses with a notification naming them; with the
-  tables present it still refuses below 9th level. Both refusals are the
-  observable — a silent no-op means the gate broke, not that the tables are
-  missing.
+- **Followers are gated twice.** Without the followers tables imported the
+  dialog does nothing and shows no message; with the tables present it refuses
+  below 9th level with a notification. A silent no-op with the tables present
+  means the level gate broke.
 - Level ladders inside the followers and availability paths are read with
   `lib/tables.mjs`'s `bracketRow`, which returns null off the end of a table
   rather than clamping.
@@ -165,7 +164,7 @@ a step it does not name is walked by hand.
    in-service chip naming the employer; a click on either reaches the tab.
    Standing reads the loyalty with its parts and the morale, each a roll row
    whose press throws and whose pin stars it for the folded bar; Terms reads
-   the wage, the share as a word (or "not imported", step 23), the clock;
+   the wage, the share as a word (or blank, step 23), the clock;
    Employer names the employer and opens them. `recordCalamity(actor, …)`
    with the throw left owing: the warning row leads the panel, the tab reads
    a count of 1, the chip carries the dot, and the GM seat's **Throw now**
@@ -209,7 +208,8 @@ a step it does not name is walked by hand.
    says *agreed at hire* with `terms.wageGp` set, *set by hand* with only the
    sheet's wage, and the wage table's level and page with neither (the page
    is what lib `citeOf("wages", "henchmanWageByLevel")` answers, or *no page
-   recorded*), and with no table imported says so; the share tooltip says
+   recorded*), and with no table imported *not agreed and not set on the
+   sheet*; the share tooltip says
    the default is the module's.
 1c. The score range is the system's. In the console, on any seat,
    `const b = await import("/modules/acks-extras/scripts/lib/score-bounds.mjs")`,
@@ -545,8 +545,8 @@ a step it does not name is walked by hand.
       `baseLoyalty` value. No `[data-unvalued]` note shows.
     - **A's roster with the base unregistered:** it reads `1 / —`,
       `adapter.retainGap(A)` is `"import"`, and the limit note's tooltip (the
-      `.acks-extras-frame__rule-note` on the limit rule) is
-      `ACKS-HENCHMEN.roster.limitNotImported`. Register the base again.
+      `.acks-extras-frame__rule-note` on the limit rule) is empty. Register
+      the base again.
     - **Employer A's hiring dialog:** Diplomacy (its tone), Beast Friendship
       (`animal`) and Command of Voice (unaudited) are unticked.
     - **Employer B's roster:** with its limit pinned at one through the
@@ -592,7 +592,7 @@ a step it does not name is walked by hand.
       `flags.acks-extras.outcome`.
       *Observable:* the throw dialog's refusal and slander steppers show the
       page's figure per step and the card names the imported band; with the
-      document gone, the warning names the table and no dialog opens.
+      document gone, no dialog opens and nothing is shown.
 16. The loyalty page's result column and apparent-level figure, and the
     level-gain morale bonuses, each first unread and then read. Unread is a
     priority-30 layer holding an empty table where the world's import holds
@@ -612,23 +612,23 @@ a step it does not name is walked by hand.
     writes the layer must be the active GM.
     - `openLoyaltyRoll(henchman)`, read the `InfluenceApp`'s
       `_prepareContext({})`, and press **Roll** under a dice rig.
-      *Observable:* unread, the apparent-level row is a typed field with the
-      unread badge under its bare name, the page shows its notice, and the
+      *Observable:* unread, the apparent-level row is a typed field under
+      its bare name, and the
       roll names no band (the roll-complete payload's `outcome` is null) with
       no line for the row in the payload's `parts`. Read, the row's value is
       2, its contribution two times the figure, the figure is beside its
-      name, there is no notice, the roll names one of the page's bands, and
+      name, the roll names one of the page's bands, and
       the payload's line for the row carries that contribution
       (docs/influence/TESTING.md step 20).
     - The same with the integration swapped (step 14's `ns`).
       *Observable:* the throw dialog's apparent-level stepper reads 2; unread,
-      `context.stepValues` holds no figure for it and the info line names the
-      count; read, the step is the figure and there is no info line.
+      `context.stepValues` holds no figure for it and there is no info line;
+      read, the step is the figure and there is no info line.
     - Raise the first actor onto the first rung while unread; read, raise the
       second onto the first rung and then the second, open the roster, and
       raise the first one level more.
-      *Observable:* unread, the record gains no morale entry and the card says
-      the bonuses are not imported. Read, each gain adds one
+      *Observable:* unread, the record gains no morale entry and the card is
+      the plain one. Read, each gain adds one
       `morale.permanents` entry at its rung's bonus, reason `levelGain`, its
       note the rung's level, under the plain card, and the roster's ledger
       shows both on the morale track. The first actor's last gain adds no
@@ -668,12 +668,11 @@ a step it does not name is walked by hand.
       hired event's note naming its page; the `escape` captive's GM-only
       feigned card is whispered.
     - *Absent.* The same calls with both tables empty.
-      *Observable:* each loyalty result warns that its change is not
-      imported and adds no entry; each captive warns that its start is not
-      imported and is not hired (no `monsterHenchmenList` entry, no record
-      flag). Hire a market candidate on **Accept with élan**
+      *Observable:* each loyalty result adds no entry and shows nothing; each
+      captive is not hired (no `monsterHenchmenList` entry, no record flag)
+      and shows nothing. Hire a market candidate on **Accept with élan**
       (`deliverHiringOutcome` or the recruit dialog with a rigged roll): it is
-      hired, its start carries no élan figure, and the Judge is warned.
+      hired and its start carries no élan figure.
     - *Override.* Register invented figures for `grudging`, `elan` and
       `acceptLoyalty`, repeat a `grudging` result, an élan hire and an
       `accept` captive, then lift the layer and repeat the `grudging` result.
@@ -683,9 +682,9 @@ a step it does not name is walked by hand.
     - The fallback throw: with the integration swapped (step 14's `ns`),
       `recruitMonster(captive, employerA, {captured: true})` with the
       `irrefusableOffer` column absent, then read.
-      *Observable:* absent, the Judge is warned the column is not imported,
-      the opposite-alignment checkbox shows a dash with a tooltip saying not
-      imported, and the roll names no result and hires nothing. Read, the
+      *Observable:* absent, nothing is shown about the column, the
+      opposite-alignment checkbox shows a dash with the page reference alone
+      as its tooltip, and the roll names no result and hires nothing. Read, the
       checkbox shows the page's figure with a tooltip naming MM 351 (or the
       override), ticking it adds that figure to the total, and the result
       the edges give hires at its start.
@@ -742,8 +741,9 @@ a step it does not name is walked by hand.
       Player seat's dialog filled with the employer, **Henchman by class**, a
       second offerable class with a rarity tier and **Commissioned search**
       ticked, and submitted.
-      *Observable:* the Player seat's notice is the `tables-missing` refusal
-      (not "submitted", no raw key) and no posting is written. The relay is
+      *Observable:* the Player seat shows no notice (not "submitted", no raw
+      key) and no posting is written; the refusal is `tables-missing`, whose
+      only content is the missing import. The relay is
       the route the refusal takes: the GM's `createPosting` answers the Player
       seat with `{error}`; the dialog itself checks no step.
     - The place's Demographics block, under a second layer of the walk's own
@@ -833,7 +833,7 @@ a step it does not name is walked by hand.
       points row whose tooltip lists each level's roll.
     - The second candidate, with no bonus. *Observable:* `rolled.hpRoll`
       null, `rolled.hpUnrolled` `noClass`, `system.hp` the type's defaults;
-      the Hit points row reads "not imported", faint, its tooltip naming the
+      the Hit points row's value is blank, faint, its tooltip naming the
       class text, and no calamity. The third, with the same refused bonus:
       nothing in `rolled.hp*`, no Hit points row, the bonus owed and a
       calamity recorded.
@@ -904,17 +904,15 @@ walked in docs/lib/TESTING.md, "The repair tool".
       `createPosting(place, {kind: "henchman", general: true}, employer)` on
       the GM seat, then from the Player seat through
       `executeAsGM("createPosting", …)`, and the posting dialog's submit.
-      *Observable:* `{error: "arrivals-missing"}`; the dialog's notice is
-      `ACKS-HENCHMEN.posting.error.arrivals-missing` localized, naming the
-      arrival schedule; no posting, no `searchLedger` row, no fee card, the
+      *Observable:* `{error: "arrivals-missing"}`; the dialog shows no notice;
+      no posting, no `searchLedger` row, no fee card, the
       purse unchanged, and `monthAnchorTime` still 0. A directed search
       (`kind: "henchmanByClass"` for a class the walk can price) is not
       refused for this.
     - Set `monthAnchorTime` to a month ago on a market that holds candidates
       and press **Process time** (`processNow`) on the location sheet.
-      *Observable:* the candidates and `marketRolls` are unchanged, the
-      warning `ACKS-HENCHMEN.location.arrivalsMissing` shows, and
-      `processLocation` returns `deferred: "arrivals-missing"`.
+      *Observable:* the candidates and `marketRolls` are unchanged, no warning
+      shows, and `processLocation` returns `deferred: "arrivals-missing"`.
     - Remove the layer, connect the staged Revised Rulebook on the GM seat
       and run `cookbookImportTables(["availability"])`. *Observable:*
       `arrivalShares()` holds the three figures on the GM seat; the Ruledata
@@ -953,10 +951,9 @@ walked in docs/lib/TESTING.md, "The repair tool".
       share where the two differ. Compare in page and report the match, never
       the fraction.
     - *Absent.* Register an empty `wages.treasureShare` and `wages.xpShare`
-      (`table: {}`) at priority 30. *Observable:* the row reads "not imported"
-      with no figure, dimmed, and its tooltip says "not imported". Register
-      only `xpShare`: the row reads the treasure side "not imported" beside
-      the experience figure.
+      (`table: {}`) at priority 30. *Observable:* the row is blank, dimmed,
+      and has no tooltip. Register only `xpShare`: the row's treasure side is
+      blank beside the experience figure.
     - *Override.* Register an invented `xpShare` at priority 30 with no
       `cites`. *Observable:* the figure is the invented one and the tooltip
       says "no page recorded"; lifting the layer returns the imported figure
@@ -999,15 +996,14 @@ walked in docs/lib/TESTING.md, "The repair tool".
       payload names `acceptElan`, and the monster is hired: a record whose
       `special.irrefusableResult` is `acceptElan`, `retainer.managerid` the
       employer, its id on the employer's `monsterHenchmenList`, and
-      `loyalty.start` the layer's élan start; no warning, no whispered card.
+      `loyalty.start` the layer's élan start; no whispered card.
     - *Bottom roll.* Rig every die to its lowest face.
       *Observable:* the payload names `betrayal`, the captive is hired at the
       forced-servitude figure, and one GM-only card says the acceptance is
       feigned.
     - *Not imported.* Shadow the table with an empty one and roll.
       *Observable:* the payload's outcome is null, no record flag, no
-      manager, no list entry, and the Judge is warned the column is not
-      imported.
+      manager, no list entry, and nothing is shown.
     Teardown: the layer restored, the captives taken off the employer's
     monster list, then swept with their cards by ledger.
     Walked by `tools/live/henchmen-hire-terms.mjs`, section 25.
@@ -1019,7 +1015,7 @@ walked in docs/lib/TESTING.md, "The repair tool".
     `system.unit.officerMoraleBonus` and the world's `wages` layers.
     - *Imported.* With `wages.officerMorale` read off the connected book
       (`TABLE_RECIPES.wages.tables.officerMorale` into the world layer).
-      *Observable:* the field holds the table's figure, no warning appears, and
+      *Observable:* the field holds the table's figure and
       `commandMorale` is the unit's own morale plus it. Compare in page and
       report the match, never the figure.
     - *Master mariner.* Repeat with the master mariner as officer.
@@ -1028,8 +1024,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
       (`{modifier: 3}`). *Observable:* a new unit's field holds 3; lifting the
       layer returns the imported figure for the next unit.
     - *Absent.* Register an empty `wages.officerMorale` (`table: {}`) at
-      priority 30. *Observable:* the field reads `null`, not 0, one warning says
-      the modifier is not imported, and `commandMorale` equals the unit's own
+      priority 30. *Observable:* the field reads `null`, not 0, nothing is
+      shown, and `commandMorale` equals the unit's own
       morale. A `mercOfficer*` officer with no `wages.mercenaryOfficers` row
       reads the same.
     The reader and the recipe are checked offline (`tools/test-henchmen.mjs`);

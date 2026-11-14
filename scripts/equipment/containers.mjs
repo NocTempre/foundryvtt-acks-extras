@@ -302,7 +302,7 @@ export function containerReport(actor) {
         item: c,
         capacityStone: cap,
         // A container that declares it holds gear and states no size: it has
-        // no limit, and its surface says the capacity is not imported.
+        // no limit, and its surface shows the load with no capacity.
         capacityUnimported: holdsGear(c) && !capacityStated(c),
         load6,
         loadStone: load6 / STONE,

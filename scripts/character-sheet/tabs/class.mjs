@@ -65,8 +65,9 @@ function previewRow(actor, classItem, level) {
 
 /**
  * The experience adjustment as the XP label's note: "+5% · CON" read from the
- * key attribute, "+5% · Tweaks" typed by the Judge, or a pointer at the import
- * when the class names key attributes and no table has been read.
+ * key attribute, "+5% · Tweaks" typed by the Judge, or null when the class
+ * names key attributes and no table has been read (the Key Attribute table,
+ * RR ch. 1), so the label carries no note.
  */
 function bonusNote(actor) {
   const b = xpBonusFor(actor);
@@ -74,7 +75,6 @@ function bonusNote(actor) {
     const from = b.source === "tweaks" ? loc("class.xpBonusTweaks") : b.attrLabel;
     return { text: `${b.bonus > 0 ? "+" : ""}${b.bonus}% · ${from}`, hint: loc(b.source === "tweaks" ? "class.xpBonusTweaksHint" : "class.xpBonusHint") };
   }
-  if (b.unread) return { text: loc("class.xpBonusUnread"), hint: loc("class.xpBonusUnreadHint") };
   return null;
 }
 

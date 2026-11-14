@@ -99,8 +99,8 @@ repaired.
 **Armour Training** raises the armour rungs on the character's Stats tab by
 its row's step for each rank, read from your book. Under the rungs, each
 armour-training ability shows what it adds, and hovering it names the step and
-the rank. An Armour Training made by hand, or imported without its book, says
-*step not imported* and adds nothing; give it a Modifies row with Domain
+the rank. An Armour Training made by hand, or imported without its book, shows
+no figure and adds nothing; give it a Modifies row with Domain
 *Armor* and the step in Value to make it count.
 
 **Update Abilities**, a button at the top of the Items sidebar on a GM seat

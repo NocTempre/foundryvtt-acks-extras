@@ -18,7 +18,7 @@
  * @param {{name:string, baseMul?:number, add?:number, mul?:number}[]} [p.variations]
  * @param {{label:string, mul:number}|null} [p.condition]  the scavenged resale fraction
  * @param {{key:string, label:string, tip?:string}[]} [p.unstated]  layers set on the item whose
- *   figure is not imported: each is a line carrying no amount, and moves nothing
+ *   figure is not imported: each is a line whose figure is blank, and moves nothing
  * @returns {{lines:{key:string,label:string,op:string|null,amount:number,running:number,tip?:string,notImported?:boolean}[], final:number}}
  */
 export function priceLedger({ base = 0, silverMul = null, silverTip = "", masterwork = null, variations = [], condition = null, unstated = [] } = {}) {

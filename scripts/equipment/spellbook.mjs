@@ -51,7 +51,7 @@ function figure({ table, key, min }) {
 /**
  * Where a figure came from, at render: `{state: "judge"}` where the Judge's own
  * edit holds its table, `{state: "page", cite}` where the import recorded the
- * page it read, and `{state: "none"}` where it is not imported.
+ * page it read, and `{state: "none"}` where it is not imported (a blank figure).
  * @param {"pages"|"blank"|"scribing"} which a key of `SPELLBOOK_TABLES`
  */
 export function spellbookFigureSource(which) {
@@ -62,14 +62,14 @@ export function spellbookFigureSource(which) {
 }
 
 /**
- * The tooltip of a spell book figure: the page it was read from, that the Judge
- * set it, or that it is not imported, with no number.
+ * The tooltip of a spell book figure: the page it was read from or that the
+ * Judge set it; empty where the figure is not imported.
  * @param {"pages"|"blank"|"scribing"} which a key of `SPELLBOOK_TABLES`
  */
 export function spellbookFigureTip(which) {
   const { state, cite } = spellbookFigureSource(which);
+  if (state === "none") return "";
   const what = game.i18n.localize(`ACKS-EQUIPMENT.spellbook.tip.what.${which}`);
-  if (state === "none") return game.i18n.format("ACKS-EQUIPMENT.spellbook.tip.none", { what });
   if (state === "judge") return game.i18n.format("ACKS-EQUIPMENT.spellbook.tip.judge", { what });
   return game.i18n.format(cite ? "ACKS-EQUIPMENT.spellbook.tip.page" : "ACKS-EQUIPMENT.spellbook.tip.book", { what, cite });
 }

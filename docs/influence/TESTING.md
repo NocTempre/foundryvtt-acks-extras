@@ -136,10 +136,10 @@ mechanics below describe. Without them the roll names no result (step 27).
      the same page, then a blind offer typed in the Player seat's page and
      rolled.
      *Observable:* the GM's fee is 0 and its tooltip is
-     `ACKS-INFLUENCE.bribe.feeTipMissing`; the Player's page masks the tier;
+     `ACKS-INFLUENCE.bribe.feeCite`; the Player's page masks the tier;
      the card the GM seat posts carries no `.influence-chat-bribe`, the
-     influencer's purse is unchanged, and the GM seat shows
-     `ACKS-INFLUENCE.bribe.unpriced`. `api.track` the card. Walked by
+     influencer's purse is unchanged, and the GM seat shows nothing.
+     `api.track` the card. Walked by
      `tools/live/influence-bribe-price.mjs`.
 
 ## The morale pages
@@ -182,10 +182,10 @@ Steps:
 
 9. With no `morale` document: `monster.rollMorale({})`, type a figure into an
    unread row, press **Roll**.
-   *Observable:* the page opens with the subject alone, four badged typed
-   fields and the notice; the card lists each modifier by name with its
-   figure, the dice and the total, and says no result is named; the message's
-   `rollResult.outcome` is null.
+   *Observable:* the page opens with the subject alone and four typed
+   fields; the card lists each modifier by name with its figure, the dice and
+   the total, and names no result; the message's `rollResult.outcome` is
+   null.
 10. Hold the skip key; then turn `moralePage` off and roll without it.
     *Observable:* the system's own card with the key, the system's own dialog
     with the setting off, and no `InfluenceApp` either time. Turn the setting
@@ -193,7 +193,7 @@ Steps:
 11. Import `morale`, reopen, choose a rung on two ladders, tick the single
     figure, roll.
     *Observable:* each ladder is a select of a blank and its rungs, drawn
-    under its name at the row's width; no badge and no notice; the card's
+    under its name at the row's width; the card's
     modifiers equal the table's figures for the options chosen, and its
     result is the band the total falls in.
 12. The group's **Roll Morale** entry.
@@ -209,10 +209,11 @@ Steps:
     *Observable:* the page opens with the imported ladders and the card is
     authored by the player.
 15. Remove the `morale` document and reopen.
-    *Observable:* typed fields, badges and the notice again.
+    *Observable:* typed fields again.
 16. Give the monster two conditions, one that carries a morale figure and one
     that exempts it, and open the page; then roll with the skip key.
-    *Observable:* with no figures imported, two notes and nothing added; with
+    *Observable:* with no figures imported, one note (the exemption)
+    and nothing added; with
     figures registered, a named row per figure, in the total and on the card.
     The skip-key roll raises the conditions' own notices and leaves the
     stored score as it was.
@@ -247,11 +248,10 @@ Steps:
 
 17. With no `influence` document: open the page with a refusal count and a
     slander count, and press **Roll**.
-    *Observable:* both count rows are badged typed fields and the notice
-    names the page; the roll warns that the table is not imported, and no
-    card is posted.
+    *Observable:* both count rows are typed fields; the roll shows nothing,
+    and no card is posted.
 18. Import `influence` and reopen.
-    *Observable:* no badge and no notice; each count row shows the figure
+    *Observable:* each count row shows the figure
     each count adds; `_prepareContext({})` totals the count times the figure
     for each; **Roll** posts a card whose result is the band the total falls
     in, and the roll-complete payload's `outcome` is that band's key.
@@ -271,8 +271,8 @@ read layers and the drive are docs/henchmen/TESTING.md step 16.
 
 20. Open the page with the `influence` document's `apparentLevel` and
     `hirelingLoyalty` unread, then read, and press **Roll** each time.
-    *Observable:* unread, the apparent-level row is a typed field with the
-    unread badge, the notice names RR 166, and the card names no result (the
+    *Observable:* unread, the apparent-level row is a typed field, and the
+    card names no result (the
     roll-complete payload's `outcome` is null, and the henchmen feature
     applies no consequence). Read, the row shows the figure each level adds
     and contributes the count times it, the `parts` carry that line, and the
@@ -290,15 +290,15 @@ register invented tables in the client when a world holds them.
 21. Open the irrefusable offer with `influence.irrefusableOffer` unread, then
     with invented edges and an invented opposite-alignment figure registered,
     and roll each time.
-    *Observable:* unread, the opposite-alignment row is a typed field with the
-    unread badge, the notice names MM 351, and the card names no result. Read,
+    *Observable:* unread, the opposite-alignment row is a typed field, and the
+    card names no result. Read,
     the row is a tick worth the registered figure with its tooltip naming the
     page, and the card names the result the edges give.
 22. Refuse an obedience roll with `morale.hirelingObedience.insistPenalty`
     unread, press the insist card's button; then register a figure, refuse
     again, press it.
-    *Observable:* unread, the button's tooltip says the penalty is not
-    imported, pressing it warns, adds no loyalty entry to the hireling's
+    *Observable:* unread, the button's tooltip is the page reference alone,
+    pressing it shows nothing, adds no loyalty entry to the hireling's
     record and opens the obedience roll again. Read, the tooltip names the
     registered figure and its page, and pressing adds one permanent loyalty
     entry of exactly that figure, reason "insistence".
@@ -320,20 +320,18 @@ Drive mechanics:
   `cookbookImportTables(["influence"])` with the Judges Journal connected, and
   `removeDoc("influence")` at teardown.
 - Read a row's state from `app._prepareContext({}).groups`: a disabled row has
-  `isDisabled`, an unread one `isNotImported`, and `figureTip` is the string the
-  label's tooltip shows.
+  `isDisabled`, and `figureTip` is the string the label's tooltip shows.
 
 Steps:
 
 23. With no `influence` tone table: open each tone page.
-    *Observable:* every row that names a figure is disabled with the
-    not-imported badge, the notice above the rows names the page, the total
+    *Observable:* every row that names a figure is disabled, the total
     contributes nothing from them, a pre-fill (alignment, level gap, age,
     social status) fills none of them, and the character's Diplomacy item is
     offered in its own row with its own effect rather than a dead box. No label
     shows a number other than a page reference or a tier.
 24. Import the tables, or register invented ones, and reopen each tone.
-    *Observable:* no disabled row, no notice; each figured row shows its figure
+    *Observable:* no disabled row; each figured row shows its figure
     and the label's tooltip names the page it was read from; a rung select
     lists the rungs that were read under a blank option, and choosing a rung
     changes the total by that rung's figure; the pre-fills fill from the
@@ -345,8 +343,7 @@ Steps:
 27. Roll each tone with its `<tone>Reaction` table unread, then read (invented
     edges, and a count for each result), with the character's current
     attitude set to each rung in turn.
-    *Observable:* unread, the notice names the page, the card says the reaction
-    table is not imported and names no result, the attitude on the page and in
+    *Observable:* unread, the card names no result, the attitude on the page and in
     the influencer's attitude item is unchanged and the next roll is still the
     same attempt. Read, an initial reaction sets the attitude by the result's
     position; a continuing roll moves it by that result's count toward the
@@ -356,7 +353,7 @@ Steps:
     result and the attitude where it was.
 28. With `<tone>Attitude` unread, then read (invented figures for the rungs
     the page prints), hover each rung of the ladder.
-    *Observable:* unread, every rung's tooltip says not imported and the line
+    *Observable:* unread, every rung's tooltip is the page reference alone and the line
     under the ladder shows "none"; read, a rung with a figure names it and the
     page it came from, a rung without one says the page prints none, and the
     total changes by the figure when that rung is the current attitude and not
@@ -364,8 +361,7 @@ Steps:
 29. Diplomacy with `influence.bribeTiers` unread, with one tier left out, then
     read, and choose each tier.
     *Observable:* unread or partial, the bribe select is disabled holding only
-    the blank, flagged not imported, with a tooltip naming RR 287, and the
-    fee is not asked. Read, the select lists Tier 1 to Tier 3 each with the
+    the blank, with a tooltip naming RR 287, and the fee is not asked. Read, the select lists Tier 1 to Tier 3 each with the
     registered bonus beside it; choosing a tier adds that bonus, and the fee
     field fills with the henchmen api's price for that tier's place.
 29a. The bribery charge mark (RR 287), on a Diplomacy roll by an influencer
@@ -380,18 +376,17 @@ Steps:
     the rigged roll that meets it, followed by "Read from your own book at
     import" with the page; a roll that misses carries none. Overridden, the
     line appears on the invented figure and says a Judge's override set it;
-    lifting the layer returns the page's figure. Absent, every such roll's
-    card notes that the mark is not imported, and none names a charge. An
+    lifting the layer returns the page's figure. Absent, no such roll's
+    card names a charge. An
     influencer without Bribery gets the risk note (RR 287) in every state.
 30. Seduction with `characterAging` unread, then read (invented year spans
     for a human row), against two actors of the class "Fighter" at ages
     spanning different categories.
-    *Observable:* unread, the notice names the aging table and the age row's
-    count stays zero. Read, the count is the number of categories the target
+    *Observable:* unread, the age row's count stays zero. Read, the count is the number of categories the target
     stands above the character's, with Ancient counted as Old.
 31. A roll with the Mystic Aura box ticked and `influence.mysticAura` unread,
     then read (an invented total), then rolled to meet it.
-    *Observable:* unread, the card says the bewitching mark is not imported.
+    *Observable:* unread, the card names no bewitching.
     Read, the card names the subject bewitched only on a total at or above the
     registered figure.
 32. A people race read off the class, with RR and JJ imported: two actors whose

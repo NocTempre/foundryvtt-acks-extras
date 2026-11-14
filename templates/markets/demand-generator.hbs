@@ -1,10 +1,6 @@
 <div class="acks-extras-markets-generator-root">
 <div class="acks-extras-markets-generator-body">
 
-  {{#unless hasCatalog}}
-  <p class="acks-extras-markets-generator-notice">{{localize "ACKS-MARKETS.demand.noCatalog"}}</p>
-  {{/unless}}
-
   <p class="hint">{{localize "ACKS-MARKETS.demand.intro"}}</p>
 
   <fieldset>
@@ -69,7 +65,6 @@
     <legend>{{localize "ACKS-MARKETS.demand.legend.land"}}</legend>
     <p class="hint">{{localize "ACKS-MARKETS.demand.landHint"}}</p>
     {{#if countsLine}}<p class="acks-extras-markets-generator-counts">{{countsLine}}</p>{{/if}}
-    {{#if countsMissing}}<p class="acks-extras-markets-generator-notice">{{localize "ACKS-MARKETS.demand.countsMissing"}}</p>{{/if}}
     <div class="acks-extras-markets-generator-actions">
       <button type="button" data-action="rollPicks" {{#unless canRollPicks}}disabled{{/unless}}><i class="fas fa-dice-d20"></i> {{localize "ACKS-MARKETS.demand.rollPicks"}}</button>
       <button type="button" data-action="clearPicks" {{#unless picks.length}}disabled{{/unless}}><i class="fas fa-eraser"></i> {{localize "ACKS-MARKETS.demand.clearPicks"}}</button>

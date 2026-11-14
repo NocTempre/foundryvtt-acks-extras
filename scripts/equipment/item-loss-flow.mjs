@@ -12,8 +12,7 @@
  * heavy item under one full stone) writes nothing.
  *
  * The overlay's setting gates the dialog and the write both. With the import
- * unread the dialog says what to import and offers no form, and the plan does
- * nothing.
+ * unread no dialog opens, and the plan does nothing.
  */
 import { LANG } from "./constants.mjs";
 import { makeLoc, escape as esc } from "../lib/util.mjs";
@@ -112,24 +111,15 @@ export function planMarkup(plan, { damageType, fromRear = false, figures = itemL
     + `${section("destroyedHead", destroyed)}${section("damagedHead", damaged)}${section("marredHead", marred)}${section("unplacedHead", unplaced)}${nothing}${skipped}</div>`;
 }
 
-/** The notice a Judge gets while the import is unread: what to import, and no form. */
-function notImportedNotice(missing) {
-  return foundry.applications.api.DialogV2.prompt({
-    classes: CLASSES,
-    window: { title: loc("itemLoss.windowTitle") },
-    content: `<p>${esc(loc("itemLoss.notImported", { tables: missing.join(", ") }))}</p>`,
-    ok: { label: loc("itemLoss.close") },
-    rejectClose: false,
-  });
-}
-
 /** The token's actor, else the user's own character. */
 const defaultActor = () => canvas?.tokens?.controlled?.[0]?.actor ?? game.user?.character ?? null;
 
 /**
  * Open the Judge's flow for an actor: the question, the plan, the confirm, the
  * write and the card. Resolves the plan, with the write's result when one was
- * made; null when the overlay is off, there is no actor or the window closed.
+ * made; null when the overlay is off, there is no actor, the import holds no
+ * figures or the window closed. A plan the import cannot ready resolves with no
+ * result and no window.
  * @param {Actor} [actor] the token's actor, else the user's character
  * @returns {Promise<{plan: object, result: object|null}|null>}
  */
@@ -144,10 +134,7 @@ export async function openItemLoss(actor = defaultActor()) {
     return null;
   }
   const gaps = lossMissing({ figures: itemLossFigures(), materials: itemLossMaterials() });
-  if (gaps.length) {
-    await notImportedNotice(gaps);
-    return null;
-  }
+  if (gaps.length) return null;
 
   const options = ITEM_LOSS_DAMAGE_TYPES.map((key) => `<option value="${esc(key)}">${esc(damageTypeLabel(key))}</option>`).join("");
   const form = await dialogs.prompt({
@@ -165,10 +152,7 @@ export async function openItemLoss(actor = defaultActor()) {
 
   const context = { damageType: String(form.get("dt")), fromRear: !!form.get("rear") };
   const plan = planItemLoss(actor, getLoadout(actor), { hp: Number(form.get("hp")), ...context });
-  if (!plan.ready) {
-    await notImportedNotice(plan.missing);
-    return { plan, result: null };
-  }
+  if (!plan.ready) return { plan, result: null };
   if (!plan.stones) {
     ui.notifications.info(loc("itemLoss.notLowEnough"));
     return { plan, result: null };

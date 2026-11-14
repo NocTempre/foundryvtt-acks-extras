@@ -60,7 +60,7 @@ Driving at the reins) wears an unqualified badge; at a motive bench it is
 also WEIGHED, at the rate the imported `voyages` document's `crew` table
 carries (stations.mjs `unproficientHand`, read once per derivation by the
 group's stated effective strength and by the speed alike). Unimported, every
-body counts whole and the group says the hands are unweighed.
+body counts whole and the group shows no note about the hands (`unweighed`).
 `effectiveCrewRoles` hands on both figures: `aboard`, what the benches are
 worth to the speed, and `heads`, the bodies a repair gang or a berth counts.
 Occupants render as compact CHIPS
@@ -201,8 +201,8 @@ crew's condition, less a stowed mast, times terrain, road and sky. What the
 ground, the wind and the weather are WORTH comes from the `travel`, `voyages`
 and `weather` registered tables (declared via `expectTables`, imported from
 the reader's own book); with nothing imported every such factor is ×1 and one
-`tablesMissing` reason line says why the weather and the ground are not
-counting. A land vehicle's tier is chosen by the hold's `used` (above).
+`tablesMissing` reason is carried in the derivation (the vehicle sheet and the
+throw cards list no line for it; the formation strip's parts line shows it). A land vehicle's tier is chosen by the hold's `used` (above).
 Active weather conditions (the formation feature derives them —
 `docs/formation/MODEL.md` §The weather) each multiply by their imported
 factor, a road row's `ineffectiveIf` may name any of them (the manual
@@ -222,8 +222,8 @@ Every printed sea figure reads from the imported `voyages` document — the
 wind rows and tacking rate, the navigation targets and art bonuses, the
 hazard throw and each hazard's dice and rates, the hull damage shares and
 the sinking die, the repair gang and sea fraction, the rounding grains, and
-the general berth. Unimported, each surface says what it cannot price
-instead of guessing.
+the general berth. Unimported, each surface leaves what it cannot price
+blank instead of guessing.
 
 The sheet's **Seamanship** block ([sea-throws.mjs](../../scripts/vehicles/sea-throws.mjs))
 rolls the day's two questions in the door-helper shape — the throw
@@ -239,8 +239,8 @@ round-by-round tick, and the water closing over her at zero.
 The hold trades with the crew ON ITS OWN: hands short of the complement
 (named crew standing in for typed hands) leave their berths, and the hold
 grows by the imported berth apiece — no switch to flip, because the room
-physically exists whenever the hands do not; unpriced, the freed hands are
-named and nothing grows. The UNNAMED non-motive complement charges its
+physically exists whenever the hands do not; unpriced, nothing grows and the
+hold's line stays blank. The UNNAMED non-motive complement charges its
 gear too, at each role's typed per-head rate (`gearStone`, filled from the
 Judge's own book), so an abstract contingent of marines is not
 weightless freight beside the named ones' weighed inventories.
@@ -282,7 +282,7 @@ weightless freight beside the named ones' weighed inventories.
   (`navigation.mjs` `reducedSpeed()`; the importer reads them from the same
   prose block as the bonus, `voyages-binding.mjs`). The hazard dialog's
   checkbox, the throw card's part and the damage line name the share where it
-  is imported and say "slowed passage" or "not imported" where it is not.
+  is imported and say "slowed passage" where it is not.
 
 ## Boarding
 

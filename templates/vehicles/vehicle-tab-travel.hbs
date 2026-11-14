@@ -140,7 +140,7 @@
         {{#if hull.sinkFormula}}
           {{localize "ACKS-VEHICLES.damage.sinking" formula=hull.sinkFormula}}
         {{else}}
-          {{localize "ACKS-VEHICLES.damage.sinkingUnpriced"}}
+          {{localize "ACKS-VEHICLES.damage.sinkingBare"}}
         {{/if}}
       </p>
       {{#if editable}}
@@ -165,9 +165,7 @@
                    crew=hull.crewFactorLabel hull=hull.hullFactorLabel}}
       </p>
       <p class="hint">
-        {{#if hull.repairMissing}}
-          {{localize "ACKS-VEHICLES.damage.repairUnpriced"}}
-        {{else}}
+        {{#unless hull.repairMissing}}
           {{localize "ACKS-VEHICLES.damage.repair"
                      repairable=hull.repairable dockOnly=hull.dockOnly
                      crew=hull.crewPerPoint hands=hull.handsAboard}}
@@ -176,7 +174,7 @@
           {{else}}
             {{localize "ACKS-VEHICLES.damage.repairNoHands"}}
           {{/if}}
-        {{/if}}
+        {{/unless}}
       </p>
     {{/if}}
   </fieldset>

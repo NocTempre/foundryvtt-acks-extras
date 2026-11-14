@@ -6,6 +6,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { merchandiseFor } from "../engine/merchandise.mjs";
+import { refusalText } from "../engine/refusal.mjs";
 import { performVentureTrade, ventureFor, loadsHeld, ventureVehicles } from "../engine/ventures.mjs";
 import { holdOf } from "../../vehicles/hold.mjs";
 import { marketMonthStart } from "../engine/trade.mjs";
@@ -93,7 +94,8 @@ export class VentureTradeDialog extends HandlebarsApplicationMixin(ApplicationV2
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {
-      ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", hold: "", ...result }));
+      const text = refusalText(result.error, result);
+      if (text) ui.notifications.warn(text);
       return;
     }
     if (result?.ok) {

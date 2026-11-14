@@ -17,7 +17,7 @@ import { session } from "./session.mjs";
 import { boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
 import { applyGridCalibration, applyHexCalibration, applyScaleOnly, bakeCorrectedBackground } from "./apply.mjs";
 import { hexProbe, sceneCountry, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
-import { rescaleSceneTokens, unsizedTokenCount, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
+import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS, sceneFeetPerCell } from "../lib/distance-units.mjs";
@@ -624,8 +624,6 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (!canvas?.scene) return;
     const count = await rescaleSceneTokens(canvas.scene);
     ui.notifications.info(loc("tokens.rescaled", { count }));
-    const unsized = unsizedTokenCount(canvas.scene);
-    if (unsized) ui.notifications.warn(loc("tokens.unsized", { count: unsized }));
   }
 
   static async #onSizeChip(_event, target) {

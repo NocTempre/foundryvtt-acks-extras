@@ -12,6 +12,7 @@
 import { MODULE_ID, LANG, ITEM_FLAG } from "../constants.mjs";
 import { RARITIES, MAGIC_KINDS, ID_STATES } from "../config.mjs";
 import { availableMethods, methodGaps, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
+import { refusalText } from "../engine/refusal.mjs";
 import { makeLoc, el } from "../../lib/util.mjs";
 
 const loc = makeLoc(LANG);
@@ -104,7 +105,7 @@ export function buildMagicPanel(item) {
       const refreshMethods = () => {
         methodSelect.innerHTML = "";
         gapNote.replaceChildren(
-          ...methodGaps(item, chosen).map((g) =>
+          ...methodGaps(item, chosen).filter((g) => g.why !== "table").map((g) =>
             el("p", null, loc(`identify.gap.${g.why}`, { method: loc(`identify.method.${g.method}`), table: g.table ?? "", ability: g.ability ?? "" }))
           )
         );
@@ -134,7 +135,8 @@ export function buildMagicPanel(item) {
       btn.addEventListener("click", async () => {
         if (!methodSelect.value) return;
         const result = await identifyAttempt(item, { identifier: chosen, method: methodSelect.value });
-        if (result?.error) ui.notifications.warn(loc(`identify.error.${result.error}`, { table: "", ability: "", ...result }));
+        const text = result?.error ? refusalText(result.error, result, "identify.error") : "";
+        if (text) ui.notifications.warn(text);
       });
       box.appendChild(btn);
       root.appendChild(box);

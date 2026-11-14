@@ -346,8 +346,8 @@ exactly them):
    survives the next re-render (tick another box).
 4. Enter a land revenue that a row of the imported land-revenue table carries.
    *Observable:* the counts line names how many goods are raised and lowered.
-   With `demand.landRevenueProse` not imported, the notice says so and Roll
-   picks is disabled; add a pick by hand instead.
+   With `demand.landRevenueProse` not imported, the counts line is blank and
+   Roll picks is disabled; add a pick by hand instead.
 5. Press Roll picks.
    *Observable:* the listed picks equal the counts, each good once; a good
    rolled from the precious bands appears when a common roll misses.
@@ -585,7 +585,7 @@ house the run made, the reports go with it.
    {kind: "enter", actorUuid: A.uuid, cargoSt: 0})`, then advance world time a
    day on the GM seat; post `{kind: "assess", ...}` and advance another day.
    Needs the imported `assessmentProse` (and `impactProse`) tables; without them
-   the day posts a "table not imported" card and this step is not reachable.
+   the day logs a failed row, posts no card, and this step is not reachable.
    *Observable:* a whispered assessment card, and (unless the result was
    *failed*, which writes none — repeat) exactly one new report stamped to A with
    `partyId` from `partyOf(A)`, `marketUuid` M1, the rolled outcome and the
@@ -981,9 +981,9 @@ A load is an `item` with `system.quantity.value` stones, `system.cost`,
   only. *Observable:* "Ruler's Privilege in D" with Q ruling, VH's toll with
   A ruling. Close the dialog; clear the ruler.
 - **G6.** World setting `marketsRandomTariff` on (read it first). Where the
-  world's Mercantile document predates `tariffProse`: the Enter block names
-  the Randomized Tariff table, and a GM-seat entry refuses `printedMissing`
-  naming it with nothing paid. Then read the table off the connected book
+  world's Mercantile document predates `tariffProse`: the Enter block shows
+  no quote line, and a GM-seat entry refuses `printedMissing` with nothing
+  paid and no toast. Then read the table off the connected book
   through the shipped recipe (`locatePageNumber`, `pageItems`,
   `extractTable`) and register it as a priority-30 `mercantile` layer on
   BOTH seats — the player's dialog quotes on its own client — writing

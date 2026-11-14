@@ -11,7 +11,6 @@
         <span class="acks-extras-vehicle-station-label">{{label}}</span>
         <span class="acks-extras-vehicle-station-count">{{count}}</span>
         {{#if effectiveNote}}<span class="hint">{{effectiveNote}}</span>{{/if}}
-        {{#if unweighedNote}}<span class="hint">{{unweighedNote}}</span>{{/if}}
       </div>
       <div class="acks-extras-vehicle-station-cells">
         {{#each named}}
@@ -126,11 +125,6 @@
         </li>
       {{/each}}
     </ol>
-    {{#if draftUnpriced}}
-      <p class="hint acks-extras-vehicle-team-unpriced">
-        {{localize "ACKS-VEHICLES.team.unpriced" kinds=draftUnpriced}}
-      </p>
-    {{/if}}
     <p class="hint">{{localize "ACKS-VEHICLES.team.dropHint"}}</p>
   </fieldset>
 

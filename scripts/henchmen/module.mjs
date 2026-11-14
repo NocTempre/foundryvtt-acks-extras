@@ -7,7 +7,7 @@
  *  ready: system check, GM time watcher, chat commands, card listeners.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
-import { MODULE_ID, LOCATION_TYPE, RULEDATA, HOOKS, FLAG_RECORD } from "./constants.mjs";
+import { MODULE_ID, LOCATION_TYPE, HOOKS, FLAG_RECORD } from "./constants.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
 import { installWageGuard, registerDeletionCleanup, sweepAtReady, repairWorld, repairActor, scanActor, describeRepair } from "./repair.mjs";
 import * as config from "./config.mjs";
@@ -23,7 +23,6 @@ import * as adapter from "./acks-adapter.mjs";
 import { collectEffectModifiers, sumEffectModifiers, hasEffectFlag } from "./effects.mjs";
 import HenchmanRecord from "./data/henchman-record.mjs";
 import { isGroupActor } from "../lib/group-logic.mjs";
-import { missingTablesList } from "../lib/ruledata.mjs";
 import { LocationSheet } from "../location/apps/location-sheet.mjs";
 import { ThrowDialog, openThrowDialog } from "./apps/throw-dialog.mjs";
 import { openPostingDialog } from "./apps/posting-dialog.mjs";
@@ -219,18 +218,6 @@ Hooks.once("ready", () => {
       for (const employer of allEmployers()) await enrollNewcomers(employer);
     })().catch((err) => console.error(`${MODULE_ID} | adopting pre-existing hirelings failed`, err));
   });
-
-  // Book tables are imported per-world, not shipped. If some documents have
-  // not been imported yet, tell the GM once and name them. The question is
-  // which declared TABLES are readable, never which ids are registered: this
-  // feature registers a `rarity` doc of its own automation at setup, so a
-  // doc-presence check could never name rarity's book tables as missing.
-  if (game.user.isGM) {
-    const missing = missingTablesList(RULEDATA);
-    if (missing.length) {
-      ui.notifications.warn(game.i18n.format("ACKS-HENCHMEN.tablesMissing", { list: missing.join(", ") }));
-    }
-  }
 
   // Hires accepted while no seat could create actors (players hiring with
   // no GM online) — materialize their queued actors now.

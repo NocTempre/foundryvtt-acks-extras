@@ -139,7 +139,6 @@ export function rollUnarmed(actor, options = {}) {
   const cls = CONFIG?.Item?.documentClass;
   if (!cls) return null;
   const data = unarmedStrikeData();
-  if (!data.system.damage.base.formula) notify("unarmedNoDie");
   const weapon = new cls(data, { parent: actor });
   return actor.makeAttackThrow({ item: weapon, attackType: "melee", skipDialog: options.skipDialog ?? skipDialogFor(options.event) });
 }
@@ -270,8 +269,8 @@ export const HOLDING_KEYS = Object.freeze(["accepts", "refusal", "capacity"]);
 /**
  * Declare that this takes gear, or that it does not — the field the item
  * sheet's Holds toggle shows (`holdsGear`). On leaves any stated capacity
- * alone and states none: a container with no limit, whose surface says its
- * capacity is not imported. Off clears the declaration, the capacity, and the
+ * alone and states none: a container with no limit, whose surface shows no
+ * capacity. Off clears the declaration, the capacity, and the
  * container record's `HOLDING_KEYS`, so it holds nothing and a later Annotate
  * does not declare it again; the record goes with them only when nothing else
  * is left in it, so a lock or a key keeps the item a container.
@@ -491,8 +490,8 @@ export async function setScavengedRow(item, tableKey, bandMax) {
  *
  * Reads the condition table the GM imported from their own book: its bands,
  * category names, effects and resale percentages. A reroll row spawns two more
- * rolls. With no table imported for the item the roll refuses with a notice,
- * writes nothing and returns null.
+ * rolls. With no table imported for the item the roll refuses
+ * quietly, writes nothing and returns null.
  *
  * Fields are written by recomputeItemFields, so a re-roll never compounds and a
  * coexisting masterwork survives. `roll` is injectable for tests.
@@ -502,10 +501,7 @@ export async function scavengeItem(item, { roll } = {}) {
   if (!item || (item.type !== ITEM_TYPE.weapon && item.type !== ITEM_TYPE.armor)) return null;
   const profile = item.type === ITEM_TYPE.weapon ? classifyWeapon(item) : null;
   const tableKey = tableFor(item, profile);
-  if (!importedTable(tableKey)) {
-    ui.notifications?.warn?.(game.i18n.localize("ACKS-EQUIPMENT.action.scavengeNotImported"));
-    return null;
-  }
+  if (!importedTable(tableKey)) return null;
 
   const rolls = [];
   const queue = [0];

@@ -81,22 +81,12 @@ function venturePrerequisite(kind) {
 }
 
 /**
- * Tell an action's actor (and the GM) that a day could not resolve because an
- * imported table is absent. The action is spent; the card names the table and
- * the way to import it, so the failure is never silent.
+ * Log a day that could not resolve because a table it reads is absent. The
+ * action is spent; the market log carries one failed row and nothing is
+ * posted.
  */
-async function postTableMissing(actor, location, action, tableKey, log, t) {
-  const table = game.i18n.localize(`${LANG}.ventures.table.${tableKey}`);
-  log.push({ time: t, type: "ventureFailed", note: `${actor.name}: ${action.kind} could not resolve (${table} table not imported)`, actorUuid: actor.uuid, gp: 0 });
-  await postCard(
-    actor,
-    `<strong>${game.i18n.format(`${LANG}.ventures.tableMissing`, {
-      name: actor.name,
-      kind: game.i18n.localize(`${LANG}.ventures.kind.${action.kind}`),
-      location: location.name,
-      table,
-    })}</strong>`
-  );
+function logUnresolved(actor, action, log, t) {
+  log.push({ time: t, type: "ventureFailed", note: `${actor.name}: ${action.kind} could not resolve`, actorUuid: actor.uuid, gp: 0 });
 }
 
 /**
@@ -576,12 +566,12 @@ export async function processVentureActions(location, log, t) {
     if (action.kind === "enter") {
       const ch = characteristicsFor(location.system.marketClass);
       if (!ch) {
-        await postTableMissing(actor, location, action, "marketCharacteristics", log, t);
+        logUnresolved(actor, action, log, t);
         continue;
       }
       const limits = impactLimits();
       if (!limits) {
-        await postTableMissing(actor, location, action, "impactProse", log, t);
+        logUnresolved(actor, action, log, t);
         continue;
       }
       // A character entering separately is the venture's entrant; an entry
@@ -667,7 +657,7 @@ export async function processVentureActions(location, log, t) {
       }
       const bands = assessmentBands();
       if (!bands) {
-        await postTableMissing(actor, location, action, "assessmentProse", log, t);
+        logUnresolved(actor, action, log, t);
         continue;
       }
       // The Judge's roll was made on the influence page when the day was
@@ -753,11 +743,11 @@ export async function processVentureActions(location, log, t) {
       const venture = ventures.find((v) => inVenture(v, key) && Number(v.monthStartTime) === monthStart);
       const merch = merchandiseFor(action.category);
       if (!merch) {
-        await postTableMissing(actor, location, action, "merchandiseTypes", log, t);
+        logUnresolved(actor, action, log, t);
         continue;
       }
       if (!priceShifts()) {
-        await postTableMissing(actor, location, action, "priceShiftProse", log, t);
+        logUnresolved(actor, action, log, t);
         continue;
       }
       if (!venture?.entered) continue;

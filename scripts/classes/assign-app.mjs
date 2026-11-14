@@ -188,7 +188,7 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
       // A package on this window ADDS; it never replaces. Said where the choice
       // is made, because the character it is being added to already owns things.
       // A class holding no template rows says so: the empty list belongs to the
-      // class document, not to this window, and the fix is an import, not a pick.
+      // class document, not to this window.
       ruleHint: template ? loc("assign.packageAdds") : legal.length ? loc("assign.packageHint") : loc("chargen.noTemplates"),
       shortfall: template ? templateShortfall(intScore, assumed) : null,
     });

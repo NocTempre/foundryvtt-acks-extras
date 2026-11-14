@@ -16,7 +16,7 @@
  * the module's armour ladder and its notion of a shield, and everything a
  * phrase states beyond that is the book's. With no table, or a phrase that
  * names no ladder word, no rung exists and a limit answers null: the surface
- * says "not imported" and shows no figure in its place.
+ * shows no figure and no verdict.
  */
 import { ARMOR_LADDER } from "./config.mjs";
 import { MODULE_ID } from "./constants.mjs";

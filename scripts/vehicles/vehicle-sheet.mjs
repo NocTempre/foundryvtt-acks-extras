@@ -140,7 +140,9 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const speed = isSea
       ? seaSpeeds(sys, { wind: this.#wind, roles: effRoles })
       : landSpeed(sys, hold.used, this.#ground, { pull });
-    const reasons = (speed.reasons ?? []).map((r) => ({
+    // The `tablesMissing` reason only says a table is not imported, so this
+    // list leaves it out.
+    const reasons = (speed.reasons ?? []).filter((r) => r.key !== "tablesMissing").map((r) => ({
       label: game.i18n.localize(`${LANG_PREFIX}.reason.${r.key}`),
       // A factor reads better as the fraction the book prints than as 0.667.
       factor: r.factor != null ? fractionLabel(r.factor) : null,
@@ -242,11 +244,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       draftKinds: Object.keys(DRAFT_KINDS).map((k) => ({
         value: k, label: game.i18n.localize(`${LANG_PREFIX}.draft.${k}`),
       })),
-      // Any harnessed kind the registry cannot price, named once. Joined
-      // here because the template layer has no list-joining helper.
-      draftUnpriced: [...new Set((sys.team?.animals ?? [])
-        .filter((a) => a.pulling !== false && draftEquivalent(a.kind) == null)
-        .map((a) => game.i18n.localize(`${LANG_PREFIX}.draft.${a.kind}`)))].join(", "),
       place,
       descriptionHTML: await foundry.applications.ux.TextEditor.implementation.enrichHTML(sys.description ?? "", {
         relativeTo: actor,
@@ -448,8 +445,8 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
    * Station groups resolved for the template: labels localized, chips built,
    * the unnamed stepper named after the field it writes, empty seats counted
    * out, and — at a bench where unproficient hands are worth less than a full
-   * one — what the bench is worth (`effective`, stations.mjs), or that
-   * nothing imported could weigh them (`unweighed`).
+   * one — what the bench is worth (`effective`, stations.mjs), which stays
+   * blank where nothing imported could weigh them (`unweighed`).
    */
   #stationView(groups) {
     const editable = this.isEditable;
@@ -509,7 +506,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
           effective != null && g.counts === "people" && effective !== g.filled
             ? game.i18n.format(`${LANG_PREFIX}.station.effective`, { n: effective })
             : null,
-        unweighedNote: g.unweighed ? game.i18n.localize(`${LANG_PREFIX}.station.unweighed`) : null,
         consequence: g.consequenceKey ? game.i18n.localize(g.consequenceKey) : null,
       };
     });

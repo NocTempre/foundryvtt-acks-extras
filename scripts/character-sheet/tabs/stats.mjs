@@ -87,7 +87,7 @@ function tipContext() {
  * (`categoryOptions`) and the size-and-use options one of them satisfies, in
  * the order the import lists them, each by its printed words and where it was
  * read. The restricted list's single picks are the weapons themselves and are
- * not named. With no option list imported the tooltip says so and names none.
+ * not named. With no option list imported the tooltip is the label alone.
  * With options imported it also says where the options fall short: that none
  * holds any of the group's weapons, that no single option holds all of them,
  * and how many of its weapons are in no option at all.
@@ -99,7 +99,7 @@ function tipContext() {
  */
 export function categoryTip(group, label, members, context = tipContext()) {
   const { options, held, predicates, found } = context;
-  if (!options.length) return [label, loc("stats.optionsNotImported")].join(" · ");
+  if (!options.length) return label;
   const keys = new Set(members.map((m) => m.key));
   const token = Object.keys(held).find((t) => slug(t) === group.token);
   const named = new Set((held[token] ?? []).filter((id) => options.find((o) => o.id === id)?.list !== "restricted"));
@@ -237,9 +237,8 @@ function inForceFigure(stored, inForce) {
   return { value, tip };
 }
 
-/** Why a typed modifier is listed and not applied, as `loc` keys. */
+/** Why a typed modifier is listed and not applied, as `loc` keys; a figure not imported states none. */
 const NOT_APPLIED_REASONS = {
-  unresolved: "stats.reason.unresolved",
   gateOff: "stats.reason.gateOff",
   gate: "stats.reason.gate",
   condition: "stats.reason.condition",
@@ -292,6 +291,11 @@ function typedLines(actor, paths, target, typed) {
   for (const l of typed.listed) {
     if (l.target !== target || seen.has(`${l.itemId}:${l.index}`)) continue;
     seen.add(`${l.itemId}:${l.index}`);
+    // A figure not imported has no reason to state: the row is listed by name.
+    if (l.reason === "unresolved") {
+      left.push(l.label);
+      continue;
+    }
     const reason = loc(NOT_APPLIED_REASONS[l.reason] ?? NOT_APPLIED_REASONS.condition);
     left.push(loc("stats.notAppliedPart", { label: l.label, reason }));
   }
@@ -400,13 +404,13 @@ export function buildThrows(actor) {
 /**
  * One light's vision row: how far it reaches, from the imported light table,
  * with the page it was read from as the tooltip. Until the table is imported
- * the row says so and shows no figure.
+ * the value is blank and carries no tooltip.
  */
 export function lightRow(key) {
   const icon = LIGHT_ICONS[key] ?? LIGHT_ICONS.torch;
   const label = loc(`vision.${key}`);
   const dim = lightFigures(key).dim;
-  if (dim == null) return { icon, label, value: "", note: loc("vision.notImported"), tip: loc("vision.notImportedTip") };
+  if (dim == null) return { icon, label, value: "", note: "" };
   const cite = lightCite();
   return { icon, label, value: `${dim}′`, tip: cite ? loc("vision.lightTip", { cite }) : loc("vision.lightTipJudge") };
 }
@@ -414,10 +418,10 @@ export function lightRow(key) {
 /**
  * The reach cell of the dark sense a character sees by: its radius with the
  * page the shadowy senses' radius was read from as the tooltip, or, with no
- * radius imported, a "not imported" note and no figure in its place.
+ * radius imported, a blank value with no tooltip.
  */
 function senseReach(profile, kind) {
-  if (profile.sightRange == null) return { value: "", note: loc("vision.notImported"), tip: loc("vision.senseNotImportedTip") };
+  if (profile.sightRange == null) return { value: "", note: "" };
   const value = `${num(profile.sightRange)}′`;
   if (kind !== "shadowy") return { value, note: "" };
   const cite = senseCite("shadowy");
@@ -427,10 +431,11 @@ function senseReach(profile, kind) {
 /**
  * One armour-training ability's line under the armour rungs: the rungs it
  * adds, its step times its rank, with the parts and the page the import read
- * as the tooltip. With no step imported the line says so and shows no figure.
+ * as the tooltip. With no step imported the line's value is blank and carries
+ * no tooltip.
  */
 export function armourStepRow({ name, step, rank, steps, cite }) {
-  if (step == null) return { label: name, value: "", note: loc("stats.armourStepNotImported"), tip: loc("stats.armourStepNotImportedTip") };
+  if (step == null) return { label: name, value: "", note: "" };
   const parts = { step: num(step), rank: num(rank), steps: signed(num(steps)) };
   return { label: name, value: signed(num(steps)), tip: cite ? loc("stats.armourStepTip", { ...parts, cite }) : loc("stats.armourStepTipRow", parts) };
 }

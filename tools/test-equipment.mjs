@@ -785,8 +785,8 @@ unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
   check("imported: the Rolls row shows the penalty and a provenance tooltip", read.v === "−11" && read.line.startsWith("−11 ") && /maneuver\.tip$/.test(read.tip));
   unregisterTable("equipment", { priority: PRIORITY.WORLD });
   const none = manRow("knockDown");
-  check("not imported: the Rolls row says so, shows no figure, names the tables in its tooltip and still rolls",
-    none.v === "—" && /maneuver\.notImported$/.test(none.line.split(" · ")[0]) && /maneuver\.notImportedTip$/.test(none.tip) && none.rollable === true);
+  check("not imported: the Rolls row shows no figure and no tooltip, keeps its save line and still rolls",
+    none.v === "" && !/throw/.test(none.line) && none.line.length > 0 && none.tip === "" && none.rollable === true);
 }
 
 
@@ -2522,7 +2522,7 @@ check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torc
   check("an override that is not a die counts as not imported", unarmedStrikeData().system.damage.base.formula === "");
   unreg("equipment", { priority: P.WORLD });
 
-  // The throw is made either way; with no die it says the die is not imported.
+  // The throw is made either way; with no die the formula is blank and nothing is said.
   const { rollUnarmed } = await import(new URL("actions.mjs", S));
   const said = [];
   const prevInfo = globalThis.ui.notifications.info;
@@ -2533,7 +2533,7 @@ check("prepareTorch {draw} readies a torch and draws it", inHand?.name === "Torc
   const striker = { makeAttackThrow: (o) => { throws.push(o); return true; } };
   try {
     rollUnarmed(striker, { skipDialog: true });
-    check("no die imported: the throw is made and the notice says the die is not imported", throws.length === 1 && said.length === 1 && said[0].includes("unarmedNoDie"));
+    check("no die imported: the throw is made with a blank formula and nothing is said", throws.length === 1 && said.length === 0 && throws[0].item.data.system.damage.base.formula === "");
     reg({ id: "equipment", tables: { unarmedStrike: { damage: "1d7" } } }, { priority: P.WORLD, source: "test" });
     said.length = 0;
     rollUnarmed(striker, { skipDialog: true });
@@ -2737,7 +2737,7 @@ await setMasterwork(p3, "armorAC");
 check("armour masterwork: the document's AC and surcharge both land", p3.system.ac.value === 6 + FIG.ac.ac && p3.system.cost === 60 + FIG.ac.add);
 check("layerSummary states the new price so the sheet can explain it", layerSummary(p3).includes(`${60 + FIG.ac.add}gp (was 60gp)`));
 
-/* --- NOT IMPORTED: a layer with no document applies nothing and says so --- */
+/* --- NOT IMPORTED: a layer with no document applies nothing and shows no figure --- */
 const printedLayers = await import(new URL("printed-layers.mjs", S));
 libraryAbsent();
 const bareMw = mockDoc("weapon", { name: "Sword", damage: "1d6", bonus: 0, cost: 10, weight6: 6 });
@@ -2747,7 +2747,8 @@ check("the tier is still recorded, so the layer survives an import", bareMw._fla
 check("masterworkFigure answers null with no document", printedLayers.masterworkFigure("weaponBoth") === null && printedLayers.silverFigure() === null);
 const bareUnstated = unstatedLayers(bareMw);
 check("the layer is listed as not imported, naming the key to import", bareUnstated.length === 1 && bareUnstated[0].layer === "masterwork" && bareUnstated[0].key === MASTERWORK.weaponBoth);
-check("layerSummary says it is not imported and shows no figure", layerSummary(bareMw).includes("ACKS-EQUIPMENT.printed.layerNotImported"));
+check("layerSummary names no figure and no placeholder for it", layerSummary(bareMw) === "");
+check("a layer whose figure is not imported adds no clause to the provenance tooltip", layerProvenance(bareMw) === "");
 const platedMock = (flags = {}) => ({ name: "Sword", type: "weapon", system: { cost: 10, weight6: 1, damage: "1d4" }, getFlag: (_m, k) => flags[k] });
 const barePlated = platedMock({ silvered: true });
 check("a plated blade with no document is scaled by nothing", deltasOf(barePlated, { silvered: true, masterwork: null, scavenged: null }).costBaseMul === 1);
@@ -2787,7 +2788,6 @@ useLibrary([stampedRead("masterwork.weaponToHit", { deltas: { bonus: FIG.hit.bon
 check("an edit to one slot of a tier is an edit", tipOf(printedLayers.masterworkFigure("weaponToHit")).startsWith("ACKS-EQUIPMENT.printed.editedByHand"));
 useLibrary([variationItem("material.silver", { cost: { baseMul: FIG.silver }, cite: "" })]);
 check("a minted document with no page still names the document", tipOf(printedLayers.silverFigure()).startsWith("ACKS-EQUIPMENT.printed.fromDocument"));
-check("the not-imported tooltip names the key", printedLayers.notImportedTip(SILVER.variation).includes(SILVER.variation));
 // A container's stated capacity wears the same three states: the page the import
 // read it from, an edit to that figure, or a hand; none stated is "not imported".
 const capItem = (capacity, cookbook) => ({ name: "Crate", flags: { "acks-extras": { gear: capacity == null ? {} : { capacity }, ...(cookbook ? { cookbook } : {}) } } });
@@ -2796,7 +2796,7 @@ check("a capacity equal to the figure its import read cites the page", capTip(ca
 check("a capacity a Judge changed says so and names the page the import read", capTip(capItem(12, { cite: "Invented p. 2", read: { capacity: 9 } })).startsWith("ACKS-EQUIPMENT.printed.editedByHand") && capTip(capItem(12, { cite: "Invented p. 2", read: { capacity: 9 } })).includes("Invented p. 2"));
 check("a capacity the import did not read is set by hand, stamp or no stamp", capTip(capItem(3, { cite: "Invented p. 2" })).startsWith("ACKS-EQUIPMENT.printed.byHand") && capTip(capItem(3)).startsWith("ACKS-EQUIPMENT.printed.byHand"));
 check("a capacity of zero is stated and cites its source", capTip(capItem(0)).startsWith("ACKS-EQUIPMENT.printed.byHand"));
-check("no stated capacity says not imported and cites nothing", capTip(capItem(null, { cite: "Invented p. 2" })).includes("capacityNotImportedTip") && !capTip(capItem(null)).includes("Invented"));
+check("no stated capacity has no tooltip and cites nothing", capTip(capItem(null, { cite: "Invented p. 2" })) === "" && capTip(capItem(null)) === "");
 useLibrary(IMPORTED_VARIATIONS);
 const provenanceItem = mockDoc("weapon", { name: "Sword", damage: "1d6" });
 provenanceItem._flags.masterwork = { tier: "weaponToHit" };
@@ -2935,7 +2935,7 @@ await setSpellbookSpells(book, [{ name: "A", lvl: 1 }, { name: "B", lvl: 3 }]);
 check("spellbook pages used = sum of levels (1+3)", pagesUsed(book) === 4);
 check("unimported: a book has no capacity, no value and no verdict", pagesCapacity(book) === null && spellbookValue(book) === null && !bookOver(book));
 check("unimported: a new book's record stores no page count", !("pages" in (book._flags.spellbook ?? {})));
-check("unimported: every figure says so", ["pages", "blank", "scribing"].every((w) => spellbookFigureSource(w).state === "none" && spellbookFigureTip(w).includes("spellbook.tip.none")));
+check("unimported: every figure is blank and carries no tooltip", ["pages", "blank", "scribing"].every((w) => spellbookFigureSource(w).state === "none" && spellbookFigureTip(w) === ""));
 await setSpellbookSpells(book, Array.from({ length: 20 }, (_, i) => ({ name: `S${i}`, lvl: 6 })));
 check("unimported: a book scribed to any length is never over capacity", !bookOver(book));
 

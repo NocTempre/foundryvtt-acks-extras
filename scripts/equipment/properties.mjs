@@ -16,7 +16,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
-import { silverFigure, masterworkFigure, provenanceTip, notImportedTip } from "./printed-layers.mjs";
+import { silverFigure, masterworkFigure, provenanceTip } from "./printed-layers.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { whenReady } from "../lib/library.mjs";
 import { sumDeltas, entryOf, definitionFrom } from "./variations.mjs";
@@ -237,15 +237,17 @@ export function unstatedLayers(
 /**
  * Where the silver and masterwork figures on an item came from, one clause
  * per layer it carries, joined as a tooltip: the document and page each was
- * read from, or that it is not imported. Empty when the item carries neither.
+ * read from. A layer whose figure is not imported adds no clause; empty when
+ * the item carries neither layer or no figure.
  */
 export function layerProvenance(item) {
   const tier = masterworkTierOf(item);
   const parts = [];
-  const add = (label, fig, key) =>
-    parts.push(`${game.i18n.localize(label)}: ${fig ? provenanceTip(fig.source) : notImportedTip(key)}`);
-  if (tier && tier !== "none" && MASTERWORK[tier]) add("ACKS-EQUIPMENT.props.masterwork", masterworkFigure(tier), MASTERWORK[tier]);
-  if (silveredFlagOf(item) === true) add("ACKS-EQUIPMENT.props.silver", silverFigure(), SILVER.variation);
+  const add = (label, fig) => {
+    if (fig) parts.push(`${game.i18n.localize(label)}: ${provenanceTip(fig.source)}`);
+  };
+  if (tier && tier !== "none" && MASTERWORK[tier]) add("ACKS-EQUIPMENT.props.masterwork", masterworkFigure(tier));
+  if (silveredFlagOf(item) === true) add("ACKS-EQUIPMENT.props.silver", silverFigure());
   return parts.join(" · ");
 }
 
@@ -257,9 +259,6 @@ export function layerSummary(item) {
   if (d.damage) bits.push(`${d.damage > 0 ? "+" : ""}${d.damage} dmg`);
   if (d.ac) bits.push(`${d.ac > 0 ? "+" : ""}${d.ac} AC`);
   if (d.weight6) bits.push(`${d.weight6 > 0 ? "+" : ""}${(d.weight6 / 6).toFixed(2).replace(/\.?0+$/, "")} st`);
-  for (const u of unstatedLayers(item)) {
-    bits.push(game.i18n.format("ACKS-EQUIPMENT.printed.layerNotImported", { layer: game.i18n.localize(`ACKS-EQUIPMENT.props.${u.layer}`) }));
-  }
   const sc = scavengedOf(item);
   if (sc?.breaks) bits.push(game.i18n.localize("ACKS-EQUIPMENT.itemSheet.condition.breakable"));
   if (sc?.cannotSneak) bits.push("cannot sneak");

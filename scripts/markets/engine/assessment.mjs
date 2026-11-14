@@ -10,6 +10,7 @@
  */
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performVentureAction } from "./ventures.mjs";
+import { refusalText } from "./refusal.mjs";
 
 /**
  * The hit dice a bribe to a market's merchants is priced against on the
@@ -41,7 +42,8 @@ async function postAssessmentDay(payload) {
     bribeGp: payload.bribe?.fee ?? 0,
   });
   if (result?.error) {
-    ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result }));
+    const text = refusalText(result.error, result);
+    if (text) ui.notifications.warn(text);
   } else if (result?.ok) {
     ui.notifications.info(game.i18n.localize(`${LANG}.ventures.posted`));
     location.sheet?.rendered && location.sheet.render();

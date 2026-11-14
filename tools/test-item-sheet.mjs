@@ -515,9 +515,9 @@ console.log("item sheet: a spell book's pages");
     assert.ok(html.includes("itemSheet.of:7") && html.includes('data-tooltip-text="cap-tip"') && html.includes('data-tooltip-text="used-tip"'));
     assert.ok(html.includes("acks-bar-fill"));
   });
-  test("no capacity imported says so, with no figure and no bar, and keeps its tooltip", () => {
+  test("no capacity imported is blank, with no figure and no bar, and keeps the tooltip it is given", () => {
     const html = render(null);
-    assert.ok(html.includes("printed.notImported") && !html.includes("itemSheet.of:") && !html.includes("acks-bar-fill"));
+    assert.ok(!html.includes("printed.notImported") && !html.includes("itemSheet.of:") && !html.includes("acks-bar-fill"));
     assert.ok(html.includes('data-tooltip-text="cap-tip"'));
   });
 }

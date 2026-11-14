@@ -15,11 +15,9 @@
       </ul>
       {{#if hold.trade}}
         <p class="hint acks-extras-vehicle-trade">
-          {{#if hold.trade.missing}}
-            {{localize "ACKS-VEHICLES.cargo.tradeUnpriced" hands=hold.trade.hands}}
-          {{else}}
+          {{#unless hold.trade.missing}}
             {{localize "ACKS-VEHICLES.cargo.trade" hands=hold.trade.hands stone=hold.trade.stone}}
-          {{/if}}
+          {{/unless}}
         </p>
       {{/if}}
     </div>

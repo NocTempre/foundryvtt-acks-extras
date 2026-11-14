@@ -409,9 +409,6 @@ export function createAbilitySheet(Base) {
           })
         : [];
       context.selectionsCSV = picks.filter((p) => !matched.has(p)).join(", ");
-      // An ability whose options come from an import lists none until one
-      // arrives, and says so rather than leaving a bare line.
-      context.selectionsNotImported = !!vocab && !context.selectionOptions.length && !!V.hasSelectionProvider?.(this.item);
       // A weapon proficiency's boxes are grant tokens, and its line may hold
       // single weapons a box would widen — the hint beside them says which is
       // which.

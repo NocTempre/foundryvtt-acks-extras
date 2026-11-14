@@ -92,7 +92,7 @@ const layer = { priority: PRIORITY.WORLD, source: "test" };
 const before = registerWeaponSource(librarySource);
 
 eq("nothing imported, no unit, no shortcut and nothing to report", [weaponUnits().length, shortcuts(), optionFindings()], [0, [], { unplaced: [], notWhole: [] }]);
-eq("with no list the surface says not imported and draws no row", trainingShortcuts({ effects: [] }), { imported: false, rows: [] });
+eq("with no list the surface draws no row", trainingShortcuts({ effects: [] }), { imported: false, rows: [] });
 
 registerTable({ id: WEAPONS_DOC, tables: { [WEAPONS_TABLE]: GRID } }, layer);
 eq("a grid with no lists has units and still no shortcut", [weaponUnits().length, shortcuts()], [12, []]);
@@ -189,7 +189,7 @@ const trained = (grant, extra = {}) => ({
   check("a category some option holds whole carries neither finding", !/optionsNotWhole|optionsLoose/.test(axes));
   unregisterTable(WEAPONS_DOC, { priority: PRIORITY.WORLD });
   unregisterTable("weaponLists", { priority: PRIORITY.WORLD });
-  check("with no option imported the header says so and names none", /stats\.optionsNotImported/.test(tip("axe", "zorka")) && !/optionsHolding/.test(tip("axe", "zorka")));
+  check("with no option imported the header is the label alone and names none", tip("axe", "zorka") === "Label" && !/optionsHolding/.test(tip("axe", "zorka")));
 }
 
 // ----------------------------------------------------------------- the press

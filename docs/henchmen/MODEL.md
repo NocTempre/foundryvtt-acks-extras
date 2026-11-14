@@ -91,9 +91,9 @@ arrives in week 3. A table that is not imported, or reads a share of nothing,
 shares past the whole or a fractional floor, gives no shares, and then nothing
 is scheduled: a generic posting is refused `arrivals-missing` before any fee
 or roll (a directed search replaces pool members and arrives nowhere, so it
-is not), a due month roll is deferred with the market kept as it stands
-(Process time says so), and a network supplement is not rolled. The error
-and the notice name the arrival schedule and where to import it.
+is not), a due month roll is deferred with the market kept as it stands,
+and a network supplement is not rolled. The refusal and the deferral show
+no message; the board stays as it was.
 
 **Bulk rows.** Mercenaries, and specialists whose largest market counts them
 by a multiple, arrive as one candidate row per week with a `quantity`
@@ -118,8 +118,8 @@ own `reactionToHiring` throw (handed the column as `outcomes` and the two
 figures as `stepValues`), a peaceful monster offer, every further head of a
 bulk offer and the core influence roller's slander row all read it, so no two
 of them can answer on different edges. The `throws` config carries none of
-it; a throw that needs a figure the world has not imported warns and does not
-open, and the core roller's slander row is a note giving the count.
+it; a throw that needs a figure the world has not imported does not open, and
+the core roller's slander row is left out.
 
 **A network posting.** A posting made with the employer's mercantile network
 (`network`; the posting dialog offers it to a holder and ticks it where the
@@ -150,8 +150,8 @@ is not on, a relay nobody answered.
 proficiency, and a commissioned search each move the class's rarity by a step
 the importer read from the search modifiers (`searchSteps`: `levelPerAbove1`,
 `cpPerRank`, `commissionedShift`), and the posting dialog names the step in
-force. A step the world lacks refuses the search `tables-missing` before any
-die. A directed posting renews each month from its stored spec, where a
+force; a step the world lacks leaves its page reference alone in that place.
+It refuses the search `tables-missing` before any die, with no message. A directed posting renews each month from its stored spec, where a
 blank rarity override names no tier; a commissioned posting, and one that ran
 a whole market month (`advertVeteran`), renews as a commission. A general-proficiency
 search reads its level from the imported level die and zero band
@@ -261,7 +261,8 @@ Charisma score (every actor but a character), or a world that has not
 imported the base, has no limit: `max` is null, no hire is refused or warned
 for it, and the roster shows the limit as unknown. `checkHenchmanLimit`'s
 `why` (`acks-adapter.mjs > retainGap`) says which gap it is, the actor's own
-first, and the roster's limit note names it in its tooltip (§4d).
+first, and the roster's limit note names an actor's own gap in its tooltip
+(§4d); the import gap leaves that tooltip empty.
 
 The highest henchman level an employer may seek
 (`rules/wages.mjs > maxHenchmanLevel`) is the imported ladder
@@ -286,8 +287,7 @@ record's own `terms.treasureShare` / `terms.xpShare` where it holds a number,
 else the imported one, else none, with `from` naming which answered (`record`,
 `imported`, null). A Judge changes the imported figure in the Ruledata
 Browser's override layer, and one henchman's in their record. Nothing stands
-in for a figure that is neither: the Service panel's Share row reads "not
-imported" with no figure, and Deal XP (`formation/xp-shares.mjs > shareFor`)
+in for a figure that is neither: the Service panel's Share row is blank, and Deal XP (`formation/xp-shares.mjs > shareFor`)
 gives that henchman no computed share, reason `notImported`, and lists them
 among those taking none. A record written before the shares were imported
 keeps the figure it stored, which counts as its own. Nothing in the module
@@ -302,8 +302,7 @@ hireling leaves, which keys the rung one above it, and one by the level
 reached. `levelMoraleBumps` gives the rungs a gain from the record's known
 level crosses, and the watcher appends one `morale.permanents` entry per
 rung, reason `levelGain`, its note naming the level. With no rung imported
-it is null: no entry is recorded and the level-gain card says the bonuses
-are not imported. A gain made then is not made up by a later import. Entries
+it is null: no entry is recorded and the level-gain card is the same. A gain made then is not made up by a later import. Entries
 recorded before the levels were imported carry reason `firstLevel` or
 `fifthLevel` and read as the same level-gain label.
 
@@ -315,16 +314,14 @@ officerMoraleModifier` answers it: a `mercOfficer*` row reads its own row of
 imported `wages.officerMorale` table (RR 166, the Morale paragraph's figure
 for the officer roles), and any other specialist type adds none. A table that
 is absent, blank or not a whole number answers null, the group stores null
-(the field is nullable, and `commandMorale` counts a null as nothing) and the
-hire warns that the modifier is not imported. A Judge changes the figure in
+(the field is nullable, and `commandMorale` counts a null as nothing). A Judge changes the figure in
 the Ruledata Browser's override layer. A group hired while it was unread keeps
 the null; it is not made up by a later import.
 
 Hire as Group stores each stack's base morale from `rules/wages.mjs >
 mercenaryMorale`, the troop type's own `wages.mercenaryWages` row (RR 166). A
 type with no imported figure answers null, the stack stores null
-(`unitMoraleOf` counts it as nothing) and the hire warns once that it is not
-imported.
+(`unitMoraleOf` counts it as nothing).
 
 The Hireling Loyalty roll counts a henchman's levels of apparent difference,
 the employer level claimed at hire (`terms.claimedEmployerLevel`) less the
@@ -333,7 +330,7 @@ imported `apparentLevel.perLevel`. The influence-hosted page reads it
 (`docs/influence/MODEL.md`, "Printed pages"), and so does this feature's own
 throw: `openLoyaltyRoll` hands `rules/loyalty.mjs > apparentLevelPenalty`
 in as the stepper's per-step figure. Unread, the throw takes no figure for
-the count and its info line names the count for the Judge to add by hand.
+the count.
 
 **Loyalty results and starts are the import's.** `data/throws-data.mjs`
 ships no outcome table and no opposite-alignment figure; these, and the
@@ -343,10 +340,10 @@ loyalty a result changes or a hire starts at, are read from the Judge's
 | Figure | Table (page) | Reader | Without it |
 |---|---|---|---|
 | Hireling Loyalty's result column | `hirelingLoyalty` (RR 166) | `rules/loyalty.mjs > hirelingLoyaltyOutcomes`, with the natural-roll clamps naming their rungs | the fallback throw posts its total and names no result; nothing is applied |
-| The permanent change of a Grudging or Fanatic result | `loyaltyChanges.grudging` / `.fanatic` (RR 166) | `loyaltyDeltaForOutcome` | no change is applied; the Judge is warned |
-| What an Accept with élan adds to a start | `loyaltyChanges.elan` (RR 166) | `engine/events.mjs > elanFigure` | nothing is added; the Judge is warned |
+| The permanent change of a Grudging or Fanatic result | `loyaltyChanges.grudging` / `.fanatic` (RR 166) | `loyaltyDeltaForOutcome` | no change is applied |
+| What an Accept with élan adds to a start | `loyaltyChanges.elan` (RR 166) | `engine/events.mjs > elanFigure` | nothing is added |
 | The Irrefusable Offer's result column and opposite-alignment figure | `irrefusableOffer` (MM 351) | `rules/irrefusable.mjs > irrefusableOutcomes`, `oppositeAlignmentFigure` | the throw rolls, names no result and hires nothing; the checkbox shows a dash and adds nothing |
-| The start of each entering Irrefusable result | `irrefusableOffer.hesitateLoyalty` / `acceptLoyalty` / `elanLoyalty` (MM 351) | `irrefusableStart` | the monster is not hired; the Judge is warned |
+| The start of each entering Irrefusable result | `irrefusableOffer.hesitateLoyalty` / `acceptLoyalty` / `elanLoyalty` (MM 351) | `irrefusableStart` | the monster is not hired |
 | The start of a feigned acceptance (Betrayal, Escape) | `loyaltyChanges.forcedServitude` (RR 166) | `irrefusableStart` | as above |
 
 An Irrefusable start is the whole start: no élan figure is added to it. An
@@ -356,10 +353,9 @@ influence-hosted page names its results in this feature's vocabulary
 and on its roll-complete hook `integrations/influence.mjs >
 applyIrrefusableResult` hands the monster, the employer and the result to
 `applyIrrefusableOutcome`; the fallback throw calls the same function. A roll
-that named no result (the column is not imported) hires nothing and warns the
-Judge. The
+that named no result (the column is not imported) hires nothing. The
 provenance of an applied figure (`engine/events.mjs > originText`: the page,
-the Judge's override, or not imported) rides in the ledger entry's note for a
+the Judge's override, or the page alone where nothing is imported) rides in the ledger entry's note for a
 loyalty change, in the hired event's note for a monster's start, and in the
 opposite-alignment checkbox's tooltip. A Judge edits any of them in the
 Ruledata Browser's override layer.
@@ -584,9 +580,10 @@ panel names its source in a tooltip (`.claude/rules/ui-tooltips.md`): a score
 its parts and the page, held at the score's range where that cut the sum; the
 wage whether it was agreed at hire, set on the sheet, or read off the wage
 table at the hireling's level with the page that table was imported from
-(`henchmanWageCite`, lib `citeOf`), or what is missing; each share whether it
-is the record's own, the imported table's (with `importedShareCite`'s page, or
-"no page recorded" under a Judge's override) or not imported (`shareFrom`);
+(`henchmanWageCite`, lib `citeOf`), or that it was neither agreed nor set; each
+share whether it is the record's own or the imported table's (with
+`importedShareCite`'s page, or "no page recorded" under a Judge's override)
+(`shareFrom`; a share that is neither has no tooltip);
 the counters and recorded rolls
 that the record keeps them. A downed hireling's calamity
 (`special.pendingCalamity`, which the event watcher sets when hit points
@@ -596,15 +593,15 @@ the band's in-service chip and, through the lib's `FOLLOWER_CARD_HOOK`
 (`module.mjs`), dots the follower's name on the employer's compact card
 ([../lib/FOLLOWER-CARD.md](../lib/FOLLOWER-CARD.md), "What a feature
 adds"). Terms are the wage, its basis, the two shares
-said as words from the fraction in force (`shareKind`, or "not imported"), the signing bonus (read as owed, in
+said as words from the fraction in force (`shareKind`, or blank), the signing bonus (read as owed, in
 the negative tone, where `signingBonusOwedGp` holds any), arrears and the
 wage clock (days since the last payday against the month, in tone once it is
 behind). Employer names the employer and the calamity and level counters,
 and whether the hireling takes a slot. The ledger lists the permanents newest
 first, a suspended one struck through; Events the last `EVENTS_SHOWN`;
 Recorded rolls the candidate's scores where the record keeps them, and the
-hit points rolled at hire with each level's roll in the tooltip, or "not
-imported" with what was missing. A
+hit points rolled at hire with each level's roll in the tooltip, or a blank
+value with what was missing in the tooltip. A
 mercenary keeps no loyalty score (`keepsLoyalty`), so its Standing holds the
 morale throw alone and says why.
 

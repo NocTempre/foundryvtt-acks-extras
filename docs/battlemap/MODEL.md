@@ -353,10 +353,9 @@ passes `sizeSquareFeet()` as `footprintFeet`'s `feetPerSquare`, which has no
 default. With no square imported, or a category the world holds no frontage
 for, there is no footprint: `footprintFeet` answers null (an override still
 wins, and needs neither), `sizeForToken` answers null, and the token keeps the
-size it has. The assistant's "Rescale tokens on scene" then adds a warning
-naming how many tokens kept their size (`unsizedTokenCount`) and that the
-square and frontage are not both imported; the preCreateToken auto-size
-leaves such a token alone without a message.
+size it has. The assistant's "Rescale tokens on scene" leaves such a token
+alone and says nothing about it (`unsizedTokenCount` counts them); the
+preCreateToken auto-size does the same.
 `footprintLock` on a token opts it out of every automatic resize,
 the party token's included. No surface sets it; it is written by script.
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).

@@ -5,7 +5,7 @@
  * A figure is in one of three states: the item declares it (a flag a Judge or
  * the Annotate pass set, which outranks the table), the weapon table's row for
  * the weapon states it (and the row's page, where the import recorded one), or
- * nothing states it, which is "not imported" with no number in its place.
+ * nothing states it, which is a blank figure with no tooltip.
  * `figureState` decides which and `figureTip` words it; both answer from the
  * row the weapon seam holds (`lib/weapons.mjs`), so a figure's provenance is
  * the one the proficiency and hand-cost readers used.
@@ -34,8 +34,8 @@ export function figureState({ key, field, declared = null }) {
 }
 
 /**
- * The tooltip text of a figure in `state`, for `data-tooltip-text`. `label` is
- * the figure's name as the sheet prints it.
+ * The tooltip text of a figure in `state`, for `data-tooltip-text`; empty for a
+ * figure nothing states. `label` is the figure's name as the sheet prints it.
  */
 export function figureTip(state, label) {
   const f = { figure: label, ...state };
@@ -43,13 +43,13 @@ export function figureTip(state, label) {
   if (state.state === FIGURE_STATE.ROW) {
     return game.i18n.format(state.cite ? "ACKS-EQUIPMENT.props.figureFromRow" : "ACKS-EQUIPMENT.props.figureFromRowNoPage", f);
   }
-  return game.i18n.format("ACKS-EQUIPMENT.props.figureMissing", f);
+  return "";
 }
 
 /**
  * The tooltip of the die a weapon deals in the grip it is held in
  * (`attack-mods.mjs` `heldGrip`): whose die it is, the item's or a row's with
- * its page, or not imported. A weapon that offers a choice of grip names the
+ * its page, or empty when not imported. A weapon that offers a choice of grip names the
  * grip in the figure's label; any other names only "Damage die".
  *
  * @param {{mode: string, versatile: boolean, formula: string, declared: boolean, key: string|null}} held

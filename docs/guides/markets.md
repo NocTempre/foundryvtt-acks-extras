@@ -365,8 +365,8 @@ same trader cannot queue the same day twice; a queued day has a withdraw
 button (the Judge's, or the owner's of the trader who posted it), and nothing
 paid for it comes back.
 
-A day that cannot resolve because its table is not imported posts the
-table's name to the trader and the Judge. Merchandise loads ride in the hold
+A day that cannot resolve because its table is not imported is logged as
+failed and posts nothing. Merchandise loads ride in the hold
 they were bought into, your packs or a vehicle's, one stone per unit, ready
 to haul to a market whose demand pays better.
 

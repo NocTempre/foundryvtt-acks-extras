@@ -36,7 +36,7 @@
   <section class="acks-extras-classes-tabpane" {{#unless show.overview}}hidden{{/unless}}>
     <div class="form-group">
       <label>{{localize "ACKS-CLASSES.sheet.maximumLevel"}}</label>
-      <input name="system.maximumLevel" type="number" value="{{system.maximumLevel}}" min="1" step="1" placeholder="{{localize "ACKS-CLASSES.sheet.capNone"}}" data-tooltip-text="{{capTip}}" />
+      <input name="system.maximumLevel" type="number" value="{{system.maximumLevel}}" min="1" step="1" placeholder="{{localize "ACKS-CLASSES.sheet.capNone"}}"{{#if capTip}} data-tooltip-text="{{capTip}}"{{/if}} />
       <label>{{localize "ACKS-CLASSES.sheet.hitDie"}}</label>
       <input name="system.hitDie" type="text" value="{{system.hitDie}}" placeholder="1d8" />
     </div>
@@ -127,7 +127,6 @@
       </label>
       <p class="hint">{{localize "ACKS-CLASSES.builder.enabledHint"}}</p>
     </div>
-    {{#unless builderHasTables}}<p class="notification warning">{{localize "ACKS-CLASSES.builder.noTables"}}</p>{{/unless}}
 
     {{#if builderState.enabled}}
     {{#if builderSummary}}
@@ -224,7 +223,6 @@
 
     <fieldset>
       <legend>{{localize "ACKS-CLASSES.builder.tradeoffs"}}</legend>
-      {{#unless builderTradeoffs.length}}<p class="hint">{{localize "ACKS-CLASSES.builder.noTradeoffs"}}</p>{{/unless}}
       <div class="acks-extras-classes-checks">
         {{#each builderTradeoffs}}
           <label class="checkbox"><input type="checkbox" name="system.builder.tradeoffs" value="{{key}}" {{#if checked}}checked{{/if}} /> {{label}}</label>

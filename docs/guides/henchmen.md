@@ -80,7 +80,7 @@ None alone.*
 **The throw reads its table from your book.** The Reaction to Hiring Offer's
 results, and what each earlier refusal and each slander takes off the roll,
 come from the Revised Rulebook's tables once they are imported (RR 162). Until
-then the hiring page and the dialog say the table is missing and do not roll.
+then the hiring page and the dialog do not roll.
 
 ![](../releases/v11.4.0/henchmen-hiring-table.png)
 
@@ -177,8 +177,7 @@ against the current import.
 **The limit starts from your book's figure and the employer's Charisma, or
 not at all.** The base arrives with the Rules tables, imported in Getting
 Started or by **Rules tables** in the **Reimport One Shelf (GM)** macro (*ACKS
-Extras Macros* compendium). Until they are imported no limit is counted, and
-the roster's tooltip says so. An employer with no Charisma score, such as a monster leading henchmen,
+Extras Macros* compendium). Until they are imported no limit is counted. An employer with no Charisma score, such as a monster leading henchmen,
 shows no limit on its roster, and none is enforced on its hires.
 
 ![](../releases/v11.9.0/henchmen-limit-none.png)

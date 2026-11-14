@@ -16,7 +16,8 @@ import { rollMath } from "../lib/conditions.mjs";
  * - `applied`  a figure the roll takes
  * - `pending`  a figure bound to a circumstance the roll does not state, left
  *              out of the total for the Judge to add by hand
- * - `unpriced` a condition whose figure the world has not imported
+ * - `unpriced` a condition whose figure the world has not imported (it has
+ *              no row in `conditionRows`)
  * - `exempt`   a condition under which the creature does not make this roll
  *
  * @param {"save"|"throw"|"morale"|"surprise"} on  the roll, as the conditions model names it
@@ -38,14 +39,14 @@ export function conditionEntries(on, subject, values) {
 /**
  * Those entries as rows for `HOOKS.INFLUENCE_MODIFIERS`: an applied figure is
  * a row with its value, and everything else is a note, which the roller draws
- * and never adds.
+ * and never adds. An unpriced condition has no row.
  *
  * @param {ReturnType<typeof conditionEntries>} entries
  * @param {(entry: object) => string} label  the row's wording for one entry
  * @returns {Array<{label: string, value?: number, note?: boolean}>}
  */
 export function conditionRows(entries, label) {
-  return entries.map((entry) =>
-    entry.kind === "applied" ? { label: label(entry), value: entry.value } : { label: label(entry), note: true },
-  );
+  return entries
+    .filter((entry) => entry.kind !== "unpriced")
+    .map((entry) => (entry.kind === "applied" ? { label: label(entry), value: entry.value } : { label: label(entry), note: true }));
 }

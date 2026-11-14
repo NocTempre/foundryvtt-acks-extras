@@ -55,7 +55,8 @@ import { effectiveMarketClass } from "../../henchmen/engine/recruitment.mjs";
 import { hasEffectFlag } from "../../henchmen/effects.mjs";
 import { networkSteps } from "../engine/network.mjs";
 import { dayOfWorldTime } from "../../lib/world-time.mjs";
-import { assessmentBands, impactLimits, printedError, tableLabel } from "../engine/printed.mjs";
+import { assessmentBands, impactLimits, printedError } from "../engine/printed.mjs";
+import { refusalText, availabilityText } from "../engine/refusal.mjs";
 import { assessmentBribeBasisHd } from "../engine/assessment.mjs";
 import { assessmentPageBands, entryConflict, vehiclesEntered, ventureKey, VENTURE_MODES } from "../rules/arbitrage.mjs";
 import { historyRows } from "../rules/ledger.mjs";
@@ -186,7 +187,8 @@ function requireTrader(sheet) {
  */
 function reportResult(sheet, result, successMessage) {
   if (result?.error) {
-    ui.notifications.warn(game.i18n.format(`${LANG}.trade.error.${result.error}`, { remaining: 0, table: "", crowd: "", ...result }));
+    const text = refusalText(result.error, result);
+    if (text) ui.notifications.warn(text);
     return false;
   }
   if (result?.ok) {
@@ -257,7 +259,7 @@ export async function prepareTradeTab(sheet, context) {
       ...row,
       rowKey: catalogRowKey(row),
       availability: avail,
-      availabilityLabel: game.i18n.format(`${LANG}.availability.${avail.status}`, avail),
+      availabilityLabel: availabilityText(avail),
       canBuy: avail.status === "available" || avail.status === "pending",
     };
   });
@@ -531,7 +533,7 @@ async function promptNumber({ title, label, value, min, max }) {
 function gateQuoteHtml(location, trader, declaration) {
   const esc = foundry.utils.escapeHTML;
   const quote = entryQuote(location, trader, declaration);
-  if (quote.error) return `<p class="hint">${esc(game.i18n.format(`${LANG}.trade.error.${quote.error}`, { remaining: 0, table: "", crowd: "", ...quote }))}</p>`;
+  if (quote.error) return `<p class="hint">${esc(refusalText(quote.error, quote))}</p>`;
   const gp = (cp) => Math.round(Number(cp) || 0) / 100;
   const line = (l, figure) => {
     const key = l.kind === "item" ? "item" : "load";
@@ -710,7 +712,7 @@ async function promptEntry(trader, location) {
       ? `<fieldset class="acks-extras-markets-mode"><legend>${loc("ventures.mode.legend")}</legend>${VENTURE_MODES.map(
           (m) => `<label class="checkbox"><input type="radio" name="mode" value="${m}"${(m === "separately") === locked ? " checked" : ""}${locked ? " disabled" : ""}> ${loc(`ventures.mode.${m}`)}</label>`
         ).join("")}<p class="hint">${loc(locked ? "ventures.mode.locked" : "ventures.mode.hint")}</p><p class="hint">${
-          limits ? loc("ventures.mode.share", { max: Math.floor(limits.impactCap / n), n }) : loc("ventures.mode.shareUnread", { table: tableLabel("impactProse") })
+          limits ? loc("ventures.mode.share", { max: Math.floor(limits.impactCap / n), n }) : ""
         }</p></fieldset>`
       : "";
   const otherId = foundry.utils.randomID();
@@ -781,9 +783,8 @@ function networkFieldset(members, location) {
   const modes = ["auto", ...(steps.some((s) => s.classStep > 0) ? ["class"] : []), ...(steps.some((s) => s.impactStep > 0) ? ["impact"] : [])];
   const lines = holders.map((a, i) => {
     const name = foundry.utils.escapeHTML(a.name);
-    const missing = steps[i].missing.map((power) => `<p class="hint">${loc("ventures.network.missing", { power: foundry.utils.escapeHTML(power) })}</p>`).join("");
     const known = marketKnownTo(location, a, { visitStartDay: today });
-    return `<p class="hint">${loc(known ? "ventures.network.counted" : "ventures.network.notCounted", { name })}</p>${missing}`;
+    return `<p class="hint">${loc(known ? "ventures.network.counted" : "ventures.network.notCounted", { name })}</p>`;
   });
   const select =
     modes.length > 1

@@ -304,7 +304,7 @@ test("recorded rolls carry the hit points, or why there are none", () => {
   const unrolled = rolledOf({ rolled: { hpRoll: null, hpUnrolled: "noDice" } });
   assert.equal(unrolled.hpRoll, null);
   assert.equal(unrolled.hpUnrolled, "noDice");
-  assert.equal(unrolled.any, true, "a reason alone shows the block, so the panel can say not imported");
+  assert.equal(unrolled.any, true, "a reason alone shows the block, so the panel can show the blank row and its reason");
   assert.equal(rolledOf({ rolled: { hpRoll: 5, hpUnrolled: "noClass" } }).hpUnrolled, "", "a roll outranks a stale reason");
   assert.equal(rolledOf({ rolled: { hpRoll: null, hpSteps: [{ level: 1, formula: "1d5", total: 3 }] } }).hpSteps.length, 0, "no steps without a total");
 });

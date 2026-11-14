@@ -17,6 +17,15 @@ import { hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
+/** Refusal codes that name a missing import and nothing else; the post stops and the dialog says nothing. */
+const SILENT_REFUSALS = new Set(["arrivals-missing", "tables-missing"]);
+
+/** Shows a posting refusal's reason, except one that only names a missing import. */
+function refusal(code) {
+  if (SILENT_REFUSALS.has(code)) return;
+  ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.posting.error.${code}`));
+}
+
 /** The form window that creates a recruitment posting on a location. */
 export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ location, ...options } = {}) {
@@ -57,11 +66,11 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     context.levels = henchmanLevels().map((l) => ({ level: l }));
     // The steps a directed search applies are the imported ones, named where
-    // the choice is made; a step the import lacks is said to be missing.
+    // the choice is made; a step the import lacks leaves the page reference alone.
     const steps = searchSteps();
-    const hint = (step, key, missing) => (step == null ? game.i18n.localize(missing) : game.i18n.format(key, { steps: step }));
-    context.levelHint = hint(steps.perLevel, "ACKS-HENCHMEN.posting.classLevelHint", "ACKS-HENCHMEN.posting.classLevelHintMissing");
-    context.commissionHint = hint(steps.eased, "ACKS-HENCHMEN.posting.commissionedHint", "ACKS-HENCHMEN.posting.commissionedHintMissing");
+    const hint = (step, key, cite) => (step == null ? game.i18n.localize(cite) : game.i18n.format(key, { steps: step }));
+    context.levelHint = hint(steps.perLevel, "ACKS-HENCHMEN.posting.classLevelHint", "ACKS-HENCHMEN.posting.classLevelHintCite");
+    context.commissionHint = hint(steps.eased, "ACKS-HENCHMEN.posting.commissionedHint", "ACKS-HENCHMEN.posting.commissionedHintCite");
     context.mercTypes = (optTable("availability", "mercenaryAvailability")?.rows ?? []).map((r) => ({
       id: r.type,
       label: game.i18n.localize(`ACKS-HENCHMEN.troop.${r.type}`),
@@ -220,7 +229,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       // The GM's refusal comes back on the socketlib path; the native fallback
       // resolves without a result, and the post then reads as submitted.
       if (relayed?.error) {
-        ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.posting.error.${relayed.error}`));
+        refusal(relayed.error);
         return;
       }
       ui.notifications.info(game.i18n.localize("ACKS-HENCHMEN.posting.submitted"));
@@ -233,7 +242,7 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       network: data.network === true,
     });
     if (result.error) {
-      ui.notifications.error(game.i18n.localize(`ACKS-HENCHMEN.posting.error.${result.error}`));
+      refusal(result.error);
       return;
     }
     if (result.gmPlaced) {

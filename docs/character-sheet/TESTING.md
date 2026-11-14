@@ -410,9 +410,8 @@ its `data-tooltip-text`.
 
 **Steps, GM seat** (the sheet open on Stats):
 1. With the lists withdrawn on this client (above), press Edit. *Observable:*
-   no row of buttons; a *not imported* line with a tooltip; each category
-   header's tooltip ends in *Printed options not imported*. The pills still
-   toggle.
+   no row of buttons and no line in their place; each category header's
+   tooltip is its label alone. The pills still toggle.
 2. Put the lists back and re-render. *Observable:* one row per list
    that holds a group (narrow, broad, martial, Weapon Focus), each button
    labelled in the printed words; a count over each; the restricted level has

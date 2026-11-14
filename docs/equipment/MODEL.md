@@ -124,8 +124,8 @@ hand-made or imported without its book, adds nothing. `armourTrainingRows`
 lists every ability that carries the row or is named Armour Training (either
 spelling) with `{step, rank, steps, cite}`, `step` null where no step was
 imported; the Stats tab draws one line per row under the armour rungs, the
-rungs it adds with their parts as the tooltip, or "step not imported" and no
-figure (`stats.mjs` `armourStepRow`).
+rungs it adds with their parts as the tooltip, or a blank value with no
+tooltip (`stats.mjs` `armourStepRow`).
 
 The Judge edits the step on the ability's own sheet, in the row's editor
 (abilities MODEL, "The Mechanics tab"); a `modifies` row shows its domain
@@ -293,7 +293,7 @@ equipment API, so lib imports nothing here), and `damageModesFor`'s default,
 which puts the held grip's mode first for a caller that names none. Each die
 carries a tooltip (`heldDieTip`) naming the grip where the weapon offers a
 choice of grips, and whether the die is the item's own or a row's with its
-page, or not imported. A hand-set die on a Follower Card replaces the weapon's
+page; a die nothing states has no tooltip. A hand-set die on a Follower Card replaces the weapon's
 base die and is rolled in the base mode.
 
 A weapon whose minimum cost is both hands — a bow, a crossbow, a great sword —
@@ -819,16 +819,16 @@ Net row all read one answer.
   schema's neutral figures (an import whose locators did not read), answers
   null. The layer then applies nothing and the flag stays recorded, so the
   layer takes effect on the next import. Nothing falls back to a constant.
-- **The surface says so.** `unstatedLayers(item)` lists each layer an item is
+- **The surface stays blank.** `unstatedLayers(item)` lists each layer an item is
   set to whose document is missing. The Details tab's price ledger shows that
-  layer's line with "not imported" in place of a figure, and the Net row on the
-  Construction tab names it.
+  layer's line with a blank figure and no tooltip, and the Net row on the
+  Construction tab leaves it out.
 - **Each figure carries where it came from.** The ledger line and the Net row
   take a tooltip: the page the document's import stamp cites, "set by hand" on a
   document with no import stamp (a Judge's own), "edited by hand" with the page
   on a minted document whose figures differ from the ones its stamp records as
-  read (`cookbook.read`), or "not imported" naming the variation key to import
-  or make. A document whose stamp records no figures has nothing to compare
+  read (`cookbook.read`); a layer whose document is missing has no clause. A
+  document whose stamp records no figures has nothing to compare
   and cites its page. A Judge's edit to the document is the
   override; the registry's override layer holds tables and these are items. A
   repair rewrites the figures and the stamp together.
@@ -841,8 +841,8 @@ The condition rows come from the GM's imported grid alone
 (`overlays/scavenged.mjs`): `importedTable` reads the ruledata registry, where
 a Judge's override in the Ruledata Browser wins over the page, and
 `scavengedSource` tells the control which of the two it is showing. With no
-table, nothing is offered: the Construction tab's control says not imported
-and `scavengeItem` warns and returns null. `rowToEffects` parses a row's own
+table, nothing is offered: the Construction tab's control lists no rows, its
+tooltip is the page, and `scavengeItem` returns null without a notice. `rowToEffects` parses a row's own
 words into damage, attack, initiative, encumbrance, armour class, breaks and
 cannot-sneak; a phrase it does not know rides along as a note. Attack and
 armour class penalties stop at the imported floor (`scavengedCaps.penalty`,
@@ -948,10 +948,10 @@ weapon, a size or a class nothing imported states. Undecided never penalises.
   cannot wait.
 - A container that declares `gear.holds` and no capacity is a container with no
   limit: `holdsGear` is true, `capacityStated` false, `containerReport` says
-  `capacityUnimported`, and the equipment tab's header says so.
+  `capacityUnimported`, and the equipment tab's header shows the load alone.
 - The item sheet's Construction panel words each weapon figure's tooltip as one
   of three states (`weapon-figures.mjs`): declared on the item, read from the
-  weapon row with its page, or not imported with no number.
+  weapon row with its page, or not imported, which is blank with no tooltip.
 
 ## Figures the book prints, and what is read without them
 
@@ -967,8 +967,8 @@ reader's own book gave them. Nothing falls back to a shipped number.
   `capacitySource` tells a page-read figure (cites the page) from a typed one
   (the hand's). `GEAR_PROFILES` states only `holds: true`: structure. A
   container with no stated capacity is still a container with no limit; its
-  figure tooltip says "not imported" and shows no number (`capacityTip`, on the
-  equipment tab's container header and the item sheet's Details and Contents).
+  figure shows no capacity and `capacityTip` is empty (on the equipment tab's
+  container header and the item sheet's Details and Contents).
   An item sheet's "Holds other items" toggle shows and writes the gear flag's
   declaration (`holdsGear`, `setGearHolds`), not `isContainer`: a container
   record (a lock, its keys) makes an item a container with the toggle
@@ -988,8 +988,8 @@ reader's own book gave them. Nothing falls back to a shipped number.
   `weaponFinesse` and `unarmedStrike` tables of the `equipment` ruledata doc
   are `proseValues` reads (`sizeList` and `dice` takes). `attack-mods.mjs`
   `finesseTakes(size)` is true, false or null: only false refuses, a size or
-  list the import cannot answer never does, and the ledger row says the list is
-  not imported (`finesseSizesImported`). `unarmedStrikeDie()` answers the
+  list the import cannot answer never does (`finesseSizesImported` tells the two
+  apart), and the ledger row carries no tooltip for it. `unarmedStrikeDie()` answers the
   imported die or null; `unarmedStrikeData` then carries a blank formula (an
   attack throw with no damage roll, core's reading of a blank formula) and
   `rollUnarmed` says "no die imported".
@@ -1008,10 +1008,11 @@ reader's own book gave them. Nothing falls back to a shipped number.
   full stone it is listed with `stones: 0` and changes nothing) and `unplaced`
   (a weight between the two bounds, which the page states no case for; it
   spends nothing and is the Judge's). With any figure or the table unread the plan is
-  `ready: false`, plans nothing and names what to import; an unread type row is
+  `ready: false`, plans nothing and names what is missing (`missing`); the
+  Judge's flow opens no window then. An unread type row is
   null from `isVulnerable`, which is not "nothing vulnerable". The materials
   picker and the Materials note on the Construction tab read the same table
-  and say "not imported" without it.
+  and are blank without it.
   `item-loss-flow.mjs` is the Judge's flow (`api.openItemLoss`, launched by the
   *Item Loss from Damage* macro): hit points, damage type, direction, the plan
   with a tooltip per figure, and on a yes `applyItemLoss`. A write is the
@@ -1067,9 +1068,10 @@ reader's own book gave them. Nothing falls back to a shipped number.
   loadout)` names the actor's blocked abilities and the undecided ones (a row
   with no resolvable rung); `getLoadout` raises them as advisory violations
   (`abilityArmourLimited`, `abilityArmourUndecided`) and the equipment tab's
-  Worn & Wielded header lists them, its tooltip saying where the figures came
-  from (the Judge's override, the page, or "not imported" with no figure).
-  Nothing imported is nothing blocked: the abilities read as undecided.
+  Worn & Wielded header lists the blocked ones, its tooltip saying where the
+  figures came from (the Judge's override or the page; with neither, no
+  tooltip). Nothing imported is nothing blocked: the abilities read as
+  undecided and the header lists none.
 - **Special maneuvers** (`overlays/maneuvers.mjs`, gated by `overlayManeuvers`).
   Five `equipment` tables, each a `proseValues` read: `maneuverDisarm` (RR 305:
   disarm's penalty and the save bonus a two-handed grip earns the target),
@@ -1090,8 +1092,8 @@ reader's own book gave them. Nothing falls back to a shipped number.
   non-proficient package does. The Rolls tab's manoeuvre rows show the penalty
   this actor's Trickery and this weapon's qualities give, its tooltip naming
   the parts and the pages (`citeOf`, or "set in the Ruledata Browser" for an
-  override); with a part unread the row says "penalty not imported" with no
-  figure, stays rollable, and the roll warns which tables it went without. The
+  override); with a part unread the row's figure and tooltip are blank, and it
+  stays rollable and rolls without the penalty. The
   `hooked`, `targetShaft` and `targetTwoHanded` options have no caller in the
   module: they are API only.
 - **A spell book's pages and value** (`spellbook.mjs`). Three `equipment`
@@ -1107,9 +1109,9 @@ reader's own book gave them. Nothing falls back to a shipped number.
   record (`ITEM_FLAGS.SPELLBOOK`) holds its spells and no page count, so a
   Judge's override of the table reaches every book and a new book stores no
   figure the import did not read. The Contents tab's Pages line shows the
-  pages used, then "of N" with the capacity bar, or "· not imported" and no
-  bar; each figure's tooltip (`spellbookFigureTip`) names the page read, the
-  Ruledata Browser override, or that nothing is imported. The value has no
+  pages used, then "of N" with the capacity bar, or the pages used alone and no
+  bar; each figure's tooltip (`spellbookFigureTip`) names the page read or the
+  Ruledata Browser override, and is empty where nothing is imported. The value has no
   surface in the module; it is the equipment API's `spellbookValue`.
 
 ## Weapon rows read from the book — `weapon-source.mjs`
@@ -1134,7 +1136,7 @@ its fields read the registry at every call.
 - **Focus groups** are the `focus` each row was placed under.
 - **`throwsAsAnyone`** is a throwables kind, or a thrown or missile row whose
   printed name matches `config.IMPROVISED_THROWN`.
-- **Nothing imported** is no rows: every answer is "not imported" (above), and
+- **Nothing imported** is no rows: every answer is null or blank (above), and
   the suites bring invented rows (`tools/weapon-fixture.mjs`).
 
 What reads the rows by name or class: a launcher is told by its imported class

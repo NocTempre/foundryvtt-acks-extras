@@ -55,7 +55,7 @@ function adventuringTip(found) {
     const stand = { ...fill, skill: found.standIn.name, cite: found.standIn.cite ? ` (${found.standIn.cite})` : "" };
     return loc(found.other == null ? "rolls.adv.fromStandInOnly" : "rolls.adv.fromStandIn", stand) + included;
   }
-  if (found.target == null) return loc("rolls.adv.notImported");
+  if (found.target == null) return "";
   return loc(found.skillName ? "rolls.adv.fromStoredBetter" : "rolls.adv.fromStored", fill) + included;
 }
 

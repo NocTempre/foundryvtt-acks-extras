@@ -54,15 +54,14 @@ for you.
 Each row's figure is read from your Judges Journal when you import the rules
 tables (Settings tab → Game Settings → ACKS II — Extras → **Manage imports** →
 **Import** tab); hover a row's name to see the page it came from. A row whose
-figure has not been imported is greyed out with a badge saying so, adds
-nothing to the roll, and a notice above the rows says the page is waiting on
-its import ([importing from your books](importer.md)).
+figure has not been imported is greyed out and adds nothing to the roll
+([importing from your books](importer.md)).
 
 **A proficiency is offered only to a character who holds it.** Diplomacy,
 Intimidation, Seduction and Mystic Aura draw a box on the hiring and market
 assessment pages only for a character holding that proficiency, or a power
 standing in for it, at the value on that character's own item. One with no
-imported value is a field to type, with a badge saying so.
+imported value is a field to type, marked with a book badge.
 
 ## Attitudes
 
@@ -134,8 +133,7 @@ each modifier is a field you type into, and the card names no result
 
 The page lists the creature's [conditions](character-sheet.md#conditions) under
 their own heading. One that changes the roll is a row in the total and on the
-card; one whose figure this world has not imported is a note with nothing
-added; and one under which the creature makes no morale roll says so.
+card; one whose figure this world has not imported has no row; and one under which the creature makes no morale roll says so.
 
 ![](../releases/v10.0.0/influence-morale.png)
 

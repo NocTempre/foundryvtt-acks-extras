@@ -46,6 +46,7 @@ function bestSeafaring(vehicleActor) {
 
 const partsList = (parts) =>
   parts
+    .filter((p) => p.key !== "tablesMissing")
     .map((p) => {
       // A part that read its share from the book names it; the plain label otherwise.
       const label = p.share != null ? loc(`reason.${p.key}At`, { speed: fractionLabel(p.share) }) : loc(`reason.${p.key}`);
@@ -112,7 +113,7 @@ export async function openNavigationDialog(vehicleActor) {
     target: spec.target,
     effective: spec.effective,
     roll,
-    extra: spec.missing ? `<p class="hint">${loc("sea.importHint")}</p>` : "",
+    extra: "",
   });
   return spec;
 }
@@ -158,7 +159,7 @@ export async function openHazardDialog(vehicleActor) {
 
   // A failed throw meets the hazard: state its imported effects — dice,
   // stranding, the slowed passage's reduction — for the Judge to apply.
-  let extra = spec.missing ? `<p class="hint">${loc("sea.importHint")}</p>` : "";
+  let extra = "";
   if (roll && roll.total < spec.effective) {
     const hz = hazardSpec(result.kind);
     const lines = [];
@@ -174,8 +175,7 @@ export async function openHazardDialog(vehicleActor) {
       lines.push(loc("sea.hazardHolds"));
     }
     if (hz?.immobile && !hz?.harmless) lines.push(loc("sea.hazardAground"));
-    if (hz?.missing) lines.push(loc("sea.importHint"));
-    extra += `<p class="acks-extras-sea-throw-hazard">${game.i18n.localize(HAZARD_KINDS[result.kind].label)} — ${lines.join(" ")}</p>`;
+    if (lines.length) extra += `<p class="acks-extras-sea-throw-hazard">${game.i18n.localize(HAZARD_KINDS[result.kind].label)} — ${lines.join(" ")}</p>`;
   }
   await whisperThrowCard({
     title: loc("sea.hazardTitle"),
@@ -191,7 +191,7 @@ export async function openHazardDialog(vehicleActor) {
 /**
  * The sinking clock. Starting it rolls the imported die once and writes the
  * count to a flag; each tick counts a round down; at zero she is gone. No
- * die imported = no clock to start — the button's hint says why.
+ * die imported = no clock to start, and the sheet offers no Start button.
  */
 export async function startSinkingClock(vehicleActor) {
   const formula = sinkFormula();

@@ -103,11 +103,6 @@
     </span>
   </div>
 
-  {{!-- A printed page waiting on its import: what is typed by hand, and why. --}}
-  {{#if unreadNotice}}
-    <p class="influence-unread-notice"><i class="fa-solid fa-book-open" inert></i> {{unreadNotice}}</p>
-  {{/if}}
-
   <div class="influence-groups">
     {{#each groups}}
       <fieldset class="influence-group">
@@ -148,14 +143,6 @@
               {{#if this.unaudited}}
                 <i class="fa-solid fa-triangle-exclamation influence-unaudited-badge"
                    data-tooltip="{{localize 'ACKS-INFLUENCE.unaudited.badge'}}"></i>
-              {{/if}}
-              {{#if this.isUnread}}
-                <i class="fa-solid fa-book-open influence-unread-badge"
-                   data-tooltip="{{localize 'ACKS-INFLUENCE.unread.badge'}}"></i>
-              {{/if}}
-              {{#if this.isNotImported}}
-                <i class="fa-solid fa-book-open influence-unread-badge"
-                   data-tooltip="{{localize 'ACKS-INFLUENCE.notImported.badge'}}"></i>
               {{/if}}
               {{#if this.isUnvalued}}
                 <i class="fa-solid fa-book-open influence-unread-badge"

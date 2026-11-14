@@ -1,4 +1,4 @@
-/* global game, Hooks, ui, foundry, Handlebars */
+/* global game, Hooks, foundry, Handlebars */
 /**
  * ACKS II — Item Markets. Entry point.
  *
@@ -9,8 +9,7 @@
  *  ready: system check, missing-tables notice.
  */
 import { acksExtras, assertAcksSystem } from "../namespace.mjs";
-import { missingTablesList } from "../lib/ruledata.mjs";
-import { MODULE_ID, LANG, RULEDATA, HOOKS } from "./constants.mjs";
+import { MODULE_ID, LANG, HOOKS } from "./constants.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
 import { registerAssessmentListener } from "./engine/assessment.mjs";
@@ -243,16 +242,4 @@ Hooks.once("ready", () => {
   registerImportWatcher();
   // The assessment day's roll, made on the influence page, becomes a queued day.
   registerAssessmentListener();
-
-  // Book tables are imported per-world, not shipped. Name the missing
-  // documents once to the GM — by the declared TABLES that are readable, never
-  // by id, so a partly-arrived import is reported as partly arrived. The
-  // shared `availability` doc is announced by henchmen; only this feature's
-  // own docs are checked here.
-  if (game.user.isGM) {
-    const missing = missingTablesList(RULEDATA);
-    if (missing.length) {
-      ui.notifications.warn(game.i18n.format(`${LANG}.tablesMissing`, { list: missing.join(", ") }));
-    }
-  }
 });

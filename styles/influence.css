@@ -187,17 +187,12 @@
   color: var(--acks-warning-ink);
   font-size: 0.85em;
 }
-/* A printed figure the import has not supplied. Soft ink, not a warning: the
+/* A proficiency held with no figure on its item. Soft ink, not a warning: the
    field works, it is only the Judge's to fill. */
 .acks-influence-dialog .influence-unread-badge {
   margin-left: 0.25rem;
   color: var(--acks-ink-soft);
   font-size: 0.85em;
-}
-.acks-influence-dialog .influence-unread-notice {
-  margin: 0;
-  font-size: 0.85em;
-  color: var(--acks-ink-soft);
 }
 
 /* Modifier groups — control on the left, label fills the rest. */
@@ -512,14 +507,6 @@
   padding: 0.25rem 0.4rem;
   border-left: var(--acks-rule-heavy) solid var(--acks-rule-color);
   background: var(--acks-tint);
-}
-
-/* A roll whose page has no result column read: the total stands alone, and
-   the line says where the result is to be read. */
-.acks-influence-mode-result .acks-influence-no-result {
-  margin: 0.25rem 0 0;
-  font-size: 0.85em;
-  color: var(--acks-ink-soft);
 }
 
 .acks-influence-mode-result.secret {

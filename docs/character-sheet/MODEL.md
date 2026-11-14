@@ -308,7 +308,7 @@ and how many of its weapons are in the grant. Under the category arrangement
 each group header's tooltip names the printed options that hold its weapons,
 with their pages, and says where they fall short: that none holds them, that
 no single option holds them all, how many are in no option. With no list
-imported the row says *not imported* and the headers say so. Ruling:
+imported there is no row and the headers' tooltips are their labels alone. Ruling:
 DECISIONS, "The book's printed groups are shortcuts to the one training
 setting". Movement
 by mode (fields freed when the system's

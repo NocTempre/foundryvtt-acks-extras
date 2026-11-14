@@ -112,8 +112,7 @@ export async function recordLegacy(actor, { kind, gp, note = "", pay = false } =
   const rate = kind === LEGACY_KIND.funeral ? legacyRates().funeral : legacyRates().reserve;
   const amount = Math.max(0, Math.floor(Number(gp) || 0));
   if (!user) return refuse("noPlayer", { name: actor.name });
-  if (rate == null) return refuse("notImported");
-  if (!amount) return null;
+  if (rate == null || !amount) return null;
   return serial(user.id, async () => {
     if (pay && !(await spendGold(actor, amount, loc(kind === LEGACY_KIND.funeral ? "kind.funeral" : "kind.reserve"), { chat: false, gate: false }))) return null;
     const entry = {
@@ -202,8 +201,7 @@ export async function settleWill(actor) {
   return serial(`will:${actor.uuid}`, async () => {
     const will = actor.getFlag(MODULE_ID, FLAG_WILL);
     const fee = legacyRates().bankFee;
-    if (!will?.heirUuid || will.settled) return null;
-    if (fee == null) return refuse("notImported");
+    if (!will?.heirUuid || will.settled || fee == null) return null;
     const heir = await fromUuid(will.heirUuid);
     if (!heir) return refuse("heirGone", { name: will.heirName });
     const result = settleEstate(will.estateGp, fee);
@@ -278,7 +276,6 @@ export class LegacyApp extends HandlebarsApplicationMixin(ApplicationV2) {
       actorName: actor.name,
       player: user ? { id: user.id, name: user.name } : null,
       players: isGM ? game.users.filter((u) => !u.isGM).map((u) => ({ id: u.id, name: u.name, selected: u.id === user?.id })) : [],
-      imported: rates.reserve != null && rates.funeral != null,
       rates,
       fund: totals.fund,
       funerals: totals.funerals,

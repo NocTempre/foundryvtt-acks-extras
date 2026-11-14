@@ -840,7 +840,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 // ---- the influence-hosted Irrefusable Offer hires the captive ----
 // The hiring call is a recorder: what is under test is that a finished page
 // reaches it with the monster, the employer and the result the roll named,
-// and that a roll naming none hires nothing and warns.
+// and that a roll naming none hires nothing and warns of nothing.
 {
   const keys = ["game", "ui", "fromUuid", "foundry"];
   const saved = Object.fromEntries(keys.map((k) => [k, globalThis[k]]));
@@ -867,7 +867,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     calls.length = 0;
     assert.strictEqual(await applyIrrefusableResult({ outcome: null }, context, { hire }), null);
     assert.deepStrictEqual(calls, [], "a roll that named no result hires nothing");
-    assert.deepStrictEqual(warned, ["ACKS-HENCHMEN.loyaltyUnread.irrefusableBands"], "and says the column is not imported");
+    assert.deepStrictEqual(warned, [], "and shows nothing about the missing column");
     await applyIrrefusableResult({ outcome: "accept" }, { actorUuid: "Actor.gone", employerUuid: "Actor.emp" }, { hire });
     assert.deepStrictEqual(calls, [], "a captive that no longer exists is not hired");
   } finally {

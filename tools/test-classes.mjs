@@ -2762,8 +2762,8 @@ test("the maximum's tooltip names each level's parts with the character's number
   assert.match(ok.tip, /stepRoll\{"level":2,[^}]*"faces":"4, 2","parts":"conPerDie\{\\"con\\":\\"\+1\\"\}"\}/, "no floor part past 1st level");
   assert.match(ok.tip, /inForce\{"value":9\}/, "effects' figure, since the field's own effect note is covered");
   assert.match(ok.line, /^line\{"steps":"short\{\\"level\\":1,\\"faces\\":\\"1\\",\\"max\\":4\} · short/);
-  const notImported = auditText(recorded({ steps: [{ ...STEPS[0], floor: null }], level: 1, stored: 4 }));
-  assert.match(notImported.tip, /floorNone/);
+  const noFloor = auditText(recorded({ steps: [{ ...STEPS[0], floor: null }], level: 1, stored: 4 }));
+  assert.doesNotMatch(noFloor.tip, /floor/, "a step with no floor names none");
   const byHand = auditText(recorded({ steps: STEPS, stored: 8 }));
   assert.match(byHand.tip, /differs\{"recorded":7,"stored":8\}/);
   assert.match(byHand.line, /differs/, "what the user needs to act on is visible too");
@@ -2787,7 +2787,7 @@ test("the maximum's tooltip names each level's parts with the character's number
     }),
   );
   assert.match(kinds.tip, /stepRoll\{"level":1,[^}]*"parts":"conPerDie\{\\"con\\":\\"-1\\"\}"\}/);
-  assert.match(kinds.tip, /stepNone\{"level":2,"total":0,"max":5,"prior":4\} · /, "the not-imported level names the maximum it rose from, once");
+  assert.match(kinds.tip, /stepNone\{"level":2,"total":0,"max":5,"prior":4\} · /, "a level with no hit dice names the maximum it rose from, once");
   assert.match(kinds.tip, /stepRoll\{"level":3,"total":5,"max":6,"formula":"2d7","faces":"facesUnknown",.*?flat\{\\"flat\\":\\"\+2\\"\}.*?\} prior\{"prior":5\}/, "a level past the last die rolls its whole pool, held over the previous");
   const whole = auditText(recorded({ steps: [{ ...STEPS[1], level: 3, whole: true }], level: 3, stored: 7 }));
   assert.match(whole.tip, /stepWhole\{"level":3,/);
@@ -2802,7 +2802,9 @@ test("every audit string the record's text asks for is in the language file", ()
   for (const m of src.matchAll(/\?\s*"(\w+)"\s*:\s*"(\w+)"/g)) asked.add(m[1]).add(m[2]);
   // The audit's state names ride the same ternary shape and are not strings.
   for (const state of ["differs", "recorded"]) if (!src.includes(`fmt("${state}"`)) asked.delete(state);
-  assert.equal(asked.size, Object.keys(lang).filter((k) => k.startsWith(`${LANG_PREFIX}.hpAudit.`)).length, "every string asked for, and none left over");
+  // floorNone is read by the tools/live class walks, not by the audit.
+  const walkOnly = new Set([`${LANG_PREFIX}.hpAudit.floorNone`]);
+  assert.equal(asked.size, Object.keys(lang).filter((k) => k.startsWith(`${LANG_PREFIX}.hpAudit.`) && !walkOnly.has(k)).length, "every string asked for, and none left over");
   for (const segment of asked) assert.ok(`${LANG_PREFIX}.hpAudit.${segment}` in lang, `${segment} has no string`);
   // A hand edit, a level lowered by hand and core's own roll all differ alike.
   const differs = lang[`${LANG_PREFIX}.hpAudit.differs`];

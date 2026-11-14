@@ -114,8 +114,7 @@ of the mode's. The `loyalty` page (RR 166) reads the `influence` document's
 pages, and its apparent-level row names a table of its own: a `printedFactor`
 on `apparentLevel` (RR 168), the per-level figure. The row counts the levels
 its opener hands in (`ctx.apparentLevelDiff`). Read, the count is owed that
-figure each; unread, the row is a typed field with the *unread* badge, and the
-page says once that it waits on an import. The Irrefusable Offer (MM 351)
+figure each; unread, the row is a typed field. The Irrefusable Offer (MM 351)
 reads `irrefusableOffer` the same way, for its result column and for its
 opposite-alignment row, a `printed` figure. The henchmen feature's fallback
 throws read these same tables, and the henchmen feature reads the
@@ -128,15 +127,13 @@ draws, against what the world holds:
 | Declared | Read from the page | Not read |
 |---|---|---|
 | `ladder` | a choice among the rungs that were read, each worded as the Judge's page words it and falling back to its figure | a typed signed field |
-| `ladder` marked `ordinal` | the same choice, read whole: its place is what a consumer prices by | a disabled select holding only the blank, flagged not imported |
+| `ladder` marked `ordinal` | the same choice, read whole: its place is what a consumer prices by | a disabled select holding only the blank |
 | `printed` | a tick worth the figure, shown beside the row's name | a typed signed field |
 | `printedFactor` | the row's count times the figure, the figure shown beside the row's name | a typed signed field |
 
 A ladder stores the **position** of the chosen rung, not its figure, so two
 rungs that print one figure stay two options and a rung printing zero is not
-the blank. A row left as a typed field carries an *unread* badge, and a page
-naming a table says once, above its rows, that its table has not been
-imported. The label of
+the blank. A row left as a typed field carries no badge. The label of
 every row names the field and cites its page; the wording of a rung is the
 reader's own page and exists in no file of this repo.
 
@@ -144,10 +141,10 @@ The result column is the imported edges under the mode's own result names
 (`printedBands`). Edges arriving in a different count than the names are some
 other table, and the page then has no column. The two morale pages are
 `postsWithoutBands`: with no column they still roll, and the card lists every
-modifier applied, the dice and the total, and says no result is named. The
+modifier applied, the dice and the total, and names no result. The
 roll-complete payload carries `outcome: null` for such a roll. The hiring page
-is not: a hire needs a result to apply, so with no column it warns and refuses
-to roll.
+is not: a hire needs a result to apply, so with no column it refuses to roll
+and shows no message.
 
 **The tone pages.** The three reaction tones read the `influence` document
 the same way, one table each (`TONE_PAGES` in `constants.mjs` names it and its
@@ -159,17 +156,17 @@ dialog draws:
 
 | Declared | Read | Not read |
 |---|---|---|
-| `check` with a `figure` | a tick worth the figure, shown beside the row's name | disabled, flagged not imported |
-| `factor` with a `figure` | the row's count times the figure | disabled, flagged not imported |
-| `select` with `rungs` | a choice among the rungs that were read, by position, each worded as the page words it where the import caught one | disabled, flagged not imported |
+| `check` with a `figure` | a tick worth the figure, shown beside the row's name | disabled |
+| `factor` with a `figure` | the row's count times the figure | disabled |
+| `select` with `rungs` | a choice among the rungs that were read, by position, each worded as the page words it where the import caught one | disabled |
 
-A disabled row contributes nothing, is never pre-filled, and a page with any
-disabled row, or with a table it reads for its result not imported (below),
-says once, above its rows, that its page is not imported. A
+A disabled row contributes nothing and is never pre-filled; the page carries
+no notice about it. A
 proficiency box that cannot be worth anything drops its `prof:` claim, so the
 item's own Active Effect still reaches the page. Every figure's row carries a
 tooltip naming where the figure came from: the page the importer read it from,
-the Judge's own override, or not imported (`figureOrigin`).
+the Judge's own override, or the page reference alone where nothing is
+imported (`figureOrigin`).
 
 Two things are read as structure and not as a figure: which direction a
 level gap or an alignment match points (a rung's name, found by `autoRung`),
@@ -189,8 +186,7 @@ fee is asked. A bribe offered by a roller holding Bribery reads one more
 figure, `bribeCrime.natural` (RR 287, `bribeCrimeMark` in `actor-data.mjs`):
 an unmodified roll equal to it puts a note on the card that the charge mark
 was met, followed by where the figure came from (the page, the Judge's
-override, or not imported). Unread, the card notes that the mark is not
-imported and names no charge.
+override, or not imported). Unread, the card names no charge.
 
 **The reaction and the ladder.** What a tone page does with its total is the
 page's too. Each tone reads two more tables of the `influence` document
@@ -204,12 +200,12 @@ prints no row for have no key and add nothing). `toneBands` and
 sets, and the direction a continuing roll moves (the middle result moves
 toward Neutral, never past it). A result column not imported, or a continuing
 roll whose count for its result was not read, leaves the roll with no result
-named: the card carries the total and the modifiers and says the table is not
-imported, the attitude stays where it was, and the attempt is not counted, so
+named: the card carries the total and the modifiers and no result, the
+attitude stays where it was, and the attempt is not counted, so
 the `acksExtras.influenceRollComplete` payload carries `band: null` and
 `newAttitude` equal to `startAttitude`. A rung's tooltip names the modifier it
-adds and where it was read, that the page prints none for it, or that the table
-is not imported. The `band` of that payload is the result's position key
+adds and where it was read, that the page prints none for it, or the page
+reference alone where the table is not imported. The `band` of that payload is the result's position key
 (`result1` to `result5`).
 
 The Seduction page's age row counts categories between the two actors, which
@@ -217,8 +213,8 @@ the `characterAging` table (RR 19) draws: `ageCategoryIndex` takes the last
 category whose first year the actor has reached, by the race the class names
 (a race with no row counts as human). Not imported, the row's count is left
 unfilled. The Mystic Aura's bewitching total is `mysticAura.at` (RR 115): at or
-above it the card names the subject bewitched, and unread the card says the
-mark is not imported. A power marked `bewitched` is a source, not a figure.
+above it the card names the subject bewitched, and unread the card names
+none. A power marked `bewitched` is a source, not a figure.
 
 **Held rows.** A proficiency the hiring page and the market assessment page
 offer — Diplomacy, Intimidation, Seduction, Mystic Aura — is declared `held`
@@ -248,9 +244,9 @@ declares `conditions` says which roll it is in the lib's conditions model, and
 a listener on the modifier hook (below) pushes what that model answers
 (`condition-rows.mjs`): a figure the roll takes is a named row in the total
 and on the card, and a condition the roll does not take is a note beside it —
-one whose figure is bound to a circumstance the page cannot tell, one whose
-figure the world has not imported, and one under which the creature makes no
-such roll. The system's own roll takes the same figures as a shift of the
+one whose figure is bound to a circumstance the page cannot tell, and one under
+which the creature makes no such roll (a condition whose figure the world has
+not imported has no row). The system's own roll takes the same figures as a shift of the
 score (`docs/lib/MODEL.md`), so the two paths agree and the page is the one
 that shows its work. Only `morale` declares it.
 

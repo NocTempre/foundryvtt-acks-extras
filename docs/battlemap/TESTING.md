@@ -178,9 +178,8 @@ by hand.
    again and press "Rescale tokens on scene" with the Large monster's token and
    the character token present.
    *Observable:* neither token is written (`width`/`height` unchanged;
-   `sizeSquareFeet()` is null) and the second notification reads "2 token(s)
-   keep their size: the Monster Size table's square and frontage (Monstrous
-   Manual ch. 1, p. 11) are not both imported." Restore by importing the rules
+   `sizeSquareFeet()` is null) and no second notification appears; only the
+   "rescaled" one does. Restore by importing the rules
    tables again (Settings tab → Game Settings → ACKS II — Extras → Manage
    imports → Rules tables).
 6b. **A Judge's override.** In the Ruledata Browser, override the `sizeFrontage`

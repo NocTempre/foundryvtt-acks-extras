@@ -3,7 +3,6 @@ import { getSocket } from "../lib/sockets.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import {
   INFLUENCE_ATTITUDE_LABELS,
-  AGING_PAGE,
   BRIBE_CRIME_PAGE,
   INFLUENCE_BAND_LABELS,
   INFLUENCE_DOC,
@@ -43,7 +42,7 @@ import {
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
-import { ageRow, attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
+import { attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
 import { scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { signed } from "../lib/frame-model.mjs";
@@ -457,16 +456,6 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   }
 
   /**
-   * Whether this page is waiting on an import: its result column is unread, or
-   * a row that would carry a printed figure is a typed field instead.
-   */
-  #unread() {
-    if (!this.#mode?.printed) return false;
-    if (!this.#modeBands().length) return true;
-    return this.#modConfig[this.#system.tone].some((group) => group.mods.some((mod) => mod.unread));
-  }
-
-  /**
    * What a row is called where its contribution is listed: the page's own
    * wording of the rung chosen or the row ticked when the import read one,
    * else the row's field name.
@@ -531,8 +520,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /**
    * The bribe fee's provenance tooltip: the tier's period of the wage it was
-   * priced from, with both pages; that it was named by hand; or that nothing
-   * prices it. Null before a bribe is chosen.
+   * priced from, with both pages; that it was named by hand; or the page alone
+   * where nothing prices it. Null before a bribe is chosen.
    */
   #bribeFeeTip() {
     const L = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
@@ -540,7 +529,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (this.#system.bribeFeeOverridden) return L("ACKS-INFLUENCE.bribe.feeTipHand");
     if (level <= 0) return null;
     const tiers = this.#bribeTiers();
-    if (!tiers) return L("ACKS-INFLUENCE.bribe.feeTipMissing");
+    if (!tiers) return L("ACKS-INFLUENCE.bribe.feeCite");
     const noPage = L("ACKS-HENCHMEN.service.tip.noPage");
     return L("ACKS-INFLUENCE.bribe.feeTip", {
       gp: tiers.gp[level],
@@ -554,16 +543,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
 
   /**
    * Where a tone row's figure came from: the page the import read it from, a
-   * Judge's override in the Ruledata Browser, or that nothing was imported.
+   * Judge's override in the Ruledata Browser, or the page alone where nothing
+   * was imported.
    * @param {{docId: string, tableId: string, cite?: string}} from the table the row reads, and the page that prints it where it is not the tone's
-   * @param {string} tone the page the row is on, which names the page to import
+   * @param {string} tone the page the row is on, which names the page to cite
    */
   #figureTip({ docId, tableId, cite: own }, tone) {
     const origin = figureOrigin(tableId, docId);
     const cite = own ?? TONE_PAGES[tone]?.cite ?? this.#mode?.cite ?? "";
     if (origin.state === "override") return game.i18n.localize("ACKS-INFLUENCE.figure.tipOverride");
     if (origin.state === "imported") return game.i18n.format("ACKS-INFLUENCE.figure.tipImported", { cite: origin.cite ?? cite });
-    return game.i18n.format("ACKS-INFLUENCE.figure.tipMissing", { cite });
+    return cite;
   }
 
   /** Refresh the auto bribe fee unless the GM has overridden it. */
@@ -745,8 +735,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const offer = Number(bribeOffer) || 0;
     if (t === INFLUENCE_TONE.DIPLOMACY && offer > 0) {
       const diplo = this.#modifiers[INFLUENCE_TONE.DIPLOMACY];
-      // An offer nothing prices buys no bonus and moves no coin; the GM is told why.
-      if (!this.#bribeTiers()) ui.notifications?.warn(game.i18n.localize("ACKS-INFLUENCE.bribe.unpriced"));
+      // An offer nothing prices buys no bonus (`#bonusForOffer` answers 0).
       diplo.bribe = this.#bonusForOffer(offer);
       diplo.bribeFee = offer; // the full offer is what changes hands
       this.#system.bribeFeeOverridden = true;
@@ -817,12 +806,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const heading = game.i18n.localize("ACKS-INFLUENCE.tracker.relationship");
     return labels.map((label, index) => {
       const modifier = this.#rungFigure(tone, index);
-      // A rung's tooltip says where its figure came from, or that there is
-      // none: the table is not imported, or the page prints nothing for it.
+      // A rung's tooltip says where its figure came from; with no figure it is
+      // the page alone when the table is not imported, or says the page prints
+      // nothing for it.
       const tip =
         modifier !== null
           ? `${heading}: ${signed(modifier)}. ${this.#figureTip({ docId: INFLUENCE_DOC, tableId: table }, tone)}`
-          : `${heading}: ${game.i18n.format(origin.state === "missing" ? "ACKS-INFLUENCE.tracker.notImported" : "ACKS-INFLUENCE.tracker.nonePrinted", { cite: TONE_PAGES[tone].cite })}`;
+          : origin.state === "missing"
+            ? `${heading}: ${TONE_PAGES[tone].cite}`
+            : `${heading}: ${game.i18n.format("ACKS-INFLUENCE.tracker.nonePrinted", { cite: TONE_PAGES[tone].cite })}`;
       return { index, label: game.i18n.localize(label), modifier, tip, isActive: index === this.#system.currentAttitude };
     });
   }
@@ -881,10 +873,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           // A machine-classified mechanic, badged so the sheet never presents a
           // scan's guess as the book's ruling.
           unaudited: Boolean(mod.unaudited),
-          // A printed figure the import has not supplied: typed by hand on a
-          // mode page, disabled on a tone page.
-          isUnread: Boolean(mod.unread) && !mod.disabled,
-          isNotImported: Boolean(mod.disabled),
+          // A printed figure the import has not supplied: a field typed by hand
+          // on a mode page, a disabled row on a tone page, neither badged.
           isDisabled: Boolean(mod.disabled),
           // Where the row's figure came from, on the label that names it.
           figureTip: mod.figureFrom ? this.#figureTip(mod.figureFrom, tone) : null,
@@ -972,21 +962,6 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       }
       // A check the creature makes alone has no second party to show.
       context.loneSubject = Boolean(this.#loneSubject());
-      // A page that cannot roll without its result column says so, rather than
-      // offering the result to be read off the page.
-      const notice = this.#mode.postsWithoutBands ? "ACKS-INFLUENCE.mode.unreadNotice" : "ACKS-INFLUENCE.mode.unreadNoticeNoRoll";
-      context.unreadNotice = this.#unread() ? game.i18n.format(notice, { cite: this.#mode.cite }) : "";
-    } else {
-      // A tone page says once that some of its rows wait on the import.
-      const tone = this.#system.tone;
-      // Rows that wait on an import, the reaction table, the attitude modifiers,
-      // and on Seduction the aging table its age row counts by.
-      const waiting =
-        this.#modConfig[tone].some((group) => group.mods.some((mod) => mod.disabled)) ||
-        !this.#toneBands(tone) ||
-        figureOrigin(TONE_PAGES[tone].attitude, INFLUENCE_DOC).state === "missing" ||
-        (tone === INFLUENCE_TONE.SEDUCTION && !ageRow(AGING_PAGE.table, "human", INFLUENCE_DOC));
-      context.unreadNotice = waiting ? game.i18n.format("ACKS-INFLUENCE.tone.unreadNotice", { cite: TONE_PAGES[tone].cite }) : "";
     }
 
     return context;
@@ -1333,11 +1308,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     if (tone === INFLUENCE_TONE.DIPLOMACY && (Number(this.#modifiers[INFLUENCE_TONE.DIPLOMACY].bribe) || 0) > 0) {
       const hasBribery = getProficiencies(this.#actor).bribery;
       if (hasBribery) {
-        // The charge mark is the page's (RR 287); unread, the note says so and
-        // names no charge.
+        // The charge mark is the page's (RR 287); unread, no charge is named.
         const mark = bribeCrimeMark();
-        if (mark === null) notes.push(game.i18n.localize("ACKS-INFLUENCE.note.bribeCrimeUnread"));
-        else if (diceResult === mark) {
+        if (mark !== null && diceResult === mark) {
           const from = { docId: INFLUENCE_DOC, tableId: BRIBE_CRIME_PAGE.table, cite: BRIBE_CRIME_PAGE.cite };
           notes.push(game.i18n.format("ACKS-INFLUENCE.note.bribeCrime", { origin: this.#figureTip(from, tone) }));
         }
@@ -1388,10 +1361,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    */
   async #rollExternalMode() {
     this.#recalculate();
-    if (!this.#modeBands().length && !this.#mode.postsWithoutBands) {
-      ui.notifications?.warn(game.i18n.localize(`${this.#mode.label.replace(/\.title$/, "")}.noBands`));
-      return;
-    }
+    if (!this.#modeBands().length && !this.#mode.postsWithoutBands) return;
     const activeModifiers = this.#activeModifiers();
     const modifier = this.#finalModifier;
     const roll = new Roll(`2d6 + (${modifier})`);
@@ -1411,7 +1381,6 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       activeModifiers,
       outcome,
       outcomeLabel: outcome ? game.i18n.format(this.#mode.bandLabels[outcome] ?? outcome, { cite: this.#mode.cite }) : "",
-      noResult: outcome ? "" : game.i18n.format("ACKS-INFLUENCE.mode.noResult", { cite: this.#mode.cite }),
       secret: !!this.#mode.secret,
     };
 
@@ -1524,13 +1493,11 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       total,
       activeModifiers,
       bandLabel: band ? game.i18n.format(INFLUENCE_BAND_LABELS[tone][band.key], { cite: TONE_PAGES[tone].cite }) : "",
-      noResult: band ? "" : game.i18n.format("ACKS-INFLUENCE.tone.noResult", { cite: TONE_PAGES[tone].cite }),
       startAttitude: game.i18n.localize(labels[startIndex]),
       resultAttitude: game.i18n.localize(labels[newIndex]),
       shiftDescription: band && isContinuing ? this.#shiftDescription(band, rung) : null,
       // Mystic Aura / aura-power kicker: the page's total bewitches the subject.
       bewitched: bewitchedActive && bewitchAt !== null && total >= bewitchAt,
-      bewitchUnread: bewitchedActive && bewitchAt === null,
       attempt: this.#system.attempt,
       timeLabel: isContinuing && timeStep?.time ? timeStep.time : null,
       opposed,

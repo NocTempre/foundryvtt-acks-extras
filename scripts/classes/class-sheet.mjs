@@ -25,7 +25,7 @@ import { classTrainingEffect, trainingOf } from "./training-logic.mjs";
 import { armourOptionsFor, bindDropHighlight, confirmRowDelete, openRef, rejectDrop } from "./sheet-helpers.mjs";
 import { refOf } from "./grants.mjs";
 import { levelCap } from "./level-cap.mjs";
-import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabel } from "./builder.mjs";
+import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabels } from "./builder.mjs";
 import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../lib/sheet-rows.mjs";
@@ -100,11 +100,12 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     context.xpUnread = !sys.isStub && (sys.levels ?? []).some((r) => r.level > 1 && r.xp == null);
     context.titlesUnread = !sys.isStub && (sys.levels ?? []).length > 0 && sys.levels.every((r) => !r.title);
     context.cite = sys.source?.cite ?? "";
-    // The cap field says where its figure came from, or that none is set. A
-    // builder class's figure is Derive's unless a hand typed over it, and the
-    // sheet cannot tell the two apart, so it names both.
-    const capKind = levelCap(sys) == null ? "capNoneTip" : context.cite ? "capCiteTip" : sys.builder?.enabled ? "capBuiltTip" : "capHandTip";
-    context.capTip = game.i18n.format(`${LANG_PREFIX}.sheet.${capKind}`, { cite: context.cite });
+    // The cap field says where its figure came from; a class with no cap
+    // leaves the field blank and its tooltip is the class's page reference
+    // alone. A builder class's figure is Derive's unless a hand typed over it,
+    // and the sheet cannot tell the two apart, so it names both.
+    const capKind = levelCap(sys) == null ? null : context.cite ? "capCiteTip" : sys.builder?.enabled ? "capBuiltTip" : "capHandTip";
+    context.capTip = capKind ? game.i18n.format(`${LANG_PREFIX}.sheet.${capKind}`, { cite: context.cite }) : context.cite;
     // An experience column the import priced from the class's build names the
     // build it came from, while it still holds the priced figure at 2nd level.
     const build = this.document.getFlag(MODULE_ID, "xpBuild");
@@ -201,7 +202,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     if (b.enabled) {
       const plan = planFor(this.item);
       context.builderSummary = plan.summary;
-      context.builderIssues = plan.issues.map(issueLabel);
+      context.builderIssues = issueLabels(plan.issues);
     }
 
     // --- progression ---

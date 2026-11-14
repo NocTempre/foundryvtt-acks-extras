@@ -52,10 +52,10 @@ function bandsOf(table) {
 
 /* ---------------------------------- errors ---------------------------------- */
 
-/** The localized name of an imported table, for a message that says which one is missing. */
+/** The localized name of an imported table, carried in a refusal's `table` for the caller that wants to name it. */
 export const tableLabel = (tableId) => game.i18n.localize(`${LANG}.ventures.table.${tableId}`);
 
-/** The result an action returns when a table it needs is unread: `{error, table}` with the table named. */
+/** The result an action returns when a table it needs is unread: `{error, table}` with the table named; the shown text is blank (`refusal.mjs`). */
 export const printedError = (tableId) => ({ error: "printedMissing", table: tableLabel(tableId) });
 
 /* ------------------------------- availability ------------------------------- */
