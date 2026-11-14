@@ -1243,6 +1243,3 @@ Parties journal of their introductions. Left:
 - **A lair inset's storeys as levels.** The p. 214 plate's large inset draws
   two buildings with unequal storey counts on one Scene; they are not split
   into levels.
-- **The library lair and its world copy.** Each carries its own lair flag, so
-  a roll on one is not seen by the other (see "A lair rolls…" in DECISIONS
-  for which one rolls).

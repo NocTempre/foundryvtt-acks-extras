@@ -1704,7 +1704,11 @@ resolves `of` to the library's own actor whenever the Monstrous Manual is
 imported, so no Repair is needed: it skips a world copy and a group's base actor,
 which carry the monster's stamp (`byCookbookId` with `original`).
 
-`rollLair` rolls once and leaves no row of the monster. It refuses while
+`rollLair` rolls once and leaves no row of the monster. Only a world place
+rolls: it refuses a place in a compendium (`isShelved`) and writes nothing,
+since the shelf place is the template a world copy is made from and a group is
+a world document; `worldCopySource` hands a copy the monster (`lairForCopy`)
+and none of the group, note or group row the shelf place held. It refuses while
 `lair.group` resolves, plans from the monster's imported in-lair side
 (`planLair`: a side counted in bodies rolls; units, no count, a template and a
 monster not imported make nothing), makes the group with `makeEncounter`, throws
@@ -1722,7 +1726,9 @@ Two things call it. A party token created on the Scene a place is
 the location api's `locationOfScene`) rolls the lair on the primary GM's window.
 The location sheet's Lair section (Contents tab, GM seats) shows the monster or
 "not imported", the group or why there is none, and a Roll button, which is the
-way to roll a lair that has no Scene.
+way to roll a lair that has no Scene once its place is a world document; on a
+shelf place the button is disabled and the section says a lair rolls from its
+world copy.
 
 A repair of the book writes the flag back with the rest of a held place's build,
 and a flag key the build does not carry (`group`, `noted`) is left as the place

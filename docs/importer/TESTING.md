@@ -3652,7 +3652,7 @@ What a scripted walk meets:
    made, `lair.group` names it, and the roster holds its row alone (the deleted
    group's row is gone).
 7. A lair that counts units. Place the party token on
-   `importer/le-lair-units`'s Scene (or press its sheet's Roll where it has
+   `importer/le-lair-units`'s Scene (or press its world copy's Roll where it has
    none). *Observable:* no group is made, `lair.noted` is `units` (`none` for
    a lair whose monster states no count), one
    whispered card says why and names the place; entering or pressing again
@@ -3664,12 +3664,14 @@ What a scripted walk meets:
    and the page; the
    Roll button is disabled and the group row, not only a tooltip, says why.
    Delete the group: the row reads the Roll as available and the button works.
-   On a lair with no Scene (any of the 129 without a plate), which is held only
-   on the shelf, Roll makes the group with the button and nothing else; assert
-   the write landed on the shelf place's flag and roster (the shelf is not
-   locked). A lair with a Scene is two documents, the shelf place and its world
-   copy, each with its own `lair.group`: assert what a Roll on the one does to
-   the other (nothing, by the code) and record it. A lair whose monster is not
+   Only a world place rolls. Open the same lair's shelf place under Compendium
+   Packs: the Roll button is disabled, its tooltip and a line beside it say a
+   lair rolls from its world copy, and no group is made and no flag or roster
+   row written on the shelf place. A lair with no Scene (any of the 129 without
+   a plate) is on the shelf alone: drag its place into the world, and Roll on
+   the copy makes the group with the button and nothing else (assert the write
+   landed on the copy's flag and roster, and that the copy carries no
+   `lair.group` before the press). A lair whose monster is not
    imported reads "Not imported" in the monster row. A Player seat's sheet of
    the same place has no Lair section. *Observable:* each, read from the sheet's
    DOM; the button carries an `aria-label`; a keyboard reaches it.

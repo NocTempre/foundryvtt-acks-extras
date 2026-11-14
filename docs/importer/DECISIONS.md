@@ -11089,3 +11089,34 @@ the owner's answer being the new evidence.
 *Cost:* of the 38 mapped lairs, the ones whose monster's in-lair side counts
 bodies roll; those counting units or printing no count do not. A lair rolls
 once; a deleted group rolls again on the next entry.
+
+## 2026-11-14 — Only a world lair rolls
+
+The orchestrator's ruling, its own call and not the owner's. A lair rolls
+once per document, and a plated lair is two documents: the place on the Judge
+shelf and the world copy a Scene is made against, each with its own
+`lair.group`. A roll on one and an arrival on the other made two groups for
+one lair, which "A lair rolls its monster's lair encounter on entry…" (same
+day) did not foresee.
+
+**Ruled:** only a place that is a world document rolls. An encounter group is
+a world document, and the shelf place is the template a world copy is made
+from, as the AX adventures' places are. `rollLair` refuses a place in a
+compendium (`isShelved`, the document's `pack`) with the reason `shelved`,
+writes nothing and posts no card; the sheet's Roll is disabled on such a place
+and says on the surface that a lair rolls from its world copy. A world copy
+made by the importer (`worldCopySource`) keeps the monster the lair is of and
+nothing the shelf place rolled: no `lair.group`, no `lair.noted`, and no
+roster row for that group (`lairForCopy`). This narrows "rolls once" to once
+per world lair.
+
+**Rejected:** one group shared by the two documents, linked from the shelf
+place by uuid. It would make the shelf place carry a world document's uuid, a
+reference the shelf cannot resolve in another world or after a restore, and
+leave every roll that arrives on the copy writing to a compendium document.
+
+*Cost:* a lair with no Scene, which the shelf alone holds, is rolled only after
+its place is dragged out of the compendium into the world; the Roll button on
+the shelf place is a dead end that says so. A world copy dragged out by core
+rather than made by the importer carries the shelf place's flag as it stands,
+which is the monster alone for any place that rolled after this entry.
