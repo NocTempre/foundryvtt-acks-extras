@@ -10302,3 +10302,44 @@ the printed value this ruling removes.
 *Cost:* a culture whose section is worded outside the shapes the take reads
 ships no template until a Judge sets one. The nine are read from the Revised
 Rulebook; a supplement's culture would need its own block.
+
+## 2026-11-13 — cookbook.mjs is split by kind and layer, not by book
+
+**Ruled.** `scripts/importer/cookbook.mjs` held 487 top-level declarations in
+one file of 13,600 lines. It is now a facade plus fourteen files under
+`scripts/importer/cookbook/`, one per kind of work and ordered by layer: state,
+read, target, abilities, monster, classes, equipment, variations, adventure
+places, adventure maps, actor import, ability import, rebuild, import dialog
+(the file list and what each holds are in MODEL, "The cookbook's files"). The
+facade re-exports each public name by name, never `export *`, so the module's
+import path and its 167 public names are unchanged. The cut is a script, not a hand edit: each declaration moves
+with its leading comments and the whitespace before it, byte for byte, and the
+only edits to moved code are an `export` where a name crosses a file and a
+relative dynamic import rebased to its new folder. A verifier then checks that
+every declaration is placed once, the facade's export names equal the
+original's, no comment is lost and no import forms a cycle. `read.mjs` is a
+file of its own, small as it is, because the four read helpers (one entry read
+off the book, the repair read, the passed-over tally, the per-run page cache)
+are used by most of the other files and by the repair, and the owner ruled the
+next slice for this area a tables-first one: "A: tables-first slice". That
+slice builds its read store on `read.mjs` instead of on a file it would have to
+carve out first.
+
+**Rejected:** a file per book. "Book-specific code lives in a silo, and a gate
+keeps it there" (2026-11-10) already rules that no ACKS book owns code: a row
+keyed to a book is data in a shared recipe, and the kinds of work cross every
+book. A cross-book file, holding the declarations that touch two books, was
+costed and rejected: it would cover about 7 of the roughly 25 declarations that
+sit on a seam between two books, it would group two clusters that have nothing
+to do with each other, and it would write into the tree a reading of "which
+declarations are cross-book" that no ruling has made. The join of a place two
+books print stays where its kind lives.
+
+*Cost:* a pure move. Every moved name that another file reads gained an
+`export`, 138 names in all, and each such name without a docstring gained a
+one-line one. A suite that pins what the cookbook's source says reads it
+through `cookbookSource()` instead of one file's text, so a symbol's file is
+found by name, and any doc that points at a symbol points at its file. A
+reader following a stack trace lands in a file of 100 to 2,100 lines
+rather than one of 13,600. The cut script and its verifier are not kept in the
+repository; the result is the tree, and the cut is not meant to be run again.

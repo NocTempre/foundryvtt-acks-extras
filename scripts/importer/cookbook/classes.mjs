@@ -880,6 +880,7 @@ export async function laddersForEntry(entry, { pageCache = null } = {}) {
   return out;
 }
 
+/** Reads the keys and labels of the ladders a spec's class entry prints in its named grid; empty when the class or its book is unavailable. */
 export async function laddersFromSpec(spec, { pageCache = null } = {}) {
   const classId = `def.class.${spec?.as ?? ""}`;
   const found = spec?.as ? cookbookEntry(classId) : null;

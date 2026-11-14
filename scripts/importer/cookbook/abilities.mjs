@@ -55,6 +55,7 @@ function abilityCategory(value) {
   return value;
 }
 
+/** Binds an executed ability entry to its ability document data. */
 export function bindAbility(entry, node, id, opts = {}) {
   const meta = entry.meta ?? {};
   const cite = entry.cite ?? "";
@@ -362,6 +363,7 @@ const categoryRank = (id) => {
 /** The id whose category ranks first. */
 export const byCategory = (ids) => [...ids].sort((a, b) => categoryRank(a) - categoryRank(b))[0];
 
+/** Picks one id among same-name candidates, preferring one already present, then the best-ranked category, and flags whether the pick was ambiguous or ranked. */
 export function preferredId(ids, present) {
   if (ids.length === 1) return { id: ids[0], ambiguous: false, ranked: false };
   const here = ids.filter((id) => present.has(id));

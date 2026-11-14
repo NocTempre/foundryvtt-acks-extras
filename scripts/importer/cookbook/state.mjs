@@ -97,10 +97,12 @@ export let ctx = null;
 /** Name collisions already reported this session, so a bulk import says each once. */
 export const warnedAmbiguous = new Set();
 
+/** Stores the module context the cookbook reads its session documents from. */
 export function initCookbook(moduleCtx) {
   ctx = moduleCtx;
 }
 
+/** Fetches the compiled cookbook files into the shared data; resolves false when no cookbook shipped. */
 export async function loadCookbook() {
   const base = `modules/${MODULE_ID}/cookbook`;
   try {
@@ -153,8 +155,11 @@ export async function loadCookbook() {
  * of which live here and nowhere else.
  */
 export const cookbookContentFile = (name) => data.content.get(name) ?? null;
+/** The shared registers of the loaded cookbook. */
 export const cookbookRegisters = () => data.registers;
+/** The book document this seat has open for a book id, or null. */
 export const cookbookSessionDoc = (bookId) => ctx?.sessionDocs?.get(bookId)?.doc ?? null;
+/** The loaded cookbook file of a book id, or null. */
 export const cookbookBookFile = (bookId) => data.books.get(bookId) ?? null;
 
 /** "mm.griffon#combat" -> { id, section } (section null when absent). */
@@ -163,6 +168,7 @@ const splitId = (full) => {
   return { id, section: section || null };
 };
 
+/** Resolves a full cookbook id to its book file and entry, synthesizing an entry for a family id. */
 export const cookbookEntry = (fullId) => {
   const { id } = splitId(fullId);
   for (const cb of data.books.values()) if (cb.entries[id]) return { cb, entry: cb.entries[id], id };

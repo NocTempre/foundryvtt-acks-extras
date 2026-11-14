@@ -18,7 +18,7 @@ binding, run joining), specialized extractors (`armor-tables`,
 `weapon-tables`, `gear-prices`, `language-binding`, `builder-binding`,
 `stats`/`stats-map`), `book-match.mjs` (entry location by normalized
 heading), `executor.mjs` (runs compiled cookbook ops against the reader's
-own book at runtime), `cookbook.mjs` + `recipes.mjs`/`table-recipes.mjs`
+own book at runtime), `cookbook/` (behind the `cookbook.mjs` facade) + `recipes.mjs`/`table-recipes.mjs`
 (the compiled program and its recipe layer).
 
 **Pipeline operators (`tools/`):**

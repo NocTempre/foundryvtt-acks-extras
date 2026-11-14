@@ -682,7 +682,7 @@ standalone macro's alone.
 
 A full import re-runs each recipe over its pages on every run. The caches that
 exist cover folders, packs, the presence of an imported document
-(`importedCache` in `scripts/importer/cookbook.mjs`) and, per call, a book's
+(`importedCache` in `scripts/importer/cookbook/target.mjs`) and, per call, a book's
 extracted pages in the rules-tables step and the abilities update (DECISIONS,
 2026-11-13, "A bulk import reads each page once"). A timed Import Everything took
 2728 s, 2377 s of it in the abilities step: 729 item writes and 4169

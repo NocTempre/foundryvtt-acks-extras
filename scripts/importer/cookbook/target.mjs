@@ -528,6 +528,7 @@ function remembered(doc) {
  * what the shelf already holds".
  */
 export const WRITE_CHUNK = 50;
+/** Creates documents in chunks per line and returns one slot per input, null where none was created. */
 export async function createDocs(cls, dataList, opts = {}) {
   if (!dataList.length) return [];
   // One slot per input, `null` where that document was not created; paired to

@@ -184,7 +184,7 @@ error.
 **Graceful degradation (two tiers, and a gate before them).** An entry is
 imported only from an open copy of its book: one whose book is not open on the
 seat, or whose page no longer matches, is passed over and counted, and nothing
-is created from its shape alone (`cookbook.mjs` `readForImport`; importer
+is created from its shape alone (`cookbook/read.mjs` `readForImport`; importer
 DECISIONS 2026-10-29, "Nothing is imported without the book"). Within an open
 book:
 1. *Values — with the citing book*: materialized via assists, deterministic.

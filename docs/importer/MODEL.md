@@ -14,7 +14,7 @@ invent**:
 ## What an import reads
 
 Every importer that builds a document from one cookbook entry reads the entry
-off the seat's own copy of its book first (`cookbook.mjs` `readForImport`).
+off the seat's own copy of its book first (`cookbook/read.mjs` `readForImport`).
 An entry whose book is not open on the seat, or whose page no longer matches
 the cookbook, is passed over and counted into the run's notice (`passedOver`);
 nothing is created from the entry's shape alone, and a book opened later
@@ -26,7 +26,7 @@ actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
 
 ## A stat block's proficiencies
 
-`bindProficiency` (`cookbook.mjs`) mints the ability item for each proficiency
+`bindProficiency` (`cookbook/monster.mjs`) mints the ability item for each proficiency
 a stat block names, for a direct import, a family member, a refill and *Apply
 Stats* (`applyStatsToActor` hands `mapPairs` the resolver
 `proficiencyResolver()` builds). Three tiers, first hit wins: the item the
@@ -118,7 +118,7 @@ holds, imports what the world lacks, and deletes nothing first. A `mode` an
 API caller passes is ignored and named on the console (`ignoredMode`).
 
 **Two passes** (`mergedRepair`, `merged-repair.mjs`, Foundry-free; `runMerged`
-in cookbook.mjs drives it and reports it once). The scope asks its confirm
+in `cookbook/rebuild.mjs` drives it and reports it once). The scope asks its confirm
 (`confirmRepair`, titled `ui.repairMergedTitle`, `DialogV2.confirm` with
 `rejectClose: false`: No and closing write nothing), then pass one runs under
 the decision "keep" (`mergedTally`): every writer writes what the page gives
@@ -219,7 +219,7 @@ shapes below.
 
 **The rewrite scope.** A monster template or family, an NPC and a legacy block
 are built by importers whose build is also what they create.
-`withRewrite({held, tally}, run)` (cookbook.mjs) sets a scope that maps the
+`withRewrite({held, tally}, run)` (`cookbook/target.mjs`) sets a scope that maps the
 cookbook id of each held document to it; while it stands, `createDoc` for a held
 id writes the build over the held document (`refreshImported` under
 `actorPolicy(build)`), `claimed()` and the importers' "already imported" reads
@@ -266,7 +266,7 @@ open on this seat, and the book is in `BOOKS`; an entry refused is left
 standing and counted. A character's restore removes it only once its copy
 stands, inside a scope whose book is open here.
 
-**The kind declaration.** `IMPORT_KINDS` (`cookbook.mjs`) declares every family
+**The kind declaration.** `IMPORT_KINDS` (`cookbook/rebuild.mjs`) declares every family
 of document the importer makes: the entry picker's sources (`ENTRY_SOURCES`),
 the table shelves (`TABLE_BOOKS`) and the steps of an adventure book's run
 (`runAdventureBookSteps`). A kind states which cookbook claims it owns (`owns`,
@@ -1664,6 +1664,56 @@ follows its actor. **Wildcards** reach the encounter group through lib
 The GM alone sees the controls; a write a locked library pack refuses is counted
 as refused. The art is referenced by path from the other package, never copied
 into this repository or shipped in this module.
+
+## The cookbook's files
+
+`scripts/importer/cookbook.mjs` is a facade: it holds no code, only
+`export { … } from "./cookbook/<file>.mjs"` lines that name every public
+symbol the rest of the module imports (never `export *`, so adding a public
+name is one visible edit). The code lives under `scripts/importer/cookbook/`,
+cut by kind and layer:
+
+- `state.mjs`: the loaded cookbook data and context, the entry listers and
+  predicates, small parsers, the debugging `api`.
+- `read.mjs`: reading one entry off the seat's own book for an import or a
+  repair (`readForImport`, `repairFromEntry`), the passed-over tally, the
+  per-run page cache.
+- `target.mjs`: import targets, the world or a compendium, the item shelves,
+  the library name index, the document writers.
+- `abilities.mjs`: binding an executor ability to its document, the ability
+  name index, same-name reconciliation.
+- `monster.mjs`: the full monster sheet and template binding, monster prose
+  channels, legacy monsters and NPCs.
+- `classes.mjs`: binding a class entry: prose parsers, ladders, training,
+  paths, provenance, class updates.
+- `equipment.mjs`: equipment, vehicles, and the weapon and armour tables.
+- `variations.mjs`: variations, traps, spells and merchandise.
+- `adventure-places.mjs`: adventure journals, points of interest, keyed
+  places, region rows, markets and factions.
+- `adventure-maps.mjs`: roll tables, adventure items, scenes, zones and links,
+  the Adventure document.
+- `actor-import.mjs`: importing one actor or a batch, with the abilities and
+  companions it resolves.
+- `abilities-import.mjs`: bulk ability import, update and prune dialogs.
+- `rebuild.mjs`: the import-kind tables, repair in place, reimport one shelf,
+  the adventure book steps.
+- `import-dialog.mjs`: the debug window and the audit of raw executor output.
+
+**Layering.** The files above are in import order: a file imports only files
+listed before it, `state.mjs` imports no sibling, and nothing under
+`cookbook/` imports the facade, so there is no cycle. `read.mjs` holds the four
+read helpers shared by the binders and the repair: one place where an entry is
+read off the book.
+
+**Cross-book seams.** No file is per book, and none is cross-book: the join of
+a place two books print lives in the file where its kind lives
+(`adventure-places.mjs`, `adventure-maps.mjs`), not in a file of its own. The
+rule for that join is "A place two books print", above.
+
+A suite that pins what the cookbook's source says reads it through
+`cookbookSource()` (`tools/importer/cookbook-source.mjs`), the facade and every
+file under `cookbook/` joined, and a symbol is named by its file, not by
+`cookbook.mjs`, wherever a doc says where it lives.
 
 ## Silos
 

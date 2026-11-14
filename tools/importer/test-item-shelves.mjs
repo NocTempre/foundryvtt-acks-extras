@@ -16,7 +16,7 @@
  * nobody notices is missing.
  *
  * Runs over the shipped JSON with no PDFs and no Foundry, like its siblings —
- * the shelf table is duplicated here on purpose (importing `cookbook.mjs`
+ * the shelf table is duplicated here on purpose (importing the cookbook
  * would drag in the Foundry globals), and THAT is what makes the check
  * meaningful: it fails when the two disagree.
  */
@@ -39,19 +39,19 @@ const check = (label, cond) => {
 /*  What the module says                                               */
 /* ------------------------------------------------------------------ */
 
-/** `ITEM_SHELF` as `cookbook.mjs` declares it, read from the source. */
+/** `ITEM_SHELF` as `cookbook/target.mjs` declares it, read from the source. */
 function shelfKeysFromSource() {
   const src = cookbookSource();
   const block = src.match(/const ITEM_SHELF = \{([\s\S]*?)\n\};/);
-  assert.ok(block, "ITEM_SHELF is declared in scripts/cookbook.mjs");
+  assert.ok(block, "ITEM_SHELF is declared under scripts/importer/cookbook/");
   return new Set([...block[1].matchAll(/"(def\.[a-zA-Z]+)":/g)].map((m) => m[1]));
 }
 
-/** `NON_ABILITY_KINDS` as `cookbook.mjs` declares it. */
+/** `NON_ABILITY_KINDS` as `cookbook/state.mjs` declares it. */
 function nonAbilityKindsFromSource() {
   const src = cookbookSource();
   const block = src.match(/const NON_ABILITY_KINDS = new Set\(\[([\s\S]*?)\]\);/);
-  assert.ok(block, "NON_ABILITY_KINDS is declared in scripts/cookbook.mjs");
+  assert.ok(block, "NON_ABILITY_KINDS is declared under scripts/importer/cookbook/");
   return new Set([...block[1].matchAll(/"(kind\.[a-zA-Z]+)"/g)].map((m) => m[1]));
 }
 
