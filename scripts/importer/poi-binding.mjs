@@ -24,6 +24,8 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
+import { creatureKeys } from "../lib/vocab.mjs";
+import { hash36 } from "./printed-name.mjs";
 
 /** The group suffixes a settlement book prints per quarter, and what each holds. */
 const POI_GROUPS = Object.freeze({ "Points of Interest": "poi", "Notable Residents": "residents", Overview: "overview" });
@@ -219,4 +221,33 @@ export function occupantFigures({ count = null, stats = null } = {}) {
   const hp = Array.isArray(stats?.hpList) && stats.hpList.length ? stats.hpList.filter(Number.isInteger)
     : Number.isInteger(stats?.hp) ? [stats.hp] : [];
   return { quantity, countText, hp };
+}
+
+/**
+ * The register of creature replacements (`register/_refs`): where ACKS II
+ * prints a creature a first-edition book names, or names it differently, the
+ * pair a reviewer authored. A row is keyed by the hash of one folded form of
+ * the label (`hash36` of a `creatureKeys` form, so a label for several and a
+ * label for one meet the same key), names the ACKS II monster row, and the books
+ * it was reviewed for; it ships no name.
+ */
+export const CREATURE_REPLACEMENTS = "creatureReplacement";
+
+/**
+ * The cookbook id of the ACKS II monster a stat-line label is registered to for
+ * `bookId`, or null. The first form of the label to find a row answers, and a
+ * row answers only for a book it names. A label is registered or it is not:
+ * nothing is guessed at here.
+ * @param {string} label the creature as the page prints it
+ * @param {Record<string, {ref: string, books: string[]}>|null|undefined} pairs the register's table
+ * @param {string} bookId the book whose room the label stands in
+ * @returns {string|null}
+ */
+export function replacementOf(label, pairs, bookId) {
+  if (!pairs) return null;
+  for (const form of creatureKeys(label)) {
+    const row = pairs[hash36(form)];
+    if (row?.ref && row.books?.includes(bookId)) return row.ref;
+  }
+  return null;
 }

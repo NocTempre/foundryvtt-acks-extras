@@ -134,6 +134,28 @@ export function lairOfProblems(rows) {
 }
 
 /**
+ * The creature replacements (`register/_refs/creatureReplacement.json`), over
+ * every row at once (`rows`: id -> row). A pair is keyed by a base-36 hash, so
+ * it ships no name, and holds exactly a `ref`, the id of an ACKS II monster
+ * row (a creature, as a roster links to one: no template), and `books`, the
+ * books it was reviewed for, each a book some row belongs to.
+ */
+export function replacementProblems(table, rows) {
+  const out = [];
+  const books = new Set([...rows.values()].map((r) => r.book));
+  for (const [key, row] of Object.entries(table ?? {})) {
+    if (!/^[0-9a-z]{1,7}$/.test(key)) out.push(`${key}: a replacement is keyed by the hash of the printed form`);
+    const extra = Object.keys(row ?? {}).filter((k) => k !== "ref" && k !== "books");
+    if (extra.length) out.push(`${key}: a replacement holds a ref and its books only (${extra.join(", ")})`);
+    const to = rows.get(row?.ref);
+    if (!to) out.push(`${key}: ref names ${row?.ref}, which no row defines`);
+    else if (bookOf(to.id) !== LAIR_OF_BOOK || to.kind !== "kind.monster") out.push(`${key}: ref names ${to.id}, which is no ACKS II monster row`);
+    if (!Array.isArray(row?.books) || !row.books.length || row.books.some((b) => !books.has(b))) out.push(`${key}: books names the books it was reviewed for, each one with rows`);
+  }
+  return out;
+}
+
+/**
  * A place two books print, over every row at once (`rows`: id -> row).
  *
  * The pair is declared once, as `meta.sameAs` on the EARLIER book's location

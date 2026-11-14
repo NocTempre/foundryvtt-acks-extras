@@ -953,6 +953,494 @@
         "ref": "ax2.fungalCreeper"
       }
     },
+    "creatureReplacement": {
+      "109l097": {
+        "ref": "mm.lycanthropeWerewolf",
+        "books": [
+          "le"
+        ]
+      },
+      "12fi7vt": {
+        "ref": "mm.manPirate",
+        "books": [
+          "le"
+        ]
+      },
+      "13grwa7": {
+        "ref": "mm.gorillaCave",
+        "books": [
+          "le"
+        ]
+      },
+      "154ljue": {
+        "ref": "mm.ghoulGrave",
+        "books": [
+          "le"
+        ]
+      },
+      "1585l0g": {
+        "ref": "mm.specter",
+        "books": [
+          "le"
+        ]
+      },
+      "1589nnx": {
+        "ref": "mm.strix",
+        "books": [
+          "le"
+        ]
+      },
+      "16q7sew": {
+        "ref": "mm.lycanthropeWereboar",
+        "books": [
+          "le"
+        ]
+      },
+      "16tgams": {
+        "ref": "mm.lycanthropeWererat",
+        "books": [
+          "le"
+        ]
+      },
+      "17kades": {
+        "ref": "mm.specter",
+        "books": [
+          "le"
+        ]
+      },
+      "18ow8g4": {
+        "ref": "mm.varmintGiantWeasel",
+        "books": [
+          "le"
+        ]
+      },
+      "196r5nf": {
+        "ref": "mm.lycanthropeWerewolf",
+        "books": [
+          "le"
+        ]
+      },
+      "1ay1lxo": {
+        "ref": "mm.lycanthropeWerewolf",
+        "books": [
+          "le"
+        ]
+      },
+      "1azfm08": {
+        "ref": "mm.lycanthropeWeretiger",
+        "books": [
+          "le"
+        ]
+      },
+      "1bbw90f": {
+        "ref": "mm.varmintGiantFerret",
+        "books": [
+          "le"
+        ]
+      },
+      "1bm5bcp": {
+        "ref": "mm.wormGreatIce",
+        "books": [
+          "le"
+        ]
+      },
+      "1c7ldpg": {
+        "ref": "mm.rustbeast",
+        "books": [
+          "le"
+        ]
+      },
+      "1cn93bp": {
+        "ref": "mm.spellTyrant",
+        "books": [
+          "le"
+        ]
+      },
+      "1dk0jv5": {
+        "ref": "mm.triton",
+        "books": [
+          "le"
+        ]
+      },
+      "1e1to80": {
+        "ref": "mm.manPirate",
+        "books": [
+          "le"
+        ]
+      },
+      "1e53vil": {
+        "ref": "mm.acanthaspisGiant",
+        "books": [
+          "le"
+        ]
+      },
+      "1etxliu": {
+        "ref": "mm.varmintGiantFerret",
+        "books": [
+          "le"
+        ]
+      },
+      "1f9f0yy": {
+        "ref": "mm.doppelgNger",
+        "books": [
+          "le"
+        ]
+      },
+      "1fdv918": {
+        "ref": "mm.lycanthropeWerewolf",
+        "books": [
+          "le"
+        ]
+      },
+      "1fehdh3": {
+        "ref": "mm.gorillaCave",
+        "books": [
+          "le"
+        ]
+      },
+      "1flox3u": {
+        "ref": "mm.acanthaspisGiant",
+        "books": [
+          "le"
+        ]
+      },
+      "1fq6stk": {
+        "ref": "mm.lycanthropeWerewolf",
+        "books": [
+          "le"
+        ]
+      },
+      "1fth1ad": {
+        "ref": "mm.wolfCommon",
+        "books": [
+          "le"
+        ]
+      },
+      "1g4uuu5": {
+        "ref": "mm.doppelgNger",
+        "books": [
+          "le"
+        ]
+      },
+      "1hko1cv": {
+        "ref": "mm.varmintGiantWeasel",
+        "books": [
+          "le"
+        ]
+      },
+      "1i1oen1": {
+        "ref": "mm.bronzeBull",
+        "books": [
+          "le"
+        ]
+      },
+      "1kzx4jj": {
+        "ref": "mm.rustbeast",
+        "books": [
+          "le"
+        ]
+      },
+      "1l6gtkn": {
+        "ref": "mm.manBerserker",
+        "books": [
+          "le"
+        ]
+      },
+      "1m3clct": {
+        "ref": "mm.devilBoar",
+        "books": [
+          "le"
+        ]
+      },
+      "1m7czo2": {
+        "ref": "mm.lycanthropeWerebear",
+        "books": [
+          "le"
+        ]
+      },
+      "1mf90gl": {
+        "ref": "mm.triton",
+        "books": [
+          "le"
+        ]
+      },
+      "1oqtvma": {
+        "ref": "mm.manMerchant",
+        "books": [
+          "le"
+        ]
+      },
+      "1rn6hwl": {
+        "ref": "mm.cyclops",
+        "books": [
+          "le"
+        ]
+      },
+      "1towure": {
+        "ref": "mm.strix",
+        "books": [
+          "le"
+        ]
+      },
+      "1v58frh": {
+        "ref": "mm.fishGiantRockfish",
+        "books": [
+          "le"
+        ]
+      },
+      "1v9o14o": {
+        "ref": "mm.catTiger",
+        "books": [
+          "le"
+        ]
+      },
+      "1vdyiyn": {
+        "ref": "mm.catLion",
+        "books": [
+          "le"
+        ]
+      },
+      "1ve0o02": {
+        "ref": "mm.spiderGiantTarantula",
+        "books": [
+          "le"
+        ]
+      },
+      "1wq2jxa": {
+        "ref": "mm.basiliskPetrifying",
+        "books": [
+          "le"
+        ]
+      },
+      "1wwurmi": {
+        "ref": "mm.varmintGiantShrew",
+        "books": [
+          "le"
+        ]
+      },
+      "1x0of4m": {
+        "ref": "mm.varmintGiantRat",
+        "books": [
+          "le"
+        ]
+      },
+      "1xoe9xv": {
+        "ref": "mm.acanthaspisGiant",
+        "books": [
+          "le"
+        ]
+      },
+      "1xx64ka": {
+        "ref": "mm.catSaberTooth",
+        "books": [
+          "le"
+        ]
+      },
+      "2ce1nu": {
+        "ref": "mm.pegasus",
+        "books": [
+          "le"
+        ]
+      },
+      "2glno7": {
+        "ref": "mm.nymphNaiad",
+        "books": [
+          "le"
+        ]
+      },
+      "3545zn": {
+        "ref": "mm.manBrigand",
+        "books": [
+          "le"
+        ]
+      },
+      "74u9e5": {
+        "ref": "mm.varmintGiantShrew",
+        "books": [
+          "le"
+        ]
+      },
+      "79gqfp": {
+        "ref": "mm.manMerchant",
+        "books": [
+          "le"
+        ]
+      },
+      "7wog0v": {
+        "ref": "mm.ghoulGrave",
+        "books": [
+          "le"
+        ]
+      },
+      "br9b4j": {
+        "ref": "mm.specter",
+        "books": [
+          "le"
+        ]
+      },
+      "by54xe": {
+        "ref": "mm.manBrigand",
+        "books": [
+          "le"
+        ]
+      },
+      "d8kvxa": {
+        "ref": "mm.nymphNaiad",
+        "books": [
+          "le"
+        ]
+      },
+      "ee8ada": {
+        "ref": "mm.gorillaCave",
+        "books": [
+          "le"
+        ]
+      },
+      "gg3xac": {
+        "ref": "mm.wolfCommon",
+        "books": [
+          "le"
+        ]
+      },
+      "h3zlqd": {
+        "ref": "mm.manPirate",
+        "books": [
+          "le"
+        ]
+      },
+      "i6juf2": {
+        "ref": "mm.cyclops",
+        "books": [
+          "le"
+        ]
+      },
+      "iredsb": {
+        "ref": "mm.lycanthropeWeretiger",
+        "books": [
+          "le"
+        ]
+      },
+      "jcc2ml": {
+        "ref": "mm.catSaberTooth",
+        "books": [
+          "le"
+        ]
+      },
+      "k3ovq1": {
+        "ref": "mm.basiliskPetrifying",
+        "books": [
+          "le"
+        ]
+      },
+      "k4kkeo": {
+        "ref": "mm.treeherder",
+        "books": [
+          "le"
+        ]
+      },
+      "l0q130": {
+        "ref": "mm.devilBoar",
+        "books": [
+          "le"
+        ]
+      },
+      "lutwhq": {
+        "ref": "mm.manBerserker",
+        "books": [
+          "le"
+        ]
+      },
+      "ml57z5": {
+        "ref": "mm.varmintGiantRat",
+        "books": [
+          "le"
+        ]
+      },
+      "n4rj8v": {
+        "ref": "mm.lycanthropeWererat",
+        "books": [
+          "le"
+        ]
+      },
+      "n6cowk": {
+        "ref": "mm.cyclops",
+        "books": [
+          "le"
+        ]
+      },
+      "o671f5": {
+        "ref": "mm.lycanthropeWereboar",
+        "books": [
+          "le"
+        ]
+      },
+      "pa8cac": {
+        "ref": "mm.wolfCommon",
+        "books": [
+          "le"
+        ]
+      },
+      "qbypgz": {
+        "ref": "mm.owlbeast",
+        "books": [
+          "le"
+        ]
+      },
+      "qsbg10": {
+        "ref": "mm.catLion",
+        "books": [
+          "le"
+        ]
+      },
+      "sbpyww": {
+        "ref": "mm.owlbeast",
+        "books": [
+          "le"
+        ]
+      },
+      "shxyce": {
+        "ref": "mm.hobgholl",
+        "books": [
+          "le"
+        ]
+      },
+      "t253x5": {
+        "ref": "mm.wolfCommon",
+        "books": [
+          "le"
+        ]
+      },
+      "tacvve": {
+        "ref": "mm.strix",
+        "books": [
+          "le"
+        ]
+      },
+      "vp5mv7": {
+        "ref": "mm.treeherder",
+        "books": [
+          "le"
+        ]
+      },
+      "xcm8op": {
+        "ref": "mm.cyclops",
+        "books": [
+          "le"
+        ]
+      },
+      "xhyr0p": {
+        "ref": "mm.wolfCommon",
+        "books": [
+          "le"
+        ]
+      },
+      "ynm75a": {
+        "ref": "mm.bearBrown",
+        "books": [
+          "le"
+        ]
+      }
+    },
     "creatureType": {
       "Animal": {
         "key": "animal",

@@ -20,7 +20,7 @@ import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
   sceneLinkProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -669,6 +669,7 @@ if (fs.existsSync(refsDir)) {
     if (!SHAPES.has(r.shape)) err(`${label}: bad shape "${r.shape}"`);
     if (r.shape === "table") {
       if (!r.table || typeof r.table !== "object") err(`${label}: table shape requires "table"`);
+      if (r.registry === "creatureReplacement") for (const problem of replacementProblems(r.table, allRows)) err(`${label}: ${problem}`);
     } else {
       for (const [token, row] of Object.entries(r.tokens ?? {})) {
         if (token.length > MAX_STR) err(`${label}: token "${token.slice(0, 20)}…" too long`);

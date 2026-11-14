@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, rowMetaProblems, sceneLinkProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
   siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -72,6 +72,19 @@ flags("a row of another sort", lairOfProblems(rowsOf(fort, { ...beast, kind: "ki
 flags("an id that is no row id", lairOfProblems(rowsOf(fort, lair("ax1.lair1", "Beast"))), /row id of an ACKS II monster/);
 flags("meta.of on a place outside a key space", lairOfProblems(rowsOf(beast, loc("ax1.lair1", { meta: { of: "mm.beast" } }))), /keyed place/);
 flags("meta.of on a person", lairOfProblems(rowsOf(beast, { ...loc("ax1.npc1"), kind: "kind.npc", meta: { space: "ax1.fort", of: "mm.beast" } })), /keyed place/);
+
+/* --- creature replacements: a hash, an ACKS II monster, the books reviewed --- */
+
+const wisp = { id: "mm.wisp", book: "mm", kind: "kind.monster", name: "Wisp" };
+const swarmed = rowsOf(wisp, template, fort, { ...beast, id: "ax2.beast", book: "ax2" });
+none("a replacement of an ACKS II monster for a book with rows", replacementProblems({ "1a2b3c": { ref: "mm.wisp", books: ["ax1"] } }, swarmed));
+flags("a key that is a name", replacementProblems({ "Wisps": { ref: "mm.wisp", books: ["ax1"] } }, swarmed), /keyed by the hash/);
+flags("a row that carries a name", replacementProblems({ "1a2b3c": { ref: "mm.wisp", books: ["ax1"], name: "Wisp" } }, swarmed), /a ref and its books only \(name\)/);
+flags("a monster no row defines", replacementProblems({ "1a2b3c": { ref: "mm.nowhere", books: ["ax1"] } }, swarmed), /no row defines/);
+flags("a monster of an ACKS I book", replacementProblems({ "1a2b3c": { ref: "ax2.beast", books: ["ax1"] } }, swarmed), /no ACKS II monster row/);
+flags("a monster template, which is no creature", replacementProblems({ "1a2b3c": { ref: "mm.beastkind", books: ["ax1"] } }, swarmed), /no ACKS II monster row/);
+flags("no books", replacementProblems({ "1a2b3c": { ref: "mm.wisp", books: [] } }, swarmed), /books names the books/);
+flags("a book with no rows", replacementProblems({ "1a2b3c": { ref: "mm.wisp", books: ["zz"] } }, swarmed), /books names the books/);
 
 /* --- pairs: on the earlier book's row, with the reviewer's unique list --- */
 

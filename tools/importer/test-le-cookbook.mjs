@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { lairOfProblems } from "./register-rules.mjs";
+import { lairOfProblems, replacementProblems } from "./register-rules.mjs";
 import { isRegionRecipe, placementHolding, recipeContext, recipeProblems, sceneFrame } from "../../scripts/importer/scene-binding.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -247,6 +247,18 @@ t("each scene is compiled over its plate: the placement holds the crop, and the 
   const two = placed.get(207);
   assert.equal(two.length, 2);
   assert.notDeepEqual(two[0], two[1]);
+});
+
+t("the creature replacements are reviewed for this book, key no name, and bind a lair's stat line to an ACKS II monster", () => {
+  const reg = JSON.parse(fs.readFileSync(path.join(root, "register", "_refs", "creatureReplacement.json"), "utf8"));
+  assert.equal(reg.registry, "creatureReplacement");
+  assert.deepEqual(replacementProblems(reg.table, rows), []);
+  const pairs = Object.values(reg.table);
+  assert.equal(pairs.length, 81);
+  assert.equal(new Set(pairs.map((p) => p.ref)).size, 39);
+  assert.ok(pairs.every((p) => rows.get(p.ref)?.kind === "kind.monster" && p.books.length === 1 && p.books[0] === "le"));
+  // Whatever a lair is the lair of, its own stat line is registered to the same row where one is.
+  assert.ok(lairRows.filter((r) => r.meta.of && pairs.some((p) => p.ref === r.meta.of)).length >= 20);
 });
 
 console.log(`le-cookbook: ${n} checks OK`);

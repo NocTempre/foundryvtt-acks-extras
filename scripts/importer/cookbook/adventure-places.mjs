@@ -10,7 +10,7 @@ import { coversFigure, decides, heldEdit } from "../held-edits.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, districtPlaceData, poiLocationData, isRegionSite, isRegionOverview,
   regionPlaceId, regionPlaceData, keySpacesOf, isKeyedPlace, keyedParentId, occupantsOf, occupantFigures,
-  adventurePlaceData, adventurePlaceId,
+  adventurePlaceData, adventurePlaceId, CREATURE_REPLACEMENTS, replacementOf,
 } from "../poi-binding.mjs";
 import {
   isOrganisationRow, organisationData, organisationPlan, owedRelations, isStrengthGridRow, strengthPlan,
@@ -466,20 +466,27 @@ async function occupantTargets(bookId) {
 
 /**
  * A keyed place's roster: a hidden row per stat line its text prints, linked
- * to the creature the label names (`occupantTargets`: the register's own
- * reference first, then `core`, then `own`), else to a creature made from
- * the line itself (`statLineCreature`). The row's quantity is the label's
- * count, and its notes the count printed as dice and the hit points. A person
- * of the book stands once, with no notes, however the room counts its line.
+ * to the creature the label names (the registered replacement first, then
+ * `occupantTargets`: the register's own reference, then `core`, then `own`),
+ * else to a creature made from the line itself (`statLineCreature`). A label
+ * with a registered replacement answers to its ACKS II monster alone: where
+ * that monster is not in the library the line is made, never bound to a
+ * same-name row the replacement stands in for. The row's quantity is the
+ * label's count, and its notes the count printed as dice and the hit points. A
+ * person of the book stands once, with no notes, however the room counts its
+ * line.
  */
-async function keyedOccupantRows(bookId, id, node, run) {
+export async function keyedOccupantRows(bookId, id, node, run) {
   const { core, own } = await run.targetsOf(bookId);
+  const pairs = data.registers?.tables?.[CREATURE_REPLACEMENTS];
   const rows = [];
   for (const occ of occupantsOf(node.fields)) {
     const keys = [...creatureKeys(occ.name.text)];
-    const named = occ.name.ref ? await importedActor(occ.name.ref, { copies: false }) : null;
-    const library = named ?? keys.map((k) => core.get(k)).find(Boolean) ?? null;
-    const ours = library ? null : (keys.map((k) => own.get(k)).find(Boolean) ?? null);
+    const replacement = replacementOf(occ.name.text, pairs, bookId);
+    const named = replacement || !occ.name.ref ? null : await importedActor(occ.name.ref, { copies: false });
+    const replaced = replacement ? await importedActor(replacement, { copies: false }) : null;
+    const library = replaced ?? named ?? (replacement ? null : keys.map((k) => core.get(k)).find(Boolean) ?? null);
+    const ours = library || replacement ? null : (keys.map((k) => own.get(k)).find(Boolean) ?? null);
     const actor = library ?? ours ?? (await statLineCreature(bookId, id, occ, node, run));
     if (!actor) continue;
     const person = ours?.type === "character";
