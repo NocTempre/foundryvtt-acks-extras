@@ -286,7 +286,7 @@ const P = {
     return { worldTime: game.time.worldTime };
   },
 
-  /** Write the stored movement as a record from before the mode was derived held it. */
+  /** Write the stored movement with a mode word on it, which the record never otherwise stores. */
   legacy: async ({ fid, movement }) => {
     const H = globalThis.__cv;
     await H.model.patchFormation(fid, (rec) => {

@@ -1253,7 +1253,7 @@ try {
   }
   for (const id of DOCS) {
     const docs = await run(gm, P.docs);
-    // A world imported before the arrival schedule's recipe holds the availability document without it.
+    // A world that has not imported the arrival schedule's recipe holds the availability document without it.
     if (docs[id] && !(id === "availability" && !(await run(gm, P.arrivalsRead)).known)) continue;
     note(`import ${id} from the book`, await run(gm, P.importDoc, { id }));
     let st = null;
@@ -1263,7 +1263,7 @@ try {
   }
   note("documents after import", await run(gm, P.docs));
   note("player mirrors the world's documents", await run(player, P.reloadDocs));
-  // Every entry bringing a vehicle reads the moorage table. A world imported before the
+  // Every entry bringing a vehicle reads the moorage table. A world that has not imported the
   // table's recipe holds none: read it off the connected book and layer it in memory on
   // both seats for the run, as the gate walk does the thrown tariff.
   const STAY_KINDS = ["ship", "wagon", "cartElephant", "horse", "camelDonkeyOx"];
@@ -1451,7 +1451,7 @@ try {
     note("closed (player)", await run(player, P.closeAll));
     note("no ruler", await ruledBy(null));
 
-    // G6–G7: the Judge's randomized tariff. A world imported before the dice
+    // G6–G7: the Judge's randomized tariff. A world that has not imported the dice
     // recipe holds none: its refusal is checked, then the dice are read off the
     // book through the shipped recipe into a priority-30 layer on both seats —
     // nothing written to the world — and the thrown half is walked on them.

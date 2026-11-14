@@ -293,8 +293,8 @@ check("no sample table is carried into the import", !("sampleOnly" in written.do
 unregisterTable(WEATHER_DOC_ID, { priority: PRIORITY.OVERRIDE });
 check("clearing the override brings the imported value back", getDoc(WEATHER_DOC_ID).tables.dailyWind[0].key === "still");
 
-// A world layer that already froze a sample's table (the merge before this
-// read through every layer) sheds it at the next write, and only it.
+// A world layer that froze a sample's table, rather than reading it through
+// the layers, sheds it at the next write, and only it.
 resetTables();
 registerTable({ id: "rarity", tables: { automation: { shift: 1 } } }, { priority: PRIORITY.SAMPLE });
 registerTable(

@@ -35,7 +35,7 @@ const stamped = (text) => bookText([text], "XX p.9", { id: "def.trap.test", book
 /* --- the ownership test ---------------------------------------------------- */
 check("a stamped block alone is the module's", !handWrittenProse(stamped("A wire runs across the floor.")));
 check("an editor's empty paragraph is nobody's", !handWrittenProse(`${stamped("Text.")}<p>&nbsp;</p>`));
-check("a legacy tag is the module's", !handWrittenProse("<p>@PdfText[xx.12]{Wire}</p>"));
+check("a @PdfText reference tag is the module's", !handWrittenProse("<p>@PdfText[xx.12]{Wire}</p>"));
 check("a word beside the block is the Judge's", handWrittenProse(`${stamped("Text.")}<p>Reset by the warden.</p>`));
 
 /* --- a trap: the level in force and each row's judged fields stay ---------- */

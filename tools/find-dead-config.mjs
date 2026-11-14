@@ -19,7 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = process.argv[2] ?? ".";
-// One config per feature since the merge: scripts/<feature>/config.mjs.
+// One config per feature: scripts/<feature>/config.mjs.
 const scriptsDir = path.join(ROOT, "scripts");
 const CONFIGS = fs.existsSync(scriptsDir)
   ? fs

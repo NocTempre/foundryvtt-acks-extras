@@ -5,7 +5,7 @@
  * definition built as `bindAbility` builds it, so the minted copy holds the
  * definition's own extras, category included. A name nothing resolves is minted
  * as a namesake whose category is BLANK, which every reader answers as unknown.
- * It is never the proficiency a missing category used to read as.
+ * It is never read as any one proficiency category.
  *
  * Foundry-free and book-free: every name and definition below is invented.
  * Run: node tools/importer/test-stat-block-proficiencies.mjs

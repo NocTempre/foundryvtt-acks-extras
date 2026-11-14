@@ -129,10 +129,9 @@ for (const printed of ["Hardy", "Dwarf Tongues", "Elf Tongues", "Sensitivity to 
 
 /* --- printed surfaces resolve to exactly one definition, on every path --- */
 
-// The list path and the cell path used to be two indexes that arbitrated the
-// same collision differently, so a template cell granted a class POWER where
-// the class's own list granted the PROFICIENCY. They now read one index; this
-// asserts the shipped data still yields one answer per printed surface, and
+// The list path and the cell path read one index, so a template cell and the
+// class's own list cannot resolve one collision to a POWER and a PROFICIENCY.
+// This asserts the shipped data yields one answer per printed surface, and
 // that every authored alias points somewhere.
 const { abilitySurfaceIndex } = await import("../../scripts/importer/cookbook.mjs");
 const { byKey, menu } = abilitySurfaceIndex([...entries].map(([id, e]) => [id, e]));

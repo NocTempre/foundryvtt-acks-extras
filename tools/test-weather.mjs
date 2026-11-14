@@ -219,7 +219,7 @@ assert.ok(m.parts.some((p) => p.key === "road.washedOut"));
 
 m = travelMultiplier({ terrain: "grassland", road: "earth", conditions: ["rainy"] });
 assert.ok(m.parts.some((p) => p.key === "road.washedOut"),
-  "the rainy CONDITION reaches the road's washout vocabulary without the legacy flag");
+  "the rainy CONDITION reaches the road's washout vocabulary from the condition alone, with no separate flag");
 
 resetTables();
 registerTable(SAMPLE_TRAVEL, { priority: PRIORITY.WORLD, source: "test" });

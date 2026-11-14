@@ -242,7 +242,7 @@ check("lib's status gate reads the actor's statuses", () => {
 
 /* --- Conditions: the scope decides, a label keeps the row as it was --- */
 
-check("a structured scope decides what a condition phrase used to say", () => {
+check("a structured scope decides what a condition phrase says", () => {
   // A throw named by appliesToRoll is the abilities feature's, whatever label stands beside it.
   assert.equal(modifierDisposition(mod({ target: "initiative", appliesToRoll: "careful", condition: "by method (QQ p.7)" })).consumer, "abilities");
   // A gate decides where a phrase once only described.

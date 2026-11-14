@@ -24,7 +24,7 @@
  * Renames and splits are NOT guessed. Two mechanical folds are applied because
  * they are structural conventions rather than rules judgements:
  *   - "Craft: Bowyer" -> "Craft"    (the pack splits by discipline; the
- *     register carries one entry plus acks-abilities `selections`)
+ *     register carries one entry plus the abilities feature's `selections`)
  *   - punctuation/case folding
  * Everything else belongs in tools/compendium-aliases.json, authored
  * by a chef who has read both. Unaliased differences simply stay reported.

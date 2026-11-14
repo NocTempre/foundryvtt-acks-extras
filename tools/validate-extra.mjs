@@ -190,9 +190,11 @@ if (errors.length) {
 }
 console.log(`  ok: every registry read is declared (${declared.size} document(s)); no i18n path conflicts`);
 
-/* §5–§10 are processes of their own. Each reads the repository and none reads
-   what another writes, so they are listed here and run side by side below,
-   every one to its end. */
+/* §1–§4b run in this process: the declared-table gate (§1–§3), the i18n
+   leaf/parent check (§4) and the live-walk end report (§4b). §5–§11 are
+   processes of their own. Each reads the repository and none reads what
+   another writes, so they are listed here and run side by side below, every
+   one to its end. §12 runs in this process just before them and only reports. */
 const apart = [];
 
 /* --- 5. The importer subsystem's own gates --------------------------------

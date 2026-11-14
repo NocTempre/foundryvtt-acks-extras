@@ -1,5 +1,5 @@
 /**
- * Pure-logic tests (Foundry-free) for acks-lib, run via `npm test`. Covers the
+ * Pure-logic tests (Foundry-free) for the shared lib, run via `npm test`. Covers the
  * vocab enums + the LevelValue resolver. The Foundry field-builders (fields.mjs)
  * need a Foundry runtime and are exercised by consuming modules, not here.
  */
@@ -117,7 +117,7 @@ t("enums are non-empty and label-shaped", () => {
   }
 });
 
-t("DAMAGE_TYPES mirrors the acks-monsters value set", () => {
+t("DAMAGE_TYPES is the monsters feature's value set", () => {
   assert.deepEqual(Object.keys(vocab.DAMAGE_TYPES), [
     "acidic", "arcane", "bludgeoning", "cold", "electrical", "fire", "luminous",
     "necrotic", "piercing", "poisonous", "seismic", "slashing", "varies",
@@ -250,7 +250,7 @@ t("levelFactor: the fraction is DATA, so any printed one resolves", () => {
   assert.equal(f({ atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
   assert.equal(f({ atLevelNum: 3, atLevelDen: 4 }), 0.75);
   assert.equal(f({ atLevelNum: 1, atLevelDen: 1 }), 1);
-  // Data wins over the legacy shorthand; the shorthand still reads alone.
+  // Data wins over the `atLevel` shorthand; the shorthand still reads alone.
   assert.equal(f({ atLevel: "half", atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
   assert.equal(f({ atLevel: "half" }), 0.5);
   assert.equal(f("half"), 0.5);
@@ -473,8 +473,8 @@ t("tables: a printed quantity reads in one shape, and refuses what holds no numb
 
 t("tables: a missing-row placeholder is never a row a lookup can match", () => {
   const gap = { __missing: true };
-  // Band rows carry bounds; the placeholder carries none, and no bounds is what
-  // used to make it match every value.
+  // Band rows carry bounds; the placeholder carries none, and a row with no
+  // bounds would match every value.
   const bands = [gap, { minCost: 0, maxCost: 10, r: "low" }, { minCost: 11, maxCost: null, r: "open" }];
   assert.equal(T.bracketRow(bands, 5, "minCost", "maxCost").r, "low");
   assert.equal(T.bracketRow(bands, 500, "minCost", "maxCost").r, "open");
@@ -1759,8 +1759,8 @@ t("senseProfile: infravision by name reads as lightless vision", () => {
 // The register has Shadowy Senses `provides: kw:lightlessvision`, so a
 // prerequisite written against lightless vision is satisfied by a thief who has
 // it. That is a claim about what the sense COUNTS AS, and says nothing about how
-// far it reaches — but it used to be read as a lightless SOURCE, which granted
-// the lightless default reach. An imported thief therefore saw further than the
+// far it reaches — so it is never read as a lightless SOURCE, which would grant
+// the lightless default reach: an imported thief would see further than the
 // shadowy radius allows, through a sense that deafness, silence and running do
 // not switch off.
 const capableActor = (names, provides, statuses = []) => ({
@@ -2486,13 +2486,13 @@ t("capacity: any gear may hold things, not only recognised containers", () => {
   assert.equal(holdsGear(vague), true);
 });
 
-t("capacity: worlds annotated before the concept moved still answer", () => {
-  // The legacy home was `flags.acks-extras.container.capacity`. Reading it as a
-  // fallback is what makes this a hotfix rather than a migration.
-  const legacy = { type: "item", system: physical(), flags: { "acks-extras": { container: { capacity: 4 } } } };
+t("capacity: a capacity under the container flag still answers", () => {
+  // `flags.acks-extras.container.capacity` is read as a fallback beneath the
+  // gear home.
+  const legacy ={ type: "item", system: physical(), flags: { "acks-extras": { container: { capacity: 4 } } } };
   assert.equal(capacityOf(legacy), 4);
   assert.equal(holdsGear(legacy), true);
-  // The new home wins where both exist.
+  // The gear home wins where both exist.
   const both = { type: "item", system: physical(), flags: { "acks-extras": { container: { capacity: 4 }, gear: { capacity: 2 } } } };
   assert.equal(capacityOf(both), 2);
 });

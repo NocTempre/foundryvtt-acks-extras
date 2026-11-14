@@ -48,9 +48,8 @@ check("equipment stays out of the name index", ref("Lock") === null);
 
 /* --- one decision, two paths --- */
 
-// The defect this file exists for: the list path and the cell path used to be
-// two indexes that arbitrated differently, so a cell granted the power while
-// the list granted the proficiency.
+// The list path and the cell path read one index, so a cell and a list cannot
+// disagree about whether a name is the power or the proficiency.
 for (const [key, hit] of byKey) {
   const fromMenu = menu.find((m) => String(m.surface).toLowerCase().replace(/[^a-z0-9]/g, "") === key);
   assert.equal(fromMenu?.ref, hit.ref, `the two paths disagree about "${key}"`);

@@ -316,7 +316,7 @@ const stripOf = (id) => {
   assert.equal(stripOf(id).spent, true, "hours at the budget are a spent day");
   settings.formations[id].travel.day.hours = 3.26;
 
-  // Pause: a journey keys on who paused it; the legacy flag alone is not a pause.
+  // Pause: a journey keys on who paused it; a bare paused flag alone is not a pause.
   settings.formations[id].clock.paused = true;
   assert.equal(stripOf(id).paused, false, "a journey ignores a bare paused flag");
   settings.formations[id].clock.pausedBy = "judge";

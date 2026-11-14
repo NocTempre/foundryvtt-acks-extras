@@ -27,7 +27,7 @@ const torch = bindEquipment(mk("Torch"), { fields: {} }, "def.equip.torch");
 check("torch imports as a carried STACK (item), not a wielded weapon", torch.type === "item");
 check("torch keeps a quantity (a bundle you carry)", torch.system.quantity?.value === 1);
 check("torch is a light source (flagged)", torch.flags["acks-extras"].light === true);
-// The 1d4 lives on the readied weapon-torch (acks-equipment prepareTorch), never
+// The 1d4 lives on the readied weapon-torch (the equipment feature's prepareTorch), never
 // on the bundle — a stack is not a weapon and carries no damage die.
 check("torch stack carries no damage die", torch.system.damage === undefined);
 

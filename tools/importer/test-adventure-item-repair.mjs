@@ -248,7 +248,7 @@ const mine = (doc) => doc.flags?.[MODULE_ID] ?? {};
   ok("a paragraph with no price costs 0, never null", adventureItemData(BOOK, ID2, itemEntry(2), node("A cord.")).system.cost === 0);
   ok("a page that gave no name keeps the entry's label", dose.name === "Item 2", dose.name);
 
-  /* --- the policy, on the stripped shape a world imported before the binding holds ------- */
+  /* --- the policy, on the stripped shape an item holds when it carries no binding ------- */
   const stripped = {
     type: "item",
     system: { description: worn.system.description, subtype: "item", quantity: { value: 3, max: 0 }, cost: 0, weight: 0, weight6: 0 },

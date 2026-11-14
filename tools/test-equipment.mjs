@@ -987,12 +987,12 @@ check("a belt pouch by the name a Judge types is the pouch, not a belt — and d
 // What a harness secures is read off the item's own text, in stone, fractions
 // included; a harness that says nothing states nothing.
 const described = (text) => ({ ...goods("Adventurer's Harness"), system: { ...goods("").system, description: text } });
-check("a harness states its relief in its own description", inferGear(described("<p>Straps and sheaths. Wearing it you may ignore 1 stone of small gear.</p>")).relief === 1);
+check("a harness states its relief in its own description", inferGear(described("<p>Webbing and loops, worn across the chest. The wearer ignores 1 stone of small gear.</p>")).relief === 1);
 check("a fractional relief reads as a fraction", inferGear(described("Light rigging: ignores 1/2 stone of gear.")).relief === 0.5);
 // A bowquiver's loaded count is read the same way, from the sentence that sets
 // the assembly against a count of items; the digit here is INVENTED.
 const bowText = (text) => ({ ...goods("Bowquiver"), system: { ...goods("").system, description: text } });
-check("a bowquiver states what a loaded assembly counts as, from its description", inferGear(bowText("<p>It rests securely with its bow. An empty one counts as 1 item, while one with a bow and arrows counts as 5 items.</p>")).loaded6 === 5);
+check("a bowquiver states what a loaded assembly counts as, from its description", inferGear(bowText("<p>Hangs from a saddle ring. An empty one counts as 1 item, while one with a bow and shafts counts as 5 items.</p>")).loaded6 === 5);
 check("a bowquiver that says nothing states no loaded count; a pack never does",
   inferGear(goods("Bowquiver")).loaded6 === null && inferGear(bowText("An empty one counts as 1 item for encumbrance.")).loaded6 === null && inferGear({ ...goods("Backpack (holds 11 stone)"), system: { ...goods("").system, description: "with a bow counts as 5 items" } }).loaded6 === null);
 check("a silent harness states no relief", inferGear(goods("Adventurer's Harness")).relief === null && inferGear(goods("Backpack (holds 11 stone)")).relief === null);
@@ -1508,10 +1508,10 @@ check("api.named namespace is present", typeof api.named?.resolveGuess === "func
   const staleHolds = doc("Quiver, 20 Arrows", "item", { slots: ["belt"], holds: true });
   await api.annotateItem(staleHolds);
   check("a loaded quiver has its holds declaration taken back", write(staleHolds)[`${GEAR_KEY}.holds`] === false);
-  const bowq = doc("Bowquiver", "item", null, { description: "A bowquiver with a bow and arrows counts as 5 items." });
+  const bowq = doc("Bowquiver", "item", null, { description: "Loaded, a bowquiver with a bow and shafts counts as 5 items." });
   await api.annotateItem(bowq);
   check("annotate stamps a bowquiver's stated loaded count, and the flag that marks it", write(bowq)[`${GEAR_KEY}.loaded6`] === 5 && write(bowq)["flags.acks-extras.bowquiver"] === true);
-  const setBow = doc("Bowquiver", "item", { loaded6: 9 }, { description: "A bowquiver with a bow and arrows counts as 5 items." });
+  const setBow = doc("Bowquiver", "item", { loaded6: 9 }, { description: "Loaded, a bowquiver with a bow and shafts counts as 5 items." });
   await api.annotateItem(setBow);
   check("annotate leaves a loaded count a Judge or an earlier pass set", !(`${GEAR_KEY}.loaded6` in write(setBow)));
   // The Holds toggle declares and never sizes: it writes `holds` alone, and clears the capacity on its way off.
@@ -1993,7 +1993,7 @@ const stepTwo = atOf("Armor Training", "def.prof.armorTraining", { kind: "flat",
 check("bridge: an imported step of 2 at rank 1 raises very light → medium", armorMax(stepTwo) === "medium");
 check("bridge: the step is the typed row's value times the rank",
   sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: 2 }, 3), "armorTraining") === 6);
-check("bridge: a step imported before the LevelValue shape (a bare number) still applies",
+check("bridge: a step held as a bare number, not a LevelValue, still applies",
   sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", 4, 2), "armorTraining") === 8);
 check("bridge: US and UK spellings both resolve when the row is present",
   sumEffectModifiers(atOf("Armour Training", null, { kind: "flat", flat: 2 }, 1), "armorTraining") === 2 &&

@@ -568,8 +568,8 @@ function compileRegisters(refs) {
  * defense and effect scans.
  *
  * `powerValue` is the custom-class build cost ("counts as 2 1/2 custom
- * powers"). It used to be resolved offline and shipped as a number, which put
- * book values in the module; this is the fix.
+ * powers"). It is derived at import from the reader's own text, never
+ * resolved offline: a number shipped in the module would be a book value.
  */
 const DERIVE_PATTERNS = {
   powerValue: {
@@ -6001,15 +6001,12 @@ function parseCount(tok) {
  * author — and, in the other direction, authored flags the text does not
  * appear to support. Pure diagnostics: nothing here reaches a shipped node.
  *
- * These patterns used to write straight into the compiled meta. That was the
- * anti-pattern this pipeline exists to prevent: a book-wide regex standing in
- * for a per-entry read (docs/importer/RECIPES.md, "Never generalize a fix across
- * entries"). It looked harmless because it was only setting booleans, and it
- * was true on all twelve entries it hit — but six of those twelve state a
- * per-rank PROGRESSION in the very sentence it matched (an improvement to a
- * throw on each selection, an additional language count per selection, RR p113), and
- * flattening them to `repeatable: true` made that missing mechanic invisible.
- * A conclusion the chef never drew must not look like one they did.
+ * These patterns never write into the compiled meta: a book-wide regex
+ * standing in for a per-entry read is the anti-pattern this pipeline exists to
+ * prevent (docs/importer/RECIPES.md, "Never generalize a fix across
+ * entries"). A matched sentence can state a per-rank PROGRESSION, and
+ * flattening it to `repeatable: true` would make that mechanic invisible
+ * (RR p113). A conclusion the chef never drew must not look like one they did.
  *
  * The custom-class BUILD COST is likewise absent by design: "counts as 2 1/2
  * custom powers" is a NUMBER off the page, and shipping it would put book
@@ -6084,12 +6081,12 @@ function replacementPhrase(bodyText) {
 }
 
 /**
- * The acks-lib capability token for a definition id
+ * The lib capability token for a definition id
  * ("def.prof.sensingEvil" → "kw:sensingevil").
  *
  * Inlined rather than imported: this build tool does not otherwise depend on
- * acks-lib's runtime, and reaching from tools/ into scripts/lib would blur
- * the build/runtime boundary. acks-lib's `capabilityForId` is the canonical
+ * lib's runtime, and reaching from tools/ into scripts/lib would blur
+ * the build/runtime boundary. lib's `capabilityForId` is the canonical
  * definition and is covered by its tests — keep the two in step.
  */
 const capabilityToken = (id) =>

@@ -1,6 +1,6 @@
 /**
- * Live walk, equipment-printed-figures: the figures equipment used to carry in
- * source, each read from the world and never supplied by code. Walks
+ * Live walk, equipment-printed-figures: the figures equipment reads from the
+ * world, each one never supplied by code. Walks
  * docs/equipment/TESTING.md "Figures the book prints" on the GM seat with the
  * rules book open, and on the Player seat where it is cheap: the price grid's
  * rows that state what they hold are counted and one is bound through the

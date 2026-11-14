@@ -23,7 +23,7 @@
  *
  * Fixtures, kept and found by marker: `location/intent-place`, a location
  * switched off and on; `location/intent-legacy`, an empty location holding
- * goods, the shape an upgrading world carries; `location/intent-stocked`, a
+ * goods, the shape the world-start clearing acts on; `location/intent-stocked`, a
  * location holding one row kept for the house; `location/intent-hero`, a
  * character the player seat owns, carrying a rope; `location/intent-rope`, a
  * world item the GM drops. Each location also carries a plain item no one keeps

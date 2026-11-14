@@ -101,7 +101,7 @@
  *     they were the owner's;
  *   - two empty places, one inside the other, made with `api.create` to show
  *     the prune's dry run lists both;
- *   - AX1's journal, stamped by an earlier release's journals step and left
+ *   - AX1's journal, stamped by the journals step on an earlier run and left
  *     standing, the passage journals the journals step makes
  *     (`created.journals`, tracked), and AX1's Adventure, written or rebuilt by
  *     the Adventure step

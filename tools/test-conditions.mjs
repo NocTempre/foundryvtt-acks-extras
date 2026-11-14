@@ -116,7 +116,7 @@ ok("the slots are derived from the rows, so the importer is asked for exactly wh
   for (const key of Object.keys(VALUES)) assert.deepEqual(Object.keys(VALUES[key]).sort(), [...CONDITION_SLOTS[key]].sort(), key);
 });
 
-ok("an ability's condition choices are the catalogue, with the stored legacy keys kept", () => {
+ok("an ability's condition choices are the catalogue, with the stored keys kept", () => {
   for (const key of CONDITION_IDS) assert.equal(CONDITION_KEYS[key].label, CONDITIONS[key].label);
   for (const key of ["fear", "sleep", "paralysis"]) assert.ok(CONDITION_KEYS[key], key);
 });

@@ -283,7 +283,7 @@ initCookbook({ sessionDocs: new Map([[OPEN_BOOK, { doc: {} }], [OFF_BOOK, { doc:
   check("the content cookbook loaded", loaded === true);
 }
 
-// What a world imported before ids were kept: Items under ids core minted.
+// A shelf holding Items under ids core minted, not the ids the import keeps.
 shelf.docs.clear();
 shelf.index.clear();
 for (const [id, _id] of [["def.class.alpha", "legacyAlpha0001"], ["def.class.beta", "legacyBeta00001"]]) {

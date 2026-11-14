@@ -115,7 +115,7 @@ r = spendMarch({}, { miles: 5, milesPerHour: 0, cadence: byMiles });
 assert.deepEqual([r.hours, r.seconds], [0, 0]);
 assert.equal(r.day.miles, 5, "but the miles are still walked");
 
-// The input is never changed, and a legacy record spends cleanly.
+// The input is never changed, and a record carrying only some fields spends cleanly.
 const input = { miles: 1, hours: 0.5, cadenceCarry: 1, carrySeconds: 0.25, secondsAdvanced: 10, hexesEntered: 2 };
 const snapshot = structuredClone(input);
 r = spendMarch(input, { miles: 2, milesPerHour: 4, cadence: byMiles });
@@ -138,7 +138,7 @@ assert.equal(marchIsSpent({ hours: 30 }, { hours: null }), false, "a budget nobo
 assert.equal(marchIsSpent({ hours: 1 }, { hours: null }, { dark: true }), true, "but dusk still ends it");
 assert.equal(marchIsSpent({ hours: 1 }, budget, { dark: true }), true, "a step after dusk ends the day");
 assert.equal(marchIsSpent({}, { hours: 0 }, { dark: true }), true, "even with no budget");
-assert.equal(marchIsSpent({}, budget), false, "a legacy day with no hours is open");
+assert.equal(marchIsSpent({}, budget), false, "a day with no hours recorded is open");
 assert.equal(marchIsSpent(walked, { hours: 1 }), true, "seven sevenths of an hour, summed, spend an hour budget");
 
 console.log("test-march: OK (budget, cadence, spend, carried seconds, immutability, spent day)");

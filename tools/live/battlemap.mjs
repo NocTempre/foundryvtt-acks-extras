@@ -1289,7 +1289,7 @@ const P = {
     return { paused: g?.clock?.paused ?? null, pausedBy: g?.clock?.pausedBy ?? null };
   },
 
-  /** Write a country key into the declared record, as an older record holds one. */
+  /** Write a country key into the declared record, under a plain country key. */
   declare: async ({ fid, key, value }) => {
     const H = globalThis.__rb;
     await H.m.model.patchFormation(fid, (record) => { record.travel = { ...(record.travel ?? {}), [key]: value }; });
@@ -2129,7 +2129,7 @@ async function walkCountry(W) {
   note("clear hand road", await page(gm, P.press, { partyId: party.id, selector: '[data-section="hand"] .acks-extras-country-hand-row[data-key="road"] [data-action="clearOverride"]' }));
   r = await page(gm, P.record, { fid });
   check("C5: clearing both rows from the hand: travel.override is gone from the record", r.override === null && !r.keys.includes("override"), { override: r.override, keys: r.keys });
-  note("declare a road as an older record would", await page(gm, P.declare, { fid, key: "road", value: "earth" }));
+  note("declare a road under a plain country key", await page(gm, P.declare, { fid, key: "road", value: "earth" }));
   r = await page(gm, P.record, { fid });
   s = await page(gm, P.sheet, { partyId: party.id, keep: true });
   check("C5: the Road card reads the declaration, sourced Declared on the sheet, with the pen mark and its clear (clearDeclared)", r.provenance.road === "declared" && r.values.road === "earth" && card("road")?.declared === true && card("road")?.source === provLabel.declared && (card("road")?.actions ?? []).includes("clearDeclared"), { provenance: r.provenance.road, value: r.values.road, card: card("road") });

@@ -4,16 +4,11 @@
  * specific to the importer. Inline checks first, then the delegated tools.
  * Exit non-zero on failure.
  *
- *   stale identity      The importer subsystem carries two retired ids: it
- *                       was created from acks-content (rename was once
- *                       id-and-title only), and it shipped as the standalone
- *                       module acks-importer until the 2026-09 merge into
- *                       acks-extras. Every acks-content / acksContent /
- *                       ACKS-CONTENT / acks-importer / acksImporter survivor
- *                       in code is a silent no-op (a lang key that resolves
- *                       to nothing, a CSS class no selector matches, a global
- *                       that does not exist). History files may narrate the
- *                       old names.
+ *   stale identity      Two ids name no module in this repo. Every acks-content
+ *                       / acksContent / ACKS-CONTENT / acks-importer /
+ *                       acksImporter in code is a silent no-op (a lang key
+ *                       that resolves to nothing, a CSS class no selector
+ *                       matches, a global that does not exist).
  *   icon existence      img/icon path literals must resolve — module paths
  *                       in-repo, core/system paths against a discoverable
  *                       install/checkout, with a skip notice when absent. A
@@ -60,17 +55,17 @@ const walk = (d) =>
     : [];
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
 
-/* 1. No stale pre-rename identity in code. Self-exempt (this regex), the
- * post-merge cleaner names the retired ids by design, and
- * CHANGELOG/docs may narrate the old names as history. */
+/* 1. No stale identity in code. The files that hold the id list as data (this
+ * regex, the cleaner and the repair scan) are exempt, and the changelog and
+ * docs are not scanned. */
 {
   const STALE = /acks-content|acksContent|ACKS-CONTENT|acks-importer|acksImporter/;
   const SELF = new Set([
     "tools/importer/validate-extra.mjs",
     "tools/pack-data/cleanup.mjs",
-    // Generated FROM the entry above — same "names the old ids by design".
+    // Generated from the entry above; it holds the same id list as data.
     "packs/_source/macros/clean-up-after-the-merge-gm.json",
-    // The repair tool's merge-residue scan: the cleaner's walk, in module code.
+    // The repair tool's residue scan: the cleaner's walk, in module code.
     "scripts/lib/repair-checks.mjs",
   ]);
   for (const dir of ["scripts", "styles", "lang", "tools", "register", "cookbook", "packs/_source"]) {
@@ -78,7 +73,7 @@ const rel = (f) => path.relative(ROOT, f).split(path.sep).join("/");
       if (!/\.(mjs|css|json|hbs)$/.test(f)) continue;
       if (SELF.has(rel(f))) continue;
       fs.readFileSync(f, "utf8").split("\n").forEach((line, i) => {
-        if (STALE.test(line)) fail(`${rel(f)}:${i + 1} still carries the pre-rename identity — ${line.trim().slice(0, 90)}`);
+        if (STALE.test(line)) fail(`${rel(f)}:${i + 1} carries an id that names no module here —${line.trim().slice(0, 90)}`);
       });
     }
   }

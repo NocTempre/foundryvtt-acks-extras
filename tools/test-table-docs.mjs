@@ -335,7 +335,7 @@ const writeCount = () => calls.length;
 await test("a dotted key becomes a reader-facing label", () => {
   assert.equal(entryLabel("people.classPercentages.level.0"), "Class Percentages — Level 0");
   assert.equal(entryLabel("rarity.classDistribution.bucket.arcane"), "Class Distribution — Bucket Arcane");
-  assert.equal(entryLabel("people.dwarvenCastes"), "Dwarven Castes");
+  assert.equal(entryLabel("people.quillLedgers"), "Quill Ledgers");
 });
 
 /* -------------------------------------------- */
@@ -407,9 +407,9 @@ await test("adoption is by flag, so a renamed table keeps its identity", async (
   assert.deepEqual(calls, ["RollTable.updateDocuments:1"], `only the drifted table updates: ${calls.join(", ")}`);
 });
 
-await test("a sidebar tree from an earlier release is retired once, and the shelf takes over", async () => {
+await test("a sidebar tree of flagged documents is retired once, and the shelf takes over", async () => {
   world({ registry: { ...manyRollables(2), wages: { labour: { rows: [1] } } } });
-  // What a release that wrote to the sidebar left behind: the flagged root,
+  // What a materializer that wrote to the sidebar leaves behind: the flagged root,
   // one child, two flagged tables filed in it, and the JSON journal.
   const root = folderDoc({ name: "ACKS Imported Tables", type: "RollTable", flags: { [MODULE_ID]: { ruledataDocs: true } } });
   game.folders.push(root);
@@ -426,7 +426,7 @@ await test("a sidebar tree from an earlier release is retired once, and the shel
     );
   }
   game.journal.push(journalDoc({ name: "ACKS Ruledata (Imported)", flags: { [MODULE_ID]: { ruledataDocs: true } } }));
-  assert.equal(countMaterializedDocs({ sidebar: true }), 5, "the sidebar's five are what an earlier release made");
+  assert.equal(countMaterializedDocs({ sidebar: true }), 5, "the sidebar's five are the flagged documents");
 
   await materializeAll();
   assert.equal(game.tables.length, 0, "sidebar tables retired");

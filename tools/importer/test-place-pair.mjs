@@ -215,7 +215,7 @@ eq("a stamped block the editor re-serialized, its words as written, is untouched
 const reflowedUnstamped = write(applied(unstampedPlace, { "system.notes": swapBookText(unstampedPlace.system.notes, L.id, reflowed) }), { id: L.id, notes: lBlock });
 eq("one with no stamp that reads as the page's is rewritten, held for nothing", [reflowedUnstamped.edits, bookTextBlock(reflowedUnstamped.doc.system.notes, L.id)], [[], lBlock]);
 
-// A raw checksum an older build left in `cookbook.blocks` is not read: with no digest stamp the block reads as unedited.
+// A raw checksum held in `cookbook.blocks` is not read: with no digest stamp the block reads as unedited.
 const legacyFlag = applied(unstampedPlace, { [`flags.${MODULE_ID}.cookbook.blocks`]: [{ id: L.id, sum: blockSum("never the stored bytes") }] });
 const legacyRun = write(legacyFlag, { id: L.id, notes: lFresh });
 eq("a place carrying only a raw checksum is written as one with no stamp", [legacyRun.edits, bookTextBlock(legacyRun.doc.system.notes, L.id)], [[], lFresh]);

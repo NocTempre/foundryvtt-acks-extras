@@ -213,7 +213,7 @@ ok("re-anchoring an AWARE party closes it with nothing left to credit", () => {
   l = walkBelieving(l, B, T1);
   const { lost: aware } = discoverLost(l);
   const r = reanchorLost(aware);
-  assert.equal(r.reanchored, true, "the ending discovery used to make unreachable");
+  assert.equal(r.reanchored, true, "re-anchoring still runs once discovery has ended the lost state");
   assert.deepEqual(r.commit, [], "discovery already discarded the observations");
   assert.equal(r.revert, null, "and already closed the faked ground");
   assert.equal(r.lost.phase, null);

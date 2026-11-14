@@ -76,7 +76,7 @@ for (const recipe of STAT_RECIPES) {
     `      extras: types=${JSON.stringify(extras.types)} subtype=${JSON.stringify(extras.subtype)} size=${extras.size} mass=${extras.mass?.stone}st hd=${JSON.stringify(extras.hd)} saveAs=${JSON.stringify(extras.saveAs)} speeds=${JSON.stringify(extras.speeds)} vision=${JSON.stringify(extras.vision)}@${extras.lightlessRange} load=${extras.load?.normal} lair=${extras.encounter?.lairChance}%`,
   );
   const wf = (i) => {
-    const f = i.flags?.["acks-monsters"] ?? {};
+    const f = i.flags?.["acks-extras"] ?? {};
     const bits = [i.system.damage?.base?.formula ?? i.system.damage ?? ""];
     if (f.damageType) bits.push(f.damageType);
     if (f.naturalWeapon) bits.push(`nw:${f.naturalWeapon}`);

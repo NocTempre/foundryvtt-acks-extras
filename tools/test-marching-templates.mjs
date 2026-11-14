@@ -175,8 +175,8 @@ test("a round trip through capture and reconcile is the identity", () => {
 /*  The grip: misuse from outside                */
 /* -------------------------------------------- */
 
-// Each of these was a real mistake made from a macro against 4.8.0, and each
-// one read as a module bug. They are asserted at the exported calls rather than
+// Each of these is a mistake a macro can make, and each one reads as a module
+// bug. They are asserted at the exported calls rather than
 // at the private guards, because the message a caller sees is the fix.
 
 const aFormation = () => ({ name: "The party", frontage: 2, members: [member("a", ["scout"])] });

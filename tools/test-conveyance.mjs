@@ -252,7 +252,7 @@ await t("the mode reads off the attachments: foot, mounted, wagon, all afloat", 
   assert.equal(derivedMovementMode(getFormation(id)), "vessel");
 });
 
-await t("the mode is an answer: the record never stores one, and a legacy word reads", async () => {
+await t("the mode is an answer: the record never stores one, and a stored mode word is still read", async () => {
   person("a", 90);
   const id = party([actors.get("a")], { movement: { mode: "vessel" } });
   const record = getFormation(id);

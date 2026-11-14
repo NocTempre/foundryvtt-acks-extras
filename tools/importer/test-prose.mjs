@@ -59,8 +59,8 @@ eq("escapeText leaves ordinary text alone", escapeText("plain text"), "plain tex
 
 /* --- the ownership test --- */
 eq("a generated block is not the Judge's writing", stripBookText(full).trim(), "");
-eq("nor is the legacy tag it replaced", stripBookText("<p>@PdfText[mm.ghoul]{MM p.112}</p>").trim(), "");
-eq("nor a bare legacy tag inside other markup", stripBookText("<p>@PdfText[def.x]</p>").trim(), "");
+eq("nor is a labelled @PdfText reference tag", stripBookText("<p>@PdfText[mm.ghoul]{MM p.112}</p>").trim(), "");
+eq("nor a bare @PdfText tag inside other markup", stripBookText("<p>@PdfText[def.x]</p>").trim(), "");
 ok("but a Judge's own paragraph survives the strip", stripBookText(`${full}<p>My table's ghouls are worse.</p>`).includes("ghouls are worse"));
 ok("and so does writing that precedes the block", stripBookText(`<p>Note.</p>${full}`).includes("Note."));
 ok("two generated blocks both strip", stripBookText(full + entryText(node, "x", "c")).trim() === "");

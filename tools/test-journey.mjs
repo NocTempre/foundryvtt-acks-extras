@@ -489,10 +489,10 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const next = await drag(token, id, 4 * CELL, 0);
   assert.equal(next.result.miles, 7, "after the pause only the new displacement is billed");
 
-  // A legacy `paused` with nobody recorded as holding it does not stop a journey.
+  // A bare `paused` with nobody recorded as holding it does not stop a journey.
   settings.formations[id].clock = { ...getFormation(id).clock, paused: true, pausedBy: null };
-  const legacy = await drag(token, id, 5 * CELL, 0);
-  assert.equal(legacy.result.miles, 7, "a legacy paused flag reads as unpaused in journey mode");
+  const bare = await drag(token, id, 5 * CELL, 0);
+  assert.equal(bare.result.miles, 7, "a bare paused flag reads as unpaused in journey mode");
 }
 
 /* -------------------------------------------- */

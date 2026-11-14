@@ -1838,8 +1838,8 @@ try {
     note("player census", pc);
     note("install (player)", await run(player, P.install));
     note("rules documents the world holds", await run(gm, P.docs));
-    // A posting's month roll needs the availability document's arrival schedule; a world imported before that
-    // table's recipe holds the document without it, so the Judge's own import runs again from the connected book.
+    // A posting's month roll needs the availability document's arrival schedule; a world whose document lacks
+    // that table has not imported its recipe, so the Judge's own import runs again from the connected book.
     if (!(await run(gm, P.arrivalsRead)).known) {
       note("import availability from the book for the arrival schedule", await run(gm, P.importDoc, { id: "availability" }));
       let st = null;

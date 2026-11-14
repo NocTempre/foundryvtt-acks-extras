@@ -4,9 +4,9 @@
  *
  * Fixture paragraphs are INVENTED — structure-identical to the printed ones
  * (a declared run-in, the three trainings in that order, an exclusion clause
- * closing the style sentence) with made-up classes and, where a real weapon
- * name is unavoidable, the plainest possible one. A test file is a repo file
- * and ships no book text.
+ * closing the style sentence) with made-up classes, made-up run-in labels and,
+ * where a real weapon name is unavoidable, the plainest possible one. A test
+ * file is a repo file and ships no book text.
  */
 import assert from "node:assert/strict";
 import { parseCombatTraining } from "../../scripts/importer/cookbook.mjs";
@@ -17,13 +17,13 @@ const check = (label, got, want) => {
   n++;
 };
 
-const RUNIN = "Combat Proficiencies:";
+const RUNIN = "Field Training:";
 
 /* --- one sentence carrying all three, with an "(i.e. …)" aside ----------- */
 let t = parseCombatTraining(
-  "Grubbles are stout. Combat Proficiencies: Grubbles have weapon proficiency with all weapons, " +
-    "armor proficiency with all armor, and fighting style proficiency with all three optional styles " +
-    "(i.e. the dual weapon, two-handed weapon, and weapon and shield styles). Combat Progression: Grubbles advance.",
+  "Grubbles are stout. Field Training: Grubbles have weapon proficiency with all weapons, " +
+    "armor proficiency with all armor, and fighting style proficiency with each style listed " +
+    "(i.e. the dual weapon, two-handed weapon, and weapon and shield styles). Field Progression: Grubbles advance.",
   RUNIN,
 );
 check("one-sentence weapons", t.weapons, ["all"]);
@@ -32,13 +32,13 @@ check("one-sentence styles", t.styles, ["dual", "twohanded", "weaponshield"]);
 
 /* --- the size + missile shape: sizes must not also read as weapon names --- */
 t = parseCombatTraining(
-  "Combat Proficiencies: Snerks have weapon proficiency with all missile weapons and with all tiny, " +
-    "small, and medium melee weapons. They have armor proficiency with light and very light armor. " +
+  "Field Training: Snerks have weapon proficiency with all missile weapons and with all small, " +
+    "medium, and large melee weapons. They have armor proficiency with light and very light armor. " +
     "They have fighting style proficiency with the dual weapon and two-handed weapon styles, but not " +
     "with the weapon and shield style.",
   RUNIN,
 );
-check("sizes: weapons", t.weapons, ["missile:all", "melee:tiny", "melee:small", "melee:medium"]);
+check("sizes: weapons", t.weapons, ["missile:all", "melee:small", "melee:medium", "melee:large"]);
 // Armor proficiency listing both the light and the very light rung is a LIGHT class
 // (RR p26, JJ p290) — the deeper rung must not win.
 check("sizes: armour", t.armour, "light");
@@ -47,20 +47,20 @@ check("sizes: styles", t.styles, ["dual", "twohanded"]);
 
 /* --- a plain list, with the armour sentence following it ------------------ */
 t = parseCombatTraining(
-  "Combat Proficiencies: Wibbles have weapon proficiency with clubs, daggers, darts, and staffs. " +
+  "Field Training: Wibbles have weapon proficiency with spears, slings, maces, and cudgels. " +
     "They have no armor proficiency. They have fighting style proficiency with the two-handed weapon " +
-    "style (allowing them to use a staff with both hands), but not with the dual weapon or weapon and " +
+    "style (letting them grip a pole in two hands), but not with the dual weapon or weapon and " +
     "shield styles.",
   RUNIN,
 );
 // The clause after the full stop must not arrive as a weapon called "they have no".
-check("list: weapons", t.weapons, ["club", "dagger", "dart", "staff"]);
+check("list: weapons", t.weapons, ["spear", "sling", "mace", "cudgel"]);
 check("list: armour", t.armour, "unarmored");
 check("list: styles", t.styles, ["twohanded"]);
 
 /* --- the other phrasing of no armour ------------------------------------- */
 t = parseCombatTraining(
-  "Combat Proficiencies: Zibs have weapon proficiency with darts. They have no proficiency with armor. " +
+  "Field Training: Zibs have weapon proficiency with darts. They have no proficiency with armor. " +
     "They have fighting style proficiency with the two-handed weapon style.",
   RUNIN,
 );
@@ -68,20 +68,20 @@ check("denied armour, second phrasing", t.armour, "unarmored");
 
 /* --- a group named and then enumerated: the enumeration is what is read --- */
 t = parseCombatTraining(
-  "Combat Proficiencies: Florns have weapon proficiency with all axes (including battle axes, great " +
-    "axes, and hand axes) and all bludgeons (including clubs and warhammers). They have armor " +
+  "Field Training: Florns have weapon proficiency with all spears (including long spears, short " +
+    "spears, and boar spears) and all flails (including rope flails and chain flails). They have armor " +
     "proficiency with medium, light, and very light armor. They have fighting style proficiency with " +
     "all fighting styles.",
   RUNIN,
 );
-check("enumerated groups", t.weapons, ["battle axe", "great axe", "hand axe", "club", "warhammer"]);
+check("enumerated groups", t.weapons, ["long spear", "short spear", "boar spear", "rope flail", "chain flail"]);
 check("enumerated groups: armour", t.armour, "medium");
 check("all fighting styles", t.styles, ["dual", "twohanded", "weaponshield"]);
 
 /* --- an exception is not expressible, so nothing is granted --------------- */
 t = parseCombatTraining(
-  "Combat Proficiencies: Trundles have weapon proficiency with all weapons except long bows or " +
-    "two-handed swords (due to their short stature). They have armor proficiency with all armor. " +
+  "Field Training: Trundles have weapon proficiency with all weapons except pikes or " +
+    "lances (owing to their reach). They have armor proficiency with all armor. " +
     "They have fighting style proficiency with the weapon and shield, two-handed weapon, and dual " +
     "weapon styles.",
   RUNIN,
@@ -93,30 +93,30 @@ check("exception: styles still read", t.styles, ["dual", "twohanded", "weaponshi
 
 /* --- the irregular plural, and the singular that looks like one ----------- */
 t = parseCombatTraining(
-  "Combat Proficiencies: Marls have weapon proficiency with knives, a cestus, and slings. They have " +
+  "Field Training: Marls have weapon proficiency with knives, a gladius, and slings. They have " +
     "armor proficiency with very light armor. They have fighting style proficiency with the weapon " +
     "and shield style, but not with the two-handed weapon or dual weapon styles.",
   RUNIN,
 );
-check("irregular plurals", t.weapons, ["knife", "cestus", "sling"]);
+check("irregular plurals", t.weapons, ["knife", "gladius", "sling"]);
 // Nothing above "very light" is named, so the bottom rung is the answer.
 check("very light only", t.armour, "veryLight");
 check("single positive style", t.styles, ["weaponshield"]);
 
 /* --- the label is declared, so another spread's label reads the same ------ */
 t = parseCombatTraining(
-  "Armor and Weapons: Quills have weapon proficiency with staffs. They have armor proficiency with " +
+  "Kit Training: Quills have weapon proficiency with staffs. They have armor proficiency with " +
     "light and very light armor. They have fighting style proficiency with the dual weapon style.",
-  "Armor and Weapons:",
+  "Kit Training:",
 );
 check("declared label", t.weapons, ["staff"]);
 check("declared label: styles", t.styles, ["dual"]);
 
 /* --- the paragraph stops at the next run-in ------------------------------ */
 t = parseCombatTraining(
-  "Combat Proficiencies: Nubs have weapon proficiency with clubs. They have armor proficiency with " +
+  "Field Training: Nubs have weapon proficiency with clubs. They have armor proficiency with " +
     "all armor. They have fighting style proficiency with the dual weapon style. " +
-    "Combat Progression: Nubs advance in attack throws with daggers and swords and wear plate.",
+    "Field Progression: Nubs advance in attack throws with daggers and swords and wear plate.",
   RUNIN,
 );
 check("stops at the next run-in", t.weapons, ["club"]);
@@ -128,13 +128,13 @@ check("stops at the next run-in", t.weapons, ["club"]);
    spaces at all. Every fixture below is the shape above with its spaces
    removed at those seams — the parse must be unchanged by that. */
 t = parseCombatTraining(
-  "Combat Proficiencies:Snerks have weapon proficiency withall missile weapons and with all tiny, " +
-    "small, and medium meleeweapons.Theyhavearmorproficiencywithlightandverylight armor. They have " +
+  "Field Training:Snerks have weapon proficiency withall missile weapons and with all small, " +
+    "medium, and large meleeweapons.Theyhavearmorproficiencywithlightandverylight armor. They have " +
     "fighting styleproficiency with the dualweapon and two-handed weapon styles, but notwith the " +
-    "weaponand shield style.Combat Progression:Snerks advance with plate and all weapons.",
-  "Combat Proficiencies:",
+    "weaponand shield style.Field Progression:Snerks advance with plate and all weapons.",
+  "Field Training:",
 );
-check("joined: weapons", t.weapons, ["missile:all", "melee:tiny", "melee:small", "melee:medium"]);
+check("joined: weapons", t.weapons, ["missile:all", "melee:small", "melee:medium", "melee:large"]);
 // The whole armour clause arrives as one word; "verylight" must not be read
 // as the rung it contains.
 check("joined: armour", t.armour, "light");
@@ -144,28 +144,28 @@ check("joined: styles", t.styles, ["dual", "twohanded"]);
 
 // A table footnote can land welded into the middle of the sentence.
 t = parseCombatTraining(
-  "Combat Proficiencies:Grubbles have weapon proficiency with*no adjustment fromall weapons, armor " +
-    "proficiency with all armor, and fighting styleproficiency with all three optional styles " +
-    "(i.e. the dual weapon, two-handed weapon, andweapon and shield styles).Combat Progression:x",
-  "Combat Proficiencies:",
+  "Field Training:Grubbles have weapon proficiency with*no adjustment fromall weapons, armor " +
+    "proficiency with all armor, and fighting styleproficiency with each style listed " +
+    "(i.e. the dual weapon, two-handed weapon, andweapon and shield styles).Field Progression:x",
+  "Field Training:",
 );
 check("spliced footnote: weapons", t.weapons, ["all"]);
 check("spliced footnote: styles", t.styles, ["dual", "twohanded", "weaponshield"]);
 
 // The conjunction welded to the name it precedes, inside an enumeration.
 t = parseCombatTraining(
-  "Combat Proficiencies:Florns have weapon proficiency with all axes (including battle axes, great " +
-    "axes, andhand axes). They have armor proficiency with all armor. They have fighting style " +
+  "Field Training:Florns have weapon proficiency with all spears (including long spears, short " +
+    "spears, andboar spears). They have armor proficiency with all armor. They have fighting style " +
     "proficiency with the dual weapon style.",
-  "Combat Proficiencies:",
+  "Field Training:",
 );
-check("welded conjunction", t.weapons, ["battle axe", "great axe", "hand axe"]);
+check("welded conjunction", t.weapons, ["long spear", "short spear", "boar spear"]);
 
 // The run-in label itself can arrive with its own space missing.
 t = parseCombatTraining(
-  "CombatProficiencies:Nubs have weapon proficiency with clubs. They have armor proficiency with " +
+  "FieldTraining:Nubs have weapon proficiency with clubs. They have armor proficiency with " +
     "all armor. They have fighting style proficiency with the dual weapon style.",
-  "Combat Proficiencies:",
+  "Field Training:",
 );
 check("joined run-in label", t.weapons, ["club"]);
 
@@ -174,12 +174,12 @@ assert.equal(parseCombatTraining("No such paragraph here.", RUNIN), null);
 n++;
 assert.equal(parseCombatTraining("", RUNIN), null);
 n++;
-assert.equal(parseCombatTraining("Combat Proficiencies: something.", ""), null);
+assert.equal(parseCombatTraining("Field Training: something.", ""), null);
 n++;
 // A class whose training is stated by a table rather than a sentence has no
 // paragraph to read, and says so rather than guessing from the lead-in.
 assert.equal(
-  parseCombatTraining("Combat Proficiencies: Yaks are limited to a range traditional to their people, as shown below.", RUNIN),
+  parseCombatTraining("Field Training: Yaks are limited to a range traditional to their people, as shown below.", RUNIN),
   null,
 );
 n++;
@@ -188,8 +188,8 @@ n++;
 // and would be granted alone; the whole paragraph is refused instead.
 assert.equal(
   parseCombatTraining(
-    "Combat Proficiencies:Yaks Experience title Level Hit dice have weapon proficiency with battle" +
-      "level axes, great axes, and two-0 Insignificant 1 1d6 ------handed swords. They have " +
+    "Field Training:Yaks Title Rank Dice have weapon proficiency with long" +
+      "rank spears, boar spears, and two-0 Faint 1 1d4 ------edged blades. They have " +
       "armorproficiencywithallarmor. They have fighting style proficiency with the weapon and shield style.",
     RUNIN,
   ),

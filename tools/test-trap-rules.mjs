@@ -654,7 +654,7 @@ const sixRows = () =>
  * ARRAY, empty defaults below the edited row and nothing at all above it.
  *
  * The edited row carries the text too, because the form renders that field —
- * this is the shape that used to overwrite the whole trap.
+ * this is the shape that would overwrite the whole trap.
  */
 const submitFor = (i, edit) => {
   const out = [];
