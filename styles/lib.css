@@ -509,16 +509,6 @@
   color: var(--acks-ink-soft);
   margin: 0.15rem 0;
 }
-/* A stub template is a caution, not an alarm — warning tint, warning rule, and
-   `-ink` for the type that sits on it. */
-.acks-lib-template-warning {
-  background: var(--acks-warning-tint);
-  border: var(--acks-rule-hair) solid var(--acks-warning);
-  border-radius: var(--acks-radius);
-  color: var(--acks-warning-ink);
-  padding: 0.3rem 0.5rem;
-  font-size: var(--acks-fs-label);
-}
 .acks-lib-template-sheet .base-row {
   display: flex;
   align-items: center;

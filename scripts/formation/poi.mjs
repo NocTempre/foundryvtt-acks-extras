@@ -272,7 +272,8 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
 /**
  * The Judge picks a point of interest on the party's map; the hop is made and
  * reported — a whispered line for a walk that happened, a warning for one
- * that could not be priced.
+ * that was refused; one that could not be priced for want of an imported
+ * figure reports nothing.
  */
 export async function pickAndTravel(formationId) {
   const formation = getFormation(formationId);
@@ -295,7 +296,9 @@ export async function pickAndTravel(formationId) {
 
 async function reportHop(result) {
   if (!result.moved) {
-    const key = { noTarget: "noTarget", table: "unpriced", pace: "unpricedPace" }[result.reason] ?? result.relation ?? "noTarget";
+    // A walk that could not be priced for want of an imported figure says nothing.
+    if (result.reason === "table" || result.reason === "pace") return;
+    const key = result.reason === "noTarget" ? "noTarget" : (result.relation ?? "noTarget");
     ui.notifications.warn(loc(`settlement.poi.refused.${key}`));
     return;
   }

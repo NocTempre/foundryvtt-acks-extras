@@ -236,9 +236,6 @@
       {{#if travel.weather.seasonFromCalendar}}
       <p class="hint acks-extras-formation-travel-weather-season">{{travel.weather.seasonHint}}</p>
       {{/if}}
-      {{#unless travel.weather.ready}}
-      <p class="hint acks-extras-formation-travel-weather-missing">{{localize "ACKS-FORMATION.travel.weather.missing"}}</p>
-      {{/unless}}
       <div class="acks-extras-formation-travel-weather-bands">
         <label>{{#if travel.weather.temperatureIcon}}<i class="fa-solid {{travel.weather.temperatureIcon}} acks-extras-formation-weather-glyph"></i> {{/if}}{{localize "ACKS-FORMATION.travel.weather.temperature"}}
           <select name="travel.weather.temperature">
@@ -280,9 +277,6 @@
       {{#each travel.weather.effects}}<li data-effect="{{key}}">{{label}}{{#if value}}: {{value}}{{/if}}</li>{{/each}}
     </ul>
     {{/if}}
-    {{#if isGM}}{{#if travel.weather.effectsUnpriced}}
-    <p class="hint acks-extras-sky-effects-unpriced">{{localize "ACKS-FORMATION.travel.weather.effects.unpriced"}}</p>
-    {{/if}}{{/if}}
     {{#each travel.wheels}}
     <p class="acks-extras-formation-travel-wheels"><i class="fa-solid fa-triangle-exclamation"></i> {{name}} — {{reason}}</p>
     {{/each}}
@@ -312,7 +306,7 @@
       {{/each}}
       {{#if travel.slotsNotImported}}
       <span class="hint acks-extras-formation-travel-slots-unimported"
-            data-tooltip-text="{{travel.slotTip}}">{{localize "ACKS-FORMATION.travel.slotsNotImported"}}</span>
+            data-tooltip-text="{{travel.slotTip}}"></span>
       {{/if}}
       <label>{{localize "ACKS-FORMATION.settlement.hourLabel"}}
         <select name="travel.hour">
@@ -372,9 +366,6 @@
                  {{#if travel.camp.exposure.wet}}checked{{/if}}>
           {{localize "ACKS-FORMATION.camp.wet"}}
         </label>
-        {{#unless travel.camp.exposure.bites}}
-        <span class="hint">{{localize "ACKS-FORMATION.camp.exposureMild"}}</span>
-        {{/unless}}
       </p>
 
       <p class="acks-extras-formation-camp-declarations">
@@ -412,7 +403,7 @@
       {{#each travel.camp.forage}}
       <p class="acks-extras-formation-camp-throw">
         {{label}}:
-        {{#if unpriced}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>
+        {{#if unpriced}}<span class="hint"></span>
         {{else if automatic}}<span>{{localize "ACKS-FORMATION.camp.automatic"}}</span>
         {{else}}<span>{{localize "ACKS-FORMATION.camp.throw" target=target modifier=bonus}}</span>{{/if}}
       </p>
@@ -421,14 +412,14 @@
       <p class="acks-extras-formation-camp-throw">
         {{localize "ACKS-FORMATION.travel.activity.hunt"}}:
         {{#if travel.camp.hunt.ok}}<span>{{localize "ACKS-FORMATION.camp.throw" target=travel.camp.hunt.target modifier=travel.camp.hunt.bonus}}</span>
-        {{else}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>{{/if}}
+        {{else}}<span class="hint"></span>{{/if}}
       </p>
       {{/if}}
       {{#if travel.camp.search}}
       <p class="acks-extras-formation-camp-throw">
         {{localize "ACKS-FORMATION.travel.activity.search"}}:
         {{#if travel.camp.search.ok}}<span>{{localize "ACKS-FORMATION.camp.searchThrow" target=travel.camp.search.target held=travel.camp.searchesHeld}}</span>
-        {{else}}<span class="hint">{{localize "ACKS-FORMATION.camp.unpriced"}}</span>{{/if}}
+        {{else}}<span class="hint"></span>{{/if}}
       </p>
       {{/if}}
       {{/if}}

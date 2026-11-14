@@ -103,7 +103,6 @@ export async function runSearchHour(formation, {
     weatherTracking: throwPenalty(fx, "trackingPerHour") * hoursSearchedToday,
   });
   if (!spec.ok) {
-    await whisperSearch({ unpriced: spec.missing ?? spec.reason });
     return { ok: false, missing: spec.missing, candidates: [], credited: false, survey: null };
   }
 
@@ -189,32 +188,27 @@ export async function runSearchHour(formation, {
  * (`installHexStockCardActions`) turns into "this one was found".
  */
 async function whisperSearch({
-  spec = null, attempts = [], found = false, subject = "", throws = 1, unpriced = null, formationId = "", choices = [],
+  spec, attempts = [], found = false, subject = "", throws = 1, formationId = "", choices = [],
 }) {
   const lines = [];
-  if (unpriced) {
-    lines.push(loc("searchRun.unpriced", { what: String(unpriced) }));
-  } else {
-    lines.push(loc("searchRun.looking", {
-      quarry: game.i18n.localize(SEARCH_SUBJECTS[subject]?.label ?? "ACKS-FORMATION.search.poi"),
-      target: spec.target,
-      modifier: spec.modifier,
-      throws,
-    }));
-    if (spec.notes?.includes("tracking")) lines.push(loc("searchRun.tracking"));
-    if (spec.notes?.includes("trackingUnpriced")) lines.push(loc("searchRun.trackingUnpriced"));
-    for (const part of spec.parts ?? []) {
-      if (part.key === "weather" || part.key === "weatherTracking") {
-        lines.push(loc(`searchRun.${part.key}`, { value: signed(part.value) }));
-      }
+  lines.push(loc("searchRun.looking", {
+    quarry: game.i18n.localize(SEARCH_SUBJECTS[subject]?.label ?? "ACKS-FORMATION.search.poi"),
+    target: spec.target,
+    modifier: spec.modifier,
+    throws,
+  }));
+  if (spec.notes?.includes("tracking")) lines.push(loc("searchRun.tracking"));
+  for (const part of spec.parts ?? []) {
+    if (part.key === "weather" || part.key === "weatherTracking") {
+      lines.push(loc(`searchRun.${part.key}`, { value: signed(part.value) }));
     }
-    for (const a of attempts) {
-      lines.push(a.found
-        ? loc("searchRun.found", { total: a.total })
-        : loc(a.reason === "nothingHere" ? "searchRun.nothingHere" : "searchRun.missed", { total: a.total }));
-    }
-    if (!found) lines.push(loc("searchRun.silence"));
   }
+  for (const a of attempts) {
+    lines.push(a.found
+      ? loc("searchRun.found", { total: a.total })
+      : loc(a.reason === "nothingHere" ? "searchRun.nothingHere" : "searchRun.missed", { total: a.total }));
+  }
+  if (!found) lines.push(loc("searchRun.silence"));
   lines.push(loc("searchRun.watched"));
 
   const candidates = choices.length

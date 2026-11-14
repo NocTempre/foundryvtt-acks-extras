@@ -79,7 +79,7 @@
       {{#if expedition}}
       <table class="acks-extras-vehicle-speeds">
         <tr><th>{{localize "ACKS-LIB.scale.milesPerDay"}}</th>
-            <td data-tooltip-text="{{expedition.tip}}">{{#if expedition.milesPerDay includeZero=true}}{{expedition.milesPerDay}}{{else}}{{localize "ACKS-LIB.scale.notImported"}}{{/if}}</td>
+            <td data-tooltip-text="{{expedition.tip}}">{{#if expedition.milesPerDay includeZero=true}}{{expedition.milesPerDay}}{{/if}}</td>
             {{#if expedition.hexesPerDay}}
             <th>{{localize "ACKS-VEHICLES.speed.hexesPerDay"}}</th><td>{{expedition.hexesPerDay}}</td>
             {{/if}}</tr>

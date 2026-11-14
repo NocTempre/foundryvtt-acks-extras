@@ -234,9 +234,7 @@ export async function openStockDialog(formation) {
     if (!picked) return null;
     const result = await stockFromInputs(formation, picked);
     if (result.ok || !(result.needsCount || result.needsSubstitution)) return result;
-    ui.notifications?.warn(result.needsCount
-      ? loc("hexStock.dialog.needsCount")
-      : loc("hexStock.unpriced", { what: result.reason }));
+    if (result.needsCount) ui.notifications?.warn(loc("hexStock.dialog.needsCount"));
     values = picked;
     needs = result;
   }
@@ -369,10 +367,7 @@ export async function surveyHex(formation, { auto = false } = {}) {
     priorSuccesses: record.searches?.[formation.id] ?? 0,
     weather: throwPenalty(fx, "landSurveying"),
   });
-  if (!spec.ok) {
-    await whisperCard([loc("hexStock.unpriced", { what: spec.missing })]);
-    return null;
-  }
+  if (!spec.ok) return null;
 
   const roll = await new Roll(spec.bonus ? `1d20 + ${spec.bonus}` : "1d20").evaluate();
   const outcome = surveyOutcome({ natural: naturalOf(roll, spec.bonus), total: roll.total, target: spec.target });

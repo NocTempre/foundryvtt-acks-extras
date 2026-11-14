@@ -10,9 +10,7 @@
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.zoneLine" names=zone}}</p>
   {{/if}}
 
-  {{#if missingTerritory}}
-  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.importHint"}}</p>
-  {{else}}
+  {{#unless missingTerritory}}
   {{#if rolls.length}}
   <ol class="acks-extras-encounter-card-rolls">
     {{#each rolls}}
@@ -77,9 +75,6 @@
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.marked"}}</p>
   {{/if}}
 
-  {{#each missing}}
-  <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.missingTable" table=this}}</p>
-  {{/each}}
   {{#if noRow}}
   <p class="acks-extras-encounter-card-book">{{localize "ACKS-FORMATION.travel.enc.noRow"}}</p>
   {{/if}}
@@ -111,5 +106,5 @@
 
   <p class="hint">{{localize "ACKS-FORMATION.travel.enc.handoff"}}</p>
   {{/if}}
-  {{/if}}
+  {{/unless}}
 </div>

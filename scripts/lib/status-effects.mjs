@@ -308,22 +308,11 @@ function attackConditions(actor, targetActor, item, type) {
 /*  Telling the table                            */
 /* -------------------------------------------- */
 
-/** Conditions already reported as unpriced this session. */
-const reportedUnpriced = new Set();
-
 /** A condition's name as a term carries it: the target's are marked as the target's. */
 const termLabel = (part) => (part.side === "target" ? loc("term.target", { name: nameOf(part.condition) }) : nameOf(part.condition));
 
 const list = (ids) => [...new Set(ids)].map(nameOf).join(", ");
 const partList = (parts) => parts.map((p) => `${termLabel(p)} ${signed(p.value)}`).join(", ");
-
-/** Say once per session that a condition in play has no figures registered. */
-function reportUnpriced(ids) {
-  const fresh = ids.filter((id) => !reportedUnpriced.has(id));
-  if (!fresh.length) return;
-  for (const id of fresh) reportedUnpriced.add(id);
-  ui.notifications?.warn(loc("notice.unpriced", { conditions: list(fresh) }));
-}
 
 /** Say which figures a roll could not place, each with the circumstance it waits on. */
 function reportPending(name, pending) {
@@ -375,7 +364,6 @@ function conditionsOf(ctx, attackType) {
     ctx.conditionsTold = true;
     reportAttackBars(ctx.actor, ctx.targetName, math);
     reportPending(ctx.actor.name, math.pending);
-    reportUnpriced(math.unpriced);
     const unplaced = [...math.damageFactorBy, ...(math.autoHit ? [math.autoHit] : [])];
     if (unplaced.length) ui.notifications?.warn(loc("notice.unplaced", { name: ctx.actor.name, conditions: list(unplaced) }));
   }
@@ -426,7 +414,6 @@ function ownRoll(actor, on, options = {}) {
   if (!subject?.statuses?.size) return null;
   const math = rollMath(on, subject, undefined, options);
   reportPending(actor.name, math.pending);
-  reportUnpriced(math.unpriced);
   reportApplied(actor.name, on, math.parts);
   if (math.exempt.length) {
     ui.notifications?.warn(loc("notice.exempt", { name: actor.name, conditions: list(math.exempt) }));
@@ -518,8 +505,7 @@ function onCalculateMovement(wrapped, ...args) {
   try {
     const subject = subjectOf(this);
     if (!subject?.statuses?.size) return result;
-    const { factor, unpriced } = speedMath(subject);
-    reportUnpriced(unpriced);
+    const { factor } = speedMath(subject);
     if (factor >= 1) return result;
     const keep = (v) => Math.floor(Number(v) * factor * 10) / 10;
     const speeds = this.system.movementacks;
@@ -554,7 +540,6 @@ export async function withSurpriseConditions(pools, run) {
       if (!subject?.statuses?.size) continue;
       const math = rollMath("surprise", subject);
       reportPending(actor.name, math.pending);
-      reportUnpriced(math.unpriced);
       if (!math.total) continue;
       held.push({ actor, cell, was: cell.avoidsurprise, parts: math.parts });
       cell.avoidsurprise = Number(cell.avoidsurprise) + math.total;

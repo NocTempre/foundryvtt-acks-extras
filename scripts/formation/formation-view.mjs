@@ -119,18 +119,18 @@ import { hexStockView, readStock } from "./hex-stock-run.mjs";
  */
 function roleFigures() {
   const figures = trapFigures();
-  const feet = (value) => (value === null ? game.i18n.localize("ACKS-FORMATION.traps.notImported") : `${value} ft`);
+  const feet = (value) => (value === null ? "" : `${value} ft`);
   return { search: feet(figures.searchFeet), pole: feet(figures.poleSearchFeet ?? figures.searchFeet), lead: feet(figures.poleLeadFeet) };
 }
 
 /**
  * The tooltip of the blinded badge: the imported speed share a blinded member
- * keeps, or a line saying it is not imported and the pace is not reduced.
+ * keeps, or the page reference alone while no share is imported.
  */
 function blindTip() {
   const share = blindedSpeedShare();
   return share == null
-    ? game.i18n.localize("ACKS-FORMATION.app.blindBadgeUnread")
+    ? game.i18n.localize("ACKS-FORMATION.app.blindBadgeCite")
     : game.i18n.format("ACKS-FORMATION.app.blindBadge", { share: fractionLabel(share) });
 }
 import { hexStockKey } from "./hex-stock.mjs";
@@ -357,10 +357,10 @@ export function buildFormationView(formation) {
       ...light,
       remainingText: counted
         ? `${light.remaining} ${game.i18n.localize("ACKS-FORMATION.app.turnsLeft")}`
-        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
+        : "",
       burnTip: counted
         ? game.i18n.format("ACKS-FORMATION.app.lightBurnTip", { remaining: light.remaining, turns, cite: burnCite })
-        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
+        : (lightCite() ?? ""),
       label: game.i18n.localize(LIGHT_SOURCES[light.type]?.label ?? light.type),
       bearer: bearerActor?.name ?? "?",
       shieldable: !!LIGHT_SOURCES[light.type]?.shieldable,
@@ -883,7 +883,7 @@ export function buildStripView(formation, speed, travelView = null) {
     if (tv.blank && !tv.shownUnknown) next = "";
     else if (cadence.by === "grid") next = loc("ACKS-FORMATION.strip.onEnteringHex");
     else if (cadence.by === "miles") next = `${tenths(left)} ${loc("ACKS-FORMATION.travel.milesShort")}`;
-    else next = loc("ACKS-FORMATION.strip.unpricedCadence");
+    else next = "";
 
     strip.speed = {
       milesPerHour,
@@ -891,14 +891,14 @@ export function buildStripView(formation, speed, travelView = null) {
       hexesPerDay: readout.hexesPerDay ?? null,
       camp: !!readout.camp,
       // The factors the figure was derived from, for the cell's tooltip. A ×1
-      // factor says nothing, except the NOTE parts (a washed-out road, the
-      // tablesMissing line), whose whole point is explaining a silence. The
-      // last part is where the expedition figures came from, or that they
-      // are not imported.
+      // factor says nothing, except the NOTE parts (a washed-out road),
+      // whose whole point is explaining a silence. A part
+      // that only says a table is missing (`missing`) is left out. The
+      // last part is where the expedition figures came from.
       partsLine: [
         `${readout.feet}'/${loc("ACKS-FORMATION.app.turn")}`,
         ...(readout.parts ?? [])
-          .filter((p) => p.factor !== 1 || p.note)
+          .filter((p) => !p.missing && (p.factor !== 1 || p.note))
           .map((p) => {
             const label = loc(`ACKS-VEHICLES.reason.${p.key}`);
             return p.note && p.factor === 1 ? label : `${label} ×${fractionLabel(p.factor)}`;
@@ -1154,10 +1154,6 @@ function buildSettlementView(formation, t) {
     navTarget: spec.throws ? spec.target : null,
     navModifier: spec.throws ? (spec.modifier ?? 0) : 0,
     navUnpriced: !!spec.throws && spec.target == null,
-    // Been there before, and by how much that helps never arrived. An imported
-    // zero and a figure that never came read the same on the panel unless the
-    // panel says which it is.
-    navRouteUnpriced: !!spec.throws && !!spec.unpricedRoute,
     unpricedIntent: !!cadence?.unpricedIntent,
     // What a failed throw costs, named beside the throw itself rather than
     // only after the fact on the card: a Judge deciding whether to risk the
@@ -1401,10 +1397,10 @@ export function buildTravelView(formation, { asPlayer = !game.user?.isGM } = {})
     label: game.i18n.localize(cfg.label),
   }));
   // With the slot count not imported the board draws no slot, whatever the
-  // stored day carries, and says why; with it imported the day's own slots are
-  // drawn, as many as it was made with.
+  // stored day carries, and the marker beside it stays blank; with it imported
+  // the day's own slots are drawn, as many as it was made with.
   view.slotsNotImported = ancillarySlots() == null;
-  view.slotTip = `${game.i18n.localize("ACKS-FORMATION.travel.slotHint")} · ${ancillarySlotsProvenance()}`;
+  view.slotTip = [game.i18n.localize("ACKS-FORMATION.travel.slotHint"), ancillarySlotsProvenance()].filter(Boolean).join(" · ");
   view.slots = (view.slotsNotImported ? [] : t.day.activities ?? []).map((value, index) => ({
     index,
     options: activityOptions.map((o) => ({ ...o, selected: o.value === value })),
@@ -1588,8 +1584,8 @@ function routeLabel(owed) {
  * Navigation, quietly: when the next throw is owed (`navigationOwed`) as one
  * line, and the record's history, newest first. A row's day is the End-day
  * count the throw was made on, counted from one as the log and the head count
- * it; a throw that could not be made — its target unimported — says so in
- * place of its figures.
+ * it; a throw that could not be made — its target unimported — leaves its
+ * figures and verdict blank.
  */
 function navigationView(formation, t) {
   const owed = navigationOwed(formation);
@@ -1605,7 +1601,7 @@ function navigationView(formation, t) {
       day: e.count == null ? "—" : e.count + 1,
       hex: e.hexLabel || "—",
       figures: made ? game.i18n.format("ACKS-FORMATION.navigation.figures", { total: e.total, target: e.target }) : "",
-      verdict: game.i18n.localize(`ACKS-FORMATION.navigation.verdict.${made ? (e.success ? "kept" : "strayed") : "unmade"}`),
+      verdict: made ? game.i18n.localize(`ACKS-FORMATION.navigation.verdict.${e.success ? "kept" : "strayed"}`) : "",
       strayed: e.success === false,
       by: game.i18n.localize(`ACKS-FORMATION.navigation.by.${e.by}`),
     };
@@ -1880,13 +1876,12 @@ function buildWeatherView(t, opt, climate = null) {
       icon: CONDITIONS[key].icon ?? null,
     })),
     // What today's sky does, one line per stated effect; the figures are the
-    // imported table's, and an unimported table says so instead of an empty list.
+    // imported table's, and an unimported table leaves the list empty.
     effects: fx.lines.map((line) => ({
       key: line.key,
       label: game.i18n.localize(`ACKS-FORMATION.travel.weather.effects.${line.key}`),
       value: effectValue(line),
     })),
-    effectsUnpriced: conditions.length > 0 && !fx.ok,
     footingMud: ["none", "muddy", "frozen"].map((m) =>
       opt(m, game.i18n.localize(`ACKS-FORMATION.travel.weather.mud.${m}`), m === w.footing.mud)),
     footingSnow: !!w.footing.snow,
@@ -1932,7 +1927,7 @@ export function buildGMExtras(formation) {
       label: game.i18n.localize(cfg.label),
       turnsText: turns != null
         ? `${turns} ${game.i18n.localize("ACKS-FORMATION.app.turns")}`
-        : game.i18n.localize("ACKS-FORMATION.app.lightNotImported"),
+        : "",
     };
   });
   extras.bearerOptions = formation.members

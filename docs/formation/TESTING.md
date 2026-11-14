@@ -486,8 +486,8 @@ each chat card id as it lands.
    kind Forced march. Run it twice:
    once with NO `travel` tables registered, once after registering invented
    rows (`acksExtras.lib.tables.registerTable(…, {priority: 20})`).
-   *Observable:* without tables the readout carries the `tablesMissing` line
-   and scales by pace alone; with them the speed cell's tooltip carries the
+   *Observable:* without tables the readout carries the `tablesMissing` part
+   (the strip's tooltip leaves it out) and scales by pace alone; with them the speed cell's tooltip carries the
    factors joined on one line with ` · ` (terrain, then a road worth nothing
    in the rain) and the miles reflect
    both the ground and the forced pace; every ancillary slot (as many as
@@ -563,8 +563,8 @@ recipe, plus one world actor named to match an invented creature name
 (e.g. "QQ Prowler") so resolution has something to find.
 
 1. With NO encounters document: press **Encounter throw**.
-   *Observable:* one Judge-whispered card saying the encounter tables are
-   not imported — no rolls, no errors.
+   *Observable:* a card with no encounter lines (the chain has nothing to
+   read) — no rolls, no errors.
 2. Register the invented document, pick a territory the sample covers in the
    Judge's hand, press **Encounter throw** several times.
    *Observable:* each card lists every d20 with its column and outcome
@@ -1241,7 +1241,7 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    filed under it are simply never read and every throw reports itself
    unpriced.
    *Observable:* `blocksPerTurn` answers `{blocks: null, missing: "paces"}` and
-   the panel says the rate is not imported — never a distance of zero.
+   the panel shows no rate — never a distance of zero.
 3. Register invented rows and re-render: `acksExtras.lib.tables.registerTable(
    {id, tables}, {priority})`. **On a world that already holds imported city
    figures, register at 30, not 20**: a layer replaces whatever sat at its own
@@ -1360,7 +1360,7 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
    registry merges layers per table, so the empty row hides any imported
    holed-up cell beneath it, where unregistering the override on a world that
    imported the settlement document only uncovers that cell and the stay stays
-   priced. Advance a day: "Not imported: encounters." and no "Day" row. The
+   priced. Advance a day: no "Day" row and no line for the missing cadence. The
    stay card is the client's that credited it, so read the cards by author and
    by the `acks-extras-settlement-card` class, never by time alone, and mark
    none while another formation is holed up. Restore the target of
@@ -2009,7 +2009,7 @@ is consumed by the move and placed again every run.
    drag.
 7. Move to the wide-cell hex scene and cross one hex.
    *Observable:* four throws (the cell is four cadence units); unregister the
-   table and cross again → one throw and the unpriced line on the strip.
+   table and cross again → one throw and the strip's next-throw cell blank.
 8. Declare the first scene a delve (battlemap setup) and drag.
    *Observable:* nothing billed, one whisper naming the scale; drag again on
    the same scene → no second whisper.
@@ -2087,11 +2087,11 @@ Step 4's invented layer is a product of the walk, `acks-extras` registry layer
 1. **Not imported.** With the travel layers holding no `expedition`
    (`t.getDoc("travel")?.tables?.expedition` undefined; note the layers that
    hold the document's other keys), open the party sheet's journey strip.
-   *Observable:* the speed reads a dash with "Not imported" beneath it (never
+   *Observable:* the speed reads a dash (never
    0, never a number), the budget line is absent, and dragging the token across
    hexes tallies the miles and advances `game.time.worldTime` by nothing.
-   The Vehicle sheet's Travel tab shows "Not imported" in the miles-per-day
-   cell. A camp **Search** posts the unpriced whisper and rolls no die.
+   The Vehicle sheet's Travel tab leaves the miles-per-day
+   cell blank. A camp **Search** rolls no die and posts no card.
 2. **The import, by the Judge's gesture.**
    `acksExtras.importer.cookbookReimportEntries()`, tick
    `input[value="Tables|travel"]`, **Reimport**, answer the confirmation
@@ -2148,8 +2148,8 @@ Browser`, `travel` document, `expedition` table).
 2. **Not imported.** In the Ruledata Browser, override `expedition` with
    `ancillaryHours` blanked, and re-render the sheet.
    *Observable:* `n` is null; the board draws no slot select though the stored
-   day still holds its slots, and shows "Ancillary hours: not imported" with
-   the tooltip "Not imported"; `acksExtras.formation.travel.freshDay().activities`
+   day still holds its slots, and shows a blank marker whose tooltip is the
+   slot hint alone; `acksExtras.formation.travel.freshDay().activities`
    is empty. Scripted: `tools/live/formation-day.mjs` step 2 (no tables)
    unregisters the whole `travel` document on the player seat's registry and
    asserts the same, plus that no pace prices a mile there: every expedition
@@ -2211,8 +2211,8 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
     mints the id. Then **Clear** → the key is gone from the flag.
 14. **The cadence is read, never assumed.** Register the invented `searching`
     layer without `turnsPerThrow`. *Observable:* the camp's search line shows
-    the unpriced hint, and **Search an hour** on foot posts the unpriced
-    whisper naming `turnsPerThrow` and rolls no die. Put `turnsPerThrow` back
+    a blank hint, and **Search an hour** on foot posts no card
+    and rolls no die. Put `turnsPerThrow` back
     with a figure of the walk's own, other than the page's, and search again:
     the card rolls six turns' worth of throws at that cadence, rounded, never
     fewer than one. With the layer gone, the Ruledata Browser shows the
@@ -2317,8 +2317,8 @@ registered at WORLD priority for the check and unregistered after.
 1. Declare the sky by hand: a rainy precipitation band. *Observable:* the list
    under the sky's chips (`.acks-extras-sky-effects`) shows one line per
    stated effect — the throws, the firewood forage line, the visibility factor,
-   the disease line. A sky with conditions but nothing imported shows the Judge
-   the unpriced hint instead, and nothing else changes.
+   the disease line. A sky with conditions but nothing imported shows an empty
+   list, and nothing else changes.
 2. Search an hour. *Observable:* the search card carries the weather line and,
    with a tracker seated, the per-hour tracking line, its figure scaled by the
    hours already searched today. Survey the hex, and post the navigation
@@ -3972,8 +3972,8 @@ scene, standing in no Encounter Zone. At the start, assert both world settings
 `clock.encounterCounter` is any value.
 
 1. On a GM seat, reload.
-   *Observable:* with the document absent, a warning names `delveEncounters`
-   (and `light` if it is absent too); with both present, no such warning.
+   *Observable:* no warning is raised on the GM seat, whether the documents are
+   present or absent.
 2. Advance the party one turn at a time (the Turn tool) for as many turns as
    the imported interval.
    *Observable:* exactly one wandering-monster card, on the last of them,
@@ -3990,13 +3990,13 @@ scene, standing in no Encounter Zone. At the start, assert both world settings
 5. In the Ruledata Browser, give `delveEncounters` an override that blanks
    `distance` (or sets it to text that is not dice), set `encounterTarget` to 1,
    and press the Encounter throw tool.
-   *Observable:* an encounter card saying the distance is not imported, and
+   *Observable:* an encounter card carrying the minute alone, and
    only the minute rolled. Clear the override and the setting.
 6. The die-less path needs a world without the document, which the mapped test
    world is not once step 1 passes; it is pinned offline
    (`tools/test-formation-flows.mjs`, "the delve's wandering throw takes its
    cadence…"): no card is scheduled, the counter stays at 0, and the Encounter
-   throw tool warns that the die or the target is neither set nor imported.
+   throw tool throws nothing and raises no warning.
 7. Open `Settings tab → Game Settings → ACKS II — Extras`.
    *Observable:* no setting named "Light & noise modify encounter throws"
    among the formation settings. A hurried party and a dark one press the
@@ -4310,11 +4310,11 @@ step 6).
    *Observable:* a Judge-whispered card, one throw per stretch against the
    imported target for the first, and the climber listed as unable to attempt
    the second when the table says none may try. Nothing reaches a player seat.
-4. **Absent says not imported.** In the Ruledata Browser, give `formation` an
+4. **Absent stays blank.** In the Ruledata Browser, give `formation` an
    override that blanks `spelunking` (as step 5 of the delve's wandering
    throw does for its distance), and repeat step 3.
-   *Observable:* the card lists the climber as unable, with the reason that the
-   Spelunking table is not imported, and the chat log gains no roll;
+   *Observable:* the card lists the climber's name as unable, with no reason
+   beside it, and the chat log gains no roll;
    `jumpDistance({dex: 12})` is unchanged while `fall` is untouched. Clear the
    override.
 5. **An override wins, and reverts.** Give `spelunking` an override whose
@@ -4377,8 +4377,8 @@ miss and a natural 1.
    Hovering the outcome shows `Imported (<cite>)`.
 3. **Not imported.** In the Ruledata Browser give `formation` an override that
    blanks `spelunkingOutcomes`, and repeat the rigged miss.
-   *Observable:* one throw only; the card prints "missed; the outcome is not
-   imported", its tooltip "Not imported"; nothing else is applied.
+   *Observable:* one throw only; the card prints "missed", with no tooltip;
+   nothing else is applied.
 4. **An override wins, and reverts.** Override `spelunkingOutcomes.easyClimb.fail`
    with words of the Judge's own and `falls: true`, and repeat the rigged miss.
    *Observable:* the card prints the Judge's words, the tooltip says `Set by a

@@ -272,7 +272,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
   }
 
   static async #onGenerate() {
-    if (this.actor.system.isStub) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
+    if (this.actor.system.isStub) return;
     const base = this.#baseUuid ? await fromUuid(this.#baseUuid) : null;
     const created = await generateFromTemplate(this.actor, { pins: this.#pins, base });
     if (!created) {

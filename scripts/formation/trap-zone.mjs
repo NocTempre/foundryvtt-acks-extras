@@ -1,5 +1,5 @@
 /* global game, foundry, fromUuid, CONFIG, Roll, ui */
-import { MODULE_ID, ROLES, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
+import { MODULE_ID, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
 import { getPartyToken, isDown, isHurried, laidOrder, updateFormation } from "./formation-model.mjs";
 import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
@@ -469,14 +469,14 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   // At combat speed the party loses its pole and its hasty searching (RR p. 263).
   const hurried = isHurried(formation);
   const rolls = [];
+  // The figures are the imported ones (RR ch. 6, Searching and Traps and
+  // Trapbreaking; JJ ch. 8 for spikes); a card adds no line for one that is absent.
   const figures = trapFigures();
 
   /* (a) Anyone searching the ground throws first, against every hidden trap in reach. */
   const search = await sweepForTraps(formation, { from, to, hurried, include: placement });
   rolls.push(...search.rolls);
   const crossedFound = !!placement && search.found.has(placement.uuid);
-  // A figure the world does not hold is said on whichever card posts.
-  const notImported = [!search.reachImported ? loc("searchReachNotImported") : ""];
 
   if (crossedFound) {
     await haltParty(formation, haltAt, approach);
@@ -484,7 +484,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("foundTitle"),
         subtitle: formation.name,
-        note: [loc("foundNote"), ...notImported].filter(Boolean).join(" "),
+        note: loc("foundNote"),
         sections: [{ rows: search.rows }],
       }),
       formation,
@@ -499,7 +499,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("sweepTitle"),
         subtitle: formation.name,
-        note: [loc("sweepNote", { count: search.found.size }), ...notImported].filter(Boolean).join(" "),
+        note: loc("sweepNote", { count: search.found.size }),
         sections: [{ rows: search.rows }],
       }),
       formation,
@@ -521,7 +521,6 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("crossedTitle"),
         subtitle: formation.name,
-        note: [loc("triggerNotImported"), ...notImported].filter(Boolean).join(" "),
         sections: search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : [],
       }),
       formation,
@@ -533,8 +532,6 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   /* (b) and (c): the pole, then the party, each with its own secret die. */
   const poleRanks = poleLeadRanks(figures.poleLeadFeet, rankFeet);
   const probes = probeSequence(order, { pole: !hurried, poleRanks });
-  const poleCarried = order.some((row) => (row.roles ?? []).includes(ROLES.POLE));
-  if (!hurried && poleCarried && poleRanks === null) notImported.push(loc("poleLeadNotImported"));
   const probeRows = [];
   let sprungAt = -1;
 
@@ -563,7 +560,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("crossedTitle"),
         subtitle: formation.name,
-        note: [hurried ? loc("hurriedNote") : loc("crossedNote"), ...notImported].filter(Boolean).join(" "),
+        note: hurried ? loc("hurriedNote") : loc("crossedNote"),
         sections: [
           ...(search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : []),
           { title: loc("probeSection"), rows: probeRows },
@@ -585,7 +582,6 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     ],
     rolls,
     sprungBy: probes[sprungAt],
-    notes: notImported.filter(Boolean),
   });
 }
 
@@ -636,7 +632,7 @@ async function haltParty(formation, haltAt, from = null) {
  * Damage is reported, not applied: the card carries the number and the Judge
  * writes it. See docs/formation/DECISIONS.md, "A trap reports its damage; the Judge writes it".
  */
-async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null, notes: extraNotes = [] } = {}) {
+async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null } = {}) {
   const cfg = trap.system;
   // What the trap does comes from the row its level selects; how it was built
   // (crudely or well) is the same at every level and stays on the trap.
@@ -729,10 +725,6 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
   if (sprungBy?.kind === "pole") notes.push(loc("sprungByPole"));
   if (!caught.length) notes.push(loc("caughtNobody"));
   if (tier.rider) notes.push(tier.rider);
-  // A pit's damage rests on imported dice; what is missing is said, not guessed.
-  if (plan.pitUnknown.includes("fall")) notes.push(loc("pitFallNotImported"));
-  if (plan.pitUnknown.includes("spikes")) notes.push(loc("pitSpikesNotImported"));
-  notes.push(...extraNotes);
 
   await whisper(
     renderRollCard({

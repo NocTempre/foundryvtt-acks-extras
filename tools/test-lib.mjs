@@ -3521,7 +3521,7 @@ t("with nothing imported every expedition figure is null, never zero or a defaul
   assert.deepEqual(paceFigures("dedicated"), { hours: null, multiplier: 1 }, "the table's own basis needs no import");
   assert.deepEqual(paceFigures("forced"), { hours: null, multiplier: null });
   assert.equal(expeditionCite(), null);
-  assert.equal(expeditionTip(), "ACKS-LIB.scale.notImported");
+  assert.equal(expeditionTip(), "", "nothing imported, so the tip is blank");
 });
 
 t("a window that did not read costs its figure and nothing beside it", () => {

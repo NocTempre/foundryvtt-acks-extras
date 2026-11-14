@@ -138,7 +138,6 @@ export async function runRestNight(formation, { weather = {}, ground = "", expos
     content: renderRollCard({
       title: loc("rest.title"),
       subtitle: formation?.name ?? "",
-      note: results.some((r) => r.unpriced) ? loc("rest.unpriced") : undefined,
       sections: [{ rows: results.map(rowOf) }],
       footnote: footnote || undefined,
       labels: { total: loc("rest.colFatigue"), result: loc("rest.colNight") },

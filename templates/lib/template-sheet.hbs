@@ -2,10 +2,6 @@
       Every selector is scoped under .acks-lib-template-sheet. --}}
 <div class="acks-lib-template-body">
 
-  {{#if isStub}}
-    <p class="acks-lib-template-warning">{{localize "ACKS-LIB.template.stubNote"}}</p>
-  {{/if}}
-
   {{!-- The optional BASE actor: drop a victim on the sheet to modify it
         (vampire thrall); leave empty to self-generate (dragon, elemental). --}}
   <section class="acks-lib-template-base">
@@ -44,7 +40,7 @@
             <select class="acks-lib-template-pin" data-axis="{{key}}">
               <option value="">{{#if derived}}{{localize "ACKS-LIB.template.derived"}}{{else}}{{rollLabel}}{{/if}}</option>
               {{#each options}}
-                <option value="{{key}}" {{#if selected}}selected{{/if}} {{#if unavailable}}disabled data-tooltip="ACKS-LIB.template.unavailableTip"{{/if}}>{{label}}</option>
+                <option value="{{key}}" {{#if selected}}selected{{/if}} {{#if unavailable}}disabled{{/if}}>{{label}}</option>
               {{/each}}
             </select>
           </label>

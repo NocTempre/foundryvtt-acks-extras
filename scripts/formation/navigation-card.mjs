@@ -65,8 +65,8 @@ export async function beginFromCard(formation, { begin = beginEpisode } = {}) {
  * own today where none is handed in. `begin` is the episode opener a failure
  * calls, `beginEpisode`'s shape. Nothing is rolled, recorded or posted where
  * no throw is owed — a party on a road or beside a river does not get lost. A
- * throw whose target was never imported is recorded and carded as one that
- * could not be made.
+ * throw whose target was never imported is recorded as one that could not be
+ * made, and posts no card.
  *
  * @returns {Promise<{result: object, entry: object|null, opened: boolean, refused: boolean}>}
  *   `entry` is the record's row, null where nothing was thrown; `opened` and
@@ -78,6 +78,8 @@ export async function postNavigationThrow(formation, { by = "step", begin = begi
 
   const t = travelOf(formation);
   const entry = await recordNavigationThrow(formation.id, result, { by, hexLabel: t.hex.label, day });
+  // A throw with no imported target could not be made, and posts no card.
+  if (result.target == null) return { result, entry, opened: false, refused: false };
   const phase = t.lost.phase;
   const failed = result.rolled && !result.success;
   const here = beliefHex(formation, t);
@@ -90,28 +92,21 @@ export async function postNavigationThrow(formation, { by = "step", begin = begi
   }
 
   const rows = [];
-  if (result.target == null) {
-    rows.push(`<li>${loc("nav.unpriced")}</li>`);
-  } else {
-    rows.push(`<li>${loc("nav.terrain", { terrain: result.terrain })}</li>`);
-    const c = result.competence ?? {};
-    if (c.navigation || c.pathfinding) {
-      rows.push(`<li>${loc(c.navigation && c.pathfinding ? "nav.both" : "nav.one")}</li>`);
-    }
-    if (c.unpriced) rows.push(`<li>${loc("nav.bonusUnpriced")}</li>`);
-    if (result.weather) {
-      rows.push(`<li>${loc("nav.weather", { value: result.weather > 0 ? `+${result.weather}` : `${result.weather}` })}</li>`);
-    }
-    rows.push(`<li>${loc("nav.result", { total: result.total, target: result.target })}</li>`);
-    if (result.botched) rows.push(`<li><strong>${loc("nav.botched")}</strong></li>`);
+  rows.push(`<li>${loc("nav.terrain", { terrain: result.terrain })}</li>`);
+  const c = result.competence ?? {};
+  if (c.navigation || c.pathfinding) {
+    rows.push(`<li>${loc(c.navigation && c.pathfinding ? "nav.both" : "nav.one")}</li>`);
   }
+  if (result.weather) {
+    rows.push(`<li>${loc("nav.weather", { value: result.weather > 0 ? `+${result.weather}` : `${result.weather}` })}</li>`);
+  }
+  rows.push(`<li>${loc("nav.result", { total: result.total, target: result.target })}</li>`);
+  if (result.botched) rows.push(`<li><strong>${loc("nav.botched")}</strong></li>`);
 
   let verdict;
   const notes = [];
   const buttons = [];
-  if (result.target == null) {
-    verdict = loc("nav.cannotTest");
-  } else if (phase === "aware") {
+  if (phase === "aware") {
     verdict = loc("nav.aware");
   } else if (phase === "astray") {
     verdict = loc(result.success ? "nav.astrayKept" : "nav.astrayLost");

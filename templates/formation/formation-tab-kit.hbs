@@ -37,7 +37,7 @@
     <div class="add-light">
       <select data-pick="lightType">
         {{#each lightTypes}}
-        <option value="{{this.key}}">{{this.label}} ({{this.turnsText}})</option>
+        <option value="{{this.key}}">{{this.label}}{{#if this.turnsText}} ({{this.turnsText}}){{/if}}</option>
         {{/each}}
       </select>
       <select data-pick="lightBearer">

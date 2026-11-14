@@ -23,7 +23,7 @@ The Full Monster Sheet (the monsters feature) stores a creature's real vision mo
 For monsters carrying a stat block, `canSeeInDark` and `explorationSpeedOf` defer to `monster-traits.mjs` instead of the generic heuristics; without one, actors fall back to ability/effect name matching and the system encumbrance speed.
 
 - **Dark operation** is authoritative from `extras.vision` + `extras.otherSenses`. Only modes that function in *total* darkness count: **Lightless Vision** and **Blind** navigation, plus **Echolocation** and the **Mechanoreception** senses (their "sight" reads as dim light). **Night Vision is excluded** — it upgrades dim light but fails in total dark, the exact human assumption this fixes. Acute hearing/olfaction/vision only aid surprise and never defeat darkness.
-- **Exploration speed** is the *running* value of the creature's land Speed row (ACKS records speed as `[combat] / [exploration = running]`); a purely aquatic/aerial creature falls back to its primary row. A member who cannot see in the dark is blinded and slows the party by the speed share the conditions table holds for Blinded (`blindedSpeedShare` in `formation-model.mjs`, read through `lib/conditions.mjs` `speedMath`), unless one of the dark senses above applies. With no share imported the pace is not reduced and the roster badge says so.
+- **Exploration speed** is the *running* value of the creature's land Speed row (ACKS records speed as `[combat] / [exploration = running]`); a purely aquatic/aerial creature falls back to its primary row. A member who cannot see in the dark is blinded and slows the party by the speed share the conditions table holds for Blinded (`blindedSpeedShare` in `formation-model.mjs`, read through `lib/conditions.mjs` `speedMath`), unless one of the dark senses above applies. With no share imported the pace is not reduced and the roster badge's tooltip is the page reference alone.
 
 ## Files
 
@@ -86,7 +86,7 @@ All paths are under `scripts/formation/` unless noted.
 - **State** lives in one world setting (`formations`, keyed by id — see the shape documented at the top of `formation-model.mjs`). Only GM clients write it; the `updateSetting` hook re-renders the window on every client.
 - **Every write goes through one private `commit(mutate)`**, which reads the ledger inside the save lock — the lock and the read are a single act, so no writer can hold a copy from before its turn in the queue. Three writers sit on it: `createFormation` **inserts** (the only insert, and it mints the id); `updateFormation` writes **only what its copy changed** since the model handed it out (`readAs`, `applyChanges`): a changed sub-record key by key, a list of `id`-keyed records element by element, any other changed list whole, and a removal or a key the ledger also gained since the read stands; so a patch that lands while the caller awaits keeps its value unless the copy changed the same field, and a copy its writer cloned has no read and is written whole (DECISIONS 2026-10-17, "A whole write carries only what its copy changed"). It **refuses a record the ledger no longer holds**, since a caller arriving with a record that was dissolved while it worked has a moot write, not an urgent one, and **keeps the ledger's party token**: the ledger's `sceneId` and `tokenId` stand over the copy's, and its `clock.lastPosition` too when they name another token than the copy did, so only a patch moves the party token (DECISIONS 2026-10-17); `patchFormation` re-reads one record and applies a targeted mutation, which is what a hook or any background writer uses so a concurrent field change is not overwritten and its own guards are decided against current reality.
 - **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterModifiers` as `{cold, rough}`, stored negative because the throw subtracts a modifier; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, pairs the water penalties with the conditions in the order the sentence names them, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`.
-- **Jumping, the fall and the Spelunking table** arrive in the same document as three more tables, read from RR pp. 268, 270 and 271. `jumping` holds the leap's constant and floor, the jump's die, the feet a stone of encumbrance takes off, the run-up, the share a standing start keeps, a creature's baseline running speed and assumed Dexterity, and the die a failed landing falls short by. `fall` holds the die and the feet it is dealt per. `spelunking` holds the feet one throw covers and, per obstacle, the target an ordinary adventurer throws or `false` where none may try. `spelunkingOutcomes`, read from the same grids' failed-throw and botched-throw rows (RR p. 268, its own raw table `spelunkingOutcomeGrid`, the cells read over their wrapped lines), holds per obstacle `fail` and `botch`, each `{text, falls}`: the cell's words and whether they name a fall. The binding reads each figure from its own window (the Spelunking grids by row label and column), so a window that drifted costs that figure only; the jump's die is kept only where it is a single die, since the range a jump reports is that die's faces. `jumping.mjs` and `obstacles.mjs` keep the procedure: the order the conditions apply in, a jump reported as a range, the clamp at zero, who may try an obstacle, that a failure and a natural 1 each read their own outcome, that a fall ends the climber's attempt, which obstacles leave the climber helpless, and that a fixed rope makes a sheer face easy. Each reader answers null until its figure is imported. A jump, leap or landing that rests on one carries it by name in `unknown`; an obstacle attempt for an ordinary adventurer reports `notImported` and rolls nothing, since the stretch and the target are both the table's. A missed throw whose outcome is not imported ends that climber's attempt, and the chat card prints "not imported" in its place; an imported outcome prints its words, escaped, with a tooltip naming the page `citeOf` gives, the Judge's override, or not imported.
+- **Jumping, the fall and the Spelunking table** arrive in the same document as three more tables, read from RR pp. 268, 270 and 271. `jumping` holds the leap's constant and floor, the jump's die, the feet a stone of encumbrance takes off, the run-up, the share a standing start keeps, a creature's baseline running speed and assumed Dexterity, and the die a failed landing falls short by. `fall` holds the die and the feet it is dealt per. `spelunking` holds the feet one throw covers and, per obstacle, the target an ordinary adventurer throws or `false` where none may try. `spelunkingOutcomes`, read from the same grids' failed-throw and botched-throw rows (RR p. 268, its own raw table `spelunkingOutcomeGrid`, the cells read over their wrapped lines), holds per obstacle `fail` and `botch`, each `{text, falls}`: the cell's words and whether they name a fall. The binding reads each figure from its own window (the Spelunking grids by row label and column), so a window that drifted costs that figure only; the jump's die is kept only where it is a single die, since the range a jump reports is that die's faces. `jumping.mjs` and `obstacles.mjs` keep the procedure: the order the conditions apply in, a jump reported as a range, the clamp at zero, who may try an obstacle, that a failure and a natural 1 each read their own outcome, that a fall ends the climber's attempt, which obstacles leave the climber helpless, and that a fixed rope makes a sheer face easy. Each reader answers null until its figure is imported. A jump, leap or landing that rests on one carries it by name in `unknown`; an obstacle attempt for an ordinary adventurer reports `notImported` and rolls nothing, since the stretch and the target are both the table's, and the card lists the name with no reason. A missed throw whose outcome is not imported ends that climber's attempt, and the chat card prints "missed" in its place; an imported outcome prints its words, escaped, with a tooltip naming the page `citeOf` gives or the Judge's override, and no tooltip while nothing is imported.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
 - **A member's deployment moves only by patch.** `updateFormation` keeps the ledger's `deployedTokenId`, `deployedSceneId`, `deployedStack`, `deployedCombatId`, `detached`, `detach` and `tokenData` for every member the ledger also holds, matched by actor, and brings the copy into line (`DEPLOYMENT_FIELDS`, `formation-model.mjs`). A deploy, a recall and a combat taking members over write them through `patchDeployments`; the re-anchor, a move between scenes and the roster's stash write patch them directly.
@@ -111,7 +111,7 @@ Per turn, in order (mirrors JJ sequence of play step 5):
 
 1. `game.time.advance(600)` (setting-gated) — snapshot member effects with `duration.remaining > 0` beforehand, report the ones that hit ≤ 0 after.
 2. Rest counter (or reset when `resting`); winded once the counter passes the imported `restInterval`, and never while none is imported; marker Active Effect applied/removed on members (members holding the `kw:endurance` capability skipped, `hasEndurance` in `turn-engine.mjs`). The world setting `restRequired` (default on) gates the whole step: off, the counter is held at 0 and `clock.winded` is cleared on the next turn (the marker comes off with it, silently), so no rest is counted, announced or penalised. It gates only the rest. Turns, lights, spells and the wandering throw tick as before, a Rest turn still advances one, and the settlement tick is not touched. Every surface that shows the rest reads `restEnforced()` (`constants.mjs`): the turn card's rest line, the warnings strip's winded and rest-due lines, the strip's Rest stat (`strip.delve.restOn`) and the title-bar bar (`bandBar` returns null).
-3. Lit lights `remaining--`, guttering warning at 1, burnout at 0. A light lit while its kind's burn time was not imported (lib's light table) carries no count: it burns on uncounted, the turn card says so, and the Kit tab shows it as not imported.
+3. Lit lights `remaining--`, guttering warning at 1, burnout at 0. A light lit while its kind's burn time was not imported (lib's light table) carries no count: it burns on uncounted, the turn card lists it as burning with no count, and the Kit tab leaves its count blank with the page reference as its tooltip.
 4. Encounter counter; every N turns roll 1d6 vs target, whispered to GMs; on encounter, pre-roll 2d6×10 distance and 1d10 minute-of-turn, then draw privately from the resolved RollTable. Parameters resolve zone → formation → world settings: an `encounterZone` region behavior under the party token overrides frequency/target (0 = inherit) and supplies a table UUID; else the formation's `tableId`; else announce-only.
    After the draw, the zone's `dungeonLevel` (read from the behavior's `system`) is compared with the monster level of each table that produced a result (`shiftSources`). A result's `parent` is its producing table, which is the inner one when the drawn table's results are other tables; that table's `monsterLevel` counts, else the drawn table's. Each producing table whose level resolves and differs posts one Judge-only card (`announceShift`), named for that table. A draw from the formation's own table has no zone, so no dungeon level, and never shifts; the city tick draws on its own path and never shifts either.
 5. Day boundary (144 turns) → ration reminder.
@@ -423,7 +423,7 @@ party's own stops in the Foundry-free
   does (`disarmRefusal`, as `trap:<reason>`); each resolves through
   `attemptDisarm`. Battering a door registers with no length: the turns an axe
   needs are the door's printed figure, which no import reads yet (ROADMAP §6),
-  so it is offered as not imported and cannot lock. Rest is registered under
+  so it is offered disabled, with no reason beside it, and cannot lock. Rest is registered under
   lib's `REST_KEY`. Every other length is one turn: a pace is structural, and a
   hasty activity takes a round inside the turn.
 - **What stops a member** before any activity is asked (`memberBlock`, in this
@@ -556,7 +556,8 @@ Foundry globals (`formationMapping`, `mapperLit`, `measureModeFor`).
   automation switch), a mapper is lit by the day outside (a delve's scene
   darkness below one half, a journey's clock by day: `ambientBright`), or by a
   light whose bright reach covers the mapper's place, or by a lit, open flame
-  whose reach is not imported (`litBy` says which; nothing is a figure). With
+  whose reach is not imported (`litBy` says which; nothing is a figure; the
+  tooltip reads "a flame is lit"). With
   the switch off the module assumes light and reads none. A light shuttered by
   hand, stowed, doused or closed lights no one.
 - **The mapper's place** is the centre of their cell in the party's column, or
@@ -897,19 +898,20 @@ existing `fall` table (`fallFigures`). A Judge edits any of them in the Ruledata
 Browser; the trigger band is also a field on the trap, and a cell's size is in
 Scene config → Grid. Not imported:
 - **no search reach**: only the front rank searches, and only the trap the
-  party crossed; the card says so. A pole with no reach of its own searches as
+  party crossed. A pole with no reach of its own searches as
   a bare searcher does.
-- **no pole lead, or no rank depth**: no pole probes, and the card says so.
+- **no pole lead, or no rank depth**: no pole probes.
 - **no trigger die, or no band** (the trap's own `triggerOn` is null to read
-  the imported one): nothing is rolled and nothing springs; the card says to
-  resolve the crossing by hand (`runTrapCheck` answers `byHand`).
+  the imported one): nothing is rolled and nothing springs, and the card is
+  posted with the search rows alone (`runTrapCheck` answers `byHand`).
 - **no trapbreak reach**: only a trap the party's token touches is offered, and
-  the dialog says so.
+  the dialog shows no reach line.
 - **no botch band**: that mode never botches. **No methodical bonus**: it
   adds nothing.
-- **no `fall` table**: a pit derives no damage and the sheet and card say so;
-  **no spike dice**: a spiked pit deals the fall alone, with the same line.
-  A typed damage formula owes no figure.
+- **no `fall` table**: a pit derives no damage;
+  **no spike dice**: a spiked pit deals the fall alone.
+  A typed damage formula owes no figure. The sheet and the cards add no line for
+  any of these; the trap sheet leaves the trigger band's placeholder blank.
 
 **Ranks are the column's as it stands on the map.** `runTrapCheck` and
 `sweepForTraps` read the sequence from `laidOrder` (`formation-model.mjs`), not
@@ -1130,11 +1132,12 @@ append-only, capped log of finished days. The slot count is read, not shipped:
 `ancillarySlots()` is the `travel` document's imported `ancillaryHours`
 (`expedition` table, RR p. 272) cut into `SLOT_HOURS`, and a fresh day is made
 with that many. With the hours not imported a fresh day carries no slot, and
-the day board draws none, whatever the stored day holds, and says "Ancillary
-hours: not imported". A stored day keeps the slots it was made with: `done`,
+the day board draws none, whatever the stored day holds, and leaves a blank
+marker in their place. A stored day keeps the slots it was made with: `done`,
 the slot index guards and the board follow the stored array's length. Each
 slot's tooltip names where the count came from (the page `expeditionCite`
-gives, the Judge's override, or not imported).
+gives, or the Judge's override); with the hours not imported it carries the
+slot hint alone.
 
 [journey.mjs](../../scripts/formation/journey.mjs) is the engine. A party
 token moved on ANY scene measures its path through `scene.grid.measurePath`
@@ -1189,7 +1192,7 @@ the registered `encounterFrequency` (`cadenceMilesFor`): a grid whose cell is
 that figure within one percent
 counts a crossing as a unit; any other grid counts miles off and owes a unit
 every so many (`day.cadenceCarry` holds the remainder); with no figure
-registered nothing is priced and the strip says so. Each unit fires
+registered nothing is priced and the strip's next-throw cell stays blank. Each unit fires
 `acksExtras.hexEntered` (`{formationId, sceneId, hex, ground,
 encounterTerrain, territory, lost, cadence, night, throwOwed}`, after the
 record patch and before the throw) and then, under the `travelEncounters`
@@ -1601,10 +1604,10 @@ the party is astray.
 miles a day at the march pace whatever the day board says
 (`expeditionMiles`, a march-kind copy of the record through `travelReadout`
 with the dark-free speed); with no expedition table imported there are no
-miles to price and the search reports the expedition missing, rolling nothing.
+miles to price and the search rolls nothing and posts no card.
 A tracker in the order (`kw:tracking`, or the
 ability by name) adds the imported Tracking bonus; when the figure is not
-registered the throw still rolls and the card says the bonus is unpriced.
+registered the throw still rolls and the card carries no line for the bonus.
 
 **A survey runs two ways**: the **Survey the hex** button, and automatically
 after a search hour when a surveyor is in the order, the hex is stocked and
@@ -1741,7 +1744,7 @@ suffering** — a roster of well-fed names is noise that would bury the one
 person who is starving — and, Judge-side, what each picked slot is actually
 worth tonight: the forage targets for food, water and firewood, the hunting
 target moved by territory, and the search target with how many hours the board
-is holding for it. Anything unimported says so rather than showing a number.
+is holding for it. Anything unimported leaves its figure blank rather than showing a number.
 
 Judge-side it also carries the camp's three declarations, each a plain yes or
 no on the travel record (`travel.camp`): *Willing to steal*, *Water at hand*
@@ -1816,8 +1819,8 @@ are `docs/lib/MODEL.md`, Survival) and its `fatigued` stacks are written
 through `setConditionStacks`, so the condition's own math applies them. One
 whispered card says each body's night: the armour throw, why a night was not
 restful, why the stacks moved, and how many rounds an armoured sleeper needs
-to don the kit. A night nobody has priced says so on the card rather than
-tiring anyone.
+to don the kit. A night nobody has priced tires no one and the card carries no
+line for it.
 
 ## Flight
 
@@ -2039,8 +2042,8 @@ whatever the bonus.
 The competence is `navigationCompetence`: a member holding the Navigation
 proficiency or the Pathfinding power earns the `travel` document's
 `navigationBonus.either`, the two held between them earn its `both`, and a
-figure not imported counts for nothing while the card says the bonus is
-unpriced. The travel import writes the row from one sentence on RR p. 275, the
+figure not imported counts for nothing and the card carries no line for it.
+A throw whose terrain target is not imported is recorded and posts no card. The travel import writes the row from one sentence on RR p. 275, the
 first signed figure for either and the second for both.
 
 ## The city
@@ -2061,10 +2064,10 @@ the commuting pace alone. That those tiers EXIST is the rule; where each starts
 and what it costs is printed, so the ladder is registered — the `cityTravel`
 doc (`paces`, `navigation`, `straggling`, `encounters`), deliberately not
 `settlement`, which henchmen already owns for market class by families.
-Nothing here ships a distance: an unimported city reports which table is
-missing rather than moving the party an invented number of blocks, and a
+Nothing here ships a distance: an unimported city leaves its figure blank
+rather than moving the party an invented number of blocks, and a
 figure that never arrived is never shown as a zero — a known destination with
-no imported modifier says so on the panel rather than throwing quietly bare.
+no imported modifier throws bare and the panel adds no line for it.
 
 The settlement document expects `gateTolls` and `smuggling` tables — what a
 pass through the city's gates costs its merchandise, and what the syndicate
@@ -2133,8 +2136,8 @@ target priced on that die's scale. The same table's `incident` die (JJ p. 81,
 `incidentDie()`) is the one the city's own incident list is thrown on where
 neither a drawn RollTable's formula nor the list names one. Both are rebuilt
 from their integers before a roll. With the street's die not imported nothing
-is thrown for the street and the turn and the stay both say the die is not
-imported, rather than reporting a quiet street. The card names the die it
+is thrown for the street and neither the turn nor the stay reports a quiet
+street. The card names the die it
 rolled, because a throw whose scale is wrong changes how often the street
 answers while changing nothing a Judge can see.
 
@@ -2263,7 +2266,7 @@ the dice), so every day of a stay is drawn by day or after dark together; the
 events do not record an hour of their own. The party was indoors, so the draw
 leaves no transient Note and the card has no promote button: both belong to the
 street turn's card, which is where the party stood. A cadence nobody imported
-still says "Not imported" and draws nothing, and a met day with no list in the
+draws nothing and the card carries no line for it, and a met day with no list in the
 order says there is no incident table, in the turn's words.
 
 The pickers ride the journey panel's own submit — `travel.settlement.*` field
@@ -2487,8 +2490,8 @@ entry names. Every reader takes the merged answer: the search, survey and
 navigation throws and a tracker's help by the hour, the forage targets, how
 far the party is seen from on the encounter card, the flier's storm, the
 night's rest and the weather's toll. The list under the sky's chips shows
-what today states, and a sky with conditions but no imported table says so to
-the Judge instead of applying nothing in silence.
+what today states, and a sky with conditions but no imported table shows an
+empty list.
 
 **The sky is cached, not stored.** It keys on `(calendarDay, climate, season)`
 ([sky.mjs](../../scripts/formation/sky.mjs)), so two parties standing in the
@@ -2622,11 +2625,10 @@ and the distance dice have only that document, whose four scalar tables a
 Judge's override layer replaces one at a time; a dice table is read back only
 as `NdM` or `NdM*K`, rebuilt from its integers. Without a die, an interval or
 a target the turn counts nothing toward a throw and schedules none, and the
-party sheet's Encounter throw tool refuses with a notice saying a figure is
-not imported. Without distance dice an encounter still stands and its minute
+party sheet's Encounter throw tool throws nothing and shows no notice.
+Without distance dice an encounter still stands and its minute
 is still rolled, on the turn's own length (`ROUNDS_PER_TURN`); no distance is
-rolled, and the card says it is not imported. The GM's ready notice names the
-document while it is missing, beside the light table. The throw card's die,
+rolled, and the card carries the minute alone. The throw card's die,
 target and rolled distance each carry a tooltip naming the layer they came
 from, and the page for an imported one (`cadenceProvenance`). The throw is the
 die as stated: the party's light and pace add nothing to it. The card's

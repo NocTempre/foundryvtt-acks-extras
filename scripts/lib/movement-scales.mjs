@@ -172,9 +172,9 @@ function paceName(pace) {
 
 /**
  * The tooltip for a figure derived through `expeditionFrom`: the parts it was
- * made of, read from the world's table, and the page that table came from —
- * or, with the table not imported, that it is not. Imported parts are named
- * with their figure; a part the table does not carry is left out.
+ * made of, read from the world's table, and the page that table came from.
+ * Imported parts are named with their figure; a part the table does not carry
+ * is left out, and with nothing imported the tip is empty.
  * @param {object} [o]
  * @param {string} [o.pace] a key of TRAVEL_PACE
  * @returns {string}
@@ -185,7 +185,6 @@ export function expeditionTip({ pace = "dedicated" } = {}) {
   const parts = [];
   if (feetPerMilePerDay != null) parts.push(scaleText("tip.ratio", { feet: feetPerMilePerDay }));
   if (hours != null) parts.push(scaleText("tip.pace", { pace: paceName(pace), hours }));
-  if (!parts.length) return scaleText("notImported");
   const cite = expeditionCite();
   if (cite) parts.push(cite);
   return parts.join(" · ");

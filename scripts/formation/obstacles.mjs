@@ -67,11 +67,12 @@ export function obstacleOutcome(kind, which) {
 
 /**
  * Where an outcome came from, for its tooltip: the page the table was imported
- * from, a Judge's override (which holds no page), or not imported.
+ * from, a Judge's override (which holds no page), or an empty string while
+ * nothing is imported.
  * @param {{text: string}|null} outcome an `obstacleOutcome` result
  */
 export function outcomeProvenance(outcome) {
-  if (!outcome) return game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.none");
+  if (!outcome) return "";
   const cite = citeOf(FORMATION_DOC, OUTCOMES_TABLE);
   return cite
     ? game.i18n.format("ACKS-FORMATION.chat.cadenceFrom.import", { cite })
@@ -206,15 +207,18 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
       }),
     content: `<ul class="acks-extras-obstacle-results">${results.map((r) => {
       if (r.blocked) {
-        return `<li><strong>${r.name}</strong> — ${game.i18n.localize(`${LANG_PREFIX}.reason.${r.plan.reason}`)}</li>`;
+        // A table nobody imported gives the refusal no words.
+        const why = r.plan.reason === "notImported" ? "" : game.i18n.localize(`${LANG_PREFIX}.reason.${r.plan.reason}`);
+        return `<li><strong>${r.name}</strong>${why ? ` — ${why}` : ""}</li>`;
       }
       const last = r.attempts[r.attempts.length - 1];
       // The imported words are free text from the Judge's book or override, so
-      // they are escaped; the tooltip says which of the two, or not imported.
+      // they are escaped; the tooltip says which of the two, and is empty
+      // while nothing is imported.
       const said = last.success
         ? game.i18n.localize(`${LANG_PREFIX}.outcome.progress`)
         : `<span data-tooltip-text="${foundry.utils.escapeHTML(outcomeProvenance(last.outcome))}">`
-          + `${foundry.utils.escapeHTML(last.outcome?.text ?? game.i18n.localize(`${LANG_PREFIX}.outcome.notImported`))}</span>`;
+          + `${foundry.utils.escapeHTML(last.outcome?.text ?? game.i18n.localize(`${LANG_PREFIX}.outcome.missed`))}</span>`;
       return `<li><strong>${r.name}</strong> — ${said}` +
         ` <span>(${r.attempts.map((a) => a.total).join(", ")})</span></li>`;
     }).join("")}</ul>`,

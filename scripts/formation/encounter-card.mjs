@@ -165,19 +165,6 @@ export function terrainDrawLines(draw) {
   return lines;
 }
 
-/** Every table a step of the chain, or any node of its terrain draw, found unimported. */
-function missingTables(chain) {
-  const nodes = flattenTerrainDraw(chain.terrainEncounter).map((e) => e.node);
-  const steps = [
-    chain.creature,
-    chain.rarity,
-    ...nodes.flatMap((n) => [n, n.creature, ...(n.follow ?? []), ...(n.lookups ?? [])]),
-    chain.distance,
-  ];
-  // A step names its missing table once however many rolls asked for it.
-  return [...new Set(steps.filter((step) => step && !step.ok && step.missing).map((step) => step.missing))];
-}
-
 /** The party's head count for visibility and evasion: men, mounted double. */
 function partyHeads(formation) {
   let men = 0;
@@ -403,7 +390,6 @@ export async function postEncounterCard(formation, chain, {
       ? { roll: creature.roll, name: creature.name, link: actor ? `@UUID[${actor.uuid}]{${creature.name}}` : null }
       : null,
     terrainLines: terrainDrawLines(chain.terrainEncounter),
-    missing: missingTables(chain),
     noRow: [chain.distance].some((step) => step && !step.ok && step.noRow),
     distance: chain.distance?.ok
       ? { feet: chain.distance.feet, dice: chain.distance.dice, mult: chain.distance.mult }

@@ -10,12 +10,12 @@
     <div class="stat" data-tooltip="{{strip.speed.partsLine}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.milesPerHour"}}</span>
       <span class="value">{{#if strip.speed.milesPerHour includeZero=true}}{{strip.speed.milesPerHour}}{{else}}—{{/if}}</span>
-      <span class="sub">{{#if strip.speed.milesPerDay includeZero=true}}{{strip.speed.milesPerDay}} {{localize "ACKS-FORMATION.strip.milesPerDay"}}{{else}}{{localize "ACKS-LIB.scale.notImported"}}{{/if}}</span>
+      <span class="sub">{{#if strip.speed.milesPerDay includeZero=true}}{{strip.speed.milesPerDay}} {{localize "ACKS-FORMATION.strip.milesPerDay"}}{{/if}}</span>
     </div>
     <div class="stat {{#if strip.spent}}quiet{{/if}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.walked"}}</span>
       <span class="value">{{strip.walked.miles}} {{localize "ACKS-FORMATION.travel.milesShort"}}</span>
-      <span class="sub">{{#if strip.speed.milesPerHour includeZero=true}}{{strip.walked.hours}} h{{#if strip.budget.priced}} {{localize "ACKS-FORMATION.strip.ofBudget" hours=strip.budget.hours miles=strip.budget.miles}}{{/if}}{{else}}{{localize "ACKS-LIB.scale.notImported"}}{{/if}}</span>
+      <span class="sub">{{#if strip.speed.milesPerHour includeZero=true}}{{strip.walked.hours}} h{{#if strip.budget.priced}} {{localize "ACKS-FORMATION.strip.ofBudget" hours=strip.budget.hours miles=strip.budget.miles}}{{/if}}{{/if}}</span>
     </div>
     <div class="stat">
       <span class="stat-label">{{localize "ACKS-FORMATION.travel.hex"}}</span>
@@ -25,7 +25,6 @@
     <div class="stat">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.nextThrow"}}</span>
       <span class="value">{{strip.cadence.next}}</span>
-      {{#if strip.cadence.missing}}<span class="sub">{{localize "ACKS-FORMATION.strip.unpricedCadence"}}</span>{{/if}}
     </div>
     <div class="stat">
       <span class="stat-label">{{localize "ACKS-FORMATION.strip.clock"}}</span>
@@ -80,15 +79,13 @@
   {{#if strip.settlement}}
   <div class="acks-extras-strip-city">
     <p class="acks-extras-formation-travel-readout">
-      {{#if strip.settlement.blocksUnpriced}}
-        <span class="hint">{{localize "ACKS-FORMATION.settlement.blocksUnpriced"}}</span>
-      {{else}}
+      {{#unless strip.settlement.blocksUnpriced}}
         <strong>{{strip.settlement.rateBlocks}}</strong> {{localize "ACKS-FORMATION.settlement.blocks"}}
         {{#if strip.settlement.straggling}}
           · <span class="acks-extras-formation-settlement-straggle"
                   data-tooltip="{{localize 'ACKS-FORMATION.settlement.stragglingHeadcount' headcount=strip.settlement.headcount}}">{{localize "ACKS-FORMATION.settlement.straggling"}}</span>
         {{/if}}
-      {{/if}}
+      {{/unless}}
     </p>
     {{#if isGM}}
     <p class="acks-extras-formation-settlement-progress">
@@ -102,9 +99,7 @@
     <p class="hint acks-extras-formation-settlement-clock">{{strip.settlement.clockLine}}</p>
     {{/if}}
     <p class="hint">
-      {{#if strip.settlement.cadenceMissing}}
-        {{localize "ACKS-FORMATION.settlement.cadenceMissing"}}
-      {{else}}
+      {{#unless strip.settlement.cadenceMissing}}
         {{! Already formatted by the view: which layer set the interval and which
             set the target are two questions, and the answer can name two places.
             The card renders the same string from the same reader. }}
@@ -113,10 +108,7 @@
         {{else}}
           {{localize "ACKS-FORMATION.settlement.cadence" turns=strip.settlement.cadence.everyTurns target=strip.settlement.cadence.target}}
         {{/if}}
-        {{#if strip.settlement.unpricedIntent}}
-          <span class="hint">{{localize "ACKS-FORMATION.settlement.unpricedIntent"}}</span>
-        {{/if}}
-      {{/if}}
+      {{/unless}}
     </p>
   </div>
   {{/if}}

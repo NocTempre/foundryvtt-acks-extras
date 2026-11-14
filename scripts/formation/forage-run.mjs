@@ -142,9 +142,9 @@ export async function runForageDay(formation, { kinds = ["food"], hunting = fals
 
 /** What the day's work turned up, for the Judge. */
 async function whisperForage(results) {
-  const lines = results.map((r) => {
+  // A kind with a figure nobody imported has no line.
+  const lines = results.filter((r) => !r.unpriced).map((r) => {
     const label = game.i18n.localize(FORAGE_KINDS[r.kind]?.label ?? "ACKS-FORMATION.travel.activity.hunt");
-    if (r.unpriced) return loc("forageRun.unpriced", { kind: label });
     if (r.automatic) return loc("forageRun.automatic", { kind: label });
     if (!(r.found > 0)) return loc("forageRun.nothing", { kind: label, throws: r.throws });
     const amount = Math.round(r.found * 10) / 10;

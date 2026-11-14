@@ -466,15 +466,15 @@ async function whisperStay(board, events, rolls, {
     lines.push(loc("settlement.card.stillCatchingUp", { credited, left: asked - credited }));
   }
 
-  const gap = events.find((e) => e.kind === "unpriced");
-  if (gap) {
-    lines.push(loc("settlement.card.unpriced", { what: gap.what }));
-  } else if (met.length) {
-    lines.push(loc("settlement.card.interrupted", {
-      count: met.length, days: met.map((e) => e.day).join(", "),
-    }));
-  } else if (owed.length) {
-    lines.push(loc("settlement.card.undisturbed", { throws: owed.length }));
+  // A stay with a figure nobody imported has no tally to give.
+  if (!events.some((e) => e.kind === "unpriced")) {
+    if (met.length) {
+      lines.push(loc("settlement.card.interrupted", {
+        count: met.length, days: met.map((e) => e.day).join(", "),
+      }));
+    } else if (owed.length) {
+      lines.push(loc("settlement.card.undisturbed", { throws: owed.length }));
+    }
   }
 
   // Each met day draws through the street turn's own order; no marker is left on the map.
@@ -600,10 +600,7 @@ async function whisperTurn(
   }
 
   const strayed = events.find((e) => e.kind === "strayed");
-  if (strayed) {
-    lines.push(loc(strayed.blocks ? "settlement.card.strayed" : "settlement.card.strayedUnpriced",
-      { dice: strayed.blocks ?? "" }));
-  }
+  if (strayed?.blocks) lines.push(loc("settlement.card.strayed", { dice: strayed.blocks }));
   const owed = events.find((e) => e.kind === "encounterOwed");
   if (owed) {
     // Attribution is per FIGURE, through the reader the panel also uses: the
@@ -618,8 +615,6 @@ async function whisperTurn(
       ? loc("settlement.card.owed", { target: owed.target })
       : loc(owed.met ? "settlement.card.met" : "settlement.card.quiet",
         { rolled: owed.rolled, target: owed.target, die: streetDieTip(streetDie()) }));
-    // The tick flags a wanted-trouble intent with no imported figure; this card says so.
-    if (owed.unpricedIntent) lines.push(loc("settlement.card.unpricedIntent"));
     if (owed.met) {
       const { incident, lines: drawn } = await drawIncidentLines(pick, { night, board, rolls });
       lines.push(...drawn);
@@ -637,9 +632,6 @@ async function whisperTurn(
         if (note) lines.push(markerLine(note));
       }
     }
-  }
-  for (const gap of events.filter((e) => e.kind === "unpriced")) {
-    lines.push(loc("settlement.card.unpriced", { what: gap.what }));
   }
 
   await postToJudges({

@@ -707,7 +707,7 @@ With nothing imported a shadowy or blind creature, or a dark-sighted one with no
 recorded range, still sees without light (`seesInDark` is the procedure's) but its
 `sightRange` is `null` and its detection gains no range, and a night-eyed creature reached by light has no figure; the
 character sheet's vision rows and rail light cell, and the Formation tab's dark-sight
-chip, read "not imported" with no number in its place, and the token receives a
+chip, stay blank with no number in their place, and the token receives a
 radius of 0 (`token-sync.mjs`) until the figure is imported. A recorded range on the
 sheet (`lightlessRange`, an `otherSenses` entry) is the creature's own and never
 waits on the import.
@@ -735,8 +735,8 @@ nothing is imported, and `lightCite()` the page the import read, `null` for an
 override. The Judge edits the figures in the Ruledata Browser (export, edit,
 drop back), which writes the OVERRIDE layer and wins over the import. With
 nothing imported a lit light sheds nothing (`emittedLight` reads 0), burns
-uncounted (`remaining` left unset), and every surface that shows a figure says
-it is not imported.
+uncounted (`remaining` left unset), and every surface that shows a figure leaves
+it blank.
 
 **A magic light is an effect.** Light that is not a carried flame is declared by
 an Active Effect with two changes, `flags.acks-extras.magicLight.bright` and
@@ -1186,7 +1186,7 @@ dragged out of a hold onto such a sheet
 `gear.capacity` first and the `container.capacity` record second, so an item
 carrying only that record still answers.
 Null is not "holds nothing": an item that declares `gear.holds` is a
-container whose size is not imported, so `holdsGear` is true for it,
+container whose size is not imported (its capacity reads blank), so `holdsGear` is true for it,
 `capacityStated` false, and it counts no limit.
 
 **It is not a container property.** While capacity lived inside the equipment
@@ -2010,8 +2010,10 @@ The printed option lists are read through the same door.
   entry per option, labelled with its printed words, answering to its nouns and
   to the category keys `martialOption` resolves to it. `selectionVocabFor` asks
   a registered provider first and at every call, so a Judge's override of the
-  lists reaches it, and `hasSelectionProvider(item)` tells the ability sheet an
-  empty answer means "not imported". `vocab` never imports `weapons`.
+  lists reaches it, and `hasSelectionProvider(item)` answers whether a provider
+  is registered for the ability, which tells a provider's empty answer from an
+  ability no provider covers; no module surface reads it. `vocab` never imports
+  `weapons`.
 
 ## Automated Animations
 
@@ -2085,12 +2087,12 @@ travel hours, and the wilderness factor are the `expedition` table of the
   for a figure whose inputs are missing, and one missing figure costs only what
   stands on it: with no forced hours the forced pace has no multiplier, while the
   dedicated day still prices. `explorationFeetPerTurn` stays a number (it is
-  the party's own speed). A consumer shows "not imported" (lang key
-  `ACKS-LIB.scale.notImported`) and never a zero, which a throw target or a day
-  budget would price as a real figure.
+  the party's own speed). A consumer leaves the figure blank and never shows a
+  zero, which a throw target or a day budget would price as a real figure.
 - `expeditionTip` is the figure's provenance for a tooltip: the ratio, the
-  pace's hours and the page the table was read from (`expeditionCite`), or "not
-  imported". A Judge's override of the table replaces it whole and carries no page.
+  pace's hours and the page the table was read from (`expeditionCite`); with
+  nothing imported it is the empty string. A Judge's override of the table
+  replaces it whole and carries no page.
 - Consumers: the Formation journey strip and day close, the camp search's target,
   the Vehicle sheet's Travel tab, and the voyage's comparison with a march.
 
@@ -2225,8 +2227,8 @@ figure in that slot arrives in the registered `conditions` document's
 `modifiers` table, which the importer's `conditions-binding.mjs` assembles
 from the Judge's book. `CONDITION_SLOTS` is derived from the rows and is the
 contract between the two. A slot nothing registered contributes nothing and is
-reported once per session, so an unimported world toggles conditions and
-applies no figure. A row can be narrowed two ways: `scope` names the kinds of
+named in the math's `unpriced` list, so an unimported world toggles conditions
+and applies no figure. A row can be narrowed two ways: `scope` names the kinds of
 attack it reaches (on an Armor Class row, the kinds it stands against), and
 `saves` the saving throws. A roll that states no kind, or no save, takes no
 row narrowed that way.

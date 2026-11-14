@@ -352,10 +352,12 @@ export function activityLabel(key) {
 /**
  * A refusal as the column and the warning say it. A trap's refusal is the trap
  * dialog's own line; the party's reasons are the formation's; lib's are lib's;
- * anything else is the generic line.
+ * anything else is the generic line. A refusal for a figure nobody imported
+ * has no words and answers an empty string.
  */
 export function reasonText(reason, actor = null) {
   const name = actor?.name ?? "";
+  if (reason === "notImported") return "";
   if (typeof reason === "string" && reason.startsWith("trap:")) {
     return game.i18n.format(`ACKS-FORMATION.traps.refuse.${reason.slice(5)}`, { name });
   }
@@ -413,11 +415,11 @@ export function planView(formation) {
     }
     if (actor && view.canControl && !blockId) {
       view.options = offeredActivities(actor, { ...ctx, member }).map((row) => {
-        const why = row.blocked ? reasonText(row.blocked.reason, actor) : row.turns == null ? reasonText("notImported", actor) : null;
+        const why = row.blocked ? reasonText(row.blocked.reason, actor) : null;
         return {
           value: `${row.key}|${row.option?.id ?? ""}`,
           label: why ? `${optionLabel(row)} — ${why}` : optionLabel(row),
-          disabled: !!why,
+          disabled: !!row.blocked || row.turns == null,
           selected: !!entry && entry.key === row.key && (entry.option ?? "") === (row.option?.id ?? ""),
         };
       });

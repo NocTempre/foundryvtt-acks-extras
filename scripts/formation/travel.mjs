@@ -72,11 +72,11 @@ export function ancillarySlots() {
 
 /**
  * Where the slot count came from, for its tooltip: the page the expedition
- * table was imported from, a Judge's override (which holds no page), or not
- * imported.
+ * table was imported from, a Judge's override (which holds no page), or an
+ * empty string while the hours are not imported.
  */
 export function ancillarySlotsProvenance() {
-  if (ancillarySlots() == null) return game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.none");
+  if (ancillarySlots() == null) return "";
   const cite = expeditionCite();
   return cite
     ? game.i18n.format("ACKS-FORMATION.chat.cadenceFrom.import", { cite })

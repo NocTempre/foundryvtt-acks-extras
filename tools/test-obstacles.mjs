@@ -155,13 +155,13 @@ ok("a Judge's override with no words reads as not imported, and `falls` must be 
   resetTables();
 });
 
-ok("the outcome's tooltip names the imported page, the override, or not imported", () => {
+ok("the outcome's tooltip names the imported page, the override, or is empty", () => {
   registerTable({ id: FORMATION_DOC, source: "invented", cites: { [OUTCOMES_TABLE]: "XX p. 9" }, tables: { [OUTCOMES_TABLE]: OUTCOMES } },
     { priority: PRIORITY.WORLD, source: "test" });
   assert.match(outcomeProvenance(obstacleOutcome("easyClimb", "fail")), /cadenceFrom\.import.*XX p\. 9/);
   registerTable({ id: FORMATION_DOC, tables: { [OUTCOMES_TABLE]: OUTCOMES } }, { priority: PRIORITY.OVERRIDE, source: "judge" });
   assert.match(outcomeProvenance(obstacleOutcome("easyClimb", "fail")), /cadenceFrom\.override/);
-  assert.match(outcomeProvenance(null), /cadenceFrom\.none/);
+  assert.equal(outcomeProvenance(null), "");
   resetTables();
 });
 
@@ -192,7 +192,7 @@ function mockWorld(naturals) {
   return { posted, rolled };
 }
 
-await okAsync("a party at an obstacle with no stretch imported rolls nothing and names why", async () => {
+await okAsync("a party at an obstacle with no stretch imported rolls nothing and lists each name with no reason", async () => {
   resetTables();
   const world = mockWorld([]);
   const results = await attemptObstacle([{ actor: { name: "Ayla" } }, { actor: { name: "Brun" }, proficient: true, classThrow: 9 }],
@@ -201,7 +201,8 @@ await okAsync("a party at an obstacle with no stretch imported rolls nothing and
   assert.equal(results.length, 2);
   assert.ok(results.every((r) => r.blocked && r.plan.reason === "notImported"));
   assert.equal(world.posted.length, 1);
-  assert.match(world.posted[0].content, /obstacles\.reason\.notImported/);
+  assert.doesNotMatch(world.posted[0].content, /obstacles\.reason/);
+  assert.match(world.posted[0].content, /<li><strong>Ayla<\/strong><\/li>/);
 });
 
 await okAsync("with the stretch imported each member throws once per stretch and a fall ends the climb", async () => {
@@ -230,7 +231,7 @@ await okAsync("a fall on the first stretch stops that member's throws", async ()
   resetTables();
 });
 
-await okAsync("imported words reach the card escaped, and an unimported outcome says so", async () => {
+await okAsync("imported words reach the card escaped, and an unimported outcome reads as a plain miss", async () => {
   load(SPELUNKING, { crawl: { fail: { text: "<b>Stuck</b>", falls: false } } });
   let world = mockWorld([2, 2]);
   await attemptObstacle([{ actor: { name: "Ayla" } }], { kind: "crawl", feet: 80 });
@@ -239,7 +240,7 @@ await okAsync("imported words reach the card escaped, and an unimported outcome 
   const results = await attemptObstacle([{ actor: { name: "Ayla" } }], { kind: "narrowLedge", feet: 80 });
   assert.equal(world.rolled.length, 1, "a miss with no outcome imported stops that climber");
   assert.equal(results[0].attempts[0].outcome, null);
-  assert.match(world.posted[0].content, /obstacles\.outcome\.notImported/);
+  assert.match(world.posted[0].content, /obstacles\.outcome\.missed/);
   resetTables();
 });
 

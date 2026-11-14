@@ -127,19 +127,12 @@
     </p>
     <p class="acks-extras-formation-settlement-nav">
       {{#if city.throws}}
-        {{#if city.navUnpriced}}
-          <span class="hint">{{localize "ACKS-FORMATION.settlement.navUnpriced"}}</span>
-        {{else}}
+        {{#unless city.navUnpriced}}
           {{localize "ACKS-FORMATION.settlement.navThrow" target=city.navTarget modifier=city.navModifier}}
-          {{#if city.navRouteUnpriced}}
-            <span class="hint">{{localize "ACKS-FORMATION.settlement.navRouteUnpriced"}}</span>
-          {{/if}}
           {{#if city.stray}}
             <span class="hint">{{localize "ACKS-FORMATION.settlement.strayHint" dice=city.stray}}</span>
-          {{else}}
-            <span class="hint">{{localize "ACKS-FORMATION.settlement.strayUnpriced"}}</span>
           {{/if}}
-        {{/if}}
+        {{/unless}}
       {{else}}
         <span class="hint">{{city.noThrowReason}}</span>
       {{/if}}

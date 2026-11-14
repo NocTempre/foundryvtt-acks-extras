@@ -100,12 +100,16 @@ async function executeRequest(formation, user, type, payload) {
       const option = typeof payload.option === "string" && payload.option ? payload.option : null;
       const result = await lockPlan(formation, { actorId: payload.actorId, key: payload.key, option, by: user.id });
       if (!result.ok) {
-        // The party changed since the declaring seat checked; tell it.
-        await ChatMessage.create({
-          content: foundry.utils.escapeHTML(reasonText(result.reason, game.actors.get(payload.actorId))),
-          whisper: [user.id],
-          speaker: { alias: formation.name ?? "" },
-        });
+        // The party changed since the declaring seat checked; tell it, unless
+        // the refusal has no words (a length nobody imported).
+        const said = reasonText(result.reason, game.actors.get(payload.actorId));
+        if (said) {
+          await ChatMessage.create({
+            content: foundry.utils.escapeHTML(said),
+            whisper: [user.id],
+            speaker: { alias: formation.name ?? "" },
+          });
+        }
         return;
       }
       await announceDeclaration(formation, user, loc("plan.request.lock", {

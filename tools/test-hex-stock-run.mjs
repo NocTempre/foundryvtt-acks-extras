@@ -617,7 +617,7 @@ await t("nobody holding the proficiency, an unstocked hex, a player, or a missin
   register({ searching: false });
   chat.length = 0;
   assert.equal(await run.surveyHex(live.formation), null);
-  assert.match(chat[0].content, /hexStock\.unpriced \{"what":"surveyTarget"\}/);
+  assert.equal(chat.length, 0, "an unimported survey target posts nothing");
   register();
 });
 

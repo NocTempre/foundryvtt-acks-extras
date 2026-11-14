@@ -129,7 +129,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    `tablesMissing` reason); with them the day's
    miles scale per the registered rows. An impassable terrain refuses through
    `canEnter` (structural — no table needed) rather than returning a number.
-   The miles-per-day cell reads "Not imported" until the `expedition` table is
+   The miles-per-day cell is blank until the `expedition` table is
    registered (a positive `feetPerMilePerDay` and the three `…Hours` keys, any
    invented values); then it shows a number whose tooltip lists the ratio and
    the pace's hours, and a forced march's miles a day move by forced hours over

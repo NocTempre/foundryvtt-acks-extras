@@ -538,7 +538,7 @@ await t("the canopy is read at the hex the party really stands in while astray",
   assert.equal(h.attempts.length, 2, "standing where it believes, the same flier sees open ground");
 });
 
-await t("a tracker in the order adds the figure; a missing figure says so", async () => {
+await t("a tracker in the order adds the figure; a missing figure adds no line", async () => {
   const { formation } = world({ members: ["walker", "tracker"] });
   await search(formation, { present: "no" });
   assert.deepEqual(formulas, ["1d20 + 3"]);
@@ -549,7 +549,7 @@ await t("a tracker in the order adds the figure; a missing figure says so", asyn
   const r = await search(formation, { present: "no" });
   assert.equal(r.ok, true, "the throw never refuses for the missing figure");
   assert.deepEqual(formulas, ["1d20"]);
-  assert.ok(searchCard().includes("searchRun.trackingUnpriced"));
+  assert.ok(!searchCard().includes("trackingUnpriced"));
 
   const walker = world();
   await search(walker.formation, { present: "no" });

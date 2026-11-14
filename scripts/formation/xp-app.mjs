@@ -95,7 +95,7 @@ function bonusCell(b) {
   if (!b) return "—";
   if (b.source === "tweaks") return `${signed(b.bonus)} <span class="hint">${game.i18n.localize(`${LANG_PREFIX}.bonusTweaks`)}</span>`;
   if (b.source === "keyAttribute") return `${signed(b.bonus)} <span class="hint">${foundry.utils.escapeHTML(b.attrLabel ?? "")}</span>`;
-  if (b.unread) return `<span class="hint" title="${game.i18n.localize(`${LANG_PREFIX}.bonusUnreadHint`)}">${game.i18n.localize(`${LANG_PREFIX}.bonusUnread`)}</span>`;
+  if (b.unread) return `<span class="hint" data-tooltip="${LANG_PREFIX}.bonusCite"></span>`;
   return "—";
 }
 

@@ -510,13 +510,13 @@ await ok("a forced march tires everyone, a labourer included, and a rest day wit
   assert.deepEqual(fatigueOfActor(worker), { activityDays: 0, sleeplessDays: 0, forcedDays: 0 });
 });
 
-await ok("an unimported fatigue table tires nobody and the card says so", async () => {
+await ok("an unimported fatigue table tires nobody and the card says nothing of it", async () => {
   unregisterTable(SURVIVAL_DOC);
   const a = makeActor("Untimed");
   const id = makeFormation([a]);
   await runRestNight(getFormation(id), { weather: CLEAR, day: { kind: "forced", noSleep: true }, camp: {} });
   assert.equal(conditionStacksOf(a, "fatigued"), 0);
-  assert.match(restCards().at(-1).content, /rest\.unpriced/);
+  assert.doesNotMatch(restCards().at(-1).content, /rest\.unpriced/);
   registerTable(SURVIVAL, { priority: PRIORITY.WORLD, source: "test" });
 });
 

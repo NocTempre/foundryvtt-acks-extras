@@ -159,8 +159,6 @@ import * as flight from "./flight.mjs";
 import { FLIGHT_DOC } from "./flight.mjs";
 import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
-import { missingTablesList } from "../lib/ruledata.mjs";
-import { LIGHT_DOC } from "../lib/light.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
 import { registerPartyRoster } from "./party-roster.mjs";
@@ -730,12 +728,6 @@ Hooks.once("ready", () => {
   registerRequestSocket();
   // Index the skill ladders the importer imported.
   initLadders();
-  // A GM seat is told once which of the delve's light and wandering-throw
-  // tables the world lacks.
-  if (game.user.isGM) {
-    const missing = missingTablesList([LIGHT_DOC, DELVE_ENCOUNTER_DOC]);
-    if (missing.length) ui.notifications.warn(game.i18n.format("ACKS-FORMATION.tablesMissing", { list: missing.join(", ") }));
-  }
   // A party holed up in a city has no movement to read, so its stay is
   // credited off the calendar. Idempotent: the board carries the world time
   // each stay is counted from.

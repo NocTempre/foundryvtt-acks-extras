@@ -3590,15 +3590,14 @@ the step that wants it present imports it.
 
 1. **Nothing imported.** With the `senses` document absent, open
    `lib/senses-shadowy`'s sheet, Stats tab. *Observable:* the Shadowy vision row
-   shows no figure and reads "not imported", its tooltip says so; the rail's
-   light cell shows a dash and the same note on hover. On the Formation tab the
-   member's dark-sight chip shows a dash with the not-imported tooltip. Its
-   token's `sight.range` is 0.
+   shows no figure, its text blank; the rail's light cell names the sense and
+   shows no radius. On the Formation tab the member's dark-sight chip shows its
+   icon with no number. Its token's `sight.range` is 0.
 2. **A night-eyed creature, nothing imported.** Open `lib/senses-night`'s sheet.
    *Observable:* no multiplied reach shows, and its token's `sight.range` is 0
    with the torch lit. A monster carrying Lightless Vision with no recorded
    range (`lib/senses-lightless`) reads the same on its Stats tab: the Lightless
-   vision row says "not imported" with no figure, and its token's `sight.range`
+   vision row shows no figure, and its token's `sight.range`
    is 0.
 3. **Import.** Run `acksExtras.importer.cookbookImportTables(["senses"])` (or the
    Rules tables dialog, ticking the Senses document) with RR and MM connected.

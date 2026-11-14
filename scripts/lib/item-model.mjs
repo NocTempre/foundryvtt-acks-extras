@@ -499,7 +499,7 @@ export function capacityOf(item) {
 /**
  * Can gear be put inside this at all? A stated capacity says so, and so does a
  * `gear.holds` declaration with none: that container takes gear with no limit,
- * and a surface says its capacity is not imported (`capacityStated`).
+ * and a surface leaves its capacity blank (`capacityStated`).
  */
 export const holdsGear = (item) => capacityOf(item) !== null || gearOf(item).holds === true;
 

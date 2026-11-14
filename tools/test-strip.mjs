@@ -341,7 +341,7 @@ const stripOf = (id) => {
   const mapless = makeFormation(null, null);
   const none = stripOf(mapless).cadence;
   assert.equal(none.by, "none");
-  assert.equal(none.next, "ACKS-FORMATION.strip.unpricedCadence");
+  assert.equal(none.next, "");
   assert.equal(none.nextMiles, null);
   registerFrequency();
 }

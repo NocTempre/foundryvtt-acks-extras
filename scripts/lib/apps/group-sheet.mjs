@@ -192,7 +192,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
   static #rollNotes(stack, source) {
     if (!isCreatureStack(stack)) return [];
     if (!rollsOver(stack)) return [loc("roll.note.hand")];
-    if (!statesACount(source)) return [loc("roll.note.none")];
+    if (!statesACount(source)) return [];
     const sides = unitSides(source).map(({ context, state, count }) =>
       `${loc(`roll.context.${context}`)}, ${loc(`roll.state.${state}`)}: ${count}`);
     return sides.length ? [loc("roll.note.units", { sides: sides.join(" · ") })] : [];
@@ -292,10 +292,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
    */
   static async #pickVariant(template) {
     const sys = template.system;
-    if (sys.isStub) {
-      ui.notifications.warn(game.i18n.localize("ACKS-LIB.template.warn.stub"));
-      return null;
-    }
+    if (sys.isStub) return null;
     // An axis that names a default takes it when left alone, so its blank
     // choice says which; an unavailable pick falls back to it (`chooseAxes`).
     const axes = (sys.axes ?? []).filter((axis) => !axis.multi).map((axis) => {
@@ -340,7 +337,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
         ...ROLL_STATES.map((value) => ({ value, label: loc(`roll.state.${value}`) })),
         {
           value: BY_LAIR_CHANCE,
-          label: chance == null ? loc("roll.state.noChance") : loc("roll.state.chance", { n: chance }),
+          label: chance == null ? "" : loc("roll.state.chance", { n: chance }),
           disabled: chance == null,
         },
       ],
@@ -462,7 +459,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
   static async #onRollEncounter(event, target) {
     const stack = this.actor.system.stackOf(GroupSheet.#stackKey(target));
     if (!stack) return;
-    const refused = (result) => ui.notifications.warn(loc(`roll.refused.${result.reason}`, result));
+    const refused = (result) => result.reason === "noChance" || ui.notifications.warn(loc(`roll.refused.${result.reason}`, result));
     const refusal = rollRefusal(this.actor, stack);
     if (refusal) return refused(refusal);
     const choice = await GroupSheet.#askRoll(stack);

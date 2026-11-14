@@ -16,9 +16,6 @@
              placeholder="{{triggerOnPlaceholder}}" data-dtype="Number" min="0"
              {{#if triggerMax}}max="{{triggerMax}}"{{/if}} {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.triggerOn'}}</p>
-      {{#if triggerNotImported}}
-        <p class="hint">{{localize 'ACKS-FORMATION.traps.triggerNotImportedSheet'}}</p>
-      {{/if}}
     </div>
 
     <div class="form-group">
@@ -127,9 +124,6 @@
       <p class="hint acks-extras-trap-derived">
         {{localize 'ACKS-FORMATION.traps.derivedDamage' formula=derivedDamage}}
       </p>
-    {{/if}}
-    {{#if pitUnknown}}
-      <p class="hint acks-extras-trap-derived">{{pitUnknown}}</p>
     {{/if}}
   </fieldset>
 

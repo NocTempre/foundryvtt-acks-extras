@@ -337,7 +337,7 @@ search, a survey, the navigation throw and a tracker's hours, on foraging for
 firewood or water, how far the party can be seen, a flier's storm, what a
 night's rest needs and the sickness a run of such days risks. Every figure is
 read from your own weather pages by the importer; until they are imported the
-list says the sky is unpriced, and nothing is charged. Each card that pays one
+list stays empty, and nothing is charged. Each card that pays one
 of these penalties names the weather on its own line.
 
 **End day**, at the head of the Wilderness tab, closes the day: it feeds the
@@ -413,7 +413,7 @@ stock (below); *Yes* and *No* are your word, and the stock is left alone.
 or to *Elsewhere* — a search for something that is not there. A find with one
 candidate is marked found; with several, the whispered card lists them and
 you mark the one they came upon. A tracker in the order adds the Tracking
-bonus; if that figure is not imported the card says so and throws without it.
+bonus; if that figure is not imported the card carries no line for it and throws without it.
 
 ### This hex
 
@@ -786,8 +786,7 @@ the damage, all of it, or nothing, where the rider is the point.
 For a pit, leave the damage blank and set the depth: the fall's dice are filled
 in for you from it, and ticking *Spiked* adds the spikes (RR ch. 6, Jumping and
 Leaping; JJ p. 238). Where the fall table or the spike dice are not imported the
-sheet says so and the pit deals none of that part; a damage formula you type
-needs neither.
+pit deals none of that part; a damage formula you type needs neither.
 
 ![](../releases/v4.9.0/formation-trap-item.png)
 
@@ -886,11 +885,10 @@ Rules Tables → Open Ruledata Browser`): the automatic search's reach bare and
 with a pole, how far the pole probes ahead, the secret die and the band that
 springs it, and the reach at which Trapbreaking is offered (RR ch. 6, Traps and
 Trapbreaking). The **Scout** and **Pole** role chips on the Order tab show the
-figures in force. A figure that is not imported costs only its own step, and the
-card says so: with no search reach only the front rank searches and only the trap
-the party crossed gets a throw; with no pole lead the pole does not probe; with no
-secret die or band nothing is rolled and nothing springs, and the card tells you
-to resolve the crossing by hand.
+figures in force. A figure that is not imported costs only its own step: with no
+search reach only the front rank searches and only the trap the party crossed
+gets a throw; with no pole lead the pole does not probe; with no secret die or
+band nothing is rolled and nothing springs, and you resolve the crossing by hand.
 
 At combat speed the party has neither the pole nor the hasty search (RR p. 263),
 and the card says so.
@@ -923,8 +921,8 @@ some other way than a throw and **Rebuild it** to make a trap a fresh secret
 again.*
 
 The list holds the traps within the imported Trapbreaking reach, and the dialog
-says which reach it used; where that figure is not imported, only a trap the
-party is touching is listed (RR ch. 6, combat actions). Players see the same
+says which reach it used; where that figure is not imported, the dialog names no
+reach and only a trap the party is touching is listed (RR ch. 6, combat actions). Players see the same
 dialog whenever one of their characters could actually make the throw, and their
 attempt is declared to you the way every other party action is.
 
@@ -1061,8 +1059,8 @@ leave before it can move.*
 Light is real: a lit torch occupies a hand, shines from its bearer's square in
 the column, and goes out when it burns through. How far each kind of light
 reaches and how long it burns come from your book through the importer; until
-the books are imported a lit torch sheds no light, and the Kit tab says the
-figure is not imported. You can change any of them in the Ruledata Browser.
+the books are imported a lit torch sheds no light, and the Kit tab leaves the
+figure blank. You can change any of them in the Ruledata Browser.
 
 ![](../releases/v11.14.0/formation-lights.png)
 

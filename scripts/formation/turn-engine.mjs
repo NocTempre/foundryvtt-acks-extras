@@ -180,7 +180,7 @@ export const cadenceStated = (params) => params?.die != null && params?.every !=
 /**
  * Where one cadence figure came from, for its tooltip: the zone that set it,
  * the world setting, the page it was imported from, or a Judge's override
- * layer, which holds no page.
+ * layer, which holds no page. A figure nothing supplied answers an empty string.
  */
 export function cadenceProvenance(params, key) {
   const from = params?.from?.[key];
@@ -190,7 +190,7 @@ export function cadenceProvenance(params, key) {
     const cite = citeOf(DELVE_ENCOUNTER_DOC, key);
     return cite ? loc("chat.cadenceFrom.import", { cite }) : loc("chat.cadenceFrom.override");
   }
-  return loc("chat.cadenceFrom.none");
+  return "";
 }
 
 /** The RollTable to draw wandering monsters from, if one is configured. */
@@ -208,16 +208,13 @@ async function resolveEncounterTable(formation, zone) {
  * `target`+. Result is whispered to GMs; on an encounter the distance and
  * minute-of-turn are pre-rolled and the zone/formation encounter table (if
  * any) is drawn from privately. With no die or no target stated by any
- * layer it throws nothing, says so, and returns false; with no distance dice
- * an encounter rolls no distance and its card says the dice are not imported.
+ * layer it throws nothing and returns false; with no distance dice an
+ * encounter rolls no distance and its card carries the minute alone.
  */
 export async function encounterCheck(formation, { manual = false, params = null } = {}) {
   const resolved = params ?? getEncounterParams(formation);
   const { zone, target, die } = resolved;
-  if (target == null || die == null) {
-    globalThis.ui?.notifications?.warn(loc("warn.encounterNotImported"));
-    return false;
-  }
+  if (target == null || die == null) return false;
 
   // The party's signature, reported on the card; the throw is the stated die regardless.
   const lit = formationHasLight(formation);

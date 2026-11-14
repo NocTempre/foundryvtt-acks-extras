@@ -78,19 +78,12 @@ export default class TrapSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const typed = String(tier.damageFormula ?? "").trim();
     const pit = typed ? { formula: null, unknown: [] } : pitDamage(tier.pitDepthFeet, tier.spiked);
     context.derivedDamage = pit.formula;
-    // A pit whose dice are not imported says so.
-    context.pitUnknown = pit.unknown.includes("fall")
-      ? label("pitFallNotImported")
-      : pit.unknown.includes("spikes")
-        ? label("pitSpikesNotImported")
-        : "";
 
     // The trigger band: blank reads the imported one; the die's faces bound a typed band.
     const figures = trapFigures();
     context.triggerMax = figures.triggerFaces;
     context.triggerOnDefault = figures.triggerOn;
     context.triggerOnPlaceholder = figures.triggerOn ?? "";
-    context.triggerNotImported = figures.triggerOn === null || figures.triggerFaces === null;
     return context;
   }
 

@@ -920,7 +920,8 @@ export const SHARED_ACTIONS = {
     if (!game.user.isGM && !ownsActor(actorId)) return;
     const refused = planRefusal(formation, request);
     if (refused) {
-      ui.notifications.warn(reasonText(refused.reason, game.actors.get(actorId)));
+      const said = reasonText(refused.reason, game.actors.get(actorId));
+      if (said) ui.notifications.warn(said);
       return;
     }
     if (game.user.isGM) {

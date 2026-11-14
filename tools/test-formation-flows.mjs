@@ -5060,11 +5060,10 @@ await scenario("a stay with no met day draws nothing", async () => {
   assert.deepEqual(stay.thrown, ["1d8", "1d8", "1d8"], "no incident die was thrown");
 });
 
-await scenario("a stay that cannot be priced, or has no incident list, still says so", async () => {
-  // No cadence imported: nothing is thrown, and the card says what is missing
-  // in the turn's words.
+await scenario("a stay that cannot be priced throws nothing and says nothing of it; one with no incident list still says so", async () => {
+  // No cadence imported: nothing is thrown, and the card carries no line for it.
   const unpriced = await takeStay({ faces: [], cadence: false, map: true });
-  assert.ok(unpriced.content.includes('settlement.card.unpriced {"what":"encounters"}'));
+  assert.ok(!unpriced.content.includes("settlement.card.unpriced"));
   assert.ok(!unpriced.content.includes("stayDay"));
   assert.deepEqual(unpriced.thrown, [], "no die was thrown for a street nobody priced");
 
@@ -5077,9 +5076,9 @@ await scenario("a stay that cannot be priced, or has no incident list, still say
   assert.ok(!/incident(Drawn|Banded|Plain)|settlement\.card\.incident \{/.test(bare.content), "and no incident is claimed");
 });
 
-await scenario("a stay priced but with the street's die not imported throws nothing and names the die", async () => {
+await scenario("a stay priced but with the street's die not imported throws nothing and names no die", async () => {
   const noDie = await takeStay({ faces: [], dice: false, map: true });
-  assert.ok(/settlement\.card\.unpriced \{"what":"[^"]*settlement\.streetDie[^"]*"\}/.test(noDie.content), "the card names the missing die");
+  assert.ok(!noDie.content.includes("settlement.card.unpriced"), "the card carries no line for the missing die");
   assert.deepEqual(noDie.thrown, [], "nothing was thrown on a die nobody printed");
   assert.ok(!noDie.content.includes("stayDay"));
 });
@@ -5273,7 +5272,7 @@ await scenario("the delve's wandering throw takes its cadence from the setting o
     assert.equal(onlyFormation().clock.encounterCounter, 0, "nor any turn counted toward one");
     const warned = notices.length;
     assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), false, "a manual throw with no target refuses");
-    assert.ok(notices.slice(warned).some(([kind, text]) => kind === "warn" && text.includes("warn.encounterNotImported")), "and says why");
+    assert.equal(notices.slice(warned).filter(([kind]) => kind === "warn").length, 0, "and raises no warning");
     assert.equal(throwCards(from).length, 0, "throwing nothing");
 
     // An interval and a target with no die to throw them on is still no throw.
@@ -5284,7 +5283,7 @@ await scenario("the delve's wandering throw takes its cadence from the setting o
     assert.equal(throwCards(from).length, 0, "no imported die, no throw scheduled");
     const warnedAgain = notices.length;
     assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), false, "and a manual throw refuses");
-    assert.ok(notices.slice(warnedAgain).some(([kind, text]) => kind === "warn" && text.includes("warn.encounterNotImported")), "saying why");
+    assert.equal(notices.slice(warnedAgain).filter(([kind]) => kind === "warn").length, 0, "with no warning");
 
     const cites = { die: "JJ p. 1", every: "JJ p. 1", target: "JJ p. 1", distance: "JJ p. 1" };
     registerTable(
@@ -5310,7 +5309,7 @@ await scenario("the delve's wandering throw takes its cadence from the setting o
     );
     from = chat.length;
     assert.equal(await engine.encounterCheck(model.getFormation(id), { manual: true }), true, "the throw still hits");
-    assert.match(hits(from)[0]?.flavor ?? "", /chat\.encounterDetailNoDistance/, "and the card says the distance is not imported");
+    assert.match(hits(from)[0]?.flavor ?? "", /chat\.encounterDetailNoDistance/, "and the card carries the minute alone");
     registerTable(
       { id: DELVE_ENCOUNTER_DOC, cites, tables: { die: "1d8", every: 3, target: 5, distance: "3d4*20" } },
       { priority: PRIORITY.WORLD },
