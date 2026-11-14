@@ -1,0 +1,1 @@
+The class builder's racial level caps read each row's build-point total from your own book's table (Settings tab → Game Settings → ACKS II — Extras → Manage imports, with the Rulebook connected); where that table is not imported, the builder reports the racial cap row as missing.
