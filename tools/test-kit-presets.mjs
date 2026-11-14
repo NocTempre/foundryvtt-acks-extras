@@ -4,8 +4,7 @@
  * imported tables read through the registry with their citations, a row
  * dressing only the kind and Hit Dice it is printed for, rank-and-file cells
  * writing the row's stat cells and no item, a leader's and an unarmoured
- * creature's armour class and a leader's damage modifier worked out at
- * generation with their parts, the axis
+ * creature's armour class worked out at generation with its parts, the axis
  * defaulting to the stat block, the kit hidden where a role has no cell, the
  * die conversion read through its header, and the tooltips naming each
  * figure's row only while the actor holds it.
@@ -228,7 +227,6 @@ ok("a leader in a troop's kit takes the row's armour class and damage plus its o
   // The row's 5, plus the leader's 6 over its warrior's 3.
   assert.equal(r.system.ac.value, 8);
   assert.deepEqual(derived, { value: 8, base: 5, step: 3, from: "troop", leaderAc: 6 });
-  // The row's +2 prints more than the warrior's +1: the leader's +3 over it is a step of 2.
   assert.deepEqual(r.system.damage.mod, { melee: 4, missile: 4 });
   const dk = r.flags[MID].extras.derived.kit;
   assert.equal(dk.memberAc, 3);
@@ -243,7 +241,6 @@ ok("a leader's kit damage follows the row below the warrior's, over a warrior wi
   applyGeneratedKit(bow);
   assert.deepEqual(bow.system.damage.mod, { melee: 2, missile: 2 }, "a row printing none, under the warrior's +1: 0 plus 3 less 1");
   assert.deepEqual(bow.flags[MID].extras.derived.kit.damage, { value: 2, base: 0, step: 2, leaderDamage: 3, memberDamage: 1 });
-  // A warrior whose stat line prints no modifier has none.
   register();
   const bare = { ...member("printer", { count: 2, bonus: 1, ac: 3 }), nameLabel: "printer", html: "", token: {} };
   const built = entryLeaderTemplate({ option: bare, text: "Each printer gang will be led by a champion with 6 AC, 4 HD, 20 hp, and a +3 damage bonus." });
@@ -253,7 +250,6 @@ ok("a leader's kit damage follows the row below the warrior's, over a warrior wi
   applyGeneratedKit(lead);
   assert.deepEqual(lead.system.damage.mod, { melee: 5, missile: 5 }, "the row's 2 plus the leader's 3 over none");
   assert.equal(lead.flags[MID].extras.derived.kit.damage.memberDamage, 0);
-  // A leader below its warrior takes the row down: the sum may be negative or none.
   assert.deepEqual(kitDamage({ troop: "bowmen", role: "champion", damage: 0, memberDamage: 4 }, 1), { value: -3, base: 0, step: -3, leaderDamage: 1, memberDamage: 4 });
   assert.equal(kitDamage({ troop: "bowmen", role: "champion", damage: 2, memberDamage: 3 }, 1).value, 0);
   const none = { system: { damage: { mod: { melee: 1, missile: 1 } } }, flags: { [MID]: { extras: { kit: { troop: "bowmen", role: "champion", damage: 2, memberDamage: 3, compute: true } } } } };
@@ -401,7 +397,6 @@ ok("the tooltips name the kit's row only while the actor holds its figure", () =
   assert.match(derivationTips({ kit: leaderKit, derived: { kit: dk, leader }, ac: 9, damageMod: 3 }, loc).leaderTip, /^statblock\.tip\.leaderDerivedEdited\|/);
   const nat = { value: 2, base: 2, step: 0, from: "natural", leaderAc: null, memberAc: 3, label: "Unarmoured", cite: "WW p.4" };
   assert.match(derivationTips({ kit: { troop: UNARMOURED, label: "Unarmoured", compute: true }, derived: { kit: nat }, ac: 2 }, loc).acTip, /^statblock\.tip\.acKitNatural\|/);
-  // A leader's kit damage: its parts while the actor holds the figure, and the leader reads intact.
   const dd = { value: 4, base: 2, step: 2, leaderDamage: 3, memberDamage: 1 };
   const dkd = { ...dk, damage: dd };
   const held = { kit: leaderKit, derived: { kit: dkd, leader }, ac: 8, damageMod: 4 };
@@ -414,7 +409,6 @@ ok("the tooltips name the kit's row only while the actor holds its figure", () =
   assert.match(derivationTips({ ...held, damageMod: 5 }, loc).leaderTip, /^statblock\.tip\.leaderDerivedEdited\|/, "and the leader reads as edited");
   const sharp = { ...leader, damage: 4 };
   assert.match(derivationTips({ ...held, derived: { kit: dkd, leader: sharp } }, loc).leaderTip, /^statblock\.tip\.leaderDerivedEdited\|/, "the kit's figure is not the leader record's own");
-  // A modifier worked out to none still names its parts; an empty schema record names nothing.
   const zero = { value: 0, base: 2, step: -2, leaderDamage: 1, memberDamage: 3 };
   assert.match(derivationTips({ kit: leaderKit, derived: { kit: { ...dk, damage: zero } }, ac: 8, damageMod: 0 }, loc).damageTip, /^statblock\.tip\.damageKitLeader\|damage=\+0,/);
   const blank = { missing: true, value: null };

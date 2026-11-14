@@ -136,10 +136,8 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
         }),
         // An armour class a kit no page prints was worked out from at
         // generation (monsters/kits.mjs `kitArmourClass`): the troop row's or
-        // the natural figure, and a leader's armour over its warrior's. A
-        // leader's damage modifier in a troop kit is worked out the same way
-        // (`kitDamage`): `damage` holds its parts, or `missing` where a part
-        // was not a number and the modifier was left at none.
+        // the natural figure, and a leader's armour over its warrior's; `damage`
+        // holds a leader's damage modifier worked out likewise (`kitDamage`).
         kit: new SchemaField({
           value: num({ integer: true }),
           base: num({ integer: true }),
@@ -175,8 +173,7 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
       // --- The troop kit a template generated the creature in
       //     (importer/kit-presets.mjs): the troop type, its own words, the
       //     figures its row printed and the row's citation. `compute` marks a
-      //     kit whose armour class (and a leader's damage modifier, from
-      //     `memberDamage`, its warrior's) was worked out at generation. ---
+      //     kit whose armour class was worked out at generation. ---
       kit: new SchemaField({
         troop: str(),
         label: str(),

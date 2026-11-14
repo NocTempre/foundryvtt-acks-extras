@@ -539,10 +539,8 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
 /* --- the creatures step asks alone and not inside the chain --- */
 
 {
-  // The real importer function behind the step; a mock library cannot open a compendium, so the import itself may throw.
   const step = GM_STEPS.find(([key]) => key === "stepMonsters")[1];
   const api = { cookbookImportMonsters };
-  /** How many dialogs a call built, over a library holding none of the creatures (else it returns before any dialog). */
   const asked = async (opts, call = (a) => (opts ? step(a, opts) : step(a))) => {
     emptyShelves();
     const before = confirmed.length;
@@ -568,7 +566,6 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   const warn = ui.notifications.warn;
   game.i18n.format = (key, args) => (warned.push({ key, args }), "");
   ui.notifications.warn = () => {};
-  /** The declined-ids warnings a call raised, over a library holding none of the creatures. */
   const declinedBy = async (ids) => {
     emptyShelves();
     warned.length = 0;

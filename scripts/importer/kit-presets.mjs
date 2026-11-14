@@ -9,10 +9,9 @@
  * for, with the kit's own words and the row's citation on `extras.kit`. A row
  * stands for a variant only where the variant is that kind and its Hit Dice
  * are the row's, so a row read under the wrong heading never dresses another
- * kind. A leader in a troop's kit has no printed armour class or damage
- * modifier, and a creature with the kit taken off no printed armour class:
- * their cells carry `extras.kit.compute` and the monsters feature works the
- * figures out at generation (`kitArmourClass`, `kitDamage`).
+ * kind. A leader in a troop's kit, and any creature with the kit taken off,
+ * have no printed armour class: their cells carry `extras.kit.compute` and the
+ * monsters feature works it out at generation (`kitArmourClass`).
  *
  * Model: docs/monsters/MODEL.md, "The Kit axis". Rulings:
  * docs/importer/DECISIONS.md, 2026-11-04.
@@ -88,8 +87,7 @@ export function kitPresets({ options, axes, cells, kits }) {
       const kit = { troop: row.troop, label: TROOP_LABELS[row.troop], note: row.note, ac: row.ac, damage: row.damage, move: row.move, morale: row.morale, cite: kits.troopsCite ?? "" };
       push(STANDARD_ROLE, row.troop, { ac: { value: row.ac }, damage: damageTotal(row.damage), ...moveAndMorale(row.move, row.morale) }, { ...kit, role: STANDARD_ROLE });
       // A leader takes the kit's move and morale; its armour class and damage
-      // modifier have no page and are worked out at generation from the row's,
-      // the leader's and its warrior's (`memberDamage`).
+      // modifier have no page and are worked out at generation.
       for (const role of roles) push(role, row.troop, moveAndMorale(row.move, row.morale), { ...kit, role, memberAc: Number.isFinite(memberAc) ? memberAc : null, memberDamage, compute: true });
     }
     const natural = kits.byType?.[kind];

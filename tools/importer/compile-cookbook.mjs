@@ -4990,14 +4990,8 @@ async function compileClass(doc, entry, kindRow) {
   // cost from the page the race prints it on, column by column like the body.
   if (spec.build?.race?.pages?.length) await rawColumns("race", spec.build.race.pages);
 
-  // A spread whose training paragraph shares baselines with its level table
-  // cannot be read out of a body column: the table's cells fold through the
-  // sentence. The register bounds the paragraph (`training.boxes`, on
-  // `training.page`, default the anchor page) and the field carries only those
-  // coordinates; the binder reads the training from it before the body. The
-  // joins that restore a space the line turn dropped ship; the hyphen merge
-  // does not, because a line turned inside a hyphenated weapon or style name
-  // must keep the hyphen the grant vocabulary spells it with.
+  // A training paragraph its level table folds through is bounded by the register's
+  // `training.boxes`. The hyphen merge is dropped: a hyphenated weapon or style name keeps its hyphen.
   if (spec.training?.boxes?.length) {
     const tPage = spec.training.page ?? page;
     const tpd = tPage === page ? pd : await pageItems(doc, tPage);
@@ -5045,9 +5039,7 @@ async function compileClass(doc, entry, kindRow) {
     // binder prices it against the world's builder tables.
     ...(spec.build ? { build: spec.build } : {}),
     // The run-in the spread states its combat training under — declared per
-    // class because the label is not the same on every spread — and the
-    // heading its variant grid's label column carries, which names the path
-    // group the grid becomes.
+    // class because the label is not the same on every spread; `labelHeader` names the path group.
     ...(spec.training || spec.tables?.training?.labelHeader
       ? {
           training: {

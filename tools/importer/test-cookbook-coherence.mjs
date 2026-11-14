@@ -269,9 +269,7 @@ for (const e of monsters) {
   check(`${e.id}: every encounter or lair paragraph sharing the spoils column sits below the spoils box${above.length ? ` — ${above.length} do not` : ""}`, above.length === 0);
 }
 
-/* A slayer proficiency's bonus is scoped to the kinds it works against and
- * sized off the page: its recipe carries `vsKinds` in the vocabulary a target's
- * kind is read in, and a locator where the size would be, never a literal. */
+/* A slayer proficiency's bonus is scoped by `vsKinds` and sized off the page. */
 {
   const MONSTER_KIND = (token) => !!MONSTER_TYPES[token] || kindOf({ type: "monster", name: token }).categories.has(token);
   const CHARACTER_KIND = (token) => kindOf({ type: "character", system: { details: { class: token } } }).categories.has(token);
@@ -287,7 +285,6 @@ for (const e of monsters) {
       );
     }
   }
-  // The shipped ladder locator materializes a rung per step, over invented prose that matches its shape.
   const goblin = entries.get("def.prof.goblinSlaying").fields.effects.specs[0];
   const prose = ["The character gets +4 on attack throws against wombats and the like. At level 5, this bonus rises to +6, and at level 9 it rises to +8."];
   const [ladder] = materializeEffects([goblin], prose);

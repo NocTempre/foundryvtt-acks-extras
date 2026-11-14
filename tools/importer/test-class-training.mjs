@@ -199,9 +199,6 @@ assert.equal(
 n++;
 
 /* --- a bounded paragraph is read before the body ------------------------- */
-// The register bounds a paragraph the level table interleaves, and the binder
-// reads the field the box produces ahead of the body columns, which hold the
-// folded text. Absent the field, the body is still the source.
 const folded =
   "Field Training:Yaks Title Rank Dice have weapon proficiency with long" +
   "rank spears, boar spears, and two-0 Faint 1 1d4 ------edged blades. They have " +
@@ -219,16 +216,12 @@ check("bounded paragraph: weapons", bounded.weapons, ["long spear", "boar spear"
 check("bounded paragraph: armour", bounded.armour, "heavy");
 check("bounded paragraph: styles", bounded.styles, ["dual"]);
 check("clean body, no field: still read", trainingOf(changesOf({ body1c0: clean })), bounded);
-// Both sources parse and differ: the field wins, wherever the body sits.
 const other = "Field Training: Yaks have weapon proficiency with clubs. They have no armor proficiency.";
 check("the field is read first", trainingOf(changesOf({ body1c0: other, trainingProse: clean })), bounded);
 check("an empty field falls back to the body",trainingOf(changesOf({ body1c0: clean, trainingProse: "" })), bounded);
 check("a field that does not parse falls back to the body", trainingOf(changesOf({ body1c0: clean, trainingProse: "No such paragraph." })), bounded);
 
 /* --- a variant grid's path group is named by the entry's declared heading -- */
-// The compiled entry carries the grid's label-column heading beside the run-in,
-// and the binder names the group from it; an entry that declares none gets the
-// generic group.
 const gridRows = [
   { label: "Lodge", key: "lodge", cells: { armour: "Armor", weapons: "Weapon Proficiencies", styles: "Styles" } },
   { label: "Fenwick", key: "fenwick", cells: { armour: "Light", weapons: "sling, dagger", styles: "dual weapon" } },

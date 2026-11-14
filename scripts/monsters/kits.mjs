@@ -7,12 +7,9 @@
  * modifier converts to from the same issue's conversion table, all into the
  * `monsters` registry document, and passed in.
  *
- * A kit with no printed figure is worked out at generation: a leader's armour
- * class (`kitArmourClass`) is its troop row's (or its kind's natural armour
- * class, unarmoured) plus the leader's armour class less its warrior's, and a
- * leader's damage modifier (`kitDamage`) is its troop row's plus the leader's
- * damage modifier less its warrior's. A damage modifier is a signed whole
- * number, so the difference is plain subtraction.
+ * A kit with no printed figure is worked out at generation (`kitArmourClass`):
+ * a leader's armour class is its troop row's (or its kind's natural armour
+ * class, unarmoured) plus the leader's armour class less its warrior's.
  */
 import { citeOf, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
@@ -47,11 +44,7 @@ export function troopDamage(text) {
 
 const finite = (v) => v !== null && v !== "" && Number.isFinite(Number(v));
 
-/**
- * A creature's damage modifier as the field holds it: a modifier no stat line
- * printed is none (0), a number is that number, and anything else present but
- * not a number is unreadable (null).
- */
+/** A creature's damage modifier as the field holds it: unprinted is 0, a number is itself, anything else null. */
 export function damageModOf(v) {
   if (v === undefined || v === null) return 0;
   return finite(v) ? Number(v) : null;
@@ -126,15 +119,10 @@ export function kitArmourClass(kit, resolvedAc) {
 }
 
 /**
- * A leader's damage modifier in a troop kit, worked out at generation: the
- * troop row's modifier plus the leader's modifier less its warrior's. `kit` is
- * the cell's `extras.kit` (`{troop, role, damage, memberDamage}`);
- * `resolvedDamage` the modifier the role's own cell wrote (none written is
- * none). Null where the rule does not apply: a rank and file, the unarmoured
- * option (armour class alone) or no kit. `{value, base, step, leaderDamage,
- * memberDamage}`; `{missing: true}` where the row's, the warrior's or the
- * leader's modifier is not a number, so no figure is worked out and none
- * stands in its place.
+ * A leader's damage modifier in a troop kit: the troop row's plus the leader's
+ * less its warrior's, as `{value, base, step, leaderDamage, memberDamage}`.
+ * Null for a rank and file, the unarmoured option or no kit; `{missing: true}`
+ * where a part is not a number.
  */
 export function kitDamage(kit, resolvedDamage) {
   if (!kit || kit.troop === UNARMOURED) return null;
@@ -150,17 +138,14 @@ export function kitDamage(kit, resolvedDamage) {
  * A generated creature's kit, applied to its resolved payload before it is
  * written (the template engine's resolved hook): a kit with no printed armour
  * class gets the one `kitArmourClass` works out, with its parts on
- * `extras.derived.kit`; a leader in a troop kit gets the damage modifier
- * `kitDamage` works out, written to both attack kinds with its parts on
- * `extras.derived.kit.damage`, or a blank (null, which core's damage roll reads
- * as no bonus) with `{missing: true}` there where a part is not a number; and
+ * `extras.derived.kit`; a leader's damage modifier likewise (`kitDamage`); and
  * the kit's own words are added to both prose
  * channels, the system biography and the Full Monster Sheet's notes, as the
  * line `noteLine(kit)` returns. A creature with no kit is left as it is.
  * `kits` is the world's tables as `importedKits` reads them; given, an
  * unarmoured kit naming its kind takes that kind's natural armour class from
  * them, and a kind the table no longer holds leaves the stat block's.
- * Returns the armour-class derivation written, or null.
+ * Returns the derivation written, or null.
  */
 export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null } = {}) {
   const extras = resolved?.flags?.[MODULE_ID]?.[FLAG_EXTRAS];
@@ -180,8 +165,7 @@ export function applyGeneratedKit(resolved, { noteLine = () => "", kits = null }
     }
     const damage = kitDamage(kit, system.damage?.mod?.melee);
     if (damage) {
-      // The field is nullable and every system roll path drops a null modifier,
-      // so a part that is not a number leaves the field blank, never a 0.
+      // A part that is not a number leaves the field blank (null), never 0.
       const written = damage.missing ? null : damage.value;
       system.damage = { ...(system.damage ?? {}), mod: { ...(system.damage?.mod ?? {}), melee: written, missile: written } };
       extras.derived = { ...(extras.derived ?? {}), kit: { ...(extras.derived?.kit ?? named), damage } };

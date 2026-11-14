@@ -1138,9 +1138,8 @@ export function bindClass(
 
   // What the class is trained to fight with, carried as an effect the actor
   // reads through the class item it holds. The run-in label is declared per
-  // class because the spreads do not all print it under the same one. A spread
-  // that bounds the paragraph on its page (`trainingProse`) is read from that
-  // box first; the body columns remain the source where it is absent.
+  // class because the spreads do not all print it under the same one. A
+  // page-bounded `trainingProse` box is read first; the body columns are the fallback.
   const trainingParts = typeof f.trainingProse === "string" && f.trainingProse ? [f.trainingProse, ...bodyParts] : bodyParts;
   const training = entry.training?.runin ? readTraining(trainingParts, entry.training.runin) : null;
 

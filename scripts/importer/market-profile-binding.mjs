@@ -118,14 +118,7 @@ export function goodsResolver(catalog = []) {
   return resolve;
 }
 
-/**
- * The name a report gives a good: its column's header where the grid has one,
- * a sideways grid's property label otherwise, the column key last. Reports
- * only; it never feeds `goodsResolver`.
- * @param {{header?: object, labels?: object}} grid executed grid output
- * @param {string} column the good's column key
- * @returns {string}
- */
+/** The name a report gives a good: its column's header, else a sideways grid's property label, else the key; never fed to `goodsResolver`. */
 export const goodLabel = (grid, column) => String(grid?.header?.[column] ?? grid?.labels?.[column] ?? column);
 
 /**

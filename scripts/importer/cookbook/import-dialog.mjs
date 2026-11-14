@@ -233,10 +233,8 @@ export async function cookbookDebug(entryId) {
 /**
  * GM/dev: import an explicit id list through the same bounded pool the dialog
  * and import-all use, folders included. Builds only the actor kinds `importOne`
- * dispatches (the `actorKindOf` set); an id that names no entry of an open
- * book, or an entry of another kind, is left out of the run and named in one
- * warning, so the count returned is of what the list asked for that this
- * import builds.
+ * dispatches (the `actorKindOf` set); any other id is left out and named in
+ * one warning.
  */
 export async function cookbookImportIds(ids) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
@@ -244,9 +242,7 @@ export async function cookbookImportIds(ids) {
   const declined = [];
   for (const id of ids ?? []) {
     const found = cookbookEntry(id);
-    // The entries of an open book cookbook only, as `actorEntriesAcrossBooks`
-    // lists them: a content cookbook has no `book`, and an entry with no kind
-    // would otherwise pass for a monster.
+    // An open book's actor entries only, as `actorEntriesAcrossBooks` lists them.
     const bookId = found?.cb?.book?.id;
     (bookId && ctx.sessionDocs.has(bookId) && actorKindOf(found.entry) ? wanted : declined).push(id);
   }
@@ -382,8 +378,8 @@ export async function cookbookImport() {
 
 /**
  * GM: import every monster the open book's cookbook ships, skipping what the
- * world already has. Asks for the go-ahead first unless `confirmed`: a caller
- * that already holds the Judge's consent (the Import Everything chain) passes it.
+ * world already has. Asks first unless `confirmed`, which a caller holding the
+ * Judge's consent passes.
  */
 export async function cookbookImportMonsters({ confirmed = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates actors).`);
