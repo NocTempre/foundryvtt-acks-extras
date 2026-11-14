@@ -14,7 +14,7 @@ import { MODULE_ID, LANG } from "../constants.mjs";
 import { loadBar, bridgeHands, slotBadge } from "../view-model.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { companionSlots } from "../../abilities/companions.mjs";
-import { carriedWeight6, capacity6, load6 } from "../../lib/capacity.mjs";
+import { carriedWeight6, capacity6, load6, riderBodyTip } from "../../lib/capacity.mjs";
 import { mountOf } from "../../lib/mount.mjs";
 import { getLoadout, heldHandsClause } from "../../equipment/loadout.mjs";
 import { heldGrip } from "../../equipment/attack-mods.mjs";
@@ -216,14 +216,25 @@ function placeRow(actor, provider, items, coinGC, pinned, scan) {
 /**
  * The creature the character rides, as the Mount rule lists it, or null on
  * foot. Its line is what it bears, the rider and their kit included, against
- * what it can where that is stated.
+ * what it can where that is stated. The load is blank where the rider's body
+ * weight is not known; the line's tooltip names where that weight is read from.
  */
 function mountRow(actor) {
   const mount = mountOf(actor);
   if (!mount) return null;
   const cap6 = capacity6(mount);
-  const figures = { load: stoneLabel(load6(mount)), max: cap6 === null ? "" : stoneLabel(cap6) };
-  return { uuid: mount.uuid, name: mount.name, img: mount.img, line: loc(cap6 === null ? "equipment.mountLoad" : "equipment.mountLoadOf", figures) };
+  const load = load6(mount);
+  const figures = { load: load === null ? "" : stoneLabel(load), max: cap6 === null ? "" : stoneLabel(cap6) };
+  const line = load === null
+    ? loc("equipment.mountLoadBlank")
+    : loc(cap6 === null ? "equipment.mountLoad" : "equipment.mountLoadOf", figures);
+  return {
+    uuid: mount.uuid,
+    name: mount.name,
+    img: mount.img,
+    line,
+    lineTip: riderBodyTip(actor),
+  };
 }
 
 /**

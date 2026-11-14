@@ -23,9 +23,83 @@ import {
 } from "./item-model.mjs";
 import { riderOf } from "./mount.mjs";
 import { bodyCount } from "./group-logic.mjs";
+import { citeOf, expectTables, getDoc, getLayer, hasDoc, PRIORITY } from "./tables.mjs";
 
-/** RR ch. 6 §Mounts prices the rider's own body at 15 stone. */
-export const RIDER_BODY6 = 15 * STONE;
+/** The registered document the weight of a man-sized body arrives in (RR p. 161). */
+export const CAPACITY_DOC = "capacity";
+/** Its table holding the body a rider or a passenger is assumed to weigh: `{stone}`. */
+export const RIDER_BODY_TABLE = "riderBody";
+
+/** Declare the capacity tables, so an import names them as missing until they land. */
+export function declareCapacityTables() {
+  expectTables(CAPACITY_DOC, [RIDER_BODY_TABLE]);
+}
+
+/**
+ * What a man-sized body weighs for purposes of carrying capacity, in sixths of
+ * a stone, from the world's `capacity` table (the Judge's override over the
+ * import); null when none is imported. Nothing stands in for it.
+ * @returns {number|null}
+ */
+export function riderBody6() {
+  if (!hasDoc(CAPACITY_DOC)) return null;
+  const raw = getDoc(CAPACITY_DOC)?.tables?.[RIDER_BODY_TABLE]?.stone;
+  const n = Number(raw);
+  return raw != null && raw !== "" && Number.isFinite(n) && n > 0 ? n * STONE : null;
+}
+
+/**
+ * Where the man-sized body's weight came from, at render:
+ * `{state: "judge"}` where the Judge's own edit holds the table, `{state:
+ * "page", cite}` where the import recorded the page it read, and `{state:
+ * "none"}` where nothing is imported.
+ * @returns {{state: "judge"|"page"|"none", cite: string|null}}
+ */
+export function riderBodySource() {
+  if (riderBody6() === null) return { state: "none", cite: null };
+  if (getLayer(CAPACITY_DOC, PRIORITY.OVERRIDE)?.tables?.[RIDER_BODY_TABLE] != null) return { state: "judge", cite: null };
+  return { state: "page", cite: citeOf(CAPACITY_DOC, RIDER_BODY_TABLE) };
+}
+
+/**
+ * The body weight a creature states for itself (`extras.bodyStone`, per
+ * body), in stone; null where it states none. A blank field is no statement.
+ * @param {Actor} actor
+ * @returns {number|null}
+ */
+export function statedBodyStone(actor) {
+  const stated = actor?.flags?.[MODULE_ID]?.extras?.bodyStone;
+  const body = stated == null || stated === "" ? NaN : Number(stated);
+  return Number.isFinite(body) ? body : null;
+}
+
+/**
+ * What a figure built on the man-sized body says about where that weight came
+ * from, as a tooltip: the page the import read, the Judge's own edit, or the
+ * page reference alone where nothing is imported. Empty for an actor who
+ * states a body weight of their own, since that figure has no page.
+ * @param {Actor} actor whose body the figure weighs
+ * @returns {string}
+ */
+export function riderBodyTip(actor) {
+  const i18n = globalThis.game?.i18n;
+  if (!i18n || statedBodyStone(actor) !== null) return "";
+  const { state, cite } = riderBodySource();
+  if (state === "judge") return i18n.localize("ACKS-LIB.capacity.riderBody.judge");
+  if (state === "page" && cite) return i18n.format("ACKS-LIB.capacity.riderBody.page", { cite });
+  return i18n.localize("ACKS-LIB.capacity.riderBody.none");
+}
+
+/**
+ * One body's weight in sixths of a stone: the creature's own stated weight,
+ * else the imported man-sized body; null when neither is known.
+ * @param {Actor} actor
+ * @returns {number|null}
+ */
+export function bodyWeight6(actor) {
+  const own = statedBodyStone(actor);
+  return own === null ? riderBody6() : own * STONE;
+}
 
 /**
  * An item listed on the sheet that is not on the body: a spoil (a creature's
@@ -59,15 +133,17 @@ export function carriedWeight6(actor) {
 
 /**
  * What this actor costs the thing carrying them: their body plus their kit,
- * unmitigated. A character's body is the book's 15 stone; a creature with a
- * stated body weight uses its own (`bodyStone`, PER BODY); a stack weighs
- * every living body it stands for — twenty mercs as one group actor are
- * twenty bodies and one shared kit, never one.
+ * unmitigated. A character's body is the man-sized weight the book assumes
+ * (`riderBody6`, RR p. 161); a creature with a stated body weight uses its own
+ * (`bodyStone`, PER BODY); a stack weighs every living body it stands for —
+ * twenty mercs as one group actor are twenty bodies and one shared kit, never
+ * one. Null where the body's weight is not known: the kit alone is not the
+ * cost, and every figure derived from this answers null with it.
+ * @returns {number|null}
  */
 export function borneBy6(actor) {
-  const body = Number(actor?.flags?.[MODULE_ID]?.extras?.bodyStone);
-  const body6 = Number.isFinite(body) ? body * STONE : RIDER_BODY6;
-  return body6 * bodyCount(actor) + borneWeight6(actor);
+  const body6 = bodyWeight6(actor);
+  return body6 === null ? null : body6 * bodyCount(actor) + borneWeight6(actor);
 }
 
 const isActor = (doc) => doc?.documentName === "Actor";
@@ -101,7 +177,9 @@ export function capacity6(doc) {
 }
 
 /**
- * What the document is holding, in sixths of a stone.
+ * What the document is holding, in sixths of a stone. Null for a mount whose
+ * rider's body weight is not known: the load is then not a figure.
+ * @returns {number|null}
  */
 export function load6(doc) {
   if (isItem(doc)) {
@@ -117,14 +195,19 @@ export function load6(doc) {
   let sum = monsterCarried6(doc);
   // The rider's borne weight, never their encumbrance (see borneWeight6).
   const rider = riderOf(doc);
-  if (rider) sum += borneBy6(rider);
+  if (rider) {
+    const borne = borneBy6(rider);
+    if (borne === null) return null;
+    sum += borne;
+  }
   return sum;
 }
 
-/** Is it holding more than it can? Unstated capacity never warns. */
+/** Is it holding more than it can? Unstated capacity and an unknown load never warn. */
 export function overCapacity(doc) {
   const cap = capacity6(doc);
-  return cap !== null && load6(doc) > cap;
+  const load = load6(doc);
+  return cap !== null && load !== null && load > cap;
 }
 
 /** The document's capacity in stone, for display; null when none is stated. */
@@ -132,8 +215,11 @@ export const capacityStone = (doc) => {
   const cap = capacity6(doc);
   return cap === null ? null : cap / STONE;
 };
-/** What the document is holding, in stone, for display. */
-export const loadStone =(doc) => load6(doc) / STONE;
+/** What the document is holding, in stone, for display; null where `load6` is. */
+export const loadStone = (doc) => {
+  const load = load6(doc);
+  return load === null ? null : load / STONE;
+};
 
 /**
  * The exploration speed in feet per turn that the system's own movement

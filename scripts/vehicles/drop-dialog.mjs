@@ -75,7 +75,9 @@ export async function routeActorDrop(vehicle, doc, { preselect = null, auto = fa
  */
 function optionsFor(sys, vehicle, doc) {
   // TRUE weight: the specific actor's specific mass (a stack, all its bodies).
-  const stone = round2(borneBy6(doc) / STONE);
+  const borne = borneBy6(doc);
+  const stone = borne === null ? null : round2(borne / STONE);
+  const stoneNote = stone === null ? "" : loc("dropDialog.stone", { stone });
   const bodies = bodyCount(doc);
   const asCargo = {
     id: "cargo",
@@ -83,7 +85,7 @@ function optionsFor(sys, vehicle, doc) {
     station: null,
     kind: null,
     label: game.i18n.localize(`${LANG_PREFIX}.bucket.cargo`),
-    note: loc("dropDialog.stone", { stone }),
+    note: stoneNote,
   };
   if (doc.type === VEHICLE_TYPE) return [asCargo];
 
@@ -95,7 +97,7 @@ function optionsFor(sys, vehicle, doc) {
     if (g.role === "passenger") {
       options.push({
         id: g.key, role: "passenger", station: null, kind: null, label,
-        note: loc("dropDialog.stone", { stone }),
+        note: stoneNote,
         recommended: doc.type === "character",
       });
     } else if (g.role === "draft") {

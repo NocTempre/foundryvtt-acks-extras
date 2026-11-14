@@ -71,7 +71,10 @@ Weights are TRUE: a specific actor charges its specific mass — body, or
 every body a stack stands for, plus what it actually carries — and the
 vehicle's printed per-head rate prices only the UNNAMED complement. Crew
 bodies never charge the hold; a non-motive role's gear does (the marines
-rule, RR p. 316), and the hold names that share. Stacks (`acks-extras.group`)
+rule, RR p. 316), and the hold names that share. A body's weight is the
+lib's imported one (lib MODEL, "Capacity"): where it is not known the actor's
+`stone` is null, the hold counts the row for nothing and reports it in
+`unweighed`, and boarding and the drop dialog's note ask nothing of it. Stacks (`acks-extras.group`)
 count all their living bodies at every counter, weight, and bench.
 
 Dropping an actor on the sheet ASKS what they are

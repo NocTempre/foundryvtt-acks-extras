@@ -115,7 +115,7 @@
         <img class="acks-extras-frame__gear-img" src="{{eq.mount.img}}" alt="" inert>
         <span class="acks-extras-frame__row-text">
           <a class="acks-extras-frame__gear-name" data-action="mountOpen">{{eq.mount.name}}</a>
-          <span class="acks-extras-frame__row-line acks-nums">{{eq.mount.line}}</span>
+          <span class="acks-extras-frame__row-line acks-nums"{{#if eq.mount.lineTip}} data-tooltip-text="{{eq.mount.lineTip}}"{{/if}}>{{eq.mount.line}}</span>
         </span>
         {{#if eq.editable}}
         <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">

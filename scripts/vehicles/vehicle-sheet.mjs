@@ -24,7 +24,7 @@ import { voyageDay } from "./voyage.mjs";
 import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
 import { holdFrom } from "./hold.mjs";
 import { deploymentOf, deploySite, deployVehicle, strikeVehicle } from "./deploy.mjs";
-import { load6 } from "../lib/capacity.mjs";
+import { borneWeight6, load6 } from "../lib/capacity.mjs";
 import { attach, detach } from "../lib/attachment.mjs";
 import { handOver, isProvider, storesByOwner, storageFlagOf, quantityOf } from "../lib/storage.mjs";
 import { isLocation, parentUuidOf, placeIndex, placePath, setParent } from "../lib/place.mjs";
@@ -130,7 +130,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     // computed from it by the one reader boarding, the land tiers and a
     // market's loading all share (hold.mjs).
     const occupants = occupantsOf(actor);
-    const hold = holdFrom(sys, { aboardStone: load6(actor) / STONE, occupants });
+    const hold = holdFrom(sys, { aboardStone: (load6(actor) ?? borneWeight6(actor)) / STONE, occupants });
 
     // The team's real pull and the effective crew count the ATTACHMENTS the
     // pure arithmetic cannot see, so both are STATED to the derivations. The
@@ -457,7 +457,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
           g.role === "draft"
             ? game.i18n.localize(`${LANG_PREFIX}.draft.${o.kind}`)
             : g.role === "passenger" || g.role === "cargo"
-              ? `${o.stone} st`
+              ? o.stone == null ? null : `${o.stone} st`
               : o.cargoGear && o.gearStone
                 ? `${o.gearStone} st`
                 : null;

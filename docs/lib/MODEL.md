@@ -1215,6 +1215,22 @@ is the whole question:
 A harness makes the walking easier; it does not make a horse's burden lighter,
 and it does not make the kit weigh less.
 
+**What a rider's body weighs is imported.** The man-sized body the book assumes
+for purposes of carrying capacity (RR p. 161, Encumbrance and Equipment) is read
+by the importer into the `capacity` document's `riderBody` table, and
+`riderBody6()` answers it in sixths, or `null` while it is not imported (a
+Judge can edit it in the Ruledata Browser; `riderBodySource()` says which).
+`borneBy6(actor)` is the body plus the kit: the creature's own stated
+`extras.bodyStone` where it has one (a blank field is no statement), else the
+imported body, times every body a stack stands for. Where neither is known it
+answers `null`, and so does everything built on it: `load6` and `loadStone`
+of a mount bearing such a rider, a passenger's cost to a hold
+(`passengerCost`), an occupant row's `stone`. `overCapacity` never warns on an
+unknown load. Consumers show the figure blank and put the page in its tooltip
+(`riderBodyTip`): the monster sheet's rider line and carried figure, the
+character sheet's mount line. The swimming rescue's burden on RR p. 271
+(`formation` `carriedBodyStone`) is a different figure, read on its own page.
+
 The speed a bearing gives is the system's, never the module's:
 `explorationSpeedBearing({stone, max, mod})` runs core's `_calculateMovement`
 on a stub shaped as that method reads (`system.encumbrance`, `movement`,

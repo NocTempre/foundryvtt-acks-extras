@@ -1113,6 +1113,24 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // What a man-sized body is assumed to weigh for purposes of carrying
+  // capacity (RR 161, Encumbrance and Equipment): one figure in one sentence,
+  // read after the clause that names the assumption, which carries none. lib/capacity.mjs `riderBody6` answers
+  // it, and null while it is not imported. The swimming rescue's share on RR
+  // 271 is a different figure (`formation` `carriedBodyStone`).
+  capacity: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 161" },
+    tables: {
+      riderBody: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 161,
+        locate: "assumed to weigh",
+        locateBare: true,
+        values: [{ key: "stone", findRe: "assumed\\s*to\\s*weigh", take: "int", span: 12 }],
+      },
+    },
+  },
   // The weapon facts the weapons grid does not state: which kinds of weapon a
   // proficiency names, what a hand weapon deals, what a thrown flask deals and
   // which weapons need both hands. Each is prose on its own folio, so each table

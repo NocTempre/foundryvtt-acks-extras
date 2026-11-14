@@ -12,7 +12,7 @@
       <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.inventory"}}</p>
       <div class="acksm-enc acksm-enc-{{encumbrance.state}}">
         <div class="acksm-enc-head">
-          <span>{{localize "ACKS-MONSTERS.enc.carried"}} <strong>{{encumbrance.stone}}</strong> st{{#if encumbrance.speedFactor}} · {{localize "ACKS-MONSTERS.enc.speed"}} ×{{encumbrance.speedFactor}}{{/if}}</span>
+          <span>{{localize "ACKS-MONSTERS.enc.carried"}} <strong>{{encumbrance.stone}}</strong>{{#if encumbrance.rider.tip}}{{#unless encumbrance.stone}}<span data-tooltip-text="{{encumbrance.rider.tip}}">&nbsp;</span>{{/unless}}{{/if}} st{{#if encumbrance.speedFactor}} · {{localize "ACKS-MONSTERS.enc.speed"}} ×{{encumbrance.speedFactor}}{{/if}}</span>
           <span class="acksm-enc-state">{{encumbrance.stateLabel}}</span>
         </div>
         {{#if encumbrance.pct includeZero=true}}
@@ -23,7 +23,7 @@
         {{/if}}
         <div class="acksm-enc-legend">
           {{localize "ACKS-MONSTERS.field.loadNormal"}}: {{acksExtrasVal encumbrance.normal "—"}} · {{localize "ACKS-MONSTERS.field.loadCapacity"}}: {{acksExtrasVal encumbrance.max "—"}}
-          {{#if encumbrance.rider}} · {{localize "ACKS-MONSTERS.enc.rider" name=encumbrance.rider.name stone=encumbrance.rider.stone}}{{/if}}
+          {{#if encumbrance.rider}} · <span {{#if encumbrance.rider.tip}}data-tooltip-text="{{encumbrance.rider.tip}}"{{/if}}>{{#if encumbrance.rider.stone}}{{localize "ACKS-MONSTERS.enc.rider" name=encumbrance.rider.name stone=encumbrance.rider.stone}}{{else}}{{localize "ACKS-MONSTERS.enc.riderBlank" name=encumbrance.rider.name}}{{/if}}</span>{{/if}}
           {{#unless encumbrance.normal}} · <em>{{localize "ACKS-MONSTERS.enc.setLoad"}}</em>{{/unless}}
         </div>
       </div>

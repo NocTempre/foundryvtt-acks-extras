@@ -113,6 +113,9 @@ globalThis.game = {
 /* -------------------------------------------- */
 
 const T = await import("../scripts/lib/tables.mjs");
+// An invented body weight: a man-sized body is imported, never carried in source.
+const BODY = { id: "capacity", tables: { riderBody: { stone: 11 } } };
+T.registerTable(BODY);
 const { VEHICLE_TYPE } = await import("../scripts/vehicles/constants.mjs");
 const { attach, attachmentOf, registerAttachmentIndex } = await import("../scripts/lib/attachment.mjs");
 const { calendarDay, dawnWithin, secondsToNextDawn } = await import("../scripts/lib/world-time.mjs");
@@ -127,6 +130,10 @@ const {
 } = conveyance;
 const { buildMemberConveyance, buildMovementView } = await import("../scripts/formation/movement-view.mjs");
 const { closeDay } = await import("../scripts/formation/day-close.mjs");
+const { load6, loadStone, overCapacity } = await import("../scripts/lib/capacity.mjs");
+const { passengerCost } = await import("../scripts/vehicles/boarding.mjs");
+const { occupantsOf } = await import("../scripts/vehicles/occupants.mjs");
+const { holdOf } = await import("../scripts/vehicles/hold.mjs");
 
 registerAttachmentIndex();
 
@@ -348,6 +355,44 @@ await t("a ride refused: itself, ridden, harnessed, past its capacity", async ()
   const id = party([a, b]);
   const offers = offersFor(a, getFormation(id)).map((o) => o.carrier.id);
   assert.deepEqual(offers, ["cart"]);
+});
+
+await t("a member whose body weight is not known is neither refused nor priced: the offers stand and a wagon quotes no pace", async () => {
+  T.unregisterTable("capacity");
+  try {
+    const a = person("a", 90);
+    horse("slight", 240);
+    actors.get("slight").flags[SCOPE].extras = { load: { capacity: 1 } };
+    wagon("full", { capacity: 1 });
+    wagon("roomy");
+    const id = party([a]);
+    const offers = offersFor(a, getFormation(id));
+    assert.deepEqual(offers.map((o) => o.carrier.id).sort(), ["full", "roomy", "slight"], "no capacity is tested on a figure that is not there");
+    assert.equal(offers.find((o) => o.carrier.id === "roomy").speed, null, "the pace with them aboard is not a figure");
+    assert.equal(offers.find((o) => o.carrier.id === "slight").role, "rider");
+    // A mount bearing a rider of unknown weight has no load figure, and is never over it.
+    const ridden = horse("ridden", 240);
+    ridden.flags[SCOPE].extras = { load: { capacity: 1 } };
+    const b = person("b", 90);
+    await b.setFlag(SCOPE, "attachedTo", { uuid: ridden.uuid, role: "rider" });
+    assert.equal(load6(ridden), null);
+    assert.equal(loadStone(ridden), null);
+    assert.equal(overCapacity(ridden), false, "an unknown load never warns");
+    // A passenger of unknown weight costs nothing to test, weighs no figure, and is counted as unweighed.
+    const cart = wagon("roomy");
+    assert.equal(passengerCost(a), null);
+    await attach(a, cart, "passenger");
+    assert.equal(occupantsOf(cart)[0].stone, null);
+    assert.equal(holdOf(cart).unweighed, 1);
+    T.registerTable(BODY);
+    assert.equal(passengerCost(a), 11, "with the body imported a passenger costs it");
+    assert.equal(occupantsOf(cart)[0].stone, 11);
+    assert.equal(holdOf(cart).unweighed, 0);
+    assert.equal(load6(ridden), 11 * 6, "with the body imported the load is the body");
+    assert.equal(overCapacity(ridden), true, "and the one-stone mount is over it");
+  } finally {
+    T.registerTable(BODY);
+  }
 });
 
 await t("a wagon refused: pitched, past its wheels, past its hold", async () => {

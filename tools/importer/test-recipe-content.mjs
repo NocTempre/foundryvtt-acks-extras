@@ -92,6 +92,8 @@ const TABLES = {
   ],
   // The ring place's capacity: one count the wear-slot reader answers from.
   wearSlots: ["ringCapacity"],
+  // The weight a man-sized body is assumed to have: one count in one sentence.
+  capacity: ["riderBody"],
   // The weapon lists' prose: the kinds each folio names, read into windows.
   weaponProse: ["martialProse", "focusProse", "selectionProse", "narrowProse", "twoHandsFirst", "twoHandsSecond", "throwableProse", "damageTypeProse"],
   domain: [
@@ -454,6 +456,12 @@ VERIFY["wages.commandCapacity"] = (out, recipe, fail) => {
 VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.capacity) && !(Number.isInteger(out.capacity) && out.capacity > 0)) fail("capacity: not a positive whole number");
+};
+// The man-sized body's weight: a whole number above zero, the shape `riderBody6`
+// accepts. Shape only; no figure is named.
+VERIFY["capacity.riderBody"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.stone) && !(Number.isInteger(out.stone) && out.stone > 0)) fail("stone: not a positive whole number");
 };
 // The officer-role morale modifier: a positive whole number, the sign the reader keeps.
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {

@@ -24,10 +24,14 @@ export const ARRANGEMENT_FLAG = "lastArrangement";
 /**
  * What one actor costs a hold: their TRUE mass — body (or bodies, for a
  * stack) plus what they carry. See docs/vehicles/DECISIONS.md, "Weights are
- * true; the printed rate prices the unnamed head."
+ * true; the printed rate prices the unnamed head." Null where the body's weight
+ * is not known (`borneBy6`): a caller treats that as no cost to test, never as
+ * a weightless passenger.
+ * @returns {number|null} stone
  */
 export function passengerCost(actor) {
-  return borneBy6(actor) / STONE;
+  const borne = borneBy6(actor);
+  return borne === null ? null : borne / STONE;
 }
 
 /**
@@ -62,7 +66,8 @@ export async function boardForBestPace(vehicle, candidates = [], { ground = null
     const pace = paceNow();
     // Riding must be an improvement for THIS member, or they walk.
     if (ownSpeed(actor) >= pace) continue;
-    if (holdOf(vehicle).free < passengerCost(actor)) break; // the hold is full
+    const cost = passengerCost(actor);
+    if (cost !== null && holdOf(vehicle).free < cost) break; // the hold is full
     await attach(actor, vehicle, "passenger");
     boarded.push(actor.name);
   }

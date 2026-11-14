@@ -8,7 +8,11 @@
  * coin weighs is a figure off a page, and none is stated in the repo.
  */
 import assert from "node:assert/strict";
-import { capacity6, load6, overCapacity, capacityStone, loadStone, RIDER_BODY6, borneWeight6, carriedWeight6, explorationSpeedBearing } from "../scripts/lib/capacity.mjs";
+import {
+  capacity6, load6, overCapacity, capacityStone, loadStone, borneWeight6, borneBy6, bodyWeight6, carriedWeight6,
+  explorationSpeedBearing, riderBody6, riderBodySource, riderBodyTip, statedBodyStone, CAPACITY_DOC, RIDER_BODY_TABLE,
+} from "../scripts/lib/capacity.mjs";
+import * as Tables from "../scripts/lib/tables.mjs";
 import {
   STONE, isCurrency, isGoods, isPhysical, hasStock, stackCountOf, perStoneOf, systemCoinsPerStone,
   weight6Of, sumWeight6, encumbering6, contentsWeight6,
@@ -235,7 +239,42 @@ try {
 delete globalThis.CONFIG;
 assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), null, "no system at all answers nothing");
 
-/* --- rider constant ------------------------------------------------------- */
-assert.equal(RIDER_BODY6, 15 * STONE, "RR prices the adventurer at 15 stone");
+/* --- a body's weight: imported, never carried in source -------------------- */
+// The figures below are this file's own invention; the book's is not stated in the repo.
+const withKit = (flags) => actor({ type: "character", flags, items: [item({ id: "k", weight6: 6, type: "weapon" })] });
+const plain = withKit({});
+const stated = withKit({ "acks-extras": { extras: { bodyStone: 40 } } });
+const blank = withKit({ "acks-extras": { extras: { bodyStone: null } } });
+const empty = withKit({ "acks-extras": { extras: { bodyStone: "" } } });
 
-console.log("test-capacity: OK (character, currency, monster, container, system rate, constants)");
+assert.equal(riderBody6(), null, "nothing imported: no figure, and no stand-in");
+assert.deepEqual(riderBodySource(), { state: "none", cite: null });
+assert.equal(bodyWeight6(plain), null, "a character with no stated weight has none");
+assert.equal(borneBy6(plain), null, "so what they cost a carrier is not a figure, never the kit alone");
+assert.equal(borneBy6(blank), null, "a stored null is no statement of a body, not a body of nothing");
+assert.equal(borneBy6(empty), null, "nor is an empty string");
+assert.equal(borneBy6(stated), 40 * STONE + 6, "a creature's own stated weight stands without any import");
+assert.equal(statedBodyStone(plain), null);
+assert.equal(statedBodyStone(stated), 40);
+assert.equal(riderBodyTip(plain), "", "no i18n here, so no tooltip text");
+
+Tables.registerTable({ id: CAPACITY_DOC, tables: { [RIDER_BODY_TABLE]: { stone: 11 } }, cites: { [RIDER_BODY_TABLE]: "XX p. 1" } }, { priority: Tables.PRIORITY.WORLD, source: "import" });
+assert.equal(riderBody6(), 11 * STONE, "an imported figure is in sixths of a stone");
+assert.deepEqual(riderBodySource(), { state: "page", cite: "XX p. 1" });
+assert.equal(borneBy6(plain), 11 * STONE + 6, "the imported body and the kit");
+assert.equal(borneBy6(stated), 40 * STONE + 6, "a stated weight outranks the imported one");
+const stack = actor({ type: "character", flags: {}, items: [] });
+assert.equal(borneBy6(stack), 11 * STONE, "a body with no kit is the body alone");
+
+Tables.registerTable({ id: CAPACITY_DOC, tables: { [RIDER_BODY_TABLE]: { stone: 13 } } }, { priority: Tables.PRIORITY.OVERRIDE });
+assert.equal(riderBody6(), 13 * STONE, "the Judge's override wins");
+assert.deepEqual(riderBodySource(), { state: "judge", cite: null });
+
+for (const bad of [0, -3, "x", null, ""]) {
+  Tables.unregisterTable(CAPACITY_DOC);
+  Tables.registerTable({ id: CAPACITY_DOC, tables: { [RIDER_BODY_TABLE]: { stone: bad } } });
+  assert.equal(riderBody6(), null, `a table holding ${JSON.stringify(bad)} is not a weight`);
+}
+Tables.unregisterTable(CAPACITY_DOC);
+
+console.log("test-capacity: OK (character, currency, monster, container, system rate, body weight)");

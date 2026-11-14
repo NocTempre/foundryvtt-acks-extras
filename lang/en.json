@@ -5833,6 +5833,7 @@
       "unknown": "Set a Normal Load to track encumbrance",
       "setLoad": "set Normal Load in Classification",
       "rider": "Rider {name}: {stone} st (body + gear)",
+      "riderBlank": "Rider {name} (body + gear)",
       "barTip": "Carried weight against the Max Load; the tick marks the Normal Load (MM p. 13)."
     },
     "section": {
@@ -7414,6 +7415,9 @@
   "ACKS-VEHICLES.cargo.unload": "Unload",
   "ACKS-VEHICLES.cargo.disembark": "Put ashore",
   "ACKS-LIB.attach.rider": "Rider",
+  "ACKS-LIB.capacity.riderBody.page": "The body's weight is read from {cite}.",
+  "ACKS-LIB.capacity.riderBody.judge": "The body's weight is set by the Judge.",
+  "ACKS-LIB.capacity.riderBody.none": "The body's weight: RR p. 161.",
   "ACKS-LIB.attach.passenger": "Passenger",
   "ACKS-LIB.attach.draft": "In harness",
   "ACKS-LIB.attach.crew": "Crew",
@@ -8351,6 +8355,7 @@
   "ACKS-CHARACTER.equipment.mountNote": "what you ride · its load is its own",
   "ACKS-CHARACTER.equipment.mountLoad": "bearing {load} st",
   "ACKS-CHARACTER.equipment.mountLoadOf": "bearing {load} of {max} st",
+  "ACKS-CHARACTER.equipment.mountLoadBlank": "bearing —",
   "ACKS-CHARACTER.equipment.onFoot": "On foot. Drop an animal anywhere on the sheet, or a monster on this line, to ride it.",
   "ACKS-CHARACTER.equipment.dismount": "Dismount",
   "ACKS-CHARACTER.equipment.openMount": "Open the mount",

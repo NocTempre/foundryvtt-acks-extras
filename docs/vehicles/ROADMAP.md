@@ -17,6 +17,12 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
     `seaSpeeds`) (RR ch. 3);
   - the voyage day length (voyage.mjs `VOYAGE_HOURS`, RR ch. 7); the march
     day it is compared with is read from the import.
+- **The hold counts an unweighed passenger as nothing.** A passenger whose
+  body weight is not known (no `bodyStone`, no imported `capacity.riderBody`,
+  RR p. 161) adds no stone to the hold's used, free, over and percentage
+  figures, nor to a boarded wagon's pace. `hold.mjs` counts them in
+  `unweighed`, which nothing reads yet. The honest figure is null through
+  `holdFrom`, `landSpeed` and the sheets.
 - **Venture logistics a vehicle would carry** — moorage and stabling by the
   day, cargo handling time, warehousing and hiring a hold out as a carrier
   (RR §VIII.6) are `docs/markets/ROADMAP.md` (Venture logistics). The deploy

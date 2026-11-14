@@ -1,4 +1,4 @@
-# lib API (apiVersion 46)
+# lib API (apiVersion 47)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 46,
+  apiVersion: 47,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -554,6 +554,10 @@ the `senses` ruledata document (`SENSES_DOC`, tables `shadowySensesProse`,
 null; `senseCite("shadowy" | "lightless" | "night")` is the page the table was
 read from, null where it is the Judge's own. The importer reads both ([docs/lib/MODEL.md](MODEL.md),
 "Perception: senses, light, and the token").
+
+## `capacity` — what a document can hold and is holding (apiVersion 47)
+
+`capacity6`, `load6`, `overCapacity`, `capacityStone` and `loadStone` answer for a character, a monster or mount and a container item. A man-sized body's weight is imported (`capacity` ruledata document, table `riderBody`, RR p. 161), so `riderBody6()`, `borneBy6(actor)` (body plus kit) and, for a mount bearing such a rider, `load6` and `loadStone` answer **null** where the weight is unknown; `overCapacity` reads a null load as not over. `bodyWeight6(actor)` is one body, `statedBodyStone(actor)` the creature's own stated weight, `riderBodySource()` and `riderBodyTip(actor)` say where the figure came from. `RIDER_BODY6` is gone. See [MODEL](MODEL.md), "Capacity".
 
 ## `movementScales` — the expedition figures
 

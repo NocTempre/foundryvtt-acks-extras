@@ -134,7 +134,9 @@ const kindOf = (carrier) => {
  * `{ carrier, role, kind, speed }`, `kind` being `animal`, `land` or `vessel`.
  * A vessel's speed is null, its clock not being a march's (`carrierSpeedFor`).
  * A wagon quotes its pace with this member aboard, so taking the offer cannot
- * land them below the figure that won it.
+ * land them below the figure that won it. A member whose body weight is not
+ * known neither fills a hold nor a mount in the check, and a wagon's pace with
+ * them aboard is then null: the offer stands and quotes no pace.
  */
 function offerOf(entry, actor, formation, t) {
   const carrier = entry.actor;
@@ -143,14 +145,16 @@ function offerOf(entry, actor, formation, t) {
   if (entry.vehicle) {
     if (deploymentOf(carrier) || !wheelsEnter(carrier, t).ok) return null;
     const adding = aboard ? 0 : passengerCost(actor);
-    if (holdOf(carrier).free < adding) return null;
-    return { carrier, role: "passenger", kind: kindOf(carrier), speed: carrierSpeedFor(carrier, formation, { adding }) };
+    if (adding !== null && holdOf(carrier).free < adding) return null;
+    return { carrier, role: "passenger", kind: kindOf(carrier), speed: adding === null ? null : carrierSpeedFor(carrier, formation, { adding }) };
   }
   if (isGroupActor(actor) || attachmentOf(carrier)) return null;
   const rider = riderOf(carrier);
   if (rider && rider.uuid !== actor.uuid) return null;
   const capacity = capacity6(carrier);
-  if (!rider && capacity != null && load6(carrier) + borneBy6(actor) > capacity) return null;
+  const load = load6(carrier);
+  const borne = borneBy6(actor);
+  if (!rider && capacity != null && load !== null && borne !== null && load + borne > capacity) return null;
   return { carrier, role: "rider", kind: "animal", speed: carrierSpeedFor(carrier, formation) };
 }
 

@@ -146,7 +146,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 46,
+  apiVersion: 47,
   vocab,
   fields,
   /**
@@ -269,7 +269,9 @@ const localImpl = Object.freeze({
   /**
    * Capacity over any document (capacity.mjs): capacity6/load6/overCapacity
    * in sixths of a stone, capacityStone/loadStone for display. One answer for
-   * a character, a monster or mount (rider included), and a container item.
+   * a character, a monster or mount (rider included), and a container item;
+   * borneBy6 and the load of a mount answer null where a rider's body weight
+   * is not imported.
    */
   capacity,
   /**
@@ -447,6 +449,7 @@ Hooks.once("init", () => {
   senses.declareSenseTables();
   movementScales.declareMovementTables();
   vocab.declareWearSlotTables();
+  capacity.declareCapacityTables();
   // Before any canvas builds a token's light source.
   installTokenLightPaddingPatch();
   // Before the first write to a compendium document.

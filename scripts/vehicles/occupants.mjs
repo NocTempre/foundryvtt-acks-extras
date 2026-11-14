@@ -51,7 +51,9 @@ export function draftKindOf(actor) {
  * is the UNNAMED abstraction only. Crew bodies never charge the hold (RR p.
  * 316), but a non-motive role's gear does (`gearStone`, `cargoGear: true`).
  * See docs/vehicles/DECISIONS.md, "Weights are true; the printed rate
- * prices the unnamed head."
+ * prices the unnamed head." `stone` is null where the actor's body weight is not
+ * known (`borneBy6`); the hold counts such a row for nothing and reports it
+ * as unweighed.
  *
  * @param {Actor} vehicle
  * @returns {{actor, uuid, id, name, img, role, station, kind, bodies, stone,
@@ -62,6 +64,7 @@ export function occupantsOf(vehicle) {
   return OCCUPANT_ROLES.flatMap((role) =>
     attachedTo(vehicle, role).map((actor) => {
       const at = attachmentOf(actor);
+      const borne = borneBy6(actor);
       const station = at?.station ?? null;
       const cargoGear = role === "crew" && isNonMotiveStation(sys, station);
       return {
@@ -74,7 +77,7 @@ export function occupantsOf(vehicle) {
         station,
         kind: role === "draft" ? draftKindOf(actor) : null,
         bodies: bodyCount(actor),
-        stone: round2(borneBy6(actor) / STONE),
+        stone: borne === null ? null : round2(borne / STONE),
         // The marines rule: bodies on deck are free, their arms are freight.
         gearStone: cargoGear ? round2(borneWeight6(actor) / STONE) : 0,
         cargoGear,

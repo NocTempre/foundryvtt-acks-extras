@@ -3725,3 +3725,24 @@ The sidebar step leaves a throwaway compendium and its folder: delete the pack
 with `deleteCompendium()`, then run the restore once more to sweep the shelf.
 The pre-restore shape you built is undone by the restore itself — that is the
 step, not the cleanup.
+
+## A rider's body weight is imported, and absent it shows no figure
+
+Covers `capacity.mjs` (`riderBody6`, `borneBy6`, `load6`, `riderBodyTip`), the `capacity` recipe, the monster sheet's carried figure and rider line, the character sheet's mount line, the Formation tab's conveyance offers and a land vehicle's hold. The offline proof is `tools/test-capacity.mjs` and `tools/test-conveyance.mjs` (run directly); this walks what a mock cannot reach. **Unwalked.** RR connected to the importer.
+
+**Fixtures, kept and found by marker.**
+- The monster `lib/rider-mount`: a mountable animal with a Normal Load stated in Classification and a small capacity, and a linked token.
+- The character `lib/rider-body`, owned by a seat, with a one-stone item, riding `lib/rider-mount` (Mount rule on the sheet's Equipment tab, or `mountActor`).
+- A land vehicle `lib/rider-wagon` with a stated capacity and a speed tier, and a formation (`lib/rider-party`) holding the character.
+
+Each run brings the world to the shape a step needs: the step that wants the `capacity` document absent removes it from the registry's WORLD layer through the Ruledata Browser (Settings tab → Game Settings → Extras → Ruledata Browser), and the step that wants it present imports it.
+
+**Steps and what proves each.**
+
+1. **Nothing imported.** With the `capacity` document absent, open `lib/rider-mount`'s sheet, Inventory tab. *Observable:* the carried figure is blank, the load bar and its state line are blank, the rider's line reads the rider's name with no figure and hovering it gives the page reference alone; the console holds no error. On `lib/rider-body`'s Equipment tab the Mount rule's line leaves its load blank and hovers the same page reference.
+2. **Offers stand.** Open the Formation tab of `lib/rider-party`. *Observable:* `lib/rider-mount` is offered to the character although its capacity is small, `lib/rider-wagon` is offered with no pace, and nothing refuses either. Seat the character on the wagon: the vehicle sheet's passenger row shows no weight, and the hold's bar counts nothing for them.
+3. **Import.** Run `acksExtras.importer.cookbookImportTables(["capacity"])` (or the Rules tables dialog, ticking the Capacity document) with RR connected. *Observable:* the monster sheet's carried figure and bar return, the rider's line shows the body and gear in stone, and its tooltip names the RR page; the mount line on the character sheet shows the same load; the small-capacity mount is refused for the character, and the wagon is offered with a pace priced with them aboard.
+4. **A Judge's figure wins.** In the Ruledata Browser export the `capacity` document, change `riderBody` and drop it back. *Observable:* the figures follow it and the tooltip says it is the Judge's rather than naming a page. Remove the override: the imported figure returns.
+5. **A stated body stands alone.** Give the rider a stated body weight in its flags with the document absent. *Observable:* its figures are shown with no tooltip about a page.
+
+**Teardown.** The override of step 4 is removed in the step; the import of step 3 stays as the world's `capacity` document.

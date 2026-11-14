@@ -12,7 +12,7 @@
  * `holdFrom` is the pure arithmetic over plain data; `holdOf` reads the
  * documents.
  */
-import { load6 } from "../lib/capacity.mjs";
+import { borneWeight6, load6 } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import { occupantsOf } from "./occupants.mjs";
 import { cargoRemaining } from "./vehicle-speed.mjs";
@@ -21,7 +21,7 @@ import { crewTradeCredit, unnamedCrewGearStone } from "./berths.mjs";
 /** Heads in a list of occupant rows: a stack counts every body it stands for. */
 const headsOf = (rows) => rows.reduce((n, o) => n + Math.max(0, o.bodies ?? 1), 0);
 
-/** A column of occupant rows, summed. */
+/** A column of occupant rows, summed; a row that states no figure adds nothing. */
 const sumOf = (rows, key) => rows.reduce((n, o) => n + (Number(o[key]) || 0), 0);
 
 /**
@@ -33,16 +33,18 @@ const sumOf = (rows, key) => rows.reduce((n, o) => n + (Number(o[key]) || 0), 0)
  * @param {object[]} [o.occupants] occupants.mjs rows
  * @returns {{capacity: number, used: number, free: number, over: boolean,
  *   aboardStone: number, passengerStone: number, cargoActorStone: number,
- *   marineGear: number, trade: object|null, pct: number}} `used` is the whole
- *   load the vehicle bears — the figure a land vehicle's speed tiers are
- *   priced against; `trade` is the crew-for-cargo credit already folded into
- *   `capacity`.
+ *   marineGear: number, trade: object|null, pct: number, unweighed: number}}
+ *   `used` is the whole load the vehicle bears — the figure a land vehicle's
+ *   speed tiers are priced against; `trade` is the crew-for-cargo credit
+ *   already folded into `capacity`; `unweighed` counts the passenger and
+ *   cargo rows whose weight is not known, which `used` leaves out.
  */
 export function holdFrom(sys, { aboardStone = 0, occupants = [] } = {}) {
   const namedPassengerStone = sumOf(occupants.filter((o) => o.role === "passenger"), "stone");
   const cargoActorStone = sumOf(occupants.filter((o) => o.role === "cargo"), "stone");
   const marineGear = sumOf(occupants.filter((o) => o.cargoGear), "gearStone") + unnamedCrewGearStone(sys);
   const base = cargoRemaining(sys, aboardStone + cargoActorStone + marineGear, namedPassengerStone);
+  const unweighed = occupants.filter((o) => (o.role === "passenger" || o.role === "cargo") && o.stone == null).length;
   const trade = crewTradeCredit(sys, headsOf(occupants.filter((o) => o.role === "crew")));
   const capacity = base.capacity + (trade?.stone ?? 0);
   const free = capacity - base.used;
@@ -56,6 +58,7 @@ export function holdFrom(sys, { aboardStone = 0, occupants = [] } = {}) {
     cargoActorStone,
     marineGear,
     trade,
+    unweighed,
     pct: capacity > 0 ? Math.min(100, Math.round((base.used / capacity) * 100)) : 0,
   };
 }
@@ -66,5 +69,5 @@ export function holdFrom(sys, { aboardStone = 0, occupants = [] } = {}) {
  */
 export function holdOf(vehicle) {
   if (!vehicle) return null;
-  return holdFrom(vehicle.system, { aboardStone: load6(vehicle) / STONE, occupants: occupantsOf(vehicle) });
+  return holdFrom(vehicle.system, { aboardStone: (load6(vehicle) ?? borneWeight6(vehicle)) / STONE, occupants: occupantsOf(vehicle) });
 }

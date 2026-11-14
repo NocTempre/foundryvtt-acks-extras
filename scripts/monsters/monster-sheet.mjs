@@ -21,7 +21,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTIONS } from "./monster-actions.mjs";
 import * as CFG from "./config.mjs";
-import { loadStone, capacityStone, borneBy6 } from "../lib/capacity.mjs";
+import { loadStone, capacityStone, borneBy6, riderBodyTip } from "../lib/capacity.mjs";
 import { loadRule, loadStanding, defaultScore } from "./load-rule.mjs";
 import { riderOf } from "../lib/mount.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
@@ -107,7 +107,9 @@ const labelOf = (table, key) => (key ? localize(table?.[key]?.label ?? key) : ""
  * system's computeEncumbrance early-returns for non-characters). The load is
  * what the creature carries — items, coin, and a mounted rider at body weight
  * plus carried encumbrance — compared against its normal load (full speed)
- * and its maximum.
+ * and its maximum. A rider whose body weight is not known leaves the load, and
+ * what is derived from it, blank; the rider's line then names the page that
+ * prints the weight.
  */
 function computeEncumbrance(actor, extras) {
   const stone = loadStone(actor);
@@ -120,7 +122,7 @@ function computeEncumbrance(actor, extras) {
   let speedFactor = null;
   let pct = null;
   let normalPct = null;
-  if (normal != null) {
+  if (normal != null && stone !== null) {
     const standing = loadStanding({ stone, normal, max, maxMultiple });
     state = standing.state;
     pct = Math.min(100, Math.max(0, (stone / standing.denom) * 100));
@@ -129,7 +131,7 @@ function computeEncumbrance(actor, extras) {
     speedFactor = state === "unencumbered" ? 1 : state === "overloaded" ? 0 : speedShare;
   }
   return {
-    stone: Math.round(stone * 10) / 10,
+    stone: stone === null ? null : Math.round(stone * 10) / 10,
     normal,
     max,
     maxMultiple,
@@ -137,10 +139,19 @@ function computeEncumbrance(actor, extras) {
     normalPct,
     state,
     speedFactor,
-    stateLabel: game.i18n.localize(`ACKS-MONSTERS.enc.${state}`),
+    stateLabel: stone === null ? "" : game.i18n.localize(`ACKS-MONSTERS.enc.${state}`),
     // The rider's line is body weight plus kit, not the rider's own encumbrance.
-    rider: rider ? { name: rider.name, stone: Math.round(borneBy6(rider) / 6 * 10) / 10 } : null,
+    rider: rider ? riderLine(rider) : null,
   };
+}
+
+/**
+ * The rider's line: the name, the body and gear in stone (null where the body's
+ * weight is not known) and a tooltip saying where that weight is read from.
+ */
+function riderLine(rider) {
+  const borne = borneBy6(rider);
+  return { name: rider.name, stone: borne === null ? null : Math.round((borne / 6) * 10) / 10, tip: riderBodyTip(rider) };
 }
 
 /** { key: label } choices maps consumed by templates. */
@@ -516,7 +527,8 @@ export function createFullMonsterSheet(Base) {
         vision: Array.from(extras.vision ?? []).map((k) => ({ key: k, label: labelOf(CFG.VISION_TYPES, k) })),
         lightlessRange: extras.lightlessRange,
         otherSenses: (extras.otherSenses ?? []).map((s) => ({ label: labelOf(CFG.SENSE_TYPES, s.type), range: s.range, note: s.note ?? "" })),
-        load: { stone: enc.stone, normal: enc.normal, max: enc.max, maxMultiple: enc.maxMultiple, rider: enc.rider },
+        // A rider with no known weight is left out of the snapshot: its row prints a figure.
+        load: { stone: enc.stone, normal: enc.normal, max: enc.max, maxMultiple: enc.maxMultiple, rider: enc.rider?.stone == null ? null : enc.rider },
         defenses: { immune: band(def.immunities, true), resist: band(def.resistances, true), susceptible: band(def.susceptibilities, false) },
         spells: { enabled: !!sys.spells?.enabled, casterClass: extras.spellcasting?.class ?? "", casterLevel: extras.spellcasting?.level, slots },
         typeLabels: Array.from(extras.types ?? []).map((k) => labelOf(CFG.MONSTER_TYPES, k)),

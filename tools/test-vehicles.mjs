@@ -522,6 +522,13 @@ assert.equal(theHold.over, true, "a load past the capacity says so");
 assert.equal(theHold.free, -20);
 assert.equal(theHold.pct, 100, "the bar stops at full; the number says how far over");
 
+/* --- a body whose weight is not known adds nothing, and is counted as such --- */
+const unweighedAboard = [{ uuid: "u", name: "Pilgrim", role: "passenger", stone: null }, ...packAboard];
+theHold = holdFrom(packWagon, { aboardStone: 10, occupants: unweighedAboard });
+assert.equal(theHold.used, 72, "the row with no figure contributes no weight");
+assert.equal(theHold.unweighed, 1, "and the hold says how many it left out");
+assert.equal(holdFrom(packWagon, { aboardStone: 10, occupants: packAboard }).unweighed, 0);
+
 /* --- a short-handed vessel's empty berths grow the hold; stacks buy them back */
 theHold = holdFrom(shortShip, {});
 assert.equal(theHold.capacity, 260, "four empty berths at the invented rate grow the hold");

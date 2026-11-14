@@ -231,7 +231,9 @@ than worn under *Stowed*; and *Kept elsewhere*, one row per place holding
 the character's goods (the lib's storage providers), with deposit, retrieve
 all, pin and open. Above *Stowed* the *Mount* rule states what the character
 rides (the lib's `mountOf`): its name, what it bears against what it can
-(`load6` and `capacity6`, the rider and their kit included), Dismount and
+(`load6` and `capacity6`, the rider and their kit included; the load is blank
+where the rider's body weight is not imported, its tooltip naming the page),
+Dismount and
 Open; on foot it is a hint. The rule, the row and the hint are one drop zone
 (`data-mount-drop`): a monster let go there is ridden (`ride`), where anywhere
 else on the sheet it is hired. An animal is seated by the lib's own drop hook
