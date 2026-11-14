@@ -938,14 +938,22 @@ may be either. Only when nothing answers is a bare language minted.
 `ensureLanguage` is idempotent by name: re-applying a class hands back what is
 already there.
 
-**A proficiency or power buys slots too.** `languagesFromAbilities` counts
-them: the Language proficiency grants `LANGUAGES_PER_GRANT` (3) and is
-repeatable, and rank needs no special case because rank IS the count of
-same-named items, so summing per item multiplies. Matched by the cookbook id
-an import derives, never by name, with `flags["acks-extras"].languageGrant`
-as the open door for a hand-made or third-party power. Never gated on the
-Intellect bonus — the book offers the proficiency to a low-Intellect
-character so they can read what they already speak.
+**A proficiency or power buys slots too, by the figure its own page prints.**
+`languagesFromAbilities` sums `flags["acks-extras"].languageGrant` over the
+actor's items, and an item with no such flag buys none. Rank needs no special
+case because rank IS the count of same-named items, so summing per item
+multiplies. The importer writes the flag: the Language proficiency (RR p. 115)
+and the Bonus Languages power (JJ p. 313) each carry a register `values` spec
+(`field: "languageGrant"`) whose locator reads the count from that ability's
+own passage, so each ability grants what its own page says and no count ships
+in source. `bindAbility` sets the flag on a new item; the ability update
+(`cookbookUpdateAbilities`) fills it through `languageGrantPatch` only where the
+document holds none, and never overwrites or unsets a figure a Judge set. A
+Judge sets or clears it in the "Languages granted" field of the ability
+sheet's Mechanics tab; blank unsets the flag and no 0 is stored, so an
+ability whose page was not read, or whose figure did not locate, grants
+nothing and shows the field blank. Re-importing refills a cleared field.
+Never gated on the Intellect bonus.
 
 **One carrier ability holds the OPEN slots**, because "may still choose two
 more" is a thing the system cannot say. Its flag is

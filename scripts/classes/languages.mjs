@@ -35,21 +35,13 @@ export const LITERACY = Object.freeze({
 });
 
 /**
- * How many tongues one ability buys. Rank is the count of same-named items, so
- * summing per item already multiplies.
- */
-export const LANGUAGES_PER_GRANT = 3;
-
-/**
- * The abilities that buy tongues, by the id an import derives for them.
- * `flags["acks-extras"].languageGrant` lets any ability a Judge marks with a
- * number grant that many without being named here.
- */
-const GRANTING_IDS = new Set(["def.prof.language", "def.power.bonuslanguages"]);
-
-/**
  * How many extra tongues this actor's abilities buy, over class, race and
  * Intellect.
+ *
+ * An ability buys what its own `flags["acks-extras"].languageGrant` says: the
+ * importer reads that count off the ability's page, and a Judge may set or
+ * clear it on the ability sheet. Summing per item multiplies by rank, since
+ * rank is the count of same-named items. An ability with no figure buys none.
  *
  * @param {Actor} actor
  * @returns {number}
@@ -58,12 +50,7 @@ export function languagesFromAbilities(actor) {
   let n = 0;
   for (const item of actor?.items ?? []) {
     const declared = Number(item.flags?.[MODULE_ID]?.languageGrant);
-    if (declared > 0) {
-      n += declared;
-      continue;
-    }
-    const id = cookbookId(item).toLowerCase();
-    if (GRANTING_IDS.has(id)) n += LANGUAGES_PER_GRANT;
+    if (declared > 0) n += declared;
   }
   return n;
 }

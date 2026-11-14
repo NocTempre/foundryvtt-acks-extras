@@ -8,7 +8,7 @@
  * test-cookbook-coherence.
  */
 import assert from "node:assert";
-import { abilitySurfaceIndex, bindAbility, loadCookbook, preferredId, rebracket, refForPrintedName, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
+import { abilitySurfaceIndex, bindAbility, languageGrantPatch, loadCookbook, preferredId, rebracket, refForPrintedName, tokenizeProfs } from "../../scripts/importer/cookbook.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let pass = 0;
@@ -146,5 +146,34 @@ check("a withheld name is held by its locator, never by its neutral label", keye
 const keyedCell = tokenizeProfs("Climbing, Lore of the Drowned Fen, Siege Engineering", keyed.menu);
 const heldRef = keyedCell.find((t) => t.ref === "def.prof.proficiency9");
 check("a template cell names the withheld definition with the page's own words", !!heldRef && heldRef.name === "Lore of the Drowned Fen" && keyedCell.some((t) => t.ref === "def.prof.siegeEngineering"), JSON.stringify(keyedCell));
+
+/* --- the tongues an ability buys are the page's figure, or nothing --------- */
+
+// Invented figures throughout: what is under test is the carrying, never the count.
+const MODULE = "acks-extras";
+const grantNode = (...rows) => ({ fields: { values: rows } });
+const grantOf = (built) => built.flags[MODULE].languageGrant;
+check("a located figure rides the new item as its language grant",
+  grantOf(bindAbility(power, grantNode({ field: "languageGrant", amount: 2 }), "def.prof.zz")) === 2);
+check("each ability carries its own figure",
+  grantOf(bindAbility(power, grantNode({ field: "languageGrant", amount: 5 }), "def.power.zz")) === 5);
+check("no figure located, no flag", !("languageGrant" in bindAbility(power, grantNode(), "def.prof.zz").flags[MODULE]));
+check("a page never read, no flag", !("languageGrant" in bindAbility(power, null, "def.prof.zz").flags[MODULE]));
+check("a figure that is not a positive whole number is no figure",
+  [0, -1, 1.5, NaN, null].every((amount) => !("languageGrant" in bindAbility(power, grantNode({ field: "languageGrant", amount }), "def.prof.zz").flags[MODULE])));
+check("another field's located value is not a language grant",
+  !("languageGrant" in bindAbility(power, grantNode({ field: "aac", amount: 3 }), "def.prof.zz").flags[MODULE]));
+
+const builtGrant = bindAbility(power, grantNode({ field: "languageGrant", amount: 2 }), "def.prof.zz");
+const builtNone = bindAbility(power, null, "def.prof.zz");
+check("an update fills a document that holds none",
+  JSON.stringify(languageGrantPatch({ flags: {} }, builtGrant)) === JSON.stringify({ [`flags.${MODULE}.languageGrant`]: 2 }));
+check("a cleared field (null) holds none, so it is filled",
+  Object.keys(languageGrantPatch({ flags: { [MODULE]: { languageGrant: null } } }, builtGrant)).length === 1);
+check("an update keeps a figure the Judge set",
+  Object.keys(languageGrantPatch({ flags: { [MODULE]: { languageGrant: 9 } } }, builtGrant)).length === 0);
+check("an update with no figure read writes nothing, and never unsets one",
+  Object.keys(languageGrantPatch({ flags: {} }, builtNone)).length === 0
+    && Object.keys(languageGrantPatch({ flags: { [MODULE]: { languageGrant: 9 } } }, builtNone)).length === 0);
 
 console.log(`test-ability-names: ${pass} checks passed.`);

@@ -27,7 +27,7 @@ export {
   wasRewritten, createDoc, itemIds, WRITE_CHUNK, createDocs, claimActorImport, forgetImportedIndex, importedItemFor,
   importedActorFor, importedDocs, holdingLibrary, importedItemsByName, ensureItemFolder,
 } from "./cookbook/target.mjs";
-export { abilityIcon, bindAbility, refForPrintedName, preferredId } from "./cookbook/abilities.mjs";
+export { abilityIcon, bindAbility, languageGrantPatch, refForPrintedName, preferredId } from "./cookbook/abilities.mjs";
 export {
   buildExtras, bindStatsScalars, proficiencyPools, proficiencyResolver, bindProficiency, bindMonster, templateOption,
   refillMonster, bindLegacyMonster, bindNpc,

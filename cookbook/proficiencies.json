@@ -5362,6 +5362,18 @@
               }
             }
           ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "languageGrant",
+              "from": {
+                "into": "amount",
+                "pattern": "an\\s*additional\\s*([a-z]+|\\d+)\\s*languages\\s*of\\s*his\\s*choice"
+              }
+            }
+          ]
         }
       }
     },

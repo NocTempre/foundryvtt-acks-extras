@@ -12,11 +12,11 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
 import { libraryItems } from "../lib/library.mjs";
 import AbilityExtras, { storedSelections } from "./ability-extras.mjs";
-import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf } from "./ability-rolls.mjs";
+import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf, citeOf } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { PROGRESSION_CLASSES, levelFactorLabel, nameWithSelections, capabilityForId, isCapabilityToken } from "../lib/vocab.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, unset } from "../lib/util.mjs";
 import { modifierDisposition, isUnverified } from "../lib/typed-modifiers.mjs";
 import { QUICK_EFFECT_ACTIONS, quickEffectStatus } from "./quick-effects.mjs";
 import { ROLL_ACTIONS } from "./roll-editor.mjs";
@@ -47,6 +47,29 @@ const T = `modules/${MODULE_ID}/templates/abilities`;
 // mechanics part preloads it (a core rename fails at part load, loudly) and
 // tab-mechanics.hbs receives it through context instead.
 const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
+
+/** The item flag holding how many languages the ability grants (read by `classes/languages.mjs`). */
+const LANGUAGE_GRANT_FLAG = "languageGrant";
+
+/**
+ * Settle the language-grant input in a submitted update. A whole number of one
+ * or more is stored; a blank or non-positive entry removes the flag, so no 0
+ * is stored for a blank field. A form that did not render the input leaves the
+ * flag as it is.
+ *
+ * @param {object} submitData the expanded update the form produced; edited in place
+ * @param {*} stored          the flag as the item holds it now
+ * @returns {object} `submitData`
+ */
+export function settleLanguageGrant(submitData, stored) {
+  const flags = submitData?.flags?.[MODULE_ID];
+  if (!flags || !(LANGUAGE_GRANT_FLAG in flags)) return submitData;
+  const n = Math.floor(Number(flags[LANGUAGE_GRANT_FLAG]));
+  if (Number.isFinite(n) && n >= 1) flags[LANGUAGE_GRANT_FLAG] = n;
+  else if (stored != null) flags[LANGUAGE_GRANT_FLAG] = unset();
+  else delete flags[LANGUAGE_GRANT_FLAG];
+  return submitData;
+}
 
 /** The name of the creature a companion slot points at, or "" when the pointer is empty or stale. */
 function companionName(uuid) {
@@ -386,6 +409,19 @@ export function createAbilitySheet(Base) {
       const extras = AbilityExtras.fromItem(this.item);
       context.extras = extras;
       context.x = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
+      // The language-grant field sits beside the extras, not inside them: the
+      // grant is read straight off the flag by the class feature. Blank when
+      // the flag is absent; its tooltip names the page the item was imported
+      // from where it carries a cite, and the field alone otherwise.
+      const grant = this.item.getFlag?.(MODULE_ID, LANGUAGE_GRANT_FLAG);
+      const cite = citeOf(this.item);
+      context.languageGrant = {
+        name: `flags.${MODULE_ID}.${LANGUAGE_GRANT_FLAG}`,
+        value: Number(grant) > 0 ? grant : "",
+        tip: cite
+          ? game.i18n.format("ACKS-ABILITIES.mech.languageGrantCiteTip", { cite })
+          : game.i18n.localize("ACKS-ABILITIES.mech.languageGrantTip"),
+      };
       // The count shows for a repeatable ability, and for any count above 1 —
       // including on a non-repeatable ability, where it is a data fault and is
       // drawn as one (`qtyConflict`).
@@ -654,6 +690,7 @@ export function createAbilitySheet(Base) {
      */
     _prepareSubmitData(event, form, formData, updateData) {
       const submitData = super._prepareSubmitData(event, form, formData, updateData);
+      settleLanguageGrant(submitData, this.item.getFlag?.(MODULE_ID, LANGUAGE_GRANT_FLAG));
       const path = `flags.${MODULE_ID}.${FLAG_EXTRAS}`;
       const raw = foundry.utils.getProperty(submitData, path);
       if (raw && typeof raw === "object") {

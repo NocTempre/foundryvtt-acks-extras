@@ -52,6 +52,34 @@ function abilityCategory(value) {
   return value;
 }
 
+/** The flag an ability carries when it buys tongues: how many (read by `classes/languages.mjs`). */
+const LANGUAGE_GRANT_FLAG = "languageGrant";
+
+/**
+ * The tongues the ability's own page says it buys, from the executor's located
+ * `values`; null when the page was not read or the figure did not locate.
+ */
+function languageGrantOf(node) {
+  const found = (node?.fields?.values ?? []).find((v) => v?.field === LANGUAGE_GRANT_FLAG);
+  const amount = Number(found?.amount);
+  return Number.isInteger(amount) && amount > 0 ? amount : null;
+}
+
+/**
+ * The update that carries a rebuilt ability's language grant onto a document
+ * the world already holds: written only where the document holds none, and
+ * never over a figure a Judge set, so a re-import neither unsets nor replaces one.
+ *
+ * @param {Item} doc   the document being refreshed
+ * @param {object} built `bindAbility`'s result
+ * @returns {object} update keys to spread into the write; empty when nothing is to be filled
+ */
+export function languageGrantPatch(doc, built) {
+  const read = built?.flags?.[MODULE_ID]?.[LANGUAGE_GRANT_FLAG];
+  if (read == null || doc?.flags?.[MODULE_ID]?.[LANGUAGE_GRANT_FLAG] != null) return {};
+  return { [`flags.${MODULE_ID}.${LANGUAGE_GRANT_FLAG}`]: read };
+}
+
 /** Binds an executed ability entry to its ability document data. */
 export function bindAbility(entry, node, id, opts = {}) {
   const meta = entry.meta ?? {};
@@ -147,6 +175,8 @@ export function bindAbility(entry, node, id, opts = {}) {
         }))),
   ];
 
+  const languageGrant = languageGrantOf(node);
+
   return {
     name: printedNameOf(node, entry.name),
     type: "ability",
@@ -158,7 +188,12 @@ export function bindAbility(entry, node, id, opts = {}) {
       ...(gate.length ? { requirements: gate.map(capabilityLabel).join(", ").slice(0, 120) } : {}),
     },
     flags: {
-      [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) }, minted: true, extras },
+      [MODULE_ID]: {
+        cookbook: { id, cite, ...bookStamp(entry.book) },
+        minted: true,
+        extras,
+        ...(languageGrant ? { [LANGUAGE_GRANT_FLAG]: languageGrant } : {}),
+      },
     },
   };
 }

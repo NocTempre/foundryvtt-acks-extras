@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import { languageGrant, LITERACY, slotsOf, freeSlots, filledLanguages, wordPrefixMatch, languagesFromAbilities } from "../scripts/classes/languages.mjs";
 
 /* --- the plain human: what the class prints, and Intellect on top -------- */
-let g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", "Krysean"], count: 0 } });
-assert.deepEqual(g.granted, ["Common", "Krysean"]);
+let g = languageGrant({ intMod: 0, classLanguages: { granted: ["Common", "Zorvian"], count: 0 } });
+assert.deepEqual(g.granted, ["Common", "Zorvian"]);
 assert.equal(g.openSlots, 0, "no bonus, no free picks");
 assert.equal(g.literacy, LITERACY.LITERATE, "average Intellect reads what it speaks");
 
@@ -70,36 +70,42 @@ assert.equal(freeSlots(c), 0);
 assert.equal(slotsOf({ flags: {} }), null, "an ability with no slot flag is not a carrier");
 
 /* --- a proficiency or power buys tongues too ----------------------------
- * The Language proficiency is repeatable and each taking is another three;
- * rank IS the count of same-named items, so two items is six. It is never
- * gated on Intellect — the book offers it to a low-Intellect character as the
- * route to literacy in what they already speak.                            */
+ * An ability buys what ITS OWN flag says (the importer reads the count off its
+ * page; the figures below are invented). Rank IS the count of same-named
+ * items, so two items add twice. It is never gated on Intellect. An ability
+ * with no flag buys nothing, whatever its id.                              */
 const withItems = (...items) => ({ items });
-const prof = (n = 1) =>
-  Array.from({ length: n }, () => ({ flags: { "acks-extras": { cookbook: { id: "def.prof.language" } } } }));
+const granting = (n, id = "def.prof.zz") => ({ flags: { "acks-extras": { cookbook: { id }, languageGrant: n } } });
 
-assert.equal(languagesFromAbilities(withItems(...prof(1))), 3, "one rank buys three");
-assert.equal(languagesFromAbilities(withItems(...prof(2))), 6, "two takings buy six");
+assert.equal(languagesFromAbilities(withItems(granting(2))), 2, "one rank buys what its flag says");
+assert.equal(languagesFromAbilities(withItems(granting(2), granting(2))), 4, "two takings add twice");
 assert.equal(
-  languagesFromAbilities(withItems({ flags: { "acks-extras": { cookbook: { id: "def.power.bonusLanguages" } } } })),
-  3,
-  "the custom power grants the same three, case-blind on the id",
+  languagesFromAbilities(withItems(granting(2, "def.prof.zz"), granting(5, "def.power.zz"))),
+  7,
+  "each ability reads its own figure, so two abilities may differ",
 );
 assert.equal(
-  languagesFromAbilities(withItems({ flags: { "acks-extras": { languageGrant: 2 } } })),
-  2,
+  languagesFromAbilities(withItems({ flags: { "acks-extras": { languageGrant: 4 } } })),
+  4,
   "a Judge's own marked ability grants what it says",
 );
+assert.equal(
+  languagesFromAbilities(withItems({ flags: { "acks-extras": { cookbook: { id: "def.prof.language" } } } })),
+  0,
+  "an id alone grants nothing: the figure is read, never assumed",
+);
+assert.equal(languagesFromAbilities(withItems({ flags: { "acks-extras": { languageGrant: null } } })), 0, "a cleared field is no figure");
+assert.equal(languagesFromAbilities(withItems({ flags: { "acks-extras": { languageGrant: 0 } } })), 0, "zero grants nothing");
 assert.equal(languagesFromAbilities(withItems({ flags: {} }, { name: "Riding" })), 0);
 assert.equal(languagesFromAbilities(null), 0);
 
-g = languageGrant({ intMod: -1, classLanguages: { granted: ["Common"] }, fromAbilities: 3 });
-assert.equal(g.openSlots, 3, "a penalty does not cancel what a proficiency bought");
-assert.equal(g.fromAbilities, 3);
+g = languageGrant({ intMod: -1, classLanguages: { granted: ["Common"] }, fromAbilities: 2 });
+assert.equal(g.openSlots, 2, "a penalty does not cancel what a proficiency bought");
+assert.equal(g.fromAbilities, 2);
 assert.equal(g.literacy, LITERACY.ILLITERATE);
 
-g = languageGrant({ intMod: 2, classLanguages: { count: 1 }, raceLanguages: { count: 2 }, fromAbilities: 3 });
-assert.equal(g.openSlots, 8, "class + race + Intellect + abilities all add");
+g = languageGrant({ intMod: 2, classLanguages: { count: 1 }, raceLanguages: { count: 2 }, fromAbilities: 4 });
+assert.equal(g.openSlots, 9, "class + race + Intellect + abilities all add");
 
 /* --- a short grant adopts the one long name it word-prefixes -------------
  * The book grants "Common" in one chapter and prints "Common Auran" in the

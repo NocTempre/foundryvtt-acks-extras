@@ -14,7 +14,7 @@ import { passedOver, runPageCache, readForImport } from "./read.mjs";
 import {
   packLabel, WRITE_CHUNK, createDocs, importedIndex, importedDocs, deleteImported, importedItem, prepareItemShelves,
 } from "./target.mjs";
-import { bindAbility, ABILITY_EXTRAS_OPTIONAL, allAbilities, idForName, abilityNameIndex } from "./abilities.mjs";
+import { bindAbility, languageGrantPatch, ABILITY_EXTRAS_OPTIONAL, allAbilities, idForName, abilityNameIndex } from "./abilities.mjs";
 import { laddersForEntry } from "./classes.mjs";
 import { importAbility, abilityData, resolveCompanions } from "./actor-import.mjs";
 
@@ -361,6 +361,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
         ? built.flags[MODULE_ID].cookbook
         : { ...built.flags[MODULE_ID].cookbook, sums: blockSums(built.system.description, "system.description") },
       [`flags.${MODULE_ID}.extras`]: extras,
+      ...languageGrantPatch(doc, built),
     });
   };
   // Counted first: this walks every ability in the world, actors included, so the bar has a total.

@@ -14,12 +14,12 @@ globalThis.fromUuidSync = () => null;
 // The sheet module's imports subclass core's data model at load; nothing here constructs one.
 globalThis.foundry = {
   abstract: { DataModel: class {} },
-  data: { fields: {} },
+  data: { fields: {}, operators: { ForcedDeletion: class {} } },
   utils: {},
   applications: { api: { HandlebarsApplicationMixin: (B) => B, ApplicationV2: class {}, DialogV2: class {} } },
 };
 
-const { describeEffect, rollScopeChip, capabilityLabel, nameForSelections } = await import("../scripts/abilities/ability-sheet.mjs");
+const { describeEffect, rollScopeChip, capabilityLabel, nameForSelections, settleLanguageGrant } = await import("../scripts/abilities/ability-sheet.mjs");
 const { default: AbilityExtras, selectionsOf, storedSelections } = await import("../scripts/abilities/ability-extras.mjs");
 const { registerSelectionVocab, selectionVocabFor } = await import("../scripts/lib/vocab.mjs");
 
@@ -176,6 +176,21 @@ check("a save rewrites the name only when picks are or were stored", () => {
   assert.equal(nameForSelections("Invented Trade (variant words)", [], [], vocab), null, "no picks before or after: the name stands");
   assert.equal(nameForSelections("Invented Trade (variant words)", [], ["alpha"], vocab), "Invented Trade (Alpha Kind)");
   assert.equal(nameForSelections("Invented Trade (Alpha Kind)", ["alpha"], [], vocab), "Invented Trade", "clearing stored picks removes their suffix");
+});
+
+check("the language-grant input is stored as a whole number, blank removes the flag, an unrendered input is left alone", () => {
+  const sent = (value) => ({ flags: { "acks-extras": { languageGrant: value } } });
+  // Invented figures: what is under test is the settling, never the count.
+  assert.equal(settleLanguageGrant(sent(2), null).flags["acks-extras"].languageGrant, 2);
+  assert.equal(settleLanguageGrant(sent("4"), 2).flags["acks-extras"].languageGrant, 4, "a typed string is a number");
+  for (const blank of [null, "", 0, -1, NaN]) {
+    const held = settleLanguageGrant(sent(blank), 2).flags["acks-extras"].languageGrant;
+    assert.ok(held instanceof foundry.data.operators.ForcedDeletion, `${String(blank)} over a stored figure unsets it`);
+    assert.ok(!("languageGrant" in settleLanguageGrant(sent(blank), null).flags["acks-extras"]), `${String(blank)} over none writes nothing, and no 0`);
+  }
+  const unrendered = { flags: { "acks-extras": { extras: {} } } };
+  assert.deepEqual(settleLanguageGrant(unrendered, 2), { flags: { "acks-extras": { extras: {} } } });
+  assert.deepEqual(settleLanguageGrant({}, 2), {});
 });
 
 console.log(`test-ability-sheet: ${pass} passed`);

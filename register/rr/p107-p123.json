@@ -1799,7 +1799,16 @@
       "repeatable": true
     },
     "icon": "systems/acks/assets/icons/language.webp",
-    "iconNiche": "modules/game-icons-net/blacktransparent/conversation.svg"
+    "iconNiche": "modules/game-icons-net/blacktransparent/conversation.svg",
+    "values": [
+      {
+        "field": "languageGrant",
+        "from": {
+          "into": "amount",
+          "pattern": "an\\s*additional\\s*([a-z]+|\\d+)\\s*languages\\s*of\\s*his\\s*choice"
+        }
+      }
+    ]
   },
   {
     "id": "def.prof.layingOnHands",

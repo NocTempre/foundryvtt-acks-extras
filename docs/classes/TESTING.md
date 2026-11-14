@@ -1320,6 +1320,36 @@ fixture, so this one write is restored rather than swept.
 ids read back as each resolved; set the Player User's `legacy` flag back to
 the value recorded before the run (unset it if there was none).
 
+## An ability's language grant is read off its own page
+
+**Fixtures (markers `classes/language-grant-*`):** the Language proficiency
+and the Bonus Languages power, imported from the connected RR and JJ (Items
+sidebar → *Import Abilities*); a character with the Intellect modifier 0 and
+no class tongues, so the only slots are the abilities'; the same two items
+with `flags["acks-extras"].languageGrant` unset (a world imported before this
+read, or `api.fixture` copies with the flag removed).
+
+1. Import both abilities with the books connected. *Observable:* each item
+   carries `flags["acks-extras"].languageGrant` as a whole number, and the
+   ability sheet's Mechanics tab shows it in **Languages granted**; hovering
+   the field names the page the item was imported from.
+2. Give the character one copy of each and run `grantLanguages(character,
+   class)` (page context, `scripts/classes/languages.mjs`). *Observable:* the
+   open-slot carrier's capacity is the sum of the two figures, and a second
+   copy of the same ability adds its figure again.
+3. Unset the flag on a copy (a world or actor item). *Observable:* the
+   Mechanics tab field is blank; re-granting adds no slots for that copy.
+4. Type a figure into the blank field, then clear it. *Observable:* the flag
+   holds the figure after the first save and is absent (not 0) after the
+   second.
+5. With a hand-set figure on an item, run Items sidebar → **Update
+   Abilities**. *Observable:* the hand-set figure is unchanged; on an item
+   whose flag is absent the update fills it from the page.
+6. With the books not connected, create the ability by hand. *Observable:*
+   the field is blank and the character gains no slots from it.
+
+**Teardown:** `api.sweepTracked()` for the imported items and the character.
+
 ## The cold-shelf walk (template packages on a shelf that is not loaded)
 
 A compendium keeps its index and drops its documents after an idle window

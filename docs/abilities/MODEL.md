@@ -19,7 +19,11 @@ object (rollable, effect-bearing) even before its full prose is streamed.
   act on). An import writes the category of the definition it resolved, or
   blank for a name it could not (`docs/importer/MODEL.md`, "A stat block's
   proficiencies"); the Mechanics tab's Category select offers the blank, so a
-  save leaves it blank.
+  save leaves it blank. Beside the extras, not inside them,
+  `flags["acks-extras"].languageGrant` is how many languages the ability buys:
+  the importer reads it off the ability's own page, and the Mechanics tab's
+  **Languages granted** field sets it, blank when absent (clearing it unsets the
+  flag, never stores 0). `docs/classes/MODEL.md` owns what reads it.
 - **Enhance**: an alternate ability sheet — Description, **Rolls**, **Mechanics**
   (Foundry's own Active Effects folded into the last of these).
 - **Invent**: nothing the system provides is duplicated.

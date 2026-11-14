@@ -101,6 +101,17 @@
       <p class="hint">{{localize "ACKS-ABILITIES.mech.powerValueHint"}}</p>
     </div>
 
+    {{!-- Not under extras: the class feature reads the grant straight off the
+          flag. Blank when the ability grants none; clearing it removes the flag. --}}
+    <div class="form-group">
+      <label>{{localize "ACKS-ABILITIES.mech.languageGrant"}}</label>
+      <div class="form-fields">
+        <input type="number" step="1" min="1" name="{{languageGrant.name}}" value="{{languageGrant.value}}"
+               placeholder="—" data-tooltip-text="{{languageGrant.tip}}"
+               aria-label="{{localize 'ACKS-ABILITIES.mech.languageGrant'}}">
+      </div>
+    </div>
+
     <div class="form-group">
       <label>{{localize "ACKS-ABILITIES.mech.requires"}}</label>
       <div class="form-fields">

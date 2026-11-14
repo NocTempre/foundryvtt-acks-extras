@@ -638,7 +638,16 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "values": [
+      {
+        "field": "languageGrant",
+        "from": {
+          "into": "amount",
+          "pattern": "begins\\s*play\\s*speaking\\s*([a-z]+|\\d+)\\s*bonus\\s*languages"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.boonCompanion",
