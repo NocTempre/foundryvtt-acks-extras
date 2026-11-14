@@ -228,26 +228,26 @@ const CULTURE_NAME_BLOCKS = CULTURES.map((c) => ({
 
 // Scavenged equipment (RR p160) prints FOUR d20 grids in a 2×2 block: the two
 // weapon tables above, armour/equipment and vessels/vehicles below, left and
-// right print columns. Every grid shares the same seven d20 bands, which is why
-// each recipe needs `startAfter` — without it the upper grid in a column answers
-// for the lower one. Bands only; no effect text or values live here.
-const SCAVENGED_ROWS = [
-  { key: "2", labelRe: "^1\\s*[–—-]\\s*2\\b", set: { min: 1, max: 2 } },
-  { key: "6", labelRe: "^3\\s*[–—-]\\s*6\\b", set: { min: 3, max: 6 } },
-  { key: "10", labelRe: "^7\\s*[–—-]\\s*10\\b", set: { min: 7, max: 10 } },
-  { key: "14", labelRe: "^11\\s*[–—-]\\s*14\\b", set: { min: 11, max: 14 } },
-  { key: "16", labelRe: "^15\\s*[–—-]\\s*16\\b", set: { min: 15, max: 16 } },
-  { key: "18", labelRe: "^17\\s*[–—-]\\s*18\\b", set: { min: 17, max: 18 } },
-  { key: "20", labelRe: "^19\\s*[–—-]\\s*20\\b", set: { min: 19, max: 20 } },
-];
+// right print columns. Any d20 band label claims the next row and labelPattern
+// hands its bounds to the binding, so no band edge lives here. The specs
+// outnumber the rows and are optional; each grid starts after its own heading
+// and an upper grid stops at the heading below it, or it would run on into the
+// lower grid's rows.
+const SCAVENGED_ROWS = Array.from({ length: 20 }, (_, i) => ({
+  key: `b${i}`,
+  labelRe: "^\\d+\\s*[–—-]\\s*\\d+\\b",
+  labelPattern: "rollBand",
+  optional: true,
+}));
 
 /** One scavenged grid: the print column, its header anchor, and its three cells. */
-const scavengedGrid = ({ locate, column, labelMaxX, cells }) => ({
+const scavengedGrid = ({ locate, stopAt, column, labelMaxX, cells }) => ({
   shape: "gridRows",
   book: "rr",
   printedPage: 160,
   locate,
   startAfter: locate,
+  stopAt,
   column,
   labelMaxX,
   rowTol: 4,
@@ -2532,6 +2532,7 @@ export const TABLE_RECIPES = {
       },
       scavengedPiercingSlashing: scavengedGrid({
         locate: "Piercing/Slashing Weapons",
+        stopAt: "Armor and Equipment",
         column: { xMin: 40, xMax: 300 },
         labelMaxX: 78,
         cells: [
@@ -2542,6 +2543,7 @@ export const TABLE_RECIPES = {
       }),
       scavengedBludgeoning: scavengedGrid({
         locate: "Bludgeoning Weapons",
+        stopAt: "Vessels and Vehicles",
         column: { xMin: 300, xMax: 620 },
         labelMaxX: 334,
         cells: [
