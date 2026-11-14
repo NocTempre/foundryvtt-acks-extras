@@ -1,4 +1,4 @@
-/* global foundry, game, fromUuidSync */
+/* global foundry */
 /**
  * LocationData — the `acks-extras.location` actor sub-type: A PLACE.
  *
@@ -186,8 +186,7 @@ function candidateField() {
 function marketSchema() {
   return {
     // Market-class derivation inputs: explicit override wins, then urban
-    // families (local bracket table), then a linked domain's courtesy read,
-    // then default IV.
+    // families (local bracket table), then default IV.
     marketClassOverride: num({ integer: true, min: 1, max: 6 }),
     // The Judge's word on denomination exchange here, outranking the derived
     // rule (a market changes freely; anywhere else barters): "market" | "none".
@@ -538,18 +537,6 @@ export class LocationData extends foundry.abstract.TypeDataModel {
       } catch {
         /* tables not loaded yet */
       }
-    }
-    // Courtesy read of a linked domain, when a separate domains module is active (guarded).
-    try {
-      const domains = game?.modules?.get?.("acks-domains");
-      if (domains?.active && market.domainUuid) {
-        const domain = fromUuidSync?.(market.domainUuid);
-        const urban = domain?.system?.families?.urban;
-        const profile = domains.api?.rules?.settlementProfile?.(Number(urban) || 0);
-        if (profile?.marketClass) return clampMarketClass(profile.marketClass);
-      }
-    } catch {
-      /* domains API changed — fall through */
     }
     return 4;
   }

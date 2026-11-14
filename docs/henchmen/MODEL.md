@@ -44,7 +44,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 
 | Field | Meaning |
 |---|---|
-| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → a linked domain's courtesy read → default IV. Derived getter: `system.marketClass`. |
+| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → default IV. Derived getter: `system.marketClass`. |
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, or setting-specific additions). |
 | `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
 | `blockedClasses[]` | Class keys THIS market never offers (`classBlocked`). Every class draw here passes them to `rollClassFromDistribution`, which draws again on one and ends on `special` after `BLOCKED_CLASS_DRAWS` draws; `rollMonthlyPool` refuses a search directed at one `class-blocked`. A GM-placed candidate's named class is placed. |
@@ -657,8 +657,7 @@ actor whose name declares the fact with its value, e.g. `Stronghold: Border
 Fort` (cost 15,000 gp). Used for: follower stronghold prerequisites and
 social rank.
 
-**Social rank** rides the same chain (`getSocialRank`): a domains module's
-answer, then the actor flag `socialRank` (a number, or `{rank, title}`), then
+**Social rank** rides the same chain (`getSocialRank`): the actor flag `socialRank` (a number, or `{rank, title}`), then
 a marker item `Rank: 3 (Baron)` — the number is the rung, the parenthesis the
 title — or `Rank: Baron` for a title with no rung; nothing stated is null,
 never zero. What a title is worth is the Judge's or the module that owns

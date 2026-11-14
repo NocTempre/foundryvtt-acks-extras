@@ -16,8 +16,6 @@
  * declares it (docs/importer/MODEL.md, "The cookbook's files").
  */
 
-import { MODULE_ID, LANG_PREFIX, ITEM_TYPE } from "./constants.mjs";
-
 export {
   UNLINED_LINE, lineOf, bookOfCookbookId, isContentId, lineOfClaim, initCookbook, loadCookbook, cookbookContentFile,
   cookbookRegisters, cookbookSessionDoc, cookbookBookFile, cookbookEntry, cookbookCount, offeredHere, isAbilityEntry,

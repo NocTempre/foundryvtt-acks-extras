@@ -29,12 +29,11 @@ globalThis.foundry = {
 globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
 globalThis.CONST = { TOKEN_DISPLAY_MODES: {}, TOKEN_DISPOSITIONS: {} };
 let standingStep = 0;
-let domainsApi = null;
 globalThis.game = {
   user: { isGM: true },
   i18n: { localize: (k) => k, format: (k, d = {}) => `${k}|${d.name ?? `${d.other}>${d.own}:${d.stance}`}` },
   settings: { get: (_m, key) => (key === "standingPerClassStep" ? standingStep : undefined), set() {}, register() {} },
-  modules: { get: (id) => (id === "acks-domains" && domainsApi ? { api: domainsApi } : undefined) },
+  modules: { get: () => undefined },
   tables: { find: () => null },
   packs: { filter: () => [], get: () => undefined },
   actors: { filter: () => [], find: () => null },
@@ -381,11 +380,6 @@ standingStep = 0;
   assert.deepEqual(getSocialRank(actor(["Stronghold: Fort", "rank: 1 (Knight)"])), { rank: 1, title: "Knight" });
   assert.equal(getSocialRank(actor(["Ranking: 3"])), null, "the marker word is exact");
   assert.deepEqual(getSocialRank(actor(["Rank: 9 (King)"], 2)), { rank: 2, title: "" }, "the flag outranks the marker");
-  domainsApi = { getSocialRank: () => ({ rank: 7, title: "Duke" }) };
-  assert.deepEqual(getSocialRank(actor(["Rank: 1"], 2)), { rank: 7, title: "Duke" }, "the owning module outranks both");
-  domainsApi = { getSocialRank: () => 4 };
-  assert.deepEqual(getSocialRank(actor()), { rank: 4, title: "" });
-  domainsApi = null;
 }
 
 // --- the status row -----------------------------------------------------------------

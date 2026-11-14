@@ -1006,23 +1006,6 @@ export async function setDayKind(formationId, kind, { override = false } = {}) {
 }
 
 /**
- * Fill one ancillary slot (null clears it). Refused under a forced march, and
- * for an index past the slots the stored day carries.
- */
-export function setAncillary(formationId, slot, activity) {
-  return patchFormation(formationId, (record) => {
-    const t = storedTravelOf(record);
-    if (DAY_KINDS[t.day?.kind]?.consumesAncillary) return false;
-    const activities = [...(t.day.activities ?? freshDay().activities)];
-    const i = Number(slot);
-    if (!Number.isInteger(i) || i < 0 || i >= activities.length) return false;
-    if (activity != null && !ANCILLARY_ACTIVITIES[activity]) return false;
-    activities[i] = activity ?? null;
-    record.travel = { ...t, day: { ...t.day, activities } };
-  });
-}
-
-/**
  * Record a hex entered: the label updates and the day counts it. Spends no
  * miles and moves no clock — the trace alone; `nextHex` (journey.mjs) is the
  * Judge's override that also spends a cadence unit.

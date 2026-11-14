@@ -83,16 +83,6 @@ const FLAG_EXTRAS = "extras";
 const CAP_LIGHTLESS = "kw:lightlessvision";
 
 /**
- * Vision modes that let a creature move in TOTAL darkness (MM Overview
- * pp. 12–13):
- *   - lightless: sight in darkness to a range, counts as dim light;
- *   - blind: never relies on light (navigates by other senses).
- * Night Vision is deliberately excluded — it upgrades dim light but does NOT
- * function in total dark, so it must not be treated as dark sight.
- */
-const DARK_VISION = new Set(["lightless", "blind"]);
-
-/**
  * Non-visual senses that substitute for sight in darkness (their "sight" counts
  * as dim light, MM p. 13): echolocation and the mechanoreception family. Acute
  * hearing/olfaction only aid surprise, so they do NOT count.
@@ -106,9 +96,6 @@ const DARK_SENSES = new Set(["echolocation", "mechAerial", "mechAquatic", "mechT
  */
 const SHADOWY_PATTERN = /shadowy\s*sense/i;
 const LIGHTLESS_PATTERN = /lightless\s*vision|infravision|darkvision|dark\s*sight/i;
-
-/** Either dark sense, by name — what both callers of this pattern need. */
-export const DARK_SENSE_PATTERN = new RegExp(`${SHADOWY_PATTERN.source}|${LIGHTLESS_PATTERN.source}`, "i");
 
 /* -------------------------------------------- */
 /*  Reading the sheet                           */
@@ -128,24 +115,6 @@ export function getMonsterExtras(actor) {
 /** True if the actor carries any structured senses/vision data. */
 function hasSenseData(extras) {
   return Array.from(extras?.vision ?? []).length > 0 || (extras?.otherSenses ?? []).length > 0;
-}
-
-/**
- * Whether a monster can operate in total darkness, read from its vision modes
- * and special senses. Returns:
- *   - true / false when the stat block records vision or senses (authoritative);
- *   - null when there is nothing to read, so the caller keeps its own heuristic.
- */
-export function monsterSeesInDark(actor) {
-  const extras = getMonsterExtras(actor);
-  if (!extras || !hasSenseData(extras)) return null;
-  for (const mode of Array.from(extras.vision ?? [])) {
-    if (DARK_VISION.has(mode)) return true;
-  }
-  for (const sense of extras.otherSenses ?? []) {
-    if (DARK_SENSES.has(sense?.type)) return true;
-  }
-  return false;
 }
 
 /** Does any item or enabled effect on this actor match `pattern` by name? */

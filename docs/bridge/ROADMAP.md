@@ -58,7 +58,7 @@ headless function exists; **app** means only a window drives it today;
 
 | procedure | today | bridge verb |
 |---|---|---|
-| Hours and days; the day board | engine — `formation.travel.setDayKind` / `setAncillary`; `closeDay` | `travel` (player declares an ancillary; the Judge ends the day) |
+| Hours and days; the day board | engine — `formation.travel.setDayKind`, an ancillary setter (not built); `closeDay` | `travel` (player declares an ancillary; the Judge ends the day) |
 | The hex trace without a token | engine — `travel.enterHex(formationId, label)` takes a label | `travel move <hex>` — the abstract journey needs no token drag |
 | Searching the wild | engine — `searching.mjs` | `search` (wilderness) |
 | Navigation; being lost | engine — `travel.rollLandNavigation`; `setLost` is the Judge's | `navigate` (Judge sees the lie) |
