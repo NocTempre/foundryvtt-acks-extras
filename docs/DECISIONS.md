@@ -20,7 +20,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - undated — [13. The Patreon link — header icon and one footer line](DECISIONS-through-v11.14.5.md#13-the-patreon-link--header-icon-and-one-footer-line)
 - undated — [14. The site's stale sections, and the two guards that end them](DECISIONS-through-v11.14.5.md#14-the-sites-stale-sections-and-the-two-guards-that-end-them)
 - undated — [15. Domains at War: Battles is out of scope — interop, not resolution](DECISIONS-through-v11.14.5.md#15-domains-at-war-battles-is-out-of-scope--interop-not-resolution)
-- undated — [16. The importer joins — RESOLVED (2026-09-01)](DECISIONS-through-v11.14.5.md#16-the-importer-joins--resolved-2026-09-01) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module"
+- undated — [16. The importer joins — RESOLVED (2026-09-01)](DECISIONS-through-v11.14.5.md#16-the-importer-joins--resolved-2026-09-01) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - undated — [17. A free variable fails validate (2026-09-17)](DECISIONS-through-v11.14.5.md#17-a-free-variable-fails-validate-2026-09-17)
 - undated — [18. A guide links another by its file, and the site re-points the link (2026-10-01)](DECISIONS-through-v11.14.5.md#18-a-guide-links-another-by-its-file-and-the-site-re-points-the-link-2026-10-01)
 - undated — [19. The settings reference names every feature that registers a setting (2026-10-01)](DECISIONS-through-v11.14.5.md#19-the-settings-reference-names-every-feature-that-registers-a-setting-2026-10-01)
@@ -82,7 +82,7 @@ stages 4–7 run only with `STAGE` set, and markets with `STAGE` set prints no
 not be read or a result could not be recorded. A peer's runtime edit during
 a walk marks it as changed during its run.
 
-## 2026-11-13 — 29. Nothing serves an earlier version of this module
+## 2026-11-13 — 29. Only what the module and the current system write is served
 
 **Ruled** (owner, 2026-11-12, for the Public Beta release): "Legacy support
 out." It follows the owner's 2026-11-11 words for the close-out, "cancel any

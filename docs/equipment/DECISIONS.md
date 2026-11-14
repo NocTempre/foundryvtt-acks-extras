@@ -4,7 +4,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 
 ## In force
 
-- 2026-09-07 — [What a weapon IS is declared, not read off its name (2026-09-07)](DECISIONS-through-v11.14.5.md#what-a-weapon-is-is-declared-not-read-off-its-name-2026-09-07) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module" (the hands flag)
+- 2026-09-07 — [What a weapon IS is declared, not read off its name (2026-09-07)](DECISIONS-through-v11.14.5.md#what-a-weapon-is-is-declared-not-read-off-its-name-2026-09-07) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (the hands flag)
 - 2026-09-01 — [The module stops shipping a library of its own (2026-09-01)](DECISIONS-through-v11.14.5.md#the-module-stops-shipping-a-library-of-its-own-2026-09-01)
 - 2026-08-30 — [Putting gear to use takes it out of the pack (2026-08-30)](DECISIONS-through-v11.14.5.md#putting-gear-to-use-takes-it-out-of-the-pack-2026-08-30)
 - 2026-08-21 — [Whether it is on comes before where it goes (2026-08-21)](DECISIONS-through-v11.14.5.md#whether-it-is-on-comes-before-where-it-goes-2026-08-21)
@@ -26,7 +26,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-15 — [Base type is a flag on the item, and it refines the document type rather than replacing it (2026-08-15)](DECISIONS-through-v11.14.5.md#base-type-is-a-flag-on-the-item-and-it-refines-the-document-type-rather-than-replacing-it-2026-08-15)
 - 2026-08-23 — [One item sheet, this module's own markup (2026-08-23)](DECISIONS-through-v11.14.5.md#one-item-sheet-this-modules-own-markup-2026-08-23)
 - 2026-08-28 — [The mounted overlay ships its structure; the numbers wait](DECISIONS-through-v11.14.5.md#2026-08-28--the-mounted-overlay-ships-its-structure-the-numbers-wait) — superseded in part by "2026-10-17 — One automation client per seat, chosen by the last relayed claim"; "2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows"; "2026-11-11 — A held weapon shows and rolls one die"
-- 2026-10-21 — [The non-proficient package's figures are imported](DECISIONS-through-v11.14.5.md#2026-10-21--the-non-proficient-packages-figures-are-imported) — superseded in part by "2026-11-11 — A throwable needs no tag"; "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-10-21 — [The non-proficient package's figures are imported](DECISIONS-through-v11.14.5.md#2026-10-21--the-non-proficient-packages-figures-are-imported) — superseded in part by "2026-11-11 — A throwable needs no tag"; "2026-11-13 — Only what the module and the current system write is served"
 - 2026-11-11 — [Capacities, finesse sizes and the unarmed die are read, not shipped](DECISIONS-through-v11.14.5.md#2026-11-11--capacities-finesse-sizes-and-the-unarmed-die-are-read-not-shipped)
 - 2026-11-11 — [The Holds toggle shows the gear declaration, not containerhood](DECISIONS-through-v11.14.5.md#2026-11-11--the-holds-toggle-shows-the-gear-declaration-not-containerhood)
 - 2026-11-11 — [A Martial Training pick grants its option's own weapons](DECISIONS-through-v11.14.5.md#2026-11-11--a-martial-training-pick-grants-its-options-own-weapons) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)

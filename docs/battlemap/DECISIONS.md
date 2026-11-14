@@ -5,8 +5,8 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 ## In force
 
 - 2026-09-15 — [The road graph is planar, because a city is not a chain](DECISIONS-through-v11.14.5.md#2026-09-15--the-road-graph-is-planar-because-a-city-is-not-a-chain)
-- 2026-09-12 — [What the live walk of the road layer found](DECISIONS-through-v11.14.5.md#2026-09-12--what-the-live-walk-of-the-road-layer-found) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module"
-- 2026-09-12 — [A road is a wall, on every grid](DECISIONS-through-v11.14.5.md#2026-09-12--a-road-is-a-wall-on-every-grid) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-09-12 — [What the live walk of the road layer found](DECISIONS-through-v11.14.5.md#2026-09-12--what-the-live-walk-of-the-road-layer-found) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
+- 2026-09-12 — [A road is a wall, on every grid](DECISIONS-through-v11.14.5.md#2026-09-12--a-road-is-a-wall-on-every-grid) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-08-30 — [The tool says what a scene IS: family, units, system](DECISIONS-through-v11.14.5.md#2026-08-30--the-tool-says-what-a-scene-is-family-units-system) — superseded in part by "2026-10-09 — An undeclared map's system is inferred from its scale"
 - 2026-08-30 — [The right button pans; a sample says what it represents](DECISIONS-through-v11.14.5.md#2026-08-30--the-right-button-pans-a-sample-says-what-it-represents)
 - 2026-08-26 — [The panel is a window again, dismissed by the toolbar](DECISIONS-through-v11.14.5.md#2026-08-26--the-panel-is-a-window-again-dismissed-by-the-toolbar)
@@ -25,7 +25,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-28 — [Terrain paints as regions, and the cell key is the identity](DECISIONS-through-v11.14.5.md#2026-08-28--terrain-paints-as-regions-and-the-cell-key-is-the-identity) — superseded in part by "2026-10-24 — The map shows one mode at a time"
 - 2026-08-29 — [The terrain vocabulary opens to imported keys](DECISIONS-through-v11.14.5.md#2026-08-29--the-terrain-vocabulary-opens-to-imported-keys)
 - 2026-08-29 — [Mud and snow leave the brush](DECISIONS-through-v11.14.5.md#2026-08-29--mud-and-snow-leave-the-brush)
-- 2026-08-29 — [A hex has sides, corners and centres, and a road is a declared path](DECISIONS-through-v11.14.5.md#2026-08-29--a-hex-has-sides-corners-and-centres-and-a-road-is-a-declared-path) — superseded in part by "2026-09-12 — A road is a wall, on every grid"; "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-08-29 — [A hex has sides, corners and centres, and a road is a declared path](DECISIONS-through-v11.14.5.md#2026-08-29--a-hex-has-sides-corners-and-centres-and-a-road-is-a-declared-path) — superseded in part by "2026-09-12 — A road is a wall, on every grid"; "2026-11-13 — Only what the module and the current system write is served"
 - 2026-10-09 — [An undeclared map's system is inferred from its scale](DECISIONS-through-v11.14.5.md#2026-10-09--an-undeclared-maps-system-is-inferred-from-its-scale)
 - 2026-10-09 — [The brush paints at the book's grain](DECISIONS-through-v11.14.5.md#2026-10-09--the-brush-paints-at-the-books-grain) — superseded in part by "2026-10-15 — A river or a coast is a line"; "2026-10-15 — The country is read from the map, and the Judge's word stands over it"
 - 2026-10-09 — [A recipe's grid is aligned the way the calibration aligns one](DECISIONS-through-v11.14.5.md#2026-10-09--a-recipes-grid-is-aligned-the-way-the-calibration-aligns-one)

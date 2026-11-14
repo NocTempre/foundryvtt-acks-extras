@@ -17,7 +17,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-29 — [A second printed name for a shipped entry is authored on the entry (2026-08-29)](DECISIONS-through-v11.14.5.md#a-second-printed-name-for-a-shipped-entry-is-authored-on-the-entry-2026-08-29)
 - 2026-08-29 — [A printed pick rides as an offer, not as a dropped sentence (2026-08-29)](DECISIONS-through-v11.14.5.md#a-printed-pick-rides-as-an-offer-not-as-a-dropped-sentence-2026-08-29)
 - 2026-08-29 — [The library is the packs AND the sidebar this module stamped (2026-08-29)](DECISIONS-through-v11.14.5.md#the-library-is-the-packs-and-the-sidebar-this-module-stamped-2026-08-29) — superseded in part by "2026-09-23 — A copy of an import is the Judge's, and a rebuild leaves it standing"
-- 2026-08-27 — [A column key carries every qualification its printed header carries (2026-08-27)](DECISIONS-through-v11.14.5.md#a-column-key-carries-every-qualification-its-printed-header-carries-2026-08-27) — superseded in part by "2026-09-04 — The barbarian's column is declared elected"; "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-08-27 — [A column key carries every qualification its printed header carries (2026-08-27)](DECISIONS-through-v11.14.5.md#a-column-key-carries-every-qualification-its-printed-header-carries-2026-08-27) — superseded in part by "2026-09-04 — The barbarian's column is declared elected"; "2026-11-13 — Only what the module and the current system write is served"
 - 2026-08-27 — [A citation names the printed folio; everything else names the PDF page (2026-08-27)](DECISIONS-through-v11.14.5.md#a-citation-names-the-printed-folio-everything-else-names-the-pdf-page-2026-08-27)
 - 2026-08-26 — [A grid row is what the SECTION above it says, not what its name looks like (2026-08-26)](DECISIONS-through-v11.14.5.md#a-grid-row-is-what-the-section-above-it-says-not-what-its-name-looks-like-2026-08-26) — superseded in part 2026-11-13 (`repairPricedSubtypes`: `docs/DECISIONS.md` §29)
 - 2026-08-25 — [Reconciling is a claim about one game's library (2026-08-25)](DECISIONS-through-v11.14.5.md#reconciling-is-a-claim-about-one-games-library-2026-08-25)
@@ -64,7 +64,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-14 — [The printed name and the defined name are two different names (2026-08-14)](DECISIONS-through-v11.14.5.md#the-printed-name-and-the-defined-name-are-two-different-names-2026-08-14)
 - 2026-08-15 — [A language is a name and a page, not a description (2026-08-15)](DECISIONS-through-v11.14.5.md#a-language-is-a-name-and-a-page-not-a-description-2026-08-15) — superseded in part by "2026-08-15 — The taxonomy is read from the seat's own book, and a list cannot ship"
 - 2026-08-15 — [The taxonomy is read from the seat's own book, and a list cannot ship (2026-08-15)](DECISIONS-through-v11.14.5.md#the-taxonomy-is-read-from-the-seats-own-book-and-a-list-cannot-ship-2026-08-15)
-- 2026-08-15 — [2026-08-15 — an imported language is a `language`](DECISIONS-through-v11.14.5.md#2026-08-15--an-imported-language-is-a-language) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-08-15 — [2026-08-15 — an imported language is a `language`](DECISIONS-through-v11.14.5.md#2026-08-15--an-imported-language-is-a-language) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-08-16 — [2026-08-16 — who speaks which: read off the spread, defaulted off the chapter](DECISIONS-through-v11.14.5.md#2026-08-16--who-speaks-which-read-off-the-spread-defaulted-off-the-chapter)
 - 2026-08-16 — [2026-08-16 — a class is its race's whether or not its page reads](DECISIONS-through-v11.14.5.md#2026-08-16--a-class-is-its-races-whether-or-not-its-page-reads)
 - 2026-08-19 — [The Compatibility Guide becomes a book the reader connects (2026-08-19)](DECISIONS-through-v11.14.5.md#the-compatibility-guide-becomes-a-book-the-reader-connects-2026-08-19)
@@ -89,7 +89,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-24 — [A book the server holds is never bridged (2026-08-24)](DECISIONS-through-v11.14.5.md#a-book-the-server-holds-is-never-bridged-2026-08-24)
 - 2026-08-25 — [A window whose bands are a snapshot has to be built again (2026-08-25)](DECISIONS-through-v11.14.5.md#a-window-whose-bands-are-a-snapshot-has-to-be-built-again-2026-08-25)
 - 2026-08-29 — [The anchor is not advice — it decides whether a page is written (2026-08-29)](DECISIONS-through-v11.14.5.md#the-anchor-is-not-advice--it-decides-whether-a-page-is-written-2026-08-29)
-- 2026-08-30 — [The weapons grid prints three types, and ammunition is not a weapon (2026-08-30)](DECISIONS-through-v11.14.5.md#the-weapons-grid-prints-three-types-and-ammunition-is-not-a-weapon-2026-08-30) — superseded in part by "2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows"; "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-08-30 — [The weapons grid prints three types, and ammunition is not a weapon (2026-08-30)](DECISIONS-through-v11.14.5.md#the-weapons-grid-prints-three-types-and-ammunition-is-not-a-weapon-2026-08-30) — superseded in part by "2026-10-22 — An imported weapon is written in the system's own fields, and a quiver is its arrows"; "2026-11-13 — Only what the module and the current system write is served"
 - 2026-08-30 — [A printed class power is an award, and nothing offline was asking (2026-08-30)](DECISIONS-through-v11.14.5.md#a-printed-class-power-is-an-award-and-nothing-offline-was-asking-2026-08-30)
 - 2026-09-08 — [A roster block that prints its own name is not a bare roster block (2026-09-08)](DECISIONS-through-v11.14.5.md#a-roster-block-that-prints-its-own-name-is-not-a-bare-roster-block-2026-09-08)
 - 2026-09-08 — [A caption is not an ending, and an interruption is not one either (2026-09-08)](DECISIONS-through-v11.14.5.md#a-caption-is-not-an-ending-and-an-interruption-is-not-one-either-2026-09-08)
@@ -167,7 +167,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-09 — [A row's explanation stands as its own paragraph, and an opener line opens one](DECISIONS-through-v11.14.5.md#2026-10-09--a-rows-explanation-stands-as-its-own-paragraph-and-an-opener-line-opens-one)
 - 2026-10-09 — [A legacy stat row's band reaches halfway to its neighbours](DECISIONS-through-v11.14.5.md#2026-10-09--a-legacy-stat-rows-band-reaches-halfway-to-its-neighbours)
 - 2026-10-13 — [An icon the core build renamed keeps the path it was given, and the gate reads the build's aliases](DECISIONS-through-v11.14.5.md#2026-10-13--an-icon-the-core-build-renamed-keeps-the-path-it-was-given-and-the-gate-reads-the-builds-aliases)
-- 2026-10-17 — [A book is in the library as one Adventure](DECISIONS-through-v11.14.5.md#2026-10-17--a-book-is-in-the-library-as-one-adventure) — superseded in part by "2026-10-17 — How a book's Adventure is assembled and kept current"; "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-10-17 — [A book is in the library as one Adventure](DECISIONS-through-v11.14.5.md#2026-10-17--a-book-is-in-the-library-as-one-adventure) — superseded in part by "2026-10-17 — How a book's Adventure is assembled and kept current"; "2026-11-13 — Only what the module and the current system write is served"
 - 2026-10-17 — [Later books supersede, by the year their printing carries](DECISIONS-through-v11.14.5.md#2026-10-17--later-books-supersede-by-the-year-their-printing-carries) — superseded in part by "2026-10-24 — An item two books print is the later printing's"; "2026-11-13 — Same-year adventures are ordered by their place in the series (K9)"
 - 2026-10-17 — [The earlier printing's unique paragraphs follow the later one's](DECISIONS-through-v11.14.5.md#2026-10-17--the-earlier-printings-unique-paragraphs-follow-the-later-ones)
 - 2026-10-17 — [A person the page prints in full becomes a character, and the derivation wins](DECISIONS-through-v11.14.5.md#2026-10-17--a-person-the-page-prints-in-full-becomes-a-character-and-the-derivation-wins)
@@ -230,7 +230,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-28 — [A walled map is indoors, and the fort's maps are a city](DECISIONS-through-v11.14.5.md#2026-10-28--a-walled-map-is-indoors-and-the-forts-maps-are-a-city)
 - 2026-10-29 — [A held map's travel system is a link when the importer minted it](DECISIONS-through-v11.14.5.md#2026-10-29--a-held-maps-travel-system-is-a-link-when-the-importer-minted-it)
 - 2026-10-28 — [An item a book introduces is worn where its page says](DECISIONS-through-v11.14.5.md#2026-10-28--an-item-a-book-introduces-is-worn-where-its-page-says) — superseded in part by "2026-10-29 — A book's own item is repaired in place"
-- 2026-10-29 — [Nothing is imported without the book](DECISIONS-through-v11.14.5.md#2026-10-29--nothing-is-imported-without-the-book) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module"
+- 2026-10-29 — [Nothing is imported without the book](DECISIONS-through-v11.14.5.md#2026-10-29--nothing-is-imported-without-the-book) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-10-29 — [A player character's natural attack is a power's row](DECISIONS-through-v11.14.5.md#2026-10-29--a-player-characters-natural-attack-is-a-powers-row)
 - 2026-10-29 — [A book's own item is repaired in place](DECISIONS-through-v11.14.5.md#2026-10-29--a-books-own-item-is-repaired-in-place) — superseded in part by "2026-11-11 — One repair, in place, and the Judge chooses what it writes over"
 - 2026-10-30 — [A class stated in sentences](DECISIONS-through-v11.14.5.md#2026-10-30--a-class-stated-in-sentences) — superseded in part by "2026-10-30 — A community class's experience is priced from its build"
@@ -263,13 +263,14 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 
 ## 2026-11-13 — Book repair reaches a book's own rows and vehicles (T-0458)
 
-**Reported.** The owner's 11.14.4 report: Rebuild on a bestiary left a
-beastman template as the old card, and the owner's ruling of 2026-11-10 put it
-where it belongs: "no back-compat for the old card; it is an importer issue."
+**Reported.** The owner's report: Rebuild on a bestiary left a beastman
+template as a card the importer no longer writes, and the owner's ruling of
+2026-11-10 put it where it belongs: it is an importer issue, and no
+compatibility layer holds the old card.
 Book Rebuild and book Repair are one function (`cookbookReimportBook`,
 `repairBook`), and it never wrote the Monsters kind, nor the vehicles, nor the
 one journal and one roll table the rules and the Judge's book print. A Judge
-whose library's beastman template predates the Kit axis presses Rebuild on
+whose library's beastman template lacks the Kit axis presses Rebuild on
 the bestiary and gets the current-shape template under the same id; the
 sidebar copy is untouched.
 
@@ -496,7 +497,7 @@ rules extracts. The owner's sweep ruling that put the row in: "Close all
 open plus an IP safety sweep."
 
 **Rejected:** a migration of stored culture ids (owner, 2026-11-11: no tools
-for data earlier versions wrote). Locating a name list by its heading: a
+that rewrite stored data). Locating a name list by its heading: a
 heading and its list stand on different pages or columns for several
 cultures (a heading at the foot of one column opens a list at the head of the
 next), so each is located by its own key and the two are read apart.
@@ -513,10 +514,9 @@ neutral label.
 
 Nine cultures shipped their name template (the form that follows a given
 name, with the father's name in it) as `meta.patronym` in `CULTURES`: the
-affixes the book prints, written into source. The owner's rulings: "Fix
+affixes the book prints, written into source. The owner's ruling: "Fix
 backed values to imports and also expose somewhere as editable (this is a
-global rule applying here, fix whenever caught)", and "there is no need for
-even references to previous versions in the public release". The template is
+global rule applying here, fix whenever caught)". The template is
 now read from the culture's own section by the `patronym` take on the
 appearance blocks (`takePatronym`, importer MODEL, "A name read by its key"):
 the page's example, a given name glossed with its parent beside the quoted

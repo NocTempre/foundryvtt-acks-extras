@@ -9,7 +9,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-15 — [a gain stops at one level, and a lowered level reopens what the climbs above it closed](DECISIONS-through-v11.14.5.md#2026-10-15--a-gain-stops-at-one-level-and-a-lowered-level-reopens-what-the-climbs-above-it-closed)
 - 2026-09-10 — [a package lands beside its class](DECISIONS-through-v11.14.5.md#2026-09-10--a-package-lands-beside-its-class)
 - 2026-09-07 — [the library is warmed unconditionally, because emptiness is not coldness](DECISIONS-through-v11.14.5.md#2026-09-07--the-library-is-warmed-unconditionally-because-emptiness-is-not-coldness)
-- 2026-09-04 — [only a class that leaves the choice to the player asks for it](DECISIONS-through-v11.14.5.md#2026-09-04--only-a-class-that-leaves-the-choice-to-the-player-asks-for-it) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module" (docs/DECISIONS.md §29)
+- 2026-09-04 — [only a class that leaves the choice to the player asks for it](DECISIONS-through-v11.14.5.md#2026-09-04--only-a-class-that-leaves-the-choice-to-the-player-asks-for-it) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md §29)
 - 2026-09-02 — [a disabled control says why, and the die is not always the reason](DECISIONS-through-v11.14.5.md#2026-09-02--a-disabled-control-says-why-and-the-die-is-not-always-the-reason)
 - 2026-08-30 — [a pick list offers definitions, never a class's own copy](DECISIONS-through-v11.14.5.md#2026-08-30--a-pick-list-offers-definitions-never-a-classs-own-copy)
 - 2026-08-30 — [an unthrown template die is thrown, and a package answers the picks it makes](DECISIONS-through-v11.14.5.md#2026-08-30--an-unthrown-template-die-is-thrown-and-a-package-answers-the-picks-it-makes)
@@ -29,7 +29,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-20 — [a package resolves through the IMPORTS, and mints what it cannot find](DECISIONS-through-v11.14.5.md#2026-08-20--a-package-resolves-through-the-imports-and-mints-what-it-cannot-find) — superseded in part by "2026-08-24 — a package links what exists and mints nothing empty" (docs/lib/DECISIONS-through-v11.14.5.md); "2026-09-10 — a package lands beside its class"
 - 2026-08-19 — [a template is a bundle of repairable documents, in a table on the class](DECISIONS-through-v11.14.5.md#2026-08-19--a-template-is-a-bundle-of-repairable-documents-in-a-table-on-the-class) — superseded in part by "2026-09-10 — a package lands beside its class"
 - 2026-08-15 — [three pickers were one question](DECISIONS-through-v11.14.5.md#2026-08-15--three-pickers-were-one-question)
-- 2026-08-15 — [a language is the system's document, not our private string](DECISIONS-through-v11.14.5.md#2026-08-15--a-language-is-the-systems-document-not-our-private-string) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module" (docs/DECISIONS.md §29)
+- 2026-08-15 — [a language is the system's document, not our private string](DECISIONS-through-v11.14.5.md#2026-08-15--a-language-is-the-systems-document-not-our-private-string) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md §29)
 - 2026-08-14 — [Chargen rolls the hit die it was assumed to have already rolled](DECISIONS-through-v11.14.5.md#2026-08-14--chargen-rolls-the-hit-die-it-was-assumed-to-have-already-rolled)
 - 2026-08-14 — [A level set is a level owed: applying a class grants its ladder](DECISIONS-through-v11.14.5.md#2026-08-14--a-level-set-is-a-level-owed-applying-a-class-grants-its-ladder)
 - 2026-08-12 — [Import makes the examples: builds stamped, races materialized](DECISIONS-through-v11.14.5.md#2026-08-12--import-makes-the-examples-builds-stamped-races-materialized)
@@ -72,7 +72,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-11 — [the sheet's hit dice roll never hands off to the system's roll](DECISIONS-through-v11.14.5.md#2026-11-11--the-sheets-hit-dice-roll-never-hands-off-to-the-systems-roll)
 - 2026-11-11 — [the level cap and the builder's last die level are read, not supplied](DECISIONS-through-v11.14.5.md#2026-11-11--the-level-cap-and-the-builders-last-die-level-are-read-not-supplied)
 - 2026-11-11 — [a human class's maximum level is the proficiency count's difference](DECISIONS-through-v11.14.5.md#2026-11-11--a-human-classs-maximum-level-is-the-proficiency-counts-difference)
-- 2026-11-11 — [the racial value is -1 for no racial category, and saved builders are corrected once](DECISIONS-through-v11.14.5.md#2026-11-11--the-racial-value-is--1-for-no-racial-category-and-saved-builders-are-corrected-once) — superseded in part by "2026-11-13 — Nothing serves an earlier version of this module" (docs/DECISIONS.md §29)
+- 2026-11-11 — [the racial value is -1 for no racial category, and saved builders are corrected once](DECISIONS-through-v11.14.5.md#2026-11-11--the-racial-value-is--1-for-no-racial-category-and-saved-builders-are-corrected-once) — superseded in part by "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md §29)
 
 ## 2026-11-13 — a language's descent is not read, and written-word powers belong to the ability model
 
