@@ -385,6 +385,33 @@ by hand.
     and re-render the sheet.
     *Observable:* the Player seat sees a **gate** tag on the identity line, not
     the picker itself.
+
+    **A gate is the point of entry to its market.** Fixtures, found by marker
+    or built once and kept: `location/gate-market`, a location with a market
+    added (**Add a market**) and no linked scene, its token on scene X;
+    `location/gate`, a location with role **City gate** whose parent is
+    `location/gate-market`, its token on scene Y; `location/gate-trader`, a
+    character the Player seat owns. The RR mercantile tables must be imported
+    (`acksExtras.lib.tables` holds `mercantile.marketCharacteristics`); with
+    them absent, the entry refuses and names the table, which is the
+    "not imported" observable. Assert at the start that the gate's parent is
+    the market and the market carries no scene link.
+    - As the Judge, open `location/gate`'s sheet. *Observable:* the identity
+      line shows **Point of entry:** with the market's name as a link, and an
+      **Enter the market** button whose hover names the Ventures tab.
+    - Set the gate's parent to a place with no market. *Observable:* the line
+      says the gate opens onto no market, to the Judge only (re-render as the
+      Player seat: nothing). Restore the parent.
+    - Join as the Player seat, put the trader's token one square from the
+      gate's token on scene Y, open the gate's sheet and press **Enter the
+      market**. *Observable:* the market's sheet opens on its **Ventures**
+      tab; the Enter dialog quotes the toll; confirming posts the entry and
+      takes the coin from the trader (read the trader's coin before and after).
+    - Move the trader's token well away from the gate. *Observable:* Enter
+      refuses as away from the market, naming scene X.
+    - With the trader back at the gate, open the trader's Storage tab.
+      *Observable:* the market is listed as a place the trader stands at (a
+      deposit is offered), because reach is one rule.
 22. **The storage manager's move target holds.** Make two disposable
     locations providers (`lib.storage.setProvider`), stock goods at the first
     (`stockProvider`), and `openStorageManager(first)`. Pick the second under

@@ -767,7 +767,7 @@ holds many points of interest and none of them is the quarter.
 *Cost:* one more mirror to keep true, and one more clause in the prune's
 survival test — a place that IS a quarter is not empty.
 
-## 2026-09-30 — A place has a role
+## 2026-09-30 — A place has a role — SUPERSEDED IN PART 2026-11-14
 
 **Ruled.** A location carries `system.role`, one of `PLACE_ROLES` or blank
 (`gate` today). A role is what the place IS to a procedure of the city: the
@@ -1084,3 +1084,37 @@ Retrieval stays ungated, and a Judge's own coin acts still pass.
 
 **Ruled.** `system.gmNotes` is a second field beside `system.notes`, so the two are visibly different records instead of one field whose audience depends on a setting; the notes are shared. It renders only inside the sheet's GM region, which is the whole of its protection: the same UI convention the roster's `hidden` follows, not a security boundary.
 **Rejected.** A gate on `notes` that varies its audience by a setting.
+
+## 2026-11-14 — A city gate is the point of entry to the market it stands inside
+
+Asked "Every place offers a Role of "City gate" on its Contents tab, and
+settlement imports set it, but nothing in the module reads it. Keep the
+control or drop it?", the owner answered: "Fix the gates to follow RAW rules
+for entry to a town/city."
+
+**Ruled.** The rules print one entry procedure, the market's (RR ch. 8,
+Entering the Market, RR 370–372), and its step 3 is charged at the point of
+entry, which the page says a city gate is. The markets feature already
+charges that step, so the role is made to lead to it rather than to charge
+anything of its own. A place with the `gate` role is the point of entry to its
+nearest ancestor with a market. Its sheet links that market and opens the
+market's Ventures tab. Standing at it counts as standing at the market, inside
+the one definition of reach, so the entry the gate offers is never refused at
+the gate, and the next day's trading from the same spot is not either. This
+supersedes in part "A place has a role" (2026-09-30): its "settlement board's
+gate action" is not built and is not the role's reader.
+
+**Rejected:**
+- Gate hours, shutting at night, the watch's word, a refusal at the gate: no
+  page prints them, and no house rules ship.
+- Entry allowed only through a gate. The page names gates among other points
+  of entry, and a market nobody drew a gate for must stay enterable.
+- A reach clause for market entry alone. That would be a second definition of
+  reach, refusing the next day's trade at the spot where entry was allowed.
+- A port or caravanserai role beside the gate. The mechanic is the same, and a
+  Judge marks one as a gate.
+- Recording which gate a party used. Nothing printed varies by gate.
+
+*Cost:* every gated market has a second body for deposits and coin as well as
+entry, since reach is one rule. A world's gates are walked once per reach
+sweep, or once per call where a caller holds no scan.

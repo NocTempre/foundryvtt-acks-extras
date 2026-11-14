@@ -18,9 +18,13 @@
  * party token. A COMPANION reaches what the formation's members reach, and the
  * party actor answers only for a character no formation holds. A character
  * ABOARD a place (`lib/attachment.mjs` carrier chain) is there.
+ * A place with a market is also reached from any of its GATES (`gate.mjs`, a
+ * place with the gate role standing inside it), by the same presence test the
+ * gate itself would pass: the gate is the point of entry to the market (RR 372).
  * See docs/location/DECISIONS.md, "Reach asks about the character, and about one body at a time".
  */
 import { MODULE_ID } from "./constants.mjs";
+import { gatesByMarket } from "./gate.mjs";
 import { sceneOfLocation } from "./scene-link.mjs";
 import { libStorage as storage } from "../lib/util.mjs";
 import { carrierChain } from "../lib/attachment.mjs";
@@ -56,9 +60,17 @@ export async function setPinnedPlace(actor, placeUuid, pinned = true) {
  * actor is matched by its own token, and only a base actor answers for the
  * tokens that name it.
  *
- * @returns {{mine: Map<string, object[]>, placedOn: Map<string, object[]>}}
+ * `gates` maps a market's uuid to the gate actors that open onto it
+ * (`gatesByMarket`), read once here so a sweep never rebuilds it per place.
+ *
+ * @returns {{mine: Map<string, object[]>, placedOn: Map<string, object[]>, gates: Map<string, object[]>}}
  */
 export function reachScan(actor) {
+  return { ...tokenPass(actor), gates: gatesByMarket() };
+}
+
+/** The token half of `reachScan`, for a reader that has no use for the gates. */
+function tokenPass(actor) {
   const mine = new Map();
   const placedOn = new Map();
   // A token actor with no token to name matches nothing, never its base actor's id.
@@ -107,7 +119,7 @@ function standingSpots(actor, scan) {
     if (at) return [at];
   }
   const out = [];
-  const mine = scan?.mine ?? reachScan(actor).mine;
+  const mine = scan?.mine ?? tokenPass(actor).mine;
   for (const [sceneId, tokens] of mine) {
     const scene = game.scenes?.get(sceneId);
     if (!scene) continue;
@@ -206,23 +218,39 @@ export function aboard(actor, place) {
 }
 
 /**
- * Is this place where the character is standing?
- *
- * The presence half of `depositReach` alone, without the claim half: the
- * character is aboard it, the place's linked scene is one this character
- * stands on, or its own token is within reach of where they stand.
- *
- * @param {object} [opts]
- * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass
- *   (`reachScan`) shared across a sweep.
+ * Is the character at this one place itself: aboard it, standing on its linked
+ * scene, or within reach of its own token? A place's gates are not asked here.
  */
-export function standingAt(actor, place, { scan } = {}) {
+function presentAt(actor, place, scan) {
   if (!actor || !place) return false;
   if (aboard(actor, place)) return true;
   const spots = standingSpots(actor, scan);
   const linked = sceneOfLocation(place);
   if (linked) return spots.some((spot) => spot.scene.id === linked.id);
   return spots.some((spot) => placeReachesSpot(place, spot));
+}
+
+/** Is the character at any gate that opens onto this place's market? False for a place with no market. */
+function atAGate(actor, place, scan) {
+  if (!place?.system?.hasMarket) return false;
+  const gates = (scan?.gates ?? gatesByMarket()).get(place.uuid) ?? [];
+  return gates.some((gate) => presentAt(actor, gate, scan));
+}
+
+/**
+ * Is this place where the character is standing?
+ *
+ * The presence half of `depositReach` alone, without the claim half: the
+ * character is at the place (aboard it, on its linked scene, or within reach of
+ * its own token), or, where the place has a market, at one of its gates.
+ *
+ * @param {object} [opts]
+ * @param {{mine: Map, placedOn: Map, gates: Map}} [opts.scan] one world token
+ *   pass (`reachScan`) shared across a sweep.
+ */
+export function standingAt(actor, place, { scan } = {}) {
+  if (!actor || !place) return false;
+  return presentAt(actor, place, scan) || atAGate(actor, place, scan);
 }
 
 /**
@@ -264,6 +292,9 @@ export function depositReach(actor, place, { scan } = {}) {
 
   // Riding in it is being there, whatever map it is or is not on.
   if (aboard(actor, place)) return { can: true, reason: null, scene: null };
+
+  // A gate is the point of entry to the market it stands inside, linked scene or not.
+  if (atAGate(actor, place, scan)) return { can: true, reason: null, scene: null };
 
   const linked = sceneOfLocation(place);
   if (linked) {

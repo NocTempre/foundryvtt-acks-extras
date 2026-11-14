@@ -91,6 +91,8 @@ const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/l
 // built to answer — which body is on which map — so it is proved here rather
 // than in `test-money.mjs`, which is deliberately Foundry-free.
 const { coinReach } = await import("../scripts/lib/money.mjs");
+// `coinReach` asks a PLACE through the location api's `depositReach`, the chain the gate cases prove end to end.
+globalThis.acksExtras.location = { reach: { depositReach } };
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -155,7 +157,7 @@ function makeActor(name, type, extra = {}) {
   return actor;
 }
 
-const makePlace = (name, extra) => makeActor(name, LOCATION_TYPE, extra);
+const makePlace = (name, extra) => makeActor(name, LOCATION_TYPE, { documentName: "Actor", ...extra });
 const makeHero = (name, extra) => makeActor(name, "character", extra);
 
 /**
@@ -985,4 +987,162 @@ ok("a town's marker outranks a deployed wagon beside it", () => {
   assert.equal(depositReach(hero, wagon).can, true, "the wagon beside it stays within reach");
 });
 
-console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan, aboard, deployed)`);
+/* -------------------------------------------- */
+/*  A gate is the point of entry to its market  */
+/* -------------------------------------------- */
+
+/** A place with a market. */
+const makeMarket = (name, system = {}) => makePlace(name, { system: { hasMarket: true, ...system } });
+/** A place inside `parent`; the gate role unless a case says otherwise. */
+const makeInside = (name, parent, role = "gate") => makePlace(name, { system: { parentUuid: parent.uuid, role } });
+
+/** What the three readers of reach say about one place, so a case states the agreement once. */
+function readers(hero, place) {
+  const scan = reachScan(hero);
+  return {
+    deposit: depositReach(hero, place).can,
+    depositScan: depositReach(hero, place, { scan }).can,
+    standing: standingAt(hero, place),
+    standingScan: standingAt(hero, place, { scan }),
+    coin: coinReach(hero, place).can,
+  };
+}
+
+const allSay = (answers, expected, why) => {
+  for (const [reader, value] of Object.entries(answers)) assert.equal(value, expected, `${reader}: ${why}`);
+};
+
+ok("an unlinked market is reached from its gate's token, on a map the market is not on", () => {
+  const town = makeScene("Town Square");
+  const docks = makeScene("The Docks");
+  const hero = makeHero("Balas");
+  const market = makeMarket("Port Market");
+  const gate = makeInside("West Gate", market);
+  drop(docks, market, { x: 500, y: 500 });
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  allSay(readers(hero, market), true, "one square from the gate is at the market");
+  assert.equal(readers(hero, gate).deposit, true, "and the gate is still reached as itself");
+});
+
+ok("a gate's reach is the gate's own: out of range of its token is not at the market", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const market = makeMarket("Port Market");
+  const gate = makeInside("West Gate", market);
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 3000, y: 3000 });
+
+  const answers = readers(hero, market);
+  allSay(answers, false, "the party is far from the only gate");
+  assert.equal(depositReach(hero, market).reason, "notYours", "the market is on no map, so there is nowhere to send them");
+});
+
+ok("a linked market is reached from a gate on a scene that is not its linked scene", () => {
+  const town = makeScene("Town Square");
+  const marketMap = makeScene("The Market Map");
+  const hero = makeHero("Balas");
+  const market = makeMarket("Port Market");
+  linkScene(marketMap, market);
+  const gate = makeInside("West Gate", market);
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  allSay(readers(hero, market), true, "the gate stands on the town's map; the market's own map is elsewhere");
+});
+
+ok("a linked market still answers to its own scene, and names it when a gate is not stood at", () => {
+  const marketMap = makeScene("The Market Map");
+  const road = makeScene("The North Road");
+  const walker = makeHero("Balas");
+  const stayer = makeHero("Dolf");
+  const market = makeMarket("Port Market");
+  linkScene(marketMap, market);
+  const gate = makeInside("West Gate", market);
+  drop(road, gate, { x: 500, y: 500 });
+  drop(marketMap, stayer, { x: 100, y: 100 });
+  drop(road, walker, { x: 3000, y: 3000 });
+
+  assert.equal(depositReach(stayer, market).can, true, "standing on the linked scene reaches it");
+  const reach = depositReach(walker, market);
+  assert.equal(reach.can, false, "a gate no token of theirs is near grants nothing");
+  assert.equal(reach.reason, "notHere");
+  assert.equal(reach.scene, marketMap, "and the refusal still names the market's own map");
+});
+
+ok("a child place without the gate role grants no reach to its market", () => {
+  const town = makeScene("Town Square");
+  const docks = makeScene("The Docks");
+  const hero = makeHero("Balas");
+  const market = makeMarket("Port Market");
+  const stall = makeInside("A Stall", market, "");
+  const plain = makeInside("A Courtyard", market, "");
+  drop(docks, market, { x: 500, y: 500 });
+  drop(town, stall, { x: 500, y: 500 });
+  drop(town, plain, { x: 700, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  allSay(readers(hero, market), false, "standing at a stall is not standing at a gate");
+  assert.equal(depositReach(hero, market).reason, "notHere");
+  assert.equal(depositReach(hero, market).scene, docks);
+});
+
+ok("a gate whose nearest market is another place grants none to this one", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const city = makeMarket("The City");
+  const quarter = makeMarket("The Quarter", { parentUuid: city.uuid });
+  const gate = makeInside("Quarter Gate", quarter);
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  allSay(readers(hero, quarter), true, "the quarter's gate opens onto the quarter");
+  allSay(readers(hero, city), false, "and onto nothing farther up");
+});
+
+ok("a gate under a place with no market grants no reach to it, or to anything else", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const hamlet = makePlace("The Hamlet");
+  const gate = makeInside("Hamlet Gate", hamlet);
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  allSay(readers(hero, hamlet), false, "the hamlet has no market to enter");
+  assert.equal(reachScan(hero).gates.size, 0, "a gate with no market above it is filed under none");
+});
+
+ok("a character aboard a gate is at the market it opens onto", () => {
+  const road = makeScene("The North Road");
+  const wagon = makeWagon("The Wagon");
+  const market = makeMarket("Port Market");
+  const hero = makeHero("Balas", flagged({ attachedTo: { uuid: wagon.uuid, role: "passenger" } }));
+  const gate = makeInside("Floating Gate", market);
+  march(road, [hero], { x: 3000, y: 3000 });
+
+  allSay(readers(hero, market), false, "aboard a wagon is not aboard the gate");
+  hero.flags[MODULE_ID].attachedTo = { uuid: gate.uuid, role: "passenger" };
+  assert.equal(aboard(hero, gate), true);
+  allSay(readers(hero, market), true, "carried by the gate is at the gate, on a map or on none");
+});
+
+ok("reachScan files gates by market, and reachablePlaces offers the market they open onto", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const market = makeMarket("Port Market");
+  const other = makeMarket("Inland Market");
+  const gate = makeInside("West Gate", market);
+  makeInside("East Gate", market);
+  providers = [market, other];
+  drop(town, gate, { x: 500, y: 500 });
+  march(town, [hero], { x: 600, y: 600 });
+
+  const scan = reachScan(hero);
+  assert.equal(scan.gates.get(market.uuid).length, 2);
+  assert.equal(scan.gates.has(other.uuid), false);
+  assert.deepEqual(reachablePlaces(hero), [market], "only the market whose gate they stand at");
+  assert.equal(listsWhenEmpty(hero, market), true, "and the character's list shows it while they stand there");
+});
+
+console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan, aboard, deployed, gates)`);

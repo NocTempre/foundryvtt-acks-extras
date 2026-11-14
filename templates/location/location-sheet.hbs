@@ -88,6 +88,22 @@
         <i class="fas {{roleTag.icon}}"></i> {{roleTag.label}}
       </span>
       {{/if}}
+      {{#if gateEntry}}
+      {{#if gateEntry.none}}
+      <span class="acks-tag"><i class="fas fa-triangle-exclamation"></i> {{localize "ACKS-LOCATION.place.gate.noMarket"}}</span>
+      {{else if gateEntry.canOpen}}
+      <span class="acks-tag">
+        <i class="fas fa-archway"></i> {{localize "ACKS-LOCATION.place.gate.entryLabel"}}
+        <a data-action="openPlace" data-place-uuid="{{gateEntry.uuid}}">{{gateEntry.name}}</a>
+      </span>
+      <button type="button" class="inline-add" data-action="enterAtGate" data-market-uuid="{{gateEntry.uuid}}"
+        aria-label="{{localize 'ACKS-LOCATION.place.gate.enter'}}" data-tooltip="{{localize 'ACKS-LOCATION.place.gate.enterTip'}}">
+        <i class="fas fa-door-open"></i> {{localize "ACKS-LOCATION.place.gate.enter"}}
+      </button>
+      {{else}}
+      <span class="acks-tag"><i class="fas fa-archway"></i> {{gateEntry.entryFor}}</span>
+      {{/if}}
+      {{/if}}
       {{#if coinRollupGC}}
       <span class="acks-tag" data-tooltip="{{localize 'ACKS-LOCATION.place.coinRollupHint'}}">
         <i class="fas fa-coins"></i> {{coinRollupGC}} gp

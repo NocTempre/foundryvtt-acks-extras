@@ -93,6 +93,12 @@ vehicle — directly, or through a chain of carriers, such as a rider on a horse
 in a wagon's traces — is at it wherever it is, on a map or on none
 (`reach.mjs` `aboard`, reading `lib/attachment.mjs`'s carrier chain).
 
+A place with a market is also reached from any of its **gates** (`atAGate`):
+a character at a gate, by the same presence test the gate itself would pass,
+is at the market the gate opens onto, whether or not that market has a map of
+its own. It comes after being carried and before both halves, so a deposit,
+a coin act and a market entry all answer to it (see "A place's role").
+
 Places come in two shapes and the rule has two halves to match. A place with a
 **linked scene** IS a map, and being on that map — not the *active* map — is
 what reaches it. A place with **no linked scene** answers to a claim (your own
@@ -183,9 +189,25 @@ place. So the field has no surface and no standing balance:
 
 ## A place's role
 
-A place may carry a **role** — today, a gate — which marks it as a place of
-significance. A gate is listed as one; the gate action on the settlement board,
-which uses this role, is in [ROADMAP.md](ROADMAP.md).
+A place may carry a **role** (`system.role`, one of `PLACE_ROLES`); the one
+role is `gate`. A gate is a **point of entry** to the market it stands inside
+(RR ch. 8, Entering the Market, step 3, RR 372): the nearest place above it,
+by `parentUuid`, that has a market (`gate.mjs` `gateMarketOf`; the gate's own
+market never counts). Three things follow:
+
+- **The gate's sheet names its market.** On the Contents tab's identity line,
+  beside the role, it links the market and offers **Enter the market**, which
+  opens the market's sheet on its Ventures tab, where the markets feature
+  charges the entry (`docs/markets/MODEL.md`, "The gate"). A viewer who cannot
+  see the market's sheet reads its name alone; a gate with no market above it
+  says so to the Judge.
+- **Standing at a gate is standing at its market** ("Reaching a place"), so
+  the entry the gate offers is never refused for the party standing there.
+- **Nothing else changes.** A market with no gate is entered as before; a gate
+  charges nothing of its own and has no hours.
+
+`reachScan` files the world's gates by market once per sweep
+(`gatesByMarket`); a single reach call without a scan files them itself.
 
 ## A place on the map
 

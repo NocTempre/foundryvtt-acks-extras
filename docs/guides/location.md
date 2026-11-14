@@ -60,8 +60,18 @@ district's sheet.
 A place can have a **Role**; **City gate** is the one offered. Pick it
 on the **Contents** tab, on the line with **Region**. The Judge sees the
 picker; players see a tag instead. The points-of-interest step of a settlement
-import marks a book's gates for you. The marking is recorded; nothing in the
-module acts on it.
+import marks a book's gates for you.
+
+A gate is a point of entry to the market it stands inside: put the gate inside
+a place that has a market (or anywhere below one). Its **Contents** tab then
+shows **Point of entry:** with the market's name, and an **Enter the market**
+button that opens the market's sheet on its **Ventures** tab, where entering
+is charged. A character standing at the gate's token counts as standing at
+the market, so they can enter, trade and store goods there even when the
+market's own token or map is elsewhere. A market without a gate is entered
+just as before. A gate with no market above it tells the Judge so on its
+sheet; an imported gate finds its market once the settlement's market step
+has run.
 
 ![](../releases/v9.7.0/location-role.png)
 

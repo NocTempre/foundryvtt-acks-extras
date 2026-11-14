@@ -7,9 +7,10 @@ export const LANG_PREFIX = "ACKS-LOCATION";
 export const LOCATION_TYPE = `${MODULE_ID}.location`;
 
 /**
- * The roles a place can carry: what a place IS to a city procedure (a gate to
- * the gate action), never what it sells. Each entry names its lang label and
- * the Font Awesome icon the sheet shows beside it.
+ * The roles a place can carry: what a place IS to a city procedure, never what
+ * it sells. A `gate` is the point of entry to the market it stands inside
+ * (`gate.mjs`, RR 372). Each entry names its lang label and the Font Awesome
+ * icon the sheet shows beside it.
  */
 export const PLACE_ROLES = Object.freeze({
   gate: { label: `${LANG_PREFIX}.place.role.gate`, icon: "fa-archway" },

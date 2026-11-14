@@ -19,6 +19,7 @@ import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { droppedGoods } from "../../lib/bundles.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
+import { GATE_ROLE, gateMarketOf } from "../gate.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
@@ -115,6 +116,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       openOwner: LocationSheet.#onOpenOwner,
       // --- contents tab: nesting, occupancy, stacking, the map ---
       openPlace: LocationSheet.#onOpenPlace,
+      enterAtGate: LocationSheet.#onEnterAtGate,
       detachPlace: LocationSheet.#onDetachPlace,
       addChildPlace: LocationSheet.#onAddChildPlace,
       removeOccupant: LocationSheet.#onRemoveOccupant,
@@ -323,6 +325,18 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       })),
     ];
     context.roleTag = role ? { icon: PLACE_ROLES[role].icon, label: game.i18n.localize(PLACE_ROLES[role].label) } : null;
+
+    // A gate names the market it is the point of entry to. One with no market
+    // above it says so to the Judge alone, who is the one who can place it.
+    context.gateEntry = null;
+    if (role === GATE_ROLE) {
+      const market = gateMarketOf(actor, index);
+      if (market) {
+        const canOpen = market.sheet?.isVisible ?? market.testUserPermission(game.user, "LIMITED");
+        context.gateEntry = { uuid: market.uuid, name: market.name, canOpen };
+        context.gateEntry.entryFor = game.i18n.format(`${LANG_PREFIX}.place.gate.entryFor`, { market: market.name });
+      } else if (game.user.isGM) context.gateEntry = { none: true };
+    }
   }
 
   /**
@@ -1083,6 +1097,16 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (!uuid) return;
     const doc = await fromUuid(uuid).catch(() => null);
     doc?.sheet?.render(true);
+  }
+
+  /** A gate's Enter control: the market's sheet, on its Ventures tab, where entry is charged. */
+  static async #onEnterAtGate(_event, target) {
+    const uuid = target.dataset.marketUuid;
+    const market = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    const sheet = market?.sheet;
+    if (!sheet?.isVisible) return;
+    await sheet.render({ force: true });
+    sheet.changeTab("ventures", "primary", { force: true });
   }
 
   /** Lift a sub-place out to the root — the undo for a wrong drop. */
