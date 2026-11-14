@@ -5552,3 +5552,16 @@ core can add the guard itself, at which point the patch is deleted.
 by the one caller shape this answers; the patch's suite pins the match and the
 passes-through cases, and the live import count in importer TESTING, "Counting
 reads", shows the loads gone.
+
+## 2026-11-13 — A gate names a capability, and two providers of one do not stack
+
+**Ruled.** A capability is what an ability lets you do, named independently of which ability grants it. Abilities declare what they `provide`; prerequisites, gates and stacking rules are written against the capability, not against one entry. The books print the same capability several ways (a skill, a proficiency, a class power, an alias under another name), and a gate written against one exact definition id misses the rest, where a `kw:` gate catches them all because each provides the capability. It also gives aliases and non-stacking one mechanism instead of two: two abilities that provide the same capability are the same capability twice, so they do not stack, and that falls out of the data rather than being asserted per pair.
+
+## 2026-11-13 — A target-alignment scope is a gate or a sign flip, and they are different rules
+
+**Ruled.** The books write two target-alignment scopes and they are not the same rule. A `gate` applies the bonus versus the named alignment and does nothing otherwise. A `sign` flips to a penalty of the same size versus everyone else.
+**Rejected.** Storing either as the other, which is wrong by up to double the value in the direction that matters most.
+
+## 2026-11-13 — A wear slot is an exclusion counted against magic items
+
+**Ruled.** A slot is an exclusion, not a bonus: an item's form is mechanically irrelevant except that a character may not wear two magic items of the same form at once. `capacity` is therefore the magic capacity of the place, what `item-model.mjs` `slotUse` counts magic items against; what the body can physically carry twice is a second count there, where armour and weapons take a place and clothing and plain gear take none. `capacity: null` is unlimited, and the belt and the back are uncapped because several different forms hang from each. A slot assignment that is slightly wrong costs only mis-scoped exclusivity, which is why gear may declare its slot as a correctable guess.

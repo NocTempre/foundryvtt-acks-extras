@@ -3,20 +3,18 @@
  * Overlay: scavenged equipment (RR p. 160; equipment RULES.md §11).
  * Gated by the `overlayScavenged` world setting.
  *
- * Reuse first: every RAW result is expressible in fields core already has —
- * "-N damage" is a damage-formula modifier, "-N to attacks" is `bonus.attack`,
- * "+N stone encumbrance" is `weight6`, "-N AC" is `ac.value`. So this is a
- * table plus a planner that returns core-field updates; there is no runtime
- * layer and nothing to intercept.
+ * A condition table plus a planner (`toItemUpdates`) that returns updates on
+ * fields core already owns: damage formula, `bonus.attack`, `weight6`,
+ * `ac.value`. There is no runtime layer and nothing to intercept.
  *
- * Every figure here is read from the Judge's own copy at import: the condition
- * grids, each row's effect and resale fraction, and the cap on how far attack
- * and armour class penalties may stack. This file holds the procedure only:
- * which d20 band a result lands in, that a "roll again" row spawns two more
- * rolls, that effects accumulate. With a table not imported there are no rows
- * to pick and a roll refuses; with the cap not read, nothing is capped.
- * Items that "break" are recorded as a flag for the Judge rather than
- * auto-destroying.
+ * Every figure is read from the Judge's own copy at import: the condition
+ * grids, each row's effect and resale fraction, and the cap on stacked attack
+ * and armour class penalties. This file holds the procedure only: which d20
+ * band a result lands in, that a reroll row spawns two more rolls, that
+ * effects accumulate. With a table not imported a roll refuses; with the cap
+ * not read, nothing is capped. An item that breaks is recorded as a flag for
+ * the Judge, never destroyed.
+ * See docs/equipment/MODEL.md, "Scavenged condition (RR p. 160)".
  */
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS } from "../constants.mjs";
@@ -28,8 +26,10 @@ import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 /*  The IMPORTED tables (importer extraction → lib ruledata registry)  */
 /* -------------------------------------------------------------------------- */
 
-/** Our table keys → the ruledata table ids the importer extracts (RR p160). */
+/** The ruledata document the scavenged tables and caps live in. */
 export const RULEDATA_DOC = "equipment";
+
+/** Condition table keys → the ruledata table ids the importer extracts (RR p. 160). */
 export const RULEDATA_TABLES = Object.freeze({
   piercingSlashing: "scavengedPiercingSlashing",
   bludgeoning: "scavengedBludgeoning",
@@ -41,11 +41,8 @@ export const RULEDATA_TABLES = Object.freeze({
 export const CAPS_TABLE = "scavengedCaps";
 
 /**
- * The GM's OWN imported condition table for this key, or null.
- *
- * Read through the lib's ruledata registry, which is where the importer lands
- * the table it extracted from the reader's own book, and where a Judge's
- * override of it wins. Nothing stands in for a table that is not there.
+ * The imported condition table for this key, or null when none is there.
+ * Read through the lib ruledata registry, where a Judge's override wins.
  * @returns {object|null} rows keyed by d20 band max: {category, effect, value, min, max}
  */
 export function importedTable(tableKey) {
@@ -93,12 +90,8 @@ const signed = (text, re) => {
 
 /**
  * Translate ONE imported row into the mechanical effects the module applies.
- *
- * The row carries the reader's own printed words ("-N damage", "Breaks",
- * "+N stone encumbrance", "-N%"); this reads that small, fixed vocabulary into
- * numbers. It is a parse of the page, not an interpretation of intent — an
- * effect phrase it does not recognise is preserved verbatim as a note for the
- * Judge rather than silently dropped.
+ * The row's own words are parsed into numbers; a phrase this does not recognise
+ * is kept verbatim as a note for the Judge.
  */
 export function rowToEffects(row) {
   const category = String(row?.category ?? "").trim();
@@ -115,14 +108,13 @@ export function rowToEffects(row) {
   out.ac = signed(e, /([+-]?\d+)\s*a\s*c\b/);
   out.breaks = /break/.test(e);
   out.cannotSneak = /cannot\s+sneak/.test(e);
-  // Percentage of normal value: "100%" → 1, "-40%" → 0.6.
+  // A percentage of the normal value; a negative one is a reduction.
   const v = /(-?\d+)\s*%/.exec(String(row?.value ?? ""));
   if (v) {
     const n = parseInt(v[1], 10);
     out.value = n < 0 ? 1 + n / 100 : n / 100;
   }
-  // Anything the vocabulary above did not claim (the vessel table's cargo,
-  // speed and structural-hp effects) rides along as a note.
+  // Anything the patterns above did not claim rides along as a note.
   if (effect && effect !== "-" && !out.damage && !out.attack && !out.initiative && !out.encumbrance && !out.ac && !out.breaks && !out.cannotSneak) {
     out.notes.push(effect);
   }
@@ -179,6 +171,7 @@ export function importedNeedsReroll(tableKey, roll) {
   return row ? /roll\s+again/i.test(String(row.category ?? "")) : false;
 }
 
+/** Whether the `overlayScavenged` world setting is on. */
 export const overlayEnabled = overlayGate(SETTINGS.OVERLAY_SCAVENGED);
 
 /** Which table applies to an item. */
@@ -192,8 +185,7 @@ export function tableFor(item, profile) {
 }
 
 /**
- * Translate an accumulated condition into updates on fields CORE already owns —
- * no runtime overlay required.
+ * Translate an accumulated condition into updates on fields core already owns.
  * @returns {object} a Foundry update object for the item
  */
 export function toItemUpdates(item, cond) {

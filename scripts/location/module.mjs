@@ -58,12 +58,10 @@ Hooks.once("init", () => {
   registerStoreSetting();
   registerLocationRepairChecks();
 
-  // NEVER gate this on an apiVersion check. lib is a sibling feature, not a
-  // separately-installed dependency: it attaches at import time
-  // (scripts/lib/module.mjs, module scope), so it is always present and always
-  // this exact version by the time any init hook runs. A guard here could only
-  // fire spuriously, and an early return would skip the sheet registration
-  // below — taking the whole location sheet, market and all, down with it.
+  // Never gate this on an apiVersion check: lib attaches at import time, so it
+  // is always present by init, and an early return would skip the sheet
+  // registration below. See docs/location/DECISIONS.md, "The location sub-type
+  // has one owner, and it is this feature".
   const lib = globalThis.acksExtras?.lib;
   lib.services.register("ruledata-import", ruledataImport);
   const n = registerPersisted();
@@ -87,25 +85,15 @@ Hooks.once("init", () => {
     restricted: true,
   });
 
-  // The data model and the sheet for `acks-extras.location` register HERE and
-  // only here — this feature owns the sub-type. Unconditional, deliberately:
-  // the registration must never sit behind a capability check, because failing
-  // it costs the market UI as well as the sheet.
+  // The data model and the sheet for `acks-extras.location` register here and
+  // nowhere else, unconditionally.
   CONFIG.Actor.dataModels[LOCATION_TYPE] = LocationData;
   registerLocationSheet();
 
-  /*
-   * The parent pointer joins the Actor compendium INDEX, so a place held in a
-   * compendium can be asked what is inside it without loading every document
-   * in the pack.
-   *
-   * This has to happen at init, before any index is built: a pack indexed
-   * without the field answers `undefined` for every row until something calls
-   * `getIndex` again with it. Every imported place lands in a
-   * compendium, so without this an imported adventure's rooms are
-   * invisible on the adventure's own sheet — the rooms name their parent
-   * correctly and nothing can see that they do.
-   */
+  // The parent pointer and the place flag join the Actor compendium index, so a
+  // place held in a pack can be asked what is inside it without loading the
+  // pack's documents. Must run at init, before any index is built: a pack
+  // indexed without the field answers `undefined` until `getIndex` is called again.
   const indexed = CONFIG.Actor.compendiumIndexFields;
   for (const field of ["system.parentUuid", `flags.${MODULE_ID}.place`]) {
     if (!indexed.includes(field)) indexed.push(field);
@@ -123,9 +111,9 @@ Hooks.once("init", () => {
   installStorageTab();
   installManagerRefresh();
 
-  // Scene ↔ place linking. Registered unconditionally, but nothing is ever
-  // created without a GM asking: these are a scene-config row, two directory
-  // context entries, and the sync that keeps the location's mirror true.
+  // Scene ↔ place linking: a scene-config row, two directory context entries,
+  // and the sync that keeps the location's mirror true. Nothing is created
+  // until a GM asks.
   registerSceneConfigRow();
   registerSceneContextMenu();
   registerSceneLinkSync();
@@ -135,9 +123,9 @@ Hooks.once("init", () => {
     .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 
   /**
-   * A location is a shared place: players need ownership to leave anything
-   * there or take it back. Explicit creation data always wins — that is how the
-   * vault sweep makes a PERSONAL vault without this handing it to the table.
+   * Gives a new location default ownership for the table and a map-marker
+   * prototype token. Explicit creation data always wins, which is how the vault
+   * sweep makes a personal vault.
    */
   Hooks.on("preCreateActor", (doc, data) => {
     if (doc.type !== LOCATION_TYPE) return;
@@ -145,12 +133,11 @@ Hooks.once("init", () => {
     if (data?.ownership?.default == null) {
       changes.ownership = { ...doc.ownership, default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER };
     }
-    // No storage flag: a place holds goods only once a GM turns that on.
-    // A place's token is a marker on the map, not a creature: its name shows
-    // to whoever hovers it, it takes no side, tracks no bars and sees nothing.
-    // Field by field, and only where the creation data said nothing.
-    // `actorLink` is left alone on purpose — `here.mjs` matches a place by the
-    // token's base actor id, which an unlinked token carries too.
+    // A place's token is a map marker, not a creature: named on hover, neutral,
+    // no bars, no sight. Each field is set only where the creation data said
+    // nothing, and `actorLink` is left alone (`here.mjs` matches on the base
+    // actor id). See docs/location/DECISIONS.md, "A point of interest is a
+    // place's token, not a note".
     const proto = data?.prototypeToken ?? {};
     const token = {};
     if (proto.displayName == null) token.displayName = CONST.TOKEN_DISPLAY_MODES.HOVER;
@@ -176,8 +163,8 @@ Hooks.once("ready", () => {
     runVaultSweep,
     /**
      * A character's vault (vault-sweep.mjs): `vaultFor` finds it or makes it,
-     * `payIntoVault` lands coin in it as theirs. The one definition of a vault,
-     * so nothing outside this feature builds a second.
+     * `payIntoVault` lands coin in it as theirs. Nothing outside this feature
+     * builds a vault.
      */
     vaultFor,
     payIntoVault,
@@ -192,9 +179,8 @@ Hooks.once("ready", () => {
       locationOfRegion, regionOfLocation, linkRegion, unlinkRegion, createLocationForRegion,
     },
     /**
-     * Who can leave something where (reach.mjs). Exposed because it is a RULE
-     * a consumer must not re-derive: a sibling deciding for itself whether a
-     * character is at a place would answer differently from the tab beside it.
+     * Who can leave something where (reach.mjs). The one definition of reach;
+     * consumers do not re-derive it.
      */
     reach: { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds },
     /**
@@ -206,8 +192,8 @@ Hooks.once("ready", () => {
   };
 
   if (game.system?.id !== "acks") return;
-  // One window sweeps: it creates actors and moves coin. It waits to learn
-  // whether it is the elected one, like every ready-time writer.
+  // One window sweeps, since it creates actors and moves coin: the elected
+  // primary GM, once known.
   primaryGMSettled().then((primary) => {
     if (!primary) return;
     runVaultSweep().catch((err) => console.error(`${MODULE_ID} | vault sweep failed`, err));
@@ -216,23 +202,21 @@ Hooks.once("ready", () => {
 });
 
 /**
- * Cleanup is the DEFAULT for an empty location (owner ruling 2026-08-14): a
- * place holding nothing, remembering nobody, and being nothing in particular
- * is scaffolding, and scaffolding comes down on its own. A location survives
- * empty when it IS something: a market (any market class or a market subtree),
- * someone's vault, a place a GM made hold goods, a scene-linked mapped place, a quarter's own place, a
- * place standing on a map as a token, a place a domain holds, a place with
- * notes written on it (`hasWrittenNotes`), or a place that a place staying
- * behind sits in (`emptyOfPlaces`). Setting-gated for worlds
- * that want their empty rooms kept. `dryRun` deletes nothing, setting or not,
- * and answers with the uuids a sweep would remove.
+ * Deletes the empty, unremarkable locations. A location survives empty when it
+ * is a market (any market class or a market subtree), someone's vault, a place
+ * a GM made hold goods, a scene-linked place, a quarter's own place, a place
+ * standing on a map as a token, a place a domain holds, a place with notes
+ * written on it (`hasWrittenNotes`), or a place that a surviving place sits in
+ * (`emptyOfPlaces`). Gated by the `pruneEmptyLocations` setting. `dryRun`
+ * deletes nothing, setting or not, and answers with the uuids a sweep would
+ * remove. See docs/lib/DECISIONS.md, "Money is physical; four rulings land at
+ * once".
  * @returns {Promise<{pruned: number, doomed?: string[]}>}
  */
 export async function pruneEmptyLocations({ dryRun = false } = {}) {
   if (!dryRun && !game.settings.get(MODULE_ID, PRUNE_SETTING)) return { pruned: 0 };
-  // Every actor with a token anywhere, hidden ones included: a marker the
-  // Judge hid is a point of interest not yet found, not an absent one. One
-  // pass over the world's tokens for the whole sweep, not one per place.
+  // Every actor with a token on any scene, hidden tokens included, collected
+  // in one pass for the whole sweep.
   const placed = new Set();
   for (const scene of game.scenes ?? []) {
     for (const token of scene.tokens ?? []) if (token.actorId) placed.add(token.actorId);
@@ -247,8 +231,7 @@ export async function pruneEmptyLocations({ dryRun = false } = {}) {
     if (kept?.vaultOf || kept?.provider) return false;
     if (sceneOfLocation(a) || regionOfLocation(a)) return false;
     if (placed.has(a.id)) return false;
-    // The domains api is on the namespace from `init`; a world without the
-    // feature loaded holds nothing.
+    // A world without the domains feature holds nothing.
     if (acksExtras.domains?.holdsPlace?.(a.uuid)) return false;
     return true;
   });

@@ -7,9 +7,9 @@
  * copies of those become checks rather than writes. Abilities, languages,
  * gear and spells come next, because their Active Effects are what the sheet's
  * totals already include. Only then are the plain values written, and any one
- * an effect now touches is reported — "sheet X, in force Y" — and never
- * written as a base it would be added to again (docs/character-sheet/DECISIONS.md,
- * 2026-09-16). Checks are read off the prepared character last.
+ * an effect now touches is reported as a check, never written as a base. Checks
+ * are read off the prepared character last. See docs/character-sheet/DECISIONS.md,
+ * "An editable field holds the stored value".
  *
  * Re-importing onto the same character adds what is missing and doubles
  * nothing: abilities count the copies held, gear and spells are matched by
@@ -194,9 +194,7 @@ async function landGear(actor, gear, report) {
   for (const { line, item } of placed) {
     const slot = line.place === "worn" ? (wearableSlots(item)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
     if (!slot) continue;
-    // A weapon is drawn only into a hand. One listed at the belt or on the back
-    // stays carried, sheathed; drawing it would take a hand, and with it the
-    // shield the sheet lists there.
+    // A weapon is drawn only into a hand; one listed elsewhere stays carried.
     if (item.type === ITEM_TYPE.weapon && !HAND_PLACES.includes(slot)) continue;
     // Already there: a wear that writes nothing answers false, which is not a refusal.
     if (wearLocation(actor, item) === slot) continue;

@@ -5,26 +5,21 @@
  * Foundry runtime does. DataModel field-builders that consume these live in
  * `fields.mjs` (Foundry-only).
  *
- * This file is the SINGLE SOURCE for the damage / movement / travel / vision /
- * sense / natural-weapon enums and for alignment. The monsters feature
- * re-exports them from its own `config.mjs` so its consumers keep one import
- * path (formation's `travel.mjs` does the same for `TRAVEL_MODES`); nothing
- * defines a second copy. `NATURAL_WEAPONS` here is the superset — it carries
- * the monster sheet's sting / feeler / envelopment as well.
- *
- * The ability-effect enums are the shared target the abilities and monsters
- * effect models both build from.
+ * The single source for the damage / movement / travel / vision / sense /
+ * natural-weapon enums and for alignment; the monsters feature re-exports them
+ * from its own `config.mjs` (formation's `travel.mjs` does the same for
+ * `TRAVEL_MODES`) and nothing defines a second copy. `NATURAL_WEAPONS` is the
+ * superset, carrying the monster sheet's extra entries. The ability-effect
+ * enums are the shared target the abilities and monsters effect models build
+ * from.
  */
 
-// The ruledata registry is a pure module too, so importing it here keeps this
-// file Node-importable by the offline tooling that depends on that.
+// Pure modules only, so this file stays Node-importable.
 import { getDoc, hasDoc } from "./tables.mjs";
 import { cookbookId } from "./library.mjs";
 import { CONDITIONS } from "./conditions.mjs";
 
-// The magic families — spell types, stat-line shapes, targeting, saves,
-// frequencies — live in their own Foundry-free file and are re-exported here
-// so every consumer keeps this one import path.
+// The magic families live in their own Foundry-free file, re-exported here.
 export * from "./magic-vocab.mjs";
 
 /** `{ key: { label, … } }` → `{ key: label }` for DataModel `choices`. */
@@ -32,39 +27,25 @@ export const choicesOf = (enumObj) =>
   Object.fromEntries(Object.entries(enumObj).map(([k, v]) => [k, v?.label ?? k]));
 
 /**
- * Fold a name/key to a lowercase alphanumeric slug for MATCHING — the
- * canonical form of `String(x).toLowerCase().replace(/[^a-z0-9]/g, "")` that
- * five modules had each reimplemented (equipment's normalizeName, locks' slug,
- * abilities' roll key, formation's abilityKey, influence). Use it whenever two
- * human-written names must compare equal regardless of case, spacing, or
- * punctuation ("Goblin-Slaying" === "goblin slaying"). Foundry-free.
+ * Fold a name/key to a lowercase alphanumeric slug for MATCHING: `String(x)`
+ * lowercased with every non-alphanumeric removed, so two human-written names
+ * compare equal regardless of case, spacing or punctuation. Foundry-free.
  */
 export const slug = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
- * Every way one printed item name can be written — the family's ONE answer.
- *
- * A book prints the same physical thing several ways, and each printing feeds a
- * different importer, so a rule that lives in one of them mints a second
- * document for a thing that already exists. The conventions are the
- * catalogue's, not any one entry's:
+ * Every way one printed item name can be written; the one reader of the
+ * catalogue's name forms, shared by the importer's price-list claim and
+ * `parseEquipment` and this module's `bestBaseMatch`.
  *
  * - **Head first, qualifier after a comma.** The price list writes the head
- *   noun first and the qualifier after (RR p. 129); every other page writes
- *   the qualifier first.
- * - **A parenthetical unit or note.** A trailing "(1 pint)" names the unit,
- *   not another item.
- * - **A slash offering either word.** "Waterskin/Wineskin" is one row naming
- *   two things.
+ *   noun first (RR p. 129); every other page writes the qualifier first.
+ * - **A parenthetical unit or note** names the unit, not another item.
+ * - **A slash offering either word** is one row naming two things.
  *
- * Lives here because at least three callers must agree or they disagree
- * silently: the importer's price-list claim (which of its rows a shelf already
- * holds) and its `parseEquipment`, and this module's `bestBaseMatch` (which
- * base a printed descriptor skins). When those disagree a descriptor points at
- * one base and skins itself over another, or one flask of military oil becomes
- * two documents.
- *
- * Combinations are capped: a name with many slashes would otherwise explode.
+ * Combinations are capped so a name with many slashes cannot explode.
+ * See docs/lib/DECISIONS.md, "2026-08-24 — the name-form rules live in
+ * `lib/vocab.mjs`, once."
  */
 export function nameVariants(raw) {
   const out = [];
@@ -107,9 +88,8 @@ function singularsOf(word) {
 
 /**
  * `nameKeys` for a creature as a page labels it: the label as printed, and
- * every form of it with its last word made singular, so a label for several
- * ("Giant Ants") meets the catalogue's name for one ("Ant, Giant"). A key
- * matches only a name that holds it, so a form no name holds costs nothing.
+ * every form of it with its last word made singular, so a plural label meets the
+ * catalogue's singular name. A form no name holds matches nothing.
  */
 export function creatureKeys(raw) {
   const base = String(raw ?? "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
@@ -138,8 +118,8 @@ const wordsStandFor = (cell, row, abbreviations) =>
  *    family a row of the same name as the head stands for.
  * 2. **Number** — the label and the name differ only in the singular or plural
  *    of the last word (`creatureKeys`).
- * 3. **Abbreviation** — a word cut short with a period ("Med.", "const.")
- *    stands for the word of a same-length name it begins.
+ * 3. **Abbreviation** — a word cut short with a period stands for the word of a
+ *    same-length name it begins.
  * 4. **Truncation** — the label's words are the first words of a longer name,
  *    at least two of them; read word for word first, then with abbreviations.
  *
@@ -173,12 +153,9 @@ export function looseCreatureName(raw, names) {
   return null;
 }
 
-// NOTE deliberately NO normalizeAlignment here. The one feature that classifies
-// alignment (influence) keeps its OWN token set (law/chaos/neutral/other, baked
-// into published effect flags) and translates at its boundary on purpose — see
-// scripts/influence/actor-data.mjs. There is no live consumer for a
-// lawful/neutral/chaotic free-text fold, so shipping one would be a dead
-// primitive. Add it beside ALIGNMENTS when a real consumer appears.
+// No alignment normalizer lives here: influence keeps its own token set and
+// translates at its boundary. See docs/influence/DECISIONS.md, "Alignment is
+// translated at the boundary, not renamed".
 
 /* ---------------------------------------------------------------- */
 /*  Shared vocabulary — defined here, re-exported by monsters/config */
@@ -187,14 +164,11 @@ export function looseCreatureName(raw, names) {
 /**
  * The core system's Item document sub-types, as named constants — write
  * `ITEM_TYPE.weapon`, never a bare `"weapon"`. Mirrors the system's own
- * `ITEM_TYPE` enum (core `src/module/constants.mjs`), which a module cannot
- * import: core does not publish its constants on any API surface, and the
- * system tree is an unmodifiable reference. Key equals value (the `SLOT`
- * convention below), so the constant reads as the literal it stands for.
+ * `ITEM_TYPE` enum, which core does not publish on any API surface. Key equals
+ * value (the `SLOT` convention below).
  *
- * DOCUMENT types only. `system.type` ("shield", "melee"), light kinds,
- * request kinds and every other domain `.type` field keep their own
- * vocabulary — this enum names what `Item#type` can be, nothing else.
+ * DOCUMENT types only: what `Item#type` can be. `system.type` and every other
+ * domain `.type` field keep their own vocabulary.
  */
 export const ITEM_TYPE = Object.freeze({
   item: "item",
@@ -208,11 +182,9 @@ export const ITEM_TYPE = Object.freeze({
 });
 
 /**
- * The core system's Actor document sub-types. The library's OWN actor
- * sub-types (`acks-extras.animal` / `.group` / `.template`) are module-id-
- * prefixed and already named by `ANIMAL_TYPE` / `GROUP_TYPE` / `TEMPLATE_TYPE`
- * in lib/module.mjs — they stay there because they embed `MODULE_ID`, which
- * this Foundry-free file deliberately does not re-export.
+ * The core system's Actor document sub-types. The module's own sub-types embed
+ * `MODULE_ID` and are named by `ANIMAL_TYPE` / `GROUP_TYPE` / `TEMPLATE_TYPE`
+ * in lib/module.mjs, which this Foundry-free file does not re-export.
  */
 export const ACTOR_TYPE = Object.freeze({
   character: "character",
@@ -254,9 +226,8 @@ export const NATURAL_WEAPONS = {
   pincer: { label: "Pincer", damage: "slashing" },
   spine: { label: "Spine", damage: "piercing" },
   weapon: { label: "Weapon", damage: "varies" },
-  // The monster sheet offers these three beyond the list above. `sting`
-  // coexists with `stinger` (same concept, different key) so monsters that
-  // stored either resolve; folding them would need a data migration.
+  // The monster sheet offers these three beyond the list above. `sting` and
+  // `stinger` are one concept under two keys, and a stored monster may hold either.
   sting: { label: "Sting", damage: "piercing" },
   feeler: { label: "Feeler", damage: "bludgeoning" },
   envelopment: { label: "Envelopment", damage: "acidic" },
@@ -294,9 +265,7 @@ export const ALIGNMENTS = {
  * The six ability scores, keyed by the CORE system's own data paths so a
  * consumer can read `actor.system.scores[key].mod` straight from the key.
  *
- * ACKS II renames Wisdom to Will, but the system still stores it under `wis`;
- * the label carries the book's name so a sheet never shows "WIS" for a rule
- * printed as WIL.
+ * The system stores Will under `wis`; the label carries the book's name.
  */
 export const ATTRIBUTES = {
   str: { label: "STR" },
@@ -320,14 +289,13 @@ export const MOVEMENT_TYPES = {
 /**
  * The three things a party can be doing, and the three kinds of map that put
  * them on the table: `delve` ticks dungeon turns, `journey` runs the day
- * board, `settlement` crosses a city. Here rather than in the formation
- * feature because a SCENE declares which one applies on it (the battlemap's
- * setup tool) and the formation obeys — two features, one list.
+ * board, `settlement` crosses a city. A scene declares which one applies on it
+ * (the battlemap's setup tool) and the formation obeys, so the list is shared.
  */
 export const TRAVEL_MODES = Object.freeze(["delve", "journey", "settlement"]);
 
 /* ---------------------------------------------------------------- */
-/*  Ability effect model (new — the shared binding target)           */
+/*  Ability effect model — the shared binding target                  */
 /* ---------------------------------------------------------------- */
 
 /** Which flavour of `ability` item this is. */
@@ -336,15 +304,12 @@ export const ABILITY_CATEGORIES = {
   classPower: { label: "Class Power" },
   monsterAbility: { label: "Monster Ability" },
   skill: { label: "Skill" },
-  drawback: { label: "Custom Drawback" }, // JJ "Custom Drawbacks" — traded FOR build points
+  drawback: { label: "Custom Drawback" }, // JJ: traded for build points
   weaponProficiency: { label: "Weapon Proficiency" },
   armorProficiency: { label: "Armor Proficiency" },
   fightingStyle: { label: "Fighting Style" },
-  // A language a character speaks (or reads). A CATEGORY rather than a type of
-  // its own: the books hand languages out exactly as they hand out
-  // proficiencies — a class or a high INT grants so many, a race brings its
-  // own — so everything the ability model already does for a proficiency
-  // (granting, counting, listing, importing) is what a language needs.
+  // A language a character speaks or reads: a category, so it reuses what the
+  // ability model does for a proficiency (granting, counting, listing, importing).
   language: { label: "Language" },
 };
 
@@ -352,28 +317,23 @@ export const ABILITY_CATEGORIES = {
  * The canonical picks a proficiency of each category can select — the checkbox
  * vocabulary for an ability's `selections`.
  *
- * `selections` stays free text in the model on purpose (the meaningful token set
- * is per-ability and lives in the book), so this is the SHARED SHORTLIST for the
- * three categories where the family does have a fixed vocabulary: the class-build
- * selections (JJ pp. 290-291). A pick outside it is still valid — it just goes in
- * the free-text field instead of a box. Keys match what the profile strips match
- * on, so ticking a box is guaranteed to light the matching pill.
+ * `selections` stays free text in the model; this is the shared shortlist for
+ * the three categories with a fixed vocabulary (the class-build selections, JJ
+ * pp. 290-291). A pick outside it goes in the free-text field instead of a box.
+ * Keys match what the profile strips match on, so ticking a box lights the
+ * matching pill.
  *
  * A vocabulary may carry META keys beside its entries (`VOCAB_META`): `open`
  * marks a shortlist a world extends, `exact` a family matched by key, alias and
  * label only. Enumerate entries through `selectionOptions()`, never through
  * `Object.entries`, so a meta key is never drawn as a box.
  *
- * WEAPONS carry the whole grant grammar of `equipment/proficiency.mjs`, and every
- * key IS one of its tokens — `all`, `missile:all`, a `melee:<size>` per weapon
- * size, or a weapon category — so a stored pick can be handed to
- * `classifyGrantToken` / `grantMatches` unchanged, and the class-training
- * editor and this sheet spell a grant the same way. The family is `exact`
- * because a weapon-proficiency pick may also be one NAMED weapon (a restricted
- * list, broad choice vi): "dagger" grants that weapon alone, and a substring
- * match would tick Swords & Daggers and widen it to the whole group on the next
- * save. Groups are written in the plural, as the books write them: "swords"
- * ticks the box, "sword" stays the weapon it names.
+ * WEAPONS carry the grant grammar of `equipment/proficiency.mjs`, and every key
+ * is one of its tokens, so a stored pick goes to `classifyGrantToken` /
+ * `grantMatches` unchanged. The family is `exact` because a pick may also be one
+ * named weapon, which a substring match would widen to its whole group. Groups
+ * are written in the plural. See docs/abilities/DECISIONS.md, "A weapon
+ * proficiency's boxes are the grant grammar, and a weapon's name is not a group".
  */
 export const SELECTION_VOCAB = {
   weaponProficiency: {
@@ -415,10 +375,10 @@ export const SELECTION_VOCAB = {
 };
 
 /**
- * The definition slug an ability is known by — the importer's cookbook id where
- * it has one ("def.prof.weaponFocus" → "weaponfocus"), else its own name with
- * any trailing "(X)" pick suffix removed. ONE identity, so the vocabulary a
- * sheet offers and the picks the equipment bridge resolves are keyed alike.
+ * The definition slug an ability is known by: the importer's cookbook id where
+ * it has one (its last segment, slugged), else its own name with any trailing
+ * "(X)" pick suffix removed. The one identity the sheet's vocabulary and the
+ * equipment bridge's picks are keyed by.
  */
 export const abilitySlug = (item) => {
   const id = cookbookId(item);
@@ -428,25 +388,18 @@ export const abilitySlug = (item) => {
 
 /**
  * The canonical picks for abilities whose selection is per-ABILITY rather than
- * per-category — Weapon Focus's group, Combat Trickery's manoeuvre, Art/Craft's
- * discipline. `SELECTION_VOCAB` below cannot express these: it is keyed by
- * category, and all of them share the one `proficiency` category.
+ * per-category. `SELECTION_VOCAB` below is keyed by category and cannot express
+ * these, since they share the one `proficiency` category.
  *
- * `open` marks a family the books leave open-ended (a Judge may approve a craft
- * nobody printed). An open vocabulary is a SHORTLIST, not a closed set — the
- * sheet's free-text line takes anything outside it either way, so a selection
- * cleared back to nothing can always be typed by hand.
- *
- * `aliases` carry the phrasings a template or an import actually writes, so a
- * cell reading an abbreviated ability name with a parenthetical pick (RR p. 25)
- * ticks the box the mechanics read rather than landing in free text where nothing matches it.
- *
- * Fighting styles list the five the mechanics understand (`equipment/config.mjs`
- * STYLE) and no more: an unresolvable style is silently worth nothing, so
- * offering one would be offering a pick that does nothing.
+ * `open` marks a family a world extends: a shortlist, not a closed set, and the
+ * sheet's free-text line takes anything outside it. `aliases` carry the
+ * phrasings a template or an import writes (RR p. 25), so a pick ticks the box
+ * the mechanics read. Fighting styles list only the five the mechanics resolve
+ * (`equipment/config.mjs` STYLE). See docs/abilities/DECISIONS.md, "An open
+ * family's entries are registered; a closed one's are code".
  */
 export const SELECTION_VOCAB_BY_ABILITY = {
-  // RR p. 121 — the six Weapon Focus groups.
+  // RR p. 121.
   weaponfocus: {
     axes: { label: "Axes" },
     macesflailshammers: { label: "Maces, Flails & Hammers", aliases: ["maces", "flails", "hammers"] },
@@ -455,9 +408,9 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     slingsthrown: { label: "Slings & Thrown", aliases: ["slings", "thrown"] },
     spearspolearms: { label: "Spears & Polearms", aliases: ["spears", "polearms"] },
   },
-  // Martial Training (RR ch. 3) has no entry here: its picks are the printed
-  // martial options, registered by `weapons.mjs` (`registerSelectionVocab`).
-  // RR p. 108 / JJ p. 291 — the five styles the loadout rules resolve.
+  // Martial Training (RR ch. 3) has no entry here: `weapons.mjs` registers its
+  // picks (`registerSelectionVocab`).
+  // RR p. 108 / JJ p. 291.
   fightingstylespecialization: {
     single: { label: "Single Weapon", aliases: ["single weapon", "one weapon"] },
     dual: { label: "Dual Weapon", aliases: ["two weapon", "two weapons", "dual wielding", "twoweapon"] },
@@ -465,7 +418,7 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     weaponshield: { label: "Weapon & Shield", aliases: ["weapon+shield", "weapon and shield", "shield"] },
     missile: { label: "Missile", aliases: ["missile weapon", "ranged", "bow"] },
   },
-  // RR Combat — the manoeuvres Combat Trickery selects among.
+  // RR Combat.
   combattrickery: {
     clamber: { label: "Clamber" },
     disarm: { label: "Disarm" },
@@ -482,17 +435,9 @@ export const SELECTION_VOCAB_BY_ABILITY = {
     fire: { label: "Fire" },
     water: { label: "Water" },
   },
-  // OPEN FAMILIES SHIP NO ENTRIES. What an Art, a Craft, a Profession, a Labor
-  // or a Performance can be is a LIST OUT OF A BOOK — arbitrary, long, and
-  // somebody else's text. Writing even a handful here as "examples" is shipping
-  // a value read off a page, which no repo in this family does; a shortlist is
-  // not a smaller kind of quotation. They arrive by registration, read from the
-  // GM's own book by the importer (`SELECTION_VOCAB_DOC` below), and until
-  // something registers them the free-text line is the whole surface — which
-  // is exactly what it was there for.
-  //
-  // The KEYS above are not content: they name which ability is being edited,
-  // and the code resolves them. The entries under a key are.
+  // Open families ship no entries: their lists are the book's content, and
+  // arrive by registration from the importer (`SELECTION_VOCAB_DOC` below).
+  // Until something registers them the free-text line is the whole surface.
   artcraft: { open: true },
   profession: { open: true },
   labor: { open: true },
@@ -503,22 +448,15 @@ export const SELECTION_VOCAB_BY_ABILITY = {
 export const isOpenVocab = (vocab) => vocab?.open === true;
 
 /**
- * Where a world's OWN entries for the open families arrive.
- *
- * The closed tables above are code because their KEYS are MECHANISMS the module
- * resolves — a fighting style the loadout rules read, a manoeuvre the combat
- * rules run. The open families have no such excuse: an Art, a Craft, a
- * Profession, a Labor or a Performance is a list of proper names out of a book,
- * and this repo ships no value read off a page. So they ship EMPTY and a world
- * fills them, through the same layered ruledata registry every other imported
- * table uses — one table per ability slug, each `{key: {label, aliases}}`:
+ * The ruledata document where a world's own entries for the open families
+ * arrive: one table per ability slug, each `{key: {label, aliases}}`, through
+ * the layered ruledata registry:
  *
  *   registerTable({ id: "acks.selectionVocab", tables: {
  *     profession: { myKey: { label: "…as the book prints it" } },
  *   }}, { priority: PRIORITY.WORLD });
  *
- * Nothing is REQUIRED: an unregistered world behaves exactly as before, which
- * is why this is not declared through `expectTables`.
+ * Nothing is required, so it is not declared through `expectTables`.
  */
 export const SELECTION_VOCAB_DOC = "acks.selectionVocab";
 
@@ -534,8 +472,7 @@ const PROVIDERS = new Map();
 
 /**
  * Register the function that answers an ability's pick vocabulary at each call,
- * so the entries follow the imported lists and a Judge's override of them,
- * which a copy written into `SELECTION_VOCAB_DOC` would never see. `fn`
+ * so the entries follow the imported lists and a Judge's override of them. `fn`
  * returns `{ [key]: { label, aliases? } }`, with the meta keys of `VOCAB_META`
  * where the family has them; an empty object where nothing is imported. A
  * provider replaces any entry the ability has in `SELECTION_VOCAB_BY_ABILITY`
@@ -554,12 +491,8 @@ export const hasSelectionProvider = (item) => PROVIDERS.has(abilitySlug(item));
 
 /**
  * The pick vocabulary for one ability: a registered provider's first, then its
- * own, else its category's.
- *
- * A CLOSED family is returned as it stands. Widening one is not an oversight —
- * a fighting style the loadout rules cannot resolve would be a box that lights
- * no mechanic, so the registry is offered only to the families the books
- * themselves leave open.
+ * own, else its category's. A closed family is returned as it stands; the
+ * registry widens only the open ones.
  */
 export function selectionVocabFor(item, category) {
   const slug = abilitySlug(item);
@@ -591,12 +524,9 @@ export const selectionOptions = (vocab) => Object.entries(vocab ?? {}).filter(([
  * the shortlist does not.
  *
  * Key and alias matches are tried across the whole vocabulary first, then label
- * matches, and only then anything loose — so a pick that names one entry
- * outright is never claimed by another's substring. A vocabulary marked `exact`
- * stops before the loose pass: its picks may legitimately name things outside
- * the list, and a substring would hand one of them to the wrong box. Loose
- * matching needs four characters: below that "a" would tick Axes and every
- * one-letter typo would land somewhere.
+ * matches, and only then anything loose, so a pick that names one entry outright
+ * is never claimed by another's substring. A vocabulary marked `exact` stops
+ * before the loose pass. Loose matching needs four characters.
  */
 export function matchSelectionKey(vocab, pick) {
   const f = slug(pick);
@@ -625,13 +555,9 @@ export function selectionLabel(vocab, pick) {
 /**
  * An ability's name carrying its own picks — "Ability (Pick, Pick)" (JJ p. 451).
  *
- * The "(X)" suffix is the family's display convention for a specialization, and
- * it is DERIVED: a pick is chosen once, and the name follows it. Any existing
- * suffix is replaced rather than appended to, so re-picking cannot stack a
- * second parenthesis onto the first, and a name with no picks left loses it.
- *
- * Labels rather than keys, because this is the text a reader sees — a pick the
- * shortlist does not name is written as it was typed.
+ * The "(X)" suffix is derived from the picks: any existing suffix is replaced
+ * rather than appended to, and a name with no picks left loses it. It carries
+ * labels, not keys, and a pick the shortlist does not name is written as typed.
  */
 export function nameWithSelections(baseName, picks, vocab) {
   const base = String(baseName ?? "").replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -645,10 +571,9 @@ export function nameWithSelections(baseName, picks, vocab) {
  *
  * A fragment counts only when it names an entry of the ability's own
  * vocabulary outright (key, alias or label, never the loose substring pass), so
- * a parenthetical that merely ends a name — "Thing (variant words)" — is not a
- * pick, and a loose substring cannot claim one. An ability with no vocabulary,
- * or one whose list is not imported, has none. A READ: the result is never
- * written back to the item's selections or its name.
+ * a parenthetical that merely ends a name is not a pick. An ability with no
+ * vocabulary, or one whose list is not imported, has none. A read: the result
+ * is never written back to the item.
  *
  * @param {object} item the ability
  * @param {string} category its stored category, which picks the vocabulary when it has no own
@@ -671,11 +596,9 @@ export const PROFICIENCY_DOMAINS = {
 };
 
 /**
- * Breadth of a weapon/armor proficiency grant (ACKS custom-class selection
- * tiers). A class import parameterizes the grant — e.g. "broad weapon
- * proficiency (missile + small melee)" — and the abilities rules define what
- * each tier permits. `group` holds the specific selection; `unrestricted`
- * grants all and carries no selection.
+ * Breadth of a weapon/armor proficiency grant (custom-class selection tiers).
+ * A class import parameterizes the grant with a tier; `group` holds the
+ * specific selection, and `unrestricted` grants all and carries no selection.
  */
 export const PROFICIENCY_BREADTH = {
   unrestricted: { label: "Unrestricted" },
@@ -687,22 +610,16 @@ export const PROFICIENCY_BREADTH = {
 /** The typed effect primitives an ability's `effects[]` may hold. */
 export const EFFECT_TYPES = {
   modifier: { label: "Modifier" }, // flat/level-scaling bonus OR penalty to a target
-  // One of the character's scores used in place of another on a roll — NOT a
-  // modifier. It changes which score feeds a roll, so its size is the
-  // difference between two of the character's own scores and cannot be written
-  // as a number at all. Stored as {attribute, insteadOf, target}.
+  // One score used in place of another on a roll: not a modifier, since its
+  // size is the difference between two of the character's own scores.
+  // Stored as {attribute, insteadOf, target}.
   attributeSubstitution: { label: "Attribute Substitution" },
   throw: { label: "Proficiency Throw" }, // a target-number roll
   progressionAs: { label: "Progresses As Class" }, // a skill that advances as another class's
   proficiencyGrant: { label: "Proficiency Grant" }, // weapon/armor/fighting-style proficiency
   limitation: { label: "Limitation / Drawback" }, // a restriction or penalty — attaches to ANY ability
-  // "On a roll of X, Y happens" — a consequence keyed to how the throw itself
-  // came up: the natural die in a botch band (jams the lock, triggers the
-  // trap), the result below a fraction of the target (the victim notices), or
-  // plain failure (the climber falls). These are MECHANICS, not prose — an
-  // entry whose page states one is incomplete until it carries one. Numbers
-  // (band edge, fraction) are page values and locate per-seat; the consequence
-  // itself is a chef conclusion in own words.
+  // A consequence keyed to how the throw itself came up (`OUTCOME_TRIGGERS`).
+  // The numbers (band edge, fraction) are page values and locate per seat.
   outcome: { label: "Roll Outcome" },
   // --- Relational: abilities that depend on, grant, or alter OTHER abilities ---
   requires: { label: "Requires" }, // prerequisite ability/abilities
@@ -720,16 +637,14 @@ export const EFFECT_TYPES = {
   spellcastingMod: { label: "Spellcasting Modifier" },
   resource: { label: "Resource" }, // spend/gain fate points, spell slots, etc.
   conditionGrant: { label: "Condition / Immunity" },
-  // The other direction: an ability that LIFTS a condition already in place,
-  // such as a touch that cures paralysis. Stored as `conditions` +
-  // `appliesTo`, the same fields conditionGrant uses.
+  // An ability that lifts a condition already in place; stored as `conditions`
+  // + `appliesTo`, the same fields conditionGrant uses.
   conditionRemove: { label: "Removes Condition" },
   economic: { label: "Economic / Rate" },
   capability: { label: "Capability" }, // marker; detail lives in the (lazy) description
   // --- Spell effects: what a cast does to its targets. `domain: "spell"`
-  // keeps a kind out of an ability's picker (`effectTypesFor`). The cast
-  // engine dispatches on the kind; a kind it cannot compute is tracked with a
-  // duration and a card line rather than executed.
+  // keeps a kind out of an ability's picker (`effectTypesFor`). A kind the cast
+  // engine cannot compute is tracked with a duration and a card line.
   damage: { label: "Damage", domain: "spell" },
   heal: { label: "Healing", domain: "spell" }, // what it restores: HEAL_KINDS
   summon: { label: "Summon", domain: "spell" }, // SUMMON_FORMATS + CONTROL_KINDS
@@ -749,31 +664,24 @@ export const EFFECT_TYPES = {
 
 /**
  * The effect types a picker offers for one domain: `"ability"` is every kind
- * without a domain marker, `"spell"` is every kind. A stored row keeps its
- * type whatever a picker shows, so widening the table never invalidates a
- * document.
+ * without a domain marker, `"spell"` is every kind. A stored row keeps its type
+ * whatever a picker shows.
  */
 export function effectTypesFor(domain) {
   return Object.fromEntries(Object.entries(EFFECT_TYPES).filter(([, v]) => !v.domain || v.domain === domain));
 }
 
 /**
- * WHOSE roll an effect modifies. Without this a penalty an ability imposes on
- * its victims is stored identically to one the character suffers, which
- * inverts the ability — the Blind Fighting failure mode in another costume.
- * The thief skill Hiding penalises the OPPONENT's surprise roll and their
- * melee attacks against a hidden thief; as a bare `{target:"surprise",
- * value:-2}` that reads as a penalty on the thief. Defaults to `self`, so
- * every effect written before this existed keeps its meaning.
+ * WHOSE roll an effect modifies, so a penalty an ability imposes on its victims
+ * is not stored as one the character suffers. Defaults to `self`.
  */
 export const EFFECT_SUBJECTS = {
   self: { label: "The character" },
   opponent: { label: "The opponent" },
   ally: { label: "An ally" },
-  // A spell's subjects are relative to the CAST, not to an owner: `self` is
-  // the caster, and these three name what the cast is aimed at (RR ch. 5
-  // §V.8 defined terms). `domain: "spell"` keeps them out of an ability's
-  // picker (`effectSubjectsFor`).
+  // A spell's subjects are relative to the cast: `self` is the caster, and these
+  // three name what it is aimed at (RR ch. 5 §V.8). `domain: "spell"` keeps them
+  // out of an ability's picker (`effectSubjectsFor`).
   target: { label: "The target", domain: "spell" },
   recipient: { label: "The recipient", domain: "spell" },
   area: { label: "Everything in the area", domain: "spell" },
@@ -795,9 +703,7 @@ export const MODIFIER_TARGETS = {
   surprise: { label: "Surprise" },
   morale: { label: "Morale" },
   loyalty: { label: "Loyalty" },
-  // Its own d20 roll in ACKS II, not a saving throw. Lay on Hands grants a
-  // bonus to it; filing that under `save` would misname the roll a Judge is
-  // told to make.
+  // Its own d20 roll, not a saving throw, so it is not filed under `save`.
   mortalWounds: { label: "Mortal Wounds Throw" },
   speed: { label: "Speed" },
   proficiencyThrow: { label: "Proficiency Throw" },
@@ -811,7 +717,7 @@ export const MODIFIER_TARGETS = {
   marketImpact: { label: "Market Impact" },
   // What a character's powers do for the hirelings serving them (henchmen
   // `effects.mjs`): their own targets, never `loyalty` or `morale`, which the
-  // influence pages read as roll modifiers and would count a second time.
+  // influence pages read as roll modifiers.
   retainBonus: { label: "Henchmen Allowed" },
   baseLoyalty: { label: "Henchmen's Base Loyalty" },
   henchmanMorale: { label: "Hirelings' Morale" },
@@ -860,14 +766,11 @@ export const PROGRESSION_CLASSES = {
 
 /**
  * Shorthands for the class-level fraction a `progressionAs` effect or a
- * `progression` target reads at. These four spellings are read so that a stored
- * one keeps resolving.
- *
- * WHICH fraction a rule uses is printed, so it is not enumerated here. Whatever
- * a page states is answered by `atLevelNum` / `atLevelDen` on the value itself,
- * read from the reader's own book. Adding a member here to make a particular
- * rule work is transcribing that rule. `levelFactor` reads both and prefers the
- * data.
+ * `progression` target reads at, kept so a stored one keeps resolving. Which
+ * fraction a rule uses is printed, so it is carried by `atLevelNum` /
+ * `atLevelDen` on the value itself, read from the reader's own book;
+ * `levelFactor` reads both and prefers the data. See docs/abilities/DECISIONS.md,
+ * "The level fraction is data, not a member of a shipped list".
  */
 export const PROGRESSION_LEVELS = {
   full: { label: "Full Level", factor: 1 },
@@ -879,10 +782,9 @@ export const PROGRESSION_LEVELS = {
 /**
  * The fraction of class level a borrowed table is read at, as a number.
  *
- * Reads the value's own numerator and denominator first — that is where a
- * printed fraction lands, whatever it is — and falls back to the legacy
- * shorthand key. A missing or nonsensical fraction is 1: reading at full level
- * is the only answer that invents nothing.
+ * Reads the value's own numerator and denominator first, then the shorthand
+ * key. A missing or nonsensical fraction is 1, the one answer that invents
+ * nothing.
  *
  * @param {object|string} spec a LevelValue (or a bare legacy key)
  */
@@ -897,8 +799,7 @@ export function levelFactor(spec) {
 /**
  * A factor as the `atLevelNum` / `atLevelDen` pair a LevelValue stores: the
  * smallest denominator up to twelve that states it exactly. Null for a factor
- * that is not positive or that no such fraction states, so a figure is never
- * rounded into one the page did not print.
+ * that is not positive or that no such fraction states: a figure is never rounded.
  *
  * @param {number} factor
  * @returns {{num: number, den: number}|null}
@@ -923,17 +824,11 @@ export function levelFactorLabel(spec) {
 }
 
 /**
- * What a LADDER RUNG says, when what it says is not a target number.
- *
- * A printed progression is not always a grid of numbers: a rung may be one the
- * character cannot act on at all, or one reached without a throw. Blank — the
- * default — means the rung IS a target number.
- *
- * These are the two STRUCTURAL states, and they are all a machine can act on:
- * whether a throw happens. What the cell SAYS rides the rung's `text` and comes
- * in with the table, from the reader's own book. Several printed cells can mean
- * "no throw" while differing in outcome; that difference is the ability's own
- * prose, not a third thing the ladder resolver knows.
+ * What a ladder rung says when it is not a target number: reached without a
+ * throw (`auto`), or not available yet (`none`). Blank means the rung is a target
+ * number. These two structural states are all a machine acts on; what the cell
+ * says rides the rung's `text`, from the reader's own book. See
+ * docs/abilities/DECISIONS.md, "A rung may say something other than a number".
  */
 export const RUNG_OUTCOMES = {
   auto: { label: "Automatic — no throw" },
@@ -948,13 +843,7 @@ export const RESOURCE_KINDS = {
   hp: { label: "Hit Points" },
 };
 
-/**
- * How an effect combines with what it targets. The books distinguish these
- * constantly: Skulking ADDs +2 to Hiding/Sneaking throws; Alertness REPLACEs
- * its own 14+ with "+2 to your throw instead" when you already have Searching;
- * Counterspelling's +2 caster levels becomes 3 (a REPLACE variant) when you
- * also have Bright Lore of Aura.
- */
+/** How an effect combines with what it targets: added to it, replacing it, or setting it. */
 export const EFFECT_MODES = {
   add: { label: "Add" },
   replace: { label: "Replace" },
@@ -962,16 +851,10 @@ export const EFFECT_MODES = {
 };
 
 /**
- * How a converted / retired thing is surfaced. All three are MARKED — a rename
- * resolves silently as far as lookup goes, but the reader still deserves to
- * know the name on the page in front of them is not the name in the book they
- * are holding. Content the books removed deliberately is a CAUTION; content
- * merely omitted from ACKS II (and which may return) is INFO, since it still
- * works, it just was not designed for this edition.
- *
- * `tip` is a TEMPLATE: `{name}` interpolates the source name via
- * `conversionTip()`. Consumers read icon/severity/tip from here rather than
- * inventing their own wording, so the family says the same thing everywhere.
+ * How a converted / retired thing is surfaced. All three are marked: content the
+ * books removed deliberately is a caution; content merely omitted from ACKS II
+ * is info. `tip` is a template: `{name}` interpolates the source name via
+ * `conversionTip()`. Consumers read icon/severity/tip from here.
  */
 export const CONVERSION_STATUS = {
   renamed: {
@@ -996,8 +879,8 @@ export const CONVERSION_STATUS = {
 
 /**
  * The tooltip for a conversion status, with `{name}` filled in. `name` is the
- * PRE-conversion name (what the older source called it) — that is the thing the
- * reader is trying to reconcile. Returns "" for an unknown status.
+ * pre-conversion name, as the older source called it. Returns "" for an unknown
+ * status.
  */
 export function conversionTip(status, name = "") {
   const tip = CONVERSION_STATUS[status]?.tip;
@@ -1013,18 +896,11 @@ export const ROLL_TYPES = {
 };
 
 /**
- * How an ability's throw is READ — the three comparisons plus the one a
- * comparison cannot express.
- *
- * `measure` is a throw with nothing to beat: the dice ARE the answer. It is the
- * roll that FOLLOWS a successful throw rather than being one — how many, how
- * far, how much is healed — and the books state a great many of them. Scoring
- * one against a target reports success or failure for a question that asked
- * "how much".
- *
- * SEPARATE from `ROLL_TYPES` because that mirrors core's own enum, whose field
- * would reject a fourth value. Nothing writes `measure` into core's
- * `system.rollType`; it lives only on this module's own throws.
+ * How an ability's throw is read: the three comparisons plus `measure`, a throw
+ * with nothing to beat, where the dice are the answer. Separate from
+ * `ROLL_TYPES` because core's own field would reject a fourth value; `measure`
+ * lives only on this module's own throws, never in core's `system.rollType`.
+ * See docs/abilities/DECISIONS.md, "A throw may have no target at all".
  */
 export const THROW_TYPES = {
   ...ROLL_TYPES,
@@ -1039,32 +915,21 @@ export const isMeasure = (rollType) => rollType === "measure";
 /* ---------------------------------------------------------------- */
 
 /**
- * A CAPABILITY is what an ability lets you do, named independently of which
- * ability grants it. Abilities declare what they `provide`; prerequisites,
- * gates and stacking rules are written against the capability, not against one
- * specific entry.
- *
- * This is what makes gates survive the books' habit of printing the same
- * capability several ways. "Searching" is a thief skill, a proficiency, and the
- * thing several class powers hand out; an alias prints it under another name
- * again. A gate written as `def.prof.searching` misses every one of those. A
- * gate written as `kw:searching` catches them all, because each of them
- * provides that capability.
- *
- * It also gives aliases and non-stacking ONE mechanism instead of two: two
- * abilities that provide the same capability are the same capability twice, so
- * they do not stack — that falls out of the data rather than being asserted
- * per pair.
- *
- * Tokens: `def.<class>.<slug>` names one exact ability; `kw:<slug>` names a
- * capability. Anywhere a ref is accepted (`requires`, `ifHas`, `stacksWith`,
- * `notStacksWith`), either form works.
+ * The prefix of a capability token. A capability is what an ability lets you
+ * do, named independently of which ability grants it: abilities declare what
+ * they `provide`, and prerequisites, gates and stacking rules are written
+ * against the capability. Tokens: `def.<class>.<slug>` names one exact ability;
+ * `kw:<slug>` names a capability. Anywhere a ref is accepted (`requires`,
+ * `ifHas`, `stacksWith`, `notStacksWith`), either form works. See
+ * docs/lib/DECISIONS.md, "A gate names a capability, and two providers of one do
+ * not stack".
  */
 export const CAPABILITY_PREFIX = "kw:";
 
+/** Whether `token` is a `kw:` capability token rather than a definition id. */
 export const isCapabilityToken = (token) => String(token ?? "").startsWith(CAPABILITY_PREFIX);
 
-/** "def.prof.sensingEvil" → "kw:sensingevil". Case- and separator-folded. */
+/** "def.prof.someName" → "kw:somename". Case- and separator-folded. */
 export const capabilityForId = (id) =>
   CAPABILITY_PREFIX + slug(String(id ?? "").split(".").slice(2).join(""));
 
@@ -1072,9 +937,8 @@ export const capabilityForId = (id) =>
  * Does a character holding `abilities` satisfy `token`?
  *
  * `abilities` is a list of `{ id, provides }`. A definition-id token needs that
- * exact ability; a `kw:` token is satisfied by ANY ability providing it — and
- * an ability always implicitly provides its own id's capability, so a gate can
- * be written against a capability before anything has been tagged.
+ * exact ability; a `kw:` token is satisfied by any ability providing it, and an
+ * ability always implicitly provides its own id's capability.
  */
 export function satisfies(abilities, token) {
   if (!token) return true;
@@ -1090,10 +954,8 @@ export function satisfies(abilities, token) {
 export const satisfiesAll = (abilities, tokens) => (tokens ?? []).every((t) => satisfies(abilities, t));
 
 /**
- * Group abilities that provide the same capability. Each group beyond size 1 is
- * the same capability held more than once — which does not stack. Returned as
- * `capability -> [ability ids]`, only for capabilities held more than once, so
- * a caller can warn or suppress without having to diff anything itself.
+ * Group abilities that provide the same capability. Returned as
+ * `capability -> [ability ids]`, only for capabilities held more than once.
  */
 export function nonStackingGroups(abilities) {
   const by = new Map();
@@ -1111,11 +973,7 @@ export function nonStackingGroups(abilities) {
 /*  Scoping — WHEN a modifier applies to a particular roll           */
 /* ---------------------------------------------------------------- */
 
-/**
- * The three encounter tones (RR 84-87). Vocabulary, not a module's private
- * enum: a proficiency that helps only when parleying is a fact about the
- * proficiency, and any consumer resolving a reaction roll needs to know it.
- */
+/** The three encounter tones (RR 84-87), shared by any consumer resolving a reaction roll. */
 export const INFLUENCE_TONES = {
   diplomacy: { label: "Diplomacy" },
   intimidation: { label: "Intimidation" },
@@ -1123,13 +981,10 @@ export const INFLUENCE_TONES = {
 };
 
 /**
- * How a target-alignment scope behaves.
- *
- * The books write both, and they are NOT the same rule. Ancient Pacts is
- * +1 versus Chaotic monsters and nothing at all otherwise — a GATE. Deathly
- * Visage is +2 versus Chaotic beings and −2 versus everyone else — a SIGN
- * flip. Storing either one as the other is wrong by up to double the value in
- * the direction that matters most.
+ * How a target-alignment scope behaves: a `gate` applies only versus the named
+ * alignment; a `sign` flips to a penalty versus everyone else. See
+ * docs/lib/DECISIONS.md, "A target-alignment scope is a gate or a sign flip, and
+ * they are different rules".
  */
 export const SCOPE_ALIGNMENT_MODES = {
   gate: { label: "Only Versus This Alignment" },
@@ -1139,24 +994,21 @@ export const SCOPE_ALIGNMENT_MODES = {
 /**
  * Does a scoped effect apply to this roll, and with which sign?
  *
- * `condition` on an effect is free text a human reads. This is the part a
- * machine can decide: which targets, which tone, which optional rule. Pure and
- * Foundry-free, so a roller, a chat-card builder and offline tooling all reach
- * the same verdict.
+ * The machine-decidable part of an effect's scope: which targets, which tone,
+ * which optional rule (an effect's `condition` is free text for a human). Pure
+ * and Foundry-free.
  *
  * `ctx` supplies what is known about the roll:
- *   kinds          Set|Array of the target's kind tokens (see the consumer's
- *                  own typing; lib does not prescribe the vocabulary)
+ *   kinds          Set|Array of the target's kind tokens (the consumer's own
+ *                  vocabulary)
  *   alignment      the target's alignment (an ALIGNMENTS key)
  *   tone           the active INFLUENCE_TONES key, when it is an influence roll
  *   optionalRules  { [ruleName]: boolean } — absent means enabled
  *
- * Returns `{ applies, sign, undetermined }`. **`undetermined` is the important
- * one**: it means a scope was declared but `ctx` could not settle it — an
- * unknown target kind, no tone chosen yet. That is NOT the same as a scope that
- * failed, and collapsing the two is how a bonus silently disappears against a
- * target the GM simply has not typed. Callers should offer an undetermined
- * modifier as a manual toggle rather than dropping or auto-applying it.
+ * Returns `{ applies, sign, undetermined }`. `undetermined` means a scope was
+ * declared but `ctx` could not settle it, which is not a scope that failed:
+ * callers offer an undetermined modifier as a manual toggle rather than
+ * dropping or auto-applying it.
  */
 export function scopeApplies(effect = {}, ctx = {}) {
   let sign = 1;
@@ -1184,9 +1036,7 @@ export function scopeApplies(effect = {}, ctx = {}) {
     else if (!tones.includes(ctx.tone)) return { applies: false, sign, undetermined: false };
   }
 
-  // An optional rule that has never been registered is treated as ON: a module
-  // shipping content for a rule the world has not heard of should not silently
-  // withhold it. Only an explicit false switches it off.
+  // An optional rule never registered is ON; only an explicit false switches it off.
   if (effect.optionalRule && ctx.optionalRules?.[effect.optionalRule] === false) {
     return { applies: false, sign, undetermined: false };
   }
@@ -1197,18 +1047,13 @@ export function scopeApplies(effect = {}, ctx = {}) {
 /**
  * What fires a Roll Outcome — the machine-decidable part of "on a roll of X".
  *
- * `naturalBand`   the UNMODIFIED die in 1..naturalMax (the books' botch bands:
- *                 "on an unmodified 1–3 the lock jams"). The band edge is the
- *                 page's number and locates per-seat into `naturalMax`.
- * `belowFraction` the RESULT below `belowFraction` × target (Pickpocketing's
- *                 "below half the target value, the victim notices"). The
- *                 fraction is the page's word ("half") and locates per-seat.
- * `failure`       the throw simply failed (Climbing's fall). No number — the
- *                 target itself already decides.
+ * `naturalBand`   the unmodified die in 1..naturalMax; the band edge locates
+ *                 per seat into `naturalMax`.
+ * `belowFraction` the result below `belowFraction` × target; the fraction
+ *                 locates per seat.
+ * `failure`       the throw simply failed. No number: the target decides.
  *
- * One trigger per effect. A rule the book states as "on a natural 1 OR below
- * half the target" is two outcome effects sharing a consequence — two distinct
- * machine rules, one result, same as every other one-rule-per-effect case.
+ * One trigger per effect; a rule with two triggers is two outcome effects.
  */
 export const OUTCOME_TRIGGERS = {
   naturalBand: { label: "Natural Roll In Band" },
@@ -1218,10 +1063,9 @@ export const OUTCOME_TRIGGERS = {
 
 /**
  * Does this outcome fire for the given roll? `null` when the effect is not an
- * outcome, when its trigger needs a number it does not carry (an unlocated
- * band on a bookless seat), or when the caller cannot supply what the trigger
- * reads (no natural die available). A null is "cannot decide", never "no" —
- * the consumer surfaces it rather than silently dropping the rule.
+ * outcome, when its trigger needs a number it does not carry, or when the caller
+ * cannot supply what the trigger reads. A null is "cannot decide", never "no":
+ * the consumer surfaces it rather than dropping the rule.
  */
 export function outcomeFires(effect, { natural = null, total = null, target = null, success = null } = {}) {
   if (effect?.type !== "outcome") return null;
@@ -1249,12 +1093,8 @@ export const REROLL_KEEP = {
 /**
  * Resolve a reroll: given every result rolled, return the one that stands.
  *
- * "Better" is not "higher" — ACKS throws run both directions. An attack or
- * proficiency throw is roll-HIGH (`above`), so better is the maximum; a roll
- * measured against a ceiling (`below`) is roll-LOW, so better is the minimum.
- * Passing the effect's own `rollType` keeps the polarity honest instead of
- * hardcoding one direction and being wrong half the time.
- *
+ * "Better" follows the roll's direction: roll-high (`above`) keeps the maximum,
+ * roll-low (`below`) the minimum, so pass the effect's own `rollType`.
  * Returns null on an empty result set. Pure and Foundry-free.
  */
 export function resolveReroll(results, keep = "better", rollType = "above") {
@@ -1268,8 +1108,7 @@ export function resolveReroll(results, keep = "better", rollType = "above") {
 
 /**
  * How many results a reroll effect produces in total (the original plus its
- * rerolls). `times` is the number of EXTRA rolls and defaults to 1, so the
- * common "roll twice" needs no field set at all.
+ * rerolls). `times` is the number of extra rolls and defaults to 1.
  */
 export const rerollTotal = (effect) => 1 + Math.max(0, Math.trunc(effect?.times ?? 1));
 
@@ -1277,16 +1116,13 @@ export const rerollTotal = (effect) => 1 + Math.max(0, Math.trunc(effect?.times 
  * Scales a `conditional` value can key on, besides class level.
  *
  * `arcaneValue` / `divineValue` let a custom-class power state a cost that varies
- * by the class's spellcasting value ("counts as 1 power at Arcane Value 1-2, 2
- * at Arcane Value 3-4"). Nothing consumes them yet — the ability model stores a
- * plain numeric `powerValue`. See docs/ROADMAP.md § Magic.
+ * by the class's spellcasting value. Nothing consumes them yet. See
+ * docs/ROADMAP.md, "Spellcasting value as a conditional scale".
  */
 export const VALUE_SCALES = {
   level: { label: "Class Level" },
-  // How many TIMES the proficiency has been taken. Several RR proficiencies are
-  // rated this way rather than by level — Animal Husbandry's diagnosis throw is
-  // 11+ at one rank, 7+ at two, 3+ at three — and the ranks carry different
-  // titles (Veterinarian, Veterinary Surgeon) and unlock different rolls.
+  // How many times the proficiency has been taken, for those rated by rank
+  // rather than by level.
   rank: { label: "Rank (times taken)" },
   arcaneValue: { label: "Arcane Value" },
   divineValue: { label: "Divine Value" },
@@ -1294,9 +1130,9 @@ export const VALUE_SCALES = {
 };
 
 /**
- * The SHAPES a LevelValue can take — the discriminator every `levelValueField`
- * carries. `resolveLevelValue` (below) defines what each one computes; this
- * names them for a picker, so the field-builder and any editor offer one list.
+ * The shapes a LevelValue can take — the discriminator every `levelValueField`
+ * carries. `resolveLevelValue` (below) defines what each computes; the
+ * field-builder and any editor offer this one list.
  */
 export const VALUE_KINDS = {
   flat: { label: "Flat" },
@@ -1307,9 +1143,7 @@ export const VALUE_KINDS = {
 };
 
 /**
- * How a fractional level-scaled value is rounded. The books always print the
- * rounding beside the fraction, so it is part of the rule, not a display
- * choice. Absent means no rounding.
+ * How a fractional level-scaled value is rounded. Absent means no rounding.
  */
 export const VALUE_ROUNDING = {
   up: { label: "Round Up" },
@@ -1322,29 +1156,19 @@ export const VALUE_ROUNDING = {
 
 /**
  * WEAR SLOTS — the canonical set of places a piece of gear can be worn or
- * wielded, and the family's single source for them. The equipment feature's
- * `WEAR` re-exports this rather than defining a second copy.
+ * wielded, and the family's single source for them (the equipment feature's
+ * `WEAR` re-exports this).
  *
- * A slot is fundamentally an EXCLUSION, not a bonus. The Treasure Tome's
- * Miscellaneous Magic Item Form table states the only wear mechanic ACKS II
- * has: an item's form is mechanically irrelevant except that a character may
- * not wear two MAGIC items of the same form at once. So `capacity` is the
- * magic capacity of the place — what `item-model.mjs` `slotUse` counts magic
- * items against. What the body can physically carry twice is a second count
- * there: armour and weapons take a place, clothing and plain gear take none.
- * A slot assignment that is slightly wrong costs only mis-scoped exclusivity,
- * which is why gear may declare its slot as a correctable guess.
- *
- * `capacity: null` means unlimited. `ring` is 2 on the Tome's own numbers: a
- * creature benefits from two magical rings at once, and wearing more makes NONE
- * of them function — so an over-filled ring slot is a real failure state, not a
- * warning.
+ * A slot is an exclusion: `capacity` is how many magic items the place takes,
+ * which `item-model.mjs` `slotUse` counts against; what the body can physically
+ * carry twice is a second count there. `capacity: null` means unlimited. See
+ * docs/lib/DECISIONS.md, "A wear slot is an exclusion counted against magic
+ * items".
  *
  * Keys are in display order, head to foot then off-body. Foundry-free: `icon`
  * is a Font Awesome class the sheet layers consume, and `label` is the English
- * fallback `choicesOf` feeds to DataModel `choices`. The DISPLAYED label is
- * localised from the key (`ACKS-EQUIPMENT.wear.<key>`, via `wearLabel`), so a
- * translation never has to touch this table.
+ * fallback `choicesOf` feeds to DataModel `choices`. The displayed label is
+ * localised from the key (`ACKS-EQUIPMENT.wear.<key>`, via `wearLabel`).
  */
 export const WEAR_SLOTS = {
   head: { label: "Head", capacity: 1, icon: "fa-hat-wizard" }, // helmet, hat, crown
@@ -1352,11 +1176,9 @@ export const WEAR_SLOTS = {
   shoulders: { label: "Shoulders", capacity: 1, icon: "fa-user-tie" }, // cloak, cape, mantle
   body: { label: "Body", capacity: 1, icon: "fa-shirt" }, // the worn suit of armour
   worn: { label: "Worn", capacity: null, icon: "fa-mitten" }, // clothing and other worn-not-armour gear
-  // Uncapped: a belt, a pouch, a scabbard, a quiver and a harness are five
-  // different forms hung from one place, so the one-of-a-form rule caps none
-  // of them. The back is the same — a pack beside a bowcase.
+  // Uncapped: several different forms hang from the belt, and from the back.
   belt: { label: "Belt", capacity: null, icon: "fa-grip-lines" }, // belt, girdle, sash — and the pouches on it
-  ring: { label: "Ring", capacity: 2, icon: "fa-ring" }, // TT: a third ring stops ALL of them working
+  ring: { label: "Ring", capacity: 2, icon: "fa-ring" },
   hands: { label: "Hands", capacity: 1, icon: "fa-hand-sparkles" }, // gloves, gauntlets, bracers
   feet: { label: "Feet", capacity: 1, icon: "fa-shoe-prints" }, // boots, sandals
   mainHand: { label: "Main Hand", capacity: 1, icon: "fa-hand-fist" },
@@ -1376,8 +1198,7 @@ export const SLOT = Object.freeze(Object.fromEntries(WEAR_SLOT_ORDER.map((k) => 
 export const isWearSlot = (key) => !!WEAR_SLOTS[key];
 
 /**
- * How many items the slot holds. Unknown slots answer 1 rather than 0 or
- * Infinity: a typo must not silently grant unlimited wear, nor forbid all of it.
+ * How many items the slot holds. An unknown slot answers 1, neither 0 nor Infinity.
  */
 export const slotCapacity = (key) => {
   if (!isWearSlot(key)) return 1;
@@ -1385,14 +1206,7 @@ export const slotCapacity = (key) => {
   return cap === null ? Infinity : cap;
 };
 
-/**
- * RETRIEVAL COST (RR pp. 293-294). Getting a thing out of rigging — an
- * adventurer's harness, a belt pouch, a bowcase, a quiver, a sheath — is free;
- * out of a backpack, rucksack or sack it costs an action. The distinction is
- * per-CONTAINER, which is why it lives on the gear rather than on the slot: a
- * pouch on your belt and a sack on your back differ by what they are, not only
- * by where they hang.
- */
+/** Retrieval cost of a container's contents (RR pp. 293-294); per container, so it lives on the gear rather than the slot. */
 export const ACCESS_COSTS = {
   free: { label: "Free" },
   action: { label: "Action in lieu of movement" },
@@ -1405,20 +1219,16 @@ export const ACCESS_COSTS = {
 /**
  * A value that may be flat or a function of class level. Shapes:
  *   5                                  flat
- *   { kind:"perLevel", base, per }     base + per·(level-1)   (18+, −1/level)
- *   { kind:"breakpoints", breakpoints:[{atLevel,value}] }     +1/+2/+3 @1/7/13
- *   { kind:"progression", as, atLevel }   external class table (thief skills)
+ *   { kind:"perLevel", base, per }     base + per·(level-1)
+ *   { kind:"breakpoints", breakpoints:[{atLevel,value}] }
+ *   { kind:"progression", as, atLevel }   external class table
  *   { kind:"conditional", on, breakpoints:[{atLevel,value}] } keyed on a
  *                                      VALUE_SCALES scale instead of level
  *
- * A `conditional` reuses the breakpoint ladder verbatim — only the number fed
- * into it changes, from class level to `scales[on]`. So `atLevel` reads "at
- * this value of `on`", and one array shape covers both.
+ * A `conditional` reuses the breakpoint ladder verbatim, fed `scales[on]` in
+ * place of class level, so `atLevel` reads "at this value of `on`".
  *
- * `round` ("up" | "down") applies to whatever the shape produces, because a
- * fraction is only ever printed with its rounding attached — the paladin's Lay
- * on Hands grants a Mortal Wounds bonus of "one-half his class level (round
- * up)", i.e. { kind:"perLevel", base:0.5, per:0.5, round:"up" }.
+ * `round` ("up" | "down") applies to whatever the shape produces.
  *
  * `resolveLevelValue` returns the numeric value at `level`, or `null` when it
  * needs something the caller must supply — an external progression table (kind
@@ -1476,21 +1286,15 @@ function rungAt(breakpoints, at) {
 }
 
 /**
- * What a LevelValue comes to, as the whole answer rather than as a number.
- *
- * `resolveLevelValue` returns a number or null, and null is doing three jobs at
- * once: no rung reached, a shape this resolver cannot complete, and a rung that
- * says something other than a number. A caller that has to tell a target of 7
- * from "no throw needed" from "you cannot do this yet" cannot get there from a
- * null — so this returns the rung's own verdict beside the number.
+ * What a LevelValue comes to, as the whole answer rather than a number: the
+ * rung's own verdict beside the target, where `resolveLevelValue`'s null cannot
+ * tell no rung, an incomplete shape and a non-numeric rung apart.
  *
  * `outcome` is `"throw"` (roll against `target`), `"auto"` (it happens, no roll)
- * or `"none"` (not available at this rung). `text` is what the page prints in
- * the cell, carried through untouched for display.
- *
- * The numeric path is unchanged and still goes through `resolveLevelValue`, so
- * the two can never disagree about a target. Pure and Foundry-free; the
- * `progression` kind is completed by the classes registry, as always.
+ * or `"none"` (not available at this rung). `text` is the cell as printed,
+ * carried through for display. The numeric path still goes through
+ * `resolveLevelValue`, so the two never disagree about a target. Pure and
+ * Foundry-free; the classes registry completes the `progression` kind.
  *
  * @returns {{outcome: string, target: number|null, text: string}}
  */
@@ -1503,23 +1307,16 @@ export function resolveLevelOutcome(lv, level = 1, scales = {}) {
   const at = kind === "conditional" ? (lv.on === "level" ? level : scales?.[lv.on]) : level;
   if (typeof at !== "number") return plain(null);
   const rung = rungAt(lv.breakpoints, at);
-  // BELOW the first rung is not the same as a rung that says "not available".
-  // The books print the dash for the second and print nothing at all for a
-  // level the table does not reach; both leave the throw unmakeable, and only
-  // one of them has a cell to quote.
+  // Below the first rung there is no cell, unlike a rung that says "not available".
   if (!rung) return plain(null);
   return rungOutcome(rung, applyRounding(rung.value, lv.round));
 }
 
 /**
- * One rung's verdict, with its own value already rounded.
- *
- * An outcome is DECLARED, never inferred from the cell's text. A rung reading
- * "+2d" is a value the page prints in words, not an automatic success, and
- * guessing from the absence of a number would read one as the other — the class
- * ladders already carry exactly that kind of cell. A rung that declares nothing
- * is a throw, and a throw with no number is a throw nobody can score, which is
- * the pre-existing reading and stays it.
+ * One rung's verdict, with its own value already rounded. An outcome is
+ * declared, never inferred from the cell's text; a rung that declares nothing is
+ * a throw. See docs/abilities/DECISIONS.md, "A rung may say something other than
+ * a number".
  */
 function rungOutcome(rung, value) {
   const outcome = RUNG_OUTCOMES[rung?.outcome] ? rung.outcome : "throw";
@@ -1527,9 +1324,8 @@ function rungOutcome(rung, value) {
 }
 
 /**
- * A rung as a verdict — the shape `resolveLevelOutcome` returns, for the
- * consumers that find their own rung (the classes registry reads published
- * ladders, which are indexed differently from an inline breakpoint list).
+ * A rung as a verdict, in the shape `resolveLevelOutcome` returns, for
+ * consumers that find their own rung (the classes registry's published ladders).
  */
 export const outcomeOfRung = (rung) => rungOutcome(rung, rung?.value ?? null);
 

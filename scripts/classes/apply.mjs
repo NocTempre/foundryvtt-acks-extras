@@ -267,6 +267,12 @@ export function rebindsHeldClass(actor, classItem, level) {
   return !!key && held?.key === key && Number(actor?.system?.details?.level) === Number(level);
 }
 
+/**
+ * Checks that `classItem` can be applied to `actor` and settles its damage-bonus
+ * election, asking the Judge only when the class has a permanent choice and none
+ * is remembered or passed in.
+ * Resolves `{ ok: false }` on a refusal or a dismissed election.
+ */
 export async function readyToApply(actor, classItem, { election: answer = null } = {}) {
   if (!actor || classItem?.type !== `${MODULE_ID}.class`) return { ok: false };
   if (classItem.system.isStub) {
