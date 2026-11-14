@@ -25,6 +25,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE, isPlaceRole } from "../location/constants.mjs";
 import { creatureKeys } from "../lib/vocab.mjs";
+import { LAIR_KEY, lairData } from "../lib/lair-logic.mjs";
 import { hash36 } from "./printed-name.mjs";
 
 /** The group suffixes a settlement book prints per quarter, and what each holds. */
@@ -149,10 +150,13 @@ export function adventurePlaceData({ book, bookLabel, folderId = null }) {
  * journal page carried, on the thing a place is. `roster` is its occupant rows
  * (`lib/place.mjs:occupantRow`), where it has any. The stamp keeps the name
  * as built (`printed`), which is how a later printing taking the place over
- * tells a Judge's rename from its own (`place-pair.mjs`).
+ * tells a Judge's rename from its own (`place-pair.mjs`). `lairOf` is the
+ * cookbook id of the monster the place is the lair of (`meta.of`), written as
+ * the place's lair flag (`lib/lair.mjs`); it resolves to the library's actor
+ * whenever that monster is imported.
  */
 export function poiLocationData({
-  name, entryId, notes = "", book, bookLabel = "", district = "", parentUuid = "", folderId = null, role = "", roster = [],
+  name, entryId, notes = "", book, bookLabel = "", district = "", parentUuid = "", folderId = null, role = "", roster = [], lairOf = "",
 }) {
   return {
     name,
@@ -166,6 +170,7 @@ export function poiLocationData({
     flags: {
       [MODULE_ID]: {
         cookbook: { id: entryId, book, kind: "kind.location", unaudited: true, printed: name },
+        ...(lairOf ? { [LAIR_KEY]: lairData(lairOf) } : {}),
       },
     },
   };
@@ -250,17 +255,4 @@ export function replacementOf(label, pairs, bookId) {
     if (row?.ref && row.books?.includes(bookId)) return row.ref;
   }
   return null;
-}
-
-/**
- * A roster with a lair's monster on it: `host`, a hidden reference row to the
- * library's own actor of the monster the lair is the lair of, appended unless a
- * row of the roster already points at that actor (a stat line that bound to it).
- * @param {object[]} rows the roster built from the room's stat lines
- * @param {object|null} host an occupant row, or null where the monster is not in the library
- * @returns {object[]} `rows` itself when nothing is added
- */
-export function withHostRow(rows, host) {
-  if (!host?.uuid || rows.some((r) => r.uuid === host.uuid)) return rows;
-  return [...rows, host];
 }

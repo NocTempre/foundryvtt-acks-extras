@@ -9,8 +9,7 @@ import {
   actorPolicy, decidedPolicy, handWrittenProse, refreshImported, policyFor, countRepair, unrepaired, withBlockSums,
 } from "../refresh.mjs";
 import { coversFigure, decides, heldEdit } from "../held-edits.mjs";
-import { isWorldCopy } from "../scene-binding.mjs";
-import { libraryPackLabel, findLibraryPack } from "../../lib/library.mjs";
+import { libraryPackLabel, findLibraryPack, isWorldCopy } from "../../lib/library.mjs";
 import { ensureLibraryPack } from "../../lib/library-target.mjs";
 import { stableDocId } from "../adventure-binding.mjs";
 import { nameKeys } from "../../lib/vocab.mjs";

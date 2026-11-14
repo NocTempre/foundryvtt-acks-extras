@@ -1661,8 +1661,9 @@ again lays them.
 ## A lair is a place with its monster
 
 A keyed place whose row carries `meta.of`, the cookbook id of an ACKS II monster
-row of the Monstrous Manual (`lairOfProblems`), is that monster's lair. Two things
-bind it, both in `keyedOccupantRows`, and no book is named in either.
+row of the Monstrous Manual (`lairOfProblems`), is that monster's lair. The place
+carries the id as its lair flag, and its stat lines bind through a registered
+replacement; no book is named in either.
 
 **A stat line binds through a registered replacement.** `register/_refs/creatureReplacement.json`
 pairs a label with the monster row ACKS II prints for it: the creature under
@@ -1676,23 +1677,33 @@ paired: they are made as the AX books' are. A registered label whose monster is
 not yet in the library is made and not bound to its same-name row; a repair
 binds it once the monster is there.
 
-**The roster refers to the monster.** After its stat lines, the place's roster ends with one hidden row
-(`occupantRow`) pointing at the library's own actor of the `meta.of` monster,
-by uuid: a reference, never a copy, and never a world copy (`importedActor` with
-`copies: false`). `withHostRow` adds it unless a row of the roster already points
-at that actor, which is the case where a stat line bound to it. Where the monster
-is not imported, no row is added. A monster template (`mm.dragon`) is an actor
-of the `acks-extras.template` type, so its row is a plain `actor` row; it is
-counted as one body in the place's headcount, as every row is.
+**The place carries its monster, and rolls the monster's lair when entered.**
+`poiLocationData` writes `flags["acks-extras"].lair = {of}` from `meta.of`
+(`lib/lair-logic.mjs` `lairData`); the monster is no roster row and no body of
+the place. `lib/lair.mjs` is the only other writer of the flag. `lairMonster`
+resolves `of` to the library's own actor whenever the Monstrous Manual is
+imported, so no Repair is needed: it skips a world copy and a group's base actor,
+which carry the monster's stamp (`byCookbookId` with `original`).
 
-A repair of the book builds a held keyed place again, so its roster is built
-again with the host row (`withRewrite`'s `retract`, above). Under a repair that
-carries a decision (`heldRoster`), a stored roster that does not cover the build
-is a Judge's edit: a lair imported before the Monstrous Manual holds the
-creatures its stat lines made, so the repair lists its roster, and writes the
-linked one where the decision takes it. A roster that was empty takes it
-without a question. The rulings are DECISIONS 2026-11-13, "A lair links to its
-monster, and a stat line binds through a registered replacement".
+`rollLair` rolls once and leaves no row of the monster. It refuses while
+`lair.group` resolves, plans from the monster's imported in-lair side
+(`planLair`: a side counted in bodies rolls; units, no count, a template and a
+monster not imported make nothing), makes the group with `makeEncounter`, throws
+its lair side with `rollEncounter`, and writes `lair.group` and one hidden roster
+row naming the group, whose quantity is the bodies rolled. It rolls beside any
+stat-line rows, and a lair whose printed line binds to its monster rolls too.
+Where it makes nothing it whispers the Judges the reason once and keeps it in
+`lair.noted`. Calls for one place run one at a time. The line is the
+wilderness line; a Judge re-rolls the other from the group's sheet. A group the
+Judge deletes is rolled again at the next entry, and its stale row leaves the
+roster with the new one.
+
+A repair of the book writes the flag back with the rest of a held place's build,
+and a flag key the build does not carry (`group`, `noted`) is left as the place
+holds it. A stat line that bound to a monster before it was imported is bound by
+the repair. The rulings are DECISIONS 2026-11-13, "A lair links to its monster, and
+a stat line binds through a registered replacement", and 2026-11-14, "A lair rolls
+its monster's lair encounter on entry".
 
 ## A place two books print
 

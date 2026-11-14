@@ -13,7 +13,7 @@ import {
 import { printedNameOf } from "../printed-name.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy, isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt,
-  worldCopySource, isWorldCopy, placementMatches, afterDarkShift, bandOfSection, isZoneRow, gridScale, ringToScene,
+  worldCopySource, placementMatches, afterDarkShift, bandOfSection, isZoneRow, gridScale, ringToScene,
   offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops, storeyLevelId, isLinkRow,
   linkBoxOnFirstStorey, linkEndKey, linkRect, linkRegionData, compassOf, spanOf, linkQuestion,
 } from "../scene-binding.mjs";
@@ -28,7 +28,7 @@ import { BOOKS, bookIsJudges } from "../books.mjs";
 import { executeEntry } from "../executor.mjs";
 import { pageArtPlacements } from "../extract.mjs";
 import { progressBar } from "../progress.mjs";
-import { findLibraryPack, cookbookId } from "../../lib/library.mjs";
+import { findLibraryPack, cookbookId, isWorldCopy } from "../../lib/library.mjs";
 import { ensureLibraryPack } from "../../lib/library-target.mjs";
 import {
   ADVENTURE_TYPE, BOOK_ADVENTURE_KIND, adventureCookbookId, bookAdventureCookbookId, bookAdventureId, withWorldIds,

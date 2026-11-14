@@ -19,10 +19,11 @@ import { dirname, join } from "node:path";
 import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
   afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
-  placeTokenAt, worldCopySource, isWorldCopy, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
+  placeTokenAt, worldCopySource, turnMatrix, pictureKey, storeyCrops, storeyLevelId,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
   GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK, linkQuestion,
 } from "../../scripts/importer/scene-binding.mjs";
+import { isWorldCopy } from "../../scripts/lib/library.mjs";
 import { readCountWord } from "../../scripts/importer/executor.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { cookbookSource } from "./cookbook-source.mjs";

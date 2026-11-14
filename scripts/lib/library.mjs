@@ -14,6 +14,19 @@ import { MODULE_ID } from "./constants.mjs";
  */
 export const cookbookId = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
 
+/**
+ * Is this world document a copy of an imported one, rather than an import? A
+ * copy keeps the cookbook flag it was copied with, so the flag alone cannot
+ * tell. A scene's copy carries `worldCopy`; a drag out of a world compendium
+ * carries Foundry's `compendiumSource` into one; a sidebar duplicate carries
+ * `duplicateSource`. The importer writes none of these on an import.
+ */
+export function isWorldCopy(doc) {
+  if (doc?.flags?.[MODULE_ID]?.worldCopy) return true;
+  const stats = doc?._stats ?? {};
+  return String(stats.compendiumSource ?? "").startsWith("Compendium.world.") || !!stats.duplicateSource;
+}
+
 /** How the importer labels its packs — the one place the prefix is spelled. */
 const PACK_LABEL_PREFIX = "ACKS Cookbook — ";
 
@@ -192,12 +205,19 @@ export const libraryActors = () => libraryDocs("Actor");
 /**
  * The library document carrying this importer cookbook id, or null. Skips the
  * class-template parts, which inherit the id of the definition they were made
- * from.
+ * from. With `original`, it also skips a world copy (`isWorldCopy`) and a
+ * group's base actor (`templateFor`), which carry the stamp of the document
+ * they were made from and answer for no import of their own.
  */
-export function byCookbookId(type, id) {
+export function byCookbookId(type, id, { original = false } = {}) {
   if (!id) return null;
   return (
-    libraryDocs(type).find((d) => cookbookId(d) === id && !d.flags?.[MODULE_ID]?.templatePart) ?? null
+    libraryDocs(type).find(
+      (d) =>
+        cookbookId(d) === id &&
+        !d.flags?.[MODULE_ID]?.templatePart &&
+        !(original && (isWorldCopy(d) || d.flags?.[MODULE_ID]?.templateFor)),
+    ) ?? null
   );
 }
 

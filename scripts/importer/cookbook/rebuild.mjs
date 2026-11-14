@@ -16,7 +16,7 @@ import {
 } from "../poi-binding.mjs";
 import { isOrganisationRow, isStrengthGridRow } from "../faction-binding.mjs";
 import { reimportEverything } from "../everything.mjs";
-import { isSceneRecipe, isWorldCopy, isZoneRow, isLinkRow } from "../scene-binding.mjs";
+import { isSceneRecipe, isZoneRow, isLinkRow } from "../scene-binding.mjs";
 import { BOOKS, bookIsJudges } from "../books.mjs";
 import { TABLE_RECIPES } from "../table-recipes.mjs";
 import { ownerOfClaim, rebuildVerdict } from "../rebuild-guard.mjs";
@@ -28,6 +28,7 @@ import { ARMOR_TABLE } from "../armor-tables.mjs";
 import * as services from "../../lib/services.mjs";
 import { ADVENTURE_TYPE, bookAdventureCookbookId, adventureDropRows } from "../adventure-binding.mjs";
 import { escape as esc } from "../../lib/util.mjs";
+import { isWorldCopy } from "../../lib/library.mjs";
 import {
   FOLDER_NAME, lineOf, bookOfCookbookId, data, ctx, cookbookEntry, bookOf, bookLabel, api, claimedId, readableHere,
   offeredHere, claimsEntry, playersCharacter, ACTOR_KINDS, actorKindOf, characterEntry, isAbilityEntry, classEntries,

@@ -431,7 +431,7 @@ const P = {
     for (const u of uuids) {
       const d = await fromUuid(u).catch(() => null);
       const c = d?.flags?.["acks-extras"]?.cookbook;
-      out[u] = d ? { type: d.type, id: c?.id ?? null, book: c?.id ? H.CB.bookOfCookbookId(c.id, c.book) : null, copy: H.SB.isWorldCopy(d) } : null;
+      out[u] = d ? { type: d.type, id: c?.id ?? null, book: c?.id ? H.CB.bookOfCookbookId(c.id, c.book) : null, copy: H.LIB.isWorldCopy(d) } : null;
     }
     return out;
   },
