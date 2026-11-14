@@ -584,9 +584,12 @@ try {
   const head = await fmt("head", { max: r.stored });
   const shorts = [];
   for (const s of rolls2) shorts.push(await fmt("short", { level: s.level, faces: s.faces.join(", "), max: s.max }));
-  const floorPart = rolls2[0].floor == null ? await fmt("floorNone") : await fmt("floor", { floor: rolls2[0].floor });
+  // A floor nothing imported leaves no floor part in the tooltip at all; an imported one names its figure.
+  const floorLead = (await fmt("floor", { floor: "" })).trim();
+  const floorPart = rolls2[0].floor == null ? null : await fmt("floor", { floor: rolls2[0].floor });
+  const floorOk = floorPart === null ? !!view.tip && !view.tip.includes(floorLead) : !!view.tip?.includes(floorPart);
   check("the maximum's data-tooltip-text is the module's assembled record", view.rendered && view.tip === view.expected.tip && view.expected.state === "recorded", { rendered: view.rendered, same: view.tip === view.expected.tip, state: view.expected.state });
-  check("the tooltip opens on the maximum and cites the page, naming each level's dice and the floor part", view.tip?.startsWith(head) && /RR ch\. 1/.test(view.tip) && rolls2.every((s) => view.tip.includes(s.formula)) && view.tip.includes(floorPart), { head: !!view.tip?.startsWith(head), cite: /RR ch\. 1/.test(view.tip ?? ""), floor: view.tip?.includes(floorPart) });
+  check("the tooltip opens on the maximum and cites the page, naming each level's dice, and the floor part only when a floor is imported", view.tip?.startsWith(head) && /RR ch\. 1/.test(view.tip) && rolls2.every((s) => view.tip.includes(s.formula)) && floorOk, { head: !!view.tip?.startsWith(head), cite: /RR ch\. 1/.test(view.tip ?? ""), floorImported: floorPart !== null, floorOk });
   check("core's tooltip manager shows that text for the field", view.hover === view.tip, { same: view.hover === view.tip });
   check("the line under the field lists each level's faces and maximum, and carries the same tooltip", view.lineVisible && view.line === view.expected.line && shorts.every((s) => view.line.includes(s)) && view.lineTip === view.tip, { visible: view.lineVisible, same: view.line === view.expected.line, levels: shorts.every((s) => view.line.includes(s)) });
 

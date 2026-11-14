@@ -813,7 +813,7 @@ try {
   section("a monster's Roll, beside the others");
   await run(gm, P.drop, { groupId: band.id, actorId: mute.id });
   view = await until(gm, P.view, { groupId: band.id }, (v) => v.stacks === 2);
-  check("a stack with no count says so on the sheet and offers no Roll", view.notes[1][0]?.includes("No count is imported") && view.rolls[1] === null, view.notes);
+  check("a stack with no count draws no roll note (nothing is said of a missing import) and offers no Roll", view.notes[1].length === 0 && view.rolls[1] === null, view.notes);
   await run(gm, P.drop, { groupId: band.id, actorId: units.id });
   view = await until(gm, P.view, { groupId: band.id }, (v) => v.stacks === 3);
   check("a stack in units says which sides, and that a Roll leaves them", view.notes[2][0]?.includes("knots") && view.notes[2][0].includes("Counted in units") && view.notes[2][0].includes("Wilderness, Wandering"), view.notes);

@@ -2520,7 +2520,8 @@ which runs every step.
    (`createEmbeddedDocuments`). *Observable:* `pathfinding: true` and
    `bonus: nav.both`. Post the throw (drive mechanics). *Observable:* the
    whispered `.acks-extras-nav-card` carries the `nav.both` line and no
-   `nav.bonusUnpriced` line, and `travel.navigation.history` gained the row.
+   missing-import line (the card has no unpriced-bonus line), and
+   `travel.navigation.history` gained the row.
 
 Drive mechanics: read `game.settings.get("acks-extras", "advanceWorldTime")`
 before step 3. Where it is on, every turn moves the SHARED world clock ten

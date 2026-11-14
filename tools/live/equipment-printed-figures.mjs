@@ -5,9 +5,9 @@
  * rules book open, and on the Player seat where it is cheap: the price grid's
  * rows that state what they hold are counted and one is bound through the
  * importer's own binder (`pricedDoc`), and the item sheet says where the
- * container's capacity came from (the page, the hand that typed over it, or
- * that none is imported) on its Details and Contents tabs; a container with no
- * stated capacity stays a container and shows no figure; the Holds other items
+ * container's capacity came from (the page, or the hand that typed over it) on
+ * its Details and Contents tabs; a container with no stated capacity stays a
+ * container, shows no figure and carries no tooltip; the Holds other items
  * toggle writes the container declaration alone and clears the capacity on its
  * way off, reads the declaration and not a lock record that makes the item a
  * container too, leaves that lock and its key as they were, and on its way off
@@ -15,7 +15,7 @@
  * are imported, the finesse gate refuses only a size the list does not name,
  * and with either table absent (a Judge's override layer, written through the
  * Ruledata Browser's own `setOverride`) the gate refuses nothing, the unarmed
- * strike carries no die and says so, and clearing the override gives the
+ * strike carries a blank die and raises no notice, and clearing the override gives the
  * imported figures back. Machine values arrive through ./_env.mjs.
  *
  * Fixture, kept and found by marker: `equipment/printed-figures-actor`, a
@@ -240,15 +240,15 @@ const P = {
       fromPage: loc("fromPage", { name, cite }),
       editedByHand: loc("editedByHand", { name, cite: cite || name }),
       byHand: loc("byHand", { name }),
-      notImported: game.i18n.localize("ACKS-EQUIPMENT.printed.capacityNotImportedTip"),
     };
-    const kind = Object.entries(kinds).find(([, v]) => v === tip)?.[0] ?? "other";
+    // A capacity nothing states has no tooltip at all: blank, not a note.
+    const kind = tip === "" ? "blank" : Object.entries(kinds).find(([, v]) => v === tip)?.[0] ?? "other";
     return {
       holds: H.IM.holdsGear(item),
       stated: H.IM.capacityStated(item),
       figure: Number.isFinite(H.IM.capacityOf(item)),
       kind,
-      tipHasDigit: /\d/.test(kind === "notImported" ? tip : ""),
+      tip,
     };
   },
 
@@ -286,9 +286,8 @@ const READER = async () => {
     const input = root.querySelector('input[name="flags.acks-extras.gear.capacity"]');
     const toggle = root.querySelector('[data-action="toggleHolds"]');
     const tip = H.PL.capacityTip(item);
-    const notImported = game.i18n.localize("ACKS-EQUIPMENT.printed.notImported");
-    const facts = [...root.querySelectorAll('[data-drop="contents"] .acks-extras-item-sheet__fact-value[data-tooltip-text]')];
-    const fact = facts.find((f) => f.dataset.tooltipText === tip) ?? null;
+    // The capacity row's value: it carries the tooltip only when a capacity is stated, so it is found by its row, not by its tooltip.
+    const fact = root.querySelector('[data-drop="contents"] .acks-extras-item-sheet__capacity .acks-extras-item-sheet__fact-value') ?? null;
     return {
       rendered: true,
       tab,
@@ -300,8 +299,12 @@ const READER = async () => {
       inputValue: input ? input.value : null,
       inputEnabled: !!input && !input.disabled,
       labelTipIsModel: !!input && input.closest("label")?.dataset.tooltipText === tip,
+      labelTip: input ? input.closest("label")?.dataset.tooltipText ?? "" : null,
       contentsFact: !!fact,
-      contentsSaysNotImported: !!fact && fact.textContent.includes(notImported),
+      contentsTipIsModel: !!fact && (fact.dataset.tooltipText ?? "") === tip,
+      contentsTip: fact ? fact.dataset.tooltipText ?? "" : null,
+      // A stated capacity reads "<load> of <capacity>"; the load alone has no capacity beside it.
+      contentsHasCapacity: !!fact && / of /.test(fact.textContent.replace(/\s+/g, " ")),
       contentsHasFigure: !!fact && /\d/.test(fact.textContent.replace(/\s+/g, " ").replace(/[·].*$/, "")),
     };
   };
@@ -390,11 +393,11 @@ P.unarmed = async ({ actorId, roll }) => {
     try { await H.ACT.rollUnarmed(actor, { skipDialog: true }); } catch (e) { threw = String(e?.message ?? e).slice(0, 120); }
     await H.sleep(800);
   }
-  const noDie = game.i18n.localize("ACKS-EQUIPMENT.action.unarmedNoDie");
   return {
     formula: data.system.damage.base.formula,
     die: H.AM.unarmedStrikeDie(),
-    saidNoDie: H.notes.slice(before).some((n) => n.text === noDie),
+    // A blank die raises no notice of its own: every notification the throw raised is counted.
+    noticesRaised: H.notes.slice(before).length,
     cards: H.cards.slice(cardsBefore),
     threw,
   };
@@ -544,7 +547,7 @@ try {
   let s = await run(gm, P.sheet, { actorId, itemId: ids.priced, tab: "details" });
   check("the Details tab shows Holds other items ticked, the capacity field filled, its tooltip the page's", s.rendered && s.toggleChecked && s.input && s.inputValue !== "" && s.labelTipIsModel, s);
   s = await run(gm, P.sheet, { actorId, itemId: ids.priced, tab: "contents" });
-  check("the Contents tab shows the capacity with the same tooltip and no \"not imported\"", s.rendered && s.tabsOffered && s.contentsFact && !s.contentsSaysNotImported && s.contentsHasFigure, s);
+  check("the Contents tab shows the capacity with the same tooltip", s.rendered && s.tabsOffered && s.contentsFact && s.contentsTipIsModel && s.contentsTip !== "" && s.contentsHasCapacity && s.contentsHasFigure, s);
   s = await run(gm, P.sheet, { actorId, itemId: ids.priced, tab: "details", edit: true });
   const typed = await run(gm, P.type, { actorId, itemId: ids.priced, value: TYPED_CAPACITY });
   check("a capacity typed over it is stored", typed.found && typed.stored === TYPED_CAPACITY, typed);
@@ -553,23 +556,23 @@ try {
   const blank = await run(gm, P.type, { actorId, itemId: ids.priced, value: null });
   check("clearing the field stores no capacity, never a stand-in", blank.found && blank.stored === null, blank);
   m = await run(gm, P.model, { actorId, itemId: ids.priced });
-  check("it is still a container, states no capacity, and its tooltip says so with no figure", m.holds && !m.stated && !m.figure && m.kind === "notImported" && !m.tipHasDigit, m);
+  check("it is still a container, states no capacity, and its tooltip is empty", m.holds && !m.stated && !m.figure && m.kind === "blank" && m.tip === "", m);
   await run(gm, P.closeAll);
   let mp = null;
   for (let n = 0; n < 12; n++) {
     await sleep(1000);
     mp = await run(player, P.model, { actorId, itemId: ids.priced });
-    if (mp.kind === "notImported") break;
+    if (mp.kind === "blank") break;
   }
-  check("the Player seat reads the same: a container with no stated capacity says it is not imported", mp.holds && !mp.stated && mp.kind === "notImported", mp);
+  check("the Player seat reads the same: a container with no stated capacity has an empty tooltip", mp.holds && !mp.stated && mp.kind === "blank", mp);
 
   section("3. a container with no stated capacity");
   m = await run(gm, P.model, { actorId, itemId: ids.unlimited });
-  check("it is a container with no limit, and its tooltip says not imported", m.holds && !m.stated && !m.figure && m.kind === "notImported", m);
+  check("it is a container with no limit, and its tooltip is empty", m.holds && !m.stated && !m.figure && m.kind === "blank" && m.tip === "", m);
   s = await run(gm, P.sheet, { actorId, itemId: ids.unlimited, tab: "details" });
-  check("the Details tab shows the capacity field empty, its tooltip the not-imported one", s.rendered && s.toggleChecked && s.input && s.inputValue === "" && s.labelTipIsModel, s);
+  check("the Details tab shows the capacity field empty, with no tooltip", s.rendered && s.toggleChecked && s.input && s.inputValue === "" && s.labelTip === "", s);
   s = await run(gm, P.sheet, { actorId, itemId: ids.unlimited, tab: "contents" });
-  check("the Contents tab says \"not imported\" and shows no figure", s.rendered && s.contentsFact && s.contentsSaysNotImported && !s.contentsHasFigure, s);
+  check("the Contents tab shows the load with no capacity figure and no tooltip", s.rendered && s.contentsFact && s.contentsTip === "" && !s.contentsHasCapacity, s);
   await run(gm, P.closeAll);
   note("plainAfterSection3", await run(gm, P.gearShape, { actorId, itemId: ids.plain }));
 
@@ -583,7 +586,7 @@ try {
   const on = await run(gm, P.toggle, { actorId, itemId: ids.plain, want: true });
   check("ticking it declares the sack a container", on.found && on.holds, on);
   m = await run(gm, P.model, { actorId, itemId: ids.plain });
-  check("it holds gear with no stated capacity, and says not imported", m.holds && !m.stated && m.kind === "notImported", m);
+  check("it holds gear with no stated capacity, and its tooltip is empty", m.holds && !m.stated && m.kind === "blank", m);
   s = await run(gm, P.sheet, { actorId, itemId: ids.plain, tab: "details", edit: true });
   check("the capacity field appears, empty", s.input && s.inputValue === "", s);
   const hand = await run(gm, P.type, { actorId, itemId: ids.plain, value: HAND_CAPACITY });
@@ -648,13 +651,13 @@ try {
   u = await run(gm, P.unarmed, { actorId, roll: true });
   for (const id of u.cards) { await gm.track(id, "ChatMessage"); own.push(`ChatMessage.${id}`); }
   check("with no die imported the strike carries a blank formula and no figure", u.die === null && u.formula === "", { die: u.die, formula: u.formula });
-  check("the throw says the die is not imported (unarmedNoDie)", u.saidNoDie, { saidNoDie: u.saidNoDie, threw: u.threw });
+  check("the throw raises no notice about the missing die", u.noticesRaised === 0 && u.threw === null, { noticesRaised: u.noticesRaised, threw: u.threw });
   const invented = await run(gm, P.override, { table: UNARMED, data: { damage: INVENTED_DIE } });
   u = await run(gm, P.unarmed, { actorId, roll: false });
   check("a Judge's own die wins over the page's", invented.set && u.die === INVENTED_DIE && u.formula === INVENTED_DIE, { set: invented.set, die: u.die === INVENTED_DIE });
   const garbage = await run(gm, P.override, { table: UNARMED, data: { damage: "a lot" } });
   u = await run(gm, P.unarmed, { actorId, roll: false });
-  check("a die that is not NdM counts as not imported", garbage.set && u.die === null && u.formula === "", { die: u.die, formula: u.formula });
+  check("a die that is not NdM counts as none: a blank formula", garbage.set && u.die === null && u.formula === "", { die: u.die, formula: u.formula });
 
   section("7. the overrides are cleared and the imported figures come back");
   const cleared = await run(gm, P.clearOverrides);

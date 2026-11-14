@@ -1183,7 +1183,6 @@ const P = {
       imported: !!table && Object.keys(table).length > 0, ground: t.ground,
       expectShown: shows(t.ground), labelInLine: line.includes(label(t.ground)),
       other: otherGround ? { ground: otherGround, expectShown: shows(otherGround), labelInLine: line.includes(label(otherGround)) } : null,
-      missingNote: line.includes(game.i18n.localize("ACKS-VEHICLES.reason.tablesMissing")),
     };
   },
 

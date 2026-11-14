@@ -10,7 +10,7 @@
  * with its reason. Two relay and sheet checks run under registry layers of the
  * walk's own, holding invented figures and no imported book: the GM seat lacking
  * the commission step, where a Player's commissioned search for another class
- * is refused `tables-missing` over the relay, and the GM seat holding two
+ * is refused `tables-missing` over the relay (the dialog says nothing), and the GM seat holding two
  * invented cultures, where the Demographics block's Add makes a row whose
  * select lists them and starts on the first. Machine values arrive through
  * ./_env.mjs.
@@ -359,13 +359,15 @@ const P = {
     const filled = set("employerId", employerId) && set("kind", "henchmanByClass") && set("classKey", cls) && set("commissioned", true);
     await H.sleep(200);
     form.requestSubmit();
-    await H.poll(() => H.notes.some((n) => n.kind === "error" || n.kind === "info"), { tries: 60 });
+    // A refusal that only names a missing import is silent (no toast of either kind),
+    // so the wait is bounded: a toast, if one is going to come, comes within it.
+    await H.poll(() => H.notes.some((n) => n.kind === "error" || n.kind === "info"), { tries: 20 });
     await H.sleep(500);
     if (app.rendered) await app.close({ animate: false });
-    const missing = game.i18n.localize("ACKS-HENCHMEN.posting.error.tables-missing");
     return {
       opened: true, filled,
-      refusedMissing: H.notes.some((n) => n.kind === "error" && n.text === missing),
+      silent: H.notes.length === 0,
+      errorShown: H.notes.some((n) => n.kind === "error"),
       submittedSaid: H.notes.some((n) => n.kind === "info" && n.text === game.i18n.localize("ACKS-HENCHMEN.posting.submitted")),
       rawKeyShown: H.notes.some((n) => /ACKS-HENCHMEN\./.test(n.text)),
       postingsUnchanged: (place.system.market.postings ?? []).length === postings,
@@ -569,7 +571,7 @@ try {
   const layered = await run(gm, P.stepsLayer, { on: true, priority: WALK_LAYER, source: WALK_SOURCE });
   check("17: the walk's layer stands and the GM seat reads no commission step", layered.placed && layered.noStep, layered);
   const missingStep = await run(player, P.submitCommissioned, { placeId: place.id, employerId: employer.id, cls: searchClass.cls });
-  check("17: the Player's commissioned search comes back refused with the tables-missing message, no raw key, no posting", missingStep.opened && missingStep.filled && missingStep.refusedMissing && !missingStep.submittedSaid && !missingStep.rawKeyShown && missingStep.postingsUnchanged, missingStep);
+  check("17: the Player's commissioned search comes back refused silently (a missing import names no toast, no error and no submitted notice, no raw key), no posting", missingStep.opened && missingStep.filled && missingStep.silent && !missingStep.errorShown && !missingStep.submittedSaid && !missingStep.rawKeyShown && missingStep.postingsUnchanged, missingStep);
   note("layer removed", await run(gm, P.stepsLayer, { on: false, priority: WALK_LAYER }));
 
   section("17: the Demographics block lists the cultures a table holds (walk-only layer of invented cultures)");

@@ -905,24 +905,29 @@ const P = {
     return { back: H.t.hasDoc("light") };
   },
 
-  /** The character sheet's rail and the party sheet's Kit tab, searched for the not-imported wording. */
+  /** The party sheet's Kit tab (each light row's burn-time cell, which stays blank with no burn time imported) and the character sheet's rail (the bearer's light title). */
   notImported: async ({ bearerId, partyId }) => {
     const H = globalThis.__col;
-    const kitText = game.i18n.localize("ACKS-FORMATION.app.lightNotImported");
+    const turnsLeft = game.i18n.localize("ACKS-FORMATION.app.turnsLeft");
     const railText = game.i18n.format("ACKS-CHARACTER.rail.light.notImported", { light: game.i18n.localize("ACKS-LIB.light.torch") });
     const party = game.actors.get(partyId).sheet;
     await party.render(true);
     await H.sleep(900);
     H.root(party)?.querySelector('[data-action="tab"][data-tab="kit"]')?.click();
     await H.sleep(400);
-    const kit = H.root(party)?.innerHTML ?? "";
+    const burnCells = [...(H.root(party)?.querySelectorAll(".lights .light[data-light-id] .remaining") ?? [])].map((c) => ({ text: c.textContent.trim(), tip: c.getAttribute("data-tooltip-text") ?? "" }));
+    const kit = {
+      rows: burnCells.length,
+      blank: burnCells.length > 0 && burnCells.every((c) => !c.text.includes(turnsLeft) && !/\d/.test(c.text)),
+      noWording: burnCells.every((c) => !/not imported/i.test(`${c.text} ${c.tip}`)),
+    };
     const sheet = game.actors.get(bearerId).sheet;
     await sheet.render(true);
     await H.sleep(1200);
     const html = H.root(sheet)?.innerHTML ?? "";
     const enc = (s) => foundry.utils.escapeHTML(s);
     await sheet.close({ animate: false });
-    return { kit: kit.includes(kitText), rail: html.includes(railText) || html.includes(enc(railText)), sheet: sheet.constructor.name };
+    return { kit, rail: html.includes(railText) || html.includes(enc(railText)), sheet: sheet.constructor.name };
   },
 
   /** Advance the party's clock through the sheet's turn tool, `n` presses. */
@@ -995,7 +1000,7 @@ const P = {
     const imported = (k) => (cite(k) ? game.i18n.format("ACKS-FORMATION.chat.cadenceFrom.import", { cite: cite(k) }) : game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.override"));
     const cad = H.k.importedEncounterCadence();
     const flat = (v) => (v == null ? null : String(v).replace(/\s+/g, ""));
-    return { die: flat(cad.die), every: cad.every, distance: flat(cad.distance), tips: { die: imported("die"), target: imported("target"), distance: imported("distance") }, setting: game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.setting"), noDistance: game.i18n.localize("ACKS-FORMATION.chat.encounterDetailNoDistance").split("{")[0].slice(0, 40), notImportedWarn: game.i18n.localize("ACKS-FORMATION.warn.encounterNotImported") };
+    return { die: flat(cad.die), every: cad.every, distance: flat(cad.distance), tips: { die: imported("die"), target: imported("target"), distance: imported("distance") }, setting: game.i18n.localize("ACKS-FORMATION.chat.cadenceFrom.setting"), noDistance: game.i18n.localize("ACKS-FORMATION.chat.encounterDetailNoDistance").split("{")[0].slice(0, 40) };
   },
 
   /** A Judge's light for a bearer with no fuel, and the stack the world or its compendiums hold most of. */
@@ -1412,8 +1417,8 @@ try {
   const dropped = await run(gm, P.dropLight);
   check("with the light document unregistered on the GM seat alone, its figures read null", dropped.gone && dropped.nulls, dropped);
   const ni = await run(gm, P.notImported, { bearerId: torch.id, partyId: party.id });
-  check("the party sheet's Kit tab says the burn time is not imported", ni.kit, ni);
-  check("the bearer's character sheet says the torch's reach is not imported", ni.rail, ni);
+  check("the party sheet's Kit tab leaves the burn time blank, with no turns-left figure and no not-imported wording", ni.kit.rows > 0 && ni.kit.blank && ni.kit.noWording, ni);
+  check("the bearer's character sheet names the torch burning, with no reach figure", ni.rail, ni);
   await run(gm, P.sync);
   await run(gm, P.redraw, { tokenId });
   const gNone = await run(gm, P.drawn, { fid, bearers });
@@ -1820,9 +1825,8 @@ try {
   await run(gm, P.setSetting, { key: "encounterEvery", value: null });
   await run(gm, P.setSetting, { key: "encounterTarget", value: null });
   const gmBoot = await run(gm, P.boot);
-  const warnText = await gm.eval(`game.i18n.localize("ACKS-FORMATION.tablesMissing").split("{")[0]`);
-  const warned = (gmBoot?.warns ?? []).some((w) => w.startsWith(warnText));
-  check("1: at the GM seat's load, the missing-tables warning matches the registry (none with both documents present)", tablesAtLoad.light && tablesAtLoad.delve ? !warned : warned, { light: tablesAtLoad.light, delve: tablesAtLoad.delve, warned });
+  const warned = (gmBoot?.warns ?? []).some((w) => /not (yet )?imported/i.test(w));
+  check("1: at the GM seat's load no missing-tables warning is raised, whether or not the registry holds the light and delve documents", !warned, { light: tablesAtLoad.light, delve: tablesAtLoad.delve, warned });
   const cad = await run(gm, P.cadenceTips);
   check("the cadence is imported: die, interval, target and distance", tables.delve && Object.values(tables.cadence).every(Boolean), tables.cadence);
   const cnames = ["QA Cadence Party"];
@@ -1882,7 +1886,7 @@ try {
   for (const c of cards) tracked.push(gm.track(c.id, "ChatMessage"));
   note("5: cards", shape(cards));
   const noDist = cards.find((c) => c.isMet && c.text.includes(cad.noDistance));
-  check("5: with the distance overridden to text that is not dice, the encounter card says the distance is not imported and rolls only the minute", !!noDist && noDist.formulas.length === 1, cards.map((c) => c.formulas.length));
+  check("5: with the distance overridden to text that is not dice, the encounter card carries the minute alone (no distance figure, no not-imported wording) and rolls only the minute", !!noDist && noDist.formulas.length === 1 && !/not imported/i.test(noDist.text), cards.map((c) => c.formulas.length));
   await run(gm, P.setSetting, { key: "encounterTarget", value: null });
   const priorDist = restore.overrides.pop();
   await run(gm, P.overrideSet, priorDist);

@@ -684,7 +684,7 @@ const P = {
     return {
       navCards: navCards.length,
       messages: msgs.map((m) => ({ id: m.id, uuid: m.uuid, whisper: m.whisper, alias: m.alias, mine: m.mine })),
-      card: card ? { whispered: card.whisper > 0, both: card.text.includes(H.loc("ACKS-FORMATION.nav.both")), unpriced: card.text.includes(H.loc("ACKS-FORMATION.nav.bonusUnpriced")) } : null,
+      card: card ? { whispered: card.whisper > 0, both: card.text.includes(H.loc("ACKS-FORMATION.nav.both")), unpriced: /not imported|no (figure|bonus) imported/i.test(card.text) } : null,
       historyGrew: (H.formation(fid)?.travel?.navigation?.history ?? []).length === before + 1,
       result: { throws: !!r?.result?.throws, success: r?.result?.success ?? null, natural: r?.result?.natural ?? null, opened: r?.opened ?? null },
     };
@@ -1578,19 +1578,22 @@ const P = {
     out.stripMilesUnknown = !!strip && (strip.milesPerDay ?? null) === null;
     out.paceRatios = { forced: forcedPace.multiplier === null, dedicated: scales.paceFigures("dedicated").multiplier === 1 };
     out.figuresNull = Object.values(scales.expeditionFigures()).every((v) => v === null);
-    out.lineHasMissing = at("tablesMissing") >= 0;
+    // A part that only says a table is missing stays on the readout and is left off the strip's tooltip line.
+    out.lineHasMissing = (r.parts ?? []).some((p) => p.missing && (line.includes(lab(p.key)) || line.includes(p.key)));
+    out.lineExpeditionBlank = line.endsWith(" · ");
     out.lineTerrainThenWashedOut = at("terrain.hills") >= 0 && at("road.washedOut") > at("terrain.hills");
     out.lineEntries = line ? line.split(" · ").length : 0;
     // The ancillary slot count rides the same expedition table: with it absent
     // the count is unknown, a fresh day carries no slot, and the day board
-    // draws none and says the hours are not imported, whatever the stored day holds.
+    // draws none and leaves the marker blank, whatever the stored day holds.
     try {
       const tv = view.buildTravelView(f);
       out.slotCount = H.T.ancillarySlots();
       out.freshSlots = H.T.freshDay().activities.length;
       out.boardSlots = tv.slots?.length ?? null;
       out.boardSaysNotImported = tv.slotsNotImported === true;
-      out.slotTipNotImported = String(tv.slotTip ?? "").includes(H.loc("ACKS-FORMATION.chat.cadenceFrom.none"));
+      // With the hours not imported the marker's tooltip carries the hint alone: no provenance and no not-imported wording.
+      out.slotTipNotImported = /not imported/i.test(String(tv.slotTip ?? ""));
     } catch (e) { out.slotsError = String(e?.message ?? e); }
     return out;
   },
@@ -2331,7 +2334,7 @@ async function delve(gm, player, census) {
   }
   await trackMsgs(gm, n3.messages, "navigation throw");
   note("throw", { navCards: n3.navCards, card: n3.card, historyGrew: n3.historyGrew, result: n3.result });
-  check("step 6: the whispered navigation card carries the both line and no unpriced line, and the history gained the row", n3.navCards === 1 && n3.card?.whispered && n3.card.both && !n3.card.unpriced && n3.historyGrew, { card: n3.card, historyGrew: n3.historyGrew });
+  check("step 6: the whispered navigation card carries the both line and no missing-import wording (the card has no unpriced-bonus line), and the history gained the row", n3.navCards === 1 && n3.card?.whispered && n3.card.both && !n3.card.unpriced && n3.historyGrew, { card: n3.card, historyGrew: n3.historyGrew });
   await trackMsgs(gm, await page(gm, P.messages, { t0 }), "delve, all");
   note("delve party left in delve", await page(gm, P.quiet, { fids: [fid] }));
 }
@@ -2776,8 +2779,8 @@ async function journey(gm, player, census) {
   section("journey step 2: the readout with no travel tables, then with invented rows at priority 20 (the player seat's registry; no automation runs there)");
   const rNone = await page(player, P.jReadout, { partyId: party.id, fid, phase: "none" });
   note("readout, no travel document", rNone);
-  check("step 2 (no tables): the readout carries the tablesMissing line and prices no terrain and no road; its multiplier is the weather conditions' alone and its miles are the forced pace's (the strip shows them)", rNone.stripFound && rNone.dayKind === "forced" && !rNone.hasTravelAfter && rNone.tablesMissingPart && rNone.lineHasMissing && rNone.terrainParts === 0 && rNone.roadParts === 0 && rNone.byPaceAndConditionsAlone && rNone.readoutForced && rNone.stripMilesIsForced, { parts: rNone.parts, conditionParts: rNone.conditionParts, byPaceAndConditionsAlone: rNone.byPaceAndConditionsAlone, lineHasMissing: rNone.lineHasMissing, readoutForced: rNone.readoutForced, stripMilesIsForced: rNone.stripMilesIsForced, contextError: rNone.contextError ?? null });
-  check("step 2 (no tables): the ancillary slot count is not imported: ancillarySlots() is null, a fresh day carries no slot, and the day board draws none though the stored forced march holds them, saying not imported with the not-imported tooltip", rNone.slotCount === null && rNone.freshSlots === 0 && rNone.boardSlots === 0 && rNone.boardSaysNotImported && rNone.slotTipNotImported, { slotCount: rNone.slotCount, freshSlots: rNone.freshSlots, boardSlots: rNone.boardSlots, boardSaysNotImported: rNone.boardSaysNotImported, slotTipNotImported: rNone.slotTipNotImported, slotsError: rNone.slotsError ?? null });
+  check("step 2 (no tables): the readout carries the tablesMissing part but the strip's tooltip line names none; it prices no terrain and no road; its multiplier is the weather conditions' alone and its miles are the forced pace's (the strip shows them)", rNone.stripFound && rNone.dayKind === "forced" && !rNone.hasTravelAfter && rNone.tablesMissingPart && !rNone.lineHasMissing && rNone.terrainParts === 0 && rNone.roadParts === 0 && rNone.byPaceAndConditionsAlone && rNone.readoutForced && rNone.stripMilesIsForced, { parts: rNone.parts, conditionParts: rNone.conditionParts, byPaceAndConditionsAlone: rNone.byPaceAndConditionsAlone, lineHasMissing: rNone.lineHasMissing, readoutForced: rNone.readoutForced, stripMilesIsForced: rNone.stripMilesIsForced, contextError: rNone.contextError ?? null });
+  check("step 2 (no tables): the ancillary slot count is not imported: ancillarySlots() is null, a fresh day carries no slot, and the day board draws none though the stored forced march holds them, leaving the marker blank (the view flag is set) with a tooltip that has no not-imported wording", rNone.slotCount === null && rNone.freshSlots === 0 && rNone.boardSlots === 0 && rNone.boardSaysNotImported && !rNone.slotTipNotImported, { slotCount: rNone.slotCount, freshSlots: rNone.freshSlots, boardSlots: rNone.boardSlots, boardSaysNotImported: rNone.boardSaysNotImported, slotTipNotImported: rNone.slotTipNotImported, slotsError: rNone.slotsError ?? null });
   // The paces live in the travel document, so with it unregistered no pace
   // prices a mile: every expedition figure and the forced pace's ratio answer
   // null, the dedicated pace's ratio stays one, and the strip states no miles.
@@ -3069,7 +3072,7 @@ async function daychange(gm, player, census) {
   }
   const qNone = await page(player, P.jReadout, { partyId: pa.id, fid: fids.A, phase: "none" });
   note("readout, no travel document", qNone);
-  check("step 2 again (no tables): tablesMissing, no terrain or road priced, the multiplier the conditions' alone, and no pace prices a mile (every expedition figure is null, the strip states no miles) for a party of a non-zero speed", qNone.stripFound && qNone.tablesMissingPart && qNone.lineHasMissing && qNone.terrainParts === 0 && qNone.roadParts === 0 && qNone.byPaceAndConditionsAlone && qNone.readoutForced && qNone.stripMilesIsForced && !qNone.speedZero && qNone.figuresNull && qNone.milesUnknown && qNone.stripMilesUnknown, { parts: qNone.parts, byPaceAndConditionsAlone: qNone.byPaceAndConditionsAlone, readoutForced: qNone.readoutForced, stripMilesIsForced: qNone.stripMilesIsForced, speedZero: qNone.speedZero, figuresNull: qNone.figuresNull, milesUnknown: qNone.milesUnknown, stripMilesUnknown: qNone.stripMilesUnknown });
+  check("step 2 again (no tables): the tablesMissing part on the readout and none on the strip's tooltip line, no terrain or road priced, the multiplier the conditions' alone, and no pace prices a mile (every expedition figure is null, the strip states no miles) for a party of a non-zero speed", qNone.stripFound && qNone.tablesMissingPart && !qNone.lineHasMissing && qNone.terrainParts === 0 && qNone.roadParts === 0 && qNone.byPaceAndConditionsAlone && qNone.readoutForced && qNone.stripMilesIsForced && !qNone.speedZero && qNone.figuresNull && qNone.milesUnknown && qNone.stripMilesUnknown, { parts: qNone.parts, byPaceAndConditionsAlone: qNone.byPaceAndConditionsAlone, readoutForced: qNone.readoutForced, stripMilesIsForced: qNone.stripMilesIsForced, speedZero: qNone.speedZero, figuresNull: qNone.figuresNull, milesUnknown: qNone.milesUnknown, stripMilesUnknown: qNone.stripMilesUnknown });
   const qInv = await page(player, P.jReadout, { partyId: pa.id, fid: fids.A, phase: "invented" });
   note("readout, invented rows", qInv);
   const qk = qInv.parts?.map((p) => p.key) ?? [];

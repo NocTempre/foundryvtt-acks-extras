@@ -4,12 +4,12 @@
  * imported" on the GM seat, and on the Player seat where it is cheap: the boot
  * recorder sees no error naming equipment, the weapon seam or `rowsReady`; with
  * the imported rows registered a weapon's item sheet reads each figure from its
- * row (the tooltip rides the row, not the disabled select) and says "not
- * imported" nowhere, and a container that states a capacity says so on the
+ * row (the tooltip rides the row, not the disabled select) and says nothing
+ * about an import, and a container that states a capacity says so on the
  * character sheet's gear row; then, for the walk's duration only, an empty
  * source is registered through the seam, a fresh item sheet and a fresh
- * character sheet render, and the "not imported" words appear where the rows
- * would have spoken. The default source is put back in a `finally` and the
+ * character sheet render, and what the rows would have spoken is blank, with
+ * no tooltip and no wording about an import. The default source is put back in a `finally` and the
  * restore is asserted both by identity and by a re-render. Machine values
  * arrive through ./_env.mjs.
  *
@@ -95,11 +95,10 @@ const P = {
       H.consoleError = console.error;
       console.error = (...args) => { H.errors.push(args.map((a) => a?.message ?? String(a)).join(" ").slice(0, 300)); H.consoleError(...args); };
     }
-    /** What the tooltip on a row is, as one of the four things the module writes. */
+    /** What the tooltip on a row is, as one of the three things the module writes; a figure nothing states has none. */
     H.kindOf = (tip, label, state) => {
       const f = (k, extra = {}) => game.i18n.format(`ACKS-EQUIPMENT.props.${k}`, { figure: label, ...extra });
       if (!tip) return "none";
-      if (tip === f("figureMissing")) return "missing";
       if (tip === f("figureDeclared")) return "declared";
       if (state?.state === "row" && (tip === f("figureFromRow", state) || tip === f("figureFromRowNoPage", state))) return "row";
       return "other";
@@ -140,38 +139,39 @@ const P = {
         kinds[name] = row ? { one: f.rows.length === 1, kind: H.kindOf(row.dataset.tooltipText, loc(f.label), state), onRow: !!row.dataset.tooltipText, selectTip: !!row.querySelector("select")?.dataset.tooltipText } : null;
         rowText[name] = H.text(row);
       }
-      const notImported = loc("ACKS-EQUIPMENT.printed.notImported");
+      const autoWord = loc("ACKS-EQUIPMENT.props.auto");
+      // The "Auto" option of a select, as printed: with no table answer it is the bare word, with one it carries a guess.
+      const autoOption = (row) => H.text(row?.querySelector("select option[value='auto']") ?? null);
       const notes = [...root.querySelectorAll(".acks-extras-item-sheet__props .acks-extras-item-sheet__prop-note")].map((n) => H.text(n));
-      const noTable = H.text({ textContent: loc("ACKS-EQUIPMENT.props.weaponTypeNoTable") });
       const gripsParts = loc("ACKS-EQUIPMENT.props.gripsAutoNoSize").split("{grips}");
-      const proficiencyNotImported = loc("ACKS-EQUIPMENT.itemSheet.rolls.mod.proficiencyNotImported");
       const lines = [...root.querySelectorAll(".acks-extras-item-sheet__row-line")].map((n) => H.text(n));
-      // The weapon's own attack rows (roll ids atk:*). A maneuver row's
-      // "penalty not imported" answers to the maneuver tables, not the weapon rows.
+      // The weapon's own attack rows (roll ids atk:*); a maneuver row answers to the maneuver tables.
       const attackLines = [...root.querySelectorAll(".acks-extras-item-sheet__row")]
         .filter((r) => r.querySelector("[data-roll^='atk:']"))
         .map((r) => H.text(r.querySelector(".acks-extras-item-sheet__row-line")));
       const mods = [...root.querySelectorAll(".acks-extras-item-sheet__row-mods .acks-tag")].map((n) => H.text(n));
       const panelText = H.text(root.querySelector(".acks-extras-item-sheet__props"));
+      // No surface may say a table is missing: the words a missing-import placeholder used are searched for in the panel, the lines and the tags.
+      const SAYS_MISSING = /not imported|unimported|unread|no weapon table/i;
       return {
         rendered: true,
         panel: true,
         identityKey: !!identity.key,
         identitySource: identity.source,
         kinds,
-        sizeShowsNotImported: rowText.size.includes(notImported),
-        classShowsNotImported: rowText.cls.includes(notImported),
-        noTableNote: notes.includes(noTable),
+        // The class and size selects' Auto option carries no guess when the row states none.
+        classAutoBare: autoOption(figures.cls.rows[0]) === autoWord,
+        sizeAutoBare: autoOption(figures.size.rows[0]) === autoWord,
         gripsNoSizeNote: notes.some((t) => t.startsWith(gripsParts[0].trim()) && t.endsWith(gripsParts[1].trim())),
-        panelHasNoTableText: panelText.includes(noTable),
-        panelHasGripsNoSize: panelText.includes(gripsParts[1].trim()),
+        panelSaysMissing: SAYS_MISSING.test(panelText),
+        linesSayMissing: lines.filter((t) => SAYS_MISSING.test(t)).length,
+        tagsSayMissing: mods.filter((t) => SAYS_MISSING.test(t)).length,
         rollRows: root.querySelectorAll(".acks-extras-item-sheet__row").length,
         rollLines: lines.length,
         attackLines: attackLines.length,
-        rollLinesNotImported: attackLines.filter((t) => t.includes(notImported)).length,
+        attackLinesBlank: attackLines.filter((t) => !t).length,
         rollLinesBlank: lines.filter((t) => !t).length,
         modCount: mods.length,
-        proficiencyNotImportedTag: mods.includes(proficiencyNotImported),
       };
     };
     /** Open a fresh character sheet on its Equipment tab and read the weapon row and the container rows. */
@@ -191,15 +191,15 @@ const P = {
       if (!root) return { rendered: false };
       await H.poll(() => root.querySelector(`.acks-extras-frame__gear[data-item-id='${ids.pack}']`));
       const loc = (k) => game.i18n.localize(k);
-      const notImported = loc("ACKS-EQUIPMENT.printed.capacityNotImported");
       const gear = (id) => root.querySelector(`.acks-extras-frame__gear[data-item-id='${id}']`);
       const head = (id) => gear(id)?.querySelector(":scope > .acks-extras-frame__gear-head .acks-extras-frame__gear-line") ?? null;
-      const tipText = loc("ACKS-EQUIPMENT.printed.capacityNotImportedTip");
+      const SAYS_MISSING = /not imported|unimported|unread/i;
       return {
         rendered: true,
         weaponRow: !!gear(ids.weapon),
-        pack: { found: !!head(ids.pack), saysNotImported: H.text(head(ids.pack)).includes(notImported), tip: head(ids.pack)?.dataset.tooltipText ?? "", stated: /\/\s*\d/.test(H.text(head(ids.pack))) },
-        satchel: { found: !!head(ids.satchel), saysNotImported: H.text(head(ids.satchel)).includes(notImported), tipIsTheNote: (head(ids.satchel)?.dataset.tooltipText ?? "") === tipText && !!tipText },
+        pack: { found: !!head(ids.pack), saysMissing: SAYS_MISSING.test(H.text(head(ids.pack))), tip: head(ids.pack)?.dataset.tooltipText ?? "", stated: /\/\s*\d/.test(H.text(head(ids.pack))) },
+        // A container that states no capacity shows its load alone: no "/ capacity", no note, no tooltip.
+        satchel: { found: !!head(ids.satchel), saysMissing: SAYS_MISSING.test(H.text(head(ids.satchel))), stated: /\/\s*\d/.test(H.text(head(ids.satchel))), tip: head(ids.satchel)?.dataset.tooltipText ?? "" },
       };
     };
     return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, boot: globalThis.__wnBoot ?? null, base: { keys: H.base.keys } };
@@ -349,13 +349,13 @@ const registeredItem = (key, r) => {
   check(`${key}: the weapon's item sheet renders its construction panel and its Rolls rows`, r.rendered && r.panel && r.rollRows >= 1, { rendered: r.rendered, panel: r.panel, rollRows: r.rollRows });
   check(`${key}: the weapon's type reads as set on the item, the tooltip on the row and not on the select`, r.kinds?.type?.one && r.kinds.type.kind === "declared" && r.kinds.type.onRow && !r.kinds.type.selectTip, r.kinds?.type);
   check(`${key}: class, size and grips each read from the weapon table's row (figureFromRow), the tooltip on the row`, ["cls", "size", "grips"].every((f) => r.kinds?.[f]?.one && r.kinds[f].kind === "row" && r.kinds[f].onRow && !r.kinds[f].selectTip), { cls: r.kinds?.cls?.kind, size: r.kinds?.size?.kind, grips: r.kinds?.grips?.kind });
-  check(`${key}: no "not imported" text in the panel's notes, its class and size rows, or the attack rows' lines and the Rolls tags`, !r.noTableNote && !r.gripsNoSizeNote && !r.panelHasNoTableText && !r.sizeShowsNotImported && !r.classShowsNotImported && r.attackLines >= 1 && r.rollLinesNotImported === 0 && !r.proficiencyNotImportedTag, { noTableNote: r.noTableNote, gripsNoSizeNote: r.gripsNoSizeNote, size: r.sizeShowsNotImported, cls: r.classShowsNotImported, attackLines: r.attackLines, rollLinesNotImported: r.rollLinesNotImported, tag: r.proficiencyNotImportedTag });
+  check(`${key}: no text of any kind where a figure is missing: the panel, the attack rows' lines and the Rolls tags say nothing about an import, and the Auto options carry their guess`, !r.gripsNoSizeNote && !r.panelSaysMissing && !r.classAutoBare && !r.sizeAutoBare && r.attackLines >= 1 && r.linesSayMissing === 0 && r.tagsSayMissing === 0, { gripsNoSizeNote: r.gripsNoSizeNote, panel: r.panelSaysMissing, classAutoBare: r.classAutoBare, sizeAutoBare: r.sizeAutoBare, attackLines: r.attackLines, lines: r.linesSayMissing, tags: r.tagsSayMissing });
   check(`${key}: every Rolls line has text`, r.rollLines >= 1 && r.rollLinesBlank === 0, { lines: r.rollLines, blank: r.rollLinesBlank });
 };
 const registeredChar = (key, c) => {
   check(`${key}: the character sheet's gear rows render, with the weapon's row`, c.rendered && c.weaponRow && c.pack.found && c.satchel.found, { rendered: c.rendered, weapon: c.weaponRow, pack: c.pack?.found, satchel: c.satchel?.found });
-  check(`${key}: a container that states a capacity shows it, and does not say "capacity not imported"`, c.pack.stated && !c.pack.saysNotImported && c.pack.tip === "", { stated: c.pack.stated, saysNotImported: c.pack.saysNotImported, tip: !!c.pack.tip });
-  check(`${key}: a container that only declares it holds gear says "capacity not imported", and its tooltip is the note`, c.satchel.saysNotImported && c.satchel.tipIsTheNote, c.satchel);
+  check(`${key}: a container that states a capacity shows it, with no note about an import`, c.pack.stated && !c.pack.saysMissing && c.pack.tip === "", { stated: c.pack.stated, saysMissing: c.pack.saysMissing, tip: !!c.pack.tip });
+  check(`${key}: a container that only declares it holds gear shows its load with no capacity, no note and no tooltip`, c.satchel.found && !c.satchel.stated && !c.satchel.saysMissing && c.satchel.tip === "", c.satchel);
 };
 
 let gm = null;
@@ -421,13 +421,12 @@ try {
   check("the empty source answered: no rows, no keys, no row for the table's first key", nulled.during.hasRows === false && nulled.during.keys === 0 && nulled.during.rowOfFirst === false, nulled.during);
   const n = nulled.item;
   check("the item sheet rendered under the empty source, with its construction panel and Rolls rows", n.rendered && n.panel && n.rollRows >= 1, { rendered: n.rendered, panel: n.panel, rollRows: n.rollRows });
-  check("the weapon names no row now, and says so (weaponTypeNoTable)", !n.identityKey && n.noTableNote && n.panelHasNoTableText, { identityKey: n.identityKey, note: n.noTableNote });
-  check("the grips note says the size is not imported and the hands count as one (gripsAutoNoSize)", n.gripsNoSizeNote && n.panelHasGripsNoSize, { note: n.gripsNoSizeNote });
-  check("the class and size rows read \"not imported\" where the row would have spoken", n.classShowsNotImported && n.sizeShowsNotImported, { cls: n.classShowsNotImported, size: n.sizeShowsNotImported });
-  check("every figure's tooltip is the no-figure one (figureMissing), on the row", ["type", "cls", "size", "grips"].every((f) => n.kinds?.[f]?.one && n.kinds[f].kind === "missing" && n.kinds[f].onRow), { type: n.kinds?.type?.kind, cls: n.kinds?.cls?.kind, size: n.kinds?.size?.kind, grips: n.kinds?.grips?.kind });
-  check("a Rolls row says the proficiency is not imported (proficiencyNotImported) rather than refusing the weapon", n.proficiencyNotImportedTag, { tag: n.proficiencyNotImportedTag, mods: n.modCount });
-  note("attack rows' lines reading \"not imported\" for the die (the item's own die, if it holds one, outranks this)", n.rollLinesNotImported);
-  check("every Rolls line has text under the empty source", n.rollLines >= 1 && n.rollLinesBlank === 0, { lines: n.rollLines, blank: n.rollLinesBlank });
+  check("the weapon names no row now, and no note and no text anywhere in the panel says a table is missing", !n.identityKey && !n.panelSaysMissing, { identityKey: n.identityKey, panelSaysMissing: n.panelSaysMissing });
+  check("the grips note names the grips alone (gripsAutoNoSize), with no size cited", n.gripsNoSizeNote, { note: n.gripsNoSizeNote });
+  check("the class and size rows show a bare Auto option with no guess", n.classAutoBare && n.sizeAutoBare, { cls: n.classAutoBare, size: n.sizeAutoBare });
+  check("all four figures carry no tooltip: the row's tooltip is empty", ["type", "cls", "size", "grips"].every((f) => n.kinds?.[f]?.one && n.kinds[f].kind === "none" && !n.kinds[f].onRow), { type: n.kinds?.type?.kind, cls: n.kinds?.cls?.kind, size: n.kinds?.size?.kind, grips: n.kinds?.grips?.kind });
+  check("the Rolls rows carry no proficiency tag and no import wording, and the weapon is not refused", n.tagsSayMissing === 0 && n.linesSayMissing === 0, { mods: n.modCount, tags: n.tagsSayMissing, lines: n.linesSayMissing });
+  check("every attack row still has its throw line under the empty source (a blank die leaves the throw)", n.attackLines >= 1 && n.attackLinesBlank === 0, { attackLines: n.attackLines, blank: n.attackLinesBlank });
   const nc = nulled.char;
   check("the character sheet rendered under the empty source: the weapon's row and both containers", nc.rendered && nc.weaponRow && nc.pack.found && nc.satchel.found, { rendered: nc.rendered, weapon: nc.weaponRow, pack: nc.pack?.found, satchel: nc.satchel?.found });
 
@@ -436,7 +435,7 @@ try {
   note("restore (page)", back);
   check("the default source is registered again: same key count, the very same first row, not left out", back.keys && back.sameFirstRow && back.hasRows && back.notLeftOut, back);
   const again = await run(gm, P.item, { actorId, itemId: ids.weapon });
-  check("a fresh item sheet reads from the table again: class, size and grips from the row, no \"not imported\" text", ["cls", "size", "grips"].every((f) => again.kinds?.[f]?.kind === "row") && !again.noTableNote && !again.gripsNoSizeNote && !again.proficiencyNotImportedTag, { cls: again.kinds?.cls?.kind, size: again.kinds?.size?.kind, grips: again.kinds?.grips?.kind });
+  check("a fresh item sheet reads from the table again: class, size and grips from the row, the Auto options carry their guess", ["cls", "size", "grips"].every((f) => again.kinds?.[f]?.kind === "row") && !again.panelSaysMissing && !again.classAutoBare && !again.sizeAutoBare && !again.gripsNoSizeNote,{ cls: again.kinds?.cls?.kind, size: again.kinds?.size?.kind, grips: again.kinds?.grips?.kind });
   await run(gm, P.closeAll);
 
   section("4. console");

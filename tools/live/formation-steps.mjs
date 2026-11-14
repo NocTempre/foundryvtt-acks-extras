@@ -21,8 +21,8 @@
  *                agree with the distance it prints and the sky's visibility,
  *                and the message carries the same facts as flags.
  *   "The city" 9b  a stay draws what found it day by day, by day and after
- *                dark, leaves no marker and no promote button; quiet, unpriced
- *                and no-list stays.
+ *                dark, leaves no marker and no promote button; quiet, gap (no
+ *                tally, no missing-import line) and no-list stays.
  *
  * Every fixture and figure is invented. The fixtures are kept and found again
  * by marker (`api.fixture`): the scenes `formation/steps-doors`,
@@ -923,7 +923,11 @@ const P = {
       shiftOnly: totals.some((t) => t > 10), afterDarkClause: night ? null : lines.flat().some((l) => /\(\d+\s/u.test(l)),
       interrupted: rows.length ? text.includes(C("interrupted", { count: rows.length, days: Array.from({ length: rows.length }, (_, k) => from + k + 1).join(", ") })) : null,
       undisturbed1: text.includes(C("undisturbed", { throws: 1 })),
-      unpriced: text.includes(C("unpriced", { what: "encounters" })),
+      // A stay with a figure nobody imported gives no tally and no missing-import line: neither the interrupted nor the undisturbed sentence, and no "not imported" wording.
+      noTally: !["interrupted", "undisturbed"].some((k) => {
+        const lit = game.i18n.localize(`ACKS-FORMATION.settlement.card.${k}`).split(/\{[^}]*\}/).filter(Boolean).sort((a, b) => b.length - a.length)[0];
+        return !!lit && text.includes(lit);
+      }) && !/not imported/i.test(text),
       noTableRows: rows.length > 0 && lines.every((ls) => ls.includes(noTable)),
       anyNoTable: lines.flat().includes(noTable),
       promote: !!doc.querySelector(".acks-extras-poi-promote"),
@@ -1446,7 +1450,7 @@ try {
   await adv(86400);
   c = await run(gm, P.stayCards, { t0, listName: null, rowPrefix, from: b.days, night: true, shift: 3 });
   await stayTrack(c);
-  check("Gap: an empty holed-up row reads Not imported: encounters, with no Day row", c.cards >= 1 && c.unpriced && c.rows === 0, { unpriced: c.unpriced, rows: c.rows });
+  check("Gap: an empty holed-up row posts the stay card with no tally and no missing-import line, and no Day row", c.cards >= 1 && c.noTally && c.rows === 0, { noTally: c.noTally, rows: c.rows });
 
   note("cityTravel target 1", await run(gm, P.registerCity, { target: 1 }));
   note("city list cleared from the map", await run(gm, P.setIncidents, { sceneId: s3.id, patch: { tableUuid: null } }));

@@ -200,9 +200,17 @@ const P = {
       CONFIG.Dice.randomUniform = () => u;
     };
     H.unrig = () => { if (H.rig0) CONFIG.Dice.randomUniform = H.rig0; };
+    // A loyalty throw refuses a hireling with no score (a hire made while the loyalty start is not imported has none), so a
+    // step that rolls one first types a score on the sheet's Loyalty field, as a Judge would; a hireling that has one is left alone.
+    H.ensureLoyalty = async (actor) => {
+      if (H.m.EV.effectiveLoyaltyFor(actor) !== null) return false;
+      await actor.update({ "system.retainer.loyalty": 0 });
+      await H.poll(() => H.m.EV.effectiveLoyaltyFor(actor) !== null);
+      return true;
+    };
     H.ctxSummary = async (app) => {
       const c = await app._prepareContext({});
-      const row = (m) => ({ key: m.key ?? null, label: m.label ?? null, value: m.value ?? null, control: m.control ?? m.kind ?? m.inputType ?? null, isUnread: !!m.isUnread, isUnvalued: !!m.isUnvalued, isEffect: !!m.isEffect, isAuto: !!m.isAuto, checked: m.checked ?? null, defaultValue: m.defaultValue ?? null, note: m.note ?? null, raw: /QA |Command|Diplomacy|refusals|Slander/i.test(m.label ?? "") ? JSON.parse(JSON.stringify(m)) : undefined });
+      const row = (m) => ({ key: m.key ?? null, label: m.label ?? null, value: m.value ?? null, control: m.control ?? m.kind ?? m.inputType ?? null, isNumber: !!m.isNumber, isDisabled: !!m.isDisabled, isUnvalued: !!m.isUnvalued, isEffect: !!m.isEffect, isAuto: !!m.isAuto, checked: m.checked ?? null, defaultValue: m.defaultValue ?? null, note: m.note ?? null, raw: /QA |Command|Diplomacy|refusals|Slander/i.test(m.label ?? "") ? JSON.parse(JSON.stringify(m)) : undefined });
       return {
         unreadNotice: c.unreadNotice ?? "",
         groups: (c.groups ?? []).map((g) => ({ group: g.group, mods: (g.mods ?? []).map(row) })),
@@ -443,7 +451,9 @@ const P = {
     return {
       rendered: true,
       count: values.length,
-      untipped: values.filter((v) => !v.dataset.tooltipText).map(label),
+      // A figure with nothing imported is a blank face; where the runtime gives it no page reference either (a share with neither a record term nor an import), it is listed apart, not failed.
+      untipped: values.filter((v) => !v.dataset.tooltipText && H.text(v) !== "").map(label),
+      blankUntipped: values.filter((v) => !v.dataset.tooltipText && H.text(v) === "").map(label),
       mismatched: values.filter((v) => v.dataset.tooltipText && !built.has(v.dataset.tooltipText)).map((v) => [label(v), v.dataset.tooltipText]),
       loyalty: figure('[data-roll="loyalty"]'),
       morale: figure('[data-roll="morale"]'),
@@ -456,7 +466,7 @@ const P = {
       wageTip: [...panel.querySelectorAll(".acks-extras-frame__row")]
         .find((r) => H.text(r.querySelector(".acks-extras-frame__row-label")) === L("wage"))
         ?.querySelector(".acks-extras-frame__row-value")?.dataset.tooltipText ?? null,
-      expectWageTip: ladder ? (ladderGp > 0 ? L("tip.wageLevel", { n: level, page: cite ?? L("tip.noPage") }) : L("tip.wageUnset")) : null,
+      expectWageTip: ladder ? (ladderGp > 0 ? L("tip.wageLevel", { n: level, page: cite ?? L("tip.noPage") }) : L("tip.wageUnsetOther")) : null,
       ladderGp,
       cite,
       hover,
@@ -479,9 +489,9 @@ const P = {
     const note = el.querySelector(NOTE);
     const tip = note?.dataset?.tooltip ?? "";
     const hintOf = (key) => tip === game.i18n.localize(key);
-    const hint = ["limitHint", "limitUnknown", "limitNotImported"].find((k) => hintOf(`ACKS-HENCHMEN.roster.${k}`)) ?? null;
+    const hint = ["limitHint", "limitUnknown"].find((k) => hintOf(`ACKS-HENCHMEN.roster.${k}`)) ?? null;
     const ctx = (await app._prepareContext({})).limit;
-    const out = { rendered: true, limit: `${ctx.count} / ${ctx.max ?? "—"}`, noteOk: H.text(note) === ctx.note, hint, unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll(".acks-extras-roster__row").length, retainMax: H.A.adapter.getRetainMax(actor), gap: H.A.adapter.retainGap(actor), notes: H.takeNotes() };
+    const out = { rendered: true, limit: `${ctx.count} / ${ctx.max ?? "—"}`, noteOk: H.text(note) === ctx.note, hint, tip, unvalued: H.text(el.querySelector("[data-unvalued]")) || null, rows: el.querySelectorAll(".acks-extras-roster__row").length, retainMax: H.A.adapter.getRetainMax(actor), gap: H.A.adapter.retainGap(actor), notes: H.takeNotes() };
     if (!keep) await app.close({ force: true });
     return out;
   },
@@ -563,7 +573,7 @@ const P = {
     for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
     if (kind === "recruit") H.A.openRecruitDialog(game.actors.get(locationId), candidateId, game.actors.get(employerId));
     else if (kind === "obedience") H.A.openObedienceRoll(game.actors.get(hirelingId));
-    else if (kind === "loyalty") H.A.openLoyaltyRoll(game.actors.get(hirelingId));
+    else if (kind === "loyalty") { await H.ensureLoyalty(game.actors.get(hirelingId)); H.A.openLoyaltyRoll(game.actors.get(hirelingId)); }
     else if (kind === "open") acksExtras.influence.open(game.actors.get(actorId), { mode: "hiring", ctx });
     const app = await H.poll(() => { const a = H.influenceApp(); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; });
     const notes = H.takeNotes();
@@ -1037,7 +1047,7 @@ const P = {
     const rows = (loc.system.candidates ?? []).filter((c) => c.name === name).map((c) => ({ id: c.id, status: c.status, quantity: c.quantity ?? null, refusals: (c.refusals ?? []).map((r) => ({ employer: r.employerUuid === emp?.uuid, result: r.result })) }));
     return { rows, slander: (loc.system.market?.slander ?? []).length, pending: (loc.system.market?.pendingHires ?? []).length };
   },
-  hiredOf: async ({ employerId }) => ({ actors: game.actors.filter((a) => a.type === "character" && a.system?.retainer?.managerid === employerId).map((a) => ({ id: a.id, name: a.name, quantity: a.system.retainer.quantity ?? null, loyalty: a.system.retainer.loyalty ?? null, category: a.system.retainer.category ?? null })) }),
+  hiredOf: async ({ employerId }) => ({ elan: globalThis.__c1.m.LY.loyaltyChange("elan"), actors: game.actors.filter((a) => a.type === "character" && a.system?.retainer?.managerid === employerId).map((a) => ({ id: a.id, name: a.name, quantity: a.system.retainer.quantity ?? null, loyalty: a.system.retainer.loyalty ?? null, category: a.system.retainer.category ?? null })) }),
   materialize: async ({ locationId }) => { await globalThis.__c1.m.RD.materializePendingHires(game.actors.get(locationId)); return { pending: (game.actors.get(locationId).system.market?.pendingHires ?? []).length }; },
   /** Bring a chat card into view for a shot. */
   showCard: async ({ id, frame = "content" }) => {
@@ -1213,10 +1223,11 @@ const P = {
   },
   /**
    * The hosted loyalty page for a hireling, its apparent-level row read from
-   * `_prepareContext`, and with `roll` pressed under a rig: whether the row is
-   * typed by hand, whether its label is the bare field name, whether it counts
-   * `count` levels and adds count × the figure this client reads, and the
-   * notice and badges the page draws; rolled, whether the result is one of the
+   * `_prepareContext`, and with `roll` pressed under a rig: whether the figure
+   * is unread, whether the row is a plain typed field, whether its label is the
+   * bare field name, whether it counts `count` levels and adds count × the
+   * figure this client reads, and the notice and badges the page draws (none,
+   * read or unread); rolled, whether the result is one of the
    * page's bands and the roll-complete payload's line for the row. Booleans
    * and counts only.
    */
@@ -1225,9 +1236,10 @@ const P = {
     for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
     H.takeNotes();
     H.takeChat();
+    const typedScore = await H.ensureLoyalty(game.actors.get(hirelingId));
     H.A.openLoyaltyRoll(game.actors.get(hirelingId));
     const app = await H.poll(() => { const a = H.influenceApp(); return a && H.root(a)?.querySelector('[data-action="roll"]') ? a : null; });
-    if (!app) return { opened: false, notes: H.takeNotes(), throwOpen: !!H.appBy("throw-dialog") };
+    if (!app) return { opened: false, typedScore, notes: H.takeNotes(), throwOpen: !!H.appBy("throw-dialog") };
     const c = await app._prepareContext({});
     const mod = (c.groups ?? []).flatMap((g) => g.mods ?? []).find((m) => m.key === "apparentLevelDiff");
     const perLevel = H.m.LY.apparentLevelPenalty();
@@ -1235,8 +1247,10 @@ const P = {
     const el = H.root(app);
     const out = {
       opened: true,
+      typedScore,
       found: !!mod,
-      unread: !!mod?.isUnread,
+      unread: perLevel === null,
+      typed: !!mod?.isNumber && !mod?.isDisabled,
       labelBare: mod?.label === bare,
       counted: Number(mod?.value) === count,
       contributes: perLevel !== null && mod?.contribution === count * perLevel,
@@ -1265,7 +1279,7 @@ const P = {
     for (const a of H.apps()) if (a.constructor?.name === "InfluenceApp") await a.close({ force: true });
     return out;
   },
-  /** The feature's own loyalty throw (integration swapped): whether it counts `count` levels, takes the figure this client reads per level, and names the count when the figure is unread. */
+  /** The feature's own loyalty throw (integration swapped): whether it counts `count` levels, takes the figure this client reads per level, and whether it draws an info line (none, read or unread). */
   loyaltyOwn: async ({ hirelingId, count }) => {
     const H = globalThis.__c1;
     H.takeNotes();
@@ -1281,7 +1295,6 @@ const P = {
       counted: Number(el.querySelector('[name="mod.apparentLevelDiff"]')?.value) === count,
       stepIsFigure: perLevel === null ? step === undefined : step === perLevel,
       info: info.length > 0,
-      infoNamesGap: info === game.i18n.format("ACKS-HENCHMEN.throwUi.apparentLevelUnread", { count }),
       notes: H.takeNotes(),
     };
     await app.close({ force: true });
@@ -1322,7 +1335,6 @@ const P = {
       entries: added.length,
       want: want.length,
       match: added.length === want.length && want.every((r, i) => added[i].delta === r.bonus && added[i].reason === "levelGain" && added[i].note === noteOf(r.level) && added[i].compensated === false),
-      unreadCard: chat.some((m) => textOf(m).includes(body("ACKS-HENCHMEN.card.levelGainBodyUnread"))),
       plainCard: chat.some((m) => textOf(m).includes(body("ACKS-HENCHMEN.card.levelGainBody"))),
       chat,
     };
@@ -1563,7 +1575,7 @@ try {
       note("the limit layer off", await run(gm, P.overrideLimit, { on: false }));
       const rosterX = await run(gm, P.roster, { actorId: A.id });
       note("roster A, no base", rosterX);
-      check("changed: with no imported base, A's roster shows no limit (count / —) and its tooltip asks for the Rules tables", rosterX.rendered && /^1 \/ —$/.test(rosterX.limit) && rosterX.noteOk && rosterX.gap === "import" && rosterX.hint === "limitNotImported", { limit: rosterX.limit, noteOk: rosterX.noteOk, gap: rosterX.gap, hint: rosterX.hint });
+      check("changed: with no imported base, A's roster shows no limit (count / —) and its tooltip is empty (no explanatory hint)", rosterX.rendered && /^1 \/ —$/.test(rosterX.limit) && rosterX.noteOk && rosterX.gap === "import" && rosterX.hint === null && rosterX.tip === "", { limit: rosterX.limit, noteOk: rosterX.noteOk, gap: rosterX.gap, hint: rosterX.hint, tip: rosterX.tip });
       note("the limit layer back on", await run(gm, P.overrideLimit, { on: true }));
     }
     const rosterB = await run(gm, P.roster, { actorId: B.id, keep: true, place: true });
@@ -1633,14 +1645,15 @@ try {
     note("link the service hireling", await run(gm, P.link, { employerId: SE.id, hirelingId: hS.id, wage: 5 }));
     const tipsS = await run(gm, P.serviceTips, { actorId: hS.id });
     note("the service hireling, Service", tipsS);
-    check("1b: every value on the Service panel carries a data-tooltip-text, each one the view built", tipsS.rendered && tipsS.count >= 8 && tipsS.untipped.length === 0 && tipsS.mismatched.length === 0, { count: tipsS.count, untipped: tipsS.untipped, mismatched: tipsS.mismatched });
+    check("1b: every value on the Service panel that shows a figure carries a data-tooltip-text, each one the view built (a blank face is listed in blankUntipped, not failed)", tipsS.rendered && tipsS.count >= 8 && tipsS.untipped.length === 0 && tipsS.mismatched.length === 0, { count: tipsS.count, untipped: tipsS.untipped, blankUntipped: tipsS.blankUntipped, mismatched: tipsS.mismatched });
     // The power sets morale apart from loyalty, so a row reading loyalty cannot pass.
     check("changed: the Obedience row reads the morale figure the obedience throw rolls on", tipsS.obedience !== null && tipsS.morale !== tipsS.loyalty && tipsS.obedience === tipsS.morale && tipsS.morale === tipsS.moraleScore, { obedience: tipsS.obedience, morale: tipsS.morale, moraleScore: tipsS.moraleScore, loyalty: tipsS.loyalty });
     check("changed: the morale line and its tooltip carry the employer's powers as a part", tipsS.powers === "+2" && tipsS.moraleLine.endsWith(`${tipsS.powersLabel} +2`) && (tipsS.moraleTip ?? "").includes(`${tipsS.powersLabel} +2`), { powers: tipsS.powers, line: tipsS.moraleLine, tip: tipsS.moraleTip });
-    check("1b: the loyalty figure, hovered, shows its own text in core's tooltip, and a pointer at its centre lands on it", tipsS.hover.hit && tipsS.hover.active && tipsS.hover.shown === tipsS.hover.attr, tipsS.hover);
+    // A hireling whose loyalty has no figure (no start imported, none typed on the sheet) shows a blank face whose tooltip is the page reference alone.
+    check("1b: the loyalty figure, hovered, shows its own text in core's tooltip, and a pointer at its centre lands on it; a blank figure's tooltip is a page reference", tipsS.hover.hit && tipsS.hover.active && tipsS.hover.shown === tipsS.hover.attr && (tipsS.loyalty !== null || /\b(RR|JJ|MM)\b.*\d/.test(tipsS.hover.attr ?? "")), { ...tipsS.hover, loyaltyBlank: tipsS.loyalty === null });
     const ladderS = await run(gm, P.serviceTips, { actorId: hS.id, ladder: true });
     note("the service hireling, wage off the table", { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, ladderGp: ladderS.ladderGp, cite: ladderS.cite });
-    check("1b: with no agreed or sheet wage, the wage's tooltip names the table at the hireling's level and the page lib citeOf answers, or says nothing is imported", ladderS.rendered && ladderS.wageTip === ladderS.expectWageTip, { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, cite: ladderS.cite });
+    check("1b: with no agreed or sheet wage, the wage's tooltip names the table at the hireling's level and the page lib citeOf answers, or (no ladder figure) is the plain \"not agreed and not set on the sheet\" tip",ladderS.rendered && ladderS.wageTip === ladderS.expectWageTip, { wageTip: ladderS.wageTip, expect: ladderS.expectWageTip, cite: ladderS.cite });
     note("closed", await run(gm, P.closeAll));
 
     section("15. the hosted hiring page: B's hiring effect, the note, Diplomacy's box");
@@ -1684,17 +1697,17 @@ try {
     note("table hidden (override with no bands)", await run(gm, P.overrideInfluence, { on: true, table: { bands: null, refusalPenalty: null, slanderPenalty: null } }));
     const mrGone = await run(gm, P.monsterRecruit, { monsterId: M.id, employerId: A.id });
     note("monster recruit without the table", mrGone);
-    check("15: with the table unread the warning names it and no dialog opens", !mrGone.opened && mrGone.notes.some((n) => n.kind === "warn"), mrGone.notes);
+    check("15: with the table unread no dialog opens and nothing is said (no warning, no error)", !mrGone.opened && !mrGone.notes.some((n) => n.kind === "warn" || n.kind === "error"), mrGone.notes);
 
     section("influence 17. the hosted hiring page with no table");
     const ctx = { previousRefusals: 2, slanderCount: 1, signingBonusOptions: [{ label: "—", value: 0 }] };
     const p17 = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true });
-    note("page 17", { opened: p17.opened, notice: p17.dom?.notice, unreadBadges: p17.dom?.unreadBadges, typed: p17.dom?.typedNumbers, mods: modsOf(p17).map((m) => [m.label, m.value, m.isUnread, m.control]) });
+    note("page 17", { opened: p17.opened, notice: p17.dom?.notice, unreadBadges: p17.dom?.unreadBadges, typed: p17.dom?.typedNumbers, mods: modsOf(p17).map((m) => [m.label, m.value, m.isNumber, m.isDisabled]) });
     const countRows17 = modsOf(p17).filter((m) => /refus|slander/i.test(m.label ?? ""));
-    check("17: both count rows are badged typed fields and the notice names the page", p17.opened && countRows17.length === 2 && countRows17.every((m) => m.isUnread) && !!p17.dom?.notice, { countRows17, notice: p17.dom?.notice });
+    check("17: both count rows are plain typed fields with no figure beside the name, and the page draws no badge and no notice", p17.opened && countRows17.length === 2 && countRows17.every((m) => m.isNumber && !m.isDisabled && !m.isUnvalued && !/\beach\)/i.test(m.label ?? "")) && !p17.dom?.notice, { countRows17: countRows17.map((m) => [m.label, m.isNumber, m.isDisabled, m.isUnvalued]), notice: p17.dom?.notice });
     const r17 = await run(gm, P.hostedRoll, { u: 0.5 });
     note("roll 17", r17);
-    check("17: the roll warns that the table is not imported and posts no card", r17.found && r17.notes.some((n) => n.kind === "warn") && r17.chat.length === 0, { notes: r17.notes, chat: r17.chat });
+    check("17: the roll with the table unread says nothing (no warning, no error) and posts no card", r17.found && !r17.notes.some((n) => n.kind === "warn" || n.kind === "error") && r17.chat.length === 0, { notes: r17.notes, chat: r17.chat });
     note("closed", await run(gm, P.closeAll));
 
     section("influence 18. the page with the table read");
@@ -1702,11 +1715,11 @@ try {
     if (invented) note("invented figures registered again", await run(gm, P.overrideInfluence, { on: true, table: INVENTED_OFFER }));
     const offer2 = await run(gm, P.offerRead);
     const p18 = await run(gm, P.hosted, { kind: "open", actorId: A.id, ctx, keep: true });
-    note("page 18", { opened: p18.opened, notice: p18.dom?.notice, unreadBadges: p18.dom?.unreadBadges, mods: modsOf(p18).map((m) => [m.label, m.value, m.isUnread, m.control]), final: p18.final });
+    note("page 18", { opened: p18.opened, notice: p18.dom?.notice, unreadBadges: p18.dom?.unreadBadges, mods: modsOf(p18).map((m) => [m.label, m.value, m.isNumber, m.isDisabled]), final: p18.final });
     const countRows18 = modsOf(p18).filter((m) => /refus|slander/i.test(m.label ?? ""));
     const eachOf = (m) => { const mm = String(m.label ?? "").match(/\(([+−-]?\s?\d+) each\)/); return mm ? Number(mm[1].replace("−", "-").replace(/\s/g, "")) : null; };
     const refRow18 = countRows18.find((m) => /refus/i.test(m.label)), slRow18 = countRows18.find((m) => /slander/i.test(m.label));
-    check("18: no badge and no notice; each count row shows its count and the figure each count adds", p18.opened && !p18.dom?.notice && countRows18.length === 2 && countRows18.every((m) => !m.isUnread) && Number(refRow18?.value) === 2 && Number(slRow18?.value) === 1 && eachOf(refRow18) === offer2.refusalPenalty && eachOf(slRow18) === offer2.slanderPenalty, { rows: countRows18.map((m) => [m.label, m.value]), figures: [offer2.refusalPenalty, offer2.slanderPenalty] });
+    check("18: no badge and no notice; each count row shows its count and the figure each count adds", p18.opened && !p18.dom?.notice && countRows18.length === 2 && countRows18.every((m) => m.isNumber && !m.isDisabled && !m.isUnvalued) && Number(refRow18?.value) === 2 && Number(slRow18?.value) === 1 && eachOf(refRow18) === offer2.refusalPenalty && eachOf(slRow18) === offer2.slanderPenalty, { rows: countRows18.map((m) => [m.label, m.value]), figures: [offer2.refusalPenalty, offer2.slanderPenalty] });
     const r18 = await run(gm, P.hostedRoll, { u: 0.5 });
     note("roll 18", r18);
     await markSeries("henchmen/card-hiring-18", "ChatMessage", r18.chat);
@@ -1754,11 +1767,11 @@ try {
     const l20a = await run(gm, P.loyaltyRow, { hirelingId: hD.id, count: 2, roll: true });
     await markSeries("henchmen/card-loyalty-unread", "ChatMessage", l20a.chat);
     note("loyalty page, unread", l20a);
-    check("16: unread, the apparent-level row is a typed field with the unread badge under its bare name, the page shows the notice, and it rolls with no result named and no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.labelBare && l20a.badges >= 1 && l20a.notice && l20a.rolled && l20a.outcomeNull && !l20a.bandKey && !l20a.partShown, l20a);
+    check("16: unread, the apparent-level row is a plain typed field under its bare name, the page draws no badge and no notice, and it rolls with no result named and no line for the row", l20a.opened && l20a.found && l20a.unread && l20a.typed && l20a.labelBare && l20a.badges === 0 && !l20a.notice && l20a.rolled && l20a.outcomeNull && !l20a.bandKey && !l20a.partShown, l20a);
     note("integration hidden", await run(gm, P.swapIntegration, { hosts: false }));
     const o20a = await run(gm, P.loyaltyOwn, { hirelingId: hD.id, count: 2 });
     note("the feature's own loyalty throw, unread", o20a);
-    check("16: unread, the fallback throw counts the two levels, takes no per-level figure, and its info line names the count", o20a.opened && o20a.counted && o20a.stepIsFigure && o20a.infoNamesGap, o20a);
+    check("16: unread, the fallback throw counts the two levels, takes no per-level figure, and draws no info line", o20a.opened && o20a.counted && o20a.stepIsFigure && !o20a.info, o20a);
     note("integration back", await run(gm, P.swapIntegration, { hosts: true }));
     const apparent = await standFor("influence", "apparentLevel", printed0.apparentWorld, INVENTED_APPARENT);
     note("the apparent-level figure stands", apparent);
@@ -1801,14 +1814,14 @@ try {
     const g0 = await run(gm, P.gainLevel, { hirelingId: z0.id, to: first });
     await markSeries("henchmen/card-gain-0", "ChatMessage", g0.chat);
     note("level gain onto the first rung, unread", g0);
-    check("16: unread, a level gain onto the first rung records no morale bonus and its card says the bonuses are not imported", g0.gained && g0.recorded && g0.entries === 0 && g0.unreadCard && !g0.plainCard, g0);
+    check("16: unread, a level gain onto the first rung records no morale bonus and its card is the same plain card, saying nothing about an import", g0.gained && g0.recorded && g0.entries === 0 && g0.plainCard, g0);
     note("read again", await run(gm, P.layerTable, { doc: "wages", id: "levelMorale", table: rungs.source === "world" ? null : rungs.source === "book" ? { fromBook: true } : INVENTED_LEVEL_MORALE }));
     const z1 = await keep("henchmen/novice-read", novice("QA Novice read", first - 1));
     note("link the read novice to A", await run(gm, P.link, { employerId: A.id, hirelingId: z1.id, wage: 5 }));
     const g1 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung0" });
     await markSeries("henchmen/card-gain-1", "ChatMessage", g1.chat);
     note("level gain onto the first rung", g1);
-    check("16: read, reaching the first rung records one morale entry at its bonus, its note naming the level, under the plain card", g1.gained && g1.recorded && g1.want === 1 && g1.entries === 1 && g1.match && g1.plainCard && !g1.unreadCard, g1);
+    check("16: read, reaching the first rung records one morale entry at its bonus, its note naming the level, under the plain card", g1.gained && g1.recorded && g1.want === 1 && g1.entries === 1 && g1.match && g1.plainCard, g1);
     const g2 = await run(gm, P.gainLevel, { hirelingId: z1.id, to: "rung1" });
     await markSeries("henchmen/card-gain-2", "ChatMessage", g2.chat);
     note("level gain onto the second rung", g2);
@@ -1932,7 +1945,7 @@ try {
     check("12: the row keeps its id at 14; each outcome that occurred is a row of its own carrying that many heads, a refusal naming the employer on a refusing row, and slandered on a slander row", origRow?.quantity === 14 && origRow?.status === "available" && outcomesSeen.length >= 2 && outcomesSeen.every((o) => !!rowFor(o)), { origRow, split, tally });
     check("12: the location's slander gains one entry per slandering head", after12.slander - before12.slander === (tally.refuseSlander ?? 0), { before: before12.slander, after: after12.slander, slandered: tally.refuseSlander ?? 0 });
     const acc = hired12.actors.find((a) => a.quantity === (tally.accept ?? -1)), elan = hired12.actors.find((a) => a.quantity === (tally.acceptElan ?? -1) && a !== acc);
-    check("12: the accepting heads are one actor whose retainer.quantity is the accept count (an élan group a second, one loyalty higher)", (tally.accept ? !!acc : true) && (tally.acceptElan ? !!elan : true) && hired12.actors.length === (tally.accept ? 1 : 0) + (tally.acceptElan ? 1 : 0) && (acc && elan ? elan.loyalty === acc.loyalty + 1 : true), { actors: hired12.actors, tally });
+    check("12: the accepting heads are one actor whose retainer.quantity is the accept count (an élan group a second, higher by the imported élan figure, or blank like it where no start is imported)", (tally.accept ? !!acc : true) && (tally.acceptElan ? !!elan : true) && hired12.actors.length === (tally.accept ? 1 : 0) + (tally.acceptElan ? 1 : 0) && (acc && elan ? (acc.loyalty === null && elan.loyalty === null) || elan.loyalty === acc.loyalty + (hired12.elan ?? 0) : true), { actors: hired12.actors, tally, elan: hired12.elan });
     const purse1 = (await run(gm, P.coin, { actorId: Pp.id })).gp;
     const headsHired = (tally.accept ?? 0) + (tally.acceptElan ?? 0);
     if (tier1) check("12: the employer paid the signing bonus once per head hired", Math.abs((purse0 - purse1) - tierGp * headsHired) < 0.01, { purse0, purse1, tierGp, headsHired });

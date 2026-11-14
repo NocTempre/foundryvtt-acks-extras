@@ -1474,7 +1474,7 @@ try {
       cardsPosted.push(...(e6.chat ?? []));
       const coinR2 = await coinOf();
       note("randomized with no dice in the world", { read6, e6, coinR, coinR2 });
-      check("G6r (the world holds no dice): the dialog and the entry both refuse, naming the Randomized Tariff table, and nothing is paid", read6.text.includes("Randomized Tariff") && e6.error === "printedMissing" && e6.table === "Randomized Tariff" && !e6.action && near(coinR, coinR2), { read6: read6.text, e6 });
+      check("G6r (the world holds no dice): the dialog's quote block is blank (it names no table and shows no figure), the entry refuses with the engine's printedMissing code and table, and nothing is paid", read6.text === "" && e6.error === "printedMissing" && e6.table === "Randomized Tariff" && !e6.action && near(coinR, coinR2), { read6: read6.text, e6 });
       const fb = await run(gm, P.tariffFromBook);
       const layered = fb.read && (await run(gm, P.tariffLayer, { on: true, table: fb.table })).dice && (await run(player, P.tariffLayer, { on: true, table: fb.table })).dice;
       note("the dice read off the book through the shipped recipe, layered at priority 30 on both seats", { read: fb.read, reason: fb.reason ?? null, layered });

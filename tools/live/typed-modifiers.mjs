@@ -826,7 +826,7 @@ const P = {
     });
     // An expectation per label, or a list of them when several copies share the label: a row is ok when it meets one.
     const meets = (r, e) => {
-      if (e === null) return r.value === "" && r.note === H.loc("ACKS-CHARACTER.stats.armourStepNotImported") && r.tip === H.loc("ACKS-CHARACTER.stats.armourStepNotImportedTip");
+      if (e === null) return r.value === "" && r.note === "" && r.tip === "";
       const parts = { step: String(e.step), rank: String(e.rank), steps: H.signed(e.step * e.rank) };
       const tip = e.cite ? H.loc("ACKS-CHARACTER.stats.armourStepTip", { ...parts, cite: e.cite }) : H.loc("ACKS-CHARACTER.stats.armourStepTipRow", parts);
       return r.value === parts.steps && r.note === "" && r.tip === tip;
@@ -1265,15 +1265,16 @@ try {
     note("light table", { imported: imp.lightImported, cite: imp.lightCite });
     const lights = await gm.eval(`(async () => {
       const H = globalThis.__tm;
-      return Object.keys(H.LIGHT.LIGHT_SOURCES).map((k) => ({ key: k, label: game.i18n.localize("ACKS-CHARACTER.vision." + k), dim: H.LIGHT.lightFigures(k).dim, tipCited: H.LIGHT.lightCite() ? game.i18n.format("ACKS-CHARACTER.vision.lightTip", { cite: H.LIGHT.lightCite() }) : null, tipJudge: game.i18n.localize("ACKS-CHARACTER.vision.lightTipJudge"), notImported: game.i18n.localize("ACKS-CHARACTER.vision.notImported") }));
+      return Object.keys(H.LIGHT.LIGHT_SOURCES).map((k) => ({ key: k, label: game.i18n.localize("ACKS-CHARACTER.vision." + k), dim: H.LIGHT.lightFigures(k).dim, tipCited: H.LIGHT.lightCite() ? game.i18n.format("ACKS-CHARACTER.vision.lightTip", { cite: H.LIGHT.lightCite() }) : null, tipJudge: game.i18n.localize("ACKS-CHARACTER.vision.lightTipJudge") }));
     })()`);
     const rowsOk = lights.map((l) => {
       const row = st.vision.find((v) => v.label === l.label);
       if (!row) return { key: l.key, ok: false, why: "no row" };
-      if (l.dim == null) return { key: l.key, ok: row.value.includes(l.notImported) && !/\d/.test(row.value.replace(l.notImported, "")) };
+      // A reach nothing imported is a blank value with no tooltip: no figure, no note.
+      if (l.dim == null) return { key: l.key, ok: row.value === "" && row.tip === "" };
       return { key: l.key, ok: row.value.startsWith(`${l.dim}′`) && (row.tip === l.tipCited || row.tip === l.tipJudge) };
     });
-    check("each light row shows the imported reach with the page it was read from, or says it is not imported", rowsOk.length > 0 && rowsOk.every((r) => r.ok), rowsOk);
+    check("each light row shows the imported reach with the page it was read from, or is blank with no tooltip", rowsOk.length > 0 && rowsOk.every((r) => r.ok), rowsOk);
     await run(gm, P.closeChar, { actorId: sm.id });
 
     section("magic: a family caster takes its class's slots");
@@ -1547,7 +1548,7 @@ try {
 
     section("equipment armour-step 2. the Stats lines under the rungs");
     const s2 = await run(gm, P.armourStats, { actorId: as.id, expect: exp(null, { step: 2, rank: 1, cite }) });
-    check("the hand-made line shows no figure and \"step not imported\" with its tooltip", line(s2, HAND)?.ok === true, line(s2, HAND));
+    check("the hand-made line shows no figure, no note and no tooltip", line(s2, HAND)?.ok === true, line(s2, HAND));
     check(`the copy's line reads +2 with the tooltip naming a step of 2 times rank 1${cite ? " and the import's cite" : " (the copy records no cite: the library has none)"}`, line(s2, COPY)?.ok === true && (!cite || line(s2, COPY)?.cited === true), line(s2, COPY));
     check("the armour ceiling ends at medium (very light plus 2)", s2.max === "medium", { max: s2.max, lit: s2.lit });
 
@@ -1579,12 +1580,12 @@ try {
     const s5 = await run(gm, P.armourStats, { actorId: as.id, expect: exp([{ step: 2, rank: 3, cite: "" }, null], { step: 2, rank: 1, cite }) });
     const r5 = set5.row ?? {};
     const hands5 = s5.rows.filter((r) => r.label === HAND);
-    check("with three copies, Add a row, kind Modifies, Domain Armor, Flat 2: that copy's line reads +6 (step 2 times rank 3), the other two say step not imported, and the ceiling is heavy", extra.length === 2 && o5.open && r5.type === "modifies" && r5.domain === "armor" && r5.value?.flat === 2 && hands5.length === 3 && hands5.every((r) => r.ok) && hands5.filter((r) => r.value === "+6").length === 1 && s5.max === "heavy", { o5, set5, hands: hands5, max: s5.max });
+    check("with three copies, Add a row, kind Modifies, Domain Armor, Flat 2: that copy's line reads +6 (step 2 times rank 3), the other two lines are still blank, and the ceiling is heavy", extra.length === 2 && o5.open && r5.type === "modifies" && r5.domain === "armor" && r5.value?.flat === 2 && hands5.length === 3 && hands5.every((r) => r.ok) && hands5.filter((r) => r.value === "+6").length === 1 && s5.max === "heavy", { o5, set5, hands: hands5, max: s5.max });
     await run(gm, P.closeEditors);
     const del5 = await run(gm, P.effectDelete, { uuid: hand.uuid, index: o5.index ?? 0 });
     const s5b = await run(gm, P.armourStats, { actorId: as.id, expect: exp(null, { step: 2, rank: 1, cite }) });
     const hands5b = s5b.rows.filter((r) => r.label === HAND);
-    check("Delete asks, and answered yes takes the row: \"step not imported\" is back on every copy", del5.asked && del5.removed && hands5b.length === 3 && hands5b.every((r) => r.ok), { del5, hands: hands5b });
+    check("Delete asks, and answered yes takes the row: the line is blank again on every copy", del5.asked && del5.removed && hands5b.length === 3 && hands5b.every((r) => r.ok), { del5, hands: hands5b });
     note("extra copies swept", await gm.sweepTracked({ only: extra }));
     note("shape", await shape());
     await run(gm, P.closeAll);

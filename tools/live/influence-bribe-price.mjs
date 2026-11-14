@@ -5,8 +5,8 @@
  * seat (the bribe select stays disabled until `influence.bribeTiers` is read), the bribe
  * fee the GM's page prices for a tier with its provenance tooltip, and, under
  * a walk-only registry layer on the GM seat that empties the pay periods, the
- * fee saying it is not priced and a Player seat's blind offer buying no bonus,
- * moving no coin and warning the GM. Machine values arrive through ./_env.mjs.
+ * fee's tooltip the page reference alone and a Player seat's blind offer buying
+ * no bonus, moving no coin and raising no warning. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: `influence/bribe-influencer`, a
  * character the Player seat owns, topped up with coin at the step's start; and
@@ -158,7 +158,8 @@ const P = {
     const expected = H.W.henchmanWageImported() ? H.W.signingBonusCost(1, H.W.henchmanWage(level), false)?.gp ?? null : null;
     const value = Number(input?.value);
     const tip = input?.dataset.tooltipText ?? "";
-    const missing = game.i18n.localize("ACKS-INFLUENCE.bribe.feeTipMissing");
+    // With nothing pricing the offer the tooltip is the page reference alone.
+    const cite = game.i18n.localize("ACKS-INFLUENCE.bribe.feeCite");
     const out = {
       opened: true,
       tipped: !!input,
@@ -166,7 +167,7 @@ const P = {
       feeIsPrice: expected != null && value === expected,
       feePositive: value > 0,
       tipNamesFee: expected != null && tip.includes(`${expected} gp`),
-      tipSaysMissing: tip === missing,
+      tipIsCite: tip === cite,
       feeZero: value === 0,
       noRawKey: !/ACKS-/.test(tip),
     };
@@ -182,9 +183,10 @@ const P = {
   },
   /** Clear this seat's recorded notices. */
   clearNotes: async () => { globalThis.__ib.notes.length = 0; return true; },
-  notes: async ({ key }) => {
-    const want = game.i18n.localize(key);
-    return { said: globalThis.__ib.notes.some((n) => n.kind === "warn" && n.text === want), count: globalThis.__ib.notes.length };
+  /** The notices this seat raised since `clearNotes`: an unpriced offer raises none. */
+  notes: async () => {
+    const all = globalThis.__ib.notes;
+    return { warns: all.filter((n) => n.kind === "warn").length, count: all.length };
   },
   /** The Player seat's blind offer on a target it cannot see, pressed through its own page. */
   blind: async ({ influencerId, targetId, offer }) => {
@@ -335,7 +337,7 @@ try {
   const layered = await run(gm, P.layer, { on: true, priority: WALK_LAYER, source: SOURCE });
   check("8d: the walk's layer stands and the GM seat prices nothing", layered.placed && layered.now, layered);
   const unpriced = await run(gm, P.fee, { influencerId: influencer.id, targetId: target.id });
-  check("8d: the fee is 0 and its tooltip says it is not priced", unpriced.opened && unpriced.feeZero && unpriced.tipSaysMissing && unpriced.noRawKey, unpriced);
+  check("8d: the fee is 0 and its tooltip is the page reference alone", unpriced.opened && unpriced.feeZero && unpriced.tipIsCite && unpriced.noRawKey, unpriced);
   await run(gm, P.clearNotes);
   const since = await run(gm, P.now);
   const offered = await run(player, P.blind, { influencerId: influencer.id, targetId: target.id, offer: 50 });
@@ -344,7 +346,8 @@ try {
   if (after.cardId) { await gm.track(after.cardId, "ChatMessage"); cards.push(`ChatMessage.${after.cardId}`); }
   check("8d: the blind roll is resolved at the GM seat, and its card states no bribe", !!after.cardId && !after.bribeLine, { card: !!after.cardId, bribeLine: after.bribeLine });
   check("8d: no coin left the influencer", after.influencerGp === offered.before, { unchanged: after.influencerGp === offered.before });
-  check("8d: the GM seat is told the offer had no price to meet", (await run(gm, P.notes, { key: "ACKS-INFLUENCE.bribe.unpriced" })).said, null);
+  const gmNotes = await run(gm, P.notes);
+  check("8d: the GM seat is told nothing: the unpriced offer raises no warning", gmNotes.warns === 0, gmNotes);
   note("layer removed", await run(gm, P.layer, { on: false, priority: WALK_LAYER }));
   walkDone();
 } catch (err) {

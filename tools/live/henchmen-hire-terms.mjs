@@ -4,7 +4,7 @@
  * Player seats: a signing bonus the purse refuses is kept as owed while the
  * hire stands and is recorded as a calamity with the Judge's prompt card
  * (the walk holds calamity auto-roll off and restores it), and a henchman of an imported class has hit points rolled
- * through the classes feature; an unknown class records "not imported"; a
+ * through the classes feature; an unknown class records no roll and shows a blank hit-point row; a
  * 0th-level hire records nothing; a bonus paid through the Player seat's
  * Recruit button on the location sheet owes nothing. An owed bonus is tagged on
  * the employer's roster; the Service tab's Pay refuses against an empty purse
@@ -15,7 +15,7 @@
  * Irrefusable Offer to a captured monster, made through the influence-hosted
  * page under invented table figures, hires the captive at the figure for the
  * result the roll names, and with the table not imported names no result,
- * hires nothing and warns. Machine values arrive through ./_env.mjs.
+ * hires nothing and says nothing. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: `henchmen/bonus-place`, a location with
  * a market the Player seat observes, and `henchmen/bonus-employer`, a
@@ -58,6 +58,7 @@ const P = {
     H.R = await import(`${M}/classes/registry.mjs`);
     H.HP = await import(`${M}/classes/hitpoints.mjs`);
     H.L = await import(`${M}/lib/library.mjs`);
+    H.LY = await import(`${M}/henchmen/rules/loyalty.mjs`);
     H.SV = await import(`${M}/henchmen/service-view.mjs`);
     H.MO = await import(`${M}/lib/money.mjs`);
     H.AV = await import(`${M}/henchmen/rules/availability.mjs`);
@@ -203,6 +204,7 @@ const P = {
       noHpAt: hpAt == null,
       calamities: r.counters?.calamities ?? 0,
       calamityPermanents: (r.loyalty?.permanents ?? []).filter((p) => p.reason === "calamity" && Number.isInteger(p.delta) && p.note === game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity")).length,
+      calamityFigureRead: H.LY.loyaltyChange("calamity") !== null,
       calamityNote: (r.events ?? []).some((e) => e.type === "calamity" && e.note === game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity")),
       pending: !!r.special?.pendingCalamity,
       badge: globalThis.__ht.SV.buildServicePanel(a, { isGM: game.user.isGM })?.badge ?? null,
@@ -249,7 +251,7 @@ const P = {
     out.signingLine = H.text(signing?.querySelector(".acks-extras-frame__row-line")) === (ctx.terms?.signingWhere ?? "");
     out.hpRow = !!hpRow;
     out.hpFaint = !!hpValue?.classList.contains("is-faint");
-    out.hpFaceNotImported = H.text(hpValue) === L("hpUnimported");
+    out.hpFaceBlank = H.text(hpValue) === "";
     out.hpTip = !!hpValue?.dataset.tooltipText;
     out.rawKey = /ACKS-HENCHMEN\./.test(H.text(service));
     await a.sheet.close();
@@ -523,7 +525,7 @@ const P = {
       kept: rec?.special?.irrefusableResult ?? "",
       managed: monster.system.retainer?.managerid === employerId,
       listed: (employer.getFlag("acks-extras", "monsterHenchmenList") ?? []).includes(monsterId),
-      unreadWarn: warns.includes(game.i18n.localize("ACKS-HENCHMEN.loyaltyUnread.irrefusableBands")),
+      warned: warns.length > 0,
       whispered: ids.filter((id) => game.messages.get(id)?.whisper?.length).length,
       cards: ids.map((id) => game.messages.get(id)?.uuid).filter(Boolean),
     };
@@ -634,7 +636,7 @@ try {
   const r1 = await run(gm, P.readHire, { actorId: h1Id, level: 2 });
   check("20: the record keeps the agreed bonus and owes all of it, the arrears untouched", r1.record && r1.bonus === BONUS && r1.owed === BONUS && r1.arrears === 0, { bonus: r1.bonus === BONUS, owed: r1.owed === BONUS, arrears: r1.arrears });
   check("20: the events end hired, signingBonusOwed, calamity, the calamity naming the unpaid bonus", r1.events.slice(-3).join(",") === "hired,signingBonusOwed,calamity" && r1.calamityNote, { events: r1.events.length, calamityNote: r1.calamityNote });
-  check("20: the refusal is a calamity: the counter at one and one uncompensated ledger entry, at the imported calamity figure, charged for it (a world that has not re-imported the loyalty page records none)", r1.calamities === 1 && r1.calamityPermanents === 1, { calamities: r1.calamities, permanents: r1.calamityPermanents });
+  check("20: the refusal is a calamity: the counter at one and one uncompensated ledger entry, at the imported calamity figure, charged for it; with the calamity figure not imported the counter still counts and no ledger entry is recorded", r1.calamities === 1 && r1.calamityPermanents === (r1.calamityFigureRead ? 1 : 0), { calamities: r1.calamities, permanents: r1.calamityPermanents, figureRead: r1.calamityFigureRead });
   check("20: the Judge is prompted with the calamity card and its loyalty-roll button", await run(gm, P.calamityCard, { ids: h1.chat, actorId: h1Id }));
   note("pending-calamity flag and Service badge after the refused bonus", { pending: r1.pending, badge: r1.badge });
   check("20: hit points rolled: maximum and current equal the record's roll, one step per level, each the class's own cell", r1.hpRoll && r1.hpMatches && r1.steps === 2 && r1.stepLevels && r1.stepFormulas && r1.hpUnrolled === "", { hpRoll: r1.hpRoll, hpMatches: r1.hpMatches, steps: r1.steps, stepLevels: r1.stepLevels, stepFormulas: r1.stepFormulas });
@@ -653,7 +655,7 @@ try {
   check("20: an unknown class rolls nothing: no roll, reason noClass, the type's default hit points, no classes record", !h2.error && !r2.hpRoll && r2.hpUnrolled === "noClass" && r2.steps === 0 && r2.hpUntouched && r2.noHpAt, { error: h2.error, hpUnrolled: r2.hpUnrolled, hpUntouched: r2.hpUntouched, noHpAt: r2.noHpAt });
   check("20: a hire with no bonus owes nothing and records no calamity", r2.owed === 0 && !r2.events.includes("signingBonusOwed") && r2.calamities === 0, { owed: r2.owed, calamities: r2.calamities });
   const p2 = await run(gm, P.panel, { actorId: h2Id });
-  check("20: its Hit points row reads not imported, faint, with a tooltip", p2.rendered && p2.hpRow && p2.hpFaint && p2.hpFaceNotImported && p2.hpTip && p2.ctxHp?.unset && p2.ctxHp?.tip, { rendered: p2.rendered, hpRow: p2.hpRow, hpFaint: p2.hpFaint, face: p2.hpFaceNotImported, tip: p2.hpTip });
+  check("20: its Hit points row is blank, faint, with a tooltip that names why no roll was made", p2.rendered && p2.hpRow && p2.hpFaint && p2.hpFaceBlank && p2.hpTip && p2.ctxHp?.unset && p2.ctxHp?.tip, { rendered: p2.rendered, hpRow: p2.hpRow, hpFaint: p2.hpFaint, blank: p2.hpFaceBlank, tip: p2.hpTip });
   const h3 = await run(gm, P.apiHire, { placeId: place.id, candidateId: ids.zero, employerId: employer.id, bonus: BONUS });
   await track(h3.uuid, "Actor");
   const h3Id = h3.uuid?.split(".").pop();
@@ -728,7 +730,7 @@ try {
   for (const uuid of paidPurse.made) await track(uuid, "Item");
   const r1c = await run(gm, P.readHire, { actorId: h1Id, level: 2 });
   check("20: Pay moves the owed bonus from the employer's purse, zeroes it and logs signingBonusPaid", paid.pressed && paid.changed && paid.warns === 0 && paidPurse.dropIsBonus && r1c.owed === 0 && r1c.events.at(-1) === "signingBonusPaid", { pressed: paid.pressed, changed: paid.changed, warns: paid.warns, dropIsBonus: paidPurse.dropIsBonus, owed: r1c.owed, last: r1c.events.at(-1) });
-  check("20: the later payment leaves the calamity standing", r1c.calamities === 1 && r1c.calamityPermanents === 1, { calamities: r1c.calamities, permanents: r1c.calamityPermanents });
+  check("20: the later payment leaves the calamity standing", r1c.calamities === 1 && r1c.calamityPermanents === (r1c.calamityFigureRead ? 1 : 0), { calamities: r1c.calamities, permanents: r1c.calamityPermanents, figureRead: r1c.calamityFigureRead });
 
   for (const seat of [gm, player]) {
     for (const uuid of await run(seat, P.ownCards, { ids: await run(seat, P.takeChat), actorIds: [employer.id, ...hireIds] })) await track(uuid, "ChatMessage");
@@ -760,7 +762,7 @@ try {
   check("25: the offer opens the influence-hosted page, not the fallback dialog", t.opened, { opened: t.opened, throwDialog: t.throwDialog });
   check("25: the top roll names the top result in this feature's vocabulary", t.fired && t.outcome === "acceptElan", { fired: t.fired, outcome: t.outcome });
   check("25: the captive is hired: record, employer, monster list, the result kept", t.hired && t.managed && t.listed && t.kept === "acceptElan", { hired: t.hired, managed: t.managed, listed: t.listed, kept: t.kept });
-  check("25: it starts at the table's figure for that result, and nothing warns", t.start === INVENTED.irrefusableOffer.elanLoyalty && !t.unreadWarn && t.whispered === 0, { start: t.start, unreadWarn: t.unreadWarn, whispered: t.whispered });
+  check("25: it starts at the table's figure for that result, and nothing warns", t.start === INVENTED.irrefusableOffer.elanLoyalty && !t.warned && t.whispered === 0, { start: t.start, warned: t.warned, whispered: t.whispered });
   const b = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: bottom, u: 0.975 });
   for (const uuid of b.cards ?? []) await track(uuid, "ChatMessage");
   check("25: the bottom roll names a feigned acceptance and the captive is hired at the forced-servitude start", b.fired && b.outcome === "betrayal" && b.hired && b.managed && b.listed && b.start === INVENTED.loyaltyChanges.forcedServitude, { outcome: b.outcome, hired: b.hired, start: b.start });
@@ -768,7 +770,7 @@ try {
   check("25: the empty table is read from this page's layer", (await run(gm, P.irrLayer, { mode: "absent" })).read);
   const n = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: none, u: 0.025 });
   for (const uuid of n.cards ?? []) await track(uuid, "ChatMessage");
-  check("25: with the table not imported the roll names no result, hires nothing, and the Judge is told", n.opened && n.fired && n.outcome === null && !n.hired && !n.managed && !n.listed && n.unreadWarn, { opened: n.opened, fired: n.fired, outcome: n.outcome, hired: n.hired, listed: n.listed, unreadWarn: n.unreadWarn });
+  check("25: with the table not imported the roll names no result, hires nothing, and says nothing (no warning)", n.opened && n.fired && n.outcome === null && !n.hired && !n.managed && !n.listed && !n.warned, { opened: n.opened, fired: n.fired, outcome: n.outcome, hired: n.hired, listed: n.listed, warned: n.warned });
   note("layer", await run(gm, P.irrRestore));
 
   const pe = player ? await run(player, P.drain) : { errors: [] };
