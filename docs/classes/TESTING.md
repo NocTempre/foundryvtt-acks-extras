@@ -1232,7 +1232,7 @@ disposable `spell` Item of that title.
 **Steps.**
 1. Open the repertoire class. *Observable:* the Casting tab's tradition row
    shows the count line; `system.casting[0].spellList` holds that many entry
-   ids, each resolving through `acksExtras.classes.findByRef` to a spell.
+   ids, each resolving through `(await import("/modules/acks-extras/scripts/classes/registry.mjs")).findByRef(…)` to a spell.
 2. Open the picker on the first character at 1st level and reach a spell
    rung (the template's "one spell of the character's choice", or a spell
    award). *Observable:* every option is on the class's list and of a level

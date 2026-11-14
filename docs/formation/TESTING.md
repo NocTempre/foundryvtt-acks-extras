@@ -3566,7 +3566,7 @@ Fixtures are the three markers above; the run also tracks everything it builds.
 
 1. **A same-scene copy.** Build the copy as in *A party in a combat* step 5.
    `scanRepairs({only: "formation.partyTokens"})` through the repair window or
-   `acksExtras.repair`. *Observable:* one finding for the copy, fixable, and none
+   `acksExtras.lib.repair`. *Observable:* one finding for the copy, fixable, and none
    for the linked token. Fix it. *Observable:* the copy is gone, the linked token
    stands, `tokenId` and `clock` and the members are as they were, and the
    rescan is empty.
@@ -3791,7 +3791,7 @@ unshuttered, nobody is deployed, the `partyTokenShape` world setting and the
 record's `tokenShape` are `order` and unset, and the record's `columnColor` is
 unset. A kept fixture carries what the last walk left.
 
-1. Run one sweep (`acksExtras.formation.syncEnvironments()` on the GM seat).
+1. Run one sweep (`(await import("/modules/acks-extras/scripts/formation/scene-sync.mjs")).syncEnvironments()` on the GM seat).
    *Observable:* the party token is 1×1 and its `flags.acks-extras.partySize`
    reads 1×1. Resize it by hand to 2×2; a moment later it is 1×1 again.
 2. On a Player seat that owns a member, drag the party token through the L to
@@ -4290,9 +4290,9 @@ and found by this marker (its pace and place re-asserted at the start of
 step 6).
 
 1. **The import reads them.** With the books open, run Rules tables.
-   *Observable:* `acksExtras.lib.tables.getTableDoc("formation").tables.jumping`
+   *Observable:* `acksExtras.lib.tables.getDoc("formation").tables.jumping`
    holds nine keys, `.fall` two, and `.spelunking` a stretch and six obstacle
-   entries, each a number or `false`; `getTableDoc("cityTravel").tables.dice`
+   entries, each a number or `false`; `getDoc("cityTravel").tables.dice`
    holds `street` and `incident` as `NdM` strings. Count the agreement against
    the pages named above with the book open and report it as a count of
    figures, never the figures.
@@ -4354,7 +4354,7 @@ Pinned offline: `tools/test-jumping.mjs`, `tools/test-obstacles.mjs`,
 What a failed and a botched throw cost at each obstacle is the `formation`
 document's `spelunkingOutcomes` table (RR p. 268), per obstacle `fail` and
 `botch`, each `{text, falls}`. Compare with
-`o = acksExtras.lib.tables.getTableDoc("formation").tables.spelunkingOutcomes`;
+`o = acksExtras.lib.tables.getDoc("formation").tables.spelunkingOutcomes`;
 no outcome's words enter the report, only counts.
 
 Fixtures: `formation/imported-climber` (above). Proficient throws are driven
