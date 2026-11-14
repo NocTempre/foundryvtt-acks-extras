@@ -1,19 +1,18 @@
 ﻿/**
- * Table extraction recipes — geometry + patterns only, NEVER values (docs/
- * COOKBOOK.md, docs/importer/RECIPES.md). Each entry says which book/page a ruledata
- * table lives on, where the row labels stop and the cells begin, which rows to
- * claim (by label regex), and how to parse each cell. The dice, numbers and
- * wages are read from the reader's own PDF at import time and persist only in
- * their world. `printedPage` is the folio a reader turns to, and a document's
- * `source.pages` names every folio its recipes read, under the book's short
- * name ("RR 272-273"). The search starts on the PDF page that folio prints on
- * (`pdfGuess`, through the book's `printedOffset`) and takes the page whose
- * text holds `locate`. `tools/importer/test-recipe-pages.mjs` holds both
- * against the real books.
+ * Table extraction recipes — geometry + patterns only, NEVER values
+ * (docs/importer/COOKBOOK.md, docs/importer/RECIPES.md). Each entry says which
+ * book/page a ruledata table lives on, where the row labels stop and the cells
+ * begin, which rows to claim (by label regex), and how to parse each cell; the
+ * dice, numbers and wages are read from the reader's own PDF at import time.
+ * `printedPage` is the folio a reader turns to, and a document's `source.pages`
+ * names every folio its recipes read, under the book's short name. The search
+ * starts on the PDF page that folio prints on (`pdfGuess`, through the book's
+ * `printedOffset`) and takes the page whose text holds `locate`.
+ * `tools/importer/test-recipe-pages.mjs` holds both against the real books.
  *
- * `docs` groups recipes by ruledata document id; the binding assembles each
- * document from its tables and imports it via the lib ruledata-import
- * contract at world priority.
+ * Recipes group by ruledata document id; the binding assembles each document
+ * from its tables and imports it via the lib ruledata-import contract at world
+ * priority.
  */
 
 import { HIT_POINTS_DOC, HP_AFTER_NINE_TABLE } from "./hitpoint-tables.mjs";
@@ -46,7 +45,7 @@ const MERC_ROWS = [
 
 // Equipment Availability by Market Class (RR): six price-band rows, each a
 // cost band label (parsed to {minCost,maxCost} by the costBand labelPattern)
-// and six market-class cells kept raw ("2,750" | "25%" | "-").
+// and six market-class cells kept raw.
 const EQUIP_AVAIL_ROWS = [
   { key: "le1", labelRe: "gp or less", labelPattern: "costBand" },
   { key: "2to10", labelRe: "^2\\s*[–-]\\s*10gp", labelPattern: "costBand" },
@@ -56,27 +55,25 @@ const EQUIP_AVAIL_ROWS = [
   { key: "ge10001", labelRe: "gp or more", labelPattern: "costBand" },
 ];
 
-// Common and Precious Merchandise (RR): 19 common + 10 precious rows sharing
-// one page — label, container, price/st, price step, then the market-class
-// grid. The Precious header sits mid-table; row order below skips past it
-// because no spec matches a bare "Precious"/"Merchandise" label row. The row
-// keys, tiers and label patterns are the markets' shared vocabulary
+// Common and Precious Merchandise (RR): both tiers share one page — label,
+// container, price/st, price step, then the market-class grid. The Precious
+// header sits mid-table and no spec matches it, so row order skips past it. The
+// row keys, tiers and label patterns are the markets' shared vocabulary
 // (markets/merchandise-keys.mjs), the one the merchandise binding reads too.
 const MERCH_ROWS = MERCHANDISE_KEYS.map(({ key, labelRe, tier }) => ({ key, labelRe, set: { tier } }));
 
-// Class-trajectory percentages (JJ "Leveled NPCs by Percentage"): a level
-// column and six class-weight columns. The reference collapses runs of equal
-// levels into ranges; emitting one row per level (minLevel==maxLevel) resolves
-// identically in henchmen's `.find(level in [min,max])` lookup.
+// Class-trajectory percentages (JJ): a level column and six class-weight
+// columns. One row per level (minLevel==maxLevel) resolves identically in
+// henchmen's `.find(level in [min,max])` lookup.
 const CLASS_PCT_ROWS = Array.from({ length: 15 }, (_, L) => ({
   key: L,
   labelRe: `^${L}$`,
   set: { minLevel: L, maxLevel: L },
 }));
 
-// Mercenary Troop Type (RR): label + five race wage columns (dash = the book
-// prices no such troops) + morale. Reference keys mirror the availability
-// grid's troop ids; wolf/boar riders are beastman entries priced per race.
+// Mercenary Troop Type (RR): label + five race wage columns (a dash prices no
+// such troops) + morale. Keys mirror the availability grid's troop ids; the
+// wolf and boar riders are beastman entries priced per race.
 const MERC_WAGE_ROWS = [
   { key: "peasant", labelRe: "^peasant" },
   { key: "lightInfantry", labelRe: "^light infantry" },
@@ -100,9 +97,9 @@ const MERC_WAGE_ROWS = [
 ];
 
 
-// Specialist availability (RR): ~44 rows, drop-caps and en dashes throughout —
-// every multi-word label uses \\s* and [–-] (the space between a drop-cap and
-// its word vanishes when runs join).
+// Specialist availability (RR): drop-caps and en dashes throughout, so every
+// multi-word label uses \\s* and [–-] (the space between a drop-cap and its word
+// vanishes when runs join).
 const D = "\\s*[–-]\\s*";
 const SPECIALIST_ROWS = [
   ["alchemist", "^alchemist"],
@@ -172,23 +169,20 @@ const RARITY_TIER_ROWS = [
 // named by ordinal (`Culture N`, in printed order) and found by keys of what
 // the page prints (`printKey`): `headingKey` the heading that opens its
 // description, `anchorKey` the first name of its name list. The words are read
-// at import from the Judge's own copy (the heading becomes the culture's
-// label); nothing here says whose they are. A list may stand on a later page or
-// in the other column from its heading, so each carries its own page.
+// at import from the Judge's own copy. A list may stand on a later page or in
+// the other column from its heading, so each carries its own page.
 //
 // `hair` and `eyes` are the phrases that open the colour sentence under the
 // heading, matched inside the heading's own section (`section` of
-// `proseValues`) — a copula with no people word, or `findRe` where the sentence
-// carries the culture's noun in the middle. A culture whose sentence is not
-// matched by a phrase has none.
+// `proseValues`), or by `findRe` where the sentence carries the culture's noun
+// in the middle. A culture whose sentence no phrase matches has none.
 //
-// `PATRONYM` is the name template the section teaches by example (a given name,
-// its parent, and the full name that results; `takePatronym`), stored beside the
-// colours as `{male, female}` strings holding `{parent}`. A culture lists it
-// where its section prints such an example; the paragraph can run onto the next
-// page, so the block reads on past its page (`runOn`). A section whose example
-// does not parse stores none, and the Judge's own edit to the table stands in
-// its place.
+// `PATRONYM` is the name template the section teaches by example
+// (`takePatronym`), stored as `{male, female}` strings holding `{parent}`. The
+// paragraph can run onto the next page, so the block reads on past its page
+// (`runOn`); a section whose example does not parse stores none. See
+// docs/importer/DECISIONS.md, "Cultures are read by key, under ordinal ids
+// (T-0511)" and "A culture's patronym is read from its section (T-0511)".
 const CULTURE_HEAD_H = 11;
 const HAIR = { key: "hair", find: "hair is" };
 const EYES = { key: "eyes", find: "eyes are" };
@@ -257,9 +251,8 @@ const scavengedGrid = ({ locate, column, labelMaxX, cells }) => ({
   column,
   labelMaxX,
   rowTol: 4,
-  // The book sets these headings and several cells in SMALL CAPS, which reaches
-  // the text layer as split runs ("o" + "ff balance"); windowed columns join
-  // every run inside the band, so the cell reads whole.
+  // Small-caps headings and cells reach the text layer as split runs; windowed
+  // columns join every run inside the band, so the cell reads whole.
   cellColumns: cells,
   rows: SCAVENGED_ROWS,
 });
@@ -275,7 +268,7 @@ const VALUE_ROWS_4_TO_0 = ["4", "3", "2", "1", "0"].map((n) => ({ key: n, labelR
 const HD_VALUE_ROWS = VALUE_ROWS_4_TO_0;
 
 // The Fighting Value summary table: the value alone is the row label; the
-// style name beside it ("(Hero)", "Crusader") reads as the `style` cell.
+// style name beside it reads as the `style` cell.
 const FIGHTING_VALUE_ROWS = [
   { key: "4", labelRe: "^4$" },
   { key: "3", labelRe: "^3$" },
@@ -286,8 +279,8 @@ const FIGHTING_VALUE_ROWS = [
 ];
 
 // Fighting Value Trade Offs (JJ p291): drop-caps split the label's first
-// letter, and small-caps armour grades join without spaces ("fromvery
-// light tonone"), so the regexes never assume word boundaries.
+// letter and small-caps armour grades join without spaces, so the regexes never
+// assume word boundaries.
 const TRADEOFF_ROWS = [
   { key: "armor.heavyMedium", labelRe: "armor selection from\\s*heavy" },
   { key: "armor.mediumLight", labelRe: "armor selection from\\s*medium" },
@@ -343,22 +336,17 @@ const racePowers = ({ page, locate, column, yMin, yMax }) => ({
 /*  Wilderness encounters (the `encounters` ruledata document)         */
 /* ------------------------------------------------------------------ */
 
-// One monster sub-table: d100 band rows × four rarity columns, located by
-// its own heading suffix. The BAND WIDTHS vary per table (a sparse roster
-// prints wider bands), so the row specs are generic — any "NN-NN" label
-// claims the next band row and labelPattern hands its bounds to the
-// binding. COLUMN GEOMETRY varies per page too (each table sets its own
-// widths, versos sit left of rectos), so every table carries the x at which
-// its four rarity columns are CENTRED, measured off its printing. The cells
-// are set centred, so a name's start wanders with its width and only its
-// centre stays put: runs bind by their centres (`anchor: "center"`) to
-// windows that meet midway between neighbouring centres, which is where a
-// small-caps first letter, a long name and a wrap line all still sit over
-// their own column. The label bound is the common window's own edge.
-// The label matches UNANCHORED at its end: a long name's wrap line can
-// tuck under the label zone ("69-70raptor, Medium…"), and the band still
-// reads out of the front while labelPattern discards the rest.
-// `tools/importer/check-encounter-grids.mjs` reads every grid from the book.
+// One monster sub-table: d100 band rows × four rarity columns, located by its
+// own heading suffix. Band widths vary per table, so any band label claims the
+// next row and labelPattern hands its bounds to the binding. Column geometry
+// varies per page too (versos sit left of rectos): every table carries the x at
+// which its four rarity columns are CENTRED, measured off its printing, and
+// runs bind by their centres (`anchor: "center"`) to windows that meet midway
+// between neighbouring centres. The label matches UNANCHORED at its end: a wrap
+// line can tuck under the label zone, and the band still reads out of the front
+// while labelPattern discards the rest. `tools/importer/check-encounter-grids.mjs`
+// reads every grid from the book. See docs/importer/DECISIONS.md, "A monster
+// grid binds its cells by their centres".
 const ENC_BAND_ROWS = Array.from({ length: 50 }, (_, i) => ({
   key: `b${i}`,
   labelRe: "^\\d+\\s*[-–]\\s*\\d+",
@@ -366,10 +354,9 @@ const ENC_BAND_ROWS = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 const monsterGrid = (page, locate, [c, u, r, v]) => {
-  // The label bound is the common window's own opening: wide enough that
-  // every band label fits, tight enough that a long name's wrap line, which
-  // tucks right against the label, falls to the window. Verso labels end
-  // ~80, recto ~108 — the printed page's parity says which.
+  // The label bound is the common window's own opening: wide enough for every
+  // band label, tight enough that a wrap line tucked against the label falls to
+  // the window. Verso labels end ~80, recto ~108; the page's parity says which.
   const lbl = page % 2 ? 116 : 82;
   const mid = (a, b) => Math.round((a + b) / 2);
   const [cu, ur, rv] = [mid(c, u), mid(u, r), mid(r, v)];
@@ -394,7 +381,7 @@ const monsterGrid = (page, locate, [c, u, r, v]) => {
 };
 
 // The 20-band civilized grids: two stacked full-width halves sharing one
-// page, told apart by startAfter (the scavenged-grid precedent).
+// page, told apart by startAfter.
 const CIV_BAND_ROWS = Array.from({ length: 20 }, (_, i) => {
   const lo = i * 5 + 1;
   const hi = i * 5 + 5;
@@ -421,8 +408,8 @@ const civilizedGrid = (startAfter) => ({
   rows: CIV_BAND_ROWS,
 });
 
-// The RR distance/evasion grids share one 17-row terrain roster; the
-// small-caps splits make every label seam-tolerant.
+// The RR distance/evasion grids share one terrain roster; small-caps splits
+// make every label seam-tolerant.
 const ENC_TERRAIN_ROWS = [
   ["barrens", "^barrens \\(any\\)$"],
   ["desertRocky", "^d\\s*esert \\(rocky\\)$"],
@@ -458,12 +445,11 @@ const terrainD12 = (locate, side) => ({
 });
 
 // A terrain sub-table: rows down one label column, each label a die face or
-// band ("7", "5-6", "01-35") that labelPattern hands to the binding, the
-// result in one window or several (the binding joins them). The label is
-// anchored whole, so a prose line beside the table never claims a row. The
-// specs outnumber every printed table and are optional — the table ends
-// where its rows do — so the binding checks the bands it gets tile a die.
-// Geometry per table, measured off its printing.
+// band that labelPattern hands to the binding, the result in one window or
+// several (the binding joins them). The label is anchored whole, so a prose line
+// beside the table never claims a row. The specs outnumber every printed table
+// and are optional, so the table ends where its rows do and the binding checks
+// the bands it gets tile a die. Geometry per table, measured off its printing.
 const SUB_BAND_ROWS = Array.from({ length: 20 }, (_, i) => ({
   key: `b${i}`,
   labelRe: "^\\d+(\\s*[-–]\\s*\\d+)?$",
@@ -485,12 +471,16 @@ const terrainSub = ({ page, locate, column, labelMaxX, cells, ...bounds }) => ({
   rows: SUB_BAND_ROWS,
 });
 
+/**
+ * The table recipes by ruledata document id: each document's `source` and its
+ * `tables`, one recipe per raw table. Raw reads only; the bindings assemble the
+ * engine-shaped documents from them.
+ */
 export const TABLE_RECIPES = {
-  // The wilderness encounter chain's pages: the JJ's territory, rarity,
-  // civilized and monster grids and the terrain-encounter sidebars, and the
-  // RR's distance and evasion grids with their prose figures. Raw reads
-  // only; encounters-binding.mjs assembles the engine-shaped `encounters`
-  // document acks-extras declares.
+  // The wilderness encounter chain: the JJ's territory, rarity, civilized and
+  // monster grids and the terrain-encounter sidebars, and the RR's distance and
+  // evasion grids with their prose figures; `encounters-binding.mjs` assembles
+  // the engine-shaped `encounters` document.
   encounters: {
     source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 42-69; RR 281-285" },
     tables: {
@@ -571,19 +561,18 @@ export const TABLE_RECIPES = {
           { key: "s5", x: 511, w: 45, pattern: "raw", row: true },
         ],
       },
-      // The size-band header over the evasion grid — the edges are printed
-      // and the binding reads them out of the captured window. The page's
-      // LEFT prose column interleaves in the flat text, so the window is
-      // bound to the grid's own column.
+      // The size-band header over the evasion grid: the binding reads the
+      // printed edges out of the captured window. The page's LEFT prose column
+      // interleaves in the flat text, so the window is bound to the grid's column.
       evasionSizeProse: {
         shape: "proseValues",
         book: "rr",
         printedPage: 284,
         locate: "Evasion Throw by Terrain Table",
-        // Opens at the TITLE's own x (236), which anchors the find — "party
-        // size" alone also appears in the page's prose left of the grid —
-        // and reads the whole column as ONE stream (colSplit past the edge)
-        // so the header's edge cells stay beside their words.
+        // Opens at the TITLE's own x (236), which anchors the find (the same words
+        // also appear in the prose left of the grid), and reads the whole column
+        // as ONE stream (colSplit past the edge) so the header's edge cells stay
+        // beside their words.
         column: { xMin: 230, xMax: 592 },
         colSplit: 592,
         values: [{ key: "bands", find: "evasion throw by terrain table", take: "window", span: 120 }],
@@ -734,10 +723,10 @@ export const TABLE_RECIPES = {
         page: 68, locate: "Place of Power:", startAfter: "(1d12)",
         column: { xMin: 300, xMax: 592 }, labelMaxX: 340, cells: [["name", 342, 150]],
       }),
-      // JJ ch.2 "Lairs per Hex": the dice cell per terrain row, then the two
-      // prose clauses around it (the random-substitution instruction in the
-      // left print column, the settled-territory maximum in the right). The
-      // 14 rows are the page's own terrain roster, seam-tolerant.
+      // JJ ch.2 lairs per hex: the dice cell per terrain row, then the two prose
+      // clauses around it (the random-substitution instruction in the left print
+      // column, the settled-territory maximum in the right). The rows are the
+      // page's own terrain roster, seam-tolerant.
       lairsPerHexRaw: {
         shape: "gridRows",
         book: "jj",
@@ -814,16 +803,12 @@ export const TABLE_RECIPES = {
       monstersSwampRaw: monsterGrid(62, "Rarity - Swamp (Any)", [145, 263, 376, 486]),
     },
   },
-  // The Auran Empire language taxonomy prints as one indented two-column table:
-  // the Cybelean name on the left, its real-world counterpart on the right, and
-  // descent carried entirely by how far each cell is indented.
-  //
-  // It is read rather than transcribed, and the difference matters. Every other
-  // definition kind anchors on a printed name because it has a MECHANIC to bind
-  // to; a language has none — its entry would be a name and nothing else, so
-  // one entry per language is not a way of finding the list, it is the list.
-  // This recipe carries the section heading, two x-bands and an indent step.
-  // What the rows say comes from the reader's own book.
+  // The language taxonomy prints as one indented two-column table, descent
+  // carried entirely by how far each cell is indented. It is read, never
+  // transcribed: the recipe carries the section heading, two x-bands and an
+  // indent step, and the rows come from the reader's own book. See
+  // docs/importer/DECISIONS.md, "The taxonomy is read from the seat's own book,
+  // and a list cannot ship".
   languages: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 505" },
     tables: {
@@ -847,22 +832,19 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // RR ch. 6 delving: the swimming paragraph's figures — what the
-  // named water conditions cost the throw, the proficiency's bonus, a
-  // swimmer's share of speed, the sink rate, a breath's base and the load a
-  // rescuer hauls — and the rest paragraph's count of turns before a party is
-  // winded, then the jumping paragraphs and the Spelunking grids (below).
-  // Prose, so these are windows that open on the words before each
-  // figure; formation-binding.mjs parses them into the engine shape
-  // acks-extras declares via expectTables.
+  // RR ch. 6 delving: the swimming paragraph's figures, the rest paragraph's
+  // count of turns before a party is winded, the jumping paragraphs and the
+  // Spelunking grids. Prose, so these are windows that open on the words before
+  // each figure; formation-binding.mjs parses them into the engine shape
+  // declared via expectTables.
   formation: {
     source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 265, 267-268, 270-271, 288, 293; JJ 239" },
     tables: {
-      // RR ch. 6 "Combatant Frontage and Interval": prose only. One sentence
-      // names the wide frontage and the march frontage together, so each
-      // window opens on the words right before its own figure and the binding
-      // takes the first feet figure of the window's first sentence. The
-      // interval is the third window. The passage is in the page's left column.
+      // RR ch. 6 combatant frontage and interval: prose only. One sentence names
+      // the wide frontage and the march frontage together, so each window opens on
+      // the words right before its own figure and the binding takes the first feet
+      // figure of the window's first sentence. The interval is the third window.
+      // The passage is in the page's left column.
       frontageProse: {
         shape: "proseValues",
         book: "rr",
@@ -890,9 +872,9 @@ export const TABLE_RECIPES = {
           { key: "poleReach", find: "hidden feature (within", take: "window", span: 20 },
         ],
       },
-      // RR ch. 6 Traps and Trapbreaking (RR 267): the pole's lead, the secret
-      // die and the band that springs the trap, and the two Trapbreaking
-      // paragraphs, whose windows hold the botch band and the methodical bonus.
+      // RR ch. 6 traps and trapbreaking (RR 267): the pole's lead, the secret die
+      // and the band that springs the trap, and the two trapbreaking paragraphs,
+      // whose windows hold the botch band and the methodical bonus.
       trapProse: {
         shape: "proseValues",
         book: "rr",
@@ -907,7 +889,7 @@ export const TABLE_RECIPES = {
           { key: "methodical", find: "methodically disable a trap requires", take: "window", span: 300 },
         ],
       },
-      // RR ch. 6 combat actions (RR 293): the Hastily Trapbreak entry's reach.
+      // RR ch. 6 combat actions (RR 293): the hasty trapbreak entry's reach.
       actionProse: {
         shape: "proseValues",
         book: "rr",
@@ -1054,11 +1036,11 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // RR ch. 6 Light and Darkness, one page: each light source's bright and dim
-  // reach and how long it burns. Prose, so windows open on the words around
-  // each figure; light-binding.mjs parses them into the `lightSources` table
-  // lib/light.mjs reads. The burn sentence names the sources it prices before
-  // its anchor, so that window looks back as well as forward.
+  // RR ch. 6 light and darkness, one page: each light source's bright and dim
+  // reach and how long it burns. Prose, so windows open on the words around each
+  // figure; light-binding.mjs parses them into the `lightSources` table
+  // lib/light.mjs reads. The burn sentence names its sources before its anchor,
+  // so that window looks back as well as forward.
   light: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 265" },
     tables: {
@@ -1077,13 +1059,11 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // The two figures lib/senses.mjs turns a sense into reach with: the radius
-  // the shadowy senses see out to (RR 265, where the adventuring rules describe
-  // the sense) and the multiple Night Vision applies to the light that reaches
-  // it (MM 13, the Vision entries), and the reach a lightless vision with no
-  // recorded range has (MM 392). Each anchor is the clause naming the
-  // figure, never the figure; the sense itself and what it does not do are
-  // lib/senses.mjs's procedure.
+  // The figures lib/senses.mjs turns a sense into reach with: the shadowy
+  // senses' radius (RR 265), the multiple night vision applies to the light that
+  // reaches it (MM 13), and the reach a lightless vision with no recorded range
+  // has (MM 392). Each anchor is the clause naming the figure, never the figure;
+  // the sense itself is lib/senses.mjs's procedure.
   senses: {
     source: { book: "ACKS II Revised Rulebook + ACKS II Monstrous Manual", pages: "RR 265; MM 13, 392" },
     tables: {
@@ -1117,11 +1097,11 @@ export const TABLE_RECIPES = {
   },
   // The weapon facts the weapons grid does not state: which kinds of weapon a
   // proficiency names, what a hand weapon deals, what a thrown flask deals and
-  // which weapons need both hands. Each is prose on its own folio, so each
-  // table is one page and its windows open on the words before the list or
-  // the figures; weapon-binding.mjs reads them into the `weaponLists` tables
-  // lib/weapons.mjs resolves the grid's rows against. The lists name kinds of
-  // weapon in the printing's own words; no word of them is written here.
+  // which weapons need both hands. Each is prose on its own folio, so each table
+  // is one page and its windows open on the words before the list or the
+  // figures; weapon-binding.mjs reads them into the `weaponLists` tables
+  // lib/weapons.mjs resolves the grid's rows against. No word of the lists is
+  // written here.
   weaponProse: {
     source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 114, 121, 138-139, 298, 300; JJ 290" },
     tables: {
@@ -1216,11 +1196,10 @@ export const TABLE_RECIPES = {
     },
   },
   // JJ ch. 2 encounters in the dungeon, one page: the delve's encounter throw
-  // (its die, the turns between throws and the throw that meets a wandering
-  // monster) and the dice of the encounter distance. Prose, so one window
-  // opens on the words before the throw's three figures and one on the
-  // distance step; delve-encounter-binding.mjs parses them into the scalar
-  // tables formation/constants.mjs `importedEncounterCadence` reads.
+  // and the dice of the encounter distance. Prose, so one window opens on the
+  // words before the throw's three figures and one on the distance step;
+  // delve-encounter-binding.mjs parses them into the scalar tables
+  // formation/constants.mjs `importedEncounterCadence` reads.
   delveEncounters: {
     source: { book: "ACKS II Judges Journal", pages: "JJ 36" },
     tables: {
@@ -1236,19 +1215,15 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // RR ch. 6 wilderness ground: the grouped Terrain Speed Multiplier table
-  // (whose road row carries the Driving rate in its own cell) and the
-  // Going without: hunger, thirst, the cold and the heat. RAW prints all of
-  // it as PROSE rather than a table, so these are windows around the phrases
-  // that carry the figures; survival-binding.mjs parses them into the engine
-  // shape acks-extras declares via expectTables.
+  // RR ch. 6 air movement: the figures print as prose, so these are windows
+  // around the phrases that carry them; flight-binding parses them into the
+  // engine shape declared via expectTables.
   flight: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 272-273" },
     tables: {
       // Air movement is three printed factors: what a full day aloft is worth,
-      // what wind costs, and what a heavy load costs. The EXCEPTION — that
-      // wind is the one weather condition air movement does not take normally
-      // — is the rule's own shape and lives in the flight code, not here.
+      // what wind costs, and what a heavy load costs. The wind exception is the
+      // rule's own shape and lives in the flight code.
       airProse: {
         shape: "proseValues",
         book: "rr",
@@ -1257,8 +1232,7 @@ export const TABLE_RECIPES = {
         column: { xMin: 300, xMax: 592 },
         values: [
           { key: "aloft", find: "expedition speed is", take: "window", span: 120 },
-          // The partial-flight sentence names the same factor a second time
-          // and states the pro-rata rule; kept as the fallback read.
+          // The partial-flight sentence names the same factor a second time; the fallback read.
           { key: "partial", find: "spent in the air", take: "window", span: 120 },
           { key: "wind", find: "conditions also", take: "window", span: 45 },
         ],
@@ -1266,22 +1240,26 @@ export const TABLE_RECIPES = {
       loadProse: {
         shape: "proseValues",
         book: "rr",
-        // "normal load" alone also matches the following page; the mount
-        // run-in is unique to this one.
+        // A shorter phrase also matches the following page; the mount run-in is
+        // unique to this one.
         locate: "large enough to serve as mounts",
         // The mount paragraph sits in the LEFT column of the following page,
         // not with the air-movement prose it continues.
         printedPage: 273,
         column: { xMin: 40, xMax: 300 },
         values: [
-          // Anchored BEFORE both factors: a window opens after its anchor, so
-          // finding "half speed" consumes the very words being read.
+          // Anchored BEFORE both factors: a window opens after its anchor, so an
+          // anchor on a factor consumes the very words being read.
           { key: "heavy", find: "creatures can move at", take: "window", span: 130 },
         ],
       },
     },
   },
 
+  // RR ch. 6 wilderness ground: hunger, thirst, the cold and the heat print as
+  // PROSE, so these are windows around the phrases that carry the figures;
+  // survival-binding.mjs parses them into the engine shape declared via
+  // expectTables.
   survival: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 276-277, 279" },
     tables: {
@@ -1291,12 +1269,10 @@ export const TABLE_RECIPES = {
         printedPage: 276,
         locate: "Starvation",
         column: { xMin: 40, xMax: 300 },
-        // ONE window, not one per rung. Every threshold in this paragraph is
-        // stated BEFORE the condition it produces ("After two consecutive days
-        // without any food… becomes underfed"), and a window opens after its
-        // anchor — so an anchor on the condition consumes the figure being
-        // read. The paragraph is taken whole and the binder reads the rungs
-        // out of it.
+        // ONE window, not one per rung. Every threshold is stated BEFORE the
+        // condition it produces and a window opens after its anchor, so an anchor
+        // on the condition consumes the figure being read. The paragraph is taken
+        // whole and the binder reads the rungs out of it.
         values: [
           { key: "paragraph", find: "Starvation", take: "window", span: 1250 },
         ],
@@ -1309,8 +1285,8 @@ export const TABLE_RECIPES = {
         // Starvation fills the left column and Dehydration wraps into the
         // right one — the section order is not the column order.
         column: { xMin: 300, xMax: 592 },
-        // Taken whole for the same reason as starvation — and because "become
-        // dehydrated" also appears in the camel run-in on this page.
+        // Taken whole for the same reason as starvation, and because the
+        // condition's name also appears in a run-in on this page.
         values: [
           { key: "paragraph", find: "Dehydration", take: "window", span: 1100 },
         ],
@@ -1333,7 +1309,7 @@ export const TABLE_RECIPES = {
         locate: "Sweltering Temperatures",
         column: { xMin: 300, xMax: 592 },
         // Whole, like the other two: the armour threshold is stated before the
-        // saving throw it triggers, so any anchor on the throw eats it.
+        // throw it triggers, so any anchor on the throw eats it.
         values: [
           { key: "paragraph", find: "Sweltering", take: "window", span: 900 },
         ],
@@ -1346,16 +1322,14 @@ export const TABLE_RECIPES = {
         column: { xMin: 40, xMax: 300 },
         values: [
           { key: "food", find: "can forage about", take: "window", span: 200 },
-          // Long enough to reach the confidence the recommendation carries —
-          // the figure is the last clause of the sentence, well past the days.
+          // Long enough to reach the last clause of the sentence, well past the days.
           { key: "carry", find: "carries enough food for", take: "window", span: 430 },
         ],
       },
       // Rest and fatigue, in the right column under the weather. The rest
-      // paragraph's window opens on the words before the sleep it asks for,
-      // because every count in it follows them; the proficiency paragraph
-      // opens on its own first words. survival-binding reads the clocks out
-      // of both.
+      // paragraph's window opens on the words before the sleep it asks for, since
+      // every count follows them; the proficiency paragraph opens on its own
+      // first words. survival-binding reads the clocks out of both.
       fatigueProse: {
         shape: "proseValues",
         book: "rr",
@@ -1382,16 +1356,14 @@ export const TABLE_RECIPES = {
   },
 
   // RR Appendix B, Conditions: every modifier a condition applies is printed
-  // inside a bulleted line of that condition's own entry. One window per
-  // FIGURE, anchored on the few words that lead into it and kept short enough
-  // that it cannot reach the next entry; conditions-binding.mjs reads the
-  // sign and the figure out of each window. A table is one column of one page
-  // (the appendix runs in two), named for the first entry it holds. Keys are
-  // `<condition><Slot>` — the slot names are `CONDITION_SLOTS` in
-  // lib/conditions.mjs — and `blessed` serves `inspired`, which shares its
-  // heading. The four tables that lead the list read the combat chapter
-  // instead (RR 294-303): what a Defend action, a countercharge and cover give
-  // is printed where each is described, in the same one-figure-per-clause way.
+  // inside a bulleted line of that condition's own entry. One window per FIGURE,
+  // anchored on the few words that lead into it and kept short enough that it
+  // cannot reach the next entry; conditions-binding.mjs reads the sign and the
+  // figure out of each window. A table is one column of one page, named for the
+  // first entry it holds. Keys are `<condition><Slot>` (the slot names are
+  // `CONDITION_SLOTS` in lib/conditions.mjs), and `blessed` serves `inspired`,
+  // which shares its heading. The four tables that lead the list read the combat
+  // chapter instead (RR 294-303), in the same one-figure-per-clause way.
   conditions: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 294-303, 507-515" },
     tables: {
@@ -1465,8 +1437,8 @@ export const TABLE_RECIPES = {
         values: [
           { key: "blessedAll", find: "inspired creature gains a", take: "window", span: 40 },
           { key: "blindedSurprise", find: "blinded creature suffers a", take: "window", span: 40 },
-          // The second "suffers a" of the entry: the proficiency penalty
-          // follows the surprise penalty and has no lead-in of its own.
+          // The second occurrence of the lead-in: the proficiency penalty follows
+          // the surprise penalty and has none of its own.
           { key: "blindedProficiency", find: "blinded creature suffers a", occurrence: 2, take: "window", span: 40 },
           { key: "blindedAttack", find: "melee attacks at a", take: "window", span: 30 },
           { key: "blindedSpeedFactor", find: "speeds reduced to", take: "window", span: 30 },
@@ -1492,8 +1464,8 @@ export const TABLE_RECIPES = {
         printedPage: 509,
         locate: "Disordered",
         column: { xMin: 40, xMax: 300 },
-        // The lead-in stops short of the verb so the window keeps it: an AC
-        // that "is reduced by" carries its sign in that word, not in a mark.
+        // The lead-in stops short of the verb so the window keeps it: the sign
+        // rides in that word, not in a mark.
         values: [
           { key: "disorderedAc", find: "ac is", take: "window", span: 30 },
         ],
@@ -1589,10 +1561,9 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // Living off the country. All prose again: the forage targets, what Survival
-  // is worth, the hunting target and its territory modifiers, the dog pack's
-  // help and cap, and what a success yields. foraging-binding.mjs parses the
-  // windows into the engine shape.
+  // Living off the country, all prose: the forage targets, the hunting target
+  // and its territory modifiers, the dog pack's help, and what a success
+  // yields. foraging-binding.mjs parses the windows into the engine shape.
   foraging: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 276-277" },
     tables: {
@@ -1666,9 +1637,8 @@ export const TABLE_RECIPES = {
         ],
       },
       // The grazing MECHANIC, which draws a different list from the one above:
-      // three kinds feed themselves, but only two can do it on ancillary hours
-      // and still travel. Reading the first list for the second rule would let
-      // an ox march and graze at once.
+      // the kinds that feed themselves are not the kinds that can do it on
+      // ancillary hours and still travel.
       grazingRules: {
         shape: "proseValues",
         book: "rr",
@@ -1696,9 +1666,9 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // Searching the wild: the one table in this family that IS a grid — a ladder
-  // of daily distances to targets — plus the prose modifiers around it.
-  // searching-binding.mjs brackets the ladder and parses the windows.
+  // Searching the wild: a grid (a ladder of daily distances to targets) plus the
+  // prose modifiers around it. searching-binding.mjs brackets the ladder and
+  // parses the windows.
   searching: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 274-275, 285" },
     tables: {
@@ -1738,8 +1708,8 @@ export const TABLE_RECIPES = {
           // Read from before the aerial clause: it names the OPEN terrains
           // ahead of its cadence, so an anchor on the cadence loses them.
           { key: "cadence", find: "in addition, when searching", take: "window", span: 340 },
-          // Anchored one clause earlier than the terrains it lists — "when
-          // searching forest" would eat the first of the three.
+          // Anchored one clause earlier than the terrains it lists, so the first
+          // of them is not eaten.
           { key: "canopy", find: "however", take: "window", span: 200 },
           { key: "wandering", find: "trigger one random encounter", take: "window", span: 160 },
           // The Tracking proficiency's bonus on this throw. A short window: the
@@ -1785,14 +1755,11 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // City travel (JJ, Settlement Adventures). The paces and the straggling
-  // ladder are prose; the street's encounter cadence IS a grid. AX3 (Capital
-  // of the Borderlands) adds a district-scale figure onto the same document:
-  // how long each pace takes between two points of interest in the same
-  // district versus an adjacent one.
-  //
-  // `cityTravel`, not `settlement`: this file already registers a `settlement`
-  // document for market class by families, and the two are unrelated.
+  // City travel (JJ). The paces and the straggling ladder are prose; the
+  // street's encounter cadence IS a grid. AX3 adds a district-scale figure onto
+  // the same document: how long each pace takes between two points of interest
+  // in the same district versus an adjacent one. The document is `cityTravel`
+  // because `settlement` is the market-class document.
   cityTravel: {
     source: { book: "ACKS II Judges Journal + AX3 Capital of the Borderlands", pages: "JJ 79-81; AX3 56, 58" },
     tables: {
@@ -1862,22 +1829,19 @@ export const TABLE_RECIPES = {
         printedPage: 80,
         locate: "Encounters in the Settlement",
         column: { xMin: 40, xMax: 592 },
-        // Measured, not guessed: the label band ends at 130, the frequency
-        // cell runs 132-247 and the throw sits at 251.
+        // Measured: the label band ends at 130, the frequency cell runs 132-247
+        // and the throw sits at 251.
         labelMaxX: 130,
-        // The small-caps face splits each cell's initial glyph into its own
-        // run ("e" + "very hour"); a gap this small is a glyph boundary, not a
-        // column gutter.
+        // The small-caps face splits each cell's initial glyph into its own run;
+        // a gap this small is a glyph boundary, not a column gutter.
         joinCellGap: 12,
         rows: [
           { key: "avenueDay", labelRe: "^avenue.*day" },
           { key: "avenueNight", labelRe: "^avenue.*night" },
           { key: "alleyDay", labelRe: "^alley.*day" },
           { key: "alleyNight", labelRe: "^alley.*night" },
-          // `labelRe` is a STRING compiled with `new RegExp`, so the backslash
-          // has to survive the string literal: a single one is eaten and
-          // `\s*` becomes a literal `s*`, which matches a welded label and
-          // never a spaced one.
+          // `labelRe` is a STRING compiled with `new RegExp`: a single backslash
+          // is eaten by the literal and `\s*` becomes a literal `s*`.
           { key: "holedUp", labelRe: "^holed\\s*up" },
         ],
         cellColumns: [
@@ -1885,11 +1849,10 @@ export const TABLE_RECIPES = {
           { key: "throw", x: 249, w: 60, pattern: "raw", row: true },
         ],
       },
-      // District travel (AX3, a specific city built of districts): both
-      // paces' figures between two points of interest in the same district
-      // versus an adjacent one. Taken as one whole window rather than one per
-      // figure — city-travel-binding.mjs reads all four out of it, the same
-      // way the survival paragraphs are read whole. Optional: a supplement.
+      // District travel (AX3): both paces' figures between two points of
+      // interest in the same district versus an adjacent one. One whole window,
+      // like the survival paragraphs; city-travel-binding.mjs reads all four out
+      // of it. Optional: a supplement.
       districtProse: {
         shape: "proseValues",
         book: "ax3",
@@ -1901,13 +1864,12 @@ export const TABLE_RECIPES = {
           { key: "paragraph", find: "At commuter speed, it takes", take: "window", span: 1200 },
         ],
       },
-      // Doing business at the city's gates (AX3, the same page): what passing a
-      // gate with goods costs, and the syndicate's smuggling service, two folios
-      // before the paces paragraph. Two
-      // windows, each read whole by city-travel-binding.mjs — the toll, its
-      // unit and the duty share one paragraph, and the service's four figures
-      // share another. The section opens at the foot of the left column and
-      // turns into the right one, so both columns are read.
+      // Doing business at the city's gates (AX3), two folios before the paces
+      // paragraph: what passing a gate with goods costs, and the smuggling
+      // service. Two windows, each read whole by city-travel-binding.mjs: the
+      // toll, its unit and the duty share one paragraph, and the service's four
+      // figures share another. The section opens at the foot of the left column
+      // and turns into the right one, so both columns are read.
       businessProse: {
         shape: "proseValues",
         book: "ax3",
@@ -1925,9 +1887,9 @@ export const TABLE_RECIPES = {
     },
   },
 
-  // Navigating the Wild targets. Raw page reads only; travel-binding.mjs
-  // assembles the engine-shaped `terrainMultipliers`/`roads`/`gettingLost`
-  // tables acks-extras declares via expectTables.
+  // Wilderness travel: raw page reads only; travel-binding.mjs assembles the
+  // engine-shaped `terrainMultipliers`, `roads` and `gettingLost` tables declared
+  // via expectTables.
   travel: {
     source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 151, 272, 275; JJ 41" },
     tables: {
@@ -1982,11 +1944,10 @@ export const TABLE_RECIPES = {
           { key: "competence", find: "pathfinding class power", take: "window", span: 120 },
         ],
       },
-      // The draft substitutions the vehicle entries state in prose ("One ox,
-      // two mules, or two medium horses can be substituted for 1 heavy
-      // horse") — the rates a team's pull is counted at. The heavy horse is
-      // the unit and needs no import; travel-binding turns each printed count
-      // into the share one animal of that kind pulls.
+      // The draft substitutions the vehicle entries state in prose: the rates a
+      // team's pull is counted at. The heavy horse is the unit and needs no
+      // import; travel-binding turns each printed count into the share one
+      // animal of that kind pulls.
       draftSubstitutionProse: {
         shape: "proseValues",
         book: "rr",
@@ -1997,12 +1958,11 @@ export const TABLE_RECIPES = {
           { key: "substitutions", find: "can be substituted for 1 heavy horse", before: true, span: 90, take: "window" },
         ],
       },
-      // The Expedition Speed grid's first two columns (RR 272): exploration
-      // speed against miles a day, one row per printed speed. The rows are
-      // claimed by position (nothing but the header sits above them, so
-      // `startAfter` skips it), which keeps every printed speed out of source;
-      // travel-binding takes the ratio the rows hold and requires them all to
-      // agree on it. The other columns restate it and are not read.
+      // The expedition speed grid's first two columns (RR 272): exploration speed
+      // against miles a day, one row per printed speed. The rows are claimed by
+      // position (`startAfter` skips the header), which keeps every printed speed
+      // out of source; travel-binding takes the ratio the rows hold and requires
+      // them all to agree on it. The other columns restate it and are not read.
       expeditionRows: {
         shape: "gridRows",
         book: "rr",
@@ -2017,14 +1977,13 @@ export const TABLE_RECIPES = {
           { key: "miles", x: 200, w: 60, pattern: "raw", row: true },
         ],
       },
-      // The sentences around that grid (RR 272): the hours a dedicated day
-      // marches and what remains of the daylight for ancillary work, the hours
-      // a forced march assumes, and how many times faster combat and running
-      // speed are in the wilderness. Each window opens straight after its
-      // anchor and the binding reads the count in it; the page's own ×3/2 and
-      // "half speed" are not read because each is the hours over the dedicated
-      // day's. `yMax` stops above the grid, whose left-hand cells would
-      // otherwise sort between the two columns of prose.
+      // The sentences around that grid (RR 272): the hours of a dedicated day,
+      // of the ancillary work after it and of a forced march, and the wilderness
+      // scale of combat and running speed. Each window opens straight after its
+      // anchor and the binding reads the count in it; a pace's multiplier is not
+      // read, being its hours over the dedicated day's. `yMax` stops above the
+      // grid, whose left-hand cells would otherwise sort between the two columns
+      // of prose.
       expeditionProse: {
         shape: "proseValues",
         book: "rr",
@@ -2038,10 +1997,10 @@ export const TABLE_RECIPES = {
           { key: "wildernessScale", find: "running speed are", take: "times", span: 40 },
         ],
       },
-      // Wilderness Frequency of Encounters (JJ ~41): activity rows × the four
-      // territory classifications, cells raw (a frequency phrase or "none", JJ
-      // 41); travel-binding parses them onto the engine's frequency kinds. Labels
-      // arrive as split small-caps runs, hence the \s* seams.
+      // Wilderness frequency of encounters (JJ 41): activity rows × the four
+      // territory classifications, cells raw; travel-binding parses them onto the
+      // engine's frequency kinds. Labels arrive as split small-caps runs, hence
+      // the \s* seams.
       encounterFrequencyRaw: {
         shape: "gridRows",
         book: "jj",
@@ -2066,19 +2025,18 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // The sea's own numbers (RR ch. 7): the Wind Strength grid, the tacking
-  // rate, the Navigation targets and their proficiency bonuses, the hazard
-  // throw and every hazard's effects, the hull damage shares and the
-  // sinking die. Raw reads only; voyages-binding.mjs assembles the
-  // engine-shaped tables acks-extras' sea derivations declare on the
-  // `voyages` document.
+  // The sea's own numbers (RR ch. 7): the wind grid, the tacking rate, the
+  // navigation targets and their proficiency bonuses, the hazard throw and every
+  // hazard's effects, the hull damage shares and the sinking die. Raw reads only;
+  // voyages-binding.mjs assembles the engine-shaped tables on the `voyages`
+  // document.
   voyages: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 315-322" },
     tables: {
-      // Six band rows: the 2d6 spread and the band name share the label
-      // zone — the name claims the row, labelPattern reads the spread's
-      // edges out of the same label — then sail ×, oar ×, next-day modifier
-      // and the special-effect text.
+      // The band rows: the roll spread and the band name share the label zone
+      // (the name claims the row, labelPattern reads the spread's edges out of
+      // the same label), then sail ×, oar ×, next-day modifier and the
+      // special-effect text.
       windStrengthRaw: {
         shape: "gridRows",
         book: "rr",
@@ -2102,7 +2060,7 @@ export const TABLE_RECIPES = {
           { key: "special", x: 392, w: 200, pattern: "raw", row: true },
         ],
       },
-      // The Navigation targets: a three-row sidebar grid beside the prose.
+      // The navigation targets: a sidebar grid beside the prose.
       navigationRaw: {
         shape: "gridRows",
         book: "rr",
@@ -2215,14 +2173,14 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // The daily weather generator's pages: the JJ's Daily Weather bands and
+  // The daily weather generator's pages: the JJ's daily weather bands and
   // climate/season modifier grid, and the RR's condition factors and mud/snow
   // thresholds (prose). Raw reads only; weather-binding.mjs assembles the
-  // engine-shaped tables acks-extras declares on the `weather` document.
+  // engine-shaped tables on the `weather` document.
   weather: {
     source: { book: "ACKS II Judges Journal + Revised Rulebook", pages: "JJ 39-41; RR 277-279" },
     tables: {
-      // 27 modifier rows × four axis cells; a dash means the column does not
+      // The modifier rows × four axis cells; a dash means the column does not
       // reach that modifier. Band words parse to keys in the binding.
       dailyWeatherRaw: {
         shape: "gridRows",
@@ -2244,13 +2202,11 @@ export const TABLE_RECIPES = {
           { key: "wind", x: 481, w: 95, pattern: "raw", row: true },
         ],
       },
-      // 30 Köppen rows × four season cells, each a compound of signed
+      // The climate-code rows × four season cells, each a compound of signed
       // temperature (day and night), precipitation and wind figures (JJ 41),
-      // kept raw for the binding.
-      // The table's own TITLE also appears in the facing page's prose ("…
-      // table, opposite") over the Climate by Terrain grid, whose rows carry
-      // the same codes — so the anchor is the polar rows' "(day and night)"
-      // phrasing, which only the modifier table prints.
+      // kept raw for the binding. The table's own title also appears in the
+      // facing page's prose, over a grid whose rows carry the same codes, so the
+      // anchor is the polar rows' phrasing, which only this table prints.
       climateModifiersRaw: {
         shape: "gridRows",
         book: "jj",
@@ -2308,13 +2264,11 @@ export const TABLE_RECIPES = {
           },
         ],
       },
-      // Each condition's entry WHOLE, one window per condition opened on its
-      // first words, so the binding can read every clause of it — the throw
-      // penalties, the visibility ceiling, the grounds-only dust clause, a
-      // night's needs, the week's disease risk, the frostbite save. A window
-      // is cut at the next entry's heading by the binding, so the spans only
-      // need to be long enough. Each block is one print column of one page
-      // (the pages run in two); the anchors carry no values.
+      // Each condition's entry WHOLE, one window per condition opened on its first
+      // words, so the binding can read every clause of it. The binding cuts a
+      // window at the next entry's heading, so the spans only need to be long
+      // enough. Each block is one print column of one page; the anchors carry no
+      // values.
       conditionEffectsProse: {
         shape: "proseValues",
         book: "rr",
@@ -2369,7 +2323,7 @@ export const TABLE_RECIPES = {
           },
         ],
       },
-      // The Mud and Snow paragraph's thresholds, one window per clause; the
+      // The mud and snow paragraph's thresholds, one window per clause; the
       // binding reads the day counts out of each.
       accumulationProse: {
         shape: "proseValues",
@@ -2388,8 +2342,8 @@ export const TABLE_RECIPES = {
   equipment: {
     source: { book: "ACKS II Revised Rulebook + Judges Journal + Monstrous Manual", pages: "RR 15, 109, 121, 127, 140, 160, 296, 299, 305-306; JJ 252, 398; MM 56" },
     tables: {
-      // The weapon sizes Weapon Finesse takes (RR ch. 3, Weapon Finesse): the
-      // size words the proficiency's own sentence names, read as a list.
+      // The weapon sizes the finesse proficiency takes (RR ch. 3): the size words
+      // its own sentence names, read as a list.
       // `equipment/attack-mods.mjs` `finesseTakes` refuses only a size this
       // list does not hold, and none while it is not imported.
       weaponFinesse: {
@@ -2399,7 +2353,7 @@ export const TABLE_RECIPES = {
         locate: "When attacking with tiny",
         values: [{ key: "sizes", find: "when attacking with", take: "sizeList", span: 60 }],
       },
-      // The unarmed strike's damage die (RR ch. 6, Dealing Damage).
+      // The unarmed strike's damage die (RR ch. 6).
       // `equipment/actions.mjs` `unarmedStrikeData` rolls it; with none
       // imported the strike makes its attack throw and rolls no damage.
       unarmedStrike: {
@@ -2409,12 +2363,10 @@ export const TABLE_RECIPES = {
         locate: "Unarmed strikes deal",
         values: [{ key: "damage", find: "unarmed strikes deal", take: "dice", span: 20 }],
       },
-      // Non-proficient use (RR 15, the sidebar): the further penalty a
-      // character of no level takes while equipped with what their class
-      // cannot use. The sidebar names the throw everyone else fights with by
-      // its level and prints no figure; that figure is `zeroLevelAttackThrow`
-      // below. `equipment/attack-mods.mjs` applies both and leaves the throw
-      // alone until they are imported.
+      // Non-proficient use (RR 15, the sidebar): the further penalty a character
+      // of no level takes while equipped with what their class cannot use. The
+      // throw itself is `zeroLevelAttackThrow` below. `equipment/attack-mods.mjs`
+      // applies both and leaves the throw alone until they are imported.
       nonProficientUse: {
         shape: "proseValues",
         book: "rr",
@@ -2422,9 +2374,8 @@ export const TABLE_RECIPES = {
         locate: "unusable by their class",
         values: [{ key: "zeroLevelPenalty", find: "suffer an additional", take: "signed" }],
       },
-      // The attack throw of a character of no level (JJ 252): the page states
-      // that a 0th-level character's throw follows its hit dice and prints the
-      // figure in its worked example, beside the hit dice it follows from.
+      // The attack throw of a character of no level (JJ 252), read from the
+      // page's worked example beside the hit dice it follows from.
       zeroLevelAttackThrow: {
         shape: "proseValues",
         book: "jj",
@@ -2432,9 +2383,9 @@ export const TABLE_RECIPES = {
         locate: "calculated by HD",
         values: [{ key: "attackThrow", find: "HD 1/2, attack throw", take: "int" }],
       },
-      // The dual weapon style's own attack modifier (RR ch. 10, Attack Throw
-      // modifiers, "Fighting Style"): anyone fighting in the style takes it,
-      // specialized or not. `equipment/effects.mjs` writes it to the loadout.
+      // The dual weapon style's own attack modifier (RR ch. 10): anyone fighting
+      // in the style takes it, specialized or not. `equipment/effects.mjs` writes
+      // it to the loadout.
       dualWeaponStyle: {
         shape: "proseValues",
         book: "rr",
@@ -2442,10 +2393,10 @@ export const TABLE_RECIPES = {
         locate: "dual weapon style gain a",
         values: [{ key: "attack", find: "dual weapon style gain a", take: "signed" }],
       },
-      // The heavy helmet's three modifiers (RR ch. 4, Armor, "Helmet, Heavy"):
-      // surprise rolls, Listening throws, and the Mortal Wounds roll. Each is
-      // read after the words that open its clause. `equipment/overlays/
-      // enclosing-helm.mjs` `helmFigures` serves them.
+      // The heavy helmet's three modifiers (RR ch. 4): surprise rolls, listening
+      // throws, and the mortal wounds roll. Each is read after the words that open
+      // its clause. `equipment/overlays/enclosing-helm.mjs` `helmFigures` serves
+      // them.
       heavyHelm: {
         shape: "proseValues",
         book: "rr",
@@ -2457,8 +2408,8 @@ export const TABLE_RECIPES = {
           { key: "mortalWounds", find: "but offers a", take: "signed", span: 12 },
         ],
       },
-      // Item loss from damage (JJ ch. 16): the six figures its two paragraphs
-      // state, each read after the words that open its clause. `equipment/
+      // Item loss from damage (JJ ch. 16): the figures its two paragraphs state,
+      // each read after the words that open its clause. `equipment/
       // overlays/item-loss.mjs` `itemLossFigures` serves them and plans nothing
       // while any is unread.
       itemLoss: {
@@ -2475,12 +2426,12 @@ export const TABLE_RECIPES = {
           { key: "acPerStone", find: "bonus granted if any by", take: "int", span: 12 },
         ],
       },
-      // Materials Destroyed by Damage Type (JJ ch. 16): the kinds of material
-      // each damage type can harm, one row per type, keyed by the vocabulary's
-      // own key (`lib/vocab.mjs` DAMAGE_TYPES) so the consumer needs no second
-      // list. The page prints the electrical type's adjective short, so a
-      // row's label is its key without that suffix. The margin tab sits left of
-      // `xMin`, and `yMin` starts the grid below the prose that names it.
+      // The materials each damage type can harm (JJ ch. 16), one row per type,
+      // keyed by the vocabulary's own key (`lib/vocab.mjs` DAMAGE_TYPES) so the
+      // consumer needs no second list. The page prints the electrical type's
+      // adjective short, so a row's label is its key without that suffix. The
+      // margin tab sits left of `xMin`, and `yMin` starts the grid below the
+      // prose that names it.
       itemLossMaterials: {
         shape: "gridRows",
         book: "jj",
@@ -2495,10 +2446,10 @@ export const TABLE_RECIPES = {
           .filter((key) => key !== "varies")
           .map((key) => ({ key, labelRe: `^${key.replace(/al$/, "")}` })),
       },
-      // The special maneuvers' attack penalties (RR ch. 10, Special Maneuvers):
-      // disarm opens its own folio and names the saving bonus a two-handed grip
-      // earns the target; the rest follow on the next, sunder's with its second
-      // figure, for a shaft, read from the words before the weapon it names.
+      // The special maneuvers' attack penalties (RR ch. 10): disarm opens its own
+      // folio and names the saving bonus a two-handed grip earns the target; the
+      // rest follow on the next, sunder's with its second figure, for a shaft,
+      // read from the words before the weapon it names.
       // `equipment/overlays/maneuvers.mjs` `maneuverMods` sums them; a figure
       // not read leaves the penalty null.
       maneuverDisarm: {
@@ -2610,24 +2561,22 @@ export const TABLE_RECIPES = {
   rarity: {
     source: { book: "ACKS II Judges Journal", pages: "JJ 118-119, 259" },
     tables: {
-      // JJ ~118 prints TWO rarity tables: "Class Rarity" (left column) and
-      // "Henchmen Rarity by Class" (right column), which assign different
-      // tiers. This is the former — the one the Judge's Screen reprinted and
-      // the one that has always shipped as `variants.default`. The other is a
-      // candidate second variant, and would need its own recipe.
+      // JJ 118 prints TWO rarity tables, in the left and right columns, which
+      // assign different tiers. This is the left one, kept as `variants.default`;
+      // the right would be a second variant and needs its own recipe.
       classRarityTables: {
         shape: "pairs",
         book: "jj",
         printedPage: 118,
         locate: "Class Rarity",
         column: { xMin: 40, xMax: 300 },
-        // The JJ sets its table headers in small caps, so "Classes" reaches the
-        // text layer as "c" + "lasses"; the marker has to be the second run.
+        // The JJ sets its table headers in small caps, so the header word reaches
+        // the text layer as two runs; the marker has to be the second run.
         startAfter: "lasses",
         labelMaxX: 120,
         cellPattern: "refListLower",
-        // Same small caps inside the cells: without a gap-aware join the class
-        // list reads "dwarvencraftpriest" (see joinRuns).
+        // Same small caps inside the cells: without a gap-aware join the names in
+        // a list weld together (see joinRuns).
         joinGap: 1,
         rows: RARITY_TIER_ROWS,
         emit: {
@@ -2647,11 +2596,10 @@ export const TABLE_RECIPES = {
         rows: RARITY_TIER_ROWS,
         emit: { container: "rows", keyField: "rarity" },
       },
-      // Directed-search rarity modifiers (JJ ~119, all prose): the general-
-      // proficiency ranks ladder, its level die, the class-proficiency
-      // per-rank rule, the per-level shift, and the commissioned search's
-      // step (JJ ch. 3, "Commissioning the Hire of a Henchman"). Anchors
-      // carry no values.
+      // Directed-search rarity modifiers (JJ 119, all prose): the general-
+      // proficiency ranks ladder, its level die, the class-proficiency per-rank
+      // rule, the per-level shift, and the commissioned search's step (JJ ch. 3).
+      // Anchors carry no values.
       specificQualificationMods: {
         shape: "proseValues",
         book: "jj",
@@ -2677,11 +2625,10 @@ export const TABLE_RECIPES = {
         printedPage: 118,
         locate: "Random Henchman Level",
         // Right print column of the same spread. The rarity variant table above
-        // it reaches into this window, but none of its rows can match a roll
-        // band, so the label patterns are the only bound needed. The first band
-        // is the open low one; each later row takes the next band below it, so
-        // no pattern names an edge. The die is the one the bands reach (lib
-        // `bandDie`), read at roll time, never written here.
+        // it reaches into this window, but none of its rows can match a roll band,
+        // so the label patterns are the only bound needed. The first band is the
+        // open low one; each later row takes the next band below it, so no pattern
+        // names an edge. The die is the one the bands reach (lib `bandDie`).
         column: { xMin: 440, xMax: 620 },
         labelMaxX: 510,
         cellPattern: "int",
@@ -2694,8 +2641,7 @@ export const TABLE_RECIPES = {
         ],
         emit: { container: "rows" },
       },
-      // The screen called this "Leveled Henchman Class"; the JJ prints the same
-      // double-d100 grid as "NPC Class" in its people chapter (~259).
+      // The double-d100 class grid of the JJ's people chapter (JJ 259).
       classDistribution: {
         shape: "bandGrid",
         book: "jj",
@@ -2703,11 +2649,11 @@ export const TABLE_RECIPES = {
         locate: "NPC Class",
         column: { xMin: 60, xMax: 600 },
         labelMaxX: 130,
-        // Cells run wide here (a full "dwarven vaultguard" spans ~40pt), so the
-        // column anchors sit at each cell's CENTRE with a tolerance to match.
+        // Cells run wide here, so the column anchors sit at each cell's CENTRE
+        // with a tolerance to match.
         columnTol: 25,
-        // "1d100" alone would match the prose above the table that tells the
-        // reader to roll it; the header's own run is the whole "1d100×100".
+        // The die alone would match the prose above the table that tells the
+        // reader to roll it; the header's own run is the die with its multiplier.
         headerMark: "1d100×100",
         joinGap: 1,
         cellColumns: [
@@ -2760,12 +2706,11 @@ export const TABLE_RECIPES = {
         ],
         emit: { wrap: "byLevel" },
       },
-      // Signing bonus ladders: which span of pay buys +1/+2/+3 on the hiring
-      // reaction roll. The Judge's Screen tabulated both in one grid; the books
-      // print them as PROSE, in two different places — the base ladder with the
-      // hiring rules (RR ~162) and the cheaper Bribing-proficient one in that
-      // proficiency's own entry (RR ~108) — so each ladder locates its own page
-      // and the two are reassembled into the shape the reference already had.
+      // Signing bonus ladders: which span of pay buys each bonus on the hiring
+      // reaction roll. The book prints them as PROSE in two places, the base
+      // ladder with the hiring rules (RR 162) and the cheaper one in the
+      // proficient hirer's own entry (RR 108), so each ladder locates its own
+      // page and the two are reassembled into one table.
       signingBonus: {
         shape: "proseValues",
         book: "rr",
@@ -2812,7 +2757,7 @@ export const TABLE_RECIPES = {
           { key: "reachBonus", find: "experience level or hd", before: true, span: 80, take: "signed" },
         ],
       },
-      // Mercenary-officer base loyalty (RR ~171 prose).
+      // Mercenary-officer base loyalty (RR 171 prose).
       baseLoyalty: {
         shape: "proseValues",
         book: "rr",
@@ -2832,10 +2777,10 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "base", find: "may hire at most", take: "int", span: 12 }],
       },
-      // The share of found treasure a henchman is hired for (RR 162 prose, the
-      // hiring rules' own sentence), a fraction written in words. The anchor
-      // names the henchman clause, because the next clause of the same
-      // sentence opens on the same words for the other hireling kinds.
+      // The share of found treasure a henchman is hired for (RR 162 prose), a
+      // fraction written in words. The anchor names the henchman clause, because
+      // the next clause of the same sentence opens on the same words for the other
+      // hireling kinds.
       treasureShare: {
         shape: "proseValues",
         book: "rr",
@@ -2844,10 +2789,9 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "share", find: "henchmen are typically hired for a", take: "fractionWord", span: 24 }],
       },
-      // The share of an adventure's experience a henchman takes (RR 311 prose,
-      // the experience chapter's division rule), read the same way. The hiring
-      // chapter states it in a second place; the chapter that divides the
-      // experience is the one a Judge's table runs on.
+      // The share of an adventure's experience a henchman takes (RR 311 prose),
+      // read the same way. The hiring chapter states it in a second place; this
+      // is the experience chapter's own division rule.
       xpShare: {
         shape: "proseValues",
         book: "rr",
@@ -2893,9 +2837,9 @@ export const TABLE_RECIPES = {
         rows: CLASS_PCT_ROWS,
         emit: { container: "rows" },
       },
-      // The RAW occupant system (JJ ~229): WHICH occupant a d100 finds, per
-      // building type, with routing to the occupation sub-tables — bands and
-      // routing text all read from the page.
+      // The occupant system (JJ 229): WHICH occupant a d100 finds, per building
+      // type, with routing to the occupation sub-tables; bands and routing text
+      // are all read from the page.
       occupationTypes: {
         shape: "gridRows",
         book: "jj",
@@ -2936,11 +2880,10 @@ export const TABLE_RECIPES = {
         emit: { container: "rows", keyField: "type" },
       },
       // Per-category occupation sub-tables (d100 band → occupation, with the
-      // book's own special notes like "25% are mages"). Self-locating like
-      // culture blocks; each stitches reading order for long lists (artisan).
-      // Every window below is page geometry read off the printings: the JJ
-      // mixes half-page pairs (p~229), four quarter tables, and full-width
-      // tables whose Mercantile Interest notes wrap (merchant, artisan).
+      // book's own special notes). Self-locating like culture blocks; each
+      // stitches reading order for long lists. Every window below is page
+      // geometry read off the printings: the JJ mixes half-page pairs, four
+      // quarter tables, and full-width tables whose notes wrap.
       occupationSubTables: {
         shape: "bandList",
         book: "jj",
@@ -2956,10 +2899,10 @@ export const TABLE_RECIPES = {
           { id: "hosteller", printedPage: 229, anchor: "Hosteller Occupation", window: [60, 300], bandWindow: [75, 115], occWindow: [115, 198], specialWindow: [198, 300] },
         ],
       },
-      // 0th-level occupation → proficiency packages (JJ "Occupations and
-      // Proficiencies", four consecutive pages). Row keys are page content
-      // (occupation names, lowercased); values are comma token lists of
-      // proficiency names, some with a parenthesized specialty (JJ 254).
+      // 0th-level occupation → proficiency packages (JJ 254, four consecutive
+      // pages). Row keys are page content (occupation names, lowercased); values
+      // are comma token lists of proficiency names, some with a parenthesized
+      // specialty.
       occupationPackages: {
         shape: "harvestPairs",
         book: "jj",
@@ -2970,24 +2913,22 @@ export const TABLE_RECIPES = {
         labelMaxX: 130,
         minTokens: 2,
       },
-      // Culture APPEARANCE palettes (RR pp. 495-503): each culture's
-      // description gives its hair and eye colours in one sentence each, and
-      // its name template in an example. A
-      // block locates its page by the key of its heading and reads inside that
-      // heading's section, so a page carrying several cultures cannot
-      // cross-match. See `CULTURES`.
+      // Culture APPEARANCE palettes (RR pp. 495-503): each culture's description
+      // gives its hair and eye colours in one sentence each, and its name
+      // template in an example. A block locates its page by the key of its
+      // heading and reads inside that heading's section, so a page carrying
+      // several cultures cannot cross-match. See `CULTURES`.
       cultureAppearance: {
         shape: "proseValues",
         book: "rr",
         valueBlocks: CULTURE_APPEARANCE_BLOCKS,
         emit: { path: ["cultures"] },
       },
-      // Per-class RESTRICTIONS from the class descriptions' opening clauses
-      // (RR 56 for the first). Each block self-locates its
-      // class page; the capture reads the restriction word, never a list of
-      // classes. bucket/rarity/race are DERIVED by consumers from the
-      // already-imported distribution/rarity tables + class-key adjectives,
-      // so they need no recipe here.
+      // Per-class RESTRICTIONS from the class descriptions' opening clauses (RR
+      // 56 for the first). Each block self-locates its class page; the capture
+      // reads the restriction word, never a list of classes. bucket/rarity/race
+      // are DERIVED by consumers from the already-imported distribution/rarity
+      // tables and class-key adjectives, so they need no recipe here.
       classRestrictions: {
         shape: "proseValues",
         book: "rr",
@@ -2995,20 +2936,17 @@ export const TABLE_RECIPES = {
           { id: "bladedancer", printedPage: 56, locate: "Bladedancers are", values: [{ key: "sex", find: "bladedancers are human", take: "sexWord" }] },
           { id: "priestess", printedPage: 64, locate: "Priestesses are", values: [{ key: "sex", find: "priestesses are", take: "sexWord" }] },
           { id: "witch", printedPage: 76, locate: "witches, however, are", values: [{ key: "sex", find: "witches, however, are", take: "sexWord" }] },
-          // NO warlock alignment: the RR states it CONDITIONALLY ("If
-          // chaotic, the warlock can create necromantic servants") — the
-          // class is not alignment-bound in this printing, so nothing is
-          // extracted and the alignment-openness shift stays inert.
+          // No warlock alignment is read: the printing states it conditionally,
+          // so nothing is extracted and the alignment-openness shift stays inert.
         ],
         emit: { path: ["classes"] },
       },
       // Culture name lists (RR pp. 495-503, BTA p. 22 for the dwarves). Each
       // block is SELF-LOCATING: the key of the list's first male name finds the
       // page, the print column and the start row, so stacked two-column culture
-      // blocks never cross-match. NAMES are extracted data; the label is the
-      // culture's heading as printed, read by its key and falling back to the
-      // block's neutral label; race is a structural assist; appearance PROSE is
-      // never touched. See `CULTURES`.
+      // blocks never cross-match. The label is the culture's heading as printed,
+      // read by its key and falling back to the block's neutral label; race is a
+      // structural assist; appearance PROSE is never touched. See `CULTURES`.
       cultures: {
         shape: "nameList",
         book: "rr",
@@ -3019,10 +2957,10 @@ export const TABLE_RECIPES = {
         ],
         blocks: CULTURE_NAME_BLOCKS,
       },
-      // NPC minimum age by class group (JJ ~248): level rows × six labeled
-      // trajectory columns. "44+" caps a column; "-" means the trajectory
-      // never reaches that level. Which class keys map to which column is
-      // consumer interpretation (henchmen), not page data.
+      // NPC minimum age by class group (JJ 248): level rows × six labeled
+      // trajectory columns; a dash means the trajectory never reaches that
+      // level. Which class keys map to which column is consumer interpretation
+      // (henchmen), not page data.
       ageByClass: {
         shape: "gridRows",
         book: "jj",
@@ -3042,7 +2980,7 @@ export const TABLE_RECIPES = {
         rows: Array.from({ length: 15 }, (_, i) => ({ key: String(i), labelRe: `^${i}$`, set: { level: i } })),
         emit: { container: "rows", keyField: "level" },
       },
-      // 0th-level general proficiency count by race and age band (JJ ~253).
+      // 0th-level general proficiency count by race and age band (JJ 253).
       proficienciesByAge: {
         shape: "gridRows",
         book: "jj",
@@ -3062,7 +3000,7 @@ export const TABLE_RECIPES = {
         rows: Array.from({ length: 8 }, (_, i) => ({ key: String(i + 1), labelRe: `^${i + 1}$`, set: { count: i + 1 } })),
         emit: { container: "rows", keyField: "count" },
       },
-      // 0th-level NPC hit dice by race × station (JJ ~252).
+      // 0th-level NPC hit dice by race × station (JJ 252).
       hd0: {
         shape: "gridRows",
         book: "jj",
@@ -3084,10 +3022,10 @@ export const TABLE_RECIPES = {
         ],
         emit: { container: "rows", keyField: "race" },
       },
-      // BTA dwarven castes — the book states the caste split in prose, not a
-      // grid. Anchors carry no values; percentages are read from the page.
-      // The Oathsworn share is the book's own remainder (no printed figure).
-      // Optional: a supplement.
+      // BTA dwarven castes: the book states the caste split in prose, not a
+      // grid. Anchors carry no values; percentages are read from the page. The
+      // last caste's share is the remainder and is printed nowhere. Optional: a
+      // supplement.
       dwarvenCastes: {
         shape: "proseValues",
         book: "bta",
@@ -3111,8 +3049,8 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // Slavery (JJ ~409-410) — RAW values behind the henchmen `enableSlavery`
-  // toggle. Import always materializes the doc; consumers gate USE by the
+  // Slavery (JJ 409-410): the values behind the henchmen `enableSlavery`
+  // setting. Import always materializes the doc; consumers gate USE by the
   // world setting. Common-slave economics are prose; troop prices are a grid.
   slavery: {
     source: { book: "ACKS II Judges Journal", pages: "JJ 409-410" },
@@ -3149,7 +3087,7 @@ export const TABLE_RECIPES = {
           { key: "hirelingDisplacement", find: "slaves will replace", occurrence: 1, take: "pct2" },
         ],
       },
-      // Slave troop purchase prices by race (JJ ~410) — sparse grid, dashes
+      // Slave troop purchase prices by race (JJ 410): a sparse grid, dashes
       // where a race fields no such troops.
       slaveTroopCosts: {
         shape: "gridRows",
@@ -3234,10 +3172,9 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // Settlement market class by urban families (RR "Villages, Towns, and
-  // Cities", ~352): the label carries the families band, the class column
-  // the market class. Monthly-income column is domain revenue — not
-  // extracted here (domain-module scope).
+  // Settlement market class by urban families (RR 352): the label carries the
+  // families band, the class column the market class. The monthly-income column
+  // is domain revenue and is not extracted here.
   settlement: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 352" },
     tables: {
@@ -3391,11 +3328,10 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // Construction projects (RR §IV.11): worker construction and wage rates —
-  // what an item commission costs and how fast it builds. Money cells stay
-  // raw ("10gp / 15gp†"); the consumer parses the primary variant. The
-  // small-caps face fuses label words ("Mastercraftsman"), so labels match
-  // with optional whitespace.
+  // Construction projects (RR §IV.11): worker construction and wage rates, what
+  // an item commission costs and how fast it builds. Money cells stay raw; the
+  // consumer parses the primary variant. The small-caps face fuses label words,
+  // so labels match with optional whitespace.
   construction: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 174" },
     tables: {
@@ -3469,10 +3405,9 @@ export const TABLE_RECIPES = {
       },
     },
   },
-  // Mercantile-venture merchandise (RR ch. 8): the 29-type Common and
-  // Precious Merchandise grid. acks-extras markets reads pricePerStone /
-  // priceStep for demand-step pricing; the daily-stones grid rides along for
-  // the future arbitrage loop.
+  // Mercantile-venture merchandise (RR ch. 8): the common and precious
+  // merchandise grid. The markets feature reads pricePerStone / priceStep for
+  // demand-step pricing; the market-class cells ride along.
   mercantile: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 370-376" },
     tables: {
@@ -3489,15 +3424,14 @@ export const TABLE_RECIPES = {
           { key: "familiesPerImpact", find: "urban families /", take: "int", span: 10 },
         ],
       },
-      // The Assessment of Supply and Demand result column (RR 373): five
-      // rungs, read in order.
+      // The supply-and-demand assessment result column (RR 373), read in order.
       assessmentProse: {
         shape: "proseValues",
         book: "rr",
         printedPage: 373,
         locate: "Successful Assessment",
-        // The small-caps header splits its words ("d ie r oll"); the bracketed
-        // die is the one stable run just before the result column.
+        // The small-caps header splits its words; the bracketed die is the one
+        // stable run just before the result column.
         values: [{ key: "bands", find: "supply & demand adjusted", take: "bandEdges", span: 170 }],
       },
       // The monthly price's class and season shifts (RR 375).
@@ -3535,9 +3469,9 @@ export const TABLE_RECIPES = {
           { key: "bands", find: "reaction to negotiation adjusted", take: "bandEdges", span: 170 },
         ],
       },
-      // Market Characteristics (RR ch. 8): per-class baselines — cargo,
-      // toll, tariff, consignments, passengers. Money/dice cells stay raw
-      // ("0.2cp/st", "2d6+1 × 10", "none"); the consumer parses.
+      // Market characteristics (RR ch. 8): per-class baselines for cargo, toll,
+      // tariff, consignments and passengers. Money and dice cells stay raw; the
+      // consumer parses.
       marketCharacteristics: {
         shape: "gridRows",
         book: "rr",
@@ -3634,11 +3568,11 @@ export const TABLE_RECIPES = {
   demand: {
     source: { book: "ACKS II Judges Journal", pages: "JJ 201, 203" },
     tables: {
-      // Range of Trade (JJ ch. 6 Step 7E): how far a market of each class
-      // trades by road and by water. One row per class, in print order from
-      // the smallest market up, so each spec claims the row below the last;
-      // the small-caps label face splits "c" from "lass" and sets the numeral
-      // in mixed case. Both cells stay raw for markets to read the miles from.
+      // Range of trade (JJ ch. 6): how far a market of each class trades by road
+      // and by water. One row per class, in print order from the smallest market
+      // up, so each spec claims the row below the last; the small-caps label face
+      // splits the first letter off and sets the numeral in mixed case. Both
+      // cells stay raw for markets to read the miles from.
       rangeOfTrade: {
         shape: "gridRows",
         book: "jj",
@@ -3842,7 +3776,7 @@ export const TABLE_RECIPES = {
           { key: "fighter", find: "fighter: an additional", take: "int" },
           { key: "mage", find: "mage: an additional", take: "int" },
           // The level the flat increments start after, read from the first
-          // class line's own "for each level after" clause.
+          // class line's own clause.
           { key: "afterLevel", find: "for each level after", take: "int", span: 12 },
         ],
       },
@@ -3852,8 +3786,8 @@ export const TABLE_RECIPES = {
         printedPage: 299,
         locate: "Smoothing",
         values: [
-          // A superscript "th" run interleaves into "…experience point [th]
-          // requirement for 7 level…", so the anchor is the surviving half.
+          // A superscript ordinal run interleaves into the phrase, so the anchor
+          // is the surviving half.
           { key: "level", find: "requirement for", take: "int" },
           { key: "nearest", find: "level to the nearest", take: "int" },
         ],
@@ -3922,9 +3856,9 @@ export const TABLE_RECIPES = {
         values: [
           { key: "con", find: "require a minimum constitution", take: "int" },
           { key: "hpAfter9", find: "receive an extra", take: "int" },
-          // Superscript "th" runs interleave into "…after 8 [th] by 10,000XP",
-          // so the anchor stops at the printed 8; the two sentences (fighter,
-          // then crusader/thief) disambiguate by occurrence.
+          // Superscript ordinal runs interleave into the phrase, so the anchor
+          // stops at the printed level; the two sentences (fighter, then
+          // crusader/thief) disambiguate by occurrence.
           { key: "post8Fighter", find: "each level after 8", take: "int", span: 40 },
           { key: "post8CrusaderThief", find: "each level after 8", take: "int", span: 40, occurrence: 2 },
         ],
@@ -3954,8 +3888,8 @@ export const TABLE_RECIPES = {
         values: [
           { key: "stacksWithArcane", find: "stack with points allocated to the arcane value", take: "window", span: 24 },
           { key: "arcaneDiscount", find: "the xp cost for the arcane value is reduced by", take: "int" },
-          // The superscript "th" splits "each level [th] after 8"; the first
-          // "after 8" on the page is the section heading, so occurrence 2.
+          // A superscript ordinal splits the phrase; the first match on the page
+          // is the section heading, so occurrence 2.
           { key: "post8", find: "after 8", take: "int", span: 40, occurrence: 2 },
         ],
       },
@@ -3989,7 +3923,7 @@ export const TABLE_RECIPES = {
         // Verso page, as the dwarf's.
         colSplit: 295,
         values: [
-          // The first "after 8" is the section heading, as on the elf's page.
+          // The first match is the section heading, as on the elf's page.
           { key: "post8", find: "after 8", take: "int", span: 40, occurrence: 2 },
         ],
       },
@@ -4093,10 +4027,9 @@ export const TABLE_RECIPES = {
         locate: "reputable bank",
         values: [{ key: "fee", find: "which will charge a total of", take: "pct", span: 40 }],
       },
-      // What a 0th-level character needs to reach 1st: the RR's flat figure
-      // (ch. 6, 0th Level Characters and Experience from Adventuring), and the
-      // JJ's refinement by proficiency count with its figure for a count
-      // nobody knows (ch. 9, Advancement to 1st Level).
+      // What a 0th-level character needs to reach 1st: the RR's flat figure (ch.
+      // 6), and the JJ's refinement by proficiency count with its figure for a
+      // count nobody knows (ch. 9).
       zeroLevelProse: {
         shape: "proseValues",
         book: "rr",
@@ -4137,7 +4070,7 @@ export const TABLE_RECIPES = {
   morale: {
     source: { book: "ACKS II Revised Rulebook", pages: "RR 167, 307" },
     tables: {
-      // Monster Morale (RR 307): five result rungs and a bulleted list that
+      // Monster morale (RR 307): the result rungs and a bulleted list that
       // prints each figure after its wording. An anchor names its own row and
       // never a threshold: the two rungs of a ladder share one phrase and are
       // told apart by `occurrence`, and `signed` reads past the fraction or
@@ -4159,9 +4092,9 @@ export const TABLE_RECIPES = {
           { key: "noRetreat", find: "accepting surrender", take: "signed", span: 8, label: true },
         ],
       },
-      // Hireling Obedience (RR 167): three result rungs and a grid that prints
-      // each figure before its wording, so every row is read backwards from
-      // its opening words. Small caps split a row's first letter off.
+      // Hireling obedience (RR 167): the result rungs and a grid that prints each
+      // figure before its wording, so every row is read backwards from its
+      // opening words. Small caps split a row's first letter off.
       hirelingObedience: {
         shape: "proseValues",
         book: "rr",
@@ -4203,7 +4136,7 @@ export const TABLE_RECIPES = {
       // parentheses prints its threshold there: `quantity` reads it with its
       // floor, `signed` reads the figure after it. The margin tab sits right
       // of x590 and is windowed out. Rows the page words as a floor or a rate
-      // ("or more", "per favor") are not read: the Judge types those.
+      // are not read: the Judge types those.
       diplomacyModifiers: {
         shape: "proseValues",
         book: "jj",
@@ -4293,10 +4226,10 @@ export const TABLE_RECIPES = {
           { key: "refusalPenalty", find: "suffers a cumulative", take: "signed", span: 8 },
         ],
       },
-      // The three tone pages' Reaction tables (JJ 85-87): the 2d6 result
-      // column and the count each result's "Shift N attitudes" line prints, in
-      // reading order, so `shiftN` is the Nth result's. Each page prints its
-      // own table in the right column; the window is that column's rows.
+      // The three tone pages' reaction tables (JJ 85-87): the result column and
+      // the attitude-shift count each result's line prints, in reading order, so
+      // `shiftN` is the Nth result's. Each page prints its own table in the right
+      // column; the window is that column's rows.
       diplomacyReaction: {
         shape: "proseValues",
         book: "jj",
@@ -4402,12 +4335,12 @@ export const TABLE_RECIPES = {
         yMax: 175,
         values: [{ key: "bands", find: "(2d6)", take: "bandEdges", span: 120 }],
       },
-      // The two Hireling Loyalty results' permanent changes in the list RR 166
-      // prints, each figure with its sign before the clause naming what earns
-      // it, so each anchor is read backwards from that clause; and two
-      // starting-loyalty figures from the paragraph above the list: the one an
-      // Accept with élan adds, and the one a creature forced into servitude
-      // starts at.
+      // The two hireling-loyalty results' permanent changes in the list RR 166
+      // prints, each figure with its sign before the clause naming what earns it,
+      // so each anchor is read backwards from that clause; and two
+      // starting-loyalty figures from the paragraph above the list: the one the
+      // best acceptance adds, and the one a creature forced into servitude starts
+      // at.
       loyaltyChanges: {
         shape: "proseValues",
         book: "rr",
@@ -4420,7 +4353,7 @@ export const TABLE_RECIPES = {
           { key: "forcedServitude", find: "forced into servitude begin with loyalty scores of", take: "signedInt", span: 6 },
         ],
       },
-      // The Irrefusable Offer (MM 351): the result column, the figure for an
+      // The irrefusable offer (MM 351): the result column, the figure for an
       // opposite alignment, and the starting loyalty of each result that
       // enters service, all in the right column. One start prints no sign,
       // so the starts read `signedInt`.
@@ -4856,10 +4789,9 @@ export const TABLE_RECIPES = {
           },
         ],
       },
-      // Effects of Current Morale (RR 350): the nine rungs, lowest first,
-      // each score with the level it is called. The score column is set
-      // centred, so a score is the row's label by its start and its first
-      // cell by its centre.
+      // Effects of current morale (RR 350): the rungs, lowest first, each score
+      // with the level it is called. The score column is set centred, so a score
+      // is the row's label by its start and its first cell by its centre.
       moraleLevels: {
         shape: "gridRows",
         book: "rr",
@@ -5172,7 +5104,7 @@ export const TABLE_RECIPES = {
         cellColumns: [],
         rows: [{ key: "squares", labelRe: "\\(\\d+\\W+squares", labelPattern: "squareFeet" }],
       },
-      // The Normal Load entry (MM Overview p. 13): the multiple of the normal
+      // The normal load entry (MM Overview p. 13): the multiple of the normal
       // load a creature can carry at most, and the share of its speed it keeps
       // above the normal load. `monsters/load-rule.mjs` `loadRule` reads both.
       loadRule: {

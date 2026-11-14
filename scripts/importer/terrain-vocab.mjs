@@ -1,21 +1,14 @@
 /**
- * One terrain vocabulary, reconciled.
+ * One terrain vocabulary, reconciled: the book names the same country
+ * differently from table to table.
  *
- * The book names the same country differently from table to table — the
- * movement multipliers say "Grassland, scrubland", the aerial search clause
- * says "clear, grass, scrub… barren", the foraging targets say "clear", and
- * the encounter tables say "Grassland (any)". They are the same places.
+ * The engine keys terrain by the movement table's names, the table every speed
+ * derivation brackets on, so every binder that reads terrain names out of
+ * PROSE passes them through here first.
  *
- * The engine keys terrain by the movement table's names, because that is the
- * table every speed derivation already brackets on. So every binder that reads
- * terrain names out of PROSE passes them through here first, and a forage
- * target printed for "clear" reaches a party standing in "grassland".
- *
- * This is naming, not content: no target, modifier or rate is decided here.
- * What each terrain is WORTH still comes off the page. A name the map does not
- * know is passed through unchanged rather than dropped — an unrecognized
- * terrain should reach the registry as itself, where a Judge can see it, not
- * vanish into a table that silently lacks a row.
+ * This is naming, not content: no target, modifier or rate is decided here. A
+ * name the map does not know passes through unchanged, so it reaches the
+ * registry as itself.
  */
 
 /**
@@ -63,11 +56,8 @@ export function terrainKeys(names) {
 }
 
 /**
- * Re-key a `{terrain: value}` map, keeping the printed spelling too.
- *
- * Both are kept because the two vocabularies are both real: a world may use
- * the book's other name for a terrain, and a row under only one of them would
- * read as "not imported" to half of them.
+ * Re-key a `{terrain: value}` map, keeping the printed spelling too, so a
+ * world using either vocabulary finds its row.
  */
 export function keyTerrainMap(map) {
   if (!map || typeof map !== "object") return map;

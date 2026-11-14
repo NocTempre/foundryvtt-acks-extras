@@ -1,13 +1,11 @@
 /**
- * Travel-table assembly: the raw RR reads → the engine-shaped `travel`
- * ruledata tables acks-extras reads (its vehicle-speed derivations declare
- * them via `expectTables`). The raw tables keep the page's own grouping;
- * this step fans the terrain groups out to the terrain keys, splits the road
- * cell into its two rates, strips the throw markers, and reads the two
- * navigation bonuses out of one sentence — judgments the recipes must not
- * make and the reader must not repeat. Like every binding here, no value
- * ships: everything is read live from the seat's own book and persists only
- * in their world.
+ * Travel-table assembly: the raw RR reads → the engine-shaped `travel` tables
+ * the vehicle-speed derivations declare via `expectTables`. The raw tables
+ * keep the page's own grouping; this step fans the terrain groups out to the
+ * terrain keys, splits the road cell into its two rates, strips the throw
+ * markers, and reads the two navigation bonuses out of one sentence —
+ * judgments the recipes must not make and the reader must not repeat. No
+ * value ships: everything is read from the seat's own book.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -48,7 +46,7 @@ export const TERRAIN_GROUP_KEYS = Object.freeze({
   mudSnow: ["mud", "snow"],
 });
 
-/** "×2/3" → 2/3; "×1" → 1; junk → null — never a silent zero. */
+/** A multiplier cell (a fraction or a whole number, with or without its `×`) → the number; junk → null, never a silent zero. */
 export function parseMultiplier(cell) {
   const s = String(cell ?? "");
   const frac = /×?\s*(\d+)\s*\/\s*(\d+)/.exec(s);
@@ -99,11 +97,10 @@ export function parseFrequencyCell(cell) {
  * The draft substitutions a vehicle entry states in prose, as the share ONE
  * animal of each kind pulls against a heavy horse.
  *
- * The page says how many of a kind stand in for one heavy horse — "one ox,
- * two mules, or two medium horses" — so each printed count becomes 1/count.
- * The heavy horse itself is the unit and is never emitted: its value is the
- * unit's definition, not a figure read off a page. A kind the sentence does
- * not name is simply absent, and stays unpriced downstream.
+ * The page states how many of a kind stand in for one heavy horse, so each
+ * printed count becomes 1/count. The heavy horse is the unit and is never
+ * emitted. A kind the sentence does not name is absent, and stays unpriced
+ * downstream.
  */
 export function parseDraftSubstitutions(window) {
   const t = String(window ?? "").toLowerCase().replace(/\s+/g, " ");
@@ -202,11 +199,9 @@ export function assembleExpedition(raw = {}) {
  * The engine tables from the raw ones. Pure — the committed tests feed it
  * invented cells.
  *
- * `roads`: RR prints ONE road rate; the earthen-road-in-rain washout is
- * ch. 6 prose, so the earth row alone carries `ineffectiveIf: ["raining"]`.
- * The Judge's screen refines roads per kind (gravel, paved, their own null
- * conditions); that recipe REPLACES this whole table when it lands, which is
- * exactly how the registry's per-table merge behaves.
+ * `roads`: one printed rate fans to the three kinds, and the earth row alone
+ * carries `ineffectiveIf: ["raining"]` (ch. 6 prose). A recipe that sets
+ * `roads` replaces this whole table, as the registry merges per table.
  */
 export function assembleTravelTables(raw = {}) {
   const out = {};
@@ -263,9 +258,8 @@ export function assembleTravelTables(raw = {}) {
 }
 
 /**
- * Merge the engine-shaped tables into the imported `travel` doc — the
- * builder-binding pattern: raw tables stay beside the assembled ones, so a
- * re-import or a later recipe grows the doc instead of replacing it.
+ * Merge the engine-shaped tables into the imported `travel` doc, the raw
+ * tables staying beside the assembled ones so a re-import grows the doc.
  */
 export async function applyTravelImport() {
   const svc = services.get("ruledata-import");

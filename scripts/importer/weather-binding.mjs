@@ -1,14 +1,12 @@
 /**
  * Weather-table assembly: the raw JJ/RR reads → the engine-shaped `weather`
- * ruledata tables acks-extras declares (its formation weather generator and
- * vehicle-speed condition factors read them via `expectTables`). The raw
- * tables keep the pages' own shapes — 27 modifier rows, compound
- * climate/season cells, captured prose windows; this step groups the rows
- * into bracket bands, splits each compound cell into its four modifiers, and
- * turns the printed words into factors and day counts — judgments the
- * recipes must not make and the reader must not repeat. Like every binding
- * here, no value ships: everything is read live from the seat's own book and
- * persists only in their world.
+ * tables the formation weather generator and the vehicle-speed condition
+ * factors read via `expectTables`. The raw tables keep the pages' own shapes —
+ * modifier rows, compound climate/season cells, captured prose windows; this
+ * step groups the rows into bracket bands, splits each compound cell into its
+ * four modifiers, and turns the printed words into factors and day counts —
+ * judgments the recipes must not make and the reader must not repeat. No value
+ * ships: everything is read from the seat's own book.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -211,7 +209,7 @@ export function parsePenaltyClauses(sentence) {
   return out;
 }
 
-/** A visibility clause giving an absolute distance in feet (either "reduced" or "drops" verb, optional "flat") → the feet; nothing → null (RR pp. 209, 279, 281; JJ pp. 116, 117, 472). */
+/** A visibility clause giving an absolute distance in feet (a "reduced" or "drops" verb, an optional "flat") → the feet; nothing → null (RR pp. 209, 279, 281; JJ pp. 116, 117, 472). */
 export function parseVisibilityFeet(sentence) {
   const m = /visibility(?: distance)?\s*(?:drops|is reduced|reduced)\s*to\s*(?:a\s*flat\s*)?(\d[\d,]*)\s*(?:'|ft\b|feet)/.exec(normalize(sentence));
   return m ? Number(m[1].replace(/,/g, "")) : null;
@@ -328,11 +326,10 @@ export function assembleConditionEffects(prose) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The 27 modifier rows of one axis column, grouped into bracket rows
+ * The modifier rows of one axis column, grouped into bracket rows
  * [{min, max, key}] for the engine's `bracketRow`. Consecutive rows sharing
- * a band merge; the first band opens downward and the last upward, which is
- * exactly what the page's "or less"/"or more" rows say. Dash rows (a column
- * the modifier cannot reach) contribute nothing.
+ * a band merge; the first band opens downward and the last upward. Dash rows
+ * (a column the modifier cannot reach) contribute nothing.
  */
 export function assembleBands(rawRows, cellKey) {
   const rows = Object.entries(rawRows ?? {})
@@ -352,9 +349,8 @@ export function assembleBands(rawRows, cellKey) {
 }
 
 /**
- * The engine tables from the raw ones. Pure — the committed tests feed it
- * invented cells. Each half assembles independently, so a partial import
- * still yields what its pages held.
+ * The engine tables from the raw ones. Pure. Each half assembles independently,
+ * so a partial import still yields what its pages held.
  */
 export function assembleWeatherTables(raw = {}) {
   const out = {};
@@ -388,9 +384,8 @@ export function assembleWeatherTables(raw = {}) {
   const prose = raw.conditionProse;
   if (prose) {
     // The executor keys valueBlocks results by block id (one per page);
-    // flatten them back to the sentence keys. The prose keys name the page's
-    // own subjects; muddy/snowbound are the engine's names for the two
-    // GROUND conditions.
+    // flatten them back to the sentence keys. `muddy` and `snowbound` are the
+    // engine's names for the two GROUND conditions.
     const flat = { ...(prose.p277 ?? {}), ...(prose.p278 ?? {}), ...(prose.p279 ?? {}), ...prose };
     const keyMap = { frigid: "frigid", sweltering: "sweltering", foggy: "foggy", snowy: "snowy", stormy: "stormy", windy: "windy", mud: "muddy", snowGround: "snowbound" };
     const factors = {};
@@ -425,9 +420,8 @@ export function assembleWeatherTables(raw = {}) {
 }
 
 /**
- * Merge the engine-shaped tables into the imported `weather` doc — the
- * travel-binding pattern: raw tables stay beside the assembled ones, so a
- * re-import or a later recipe grows the doc instead of replacing it.
+ * Merge the engine-shaped tables into the imported `weather` doc, the raw
+ * tables staying beside the assembled ones so a re-import grows the doc.
  */
 export async function applyWeatherImport() {
   const svc = services.get("ruledata-import");

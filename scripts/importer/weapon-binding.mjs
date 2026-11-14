@@ -3,29 +3,19 @@
  * → the `weaponLists` tables `lib/weapons.mjs` resolves the weapons grid's
  * rows against.
  *
- * Six folios state what the grid does not: the numbered kinds Martial Training
- * adds (RR ch. 3) and the kinds a narrow class may pick (JJ ch. 12), the kinds
- * a Weapon Focus names (RR ch. 3), the weapons each physical damage type is
- * dealt by and what a thrown flask or torch deals (RR ch. 6), and the weapon
- * descriptions that say a weapon needs both hands (RR ch. 4). Each list is
- * kept as the nouns the printing uses; a noun is placed on a module token or
- * key only by the words of that token's own name (a category called
- * `flailHammerMace` is the one a flail, a hammer or a mace names, as a
- * proficiency called Alchemy is the one that word names), and an option that
- * names no such token is the module's catch-all category.
+ * Six folios state what the grid does not: the Martial Training options (RR
+ * ch. 3) and the narrow-class selections (JJ ch. 12), the Weapon Focus kinds
+ * (RR ch. 3), each physical damage type's weapons and the thrown flask and
+ * torch (RR ch. 6), and the weapon descriptions that say a weapon needs both
+ * hands (RR ch. 4). Each list keeps the nouns the printing uses; a noun is
+ * placed on a module token only by the words of that token's own name, and an
+ * option naming no token is the catch-all category. The `options` table keeps
+ * the printed option lists whole, each option under its printed marker.
  *
- * The `options` table keeps the book's own option lists whole, each option
- * under its printed marker: the restricted, narrow and broad lists a custom
- * class selects from (JJ ch. 12) and the options Martial Training adds (RR
- * ch. 3). An option is a list of nouns, one weapon, a size or use predicate,
- * or a combination of any N weapons with the prerequisites printed beside it.
- * A level's list is kept only where the total its own sentence prints equals
- * the options read.
- *
- * A window that did not read leaves its list absent, so the resolver places
- * nothing from it; nothing is defaulted. No noun, die or type ships: the
- * parsers hold punctuation, list separators and the sentence shapes the book
- * states each fact in.
+ * A window that did not read leaves its list absent and nothing is defaulted.
+ * No noun, die or type ships: the parsers hold punctuation, list separators and
+ * the sentence shapes the book states each fact in. See docs/importer/MODEL.md,
+ * "The weapon lists".
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -62,10 +52,10 @@ export const PRODUCES = Object.freeze({
 /*  Parsers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Number words a list of kinds never holds: a "any <number> weapons" item names no kind (RR p. 114). */
+/** Number words a list of kinds never holds: an item counting weapons names no kind (RR p. 114). */
 const NUMBER_WORD = /^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/;
 
-/** A window lowercased, whitespace collapsed, and a line-wrap hyphen closed ("staff- slings"). */
+/** A window lowercased, whitespace collapsed, and a line-wrap hyphen closed. */
 const unwrap = (text) =>
   String(text ?? "")
     .toLowerCase()
@@ -166,7 +156,7 @@ const GENERIC_WORD = new Set(["any", "all", "and", "or", "weapon", "weapons"]);
  *
  *  - `any` and `prereqs`: a counted combination or a spelled-count item (RR p. 114, JJ p. 290)
  *  - `melee`, `missile` and `sizes`: a predicate, every word of which is a size
- *    or "melee" or "missile"
+ *    or a use
  *  - `weapon`: a restricted option, which names one weapon
  *  - `nouns`: a list of kinds, as `parseNouns` reads it
  *
@@ -203,9 +193,8 @@ export function optionOf({ n, marker, text }, { restricted = false, sizes = Obje
 const CONDITION_WORD = new Set(["also", "proficient", "in", "with", "he", "she", "already", "has", "or", "selects", "select"]);
 
 /**
- * The prerequisites a sentence states: `can only be proficient in A or B if
- * also C` and `can only select A or B if he already has or also selects C`,
- * each clause cut where the next `can only` begins or the sentence ends.
+ * The prerequisites a sentence states, in each of the two wordings the page
+ * uses, each clause cut where the next `can only` begins or the sentence ends.
  *
  * @returns {Array<{weapons: string[], requires: string[]}>} the kinds the
  *   clause restricts and the kinds it requires first
@@ -322,9 +311,8 @@ export function assembleCategory(optionLists, categories = WEAPON_CATEGORY) {
 /**
  * The Weapon Focus table from the sentence that lists them: `;` separates one
  * focus from the next and each holds its own nouns. A focus is keyed by its
- * nouns folded together (letters only, the connective dropped, as in the sling
- * focus; RR p. 121), the
- * spelling the module's focus grants already use.
+ * nouns folded together (letters only, the connective dropped; RR p. 121), the
+ * spelling the module's focus grants use.
  * @returns {Record<string, string[]>}
  */
 export function parseFocus(window) {
@@ -339,7 +327,7 @@ export function parseFocus(window) {
 
 /**
  * The weapons a damage type's entry says it is dealt by: the list after
- * "dealt by", up to the words that end it ("and so on", "and similar", "or by").
+ * "dealt by", up to the words that end it.
  * @returns {string[]}
  */
 export function parseDealtBy(window) {
@@ -384,7 +372,7 @@ export function parseThrowable(window, oilDamage = null) {
   return out;
 }
 
-/** A description entry's head: the words before a colon at the start of a sentence, "axe, great" included. */
+/** A description entry's head: the words before a colon at the start of a sentence, a comma-inverted head included. */
 const ENTRY_HEAD = /(?:^|\.\s+)([a-z]+(?:-[a-z]+)*(?:,\s+[a-z]+(?:-[a-z]+)*)?):\s/g;
 
 /** A sentence stating a weapon needs both hands. */
@@ -392,7 +380,7 @@ const NEEDS_BOTH_HANDS = /\brequir(?:e|es|ing)\s+two\s+hands\b|\b(?:is|are)\s+tw
 
 /**
  * The weapons whose description states they need both hands, named as the
- * grid names them ("great axe", for the entry headed "axe, great"). A window
+ * grid names them (the entry head's words reversed around its comma). A window
  * is cut at each entry head; a sentence about one grip among several (a
  * hands-count or conditional-grip clause, RR p. 138) states no such need.
  * @returns {string[]}
@@ -415,9 +403,8 @@ export function parseTwoHands(window) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The engine tables from the raw ones. Pure: the committed tests feed it
- * invented prose. Each list assembles on its own, so a window that drifted
- * costs its list and nothing beside it.
+ * The engine tables from the raw ones. Pure. Each list assembles on its own,
+ * so a window that drifted costs its list and nothing beside it.
  *
  * @param {object} [raw] the raw tables of the `weaponProse` document
  * @param {object} [categories] the category tokens by name, with the catch-all

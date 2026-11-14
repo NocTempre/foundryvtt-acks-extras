@@ -1,13 +1,12 @@
 /**
- * Voyage-table assembly: the raw RR ch. 7 reads → the engine-shaped
- * `voyages` ruledata tables acks-extras declares (its sea speed, navigation,
- * hazard and hull-damage derivations read them via `expectTables`). The raw
- * tables keep the pages' shapes — the wind grid's factor cells and band
- * spreads, prose windows around each printed figure; this step turns them
- * into the wind rows `seaSpeeds` brackets on, the navigation and hazard
- * targets and bonuses, each hazard's dice and rates, and the hull damage
- * shares — judgments the recipes must not make and the reader must not
- * repeat. Like every binding here, no value ships.
+ * Voyage-table assembly: the raw RR ch. 7 reads → the engine-shaped `voyages`
+ * tables the sea speed, navigation, hazard and hull-damage derivations read
+ * via `expectTables`. The raw tables keep the pages' shapes — the wind grid's
+ * factor cells and band spreads, prose windows around each printed figure;
+ * this step turns them into the wind rows `seaSpeeds` brackets on, the
+ * navigation and hazard targets and bonuses, each hazard's dice and rates, and
+ * the hull damage shares — judgments the recipes must not make and the reader
+ * must not repeat. No value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -60,7 +59,7 @@ export function parseHalved(window) {
   return /\bhalved\b|\bhalf\b/i.test(String(window ?? "")) ? 0.5 : null;
 }
 
-/** The first fraction-or-number in a window ("1/10", "×1/3"). */
+/** The first fraction or number in a window, as `parseMultiplier` reads it. */
 export function parseShare(window) {
   return parseMultiplier(String(window ?? ""));
 }
@@ -70,9 +69,8 @@ export function parseShare(window) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The engine tables from the raw ones. Pure — the committed tests feed it
- * invented cells. Each half assembles independently, so partial coverage
- * still yields what its pages held.
+ * The engine tables from the raw ones. Pure. Each half assembles independently,
+ * so partial coverage still yields what its pages held.
  */
 export function assembleVoyageTables(raw = {}) {
   const out = {};
@@ -97,8 +95,7 @@ export function assembleVoyageTables(raw = {}) {
     }
     if (rows.length) {
       rows.sort((a, b) => (a.min ?? 0) - (b.min ?? 0));
-      // Winter's +2 can push a roll past the printed top: the last band
-      // opens upward, the bracket convention everywhere else.
+      // A modified roll can pass the printed top: the last band opens upward.
       rows[rows.length - 1].max = null;
       out.windStrength = rows;
     }
@@ -219,9 +216,8 @@ export function assembleVoyageTables(raw = {}) {
 }
 
 /**
- * Merge the engine-shaped tables into the imported `voyages` doc — the
- * travel-binding pattern: raw tables stay beside the assembled ones, so a
- * re-import grows the doc instead of replacing it.
+ * Merge the engine-shaped tables into the imported `voyages` doc, the raw
+ * tables staying beside the assembled ones so a re-import grows the doc.
  */
 export async function applyVoyagesImport() {
   const svc = services.get("ruledata-import");

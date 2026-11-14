@@ -1,22 +1,15 @@
 /**
- * Weapon/armor TABLE extraction → core inventory items (the clean-break pipeline).
+ * Weapon-grid extraction → core inventory items.
  *
- * Unlike the gear cookbook (run-in `Name:` descriptions on RR pp. 144-154), the
- * Revised Rulebook prints weapons and armour as GRIDS (pp. 128+). There is no
+ * The Revised Rulebook prints weapons as a GRID (RR p. 128 on). There is no
  * per-item prose to stream — the value IS the row — so this reads the seat's
- * own page geometry and materializes each row into a `weapon` / `armor` item,
- * the same shape core's `acks-all-equipment` ships (used only as a target-shape
- * reference; every value here comes from the reader's book, never from core).
+ * own page geometry and materializes each row into a `weapon` item, or an
+ * ammunition `item`, in the shape core's `acks-all-equipment` ships (a target
+ * shape only; every value comes from the reader's book, never from core).
  *
- * IP posture (matches the rest of the importer): the register/recipe ships only
- * GEOMETRY — column x-anchors and cell patterns — never a damage die, an AC, an
- * encumbrance or a price. All of those materialize per-seat from the connected
- * PDF. A bookless seat gets nothing from this path (a grid has no prose of its
- * own), which is acceptable: this exists for tables core will stop shipping.
- *
- * Reuses the proven table primitives (rowsByY / joinRuns) rather than the
- * generic definition compiler, so it stays off the hot shared path other
- * content types churn.
+ * The recipe ships only GEOMETRY — column x-anchors and cell patterns — never a
+ * damage die, an encumbrance or a price. A bookless seat gets nothing from this
+ * path. Built on the table primitives `rowsByY` and `joinRuns`.
  */
 import { rowsByY, joinRuns } from "./table-extract.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
@@ -37,39 +30,37 @@ export const WEAPON_TABLE = Object.freeze({
   anchors: ["Weapons", "Arbalest"], // the section title AND the first row
   labelMaxX: 158, // the name band; the type column bleeds a little into it
   rowTol: 3,
-  // The Size/Type column is CENTERED (long "Medium Melee" starts further left
-  // than short "Missile"), so it is read as a wide window purely to detect
-  // melee/missile/ammunition — never as a value. Damage is a tight point
+  // The Size/Type column is CENTERED, so it is read as a wide window purely to
+  // detect melee/missile/ammunition — never as a value. Damage is a tight point
   // column just right of it so the die never lands in the type window.
-  // typeBand ends at 210 (not 218): a versatile die like "1d6/1d8" is wider and
-  // starts further left (x~213) than a single die (x~225), so it would fall
-  // inside an 218-wide type band and be lost. 210 keeps the type word ("Missile"
-  // at x182) in the band while letting every damage die reach its column.
+  // typeBand ends at 210 (not 218): a versatile die pair is wider and starts
+  // further left (x~213) than a single die (x~225), so a wider band would take
+  // it. 210 keeps the type word in the band while letting every damage cell
+  // reach its column.
   typeBand: { x0: 158, x1: 210 },
   columns: [
-    { key: "damage", x: 220, tol: 14 }, // "1d8" | "1d6/1d8" (x213–225)
-    { key: "enc", x: 280, tol: 11 }, // "1" | "1/6"
+    { key: "damage", x: 220, tol: 14 }, // single and versatile dice (x213–225)
+    { key: "enc", x: 280, tol: 11 },
     { key: "short", x: 316, tol: 13 },
     { key: "med", x: 353, tol: 13 },
     { key: "long", x: 389, tol: 13 },
-    { key: "cost", x: 424, tol: 13 }, // "50gp"
+    { key: "cost", x: 424, tol: 13 },
     // The Special cell is centered too: a three-word cell starts further left
-    // (the lance's at x463) than a two-word one (x496), so the window opens
-    // just past the cost band and runs to the page's right edge.
-    { key: "special", x: 440, w: 158 }, // "cleave 2, Handy, Slow"
+    // (x463) than a two-word one (x496), so the window opens just past the cost
+    // band and runs to the page's right edge.
+    { key: "special", x: 440, w: 158 },
   ],
 });
 
 /**
- * Canonical weapon names — the ROW LIST the recipe ships (names are locators,
- * like every gear entry; the IP-sensitive VALUES stay in the book). Order is
- * the printed table order. `re` matches the extracted label band even through
- * the small-caps first-letter drop the PDF text layer produces ("Two-Handed"
- * arrives as "wo-Handed"), so a clean name always attaches to the right row.
+ * Canonical weapon names — the ROW LIST the recipe ships (names are locators;
+ * the VALUES stay in the book). Order is the printed table order. `re` matches
+ * the extracted label band even through the small-caps first-letter drop the
+ * PDF text layer produces, so a clean name attaches to the right row.
  */
 export const WEAPON_NAMES = [
   { name: "Arbalest", re: /arbalest/i },
-  { name: "Crossbow", re: /^c?rossbow/i }, // anchored: never the "Bows/crossbows" header
+  { name: "Crossbow", re: /^c?rossbow/i }, // anchored: never the grid's group header
   { name: "Case, 20 Bolts", re: /bolts/i },
   { name: "Composite Bow", re: /composite/i },
   { name: "Long Bow", re: /long ?bow/i },
@@ -112,7 +103,7 @@ export const WEAPON_NAMES = [
 /*  Extraction                                                          */
 /* -------------------------------------------------------------------- */
 
-/** The rotated "EQUIPMENT" chapter side-tab bleeds single glyphs into the grid. */
+/** The rotated chapter side-tab bleeds single glyphs into the grid. */
 const SIDE_TAB = /^(equipment|equ|ipme|nt|ip|m|ent|[eqiupment])$/i;
 
 /** Drop side-tab glyphs and lone footnote marks that y-merge into a row. */
@@ -178,19 +169,17 @@ export function extractValueRows(items, recipe = WEAPON_TABLE) {
     if (!label) continue;
     const typeText = joinRuns(r.items.filter((it) => it.x >= recipe.typeBand.x0 && it.x < recipe.typeBand.x1));
     const cells = bindRowCells(r.items.filter((it) => it.x >= recipe.typeBand.x1), recipe.columns);
-    // The Size/Type column is centered, so a short-named melee weapon's type
-    // text ("Medium Melee") straddles into the name band. Read the signal from
-    // the label AND the type band together — the canonical name comes from the
-    // shipped list, so scanning the label here costs nothing.
+    // The Size/Type column is centered, so a short-named weapon's type text
+    // straddles into the name band: read the signal from the label AND the type
+    // band together.
     const typeSignal = `${label} ${typeText}`;
     const melee = /melee/i.test(typeSignal);
     const missile = /missile/i.test(typeSignal);
     const ammunition = /ammunition/i.test(typeSignal);
     const size = sizeOf(typeSignal);
     // A real row carries a die, a PRICE, or a melee/missile type. The column
-    // HEADER row ("type/damage/…/cost/Special") otherwise sneaks through because
-    // its "cost" cell is a non-empty string — so require the cost to look like a
-    // price (a digit or "gp"), not merely be present.
+    // HEADER row would otherwise pass on a non-empty cost cell, so the cost must
+    // look like a price (a digit or "gp").
     const hasDie = /\dd\d/i.test(cells.damage ?? "");
     const hasPrice = /\d|gp/i.test(cells.cost ?? "");
     if (!hasDie && !hasPrice && !(melee || missile || ammunition)) {
@@ -204,12 +193,11 @@ export function extractValueRows(items, recipe = WEAPON_TABLE) {
 }
 
 /**
- * The weapon size the type cell prints before its use — "Medium Melee",
- * "Sm. Melee/Missile" — as the system's own size key, or null where the cell
- * prints none (a missile weapon, ammunition). The page abbreviates two of the
- * four, the text layer drops a small-caps first letter and welds the word
- * onto the name before it, so each word is matched by its tail and by the
- * use word that follows it, never by a boundary before it.
+ * The weapon size the type cell prints before its use, as the system's own size
+ * key, or null where the cell prints none (a missile weapon, ammunition). The
+ * page abbreviates two of the four, the text layer drops a small-caps first
+ * letter and welds the word onto the name before it, so each word is matched by
+ * its tail and by the use word that follows it, never by a boundary before it.
  * @returns {"tiny"|"small"|"medium"|"large"|null}
  */
 export function sizeOf(typeSignal) {
@@ -223,11 +211,9 @@ export function sizeOf(typeSignal) {
 
 /**
  * Attach each canonical weapon name to the value row whose label band matches
- * its pattern. Names are shipped (locators); values come from the seat's page.
- *
- * The seat's own `label` rides along beside the canonical name: it is the only
- * place the reader's spelling of the row survives, and `ammoLoad` reads the
- * printed count out of it.
+ * its pattern. The seat's own `label` rides along beside the canonical name:
+ * it is the only place the reader's spelling of the row survives, and
+ * `ammoLoad` reads the printed count out of it.
  * @returns {{name:string, label:string, melee:boolean, missile:boolean, ammunition:boolean, size:string|null, cells:object, block:string|null}[]}
  */
 export function extractWeapons(items, recipe = WEAPON_TABLE, names = WEAPON_NAMES) {
@@ -277,9 +263,9 @@ export async function extractWeaponsFromDoc(doc, readPage, recipe = WEAPON_TABLE
 /* -------------------------------------------------------------------- */
 
 /**
- * An encumbrance cell in stone → core weight6 (sixths of a stone). "1/6"→1,
- * "1"→6; blank, "-" or any non-numeric cell ("Varies") → null. Shared by the
- * weapon, armor and gear readers.
+ * An encumbrance cell in stone, a fraction or a whole number → core weight6
+ * (sixths of a stone); blank, a dash or any non-numeric cell → null. Shared by
+ * the weapon, armor and gear readers.
  */
 export function encToWeight6(enc) {
   const s = String(enc ?? "").trim();
@@ -290,19 +276,19 @@ export function encToWeight6(enc) {
   return Number.isFinite(n) ? Math.round(n * 6) : null;
 }
 
-/** "50gp" → 50; blank/"-" → null. */
+/** A cost cell → its number; blank or a dash → null. */
 function costGp(cost) {
   const m = String(cost ?? "").match(/(\d+(?:\.\d+)?)/);
   return m ? Number(m[1]) : null;
 }
 
-/** '180’' / "180'" → 180; "-"/blank → null. */
+/** A range cell, with or without its foot mark → the feet; a dash or blank → null. */
 function rangeFt(v) {
   const m = String(v ?? "").match(/(\d+)/);
   return m ? Number(m[1]) : null;
 }
 
-/** The words of the "Special" cell, one per printed quality; a dash is no word. */
+/** The words of the Special cell, one per printed quality; a dash is no word. */
 function qualityWords(special) {
   return String(special ?? "")
     .split(/,|;/)
@@ -349,22 +335,12 @@ export function settleQualities(specialCell) {
 }
 
 /**
- * Build a core `weapon` item from a materialized row. Missing cells simply stay
- * at core's defaults — a bookless or sparse row is still a valid item.
- * @param {{name,cells}} row
- * @param {string} id  cookbook id (def.weapon.<slug>)
- * @param {string} cite
- */
-/**
- * Every damage MODE a weapon offers, structured — the thing the core
- * compendium could not express and split into separate items instead.
- *
- * Two axes of "multiple roll types" the book packs into one row:
- *   - VERSATILE damage: "1d6/1d8" is one grip die and a two-handed die. Core
- *     shipped these as "Battle Axe, 1H" + "Battle Axe, 2H"; here they are one
+ * Every damage MODE a weapon offers, structured, two axes of which the book
+ * packs into one row:
+ *   - VERSATILE damage: a pair of dice is one grip die and a two-handed die, one
  *     weapon with two grips.
- *   - MELEE + MISSILE: a thrown weapon (Hand Axe, Javelin) rolls to hit in
- *     melee OR at range. Each is its own attack mode.
+ *   - MELEE + MISSILE: a thrown weapon rolls to hit in melee OR at range, each
+ *     its own attack mode.
  * @returns {{key:string,label:string,damage:string,attack:'melee'|'missile',grip?:string}[]}
  */
 export function damageModes(row) {
@@ -372,7 +348,6 @@ export function damageModes(row) {
   const dice = String(c.damage ?? "").match(/\d*d\d+/gi) ?? [];
   const modes = [];
   const grips = dice.length > 1 ? ["one-handed", "two-handed"] : [null];
-  // A weapon usable in melee AND at range offers each attack as its own mode.
   const attacks = [];
   if (row.melee) attacks.push("melee");
   if (row.missile) attacks.push("missile");
@@ -395,6 +370,15 @@ export function damageModes(row) {
   return modes;
 }
 
+/**
+ * Build a core `weapon` item from a materialized row. Missing cells stay at
+ * core's defaults, so a sparse row is still a valid item. See
+ * docs/importer/DECISIONS.md, "An imported weapon is written in the system's own
+ * fields, and a quiver is its arrows".
+ * @param {{name,cells}} row
+ * @param {string} id  cookbook id (def.weapon.<slug>)
+ * @param {string} cite
+ */
 export function bindWeaponRow(row, id, cite) {
   const c = row.cells ?? {};
   const melee = !!row.melee;
@@ -404,9 +388,8 @@ export function bindWeaponRow(row, id, cite) {
   const modes = damageModes(row);
   const primary = modes.find((m) => m.damage) ?? null;
   const twoHanded = modes.find((m) => m.grip === "two-handed" && m.damage) ?? null;
-  // The qualities are written as the system's own fields. The system's tag
-  // migration lights a special property only where the key already stands in
-  // the source, so a word handed over as a legacy tag reaches nothing.
+  // The system's tag migration lights a special property only where the key
+  // already stands in the source, so the qualities are written as its own fields.
   const { special, cleaveLimit, customTags } = settleQualities(c.special);
   const system = {
     description: bookText([], cite, { id, book: WEAPON_TABLE.book, page: WEAPON_TABLE.page }),
@@ -418,14 +401,13 @@ export function bindWeaponRow(row, id, cite) {
     bonus: { attack: 0, damage: 0 },
     equipped: false,
   };
-  // The size the type cell prints is the system's own: a medium melee weapon
-  // is the one the system offers a two-handed grip to.
+  // The printed size is the system's own: its dialog offers the two-handed grip
+  // by it.
   if (row.size) system.size = row.size;
-  // The PRIMARY die (one-handed melee, or the missile die) is the base damage,
-  // and a versatile row's second die is the system's ALTERNATE, so both grips
-  // roll in the base system; the full set of modes lives structurally in the
-  // module flag below. A row that prints no die (a net) writes both blank:
-  // the system's default formula is a die, and a blank is what rolls nothing.
+  // The PRIMARY die is the base damage and a versatile row's second die the
+  // system's ALTERNATE, so both grips roll in the base system; the full set of
+  // modes lives in the module flag below. A row that prints no die writes both
+  // blank, since the system's default formula is a die.
   system.damage = primary?.damage
     ? { base: { formula: primary.damage }, alternate: { formula: twoHanded?.damage ?? "" } }
     : { base: { formula: "" }, alternate: { formula: "" } };
@@ -435,8 +417,7 @@ export function bindWeaponRow(row, id, cite) {
   if (range.short || range.medium || range.long) {
     system.range = { short: range.short ?? 0, medium: range.medium ?? 0, long: range.long ?? 0 };
   }
-  // The figures the page gave, as written: a reader tells a Judge's later edit
-  // of the document from the import's own figures by comparing against them.
+  // The figures the page gave, as written: the baseline a Judge's later edit is told from.
   const read = {
     size: system.size ?? null,
     melee,
@@ -454,8 +435,7 @@ export function bindWeaponRow(row, id, cite) {
     type: "weapon",
     img: DEFAULT_IMG.WEAPON,
     system,
-    // The capture the compendium lacked: all attack/damage modes on ONE item,
-    // and the sub-header the grid files the row under.
+    // All attack/damage modes on ONE item, and the sub-header the grid files the row under.
     flags: { [MODULE_ID]: { cookbook: { id, cite, read }, minted: true, weapon: { modes, block: row.block ?? null } } },
   };
 }
@@ -465,12 +445,9 @@ export function bindWeaponRow(row, id, cite) {
 /* -------------------------------------------------------------------- */
 
 /**
- * What a printed ammunition row holds, read off the seat's own label.
- *
- * The grid names an ammunition row for its load — the count and the thing
- * counted are both printed in the row's name — so neither has to be shipped:
- * the seat's extracted label is asked first and the canonical locator only
- * stands in for a label the page did not yield.
+ * What a printed ammunition row holds, read off the seat's own label: the count
+ * and the thing counted are both printed in the row's name. The canonical
+ * locator stands in only for a label the page did not yield.
  *
  * @returns {{count:number, of:string}|null} null when the label names no count.
  */
@@ -484,31 +461,18 @@ export function ammoLoad(row) {
 }
 
 /**
- * Build a core `item` from a row the grid types **Ammunition**.
+ * Build a core `item` from a row the grid types **Ammunition**: inventory, not
+ * a `weapon`, whose quantity is the printed count the ammunition tracker
+ * spends one of per shot. See docs/importer/DECISIONS.md, "The weapons grid
+ * prints three types, and ammunition is not a weapon". The two shapes differ in
+ * what the printed encumbrance covers:
  *
- * The grid prints three types, not two: beside Melee and Missile it files the
- * bolt case, the arrow quiver, the silver arrow and the sling stones as
- * Ammunition, with an em-dash where every weapon carries a die. A `weapon`
- * document cannot hold one of these. The type has no `quantity` field at all,
- * so the load can only ever live in the row's NAME where nothing can spend it;
- * and `damage` defaults to a die, so a case of bolts arrives as something to
- * swing. Ammunition is inventory, which is also the shape the rest of the
- * family already expects — `isAmmoItem` and `canBeSilvered` both read an
- * `item`.
- *
- * Either shape is a STACK whose quantity is the printed count, which is what
- * the ammunition tracker spends one of per shot. The two differ in what the
- * printed encumbrance covers:
- *
- *  - A **loaded device** — a case, a quiver — is sold packed, so the quiver IS
- *    the arrows: the count is its quantity and the printed encumbrance is the
- *    bundle's, carried WHOLE so what it weighs does not drift as it is spent.
- *    The equipment root stamps the bundle size (`gear.per`) that makes the
- *    weight count once, the way it does for the system's own quiver.
- *  - A **bare stack** — the silver arrow, the sling stones — has no device to
- *    carry that weight, so the printed encumbrance is divided across the units
- *    it was printed for and quantity multiplies it back. `weight6` is a plain
- *    NumberField, so the fraction survives.
+ *  - A **loaded device** (a case, a quiver) is sold packed: the printed
+ *    encumbrance is the bundle's, carried WHOLE. The equipment root stamps the
+ *    bundle size (`gear.per`) that makes the weight count once.
+ *  - A **bare stack** has no device to carry that weight, so the printed
+ *    encumbrance is divided across the units it was printed for and quantity
+ *    multiplies it back.
  *
  * @param {{name,label,cells}} row
  * @param {string} id cookbook id (def.weapon.<slug>)

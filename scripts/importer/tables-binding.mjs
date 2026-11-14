@@ -1,12 +1,10 @@
 /**
  * Table import binding: materialize ruledata tables from the seat's connected
  * PDFs and hand them to the lib `ruledata-import` contract (provider: the
- * location feature) at world priority. Other features then read them from
- * the lib's tables registry. No values ship — they are read here, live, from
- * the reader's book and persist only in their world.
- *
- * Tables MERGE into any doc already imported, so coverage can grow one book /
- * one table at a time without dropping what is already present.
+ * location feature) at world priority, where other features read them from the
+ * lib's tables registry. No values ship; they are read from the reader's book.
+ * Tables MERGE into any doc already imported, so coverage grows one book or
+ * one table at a time.
  */
 import { pageItems } from "./extract.mjs";
 import { extractTable, pdfGuess } from "./table-extract.mjs";
@@ -20,9 +18,7 @@ import { getLayer, missingRowKeys, PRIORITY } from "../lib/tables.mjs";
 
 /**
  * A page reader that extracts each (document, page) once for as long as it is
- * held. Extraction is the expensive step and every recipe's locate scans pages
- * outward from its guess, so recipes of one book re-read the same pages. A read
- * that rejects is forgotten, so the next recipe tries the page again.
+ * held. A read that rejects is forgotten, so the next recipe tries the page again.
  *
  * @returns {(doc: object, pageNo: number) => Promise<{items: object[]}>} the
  *   same shape as `pageItems`; the items are shared between callers, which
@@ -101,9 +97,8 @@ const valueBlockLocate = (recipe, block) =>
 
 /**
  * Every page search one recipe makes, as `[{id, args}]`: `args` is what the
- * import hands `locatePage`, and `id` names the block (null for the recipe
- * itself). A culture block that names a heading adds the heading's search as
- * `<cultureId>.heading`.
+ * import hands `locatePage`, `id` names the block (null for the recipe
+ * itself). A culture block naming a heading adds `<cultureId>.heading`.
  */
 export function recipeLocates(recipe) {
   if (recipe.valueBlocks) return recipe.valueBlocks.map((b) => ({ id: b.id, args: valueBlockLocate(recipe, b) }));
@@ -153,7 +148,7 @@ export function cultureNames(span, recipe, block) {
 /**
  * The tables layer `P` holds for `docId`, less any the layers beneath it supply
  * identically. Such a table changes no read, and keeping it would freeze the
- * lower layer's copy: a module's sample could no longer update through it.
+ * lower layer's copy.
  */
 export function ownTables(docId, P) {
   const beneath = {};
@@ -216,7 +211,6 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
   const P = priority ?? PRIORITY.WORLD;
   const report = { imported: [], missingBooks: new Set(), missingTables: [], incomplete: [] };
   const optionalBooks = new Set();
-  // One extraction per page for this call; the next call reads the books afresh.
   const read = pageReader();
   const bookMissing = (book, optional) => (optional ? optionalBooks : report.missingBooks).add(book);
 
@@ -294,9 +288,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     // pages that were opened and not a supplement's that was not.
     const readBlocks = {};
     for (const [tableId, recipe] of Object.entries(docRec.tables)) {
-      // Every path out of this body — imported, book missing, page not found,
-      // extraction threw — has consumed one recipe's worth of the run, so the
-      // report fires from a `finally` rather than being repeated at each exit.
+      // Every exit consumes one recipe's worth of the run, so progress reports from `finally`.
       try {
         if (recipe.valueBlocks) {
           const out = await runValueBlocks(recipe);
@@ -346,10 +338,9 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     }
     if (!Object.keys(fresh).length) continue;
 
-    // Merge over what the import itself holds for this doc (its own layer,
-    // `getLayer`), so partial coverage accumulates instead of replacing, and
-    // no override or sample is carried into it. A kept table keeps the page it
-    // was read from; a fresh one cites its recipe's.
+    // Merge over what the import itself holds for this doc (`ownTables`), so
+    // coverage accumulates and no other layer is carried into it. A kept table
+    // keeps the page it was read from; a fresh one cites its recipe's.
     const existing = ownTables(docId, P);
     const prior = getLayer(docId, P)?.cites ?? {};
     const cites = Object.fromEntries(Object.keys(existing).filter((k) => prior[k]).map((k) => [k, prior[k]]));
