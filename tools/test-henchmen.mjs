@@ -1129,6 +1129,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   // The wage tables the stand-in registry holds; invented, and empty until a check sets some.
   let wagesTables = {};
   const actors = new Map();
+  const transfers = [];
   globalThis.ChatMessage = { create: async (m) => { posted.push(m); return m; }, getSpeaker: () => ({}) };
   globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
   globalThis.ui = { notifications: { warn: (t) => warned.push(t), info() {}, error() {} } };
@@ -1169,7 +1170,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   };
   globalThis.Actor = { create: async (d) => { d.system.hp = { hd: "1d8", max: 4, value: 4 }; return makeActor("hire1", d); } };
   ns.lib = {
-    money: { transferCoin: async () => ({ ok: covered }), sinkCoin: async () => ({ ok: covered }), spendableGp: () => 0 },
+    money: { transferCoin: async (args) => { transfers.push(args); return { ok: covered }; }, sinkCoin: async () => ({ ok: covered }), spendableGp: () => 0 },
     tables: {
       getDoc: () => null,
       hasDoc: (d) => (d === "influence" && !!figures) || d === "wages",
@@ -1277,6 +1278,16 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     wagesTables = {};
     await quiet(() => hire.hire(location, "c2", employer));
     assert.strictEqual(recordOf().morale.base, null, "nothing imported: a specialist records none");
+
+    // The signing bonus is a Judge's payment only where the seat that made the
+    // hire declares it, never by default.
+    location.system.candidates.push({ ...candidate, id: "c6", status: "available" }, { ...candidate, id: "c7", status: "available" });
+    covered = true;
+    transfers.length = 0;
+    await quiet(() => hire.hire(location, "c6", employer, { signingBonusGp: 6 }));
+    assert.strictEqual(transfers.at(-1)?.judge, false, "a hire made with no declaration pays the bonus as a player's payment");
+    await quiet(() => hire.hire(location, "c7", employer, { signingBonusGp: 6, judge: true }));
+    assert.strictEqual(transfers.at(-1)?.judge, true, "a Judge's seat's hire pays it as the Judge's");
     Object.setPrototypeOf(HenchmanRecord, bareClass);
     Object.setPrototypeOf(HenchmanRecord.prototype, bareProto);
 

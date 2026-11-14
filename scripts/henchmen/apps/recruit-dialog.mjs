@@ -17,7 +17,7 @@ import { signingBonusCost } from "../rules/wages.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
 import { hire, updateCandidate, hireExistingActor, updateSpecialHire } from "../engine/hire.mjs";
 import * as adapter from "../acks-adapter.mjs";
-import { executeAsGM, registerHandler } from "../../lib/sockets.mjs";
+import { executeAsGM, registerHandler, judgeDeclares } from "../../lib/sockets.mjs";
 import { escape as esc } from "../../lib/util.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
 import { now } from "../time.mjs";
@@ -338,6 +338,9 @@ export async function handleHiringOutcomePayload(payload) {
       result: payload.result,
       signingGp: payload.signingGp,
       answers: Array.isArray(payload.answers) ? payload.answers : null,
+      // A hire the Judge's own seat applies, not one a player's request relayed
+      // to it: the signing bonus passes a reach refusal as a Judge's payment does.
+      judge: judgeDeclares(payload.requestUserId),
     });
   } finally {
     inFlightOutcomes.delete(key);
@@ -399,8 +402,8 @@ registerHandler("hiringOutcome", handleHiringOutcomePayload);
  * Hire an accepted candidate or special hire; when this seat cannot create the
  * actor, reserve the candidate and queue the hire for the next GM connect.
  */
-async function hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp }) {
-  const opts = { elan: outcome === "acceptElan", signingBonusGp: signingGp, origin: "market" };
+async function hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp, judge = false }) {
+  const opts = { elan: outcome === "acceptElan", signingBonusGp: signingGp, origin: "market", judge };
   const hired = specialHireId
     ? await hireExistingActor(location, specialHireId, employer, opts)
     : await hire(location, candidateId, employer, opts);
@@ -446,7 +449,7 @@ function slanderEntry(employer, npcName) {
  * party as one NPC does, and the heads who accepted are hired together, those
  * with élan apart from the rest. A signing bonus is paid per head hired.
  */
-async function handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers }) {
+async function handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers, judge = false }) {
   const row = (location.system.candidates ?? []).find((c) => c.id === candidateId);
   const plain = row ? (row.toObject?.() ?? foundry.utils.deepClone(row)) : null;
   if (!plain || plain.status !== "available") return;
@@ -480,16 +483,17 @@ async function handleBulkOutcome({ location, candidateId, employer, result, sign
       outcome: h.elan ? "acceptElan" : "accept",
       result,
       signingGp: (Number(signingGp) || 0) * h.quantity,
+      judge,
     });
   }
 }
 
-async function handleOutcome({ location, candidateId, specialHireId, employer, result, signingGp, answers = null }) {
+async function handleOutcome({ location, candidateId, specialHireId, employer, result, signingGp, answers = null, judge = false }) {
   const outcome = result.outcome;
   Hooks.callAll(HOOKS.HIRING_OUTCOME, { location, candidateId, specialHireId, employer, result, answers });
   if (candidateId && answers?.length) {
     const row = (location.system.candidates ?? []).find((c) => c.id === candidateId);
-    if ((Number(row?.quantity) || 1) > 1) return handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers });
+    if ((Number(row?.quantity) || 1) > 1) return handleBulkOutcome({ location, candidateId, employer, result, signingGp, answers, judge });
   }
 
   const pushRefusal = async (kind) => {
@@ -510,7 +514,7 @@ async function handleOutcome({ location, candidateId, specialHireId, employer, r
   switch (outcome) {
     case "acceptElan":
     case "accept": {
-      await hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp });
+      await hireOrQueue({ location, candidateId, specialHireId, employer, outcome, result, signingGp, judge });
       break;
     }
     case "tryAgain": {

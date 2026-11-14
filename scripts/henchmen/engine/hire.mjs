@@ -319,7 +319,7 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
       // The bonus lands in the new hire's hands (they were just added to the
       // roster, which is the reach); a hire that made no actor pays the till.
       // It is paid where the hire is made: coin on hand, or kept there.
-      { to: result?.actor ?? location, at: location, within: location },
+      { to: result?.actor ?? location, at: location, within: location, judge: !!opts.judge },
       result?.actor ?? null
     );
   }
@@ -428,7 +428,9 @@ function admitsHenchman(employer) {
  * @param {string} candidateId
  * @param {Actor} employer
  * @param {object} [opts] - { elan, irrefusable, signingBonusGp, baseLoyalty,
- *                            category, origin, skipLimit }
+ *                            category, origin, skipLimit, judge }; `judge` is
+ *   lib's `judgeDeclares` for the seat that made the hire, which lets the
+ *   signing bonus pass a reach refusal as a Judge's payment does
  * @returns {Promise<{actor: Actor}|{error: string}>}
  */
 export async function hire(location, candidateId, employer, opts = {}) {
@@ -624,7 +626,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     employer,
     opts.signingBonusGp,
     game.i18n.format("ACKS-HENCHMEN.hire.signingBonusReason", { name: actor.name }),
-    { to: actor, within: location },
+    { to: actor, within: location, judge: !!opts.judge },
     actor
   );
 

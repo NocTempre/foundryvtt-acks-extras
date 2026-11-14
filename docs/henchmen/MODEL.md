@@ -605,6 +605,12 @@ fire on the seat that ran the payday, which is the GM's when it was relayed.
 A signing bonus and a week's recruiting fee are paid where the hire is made:
 they state the market as their reach, so they draw on coin on hand and coin
 that market keeps for the employer.
+A hire applied on the Judge's own seat declares the signing bonus a Judge's payment
+(`judge`, from `judgeDeclares(payload.requestUserId)` in the hiring outcome
+handler), so a refusal of its reach is waived and told, as a posting's fee is. A
+hire a player's request relayed, and a queued hire materialized later
+(`materializePendingHires`, which replays a player's hire on the GM seat), pay as
+a player's.
 
 **The Judge's reminder.** With `wageReminders` on, every forward move of the
 world clock runs `checkWagesDue` on the seat that processes time (lib
