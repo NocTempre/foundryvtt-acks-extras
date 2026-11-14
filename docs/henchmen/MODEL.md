@@ -50,7 +50,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 | `blockedClasses[]` | Class keys THIS market never offers (`classBlocked`). Every class draw here passes them to `rollClassFromDistribution`, which draws again on one and ends on `special` after `BLOCKED_CLASS_DRAWS` draws; `rollMonthlyPool` refuses a search directed at one `class-blocked`. A GM-placed candidate's named class is placed. |
 | `desertRealm`, `compositeVariant` | Camel-troop gate; composite-vs-longbow either/or (RR 164). |
 | `postings[]` | One per paid search spec: monthly pool (`totalAvailable`), 3-week `arrivalPlan`, `feesPaid[]`, `monthStartTime`, `status`, `network` (searched with the employer's mercantile network). |
-| `candidates[]` | Plain records (NOT actors): identity, rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`, `networkFor` (only that employer's network reaches them). |
+| `candidates[]` | Plain records (NOT actors): identity (its `age` is the imported `people.ageByClass` minimum for the class's column plus a small variance of the module's own, and null without that table or that column's figure; the location sheet's Age cell is then blank), rolled attributes/class/level (feature 4 — recorded, not generated), wage, `availableFromTime`, `status`, `refusals[]`, `networkFor` (only that employer's network reaches them). |
 | `networkRolls[]` | One employer's roll of a segment at their network's class, once per market month: `{employerUuid, segment, monthStartTime, marketClass, total, detail}`. Cleared at the month roll. |
 | `slander[]` | Refuse-and-slander registry — the per-town slander count (RR 162). |
 | `searchLedger[]` | Fee history. |
@@ -319,6 +319,12 @@ is absent, blank or not a whole number answers null, the group stores null
 hire warns that the modifier is not imported. A Judge changes the figure in
 the Ruledata Browser's override layer. A group hired while it was unread keeps
 the null; it is not made up by a later import.
+
+Hire as Group stores each stack's base morale from `rules/wages.mjs >
+mercenaryMorale`, the troop type's own `wages.mercenaryWages` row (RR 166). A
+type with no imported figure answers null, the stack stores null
+(`unitMoraleOf` counts it as nothing) and the hire warns once that it is not
+imported.
 
 The Hireling Loyalty roll counts a henchman's levels of apparent difference,
 the employer level claimed at hire (`terms.claimedEmployerLevel`) less the

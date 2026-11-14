@@ -429,6 +429,20 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     });
   }
 
+  // A troop type's base morale is its imported row's figure, and null where
+  // nothing is imported for it: unknown, never zero. The rows are invented.
+  const { mercenaryMorale } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  withTables({ wages: { mercenaryWages: { rows: [{ type: "troopA", morale: -1, wages: {} }, { type: "troopB", morale: 0, wages: {} }, { type: "troopC", wages: {} }, { type: "troopD", morale: "2", wages: {} }] } } }, () => {
+    assert.strictEqual(mercenaryMorale("troopA"), -1, "a type takes its row's figure");
+    assert.strictEqual(mercenaryMorale("troopB"), 0, "zero is a figure");
+    assert.strictEqual(mercenaryMorale("troopC"), null, "a row with no figure is unread, not zero");
+    assert.strictEqual(mercenaryMorale("troopD"), null, "a figure read as text is unread");
+    assert.strictEqual(mercenaryMorale("troopE"), null, "a type with no row is unread");
+  });
+  for (const [docs, label] of [[{}, "nothing imported"], [{ wages: { mercenaryWages: {} } }, "an empty table"]]) {
+    withTables(docs, () => assert.strictEqual(mercenaryMorale("troopA"), null, `${label}: no base morale`));
+  }
+
   // The fallback throw carries no figure of its own for the count.
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const row = THROWS_DATA.throws.hirelingLoyalty.modifiers.find((m) => m.id === "apparentLevelDiff");
@@ -1123,6 +1137,13 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(generateAge(zero, 2, "marsh warden"), 30, "a level between rows holds the row below it");
     assert.strictEqual(generateAge(zero, 40, "marsh warden"), 35, "a level past the last imported row holds that row, with no ceiling of its own");
     assert.strictEqual(generateAge(zero, 40, "lamplighter"), 25);
+    assert.strictEqual(generateAge(() => 0.99, 1, "lamplighter"), 26, "the variance rides on the imported minimum");
+    assert.strictEqual(generateAge(zero, 1, "thief"), null, "a class whose column has no imported figure has no age, not a default");
+    assert.strictEqual(generateAge(zero, 0, "lamplighter"), null, "a level below the table's first row has no age");
+    ns.lib.tables.getTable = (doc, id) => (id === "cultures" ? { list: cultures } : null);
+    assert.strictEqual(generateAge(zero, 1, "lamplighter"), null, "no age table imported: no age");
+    ns.lib.tables.getTable = (doc, id) => (id === "ageByClass" ? { rows: [] } : null);
+    assert.strictEqual(generateAge(zero, 1, "lamplighter"), null, "an empty age table: no age");
   } finally {
     ns.classes = saved.classes;
     ns.lib = saved.lib;
@@ -1210,6 +1231,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     const drawn = only("alpha");
     assert.strictEqual(drawn.culture, "alpha", "the one weighted culture is the one drawn");
     assert.strictEqual(drawn.cultureLabel, "Test Culture A", "the label is the entry's own");
+    assert.strictEqual(drawn.age, null, "with no age table imported the identity carries no age, and so no age-banded proficiency count");
     assert.ok(cultures.alpha.male.includes(drawn.name.split(" ")[0]), "the given name comes from the culture's list");
     assert.strictEqual(only("gamma").cultureLabel, "gamma", "an entry with no label falls to its id, never a stand-in word");
     assert.strictEqual(raceOfCulture("beta"), "reptile", "a culture's declared race is read from its entry");

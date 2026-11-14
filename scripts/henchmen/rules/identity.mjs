@@ -194,22 +194,24 @@ function ageColumnFor(classKey) {
 }
 
 /**
- * Plausible age for a candidate of a level/class: the JJ minimum for the
- * class group plus small variance; 0th level = young adult. A column with
- * an open-ended top bracket holds its cap value for higher levels. When the
- * age table has not been imported, every candidate is a young adult (18+).
+ * Plausible age for a candidate of a level/class: the imported JJ minimum for
+ * the class group plus a small variance of the module's own. A column with an
+ * open-ended top bracket holds its cap value for higher levels. Null, no age,
+ * where the age table is not imported or holds no figure for the class's
+ * column at or below the level.
  */
 export function generateAge(rand, level, classKey) {
   const rows = optTable("people", "ageByClass")?.rows;
-  if (!rows?.length) return 18 + Math.floor(rand() * 7);
+  if (!rows?.length) return null;
   const column = ageColumnFor(classKey);
   const L = Math.max(0, Number(level) || 0);
   // The highest imported row at or below the level: a level past the table's
   // last row holds that row's age.
   const held = rows.filter((r) => Number.isInteger(r.level) && r.level <= L && r[column] != null).sort((a, b) => b.level - a.level)[0];
-  const base = held?.[column] ?? null;
+  const base = held?.[column];
+  if (!Number.isFinite(base)) return null;
   const variance = Math.floor(rand() * 7); // +0..6 years past the minimum
-  return (Number(base) || 18) + variance;
+  return base + variance;
 }
 
 /**
@@ -331,7 +333,7 @@ export function generateOccupation(rand, race = "human") {
  * Generate a full identity for one candidate.
  * @param {object} o - { rand, demographics, level, classKey }
  *   For 0th level with no classKey: rolls occupation + class trajectory.
- * @returns {{name, gender, culture, cultureLabel, age, appearance,
+ * @returns {{name, gender, culture, cultureLabel, age (null: not imported), appearance,
  *            occupation, occupationCategory, classKey}}
  */
 export function generateIdentity({ rand = Math.random, demographics = [], level = 0, classKey = "", station = "commoner" } = {}) {

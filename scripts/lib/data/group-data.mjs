@@ -82,10 +82,11 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
         }),
         // Troops addendum (skirmish scale). `mounted` bodies count DOUBLE toward
         // the RR 169 command capacity (a platoon is 30 infantry OR 15 cavalry).
-        // `baseMorale` is this troop type's RR 166 base (−2..+2, demi-humans +1);
-        // the consumer sets both from the mercenary rules at hire.
+        // `baseMorale` is this troop type's RR 166 base; the consumer sets both
+        // from the mercenary rules at hire. It is null while the figure is not
+        // imported, and `unitMoraleOf` counts a null as adding nothing.
         mounted: new foundry.data.fields.BooleanField({ initial: false }),
-        baseMorale: int(0, { min: -4, max: 4 }),
+        baseMorale: new NumberField({ required: false, nullable: true, integer: true, initial: null, min: -4, max: 4 }),
         /** The sparse roster: one entry per body that has diverged. See docs/lib/GROUPS.md, "The laziness invariant". */
         roster: new ArrayField(
           new SchemaField({
@@ -289,7 +290,8 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
   }
 
   /** One stack's effective morale: its troop-type base + the shared leader
-   *  modifiers (employer + officer), held to the same range (RR 166). */
+   *  modifiers (employer + officer), held to the same range (RR 166). A base
+   *  not imported at hire is null and counts as nothing. */
   unitMoraleOf(stack) {
     return clampScore((stack?.baseMorale ?? 0) + this.commandMorale, moraleBounds(ACTOR_TYPE.character));
   }

@@ -40,11 +40,15 @@ export function mercenaryWage(troopType, race = "man") {
   return row.wages[race] ?? null;
 }
 
-/** Base morale for a mercenary troop type (+1 for demi-humans). */
-export function mercenaryMorale(troopType, demiHuman = false) {
+/**
+ * Base morale for a mercenary troop type (RR 166), read from its imported
+ * `wages.mercenaryWages` row, or null where the table or the type's row is not
+ * imported or the row's figure is blank or not a whole number. Null is
+ * unknown, never zero.
+ */
+export function mercenaryMorale(troopType) {
   const row = (optTable("wages", "mercenaryWages")?.rows ?? []).find((r) => r.type === troopType);
-  if (!row) return 0;
-  return row.morale + (demiHuman ? 1 : 0);
+  return Number.isInteger(row?.morale) ? row.morale : null;
 }
 
 /**

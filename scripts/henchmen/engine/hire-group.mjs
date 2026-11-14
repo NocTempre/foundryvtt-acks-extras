@@ -130,6 +130,7 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
 
   // Troops → counted merc stacks (one hidden prototype each).
   const stacks = [];
+  let baseMoraleUnread = false;
   for (const pick of troops) {
     const candidate = getCandidate(location, pick.candidateId);
     if (!candidate || candidate.status === "hired") continue;
@@ -143,7 +144,10 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
       stacks.push(key);
       // Mounted weight (command capacity) and RR 166 base morale.
       const mounted = MOUNTED_TYPES.has(candidate.troopType);
-      const baseMorale = mercenaryMorale(candidate.troopType) ?? 0;
+      // An unread base is stored as null (unknown), never as a 0 that claims
+      // the troop type adds nothing, and the hire says so once.
+      const baseMorale = mercenaryMorale(candidate.troopType);
+      if (baseMorale === null) baseMoraleUnread = true;
       await groups.patchStack(group, key, (s) => {
         if (candidate.troopType) s.template.label = candidate.troopType;
         s.mounted = mounted;
@@ -152,6 +156,7 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     }
     await takeCandidateHeads(location, pick.candidateId, count);
   }
+  if (baseMoraleUnread) ui.notifications?.warn(game.i18n.localize("ACKS-HENCHMEN.group.baseMoraleNotImported"));
 
   // Officer: a lone leveled actor, linked as commander, with the RR 171 morale
   // modifier and level cached on the group.
