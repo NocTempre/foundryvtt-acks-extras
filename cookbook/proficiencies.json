@@ -4753,6 +4753,32 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "vsKinds": [
+                "kobold",
+                "goblin",
+                "hobgoblin",
+                "orc",
+                "gnoll",
+                "bugbear",
+                "ogre",
+                "troll",
+                "giant"
+              ],
+              "from": {
+                "on": "level",
+                "pairs": true,
+                "pattern": "\\+\\s*(\\d+)\\s*on\\s*attack\\s*throws[\\s\\S]{0,160}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
+              }
+            }
+          ]
         }
       }
     },
@@ -5089,6 +5115,27 @@
                   1,
                   2
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "vsKinds": [
+                "human",
+                "elf",
+                "dwarf",
+                "gnome"
+              ],
+              "from": {
+                "on": "level",
+                "pairs": true,
+                "pattern": "\\+\\s*(\\d+)\\s*on\\s*attack\\s*throws[\\s\\S]{0,160}?At\\s*level\\s*(\\d+)[\\s\\S]{0,40}?to\\s*\\+\\s*(\\d+)[\\s\\S]{0,60}?at\\s*level\\s*(\\d+)[\\s\\S]{0,60}?to\\s*\\+\\s*(\\d+)"
               }
             }
           ]
@@ -9430,6 +9477,43 @@
                   6,
                   7
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "vsKinds": [
+                "ooze",
+                "vermin"
+              ],
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*hit"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "save",
+              "mode": "add",
+              "vsKinds": [
+                "ooze",
+                "vermin"
+              ],
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*to\\s*saving\\s*throws"
+              }
+            },
+            {
+              "type": "throw",
+              "roll": "1d20",
+              "rollType": "above",
+              "from": {
+                "pattern": "proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
               }
             }
           ]

@@ -12,6 +12,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { citeFor } from "../../scripts/importer/books.mjs";
+import { materializeEffects } from "../../scripts/importer/executor.mjs";
+import { kindOf } from "../../scripts/influence/racial.mjs";
+import { MONSTER_TYPES } from "../../scripts/monsters/config.mjs";
 import { inCropOf, isLinkRow, isSceneRecipe, isZoneRow, linkBoxOnFirstStorey } from "../../scripts/importer/scene-binding.mjs";
 
 const COOKBOOK = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "cookbook");
@@ -264,6 +267,35 @@ for (const e of monsters) {
     (p) => (p.section === "encounter" || p.section === "lair") && p.box.x0 < sp.box.x1 && sp.box.x0 < p.box.x1 && p.box.y0 < sp.box.y1,
   );
   check(`${e.id}: every encounter or lair paragraph sharing the spoils column sits below the spoils box${above.length ? ` — ${above.length} do not` : ""}`, above.length === 0);
+}
+
+/* A slayer proficiency's bonus is scoped to the kinds it works against and
+ * sized off the page: its recipe carries `vsKinds` in the vocabulary a target's
+ * kind is read in, and a locator where the size would be, never a literal. */
+{
+  const MONSTER_KIND = (token) => !!MONSTER_TYPES[token] || kindOf({ type: "monster", name: token }).categories.has(token);
+  const CHARACTER_KIND = (token) => kindOf({ type: "character", system: { details: { class: token } } }).categories.has(token);
+  for (const id of ["def.prof.goblinSlaying", "def.prof.kinSlaying", "def.prof.verminSlaying"]) {
+    const specs = entries.get(id)?.fields?.effects?.specs ?? [];
+    const scoped = specs.filter((s) => s.type === "modifier" && s.vsKinds?.length);
+    check(`${id}: carries a scoped modifier recipe`, scoped.length > 0);
+    for (const s of scoped) {
+      check(`${id}: the ${s.target} modifier reads its size off the page`, !!s.from?.pattern && !("value" in s));
+      check(
+        `${id}: every kind the ${s.target} modifier is scoped to is one a target is typed by`,
+        s.vsKinds.every((token) => MONSTER_KIND(token) || CHARACTER_KIND(token)),
+      );
+    }
+  }
+  // The shipped ladder locator materializes a rung per step, over invented prose that matches its shape.
+  const goblin = entries.get("def.prof.goblinSlaying").fields.effects.specs[0];
+  const prose = ["The character gets +4 on attack throws against wombats and the like. At level 5, this bonus rises to +6, and at level 9 it rises to +8."];
+  const [ladder] = materializeEffects([goblin], prose);
+  check(
+    "a ladder recipe reads every step off the prose",
+    JSON.stringify(ladder?.value?.breakpoints) === JSON.stringify([{ atLevel: 1, value: 4 }, { atLevel: 5, value: 6 }, { atLevel: 9, value: 8 }]),
+  );
+  check("and keeps its scope", ladder.vsKinds.length === goblin.vsKinds.length && ladder.target === "attackThrow");
 }
 
 console.log(`\ntest-cookbook-coherence: all ${pass} checks passed`);
