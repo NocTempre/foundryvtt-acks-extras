@@ -680,7 +680,7 @@ export async function processVentureActions(location, log, t) {
       const believe = (category, dm) => beliefs.push({ category, dm });
       // A partial picture is goods of the trader's choosing, and a false one
       // must look the same: both leave picks on the report, and the trader's
-      // choice writes the beliefs (`chooseGoods`, true or wrong as stored).
+      // choice writes each good awaiting the Judge (`chooseGoods`).
       let picks = 0;
       if (outcome === "success") {
         for (const m of catalog) believe(m.key, trueDm(goods, m.key));

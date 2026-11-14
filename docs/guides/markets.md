@@ -214,12 +214,14 @@ their sheet) has a **Trade** tab: Research lists the party's reports by
 market, and Compare sets two markets side by side on believed demand only.
 A report can be opened and annotated, given to another character of the
 party, or discarded. A market's own Ventures tab lists the reports held
-about it. A false assessment is a report with wrong beliefs; only the Judge's copy
-says so.
+about it. A false assessment is a report whose figures the Judge supplies;
+only the Judge's copy says so.
 
-**A partial assessment leaves the choice to the trader.** A partial result of
-**Assess supply & demand** leaves the report holding a number of picks; its
-owner chooses the goods on the report sheet and learns their modifiers then
+**A partial assessment leaves the choice to the trader, and the Judge answers
+it.** A partial result of **Assess supply & demand** leaves the report holding a
+number of picks; its owner chooses the goods on the report sheet (character
+sheet → Trade tab → Research → the report's sheet). Every chosen good reads
+"Awaiting the Judge" until the Judge answers it, and then shows its modifier
 (RR ch. 8, Assessing Supply and Demand). A false result asks the same choice
 and looks the same, but the modifiers it gives are wrong. The assessment card
 links the report.

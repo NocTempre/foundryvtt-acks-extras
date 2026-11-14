@@ -626,17 +626,30 @@ house the run made, the reports go with it.
 8. Delete the market M2 actor.
    *Observable:* its reports remain and are listed under the snapshot name
    they carry; nothing throws when the tab opens.
-9. Choosing the goods. GM seat: `writeReport` a `partial` report for M1
-    stamped to A with `beliefs: []` and `picks: 2`, and a `false` one with
-    `picks: 1` (track both). Player seat: open the partial one from the Trade
-    tab.
-    *Observable:* a "Choose 2 good(s)" box lists every catalogue good. Tick
-    three and press Learn these: a warning, nothing written. Tick two: the
-    beliefs table shows them at M1's true modifiers, `system.picks` is 0 and
-    the box is gone. On the false report, the chosen good's modifier differs
-    from M1's by 1 to 3, and the player seat reads its outcome as Partial
-    throughout. A seat that does not own A calling `performChoose` gets
-    `notYours`, and nothing is written.
+9. Choosing the goods and the Judge's answer. Fixtures: character A (Player
+    seat), the town `markets/report-town` (M1), and two reports stamped to A, a
+    `partial` one with `beliefs: []` and `picks: 2` and a `false` one with
+    `picks: 1`, each marked `markets/report-<n>` (the `writeReport` calls are
+    GM-seat and tracked).
+    1. Player seat: open the partial report from the Trade tab, tick three and
+       press Learn these. *Observable:* a warning, nothing written. Tick two and
+       press it again: the "Choose 2 good(s)" box is gone, `system.picks` is 0,
+       both goods read "Awaiting the Judge" with no figure and their `dm` is
+       `null`. Open the false report and learn one good: the same, and the
+       outcome reads Partial on both sheets. Each sheet's Research chips and the
+       market's "Reports held here" row read "awaiting the Judge". The GM seat
+       is whispered one card per choice (trader, goods, outcome, each good's
+       market figure, a link to the report); the player seat sees none.
+    2. GM seat: open the partial report and press "Answer from the market".
+       *Observable:* each good shows the market's modifier now and `dm` holds
+       it; the button is gone. On the false report the button is absent; type
+       5 in a good's field and `dm === 5`; clear it and `dm` is `null` again.
+       `answerFromMarket` on the false report answers `falseReport`.
+    3. Player seat: both reports show their figures. *Observable:* the figure's
+       tooltip reads "from the report assessed {day} by {assessor}" on both,
+       from the same template, and nothing in either tells the false one apart.
+    4. `performChoose` from a seat that does not own A answers `notYours`, and
+       nothing is written.
 
 ## The venture queue walk (assess on the influence page, withdraw, leave, history)
 

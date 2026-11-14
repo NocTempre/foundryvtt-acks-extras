@@ -1,19 +1,41 @@
 /* global foundry, game, ui, fromUuid */
 import { MODULE_ID, LANG, REPORT_TYPE } from "../constants.mjs";
 import { merchandiseCatalog, merchandiseFor } from "../engine/merchandise.mjs";
-import { plainReport, performNotes, performChoose } from "../engine/trade-objects.mjs";
+import { plainReport, performNotes, performChoose, answerFromMarket } from "../engine/trade-objects.mjs";
 import { ownerOf, resolveActorSync } from "../../lib/storage.mjs";
-import { REPORT_OUTCOMES, shownOutcome, htmlToNotes } from "../rules/reports.mjs";
+import { REPORT_OUTCOMES, shownOutcome, htmlToNotes, isAwaiting, dmLabel, storedDm, beliefTip } from "../rules/reports.mjs";
+import { trueDemand } from "../rules/demand.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
 const t = (key, data) => (data ? game.i18n.format(`${LANG}.report.${key}`, data) : game.i18n.localize(`${LANG}.report.${key}`));
-const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 /** A good's display name: the catalogue's label (a Judge's own good included), else its key. */
 export const goodName = (category) => merchandiseFor(category)?.label ?? category;
+
+/**
+ * The tooltip one belief's figure carries, worded from `beliefTip`. The market's
+ * demand is read only for the Judge; a market that no longer resolves says so
+ * where the figure would be.
+ * @param {object} belief          A plain belief: `{category, dm}`.
+ * @param {object} o
+ * @param {string} o.outcome       The report's stored outcome.
+ * @param {boolean} o.isGM
+ * @param {object|null} o.goods    The market's goods record, or null when the market is gone.
+ * @param {string} o.day           The day the report was assessed, worded.
+ * @param {string} o.assessor      The assessor's name, or empty.
+ * @returns {string}
+ */
+export function beliefTipText(belief, { outcome, isGM, goods, day, assessor }) {
+  const truth = isGM ? (goods ? dmLabel(trueDemand(goods, belief.category)) : t("tip.noMarket")) : "";
+  const { key, data } = beliefTip({ awaiting: isAwaiting(belief), isGM, outcome, truth, day, assessor: assessor || "—" });
+  return t(key, data);
+}
+
+/** The figure a belief shows a reader: the signed modifier, or the waiting word while the Judge has not answered. */
+export const beliefFigure = (belief) => dmLabel(belief.dm) ?? t("awaiting");
 
 /** The outcome's display label, masked for a non-GM. */
 export const outcomeLabel = (outcome, isGM) => game.i18n.localize(`${LANG}.report.outcome.${shownOutcome(outcome, isGM)}`);
@@ -37,7 +59,8 @@ export function ownsReport(item, user = game.user) {
  * plain window and nothing on it submits through the document. The owner (or
  * the Judge) saves their notes and chooses the goods a partial assessment left
  * to choose, both through the GM relay; the Judge alone edits the outcome and
- * the believed modifiers. The stored outcome `false` is shown to a non-GM as
+ * the believed modifiers, and answers the goods the owner chose (each shows
+ * "awaiting" until then). The stored outcome `false` is shown to a non-GM as
  * partial, on every surface.
  */
 export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
@@ -46,7 +69,7 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
     position: { width: 480, height: 560 },
     tag: "div",
     window: { resizable: true },
-    actions: { saveNotes: ReportSheet.#onSaveNotes, chooseGoods: ReportSheet.#onChooseGoods },
+    actions: { saveNotes: ReportSheet.#onSaveNotes, chooseGoods: ReportSheet.#onChooseGoods, answerFromMarket: ReportSheet.#onAnswerFromMarket },
   };
 
   static PARTS = {
@@ -80,13 +103,18 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
       label: game.i18n.localize(`${LANG}.report.outcome.${value}`),
       selected: value === report.outcome,
     }));
+    const goods = (market?.actor ?? market)?.system?.market?.goods ?? null;
     context.beliefs = report.beliefs.map((belief, index) => ({
       index,
       category: belief.category,
       label: goodName(belief.category),
       dm: belief.dm,
-      dmLabel: signed(belief.dm),
+      pending: isAwaiting(belief),
+      dmLabel: dmLabel(belief.dm),
+      tip: beliefTipText(belief, { outcome: report.outcome, isGM, goods, day: context.dayLabel, assessor: context.assessorName }),
     }));
+    // The Judge's one-click answer: a good awaiting, a market to read, and an outcome whose figures are not the Judge's to type.
+    context.canAnswer = isGM && report.outcome !== "false" && !!goods && context.beliefs.some((b) => b.pending);
     context.canEditNotes = canEditNotes;
     // The goods still to be chosen: every catalogue good the report holds no belief for.
     const believed = new Set(report.beliefs.map((b) => b.category));
@@ -117,7 +145,7 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
       input.addEventListener("change", () => {
         const beliefs = this.item.system.beliefs.map((b) => ({ category: b.category, dm: b.dm }));
         const row = beliefs[Number(input.dataset.index)];
-        if (row) row.dm = Math.round(Number(input.value) || 0);
+        if (row) row.dm = storedDm(input.value);
         return this.item.update({ "system.beliefs": beliefs });
       });
     }
@@ -131,6 +159,13 @@ export default class ReportSheet extends HandlebarsApplicationMixin(ItemSheetV2)
     if (chosen.length > picks) return ui.notifications.warn(t("error.tooMany", { left: picks }));
     const result = await performChoose(this.item, chosen);
     if (result?.error) ui.notifications.warn(t(`error.${result.error}`, { left: result.left ?? picks }));
+    else if (result?.ok) this.render();
+  }
+
+  /** The Judge answers every awaiting good with the market's demand now. */
+  static async #onAnswerFromMarket() {
+    const result = await answerFromMarket(this.item);
+    if (result?.error) ui.notifications.warn(t(`error.${result.error}`));
     else if (result?.ok) this.render();
   }
 

@@ -43,16 +43,25 @@
           <th scope="row">{{label}}</th>
           <td class="acks-extras-markets-report-num">
             {{#if @root.isGM}}
-            <label class="acks-extras-markets-report-inline">
+            <label class="acks-extras-markets-report-inline" data-tooltip-text="{{tip}}">
               <span class="acks-extras-markets-report-sr">{{label}}</span>
               <input type="number" step="1" value="{{dm}}" data-report-dm data-index="{{index}}">
             </label>
-            {{else}}{{dmLabel}}{{/if}}
+            {{#if pending}}<span class="acks-extras-markets-report-awaiting" data-tooltip-text="{{tip}}">{{localize "ACKS-MARKETS.report.awaiting"}}</span>{{/if}}
+            {{else}}
+            {{#if pending}}<span class="acks-extras-markets-report-awaiting" data-tooltip-text="{{tip}}">{{localize "ACKS-MARKETS.report.awaiting"}}</span>
+            {{else}}<span data-tooltip-text="{{tip}}">{{dmLabel}}</span>{{/if}}
+            {{/if}}
           </td>
         </tr>
         {{/each}}
       </tbody>
     </table>
+    {{#if canAnswer}}
+    <button type="button" class="acks-extras-markets-report-save" data-action="answerFromMarket">
+      <i class="fa-solid fa-scale-balanced" inert></i> {{localize "ACKS-MARKETS.report.answer.button"}}
+    </button>
+    {{/if}}
     {{else}}
     <p class="acks-extras-markets-report-hint">{{localize "ACKS-MARKETS.report.noBeliefs"}}</p>
     {{/if}}
@@ -60,6 +69,7 @@
     {{#if canChoose}}
     <fieldset class="acks-extras-markets-report-choose">
       <legend>{{localize "ACKS-MARKETS.report.choose.legend" n=picks}}</legend>
+      <p class="acks-extras-markets-report-hint">{{localize "ACKS-MARKETS.report.choose.hint"}}</p>
       <ul class="acks-extras-markets-report-choices">
         {{#each chooseOptions}}
         <li>

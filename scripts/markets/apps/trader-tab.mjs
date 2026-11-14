@@ -1,4 +1,4 @@
-/* global game, ui, foundry, fromUuid */
+/* global game, ui, foundry, fromUuid, fromUuidSync */
 /**
  * The Trade tab on the character sheet, for a trader (the sheet owns the tab
  * strip and one mount line per hook; markets owns what the tab prepares and
@@ -19,10 +19,10 @@ import { hasEffectFlag } from "../../henchmen/effects.mjs";
 import { partyOf, partyMembers } from "../engine/parties.mjs";
 import { merchandiseFor } from "../engine/merchandise.mjs";
 import { objectsOf, allReports, plainReport, performGive, performRetire } from "../engine/trade-objects.mjs";
-import { beliefsFor, compareBeliefs, groupByMarket, heldByParty, isTraderProfile } from "../rules/reports.mjs";
+import { beliefsFor, compareBeliefs, groupByMarket, heldByParty, isTraderProfile, isAwaiting, dmLabel } from "../rules/reports.mjs";
 import { historyRows, historyNetGp } from "../rules/ledger.mjs";
 import { resolveActorSync } from "../../lib/storage.mjs";
-import { outcomeLabel, reportDay, ownsReport } from "./report-sheet.mjs";
+import { outcomeLabel, reportDay, ownsReport, beliefTipText, beliefFigure } from "./report-sheet.mjs";
 
 /** Every market's ledger, as the history reader takes them. */
 export function marketLedgers() {
@@ -41,8 +41,17 @@ export function historyContext(rows) {
 }
 
 const loc = makeLoc(LANG);
-const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 const goodName = (category) => merchandiseFor(category)?.label ?? category;
+
+/** A market's goods record, read without awaiting; null when the market no longer resolves. */
+function marketGoodsSync(marketUuid) {
+  try {
+    const doc = marketUuid ? fromUuidSync(marketUuid) : null;
+    return (doc?.actor ?? doc)?.system?.market?.goods ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Dialog classes every prompt this tab opens carries (the scroll contract). */
 const DIALOG_CLASSES = ["acks-ui", "acks-extras", "acks-extras-scroll"];
@@ -100,14 +109,25 @@ export function buildTraderTab(actor, { compare = null } = {}) {
     marketName: group.marketName,
     reports: group.reports.map((r) => {
       const item = items.find((i) => i.uuid === r.uuid);
+      const when = reportDay(r.time);
+      const assessorName = resolveActorSync(r.assessorUuid)?.name ?? "";
+      // Only the Judge's tooltips read the market's demand.
+      const goods = isGM ? marketGoodsSync(r.marketUuid) : null;
+      const awaiting = r.beliefs.filter(isAwaiting).length;
       return {
         uuid: r.uuid,
-        when: reportDay(r.time),
-        assessorName: resolveActorSync(r.assessorUuid)?.name ?? "",
+        when,
+        assessorName,
         ownerName: r.ownerName,
         outcomeLabel: outcomeLabel(r.outcome, isGM),
         count: r.beliefs.length,
-        beliefs: r.beliefs.map((b) => ({ label: goodName(b.category), dm: signed(b.dm) })),
+        awaitingLabel: awaiting ? loc("report.awaitingCount", { n: awaiting }) : "",
+        beliefs: r.beliefs.map((b) => ({
+          label: goodName(b.category),
+          dm: beliefFigure(b),
+          pending: isAwaiting(b),
+          tip: beliefTipText(b, { outcome: r.outcome, isGM, goods, day: when, assessor: assessorName }),
+        })),
         // The Judge always may; a player only on a report stamped to a character they own.
         canManage: !!item && ownsReport(item),
       };
@@ -138,9 +158,9 @@ export function buildTraderTab(actor, { compare = null } = {}) {
       nameB: markets.find((m) => m.uuid === b)?.name ?? "",
       rows: rows.map((r) => ({
         label: goodName(r.category),
-        a: r.a === null ? "—" : signed(r.a),
-        b: r.b === null ? "—" : signed(r.b),
-        diff: r.diff === null ? "—" : signed(r.diff),
+        a: dmLabel(r.a) ?? "—",
+        b: dmLabel(r.b) ?? "—",
+        diff: dmLabel(r.diff) ?? "—",
       })),
     },
   };

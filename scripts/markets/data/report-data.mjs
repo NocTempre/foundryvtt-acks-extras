@@ -8,8 +8,9 @@ import { REPORT_OUTCOMES } from "../rules/reports.mjs";
  *
  * The item is non-physical (no `cost`, no `weight6`) and lives on the trade
  * house, stamped with its owner through `lib/storage`. It holds only what its
- * owner believes: a false assessment is stored as a report whose beliefs are
- * wrong, and the true demand never enters it.
+ * owner believes: a good the owner chose waits with a null modifier until the
+ * Judge answers it (a false assessment's figure is the Judge's own), so the
+ * item never holds more than its owner has been told.
  */
 export default class MarketReportData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -36,11 +37,14 @@ export default class MarketReportData extends foundry.abstract.TypeDataModel {
       /** How the assessment went; `false` is never shown to a non-GM. */
       outcome: new fields.StringField({ required: true, blank: false, initial: REPORT_OUTCOMES[0], choices: [...REPORT_OUTCOMES] }),
 
-      /** The demand modifier believed for each good, by catalogue key. */
+      /**
+       * The demand modifier believed for each good, by catalogue key. A null
+       * `dm` is a good the trader chose that the Judge has not answered yet.
+       */
       beliefs: new fields.ArrayField(
         new fields.SchemaField({
           category: new fields.StringField({ required: true, blank: false }),
-          dm: new fields.NumberField({ required: true, integer: true, initial: 0 }),
+          dm: new fields.NumberField({ required: true, nullable: true, integer: true, initial: null }),
         }),
         { initial: [] },
       ),

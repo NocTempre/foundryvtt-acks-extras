@@ -99,6 +99,12 @@
   font-weight: bold;
 }
 
+/* A belief the Judge has not answered reads as a waiting word, not a figure. */
+.acks-extras-markets-demand-chip.is-awaiting {
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
 /* The Demand Generator. The state form submits on change and re-renders, so
    the body is the scroll part and the footer stays pinned beneath it. Sizes
    that live in boxes are em, so the type knob reaches the boxes as well as the
@@ -355,6 +361,12 @@
 
 .acks-extras-markets-report-hint {
   color: var(--acks-ink-soft);
+}
+
+.acks-extras-markets-report-awaiting {
+  color: var(--acks-ink-soft);
+  font-style: italic;
+  font-size: var(--acks-fs-fine);
 }
 
 .acks-extras-markets-report-notes {

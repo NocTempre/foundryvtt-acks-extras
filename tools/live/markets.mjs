@@ -755,6 +755,7 @@ const P = {
     const item = fromUuidSync(uuid);
     return { ticked: [...el.querySelectorAll("[data-report-choose]:checked")].map((b) => b.value), boxPresent: !!el.querySelector("fieldset.acks-extras-markets-report-choose"), legend: H.text(el.querySelector("fieldset.acks-extras-markets-report-choose legend")), notes: H.takeNotes(), picks: item?.system.picks ?? null, beliefs: (item?.system.beliefs ?? []).map((b) => ({ category: b.category, dm: b.dm })), outcomeText: H.text(el.querySelector("dl, .acks-extras-markets-report-head") ?? el).slice(0, 300), text: H.text(el).slice(0, 500) };
   },
+  answerFromMarket: async ({ uuid }) => { const item = fromUuidSync(uuid); const r = await globalThis.__c2.M.tradeObjects.answerFromMarket(item); return { ok: !!r?.ok, answered: r?.answered ?? null, error: r?.error ?? null, beliefs: (item?.system.beliefs ?? []).map((b) => ({ category: b.category, dm: b.dm })) }; },
   performChoose: async ({ uuid, keys }) => { const r = await globalThis.__c2.M.tradeObjects.performChoose(fromUuidSync(uuid), keys); return { ok: !!r?.ok, error: r?.error ?? null, picks: fromUuidSync(uuid)?.system.picks ?? null }; },
   fillLedger: async ({ locationId, n }) => {
     const loc = game.actors.get(locationId);
@@ -2138,14 +2139,18 @@ try {
   const learned = await run(player, P.reportSheetState, { uuid: rP.uuid, tick: [keys.X, keys.Y], learn: true });
   note("two ticked, Learn", { picks: learned.picks, beliefs: learned.beliefs, boxPresent: learned.boxPresent, notes: learned.notes });
   const dmOf = (list, k) => list.find((b) => b.category === k)?.dm;
-  check("10: the partial report's box asks for 2 goods over every catalogue good; three ticked warns and writes nothing; two ticked are learned at the market's true modifiers, picks is 0 and the box is gone", o10.opened && /Choose 2 good\(s\)/.test(o10.legend) && o10.options === o10.catalog && o10.options >= 3 && over.notes.some((n) => /no more than 2/.test(n.text)) && over.picks === 2 && over.beliefs.length === 0 && two.ticked.length === 2 && learned.picks === 0 && dmOf(learned.beliefs, keys.X) === 2 && dmOf(learned.beliefs, keys.Y) === -1 && !learned.boxPresent, { via: o10.via, legend: o10.legend, options: o10.options, catalog: o10.catalog, over: over.notes, learned: learned.beliefs, picks: learned.picks, box: learned.boxPresent });
+  check("10: the partial report's box asks for 2 goods over every catalogue good; three ticked warns and writes nothing; two ticked are chosen and wait for the Judge (dm null, \"Awaiting the Judge\", no figure), picks is 0 and the box is gone", o10.opened && /Choose 2 good\(s\)/.test(o10.legend) && o10.options === o10.catalog && o10.options >= 3 && over.notes.some((n) => /no more than 2/.test(n.text)) && over.picks === 2 && over.beliefs.length === 0 && two.ticked.length === 2 && learned.picks === 0 && learned.beliefs.length === 2 && learned.beliefs.every((b) => b.dm === null) && /Awaiting the Judge/.test(learned.text) && !learned.boxPresent, { via: o10.via, legend: o10.legend, options: o10.options, catalog: o10.catalog, over: over.notes, learned: learned.beliefs, picks: learned.picks, box: learned.boxPresent, text: learned.text.slice(0, 200) });
   await run(player, P.closeAll);
   const oF = await run(player, P.openReport, { actorId: V.id, uuid: rF.uuid });
   const fLearn = await run(player, P.reportSheetState, { uuid: rF.uuid, tick: [keys.Z], learn: true });
-  const zdm = dmOf(fLearn.beliefs, keys.Z);
   note("false report, Z chosen", { legend: oF.legend, picks: fLearn.picks, beliefs: fLearn.beliefs, outcomeText: fLearn.outcomeText.slice(0, 160) });
-  check("10: on the false report the chosen good's modifier differs from the market's by 1 to 3, and the player seat reads the outcome as Partial", oF.opened && Number.isInteger(zdm) && Math.abs(zdm - 0) >= 1 && Math.abs(zdm - 0) <= 3 && fLearn.picks === 0 && /Partial picture/.test(fLearn.text) && !/\bFalse\b/.test(fLearn.text), { zdm, picks: fLearn.picks, text: fLearn.text.slice(0, 200) });
+  check("10: on the false report the chosen good waits for the Judge exactly as the partial one does (dm null, \"Awaiting the Judge\", no figure), and the player seat reads the outcome as Partial", oF.opened && fLearn.beliefs.length === 1 && fLearn.beliefs[0].dm === null && fLearn.picks === 0 && /Awaiting the Judge/.test(fLearn.text) && /Partial picture/.test(fLearn.text) && !/\bFalse\b/.test(fLearn.text), { beliefs: fLearn.beliefs, picks: fLearn.picks, text: fLearn.text.slice(0, 200) });
   await run(player, P.closeAll);
+  // The Judge's side: one click answers the partial report from the market; the false report refuses it and takes a typed figure.
+  const ansP = await run(gm, P.answerFromMarket, { uuid: rP.uuid });
+  const ansF = await run(gm, P.answerFromMarket, { uuid: rF.uuid });
+  note("answer from the market (GM seat)", { ansP, ansF });
+  check("10: Answer from the market fills the partial report at the market's modifiers and refuses the false report", ansP.ok && ansP.answered === 2 && dmOf(ansP.beliefs, keys.X) === 2 && dmOf(ansP.beliefs, keys.Y) === -1 && ansF.error === "falseReport" && ansF.beliefs[0].dm === null, { ansP, ansF });
   const ownN = await run(player, P.ownershipRead, { actorId: Nn.id });
   const ownW = await run(player, P.ownershipRead, { actorId: W.id });
   note("ownership as the player seat reads it", { N: ownN, W: ownW });

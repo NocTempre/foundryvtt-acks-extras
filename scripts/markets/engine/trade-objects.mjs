@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, Roll */
+/* global game, foundry, fromUuid, fromUuidSync, Actor, CONST, ChatMessage */
 /**
  * The trade house: the one GM-designated location actor whose embedded Items
  * are every trade object a player owns, inspects or hands over (market
@@ -19,9 +19,10 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { STORAGE_KEY, setProvider, storedItems, ownerOf, resolveActorSync } from "../../lib/storage.mjs";
 import { HOUSE_OWNER } from "../../lib/money.mjs";
 import { registerHandler, executeAsGM } from "../../lib/sockets.mjs";
-import { handVerdict, notesToHtml, chooseVerdict } from "../rules/reports.mjs";
+import { gmIds, numOrNull } from "../../lib/util.mjs";
+import { handVerdict, notesToHtml, chooseVerdict, isAwaiting, dmLabel, storedDm } from "../rules/reports.mjs";
 import { trueDemand } from "../rules/demand.mjs";
-import { merchandiseCatalog } from "./merchandise.mjs";
+import { merchandiseCatalog, merchandiseFor } from "./merchandise.mjs";
 
 const err = (error, data = {}) => ({ error, ...data });
 
@@ -111,7 +112,7 @@ export function allReports() {
 /**
  * A report item as the plain record the pure rules read.
  * @param {Item} item
- * @returns {{id: string, uuid: string, name: string, marketUuid: string, marketName: string, assessorUuid: string, partyId: string, time: number, outcome: string, beliefs: Array<{category: string, dm: number}>, notes: string, ownerUuid: string|null, ownerName: string}}
+ * @returns {{id: string, uuid: string, name: string, marketUuid: string, marketName: string, assessorUuid: string, partyId: string, time: number, outcome: string, beliefs: Array<{category: string, dm: number|null}>, picks: number, notes: string, ownerUuid: string|null, ownerName: string}} a null `dm` is a good awaiting the Judge
  */
 export function plainReport(item) {
   const system = item.system ?? {};
@@ -126,7 +127,7 @@ export function plainReport(item) {
     partyId: system.partyId ?? "",
     time: Number(system.time) || 0,
     outcome: system.outcome ?? "",
-    beliefs: (system.beliefs ?? []).map((b) => ({ category: b.category, dm: Number(b.dm) || 0 })),
+    beliefs: (system.beliefs ?? []).map((b) => ({ category: b.category, dm: numOrNull(b.dm) })),
     picks: Math.max(0, Number(system.picks) || 0),
     notes: system.notes ?? "",
     ownerUuid: owner?.uuid ?? null,
@@ -160,7 +161,7 @@ const housed = (item) => !!item && item.parent?.id === tradeHouseSync()?.id && i
  * @param {string} data.partyId
  * @param {number} data.time
  * @param {string} data.outcome
- * @param {Array<{category: string, dm: number}>} data.beliefs
+ * @param {Array<{category: string, dm: number|null}>} data.beliefs  A null `dm` stays null: that good awaits the Judge.
  * @param {number} [data.picks]  Goods the owner may still choose to learn.
  * @returns {Promise<{ok: true, item: Item}|{error: string}>}
  */
@@ -181,7 +182,7 @@ export async function writeReport(data) {
         partyId: data.partyId ?? "",
         time: Math.round(Number(data.time) || 0),
         outcome: data.outcome,
-        beliefs: (data.beliefs ?? []).map((b) => ({ category: b.category, dm: Math.round(Number(b.dm) || 0) })),
+        beliefs: (data.beliefs ?? []).map((b) => ({ category: b.category, dm: storedDm(b.dm) })),
         picks: Math.max(0, Math.floor(Number(data.picks) || 0)),
       },
       flags: { [MODULE_ID]: { [STORAGE_KEY]: { ownerUuid: data.ownerUuid, ownerName } } },
@@ -253,21 +254,47 @@ export async function saveNotes(item, text, { requestUserId = null } = {}) {
   return { ok: true };
 }
 
+/** The goods record of the market a report is about, or null when the market is gone. */
+async function marketGoods(marketUuid) {
+  const doc = marketUuid ? await fromUuid(marketUuid).catch(() => null) : null;
+  return (doc?.actor ?? doc)?.system?.market?.goods ?? null;
+}
+
 /**
- * A modifier that is wrong: the market's true one moved by a few steps either
- * way, never by none. This is what a false assessment believes.
+ * Whisper the Judges one card about a choice a player made: who chose, which
+ * goods, the stored outcome, each good's market figure, and a link to the
+ * report whose sheet takes the answer.
  */
-async function wrongBelief(goods, category) {
-  const up = (await new Roll("1d6").evaluate()).total >= 4;
-  const size = (await new Roll("1d3").evaluate()).total;
-  return trueDemand(goods, category) + (up ? size : -size);
+async function postAwaitingCard(item, report, categories, goods, user) {
+  const escape = foundry.utils.escapeHTML;
+  const trader = report.ownerName || user?.name || "";
+  const head = game.i18n.format(`${LANG}.report.awaitingCard`, {
+    trader: escape(trader),
+    n: categories.length,
+    outcome: game.i18n.localize(`${LANG}.report.outcome.${report.outcome}`),
+    report: `@UUID[${item.uuid}]{${escape(item.name)}}`,
+  });
+  const lines = categories.map((category) =>
+    game.i18n.format(`${LANG}.report.awaitingCardLine`, {
+      good: escape(merchandiseFor(category)?.label ?? category),
+      demand: dmLabel(trueDemand(goods, category)),
+    })
+  );
+  const content = `<div class="acks-extras-markets-receipt"><p>${head}</p><ul>${lines.map((line) => `<li>${line}</li>`).join("")}</ul></div>`;
+  try {
+    await ChatMessage.create({ content, whisper: gmIds() });
+  } catch (error) {
+    console.warn(`${MODULE_ID} | the report's awaiting card could not be posted`, error);
+  }
 }
 
 /**
  * The owner chooses goods to learn from the picks a partial assessment left
- * (`chooseVerdict`). Each chosen good gets the market's true modifier, or a
- * wrong one when the stored outcome is false; the seat that asked sends only
- * the keys. Same authority as `give`.
+ * (`chooseVerdict`). Every chosen good is written awaiting the Judge (a null
+ * modifier), whatever the stored outcome, so the two outcomes store the same
+ * thing; the Judge fills it in on the report's sheet (`answerFromMarket`, or
+ * by typing a figure). A relayed call also whispers the Judges one card. The
+ * seat that asked sends only the keys. Same authority as `give`.
  * @param {Item} item
  * @param {string[]} categories  Catalogue keys.
  * @param {object} [options]
@@ -287,16 +314,38 @@ export async function chooseGoods(item, categories, { requestUserId = null } = {
     catalog: merchandiseCatalog().map((m) => m.key),
   });
   if (choice.error) return choice;
-  const marketDoc = report.marketUuid ? await fromUuid(report.marketUuid).catch(() => null) : null;
-  const goods = (marketDoc?.actor ?? marketDoc)?.system?.market?.goods;
+  const goods = await marketGoods(report.marketUuid);
   if (!goods) return err("noMarket");
-  const beliefs = [...report.beliefs];
-  for (const category of choice.categories) {
-    beliefs.push({ category, dm: report.outcome === "false" ? await wrongBelief(goods, category) : trueDemand(goods, category) });
-  }
+  const beliefs = [...report.beliefs, ...choice.categories.map((category) => ({ category, dm: null }))];
   const left = report.picks - choice.categories.length;
   await item.update({ "system.beliefs": beliefs, "system.picks": left });
+  if (requestUserId) await postAwaitingCard(item, report, choice.categories, goods, user);
   return { ok: true, chosen: choice.categories.length, left };
+}
+
+/**
+ * Fill every good still awaiting the Judge with the market's demand now. GM
+ * only, and refused on a false report: its figures are the Judge's to type,
+ * since nothing printed gives a false assessment a number.
+ * @param {Item} item
+ * @returns {Promise<{ok: true, answered: number}|{error: string}>}
+ */
+export async function answerFromMarket(item) {
+  if (!game.user?.isGM) return err("gmOnly");
+  if (!housed(item)) return err("notFound");
+  const report = plainReport(item);
+  if (report.outcome === "false") return err("falseReport");
+  if (!report.beliefs.some(isAwaiting)) return err("nonePending");
+  const goods = await marketGoods(report.marketUuid);
+  if (!goods) return err("noMarket");
+  let answered = 0;
+  const beliefs = report.beliefs.map((b) => {
+    if (!isAwaiting(b)) return b;
+    answered++;
+    return { category: b.category, dm: storedDm(trueDemand(goods, b.category)) };
+  });
+  await item.update({ "system.beliefs": beliefs });
+  return { ok: true, answered };
 }
 
 /* ------------------------------ relays ------------------------------ */

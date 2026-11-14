@@ -14,6 +14,6 @@
 {{#if demandRows.length}}
 <div class="acks-extras-markets-demand">
   <strong>{{localize "ACKS-MARKETS.trade.demandHeader"}}:</strong>
-  {{#each demandRows}}<span class="acks-extras-markets-demand-chip {{#if pinned}}pinned{{/if}}">{{label}} {{modifier}}{{#if pinned}} <i class="fas fa-thumbtack" aria-hidden="true"></i> {{localize "ACKS-MARKETS.trade.pinned"}}{{#if baseNote}} ({{baseNote}}){{/if}}{{/if}}</span>{{/each}}
+  {{#each demandRows}}<span class="acks-extras-markets-demand-chip {{#if pinned}}pinned{{/if}}"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{label}} {{modifier}}{{#if pinned}} <i class="fas fa-thumbtack" aria-hidden="true"></i> {{localize "ACKS-MARKETS.trade.pinned"}}{{#if baseNote}} ({{baseNote}}){{/if}}{{/if}}</span>{{/each}}
 </div>
 {{/if}}

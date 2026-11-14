@@ -25,7 +25,7 @@
       {{#each reportRows}}
       <li>
         <a data-action="openReport" data-uuid="{{uuid}}">{{when}}{{#if assessorName}} · {{assessorName}}{{/if}}</a>
-        · {{outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=count}}{{#if @root.isGM}}{{#if ownerName}} · {{ownerName}}{{/if}}{{/if}}
+        · {{outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=count}}{{#if @root.isGM}}{{#if ownerName}} · {{ownerName}}{{/if}}{{/if}}{{#if awaitingLabel}} · {{awaitingLabel}}{{/if}}
       </li>
       {{/each}}
     </ul>
@@ -107,7 +107,7 @@
       {{#each ventureLines}}<p class="hint">{{this}}</p>{{/each}}
       {{#if beliefs.length}}
       <div class="acks-extras-markets-demand">
-        {{#each beliefs}}<span class="acks-extras-markets-demand-chip"{{#if falseNote}} data-tooltip="{{falseNote}}"{{/if}}>{{label}} {{modifier}} ({{when}}){{#if falseNote}} <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{{/if}}</span>{{/each}}
+        {{#each beliefs}}<span class="acks-extras-markets-demand-chip" data-tooltip-text="{{tip}}">{{label}} {{modifier}} ({{when}}){{#if isFalse}} <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{{/if}}</span>{{/each}}
       </div>
       {{/if}}
     </div>

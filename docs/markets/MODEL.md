@@ -145,8 +145,9 @@ party's find.
   through `vehicles/hold.mjs`, plus any other capacity it states),
   assessment (writes one market REPORT Item holding the assessor's
   demand-modifier beliefs; a partial or false outcome writes a report holding
-  1d6 PICKS, capped at the catalogue, and no beliefs, and the trader chooses
-  the goods; see "Market reports and the trade house"), soliciting (opens
+  1d6 PICKS, capped at the catalogue, and no beliefs; the trader chooses the
+  goods and the Judge answers them; see "Market reports and the trade
+  house"), soliciting (opens
   base stones × impact at the month's rolled price: 4d4−10 steps + demand
   + class shift; a mercantile network reads it larger, below), and
   merchandise trades with the optional spot-price
@@ -608,10 +609,12 @@ market: `acks-extras.marketReport` (`data/report-data.mjs`, sheet
 `marketUuid` and `marketName` (a snapshot, shown when the market is gone),
 `assessorUuid`, `partyId`, `time`, `outcome`
 (`success|partial|expertise|false|rumor`), `beliefs`
-(`{category, dm}`), `picks` (goods still to be chosen), `pricesSeen`
+(`{category, dm}`; `dm` is null while the Judge has not answered the good),
+`picks` (goods still to be chosen), `pricesSeen`
 (reserved, nothing writes it) and `notes`.
-A report holds only what its owner believes: a false assessment is stored as a
-report whose beliefs are wrong, and the market's true demand never enters it.
+A report holds only what its owner has been told: a chosen good waits with a
+null `dm` until the Judge answers it, so a false assessment's figures are the
+Judge's own and the market's demand enters a report only by the Judge's answer.
 
 - **The house** (`engine/trade-objects.mjs`): trade Items are embedded on one
   location actor, the world setting `marketsTradeHouse` (a uuid, not in the
@@ -633,20 +636,45 @@ report whose beliefs are wrong, and the market's true demand never enters it.
 - **The outcome is masked.** `shownOutcome` reads `false` as `partial` for
   anyone but the GM, on the assess card, the sheet, the tab and the location
   list alike.
+- **A belief's tooltip does not depend on the outcome.** A player's answered
+  figure reads "from the report assessed {day} by {assessor}" and a waiting
+  one "chosen; the Judge has not answered", for a false report exactly as for
+  a partial one (`beliefTip`, pure). Only the Judge's reading differs: the
+  market's demand beside a figure the Judge typed on a false report or read
+  from the market on any other.
 - **Beliefs** (`rules/reports.mjs`, pure): `beliefsFor(reports, {partyId,
   memberUuids, marketUuid})` is the union of the reports whose `partyId` is the
   party's or whose assessor is a member (`heldByParty`), the newest belief per
-  good, ties to the later report. `partyMembers` (`engine/parties.mjs`) gives
+  good, ties to the later report. A belief still awaiting the Judge
+  (`isAwaiting`: a null `dm`, never a zero) is skipped, so an older answered
+  figure for the good keeps standing; `compareBeliefs` reads an awaiting row
+  as absent. `dmLabel` words a figure (null, "0", "+3"). `partyMembers`
+  (`engine/parties.mjs`) gives
   a party's characters: its roster, or for the implicit party the player
   characters no roster claims. Both market tabs' belief chips and the GM's
-  per-party block read through it.
+  per-party block read through it. The Trade tab's Research chips, the report
+  sheet and the market's "Reports held here" list show a waiting good as
+  "Awaiting the Judge" (a count on the lists) with no figure.
 - **Choosing the goods** (`chooseGoods`, GM-side; `performChoose` through the
   relay): the report's owner or the GM ticks up to `picks` goods on the sheet.
   `chooseVerdict` (pure) refuses none ticked, more than the picks left, or a
-  good the catalogue lacks, and drops a good already believed at no cost. A
-  partial report learns each chosen good's true modifier (`trueDemand`); a
-  false one learns it moved 1d3 steps up or down (`wrongBelief`), so the two
-  look alike on every surface. The picks left are written with the beliefs.
+  good the catalogue lacks, and drops a good already believed at no cost. Every
+  chosen good is written `{category, dm: null}` whatever the stored outcome, so
+  a partial report and a false one store the same thing; the module rolls no
+  direction and no size of its own. The picks left are written with the
+  beliefs. A relayed choice also whispers the Judges one card: the trader, the
+  goods, the stored outcome, each good's market figure and a link to the
+  report; the Judge's own choice posts none.
+- **The Judge answers** on the report's sheet (`apps/report-sheet.mjs`). Each
+  awaiting row carries the GM-only figure input, empty with an "Awaiting the
+  Judge" mark; typing a whole number stores it and clearing the input returns
+  the good to awaiting. On a report whose outcome is not false, "Answer from the
+  market" (`answerFromMarket`, GM only) fills every awaiting good with the
+  market's demand at that moment; it refuses a false report (`falseReport`), a
+  report with nothing waiting (`nonePending`) and a market that is gone
+  (`noMarket`). A false report's figures are the Judge's to type: RR ch. 8
+  (False Assessment) prints no die, so nothing is imported and no default
+  figure stands in.
 - **Assessment writes one report** when it learned anything or left picks,
   owner and assessor the acting character, `partyId` the party posted under,
   and the assess card links it when there are picks to spend. The house is

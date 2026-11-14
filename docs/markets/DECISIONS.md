@@ -439,7 +439,7 @@ Cost: a buyer whose coin is in a vault elsewhere is refused as short and has
 to withdraw it and carry it in. A world that set `coinScope` to on-hand still
 has a market draw on the coin it keeps for the payer, which 10.0.0 refused.
 
-## 2026-10-15 — A partial assessment is goods of the trader's choosing, and a false one looks the same
+## 2026-10-15 — A partial assessment is goods of the trader's choosing, and a false one looks the same — SUPERSEDED IN PART 2026-11-13
 
 **Chosen in the build (not yet the user's):** a partial result leaves the
 report holding a count of PICKS (1d6, capped at the catalogue) and no beliefs;
@@ -1170,3 +1170,39 @@ the price moves by the merchandise row's own step.
 *Cost:* a world imported before this change re-runs Rules tables to gain the
 two waits and the step count; until then an import from a hub and a
 negotiation refuse.
+
+## 2026-11-13 — A false assessment's figures are the Judge's, and every chosen good waits for the Judge
+
+**Asked** (owner, 2026-11-13): "Should a false market assessment keep the
+module's own dice for the Beta?", with the buttons "Keep the dice" and "Ask the
+Judge". **Answered:** "Ask the Judge".
+
+**Asked** how partial reports behave, with "Both wait (Recommended)" (every
+chosen good, partial or false, shows "Awaiting the Judge" until the GM answers;
+partial is one "Answer from the market" click; false the GM types; the mask
+holds) against "Only false waits" (partial instant, the waiting mark gives a
+false report away, reversing the 2026-10-15 masking ruling). **Answered:** "Both
+wait (Recommended)".
+
+**Ruled:** the dice retire: `wrongBelief` is gone and the module rolls no
+direction and no size for a false assessment. RR ch. 8 (False Assessment) prints
+no die, so nothing is imported and no default figure stands in. Every chosen good
+is stored with a null modifier and reads "Awaiting the Judge" until the Judge
+answers it, so a partial and a false report store and show the same thing and
+the 2026-10-15 mask holds. On a partial report the Judge answers with one
+"Answer from the market" click, which writes the market's demand at that
+moment; on a false one the Judge types each figure. A relayed choice whispers
+the Judges one card so they know to answer. New evidence against the 2026-10-15
+entry's dice: the owner's ruling above; nothing else in the code or the book
+changed.
+
+**Rejected:** only the false report waits (a waiting mark on one outcome gives
+the false report away); a prompt on the GM client during the relay (it runs on
+the elected lead client, may hang the player's button, and its timing tells);
+one offset per report (a procedure the page does not print).
+
+*Cost:* every partial pick costs a Judge click; a residual timing tell remains,
+since a Judge who answers one outcome faster than the other can be read, and the
+Judge controls it; a Judge-facing input lands in a fixes-only release; reports
+chosen before this keep their dice-made figures, with no migration (owner,
+2026-11-11, no tools for previous-version data).

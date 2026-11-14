@@ -24,12 +24,12 @@
     <div class="acks-extras-frame__row acks-extras-markets-trader-report">
       <span class="acks-extras-frame__row-text">
         <span class="acks-extras-frame__row-label">{{r.when}}{{#if r.assessorName}} · {{r.assessorName}}{{/if}}</span>
-        <span class="acks-extras-frame__row-line">{{r.outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=r.count}}{{#if tr.isGM}}{{#if r.ownerName}} · {{r.ownerName}}{{/if}}{{/if}}</span>
+        <span class="acks-extras-frame__row-line">{{r.outcomeLabel}} · {{localize "ACKS-MARKETS.report.goodsCount" n=r.count}}{{#if tr.isGM}}{{#if r.ownerName}} · {{r.ownerName}}{{/if}}{{/if}}{{#if r.awaitingLabel}} · {{r.awaitingLabel}}{{/if}}</span>
         {{#if r.beliefs.length}}
         <details class="acks-extras-markets-trader-beliefs">
           <summary>{{localize "ACKS-MARKETS.trader.showBeliefs"}}</summary>
           <span class="acks-extras-markets-trader-chips">
-            {{#each r.beliefs as |belief|}}<span class="acks-extras-markets-demand-chip">{{belief.label}} <span class="acks-nums">{{belief.dm}}</span></span>{{/each}}
+            {{#each r.beliefs as |belief|}}<span class="acks-extras-markets-demand-chip{{#if belief.pending}} is-awaiting{{/if}}" data-tooltip-text="{{belief.tip}}">{{belief.label}} <span class="acks-nums">{{belief.dm}}</span></span>{{/each}}
           </span>
         </details>
         {{/if}}

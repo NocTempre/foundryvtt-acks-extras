@@ -62,8 +62,8 @@ import { historyRows } from "../rules/ledger.mjs";
 import { historyContext } from "./trader-tab.mjs";
 import { partyOf, partiesConfig, partyMembers, DEFAULT_PARTY_ID } from "../engine/parties.mjs";
 import { objectsAt, plainReport } from "../engine/trade-objects.mjs";
-import { beliefsFor, heldByParty } from "../rules/reports.mjs";
-import { outcomeLabel, reportDay } from "./report-sheet.mjs";
+import { beliefsFor, heldByParty, isAwaiting, dmLabel } from "../rules/reports.mjs";
+import { outcomeLabel, reportDay, beliefTipText } from "./report-sheet.mjs";
 import { openPurchaseDialog } from "./purchase-dialog.mjs";
 import { openSellDialog } from "./sell-dialog.mjs";
 import { openCommissionDialog } from "./commission-dialog.mjs";
@@ -346,7 +346,11 @@ export async function prepareTradeTab(sheet, context) {
   if (isGM || goods.playersSeeDemand) {
     context.demandRows = demandChips(goods, isGM);
   } else if (who) {
-    context.demandRows = beliefsFor(reports, { ...who, marketUuid: location.uuid }).map((b) => ({ label: goodLabel(b.category), modifier: signed(b.dm) }));
+    context.demandRows = beliefsFor(reports, { ...who, marketUuid: location.uuid }).map((b) => ({
+      label: goodLabel(b.category),
+      modifier: dmLabel(b.dm),
+      tip: beliefTipText(b, { outcome: b.outcome, isGM, goods: null, day: reportDay(b.time), assessor: actorOfUuid(b.assessorUuid)?.name ?? "" }),
+    }));
   } else {
     context.demandRows = [];
   }
@@ -363,6 +367,7 @@ export async function prepareTradeTab(sheet, context) {
       ownerName: r.ownerName,
       outcomeLabel: outcomeLabel(r.outcome, isGM),
       count: r.beliefs.length,
+      awaitingLabel: r.beliefs.some(isAwaiting) ? loc("report.awaitingCount", { n: r.beliefs.filter(isAwaiting).length }) : "",
     }));
 
   // Venture state for the acting trader — their party's, or their own where
@@ -452,10 +457,11 @@ function partyBlocks(goods, monthStart, reports) {
       name: partyLabel(id),
       beliefs: mine.map((k) => ({
         label: goodLabel(k.category),
-        modifier: signed(k.dm),
+        modifier: dmLabel(k.dm),
         when: reportDay(k.time),
-        // The Judge's copy marks a belief a false assessment left.
-        falseNote: k.outcome === "false" ? loc("report.falseNote") : "",
+        // The Judge's copy marks a belief a false assessment left, and every chip names where its figure came from.
+        isFalse: k.outcome === "false",
+        tip: beliefTipText(k, { outcome: k.outcome, isGM: true, goods, day: reportDay(k.time), assessor: actorOfUuid(k.assessorUuid)?.name ?? "" }),
       })),
       ventureLines: rows.map((venture) =>
         [

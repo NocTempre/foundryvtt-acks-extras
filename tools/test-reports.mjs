@@ -33,6 +33,10 @@ const {
   isTraderProfile,
   notesToHtml,
   htmlToNotes,
+  isAwaiting,
+  dmLabel,
+  storedDm,
+  beliefTip,
 } = await import(new URL("../scripts/markets/rules/reports.mjs", import.meta.url));
 
 /* ------------------------- outcomes ------------------------- */
@@ -73,7 +77,24 @@ same(
 );
 same("the row names its source report and outcome", (({ reportId, outcome }) => [reportId, outcome])(beliefsFor(reports, { partyId: "p2", marketUuid: M1 })[0]), ["r3", "success"]);
 same("a false report's belief is read like any other", beliefsFor([report("f", { partyId: "p1", outcome: "false", beliefs: [{ category: "aa", dm: -6 }] })], { partyId: "p1" })[0].dm, -6);
-check("heldByParty: by party id", heldByParty({ partyId: "p1" }, { partyId: "p1" }));
+same(
+  "a newer belief still awaiting the Judge leaves an older answered figure standing",
+  beliefsFor([...reports, report("r6", { partyId: "p1", time: 999, beliefs: [{ category: "aa", dm: null }] })], { partyId: "p1", marketUuid: M1 }).map((b) => [b.category, b.dm]),
+  [["aa", 4], ["bb", -1]],
+);
+same("a good with only an awaiting belief is not believed at all", beliefsFor([report("w", { partyId: "p1", beliefs: [{ category: "aa", dm: null }] })], { partyId: "p1" }), []);
+same("a zero is a belief, not a waiting good", beliefsFor([report("z", { partyId: "p1", beliefs: [{ category: "aa", dm: 0 }] })], { partyId: "p1" }).map((b) => [b.category, b.dm]), [["aa", 0]]);
+check("isAwaiting: null, missing and blank wait; zero does not", isAwaiting({ dm: null }) && isAwaiting({}) && isAwaiting({ dm: "" }) && !isAwaiting({ dm: 0 }) && !isAwaiting({ dm: -2 }));
+same("dmLabel: null is no label, zero is \"0\", a rise is signed", [dmLabel(null), dmLabel(undefined), dmLabel(0), dmLabel(3), dmLabel(-2)], [null, null, "0", "+3", "-2"]);
+same("storedDm: rounds a figure, keeps null for nothing", [storedDm("2.6"), storedDm(null), storedDm(""), storedDm(0), storedDm("x")], [3, null, null, 0, null]);
+const tipBase = { outcome: "partial", truth: "+9", day: "Day 4", assessor: "Ann" };
+same("tip: a player's answered figure names its report", beliefTip({ ...tipBase, awaiting: false, isGM: false }), { key: "tip.learned", data: { day: "Day 4", assessor: "Ann" } });
+same("tip: a player reads a false report's figure the same way", beliefTip({ ...tipBase, outcome: "false", awaiting: false, isGM: false }), beliefTip({ ...tipBase, awaiting: false, isGM: false }));
+same("tip: a player's waiting good", beliefTip({ ...tipBase, awaiting: true, isGM: false }), { key: "tip.awaiting", data: {} });
+same("tip: the Judge's waiting good names the market's demand", beliefTip({ ...tipBase, awaiting: true, isGM: true }), { key: "tip.awaitingGM", data: { truth: "+9" } });
+same("tip: the Judge's answered false figure is the Judge's own", beliefTip({ ...tipBase, outcome: "false", awaiting: false, isGM: true }).key, "tip.judgeSet");
+same("tip: the Judge's answered other figure is read from the market", beliefTip({ ...tipBase, awaiting: false, isGM: true }).key, "tip.marketNow");
+check("heldByParty: by party id",heldByParty({ partyId: "p1" }, { partyId: "p1" }));
 check("heldByParty: by member", heldByParty({ partyId: "px", assessorUuid: "Actor.a1" }, { partyId: "p1", memberUuids: ["Actor.a1"] }));
 check("heldByParty: a blank assessor is nobody's", !heldByParty({ partyId: "px", assessorUuid: "" }, { partyId: "p1", memberUuids: [""] }));
 
@@ -89,6 +110,14 @@ same(
   ],
 );
 same("a compare of nothing is nothing", compareBeliefs([], []), []);
+same(
+  "a belief still awaiting the Judge reads as absent on its side",
+  compareBeliefs([{ category: "aa", dm: null }, { category: "bb", dm: 0 }], [{ category: "aa", dm: 4 }, { category: "bb", dm: null }]),
+  [
+    { category: "aa", a: null, b: 4, diff: null },
+    { category: "bb", a: 0, b: null, diff: null },
+  ],
+);
 
 /* ------------------------- groupByMarket ------------------------- */
 
@@ -140,7 +169,7 @@ const setDotted = (obj, path, value) => {
   at[keys.at(-1)] = value;
 };
 
-const world = { actors: [], setting: "", settingWrites: 0, notes: [] };
+const world = { actors: [], setting: "", settingWrites: 0, notes: [], chat: [] };
 const allActors = () => Object.assign([...world.actors], { get: (id) => world.actors.find((a) => a.id === id) });
 
 function makeItem(parent, data) {
@@ -193,7 +222,8 @@ function makeActor(data) {
 const gm = { id: "gm", isGM: true };
 const alice = { id: "alice", isGM: false, owns: [] };
 const bob = { id: "bob", isGM: false, owns: [] };
-globalThis.foundry = { utils: { deepClone: clone, randomID: rid } };
+globalThis.foundry = { utils: { deepClone: clone, randomID: rid, escapeHTML: (s) => String(s) } };
+globalThis.ChatMessage = { create: async (message) => world.chat.push(message) };
 globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OBSERVER: 2 } };
 globalThis.Hooks = { once() {}, on() {}, callAll() {} };
 globalThis.ui = { notifications: { info: (m) => world.notes.push(m), warn: () => {} } };
@@ -202,11 +232,11 @@ globalThis.Actor = {
 };
 globalThis.game = {
   user: gm,
-  users: { get: (id) => [gm, alice, bob].find((u) => u.id === id) },
+  users: Object.assign([gm, alice, bob], { get: (id) => [gm, alice, bob].find((u) => u.id === id) }),
   get actors() {
     return allActors();
   },
-  i18n: { localize: (k) => k, format: (k) => k, has: () => false },
+  i18n: { localize: (k) => k, format: (k, data) => (data ? `${k} ${JSON.stringify(data)}` : k), has: () => false },
   settings: {
     get: () => world.setting,
     set: async (_scope, _key, value) => {
@@ -317,24 +347,52 @@ const market = makeActor({
 const partial = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 5, outcome: "partial", beliefs: [], picks: 3 })).item;
 same("a partial report is written holding its picks", objects.plainReport(partial).picks, 3);
 same("a stranger cannot choose on it", await objects.chooseGoods(partial, ["aa"], { requestUserId: "bob" }), { error: "notYours" });
-same("its owner learns the goods chosen", await objects.chooseGoods(partial, ["aa", "bb"], { requestUserId: "alice" }), { ok: true, chosen: 2, left: 1 });
-same("the beliefs are the market's true modifiers", objects.plainReport(partial).beliefs, [{ category: "aa", dm: 2 }, { category: "bb", dm: -1 }]);
-same("a good already learned cannot be chosen again", await objects.chooseGoods(partial, ["aa"], { requestUserId: "alice" }), { error: "noneChosen" });
+same("no card has been posted by the refusals", world.chat.length, 0);
+same("its owner chooses the goods", await objects.chooseGoods(partial, ["aa", "bb"], { requestUserId: "alice" }), { ok: true, chosen: 2, left: 1 });
+same("every chosen good waits for the Judge, the market's figure unread", objects.plainReport(partial).beliefs, [{ category: "aa", dm: null }, { category: "bb", dm: null }]);
+check("the relayed choice whispered one card to the Judges alone", world.chat.length === 1 && world.chat[0].whisper.join() === "gm");
+check("the card links the report and lists each chosen good", world.chat[0].content.includes(partial.uuid) && world.chat[0].content.split("<li>").length === 3);
+same("a good already chosen cannot be chosen again", await objects.chooseGoods(partial, ["aa"], { requestUserId: "alice" }), { error: "noneChosen" });
 same("nor more goods than the picks left", await objects.chooseGoods(partial, ["cc", "aa", "bb"], { requestUserId: "alice" }), { ok: true, chosen: 1, left: 0 });
-same("with no picks left nothing more is learned", await objects.chooseGoods(partial, ["cc"], { requestUserId: "alice" }), { error: "noPicks" });
+same("with no picks left nothing more is chosen", await objects.chooseGoods(partial, ["cc"], { requestUserId: "alice" }), { error: "noPicks" });
+check("each accepted relayed choice posted one card", world.chat.length === 2);
 
-const faces = [5, 2];
+/* The Judge answers: no die is rolled for anything a choice writes. */
 globalThis.Roll = class {
-  async evaluate() {
-    this.total = faces.shift();
-    return this;
+  constructor() {
+    throw new Error("a chosen good rolls nothing");
   }
 };
+game.user = alice;
+same("a player seat cannot answer from the market", await objects.answerFromMarket(partial), { error: "gmOnly" });
+game.user = gm;
+same("an item that is not on the house cannot be answered", await objects.answerFromMarket(elsewhere), { error: "notFound" });
+same("the Judge's answer fills every awaiting good from the market", await objects.answerFromMarket(partial), { ok: true, answered: 3 });
+same("the figures are the market's modifiers now", objects.plainReport(partial).beliefs, [{ category: "aa", dm: 2 }, { category: "bb", dm: -1 }, { category: "cc", dm: 0 }]);
+same("a report with nothing awaiting refuses a second answer", await objects.answerFromMarket(partial), { error: "nonePending" });
+
 const lie = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 6, outcome: "false", beliefs: [], picks: 1 })).item;
-same("a false report's choice is believed wrongly", await objects.chooseGoods(lie, ["aa"], { requestUserId: "alice" }), { ok: true, chosen: 1, left: 0 });
-same("by the steps its dice gave, never the truth", objects.plainReport(lie).beliefs, [{ category: "aa", dm: 4 }]);
+const twin = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 6, outcome: "partial", beliefs: [], picks: 1 })).item;
+const cardsBefore = world.chat.length;
+same("a false report's choice is accepted", await objects.chooseGoods(lie, ["aa"], { requestUserId: "alice" }), { ok: true, chosen: 1, left: 0 });
+same("and writes the good awaiting, rolling nothing", objects.plainReport(lie).beliefs, [{ category: "aa", dm: null }]);
+await objects.chooseGoods(twin, ["aa"], { requestUserId: "alice" });
+same("a chosen partial report and a chosen false one store the same beliefs", objects.plainReport(twin).beliefs, objects.plainReport(lie).beliefs);
+same("a false and a partial choice each posted one card", world.chat.length - cardsBefore, 2);
+same("the Judge cannot answer a false report from the market", await objects.answerFromMarket(lie), { error: "falseReport" });
+same("the false report still awaits", objects.plainReport(lie).beliefs, [{ category: "aa", dm: null }]);
+await lie.update({ "system.beliefs": [{ category: "aa", dm: 5 }] });
+same("a figure the Judge types is stored as typed", objects.plainReport(lie).beliefs, [{ category: "aa", dm: 5 }]);
+const own = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: market.name, assessorUuid: hero.uuid, partyId: "p1", time: 8, outcome: "partial", beliefs: [], picks: 1 })).item;
+const cardsThen = world.chat.length;
+same("the Judge's own choice is accepted", await objects.chooseGoods(own, ["bb"]), { ok: true, chosen: 1, left: 0 });
+same("and posts no card", world.chat.length, cardsThen);
 const orphan = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: "Actor.gone", marketName: "Gone", assessorUuid: hero.uuid, partyId: "p1", time: 7, outcome: "partial", beliefs: [], picks: 1 })).item;
 same("a report whose market is gone learns nothing", await objects.chooseGoods(orphan, ["aa"], { requestUserId: "alice" }), { error: "noMarket" });
+const orphanWaiting = (await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: "Actor.gone", marketName: "Gone", assessorUuid: hero.uuid, partyId: "p1", time: 9, outcome: "partial", beliefs: [{ category: "aa", dm: null }] })).item;
+same("nor can a gone market answer a waiting good", await objects.answerFromMarket(orphanWaiting), { error: "noMarket" });
+same("a waiting belief written through writeReport reads back null", objects.plainReport(orphanWaiting).beliefs, [{ category: "aa", dm: null }]);
+same("a zero is a figure, not a waiting good", objects.plainReport((await objects.writeReport({ ownerUuid: hero.uuid, marketUuid: market.uuid, marketName: "x", assessorUuid: "", partyId: "p1", time: 1, outcome: "success", beliefs: [{ category: "aa", dm: 0 }] })).item).beliefs, [{ category: "aa", dm: 0 }]);
 
 /* ------------------------- isTrader on mocked actors ------------------------- */
 
@@ -360,6 +418,8 @@ check("isTrader: no actor", !isTrader(null));
 const lang = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 for (const outcome of REPORT_OUTCOMES) check(`the outcome ${outcome} has a label`, typeof lang[`ACKS-MARKETS.report.outcome.${outcome}`] === "string");
 for (const key of ["tradeHouse.name", "report.itemName", "report.noMarket", "trader.research", "trader.compare"]) check(`${key} has a string`, typeof lang[`ACKS-MARKETS.${key}`] === "string");
+for (const key of ["awaiting", "awaitingCount", "awaitingCard", "awaitingCardLine", "choose.hint", "answer.button", "error.falseReport", "error.nonePending"]) check(`report.${key} has a string`, typeof lang[`ACKS-MARKETS.report.${key}`] === "string");
+for (const state of ["learned", "awaiting", "judgeSet", "marketNow", "awaitingGM", "noMarket"]) check(`report.tip.${state} has a string`, typeof lang[`ACKS-MARKETS.report.tip.${state}`] === "string");
 check("the sheet's Trade tab has a label", lang["ACKS-CHARACTER.tab.trade"] === "Trade");
 
 console.log(`test-reports: OK (${pass} checks)`);

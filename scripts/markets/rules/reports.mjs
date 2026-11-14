@@ -8,6 +8,7 @@
  * rules testable offline and the values (a modifier is whatever a report
  * carries) out of this file.
  */
+import { numOrNull } from "../../lib/util.mjs";
 
 /** Every outcome a report can carry. `false` is stored but never shown to a non-GM. */
 export const REPORT_OUTCOMES = Object.freeze(["success", "partial", "expertise", "false", "rumor"]);
@@ -34,11 +35,64 @@ export function heldByParty(report, { partyId = null, memberUuids = [] } = {}) {
 }
 
 /**
+ * Is this belief still waiting for the Judge? A good the trader chose is stored
+ * with a null modifier until the Judge answers it, so a missing, blank or
+ * non-numeric `dm` is the waiting state and never a zero.
+ * @param {{dm?: number|null}|null} [belief]
+ * @returns {boolean}
+ */
+export const isAwaiting = (belief) => numOrNull(belief?.dm) === null;
+
+/**
+ * A modifier as it reads on screen: signed, `"0"` for none, null while the
+ * Judge has not answered (the caller words the waiting state).
+ * @param {number|null|undefined} dm
+ * @returns {string|null}
+ */
+export function dmLabel(dm) {
+  const n = numOrNull(dm);
+  if (n === null) return null;
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
+/**
+ * A modifier the Judge typed or a document holds, as the whole number a
+ * belief stores: rounded, and null where nothing numeric stands (the waiting
+ * state, never a zero).
+ * @param {unknown} value
+ * @returns {number|null}
+ */
+export function storedDm(value) {
+  const n = numOrNull(value);
+  return n === null ? null : Math.round(n);
+}
+
+/**
+ * The tooltip a belief's figure carries: where it came from, in the lang key
+ * and the data it interpolates. The player's reading is the same whatever the
+ * outcome, so a false report gives nothing away; only the Judge's differs.
+ * @param {object} o
+ * @param {boolean} o.awaiting   The belief has no modifier yet.
+ * @param {boolean} o.isGM
+ * @param {string} o.outcome     The stored outcome.
+ * @param {string} o.truth       The market's current demand, already worded (or the word for a market that is gone).
+ * @param {string} o.day         The day the report was assessed, already worded.
+ * @param {string} o.assessor    The assessor's name, or a dash.
+ * @returns {{key: string, data: object}} a key under `report.tip`
+ */
+export function beliefTip({ awaiting, isGM, outcome, truth, day, assessor }) {
+  if (awaiting) return isGM ? { key: "tip.awaitingGM", data: { truth } } : { key: "tip.awaiting", data: {} };
+  if (!isGM) return { key: "tip.learned", data: { day, assessor } };
+  return { key: outcome === "false" ? "tip.judgeSet" : "tip.marketNow", data: { truth } };
+}
+
+/**
  * The demand modifiers a party believes about one market: the union of the
  * reports whose `partyId` is the party's, or whose assessor is one of its
- * members, keeping the newest belief per category. A tie on time goes to the
- * later report in the list.
- * @param {Array<{id?: string, marketUuid?: string, partyId?: string, assessorUuid?: string, time?: number, outcome?: string, beliefs?: Array<{category: string, dm: number}>}>} reports
+ * members, keeping the newest belief per category. A belief still waiting for
+ * the Judge is skipped, so an older answered figure for the same good keeps
+ * standing. A tie on time goes to the later report in the list.
+ * @param {Array<{id?: string, marketUuid?: string, partyId?: string, assessorUuid?: string, time?: number, outcome?: string, beliefs?: Array<{category: string, dm: number|null}>}>} reports
  * @param {object} [who]
  * @param {string|null} [who.partyId]        The party id reports are matched on.
  * @param {string[]} [who.memberUuids]       Actors whose own assessments count for the party.
@@ -52,12 +106,12 @@ export function beliefsFor(reports, { partyId = null, memberUuids = [], marketUu
     if (!heldByParty(report, { partyId, memberUuids })) continue;
     const time = Number(report.time) || 0;
     for (const belief of report.beliefs ?? []) {
-      if (!belief?.category) continue;
+      if (!belief?.category || isAwaiting(belief)) continue;
       const held = best.get(belief.category);
       if (held && held.time > time) continue;
       best.set(belief.category, {
         category: belief.category,
-        dm: Number(belief.dm) || 0,
+        dm: Number(belief.dm),
         time,
         outcome: report.outcome ?? "",
         assessorUuid: report.assessorUuid ?? "",
@@ -71,14 +125,16 @@ export function beliefsFor(reports, { partyId = null, memberUuids = [], marketUu
 /**
  * Two markets' beliefs side by side: one row per good either side has a belief
  * about, with the difference (B minus A) where both do. Beliefs only — a good
- * one market has no belief about stays `null` on that side.
- * @param {Array<{category: string, dm: number}>} a
- * @param {Array<{category: string, dm: number}>} b
+ * one market has no belief about stays `null` on that side, and so does one
+ * whose belief still waits for the Judge.
+ * @param {Array<{category: string, dm: number|null}>} a
+ * @param {Array<{category: string, dm: number|null}>} b
  * @returns {Array<{category: string, a: number|null, b: number|null, diff: number|null}>} sorted by category
  */
 export function compareBeliefs(a, b) {
-  const left = new Map((a ?? []).map((row) => [row.category, Number(row.dm) || 0]));
-  const right = new Map((b ?? []).map((row) => [row.category, Number(row.dm) || 0]));
+  const answered = (rows) => new Map((rows ?? []).filter((row) => !isAwaiting(row)).map((row) => [row.category, Number(row.dm)]));
+  const left = answered(a);
+  const right = answered(b);
   const categories = [...new Set([...left.keys(), ...right.keys()])].sort((x, y) => x.localeCompare(y));
   return categories.map((category) => {
     const from = left.has(category) ? left.get(category) : null;
