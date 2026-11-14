@@ -1073,6 +1073,14 @@ the roll. `materializeRolls` writes `scale: "level"`. The ladder itself is the
 class registry's (`ladderRungAt`), or the imported skill's own
 (`abilities/skill-ladders.mjs`) where no class publishes one.
 
+**A borrowed skill in the effect scan.** `effectScan` reads a sentence that takes
+a skill "as a <class> of <fraction> his level" (RR pp. 108, 115; JJ p. 308) into
+a `progressionAs` row: the class key, and the words between "of" and the pronoun
+read through the same word table and `levelFraction` into `atLevelNum` /
+`atLevelDen`. A whole level stores no fraction; words the table does not read
+drop the row. The row never carries the `atLevel` shorthand. The scan runs at
+import, so no compiled cookbook holds one.
+
 **An effects frame.** `assists.effectsFrames` names boxes on the anchor's page
 whose text the effects locators read beside the description: a bonus table
 printed under the entry, outside its prose. The compiler emits them as an

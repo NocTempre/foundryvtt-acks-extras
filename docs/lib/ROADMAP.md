@@ -84,11 +84,6 @@ imported the field stays blank with the page as its tooltip.
   293–294 for the access kinds), and which carriers are free against an action
   in `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
   reader picks from, so it is registered rather than shipped.
-- **The progression shorthand still drives one effect.** `PROGRESSION_LEVELS`
-  in `scripts/lib/vocab.mjs` is kept only to decode stored values (abilities
-  DECISIONS, 2026-08-30), and the `progressionAs` effect still takes it as its
-  vocabulary: the schema in `lib/fields.mjs`, the picker in
-  `lib/apps/effect-row-editor.mjs` and the scan in `importer/executor.mjs`.
 
 ## What the carry does not do for a token
 

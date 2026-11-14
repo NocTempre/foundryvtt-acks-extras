@@ -1,4 +1,4 @@
-# lib API (apiVersion 47)
+# lib API (apiVersion 48)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 47,
+  apiVersion: 48,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -275,8 +275,8 @@ to `{ key: label }` for DataModel `choices`.
 - **Ability effect model** (new): `ABILITY_CATEGORIES`, `EFFECT_TYPES`
   (spell kinds marked `domain: "spell"`; `effectTypesFor(domain)` is a
   picker's list), `MODIFIER_TARGETS`, `EFFECT_KEYS`, `CONDITION_KEYS`,
-  `PROGRESSION_CLASSES`, `PROGRESSION_LEVELS`, `RESOURCE_KINDS`,
-  `ROLL_TYPES`, `REROLL_KEEP`, `VALUE_SCALES`, `CONVERSION_STATUS`.
+  `PROGRESSION_CLASSES`, `RESOURCE_KINDS`, `ROLL_TYPES`, `REROLL_KEEP`,
+  `VALUE_SCALES`, `CONVERSION_STATUS`.
 - **Magic families** (`magic-vocab.mjs`, re-exported here): `SPELL_TYPES`,
   `RANGE_SHAPES`, `DISTANCE_UNITS`, `DURATION_SHAPES`, `TIME_UNITS`,
   `CONCENTRATION_KINDS`, `CASTING_TIME_SHAPES`, `TARGET_MODELS`,
@@ -338,7 +338,7 @@ level, scales)` returns the number at `level`:
 | flat number | `5` | `5` |
 | `{ kind:"perLevel", base, per }` | `{base:18, per:-1}` | `18 + per·(level−1)` |
 | `{ kind:"breakpoints", breakpoints:[{atLevel,value}] }` | `+1/+2/+3 @1/7/13` | last `value` whose `atLevel ≤ level` |
-| `{ kind:"progression", as, atLevel }` | thief skills | `null` — caller resolves via the class table |
+| `{ kind:"progression", as, atLevelNum, atLevelDen }` | thief skills | `null` — caller resolves via the class table |
 | `{ kind:"conditional", on, breakpoints }` | cost by Arcane Value | ladder keyed on `scales[on]`, not level |
 
 A `conditional` reuses the breakpoint ladder unchanged — only the number fed

@@ -74,7 +74,10 @@ const FIELD_SPECS = {
   attribute: { kind: "select", choices: () => V.choicesOf(V.ATTRIBUTES) },
   insteadOf: { kind: "select", choices: () => V.choicesOf(V.ATTRIBUTES) },
   as: { kind: "text" },
-  atLevel: { kind: "select", choices: () => V.choicesOf(V.PROGRESSION_LEVELS) },
+  // The fraction of class level a borrowed table is read at, typed as the page
+  // writes it. Blank is the whole level.
+  atLevelNum: { kind: "number", step: "1", min: "1" },
+  atLevelDen: { kind: "number", step: "1", min: "1" },
   domain: { kind: "select", choices: () => V.choicesOf(V.PROFICIENCY_DOMAINS) },
   breadth: { kind: "select", choices: () => V.choicesOf(V.PROFICIENCY_BREADTH) },
   group: { kind: "text" },
@@ -97,7 +100,7 @@ const TYPE_FIELDS = {
   modifier: ["appliesTo", "target", "mode", "value", "forWhat"],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
-  progressionAs: ["as", "atLevel"],
+  progressionAs: ["as", "atLevelNum", "atLevelDen"],
   proficiencyGrant: ["domain", "breadth", "group"],
   limitation: ["restriction", "gate.armourMax", "gate.noShield"],
   outcome: ["trigger", "naturalMax", "belowFraction", "consequence"],
@@ -214,6 +217,10 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         field.value = [...(value ?? [])].join(", ");
       } else {
         field.value = value ?? "";
+        if (spec.kind === "number") {
+          field.step = spec.step ?? "any";
+          field.min = spec.min ?? "";
+        }
         if (spec.list) field.list = Object.entries(spec.list()).map(([key, label]) => ({ key, label }));
       }
       if (name === "ref" && row.type === "summon") {

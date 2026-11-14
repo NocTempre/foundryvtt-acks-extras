@@ -1130,12 +1130,21 @@ export function effectScan(paras, registers) {
 
   // A skill borrowed "as <class> of <fraction> his level" (RR pp. 108, 115; JJ
   // p. 308): the class may be plural with no article, and the class/caster
-  // qualifier before "level" may be absent.
+  // qualifier before "level" may be absent. The words between "of" and the
+  // pronoun name the fraction; they are read through `readNumber` and stored as
+  // the `atLevelNum` / `atLevelDen` pair, so a proportion the word table does
+  // not read drops the effect. No proportion is a whole level and stores no pair.
   for (const m of text.matchAll(
-    /as\s+(?:an?\s+)?(thie(?:f|ves)|crusaders?|fighters?|mages?)\s+of\s+(one[- ]half\s+)?(?:his|her|their)\s+(?:(?:class|caster)\s+)?level/gi,
+    /as\s+(?:an?\s+)?(thie(?:f|ves)|crusaders?|fighters?|mages?)\s+of\s+(?:((?:[a-z]+[- ])?[a-z]+)\s+)?(?:his|her|their)\s+(?:(?:class|caster)\s+)?level/gi,
   )) {
     const as = m[1].toLowerCase().replace(/^thieves$/, "thief").replace(/s$/, "");
-    push({ type: "progressionAs", as, atLevel: m[2] ? "half" : "full" });
+    if (!m[2]) {
+      push({ type: "progressionAs", as });
+      continue;
+    }
+    const parts = levelFraction(readNumber(m[2], true));
+    if (!parts) continue;
+    push({ type: "progressionAs", as, ...(parts.num !== parts.den ? { atLevelNum: parts.num, atLevelDen: parts.den } : {}) });
   }
   return out;
 }

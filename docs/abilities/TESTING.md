@@ -352,6 +352,28 @@ proficiency instead, and add the invented name by hand through the same bind.
 Teardown: sweep the ledger (`api.sweepTracked()`), which holds the monster and
 the character.
 
+## A progression effect's fraction (unwalked)
+
+Fixture, marker `abilities/progression-effect`: a disposable `ability` item whose
+`flags.acks-extras.extras.effects` holds one `progressionAs` row with `as:
+"thief"` and no fraction. Use invented fractions throughout.
+
+1. Open the first item's Mechanics tab and press Edit on the row. **Observable:**
+   the window lists As class, then two number boxes (top number, bottom number),
+   both blank with a dash placeholder, and no select of fractions. Type 2 and 5.
+   `flags.acks-extras.extras.effects[0]` now holds `atLevelNum: 2` and
+   `atLevelDen: 5` and no `atLevel`; the row's line on the tab reads the
+   class and `2/5`. Clear both boxes: the line reads the class alone (a whole
+   level).
+2. Where a book is connected, import an ability whose page words a borrowed skill
+   as a class of a fraction of the character's level, in a fraction's word form
+   (the importer's word table reads it). **Observable:** the row stores
+   `atLevelNum` / `atLevelDen` and no `atLevel`; a page that words a whole level
+   stores neither. Import one whose proportion the word table does not read:
+   the row is absent, not defaulted.
+
+Teardown: sweep the ledger (`api.sweepTracked()`).
+
 ## Teardown
 
 Delete the ability item and the character. Confirm no `ability` items named

@@ -933,6 +933,23 @@ t("one phrase naming two fields is two modifiers, one per conjunct", () => {
   assert.deepEqual(targets, ["initiative", "surprise"]);
 });
 
+// Invented prose; the class and the proportion words are the scan's own vocabulary.
+const borrowed = (sentence) => effectScan(paras(sentence), {}).filter((e) => e.type === "progressionAs");
+t("a borrowed skill's fraction is read from its words into the pair, never the shorthand", () => {
+  const [q] = borrowed("The skill is used as a thief of three-quarters his class level.");
+  assert.deepEqual(q, { type: "progressionAs", as: "thief", atLevelNum: 3, atLevelDen: 4 });
+  assert.ok(!("atLevel" in q), "a new row never carries the shorthand");
+  const [h] = borrowed("The skill is used as a fighter of one half his level.");
+  assert.deepEqual([h.as, h.atLevelNum, h.atLevelDen], ["fighter", 1, 2]);
+});
+t("a borrowed skill with no proportion is a whole level and stores no fraction", () => {
+  const [w] = borrowed("The skill is used as thieves of their class level.");
+  assert.deepEqual(w, { type: "progressionAs", as: "thief" });
+});
+t("a proportion the word table does not read drops the borrowed row", () => {
+  assert.deepEqual(borrowed("The skill is used as a mage of seven-ninths his class level."), []);
+});
+
 /* ------------------------------------------------------------------ */
 /*  conditions: read off the page, or a neutral label                  */
 /* ------------------------------------------------------------------ */

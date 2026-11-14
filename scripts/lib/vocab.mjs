@@ -769,35 +769,21 @@ export const PROGRESSION_CLASSES = {
 };
 
 /**
- * Shorthands for the class-level fraction a `progressionAs` effect or a
- * `progression` target reads at, kept so a stored one keeps resolving. Which
- * fraction a rule uses is printed, so it is carried by `atLevelNum` /
- * `atLevelDen` on the value itself, read from the reader's own book;
- * `levelFactor` reads both and prefers the data. See docs/abilities/DECISIONS.md,
- * "The level fraction is data, not a member of a shipped list".
- */
-export const PROGRESSION_LEVELS = {
-  full: { label: "Full Level", factor: 1 },
-  half: { label: "Half Level", factor: 0.5 },
-  third: { label: "One-Third Level", factor: 1 / 3 },
-  quarter: { label: "One-Quarter Level", factor: 0.25 },
-};
-
-/**
  * The fraction of class level a borrowed table is read at, as a number.
  *
- * Reads the value's own numerator and denominator first, then the shorthand
- * key. A missing or nonsensical fraction is 1, the one answer that invents
- * nothing.
+ * Which fraction a rule uses is printed, so it is carried by `atLevelNum` /
+ * `atLevelDen` on the value itself, read from the reader's own book. A missing
+ * or nonsensical fraction (or a spec that is not an object) is 1, the one
+ * answer that invents nothing. See docs/abilities/DECISIONS.md, "The level
+ * fraction is data, not a member of a shipped list".
  *
- * @param {object|string} spec a LevelValue (or a bare legacy key)
+ * @param {object} spec a LevelValue or a `progressionAs` effect
  */
 export function levelFactor(spec) {
-  if (typeof spec === "string") return PROGRESSION_LEVELS[spec]?.factor ?? 1;
   const num = Number(spec?.atLevelNum);
   const den = Number(spec?.atLevelDen);
   if (Number.isFinite(num) && Number.isFinite(den) && num > 0 && den > 0) return num / den;
-  return PROGRESSION_LEVELS[spec?.atLevel]?.factor ?? 1;
+  return 1;
 }
 
 /**
@@ -818,13 +804,11 @@ export function levelFraction(factor) {
   return null;
 }
 
-/** A fraction as it is written — "2/3", or the legacy shorthand's own label. */
+/** A fraction as it is written, "2/3"; blank at a whole level or with no fraction. */
 export function levelFactorLabel(spec) {
   const num = Number(spec?.atLevelNum);
   const den = Number(spec?.atLevelDen);
-  if (Number.isFinite(num) && Number.isFinite(den) && num > 0 && den > 0) return num === den ? "" : `${num}/${den}`;
-  const key = typeof spec === "string" ? spec : spec?.atLevel;
-  return key && key !== "full" ? (PROGRESSION_LEVELS[key]?.label ?? key) : "";
+  return Number.isFinite(num) && Number.isFinite(den) && num > 0 && den > 0 && num !== den ? `${num}/${den}` : "";
 }
 
 /**

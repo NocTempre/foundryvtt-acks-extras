@@ -74,7 +74,7 @@
           {{else if (eq f.kind "select")}}
             <select name="{{f.name}}">{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
           {{else if (eq f.kind "number")}}
-            <input type="number" step="any" name="{{f.name}}" value="{{f.value}}" placeholder="—">
+            <input type="number" step="{{f.step}}"{{#if f.min}} min="{{f.min}}"{{/if}} name="{{f.name}}" value="{{f.value}}" placeholder="—">
           {{else if f.list}}
             <input type="text" name="{{f.name}}" value="{{f.value}}" list="{{@root.partId}}-{{f.name}}">
             <datalist id="{{@root.partId}}-{{f.name}}">

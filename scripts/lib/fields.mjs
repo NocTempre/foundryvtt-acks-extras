@@ -24,7 +24,6 @@ import {
   EFFECT_SUBJECTS,
   PROFICIENCY_DOMAINS,
   PROFICIENCY_BREADTH,
-  PROGRESSION_LEVELS,
   SPELL_LIKE_FREQ,
   HEAL_KINDS,
   SUMMON_FORMATS,
@@ -140,10 +139,8 @@ export function levelValueField() {
     // writes it — a numerator over a denominator. It is data because which
     // fraction a rule uses is printed: enumerating the ones some book happens
     // to state would transcribe those rules and still miss the next one.
-    // `atLevel` is a shorthand, read when no fraction is set.
     atLevelNum: num({ integer: true }),
     atLevelDen: num({ integer: true }),
-    atLevel: choice(PROGRESSION_LEVELS),
   });
 }
 
@@ -284,9 +281,11 @@ export function effectField() {
     // the same terms as a progression target's: the four chassis, or any class
     // the world publishes. A closed enum rewrote every non-chassis class to
     // `fighter` on save, so an ability that progressed as a craftpriest stored
-    // that it progressed as a fighter.
+    // that it progressed as a fighter. The fraction of class level is the
+    // `atLevelNum` over `atLevelDen` pair, as on a progression target.
     as: str(),
-    atLevel: choice(PROGRESSION_LEVELS),
+    atLevelNum: num({ integer: true }),
+    atLevelDen: num({ integer: true }),
     // proficiencyGrant (weapon/armor/fighting-style proficiency)
     domain: choice(PROFICIENCY_DOMAINS),
     breadth: choice(PROFICIENCY_BREADTH), // unrestricted / broad / narrow / restricted

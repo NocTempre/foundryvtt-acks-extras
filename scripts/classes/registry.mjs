@@ -334,7 +334,7 @@ export function publish() {
  *
  * @returns {number|null} the throw, or null when the chassis is unpublished
  */
-export function progressionThrow(as, atLevel = "full", level = 1, round = "up") {
+export function progressionThrow(as, atLevel = null, level = 1, round = "up") {
   const chassis = classByKey(as);
   if (!chassis) return null;
   return bracketRow(effectiveAttack(chassis), effectiveLevel(atLevel, level, round))?.throw ?? null;
@@ -349,7 +349,7 @@ export function progressionThrow(as, atLevel = "full", level = 1, round = "up") 
  * @param {string} table the ladder's key, as the class document names it
  * @returns {number|null} null when the class, or that ladder, is unpublished
  */
-export function ladderValue(as, table, atLevel = "full", level = 1, round = "up") {
+export function ladderValue(as, table, atLevel = null, level = 1, round = "up") {
   const value = Number(ladderRungAt(as, table, atLevel, level, round)?.value);
   return Number.isFinite(value) ? value : null;
 }
@@ -359,7 +359,7 @@ export function ladderValue(as, table, atLevel = "full", level = 1, round = "up"
  * fraction and rounded as `round` says (`up` where a caller states nothing).
  * The floor is 1, since a table has no rung below its first.
  */
-export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
+export function effectiveLevel(atLevel = null, level = 1, round = "up") {
   const raw = Math.max(1, level) * levelFactor(atLevel);
   return Math.max(1, round === "down" ? Math.floor(raw) : Math.ceil(raw));
 }
@@ -376,7 +376,7 @@ export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
  *
  * @returns {{atLevel: number, value: number|null, text: string, outcome: string}|null}
  */
-export function ladderRungAt(as, table, atLevel = "full", level = 1, round = "up") {
+export function ladderRungAt(as, table, atLevel = null, level = 1, round = "up") {
   const key = String(as ?? "").toLowerCase();
   const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
   // getDoc throws on an unregistered id.

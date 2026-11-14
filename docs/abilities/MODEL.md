@@ -145,6 +145,12 @@ one this module has never seen needs no code. The sheet
 shows the borrowed table under the throw, headed by the LENDING class's levels
 and captioned with the rung the reader actually stands on.
 
+A `progressionAs` effect (a skill that advances as another class's) carries the
+same pair on the row, `atLevelNum` / `atLevelDen`, typed in the effect-row
+editor's two boxes and written by the import scan from the page's own words;
+blank is the whole level. `levelFactor` and `levelFactorLabel` read only that
+pair; a row with no pair, or a bare string, is the whole level.
+
 Borrowed ladders resolve through `classes/registry.mjs`, never through lib — lib
 is Foundry-free and cannot see the world's class documents, so it answers null
 for this kind by design.

@@ -204,7 +204,7 @@ t("ATTRIBUTES key on the core system's own score paths", () => {
 });
 
 t("resolveLevelValue: progression defers to external table", () => {
-  assert.equal(R({ kind: "progression", as: "thief", atLevel: "full" }, 5), null);
+  assert.equal(R({ kind: "progression", as: "thief" }, 5), null);
 });
 
 t("resolveLevelValue: nullish is null", () => {
@@ -275,13 +275,10 @@ t("levelFactor: the fraction is DATA, so any printed one resolves", () => {
   assert.equal(f({ atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
   assert.equal(f({ atLevelNum: 3, atLevelDen: 4 }), 0.75);
   assert.equal(f({ atLevelNum: 1, atLevelDen: 1 }), 1);
-  // Data wins over the `atLevel` shorthand; the shorthand still reads alone.
-  assert.equal(f({ atLevel: "half", atLevelNum: 2, atLevelDen: 3 }), 2 / 3);
-  assert.equal(f({ atLevel: "half" }), 0.5);
-  assert.equal(f("half"), 0.5);
   // Nothing, or nonsense, is the whole level — the only answer that invents
-  // nothing. A zero denominator must never reach a division.
-  for (const bad of [{}, null, { atLevelNum: 1, atLevelDen: 0 }, { atLevelNum: 0, atLevelDen: 4 }, { atLevel: "nonesuch" }]) {
+  // nothing. A zero denominator must never reach a division, and a stray
+  // shorthand or bare string is no fraction.
+  for (const bad of [{}, null, "half", { atLevel: "half" }, { atLevelNum: 1, atLevelDen: 0 }, { atLevelNum: 0, atLevelDen: 4 }]) {
     assert.equal(f(bad), 1);
   }
 });
@@ -289,9 +286,27 @@ t("levelFactor: the fraction is DATA, so any printed one resolves", () => {
 t("levelFactorLabel writes the fraction, and says nothing at a whole level", () => {
   assert.equal(vocab.levelFactorLabel({ atLevelNum: 2, atLevelDen: 3 }), "2/3");
   assert.equal(vocab.levelFactorLabel({ atLevelNum: 1, atLevelDen: 1 }), "");
-  assert.equal(vocab.levelFactorLabel({ atLevel: "full" }), "");
   assert.equal(vocab.levelFactorLabel({}), "");
-  assert.ok(vocab.levelFactorLabel({ atLevel: "half" }));
+  assert.equal(vocab.levelFactorLabel({ atLevel: "half" }), "", "a stray shorthand is no fraction");
+  assert.equal(vocab.levelFactorLabel("half"), "");
+});
+
+// The effect-row editor declares a window class at load, so it needs the two
+// application bases; nothing else of Foundry is touched to read its field list.
+const priorFoundry = globalThis.foundry;
+const priorGame = globalThis.game;
+globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: {} };
+globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
+const { fieldsForType } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+globalThis.foundry = priorFoundry;
+globalThis.game = priorGame;
+
+t("a progressionAs row is edited as a numerator over a denominator, never a shorthand pick", () => {
+  const fields = fieldsForType("progressionAs");
+  assert.deepEqual(fields.slice(0, 3), ["as", "atLevelNum", "atLevelDen"]);
+  assert.ok(!fields.includes("atLevel"), "the shorthand is not offered");
+  assert.equal(vocab.levelFactor({ type: "progressionAs", as: "thief", atLevelNum: 3, atLevelDen: 5 }), 3 / 5);
+  assert.equal(vocab.levelFactor({ type: "progressionAs", as: "thief" }), 1, "no fraction is the whole level");
 });
 
 t("conversionTip fills {name}; renamed is marked, not silent", () => {
