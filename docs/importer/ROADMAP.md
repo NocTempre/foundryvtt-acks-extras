@@ -1240,3 +1240,9 @@ Parties journal of their introductions. Left:
 - **The grid on plates that print another scale.** One plate is drawn in
   miles with a gridded inset, and several plates' bars read about 4 or 5.3 ft
   a square; all take the owner's 5 ft.
+- **A lair inset's storeys as levels.** The p. 214 plate's large inset draws
+  two buildings with unequal storey counts on one Scene; they are not split
+  into levels.
+- **The library lair and its world copy.** Each carries its own lair flag, so
+  a roll on one is not seen by the other (see "A lair rolls…" in DECISIONS
+  for which one rolls).
