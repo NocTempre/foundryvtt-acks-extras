@@ -1,5 +1,7 @@
 # Equipment — Roadmap
 
+Re-issued 2026-11-14.
+
 What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 [DECISIONS.md](DECISIONS.md).
 
@@ -16,21 +18,24 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 - **The Proficiency penalties "Automatic" choice is inert.** It enforces only
   while `acksExtras.abilities` is absent, and the abilities feature assigns
   that unconditionally at init, so Automatic always acts as Never enforce.
-  Removing the choice or giving it a real condition is a setting change that
-  needs a migration for worlds that saved it; the owner decides which.
+  Removing the choice or giving it a real condition is the owner's decision.
+  The real condition is the abilities feature expressing a class's base
+  proficiency lists, which it cannot yet do (`proficiency.mjs`
+  `enforcementActive`).
 
 - **Loot tables and templates grant variations directly.** A table entry or a
   template names an item *and* the variations it comes with, so a masterwork
   blade needs no pre-combined document. The importer already mints one
   document per published variation (the Variations shelf); the base-type
   fields table is *Variation ruledata has no producer*, below.
-- **`acks-extras` migrates the legacy flags onto documents.** The
-  `masterwork`/`silvered`/shield-variant flags convert to variation documents
-  and the legacy-family refusal that stands in for the migration comes out
-  (DECISIONS 2026-08-15, "a variation is a document"). `config.SILVER` and
-  `config.MASTERWORK` already hold no figure and read the imported documents
-  (MODEL, "The silver and masterwork flags read the imported documents").
-  What remains of the legacy tables is `config.SHIELD_VARIANTS`: whether the
+- **Flag-held families, and the shield variants table.** The masterwork,
+  silvered, scavenged and shield-variant flags still hold a family a variation
+  document also names, and `applyRefusal` (`variation-items.mjs`) refuses the
+  variation while a flag holds it. Converting the flags to variation documents
+  removes that refusal (DECISIONS 2026-08-15, "a variation is a document").
+  `config.SILVER` and `config.MASTERWORK` hold no figure and read the imported
+  documents (MODEL, "The silver and masterwork flags read the imported
+  documents"); `config.SHIELD_VARIANTS` still holds a table, and whether the
   fields the imported shield documents do not carry are read from the book now
   or waived is the owner's call.
 - **An inventory of bespoke per-category items to retire onto base type +
@@ -59,19 +64,12 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   two-handed figure (`twoHandedDamage`), so a Judge-made versatile weapon deals
   the same damage in either grip. A field on the item for its two-handed damage
   would let one be declared.
-- **A list of the weapons the lists cannot place.** The weapon import no
-  longer names the rows it could not identify, because the rows are published
+- **A list of the weapons the lists cannot place.** The weapon import does not
+  name the rows it could not identify, because the rows are published
   from the documents it makes and nothing can be asked of them until it ends.
   A repair check run after the rows publish would list every weapon the
   imported lists leave without a class, so a Judge sees them in one place
   instead of on each sheet.
-- **Equipment numbers through the importer.** The strings and comments name the
-  field and cite the page. The numbers behind them still ship in code: the
-  torch dice and the non-proficient penalties.
-  Each arrives as an imported `equipment` table or from the item's own text, and
-  a feature whose table is absent refuses by naming it. `test-equipment` asserts
-  those shipped numbers today; it passes invented values in once the code takes
-  them.
 - **The scavenged damage floor.** The passage that prints the scavenged grids
   (RR p. 160) also prints a floor on a weapon's damage. No recipe reads it and
   no code applies it: a stacked damage penalty is written as rolled. It wants a
@@ -107,3 +105,22 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   through the row editor), and a change to which skills the page names reaches
   the abilities only at the next class-builder tables import or Update
   Abilities; the rung and the shield rule follow an override live.
+- **The named-item bonus categories are a shipped table.**
+  `overlays/named.mjs` `NAMED_CATEGORIES` lists the bonuses a named item can
+  unlock (JJ p. 399), with their sizes in the labels. A table of options is
+  content: it wants an importer recipe and a registered table, and the labels
+  with it.
+- **A core `system.encumbrance.mod` would let a wrapper go.**
+  `roll-wrap.mjs` `onComputeEncumbrance` corrects the stored encumbrance after
+  core computes it, because core has no adjustment field. If the system gains
+  one, the wrapper is deleted in favour of it.
+- **An extensible inventory bucket list would let the wear regrouping go.**
+  `sheet.mjs` moves core's inventory rows into wear-location buckets. If the
+  system gains a list the module can extend, the regrouping is deleted in
+  favour of it.
+- **Blank figures that have no page reference yet.** Fields left blank when
+  nothing is imported carry a page-reference tooltip only where one was
+  written. These carry none, and each needs its page looked up:
+  `ACKS-EQUIPMENT` `printed.capacityNotImportedTip`, `printed.notImportedTip`,
+  `itemLoss.notImportedTip`, `props.figureMissing` and
+  `maneuver.notImportedTip`.

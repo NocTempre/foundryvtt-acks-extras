@@ -1,247 +1,78 @@
-# Roadmap & Rules Gap Analysis
+# Formation — not built
 
-Status of every rule in the local rules extract (`acks-rules/acks-formation/RULES.md`, kept outside the repo) against the module as of **v0.4.0**, the refreshed plan for the **map-object fog system** ([FOG.md](FOG.md)), and — per the campaign requirements — the rules that need **additional development** (or additional rules text we don't yet have) to implement properly.
+Re-issued 2026-11-14.
 
-Legend: ✅ automated · 🟡 partial / assisted · 🔧 needs development · 📖 needs rules text not in the three source PDFs
+What the formation feature does not do yet: the rules it does not automate, the
+mapping system's remainder, the wilderness and settlement gaps, the printed
+values still in its code, and what the party sheet leaves. How it works now is
+[MODEL.md](MODEL.md); the rulings are [DECISIONS.md](DECISIONS.md); the fog
+architecture is [FOG.md](FOG.md).
+
+Legend: 🟡 partial or assisted · 🔧 needs development
 
 ---
 
-## 1. Where v0.4.0 stands (rules-extract coverage)
+## 1. Rules not yet automated
 
-| Rules area (extract §) | Status | Notes / what's missing |
+| Rule | Status | What is missing |
 |---|---|---|
-| Turns & rounds, 6 turns/hour (§1) | ✅ | Movement-driven ticks, manual Turn/Rest, world-time advance, combat rounds → turns (10:1) with carry. |
-| Speeds by encumbrance (§2) | ✅ | Party speed = slowest member, live from system encumbrance. |
-| Running fatigue, winded from running (§2) | 🔧 | Only the 5-turns-without-rest winded is automated. Per-round running fatigue (Paralysis save after 10±CON rounds, Endurance +4) is a combat-scale rule — needs a combat-round hook + save automation. Low priority; fights rarely last 10 rounds. |
-| Marching order & roles (§3) | ✅ | Ordered list, Scout/Mapper/Pole/Rear Guard/Non-combatant chips. |
-| Corridor-width formation (RR ch. 6, Marching and Mapping) (§3) | 🟡 | The party marches as a column along the ground it walked, spaced by the imported frontage and rank interval where they are imported and one cell per body elsewhere, and squeezes where a wall shuts a file out: the file goes to the other hand or the next rank, drawn, lit and deployed alike (MODEL "The column", Spacing and Walls). The trap sequence reads the laid ranks (MODEL "Traps"). What remains is a per-formation toggle to march unsqueezed. |
-| Mapper: bright light, both hands, **vulnerable** (§3.1) | 🟡 | Light requirement drives fog. **Hands are now real**: the role needs a quill and parchment (`ROLE_GEAR`) and each piece occupies a hand in the equipment loadout, so a mapper cannot also hold a drawn weapon. v0.5.0 warns when the mapper lacks the Mapping proficiency (vague measurements, no passive error detection). *Vulnerable* is applied automatically and lifts on the mapper's first free turn of a fight (shipped; docs/formation/MODEL.md, "The mapper is vulnerable"). |
-| Mapping proficiency (secret error-detection throw) (§3.1) | 🔧 | **A Judge-only party check, `kw:mapping`.** The proficiency text is in the local extract (`acks-rules/acks-formation/PROFICIENCIES.md`); its throw is the Judge's secret one, rolled for a mapper who can work and holds the proficiency, when the map and the ground disagree. Not built: it is one more Judge-only entry in `PARTY_CHECKS`, resolved as the other party checks are (MODEL, "The party check's throw"), with the result shown to the Judge alone. What the proficiency changes today is read by the mapping verdict (MODEL, "Mapping"): exact measurements, and a Map item that is not warped. |
-| Light sources & burnout (§4) | ✅ | Burn clock, guttering, inventory consumption, light from each bearer's cell in the column; reach and burn time imported (lib's light table). |
-| Shadowy senses / lightless vision (§4) | ✅ | Both now reach the TOKEN: sight derived from the sheet by the lib subsystem `senses.mjs` (shadowy its imported radius, lightless its recorded range, both as dim monochrome; ordinary eyes range 0, seeing only what is lit). Applies to any actor, in a party or not. Mapping still requires bright light, so the mapper gating is unchanged — RAW, senses cannot do bright-light tasks. |
-| Searching & listening throws (§5) | ✅ (v0.5.0) | Party-roll buttons (Listen / Hasty Search / Methodical Search / Bash Door) roll every member using **their sheet's numbers** — a matching ability item's rollTarget (thief skills) first, else the sheet's Adventuring target — GM-whispered as one card. RAW enforced: hasty search skill-only, methodical +4 for skill users and auto-consumes 1 turn, listening once per turn while moving, bashing ±4×STR. |
-| Earshot / noise (§5) | 📖 tables captured; automation impractical (Judge adjudication). |
-| Doors: bash/pick/batter procedures (§6) | ✅ (4.2.0) | Door helper on the Walls layer: the bash throw shown BEFORE it is rolled and broken into its parts (±4/STR, +4 for a pair on the stronger adjustment, +2 crowbar, ±8 per size step), an unwinnable throw named as such, batter-down turns by construction, and SPIKES as real state — one round each, four maximum, -4 to force per spike after the first, torn out when the door is forced. Published on `api.formation.doors`. |
-| Traps: trigger 1d6, pole probing, disarm throws (§7) | ✅ (4.9.0, extended 4.12.0) | The whole of §7. A trap is an Item; a Trap Zone region or a wall's trap layer places one. Searchers throw first (§9.3), then the pole 5' ahead of its bearer, then the party on the secret 1d6 — victims by marching order, or by area. Hasty/Methodical Trapbreaking with their botch bands, disarm-or-discharge, re-arming, and the repeat lock. The printed traps arrive through `acks-importer`, which imports their construction cost but not yet their mechanics (scoped in that repo's roadmap, 2026-08-16). |
-| Rest & winded (§8) | ✅ | Includes Endurance exemption and combat rounds counting. |
-| Sequence of play (§9) | ✅/🟡 | Steps 1, 5 automated; steps 2–4 (stationary actions, traps, deliberate encounters) are GM-driven with helpers. |
-| Wandering monsters: throw, distance, minute (§10) | ✅ | Zone-keyed cadence/targets/tables; private table draws. |
-| Wandering monsters: number appearing and reaction adjusted by the dungeon/monster level difference (§10) | ✅ | The Encounter Zone carries the **dungeon level**; the Judge sets a table's **monster level** in its sheet's Monster level row; the level of the table that named the monster is compared, and a Judge-only card states the number-appearing multiplier for the Judge to apply and rolls the reaction (MODEL "Turn tick"). Nothing scales unless BOTH levels are set. Shipped in 4.2.0 and unreachable until the Monster level row (DECISIONS 2026-09-23). **Still open: the importer half.** The JJ pp. 36–37 by-level tables and the dungeon-level matrix are not registered. Once they are, the materializer stamps each level table with the same `LEVEL_FLAG` (`encounter-scaling.mjs`), read from its column at import, and an imported matrix shifts with no typing. The rate itself is §6a. |
-| Surprise & encounter procedure (§10.4–5) | 📖🔧 | **These are two items, and only one is still blocked.** The REACTION half is extracted — `acks-rules/acks-influence/ACKS-Reactions-Reference.md` carries the 2d6 roll, the attitude ladder, the relationship modifier and the exhaustive modifier tables — and it belongs to the influence feature, which owns reactions. SURPRISE is what is still missing (party surprise roll vs monster, light-source penalties, the p. 266 noise interaction); the proficiency extract has only the bonuses that modify it (Alertness +1, Attunement to Nature +1 in wilderness), never the procedure they modify. Supply that and this becomes automatable. |
-| Spelunking, squeezing, swimming, jumping (§11–12) | ✅ (4.2.0) | Obstacle helper over the Spelunking table: six obstacle kinds, each with its own permission (an Adventuring throw or a real climbing proficiency), failed-throw and botched-throw outcome (read from the imported `spelunkingOutcomes` table; a fall ends the attempt) and vulnerability. Members who may NOT attempt are reported before anyone rolls. A fixed rope or supervising mountaineer turns a sheer face into an easy climb. One throw per stretch; the stretch and each target are read from the imported Spelunking table. Published on `api.formation.obstacles`. Swimming is now its own derivation (`swimming.mjs`, published on `api.formation.swimming`) because it shares nothing with the table: its target is the swimmer's own encumbrance, it is thrown every round rather than per stretch, and failure is a drowning with its own sink rate, breath clock and rescue weight. **Jumping is likewise its own derivation** (`jumping.mjs`, `api.formation.jumping`) and for a sharper reason: clearing a gap is not a throw at all. It is a distance — the Dexterity score plus a die, less what encumbrance takes off, cut without a run-up, scaled by running speed for a creature — reported as the RANGE the die makes it, with the count of faces that clear the gap. Every figure in it is read from the imported `jumping` table. Acrobatics raises the DEX the jump is figured from, but **what it is worth is not held here**: the cap on that score and its bonus to the landing save are printed with the proficiency, so they arrive with the character's own imported ability and are passed in (`NO_ACROBATICS` is what an unimported one contributes — nothing). The DEX modifier likewise comes from the sheet, which the system already computes, rather than from a copy of the attribute table. The only saving throw is on LANDING, owed solely for a precarious destination or a charge into melee: Paralysis, and failing it lands the jumper short by the imported die — prone, hanging by the fingers, or falling by the imported `fall` table. Neither swimming nor jumping has a UI surface yet. |
-| Thief skills table (§13) | 🟡 | Captured in RULES.md; used implicitly once searching/trap automation reads real actor skill targets instead. |
-| Rations & daily upkeep (§14.8) | ✅ (v0.5.0) | Week rations now consume as 7 tracked uses before the item decrements. Day boundary remains delve-relative. |
-| Spell duration parsing | ✅ (v0.5.0) | "N turns" and "N turns per (caster) level" both parse, per-level multiplied by the caster's sheet level. |
-| Strenuous ancillary activity per delve hour (§1) | 📖 | References RR p. 21 (fatigue/ancillary activities) — text not in the PDFs. Supply it to decide whether/how to automate. |
+| Running fatigue, winded from running | 🔧 | Only the winded state from five turns without rest is automated. Per-round running fatigue (a Paralysis save after a CON-adjusted number of rounds, Endurance's allowance) is a combat-scale rule: it needs a combat-round hook and the save automation. Low priority; fights rarely last that long. |
+| Corridor-width formation (RR ch. 6, Marching and Mapping) | 🟡 | The party marches as a column and squeezes where a wall shuts a file out (MODEL "The column"). What remains is a per-formation toggle to march unsqueezed. |
+| Mapping proficiency's secret error-detection throw | 🔧 | A Judge-only party check, `kw:mapping`: rolled for a mapper who can work and holds the proficiency, when the map and the ground disagree. One more Judge-only entry in `PARTY_CHECKS` (`party-rolls.mjs`), resolved as the other party checks are (MODEL, "The party check's throw"), with the result shown to the Judge alone. What the proficiency changes today is read by the mapping verdict (MODEL, "Mapping"). |
+| Earshot and noise | 🟡 | Left to the Judge's adjudication; nothing automates it. |
+| Wandering monsters: number appearing and reaction adjusted by the dungeon and monster level difference | 🟡 | The Encounter Zone carries the dungeon level, a table carries a monster level (`encounter-scaling.mjs` `LEVEL_FLAG`), and a Judge-only card states the multiplier and rolls the reaction (MODEL "Turn tick"). Nothing scales unless both levels are set. Not built: the importer half, the by-level tables and the dungeon-level matrix of the Judges Journal registered so the materializer stamps each level table with `LEVEL_FLAG` and a matrix shifts with no typing. The rate itself is in §6a. |
+| Surprise in the encounter procedure | 🔧 | The party's surprise roll against the monster, with light-source penalties and the noise interaction. The proficiency bonuses that modify it are read; the procedure they modify is not automated (core's Surprise Matrix stands, and detection states guide it). The reaction half belongs to the influence feature. |
+| Spelunking, squeezing, swimming, jumping | 🟡 | Each is its own derivation published on `api.formation` (`obstacles`, `swimming`, `jumping`) and tested. None has a UI surface: nothing in the party sheet asks the party to cross anything. One surface for all three is the next piece of work. |
+| Sequence of play, steps 2 to 4 | 🟡 | Stationary actions, traps and deliberate encounters are Judge-driven with helpers. |
+| Strenuous ancillary activity per delve hour (RR p. 21) | 🟡 | The wilderness day board carries an ancillary budget; the delve does not model it. |
 
-**Rules text worth extracting next** (to unblock the 📖 items), as of 2026-08-16:
-RR p. 21 (ancillary activities/fatigue), p. 84 & 266 context (**surprise** and
-the noise interaction — reactions are now extracted under `acks-influence`),
-p. 110 (Endurance), p. 507/514 (Conditions incl. Vulnerable), and — for a future
-overland mode — the wilderness expedition rules (expedition speed exists on
-actors already; none of the wilderness procedure is in hand). **Mapping (p. 114)
-is off this list** — it is extracted, and its row above is now 🔧.
-
----
-
-## 2. The mapping system — Phases 1 and 2 SHIPPED; the remainder
-
-[FOG.md](FOG.md) remains the architecture, and most of it is built: map
-sessions force `fog.mode = SHARED` while a formation maps (the scene's own
-mode is preserved in a flag and restored when mapping stops), "New map"
-archives the union into a Map item held by the mapper and restarts from
-black, the union re-archives on each dungeon-turn tick and at session end,
-the fog-reload socket tells clients to re-pull after GM-side surgery,
-anchoring composites a held Map item into every user's FogExploration
-(sceneId-guarded), and "Save my current fog as a Map item" gives the GM the
-sellable-map author. Mapping pauses — session intact — while the party is
-not mapping (MODEL, "Mapping"): no mapper who can work, no light reaching
-one (setting-gated), a hurried pace, or an active combat.
+## 2. The mapping system
 
 Still unbuilt, in likely order:
-- **Auto-suggest anchoring** — pixel-test the party's position against a held
-  Map item's bitmap and offer the anchor (GM-judged stays the rule).
+
+- **Auto-suggest anchoring.** Pixel-test the party's position against a held
+  Map item's bitmap and offer the anchor (anchoring stays the Judge's call).
 - **Bake-Regions-to-bitmap** for partially revealed merchant maps.
-- **Mapping-proficiency distortions** — unproficient mappers producing items
-  flagged unreliable. **No longer blocked on rules text** (2026-08-16): the
-  proficiency and its 11+ irregularity throw are extracted, so what remains is
-  the distortion mechanism itself.
-- **Optional `_unionizeSharedExploration` override** so anchored items
+- **An optional `_unionizeSharedExploration` override** so anchored items
   survive core fog resets.
 
-## 3. Other parked ideas (from DESIGN.md), re-prioritized
+## 3. Other open work
 
-1. ~~**Trap Zones — traps come home to this feature**~~ — SHIPPED 4.9.0, as the
-   whole of §7. A trap is an Item sub-type (`acks-extras.trap`) holding the
-   definition; a **Trap Zone** region behavior or a **trap layer on a wall**
-   places one. The sequence is the sequence of play's: searchers throw first,
-   then the 10' pole probing 5' ahead of its bearer, then the party rank by
-   rank on the secret 1d6 — victims by marching order, or by area for the traps
-   that take everything within reach. Hasty and Methodical Trapbreaking with
-   their botch bands, the disarm-or-discharge choice, re-arming, and the
-   "cannot repeat until higher level" lock. Crude traps and the adjustable
-   trigger band are in; the thirteen printed traps are NOT, and arrive through
-   `acks-importer`. See [DECISIONS.md](DECISIONS.md).
-
-   Two corrections to what this row used to say. **Trapfinding is not a throw**
-   — it is +2 on Searching and Trapbreaking (RR p. 121), which `party-rolls.mjs`
-   already applied; the finding throw is the hasty Search the party already had.
-   And the pieces named here were right but incomplete: the resolution ORDER
-   comes from §9.3, not from §7, and the area-effect traps come from the Judge's
-   book chapter 8, not from the delve chapter at all.
-
-   Still open on this row: **the importer half**, now half-built. As of
-   2026-08-16 that repo carries a `kind.trap` and all thirteen trap entries
-   authored against the Judge's Journal, so the mechanics text materializes from
-   a Judge's own book. What it does NOT yet have is the binding that turns one
-   into an `acks-extras.trap`, and that is gated on a question this feature
-   owns: `TrapData` holds one trap at ONE level, while the book prints thirteen
-   traps at six levels each — so the import produces either thirteen documents
-   carrying the tier run as prose, or seventy-eight complete ones. Until it is
-   answered a Judge fills traps in by hand, which this model always allowed.
-   (The traps also import today as construction COSTS — thirteen
-   `kind.equipment` rows off the RR price list — which is a different thing and
-   springs nothing.) Separate release, separate repo.
-
-   Also still open, added 2026-08-18 with the automatic-search sweep and the
-   Trapbreaking dialog: **the disarm-or-discharge choice is asked of the wrong
-   seat.** The book gives it to whoever made the throw; the throw runs on the
-   Judge's client, so a player who declares an attempt has the Judge answer for
-   them. Fixing it properly means a second socket round-trip back to the
-   declaring user, held open while the Judge's client waits — worth doing, not
-   worth papering over.
-2. ~~Encounter scaling & reactions~~ — SHIPPED 4.2.0.
-3. ~~Obstacle helper~~ — SHIPPED 4.2.0 (climb and traverse); swimming 4.7.0 and
-   jumping 4.8.0, each as its own derivation. What all three still lack is a
-   **surface**: the throws and distances are published on `api.formation` and
-   tested, but nothing in the party sheet asks the party to cross anything. That
-   is the next piece of work on this row, and it is one UI for all three.
-4. ~~Door helper~~ — SHIPPED 4.2.0, with spiking.
-5. ~~Deploy needs a HEADING, not a file~~ — SHIPPED. `formationOffset` lays file
-   along the heading's `right` and rank against its `forward`, and `blockOrigin`
-   clamps over the block's real reach in each direction instead of assuming span
-   is horizontal and depth vertical. The heading is the party token's `rotation`
-   snapped to a cardinal, with nothing stored — see
-   [DECISIONS.md](DECISIONS.md) for why south is the default, which is the one
-   behaviour change (a party whose token has never turned now trails its column
-   north instead of south). All four cardinals are pinned by
-   `tools/test-formation-heading.mjs`.
-6. ~~Formation templates (save/load marching orders); token HUD "form up"
-   button~~ — SHIPPED as **saved marching orders** (`marching-templates.mjs`,
-   world setting `marchingTemplates`), the word *template* being already spoken
-   for by the Monster Manual generator. Save/load live at the head of the party
-   sheet's Order tab; the party token's HUD forms the party up, gathering anyone on
-   the map back inside the token. See [MODEL.md](MODEL.md) for how a saved order
-   reconciles against a party that has changed since.
-   ~~**Open on this row: the API's grip.**~~ CLOSED 4.9.0. The applying calls
-   take an order or its id interchangeably, a reversed argument pair is refused
-   by name, and every call states whether it writes. What stays open is the
-   NAME: `applyTemplate` is also a chargen export with a different signature
-   (`scripts/classes/chargen.mjs`), and this file's own header already concedes
-   that *template* belongs to the Monster Manual generator. Renaming these to
-   `…MarchingOrder` is the real fix and was deliberately not bundled into a
-   fix-driven release — see [DECISIONS.md](DECISIONS.md).
-7. Wilderness/expedition mode — THE MODE NOW EXISTS (2026-08-28): the
-   `travel` subtree on the record, the journey/delve switch coupled to the
-   turn clock, the day board with its ancillary budget, the hex trace, the
-   derived day's march applied once to the slowest unscaled base, the lost
-   state, and the capped day log — `scripts/formation/travel.mjs`, published
-   as `api.formation.travel` (apiVersion 4). What remains on this row:
-   **Path B's importer half** — the extras side landed the same day (the
-   terrain/road/wind values read from the `travel`/`voyages` registered
-   tables, ×1 with a stated reason until imported; ruling in
-   `docs/vehicles/DECISIONS.md`). The land recipes LANDED 2026-08-28
-   (terrain multipliers, roads, getting-lost, encounter frequency, and the
-   whole `weather` document); still owed are the `voyages` recipes (wind
-   strength, tacking — the naval tail) and JJ App R's per-kind road
-   refinement that replaces the RR-derived roads table;
-   **supply consumption** at End Day (member rations at the day boundary,
-   animal feed and water as Normal-Load fractions, crew rations against the
-   hold). Encounter cadence + the chain LANDED 2026-08-28 (`MODEL.md` §The
-   encounters); of its importer recipes, the core chain tables ride the
-   owed-recipes row and the 17×4 monster sub-tables are a committed BATCH
-   PROGRAM (extras resolves whatever is registered and whispers "draw from
-   your book" for the rest, so batches land without extras changes).
-   Generated weather LANDED 2026-08-28
-   (`MODEL.md` §The weather; the `weather` document's importer recipes ride
-   the same owed-recipes row as the travel tables above). The scene/hex
-   integration LANDED 2026-08-28 exactly as the record
-   shape anticipated: the battlemap feature's painting
-   (`docs/battlemap/MODEL.md` §Country layers) names the hex and gives the
-   party the map's reading of its country on painted hex scenes (`MODEL.md`
-   §The country), and the manual Next-hex button remains the trace everywhere
-   else.
-8. Spell "per level" duration parsing (quick win, batch with the next release).
-9. Week-ration uses counter (quick win).
-10. **`levelFactor` stays a free float** in this feature's own skill-audit
-    override (`skill-audit.mjs`, `party-rolls.mjs` — 0.25–2, unlabeled), unlike
-    `lib/vocab.mjs`'s named `PROGRESSION_LEVELS` (full/half/third/quarter) that
-    abilities and classes already read. Adopting the enum here was the smaller
-    half of the original abilities-integration audit's Phase 4 sketch and was
-    never split out as its own change.
+1. **Traps: the disarm-or-discharge choice is asked of the wrong seat.** The
+   book gives it to whoever made the throw; the throw runs on the Judge's
+   client, so a player who declares an attempt has the Judge answer for them.
+   Fixing it means a second socket round-trip back to the declaring user, held
+   open while the Judge's client waits.
+3. **Obstacles, swimming and jumping have no surface** (§1).
+7. **Wilderness mode: per-kind road refinement.** The road table is read from
+   the Rulebook; the Judges Journal's per-kind road refinement does not
+   replace it yet. An importer recipe and a binding read are owed.
 11. **An unlinked member inside the party token is read from the world actor
-    in everything but hit points and death.** Their items, effects, rolls,
-    lights, rations and experience all go through `getMemberActor`, which
-    returns the world actor, and a stash has no document to write to. Reading
-    them from the stash needs an actor built from it, and a write path that
-    lands in the stash, as `adjustStashedHp` does for hit points (MODEL, "Data
-    flow"; DECISIONS 2026-09-23).
-12. **Dividing coin and treasure among the party.** Experience already divides
-    across the party's members by a shares rule (`divideXp` in
-    `scripts/formation/xp-shares.mjs`, a henchman's share read from its own
-    record, else the imported one). Nothing in formation moves coin or divides treasure. Not built: a
-    split of a find or a hoard over the members the party names, which would
-    move the coin through `transferCoin` in `scripts/lib/money.mjs`. Whether
-    the split is equal or by share is a ruling this file does not take.
+   in everything but hit points and death.** Their items, effects, rolls,
+   lights, rations and experience all go through `getMemberActor`, which
+   returns the world actor, and a stash has no document to write to. Reading
+   them from the stash needs an actor built from it, and a write path that
+   lands in the stash, as `adjustStashedHp` does for hit points (MODEL, "Data
+   flow"; DECISIONS 2026-09-23).
+12. **Dividing coin and treasure among the party.** Experience divides across
+   the party's members by a shares rule (`divideXp` in
+   `scripts/formation/xp-shares.mjs`, a henchman's share read from its own
+   record, else the imported one). Nothing in formation moves coin or divides
+   treasure. Not built: a split of a find or a hoard over the members the party
+   names, which would move the coin through `transferCoin` in
+   `scripts/lib/money.mjs`. Whether the split is equal or by share is a ruling
+   this file does not take.
 
-## 4. Land travel — RAW coverage checklist (audited 2026-08-29)
-
-A walk through RR §VI.2 *Wilderness Expeditions*, JJ ch. 2's expedition
-sequence, and JJ ch. 2 *Settlement Adventures*, rule by rule. **Built** rules
-are described in `MODEL.md` and are listed here only so the coverage is
-honest; everything else is work.
-
-### Built
-
-Expedition speed and the terrain multiplier; the road rate and its driver's
-rate; mud and snow as footing; the weather bands, conditions and the footing
-state machine; visibility in the wild (`visibilityMax`, `headEquivalents`);
-encounter distance, surprise, evasion and reactions; the encounter cadence by
-territory; the day board and its ancillary slots as a *record*; the day's march
-as hours walked off the map on any grid, the world clock running with it, the
-imported encounter cadence by grid or by miles, and the day ending at the next
-dawn.
-
-### Not built — the wilderness
+## 4. Land travel: not built
 
 | Rule | State | Note |
 |---|---|---|
-| ~~The day's end~~ | **BUILT** — walking off the day's march raises the question (call it a day / push on / not yet); `closeDay` is the one closer behind both it and the button (DECISIONS 2026-08-31). |
-| ~~**Navigating the Wild**~~ | **BUILT** — the throw is rolled and whispered at the day's first step off a road, once a calendar day (DECISIONS 2026-10-16), reads the imported target, applies the marching order's competence, and is skipped on a road, a river or a known route. |
-| ~~Pathfinding / Navigation bonus~~ | **BUILT** — `navigationCompetence` scans the marching order for either competence, holding both is worth more, and the two figures arrive with the travel import's `navigationBonus` row. |
-| ~~Straying direction~~ | **BUILT** — the Judge names the hex face or rolls for it; the grid's own neighbour order IS the face order. |
-| ~~Lost consequence~~ | **BUILT** — the full episode: shadow token, faked reveal, discovery, and re-anchor. UI-complete in The episode section of the Judge's tab. |
-| ~~**Searching the Wild**~~ | **BUILT** — the specs (22 checks) and `search-run.mjs`, rolled from the Search an hour tool, paying its encounter throw through the journey's own chain. |
-| ~~**Lairs per hex**~~ | **BUILT** — `hex-stock.mjs` performs the imported procedure from the Stock this hex dialog onto the scene, keyed by the cell and read at the party's TRUE hex while astray; a search reads the stock, a find is marked for this formation (several candidates are listed on the card for the Judge to mark one) and can be made a place (DECISIONS 2026-10-09, *A hex's stock lives on its map*, *Stocking runs the book's procedure*, *A search reads the stock*). |
-| ~~Searching for specific points of interest~~ | **BUILT** — the Looking for select at the foot of Points of interest targets one unfound point, with the penalty, or Elsewhere, a search for what is not there. |
-| ~~Aerial reconnaissance~~ | **BUILT** — read from the movement mode: more throws over open ground, a worse target under canopy, never both. |
-| ~~Land surveying~~ | **BUILT** — `surveyHex`, from the Survey the hex button and by itself after a search hour while this formation has no assessment: right, confidently wrong on a natural 1, or nothing yet; Tell the party posts one public line of one shape. |
-| Splitting up | **built** | Sub-parties throw and draw encounters separately; mutually supporting groups are not split. |
-| ~~**Flight speed**~~ | **BUILT** — `flight.mjs` composes into the march readout through the movement-mode layer: the **Flying** tile, hours aloft out of a stated day, and the load band. A flier meets the terrain below it, refuses roads, and its wind rule supersedes the ground's rather than stacking. |
-| ~~**Starvation**~~ | **BUILT** — `runProvisionDay` walks every member's ladder at End day and writes it to the body, not the marching order. |
-| ~~**Dehydration**~~ | **BUILT** — as above, and its toll is ROLLED: the caller throws the registry's die per body, and the heat multiplies it. |
-| ~~Hunting and foraging~~ | **BUILT** — the specs (11 checks) and `forage-run.mjs`, which rolls them from the Wilderness tab's Work the country pill and deposits into the foragers' packs. Live-verified the pool then sees it. |
-| ~~Survival, simplified~~ | **BUILT** — `simplifiedSupply` recommends what to carry; watered country waives the water entirely. |
-| ~~Animal daily food and water~~ | **BUILT** — `animalNeeds` reads each creature's own figures; unstated is null, never zero. |
-| ~~Temperature effects~~ | **BUILT** — hypothermia as an hourly condition, and the heat as modifiers: more water needed, a worse drain, an armour save. Live-felt in the pool. |
 | Hex-click tool and a Region overlay for the stock | not built | The Wilderness tab's Points of interest section is the surface, and a Region per hex was rejected (DECISIONS 2026-10-09, *A hex's stock lives on its map*). |
 | Climate by terrain | not built | The monster sub-tables stay a terrain pick (DECISIONS 2026-10-09, *Climate does not pick the monster sub-table*). |
 | `lost.mjs` `hexKey` duplicates `battlemap/terrain-paint.mjs` `hexKeyOf` | defect | One key, one owner. |
-| ~~Weather penalties on Searching, Land Surveying, Navigation, Tracking, listening and missile attacks; the visibility floor and the halving; the firewood and water foraging penalties; the dust rule in barrens and desert~~ | **BUILT** — the importer reads each condition's entry into the weather document's `conditionEffects` table and `weather-effects.mjs` merges the day's conditions; the search, survey and navigation throws, the forage targets, the encounter card's visibility and chips, and the flier's storm all read it, and the list under the sky's chips shows what the day states (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
 | Carrying the stock into a promoted place's notes | not built | |
-| ~~Hunt and forage slots on the day board~~ | **BUILT** — Work the country works the unspent hunt and forage slots, marks them done and runs the clock by them (`spendActivityHours`); a day whose slots are all spent says so. |
 | Substituting only a share of the lairs | not built | `substitute` rolls every lair on the bands, which is the page's own worked example; a cap on the share is the Judge's by hand. |
-| ~~The navigation throw at the start of the day~~; moonlight on the card; measuring along waypoints; two journeying parties on one clock; voyages | not built | Named out of scope by the movement ruling (DECISIONS 2026-10-09, *A drag on a journey spends miles*); night recovery and fatigue left that list with the insert-page ruling (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*), and the navigation throw left it built at the day's first step off a road (DECISIONS 2026-10-16, *The party is shown the hex it believes in*). |
+| Moonlight on the card; measuring along waypoints; two journeying parties on one clock; voyages | not built | Named out of scope by the movement ruling (DECISIONS 2026-10-09, *A drag on a journey spends miles*). |
 | The navigation throw at the halt after an evasion | not built | The rules price it apart from the day's throw. The Judge throws it by hand with the Judge tab's Throw now, which also counts as the day's throw (DECISIONS 2026-10-16). |
 | A calendar reminder that a hex's stock is old | not built | `hexStockView`'s `stockedAgo`, the age the Points of interest block says, is the reading it starts from. A restock stays the Judge's gesture, with its confirm (DECISIONS 2026-10-16). |
 | The sky under a lost party, read at the true hex | not built | The day change and Roll now read the climate of `travelOf`, the hex the party believes it is in, where the shadow-token ruling (DECISIONS 2026-08-29) has the weather read the truth; `trueTravelOf` is the reader the encounter column already uses. |
@@ -249,258 +80,106 @@ dawn.
 | The plate's crop off a background that does not fill the scene | not built | `paintPlate` crops the scene's background as if it filled `sceneRect`; a background placed, scaled or tiled off it draws the wrong ground under the cell. The level's background placement is the input the crop lacks. |
 | The faked reveal when the active GM is viewing another scene | not built | A drag walks the truth from the active GM's client and paints the reveal only where that client has the scene's fog texture drawn (`canFake`); a drag made while it views another scene records the faked hexes and paints none until the next walk made with the scene viewed. A paint routed to a client viewing the scene, or deferred to its next view, is the fix. |
 | Sea encounters | not built | The sea voyage encounter tables (Judges Journal ch. 2, the sea civilized and sea monster grids and their nautical follow-ups) have no recipe, no binding and no pick: `ENCOUNTER_TERRAINS` holds no sea entry, so the chain cannot be stood at sea, and the treasure-by-terrain lookup's ocean row is read by nothing. Voyages themselves are out of scope above; the tables are the import half, which ships first (TOOLCHAIN §10e). |
-| ~~The weather's speed factors~~ | **BUILT** — the weather import's `conditionProse` recipe writes `conditionSpeed`, `travelMultiplier` (`vehicles/vehicle-speed.mjs`) multiplies the march by each active condition's factor as a `condition.<key>` part, and the flier's wind and storm parts supplant those two. The row's earlier claim that nothing wrote or read the table was stale. |
-| ~~Fatigue~~ | **BUILT** — `lib/fatigue.mjs` keeps three clocks on the body (the run of days of activity, the nights without restful sleep, the run of forced marches) against the imported counts, with Labor's exemption and Endurance's allowance; `rest.mjs` walks them at End day and writes the `fatigued` stacks, and the heat's armour save adds a stack for a failed hour. |
-| ~~Sleeping in armour~~ | **BUILT** — the camp's *Sleeping in armour* declaration: each sleeper throws against the stone it bears, and the rest card says who needs how many rounds to don the kit. |
 | Encounters while asleep | not built | `slumbering` (`lib/conditions.mjs`) applied to a party met asleep and lifted by the insert's three endings (*Wilderness Expeditions I*). |
-| ~~Frostbite~~ | **BUILT** — a hypothermic body throws the imported save at End day on the weather's toll card and is marked `frostbitten` on a failure, with the die and the row the Judge resolves from the book. |
-| ~~Disease from the weather~~ | **BUILT** — the party's run of days under each sky is kept on the formation; a run that reaches the imported count throws per body on the toll card and marks `diseased`. |
 | Who saw whom after dark | not built | The encounter card's sight lines read the daylight figure at every hour (`postEncounterCard`), because the three night lights need a moon that nothing in the world declares. A party met at night is told it saw, or was seen, by daylight. A lunar source, or a Judge's per-encounter light pick, is the missing input. |
-| ~~When within the period an encounter falls~~ | **BUILT** — the card says the mile of the hex, the turn of the hour, the hour after dawn or dusk and the night of the period, by dice sized from the calendar and the imported cadence, and a terrain encounter on a scene is left on the Judge's map as a persistent marker. |
 | A hazard's trap equivalent | printed, not placed | The card prints the row's `trap` beside the hazard; placing the equivalent trap on a battlemap is the Judge's (DECISIONS 2026-10-09, *The insert pages' rules ship with the major*). |
-| ~~Managing traps as an activity~~ | **BUILT** — declared as a count in the Day section; End day owes one throw per imported batch and carries the remainder to the next day. |
-| ~~Foraging where the crop is somebody's~~ | **BUILT** — the camp's *Willing to steal* declaration drops the settled-country part. |
-| ~~Water found standing~~ | **BUILT** — `standingWaterOf`: the camp's *Water at hand* declaration, a followed river (a navigable line drawn under the party, or the Judge's word), or a river table for the encounter terrain. |
 | Visibility of terrain and of a fire | partial | `visibilityMax` scales the imported light figure by the formation-size ladder; the insert's two rows that are not formations have no consumer, and raising the distance by elevation is the Judge's (*Wilderness Expeditions I*). |
 
-### The settlement — complete
+### The settlement
 
-City travel landed as `settlement.mjs`: the paces, the street locations, the
-route memory, the straggling ladder and the derivations that price them from
-the registry. Every row below is now built — kept here, struck through, so the
-walk stays honest about what was once outstanding.
-
-| Rule | State | Note |
-|---|---|---|
-| ~~Settlement panel~~ | **BUILT** — pickers, the derived rate and the throw prospect. The Take-a-turn button is **gone**: a city turn is walked off the map like a delve turn (DECISIONS 2026-08-31). |
-| ~~Street encounter throws~~ | **BUILT** — the movement-driven turn tick fires them on the street's own cadence, whispered, in place of the dungeon's wandering-monster throw. |
-| ~~Settlement encounters table~~ | **BUILT** — the d100 table imports as a real RollTable from the Judge's own Judges Journal (a new `jj` register and cookbook), and the after-dark shift arrives as a registered figure. `settlementEncounter` performs the procedure: one roll, the shift, the band. |
-| ~~Looking for trouble~~ | **BUILT** — a declared intent that eases the THROW rather than shortening the interval, which is what the page says and the difference compounds over a long walk. |
-| ~~Holing up~~ | **BUILT** — `advanceSettlementDays` spends a stay in DAYS, one throw each, credited off the world clock (`creditHoledUpDays`) rather than from a control. |
-| ~~Travel by litter or wagon~~ | **BUILT** — a conveyance the board remembers and that deliberately carries no rate at all, pinned by a test: the page says it is not any faster. |
-
-### Cross-cutting defects found in the audit
-
-- ~~**Weather is stored, not derived.**~~ **FIXED 2026-08-29, re-made
-  2026-10-15** — `sky.mjs` caches per `(day, climate, season)`. Until
-  2026-10-15 the day in the key was the End-day counter, so the claim held for
-  End day alone; since then it is the calendar day, and the day change settles
-  the sky however the clock moved (DECISIONS 2026-10-15). The live claim is
-  re-made by that phase's walk (`TESTING.md`, *The day change*).
-- ~~**Road and development are per-day pickers.**~~ **FIXED 2026-08-29** —
-  roads are drawn, and the hex links are derived from what was drawn
-  (`hex-topology.mjs`, `hex-routes.mjs`, `battlemap/roads.mjs`). Rivers and
-  coasts are drawn the same way since 2026-10-15 (`battlemap/water.mjs`) and
-  link nothing; a party not travelling a drawn route takes its road from the
-  scene's default or the Judge's hand (MODEL "The country").
-- ~~**The terrain vocabulary is frozen.**~~ **FIXED 2026-08-29** — the brush
-  now paints the union of shipped and imported keys, with a derived hue for a
-  kind the palette has never seen.
-- ~~**`mud` and `snow` are paintable terrain.**~~ **FIXED 2026-08-29** — both
-  are withheld from the brush and derived from the footing alone. They remain
-  valid terrain keys for the multiplier lookup.
-
-### The settlement layer — roads and districts SHIPPED (7.6.0); the rest
-
-Streets and quarters shipped in 7.6.0: walls carry a road layer, a city walk is
-measured along the graph they draw, and a District Region states a quarter's day
-and night cadence, its own and its hunted tables, and how it receives strangers.
-`docs/formation/MODEL.md` "The districts" is how it works; the rulings are the
-2026-09-12 entries in `DECISIONS.md`; the live recipe is `TESTING.md` steps
-15–26.
-
-Two milestones of that plan are **not built**, and were deferred when 7.6.0 was
-cut as a minor rather than held for one major:
-
-| Not built | What it is | What it needs first |
-|---|---|---|
-| ~~**Points of interest**~~ | **BUILT** — a static point is a place's token with marker defaults; the panel names the place under the party and the quarter's own place; an incident leaves a Judge-only marker that expires on the world clock and is promoted into a place from the card; the walk to a point is priced by quarter from the imported figures; and AX3's keyed places import as places nested quarter → city. `docs/formation/MODEL.md` "Points of interest", `docs/location/MODEL.md` "A place on the map". The organisations' rooms still land as pages until the factions phase binds them. | — |
-| ~~**Factions, reputation and status**~~ | **BUILT** (8.0.0) — the `acks-extras.faction` Actor sub-type with its standing ledger, the hunt that marks a party wanted in the quarters a faction holds, and the reaction rows it adds. `docs/factions/MODEL.md`; what it still lacks is `docs/factions/ROADMAP.md`. | — |
-
-Three smaller things the same work left open:
-
-- **A city list routes ONE band, to one list per quarter.** The map states a
-  single stretch and the district a single special list (`docs/formation/MODEL.md`
-  "A city list can hand its roll to the quarter"), which is what a gazetteer
-  with one special row needs. A list with several routed bands, each to its own
-  sub-table (JJ ch. 7 Step 7), is not modelled: it wants the band to become a
-  list of `{from, to, table}` on the map, and the world's own imported list to
-  take one as well. Core RollTable nesting still covers static routing.
-- **The rest of JJ ch. 7 Step 5 is importer work.** A settlement's dynamic
-  buildings and the per-shop availability fractions are printed figures with
-  no register yet; the place a point of interest now is has the `market`
-  subtree to receive them when they arrive.
-- **A quarter left and re-entered is asked again.** `applyHunt` asks once per
-  quarter (`huntRegion`), so a turn on a building's map with no district clears
-  `huntedBy` and keeps `wanted`, and walking back out into the quarter asks it
-  again: a hunter the Judge unticked marks the party hunted once more. A city's
-  buildings are its own maps since the city stamp (DECISIONS 2026-10-28, "A
-  city's buildings are the city"), so this happens at every door. It needs a
-  ruling: the quarter's ask remembered across a building, or a building's map
-  read as the quarter it stands in.
-
-## 5. Rulings taken 2026-08-29, and what each unblocks
-
-All ten open questions from the audit are answered
-(`docs/formation/DECISIONS.md`, `docs/battlemap/DECISIONS.md`). Remaining work,
-now unblocked:
-
-| Work | Ruling it waited on |
+| Not built | What it is |
 |---|---|
-| Following a river or known route | **BUILT** — the RAW exemption: a navigable river is read off a drawn water line, and a known route is the Judge's word in the Judge's hand (MODEL "The country"); the branch had existed with no field to read |
-| ~~The lost episode~~ | **BUILT** — ledger, shadow token, faked reveal, both endings; live-verified end to end |
-| ~~Hooking the daily throw into the day's first step~~ | **BUILT** — `throwDayNavigation` throws it at the day's first journey step off a road, once a calendar day, and `navigation-card.mjs` whispers it; End day no longer throws (DECISIONS 2026-10-16). A failure opens the episode where the party stands, the truth and the belief together, and the card's Begin opens it the same way once the scene is viewed; the stray direction stays the Judge's, given by the drag, Shift the truth or They strayed…'s face |
-| ~~The Wilderness Searching throw for the last known landmark~~ | **BUILT** — it is `searching.mjs`'s `landmark` quarry, and it feeds `reanchorEpisode` |
-| ~~Weather from `date × climate`~~ | **BUILT** — `sky.mjs`. Keyed on the End-day counter until 2026-10-15 and on the calendar day since (DECISIONS 2026-10-15); the live claim that two parties share one morning is re-made by that phase's walk |
-| ~~Hex topology~~ | **BUILT** — the model (14 checks), the scene storage, the Routes tools, and the march consulting it. Live-verified that a crossing is a crossing: the same hex's other neighbours stay off-road |
-| Route tax | **BUILT** — `routeCost` reports it apart from the speed multiplier. A path's own encounter profile is not built |
-| ~~Survival~~ | **BUILT** — the ladders (12 checks), pooling and sharing (11 checks), and `provision-day.mjs` ticking every body on End day. Live-verified that one carrier's rations feed the whole order |
-| ~~Flight as a third travel model~~ | **BUILT** — `flight.mjs`, 11 checks. The blend, the wind cut and the load threshold; whether terrain multiplies a flight is a registered ruling, since the printed table's placement and the fiction disagree |
+| A city list routing several bands | The map states a single stretch and the district a single special list (MODEL "A city list can hand its roll to the quarter"). A list with several routed bands, each to its own sub-table (JJ ch. 7 Step 7), wants the band to become a list of `{from, to, table}` on the map, and the world's own imported list to take one as well. Core RollTable nesting still covers static routing. |
+| The rest of JJ ch. 7 Step 5 | A settlement's dynamic buildings and the per-shop availability fractions are printed figures with no register yet; the place a point of interest is has the `market` subtree to receive them when they arrive. |
+| A quarter left and re-entered is asked again | `applyHunt` asks once per quarter (`huntRegion`), so a turn on a building's map with no district clears `huntedBy` and keeps `wanted`, and walking back out into the quarter asks it again: a hunter the Judge unticked marks the party hunted once more. A city's buildings are their own maps (DECISIONS 2026-10-28, "A city's buildings are the city"), so this happens at every door. It needs a ruling: the quarter's ask remembered across a building, or a building's map read as the quarter it stands in. |
 
-Done in the same pass: the open terrain vocabulary, mud/snow withheld,
-straggling shipped ON behind a world setting, and `landNavigationSpec` /
-`navigationCompetence` giving `gettingLost` its first reader.
+## 5. Rulings taken 2026-08-29: what remains
 
----
+| Work | State |
+|---|---|
+| Route tax: a path's own encounter profile | not built. `routeCost` reports the tax apart from the speed multiplier; the path's encounter profile is not modelled. |
 
-## 6. The door numbers leave the module (ruled 2026-08-30)
+## 6. The door numbers leave the module
 
-**Correction (2026-09-02): the claim this section opened with was false.** It
-read "`doors.mjs` is the last formation surface holding printed values in code",
-and it was wrong when written — an audit found printed values across the
-feature, several of them plainer violations than the ones this section lists. A
-doc asserting a clean bill of health is worse than no doc, because it stops the
-next reader looking. What is now known to remain is inventoried in §6a below;
-`doors.mjs` is one surface among several, not the last.
-
-`doors.mjs` holds printed values in code — the bash target, the
-Strength/pair/crowbar/size/spike magnitudes, the spike cap, the botch damage,
-and `DOOR_KINDS`, which is RR Ch.6's door grid retyped (and which had already
-acquired a "portcullis" row the books do not print). Ruled content, not
-structure: [DECISIONS.md](DECISIONS.md).
-
-Two steps, importer first — extras cannot read a table no world can supply.
+`doors.mjs` holds printed values in code: the bash target, the
+Strength, pair, crowbar, size and spike magnitudes, the spike cap, the botch
+damage, and `DOOR_KINDS`, which is RR ch. 6's door grid retyped (with a
+"portcullis" row the books do not print). Ruled content, not structure:
+[DECISIONS.md](DECISIONS.md). Two steps, importer first, since extras cannot
+read a table no world can supply.
 
 | Step | Where | Work |
 |---|---|---|
-| 1 | acks-importer | An RR Ch.6 recipe: the door grid through `assists.grids` with `ac` / `shp` columns (as `def.vehicle.seaTable` p.319 already does), the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch.6 has no register file yet, so the page range is new; the extraction shape is not. |
-| 2 | extras | `doors.mjs` reads a `doors` document via `getDoc` / `expectTables`, as `classes/hitpoints.mjs` does. `bashPlan` keeps its shape — only the magnitudes are passed in. |
+| 1 | importer | An RR ch. 6 recipe: the door grid through `assists.grids` with `ac` / `shp` columns (as the sea table on p. 319 already does), the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch. 6 has no register file yet, so the page range is new; the extraction shape is not. |
+| 2 | formation | `doors.mjs` reads a `doors` document via `getDoc` / `expectTables`, as `classes/hitpoints.mjs` does. `bashPlan` keeps its shape; only the magnitudes are passed in. |
 
-Degradation is a refusal, not a default: no imported table means bash and batter
-say so, while every structural door gesture (open, close, lock, spike, unspike,
-evil doors) keeps working. There is no identity value for a missing throw target
-the way `1` is the identity for a missing hit-die floor, and falling back on the
-target the module remembers would reinstate the very value the ruling removes.
+Without an imported table, bash and batter refuse and say so, while every
+structural door gesture (open, close, lock, spike, unspike, evil doors) keeps
+working. There is no identity value for a missing throw target, and falling
+back on a remembered target would reinstate the value the ruling removes. This
+file and `doors.mjs`'s module docstring state the magnitudes in prose; they are
+cleared in the same pass.
 
-Also in that pass: this file and `doors.mjs`'s own module docstring state the
-magnitudes in prose. `docs/` is not shipped, but it is tracked.
+## 6a. What else in formation still holds printed values
 
----
-
-## 6a. What else in formation still holds printed values (opened 2026-09-02)
-
-The audit that corrected §6's claim. 6.2.0 took the three clearest cases and
-stopped, because each remaining one needs its own ruling and no gate can make
-it — the structure/content line is a reviewer's call by design
-(`.claude/rules/ip-doctrine.md`).
-
-**Done in 6.2.0** — `SPEED_TIERS` deleted outright (a printed grid with zero
-readers anywhere in the repo); the carried-body weight and its gear share, which
-existed as two copies of one figure in `constants.mjs` and `swimming.mjs`, now
-registered with one owner; the rest cadence likewise. All read the `formation`
-ruledata document through the shape `flight.mjs` and `foraging.mjs` already use,
-and all degrade by saying less rather than by inventing a default.
-
-**Done after 6.2.0** — `swimming.mjs`, the largest single pocket, is clear:
-the proficiency bonus, the cold and rough water costs, the speed share, the sink
-rate and the breath base all arrive registered. `WATER`’s keys stay as this
-module’s own select vocabulary and `calm` stays structurally zero, so the
-commonest throw still computes with nothing imported. Ruling and the rejected
-zero-default: DECISIONS 2026-09-02.
-
-**Done in 8.1.0** — the strings and comments. Hints, notes and warnings name
-their field and cite the page, and tracked tests use invented figures. The
-numbers below still ship in code (DECISIONS 2026-09-23, "Formation strings name
-the field and cite the page").
-
-**Done after 11.13.2** — the delve's wandering throw: its die, interval,
-target and distance dice all arrive with the `delveEncounters` import, and
-none is guessed when absent (DECISIONS 2026-11-04, "The delve's wandering
-cadence is imported" and "The encounter throw's dice are imported too").
-
-**Still to rule, roughly worst first:**
+Each needs its own ruling, and no gate can make it: the structure/content line
+is a reviewer's call by design (`.claude/rules/ip-doctrine.md`). Roughly worst
+first:
 
 | Where | What | Note |
 |---|---|---|
-| `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner — the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
-| `trap-rules.mjs` `CRUDE` | the crude-trap modifiers (find, remove, attack, save) | Found by the 2026-09-23 audit. The reaches, the trigger die and band, the botch bands, the methodical bonus and the pit's dice are imported (DECISIONS 2026-11-13); the crude modifiers are printed in the Judges Journal's trap chapter and have no recipe yet. |
-| `formation-model.mjs`, `formation-view.mjs`, `deployment.mjs` | the combat-speed ratio | Found by the 2026-09-23 audit. The exploration-speed bands are no longer here: the figure is read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`). The blinded share is imported: `blindedSpeedShare` reads it from the conditions table. |
+| `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner, the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
+| `trap-rules.mjs` `CRUDE` | the crude-trap modifiers (find, remove, attack, save) | Printed in the Judges Journal's trap chapter and no recipe reads them yet. The reaches, the trigger die and band, the botch bands, the methodical bonus and the pit's dice are imported (DECISIONS 2026-11-13). |
+| `formation-model.mjs`, `formation-view.mjs`, `deployment.mjs` | the combat-speed ratio | The exploration-speed bands are read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`), and the blinded share is imported (`blindedSpeedShare`); the combat ratio is not. |
 | `travel.mjs` `rollLandNavigation`, `navigation-card.mjs` | the natural result on which a navigation throw fails whatever the bonus | `navigationProse` reads only the competence bonuses; the failure band needs a window on the same page and a binding read. |
 | `weather.mjs` `frontShift` | the size of a front's drift and the natural results it exempts | The weather recipe holds no fronts window; it needs a new recipe row and a binding. |
 | `provision-day.mjs` `weatherToll` | the fatigue a failed heat throw adds | `heatProse` is read whole for the armour threshold and never for this count. |
-| `deployment.mjs` leash, `lang` `app.leashed` | how far a detached member may range ahead of the party | No printed rule found for it (RR ch. 6); a house limit, so removal is a behaviour ruling. The `detachHint` string no longer states it, but MODEL and the guide do. |
-| `encounter-zone.mjs`, `district-zone.mjs` | the schema's `max: 6` on the encounter target fields | The die the target is thrown on, written into a field bound. The delve die is imported; the bound needs the same reading. |
-| `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price; the fallback carries no cost. |
-| `obstacles.mjs` `OBSTACLES` | each obstacle's vulnerability and movement type (`vertical`, `descendOnly`) | Cells of the same Spelunking grid whose failed- and botched-throw rows now import (`spelunkingOutcomes`). The next row of that recipe; `tools/test-obstacles.mjs` asserts the vulnerabilities and moves with them. |
-| `encounter-scaling.mjs` | the number-appearing rate per level step and the reaction step | Found 2026-09-23 while making the shift reachable. Pass them in, as `jumping.mjs` takes its figures. The 4.2.0 CHANGELOG entry states the rate too; the local-only rules test may keep it. |
+| `deployment.mjs` leash, `lang` `app.leashed` | how far a detached member may range ahead of the party | No printed rule found for it (RR ch. 6); a house limit, so removal is a behaviour ruling. The `detachHint` string does not state it, but MODEL and the guide do. |
+| `encounter-zone.mjs`, `district-zone.mjs` | the schema's `max` on the encounter target and throw-count fields | The die the target is thrown on, written into a field bound. The delve die is imported; the bound needs the same reading. |
+| `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price in the fallback item's data. |
+| `obstacles.mjs` `OBSTACLES` | each obstacle's vulnerability and movement type (`vertical`, `descendOnly`) | Cells of the Spelunking grid whose failed- and botched-throw rows import (`spelunkingOutcomes`). The next row of that recipe; `tools/test-obstacles.mjs` asserts the vulnerabilities and moves with them. |
+| `encounter-scaling.mjs` | the number-appearing rate per level step and the reaction step | Pass them in, as `jumping.mjs` takes its figures. |
 
-**Explicitly ruled STRUCTURAL and NOT to be stripped**, recorded so a later pass
-does not "fix" them: `party-rolls.mjs`'s `consumesRound` / `consumesTurn` and
-their sibling flags are booleans naming WHICH unit of the game's own time an
-action spends, which is the procedure being performed; `TURN_SECONDS`,
-`TURNS_PER_HOUR`, `TURNS_PER_DAY` and `ROUNDS_PER_TURN` are the module's own
-unit system, which everything else derives from; `MARCH_FEET_PER_BODY_DEFAULT`
-was already ruled structure by a human on the Judge-editable-and-derived
-grounds. Stripping any of these would leave the code unable to state the rule it
-performs, which is the opposite of what the doctrine asks.
+Ruled STRUCTURAL and not to be stripped: see DECISIONS, "Three printed figures
+leave the module; the rest are inventoried" (2026-09-02).
 
-**The test pattern this pass established.** Removing a printed value breaks the
-offline suites that assert it, and that failure is CORRECT — it proves the value
-was load-bearing. The fix is for the test to register the ruledata itself, as
-`test-classes.mjs` and `test-battlemap.mjs` already do. `tools/rules-tests/` is
-gitignored and local-only, which makes it the one place a printed value may
-legitimately sit.
-- **Derivations do not read the shadow yet.** The 2026-08-29 ruling routes
-  every "where is the party" question through `truePositionToken` while an
-  episode runs, so that terrain, encounters and the weather keep reading the
-  truth. Nothing calls it: during an episode they read the party token, which
-  stands at the believed hex. `walkAstray`, which moves the shadow and paints
-  the believed day's hex, has no caller either.
+## Other open rows
+
 - **The night, and what a night restores.** The night's fatigue and
   armoured-sleep clocks are built (`lib/fatigue.mjs`, `formation/rest.mjs`).
-  Missing: a rest-now prompt; a night restoring castings
-  (`classes/casting.mjs` `restPools` is never called from `formation/rest.mjs`);
-  and a day restoring hit points, which a night does not. **ACKS II has no watch
-  procedure** — standing watch is an activity, not a throw, and the Surprise
-  Matrix takes no watch input — so a watch roster would be invention and is not
+  Missing: a rest-now prompt; a night restoring castings (`restPools` in
+  `classes/casting.mjs` is not called from `formation/rest.mjs`); and a day
+  restoring hit points, which a night does not. ACKS II has no watch
+  procedure (standing watch is an activity, not a throw, and the Surprise
+  Matrix takes no watch input), so a watch roster would be invention and is not
   planned. Every hour count and healing die is a printed value: the importer
   recipes ship first and this degrades by refusing to adjudicate, never by
   defaulting. `survival.mjs`'s `naturalHealing` forbid has no consumer until
   the day's healing exists.
-- **One owner for chat visibility.** Three spellings of "the GMs" (`gmIds()`,
-  a hand-rolled filter, `getWhisperRecipients`) and three hand-rolled versions
-  of the public/private split (`initiative-card`, `surprise-card`,
-  `influence-app`). Wants one `lib/` helper taking an explicit policy —
-  `secret`, `declared` (a public notice naming the actor plus a whispered
-  result), `public` — absorbing all of them. **Traps take `secret`
-  explicitly**, stated in the helper's own docstring: a trap crossing has no
-  declaration, and announcing that the party checked is the leak the 2026-08-18
-  secrecy ruling exists to prevent.
+- **One owner for chat visibility.** `lib/roll-audience.mjs` `postToJudges`
+  covers the card meant for the Judges alone. The public/private split of a
+  card is still its own in `initiative-card`, `surprise-card` and
+  `influence-app`. Wants one `lib/` helper taking an explicit policy (`secret`,
+  `declared`: a public notice naming the actor plus a whispered result, or
+  `public`) absorbing all of them. **Traps take `secret` explicitly**, stated in
+  the helper's own docstring: a trap crossing has no declaration, and
+  announcing that the party checked is the leak the 2026-08-18 secrecy ruling
+  exists to prevent.
 - **The party's position is its centre, not its corner.** `clock.lastPosition`,
   the trap check's `from`/`to`, the halt's back-out and the scouts' leash all
   pass the party token's top-left corner around, so any change to the token's
-  size moves the coordinate everything measures from. Today `syncPartyTokenSize`
-  re-baselines the clock after each resize (2026-09-07); a centre-based position
-  would make that unnecessary and would stop a frontage edit from reading as a
-  step. It is a change to the trap geometry, not to the clock — `trap-zone.mjs`
-  converts corner to centre and back at three seams that would collapse. The
-  journey's miles (`journeyMilesBetween`) measure the same corner, so the same
-  change moves that seam too.
+  size moves the coordinate everything measures from. `syncPartyTokenSize`
+  re-baselines the clock after each resize; a centre-based position would make
+  that unnecessary and would stop a frontage edit from reading as a step. It is
+  a change to the trap geometry, not to the clock: `trap-zone.mjs` converts
+  corner to centre and back at three seams that would collapse. The journey's
+  miles (`journeyMilesBetween`) measure the same corner, so the same change
+  moves that seam too.
 - **A sunrise the book supplies.** The dark's bounds are two world settings
   standing at the day's quarter points (DECISIONS 2026-09-30, "The city's hour
   follows the world clock"). A season table that printed sunrise and sunset
   would arrive through the importer and write those two settings by season;
-  no page this feature reads prints one today.
+  no page this feature reads prints one.
 
 ## Scoped effects for ability matching
 
@@ -525,8 +204,8 @@ against its line below.
 
 ## The party sheet: what the frame leaves
 
-The frame shipped first (MODEL, "The frame"). The redesign's later phases are
-`wip/20261014-party-sheet-redesign.md` §7 until each one lands.
+The frame's later phases are `wip/20261014-party-sheet-redesign.md` §7 until
+each one lands.
 
 | Not built | What it is | What it needs first |
 |---|---|---|
@@ -536,13 +215,13 @@ The frame shipped first (MODEL, "The frame"). The redesign's later phases are
 | Tweaks' other contents | Tweaks holds the encounter table alone. | what else a party's tweak could hold. |
 | The day-declared chip | The canvas draws a gold chip while the day is declared. | a stored state: `travel.day.declared` is a submit marker and is never kept. |
 | A name for every older control | The frame names every control it adds, but the bodies it carried over keep controls a screen reader announces only by their kind: the Order tab's member arrows and blank-row remove, the Kit tab's light and spell pickers and their removes, and the requests section's pickers. | an accessible name each (a label, or an `aria-label` from the lang file). |
-| A window height the user set | The sheet opens at its content's height (`height: "auto"`, the character sheet's opening), and core re-fits an auto-height window to its content on every render and tab change, so a window the Judge shortened springs back at the next field change. The old sheet opened at a fixed height and kept a resize. | a ruling: a numeric opening height at the type scale, re-fit only when the panel folds, or a height remembered per user beside the panel flag. |
+| A window height the user set | The sheet opens at its content's height (`height: "auto"`, the character sheet's opening), and core re-fits an auto-height window to its content on every render and tab change, so a window the Judge shortened springs back at the next field change. | a ruling: a numeric opening height at the type scale, re-fit only when the panel folds, or a height remembered per user beside the panel flag. |
 | The arrival on another scene | Placing the party token on a new scene re-reads the map (`refreshCountryOn`) but leaves `travel.hex` as the old scene's, so the first drag counts a crossing against an offset from elsewhere; on the module-created path the refresh can run before the token's linkage is written and pass the party over until it moves. A halt's or a resize's move, which the token hook passes over, re-reads nothing. | the arrival seating the hex as a drag does (`seatJourneyHex`), once the linkage is written; a ruling on which passed-over moves are moves. |
 | The cadence carry across territories | `day.cadenceCarry` banks miles under one territory's cadence and spends them under the next's unscaled, and a grid step leaves a miles carry to fire later. | a ruling: rescale the carry at the border, or clear it. |
 | The strip's next-hex line | The design names the hex ahead of the party on the strip; nothing in the record says which way the party is heading. Under unknown country it would hide with the hex label. | a heading the party walks: the token's rotation, or the Judge's word. |
 | A carrying rule on another seat | A seat that does not own a member reads their borne weight (MODEL "Conveyance"), so a member a harness, a bundle or a shield variant lightens can read a tier slower there than on the Judge's seat. | the equipment feature's correction reachable from a seat core gave no figure, without formation importing a sheet's module. |
 | A free carrier across parties | A carrier nobody rides goes to whichever of its player's parties meets a dawn first (DECISIONS 2026-10-31, "What carries a member is arranged"). | a test on party membership, or the owner's word that ruling 2a stands as read. |
-| The redesign's later phases | measure on the Judge's tab (phase 2; its brush layers, Country cards and override, the `travel.map` and `travel.override` records, the drawn hex on the plate, the `travel.shown` record, the believed hex and quiet navigation are built, MODEL "The country", "The plate", "Lost" and "The navigation throw"); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups, with the owner's needs for a player's own (phase 5, the plan's §4f); the sightings feed, its flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |
+| The redesign's later phases | measure on the Judge's tab (phase 2; the rest of it is built, MODEL "The country", "The plate", "Lost" and "The navigation throw"); the day's boxes and their confirm, camp time's night rows, Make camp and Break camp (phase 4); the train's groups, with the owner's needs for a player's own (phase 5, the plan's §4f); the sightings feed's flags, reveal and count badges (phase 6); combat and night as gold states, and the Dungeon tab's own lights and spells sections (unscheduled). | each phase's own build. |
 
 ## Combat: a fight that is over
 
@@ -568,12 +247,11 @@ a fight that is over").
 
 ## The turn plan
 
-The column, storage, relay and resolution are built (MODEL, "The turn plan";
-DECISIONS 2026-11-11). Magic's cast, location's harvest and identification, and
-the abilities' generic throw register later slices.
+Magic's cast, location's harvest and identification, and the abilities'
+generic throw register later slices on the turn plan (MODEL, "The turn plan").
 
 | Not built | What it is | What it needs first |
 |---|---|---|
 | Key and lockpicking at a door | RR ch. 6 names using a key and picking a lock, hasty and methodical, among the turn's activities. The formation has no door-lock procedure: the door helper bashes, batters and spikes, and a container's pick belongs to the equipment feature. | a door-lock resolution (which door, the lockpicking throw through the abilities, what a key is) and the owner's word that the formation owns it. |
-| Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice reads not imported and cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
+| Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
 | A door within reach | Bashing in the plan is the party's Dungeonbashing check, as the party check rolls it; no door is named, so the Judge opens the door by hand. | a reader of the doors within reach of the party, like `knownPlacementsNear` for traps, that never lists a secret door to a player. |

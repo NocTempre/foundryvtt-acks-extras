@@ -1,5 +1,7 @@
 # Locations — not built
 
+Re-issued 2026-11-14.
+
 Work that is designed but absent, deliberately. How the feature behaves now is
 [MODEL.md](MODEL.md); why it is shaped that way is [DECISIONS.md](DECISIONS.md).
 
@@ -23,7 +25,10 @@ in a descriptor table, so the next doc adds a row rather than a branch, and
 moving the file changes no behaviour. The move is to `scripts/lib/`, with the
 Ruledata Browser following it, in a release that touches neither.
 
----
+### Trade routes that move a market's till
 
-The private Judge's record, the row notes and the ownerless hoard all shipped
-in 4.0. New unbuilt work lands here as it is designed.
+`tillTargetGp` (`system.market.tillTargetGp`, `scripts/location/data/location-data.mjs`)
+is the till's stored float. Trade routes that raise and drain it are not built;
+they arrive with the markets feature's route layer
+([../markets/ROADMAP.md](../markets/ROADMAP.md), "Trade routes and demand
+equalisation").

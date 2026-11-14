@@ -1,5 +1,7 @@
 # Henchmen — Roadmap
 
+Re-issued 2026-11-14.
+
 What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 [DECISIONS.md](DECISIONS.md).
 
@@ -31,7 +33,7 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   read through a throw-values reader; with the table absent, the roster's
   penalty prompt names the missing table and disables the unpriced kinds;
   tampering penalties stay permanent, with a Judge override that lifts an
-  entry and a reset; it ships as a hotfix. The first `throws` import would
+  entry and a reset. The first `throws` import would
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
@@ -65,10 +67,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
     `followers` document (troop types, followers by class, companion levels,
     follower loyalty) and stays disabled until it is imported, and no recipe
     reads it off a page, so no import ever enables it.
-  - `wages.mercenaryOfficers`: a mercenary officer's morale modifier and
-    command level (`engine/hire-group.mjs`) read rows no `wages` recipe
-    writes, so the modifier is unread (null) and the level takes the
-    employer's.
+  - `wages.mercenaryOfficers`: a mercenary officer's own morale modifier and
+    command level (`engine/hire-group.mjs`, `rules/wages.mjs`
+    `officerMoraleModifier`) read rows no `wages` recipe writes, so the
+    modifier is null and the level takes the employer's. A marshal's or master
+    mariner's modifier reads the imported `wages.officerMorale` figure.
 - **Hire as Group makes no hiring roll.** The unit dialog takes troops and an
   officer straight onto the employer's books, where an offer through the Hire
   button rolls each head's reaction (RR 162; [MODEL.md](MODEL.md) §2, "Bulk
@@ -79,10 +82,29 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   its page reference only. Not built: an importer recipe that captures each
   result's printed text from the Judge's own copy, shown beside the name when
   imported. The influence roller's result labels are the matching row in
-  [../influence/ROADMAP.md](../influence/ROADMAP.md) §6.
+  [../influence/ROADMAP.md](../influence/ROADMAP.md) §5.
 - **Apparent level from an adventurer's spending.** Not built: an optional
   world rule, off by default, under which a hireling's loyalty checks read the
   level an employer's monthly spending implies (RR 173) beside the level the
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
+- **The command capacity ships its figures.** `lib/group-logic.mjs`
+  `platoonCapacity` returns a capacity by commander level (RR p. 169), and the
+  group's `troopStrength` (`lib/data/group-data.mjs`) is the measure it is
+  compared with; Hire as Group reads the strength. The figures are printed
+  and each is a literal in source. They want a recipe and a Judge-editable
+  override, with nothing shown where nothing is imported. The 1st-level figure
+  is an interpretation (`docs/lib/DECISIONS.md`).
+- **A people's caste names are printed names in identifiers.**
+  `importer/table-recipes.mjs` `dwarvenCastes` carries the castes' names in its
+  merge keys, order and labels, and `rules/identity.mjs` `generateOccupation`
+  reads them. Under the name rule (`.claude/rules/ip-doctrine.md`) they want
+  neutral labels, ids built from an ordinal and a locator, with the names
+  arriving at import.
+- **Blank figures that have no page reference yet.** Fields left blank when
+  nothing is imported carry a page-reference tooltip only where one was
+  written. These carry none, and each needs its page looked up:
+  `ACKS-HENCHMEN` `service.tip.shareUnimported`, `roster.limitNotImported`, and
+  the unread and not-imported badges (the influence feature's matching row is
+  in [../influence/ROADMAP.md](../influence/ROADMAP.md)).

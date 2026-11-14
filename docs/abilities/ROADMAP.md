@@ -1,5 +1,7 @@
 # Abilities — not built
 
+Re-issued 2026-11-14.
+
 Work that is designed but absent, deliberately. How the feature behaves now is
 [MODEL.md](MODEL.md); why it is shaped that way is [DECISIONS.md](DECISIONS.md).
 
@@ -12,7 +14,7 @@ Not built:
 
 - **The scan backlog.** 34 entries still carry a scan-read modifier on a field
   the sheet writes (43 rows: 13 save, 9 surprise, 8 initiative, 8 AC, 4 attack
-  throw, 1 damage), down from 47 entries. Each wants a register recipe that
+  throw, 1 damage). Each wants a register recipe that
   says whether the row is standing, gated or situational; until then it
   applies and reads "unverified". Deferred by the orchestrator's ruling of
   2026-11-04, since those rows apply and are marked. Recount with the shipping
@@ -39,50 +41,16 @@ Not built:
   Arcane Dabbling, Trapping) is left to the Judge; the roll card does not
   name it.
 
-## Turning undead: the importer half
+## Turning undead: the borrowers
 
-The module now performs the whole of RAW — a per-undead-type ladder whose top
-rungs need no throw, read at a fraction of class level, followed by the measure
-that says how many Hit Dice are affected — but nothing IMPORTS it. Every part is
-typed by hand.
+The crusader's Rebuking Undead ladders import and the rebuke's throws are
+built. The entries that read the same table at a fraction of their own level
+are the importer's remaining work, tracked in
+[../importer/ROADMAP.md](../importer/ROADMAP.md), "Rebuking undead: the
+borrowers' own recipes".
 
-`def.power.rebukeUndead` ships its name and description and nothing else, and
-the Crusader Rebuking Undead grid is not among the tables the importer extracts.
-The remaining work is all in `foundryvtt-acks-importer`:
+## Shared level tables: what is left
 
-1. **A table recipe on the crusader** for "Crusader Rebuking Undead" (RR p.39).
-   It needs no transposed grid mode: its label column is the undead type and its
-   column headers are the crusader's levels, which is the shape
-   `compile-cookbook`'s reader already takes. Fourteen tight single-digit
-   headers will land on the header-span fallback, as class 20's dual spell
-   groups do.
-2. **A binding that turns those rows into ladders** — one per undead type, keyed
-   off the row label. The cell rule is structural and needs no printed letter in
-   the recipe: a cell that parses as a number is a target, a dash is `none`, and
-   anything else non-empty is `auto` with the cell carried through as `text`.
-3. **A roll-spec form that expands per published ladder**, since the throw count
-   is data — nine undead types, and a Judge's own book may print another. Plus
-   one `measure` spec for the 2d6.
-4. **The borrowers**, which extract nothing new. Several classes and one
-   proficiency rebuke or control undead off the crusader's table at a fraction
-   of their own level; each is the same `progression` target pointing at the one
-   published table, differing only in the fraction and its rounding. Both of
-   those are printed, so both are read from the page — the target carries a
-   numerator and a denominator, not a key into a list of fractions.
-
-## Shared level tables — the ladder half
-
-The `progression` kind now resolves: the classes registry publishes every
-class document's attack bands, `resolveLevelValue` completes lib's resolver
-through them, and the roll editor's picker names the four chassis or any
-class the world holds instead of retyping rungs.
-
-**Shipped 4.8.0:** a `progression` target can now name a published LADDER (a
-thief-skill column, a house table) as well — the roll editor offers the
-ladders the named class publishes, blank keeping the attack bands. The
-internal table stays regardless — a throw whose ladder is its own is the
-common case, and a shared table is an alternative source for the same target,
-not a replacement for typing one. Nothing on this row remains open.
 - **An unresolved pick still says nothing** — the sheet now offers only picks
   the mechanics resolve, so the common way to acquire a dead selection is gone.
   Free text stays free, though, and `abilities-bridge.mjs` still skips a pick
@@ -97,8 +65,8 @@ not a replacement for typing one. Nothing on this row remains open.
   lists off the page, which is importer work on the `kind.proficiency` register
   rather than a table hand-typed here.
 
-  **Updated 2026-08-14:** those four now ship EMPTY — the "examples" were a value
-  read off a page and are gone ([DECISIONS.md](DECISIONS.md)). The seam they fill
+  Those four ship EMPTY: a shipped example list would be a value read off a
+  page ([DECISIONS.md](DECISIONS.md)). The seam they fill
   through exists (`acks.selectionVocab`); the producer that reads them from the
   GM's book is the remaining work, and until it lands free text is the surface.
 - **The closed families' LABELS are still repo text.** Their keys are identifiers
@@ -135,3 +103,14 @@ ability spends none the module can see. Not built: a structured time cost on
 the roll definition, stated in the unit vocabulary the turn plan spends
 ([formation ROADMAP](../formation/ROADMAP.md), "The turn plan"), with the
 imported figure where the book prints one.
+
+## A throw whose outcome the player cannot know
+
+An ability rolled through `rollAbility` posts one card to one audience, so a
+roll like hiding, whose result the player cannot know, shows its result to the
+roller. Not built: a per-throw secrecy setting on the roll definition that
+posts a public notice naming the actor and what was attempted, and whispers the
+result to the Judge. It needs one shared owner of the chat-visibility policy in
+lib (the initiative, surprise and influence cards each spell the Judge test and
+the split their own way), and `stats-map.mjs` writes `blindroll: false` on
+every imported proficiency, so a recipe-side flag comes with it.

@@ -1,5 +1,7 @@
 # Vehicles — not built
 
+Re-issued 2026-11-14.
+
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
@@ -29,9 +31,9 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   would wire the officer seats' consequences (no navigator, no
   round-the-clock) to a visible control, roll the daily wind from the
   imported rows, and log the leg. River current bands and draft gates, and
-  the scurvy/morale calamity prompts, land with it.
-  (The marines' gear rate, the crew-for-cargo trade, the navigation and
-  hazard dialogs and the sinking clock all LANDED 2026-08-28 — MODEL.md.)
+  the scurvy/morale calamity prompts, arrive with it. (Built: the marines'
+  gear rate, the crew-for-cargo trade, the navigation and hazard dialogs and
+  the sinking clock; MODEL.md.)
 - **Automatons are not vehicles.** BtA ch. 6 is a crafting economy — the
   machinist's design / build / repair project system, with blueprints, a
   proficiency throw that eases with level, major/minor ability tiers,
@@ -41,16 +43,12 @@ How it behaves now is [MODEL.md](MODEL.md); rulings are
   `def.power.designBuildAndRepairAutomatons`). An automaton that CARRIES — a
   howdah-backed colossus — does so through the same attachment layer as any
   monster; no vehicle work is needed for it.
-- **Import cookbooks for the sea tables** — the Sea Vessels recipe exists in
-  the importer's tree (2026-08-28, all 20 rows cell-perfect), and the
-  `voyages` document's recipes joined it the same day (wind grid, tacking,
-  navigation, hazard throw and effects, damage shares, repair, rounding,
-  berth — dev-executed oracle-exact; the unproficient-crew rate joined
-  2026-09-30, run against the local printing), and the importer now ships
-  inside extras, so this closes when the import is live-verified in a world.
-  Still genuinely open: the land vehicle table's crew/cargo
-  pairs, which is what would let a palanquin arrive with its non-linear
-  berths already stated.
+- **The land vehicle table's crew/cargo pairs.** The sea tables import (the
+  Sea Vessels recipe and the `voyages` document's recipes: wind grid, tacking,
+  navigation, hazard throw and effects, damage shares, repair, rounding, berth
+  and the unproficient-crew rate). The land vehicle table's crew/cargo pairs
+  have no recipe, which is what would let a palanquin arrive with its
+  non-linear berths already stated.
 
 ## Flight design space (nothing precludes it; nothing implements it)
 

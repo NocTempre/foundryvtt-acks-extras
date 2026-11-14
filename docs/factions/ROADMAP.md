@@ -1,5 +1,7 @@
 # Factions — not built
 
+Re-issued 2026-11-14.
+
 Work that is designed but absent, deliberately. How the feature behaves now is
 [MODEL.md](MODEL.md); why it is shaped that way is [DECISIONS.md](DECISIONS.md).
 
@@ -54,8 +56,7 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   wants the party; a second is folded into the same flag. A card naming all
   of them wants a list on the board.
 - **An organisation's keyed rooms.** A settlement book's hideout prints its
-  rooms under the organisation's group; they land as pages, as they always
-  did. Binding them as places under the faction's seat is the place binding's
+  rooms under the organisation's group; they land as pages. Binding them as places under the faction's seat is the place binding's
   next consumer.
 - **Standing on the character sheet.** A player has no view of what the
   factions hold about them beyond the reaction card; a read-only panel of the
@@ -75,5 +76,5 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   snapshot from `acksExtras.markets.removeLoads`, the fee spent through the
   gold adapter, delivery on the world-time watcher by `createEmbeddedDocuments`
   onto the chosen place stamped for the trader, an intercepted consignment
-  reported to the Judge. The thief's smuggling hijink is the domains module's
-  and is not built here.
+  reported to the Judge. The thief's smuggling hijink belongs to the domains
+  feature and is not built there either.

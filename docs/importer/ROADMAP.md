@@ -1,16 +1,46 @@
 # Roadmap
 
-> Merged from the separate acks-importer repo on 2026-09-01. Text written before then names paths as they were there: `scripts/x.mjs` is now `scripts/importer/x.mjs`, `tools/x.mjs` is `tools/importer/x.mjs`, `flags["acks-importer"]` is `flags["acks-extras"]` (the importer's `generated` key is now `minted`), and `acksImporter.fn()` is `acksExtras.importer.fn()`.
+Re-issued 2026-11-14.
 
 Designed but not built. Anything here is deliberately absent from the code, not
 missing from it.
 
 ---
 
+## Two phases: unload from the book, then organize in Foundry
+
+The importer builds documents while it reads pages. The owner's hypothesis is
+that this one-shot shape drives its order and repair defects ("phase 1 unload
+from book, phase 2 organize in foundry. I suspect a lot of wonkiness is getting
+driven by attempts to one-shot it", 2026-11-13). Built: the rules tables read
+first and applied after the classes, so a first Import Everything is complete
+for leader throws, kits, class experience and race tongues (DECISIONS
+2026-11-13, "The rules tables are read first and applied after the classes").
+Not built:
+
+- **The adventure books** (places, maps, organisations, the pregens' feed,
+  adventures) as a read, then a plan, then an apply, so that one confirm is
+  counted from the plan. About fourteen landings and nine live walks; the
+  risk is walls, storeys, links and the ids that pins and seats rely on.
+- **The whole importer.** A record per entry (the executor's output, a reason
+  for each miss, a stamp, the side products) held for the run; phase-2 passes
+  that each compute a plan (create, update or leave) which one writer applies
+  in batches; Repair as the same read run over a scope and the same apply under
+  the repair policy, with one confirm and no second pass. About thirty landings
+  and fifteen walks, and it is the first thing a new Judge runs. Holding the
+  record past the run (a GM-owned world compendium of journal entries) is its
+  own owner ruling, since it reverses DECISIONS 2026-10-29, "Nothing is imported
+  without the book". It would supersede in part the two-pass repair of
+  2026-11-11, the in-place write of 2026-11-04, the dry pass of Import
+  everything (2026-11-04) and the page cache and repair scope of 2026-11-13;
+  paired places (2026-10-24), later books superseding (2026-10-17) and "Every
+  rebuilt document keeps its id" (2026-10-28) stand. The step order has no
+  dated entry and needs one.
+
 ## Rebuking undead: the borrowers' own recipes
 
-**Shipped:** the crusader's table imports as ladders, and Rebuke Undead gets one
-throw per ladder plus the effect roll ([DECISIONS.md](DECISIONS.md)).
+The crusader's table imports as ladders, and Rebuke Undead gets one throw per
+ladder plus the effect roll ([DECISIONS.md](DECISIONS.md)).
 
 What is left is the OTHER entries that read the same table at a fraction of
 their own level — a craftpriest at its class level, and the powers and
@@ -20,36 +50,6 @@ fraction and its rounding are printed beside the rule, so each recipe locates
 them rather than stating them. No code is needed for any of it — the spec form,
 the numerator/denominator on the target, and the resolver all ship.
 
-## Superseded: the throws that point at the ladders
-
-The crusader's Rebuking Undead grid now imports — nine ladders on the class
-document, each with its dash rungs, its targets and its two rungs that need no
-throw ([DECISIONS.md](DECISIONS.md)). acks-extras performs all of it, including
-reading the table at a fraction of class level. What is missing is the last
-link: nothing emits the THROWS on `def.power.rebukeUndead` that name those
-ladders, so a Judge still adds them by hand.
-
-The throw count is DATA — nine undead types here, and another book may print a
-tenth — so the spec cannot enumerate them, and enumerating the row labels in a
-recipe would ship a table of options besides. The form wanted is "one throw per
-published ladder whose key carries this prefix, read at this fraction", plus one
-`measure` throw for the 2d6 that follows a success.
-
-The obstacle is reach: `executeEntry` runs one entry with no sight of any other,
-and the ladders belong to the crusader while the throws belong to the power the
-crusader awards. Two candidate homes, undecided:
-
-- **At class-award time**, where `bindClass` holds both the ladders it just
-  built and the awards it is about to make. Natural, but it makes a power's
-  content depend on which class materialized it.
-- **A run-level channel** the ability binder can ask for a published class's
-  ladders. Cleaner conceptually, and a larger change to a pipeline whose entries
-  are deliberately independent.
-
-The borrowers (craftpriest at full level, necromancer at half rounded down,
-proficiency 15 at two thirds rounded up) need no extraction at all once the
-form exists — each is the same throw at a different fraction.
-
 ## Cross-book merging beyond the current signals
 
 Families merge today on a shared member id or a shared family suffix. Entries
@@ -57,14 +57,19 @@ that are the same creature under different names in two books — with neither
 signal — still import as twins. A chef-authored alias would close it; the
 question is whether that belongs in the register or in the binding.
 
+The layer that joins books (a place two books print, which printing wins, a
+link or an Adventure that crosses books) is rebuilt after each book's own
+import is right, not patched meanwhile; the owner left a duplicate import
+source unbuilt for now (2026-11-13). Its rows are under "Edits taken", "The
+next books" and "What AX1 and AX3 still leave" below.
+
 ---
 
 ## Gear values the tables do not reach
 
 Weapon damage, armour AC, and the cost and weight of anything the price grid
-sells are read from the reader's own tables — this was once described as
-needing per-entry locators, which measuring it showed to be the wrong shape:
-the values are in grids, and grids are read whole.
+sells are read from the reader's own tables: the values are in grids, and
+grids are read whole.
 
 What is still unpriced, and why:
 
@@ -85,49 +90,45 @@ What is still unpriced, and why:
   keyed by the item's row, closes it. The ballista's description also states
   no damage die, so it imports as a weapon without one.
 
-## What the ACKS Extras sample packs still answer that this importer does not
+## Mechanics an imported entry does not yet carry
 
-Four packs in acks-extras were candidates for removal once the importer could
-produce their content from the reader's own book. Measured against the
-register, none of them can go yet. The gaps, per pack:
+The system's own packs still answer some things the import does not produce
+from the reader's own book. The common shape: a NAME imports, and the
+MECHANIC does not. Effect locators are the work that closes most of this, and
+the per-category variants need a way to express "this entry, with one of its
+choices already made".
 
-- **Class Training (34 documents, 32 carrying mechanics).** Nothing here is
-  produced at all. The class import states the same training as effects on a
-  class document, which serves a character who HAS one of the printed classes
-  — and two of those do not import their training at all. A custom class, a
-  homebrew build, or a character configured without a class item has no other
-  source for a fighting style, an armour rung or a weapon selection. These
-  would have to become importable documents in their own right, from the
-  class-construction chapter rather than from any one class's spread.
-
-- **Equipment & Combat Proficiencies (42 documents, 41 carrying mechanics).**
-  Four are fully answered. Twenty-five have no importer document at all,
-  because the register holds ONE entry where the pack ships a configured
-  variant per category: Combat Trickery in seven, Fighting Style
-  Specialization in five, Martial Training in seven, Weapon Focus in six. The
-  pack's variants are the register's single entry with a choice already made.
-  Thirteen more import by name and description with no mechanics — Combat
-  Reflexes, Swashbuckling, Precise Shooting, Mounted Combat and the rest carry
-  no effect locators, so what imports cannot do anything.
-
-- **Equipment Samples (9 documents).** Six are shields, and they are ANSWERED
-  (2026-09-01): the pack ships them as armour with an AC and an encumbrance,
-  and the importer now produces the same six as armour of type shield, each
-  carrying the form flag the pack's samples carry and the numbers read from the
-  Judge's own page. The armour table import still produces only the generic
-  shield; the forms come from their JJ passages. The remaining three are
-  demonstrations rather than content: a masterwork weapon and armour with the
-  bonus already applied, and an invented named weapon.
-
-- **Henchmen Proficiencies & Powers (20 documents, 19 carrying mechanics).**
-  Six are fully answered; fourteen import by name and description only —
-  Leadership, Command, Mercantile Network, Military Genius and the rest — so
-  the hiring, loyalty and morale modifiers the pack items carry are absent
-  from the imported versions.
-
-The common shape: a NAME imports, and the MECHANIC does not. Effect locators
-are the work that closes most of this, and the per-category variants need a
-way to express "this entry, with one of its choices already made".
+- **Class training outside a class.** The class import states training as
+  effects on a class document, which serves a character who HAS one of the
+  printed classes, and two of those do not import their training at all. A
+  custom class, a homebrew build, or a character configured without a class
+  item has no other source for a fighting style, an armour rung or a weapon
+  selection. These would have to become importable documents in their own
+  right, from the class-construction chapter rather than from any one class's
+  spread.
+- **Per-category proficiency variants.** The register holds ONE entry where a
+  configured variant per category is wanted: combat trickery, fighting style
+  specialization, martial training and weapon focus each pick a category. And
+  a number of combat proficiencies import by name and description with no
+  effect locators, so what imports cannot do anything.
+- **Henchmen proficiencies and powers.** About fourteen import by name and
+  description only, so the hiring, loyalty and morale modifiers they carry
+  are absent from the imported versions.
+- **Two henchmen mechanics the abilities model cannot yet say.** Imported
+  proficiencies and powers reach henchmen's domains through located typed
+  effects (extras' `docs/henchmen/MODEL.md` §4, "Imported powers"). Two carry
+  no locator: **Utter Domination's morale base** (its shape wants a ruling
+  first: extras' `docs/henchmen/ROADMAP.md`), and **Inspire Courage's
+  morale-roll bonus**, which reaches nothing at all.
+- **The two slayer proficiencies reach no route.** Goblin-Slaying and
+  Vermin-Slaying wrote a `slayer` grant (`group:bonus`) as an Active Effect.
+  Their register entries carry no effect spec, and `abilities-bridge.mjs` has
+  no case for the domain — it handles presence, numeric, style, martial, focus
+  and trickery grants and stops there. So an imported Goblin-Slaying is prose:
+  the bonus against its kind never reaches `scopeApplies`. Closing it wants
+  either a locator on the two entries or a bridge case reading the pick, and
+  the bridge case is the cheaper of the two because the group is the
+  proficiency's own name.
 
 ## Money, trade goods, and rows sold as a bundle
 
@@ -135,7 +136,9 @@ Coins and trade bars (copper, silver, gold, platinum) and furs are not in the
 equipment grids at all — they are money and freight, priced in their own
 sections. Two rows the price list sells as one purchase (a bundle of torches,
 a count of sling stones) import as the single article instead, and the elven
-helmet has no row in the books read so far.
+helmet has no row in the books read so far. The rest of the same gap: the
+helmet line, the three Saddle and Tack rows, candles by material, Craftsman's
+Tools and the ironbound chest.
 
 ## A training stated as a subtraction
 
@@ -155,10 +158,9 @@ one changes what a class item carries, so neither is a patch.
 
 ## A priced livestock row is still a thing, not a creature
 
-`importEquipment` has ruled since the animals work that a mule is a creature —
-a described `animal` entry becomes an ACTOR. The price grid's own livestock
-section never got the same treatment: 26 rows, and seventeen class templates
-name a riding horse.
+`importEquipment` has ruled that a mule is a creature — a described `animal`
+entry becomes an ACTOR. The price grid's own livestock section never got the
+same treatment: 26 rows, and seventeen class templates name a riding horse.
 
 Doing it needs two things a patch cannot carry: the actor-side dedup
 `importEquipment` uses, and an answer for `resolveBase`, which searches items —
@@ -194,25 +196,11 @@ variant to be registered, not a value to be read.
 
 ## Gnostic invocations as documents
 
-The Earthforger and Furnacewife casting entries carry the gnosis kind and the
+The two gnosis-casting classes' casting entries carry the gnosis kind and the
 Maximum Invocation Level ladder, but their invocation lists (BTA ch.5) are not
-imported as documents — matching the RR classes, whose spell lists are also
-empty on the casting entry. When spell-list references land for the vancian
-classes, the invocation lists should ride the same mechanism.
-
----
-
-## Merging duplicate imports already in a world
-
-The importers no longer make twins (DECISIONS, 2026-08-06), but a world that
-ran the earlier ones still holds them. Removing the extra copy is not enough:
-actors that embedded a shared ability point at whichever copy their import
-happened to resolve, so a merge has to re-point those embeds, and a GM who
-edited one of the twins has to be told which one wins. That is a migration with
-a confirmation surface of its own — a minor.
-
-Until then the clean-slate path is the answer and it works: Remove ALL Imports,
-then import again. It is exactly what the test cycle does.
+imported as documents. The RR classes' spell lists ride repertoires
+(`def.classmeta.spellRepertoires`); the invocation lists should ride the same
+mechanism.
 
 ---
 
@@ -230,218 +218,40 @@ alias.
 
 ---
 
-## The printed traps, as mechanics rather than a price
+## Variations: what the documents cannot yet say
 
-`acks-extras` 4.9.0 built the whole of the delve chapter's trap procedure and an
-`acks-extras.trap` Item to hold one, deliberately so this importer would have
-something to materialize into. Nothing here fills it.
+`kind.variation` mints `acks-extras.variation` documents through
+`importVariations()`: the five masterwork differences the schema can express
+exactly, silver (a material multiplier on the listed price, deliberately
+`cost.baseMul` so it never multiplies a masterwork surcharge), and cosmetic
+ornament, each with its surcharge and deltas read from the seat's own page by
+located specs. Not built:
 
-What already imports is the CONSTRUCTION side and only that: thirteen trap rows
-come across as `kind.equipment` / `meta.group: "structure"` from the RR price
-list at p.152 — `def.equip.arrowFiringTrap`, `deadfallTrap`, `portcullisTrap`,
-`scythingBladeTrap` and the rest — each carrying a name, a citation and its
-description. A Judge who imports gets what a trap COSTS to build and no way to
-spring one.
-
-The mechanics print in the Judge's Journal, pp. 241–243, under STEP 7: PLACE
-TRAPS. Each trap is a named entry giving six tiers, one per trap level, and the
-tier states the attack throw or the save, the damage, and whatever rider it
-carries. Page 240 holds the two things every trap reads from: the trigger
-mechanisms and the trap-level rule.
-
-**DONE 2026-08-16 — the kind and the entries.** `kind.trap` is minted
-(`register/_kinds/trap.json`) and all thirteen printed traps are authored in
-`register/jj/p241-p243-traps.json`, compiling to `cookbook/traps.json`. Thirteen,
-not the eleven this family used to say: the wiki snapshot's chapter-8 outline
-lists Ceiling Collapse, Deadfall, Excavated Earth Pit, Fire, Missile, Needle,
-Portcullis, Rock-Cut Pit, Rolling Rock, Scything Blade, Spring Snare, Swinging
-Log and Whipping Branch, and the pages agree.
-
-They anchor through the existing `subheading` locate mode — the trap names are
-solo runs of a distinct font at body size, which is exactly what that mode was
-built for, so no new locate strategy was needed. Each carries an
-`assists.columns` pair because the indented tier lines defeat column detection
-(the 2026-08-15 ruling: author the assist, leave the detector alone), and the
-spread is mirrored, so odd pages state `[72, 329]` and even pages `[45, 302]`.
-Verified against the wiki: every entry materializes exactly two blocks — the
-description and the run of six level tiers — except Portcullis, whose three are
-one block broken by a column turn.
-
-**DONE — the binding, and the decision it was waiting on.** Extras 4.12 rebuilt
-`TrapData` so ONE document holds all six levels (`levels`, with `level`
-selecting the row in force), which settles the question this section used to
-pose: thirteen documents, not seventy-eight. A scything blade is one trap; what
-changes with its level is what it does, not what it is.
-
-`importTraps()` builds them. Two things are read out of the seat's prose and no
-more: the tier SPLIT, which is the book's own numbering and the same kind of
-structural cut `parseEquipment` makes on a starting-equipment cell, and the
-damage dice, which is the frozen `dice` locate. Each level's printed sentence is
-kept WHOLE on the row beside them.
-
-Everything that would take a judgment — save or attack throw, which save, what
-beating it is worth, how far the effect reaches — is deliberately left at its
-default with the sentence sitting next to it on the sheet. A wrong-but-plausible
-save key is worse than a blank one, and reading those out of prose is the
-interpretation this pipeline keeps offline (RECIPES §1).
-
-Measured against the reference library: **all thirteen traps yield all six
-levels**, and eleven yield damage dice on five or six of them. The two that
-yield none are the pits, correctly — a pit's damage is printed as a DEPTH, and
-extras derives it from that. Where a tier states several dice the first is
-taken, which is not always the headline number (a needle's poison die can beat
-the needle's own), so the printed sentence is the authority and the field is the
-convenience.
-
-`kind.trap` is in `NON_ABILITY_KINDS` — without that a new definition kind
-silently joins the ability import and mints items that fail validation, which is
-what shipped in v0.26.0 — and `def.trap` files onto a "Traps" shelf.
-
----
-
-## Variations: the documents an item's differences are made of
-
-`acks-extras` 4.11 models a difference between one item and its plain self as
-an `acks-extras.variation` Item, applied to a base item by the `containedIn`
-relation gear uses to sit in a backpack. The module ships the mechanism and no
-values: masterwork's surcharge, silver's multiplier, a buckler's rating and a
-gem's cut are page values, and a world imports them or has none. A Judge can
-type one in by hand, exactly as they can a trap.
-
-**The mechanism is built and the masterwork family is across (2026-08-16).**
-`kind.variation` mints documents through `importVariations()`, and the five
-masterwork differences the schema can express exactly — a weapon's attack throw,
-its damage, both together, armour lightened, armour protecting — arrive with
-their surcharges and deltas read from the seat's own page. Verified end to end
-against the reference library: all five locate every number they claim.
-
-How the numbers come across, because it settles the pattern for the families
-below. Each entry carries `variation` locator specs — a regex over the seat's
-prose and the field it fills — compiled through the FROZEN `effects` op rather
-than a new one, and materialized by `materializeEffects`, which is all-or-nothing:
-a locator that does not match drops its spec, so a field is either the book's
-number or absent, never a default wearing the book's authority. The register
-holds the structure (key, kind, appliesTo, supersedes) and no values. One
-translation happens in the binding: the page says an item "weighs one less
-stone" and the schema counts sixths, so the located stone count is negated and
-scaled — a change of unit, not of value.
-
-Two corrections to what this section used to assume. The masterwork rules are in
-the **Revised Rulebook at p.161**, not the Judge's Journal, and they are set as
-**run-in prose** (`Masterwork Weapon:`, `Masterwork Armor:`, …) — there is a
-summary table on the page as well, but it extracts as one run-on string, so the
-prose is what the locators read. Several variations legitimately share one
-passage, which is why they share an anchor.
-
-**Still owed, now scoped:**
-
-- **The masterwork families the schema cannot yet hold.** Instrument, structure
-  and ship are printed in the same passage, but their benefits are Performance
-  throws, structural hit points and speed — none of which is a `deltas` field.
-  They want either new delta fields in extras or `conditional` entries (the
-  schema's own "value claims reported to the Judge, never applied").
-- ~~**The JJ shield FORMS are variations.**~~ REVERSED 2026-09-01: they are
-  SHIELDS, and import as armor items of type shield — see
-  [DECISIONS](DECISIONS.md). All six — Auxiliary, Buckler, Crescent, Heater,
-  Kite, Phalanx — arrive from JJ pp.409–410 with the in-hand AC and the
-  encumbrance their own passages state, located per entry.
-
-  The conditions ride with them as enum keys, which is still the point and is
-  still not a bonus: `grantsAC` (`hand`, `front`, `backVsRear`), `mounted`
-  (`riderOrMount` / `riderAndMount`), `deniedWhen` (`vulnerable`, `surprised`,
-  `retreating`, `attackedFromBehind`), plus `noBack`, `noMount` and the
-  buckler's `requiresStyleSpecialization`. Read per entry off the page, never
-  patterned across them: an early pass applied one AC regex to all six, which
-  is the distinction these rules exist to make, deleted.
-
-  **Owed on the extras side:** a carry-state model that reads those enums off
-  the document, after which the frozen `SHIELD_VARIANTS` table in
-  `scripts/equipment/config.mjs` retires. Until then the overlay reads only the
-  `shieldVariant` flag the import stamps.
-- ~~**Silver, and the other material qualities.**~~ DONE 2026-08-16, and there
-  are no others. Silver is printed at RR p.129 as a run-in in the weapon-quality
-  list — which is why a heading search missed it — and imports as
-  `material.silver` with the multiplier read off the page. It scales the listed
-  price (`cost.baseMul`), deliberately not `mul`: silver must not multiply a
-  masterwork surcharge added on top of it. **Nothing else on that list is a
-  variation**: Handy, Impact, Incapacitating, Long, Mounted, Slow and Thrown are
-  intrinsic traits of a weapon TYPE, not differences applied to one, and silver
-  is the only material ACKS II has.
-- **Gems are DEFERRED, and were never a Treasure Tome problem.** The Gem Value
-  table is printed in the Judge's Journal treasure chapter, and it is a ROLL
-  TABLE (roll / value / type), not a quality variation — so it wants
-  `kind.rolltable`, not this section. The Treasure Tome is now registered
-  (`tt`, 346pp) against its future consumers, the magic items; nothing reads it
-  yet, which is the one standing exception to this file's rule that a book id
-  must unlock something.
-- **Cosmetics landed** as `appearance.ornamented`: the masterwork passage's own
-  rule that ornaments and engraving add to an item's value without changing its
-  characteristics. It carries no deltas and no cost on purpose — what the
-  ornament is worth is the Judge's, and the variation exists so there is
-  somewhere to record it.
-- **The `baseTypeFields` table**, below, which is a different artifact from the
-  documents and still unbuilt.
-
-The `system` shape a variation document fills:
-
-| Field | What it holds |
-|---|---|
-| `key` | namespaced, `masterwork.weaponToHit` — the PREFIX is the exclusivity group, so two variations of one family can never sit on one item. Choosing the prefix IS the modelling decision |
-| `appliesTo` | base types (`weapon`, `shield`, `gem`, …). Empty means any, which is right for most |
-| `supersedes` | printed cross-family rules ONLY, `magical.*` patterns allowed. Empty unless a page states one; magic superseding masterwork is the single known filler |
-| `deltas` | `bonus`, `damage`, `ac`, `weight6` |
-| `cost` | `baseMul` scales the item's listed price, `add` is a flat surcharge, `mul` scales the whole — the rules' own order, and silver must not multiply a masterwork surcharge |
-| `dataFields` | field specs for anything this variation records per instance (a gem's carat, a named blade's ladder) |
-| `conditional` | value claims reported to the Judge, never applied |
-
-The pages to read: the masterwork tiers and their surcharges, the silver
-quality's multiplier, and gem quality wherever the Judge's Journal and Treasure
-Tome print it. The JJ shield forms were read and are not here — a form is a
-shield, not a difference applied to one (DECISIONS 2026-09-01).
-
-**The `baseTypeFields` table**, in the ruledata document `variations`, keyed by
-base type — the field specs a CATEGORY records, which belong to no one document
-because they describe every gem rather than one.
-
-Two consumers follow once those land: loot tables and class templates granting
-variations by default, and extras retiring its three legacy flags (masterwork,
-silver, shield variant) onto documents. Until then a flag owns its family and
-extras refuses a variation that would double-count with it.
-
----
-
-## Starting equipment: what a descriptor still cannot say
-
-`parseEquipment` splits a template's printed Starting Equipment cell into items,
-and most of what this section used to describe as unreachable has since been
-built (2026-08-21, DECISIONS): a book's spell list is lifted onto the book and
-into the template's spells, a creature named in the cell becomes the selection
-on the ability whose companion slot it fills, and a descriptor is matched
-against the catalogue in the forms that catalogue prints its names in. Of 719
-printed descriptors that resolved to nothing, 30 remain.
-
-Those 30 are not a gap. They are goods the books price where they name them —
-a bladedancer's head dress, a lute, an ornamental crystal ball — precisely
-because the shop list has no row for them. They import as named items carrying
-the price the page printed, which is everything the page said.
-
-Nothing of the pick is open since 9.1.0. "and one spell of character's
-choice" is lifted as an offer on the template's spells with a ChoiceSpec over
-the class's spell list, chargen mints it as a pending choice the player
-answers (`classes/pending-choices.mjs`), and the offer lists the class's
-own repertoire at the level a starting character casts
-(`docs/classes/MODEL.md`, `choosableSpells`).
+- **The masterwork families the schema cannot yet hold.** Instrument,
+  structure and ship are printed in the same passage (RR p.161), but their
+  benefits are Performance throws, structural hit points and speed — none of
+  which is a `deltas` field. They want either new delta fields in extras or
+  `conditional` entries (the schema's own "value claims reported to the Judge,
+  never applied").
+- **Gems.** The Gem Value table is printed in the Judge's Journal treasure
+  chapter, and it is a ROLL TABLE (roll / value / type), not a quality
+  variation, so it wants `kind.rolltable` in the treasure wave of "The Judges
+  Journal charts not yet read".
+- **The `baseTypeFields` table** and the consumers that follow it (loot
+  tables and class templates granting variations by default, the legacy item
+  flags onto documents, the carry-state model for the shield forms): extras'
+  `docs/equipment/ROADMAP.md` owns them.
 
 ## A companion's creature, linked to the actor it names
 
-Since 2.13.4 a template names WHICH creature fills an ability's companion slot —
-"Rat totem animal" becomes `Totem Animal (rat)`, the selection on the ability —
-and that is what the page says. The slot itself is now filled from the table:
-the picker in `abilities/companions.mjs` asks the moment such an ability lands
-on a character, and the Inventory tab offers the slot after that
-(`docs/abilities/MODEL.md`). What is still not built is the LINK from the
-selection: a slot whose selection already names the creature is offered the
-whole library rather than opened on the rat.
+A template names WHICH creature fills an ability's companion slot — "Rat totem
+animal" becomes `Totem Animal (rat)`, the selection on the ability — and that
+is what the page says. The slot itself is filled from the table: the picker in
+`abilities/companions.mjs` asks the moment such an ability lands on a
+character, and the Inventory tab offers the slot after that
+(`docs/abilities/MODEL.md`). What is not built is the LINK from the selection:
+a slot whose selection already names the creature is offered the whole library
+rather than opened on the rat.
 
 The pieces are all present and pointing at each other. `resolveCompanion`
 fills a slot from a cookbook `ref`, and leaves it alone when there is none —
@@ -450,8 +260,7 @@ by the ability. The selection is a NAME, and the monsters are imported as
 actors from the same book. Matching the one against the other would pre-select
 the picker, or fill the slot on import.
 
-Two things to settle before it is built, and they are why it was not done in a
-hotfix:
+Two things to settle before it is built:
 
 - **A name is not a ref.** "black cat" has to find the creature among the
   imported monsters, and a miss must stay a miss: filling the slot with the
@@ -467,165 +276,40 @@ hotfix:
 Until then the selection is the record, and it is a complete one: it says which
 creature the template gives, which is all the page ever said.
 
-## The system compendiums this importer does NOT yet replace
+## What the import does not yet produce from the system's packs
 
 Every compendium a world holds stays in its sidebar (docs/lib/DECISIONS.md,
-2026-09-02); what follows is a coverage audit of which system packs the
-import can stand in for, and every pack ABSENT from it is a gap here —
-content a GM can only get from the system's own pack, which is exactly the
-dependency materializing from their books is meant to end.
+2026-09-02); the gaps here are content a GM can only get from the system's own
+pack. The last measurement was a live import of the seat's six books compared
+with each pack document by document; a miss can be a naming or modelling
+difference rather than absent content, and the figures have not been re-run,
+so re-measure (`npm run verify:compendium`) before authoring against them.
 
-Covered today: weapons and armour (the book's own tables, via
-`importWeapons`/`importArmor`), adventuring gear and clothing (178 register
-entries), proficiencies (121 + 14 skills + 4 combat proficiencies), powers
-(421), monsters (287 + 25 legacy + 4 templates), roll tables (23), languages
-(the whole Appendix A taxonomy, read from the seat's own book at import time —
-no language entry ships in this module; see DECISIONS 2026-08-15).
-
-**Measured 2026-08-15.** Everything the cookbook can materialize was imported
-into a world holding the seat's six books (1,307 documents), and each system
-and module pack was compared against it document by document. Counts below are
-that comparison. Two cautions on reading them: a miss can be a NAMING or
-MODELLING difference rather than absent content (the system pack enumerates
-"Craft: Smithing" and "Combat Trickery: Disarm" where the register carries one
-`Craft` / `Combat Trickery` entry with picks), and the monster leg did not
-finish inside its budget, so the monster numbers are unverified rather than
-low.
-
-**The first caution turned out to govern most of the counts.** The separate
-register-vs-pack audit (`npm run verify:compendium`) was itself miscounting: it
-read neither `kind.skill` nor `register/_refs/`, and its alias file had never
-been authored, so a name the edition replaced and content filed under another
-kind both read as absent. Corrected 2026-08-16, its proficiency gap fell from 16
-to 1 and its power gap from 45 to 26 ([DECISIONS.md](DECISIONS.md)). The table
-below is the LIVE IMPORT audit, a different measurement, and it has **not** been
-re-run — so read these numbers as an upper bound on what is missing, and
-re-measure before authoring against them.
-
-| Pack | Docs | Not produced by the import | Verdict |
-|---|---|---|---|
-| `acks-languages` | 58 | **0** | **superseded in full** |
-| `acks-adventuring-equipment` | 103 | 11 | partial |
-| `acks-all-equipment` | 55 | 15 | partial |
-| `acks-clothing` | 38 | 17 | partial |
-| `acks-proficiencies` | 119 | 35 (many pick-modelled) | partial |
-| `acks-class-abilities` | 20 | 12 | partial |
-| `acks-monsters` | 44 | 27 | UNVERIFIED (import timed out) |
-| `acks-monster-abilities` | 52 | 48 | UNVERIFIED (rides the monster import) |
-
-No system pack carries an Active Effect, so for these the question is only
-whether the document exists; the module packs are the reverse (41/42, 32/34,
-19/20 carry effects) and are covered above.
-
-**Not covered — the gaps:**
-
-- **Named equipment the import does not produce.** Coins and trade bars
-  (Copper/Silver/Gold/Platinum, Furs), the helmet line (Light, Heavy Dwarven,
-  Heavy Elven), the three Saddle and Tack rows, candles by material, bundled
-  rows the price list sells as one purchase (Torches (6), 30 Sling Stones,
-  1 Silver Arrow), Craftsman's Tools, and the ironbound chest. Roughly 43
-  entries across the three equipment packs.
-- ~~**Thief-skill powers as documents.**~~ SETTLED 2026-08-16 as a modelling
-  difference, and nothing is owed. The Revised Rulebook's own table names eight
-  thief skills — Climbing, Hiding, Listening, Lockpicking, Pickpocketing,
-  Searching, Sneaking, Trapbreaking — and the register carries every one as
-  `kind.skill`. They are class powers whose target improves with level, so they
-  are ladders a class entry references rather than twelve standalone documents.
-  `acks-class-abilities` prints Backstab / Climb Walls / Hide in Shadows / Hear
-  Noise / Move Silently / Find Traps because it was built against ACKS I; those
-  are now aliased onto the ACKS II names. See [DECISIONS.md](DECISIONS.md).
-- **Monster resistances and immunities are not documents, by design.** Cold /
-  Fire / Gas / Lightning / Piercing / Crushing / Slashing Resistance, Immunity
-  to Fire, Regeneration and Superior Regeneration print as items in
-  `acks-monster-abilities`. This module materializes them into `fields.defenses`
+- **The monster legs were never measured.** The import of 287 monsters
+  exceeded the audit's budget, so nobody has checked what the 34 monster
+  documents the system's pack holds, and the import does not produce, contain.
+- **Monster resistances and immunities** print as items in the system's
+  monster-abilities pack; this module materializes them into `fields.defenses`
   by scanning the seat's own description prose against a shipped vocabulary
   ([COOKBOOK.md](COOKBOOK.md), "Defenses are materialized, never baked"), so
-  they arrive as a field on the monster and never as their own item. The
-  compendium audit still lists them, deliberately — a standing decision should
-  be met while reading the report, not silenced inside the tool.
+  the audit lists them as absent by design.
 - **`Apostasy` is the one proficiency genuinely absent.** It appears in neither
   the Revised Rulebook nor the Judge's Journal, so it is ACKS I content or
   prints in a book this register has not read. Locate it before deciding
   whether it is a gap at all.
-- **The monster legs were never measured.** Importing 287 monsters exceeded the
-  audit's budget. Until it completes, nobody has checked what the 34
-  `acks-monsters` documents the import does not produce contain.
+- **Spell lists.** A class whose list the book states in prose rather than on a
+  repertoire page keeps an empty list and offers its tradition whole.
 
-- **Spell lists.** The spell documents land with 9.0.0 (`kind.spell`, one
-  row per printed entry; `docs/magic/MODEL.md`) and the four printed class
-  repertoires with 9.1.0 (`def.classmeta.spellRepertoires`, onto the casting
-  row's spell-list references). What is still parked: a class whose list the
-  book states in prose rather than on a repertoire page keeps an empty list
-  and offers its tradition whole.
-- **Masterwork gear.** One `masterwork` mention across the register when this
-  was measured; the rules are entries now (below), so what is left of this row
-  is the sample pack's three demonstrations — a masterwork weapon and armour
-  with the bonus already applied, and an invented named weapon. The JJ shield
-  half of this row is CLOSED: the six forms import as shields (see
-  DECISIONS 2026-09-01), which is what extras' six samples were.
-- **Class training grants — what a class may WIELD and WEAR.** Imported
-  classes carry their training as embedded Active Effects on the class
-  document, writing the grant vocabulary (`flags.acks-extras.weaponProf` /
-  `.armourProficiency` / `.styleProficient`, documented in extras'
-  `scripts/equipment/proficiency.mjs`). The training originates from the JJ
-  pp. 290–291 class-construction chapters.
-- **Two henchmen mechanics the abilities model cannot yet say.** Imported
-  proficiencies and powers reach henchmen's domains through located typed
-  effects (extras' `docs/henchmen/MODEL.md` §4, "Imported powers"). Two carry
-  no locator: **Utter Domination's morale base** (its shape wants a ruling
-  first: extras' `docs/henchmen/ROADMAP.md`), and **Inspire Courage's
-  morale-roll bonus**, which reaches nothing at all since the pack that carried
-  it retired.
-- **The two slayer proficiencies reach no route.** Goblin-Slaying and
-  Vermin-Slaying wrote a `slayer` grant (`group:bonus`) as an Active Effect
-  from the pack that retired. Their register entries carry no effect spec, and
-  `abilities-bridge.mjs` has no case for the domain — it handles presence,
-  numeric, style, martial, focus and trickery grants and stops there. So an
-  imported Goblin-Slaying is prose: the bonus against its kind never reaches
-  `scopeApplies`. Closing it wants either a locator on the two entries or a
-  bridge case reading the pick, and the bridge case is the cheaper of the two
-  because the group is the proficiency's own name.
-
-## Which languages a class or a race speaks — the human homeland pick
-
-Built for classes and races (2.9.4): a spread's `Tongues:` runin becomes the
-class's granted list, a class whose page will not parse borrows from a
-sibling of its declared race, bonus grants land as picks, and the race
-documents inherit. What remains is the homeland pick itself — the regional
-languages a human character chooses from print as prose examples rather than
-a table, so that one slot is filled by hand from whatever the world holds.
-
-Class 20's spread prints no Tongues runin at all, so it carries the human
-default; its race (`people1`) is declared in its register row.
-
-**Searched 2026-08-16, and no such page exists.** The people1 racial section
-(JJ custom-classes chapter) carries no tongues line, and the only people1
-language reference in either book is the *Bonus Languages* POWER — which several
-races may take and which grants a count rather than naming a list. So this is
-not a page we have failed to read: the human default is the correct answer until
-Autarch prints one, and nobody should re-open it looking for the page.
-
-## Deferred with the 2026-08-29 surface-index work
-
-- **A "spell" cookbook kind** — DONE 9.0.0 (`kind.spell`). A printed spell
-  name in a template now resolves against the imported spells, which is why
-  the getting-started chain imports spells before classes; since 9.1.0 the
-  printed pick offers the class's list at the level a starting character
-  casts.
-- **`liftBookSpells` splits on every "and".** A printed title containing the
-  word — "purify food and water" — is torn into two entries. Two RR rows carry
-  one. The fix is to split on commas and on the LAST "and" only when the clause
-  carries no comma; it is a behaviour change to a shipped read and was not part
-  of the 2026-08-29 rulings.
+---
 
 ## A loaded book leaves nothing readable in the world (2026-09-03)
 
 **Owner request.** Loading a book should put it in a **journal in the world**,
 not only into places a Judge cannot open and read.
 
-**Built for the shelf the same day:** a book the server holds is a journal
-with a PDF page — the book itself, readable from the sidebar and shareable like
-any journal (DECISIONS 2026-09-03). What is still not readable:
+**Built for the shelf:** a book the server holds is a journal with a PDF page
+— the book itself, readable from the sidebar and shareable like any journal
+(DECISIONS 2026-09-03). What is still not readable:
 
 - A book connected on a seat's own disk. Its **connection** is a
   `FileSystemHandle` in that seat's IndexedDB (`module.mjs`) — per-browser,
@@ -698,17 +382,15 @@ tables step makes about fifty times; and book Adventures that are assembled
 before their stamp is compared. Time a full run live before choosing between
 them.
 
-## The debug window's two remaining gaps
+## The debug window's picker
 
-`cookbookDebug` executes a definition id correctly now, but two things around
-it are still short of the surface's own promise.
-
-The picker it raises with no argument walks the per-book cookbooks alone, so a
-Judge can only reach a content-cookbook entry — every class, power, skill,
-proficiency and piece of equipment, ~800 of them — by typing its id from the
-console. Offering them means answering what a picker with two thousand options
-should look like; a second grouped select, keyed by content type, is the shape
-that fits the dialog it already has.
+`cookbookDebug` executes a definition id correctly, but the picker it raises
+with no argument walks the per-book cookbooks alone, so a Judge can only reach
+a content-cookbook entry — every class, power, skill, proficiency and piece of
+equipment, ~800 of them — by typing its id from the console. Offering them
+means answering what a picker with two thousand options should look like; a
+second grouped select, keyed by content type, is the shape that fits the
+dialog it already has.
 
 ## An actor keeps whatever the recipe said the day it was imported
 
@@ -802,13 +484,42 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
 7. **Treasure and magic items**: every table read from the Judges Journal,
    with the Treasure Tome layered over it and nothing read from core's
    treasure pack (DECISIONS 2026-11-11, "Treasure is read from the Judges
-   Journal"). Gems are this wave (see *Gems are DEFERRED* above).
+   Journal"). Gems are this wave (see "Variations" above). The Treasure Tome
+   is registered (`tt`) against these consumers and nothing reads it yet,
+   which is the one standing exception to the rule that a book id must unlock
+   something; its importer is next-roadmap work.
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.
 
 Obstacles common to several waves: bands that carry their own dice, two-level
 and operator column headers, and chart titles that are printed names, which a
 plain-string `locate` would put in source.
+
+## Printed values in the importer's own source
+
+- **Anchors that carry a figure.** `table-recipes.mjs` locates tables by
+  strings that include a printed figure (about twenty `locate`/`find` values
+  and thirty-eight `labelRe` patterns). A lint gate for the shape, and the
+  sweep of the existing ones, are not built.
+- **A recipe's own directions for the stat mapper.** `stats-map.mjs`
+  `mapPairs` acknowledges "Other Senses" and maps none of it; structured
+  senses per recipe are not built. One-off recipe directions for a label the
+  mapper does not understand are not built either.
+- **The name rule on an identifier.** `dwarvenCastes` (in `table-recipes.mjs`,
+  with consumers in `scripts/henchmen/rules/identity.mjs` and
+  `builder-binding.mjs`) names a printed people's castes in an identifier; the
+  name rule wants a neutral label and a locator.
+- **Candidates not yet judged.** The importer and registry candidates the
+  comment cut raised and no reviewer has read for printed values.
+- **`docs/importer/TESTING.md` states encumbrance figures** in its equipment
+  recipe: a page value in a tracked doc.
+
+## The extraordinary variant of a damage-type icon
+
+The text layer reads a damage-type icon as its word (`glyphWords` in
+`executor.mjs`) and does not claim the mark's colour, which tells the
+extraordinary variant from the mundane. A stat block's typed damage therefore
+carries the type and never the variant.
 
 ## A monster whose entry runs past its first page
 
@@ -824,7 +535,7 @@ reading the pages between for a display heading: none had one). Among them
 are casters whose spell paragraph sits on the lost page — the draugr, the
 kraken, the leyak, the mummy lord, the vampire, the incarnation on p.36 of
 the PDF — so `bindMonsterSpells` never sees it and the actor imports with
-no spells, which the 9.1.0 readers make visible without having caused.
+no spells.
 
 What it takes: a description page-flow in `compileMonster` keyed on
 `pages[1..]` — each continuation page's columns from the body top to that
@@ -836,16 +547,20 @@ completes every affected actor.
 ## A monster's lair: what the Encounter field does not reach
 
 The lair or encounter printed after a monster's Spoils is read into its
-Encounter field, and a notes block into Notes (MODEL, the spoils bound). Left:
+Encounter field, and a notes block into Notes (MODEL, the spoils bound). The
+Lairs & Encounters book's lairs are places (below); the monster book's own are
+not. Left:
 
-- **A lair of its own.** A Lairs journal of rows waits for routing by kind
-  (owner 2026-11-13: "Wait for routing"). The owner asked whether a lair is a
-  new actor type, or an extension of the monster group/encounter actor, that
-  "should link without creating duplicates". Either way the Encounter field
-  stays the text's only holder until then.
-- **A lair as a place.** A lair imported as a place with its roster of
-  monsters, its treasure as items, and the monster book's lairs gathered in
-  an Adventure of their own (owner, 2026-11-13: next roadmap).
+- **The monster book's own lairs as documents.** The Encounter field stays the
+  text's only holder. A Lairs journal of rows waits for routing by kind (owner
+  2026-11-13: "Wait for routing"). A lair imported as a place with its roster
+  of monsters, its treasure as items, and the monster book's lairs gathered in
+  an Adventure of their own is next-roadmap work (owner, 2026-11-13). The
+  owner asked whether a lair is a new actor type or an extension of the
+  monster group/encounter actor, one that "should link without creating
+  duplicates"; the Lairs & Encounters book took the place actor (DECISIONS
+  2026-11-13, "Lairs & Encounters is a Judge's book…"), and whether the
+  monster book's lairs take the same shape is open.
 - **Spoils no register row points at.** Three entries print a Spoils block
   that no `spoilsPage` names, so the block is left unclaimed: two human
   variants and the mummy lord. Seven more carry a Spoils label
@@ -900,8 +615,7 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 - **The kit on the Full Monster Sheet's speeds.** The kit's move reaches the
   system's movement figure, not the sheet's speed rows.
 - **The classes.** The AXIOMS custom beastman classes, through the class
-  importer, owner-scheduled (2026-11-04) for the release after 11.14.0, then
-  held by the owner (2026-11-05) until directed to resume. Their
+  importer, held by the owner (2026-11-05) until directed to resume. Their
   progression tables read as the title-located grid the class compile already
   has; no new extraction shape. In order:
   - **A. The classes, simple mode**: three `kind.class` entries in a new
@@ -924,7 +638,7 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 ## Repair in place: what it does not write yet
 
 Repair (MODEL, "The merged repair") writes what a fresh read yields over a
-held document. Three things it does not write yet:
+held document. Four things it does not write yet:
 
 - **A field the page stopped printing.** Outside a monster's stat paths, a
   repair cannot tell a field the page states as none from one this seat could
@@ -939,6 +653,9 @@ held document. Three things it does not write yet:
 - **Edits to `system` a Judge made.** A repair keeps only the fields each kind
   lists as the Judge's. A read snapshot stamped at import, under a new flag,
   would let it tell an edited field from a stale one.
+- **A per-field force.** Only `repair.force` overwrites a set value, so a
+  field the Judge set on a market, such as its gate-toll switch, has no way to
+  be forced from the book alone.
 
 Rules tables merge. A repair that removed the world layer before re-reading
 would undo "a re-read that finds nothing keeps what it had".
@@ -1014,21 +731,19 @@ organisation has a row. What has none, by shape:
 ## The next books, in order
 
 AX3's above-ground city is finished, as one Adventure with its features,
-and its region map imports on its hexes with the gazetteer's sites
-(11.0.0). The four adventures the region holds are registered for what the
-region needs of them — AX1's tables, AX4's tables and forest zone, AX5's new
-monsters, tables and two zones, AX6's tables and zone (the user's ruling of
-2026-10-09: ACKS II supersedes only where identical, else the more specific
-printing is correct) — and AX2 is unchanged. The underground city stays out
-of scope.
+and its region map imports on its hexes with the gazetteer's sites. The four
+adventures the region holds are registered for what the region needs of
+them — AX1's tables, AX4's tables and forest zone, AX5's new monsters, tables
+and two zones, AX6's tables and zone (the user's ruling of 2026-10-09: ACKS II
+supersedes only where identical, else the more specific printing is correct).
+The underground city stays out of scope.
 
-**AX1 whole is in progress** under the rulings of 2026-10-17 (DECISIONS),
-with what has landed in MODEL and TESTING: one Adventure
-per book, with AX3's per-map one retired; key spaces of neutral rows; four
-maps and the fort's floor plans joined as scenes, with walls traced at import
-on the plans a tracer mode reads; characters from the page;
-later books superseding a shared place. Its first part shipped in 11.10.0;
-what is left is listed under "Left out of AX1's minor" below.
+**AX1 whole** is built under the rulings of 2026-10-17 (DECISIONS), with what
+has landed in MODEL and TESTING: one Adventure per book; key spaces of neutral
+rows; four maps and the fort's floor plans joined as scenes, with walls traced
+at import on the plans a tracer mode reads; characters from the page; later
+books superseding a shared place. What is left is listed under "What AX1 and
+AX3 still leave" below.
 
 - **AX1's narrower encounter rules.** Two areas and a room of the first
   level print their own interval and chance inside the level's (pp. 37, 43,
@@ -1042,6 +757,10 @@ what is left is listed under "Left out of AX1's minor" below.
 
 What each book still owes, in the order it is worth doing:
 
+- **AX2 whole.** The adventure is registered for what the region needs of it
+  (its tables, monsters and entrance caves). Imported whole, as AX1 is — keyed
+  places, plans, characters, one Adventure — it is not read; the owner left it
+  to the next roadmap (2026-11-12).
 - **Dungeon maps** (AX2, AX4, AX5, AX6) as scenes with their keyed areas
   placed, the way AX1's are planned.
 - **Terrain from the render:** painting the region's terrain from the page's
@@ -1057,18 +776,16 @@ What each book still owes, in the order it is worth doing:
   the world holds becomes a link to it.
 - **Adventure links from the sites:** a site that is an adventure's own
   location (25 to AX4, 44 and 46 to AX5, 52 to AX6) opens that adventure's
-  document. AX1's (27 and 28) are planned with AX1's own work.
+  document. AX1's (27 and 28) wait with the cross-book layer.
 
 ## AX1's text no row reads
 
 `verify-cookbook ax1` lists the runs of each page that no row claims. Once
 the passages, sidebars, room tables, headings and captions are claimed, what
-is left falls in three classes:
+is left falls in two classes:
 
 - **A price list** (p.24). It is a grid of offerings and prices, which is
   content a market or a journal table would carry, and no kind reads it yet.
-- **A wandering table's description** (p.54). See "A roll table's
-  description that turns a column" above.
 - **A person's spells, special abilities and equipment** (p.65). The person
   printed as prose before the statistics imports as NPC 11, read up to the
   end of the stat line; the labelled run-in paragraphs after it have no
@@ -1079,16 +796,14 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 `page`), because `compileProse`, `compileAdventureItem` and
 `compilePregen` emit no `_skips`.
 
-## Left out of AX1's minor (ruled 2026-10-17)
+## What AX1 and AX3 still leave
 
-- **Double doors the box reader misses** (AX1 p12). The plan weighs
-  fourteen corrections against its budget of twelve. Twelve restate double
-  doors as two leaves each: three corner arcades (two whose leaves are
-  slivers of a pixel or two, one read at some render offsets and lost at
-  another), the two passages between corridor and courtyard (drawn in ink
-  lighter than the threshold; a second box pass at a lighter cut reads one
-  and adds a false door on a bench) and the east gate, whose upper leaf is
-  not found. The fourth corner arcade and the east passage are read.
+- **Double doors the box reader misses** (AX1 p12). The two passages between
+  corridor and courtyard are drawn in ink lighter than the threshold (a second
+  box pass at a lighter cut reads one and adds a false door on a bench), and
+  the east gate's upper leaf is not found; each stands as an asserted
+  correction. p12 carries 14 corrections against its budget of 12, and the
+  fort's p19 plan 13 against 12.
 - **Walls on AX3's plans.** The building plans have no tracer run yet. The
   city map's streets and gates stay shelved.
 - **AX1's domain record (p.28)** waits for the domain sheet. When the sheet
@@ -1148,9 +863,10 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
   - the fort's blocks and buildings to their plans, which mark no single
     entrance;
   - the later book's site that is the first level (`ax3.site27`), on that
-    book's region map, to the first level's plan.
+    book's region map, to the first level's plan: a link that crosses books,
+    held with the cross-book layer.
 
-## The OSR Catgirl: what the first cut leaves
+## The OSR Catgirl: what is not built
 
 The `cat` cookbook ships the race's five tiers, the catfolk beastman, the
 three classes, the tavern's two floor plans as gridless scenes in the

@@ -1,5 +1,7 @@
 # Classes — not built
 
+Re-issued 2026-11-14.
+
 How it behaves now is [MODEL.md](MODEL.md); rulings are
 [DECISIONS.md](DECISIONS.md).
 
@@ -27,28 +29,26 @@ the builder from the rung powers (and from `builder.powers`, which would give th
 custom power the same effect for free); (2) a Judge-editable adjustment field on
 the race rung, filled by a `proseValues` read of the power text. Either needs a
 race document for the human-bodied race, so an importer table for that race's
-ladder first. An unresolved power has to show its adjustment as "not imported"
-and the cap has to say it is the base only.
+ladder first. An unresolved power leaves its adjustment blank, with its page
+reference as the tooltip, and the cap is the base only.
 
 ## Starting templates, folded into the path group rather than pointed at
 
-Templates became one of a class's PATH groups by REFERENCE (2026-08-22,
-DECISIONS): `system.paths` names the group and points at `system.templates[]`,
-which stays exactly where 4.14.0 put it, bundles and RollTable included. That was
-the deliberate choice — a world four versions deep in this data should not have
-to survive a rewrite to gain a selector, and a migration standing between a
-player and their starting kit is the one this family least wants to run.
+A class's starting templates are one of its PATH groups by REFERENCE
+(2026-08-22, DECISIONS): `system.paths` names the group and points at
+`system.templates[]`, which holds the rows, bundles and RollTable. That was the
+deliberate choice — a rewrite of stored data to gain a selector stands between
+a player and their starting kit.
 
 The cost is two shapes for one idea: every consumer that walks a group has a
 branch for "this group's options live somewhere else", and a template row's
 `annotation` carries a path option's identity in a string field that knows
 nothing about it.
 
-Folding them in properly means moving the eight rows inside the group, and that
-is a real migration — `migrateData` on the class model, a Foundry-free rules
-half under test at both answers, and a live gate against a world rebuilt from
-`git show v4.14.0:` (TOOLCHAIN §4a). Worth doing on its own, announced as its
-own decision, and not as a side effect of whatever comes next.
+Not built: the rows inside the group itself, so one shape serves every
+consumer. It changes the stored shape of the class model, so it is its own
+decision with a Foundry-free rules half under test at both answers, and not a
+side effect of whatever comes next.
 
 - **Points/ritual/ceremonial gnosis consumers** — the pool schedules and the
   strip already carry non-vancian kinds, and the gnostic classes bind a
@@ -186,3 +186,13 @@ built.
   one. No recipe carries it and the sweep did not find it printed for levels
   past the first; the `hpAudit.stepNone` text names the two maxima and no
   amount.
+- **The language grant.** `languages.mjs` `LANGUAGES_PER_GRANT` is the count of
+  languages a granting power adds. It is a printed figure and wants a recipe
+  that reads it from the page and a Judge-editable override.
+- **A printed level in an identifier.** `hpAfterNine` (the builder budget key in
+  `builder-binding.mjs` and `builder-logic.mjs`) and `hpAfter9` (the race
+  field in `race-data.mjs`) carry a page's level number in their names. Rename
+  them to say what the field is.
+- **The class-level-cap walk's literal points.** `tools/live/classes-level-cap.mjs`
+  asserts printed point figures as literals; it wants them read from the
+  imported table.

@@ -332,7 +332,7 @@ const FUNCTION_WORD = new Set([
  * Splitting the cell is this function's job; deciding what a piece IS is not —
  * a spell recorded in its own book and a creature an ability confers are
  * lifted off the item list afterwards, by `liftBookSpells` and
- * `liftCompanions`. See docs/importer/ROADMAP.md § Starting equipment.
+ * `liftCompanions`.
  */
 export function parseEquipment(cellText, menu, aliases = {}) {
   let text = String(cellText ?? "").replace(/\s+/g, " ").trim();

@@ -1,14 +1,15 @@
-# acks-lib — not built
+# Lib — not built
+
+Re-issued 2026-11-14.
 
 ## Behavioral dedups awaiting a hygiene sweep
 
-The mechanical collapses (MODULE_ID ×11, inline `bracketRow`, hand-rolled
-`makeLoc`) are done and validate-enforced. What remains changes behavior or
-needs design, so it ships through a dedicated `/acks-hygiene-sweep` with live
-verification, not as drive-by edits:
+What remains changes behavior or needs design, so it ships through a
+dedicated `/acks-hygiene-sweep` with live verification, not as drive-by
+edits:
 
-- **A lib dialog helper.** Raw `DialogV2` in ~25 files and 14 separate
-  `openXDialog` functions; the loudest missing primitive. Needs a design pass
+- **A lib dialog helper.** Raw `DialogV2` in 64 files under `scripts/` and
+  many separate `openXDialog` functions; the loudest missing primitive. Needs a design pass
   over the confirm/prompt/form shapes actually in use (and DialogV2's
   attribute-stripping hazard baked in once).
 - **`classLevel`/`abilityMod` bypasses.** ~25 inline reads with drifting
@@ -18,8 +19,8 @@ verification, not as drive-by edits:
   same-shape collectors over `lib/effect-scan.mjs`; the divergence is
   documented as deliberate in effect-scan's header — merging needs that
   ruling revisited, not silently overridden.
-- **Chat cards onto `roll-card.mjs`.** Direct `ChatMessage.create` in 32
-  files; henchmen has a parallel card layer.
+- **Chat cards onto `roll-card.mjs`.** Direct `ChatMessage.create` in 49
+  files under `scripts/`; henchmen has a parallel card layer.
 - **The band copies onto `header-band.mjs`.** The item sheet and the party
   sheet each move their band into the header with a private copy of
   `moveBandIntoHeader`; the frame and the domain sheet are the helper's
@@ -63,11 +64,30 @@ verification, not as drive-by edits:
 - **Vaults and stored goods whose owner is gone.** `location.orphanVaults`
   points at the place's Storage tab. A fix that moves them to an actor the
   Judge picks is the same picker the coin fix wants.
-- **Goods on an actor whose sheet lists none.** Freight dragged out of a hold
-  onto an organisation before 10.1.0 was handed to it, as coin was before
-  10.0.0. No check lists either.
+- **Goods and coin on an actor whose sheet lists none.** Freight dragged out
+  of a hold onto an organisation is handed to it, as coin is. No check lists
+  either.
 - **More checks.** Class-training effects whose class uuid no longer resolves:
   they refuse hand-deletion, and `resetTraining` returns false for them.
+
+## Printed values still in lib's source
+
+Each moves onto the import the way `acks-printed-value` describes: the importer
+reads it from the Judge's own copy, a Judge can edit it, and with nothing
+imported the field stays blank with the page as its tooltip.
+
+- **A leader's command capacity.** `platoonCapacity` in
+  `scripts/lib/group-logic.mjs` (RR p. 169) is a ladder of rungs by the
+  commander's level in code, and `troopStrength` in `lib/data/group-data.mjs`
+  and the Hire as Group path in `henchmen/engine/hire-group.mjs` read it. The
+  first-level rung is an interpretation, not a printed figure (DECISIONS, "The
+  squad command-capacity figure is an interpretation, not a printed number"),
+  so the import's reading of the page decides it.
+- **A slot's capacity and a container's access.** The `ring` entry of
+  `WEAR_SLOTS` and `ACCESS_COSTS` in `scripts/lib/vocab.mjs` (RR pp. 293–294
+  for the access kinds), and which carriers are free against an action in
+  `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
+  reader picks from, so it is registered rather than shipped.
 
 ## What the carry does not do for a token
 
@@ -213,7 +233,6 @@ rest of each entry is not automated:
 
 ## Active Effects on Foundry v14's model
 
-Deferred by the owner on 2026-10-10 until the palette and its editor were in.
 Nothing here is built. The notes below were checked against the installed
 core's source (14.367) and are the record the work starts from; the claims
 marked *not run* were read, not exercised in a world.

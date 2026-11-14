@@ -1,17 +1,19 @@
 # Bridge — roadmap
 
+Re-issued 2026-11-14.
+
 What is designed and not built. Everything here is deliberately absent from
 the code, not missing from it; the rulings behind the built half are
 [DECISIONS.md](DECISIONS.md).
 
 ---
 
-## The phases after v1
+## The phases still to build
 
-v1 is `link`, `character`, `sheet`, `roll`, `say`, `party`, `map`, the relay
+Built: `link`, `character`, `sheet`, `roll`, `say`, `party`, `map`, the relay
 of public chat into one channel, and the seat. In order:
 
-2. **The character's numbers.** `hp` over core `applyDamage`; `coin` over
+1. **The character's numbers.** `hp` over core `applyDamage`; `coin` over
    `lib/money.mjs` `transferCoin` (always gated from a player; `gate: false`
    never reachable from a member); `xp` over `formation`'s shares and core
    `getExperience`; **level-up** once `classes/levelup.mjs` splits into
@@ -19,15 +21,15 @@ of public chat into one channel, and the seat. In order:
    plan, picks)` with the wizard as one caller; **`character new`** once a
    `rollScores(method)` exists beside `classes/stat-page.mjs` `METHODS`, then
    `applyChargen` (already headless).
-3. **The table in Discord.** Character webhooks (per-message name and
+2. **The table in Discord.** Character webhooks (per-message name and
    avatar; a portrait uploaded once and its CDN URL cached per actor); a
    forum channel per party with a thread per scene; the status board — one
    pinned message per party, edited on `actor` and `time` events; whispers
    to the recipient's DM and blind rolls to the Judge.
-4. **The procedures** (below), `hire` over `henchmen.hire`, `travel` over
+3. **The procedures** (below), `hire` over `henchmen.hire`, `travel` over
    `formation.travel`, `turn` over `advanceTurns`, `declare` + `resolve`,
    the shot clock, standing orders.
-5. **Step two: one-to-one time.** Per-formation expedition clocks reconciled
+4. **One-to-one time.** Per-formation expedition clocks reconciled
    against a world calendar that advances with real time — a formation
    ruling (DECISIONS), not a bridge one.
 
@@ -98,13 +100,14 @@ importer's roadmap and this one name the same work.
 
 ### The campaign month (RR ch. 8, JJ ch. 3)
 
-Downtime activities and the month sequence are `acks-domains`' domain; the
-bridge would call its api when one exists. Not this repo's to build.
+Downtime activities and the month sequence belong to the domains feature
+(`docs/domains/ROADMAP.md`, "The month"); the bridge would call its api when
+one exists. Not the bridge's to build.
 
 ## The look in Discord
 
 Discord renders none of Foundry's HTML: no sheet template, no theme, no
-fonts. Two routes get close, and v1 takes the plainer one (embeds with the
+fonts. Two routes get close, and the bridge takes the plainer one (embeds with the
 sheet's readings, text for cards, a PNG for the map):
 
 - **Capture the real thing.** The seat holds a full Foundry client, so it
@@ -131,7 +134,7 @@ DECISIONS when built.
 
 ## The map in Discord
 
-v1 posts the Judge's view. Wanted: a **player-vision map** — the seat
+The map command posts the Judge's view. Wanted: a **player-vision map** — the seat
 controls the party token (or the member's own) so the canvas draws that
 token's sight, captures, and releases — verified live before it is promised,
 because GM vision from a controlled token depends on the scene's token-vision

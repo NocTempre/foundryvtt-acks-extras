@@ -1,5 +1,7 @@
 # Character sheet — roadmap
 
+Re-issued 2026-11-14.
+
 What is designed and not built. Everything here is deliberately absent from
 the code, not missing from it; the rulings behind the built half are
 [DECISIONS.md](DECISIONS.md).

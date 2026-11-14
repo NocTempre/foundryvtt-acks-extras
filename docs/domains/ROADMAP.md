@@ -1,5 +1,7 @@
 # Domains — not built
 
+Re-issued 2026-11-14.
+
 Work that is designed but absent, deliberately. How the feature behaves now is
 [MODEL.md](MODEL.md); why it is shaped that way is [DECISIONS.md](DECISIONS.md).
 
@@ -23,10 +25,14 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   favors' and duties' times, religion, occupation, tithes, the treasury (the
   Ledger's empty treasury row then shows it), magistrates, the month's inputs,
   the last month applied, the ledger rows.
-- **The cut-over**: the henchmen facts read domain income, social rank and
-  stronghold from here first; the location's market class and
-  `market.domainUuid` lose their third-party reads; the template canon stops
-  routing domains out of scope.
+- **The cut-over**: the henchmen facts (domain income, social rank,
+  stronghold) read the domain record first; today they read an actor flag or a
+  marker item. The location's market class likewise reads its override, then
+  its urban families, then the default, and `market.domainUuid` has no reader
+  here.
+- **Player edits**: the decree lines and the month inputs open to the ruler's
+  player, with a write gate in the model, once the rows are no longer
+  submitted by index (DECISIONS 2026-10-17, "The wave-1 sheet is the Judge's").
 
 ## On the map
 
