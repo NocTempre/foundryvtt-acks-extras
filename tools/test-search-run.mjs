@@ -318,14 +318,10 @@ await t("yes finds on an unstocked hex and reads no stock; no finds nothing", as
   assert.equal(yes.found, true, "the Judge's yes is present for the throw");
   assert.equal(searchHook().present, true);
   assert.deepEqual(yes.candidates, []);
-  const legacy = await search(formation, { present: true });
-  assert.equal(legacy.found, true, "a legacy true maps to yes");
   const no = await search(formation, { present: "no" });
   assert.equal(no.found, false);
   assert.equal(no.attempts[0].reason, "nothingHere", "beating the target on empty ground teaches nothing");
   assert.equal(searchHook().present, false);
-  const legacyNo = await search(formation, { present: false });
-  assert.equal(legacyNo.found, false);
   assert.equal(scene.stockReads, 0, "neither answer touched the stock");
   assert.equal(scene.updates.length, 0, "and neither wrote it");
 });
@@ -424,7 +420,7 @@ await t("credit is written on a throw that beats the target and not on a miss", 
 });
 
 await t("an empty hex still credits the throw that beat the target, once per throw", async () => {
-  const { scene, formation } = world({ movement: { mode: "flying", hoursAloft: 8 } });
+  const { scene, formation } = world({ movement: { set: "flying", hoursAloft: 8 } });
   await stockHere(formation, 1, { found: { 0: { f1: 5 } } });
   const r = await search(formation, { present: "stock" });
   assert.equal(r.attempts.length, 2, "an open-ground flight buys two throws");
@@ -506,7 +502,7 @@ await t("no survey without a surveyor, a stock, the stock's answer, or while an 
 await t("the flight mode alone makes the search aerial", async () => {
   const foot = world();
   assert.equal((await search(foot.formation, { present: "no" })).attempts.length, 1);
-  const flying = world({ movement: { mode: "flying", hoursAloft: 8 } });
+  const flying = world({ movement: { set: "flying", hoursAloft: 8 } });
   assert.equal((await search(flying.formation, { present: "no" })).attempts.length, 2, "open ground over a flier");
 });
 
@@ -514,7 +510,7 @@ await t("a hex painted at the book's grain reads as its ground for the canopy", 
   // The marker (cell 5:7) is painted taiga — a forest kind; the believed hex is not painted.
   const regions = [paintedRegion("forestTaiga", ["5:7"])];
   const astray = world({
-    movement: { mode: "flying", hoursAloft: 8 },
+    movement: { set: "flying", hoursAloft: 8 },
     lost: { phase: "astray", sceneId: "s1" },
     shadow: { x: 650, y: 450 },
     regions,
@@ -528,7 +524,7 @@ await t("the canopy is read at the hex the party really stands in while astray",
   // The marker (cell 5:7) is painted forest; the believed hex (2:3) is not painted.
   const regions = [paintedRegion("forest", ["5:7"])];
   const astray = world({
-    movement: { mode: "flying", hoursAloft: 8 },
+    movement: { set: "flying", hoursAloft: 8 },
     lost: { phase: "astray", sceneId: "s1" },
     shadow: { x: 650, y: 450 },
     regions,
@@ -537,7 +533,7 @@ await t("the canopy is read at the hex the party really stands in while astray",
   assert.equal(a.attempts.length, 1, "closed canopy keeps the ground pace");
   assert.deepEqual(formulas, ["1d20 + -4"], "and costs the canopy penalty");
 
-  const home = world({ movement: { mode: "flying", hoursAloft: 8 }, regions });
+  const home = world({ movement: { set: "flying", hoursAloft: 8 }, regions });
   const h = await search(home.formation, { present: "no" });
   assert.equal(h.attempts.length, 2, "standing where it believes, the same flier sees open ground");
 });

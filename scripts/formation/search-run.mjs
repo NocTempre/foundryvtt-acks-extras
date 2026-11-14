@@ -34,9 +34,8 @@ const loc = makeLoc("ACKS-FORMATION");
 /** The three answers to "is there anything here": the stock's, or the Judge's yes or no. */
 const PRESENT_MODES = Object.freeze(["stock", "yes", "no"]);
 
-/** A boolean maps `true` to `yes` and `false` to `no`; anything unrecognised reads as `no`. */
+/** One of the three answers; anything unrecognised reads as `no`. */
 function presentMode(present) {
-  if (present === true) return "yes";
   return PRESENT_MODES.includes(present) ? present : "no";
 }
 
@@ -57,7 +56,7 @@ const candidateOf = (point) => ({ id: point.id, name: point.name || loc(`hexStoc
 /**
  * Search a hex for one hour.
  *
- * `present` is `"stock"`, `"yes"` or `"no"` (a boolean maps to `yes` or `no`).
+ * `present` is `"stock"`, `"yes"` or `"no"`.
  * `yes` and `no` are the Judge's own answer to "is there anything here" and
  * leave the stock unread and unwritten; `stock` reads the party's true hex for
  * a point this formation has not found yet. Either way the party is never told

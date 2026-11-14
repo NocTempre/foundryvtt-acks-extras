@@ -48,8 +48,6 @@ export function wallTrap(wall) {
     searchLock: f.searchLock ?? {},
     // Never inferred from the state.
     known: !!f.known,
-    // Restrictions a stored trap suppressed, put back when it goes.
-    restore: f.restore ?? null,
   };
 }
 
@@ -61,13 +59,8 @@ export async function setWallTrap(wall, patch) {
   return setWallLayer(wall, TRAP_FLAG, patch);
 }
 
-/**
- * Take the trap layer off a wall, leaving the wall itself as it was. A stored
- * `restore` (nothing writes it now) is written back first.
- */
-export async function clearWallTrap(wall) {
-  const restore = wallTrap(wall)?.restore;
-  if (restore) await wall.update(restore);
+/** Take the trap layer off a wall, leaving the wall itself as it was. */
+export function clearWallTrap(wall) {
   return clearWallLayer(wall, TRAP_FLAG);
 }
 

@@ -1027,9 +1027,6 @@ to the arrival, since the leash measures walking and a teleport is none.
 - What a combat and the environment sync read (`deployedTokens`) is the
   party's scene alone. A combat leaves a detached member on another scene
   out ("The leash", below).
-- A record that names no scene for a deployed member is read as standing on the party's
-  scene (`deployedSceneIdOf`). `memberOwnToken` and the reach check look for
-  it on every scene.
 - A stack's bodies are the group's (docs/lib/GROUPS.md, "A deleted body, and
   a moved one"), and the recall gathers them from every scene through the
   group's own `recall`.
@@ -1289,10 +1286,9 @@ carries the members on the march: `vessel` with every one of them aboard one,
 anything else, otherwise `foot`. `movementModeOf` is the word where one stands
 and that reading where none does, and `travelOf` serves it as
 `movement.mode`, so the country, the readout and the flight rules read one
-answer. `storedTravelOf` drops the key. A stored `movement.mode` of
-`flying` or `vessel` reads as the word it was (`movementSetOf`, `DECLARED_MODES`);
-`foot`, `mounted` and `vehicle` said nothing the attachments do not say, and read
-as no word.
+answer. `storedTravelOf` drops the key. The word is read from `movement.set`
+alone (`movementSetOf`), and `flying` and `vessel` are the modes that stand on
+it (`DECLARED_MODES`).
 
 **A carrier counts for a member** when a player who owns the member also owns
 the carrier, in the train or not, and a vehicle already under a member counts
@@ -2103,8 +2099,7 @@ the map of each building inside it are one city, and stepping indoors keeps the
 tally. A scene no place links is its own city, and so is every scene while the
 location feature is not loaded. The board's writer stamps whatever scene it is
 handed as that scene's city (`enteredSettlement`), and an unstamped board is
-claimed at startup for the city its party stands in
-(`claimUnstampedSettlements`). A dungeon map inside a city is another mode, so
+foreign to the first named city it reaches (`boardIsElsewhere`). A dungeon map inside a city is another mode, so
 coming back out of it is an entry and starts a fresh tally.
 
 Because it is the same tracker, a city turn costs what a dungeon turn costs:

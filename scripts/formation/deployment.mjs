@@ -5,7 +5,6 @@ import {
   blockOrigin,
   cellPosition,
   cellPositions,
-  deployedSceneIdOf,
   formationHeading,
   getMemberActor,
   getPartyToken,
@@ -57,11 +56,11 @@ export function isMemberDeployed(member) {
 
 /**
  * The token an individual member went out under, on whichever scene it now
- * stands (`deployedSceneIdOf`), or null: gone, or the member is a stack.
+ * stands (`deployedSceneId`), or null: gone, or the member is a stack.
  */
-function ownToken(formation, member) {
+function ownToken(member) {
   const id = member?.deployedTokenId;
-  return id ? (game.scenes.get(deployedSceneIdOf(formation, member))?.tokens.get(id) ?? null) : null;
+  return id ? (game.scenes.get(member.deployedSceneId)?.tokens.get(id) ?? null) : null;
 }
 
 /**
@@ -69,8 +68,8 @@ function ownToken(formation, member) {
  * alone: core keeps a token's id when it moves it to another scene, and a
  * duplicated scene holds the same ids.
  */
-const holdsToken = (formation, member, tokenId, sceneId) =>
-  !!tokenId && member?.deployedTokenId === tokenId && deployedSceneIdOf(formation, member) === sceneId;
+const holdsToken = (member, tokenId, sceneId) =>
+  !!tokenId && member?.deployedTokenId === tokenId && member.deployedSceneId === sceneId;
 
 /**
  * Is `token` one of this member's bodies on the map? An individual's own token
@@ -84,7 +83,7 @@ export function standsAs(formation, member, token) {
     const group = getMemberActor(member);
     return !!group?.uuid && token.getFlag?.(MODULE_ID, GROUP_FLAG) === group.uuid;
   }
-  return holdsToken(formation, member, token.id, token.parent?.id);
+  return holdsToken(member, token.id, token.parent?.id);
 }
 
 /**
@@ -101,7 +100,7 @@ export function standsAs(formation, member, token) {
 export async function deployedTokens(member, scene) {
   if (!scene || !isMemberDeployed(member)) return [];
   if (member.deployedStack) return deployedBodies(getMemberActor(member), [scene]);
-  if ((member.deployedSceneId ?? scene.id) !== scene.id) return [];
+  if (member.deployedSceneId !== scene.id) return [];
   const token = scene.tokens.get(member.deployedTokenId);
   return token ? [token] : [];
 }
@@ -115,7 +114,7 @@ export async function deployedTokens(member, scene) {
 export function standsElsewhere(formation, member, scene) {
   if (!scene || !isMemberDeployed(member)) return false;
   if (!member.deployedStack) {
-    const token = ownToken(formation, member);
+    const token = ownToken(member);
     return !!token && token.parent?.id !== scene.id;
   }
   const actor = getMemberActor(member);
@@ -131,7 +130,7 @@ export function standsElsewhere(formation, member, scene) {
  */
 export function hasStaleDeployment(formation, member) {
   if (!isMemberDeployed(member)) return false;
-  if (!member.deployedStack) return !ownToken(formation, member);
+  if (!member.deployedStack) return !ownToken(member);
   return deployedBodies(getMemberActor(member), game.scenes ?? []).length === 0;
 }
 
@@ -299,7 +298,7 @@ export async function recallMembers(formation, { members = formation.members } =
     // Collected while the bodies still stand, before the markers naming them
     // are cleared below: a stack's on the party's scene, all the anchor
     // reads; an individual's on whichever scene their token stands.
-    const bodies = member.deployedStack ? await deployedTokens(member, scene) : [ownToken(formation, member)].filter(Boolean);
+    const bodies = member.deployedStack ? await deployedTokens(member, scene) : [ownToken(member)].filter(Boolean);
     const wasStack = member.deployedStack;
     delete member.deployedTokenId;
     delete member.deployedSceneId;
@@ -400,7 +399,7 @@ export function detachedMembers(formation) {
 export function memberForDeployedToken(formations, tokenDoc) {
   const sceneId = tokenDoc?.parent?.id;
   for (const formation of formations) {
-    const member = formation.members?.find((m) => holdsToken(formation, m, tokenDoc?.id, sceneId));
+    const member = formation.members?.find((m) => holdsToken(m, tokenDoc?.id, sceneId));
     if (member) return { formation, member };
   }
   return null;
@@ -428,7 +427,7 @@ export function findDeployedMember(tokenDoc) {
  */
 export function followMemberToken(formationId, from, to) {
   return patchFormation(formationId, (record) => {
-    const member = record.members?.find((m) => holdsToken(record, m, from.id, from.parent?.id));
+    const member = record.members?.find((m) => holdsToken(m, from.id, from.parent?.id));
     if (!member) return false;
     member.deployedTokenId = to.id;
     member.deployedSceneId = to.parent.id;
@@ -514,7 +513,7 @@ export async function reanchorDetached(formationId) {
   await patchFormation(formationId, (record) => {
     let dirty = false;
     for (const member of detachedMembers(record)) {
-      const token = ownToken(record, member);
+      const token = ownToken(member);
       if (!token) continue;
       const anchor = member.detach?.anchor;
       if (anchor?.x === token.x && anchor?.y === token.y) continue;

@@ -441,8 +441,8 @@ test("a typed formula is the Judge's own trap and beats the pit derivation", () 
 });
 
 test("a save key is only carried by a trap that resolves as a save", () => {
-  assert.equal(firingPlan({ resolution: RESOLUTIONS.save, saveKey: "breath" }).saveKey, "breath");
-  assert.equal(firingPlan({ resolution: RESOLUTIONS.attack, saveKey: "breath" }).saveKey, null);
+  assert.equal(firingPlan({ resolution: RESOLUTIONS.save, saveKey: "blast" }).saveKey, "blast");
+  assert.equal(firingPlan({ resolution: RESOLUTIONS.attack, saveKey: "blast" }).saveKey, null);
 });
 
 /* -------------------------------------------- */

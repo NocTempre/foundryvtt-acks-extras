@@ -1152,29 +1152,6 @@ await scenario("a detached scout moved to another scene keeps their record, leas
   }
 });
 
-await scenario("a member deployed before scenes were recorded follows a move off the party's scene", async () => {
-  const alicePos = onlyFormation().members.findIndex((m) => m.actorId === alice.id);
-  await deployment.toggleDetachMember(onlyFormation(), alice.id);
-  await drain();
-  // The record as a deploy wrote it before this shipped: a token id, no scene.
-  await model.patchFormation(onlyFormation().id, (rec) => void delete rec.members[alicePos].deployedSceneId);
-  const out = scene.tokens.get(onlyFormation().members[alicePos].deployedTokenId);
-  const farSide = new SceneMock("Far Side");
-  game.scenes.set(farSide.id, farSide);
-  try {
-    const arrived = await moveAcrossScenes(out, farSide, 300, 400);
-    await drain();
-    const scout = onlyFormation().members[alicePos];
-    assert.equal(scout.deployedSceneId, farSide.id, "taken as standing on the party's scene, and followed");
-    assert.equal(scout.deployedTokenId, arrived.id);
-    await deployment.toggleDetachMember(onlyFormation(), alice.id);
-    await drain();
-    assert.equal(farSide.tokens.size, 0, "recalled from the far side");
-  } finally {
-    game.scenes.delete(farSide.id);
-  }
-});
-
 await scenario("an unlinked member is down by their own token's hit points, stashed or deployed", async () => {
   const services = await import("../scripts/lib/services.mjs");
   const hireling = await ActorMock.create({
@@ -3693,6 +3670,7 @@ await scenario("a combat's takeover outlasts a whole write and the loss of the c
 });
 
 await scenario("a deployed member with no combat id recorded is read as the running combat's takeover", async () => {
+  // The shape a member left behind and taken back mid-fight has.
   // See docs/formation/DECISIONS.md, "A combat records whom it took over".
   const { id, actors } = await isolatedParty("Veteran Party", "Elder", "Squire");
   const cell = (actor) => onlyFormation().members.find((m) => m.actorId === actor.id);

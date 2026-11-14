@@ -252,16 +252,16 @@ await t("the mode reads off the attachments: foot, mounted, wagon, all afloat", 
   assert.equal(derivedMovementMode(getFormation(id)), "vessel");
 });
 
-await t("the mode is an answer: the record never stores one, and a stored mode word is still read", async () => {
+await t("the mode is an answer: the record never stores one, and a stored mode key is not read", async () => {
   person("a", 90);
-  const id = party([actors.get("a")], { movement: { mode: "vessel" } });
+  const id = party([actors.get("a")], { movement: { set: "vessel" } });
   const record = getFormation(id);
-  assert.equal(travelOf(record).movement.set, "vessel", "a declared mode on an old record reads as the word");
+  assert.equal(travelOf(record).movement.set, "vessel", "a declared word reads as the word");
   assert.equal(travelOf(record).movement.mode, "vessel");
   assert.equal(Object.hasOwn(storedTravelOf(record).movement, "mode"), false);
-  const walked = party([actors.get("a")], { movement: { mode: "mounted" } });
-  assert.equal(travelOf(getFormation(walked)).movement.set, null, "a derived word on an old record says nothing");
-  assert.equal(travelOf(getFormation(walked)).movement.mode, "foot");
+  const stray = party([actors.get("a")], { movement: { mode: "vessel" } });
+  assert.equal(travelOf(getFormation(stray)).movement.set, null, "a `mode` key says nothing");
+  assert.equal(travelOf(getFormation(stray)).movement.mode, "foot");
 });
 
 await t("the pace answers to the rider's carrier, and the setter is the slowest of them", async () => {

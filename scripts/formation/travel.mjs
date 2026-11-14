@@ -290,14 +290,11 @@ const DECLARED_MODES = Object.freeze(["flying", WATER_BORNE]);
 
 /**
  * The Judge's word on how the whole party moves (`movement.set`), a mode key,
- * or null for the automatic reading. A record with no word holds the
- * `mode` its select wrote: a declared mode reads as the word, and the rest said
- * nothing the attachments do not, the default `foot` above all.
+ * or null for the automatic reading.
  */
 function movementSetOf(t) {
-  const m = t.movement;
-  if (m && Object.hasOwn(m, "set")) return isMode(m.set) ? m.set : null;
-  return DECLARED_MODES.includes(m?.mode) ? m.mode : null;
+  const set = t.movement?.set;
+  return isMode(set) ? set : null;
 }
 
 /** The mode in force: a declared mode's word, else what the attachments say. */
@@ -674,7 +671,7 @@ const logCap = () => {
  *   foreign.
  */
 export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
-  // Historically a boolean; a mode string is now accepted and preferred.
+  // A mode string, or a bare boolean for the journey/delve switch.
   const mode = typeof journey === "string"
     ? (TRAVEL_MODES.includes(journey) ? journey : "delve")
     : (journey ? "journey" : "delve");
@@ -742,10 +739,7 @@ function enteredSettlement(travel, sceneId) {
  * An UNSTAMPED board is foreign. A board that names no city has no claim on the
  * one it is arriving in, and the stay stamp it carries was counted somewhere
  * nobody can point at; reading it as "here" is what lets a whole journey be
- * charged as a stay in the city at the end of it. `claimUnstampedSettlements`
- * is what keeps that verdict from costing a real tally: every board whose city
- * IS knowable is stamped before any of this runs, so a board still unstamped
- * here was counted nowhere that can be named, and a fresh tally is the honest
+ * charged as a stay in the city at the end of it. A fresh tally is the honest
  * answer. The two errors are not the same size — a wrong reset loses blocks and
  * turns a Judge can re-enter from the panel, a wrong keep silently bills the
  * party for a month it spent on the road.
@@ -803,50 +797,6 @@ function cityMapOf(place, links) {
   if (mirror && isCity(mirror)) return mirror;
   const linked = game.scenes?.filter?.((s) => links.locationOfScene(s)?.uuid === place.uuid && isCity(s)) ?? [];
   return linked.reduce((low, s) => (!low || s.id < low.id ? s : low), null);
-}
-
-/**
- * Stamp every unstamped settlement board with the city its party stands in.
- * Run once, at startup.
- *
- * A board records the city its blocks were counted in; a board carried in from
- * a world that kept no such record names none. The formation's own recorded
- * scene is where its token is, so a board claimed from it is claimed by the
- * city it was actually counted in — which is why the claim belongs here, and
- * not inside `adoptSceneSystem`: the token-placement hook that calls that one
- * fires from `createEmbeddedDocuments` BEFORE the formation's `sceneId` is
- * written, so the field names the scene being LEFT on exactly the path that
- * matters most.
- *
- * Only the stamp is written, and only on a board that has none whose party is
- * in settlement mode on a scene declaring itself a city. No tally is reset and
- * no mode moves, so there is nothing to announce.
- *
- * @returns {Promise<number>} how many boards were claimed.
- */
-export async function claimUnstampedSettlements() {
-  let claimed = 0;
-  for (const formation of Object.values(getFormations())) {
-    const t = travelOf(formation);
-    if (t.mode !== "settlement" || t.settlement.sceneId != null) continue;
-    const scene = game.scenes?.get(sceneStamp(formation.sceneId));
-    if (inferredTravelSystem(scene).system !== "settlement") continue;
-    const sceneId = cityStampOf(scene);
-    if (!sceneId) continue;
-    let wrote = false;
-    // Re-read under the ledger's lock: the startup sync and every other
-    // background writer hold copies of these records, and a board claimed or
-    // re-entered between the read above and here is no longer ours to stamp.
-    await patchFormation(formation.id, (record) => {
-      const cur = storedTravelOf(record);
-      if (cur.mode !== "settlement" || cur.settlement.sceneId != null) return false;
-      record.travel = { ...cur, settlement: { ...cur.settlement, sceneId } };
-      wrote = true;
-      return record;
-    });
-    if (wrote) claimed += 1;
-  }
-  return claimed;
 }
 
 /**

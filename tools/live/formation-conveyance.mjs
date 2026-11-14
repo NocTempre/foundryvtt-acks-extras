@@ -3,9 +3,8 @@
  * the relay; a member joins by a drop on the sheet and is mounted; the Judge
  * presses Fastest for all, then Undo; the tiles set a word that holds the dawn
  * back, Back to automatic clears it; the clock crossing a dawn arranges the
- * party; a record from before the mode was derived reads; the relay refuses a
- * member and a carrier that are not the player's; and no load error lands on
- * either seat under a recorder added before reload.
+ * party; the relay refuses a member and a carrier that are not the player's;
+ * and no load error lands on either seat under a recorder added before reload.
  *
  * Every fixture and figure is invented. Fixtures, kept and found again by marker
  * (`api.fixture`): the scene `conveyance/scene`; the party `conveyance/party`;
@@ -286,18 +285,6 @@ const P = {
     return { worldTime: game.time.worldTime };
   },
 
-  /** Write the stored movement with a mode word on it, which the record never otherwise stores. */
-  legacy: async ({ fid, movement }) => {
-    const H = globalThis.__cv;
-    await H.model.patchFormation(fid, (rec) => {
-      const { set: _set, ...rest } = rec.travel.movement ?? {};
-      rec.travel = { ...rec.travel, movement: { ...rest, ...movement } };
-    });
-    await H.sleep(400);
-    const t = H.travel.travelOf(H.model.getFormation(fid));
-    return { set: t.movement.set, mode: t.movement.mode };
-  },
-
   /** A relayed request as a player's client sends it, past the sheet's own checks. */
   relay: async ({ fid, payload }) => {
     const H = globalThis.__cv;
@@ -536,17 +523,6 @@ try {
   await run(player, P.relay, { fid, payload: { actorId: rider.id, pick: uuid(hand) } });
   s = await read();
   check("a member they do not own, and a carrier off their offers, change nothing", JSON.stringify(s.seats) === JSON.stringify(beforeRefuse.seats), s.seats);
-
-  section("a record from before");
-  note("old mounted word", await run(gm, P.legacy, { fid, movement: { mode: "mounted" } }));
-  s = await read();
-  check("an old derived word says nothing, and the party reads what carries it", s.set === null && s.mode !== "flying", { set: s.set, mode: s.mode });
-  note("old flying word", await run(gm, P.legacy, { fid, movement: { mode: "flying" } }));
-  s = await read();
-  check("an old declared word reads as the word", s.set === "flying" && s.mode === "flying", { set: s.set, mode: s.mode });
-  await run(gm, P.press, { partyId: party.id, selector: '[data-section="movement"] [data-action="movementFastest"]', settle: 2500 });
-  s = await read();
-  check("Back to automatic moves it onto the new shape", s.set === null && !s.storedMode, { set: s.set, stored: s.storedMode });
 
   section("plates");
   await gm.compose?.(`#${(await gm.eval(`game.actors.get(${JSON.stringify(party.id)}).sheet.id`))}`);

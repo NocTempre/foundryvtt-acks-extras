@@ -13,7 +13,6 @@ import {
   adoptSceneSystem,
   applyTravelForm,
   cityStampOf,
-  claimUnstampedSettlements,
   clearDeclaredCountry,
   composeLogEntry,
   countryOf,
@@ -351,15 +350,15 @@ assert.equal(sameReading(readingOf({ territory: "civilized" }, { territory: "map
    water line; the ground it runs through picks which. */
 const riverHex = (ground) => readingOf({ ground, encounterTerrain: "grassland" }, { ground: "map", encounterTerrain: "map" },
   { water: { kind: "river", navigable: true } });
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("desert") })).encounterTerrain, "riverDesertJungle");
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("jungle") })).encounterTerrain, "riverDesertJungle");
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).encounterTerrain, "riverLand");
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest") })).provenance.encounterTerrain, "map");
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: { ...riverHex("forest"), source: { ground: "map", encounterTerrain: "scene" } } }))
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: riverHex("desert") })).encounterTerrain, "riverDesertJungle");
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: riverHex("jungle") })).encounterTerrain, "riverDesertJungle");
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: riverHex("forest") })).encounterTerrain, "riverLand");
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: riverHex("forest") })).provenance.encounterTerrain, "map");
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: { ...riverHex("forest"), source: { ground: "map", encounterTerrain: "scene" } } }))
   .provenance.encounterTerrain, "map", "the river's table is the water's, whatever answered the hex's own");
-assert.equal(travelOf(placed({ movement: { mode: "foot" }, map: riverHex("forest") })).encounterTerrain, "grassland",
+assert.equal(travelOf(placed({ movement: { set: "foot" }, map: riverHex("forest") })).encounterTerrain, "grassland",
   "a party on foot beside the river throws on the land's table");
-assert.equal(travelOf(placed({ movement: { mode: "vessel" }, map: { ...riverHex("forest"), water: null } })).encounterTerrain, "grassland",
+assert.equal(travelOf(placed({ movement: { set: "vessel" }, map: { ...riverHex("forest"), water: null } })).encounterTerrain, "grassland",
   "and a boat with no water line under it on the hex's own");
 
 /* An overridden ground takes the table with it: the map's and the record's
@@ -371,7 +370,7 @@ assert.equal(countryOf(placed({ map: fromMap, override: { ground: "desert" } }))
   "what the map reads under the Judge's ground stays known");
 assert.equal(travelOf(placed({ map: fromMap, override: { ground: "desert", encounterTerrain: "hillsRocky" } })).encounterTerrain, "hillsRocky",
   "the Judge's own table stands over the ground's");
-t = travelOf(placed({ movement: { mode: "vessel" }, map: riverHex("forest"), override: { ground: "desert" } }));
+t = travelOf(placed({ movement: { set: "vessel" }, map: riverHex("forest"), override: { ground: "desert" } }));
 assert.deepEqual([t.encounterTerrain, t.provenance.encounterTerrain], ["riverDesertJungle", "map"],
   "afloat, the river's table is read for the overridden ground");
 
@@ -410,14 +409,14 @@ assert.equal(rec.movement.hoursAloft, 0);
 assert.equal(rec.movement.dayHours, 0, "an unstated day is not an assumed one");
 assert.equal(rec.movement.load, "normal");
 
-const flier = travelOf({ travel: { mode: "journey", movement: { mode: "flying", hoursAloft: "4", dayHours: "8", load: "heavy" } } });
+const flier = travelOf({ travel: { mode: "journey", movement: { set: "flying", hoursAloft: "4", dayHours: "8", load: "heavy" } } });
 assert.equal(flier.mode, "journey", "the two axes do not overwrite each other");
 assert.equal(flier.movement.mode, "flying");
 assert.equal(flier.movement.hoursAloft, 4, "hours arrive from a form as strings");
 assert.equal(flier.movement.dayHours, 8);
 assert.equal(flier.movement.load, "heavy");
 
-const nonsense = travelOf({ travel: { movement: { mode: "swimming", hoursAloft: -3, load: "featherlight" } } });
+const nonsense = travelOf({ travel: { movement: { set: "swimming", hoursAloft: -3, load: "featherlight" } } });
 assert.equal(nonsense.movement.mode, "foot", "an unknown mode falls back rather than composing nothing");
 assert.equal(nonsense.movement.hoursAloft, 0, "a negative span is no span");
 assert.equal(nonsense.movement.load, "normal", "an unknown load band falls back too");
@@ -492,10 +491,8 @@ assert.equal(boardOf("f1").route, "route");
 assert.equal(boardOf("f1").sceneId, "Scene.hillfort");
 
 /* --- the unstamped board ---------------------------------------------------
-   A world whose board carries no stamp, with the party already standing in a
-   city. Nothing places a token there, so no arrival ever
-   runs; the startup claim is the only thing that can name that board's city,
-   and if it does not, the very next hop is the FIRST arrival — and misses. */
+   A stamped board and one that names no city, each with the party in settlement
+   mode. */
 globalThis.game.scenes = {
   get: (id) => (id === "Scene.hillfort" || id === "Scene.riverport" ? cityScene(id) : null),
 };
@@ -504,28 +501,17 @@ settings.formations.f2 = {
   sceneId: "Scene.hillfort",
   travel: {
     mode: "settlement",
-    settlement: { pace: "commuting", blocks: 17, turns: 5, holeUpSince: 900, wanted: true },
+    settlement: { sceneId: "Scene.hillfort", pace: "commuting", blocks: 17, turns: 5, holeUpSince: 900, wanted: true },
   },
 };
-/* A party in settlement mode standing nowhere anybody can name: there is no
-   city to claim its board for, so the claim leaves it alone. */
 settings.formations.f3 = {
   id: "f3",
   sceneId: null,
   travel: { mode: "settlement", settlement: { pace: "commuting", blocks: 6 } },
 };
 
-assert.equal(await claimUnstampedSettlements(), 1,
-  "exactly the board whose city is knowable is claimed");
-assert.equal(boardOf("f2").sceneId, "Scene.hillfort", "claimed for the city its party stands in");
-assert.equal(boardOf("f2").blocks, 17, "and the claim writes the stamp and NOTHING else");
-assert.equal(boardOf("f2").holeUpSince, 900);
-assert.equal(boardOf("f2").wanted, true);
-assert.equal(boardOf("f3").sceneId, null, "a party on no named scene has no city to be claimed for");
-assert.equal(await claimUnstampedSettlements(), 0, "and a second pass has nothing left to claim");
-
 assert.equal(await adopt("f2", cityScene("Scene.hillfort")), null,
-  "the city it was claimed for is not an arrival");
+  "the city the board names is not an arrival");
 assert.equal(boardOf("f2").blocks, 17, "so the tally the party is standing in the middle of stays");
 
 /* The hop between two cities: the board resets on arrival. */
@@ -539,10 +525,9 @@ assert.equal(hopped.holeUpSince, null,
   "the stay stamp above all: kept, the first clock advance in the new city bills the whole journey");
 assert.equal(hopped.pace, "commuting", "what the Judge set still carries across");
 
-/* A board nothing could claim IS read as foreign by the first named city it
-   reaches: a tally counted nowhere anybody can point at has no claim on the
-   streets it has just arrived in, and keeping its stay stamp is the failure
-   that costs a month. */
+/* An unstamped board IS read as foreign by the first named city it reaches: a
+   tally counted nowhere anybody can point at has no claim on the streets it has
+   just arrived in, and keeping its stay stamp is the failure that costs a month. */
 assert.equal(await adopt("f3", cityScene("Scene.hillfort")), "settlement");
 assert.equal(boardOf("f3").sceneId, "Scene.hillfort");
 assert.equal(boardOf("f3").blocks, 0);
@@ -668,18 +653,6 @@ assert.equal(boardOf("f4").sceneId, "Scene.riverport");
   assert.equal(await adopt("f5", sceneOf("Scene.burg")), "settlement", "the next town is still an arrival");
   assert.equal(boardOf("f5").sceneId, "Scene.burg");
   assert.equal(boardOf("f5").blocks, 0);
-
-  /* A party standing in a building when its board was written unstamped is
-     claimed for the town, so the walk back out to the streets keeps the tally. */
-  settings.formations.f6 = {
-    id: "f6",
-    sceneId: "Scene.stable",
-    travel: { mode: "settlement", settlement: { pace: "commuting", blocks: 5 } },
-  };
-  assert.equal(await claimUnstampedSettlements(), 1);
-  assert.equal(boardOf("f6").sceneId, "Scene.town", "claimed for the town the stable stands in");
-  assert.equal(await adopt("f6", sceneOf("Scene.town")), null);
-  assert.equal(boardOf("f6").blocks, 5);
 
   /* The panel names the town too, from a building's map. */
   settings.formations.f7 = { id: "f7", sceneId: "Scene.inn", travel: { mode: "delve", settlement: { pace: "commuting" } } };

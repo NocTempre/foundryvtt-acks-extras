@@ -865,7 +865,7 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const t0 = worldClock.worldTime;
   const hooks0 = hookCalls.length;
   const cards0 = rendered.length;
-  const out = await runSearchHour(f, { subject: "pointOfInterest", specific: false, present: true });
+  const out = await runSearchHour(f, { subject: "pointOfInterest", specific: false, present: "yes" });
   assert.equal(out.ok, true);
   const whisper = chat.find((m) => String(m.content).includes("acks-extras-search-card"));
   assert.match(whisper.content, new RegExp(`"target":${bracketRow(targets, marchMiles).target}`),
@@ -892,7 +892,7 @@ const approx = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
   const { unregisterTable } = await import("../scripts/lib/tables.mjs");
   unregisterTable(SEARCHING_DOC);
   const t1 = worldClock.worldTime;
-  const none = await runSearchHour(getFormation(id), { present: true });
+  const none = await runSearchHour(getFormation(id), { present: "yes" });
   assert.equal(none.ok, false);
   assert.equal(worldClock.worldTime, t1, "an unpriced search spends no hour");
 }

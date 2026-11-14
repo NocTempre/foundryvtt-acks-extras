@@ -1452,9 +1452,8 @@ lets steps 6 and 11 be read off the coordinates rather than believed.
     stay on the next clock advance. Then walk back to the first city and
     confirm it too resets rather than restoring what it held. **Also walk the
     unstamped shape**: `patchSettlement` a board with tallies and no `sceneId`,
-    reload the world so the ready pass claims it, and hop again — a board that
-    was never stamped must reset on arrival, not be adopted by the city it
-    arrives in.
+    then arrive in a city — a board that was never stamped must reset on
+    arrival, not be adopted by the city it arrives in.
 
 ## The districts (added with the district behaviour)
 
@@ -3245,10 +3244,7 @@ on a tall window, since `gm.shot` clips to what is on screen.
 8. **The relay refuses.** From the Player's seat, send a pick for
    `conveyance/hand`, and a pick naming a character as the carrier.
    *Observable:* nothing changes.
-9. **A record from before.** Write `movement.mode` as `mounted`, then `flying`.
-   *Observable:* the first reads as no word, the second as the word. Back to
-   automatic moves it onto the new shape.
-10. **The plates.** Size the sheet wide and at its minimum; the walk writes
+9. **The plates.** Size the sheet wide and at its minimum; the walk writes
     `conveyance-movement*.png` and `conveyance-order*.png` to the log directory.
     *Observable:* the section does not overflow, no tile or figure clips, a
     member's picks wrap. Read the PNGs.

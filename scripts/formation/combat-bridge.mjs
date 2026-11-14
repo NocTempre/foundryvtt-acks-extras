@@ -47,9 +47,10 @@ const outOfTheFight = (formation, member, scene) =>
 
 /**
  * The id of the combat that took this member over (`deployedCombatId`), or
- * null when none did. A record from before the takeover was kept reads a member
- * on the map with no detach and no leave as the party's running combat's, or,
- * with that flag lost too, as one already gone (`""`).
+ * null when none did. A member on the map with no detach, no leave and no
+ * recorded combat (one the Judge took back from a leave mid-fight) reads as the
+ * party's running combat's, or, with that flag lost too, as one already gone
+ * (`""`).
  */
 function takeoverOf(formation, member) {
   if (!isMemberDeployed(member)) return null;
