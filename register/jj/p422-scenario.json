@@ -77,7 +77,9 @@
         { "box": 30, "find": "(?<=on this )abl(?= to)", "flags": "", "to": "table", "hits": 1, "pile": "b" },
         { "box": 33, "find": "\\bCustoM\\b", "flags": "", "to": "CUSTOM", "hits": 1, "pile": "c" },
         { "box": 34, "find": "(?<=MV \\d\\d)°", "flags": "", "to": "’", "hits": 1, "pile": "a" },
-        { "box": 34, "find": "(?<=\\dd\\d{1,2} )\\S{1,3}(?=\\),)", "flags": "", "to": "necrotic", "hits": 1, "pile": "b", "glyph": "necrotic" }
+        { "box": 34, "find": "(?<=\\dd\\d{1,2} )\\S{1,3}(?=\\),)", "flags": "", "to": "necrotic", "hits": 1, "pile": "b", "glyph": "necrotic" },
+        { "box": 9, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 16, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 }
       ]
     }
   },

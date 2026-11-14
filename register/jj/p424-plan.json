@@ -25,7 +25,7 @@
       ],
       "grid": {
         "family": "square",
-        "box": { "w": 8.64, "h": 8.64 },
+        "box": { "w": 8.5, "h": 8.5 },
         "centre": [140.53, 611.55],
         "distance": 10,
         "units": "ft"

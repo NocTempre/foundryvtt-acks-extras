@@ -109,7 +109,11 @@
         { "box": 44, "find": "^(3)[^\\s\\d]?(?= - )", "flags": "m", "to": "$1rd", "hits": 1, "pile": "a" },
         { "box": 44, "find": "^(4)[^\\s\\d]?(?= - )", "flags": "m", "to": "$1th", "hits": 1, "pile": "a" },
         { "box": 44, "find": "^(5)[^\\s\\d]?(?= - )", "flags": "m", "to": "$1th", "hits": 1, "pile": "a" },
-        { "box": 44, "find": "(?<=Ooze) \\S{1,3} \\S{1,3}$", "flags": "", "to": "", "hits": 1, "pile": "a" }
+        { "box": 44, "find": "(?<=Ooze) \\S{1,3} \\S{1,3}$", "flags": "", "to": "", "hits": 1, "pile": "a" },
+        { "box": 8, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 30, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 31, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 2, "find": "^» ", "flags": "gm", "to": "", "pile": "a", "hits": 2 }
       ]
     }
   },

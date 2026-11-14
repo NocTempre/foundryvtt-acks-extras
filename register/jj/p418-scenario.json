@@ -88,7 +88,12 @@
         { "box": 43, "find": "(?<=Spells:[^\\n]*\\d )(1)[^\\s,\\d]?(?=,)", "flags": "", "to": "$1st", "pile": "a", "hits": 1 },
         { "box": 43, "find": "(?<=Spells:[^\\n]*\\d )(2)[^\\s,\\d:]?(:);?$", "flags": "m", "to": "$1nd$2", "pile": "a", "hits": 1 },
         { "box": 43, "find": "^(1)[^\\s\\d]?(?= - )", "flags": "m", "to": "$1st", "pile": "a", "hits": 1 },
-        { "box": 43, "find": "^(2)[^\\s\\d]{1,2}(?= [A-Z])", "flags": "m", "to": "$1nd -", "pile": "a", "hits": 1 }
+        { "box": 43, "find": "^(2)[^\\s\\d]{1,2}(?= [A-Z])", "flags": "m", "to": "$1nd -", "pile": "a", "hits": 1 },
+        { "box": 1, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 19, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 22, "find": "(?<=[A-Z])S(?= [A-Z])", "flags": "", "to": "’S", "pile": "a", "hits": 1 },
+        { "box": 39, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 24, "find": "^» ", "flags": "gm", "to": "", "pile": "a", "hits": 2 }
       ]
     }
   },

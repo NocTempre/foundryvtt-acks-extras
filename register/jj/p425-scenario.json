@@ -82,7 +82,14 @@
         { "box": 28, "find": "\\b(\\d)([4-6])[%™*\"],", "flags": "g", "to": "$1 $2th,", "hits": 1, "pile": "a" },
         { "box": 28, "find": "\\b(2)[%™*\"](?=,| -)", "flags": "g", "to": "$1nd", "hits": 1, "pile": "a" },
         { "box": 28, "find": "\\b([4-6])[%™*\"](?=,|$)", "flags": "gm", "to": "$1th", "hits": 2, "pile": "a" },
-        { "box": 28, "find": "(?<=\\d) x (?=\\d)", "flags": "g", "to": " × ", "hits": 1, "pile": "a" }
+        { "box": 28, "find": "(?<=\\d) x (?=\\d)", "flags": "g", "to": " × ", "hits": 1, "pile": "a" },
+        { "box": 3, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 1 },
+        { "box": 15, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 2 },
+        { "box": 21, "find": "'", "flags": "g", "to": "’", "pile": "a", "hits": 3 },
+        { "box": 28, "find": "(?<=\\dth)$", "flags": "", "to": ":", "pile": "a", "hits": 1 },
+        { "box": 2, "find": "^» ", "flags": "gm", "to": "", "pile": "a", "hits": 2 },
+        { "box": 3, "find": "^» ", "flags": "gm", "to": "", "pile": "a", "hits": 2 },
+        { "box": 15, "find": "^» ", "flags": "gm", "to": "", "pile": "a", "hits": 1 }
       ]
     }
   },
