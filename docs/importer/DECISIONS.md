@@ -1725,3 +1725,30 @@ legacy issue concerns".
 
 *Cost:* the heading's word now sits in the tracked cookbook, as it already
 sat in the tracked register; it is a common word, not a name.
+## 2026-11-14 — A recipe anchor may carry the passage's words, and is never hashed for that
+
+Asked what to do with the anchors that carry a rule's wording (the importer's
+`find` and `locate` strings of seven or more words, and the register patterns
+of the same shape), with the options "(a) hash all; (b) hash only those over
+the length cap and the two new ones; (c) leave all", the owner answered: "2C,
+not using hashes, occasional importer guidance fragments are not a concern, but
+should not replace import text".
+
+- **An anchor is a locator.** It is the string a recipe or a register pattern
+  uses to find a passage in the Judge's own copy, and it may carry some of the
+  passage's words. It is not hashed for that reason.
+- **An anchor is never what an import writes.** What a world receives is read
+  from the Judge's copy; no anchor, pattern or locator stands in for it. A
+  string that an import writes is a read, not an anchor.
+- **What it settles.** The 67 recipe anchor strings and the register patterns
+  of that shape stay as they are. The hash anchors of earlier entries stay for
+  what they were made for: a printed proper name is still located by its hash
+  ("2026-10-17 — A site its page prints by title anchors by hash", and the
+  name rule of `ip-doctrine.md`).
+- **What it supersedes in part.** RECIPES principle 3's short-label cap on
+  literal strings does not bind an anchor; it binds what a recipe ships as
+  text. The principle carries a pointer to this entry.
+
+*Rejected:* options (a) and (b). *Cost:* a long anchor stays readable in the
+repo, which the owner accepted; a recipe can still move to a `printKey` or
+`findKey` locator one at a time.

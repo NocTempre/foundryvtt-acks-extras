@@ -76,6 +76,14 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   AX1 and AX3 are, and AX2 gets no register beyond what the region needs of it
   ([importer/ROADMAP.md](importer/ROADMAP.md)). Whether it needs a new row shape
   is not yet asked.
+- **A monster heading that is a kind in one book and a name in another.** A
+  monster heading the name scanner reports against an aliased book's ring ships
+  as a monster id, name and display anchor in the MM, AX6, JJ and L&E
+  registers. Whether a heading one book prints as a kind of creature, and
+  another book's name audit knows as a name, ships under its own words or a
+  neutral label is open across books. The owner ruled it stays for now ("leave
+  on roadmap for further investigation into cross-book issues"); nothing is
+  renamed and no register is recompiled.
 
 ---
 
