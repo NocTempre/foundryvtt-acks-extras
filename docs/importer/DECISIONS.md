@@ -1417,7 +1417,7 @@ the library's actor, so each such lair's printed residents bind to its monster;
 the lair still rolls (the owner, "Yes, roll anyway", same day). The morale
 rule reads only the first of two printed figures; the second goes unchecked.
 
-## 2026-11-14 — The JJ scenarios as bound: a roster link carries no count, every area is on its plan, the reading bar names the file's page
+## 2026-11-14 — The JJ scenarios as bound: a roster link carries no count, every area is on its plan, the reading bar names the file's page — SUPERSEDED IN PART 2026-11-14
 
 Supersedes in part "The JJ's scenarios land as keyed places, plans and a
 roster in the JJ's Adventure" (2026-11-13): its bullet that an unread figure
