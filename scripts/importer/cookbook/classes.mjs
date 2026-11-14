@@ -889,12 +889,8 @@ export async function laddersFromSpec(spec, { pageCache = null } = {}) {
   const classId = `def.class.${spec?.as ?? ""}`;
   const found = spec?.as ? cookbookEntry(classId) : null;
   if (!found) return [];
-  const session = ctx.sessionDocs.get(bookOf(found));
-  if (!session) return [];
-  const node = await executeEntry(session.doc, found.cb, data.registers, classId, {
-    ...(pageCache ? { pageCache } : {}),
-  }).catch(() => null);
-  if (!node?.ok) return [];
+  const { node } = await readForImport(classId, { ...(pageCache ? { pageCache } : {}) }).catch(() => ({ node: null }));
+  if (!node) return [];
   const grid = node.fields?.[spec.grid ?? "rebuking"];
   return gridLadders(grid, spec.prefix ?? "").map(({ key, label }) => ({ key, label }));
 }
@@ -1840,12 +1836,15 @@ export function parseBonusLanguages(body) {
  *
  * Only a class that ended with no named tongues is filled, and only from a
  * sibling that has some; a class the parse already answered is left alone.
+ * `borrowers` are the classes this run wrote and `lenders` every held class:
+ * a borrow gives a slot back, so it is never repeated over a class a run did
+ * not write.
  * See docs/importer/DECISIONS.md, "2026-08-16 — a class is its race's whether or not its page reads".
  */
-async function inheritRaceTongues(classDocs) {
-  const docs = (classDocs ?? []).filter(Boolean);
+async function inheritRaceTongues(borrowers, lenders = borrowers) {
+  const docs = (borrowers ?? []).filter(Boolean);
   const byRace = new Map();
-  for (const d of docs) {
+  for (const d of (lenders ?? []).filter(Boolean)) {
     const t = d.flags?.[MODULE_ID]?.tongues;
     const granted = d.system?.languages?.granted ?? [];
     // Only a class that read its OWN runin may lend; a human-default list
@@ -1874,13 +1873,20 @@ async function inheritRaceTongues(classDocs) {
   return lent;
 }
 
+/** Every imported class the library holds, whichever run wrote it. */
+async function heldImportedClasses() {
+  return (await importedDocs("Item")).filter((i) => i.type === CLASS_ITEM_TYPE);
+}
+
 /**
  * Bring the race documents' tongues in step with what the class spreads
  * read, so a custom class built on a race document owes its character the
  * same tongues the race's own imported classes get. Only a race whose list
- * is still EMPTY is written — a Judge's own edit is never replaced. Races
- * and classes can import in either order; this runs after a class import
- * and is worked into a race arriving later by the next class import.
+ * is still EMPTY is written — a Judge's own edit is never replaced, and a
+ * race that has a list is left as it stands. Races and classes arrive in
+ * either order, so `syncHeldRaceTongues` reads every held class and a race
+ * that landed after its classes is filled by the next run, whatever that run
+ * makes.
  */
 async function syncRaceTongues(classDocs) {
   const items = await importedDocs("Item");
@@ -1898,6 +1904,15 @@ async function syncRaceTongues(classDocs) {
     if (!race || (race.system?.languages?.granted ?? []).length) continue;
     await race.update({ "system.languages": { granted, count: 0 } });
   }
+}
+
+/**
+ * Fill every race whose list is empty from the held imported classes that
+ * name it. Idempotent, since it writes only an empty list, so a class run
+ * calls it whether or not the run made a class.
+ */
+export async function syncHeldRaceTongues() {
+  return syncRaceTongues(await heldImportedClasses());
 }
 
 /**
@@ -1948,8 +1963,8 @@ export async function importClasses({ only = null } = {}) {
     });
     if (doc) made.push(doc);
   }
-  await inheritRaceTongues(made);
-  await syncRaceTongues(made);
+  await inheritRaceTongues(made, await heldImportedClasses());
+  await syncHeldRaceTongues();
   await materializeClassTemplates(made);
   ui.notifications?.info(
     `${MODULE_ID} | classes: ${made.length} imported, ${skipped} already present${passed.clause}.`,
@@ -2068,12 +2083,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
     const entry = byId.get(id);
     const found = cookbookEntry(id);
     const bookId = found ? bookOf(found) : null;
-    const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-    let node = null;
-    if (session) {
-      node = await executeEntry(session.doc, found.cb, data.registers, id);
-      if (!node?.ok) node = null;
-    }
+    const node = bookId ? (await readForImport(id)).node : null;
     if (bookId && !node) {
       unread++;
       countRepair(repair, "no-match");
@@ -2091,8 +2101,8 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
     countRepair(repair, plan);
     if (!plan.refused) written.push(plan.recreated ?? item);
   }
-  await inheritRaceTongues(written);
-  await syncRaceTongues(written);
+  await inheritRaceTongues(written, await heldImportedClasses());
+  await syncHeldRaceTongues();
   // The update above replaced each document's whole `system`, which wipes the
   // rows' cached bundle uuids — this re-derives them from the bundles' own
   // flags and re-strips the arrays it restored, so a package is never handed

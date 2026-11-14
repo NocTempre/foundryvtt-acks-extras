@@ -36,7 +36,7 @@ export {
   abilitySurfaceIndex, tokenizeProfs, nameForms, parseEquipment, liftBookSpells, liftCompanions, classGainsFor,
   proseGainSchedule, proseHitDiceLevels, buildXp, proseDamageLadder, gridLadders, laddersForEntry, laddersFromSpec,
   bindClass, classRepertoireFor, readTraining, parseCombatTraining, parseTrainingProse, readTrainingCells, buildPaths,
-  parseTongues, parseBonusLanguages, importClasses, importTemplatePackages, cookbookUpdateClasses,
+  parseTongues, parseBonusLanguages, syncHeldRaceTongues, importClasses, importTemplatePackages, cookbookUpdateClasses,
 } from "./cookbook/classes.mjs";
 export {
   bindVehicleRow, rowClaimKey, importVehicles, equipmentTypeOf, locatedValues, bindEquipment, trainingFromName,
