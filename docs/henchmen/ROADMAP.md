@@ -44,9 +44,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 - **The liberation loyalty throw opens from nowhere.** `throws-data.mjs`
   still declares `liberationLoyalty`, no surface opens it, and no page for its
   figures has been found; it is wired to a page or removed.
-- **The insist tooltip has two states.** A Judge's override of the insist
-  penalty reads as imported; the third state (`ui-tooltips.md`) names the
-  override.
 - **Utter Domination's morale base has no located value.** `moraleBase` is
   read only from an Active Effect; the importer register carries no locator
   for it, and the page's figure is a floor rather than a bonus, so the shape a

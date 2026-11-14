@@ -17,7 +17,7 @@ import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED, L
 import { isPrimaryGM, locOr } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import {
-  effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty,
+  effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty, insistPenaltyIsJudges,
   loyaltyChange, LOYALTY_CHANGES, hirelingLoyaltyOutcomes, loyaltyStartOf, startFromSheet,
 } from "../rules/loyalty.mjs";
 import { optCite, optOrigin } from "../rules/tables.mjs";
@@ -336,7 +336,9 @@ export async function applyObedienceOutcome(actor, { outcome, total, note = "" }
   if (outcome !== "refuses") return;
   const penalty = insistPenalty();
   const cite = optCite("morale", "hirelingObedience") ?? "RR 167";
-  const tooltip = penalty === null ? cite : game.i18n.format("ACKS-HENCHMEN.card.insistTip", { penalty, cite });
+  const tooltip = penalty === null
+    ? cite
+    : game.i18n.format(insistPenaltyIsJudges() ? "ACKS-HENCHMEN.card.insistTipJudge" : "ACKS-HENCHMEN.card.insistTip", { penalty, cite });
   await postEventCard({
     titleKey: "ACKS-HENCHMEN.card.refusesTitle",
     bodyKey: "ACKS-HENCHMEN.card.refusesBody",

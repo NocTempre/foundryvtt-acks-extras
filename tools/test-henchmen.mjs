@@ -421,6 +421,22 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     withTables(docs, () => assert.strictEqual(insistPenalty(), null, `${label}: no figure`));
   }
 
+  // Whose figure it is: the Judge's override layer naming the penalty itself, never the import's table or an override of another key.
+  const { insistPenaltyIsJudges } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
+  const judged = (layer) => {
+    const saved = globalThis.acksExtras;
+    try {
+      globalThis.acksExtras = { lib: { tables: { PRIORITY: { WORLD: 20, OVERRIDE: 30 }, getLayer: (doc, p) => (doc === "morale" && p === 30 ? layer : null) } } };
+      return insistPenaltyIsJudges();
+    } finally {
+      globalThis.acksExtras = saved;
+    }
+  };
+  assert.strictEqual(judged(null), false, "an imported figure is not the Judge's");
+  assert.strictEqual(judged({ tables: { hirelingObedience: { bands: [] } } }), false, "an override of another key is not the penalty's");
+  assert.strictEqual(judged({ tables: { hirelingObedience: { insistPenalty: 0 } } }), true, "a Judge's zero is the Judge's figure");
+  assert.strictEqual(insistPenaltyIsJudges(), false, "no registry attached: not the Judge's");
+
   // The two henchman shares: a fraction written in words after each recipe's
   // clause. The fractions and the sentences around them are invented; the
   // recipes hold only the anchors.

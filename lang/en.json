@@ -4769,6 +4769,7 @@
   "ACKS-HENCHMEN.card.refusesBody": "The Insist button applies the refusal's loyalty penalty, then rolls Obedience again (RR 167).",
   "ACKS-HENCHMEN.card.insist": "Insist (permanent loyalty, re-roll)",
   "ACKS-HENCHMEN.card.insistTip": "Permanent loyalty penalty for insisting: {penalty}. Read from your own book at import ({cite}).",
+  "ACKS-HENCHMEN.card.insistTipJudge": "Permanent loyalty penalty for insisting: {penalty}. Set by the Judge in the Ruledata Browser.",
   "ACKS-HENCHMEN.card.insisted": "Employer insisted after refusal",
   "ACKS-HENCHMEN.figure.imported": "Read from your own book at import ({cite}).",
   "ACKS-HENCHMEN.figure.override": "Set by a Judge's override in the Ruledata Browser, in place of the imported figure.",

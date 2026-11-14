@@ -50,6 +50,17 @@ export function insistPenalty() {
 }
 
 /**
+ * Whether the Judge's own override layer supplies the insistence penalty, as
+ * against the figure the import read: the layer's table names the figure
+ * itself, so an override of the table's other keys does not count.
+ */
+export function insistPenaltyIsJudges() {
+  const t = globalThis.acksExtras?.lib?.tables;
+  if (!t?.PRIORITY) return false;
+  return t.getLayer?.("morale", t.PRIORITY.OVERRIDE)?.tables?.hirelingObedience?.insistPenalty != null;
+}
+
+/**
  * Where RR 166's loyalty changes and starting-loyalty figures arrive: the
  * Judge's imported `influence.loyaltyChanges` table. Its keys are `fanatic`
  * and `grudging` (each a signed permanent change), `levelGain` (per level
