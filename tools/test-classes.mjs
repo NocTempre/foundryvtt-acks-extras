@@ -2802,9 +2802,7 @@ test("every audit string the record's text asks for is in the language file", ()
   for (const m of src.matchAll(/\?\s*"(\w+)"\s*:\s*"(\w+)"/g)) asked.add(m[1]).add(m[2]);
   // The audit's state names ride the same ternary shape and are not strings.
   for (const state of ["differs", "recorded"]) if (!src.includes(`fmt("${state}"`)) asked.delete(state);
-  // floorNone is read by the tools/live class walks, not by the audit.
-  const walkOnly = new Set([`${LANG_PREFIX}.hpAudit.floorNone`]);
-  assert.equal(asked.size, Object.keys(lang).filter((k) => k.startsWith(`${LANG_PREFIX}.hpAudit.`) && !walkOnly.has(k)).length, "every string asked for, and none left over");
+  assert.equal(asked.size, Object.keys(lang).filter((k) => k.startsWith(`${LANG_PREFIX}.hpAudit.`)).length, "every string asked for, and none left over");
   for (const segment of asked) assert.ok(`${LANG_PREFIX}.hpAudit.${segment}` in lang, `${segment} has no string`);
   // A hand edit, a level lowered by hand and core's own roll all differ alike.
   const differs = lang[`${LANG_PREFIX}.hpAudit.differs`];
