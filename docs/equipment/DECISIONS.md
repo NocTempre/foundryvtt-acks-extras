@@ -99,3 +99,8 @@ shows the early answers until it redraws.
 ## 2026-11-13 — Uninstall strips what the module wrote, and reverts stat layers only on request
 
 **Ruled.** The cleanup deletes the managed Equipment Loadout effect, because with the module off it would keep applying stale modifiers invisibly, the one leftover that actively corrupts play. It always reveals disguised items first, because the mask writes a fake identity into core fields and stripping the flag first would make it permanent. It reverts the masterwork, scavenged and item-loss stat layers to the pristine snapshot only when asked (`revertLayers`, off by default), because most tables want to keep what the fiction earned; unlocked named-item rungs stay in core fields either way as earned state. It then removes every `flags.acks-extras.*` on actors and items.
+
+## 2026-11-14 — A named item's bonus categories are procedure, and their labels name fields
+
+**Ruled.** The five categories a named item's points go to (`overlays/named.mjs` `NAMED_CATEGORIES`, JJ p. 399) stay in source: each is a modifier the overlay applies to a field core owns, and the code that applies it is keyed by it, so the set is which modifiers exist and not a table of options read off a page. A label names its field and carries no size; the count beside it is the ladder the Judge set, one point a rung. The building session's call with the owner away. A reversal registers the categories as an imported table and has `toItemUpdates` read which field each one writes.
+**Rejected.** A label that states the size of a point, which is the page's figure in a string.

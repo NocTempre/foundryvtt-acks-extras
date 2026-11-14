@@ -102,6 +102,20 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   reads them. Under the name rule (`.claude/rules/ip-doctrine.md`) they want
   neutral labels, ids built from an ordinal and a locator, with the names
   arriving at import.
+- **A market hire's morale base is a stored zero.** `engine/hire.mjs` `hire`
+  writes `morale.base` as 0 where no caller passes one, and the record's field
+  (`data/henchman-record.mjs`) cannot be empty, so core's own morale field is
+  never read for a market hire (`rules/loyalty.mjs` `effectiveMorale`,
+  `rules/service.mjs` `moraleParts`). The page prints a base by hireling kind
+  (RR p. 166). First the field becomes nullable and a mercenary takes the base
+  its troop type imports; then the specialists' bases are read from the
+  paragraph the `levelMorale` and `officerMorale` recipes window, and a
+  henchman's stays empty and falls back to core's field.
+- **A hire's starting loyalty is a stored zero.** `engine/hire.mjs` and
+  `engine/monster.mjs` call `startingLoyalty` with a base no caller passes; the
+  page prints the start by kind (RR ch. 4, Hirelings Loyalty), and the
+  mercenary-officer figure the `baseLoyalty` recipe reads (RR p. 171) never
+  reaches a hire.
 - **Blank figures that have no page reference yet.** Fields left blank when
   nothing is imported carry a page-reference tooltip only where one was
   written. These carry none, and each needs its page looked up:

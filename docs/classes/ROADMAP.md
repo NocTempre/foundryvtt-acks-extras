@@ -186,9 +186,14 @@ built.
   one. No recipe carries it and the sweep did not find it printed for levels
   past the first; the `hpAudit.stepNone` text names the two maxima and no
   amount.
-- **The language grant.** `languages.mjs` `LANGUAGES_PER_GRANT` is the count of
-  languages a granting power adds. It is a printed figure and wants a recipe
-  that reads it from the page and a Judge-editable override.
+- **The builder's weapon-narrowing threshold.** `importer/builder-binding.mjs`
+  `assembleBuilderTables` writes the fighting value from which narrowing a
+  class's weapons costs experience (`xpDeltaMinFighting`) as a literal. The
+  sentence the `tradeoffPenalty` recipe reads (JJ p. 292) prints it: it wants a
+  second value on that recipe, and with either figure unread no charge at any
+  fighting value. Three suites hold the figure as a fixture
+  (`tools/importer/test-class-builder-tables.mjs`, `tools/test-class-sheet.mjs`,
+  `tools/importer/test-class-prose-levels.mjs`).
 - **A printed level in an identifier.** `hpAfterNine` (the builder budget key in
   `builder-binding.mjs` and `builder-logic.mjs`) and `hpAfter9` (the race
   field in `race-data.mjs`) carry a page's level number in their names. Rename

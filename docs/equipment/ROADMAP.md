@@ -105,11 +105,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   through the row editor), and a change to which skills the page names reaches
   the abilities only at the next class-builder tables import or Update
   Abilities; the rung and the shield rule follow an override live.
-- **The named-item bonus categories are a shipped table.**
-  `overlays/named.mjs` `NAMED_CATEGORIES` lists the bonuses a named item can
-  unlock (JJ p. 399), with their sizes in the labels. A table of options is
-  content: it wants an importer recipe and a registered table, and the labels
-  with it.
 - **A core `system.encumbrance.mod` would let a wrapper go.**
   `roll-wrap.mjs` `onComputeEncumbrance` corrects the stored encumbrance after
   core computes it, because core has no adjustment field. If the system gains
