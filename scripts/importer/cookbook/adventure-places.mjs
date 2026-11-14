@@ -480,7 +480,9 @@ async function occupantTargets(bookId) {
  * label's count, and its notes the count printed as dice and the hit points. A
  * person of the book stands once, with no notes, however the room counts its
  * line. The monster a place is the lair of (`meta.of`) is no row: the place
- * links it by its lair flag (`poiLocationData`).
+ * links it by its lair flag (`poiLocationData`). After the stat lines' rows
+ * stands one hidden row per creature the place's row names in `meta.roster`
+ * and no row above already links (`rosterLinkRows`).
  */
 export async function keyedOccupantRows(bookId, id, node, run) {
   const { core, own } = await run.targetsOf(bookId);
