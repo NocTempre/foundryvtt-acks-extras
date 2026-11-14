@@ -2066,10 +2066,12 @@ missing rather than moving the party an invented number of blocks, and a
 figure that never arrived is never shown as a zero — a known destination with
 no imported modifier says so on the panel rather than throwing quietly bare.
 
-The settlement document expects `gateTolls` and `smuggling` tables for the gate
-action (`docs/formation/ROADMAP.md`, "The gate action") — what a pass costs a
-load of merchandise per the city's character, and what the syndicate charges to
-move goods past the gate. Both are printed and arrive through import.
+The settlement document expects `gateTolls` and `smuggling` tables — what a
+pass through the city's gates costs its merchandise, and what the syndicate
+charges to move goods past them. Both are printed and arrive through import.
+`gateTolls` is charged by the markets feature's gate at a market set to its
+city's own toll (`docs/markets/MODEL.md`, "The city's own toll"); `smuggling`
+waits on the consignment service (`docs/factions/ROADMAP.md`).
 
 **A city turn is marked off the same way a dungeon turn is: the party walks
 it.** A journey is timed by the world clock its miles run (§The journey), not

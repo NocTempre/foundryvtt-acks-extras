@@ -326,16 +326,6 @@ Three smaller things the same work left open:
   sub-table (JJ ch. 7 Step 7), is not modelled: it wants the band to become a
   list of `{from, to, table}` on the map, and the world's own imported list to
   take one as well. Core RollTable nesting still covers static routing.
-- **The gate action.** Passing one of the city's gates with goods charges the
-  toll and, on an import, the customs duty the city-travel document's
-  `gateTolls` table imports (AX3 p. 56): the dice thrown once per unit of
-  stones the page states, the units rounded half to even, the duty rolled as a
-  percentage of the loads' market value from `acksExtras.markets.manifestOf`,
-  the coin spent through the gold adapter to the gate's place. The gates are
-  the places marked `role: gate` (`docs/location/MODEL.md`), open by day and
-  shut after dark by `isNight`, with the Judge's word that the watch opened
-  it. Drawn on 2026-09-30 and not built; the figures, the role and the
-  manifest reader landed ahead of it.
 - **The rest of JJ ch. 7 Step 5 is importer work.** A settlement's dynamic
   buildings and the per-shop availability fractions are printed figures with
   no register yet; the place a point of interest now is has the `market`

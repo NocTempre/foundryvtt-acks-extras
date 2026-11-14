@@ -191,6 +191,25 @@ party's find.
       table. Where a member entering rules the domain the market lies in
       (`acksExtras.domains.domainOf`, read at call time), neither is
       charged, nor the stay below (the Ruler's Privilege).
+    - **The city's own toll** (`goods.gateToll`, `gateTollOf`;
+      `rules/gate-toll.mjs`; AX3 p. 56). A market set to `"city"` (null
+      reads as `"class"`) charges the imported `cityTravel.gateTolls` in
+      place of the class's toll and tariff (`printed.cityGateTolls`). The
+      toll falls on the stones of merchandise assessed (`merchandiseStonesOf`:
+      a load's stones, an item's weight), in units of the imported stones,
+      rounded half to even (`roundHalfEven`, as market impact rounds); the
+      imported dice are scaled by the units, count and modifier alike
+      (`scaleDice`), and thrown once at the gate (`settleToll`), so the
+      quote carries a range and `tollCp` null. The duty is one throw of
+      the imported die as a percent of each good's value at this month's
+      market price at this market (`dutyOn`, no exemption); a good with no
+      price row this month is `unpriced`, and the preview shows no range
+      until it has one. A table with no duty charges none. The privilege
+      and sneaking waive both, smuggled goods count toward neither, the
+      stay is the class's as below, and leaving charges nothing. With the
+      market set to `"city"` and the table unread, a charged entry refuses
+      naming it. A settlement import sets the field from a market record's
+      `meta.gateToll` where the place holds none.
     - **Moorage and stabling** (`rules/stay.mjs` `stayPerDay`; RR ch. 8,
       Engaging in Mercantile Ventures) is a daily fee on what the party
       keeps at the market: each sea vehicle as a ship of its size (maximum

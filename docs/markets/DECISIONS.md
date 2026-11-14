@@ -1206,3 +1206,54 @@ since a Judge who answers one outcome faster than the other can be read, and the
 Judge controls it; a Judge-facing input lands in a fixes-only release; reports
 chosen before this keep their dice-made figures, with no migration (owner,
 2026-11-11, no tools for previous-version data).
+
+## 2026-11-14 — A market may charge its city's own gate toll and duty
+
+Asked "At the AX3 capital's gates, which toll does entering the market
+charge? RR p. 372 tolls each entry per stone of cargo capacity plus a tariff.
+AX3 p. 56 (written for ACKS I) tolls merchandise passing any of its eight
+gates, entering OR leaving, by its own dice, plus a duty. The two give
+different amounts. Under the later-printing ruling, ACKS II wins over the AX
+books.", with the options "A: RR at every gate (Recommended)" and "B: AX3 toll
+at that city" (a per-market switch, described as a new feature), the owner
+answered: "B: AX3 toll at that city". The gate the toll is charged at is
+`docs/location/DECISIONS.md`, 2026-11-14.
+
+**Ruled.**
+- `goods.gateToll` is `"class"` or `"city"`, null reading as class. A market
+  set to city charges the city page's procedure in place of the class toll
+  and tariff: the toll on the stones of merchandise brought in, not on
+  capacity, in the page's units rounded half to even, the dice scaled by the
+  units as the page's worked example scales them and thrown once; the duty as
+  one thrown percent of each good's market price this month, with no
+  exemption, since the page prints none. The figures are the imported
+  `cityTravel.gateTolls`.
+- The Ruler's Privilege and sneaking in waive both, as they waive the class
+  charges: entering a market is RR's procedure, and the city page says its
+  rules are built on the core rules. Smuggled goods are outside both bases.
+  The stay stays the class's.
+- The switch reads the world's one imported figure set. The AX3 capital's
+  market record carries `meta.gateToll: "city"`, a structural binding like a
+  place's role, which the import writes only where the place holds none. This
+  supersedes in part the importer's "The doing-business figures ride the
+  city-travel document, and a gate is marked rather than measured
+  (2026-09-30)": a second city no longer charges the first city's toll
+  unless its market is set to city, and the gate action it names is not built.
+
+**Rejected:**
+- A market-local copy of the figures. The switch defaults off, so no other
+  market inherits the capital's toll. A copy would also be a second store of
+  an imported value, which a re-import or the Ruledata Browser's override
+  cannot reach. It becomes necessary when a second book printing a city toll
+  is imported into the same world.
+- Charging on leaving. Option B as put to the owner left leaving uncharged,
+  and no leave-the-market surface exists for the charge to attach to.
+- The grain exemption on the duty, which belongs to RR's tariff.
+- Pricing the duty at base cost. The page names the market price.
+- The page's own impact divisor, stabling rates, labour fee and syndicate
+  service: features beyond the gate.
+
+*Cost:* one figure set per world. The duty reads the month's price of a good
+before the party has assessed the market, and rolls that price at the gate
+where none was rolled. Merchandise under half a unit pays no toll, as the
+rounding prints.

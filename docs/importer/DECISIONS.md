@@ -5552,7 +5552,7 @@ broken).
 this fix keeps the bad fourth row until the Judge deletes the list and runs
 the step again; presence is by id, and a held document is never rewritten.
 
-### The doing-business figures ride the city-travel document, and a gate is marked rather than measured (2026-09-30)
+### The doing-business figures ride the city-travel document, and a gate is marked rather than measured (2026-09-30) — SUPERSEDED IN PART 2026-11-14
 
 **Reported (the user):** "A gates/import tax/smuggling should also be scoped
 in." The design was drawn (a gate action on the settlement board, the
