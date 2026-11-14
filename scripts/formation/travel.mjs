@@ -1556,7 +1556,9 @@ export async function settleDayChange(formationId, today, { counter = false } = 
   const day = Math.floor(Number(today));
   const record = getFormation(formationId);
   if (!record || !Number.isFinite(day)) return false;
-  const t = travelOf(record);
+  // The sky follows the party's true hex: a lost party's weather reads the
+  // shadow's country, not the one it believes it stands in.
+  const t = trueTravelOf(record);
   const settled = settledDayOf(t.weather);
   if (!counter && settled != null && day <= settled) return false;
   if (!counter && (settled == null || t.mode !== "journey")) {
@@ -1641,7 +1643,7 @@ export async function rollWeatherNow(formationId) {
   // The sky is shared: re-rolling the same day for a climate is a cache hit,
   // not new weather.
   const record0 = getFormation(formationId);
-  const t0 = travelOf(record0 ?? {});
+  const t0 = trueTravelOf(record0 ?? {});
   const season = effectiveSeason(t0).season;
   const params = skyParams(t0, season);
   // No prior and no drift, whatever the fronts toggle says: the drift belongs

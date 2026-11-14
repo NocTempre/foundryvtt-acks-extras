@@ -1935,8 +1935,11 @@ resolves the country over the map's reading at the shadow — its hex, its
 country, its water — through the Judge's override and the grounded rule
 exactly as at the token, and the encounter column reads it: the cadence
 (`spendJourneyMiles`), `hexContext` and the hook it feeds, the hex throw and
-End day's throws (`rollDayEncounters`). With no episode open, or no shadow, it
-is `travelOf` itself. The stock and the search read the true hex through
+End day's throws (`rollDayEncounters`). The sky reads it too: the day change
+(`settleDayChange`) and Roll the sky (`rollWeatherNow`) take the climate, the
+season and the ground's mud-proneness from the true hex, so a Country card
+showing the believed climate can sit beside a sky rolled for the true one. With
+no episode open, or no shadow, it is `travelOf` itself. The stock and the search read the true hex through
 `trueHexOf` (§A hex's stock).
 
 **The drag walks the truth.** On the active GM's client, while an episode is
