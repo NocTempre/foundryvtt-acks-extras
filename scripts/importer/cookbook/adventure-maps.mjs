@@ -74,9 +74,7 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
       const tables = Object.entries(cb.entries).filter(([, e]) => e.kind === "kind.rolltable");
       if (!tables.length) continue;
       for (const [id, e] of tables) {
-        // Stepped at the top, not per outcome: every branch below either creates
-        // the table or explains why it could not, and all of them consumed a unit
-        // of the work the bar is measuring.
+        // Stepped before any branch, so every outcome counts toward the bar.
         bar.step(e.name);
         // A held table is passed over, or under a repair read again and written over.
         const held = present.has(id);
@@ -109,8 +107,7 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
         for (const [sec, text] of rowText) {
           const m = /^r([\d,-]+)$/.exec(sec);
           if (!m) continue;
-          // A section may carry several ranges ("r6,7,16" — one printed truth
-          // covering several rumor rolls); each becomes its own result row.
+          // A section may carry several ranges ("r<a>,<b>,<c>"); each becomes its own result row.
           for (const part of m[1].split(",")) {
             const g = /^(\d+)(?:-(\d+))?$/.exec(part);
             if (!g) continue;
@@ -154,8 +151,7 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
   if (!made && !skipped) {
     // Narrowed to books that print no roll table, the step has nothing to say.
     if (books) return { made, skipped };
-    // Which books carry roll tables is derived, not recited: naming AX2/AX3 in
-    // the message went stale the moment the Judges Journal grew a table.
+    // The books that carry roll tables are derived from the cookbook, never named.
     const carriers = [...data.books.keys()]
       .filter((b) => Object.values(data.books.get(b).entries).some((e) => e.kind === "kind.rolltable"))
       .map((b) => BOOKS[b]?.label ?? b.toUpperCase());
@@ -385,8 +381,8 @@ async function bringAcross(bookId, plan, created) {
  * passed as already present, and written over in place where a `repair`
  * tally is given (`REPAIR.adventureItem`: the slot, the mark and the cost are
  * rewritten, a description a Judge wrote and the quantity stay), which is
- * how a held item without that shape takes it. Quiet when no open book prints any, since the step runs in every
- * Import Everything.
+ * how a held item without that shape takes it. Quiet when no open book prints
+ * any, since the step runs in every Import Everything.
  * @returns {Promise<{made: number, already: number, refused: number, created: {items: string[]}}>}
  */
 export async function cookbookImportAdventureItems({ books = null, only = null, repair = null } = {}) {
@@ -790,12 +786,11 @@ function reachable(uuid) {
  */
 export async function repairHeldMap(recipe, scene) {
   let written = 0;
-  // The travel system is a link too, when the importer minted it: a map step
-  // that wrote no declaration left `journey` on a gridded plan and
-  // `settlement` on an ungridded one, and a party arriving on a dungeon level
-  // so marked keeps the journey's clock. The value is brought to the recipe
-  // only while it still reads as that default; any other value is the Judge's
-  // declaration and is never read.
+  // The travel system is a link too, when the importer minted it: `journey` on
+  // a gridded plan, `settlement` on an ungridded one. It is brought to the
+  // recipe only while it still reads as that default; any other value is the
+  // Judge's declaration and is never read. See docs/importer/DECISIONS.md,
+  // "A held map's travel system is a link when the importer minted it".
   const minted = recipe.grid ? "journey" : "settlement";
   if (recipe.travel && recipe.travel !== minted && sceneTravelSystem(scene) === minted) {
     await writeSceneSetup(scene, { mapSystem: recipe.travel });
@@ -925,8 +920,9 @@ async function importScene({ bookId, id, row }, counts, tick) {
   counts.copied += world.copied;
   counts.missing += plan.missing.length;
   const folder = await ensureWorldFolderPath("Scene", [bookLabel(bookId)], counts.created.folders);
-  // ONE create for the whole map (`sceneData` says why); the places' mirrors
-  // are the only thing that has to wait for the documents they name.
+  // One create for the whole map; the places' mirrors alone wait for the
+  // documents they name. See docs/importer/DECISIONS.md, "A map and what
+  // stands on it are world documents, owned by nobody".
   const scene = await Scene.create(await mapCreateData({
     bookId, id, recipe, ids, actors: world.actors, tableOf: importedTable, src: up.path, folderId: folder?.id ?? null,
     fallbackName: row.name, grid, walls: traced?.walls ?? null, storeys,
@@ -1327,8 +1323,8 @@ export async function cookbookImportAdventures({ books: only = null, force = fal
  * when the shelf lacks it, kept when the Judge has edited it since its write,
  * rebuilt when what it is assembled from has changed, else held. A write
  * records its own time in the stamp (`writtenAt`), read back from the stored
- * document, which is what the next run tells an edit by. `force` rebuilds a held or Judge-edited Adventure too: the Judge asked for
- * it (`cookbookReimportAdventure`).
+ * document, which is what the next run tells an edit by. `force` rebuilds a
+ * held or Judge-edited Adventure too (`cookbookReimportAdventure`).
  * @returns {Promise<string>} what became of it: written, rebuilt, kept, held, empty or failed
  */
 async function ensureBookAdventure(bookId, counts, { force = false } = {}) {
@@ -1482,8 +1478,9 @@ function carriedSource(type, doc, id) {
  * reference an actor, a map, a list's result, a journal page's link or an
  * item's link makes to a carried document is in world form (`adventureRefs`);
  * one to anything else stays as the library wrote it. The stamp records the
- * `sourcesHash` of the rest. See docs/importer/DECISIONS.md, "A book is in the library as one
- * Adventure" and "How a book's Adventure is assembled and kept current".
+ * `sourcesHash` of the rest. See docs/importer/DECISIONS.md, "A book is in
+ * the library as one Adventure" and "How a book's Adventure is assembled and
+ * kept current".
  */
 async function bookAdventureSource(bookId) {
   const seed = bookAdventureCookbookId(bookId);
