@@ -6123,7 +6123,7 @@
       "tip": {
         "throwMoved": "Throw {value}+: the member's {base}+ at {baseHd} HD, moved by what the attack throw ladder adds over {rows} rows to {hd} HD ({cite})",
         "throwLadder": "Throw {value}+: the {hd} HD row of the attack throw ladder ({cite})",
-        "throwMissing": "Not imported: the attack throw ladder (RR ch. 6) is not in this world, so this throw is not worked out from the Hit Dice. Import the rulebook's tables, then repair the template.",
+        "throwMissing": "RR ch. 6",
         "ladderOverride": "the Judge's own ladder",
         "savesMoved": "Saves as {cls} {level}: the member's level {baseLevel} at {baseHd} HD, moved by the save levels between {baseHd} and {hd} HD (MM ch. 4, Monster Type)",
         "leaderPrinted": "Leader figures as printed ({cite})",

@@ -149,7 +149,7 @@ function carriedTip(leader, loc) {
  * (`snap.derived`, the extras `derived` block): each only while the actor still
  * carries the figure it wrote, so a figure a Judge has since typed is not
  * explained by parts it no longer comes from. A throw the ladder could not
- * give says so. `leaderTip` names where a leader's own figures came from (its
+ * give names the ladder's page alone. `leaderTip` names where a leader's own figures came from (its
  * page, or the leader procedure's parts); `acTip` its armour class alone, for
  * the rail, and a kit's (`snap.kit`) over a leader's where the actor holds the
  * kit's; `moraleTip` and `damageTip` the kit's troop row, where the actor holds
