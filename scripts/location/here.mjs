@@ -3,27 +3,18 @@
  * "Under" and "on the ground": reaching a place through its own TOKEN rather
  * than through a scene link.
  *
- * `scene-link.mjs` answers "is this whole map a place" — an inn's taproom
- * scene IS the inn. This file answers a narrower question: is there a
- * place's own token sitting right where a character is standing, inside a
- * scene that is not itself linked to anything — a market cart or a shrine
- * dropped into a town square scene, reachable the way any prop on the map is
- * reachable, by walking up to it.
+ * `scene-link.mjs` answers "is this whole map a place"; this file answers
+ * whether a place's own token stands where a character is, in a scene that is
+ * not itself linked.
  *
- * Two readers, and they are not interchangeable. `placeReachesSpot` answers
- * about ONE named place and is what a gate asks; `placeUnderParty` answers
- * "which place, if any" and is what a display asks. Both walk the same tokens
- * through the same two tests, so they can never disagree about the ground.
+ * `placeReachesSpot` answers about ONE named place (what a gate asks);
+ * `placeUnderParty` answers "which place, if any" (what a display asks). Both
+ * walk the same tokens through the same two tests. Every test is of a token's
+ * FOOTPRINT in scene pixels, padded by the scene's own square, never a radius.
  *
- * Every test here is of a token's FOOTPRINT — its x/y/width/height in scene
- * pixels, padded by the scene's own square — never a radius picked by feel: a
- * radius invites a location's "reach" to grow independently of how big its own
- * token actually is.
- *
- * A SPOT is `{scene, point, elevation}`: somewhere a character is standing.
- * `partyPoint` (formation/zones.mjs) returns one, which is what keeps this
- * file's answers in the same pixel space as every other "where is the party"
- * question in the family.
+ * A SPOT is `{scene, point, elevation}`, as `partyPoint` (formation/zones.mjs)
+ * returns it.
+ * See docs/location/DECISIONS.md, "Deposit reach asks one question of one subject".
  */
 import { LOCATION_TYPE } from "./constants.mjs";
 import { partyPoint } from "../formation/zones.mjs";
@@ -31,35 +22,22 @@ import { isDeployed } from "../lib/place.mjs";
 
 /**
  * Does this token's actor stand on the map AS a place: a location, or a
- * provider deployed as one (a circled wagon, a moored ship)? A deployed
- * vehicle's marker is its own token exactly as a location's is, so the
- * points of interest, the place under the party and the walk to a place all
- * ask this one question.
+ * provider deployed as one (a circled wagon, a moored ship)? The one question
+ * points of interest, the place under the party and the walk to a place ask.
  */
 export const standsAsPlace = (actor) => actor?.type === LOCATION_TYPE || isDeployed(actor);
 
 /**
  * A token's centre point, in scene pixels: grid-unit width/height times the
- * scene's grid size. The third copy of that arithmetic in the tree, and kept
- * separate because NEITHER of the others is reachable: `partyPoint` inlines
- * the expression rather than exporting it, and `lib/light.mjs`'s `centreOf` is
- * private. That coercion — `Number(...) || 0` — is not a divergence from this
- * one: `centreOf` also centres AmbientLights, which carry no width or height,
- * while a TokenDocument's are schema numbers.
+ * scene's grid size.
  */
 export function tokenCenter(token, gridSize) {
   return { x: token.x + (token.width * gridSize) / 2, y: token.y + (token.height * gridSize) / 2 };
 }
 
 /**
- * Is this point within reach of this token's footprint?
- *
- * The footprint is padded by one grid square on every side: a character
- * standing in the square next to a location's token — not stacked on the
- * token's own square — is still "at" it, which is the gesture of walking up to
- * a prop rather than teleporting onto it. Rotation is not applied: a place's
- * own token is a flat map marker, not a combatant that turns to face
- * something, so its footprint does not turn with it.
+ * Is this point within reach of this token's footprint? The footprint is
+ * padded by one grid square on every side; rotation is not applied.
  */
 function footprintReaches(token, point, gridSize) {
   const pad = gridSize;
@@ -71,15 +49,8 @@ function footprintReaches(token, point, gridSize) {
 }
 
 /**
- * Are these two elevations the same floor?
- *
- * The band is the scene's own square distance — `grid.distance`, the figure
- * the scene declares one square to be worth — so a token raised or flying a
- * step above the ground still stands at what is beneath it, while a storey up
- * in a multi-level scene does not. It is the vertical half of the one-square
- * padding `footprintReaches` applies horizontally, and like it nothing in it is
- * a number chosen here. A scene that declares no distance falls back to exact
- * equality rather than to a guess.
+ * Are these two elevations the same floor? The band is the scene's own
+ * `grid.distance`; a scene declaring none compares exactly.
  */
 function sameFloor(a, b, scene) {
   const band = Number(scene?.grid?.distance) || 0;
@@ -90,15 +61,9 @@ function sameFloor(a, b, scene) {
  * The visible place tokens on a scene: every place's (`standsAsPlace`), or one
  * named place's.
  *
- * A named place is matched by its BASE actor id, the id a token carries whether
- * or not it is linked. `token.actor` on an unlinked token — Foundry's default,
- * and nothing in this feature sets `prototypeToken.actorLink` — is a per-token
- * synthetic document whose uuid is never the world actor's, so an identity test
- * routed through it is false for every ordinary map.
- *
- * A GM-hidden token is skipped: hidden means not there for anyone standing on
- * it, the same rule `lib/light.mjs`'s light-source reader applies to a hidden
- * light source.
+ * A named place is matched by its BASE actor id (`token.actorId`), never
+ * through `token.actor`, whose uuid on an unlinked token is never the world
+ * actor's. A GM-hidden token is skipped.
  */
 function* placeTokensOn(scene, place = null) {
   for (const token of scene?.tokens ?? []) {
@@ -111,9 +76,8 @@ function* placeTokensOn(scene, place = null) {
 /**
  * Does a token of THIS place stand within reach of this spot?
  *
- * The predicate a reach gate wants. `placeUnderParty` cannot serve that
- * purpose: it answers with whichever place it meets first, so a caller asking
- * about the second of two neighbouring markers is told no about the wrong one.
+ * The predicate a reach gate asks; `placeUnderParty` answers with whichever
+ * place it meets first and cannot stand in for it.
  *
  * @param {Actor} place the location actor
  * @param {{scene: object, point: {x: number, y: number}, elevation: number}} spot
@@ -146,11 +110,9 @@ export function placeStandsOn(scene, place) {
  * The place actor — a location, or a vehicle deployed as a place — whose own
  * token the party is standing at, or null.
  *
- * The WORLD actor, resolved from the token's base id — what a caller can
- * compare a uuid against and what holds the place's storage. Where two place
- * tokens both reach the party, the scene's own token order decides which is
- * named; a caller that needs an answer about one particular place asks
- * `placeReachesSpot` instead.
+ * The WORLD actor, resolved from the token's base id. Where two place tokens
+ * both reach the party, the scene's token order decides which is named; a
+ * caller asking about one particular place uses `placeReachesSpot`.
  *
  * @returns {Actor|null}
  */
@@ -158,8 +120,7 @@ export function placeUnderParty(formation) {
   const at = partyPoint(formation);
   if (!at) return null;
   const gridSize = at.scene.grid.size;
-  // A location outranks a deployed vehicle: the wagon a party circles beside a
-  // town's marker is where their goods are, but the town is where they are.
+  // A location outranks a deployed vehicle beside it.
   let deployed = null;
   for (const token of placeTokensOn(at.scene)) {
     if (!sameFloor(token.elevation, at.elevation, at.scene)) continue;

@@ -2,21 +2,17 @@
 /**
  * The character sheet's Storage tab, and the retirement of the bank column.
  *
- * WHY THE BANK COLUMN GOES. The system keeps banked coin as a second number on
- * each money item (`system.quantitybank`) — money that is somehow yours, weighs
- * nothing, and is nowhere. Once coin can be kept at a place, that column is a
- * competing answer to the same question and the two would drift the first time a
- * player used both. So it is removed from the inventory tab and replaced by a
- * line summarising what is really in storage; the sweep (vault-sweep.mjs) moves
- * the old values to where coin is kept so nothing is lost.
+ * The system's bank column (`system.quantitybank` on each money item) is
+ * removed from the inventory tab and replaced by a line summarising what is in
+ * storage; the sweep (vault-sweep.mjs) moves any banked value to where coin is
+ * kept.
+ * See docs/location/DECISIONS.md, "Banked is not a state coin can be in".
  *
- * WHY DOM INJECTION AND NOT A SHEET SUBCLASS. The core sheet declares its tabs
- * as statics and the system is an unmodifiable reference; a subclass would fight
- * every other module that wants a tab. The family's shipped pattern (acks-
- * formation's skill audit) injects on render and REBUILDS EVERY TIME rather than
- * latching: ApplicationV2 replaces its parts on re-render, so the nav anchor is
- * destroyed while an injected section (not being a part) survives — removing
- * both and re-adding them is what keeps the two halves consistent.
+ * The tab is DOM injection, not a sheet subclass: the core sheet declares its
+ * tabs as statics. It injects on render and rebuilds every time, because
+ * ApplicationV2 replaces its parts on re-render, destroying the nav anchor
+ * while an injected section (not being a part) survives; both are removed and
+ * re-added to keep them consistent.
  */
 import { elementOf, makeLoc, libStorage as storage, ownsSheet } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, STORAGE_TAB_ID } from "../constants.mjs";
@@ -40,16 +36,11 @@ const loc = makeLoc(LANG_PREFIX);
 
 function collect(actor) {
   const api = storage();
-  // Every provider below is asked the same two questions about the same
-  // world, so the token pass under them is made once here rather than once
-  // per place (reach.mjs `reachScan`).
+  // One token pass for every provider below (reach.mjs `reachScan`).
   const scan = reachScan(actor);
   const held = api.providersFor(actor);
   const entry = (provider, items, coinGC) => {
-    // `canReach` decides whether the DEPOSIT control is offered. Retrieval is
-    // deliberately not gated by it (reach.mjs): a player who cannot reach
-    // their own belongings at all is a worse failure than one who withdraws
-    // from a distance.
+    // `canReach` gates the DEPOSIT control only; retrieval is not gated (reach.mjs).
     const reach = depositReach(actor, provider, { scan });
     return {
     uuid: provider.uuid,
@@ -67,11 +58,8 @@ function collect(actor) {
   };
 
   const places = held.map(({ provider, items, coinGC }) => entry(provider, items, coinGC));
-  // Places with nothing of yours at them yet still belong here — otherwise
-  // there is nowhere to put the first thing — but only on the narrow rule
-  // (`reach.mjs` `listsWhenEmpty`): this character's vault, their pins, and
-  // where they are standing. Each is listed with its refusal where reach
-  // says no.
+  // Empty places are listed only by `reach.mjs` `listsWhenEmpty`, each with
+  // its refusal where reach says no.
   const pinned = pinnedPlaces(actor);
   const empty = api
     .providers()
@@ -105,9 +93,8 @@ const stripBankColumn = (root) => {
 
 /**
  * The header of the coin list on the system's inventory tab, or null on a
- * sheet that draws none. It is found by the count cell the header itself
- * carries: a coin row listed inside a container carries the same cell, in a
- * section that comes first and has no header.
+ * sheet that draws none. Found by the count cell the header carries, since a
+ * coin row inside a container carries the same cell with no header.
  */
 const coinHeader = (root) =>
   root.querySelector('.tab[data-tab="inventory"] .list-header .money__count')?.closest(".list-header") ?? null;
@@ -143,8 +130,8 @@ function injectSummary(root, data) {
 
 /**
  * Add the Storage tab. `picks` are the amounts typed into the previous
- * injection's retrieve boxes (`readPicks`), written into the new tab so a
- * redraw does not blank them, and a blank retrieves the whole stack.
+ * injection's retrieve boxes (`readPicks`), restored so a redraw keeps them; a
+ * blank retrieves the whole stack.
  */
 function injectTab(app, root, actor, html, picks) {
   const nav = root.querySelector("nav.tabs");
@@ -227,15 +214,9 @@ async function onAction(event, actor) {
 }
 
 /**
- * Dropping a PLACE on a character's sheet pins it to them.
- *
- * The third way to reach an unlinked place (reach.mjs): a wagon, a cellar or a
- * caravan a character has standing access to without owning it and without
- * standing on its map. Dropping the location actor onto the sheet records it;
- * the Storage tab then offers it like any place they can reach.
- *
- * Capture phase, so the core sheet's own drop handler never tries to embed a
- * location actor as an owned item.
+ * Dropping a PLACE on a character's sheet pins it to them, one of the ways to
+ * reach an unlinked place (reach.mjs). Capture phase, so the core sheet's own
+ * drop handler never embeds a location actor as an owned item.
  */
 function bindPlaceDrop(root, actor) {
   if (root.dataset.acksPlaceDrop) return;
@@ -274,35 +255,30 @@ function refresh(actor) {
   for (const app of Object.values(actor?.apps ?? {})) app.render(false);
 }
 
+/** Hooks the Storage tab and the bank-column removal onto the system's actor and item sheets. */
 export function installStorageTab() {
-  // Rendering is async and a second render of a sheet can start while its
-  // first awaits; only that sheet's newest pass may touch its DOM.
+  // A second render of a sheet can start while its first awaits; only the
+  // newest pass may touch its DOM.
   const epochs = new WeakMap();
 
   Hooks.on("renderActorSheetV2", async (app, element) => {
     try {
       if (game.system?.id !== "acks") return;
       const actor = app.actor ?? app.document;
-      // The module's own sheets draw no bank column and list storage their own
-      // way (the character sheet's "Kept elsewhere" rule); everything below
+      // The module's own sheets list storage their own way; everything below
       // dresses the system's sheets alone.
       if (ownsSheet(app)) return;
       const root = elementOf(element);
       if (!root) return;
-      // Banked is not a state coin can be in: the column goes from every sheet
-      // the system draws, whoever the actor is and whether or not a Storage
-      // tab follows it.
+      // The column goes from every sheet the system draws, Storage tab or not.
       stripBankColumn(root);
-      // The Storage tab is a character's, on a sheet with a primary tab strip;
-      // the Follower Card and our own location sheet have none, and neither
-      // wants one bolted on.
+      // The Storage tab is a character's, on a sheet with a primary tab strip.
       const tabbed = actor?.type === ACTOR_TYPE.character && !!root.querySelector("nav.tabs") && !!root.querySelector('section.tab[data-group="primary"]');
 
       const mine = (epochs.get(app) ?? 0) + 1;
       epochs.set(app, mine);
       const data = tabbed ? collect(actor) : null;
-      // The coin order goes wherever the system lists coin, whoever the actor
-      // is, and is offered the places the Storage tab lists.
+      // The coin order goes wherever the system lists coin, for any actor.
       const order = actor && coinHeader(root) ? coinOrderView(actor, { places: data?.places ?? [] }) : null;
       const render = foundry.applications.handlebars.renderTemplate;
       const [html, orderHtml] = await Promise.all([
@@ -341,8 +317,8 @@ export function installStorageTab() {
     }
   });
 
-  // A transfer changes both ends; a deleted place must vanish from every open
-  // storage tab on every client, not just the one that ran the deletion.
+  // A transfer changes both ends; a deleted place must vanish from every
+  // open storage tab on every client.
   const hooks = storage()?.STORAGE_HOOKS ?? {};
   for (const name of [hooks.STASHED, hooks.RETRIEVED, hooks.MOVED, hooks.RETURNED, hooks.LOST]) {
     if (!name) continue;

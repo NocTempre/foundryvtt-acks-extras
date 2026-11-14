@@ -2,27 +2,18 @@
 /**
  * Banked coin → a personal vault.
  *
- * The system's money items carry a second number, `system.quantitybank`: coin
- * that is yours, weighs nothing, and is nowhere. Storage answers that question
- * properly, so the field is retired — and retiring a field that holds a party's
- * savings means moving the money somewhere real first. Every character with a
- * banked balance gets a vault (a location actor flagged as theirs), the balance
- * lands there attributed to them, and the field is zeroed. An actor of any
- * other type — a monster, a unit, a place — and a token that is its own copy
- * of an actor keep no vault: the balance joins the coin they carry, on the row
- * it was banked on.
+ * Money items carry `system.quantitybank`, the banked balance. Every character
+ * with one gets a vault (a location actor flagged as theirs), the balance lands
+ * there attributed to them, and the field is zeroed. An actor of any other
+ * type, and a token that is its own copy of an actor, keep no vault: the
+ * balance joins the coin they carry, on the row it was banked on.
  *
- * The sweep is IDEMPOTENT and SELF-HEALING: it runs at every ready, does nothing
- * when there is nothing banked, and picks up any stray value that arrives later
- * from an import or a hand-edited actor. A GM who would rather have one shared
- * treasury than a vault per character merges them with the storage manager —
- * that is the tool's first job.
+ * Idempotent: it runs at every ready and does nothing when nothing is banked.
  *
- * CRASH SAFETY. Zeroing the field and depositing the coin are two writes to two
- * documents, and a client that dies between them would destroy the balance. So
- * the ledger of what is owed is written to the character in the SAME update that
- * zeroes the field, and cleared only once the coin has landed. A resume pass
- * reads the ledger, not the (now zero) field.
+ * Crash safety: the ledger of what is owed is written to the character in the
+ * SAME update that zeroes the field, and cleared once the coin has landed; a
+ * resume pass reads the ledger.
+ * See docs/location/DECISIONS.md, "The banked-coin column is retired, and the sweep is the migration (2026-08-01)".
  */
 import { makeLoc, gmIds, libStorage as storage } from "../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, FLAG_PENDING_DEPOSIT } from "./constants.mjs";
@@ -47,14 +38,10 @@ function vaultOwnership(character) {
 /**
  * This character's vault, made if they do not have one yet.
  *
- * THE ONE DEFINITION OF A VAULT — name, art, ownership and the `vaultOf` flag
- * that binds it to its character. The sweep is not its only caller: a GM who
- * deletes a vault gets the goods back but no vault, and nothing regenerates it
- * (the sweep only ever visits a character with a banked balance, and by then
- * there is none). The storage manager's "give a character a vault" builds on
- * this rather than on a second copy of these four decisions.
- *
- * Idempotent: a character who already has one gets that one back.
+ * The one definition of a vault — name, art, ownership and the `vaultOf` flag
+ * that binds it to its character; the storage manager's "give a character a
+ * vault" builds on it too. Idempotent: a character who already has one gets
+ * that one back.
  */
 export async function vaultFor(character) {
   const existing = storage().findVaultOf(character.uuid);
@@ -63,9 +50,7 @@ export async function vaultFor(character) {
     name: loc("vault.name", { name: character.name }),
     type: LOCATION_TYPE,
     img: "icons/svg/coins.svg",
-    // Explicit ownership means the module's own OWNER-for-everyone default for
-    // new locations does not apply: a personal vault is not a public bulletin
-    // board. (Attribution is still a UI convention, not a security boundary.)
+    // Explicit ownership overrides the OWNER-for-everyone default for new locations.
     ownership: vaultOwnership(character),
     flags: { "acks-extras": { storage: { provider: true, vaultOf: character.uuid } } },
     system: { region: loc("vault.region") },
@@ -107,9 +92,7 @@ async function depositLedger(character, ledger) {
   const vault = await vaultFor(character);
   if (!vault) return null;
   for (const entry of ledger) {
-    // The row the balance came off says which coin it is — its art, its text,
-    // its weight — wherever it is still there to ask; the ledger's own name
-    // and rate stand in when it is not.
+    // The row the balance came off, where it still exists, says which coin it is.
     const row = character.items.get(entry.sourceItemId);
     await storage().depositCoin(vault, {
       ownerUuid: character.uuid,
@@ -139,11 +122,8 @@ function characters(only = null) {
 
 /**
  * Every other actor — the ones that keep no vault — narrowed the same way: the
- * world's actors that are not characters, and an unlinked token's own actor
- * where the token's copy of a coin row still holds a balance. A token's copy
- * is a whole row of its own, so sweeping the actor it was made from never
- * reaches it; the copies are read off the scene's stored data, and an actor
- * is built only for a token that has one.
+ * world's non-character actors, and an unlinked token's own actor where its
+ * copy of a coin row still holds a balance (read off the scene's stored data).
  */
 function carriers(only = null) {
   const out = game.actors.filter((a) => a.type !== ACTOR_TYPE.character);
@@ -159,9 +139,7 @@ function carriers(only = null) {
 }
 
 /**
- * Fold a banked balance into the coin its actor carries. One write: the count
- * moves between two fields of the same row, so there is no instant where it is
- * in neither and nothing to resume.
+ * Fold a banked balance into the coin its actor carries, in one write.
  */
 async function unbank(actor, ledger) {
   await actor.updateEmbeddedDocuments(
@@ -198,14 +176,13 @@ export function planVaultSweep() {
  * Move every banked balance in the world to where coin is kept now — a
  * character's into their vault, anyone else's into the coin they carry — or
  * only the balances of the actors whose uuids are in `only`. GM-elected; safe
- * to run again at any time (the storage manager's macro does exactly that).
+ * to run again at any time.
  * @returns {Promise<{swept: number, gp: number}>}
  */
 export async function runVaultSweep({ announce = true, only = null } = {}) {
   const moved = [];
 
-  // Resume first: a ledger means a previous run zeroed the field but died
-  // before the coin landed. The ledger is the truth, not the (now zero) field.
+  // Resume first: a ledger means a previous run died before the coin landed.
   for (const character of characters(only)) {
     const pending = character.getFlag(MODULE_ID, FLAG_PENDING_DEPOSIT);
     if (!pending?.length) continue;
@@ -217,8 +194,7 @@ export async function runVaultSweep({ announce = true, only = null } = {}) {
     const ledger = bankedLedger(character);
     if (!ledger.length) continue;
 
-    // Claim and zero in ONE write, so there is no instant where the coin is
-    // neither on the character nor promised to the vault.
+    // Claim and zero in ONE write.
     await character.update({
       [`flags.${MODULE_ID}.${FLAG_PENDING_DEPOSIT}`]: ledger,
       items: ledger.map((e) => ({ _id: e.sourceItemId, "system.quantitybank": 0 })),

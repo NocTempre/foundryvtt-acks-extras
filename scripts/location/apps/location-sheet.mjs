@@ -3,21 +3,17 @@
  * LocationSheet — ActorSheetV2 for the `acks-extras.location` sub-type.
  *
  * A place: what it is, what it holds, what it sits inside — and, where there is
- * one, the market that recruits people there. This feature owns the sub-type and
- * this is its only sheet.
+ * one, the market that recruits people there. This is the only sheet of the
+ * location sub-type.
  *
  * MARKET tabs: settings + demographics, THE MARKET (the location's shared
- * monthly pools — availability belongs to the town, RR 162), paid searches
- * (postings), candidates (unique individuals), slander registry, fee ledger.
- * Players with OBSERVER permission see the candidates their paid searches
- * cover; GMs see everything.
+ * monthly pools, RR 162), paid searches (postings), candidates, slander
+ * registry, fee ledger. Players with OBSERVER permission see the candidates
+ * their paid searches cover; GMs see everything.
  *
- * STORAGE tab: goods grouped by whose they are, because a warehouse holding
- * three characters' gear is three inventories in one actor, not one shared
- * pile. Retrieval is offered on the rows a user can actually claim — their own
- * characters' goods, or everything for a GM. That is a UI convention, not a
- * security boundary (the lib storage header makes the same ruling): anything
- * that must genuinely stay private belongs on a GM-owned actor.
+ * STORAGE tab: goods grouped by whose they are. Retrieval is offered on the
+ * rows a user can claim (their own characters' goods; everything for a GM), a
+ * UI convention and not a security boundary.
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
@@ -80,10 +76,9 @@ function directedSpecMatches(spec, c) {
 /** Controls a non-owner viewer acts through: the Trade and Ventures tabs', and the pure-DOM candidate filters. */
 const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-candidate-filter]';
 
+/** The location sub-type's sheet: identity, nesting, contents, storage and, where there is one, the market. */
 export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
-    // "location-sheet" was unprefixed and only passed validation because the
-    // CSS rule scans styles/*.css, not JS class arrays.
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-location-sheet"],
     position: { width: 760, height: 720 },
     window: { resizable: true },
@@ -146,8 +141,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     body: { template: `modules/${MODULE_ID}/templates/location/location-sheet.hbs`, scrollable: [""] },
   };
 
-  /** Sheet tabs. A place accumulates unrelated concerns; one scrolling page
-   *  made the market's absence read as a defect rather than the norm. */
+  /** Sheet tabs. */
   static TABS = {
     primary: {
       tabs: [
@@ -163,13 +157,11 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
       ],
-      // Contents, not Recruitment: what a place holds and what it sits inside
-      // are true of every place; a market is not.
+      // Contents is true of every place; a market is not.
       initial: "contents",
       // Every tab label resolves under one prefix, so the storage tab's label
-      // is ACKS-HENCHMEN.location.tab.storage even though the storage strings
-      // live under ACKS-LOCATION.*. Adding the one key beats overriding label
-      // resolution to support two prefixes.
+      // is ACKS-HENCHMEN.location.tab.storage though its other strings live
+      // under ACKS-LOCATION.*.
       labelPrefix: "ACKS-HENCHMEN.location.tab",
     },
   };
@@ -209,8 +201,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // without waiting on a GM click; the clock itself is the GM's.
     context.canProcess = game.user.isGM || actor.testUserPermission(game.user, "OWNER");
 
-    // A place is its identity, its nesting and its contents first; the market
-    // is a specialisation, prepared only where there is one.
+    // The market is prepared only where there is one.
     await this.#preparePlace(context);
     this.#prepareFactions(context);
     this.#prepareDomain(context);
@@ -243,13 +234,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * Which tabs this viewer gets, and a guarantee that one of them is active.
-   *
-   * That guarantee is the whole reason this is not three `delete` lines. The
-   * active tab is remembered per application instance (`this.tabGroups`), so a
-   * GM who was on Recruitment when the market was removed — or a player opening
-   * a sheet whose remembered tab is a GM one — would otherwise be left with
-   * every tab inactive, which renders as a sheet with a nav bar and no body.
+   * Which tabs this viewer gets, guaranteeing one is active: the tab remembered
+   * per instance (`this.tabGroups`) may be one this viewer no longer has, which
+   * would render a nav bar and no body.
    */
   #prepareVisibleTabs(context) {
     const tabs = this._prepareTabs("primary");
@@ -275,35 +262,26 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   /**
    * The place half: where it sits, what is in it, who is in it.
    *
-   * One `allPlaces()` scan is taken here and threaded through every call that
-   * needs it — the breadcrumb, the children, and the coin roll-up would
-   * otherwise each re-scan `game.actors` on every render.
-   *
-   * A place held in a COMPENDIUM asks its own pack as well. Its family lives
-   * there: an imported adventure and the rooms keyed to it are written into
-   * one pack together, and a scan of `game.actors` alone finds none of them —
-   * which is why an imported adventure read "nothing is kept here yet" over
-   * thirty-two rooms that each named it correctly.
+   * One `allPlaces()` scan is threaded through every call that needs it. A
+   * place held in a COMPENDIUM asks its own pack as well.
+   * See docs/location/DECISIONS.md, "A place in a compendium can see its own family (2026-08-25)".
    */
   async #preparePlace(context) {
     const actor = this.actor;
-    // Its own pack when it lives in one; otherwise the pack its PARENT lives
-    // in, which is the shape a place dragged out of the library into the world
-    // has: the pointer comes with it and still names the library's copy.
+    // Its own pack when it lives in one; otherwise its PARENT's pack (a place
+    // dragged out of the library keeps a pointer naming the library's copy).
     const nodes = places.allPlaces({ pack: actor.pack ?? places.packIdOf(actor.system.parentUuid) });
     const index = places.indexPlaces(nodes);
 
-    // Breadcrumb: root first, this place last. The last entry is dropped —
-    // the sheet's own title already says where you are.
+    // Breadcrumb: root first; this place itself is dropped.
     context.breadcrumb = places
       .placePath(actor.uuid, index)
       .slice(0, -1)
       .map((node) => ({ uuid: node.uuid, name: node.name }));
     context.parentName = context.breadcrumb.at(-1)?.name ?? null;
 
-    // Contents: sub-places first, then goods. `contentRows` folds a container
-    // item and a sub-location into one row shape, which is what makes a chest
-    // the trivial case of a town rather than a separate list.
+    // Contents: sub-places first, then goods; `contentRows` folds a container
+    // item and a sub-location into one row shape.
     context.contentRows = places.contentRows(actor, nodes).map((row) => ({
       ...row,
       icon: row.isPlace ? (row.kind === "container" ? "fa-box" : "fa-map-location-dot") : "fa-cube",
@@ -311,7 +289,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
     // Occupants: the stored roster, plus whoever is standing on the linked
     // scene, filtered to what this viewer may see (place-logic.mjs owns the
-    // order of those three steps — getting it wrong leaks or loses rows).
+    // order of those three steps).
     const scene = actor.system.sceneUuid ? this.#linkedScene() : null;
     const ownedUuids = game.user.isGM
       ? []
@@ -321,10 +299,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       .map((row) => ({
         ...row,
         kindLabel: game.i18n.localize(`${LANG_PREFIX}.occupant.kind.${row.kind}`),
-        // A row whose actor is gone is shown struck through rather than dropped:
-        // "the garrison used to be here" is a fact the GM should act on, not one
-        // the sheet should quietly erase. `fromUuidSync` THROWS on a uuid into an
-        // unloaded compendium, so it cannot be called bare on a render path.
+        // A row whose actor is gone is shown struck through, not dropped.
+        // `fromUuidSync` THROWS on a uuid into an unloaded compendium, so it
+        // cannot be called bare on a render path.
         missing: !LocationSheet.#exists(row.uuid),
       }));
     context.headcount = places.headcount(context.occupants);
@@ -352,11 +329,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * The organisations at this place: the ones seated here or holding this
    * place, and the ones that control the quarter it is.
    *
-   * Read through the `acksExtras.factions` api at render time rather than by
-   * import — a place knows nothing about organisations, and a world whose
-   * factions feature is absent renders no section at all. A holding its owner
-   * marked hidden is the Judge's own, so a player sees the place without
-   * seeing whose front it is.
+   * Read through the `acksExtras.factions` api at render time, not by import;
+   * a world without the factions feature renders no section. A holding marked
+   * hidden is shown to the Judge only.
    */
   #prepareFactions(context) {
     const api = acksExtras.factions;
@@ -382,9 +357,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   /**
    * The domain this place answers to: the one holding it, or the one holding
    * the nearest place it stands inside (`acksExtras.domains.domainOf`). Read
-   * through the api, as the organisations are, so a world without the
-   * domains feature renders no line. A holding the domain hides is the
-   * Judge's own, so a player is shown no domain through a hidden row.
+   * through the api, as the organisations are; a holding the domain hides is
+   * shown to the Judge only.
    */
   #prepareDomain(context) {
     const api = acksExtras.domains;
@@ -561,10 +535,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     );
     // A viewer's own active DIRECTED (private, no shared segment) searches
     // reveal every matching available candidate to them and route it to the
-    // SPECIAL bucket — not only the ones the replacement mechanic converted.
-    // GM sees everything already, so this is a player-facing reveal. This only
-    // ADDS visibility and re-buckets the same rows: it can never hide a
-    // candidate (the "blank everything" regression).
+    // SPECIAL bucket. This only ADDS visibility; it never hides a candidate.
     const myDirectedSpecs = game.user.isGM
       ? []
       : postings
@@ -641,10 +612,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       })
       .sort((a, b) => (a.status === b.status ? 0 : a.status === "available" ? -1 : 1));
     // The SPECIAL bucket holds everything a viewer's directed searches reveal:
-    // candidates claimed privately (replacements), those highlighted for them,
-    // AND every available candidate their active class/proficiency search
-    // matches — even walk-ins the search did not convert. A row lands in the
-    // special bucket OR a normal one, never both, so nothing is dropped.
+    // candidates claimed privately, those highlighted for them, and every
+    // available candidate their active class/proficiency search matches. A row
+    // lands in the special bucket OR a normal one, never both.
     const isDirectedRow = (c) => c.isPrivate || c.isHighlighted || matchesMyDirected(c);
     context.directedRows = rows.filter(isDirectedRow);
     context.henchmenRows = rows.filter((c) => henchKinds.includes(c.kind) && !isDirectedRow(c));
@@ -866,33 +836,25 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * Dropping an actor: WHERE it lands decides what it means.
-   *
-   * On the recruitment tab a dropped NPC is somebody the party can hire.
-   * Anywhere else it is somebody who is
-   * simply HERE: the innkeeper, the garrison, the stabled mule. Both readings
-   * are obviously right in their own tab and obviously wrong in the other, so
-   * the drop target arbitrates rather than a modifier key nobody would find.
-   *
-   * Dropping a LOCATION re-parents it — that is nesting, and it goes through
-   * the cycle guard.
+   * Dropping an actor: WHERE it lands decides what it means. On the
+   * recruitment tab a dropped NPC is somebody the party can hire; anywhere else
+   * it is somebody who is HERE (an occupant). Dropping a LOCATION re-parents it
+   * (nesting), through the cycle guard.
+   * See docs/location/DECISIONS.md, "A dropped actor means what the tab it lands on says".
    */
   async _onDropActor(event, actor) {
     if (!actor) return;
     if (actor.uuid === this.actor.uuid) return;
 
-    // A domain stands above a place, not in it: it holds the place, and the
-    // hold is made from the domain's sheet. Asked through the api, as the
-    // organisations here are, so a place imports nothing of domains.
+    // A domain stands above a place: the hold is made from the domain's sheet.
     if (acksExtras.domains?.isDomain?.(actor)) {
       ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.place.domainDropped`, { name: actor.name }));
       return;
     }
 
     // A LOCATION dropped on a location is nesting, whichever tab it lands on.
-    // Deliberately narrower than `isPlace`: a pack mule someone enabled storage
-    // on is a provider too, and dropping it here means "the mule is standing in
-    // the stable", not "the stable now contains the mule as a sub-place".
+    // Narrower than `isPlace`: a non-location provider dropped here is an
+    // occupant, not a sub-place.
     if (places.isLocation(actor)) {
       if (!game.user.isGM) return;
       await places.setParent(actor, this.actor.uuid);
@@ -916,7 +878,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     }
 
     // Anywhere else: this actor is here. Ownership is recorded so a player's
-    // own stabled horse stays visible to them even on a GM-hidden roster.
+    // own occupant stays visible to them on a GM-hidden roster.
     if (!this.actor.isOwner) return;
     const added = await places.addOccupant(this.actor, actor, {
       ownerUuid: game.user.isGM ? "" : (game.user.character?.uuid ?? ""),
@@ -926,10 +888,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * Core's `_onDropDocument` switches on documentName and has cases for
-   * ActiveEffect, Actor, Item and Folder only — a dropped Scene falls through
-   * to `null` and nothing happens. Adding the one case is what makes
-   * drag-a-scene-onto-a-place work at all.
+   * Core's `_onDropDocument` has cases for ActiveEffect, Actor, Item and
+   * Folder only; this adds the Scene case.
    * @override
    */
   async _onDropDocument(event, document) {
@@ -1146,8 +1106,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       name,
       type: LOCATION_TYPE,
       img: "icons/svg/house.svg",
-      // Inherit the parent's ownership: a room in an inn the party owns is
-      // theirs too, and making them ask for each one would be busywork.
+      // Inherits the parent's ownership.
       ownership: this.actor.toObject().ownership,
       system: { parentUuid: this.actor.uuid },
     });
@@ -1163,8 +1122,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /**
    * Promote a DERIVED row (someone standing on the linked scene) into a stored
-   * one. Deliberately explicit: a party crossing a map must not silently take up
-   * residence in it, so the observation only becomes a record when asked.
+   * one. Only on request: a party crossing a map does not take up residence in
+   * it.
    */
   static async #onKeepOccupant(_event, target) {
     const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
@@ -1210,7 +1169,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     this.render();
   }
 
-  /** What the party promised the NPC they found in the ruins. */
+  /** Edit a special hire's note. */
   static async #onEditSpecialNote(_event, target) {
     if (!game.user.isGM) return;
     const id = target.closest("[data-special-id]")?.dataset.specialId;
@@ -1240,8 +1199,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /** Break the scene link from the place side. The scene's flag is authoritative,
-   *  so BOTH ends are cleared — clearing only the mirror would let the scene
-   *  re-assert the link on its next render. */
+   *  so BOTH ends are cleared. */
   static async #onUnlinkScene() {
     const scene = await fromUuid(this.actor.system.sceneUuid).catch(() => null);
     if (scene) await scene.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
@@ -1252,9 +1210,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   /* ---------------------------- the market gate ------------------------- */
 
   /**
-   * Give this place a market. One write of a fully-defaulted subtree — until
-   * now `system.market` was literally null, which is what kept a cave from
-   * carrying a recruitment schema it would never use.
+   * Give this place a market: one write of a fully-defaulted `system.market`
+   * subtree (null on a place without one).
    */
   static async #onAddMarket() {
     if (!game.user.isGM || this.actor.system.hasMarket) return;
@@ -1264,9 +1221,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * Take the market away — and say plainly what that discards, because it
-   * discards a great deal: every posting, candidate, slander entry and fee
-   * ledger line goes with it. Hired people are real actors and are untouched.
+   * Take the market away, after a confirm that tallies what is discarded:
+   * every posting, candidate, slander entry and fee ledger line. Hired people
+   * are real actors and are untouched.
    */
   static async #onRemoveMarket() {
     if (!game.user.isGM || !this.actor.system.hasMarket) return;
@@ -1293,31 +1250,27 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /* ====================================================================== */
   /*  Storage tab — what is KEPT here, as opposed to who is hired here.      */
-  /*  Was a separate sheet on a separate `location` sub-type until the merge. */
   /* ====================================================================== */
 
   /** Goods grouped by whose they are, plus what this user may do with them. */
   async #prepareStorage(context) {
     const api = storage();
     const actor = this.actor;
-    // Enriched for display only; the raw text is what the notes editor edits
-    // (its `value`). Never reach for the bare `TextEditor` global — v14 serves
-    // it from foundry.applications.ux and the global is deprecated.
+    // Enriched for display only; the raw text is what the notes editor edits.
+    // The bare `TextEditor` global is deprecated in v14.
     context.notesHTML = await foundry.applications.ux.TextEditor.implementation.enrichHTML(
       actor.system.notes ?? "",
       { relativeTo: actor },
     );
-    // The Judge's private record. Enriched only for a GM: a player's context
-    // never carries the text at all, so nothing is hidden in markup they hold.
+    // The Judge's private record: a player's context never carries the text.
     context.gmNotesHTML = game.user.isGM
       ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(actor.system.gmNotes ?? "", { relativeTo: actor })
       : "";
     context.vaultOwner = api.resolveActorSync(api.vaultOwnerUuid(actor))?.name ?? null;
     // A place holds goods only once storage is on; until then the tab offers
-    // the switch and no deposit, which `stash` would refuse.
+    // the switch and no deposit.
     context.holdsGoods = api.isProvider(actor);
-    // The characters this user could stash FROM — the deposit button is
-    // pointless (and its dialog empty) without one.
+    // The deposit button needs a character this user could stash FROM.
     context.canDeposit = context.holdsGoods && game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
     const HOUSE = acksExtras.lib?.money?.HOUSE_OWNER;
@@ -1331,8 +1284,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       const canTakeGroup = isHouse ? game.user.isGM : game.user.isGM || !!owner?.isOwner;
       groups.push({
         ownerUuid: bucket.ownerUuid,
-        // A deleted owner keeps their name on the goods — that is exactly why
-        // the name is stored alongside the uuid. The GM's manager reassigns it.
+        // A deleted owner keeps their stored name; the GM's manager reassigns it.
         name: isHouse ? loc("storage.house") : owner?.name || bucket.ownerName || loc("storage.unattributed"),
         dangling: !isHouse && !owner,
         isHouse,
@@ -1373,7 +1325,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (owner?.isOwner) return owner;
     if (!game.user.isGM) return null;
     // A GM claiming for a deleted owner has nowhere to send the goods; the
-    // manager's reassign is the cure, so say that rather than failing silently.
+    // manager's reassign is the cure.
     return owner ?? null;
   }
 
@@ -1467,12 +1419,10 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   }
 
   /**
-   * Dropping an item from another actor STORES it here — a real move, not the
-   * system's copy. Core's drop handler creates on the target and never deletes
-   * from the source, which for a location would quietly duplicate the party's
-   * gear, so this path never falls through to it. A GM's drop is the GM saying
-   * the place holds goods, so it turns storage on first; a player's drop on a
-   * place that holds none is refused by `stash`.
+   * Dropping an item from another actor STORES it here — a real move; core's
+   * drop handler only creates on the target, so this path never falls through
+   * to it. A GM's drop turns storage on first; a player's drop on a place that
+   * holds none is refused by `stash`.
    */
   async _onDropItem(event, item) {
     const source = item?.parent;
@@ -1480,12 +1430,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       await storage().setProvider(this.actor, true);
     }
     if (!source || source.documentName !== "Actor") {
-      // A compendium or sidebar item belongs to nobody — which the house pile
-      // is exactly the owner for: a Judge stocking a lair ahead of the session
-      // drops the treasure straight on, and it files under the house rather
-      // than under a placeholder character. `stockProvider` stamps it (an
-      // unflagged embed sits on the place invisibly, because `storedItems`
-      // lists only flagged rows) and folds a stack into the house's own.
+      // A compendium or sidebar item belongs to nobody, so it files under the
+      // house. `stockProvider` stamps it (`storedItems` lists only flagged
+      // rows) and folds a stack into the house's own.
       if (!game.user.isGM) {
         ui.notifications.warn(loc("storage.dropNeedsOwner"));
         return null;

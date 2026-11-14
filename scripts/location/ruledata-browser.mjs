@@ -160,6 +160,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
+/** Opens the Ruledata Browser window. */
 export function openRuledataBrowser() {
   new RuledataBrowser().render(true);
 }

@@ -8,19 +8,15 @@
  * above world imports — see `lib/tables.mjs`). Two shapes:
  *
  *  - ROLLABLE tables (a single d-range → entry list) round-trip through a
- *    native RollTable — tweak weights/entries in the RollTable UI.
+ *    native RollTable.
  *  - Everything else (grids, ladders, prose values) round-trips through a
  *    JournalEntry page holding pretty-printed JSON in a code block.
  *
- * The documents live on the ACKS library's shelves — the RollTable and
- * JournalEntry packs the importer keeps for everything imported
- * (`lib/library-target.mjs`) — so a Judge finds them beside the books they
- * came from and one ownership setting covers the lot. The sidebar is the
- * fallback when no shelf can be opened: what it holds is retired the first
- * time a shelf opens and rebuilt on the shelf from the same registry data.
- *
- * No table values ship in this module: exports read whatever the WORLD
- * imported from the GM's own books.
+ * The documents live on the ACKS library's shelves (the RollTable and
+ * JournalEntry packs, `lib/library-target.mjs`); the sidebar is the fallback
+ * when no shelf can be opened, and what it holds is retired the first time a
+ * shelf opens. Exports read whatever the WORLD imported from the GM's own books.
+ * See docs/location/DECISIONS.md, "Materialized tables live on the library's shelves".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { findLibraryPack, whenReady } from "../lib/library.mjs";
@@ -38,26 +34,22 @@ const FLAG_KEY = "tableKey";
 
 const lib = () => globalThis.acksExtras?.lib;
 
-/**
- * Result text as the reader means it, with HTML entities decoded.
- *
- * A result's description is an HTML field: a bare `&` in a book's own wording
- * (RR p. 374, JJ p. 202) is not valid markup and comes back
- * from storage normalized to `&amp;`. That matters twice — comparing a
- * freshly rendered spec against the stored form never matched, so those tables
- * deleted and recreated their whole result set on EVERY materialize pass
- * (invisibly, since the text still displayed correctly); and a table dropped
- * back as an override would write the entity into the rules data itself.
- * Decoding is for reading and comparing only — what is STORED is unchanged.
- */
+/** The HTML entities `plainText` decodes. */
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", "#39": "'", nbsp: " ", "#160": " " };
+
+/**
+ * Result text as the reader means it, with HTML entities decoded. A result's
+ * description is an HTML field whose storage normalizes a bare `&` to `&amp;`
+ * (RR p. 374, JJ p. 202); decoding is for reading and comparing only, and what
+ * is STORED is unchanged.
+ * See docs/location/DECISIONS.md, "Stored table text is HTML-normalized, and comparing it raw was wrong".
+ */
 const plainText = (s) => String(s ?? "").replace(/&(amp|lt|gt|quot|apos|#39|nbsp|#160);/g, (_, e) => ENTITIES[e]);
 
 /**
  * A dropped result's text as its sheet shows it: the description reduced to
  * its words, else — for a result that links a document — that document's
- * name. Foundry's result editor saves every edit as paragraphs (`<p>…</p>`),
- * and a tag read back as text names no creature and matches no key. Tags go
+ * name. Foundry's result editor saves edits as paragraphs (`<p>…</p>`). Tags go
  * before entities are decoded, so an escaped `<` in the words stays a
  * character.
  */
@@ -76,11 +68,9 @@ const humanize = (s) =>
 /**
  * The reader-facing name for an entry key. The raw dotted key
  * ("people.classPercentages.level.0") is machine identity and stays in flags
- * and the export-description; the sidebar shows "Class Percentages — Level 0"
- * inside a folder named for the doc, because a list of dotted keys in one flat
- * folder is unreadable at exactly the moment a GM goes looking for a table.
- * A key read this way assumes an undotted table id; entries name themselves
- * from their parts (`partsLabel`), which holds for a dotted one too.
+ * and the export-description. A key read this way assumes an undotted table
+ * id; entries name themselves from their parts (`partsLabel`), which holds for
+ * a dotted one too.
  */
 export function entryLabel(key) {
   const [, tableId, ...rest] = String(key).split(".");
@@ -214,10 +204,7 @@ export function listEntries() {
   }
 
   // Every table the engine ASKS for but nothing has supplied, so a world that
-  // has never run an importer still has a list to work from. Without this the
-  // browser was empty until an import happened, which made hand-authoring
-  // impossible: there was nothing to export, no shape to copy, and no way to
-  // discover that a table was wanted at all.
+  // has never run an importer still has a list to work from.
   for (const { docId, tableIds } of t.expectedTables?.() ?? []) {
     for (const tableId of tableIds ?? []) {
       if (seen.has(`${docId}.${tableId}`)) continue;
@@ -401,10 +388,7 @@ function rollTableSpec(entry, data) {
 /** Parse a RollTable back into the entry's ruledata shape. */
 function parseRollTable(entry, table) {
   const results = [...table.results].sort((a, b) => (a.range?.[0] ?? 0) - (b.range?.[0] ?? 0));
-  // Decoded, because the rules data this rebuilds holds the words themselves:
-  // a table dropped back after editing would otherwise write "grain &amp;
-  // vegetables" into the registry, where every later reader — including the
-  // name-matching below — sees the entity rather than the "&" it stands for.
+  // Decoded, because the rules data this rebuilds holds the words themselves.
   const textOf = resultText;
   const grid = entry.subId != null ? gridOf(entry.docId, entry.tableId) : null;
   if (grid) {
@@ -537,6 +521,7 @@ function jsonPageContent(data) {
   return `<pre><code>${esc(JSON.stringify(data, null, 2))}</code></pre>`;
 }
 
+/** The JSON a journal page's `<code>` block holds, parsed (entities and tags stripped). */
 export function parseJsonContent(html) {
   const m = String(html).match(/<code[^>]*>([\s\S]*?)<\/code>/);
   const raw = (m ? m[1] : String(html))
@@ -552,10 +537,8 @@ export function parseJsonContent(html) {
 
 /**
  * One of the library's shelves, opened and loaded, or null when no pack can
- * be opened — a seat that may not create one. The sidebar is the target then,
- * and every read below covers it. Loaded, because the reads are synchronous
- * over `pack.contents`: a shelf this session has not instantiated would
- * answer "nothing here" and the pass would rebuild every document as a twin.
+ * be opened — a seat that may not create one. The sidebar is the target then.
+ * Loaded, because the reads are synchronous over `pack.contents`.
  */
 async function openShelf(type) {
   const pack = await ensureLibraryPack(type);
@@ -609,12 +592,9 @@ function shelfMaterialized() {
 
 /**
  * The RollTable shelf, with the sidebar's tables and folder tree retired the
- * moment it is open: the pass that follows rebuilds them on the shelf from
- * the same registry data, so nothing is lost that a re-materialize does not
- * already rewrite — a tweak a Judge meant to keep lives in the registry as a
- * dropped-back override, never in these documents. Tables before folders: a
- * folder deleted first orphans its contents to the sidebar root, where the
- * tree filter no longer finds them.
+ * moment it is open; the pass that follows rebuilds them on the shelf from
+ * the registry. Tables before folders: a folder deleted first orphans its
+ * contents to the sidebar root, where the tree filter no longer finds them.
  */
 async function openTableShelf() {
   const pack = await openShelf("RollTable");
@@ -640,9 +620,8 @@ async function openJournalShelf() {
  * the shelf groups tables the way the registry does. Both are flagged,
  * and the root is found by its flag.
  *
- * Every missing child is created in ONE call: folders must exist before the
- * tables that name them, so this is the one place the batch pass has to wait,
- * and waiting once beats waiting per doc.
+ * Every missing child is created in ONE call; folders must exist before the
+ * tables that name them.
  *
  * @param {string[]} docIds  ruledata doc ids needing a folder
  * @param {object|null} pack  the RollTable shelf, or null for the sidebar
@@ -708,22 +687,10 @@ async function ensureJournal(pack) {
 const findTable = (key, pack) => tableDocs(pack).find((t) => t.getFlag(MODULE_ID, FLAG_KEY) === key) ?? null;
 
 /**
- * Does this table already hold exactly these results?
- *
- * Re-materialize is mostly a no-op — the same registry data rendered again —
- * and rebuilding a result set costs two embedded round trips that cannot be
- * batched across tables. Comparing first turns the steady state into zero
- * writes.
- *
- * As a MULTISET, never by position. An embedded collection does not hand back
- * the array it was given, so a rebuilt table reads back in some other order —
- * and a positional comparison calls that a change, rebuilds, gets another
- * order, and never stops. Position also carries no meaning to anyone: a draw
- * resolves by range, and the table sheet sorts by range for display, so two
- * orderings of the same rows are the same table.
- *
- * Text is compared decoded (see `plainText`) — storage normalizes it, and a
- * comparison that does not account for that never matches either.
+ * Does this table already hold exactly these results? Compared as a MULTISET,
+ * never by position (an embedded collection reads back in some other order),
+ * with text decoded (see `plainText`).
+ * See docs/location/DECISIONS.md, "Result sets compare as a multiset, because storage reorders them".
  */
 function resultsMatch(table, results) {
   const current = [...table.results];
@@ -754,12 +721,8 @@ const tableUpdateData = (entry, spec, folderId, id) => ({
 });
 
 /**
- * Does the table already say what this entry would write?
- *
- * Checked so an unchanged pass writes NOTHING. Issuing the update anyway
- * would be one batched call either way, but it stamps `_stats.modifiedTime`
- * on every table on every import — which shows the whole sidebar as
- * just-touched and dirties a world backup that holds no new information.
+ * Does the table already say what this entry would write? Checked so an
+ * unchanged pass writes NOTHING (an update stamps `_stats.modifiedTime`).
  */
 const tableIsCurrent = (table, entry, spec, folderId) =>
   table.name === entry.label &&
@@ -777,15 +740,13 @@ function placeholderContent() {
  * data, on the shelf its kind lives on. Re-export updates the same document.
  *
  * The single-entry path, for the browser's per-row Export button;
- * `materializeAll` batches the same decisions rather than calling this in a
- * loop.
+ * `materializeAll` batches the same decisions.
  * @returns {{uuid: string, kind: "rolltable"|"journal"}}
  */
 export async function exportEntry(entry) {
   // A table the engine wants but nothing has supplied exports as a BLANK page
   // to author into — decided BEFORE the data is read, because reading an
-  // absent table throws rather than answering null. Without this a GM who
-  // never runs an importer has nothing to begin from at all.
+  // absent table throws rather than answering null.
   let data = null;
   try {
     data = entry.absent ? null : entryData(entry);
@@ -835,32 +796,24 @@ export async function exportEntry(entry) {
 /* ------------------------- bulk materialization ------------------------- */
 
 /**
- * Materialize EVERY imported table as a Foundry document (user directive:
- * imported tables are saved as Foundry tables and journals, not just stored
- * in the module). Prefilled exports reuse/update matching existing documents;
- * tables that consumers EXPECT (lib's `tables.expectedTables`) but that no
- * import provided get an EMPTY placeholder — first of its kind only — which
- * the GM can fill by hand or replace by drag-drop.
+ * Materialize EVERY imported table as a Foundry document. Prefilled exports
+ * reuse/update matching existing documents; tables that consumers EXPECT
+ * (lib's `tables.expectedTables`) but that no import provided get an EMPTY
+ * placeholder, which the GM can fill by hand or replace by drag-drop.
  *
- * Writes are BATCHED, because this runs automatically after every import: one
- * document at a time meant a round trip each, and a real six-book world
- * materializes 208 entries — minutes of them. Each kind of write is collected
- * and issued once. What cannot be batched across documents is an embedded
- * collection, so result sets are compared first and rebuilt only where they
- * actually differ; a re-materialize that changes nothing now writes nothing.
+ * Writes are BATCHED (each kind collected and issued once); result sets, which
+ * cannot be batched across documents, are compared first and rebuilt only
+ * where they differ, so a pass that changes nothing writes nothing.
  *
  * Ordering is load-bearing: folders exist before the tables that name them,
- * and the stale-page sweep runs after the page writes have landed, or it
- * measures the world as it was before this pass. The pass waits for the
- * classes registry's first publication before it reads any entry, because the
- * sweep retires every page no entry names, and a registry that has not
- * published yet has no entries to name: waiting at the start keeps the entry
- * list, the writes and the sweep on one reading of the registry.
+ * and the stale-page sweep runs after the page writes have landed. The pass
+ * waits for the classes registry's first publication before it reads any
+ * entry, so the entry list, the writes and the sweep share one reading of it.
  *
  * A shelf is opened only when the pass has something for it, or when the
- * sidebar holds materialized documents and the shelf is where
- * they are rebuilt — never for an empty registry, so a world with no JSON tables
+ * sidebar holds materialized documents to rebuild there; an empty registry
  * gains no empty JournalEntry pack.
+ * See docs/location/DECISIONS.md, "Materializing tables batches its writes, and stops saying `text`".
  * @returns {{exported: number, placeholders: number}}
  */
 export async function materializeAll() {
@@ -911,10 +864,7 @@ export async function materializeAll() {
 
   /* --- Journal pages: every create in one call, every changed page in
      another, and only then the stale sweep. --- */
-  // An ABSENT entry is the placeholder loop's business, not the export loop's:
-  // `listEntries` reports what the engine asks for as well as what it has, and
-  // counting an unsupplied table as "have" left it with neither a real page nor
-  // a placeholder.
+  // An ABSENT entry is the placeholder loop's business, not the export loop's.
   const pageEntries = entries.filter((e) => !e.rollable && !e.absent);
   const have = new Set(entries.filter((e) => !e.absent).map((e) => `${e.docId}.${e.tableId}`));
   const expected = [];
@@ -924,12 +874,9 @@ export async function materializeAll() {
       if (!have.has(key)) expected.push(key);
     }
   }
-  // Only CREATE the journal if there is something to put in it — an empty
-  // "ACKS Ruledata (Imported)" is clutter a world with no JSON tables never
-  // asked for. An existing one is still picked up when there is nothing to
-  // write, because its pages have all just become stale and the sweep below
-  // is what retires them; a sidebar journal is retired outright, every page of
-  // it being stale.
+  // Only CREATE the journal if there is something to put in it. An existing
+  // one is still picked up when there is nothing to write, so the sweep below
+  // retires its stale pages; a sidebar journal is retired outright.
   const wantJournal = pageEntries.length > 0 || expected.length > 0;
   const journalPack =
     wantJournal || onSidebar.journals.length || findLibraryPack("JournalEntry") ? await openJournalShelf() : null;
@@ -969,10 +916,9 @@ export async function materializeAll() {
     if (pageCreates.length) await journal.createEmbeddedDocuments("JournalEntryPage", pageCreates);
     if (pageUpdates.length) await journal.updateEmbeddedDocuments("JournalEntryPage", pageUpdates);
 
-    // Retire stale journal pages: a table that now materializes as
-    // RollTables (its entries all have sub-ids) leaves its old whole-table
-    // JSON page behind — delete pages that match no current entry key and
-    // no expected placeholder.
+    // Retire stale journal pages: those matching no current entry key and no
+    // expected placeholder (e.g. a whole-table page of a table that now
+    // materializes as RollTables).
     const valid = new Set([...pageEntries.map((e) => e.key), ...expected]);
     const stale = [...journal.pages].filter((p) => !valid.has(p.name)).map((p) => p.id);
     if (stale.length) await journal.deleteEmbeddedDocuments("JournalEntryPage", stale);

@@ -1061,3 +1061,17 @@ ownership alone, so deposits and coin acts that passed on the stamp now answer
 `notYours` or `outOfReach` in a running campaign. The way back is a Judge's act:
 pin the place to the character, stand at it, or give the player OWNER on it.
 Retrieval stays ungated, and a Judge's own coin acts still pass.
+
+## 2026-11-13 — A dropped actor means what the tab it lands on says
+
+**Ruled.** On the recruitment tab a dropped NPC is somebody the party can hire; anywhere else it is somebody who is simply here (an occupant: the innkeeper, the garrison, the stabled mule). Both readings are right in their own tab and wrong in the other, so the drop target arbitrates. A location dropped on a location is nesting whichever tab it lands on, through the cycle guard.
+**Rejected.** A modifier key to choose the reading: nobody would find it.
+
+## 2026-11-13 — The stash picker moves everything in one transfer call
+
+**Ruled.** Everything picked in the stash dialog moves in one transfer call, because a single move that fails halfway is far easier to reason about than twenty that each might. A container is flagged in the picker so nobody is surprised that its contents travel with it.
+
+## 2026-11-13 — The storage manager writes direct and is last-write-wins
+
+**Ruled.** The manager is a GM tool, so its writes go direct with no sockets. Two GMs driving it at once is last-write-wins on distinct items, which is documented rather than defended against.
+**Rejected.** The socket-and-claim-token machinery: it exists for player-triggered flows, not for two people sharing one admin screen.

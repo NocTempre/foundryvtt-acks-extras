@@ -1,9 +1,7 @@
 /**
- * The market ledger's one length. Every feature that writes a location's
- * `system.market.marketLog` appends through `appendMarketLog`, so no writer's
- * shorter cap cuts what another kept: the ledger is the GM's rollback record
- * and the evidence a known market is read from (markets `rules/known.mjs`).
- * Foundry-free.
+ * The market ledger's one length. Every writer of a location's
+ * `system.market.marketLog` appends through `appendMarketLog`. Foundry-free.
+ * See docs/location/DECISIONS.md, "One length for the market ledger, and a hire is stamped to its employer (2026-10-15)".
  */
 
 /** How many rows a market's ledger keeps: the most recent. */

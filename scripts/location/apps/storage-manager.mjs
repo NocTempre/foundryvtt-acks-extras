@@ -1,17 +1,12 @@
 /* global game, ui, foundry, Actor, Hooks, CONFIG */
 /**
- * The GM's storage manager — the tool that makes vaults optional.
+ * The GM's storage manager: merge one place's holdings into another (existing
+ * or newly made), reassign whose goods are whose, and turn storage on or off
+ * for an actor.
  *
- * The sweep gives every character with banked coin a vault of their own, which
- * is safe but not what most tables want long-term ("the party keeps its money at
- * the Rusty Anchor"). This is where a GM merges some or all of one place's
- * holdings into another — existing or newly made — reassigns whose goods are
- * whose, and turns storage on for any actor at all.
- *
- * Writes go direct: this is a GM tool, no sockets. Two GMs driving it at once is
- * last-write-wins on distinct items, which is documented rather than defended
- * against — the socket-and-claim-token machinery exists for player-triggered
- * flows, not for two people sharing one admin screen.
+ * Writes go direct, with no sockets; two GMs at once is last-write-wins on
+ * distinct items.
+ * See docs/location/DECISIONS.md, "The storage manager writes direct and is last-write-wins".
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
@@ -81,8 +76,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     }
 
     const groups = [];
-    // The house's goods are the place's own, kept for no character: named as
-    // the house, never flagged as an owner who has gone.
+    // The house's goods are the place's own: named as the house, never as a dangling owner.
     const HOUSE = globalThis.acksExtras?.lib?.money?.HOUSE_OWNER;
     if (place) {
       for (const bucket of api.storesByOwner(place).values()) {
@@ -132,8 +126,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
   _onRender(context, options) {
     super._onRender(context, options);
     const root = this.element;
-    // The selection lives on the instance, not the DOM, so re-renders (which
-    // item writes trigger constantly) never lose what the GM has ticked.
+    // The selection lives on the instance, not the DOM, so re-renders keep it.
     for (const box of root.querySelectorAll(".acks-location-manager-goods input[type=checkbox][data-item-id]")) {
       box.addEventListener("change", (event) => {
         const id = event.currentTarget.dataset.itemId;
@@ -213,8 +206,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
         ui.notifications.warn(loc("manager.noName"));
         return;
       }
-      // The name is spent before the create redraws the window, so the box
-      // carries nothing into the next render for a second Move to reuse.
+      // The name is spent before the create redraws the window.
       nameBox.value = "";
       target = await Actor.create({
         name,
@@ -328,17 +320,11 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
   }
 
   /**
-   * Stop an actor being a place that holds goods.
-   *
-   * The counterpart to #onEnableStorage, and the only way back: `setProvider`
-   * takes `false`, and this is the one caller that passes it, so an actor
-   * flagged by mistake (a CHARACTER made a warehouse) is not one forever.
-   *
-   * GOODS BLOCK IT. Clearing the flag does not move anything: the items stay
-   * embedded on the actor, still stamped with whose they are, but the place
-   * they are stored at stops being a place, so no sheet lists them and no owner
-   * can ask for them back. Return them first — the button for it is on this
-   * same screen — and this refuses until the shelves are bare.
+   * Stop an actor being a place that holds goods: the counterpart to
+   * #onEnableStorage and the one caller that passes `false` to `setProvider`.
+   * Held goods block it (clearing the flag moves nothing and would strand
+   * them), so it refuses until the shelves are bare.
+   * See docs/location/DECISIONS.md, "Storage can be turned off again (2026-08-11)".
    */
   static async #onDisableStorage() {
     const api = storage();
@@ -362,13 +348,9 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
   }
 
   /**
-   * Give a character a personal vault.
-   *
-   * The sweep makes these on its own, but only for a character with a banked
-   * balance to move — so a vault that is deleted never comes back by itself, and
-   * before this there was no way to ask for one. `#onEnableStorage` is not that
-   * way: it deliberately excludes characters and makes a SHARED place, which is
-   * a different thing from a vault bound to its owner.
+   * Give a character a personal vault. `#onEnableStorage` excludes characters
+   * and makes a shared place, which is not a vault bound to its owner.
+   * See docs/location/DECISIONS.md, "A vault can be asked for, not only earned (2026-08-05)".
    */
   static async #onCreateVault() {
     const api = storage();

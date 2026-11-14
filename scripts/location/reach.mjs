@@ -2,66 +2,23 @@
 /**
  * Whether a character can leave something at a place.
  *
- * Storage answered one question — do you own this place — and offered every
- * place that said yes, so a character standing in a dungeon was invited to put
- * a chest into a warehouse three hundred miles away. Retrieval is deliberately
- * NOT gated the same way: taking your own goods back is a bookkeeping act, and
- * a player who cannot reach their belongings at all is a worse failure than one
- * who can withdraw from a distance.
+ * Retrieval is not gated by reach.
+ * See docs/location/DECISIONS.md, "Leaving something at a place needs reach; taking it back does not (2026-08-06)".
  *
- * THE RULE HAS TWO HALVES, because places do.
+ * The rule has two halves. A place with a LINKED SCENE is reached by standing
+ * on that scene (not only the active one). A place with NO linked scene is
+ * reached by ownership, by a pin on the character's sheet, by a companion's
+ * ownership, or by standing within reach of the place's own token (`here.mjs`).
  *
- * A place with a LINKED SCENE is somewhere on the map, so being there is what
- * reaches it: the character has to be standing on that scene. Not the *active*
- * scene — a party split across two maps can still bank at the inn one half of
- * it is sitting in.
- *
- * A place with NO linked scene has no map to be absent from by default:
- * ownership answers, and a place pinned to the character's own sheet answers
- * too. But a place can still stand ON a map without BEING one — a market cart
- * or a shrine token dropped into a town scene that is a place of its own — and
- * there presence answers instead: standing within reach of the place's own
- * token, on whatever scene it sits in (see `here.mjs`).
- *
- * WHERE A CHARACTER IS STANDING is one question for both halves, and
- * `standingSpots` is the one reader that answers it. A character RIDING INSIDE a
- * formation has no token of their own on the ground — `addMember`
- * (formation-model.mjs) deletes it the instant they join — so the thing standing
- * on the map is the formation's party token, and it answers for everyone it
- * carries. It answers for them ALONE: a stale token on a map reaches nothing
- * while the formation has a body of its own standing somewhere.
- *
- * `deployMembers` (formation/deployment.mjs) gives a body back: a member sent
- * out AS AN INDIVIDUAL — detached, left where they fell, or deployed for a
- * fight — is standing at the token that deploy created and not at the party
- * token, so a scout beside a market cart reaches the cart their company cannot.
- * A cell deployed as a STACK keeps answering through the party token instead:
- * `groups.deploy` (lib/group.mjs) builds every body from the stack's TEMPLATE
- * actor, so those tokens name the template and not the cell, and the deploy
- * records only THAT the cell is out. With no token of its own named, nothing
- * displaces the party token. A formation with no party token placed anywhere
- * has no body to answer WITH, and its members fall back to their own tokens
- * rather than standing nowhere at all.
- *
- * A character no formation claims stands wherever their own tokens do, on every
- * scene at once — and one token is one body: an unlinked copy of a hireling
- * reaches what IT is beside, never what another copy of the same sheet is.
- *
- * A COMPANION reaches what their fellows reach, and the FORMATION says who
- * those are. Foundry's party actor is deprecated in this family: where a
- * formation holds this character, it is the whole answer and the party actor
- * is not consulted, so one roster cannot quietly widen another's reach. The
- * party actor still answers for a character no formation holds, which is what
- * a world that has not built its formations yet needs.
- *
- * The `acks-extras.group` actor is neither of them: it is a troop stack, not a
- * company of player characters.
- *
- * ABOARD IS THERE. A character riding in a place — a passenger in a wagon
- * deployed as a camp, a hand at a moored ship's bench — stands at it however
- * the map is laid out, because the attachment says so (`lib/attachment.mjs`):
- * the carrier chain is walked, so a rider whose horse is harnessed to the
- * wagon is in the wagon too.
+ * `standingSpots` is the one reader of where a character stands, for both
+ * halves: the formation's party token answers alone for the members riding
+ * inside it; a member deployed as an individual stands at the token the deploy
+ * made; a formation with no party token, and a character no formation claims,
+ * stand at their own tokens. A cell deployed as a STACK answers through the
+ * party token. A COMPANION reaches what the formation's members reach, and the
+ * party actor answers only for a character no formation holds. A character
+ * ABOARD a place (`lib/attachment.mjs` carrier chain) is there.
+ * See docs/location/DECISIONS.md, "Reach asks about the character, and about one body at a time".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { sceneOfLocation } from "./scene-link.mjs";
@@ -91,34 +48,20 @@ export async function setPinnedPlace(actor, placeUuid, pinned = true) {
 /**
  * One pass over the world's tokens, reused by every reach test in a sweep.
  *
- * A storage surface asks `depositReach` about every place in the world on each
- * render, and both questions underneath it — where does this character stand,
- * and is this place on a map anywhere — are answered from the same token walk.
- * Scanning once per render instead of once per place is the difference between
- * one sweep of `game.scenes` and one per provider.
- *
  * `mine` is this character's own ground tokens by scene id. `placedOn` maps an
  * actor id to the scenes it has a VISIBLE token on, which is what separates
  * "you are not there" from "this is not yours".
  *
- * THE TWO HALVES ASK ABOUT DIFFERENT SUBJECTS, and the asymmetry is the point.
- * A place IS its world actor, so `placedOn` is keyed on `token.actorId` — every
- * marker naming that actor is a marker of the place. A character is a BODY: a
- * token actor's `id` is its base actor's, and `actorId` is a foreign key to that
- * base actor on unlinked and linked tokens alike, so a subject matched by id
- * collects every copy of itself on every map and lends them all one reach. A
- * token actor is therefore matched by its own token, and only a base actor
- * answers for the tokens that name it.
+ * `placedOn` is keyed on `token.actorId` (a place IS its world actor); a token
+ * actor is matched by its own token, and only a base actor answers for the
+ * tokens that name it.
  *
  * @returns {{mine: Map<string, object[]>, placedOn: Map<string, object[]>}}
  */
 export function reachScan(actor) {
   const mine = new Map();
   const placedOn = new Map();
-  // Built once, outside the walk: which of the two subjects is being asked about
-  // is a property of the actor, not of the token under inspection. A token actor
-  // with no token to name matches nothing rather than falling back to its base
-  // actor's id, which is the very match that lends one body another's ground.
+  // A token actor with no token to name matches nothing, never its base actor's id.
   const ownTokenUuid = actor?.isToken ? (actor.token?.uuid ?? null) : null;
   const isOurs = actor?.isToken
     ? (token) => !!ownTokenUuid && token.uuid === ownTokenUuid
@@ -141,37 +84,23 @@ export function reachScan(actor) {
  * Everywhere this character is physically standing, as spots `here.mjs` can
  * test a place's token against.
  *
- * The party token answers for a member riding inside it, and answers alone — a
- * stale token on a map grants nothing while the formation has a body of its own
- * standing somewhere. The ground is read instead in the two cases where that
- * body is not where this character is: a formation with no party token placed
- * anywhere, and a member `deployMembers` sent out AS AN INDIVIDUAL. That member
- * stands at the token the deploy made for them and at no other token bearing
- * their name, which is what separates a live detachment from a stale leftover.
- *
- * A cell deployed as a STACK is not the second of those cases: `groups.deploy`
- * builds every body from the stack's template actor and records no token id for
- * the cell, so nothing displaces the party token and the crowd is where the
- * cell is found. It reaches the FIRST case like any other member — a stack
- * whose formation has no party token falls to the ground — and there the only
- * token it can find is a leftover, because a cell never legitimately owns one.
- *
- * Both halves of the rule go through here, so the linked-scene case and the
- * ground-token case can never disagree about whose token is on the map.
+ * The party token answers alone for a member riding inside it. The ground is
+ * read instead for a formation with no party token placed anywhere, and for a
+ * member `deployMembers` sent out AS AN INDIVIDUAL, who stands at the token the
+ * deploy made and at no other token bearing their name. Both halves of the rule
+ * go through here.
  *
  * @returns {Array<{scene: object, point: {x: number, y: number}, elevation: number}>}
  */
 function standingSpots(actor, scan) {
-  // A synthetic token actor is one BODY of a base actor, not the character a
-  // marching order holds: the roster is keyed on the base id, so asking it about
-  // an unlinked copy would stand that copy inside the party token.
+  // A synthetic token actor is a body, not what the roster (keyed on the base id) holds.
   const formation = actor?.isToken ? null : getFormationForActor(actor?.id);
   const member = formation?.members?.find((m) => m?.actorId === actor.id) ?? null;
-  // The one token this member went out under. `deployedStack` records only THAT
-  // a cell is out, so it leaves this null and the party token answers.
+  // The one token this member went out under; null for a stack cell, so the
+  // party token answers.
   const ownBody = member?.deployedTokenId ?? null;
-  // Its scene with it, where the record names one: the id alone also names a
-  // token on a scene duplicated from that one.
+  // Its scene too, where the record names one: the id alone also names a token
+  // on a scene duplicated from that one.
   const ownScene = ownBody ? (member.deployedSceneId ?? null) : null;
   if (formation && !ownBody) {
     const at = partyPoint(formation);
@@ -184,9 +113,8 @@ function standingSpots(actor, scan) {
     if (!scene) continue;
     const gridSize = scene.grid.size;
     for (const token of tokens) {
-      // Once a deploy has given this member a body, that body is the only one
-      // that counts: any other token naming the same actor is a leftover, and a
-      // leftover stands for nobody.
+      // Once a deploy has given this member a body, any other token naming
+      // the actor is a leftover and stands for nobody.
       if (ownBody && (token.id !== ownBody || (ownScene && sceneId !== ownScene))) continue;
       out.push({ scene, point: tokenCenter(token, gridSize), elevation: token.elevation ?? 0 });
     }
@@ -203,13 +131,10 @@ function groundScenesOf(place, scan) {
 }
 
 /**
- * Everyone this character travels with, by actor id.
- *
- * The marching order answers first and, when it answers at all, alone: a
- * character in a formation travels with that formation and with nobody else.
- * Falling through to the party actor as well would union two rosters, so a
- * character left in a stale party actor would keep reaching a company they
- * are no longer marching with.
+ * Everyone this character travels with, by actor id. The marching order
+ * answers first and, when it answers at all, alone; the party actor answers
+ * only for a character no formation claims.
+ * See docs/location/DECISIONS.md, "The formation is the party; core's is deprecated (2026-08-15)."
  */
 export function companionIds(actor) {
   const out = new Set();
@@ -228,9 +153,8 @@ export function companionIds(actor) {
   }
 
   // Foundry's party actor (v13+): a `group` actor listing its members. Read
-  // defensively, because the shape is core's and this module does not own it.
-  // Consulted ONLY for a character no formation claims — a world that
-  // never built a formation at all.
+  // defensively, because the shape is core's. Consulted only for a character
+  // no formation claims.
   if (!inFormation) {
     for (const candidate of game.actors ?? []) {
       if (candidate.type !== "group") continue;
@@ -247,25 +171,11 @@ export function companionIds(actor) {
 /**
  * Does a user who owns `subject` own `place` as well?
  *
- * Ownership in Foundry is per USER, so every claim of the form "this character
- * can reach that place because it is theirs" is a claim about the users behind
- * the character. Asking the document — `place.isOwner` — asks instead about
- * whoever happens to be looking, and `testUserPermission` hands a GM OWNER on
- * every document in the world, so that question answers differently on every
- * seat and answers yes to all of them on the Judge's.
- *
- * The PLACE's `default` level counts, because a place left open to everyone is
- * open to the subject's owners too. The SUBJECT's does not: the users it stands
- * for are not knowable from the document, and reading it as "everyone" would
- * make any character the world left open reach every place anyone owns.
- *
- * A Judge named as an owner is not counted. Foundry stamps the creating user as
- * OWNER on everything they make, so a Judge appears on every character and
- * place they have created, and a Judge stands for no character: sharing that
- * owner says nothing about which character belongs to which place. The role is
- * read from the user the ownership map NAMES, never from the seat looking, so
- * the answer is the same on every client; an id that names no user counts for
- * nobody.
+ * Asked of the users the ownership maps name, never `place.isOwner`, so the
+ * answer is the same on every seat. The PLACE's `default` level counts; the
+ * SUBJECT's does not. A Judge named as an owner is not counted, and an id that
+ * names no user counts for nobody.
+ * See docs/location/DECISIONS.md, "A Judge named as an owner is not one".
  */
 export function ownersShare(subject, place) {
   for (const [userId, level] of Object.entries(subject?.ownership ?? {})) {
@@ -317,21 +227,10 @@ export function standingAt(actor, place, { scan } = {}) {
 
 /**
  * Does a place holding nothing of this character's still belong on their list
- * of places?
- *
- * A list needs empty places — otherwise there is nowhere to put the first
- * thing — but it cannot use the deposit rule to pick them. Deposit answers a
- * CLAIM as well as a presence ("a place you own is one you may bank at from
- * anywhere"), and a claim is world-wide: every place a world leaves open to
- * its players, and every place a companion owns, lands on every sheet at once.
- * An imported city is dozens of them.
- *
- * So an empty place is listed on three grounds that are each about this
- * character alone: their own vault, which is the bank column's replacement and
- * has to be reachable before it holds anything; a place they PINNED, which is
- * what pinning is for; and a place they are standing at right now. Everywhere
- * they actually keep goods is listed regardless — that list is the character's
- * own, not the world's.
+ * of places? Three grounds, each about this character alone: their own vault,
+ * a place they PINNED, and a place they are standing at right now. Places
+ * where they keep goods are listed regardless.
+ * See docs/location/DECISIONS.md, "A sheet LISTS a place it is standing at; reach decides only whether it accepts a deposit (2026-09-20)".
  *
  * @param {object} [opts]
  * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass.
@@ -347,12 +246,8 @@ export function listsWhenEmpty(actor, place, { scan, pinned } = {}) {
 /**
  * Can this character leave something at this place, and if not, why not?
  *
- * The REASON is returned rather than a bare false, because the Storage tab
- * shows it: a control that has quietly vanished reads as a broken module, and
- * "you are not there" is a rule the player can act on. `notHere` names a scene
- * and is only ever given about a place that IS on a map — a place standing on
- * no map at all is one this character has no claim on, and sending them out to
- * look for it is a worse answer than saying so.
+ * The reason is returned because the Storage tab shows it. `notHere` names a
+ * scene and is only given about a place that IS on a map; otherwise `notYours`.
  *
  * @param {object} [opts]
  * @param {{mine: Map, placedOn: Map}} [opts.scan] one world token pass
@@ -363,9 +258,7 @@ export function listsWhenEmpty(actor, place, { scan, pinned } = {}) {
 export function depositReach(actor, place, { scan } = {}) {
   if (!actor || !place) return { can: false, reason: "gone", scene: null };
 
-  // A character's own vault is theirs wherever they are — it is the thing the
-  // bank column became, and gating it on standing somewhere would strand every
-  // balance the sweep moved.
+  // A character's own vault is theirs wherever they are.
   const api = storage();
   if (api?.vaultOwnerUuid?.(place) === actor.uuid) return { can: true, reason: null, scene: null };
 
@@ -378,23 +271,17 @@ export function depositReach(actor, place, { scan } = {}) {
     return there ? { can: true, reason: null, scene: linked } : { can: false, reason: "notHere", scene: linked };
   }
 
-  // Every clause here is about the CHARACTER, ownership included: the answer
-  // belongs to the actor on the sheet, not to the client reading it, or a Judge
-  // and a player would be told different things about the same sheet.
+  // Every clause here is about the CHARACTER, ownership included, not the client reading it.
   if (ownersShare(actor, place)) return { can: true, reason: null, scene: null };
   if (pinnedPlaces(actor).has(place.uuid)) return { can: true, reason: null, scene: null };
   if (companionOwns(actor, place)) return { can: true, reason: null, scene: null };
 
-  // Ground presence: a place's own token, on whatever map it was dropped into.
-  // Checked across every scene the character stands on — a location's marker is
-  // not required to live on only one map, and neither is a party.
+  // Ground presence: a place's own token, on any scene the character stands on.
   for (const spot of standingSpots(actor, scan)) {
     if (placeReachesSpot(place, spot)) return { can: true, reason: null, scene: spot.scene };
   }
 
-  // Out of reach. Naming a map the place is actually on turns the refusal into
-  // somewhere to walk; with a marker on several maps the first one is named,
-  // because a blank scene in that message is worse than an incomplete one.
+  // Out of reach: name a map the place is on; with markers on several, the first.
   const [somewhere] = groundScenesOf(place, scan);
   return somewhere
     ? { can: false, reason: "notHere", scene: somewhere }
@@ -404,8 +291,8 @@ export function depositReach(actor, place, { scan } = {}) {
 /**
  * Every place in the world this character could deposit at right now.
  *
- * Builds the world's token index once and hands it to every `depositReach`
- * call rather than each one rescanning `game.scenes` — see `reachScan`.
+ * Builds the world's token index once (`reachScan`) and hands it to every
+ * `depositReach` call.
  */
 export const reachablePlaces = (actor) => {
   const scan = reachScan(actor);

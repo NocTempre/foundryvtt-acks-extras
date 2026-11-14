@@ -2,21 +2,12 @@
 /**
  * Scene ↔ place linking.
  *
- * A map and a place are the same thing seen two ways: the scene is what the
- * party walks around in, the location actor is what the place *is* — its
- * contents, its occupants, what it sits inside, and (sometimes) its market. The
- * link makes each reachable from the other.
- *
- * THE LINK IS MADE ON DEMAND, NEVER AUTOMATICALLY. The affordances are a
- * scene-config picker and a directory context entry; nothing exists until
- * somebody asks for it.
- *
- * THE SCENE'S FLAG IS AUTHORITATIVE; the location's `system.sceneUuid` is a
- * MIRROR. One direction has to win or the two drift, and the scene's wins
- * because a scene can be duplicated, imported and deleted by hands that never
- * touch the actor directory. The mirror exists so the place sheet can offer
- * "open the map" without scanning every scene on every render, and it is
- * repaired from the flag whenever the two are seen to disagree.
+ * The link makes a scene and the location actor it IS reachable from each
+ * other. It is made on demand (a scene-config picker and a directory context
+ * entry), never automatically. The scene's flag is authoritative; the
+ * location's `system.sceneUuid` is a mirror, repaired from the flag whenever
+ * the two disagree.
+ * See docs/location/DECISIONS.md, "A location is a PLACE, and a market is an option on one (2026-08-02)".
  */
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG } from "./constants.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
@@ -51,12 +42,9 @@ export function sceneOfLocation(location) {
 /**
  * The place a scene Region is, or null.
  *
- * The same flag the scene carries, at the Region's grain: a quarter of a city
- * drawn as a District names the location actor that IS the quarter — its
- * market, its notes, what is kept there — and the place mirrors it in
- * `system.regionUuid`. The REGION'S flag is authoritative for the reason the
- * scene's is: it travels with the scene through duplication and import, and
- * the mirror is repaired from it whenever the two are seen to disagree.
+ * The same flag the scene carries, at the Region's grain: the place mirrors it
+ * in `system.regionUuid`. The Region's flag is authoritative; the mirror is
+ * repaired from it whenever the two disagree.
  */
 export function locationOfRegion(region) {
   const uuid = region?.getFlag?.(MODULE_ID, SCENE_LINK_FLAG);
@@ -104,10 +92,8 @@ export async function unlinkScene(scene) {
 }
 
 /**
- * Make a place for a scene and link the two.
- *
- * The new place takes the scene's name and its navigation image, so the actor
- * directory reads like the map list rather than like a list of "New Actor".
+ * Make a place for a scene and link the two. The new place takes the scene's
+ * name and thumbnail.
  */
 export async function createLocationForScene(scene) {
   if (!scene || !game.user.isGM) return null;
@@ -155,11 +141,8 @@ export async function unlinkRegion(region) {
 }
 
 /**
- * Make a place for a Region and link the two.
- *
- * Named after the region and nested inside the scene's own place when the
- * scene has one, so a quarter sits inside its city the way its outline sits
- * inside the city's map.
+ * Make a place for a Region and link the two. Named after the region and
+ * nested inside the scene's own place when the scene has one.
  */
 export async function createLocationForRegion(region) {
   if (!region || !game.user.isGM) return null;
@@ -184,9 +167,8 @@ export async function createLocationForRegion(region) {
 /**
  * Write the mirrors for a scene CREATED already linked, its regions' with it.
  *
- * A map built whole carries its link flags from its first write, which the
- * update hooks below never see; the mirrors cannot ride in the same create,
- * because they name documents that did not exist yet. One batched update, and
+ * A scene created with its link flags is never seen by the update hooks
+ * below, and the mirrors cannot ride in the same create. One batched update,
  * only for a place whose mirror does not already say so.
  * @returns {Promise<number>} how many places were written
  */
@@ -211,10 +193,8 @@ export async function mirrorCreatedLinks(scene) {
 /**
  * Repair the mirror whenever the flag moves, and drop it when the scene dies.
  *
- * ONE CLIENT WRITES. Every GM sees these hooks and they all write the same
- * actor; the originating-user check is the same discipline the follower-card
- * sweep uses, and unlike a create it is idempotent, so a missed run is repaired
- * by the next one rather than lost.
+ * One client writes: every GM sees these hooks, so each acts only on its own
+ * originating update.
  */
 export function registerSceneLinkSync() {
   Hooks.on("updateScene", async (scene, changes, _options, userId) => {
@@ -231,9 +211,7 @@ export function registerSceneLinkSync() {
     }
   });
 
-  // A deleted scene leaves every mirror pointing at it dangling. The place
-  // itself is NOT deleted: the inn survives the map of the inn being thrown
-  // away, and its stored goods and roster are exactly why.
+  // A deleted scene leaves mirrors dangling; the place itself is kept.
   Hooks.on("deleteScene", async (scene, _options, userId) => {
     if (userId !== game.userId || !game.user.isGM) return;
     for (const actor of game.actors.filter((a) => a.type === LOCATION_TYPE && a.system.sceneUuid === scene.uuid)) {
@@ -246,8 +224,7 @@ export function registerSceneLinkSync() {
     }
   });
 
-  // The region's link, kept true the same way: repaired from the flag when it
-  // moves, dropped when the region dies. The place survives its outline.
+  // The region's link, kept true the same way; the place survives its region.
   Hooks.on("updateRegion", async (region, changes, _options, userId) => {
     if (userId !== game.userId || !game.user.isGM) return;
     const flag = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${SCENE_LINK_FLAG}`);
@@ -274,10 +251,8 @@ export function registerSceneLinkSync() {
 /* -------------------------------------------- */
 
 /**
- * Right-click a scene in the directory: open its place, or make one.
- *
- * Two entries rather than one toggle, because they are different acts with
- * different costs — one navigates, the other creates a world document.
+ * Right-click a scene in the directory: open its place, or make one (two
+ * entries; one navigates, the other creates a world document).
  */
 export function registerSceneContextMenu() {
   Hooks.on("getSceneContextOptions", (_application, options) => {
@@ -304,10 +279,8 @@ export function registerSceneContextMenu() {
  * A "Place" row in the scene configuration's Basics tab: pick an existing
  * location, make a new one, or clear the link.
  *
- * DOM injection rather than a sheet subclass, for the reason the character
- * sheet's Storage tab documents: core declares its parts as statics and a
- * subclass would fight every other module that wants a row. Rebuilt on every
- * render rather than latched, because ApplicationV2 replaces its parts.
+ * DOM injection, not a sheet subclass: core declares its parts as statics.
+ * Rebuilt on every render, because ApplicationV2 replaces its parts.
  */
 export function registerSceneConfigRow() {
   Hooks.on("renderSceneConfig", (app, element) => {
@@ -315,10 +288,7 @@ export function registerSceneConfigRow() {
     const root = elementOf(element);
     if (!root) return;
     root.querySelectorAll(".acks-extras-scene-place").forEach((n) => n.remove());
-    // Core's Basics tab renders `navName` through `formGroup`, so the row lands
-    // under the navigation name. If core ever renames that field, fall back to
-    // the tab's last group rather than vanishing without trace — an oddly
-    // placed control is recoverable, a missing one looks like a broken module.
+    // The row lands under core's `navName` group, else the tab's last group.
     const basics = root.querySelector('.tab[data-tab="basics"]') ?? root;
     const anchor =
       root.querySelector('[name="navName"]')?.closest(".form-group") ??
@@ -355,9 +325,7 @@ export function registerSceneConfigRow() {
     // this module built and reaches nothing core owns.
     associateLabels(group);
 
-    // Written immediately rather than on form submit: the link is a flag on
-    // the scene plus a field on an actor, and a submit handler could only ever
-    // write the first half.
+    // Written immediately, not on form submit: a submit handler could only write the scene's half.
     group.querySelector(".acks-extras-scene-place-select").addEventListener("change", async (ev) => {
       const uuid = ev.currentTarget.value;
       if (!uuid) return void (await unlinkScene(scene));

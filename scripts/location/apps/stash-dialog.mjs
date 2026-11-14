@@ -3,9 +3,9 @@
  * "What do you want to leave here?" — the picker in front of the lib storage `stash`.
  *
  * Stackables get a quantity box (blank means the whole stack); a container is
- * flagged so nobody is surprised that its contents travel with it. Everything
- * picked moves in ONE transfer call, because a single move that fails halfway is
- * far easier to reason about than twenty that each might.
+ * flagged because its contents travel with it. Everything picked moves in ONE
+ * transfer call.
+ * See docs/location/DECISIONS.md, "The stash picker moves everything in one transfer call".
  */
 import { makeLoc, libStorage as storage, escape as esc } from "../../lib/util.mjs";
 import { LANG_PREFIX } from "../constants.mjs";
@@ -15,8 +15,7 @@ const loc = makeLoc(LANG_PREFIX);
 /** Worth offering: things, and coin (which the system does not call "physical"). */
 const stowable = (actor) => actor.items.filter((i) => !!globalThis.acksExtras?.lib.itemModel.isGoods(i));
 
-/** Can gear go inside this? lib owns the answer, so a coat with hidden
- * pockets counts as much as a sack does. */
+/** Can gear go inside this? The lib subsystem owns the answer. */
 const isContainer = (item) => !!globalThis.acksExtras?.lib.places.isContainerItem(item);
 
 function rowHTML(item) {
@@ -42,8 +41,8 @@ const listHTML = (actor) => {
 };
 
 /**
- * Open the picker. `sources` is one character or several — the location sheet's
- * own button does not know which of your characters you meant.
+ * Open the picker. `sources` is one character or several (the dialog then
+ * offers a chooser).
  * @returns {Promise<boolean>} whether anything was stored
  */
 export async function openStashDialog(sources, provider) {
@@ -59,7 +58,6 @@ export async function openStashDialog(sources, provider) {
       : "";
 
   const result = await foundry.applications.api.DialogV2.prompt({
-    // A row per stowable item, so the picker is as tall as the pack is full.
     window: { title: loc("storage.stashTitle"), resizable: true },
     position: { width: 520 },
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],

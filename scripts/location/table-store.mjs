@@ -1,10 +1,9 @@
 /**
  * The `ruledata-import` provider (lib service contract, see docs/lib/API.md):
  * persists imported rules-table documents as world data and
- * mirrors them into the lib tables registry on every client. Consumers (content
- * import flows) call the contract; sibling modules read the registry —
- * nobody names this module. No table values ship here (extraction-program
- * ruling 1): everything in the store arrived via a GM's own-book import.
+ * mirrors them into the lib tables registry on every client. Consumers call
+ * the contract and read the registry; nobody names this feature. Everything in
+ * the store arrived via a GM's own-book import.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { countMaterializedDocs as countMaterialized, removeMaterializedDocs as removeMaterialized } from "./table-docs.mjs";
@@ -67,9 +66,8 @@ export const ruledataImport = {
     const store = readStore();
     store[`${doc.id}:${p}`] = { doc, priority: p, source: source ?? null, importedAt: Date.now() };
     await game.settings.set(MODULE_ID, SETTING, store);
-    // Verify the write actually landed in world data. A world DB that loses
-    // this write silently un-imports every table on the next reload, with no
-    // error anywhere — so read it back and fail loudly instead.
+    // Read the write back and fail loudly if it did not land.
+    // See docs/location/DECISIONS.md, "A write to the table store is verified, not assumed (2026-07-19)".
     const persisted = game.settings.get(MODULE_ID, SETTING);
     if (!persisted?.[`${doc.id}:${p}`]) {
       ui.notifications.error(`acks-extras | "${doc.id}" did not persist to world data — check the world's storage and re-import.`);
@@ -126,12 +124,8 @@ export const ruledataImport = {
 
   /**
    * Contract v1.2 (additive): re-mirror the persisted WORLD store into the
-   * in-memory registry, and report what is present. The store is already
-   * mirrored at `init`, but a consumer can call this to recover when the
-   * registry has lost its tables after a reload / GM change / module update —
-   * the persisted world data is the source of truth, and this reloads it
-   * WITHOUT needing the original book. NOT GM-gated: a player left without a GM
-   * can restore their own registry from the world data everyone shares.
+   * in-memory registry, and report what is present. Reloads from world data,
+   * without the original book. Not GM-gated.
    * @returns {{layers:number, docs:string[]}}
    */
   reload() {
@@ -151,11 +145,13 @@ export const ruledataImport = {
 
 const overrideKey = (docId) => `${docId}:${lib().tables.PRIORITY.OVERRIDE}`;
 
+/** Where one table's override came from (`_meta` of the override layer), or null. */
 export function overrideMeta(docId, tableKey) {
   const entry = readStore()[overrideKey(docId)];
   return entry?.doc?._meta?.[tableKey] ?? null;
 }
 
+/** Does the override layer hold this table? */
 export function hasOverride(docId, tableKey) {
   const entry = readStore()[overrideKey(docId)];
   return !!(entry?.doc?.tables && tableKey in entry.doc.tables);
