@@ -11,7 +11,7 @@
  * and changes nothing, the GM's Forgive clears it and leaves the arrears, and
  * the Player's Pay moves the coin and clears it. It also measures, without
  * writing, how many of the world's candidate class keys resolve to an imported
- * class through the lookup a hire uses. Step 25, on the GM seat alone: an
+ * class through the lookup a hire uses. Step 24, on the GM seat alone: an
  * Irrefusable Offer to a captured monster, made through the influence-hosted
  * page under invented table figures, hires the captive at the figure for the
  * result the roll names, and with the table not imported names no result,
@@ -448,7 +448,7 @@ const P = {
     return true;
   },
   /**
-   * Step 25's table: this page's priority-30 `influence` layer holds invented
+   * Step 24's table: this page's priority-30 `influence` layer holds invented
    * figures for the Irrefusable Offer (`invented`) or an empty table for it
    * (`absent`), over whatever the layer held before, which `irrRestore` puts
    * back. The edges leave the page's result at either end whatever the
@@ -462,7 +462,7 @@ const P = {
     T.registerTable({ id: "influence", tables: { ...H.irrPrev.tables, ...put } }, { priority: 30, source: "qa-hire-terms" });
     return { read: !!T.getTable("influence", "irrefusableOffer") && (mode !== "invented" || (T.getTable("influence", "irrefusableOffer")?.bands ?? []).length === 5) };
   },
-  /** Put this page's priority-30 `influence` layer back as step 25 found it. */
+  /** Put this page's priority-30 `influence` layer back as step 24 found it. */
   irrRestore: async () => {
     const H = globalThis.__ht;
     if (!H?.irrPrev) return "never changed";
@@ -734,7 +734,7 @@ try {
     for (const uuid of await run(seat, P.ownCards, { ids: await run(seat, P.takeChat), actorIds: [employer.id, ...hireIds] })) await track(uuid, "ChatMessage");
   }
 
-  section("25: an Irrefusable Offer through the hosted page hires the captive");
+  section("24: an Irrefusable Offer through the hosted page hires the captive");
   // Figures are invented for the walk; the page's own are never read or printed.
   const INVENTED = {
     irrefusableOffer: {

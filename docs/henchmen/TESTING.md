@@ -164,7 +164,7 @@ a step it does not name is walked by hand.
    in-service chip naming the employer; a click on either reaches the tab.
    Standing reads the loyalty with its parts and the morale, each a roll row
    whose press throws and whose pin stars it for the folded bar; Terms reads
-   the wage, the share as a word (or blank, step 23), the clock;
+   the wage, the share as a word (or blank, step 22), the clock;
    Employer names the employer and opens them. `recordCalamity(actor, …)`
    with the throw left owing: the warning row leads the panel, the tab reads
    a count of 1, the chip carries the dot, and the GM seat's **Throw now**
@@ -648,7 +648,7 @@ a step it does not name is walked by hand.
     henchman (`henchmen/doubter`), and two disposable `monster` actors of
     HD below employer A's level as captives, marked
     `henchmen/captive-<n>` as their ids are read back. The influence-hosted
-    Irrefusable page hires through its roll-complete branch (step 25 walks
+    Irrefusable page hires through its roll-complete branch (step 24 walks
     that path), so this step drives the starts directly through
     `applyIrrefusableOutcome(monster, employerA, outcome)`, imported from
     `/modules/acks-extras/scripts/henchmen/engine/monster.mjs`, with the
@@ -933,7 +933,7 @@ walked in docs/lib/TESTING.md, "The repair tool".
     The refusal's gate and the split's arithmetic are checked offline
     (`tools/test-henchmen.mjs`); the recipe's shape against the real book is
     `tools/importer/test-recipe-content.mjs`.
-23. The henchman shares, imported, absent and overridden, on the Service tab
+22. The henchman shares, imported, absent and overridden, on the Service tab
     of a henchman whose record holds no share of its own (marker
     `henchmen/share-henchman`, built through the hire path so its record is
     the module's: `terms.treasureShare` and `terms.xpShare` read `null`).
@@ -965,7 +965,7 @@ walked in docs/lib/TESTING.md, "The repair tool".
       roster: the hireling's row is unaffected.
     The Deal XP half is formation's TESTING.md, "Deal XP". The recipes' shape
     against the real book is `tools/importer/test-recipe-content.mjs`.
-24. The cultures a Judge's book names are checked offline. The import's reading
+23. The cultures a Judge's book names are checked offline. The import's reading
     (a culture written under an ordinal id, its label read off its heading
     and the neutral `Culture N` stand-in where the page prints none, its name
     lists, its palette and its name template) is
@@ -979,7 +979,7 @@ walked in docs/lib/TESTING.md, "The repair tool".
     first, is step 17's Demographics bullet. A world with nothing imported lists
     no cultures and the row Add writes carries no culture until the Judge
     picks one (not walked: it needs the `people` document absent).
-25. An Irrefusable Offer to a captured monster, through the influence-hosted
+24. An Irrefusable Offer to a captured monster, through the influence-hosted
     page, on `henchmen/bonus-employer` raised to a level above the captives'
     hit dice and three disposable `monster` actors of 1d8 (tracked as they are
     created, swept by the ledger). The GM page's priority-30 `influence`
@@ -1006,8 +1006,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
       manager, no list entry, and nothing is shown.
     Teardown: the layer restored, the captives taken off the employer's
     monster list, then swept with their cards by ledger.
-    Walked by `tools/live/henchmen-hire-terms.mjs`, section 25.
-26. The officer's morale modifier on a hired unit, imported, absent and
+    Walked by `tools/live/henchmen-hire-terms.mjs`, section 24.
+25. The officer's morale modifier on a hired unit, imported, absent and
     overridden. On a location with a marshal and a master mariner in its
     market (the layers are step 16's, the candidates are built through the
     market as step 20 builds its hires), open the location sheet's Mercenaries

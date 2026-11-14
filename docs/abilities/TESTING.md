@@ -258,7 +258,7 @@ character `abilities/typed-character`, a level-3 `character` actor):
 9. Join as a Player seat that owns the character → the same figures and
    tooltips. Edit an unrelated field on core's sheet → the stored Avoid
    Surprise does not change.
-11. Conditions read off the page: with the rulebook imported, give the
+10. Conditions read off the page: with the rulebook imported, give the
     character the library's Lockpicking skill and a power whose row carries a
     page condition (any row whose cookbook spec has `conditionFrom`), then run
     **Update Abilities** → on each Mechanics tab, the conditioned rows show
@@ -267,7 +267,7 @@ character `abilities/typed-character`, a level-3 `character` actor):
     methodical rows read "at the roll", not situational. The Stats tab's
     figures are the same before and after the update. A Player seat that owns
     the character sees the same rows.
-12. A row's other prose read off the page: on the same character, with the
+11. A row's other prose read off the page: on the same character, with the
     library's Lockpicking, Trapbreaking, Searching, Shadowy Senses, Sneaking
     and Climbing skills and the Berserkergang proficiency (fixture
     `abilities/clause-character`, a level-3 `character`; its abilities are the
@@ -282,7 +282,7 @@ character `abilities/typed-character`, a level-3 `character` actor):
     *methodically only*, as the Rolls tab labels them) whose tooltip says the
     row belongs to that throw alone. No row reads empty, and no row holds a
     sentence of the module's in place of the page's.
-13. Stats tab provenance: with the equipment tables imported, wear an
+12. Stats tab provenance: with the equipment tables imported, wear an
     enclosing helmet → the Avoid Surprise tooltip names *an enclosing helmet*
     with the page the import read (*from the imported table (RR p.N)*). Set
     the helmet's surprise figure in the Ruledata Browser → the part reads *as
@@ -291,7 +291,7 @@ character `abilities/typed-character`, a level-3 `character` actor):
     style's part carries its table the same way, but it writes the melee
     attack modifier, which no Stats row shows; check it on the loadout
     effect's `loadoutParts` flag (`table: "dualWeaponStyle"`).
-14. A gate's armour rung read off the page (fixture `abilities/gate-character`,
+13. A gate's armour rung read off the page (fixture `abilities/gate-character`,
     a level-3 `character`, found by that marker; the abilities are the
     library's and need none): with the rulebook and the Judges Journal
     imported, give it Swashbuckling, Blade-Dancing and the bladedancer's

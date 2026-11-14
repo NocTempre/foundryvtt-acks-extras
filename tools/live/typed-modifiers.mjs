@@ -1,7 +1,7 @@
 /**
  * Live walk, typed modifiers and their provenance. Covers:
  *
- *   docs/abilities/TESTING.md, "Typed modifiers apply", steps 1-9 and 11-13
+ *   docs/abilities/TESTING.md, "Typed modifiers apply", steps 1-12
  *     (quick effects, the "{roll} only" chip, conditions read from the page or
  *     labelled);
  *   docs/character-sheet/TESTING.md, "The roll modifiers on Stats", and the
@@ -16,7 +16,7 @@
  *
  * Stages: STAGE=1 is the hand-built typed fixtures (abilities steps 1-9, the
  * roll modifiers on Stats, the light rows, the repertoire call); STAGE=2 is
- * what needs the rulebook open and imported (abilities steps 11-13, equipment
+ * what needs the rulebook open and imported (abilities steps 10-12, equipment
  * 3c and 3e, and the three plates), and first maps the RR and JJ, runs Import
  * Tables for the equipment document when its tables are missing, and runs
  * Update Abilities for the Specialization and Armor Training where the
@@ -34,7 +34,7 @@
  *                                 and an actor effect adding 2 to it;
  *   abilities/clause-character    a level-3 character the Player owns, holding
  *                                 the library's copies (unmarked) of the skills
- *                                 and proficiencies step 12 names and a power
+ *                                 and proficiencies step 11 names and a power
  *                                 whose recipe reads a page condition;
  *   equipment/style-pick          a character trained in the weapon-and-shield
  *                                 style, with a sword, a shield and the

@@ -853,7 +853,7 @@ step 10, the entry step 7 creates.
     library's own document. Then *Reimport one shelf* for the trap's shelf.
     *Observable:* the copy is still there, unchanged, and the shelf's count
     matches the count before the step.
-12. **A Judge's override is never read into the import.** On a world holding
+11. **A Judge's override is never read into the import.** On a world holding
     the imported `weather` document, with `t = acksExtras.lib.tables`, pick a
     table of it with no override yet (`t.getLayer("weather", t.PRIORITY
     .OVERRIDE)?.tables` lacks it; `conditionSpeed`, say) and keep a copy of
