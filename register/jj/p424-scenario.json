@@ -1,0 +1,297 @@
+[
+  {
+    "id": "jj.picture424",
+    "kind": "kind.picture",
+    "book": "jj",
+    "name": "Picture 424",
+    "pages": [424],
+    "picture": {
+      "size": { "w": 1354, "h": 1035 },
+      "read": [
+        { "box": { "x0": 12, "x1": 449, "y0": 13, "y1": 42 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 449, "y0": 49, "y1": 639 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 449, "y0": 648, "y1": 667 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 449, "y0": 676, "y1": 709 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 449, "y0": 718, "y1": 793 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 449, "y0": 801, "y1": 822 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 449, "y0": 830, "y1": 864 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 449, "y0": 873, "y1": 955 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 449, "y0": 963, "y1": 984 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 449, "y0": 992, "y1": 1027 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 22, "y1": 80 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 88, "y1": 109 }, "psm": 7 },
+        { "box": { "x0": 466, "x1": 898, "y0": 117, "y1": 152 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 161, "y1": 259 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 268, "y1": 288 }, "psm": 7 },
+        { "box": { "x0": 466, "x1": 898, "y0": 297, "y1": 332 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 340, "y1": 499 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 507, "y1": 528 }, "psm": 7 },
+        { "box": { "x0": 466, "x1": 898, "y0": 536, "y1": 570 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 579, "y1": 603 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 611, "y1": 631 }, "psm": 7 },
+        { "box": { "x0": 466, "x1": 898, "y0": 639, "y1": 704 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 713, "y1": 803 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 811, "y1": 832 }, "psm": 7 },
+        { "box": { "x0": 466, "x1": 898, "y0": 840, "y1": 875 }, "psm": 6 },
+        { "box": { "x0": 466, "x1": 898, "y0": 883, "y1": 1031 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 14, "y1": 40 }, "psm": 7 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 49, "y1": 98 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 107, "y1": 189 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 197, "y1": 218 }, "psm": 7 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 227, "y1": 276 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 285, "y1": 419 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 427, "y1": 440 }, "psm": 7 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 449, "y1": 587 }, "psm": 6 },
+        { "box": { "x0": 906, "x1": 1343, "y0": 595, "y1": 653 }, "psm": 6 }
+      ],
+      "corrections": [
+        { "box": 1, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 5, "pile": "a" },
+        { "box": 1, "find": "(?<=there is )\\d(?=\\d+% chance)", "flags": "", "to": "a ", "hits": 1, "pile": "b" },
+        { "box": 1, "find": "(?<=\\dd\\d+\\+\\d+) \\S{1,3}(?= damage when)", "flags": "", "to": "", "hits": 1, "pile": "a" },
+        { "box": 1, "find": "(?<=marked by )\\S{1,2}(?= guard)", "flags": "", "to": ")", "hits": 1, "pile": "a" },
+        { "box": 2, "find": "(?<=- )VAaurr(?= GATES)", "flags": "", "to": "VAULT", "hits": 1, "pile": "c" },
+        { "box": 4, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 4, "find": "(?<=discern )magica\\b", "flags": "", "to": "magic", "hits": 1, "pile": "b" },
+        { "box": 5, "find": "(?<=- )Stasis(?= CHAMBER)", "flags": "", "to": "STASIS", "hits": 1, "pile": "c" },
+        { "box": 6, "find": "(?<=chrome )i(?= surround)", "flags": "", "to": "sarcophagi", "hits": 1, "pile": "b" },
+        { "box": 7, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
+        { "box": 10, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 13, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
+        { "box": 16, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 16, "find": "(?<=[a-z])'(?=s\\b)", "flags": "", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 17, "find": "(?<=- )TeLEpATHIC(?= NEXUS)", "flags": "", "to": "TELEPATHIC", "hits": 1, "pile": "c" },
+        { "box": 19, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 21, "find": "(?<=connected to a )ell(?= with)", "flags": "", "to": "metal box", "hits": 1, "pile": "b" },
+        { "box": 22, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 23, "find": "(?<=ARCANE )NEXxuUs$", "flags": "", "to": "NEXUS", "hits": 1, "pile": "c" },
+        { "box": 24, "find": "(?<=^A )i(?= machine)", "flags": "", "to": "strange", "hits": 1, "pile": "b" },
+        { "box": 25, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 26, "find": "(?<=- )Stasis(?= PRISON)", "flags": "", "to": "STASIS", "hits": 1, "pile": "c" },
+        { "box": 28, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
+        { "box": 29, "find": "(?<=STASIS )STOR AGE$", "flags": "", "to": "STORAGE", "hits": 1, "pile": "c" },
+        { "box": 31, "find": "^(?!»)\\S{1,4}(?: \\S{1,4}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
+        { "box": 32, "find": "^\\S{1,2} | \\S{1,2}$", "flags": "g", "to": "", "hits": 2, "pile": "a" },
+        { "box": 32, "find": "\\bCusTOM\\b", "flags": "", "to": "CUSTOM", "hits": 1, "pile": "c" },
+        { "box": 33, "find": "(?<=^Spells: [^\\n]*|^)(1)[%\"™]?(?=[,:]| - )", "flags": "gm", "to": "$1st", "hits": 2, "pile": "a" },
+        { "box": 33, "find": "(?<=^Spells: [^\\n]*|^)(2)[%\"™]?(?=[,:]| - )", "flags": "gm", "to": "$1nd", "hits": 2, "pile": "a" },
+        { "box": 33, "find": "(?<=^Spells: [^\\n]*|^)(3)[%\"™]?(?=[,:]| - )", "flags": "gm", "to": "$1rd", "hits": 2, "pile": "a" },
+        { "box": 33, "find": "(?<=^Spells: [^\\n]*|^)([456])[%\"™]?(?=[,:]| - )", "flags": "gm", "to": "$1th", "hits": 6, "pile": "a" },
+        { "box": 34, "find": "(?<=\\bHD \\d+)%(?=,)", "flags": "", "to": "*", "hits": 1, "pile": "a" },
+        { "box": 34, "find": "(?<=\\dd\\d+\\+\\d+ )\\S{1,3}(?= or\\b)", "flags": "", "to": "arcane", "hits": 1, "pile": "b", "glyph": "arcane" },
+        { "box": 34, "find": "(?<=\\dd\\d+\\+\\d+ )\\S{1,3}(?=\\),)", "flags": "", "to": "arcane", "hits": 1, "pile": "b", "glyph": "arcane" }
+      ]
+    }
+  },
+  {
+    "id": "jj.scenario8",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8",
+    "pages": [424],
+    "meta": { "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 46 }, "hash": "eheene" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 46, "y1": 153 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 153, "y1": 265 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 265, "y1": 325 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 325, "y1": 385 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 385, "y1": 563 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 563, "y1": 643 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 423, "y1": 445 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 445, "y1": 591 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 591, "y1": 657 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-1",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 1",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 643, "y1": 672 }, "number": "1" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 672, "y1": 713 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 713, "y1": 797 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-2",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 2",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 797, "y1": 826 }, "number": "2" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 826, "y1": 869 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 869, "y1": 932 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 932, "y1": 959 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-3",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 3",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 959, "y1": 988 }, "number": "3" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 988, "y1": 1035 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 0, "y1": 84 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-4",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 4",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 84, "y1": 113 }, "number": "4" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 113, "y1": 157 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 157, "y1": 203 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 203, "y1": 264 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-5",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 5",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 264, "y1": 293 }, "number": "5" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 293, "y1": 336 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 336, "y1": 398 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 398, "y1": 441 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 441, "y1": 503 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-6",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 6",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 503, "y1": 532 }, "number": "6" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 532, "y1": 575 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 575, "y1": 607 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-7",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 7",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 607, "y1": 635 }, "number": "7" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 635, "y1": 709 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 709, "y1": 807 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-8",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 8",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 807, "y1": 836 }, "number": "8" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 836, "y1": 879 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 879, "y1": 997 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 997, "y1": 1035 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-9",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 9",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 892, "x1": 1354, "y0": 0, "y1": 45 }, "number": "9" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 892, "x1": 1354, "y0": 45, "y1": 103 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 103, "y1": 148 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 148, "y1": 193 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario8-10",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 8 10",
+    "pages": [424],
+    "meta": { "space": "jj.scenario8", "group": "Scenario 8" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 892, "x1": 1354, "y0": 193, "y1": 222 }, "number": "10" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 892, "x1": 1354, "y0": 222, "y1": 281 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 281, "y1": 327 } },
+          { "box": { "x0": 892, "x1": 1354, "y0": 327, "y1": 423 } }
+        ]
+      }
+    }
+  }
+]

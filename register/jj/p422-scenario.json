@@ -1,0 +1,225 @@
+[
+  {
+    "id": "jj.picture422",
+    "kind": "kind.picture",
+    "book": "jj",
+    "name": "Picture 422",
+    "pages": [422],
+    "picture": {
+      "size": { "w": 1327, "h": 1026 },
+      "read": [
+        { "box": { "x0": 12, "x1": 444, "y0": 10, "y1": 44 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 444, "y0": 48, "y1": 537 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 541, "y1": 562 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 444, "y0": 574, "y1": 709 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 712, "y1": 735 }, "psm": 7 },
+        { "box": { "x0": 20, "x1": 431, "y0": 748, "y1": 806 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 817, "y1": 1010 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 12, "y1": 90 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 99, "y1": 114 }, "psm": 7 },
+        { "box": { "x0": 478, "x1": 854, "y0": 124, "y1": 168 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 180, "y1": 304 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 312, "y1": 327 }, "psm": 7 },
+        { "box": { "x0": 478, "x1": 854, "y0": 337, "y1": 380 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 394, "y1": 567 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 571, "y1": 590 }, "psm": 7 },
+        { "box": { "x0": 478, "x1": 850, "y0": 604, "y1": 616 }, "psm": 6 },
+        { "box": { "x0": 464, "x1": 866, "y0": 629, "y1": 1012 }, "psm": 6 },
+        { "box": { "x0": 960, "x1": 1260, "y0": 23, "y1": 56 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 934, "y0": 38, "y1": 54 }, "psm": 7 },
+        { "box": { "x0": 898, "x1": 930, "y0": 64, "y1": 78 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 64, "y1": 78 }, "psm": 7 },
+        { "box": { "x0": 898, "x1": 930, "y0": 118, "y1": 136 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 84, "y1": 174 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 930, "y0": 205, "y1": 219 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 183, "y1": 241 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 930, "y0": 263, "y1": 277 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 250, "y1": 290 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 930, "y0": 330, "y1": 344 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 302, "y1": 372 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 930, "y0": 420, "y1": 434 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 384, "y1": 469 }, "psm": 6 },
+        { "box": { "x0": 898, "x1": 930, "y0": 503, "y1": 517 }, "psm": 7 },
+        { "box": { "x0": 930, "x1": 1312, "y0": 481, "y1": 538 }, "psm": 6 },
+        { "box": { "x0": 940, "x1": 1262, "y0": 547, "y1": 558 }, "psm": 7 },
+        { "box": { "x0": 894, "x1": 1312, "y0": 568, "y1": 612 }, "psm": 6 }
+      ],
+      "corrections": [
+        { "box": 1, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 1, "find": "^\\S{1,4} (?=[a-z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 1, "find": "^s(?=inkhole\\b)", "flags": "m", "to": "S", "hits": 1, "pile": "b" },
+        { "box": 1, "find": "(?<=southern \\S{3})é(?=\\S{3}\\b)", "flags": "", "to": "ö", "hits": 1, "pile": "c" },
+        { "box": 3, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 5, "find": "(?<=and )\\S{2}(?= altars)", "flags": "", "to": "smashed", "hits": 1, "pile": "b" },
+        { "box": 6, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 7, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 8, "find": "(?<=Shrine of \\S{3})v(?=\\S{3}$)", "flags": "", "to": "y", "hits": 1, "pile": "c" },
+        { "box": 9, "find": "(?<=stands a )\\S{2,4} \\S{2,4}(?= silver)", "flags": "", "to": "gold inlaid", "hits": 1, "pile": "b" },
+        { "box": 10, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 10, "find": "(?<=Off) (?=erings)", "flags": "", "to": "", "hits": 1, "pile": "a" },
+        { "box": 11, "find": "(?<=Shrine of )l(?=\\S{4}$)", "flags": "", "to": "I", "hits": 1, "pile": "c" },
+        { "box": 13, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 13, "find": "(?<=depiction of )(?=\\S{4}\\.)", "flags": "", "to": "I", "hits": 1, "pile": "c" },
+        { "box": 13, "find": "(?<=prayer to )l(?=\\S{4}\\b)", "flags": "", "to": "I", "hits": 1, "pile": "c" },
+        { "box": 16, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 4, "pile": "a" },
+        { "box": 16, "find": "^[A-Z][a-z] (?=[A-Z][a-z]+ [A-Z][a-z]+:)", "flags": "m", "to": "", "hits": 1, "pile": "a" },
+        { "box": 16, "find": "\\b(\\d)and\\b", "flags": "", "to": "$1 and", "hits": 1, "pile": "a" },
+        { "box": 16, "find": "(?<=cave \\d)(?= in diameter)", "flags": "", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 16, "find": "\\b(\\d+)['’]x(\\d+)[\"”]", "flags": "", "to": "$1’×$2’", "hits": 1, "pile": "a" },
+        { "box": 24, "find": "(?<=\\dd)\\S{2,3}(?= Haunts)", "flags": "", "to": "10", "hits": 1, "pile": "c" },
+        { "box": 24, "find": "(?<=out of the )\\S{2,4} \\S(?= They)", "flags": "", "to": "ground.", "hits": 1, "pile": "b" },
+        { "box": 26, "find": "(?<=doses of \\(\\dd)(?=\\))", "flags": "", "to": "4", "hits": 1, "pile": "c" },
+        { "box": 28, "find": "(?<=elven point )\\S{2} \\S{5}(?= Roll)", "flags": "", "to": "of interest.", "hits": 1, "pile": "b" },
+        { "box": 29, "find": "^\\d$", "flags": "", "to": "11", "hits": 1, "pile": "c" },
+        { "box": 30, "find": "enthusiasticall$", "flags": "m", "to": "enthusiastically", "hits": 1, "pile": "b" },
+        { "box": 30, "find": "^hora (?=newest)", "flags": "m", "to": "explains his ", "hits": 1, "pile": "b" },
+        { "box": 30, "find": "(?<=character )io ine ona$", "flags": "m", "to": "succeeding on a", "hits": 1, "pile": "b" },
+        { "box": 30, "find": "(?<=on this )abl(?= to)", "flags": "", "to": "table", "hits": 1, "pile": "b" },
+        { "box": 33, "find": "\\bCustoM\\b", "flags": "", "to": "CUSTOM", "hits": 1, "pile": "c" },
+        { "box": 34, "find": "(?<=MV \\d\\d)°", "flags": "", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 34, "find": "(?<=\\dd\\d{1,2} )\\S{1,3}(?=\\),)", "flags": "", "to": "necrotic", "hits": 1, "pile": "b", "glyph": "necrotic" }
+      ]
+    }
+  },
+  {
+    "id": "jj.scenario6",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6",
+    "pages": [422],
+    "meta": { "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 46 }, "hash": "1rs11bi" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 46, "y1": 219 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 219, "y1": 295 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 295, "y1": 336 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 336, "y1": 445 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 445, "y1": 539 } },
+          { "box": { "x0": 934, "x1": 1327, "y0": 10, "y1": 58 } },
+          { "box": { "x0": 890, "x1": 934, "y0": 10, "y1": 58 } },
+          { "box": { "x0": 890, "x1": 932, "y0": 58, "y1": 81 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 58, "y1": 81 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 81, "y1": 178 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 81, "y1": 178 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 178, "y1": 246 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 178, "y1": 246 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 246, "y1": 296 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 246, "y1": 296 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 296, "y1": 378 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 296, "y1": 378 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 378, "y1": 474 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 378, "y1": 474 }, "continues": true },
+          { "box": { "x0": 890, "x1": 932, "y0": 474, "y1": 544 } },
+          { "box": { "x0": 932, "x1": 1327, "y0": 474, "y1": 544 }, "continues": true },
+          { "box": { "x0": 890, "x1": 1327, "y0": 544, "y1": 564 } },
+          { "box": { "x0": 890, "x1": 1327, "y0": 564, "y1": 616 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario6-1",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6 1",
+    "pages": [422],
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 539, "y1": 566 }, "number": "1" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 566, "y1": 596 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 596, "y1": 620 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 620, "y1": 711 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario6-2",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6 2",
+    "pages": [422],
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 711, "y1": 737 }, "number": "2" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 737, "y1": 813 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 813, "y1": 877 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 877, "y1": 919 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 919, "y1": 1026 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 0, "y1": 51 }, "continues": true },
+          { "box": { "x0": 456, "x1": 888, "y0": 51, "y1": 96 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario6-2a",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6 2a",
+    "pages": [422],
+    "meta": { "space": "jj.scenario6", "parent": "jj.scenario6-2", "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 96, "y1": 120 }, "number": "2a" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 120, "y1": 176 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 176, "y1": 239 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 239, "y1": 280 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 280, "y1": 311 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario6-2b",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6 2b",
+    "pages": [422],
+    "meta": { "space": "jj.scenario6", "parent": "jj.scenario6-2", "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 311, "y1": 332 }, "number": "2b" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 332, "y1": 388 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 388, "y1": 452 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 452, "y1": 543 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 543, "y1": 568 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario6-3",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 6 3",
+    "pages": [422],
+    "meta": { "space": "jj.scenario6", "group": "Scenario 6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 568, "y1": 597 }, "number": "3" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 597, "y1": 623 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 623, "y1": 689 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 689, "y1": 882 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 882, "y1": 957 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 957, "y1": 1026 } }
+        ]
+      }
+    }
+  }
+]

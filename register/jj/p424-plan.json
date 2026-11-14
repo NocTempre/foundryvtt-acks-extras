@@ -1,0 +1,35 @@
+[
+  {
+    "id": "jj.scenario8Map",
+    "kind": "kind.scene",
+    "book": "jj",
+    "name": "Scenario 8 Map",
+    "pages": [424],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: the picture is placed turned, the crop is the plan below the text columns, the grid block is one drawn square in the central chamber (measured on the lattice, both axes), and the distance is ACKS's assumed dungeon square (JJ ch. 8), the plan printing no scale. Pins sit on the numbered circles.",
+      "crop": { "x": 43.22, "y": 510.53, "w": 178.07, "h": 209.71 },
+      "turn": 1,
+      "place": "jj.scenario8",
+      "travel": "delve",
+      "places": [
+        { "id": "jj.scenario8-1", "at": [53.3, 625.37] },
+        { "id": "jj.scenario8-2", "at": [163.84, 623.93] },
+        { "id": "jj.scenario8-3", "at": [84.16, 591.97] },
+        { "id": "jj.scenario8-4", "at": [170.89, 531.5] },
+        { "id": "jj.scenario8-5", "at": [192.49, 595.81] },
+        { "id": "jj.scenario8-6", "at": [164.32, 703.93] },
+        { "id": "jj.scenario8-7", "at": [105.14, 688.9] },
+        { "id": "jj.scenario8-8", "at": [139.07, 559.33] },
+        { "id": "jj.scenario8-9", "at": [110.42, 576.61] },
+        { "id": "jj.scenario8-10", "at": [76.19, 679.79] }
+      ],
+      "grid": {
+        "family": "square",
+        "box": { "w": 8.64, "h": 8.64 },
+        "centre": [140.53, 611.55],
+        "distance": 10,
+        "units": "ft"
+      }
+    }
+  }
+]

@@ -1,0 +1,251 @@
+[
+  {
+    "id": "jj.picture425",
+    "kind": "kind.picture",
+    "book": "jj",
+    "name": "Picture 425",
+    "pages": [425],
+    "picture": {
+      "size": { "w": 1335, "h": 1032 },
+      "read": [
+        { "box": { "x0": 12, "x1": 444, "y0": 12, "y1": 44 }, "psm": 7 },
+        { "box": { "x0": 12, "x1": 444, "y0": 49, "y1": 439 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 441, "y1": 565 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 569, "y1": 889 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 891, "y1": 919 }, "psm": 7 },
+        { "box": { "x0": 19, "x1": 433, "y0": 928, "y1": 958 }, "psm": 6 },
+        { "box": { "x0": 12, "x1": 444, "y0": 969, "y1": 1012 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 15, "y1": 40 }, "psm": 7 },
+        { "box": { "x0": 475, "x1": 859, "y0": 51, "y1": 81 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 91, "y1": 130 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 137, "y1": 158 }, "psm": 7 },
+        { "box": { "x0": 475, "x1": 859, "y0": 169, "y1": 199 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 209, "y1": 309 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 312, "y1": 336 }, "psm": 7 },
+        { "box": { "x0": 475, "x1": 859, "y0": 346, "y1": 361 }, "psm": 7 },
+        { "box": { "x0": 468, "x1": 872, "y0": 371, "y1": 588 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 592, "y1": 613 }, "psm": 7 },
+        { "box": { "x0": 475, "x1": 859, "y0": 626, "y1": 656 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 666, "y1": 706 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 710, "y1": 732 }, "psm": 7 },
+        { "box": { "x0": 475, "x1": 859, "y0": 744, "y1": 789 }, "psm": 6 },
+        { "box": { "x0": 468, "x1": 872, "y0": 800, "y1": 1012 }, "psm": 6 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 11, "y1": 122 }, "psm": 6 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 127, "y1": 149 }, "psm": 7 },
+        { "box": { "x0": 901, "x1": 1315, "y0": 162, "y1": 192 }, "psm": 6 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 202, "y1": 278 }, "psm": 6 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 283, "y1": 302 }, "psm": 7 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 308, "y1": 537 }, "psm": 6 },
+        { "box": { "x0": 896, "x1": 1331, "y0": 541, "y1": 650 }, "psm": 6 }
+      ],
+      "corrections": [
+        { "box": 1, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 2, "pile": "a" },
+        { "box": 1, "find": "(?<=\\()J\\](?= p\\.)", "flags": "g", "to": "JJ", "hits": 2, "pile": "r" },
+        { "box": 1, "find": "(?<=southern \\S{3})é", "flags": "", "to": "ö", "hits": 1, "pile": "c" },
+        { "box": 2, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 2, "find": "(?<=\\()J\\](?= p\\.)", "flags": "g", "to": "JJ", "hits": 2, "pile": "r" },
+        { "box": 3, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 3, "find": "(?<=\\d)\"(?= [a-z])", "flags": "g", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 3, "find": "(?<=\\d) x (?=\\d)", "flags": "g", "to": " × ", "hits": 1, "pile": "a" },
+        { "box": 5, "find": "(?<=\\ba )i(?= opening)", "flags": "", "to": "large", "hits": 1, "pile": "b" },
+        { "box": 6, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 9, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 10, "find": "\\bEG(?= CHAMBER)", "flags": "", "to": "EGG", "hits": 1, "pile": "c" },
+        { "box": 12, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 13, "find": "\\bPooL$", "flags": "", "to": "POOL", "hits": 1, "pile": "c" },
+        { "box": 15, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 15, "find": "(?<=\\(\\d\\d)(?=\\) with)", "flags": "", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 16, "find": "\\bLizZARDMAN(?= LAIR$)", "flags": "", "to": "LIZARDMAN", "hits": 1, "pile": "c" },
+        { "box": 18, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 19, "find": "\\bLAR(?= oF)", "flags": "", "to": "LAIR", "hits": 1, "pile": "c" },
+        { "box": 19, "find": "\\boF\\b", "flags": "", "to": "OF", "hits": 1, "pile": "b" },
+        { "box": 19, "find": "(?<=\\bOF [A-Z])[a-z]{3}(?=[A-Z]{2}$)", "flags": "", "to": "IZZ", "hits": 1, "pile": "c" },
+        { "box": 21, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 3, "pile": "a" },
+        { "box": 21, "find": "(?<=platform \\d)(?= in diameter)", "flags": "", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 25, "find": "^(?!»)\\S{1,4}(?: \\S{1,3}){0,2}? (?=[A-Z]\\S*(?: \\S+){0,5}:)", "flags": "gm", "to": "", "hits": 1, "pile": "a" },
+        { "box": 25, "find": "(?<=,\\d{3} )i(?= The\\b)", "flags": "", "to": "gp).", "hits": 1, "pile": "b" },
+        { "box": 27, "find": "^HAT(?= \\d \\()", "flags": "m", "to": "#AT", "hits": 1, "pile": "c" },
+        { "box": 27, "find": "(?<=\\d\\+\\d )\\S{1,2}(?=, \\d)", "flags": "", "to": "slashing", "hits": 1, "pile": "b", "glyph": "slashing" },
+        { "box": 27, "find": "(?<=\\d\\+\\d )\\S{1,3}(?=\\),)", "flags": "", "to": "piercing", "hits": 1, "pile": "b", "glyph": "piercing" },
+        { "box": 27, "find": "(?<=\\d)\"(?= [a-z])", "flags": "g", "to": "’", "hits": 1, "pile": "a" },
+        { "box": 27, "find": "\\b(3)9,(?=\\d)", "flags": "g", "to": "$1rd, ", "hits": 1, "pile": "a" },
+        { "box": 27, "find": "(?<=, )(\\d)([4-6])[\"*™%]\\.$", "flags": "gm", "to": "$1 $2th.", "hits": 1, "pile": "a" },
+        { "box": 27, "find": "\\b(1)[%™*\"](?=,| -)", "flags": "g", "to": "$1st", "hits": 2, "pile": "a" },
+        { "box": 27, "find": "\\b(2)[%™*\"](?=,| -)", "flags": "g", "to": "$1nd", "hits": 2, "pile": "a" },
+        { "box": 27, "find": "\\b(3)[%™*\"](?=,| -)", "flags": "g", "to": "$1rd", "hits": 1, "pile": "a" },
+        { "box": 27, "find": "\\b([4-6])[%™*\"](?=,| -)", "flags": "g", "to": "$1th", "hits": 5, "pile": "a" },
+        { "box": 27, "find": "(?<=\\d) x (?=\\d)", "flags": "g", "to": " × ", "hits": 1, "pile": "a" },
+        { "box": 28, "find": "(?<=\\d\\+\\d )\\S{1,2}(?=, \\d)", "flags": "", "to": "slashing", "hits": 1, "pile": "b", "glyph": "slashing" },
+        { "box": 28, "find": "(?<=\\d\\+\\d )\\S{1,3}(?=\\),)", "flags": "", "to": "piercing", "hits": 1, "pile": "b", "glyph": "piercing" },
+        { "box": 28, "find": "\\b(1)[%™*\"],(?=\\d)", "flags": "g", "to": "$1st, ", "hits": 1, "pile": "a" },
+        { "box": 28, "find": "\\b(\\d)(3)[%™*\"],", "flags": "g", "to": "$1 $2rd,", "hits": 1, "pile": "a" },
+        { "box": 28, "find": "\\b(\\d)([4-6])[%™*\"],", "flags": "g", "to": "$1 $2th,", "hits": 1, "pile": "a" },
+        { "box": 28, "find": "\\b(2)[%™*\"](?=,| -)", "flags": "g", "to": "$1nd", "hits": 1, "pile": "a" },
+        { "box": 28, "find": "\\b([4-6])[%™*\"](?=,|$)", "flags": "gm", "to": "$1th", "hits": 2, "pile": "a" },
+        { "box": 28, "find": "(?<=\\d) x (?=\\d)", "flags": "g", "to": " × ", "hits": 1, "pile": "a" }
+      ]
+    }
+  },
+  {
+    "id": "jj.scenario9",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9",
+    "pages": [425],
+    "meta": { "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 0, "y1": 44 }, "hash": "5env81" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 44, "y1": 238 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 238, "y1": 279 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 279, "y1": 440 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 440, "y1": 466 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 466, "y1": 488 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 488, "y1": 567 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 567, "y1": 591 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 591, "y1": 613 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 613, "y1": 689 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 689, "y1": 798 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 798, "y1": 891 } },
+          { "box": { "x0": 890, "x1": 1335, "y0": 280, "y1": 303 } },
+          { "box": { "x0": 890, "x1": 1335, "y0": 303, "y1": 539 } },
+          { "box": { "x0": 890, "x1": 1335, "y0": 539, "y1": 700 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-1",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 1",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 0, "x1": 452, "y0": 891, "y1": 921 }, "number": "1" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 0, "x1": 452, "y0": 921, "y1": 963 } },
+          { "box": { "x0": 0, "x1": 452, "y0": 963, "y1": 1030 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-2",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 2",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 0, "y1": 44 }, "number": "2" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 44, "y1": 86 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 86, "y1": 133 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-3",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 3",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 133, "y1": 162 }, "number": "3" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 162, "y1": 204 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 204, "y1": 248 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 248, "y1": 312 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-4",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 4",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 312, "y1": 341 }, "number": "4" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 341, "y1": 366 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 366, "y1": 516 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 516, "y1": 590 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-5",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 5",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 590, "y1": 619 }, "number": "5" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 619, "y1": 661 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 661, "y1": 708 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-6",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 6",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 456, "x1": 888, "y0": 708, "y1": 737 }, "number": "6" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 456, "x1": 888, "y0": 737, "y1": 793 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 793, "y1": 841 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 841, "y1": 900 } },
+          { "box": { "x0": 456, "x1": 888, "y0": 900, "y1": 1030 } },
+          { "box": { "x0": 890, "x1": 1335, "y0": 0, "y1": 85 }, "continues": true },
+          { "box": { "x0": 890, "x1": 1335, "y0": 85, "y1": 124 } }
+        ]
+      }
+    }
+  },
+  {
+    "id": "jj.scenario9-6b",
+    "kind": "kind.location",
+    "book": "jj",
+    "name": "Scenario 9 6b",
+    "pages": [425],
+    "meta": { "space": "jj.scenario9", "group": "Scenario 9", "parent": "jj.scenario9-6" },
+    "ocr": {
+      "name": { "op": "heading", "box": { "x0": 890, "x1": 1335, "y0": 124, "y1": 155 }, "number": "6b" },
+      "description": {
+        "op": "text",
+        "paras": [
+          { "box": { "x0": 890, "x1": 1335, "y0": 155, "y1": 198 } },
+          { "box": { "x0": 890, "x1": 1335, "y0": 198, "y1": 280 } }
+        ]
+      }
+    }
+  }
+]

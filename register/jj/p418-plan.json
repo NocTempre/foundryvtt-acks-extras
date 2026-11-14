@@ -1,0 +1,28 @@
+[
+  {
+    "id": "jj.scenario2Map",
+    "kind": "kind.scene",
+    "book": "jj",
+    "name": "Scenario 2 Map",
+    "pages": [418],
+    "scene": {
+      "note": "Geometry in page points, top-left origin: the picture is placed turned, the crop is the plan below the middle column's text, the grid block is one drawn floor square in the plan's left room (its size measured on the drawn lattice, both axes), and the distance is ACKS's assumed dungeon square (JJ ch. 8), the plan printing no scale. Pins sit on the numbered circles.",
+      "crop": { "x": 54.59, "y": 294.4, "w": 152.53, "h": 205.84 },
+      "turn": 1,
+      "place": "jj.scenario2",
+      "travel": "delve",
+      "places": [
+        { "id": "jj.scenario2-1", "at": [75.55, 463.3] },
+        { "id": "jj.scenario2-2", "at": [129.9, 414.5] },
+        { "id": "jj.scenario2-3", "at": [149.9, 340.94] }
+      ],
+      "grid": {
+        "family": "square",
+        "box": { "w": 12.8, "h": 12.8 },
+        "centre": [117.91, 339.12],
+        "distance": 10,
+        "units": "ft"
+      }
+    }
+  }
+]
