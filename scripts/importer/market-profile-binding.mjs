@@ -142,9 +142,9 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
       const unmapped = [];
       const duplicates = [];
       const taken = new Set();
-      // Judge-aliased columns first: where two columns feed one good, the one
-      // the Judge mapped on purpose stands and the default-mapped one is the
-      // duplicate. Otherwise page order decides.
+      // Judge-aliased columns first: where two columns feed one good, the
+      // aliased one stands and the default-mapped one is the duplicate;
+      // otherwise page order decides.
       const judged = (column) => (resolve.judged?.(column, header[column]) ? 0 : 1);
       const columns = Object.entries(row.cells ?? {}).sort(([a], [b]) => judged(a) - judged(b));
       for (const [column, cell] of columns) {
@@ -173,7 +173,8 @@ export function marketProfiles({ grids = [], records = {}, resolve }) {
       const recordClass = parseMarketClass(record?.marketClass);
       out.push({
         market: row.key,
-        // The domain record is the market's own entry; the grid is a summary.
+        // The record's class outranks the grid's (docs/markets/DECISIONS.md,
+        // "A setting book's market profile lands as the base").
         marketClass: recordClass ?? gridClass,
         gridClass,
         recordClass,
