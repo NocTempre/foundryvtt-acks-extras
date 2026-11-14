@@ -501,12 +501,10 @@ async function repairActors({ monsters = [], rewrites = [] }, actors, tally) {
       countRepair(tally, done?.ok ? done : (done?.reason ?? "error"));
     }
   }
-  // Every document claiming a rewritten id is written: one pass per document
-  // a claim has, each holding one document per claim, so two documents under
-  // one claim are both built over. A claimer another kind owns is left. An
-  // entry is built only in a pass that holds its own claim: these importers
-  // create without asking presence, so a build with nothing held under its
-  // claim would make a twin.
+  // One pass per document a claim has, each holding one document per claim, so
+  // every document under a claim is built over. A claimer another kind owns is
+  // left. An entry is built only in a pass that holds its own claim: these
+  // importers create without asking presence, so any other build makes a twin.
   const living = actors.filter((doc) => !doc.flags?.[MODULE_ID]?.templatePart);
   const { passes, missing: unclaimed, foreign } = claimerPasses(rewrites, living, { claimOf: claimedId, kinds: IMPORT_KINDS });
   missing.push(...unclaimed);
@@ -526,7 +524,7 @@ async function repairActors({ monsters = [], rewrites = [] }, actors, tally) {
  * Repair the ticked entries in place: a stat-block monster is refilled whole
  * (`refillMonster`), every other kind's run writes its entries over the
  * documents that hold them and imports the ones the world lacks, and rules
- * tables merge as they always do; one pass of a merged repair, under `tally`.
+ * tables are read again; one pass of a merged repair, under `tally`.
  * A kind no run writes in place is deleted and imported again under the same
  * id (`stableDocId`), on the first pass only; a pregenerated character the
  * world holds is listed for the Judge and acted on as answered (`repairPregens`).
@@ -619,16 +617,14 @@ async function repairEntries(picked, closed, { tally, quiet = false, ask = null 
 /* -------------------------------------------- */
 
 /**
- * Which importer refills each top-level shelf. The shelves themselves are not
- * listed here — `ITEM_SHELF` already says which id namespaces land on which
- * shelf; this names only which run rebuilds one once it is empty. Every
- * importer here is dedup-driven, so it also imports whatever of its domain
- * the world never held. See docs/importer/DECISIONS.md, "Three controls, not
- * twenty-one".
+ * Which importer refills each top-level shelf (`ITEM_SHELF` says which id
+ * namespaces land on which shelf). Every importer here is dedup-driven, so it
+ * also imports whatever of its domain the world never held. See
+ * docs/importer/DECISIONS.md, "Three controls, not twenty-one".
  */
 export const SHELF_REFILL = {
-  // A book run, which may need several, runs them in this order. It is the
-  // import chain's order except that merchandise precedes traps here.
+  // A book run that needs several runs them in this order: the import chain's,
+  // except that merchandise precedes traps.
   Proficiencies: "cookbookImportAbilities",
   "Class Powers": "cookbookImportAbilities",
   Drawbacks: "cookbookImportAbilities",
@@ -719,12 +715,11 @@ export async function cookbookReimportShelf(shelf = null, { mode, ask = null, de
  * What a rebuild control offers, in groups: every shelf that can be rebuilt
  * on its own (a shelf no run writes in place says so beside its name), every
  * book open on this seat with something to rebuild, and the rules tables,
- * which are no shelf — they are read into the ruledata store and merge there,
- * so their options re-read in place and delete nothing; one document may be
- * re-read alone, seconds where the whole store is minutes. An option's
- * `value` is `<kind>:<id>`, which `runRebuildPick` dispatches on. The
+ * which are no shelf: they merge into the ruledata store, so their options
+ * re-read in place and delete nothing, every table or one document alone. An
+ * option's `value` is `<kind>:<id>`, which `runRebuildPick` dispatches on. The
  * Reimport One Shelf dialog and the import manager's Rebuild tab both draw
- * from here, so they can never offer different things.
+ * from here.
  * @returns {{key: string, label: string, options: {value: string, label: string}[]}[]}
  */
 export function rebuildOptions() {
@@ -1401,10 +1396,8 @@ export const ENTRY_SOURCES = [
     make: { run: "cookbookImportTables", takes: ["ids"] },
     chain: "stepTables",
     // A ruledata document's row names the document and cites the pages its
-    // recipes read; the tables under it are not offered separately because the
-    // store's unit is the document, which is what a merge writes. Present means
-    // the import's own layer holds it: a sample a module registers under the
-    // same id is not an import.
+    // recipes read; the store's unit is the document, so its tables are not
+    // offered separately. Present means the world layer holds it.
     entries: () =>
       Object.entries(TABLE_RECIPES).map(([docId, rec]) => [
         docId,
@@ -1622,8 +1615,7 @@ export const IMPORT_KINDS = Object.freeze([...ENTRY_SOURCES, ...TABLE_SHELF_KIND
  * (`runSetFor`): `{shelf}`, `{book}`, `{entries: [claim, ...]}` or `{all: true}`.
  * A book scope names what a book repair writes, in `SHELF_REFILL`'s order, and
  * the book's own rows, wherever the book has a cookbook, as one
- * `runAdventureBookSteps`; `all` is in the import chain's order. Nothing calls
- * it yet.
+ * `runAdventureBookSteps`; `all` is in the import chain's order.
  * @returns {{runs: {run: string, kinds: string[], ids?: string[], book?: string}[], unowned: string[]}}
  */
 export const cookbookRunSet = (scope) =>
@@ -1673,8 +1665,8 @@ const rebuildable = (id) => {
  *
  * Every dot-ancestor of a claim is recorded beside the claim itself, so a
  * vehicle entry whose rows are present reads as present without a scan per
- * entry. An id that is a strict prefix of an unrelated claim would read present
- * wrongly; the row's own checkbox still imports it, and a mark is not a gate.
+ * entry. An id that is a strict prefix of an unrelated claim reads present
+ * wrongly; the mark is informational and the row's checkbox still imports it.
  */
 function claimedEntryIds(docs) {
   const have = new Set();
@@ -1688,9 +1680,8 @@ function claimedEntryIds(docs) {
 }
 
 /**
- * Filter / select-all / count wiring shared by nothing else — the picker below
- * owns it. Rows carry their own searchable text and present-mark in datasets;
- * this only reads them.
+ * Filter / select-all / count wiring for the entry picker. Rows carry their own
+ * searchable text and present-mark in datasets; this only reads them.
  */
 function wireEntryPicker(root, listEl) {
   const count = root.querySelector(".acks-extras-importer-abil-count");
@@ -1706,8 +1697,7 @@ function wireEntryPicker(root, listEl) {
     for (const r of all()) {
       const ok = r.dataset.name.includes(q) && (!hide || r.dataset.have === "0");
       r.style.display = ok ? "" : "none";
-      // A hidden row must not stay selected: what the list shows is the only
-      // honest account of what pressing the button will do.
+      // A hidden row is deselected, so the visible list is what the button acts on.
       if (!ok) r.querySelector('input[name="sel"]').checked = false;
     }
     tally();
@@ -1752,9 +1742,8 @@ export async function cookbookReimportEntries() {
     if (!entries.length) return "";
     total += entries.length;
     const group = game.i18n.localize(`${LANG_PREFIX}.ui.reimportKind${src.key}`);
-    // A source that is not documents answers for its own presence — the claim
-    // index is built from document flags and knows nothing about the ruledata
-    // store.
+    // A source that is not documents answers for its own presence: the claim
+    // index is built from document flags, not the ruledata store.
     const held = (id) => (src.present ? src.present(id) : have.has(id));
     // A row no run writes in place is marked: a repair deletes it and imports it
     // again under the same id (`repairEntries`). A pregenerated character is left, unmarked.
@@ -1846,8 +1835,8 @@ async function runEntryReimport(all, { mode, decision = null, choose = null } = 
  *
  * Three identities: this module's own cookbook flag; `flags[MODULE_ID]
  * .templatePart` on the class-template bundles, their skinned gear and the
- * per-class 3d6 tables (world documents by design); and the ruledata
- * provider's own count, which it removes itself. A map stood up from a
+ * per-class 3d6 tables (world documents); and the ruledata provider's own
+ * count, which it removes itself. A map stood up from a
  * recipe is a world Scene carrying the first, and so are the places and
  * organisations brought into the world for it to stand on.
  *
@@ -1869,19 +1858,16 @@ export async function cookbookRemoveImports() {
     // re-parents them instead of taking them with it.
     ["Folder", game.folders.filter(mine)],
   ];
-  // The packs themselves, found by LABEL rather than through `packFor` — a
-  // world can hold packs this session has never opened, and a clean slate has
-  // to reach those too.
+  // The packs themselves, found by label rather than through `packFor`, so a
+  // pack this session never opened is reached too.
   const ourPacks = game.packs.filter(
     (p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(`${FOLDER_NAME} — `),
   );
   const packed = ourPacks.reduce((n, p) => n + p.index.size, 0);
-  // The rules-table import also materialized documents (RollTables, their
+  // The rules-table import also materializes documents (RollTables, their
   // folders, the JSON journal) through the ruledata provider, which stamps no
-  // cookbook flag; the provider counts and removes only the sidebar ones,
-  // since its shelf ones go with the packs above. The imported table DATA
-  // (the world store the automation reads) stays: this is a tidy-up, not an
-  // un-import.
+  // cookbook flag; the provider counts and removes only the sidebar ones, since
+  // its shelf ones go with the packs above. The imported table data stays.
   const ruledata = services.get("ruledata-import");
   const materialized = ruledata?.countMaterializedDocs?.({ sidebar: true }) ?? 0;
   const total = groups.reduce((n, [, docs]) => n + docs.length, 0) + packed + materialized;
@@ -1906,8 +1892,7 @@ export async function cookbookRemoveImports() {
       console.warn(`${MODULE_ID} | remove ${type}`, err);
     });
   }
-  // The packs themselves go — a re-import recreates them, and an empty
-  // "ACKS Cookbook — Actor" left behind is just clutter.
+  // The packs go too; a re-import recreates them.
   for (const p of ourPacks) {
     await p.deleteCompendium().catch((err) => console.warn(`${MODULE_ID} | remove pack ${p.collection}`, err));
   }
@@ -1922,11 +1907,8 @@ export async function cookbookRemoveImports() {
 }
 
 /**
- * The pack labels a batch of ids writes to, as one quoted list.
- *
- * A run walks every open book, and books from different lines go to different
- * compendia — so naming one pack in the report would send a Judge to a shelf
- * their Dolmenwood creatures are not on.
+ * The pack labels a batch of ids writes to, as one quoted list: a run walks
+ * every open book, and books from different lines go to different compendia.
  */
 export const packLabelsFor = (type, ids) =>
   [...new Set(ids.map((id) => packLabel(type, lineOf(bookOfCookbookId(id)))))].sort().join('", "');

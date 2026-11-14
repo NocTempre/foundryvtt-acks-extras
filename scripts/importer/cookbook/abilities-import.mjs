@@ -25,9 +25,8 @@ import { importAbility, abilityData, resolveCompanions } from "./actor-import.mj
 /**
  * GM: browse every shipped ability and pick which to import.
  *
- * The counterpart to the monster import dialog. The header says which books
- * are open, because an ability imports from its book alone: one whose book is
- * not open on this seat is passed over, and the closing notice says how many.
+ * The header lists the books open on this seat; an ability whose book is not
+ * open is passed over, and the closing notice says how many.
  */
 export async function cookbookImportAbilitiesDialog() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
@@ -38,9 +37,7 @@ export async function cookbookImportAbilitiesDialog() {
   if (!rows.length) return ui.notifications.warn(`${MODULE_ID} | no abilities in the shipped cookbook.`);
   rows.sort((a, b) => a.name.localeCompare(b.name));
 
-  // The present marks have to name the shelf the import writes to, or a
-  // compendium-mode world shows every ability as missing and the GM ticks a
-  // list they already hold.
+  // The present marks read the shelf the import writes to.
   const have = new Set((await importedIndex()).keys());
   const openBooks = [...new Set(rows.map((r) => r.book))].filter((b) => ctx.sessionDocs.has(b));
   const cats = [...new Set(rows.map((r) => r.category))].sort();
@@ -161,9 +158,8 @@ export async function cookbookImportAbilities({ only = null } = {}) {
     let batch = [];
     const flush = async () => {
       if (!batch.length) return;
-      // `createDocs` teaches the dedup index itself: every document it makes
-      // goes through `remembered`, which reads the id off the document's own
-      // flag, never the batch's position.
+      // `createDocs` teaches the dedup index itself, reading each id off the
+      // document's own flag.
       const written = await createDocs(Item, batch.map((b) => b.data));
       made += written.filter(Boolean).length; // positional: nulls are failures, not imports
       batch = [];
@@ -204,15 +200,10 @@ function proseExcerpt(html, max = 160) {
 }
 
 /**
- * The name a kept-by-its-owner ability moves to.
- *
- * The rename is only worth anything if the new name stops folding to the
- * definition: folded names are how Update adopts an unflagged item, so a marker
- * that folds away to nothing would let the next run adopt the item again and
- * take the prose after all. Folding drops case and punctuation, so the marker
- * has to carry letters. A counter is added in the pathological case where a
- * shipped definition prints the marked name — bounded because each attempt is a
- * distinct name and only the finitely many in the index can collide.
+ * The name a kept-by-its-owner ability moves to: the marked name, with a
+ * counter appended while the index still resolves it to a definition.
+ * The marker carries letters, since name folding drops case and punctuation.
+ * See docs/importer/DECISIONS.md, "A name-adopted ability whose prose is a Judge's is asked about once".
  */
 function asideName(index, present, name) {
   const marked = (n) => game.i18n.format(`${LANG_PREFIX}.ui.renamedName`, { name: n });
@@ -225,11 +216,9 @@ function asideName(index, present, name) {
  * Ask what happens to each name-adopted ability whose description Update would
  * replace, and resolve to a row index -> "rename" | "overwrite" map.
  *
- * ONE dialog for the whole run, with apply-to-all on both choices: a world that
- * imported the corpus produces collisions by the hundred, and a per-item prompt
- * a GM cannot answer in bulk gets clicked through, which is the same data loss
- * with more steps. Dismissal returns an empty map — every ambiguous item is
- * then left exactly as it was, because a closed dialog is not consent.
+ * One dialog for the whole run, with apply-to-all on both choices. Dismissal
+ * returns an empty map: every ambiguous item is left as it was.
+ * See docs/importer/DECISIONS.md, "A name-adopted ability whose prose is a Judge's is asked about once".
  */
 async function askAboutAdoptedProse(rows) {
   const label = {
@@ -297,9 +286,9 @@ async function askAboutAdoptedProse(rows) {
 }
 
 /**
- * Put the module's own item for a definition where the original one lives — on
- * the actor holding it, or in the item library. Never a second copy: a holder
- * that already carries this definition needs nothing added.
+ * Put the module's own item for a definition beside the original: on the actor
+ * holding it, or in the item library. Adds nothing where the holder already
+ * carries the definition.
  */
 async function placeGeneratedBeside(holder, id, built) {
   if (!holder) return (await importedItem(id)) ? null : importAbility(id, null);
@@ -312,15 +301,12 @@ async function placeGeneratedBeside(holder, id, built) {
  * GM: refresh every ability already in the world — loose items AND the
  * copies embedded on actors — against the current cookbook.
  *
- * Matched by cookbook id first, then by folded NAME, so abilities made by
- * hand or imported earlier get adopted and repaired rather than duplicated. Only the generated surface is rewritten; the item's name and
- * the system fields a GM may have tuned are left alone.
+ * Matched by cookbook id first, then by folded NAME. Only the generated
+ * surface is rewritten; the item's name and the system fields a GM may have
+ * tuned are left alone.
  *
  * An item this module FLAGGED is rewritten outright. An item matched only by
- * NAME is somebody else's, so its description is never replaced silently:
- * those are collected during the walk and settled by one dialog afterwards.
- * Both outcomes are idempotent — running twice leaves the same world as
- * running once.
+ * NAME has its description settled by one dialog after the walk. Idempotent.
  * A page is extracted once per run, however many definitions print on it.
  * See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create"
  * and "A bulk import reads each page once".
@@ -334,16 +320,12 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
   const index = abilityNameIndex();
   if (!index.size) return ui.notifications.warn(`${MODULE_ID} | no abilities in the shipped cookbook.`);
 
-  // Which definitions the world already holds — the signal that resolves a
-  // name collision without guessing.
+  // Which definitions the world already holds: the signal that resolves a name collision.
   const present = new Set((await importedIndex()).keys());
   const nodeCache = new Map();
-  // One extraction per page for the whole run: a page prints several
-  // definitions, and each is re-executed once. Ladders are resolved apart, with
-  // their own reads.
+  // One extraction per page for the whole run. Ladders are resolved apart, with their own reads.
   const pageCache = runPageCache();
-  // Resolved once per definition like the node it sits beside: expanding a
-  // fromLadders spec re-executes another entry, and a sweep touches many copies.
+  // Resolved once per definition: expanding a fromLadders spec re-executes another entry.
   const ladderCache = new Map();
   let updated = 0;
   let adopted = 0;
@@ -355,24 +337,18 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
   let overwritten = 0;
   let kept = 0;
   let preserved = 0;
-  // Entries passed over because their book is not open on this seat. Counted
-  // apart from `preserved`: that one reports a Judge's own writing kept against
-  // a rebuild that happened, and these had no rebuild worth writing.
+  // Entries passed over because their book is not open on this seat; counted apart from `preserved`.
   let unread = 0;
-  // Name-adopted items whose description carries someone else's writing. The
-  // write is held back until the GM has answered for them.
+  // Name-adopted items whose description carries someone else's writing; held back until the GM answers.
   const collisions = [];
-  // Guessed resolutions by name, reported once each after the walk: a world
-  // holds many copies of one ability, one per actor that carries it.
+  // Guessed resolutions by name, reported once each after the walk.
   const guesses = new Map();
-  /** Rewrite the generated surface — the descriptor, the cookbook id, the
+  /** Rewrite the generated surface: the descriptor, the cookbook id, the
    * extras. The written extras carry a forced deletion for every optional
-   * subkey the rebuild no longer emits (ABILITY_EXTRAS_OPTIONAL), in a copy —
-   * `built` stays clean for the create path, which must not carry deletions
-   * into fresh documents.
+   * subkey the rebuild no longer emits (ABILITY_EXTRAS_OPTIONAL), in a copy,
+   * so `built` stays clean for the create path.
    *
-   * `keepProse` holds back the description and nothing else; the mechanics
-   * are always rewritten. */
+   * `keepProse` holds back the description and nothing else. */
   const writeGenerated = (doc, built, { keepProse = false } = {}) => {
     const extras = { ...built.flags[MODULE_ID].extras };
     for (const key of ABILITY_EXTRAS_OPTIONAL) {
@@ -387,9 +363,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       [`flags.${MODULE_ID}.extras`]: extras,
     });
   };
-  // Counted first: this walks every ability in the world, actors included, and
-  // re-extracts each definition it has not seen — hundreds of items on a world
-  // that imported the whole corpus.
+  // Counted first, so the bar has a total: the walk covers every ability in the world, actors included.
   const all = await allAbilities();
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressUpdate`), all.length);
   try {
@@ -416,9 +390,8 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
         nodeCache.set(id, read.node);
       }
       const node = nodeCache.get(id);
-      // Nothing was read — this entry's book is not open on this seat, or its
-      // extraction failed — so nothing can be rebuilt from it. Left exactly
-      // as it is: connect the book and run it again.
+      // Nothing was read (the entry's book is not open on this seat, or its
+      // extraction failed): left as it is.
       // See docs/importer/DECISIONS.md, "Importing again refreshes what it did not create".
       if (!node) {
         unread++;
@@ -426,19 +399,16 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
       }
       if (!ladderCache.has(id)) ladderCache.set(id, await laddersForEntry(found.entry));
       const built = bindAbility(found.entry, node, id, {
-        // A copy that recorded arriving under an older name keeps saying so.
+        // A copy that recorded its conversion status keeps it.
         ...(extras.conversionStatus ? { conversionStatus: extras.conversionStatus } : {}),
         ...(extras.conversionFrom ? { conversionFrom: extras.conversionFrom } : {}),
         ...(ladderCache.get(id) ? { ladders: ladderCache.get(id) } : {}),
       });
       built.flags[MODULE_ID].extras.effects = await resolveCompanions(built.flags[MODULE_ID].extras.effects);
-      // Authorship of the ITEM and authorship of its DESCRIPTION are
-      // different questions: a Judge who annotated a description this
-      // module created still wrote those words.
+      // Authorship of the item and of its description differ: an annotated description is the Judge's.
       const prose = doc.system?.description;
-      // A forced repair writes the description of a document this module made
-      // whatever a Judge put in it; a document it did not make (`!flagged`) is
-      // still the Judge's own and still waits for an answer.
+      // A forced repair writes the description of a document this module made;
+      // an unflagged document is still the Judge's and waits for an answer.
       // An edit inside the block the import wrote is the Judge's too (`editedInBlocks`).
       const edited = !!flagged && editedInBlocks(doc.flags?.[MODULE_ID]?.cookbook?.sums, "system.description", prose);
       let annotated = (handWrittenProse(prose) || edited) && !(flagged && repair?.force);
@@ -480,9 +450,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
   }
 
   if (collisions.length) {
-    // A forced repair is not an answer to "whose is this": the documents here
-    // are the Judge's own by name, and each is left as it is.
-    // A merged repair's second pass already had its answer from the first.
+    // A forced repair leaves each of these as it is; a merged repair's second pass reuses the first's answer.
     const choices = repair?.force || repair?.answered ? new Map() : await askAboutAdoptedProse(collisions);
     kept = collisions.length - choices.size;
     if (repair?.force) repair.handMade += kept;
@@ -499,9 +467,7 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
           overwritten++;
           continue;
         }
-        // The original moves aside with its prose and its own flags untouched;
-        // the reference is created beside it, flagged, so later runs maintain
-        // that one and leave this one alone forever.
+        // The original moves aside untouched; the flagged reference is created beside it.
         await row.doc.update({ name: row.aside });
         renamed++;
         if (await placeGeneratedBeside(row.on, row.id, row.built)) created++;
@@ -536,11 +502,8 @@ export async function cookbookUpdateAbilities({ only = null, repair = null } = {
 }
 
 /**
- * Ability items this module generated whose definition no longer exists. A
- * withdrawn definition's items stay behind in every world that imported
- * them, pointing at nothing. They are unambiguously ours (minted, with a
- * cookbook id that no longer resolves), which is what makes them safe to
- * offer for removal.
+ * Ability items this module generated whose definition no longer exists:
+ * minted items carrying a cookbook id that no longer resolves.
  */
 export async function danglingAbilities() {
   const out = [];
@@ -554,9 +517,7 @@ export async function danglingAbilities() {
 }
 
 /**
- * GM: remove those items, after showing exactly what will go. Never silent —
- * deleting documents out of someone's world is not a thing to do quietly, even
- * when they are certainly stale.
+ * GM: remove those items, after listing exactly what will go in a confirm dialog.
  */
 export async function cookbookPruneAbilities() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
@@ -580,10 +541,8 @@ export async function cookbookPruneAbilities() {
 /**
  * GM-only Import All / Update All buttons at the top of the Item directory.
  *
- * Both are idempotent, which is what makes them safe to hand a GM: importing
- * twice reuses the existing items rather than duplicating them, and updating
- * only rewrites the generated surface. Buttons disable while running — these
- * touch every ability in the world and a double-click would interleave.
+ * Both are idempotent: importing twice reuses the existing items, and updating
+ * only rewrites the generated surface. Buttons disable while a run is in flight.
  */
 export function registerAbilityDirectoryButtons() {
   Hooks.on("renderItemDirectory", (app, element) => {
@@ -619,7 +578,6 @@ export function registerAbilityDirectoryButtons() {
     );
     (root.querySelector(".directory-header") ?? root).prepend(bar);
   });
-  // The sidebar renders before this module's `ready` runs, so the hook above
-  // misses that first pass — re-render once to catch it.
+  // The sidebar renders before `ready`, so the hook above misses that first pass.
   if (ui.items?.rendered) ui.items.render();
 }

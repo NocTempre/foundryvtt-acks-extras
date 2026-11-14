@@ -11,9 +11,12 @@
  * since) is not run.
  */
 
+/** The modes `reimportEverything` accepts. */
 export const EVERYTHING_MODES = Object.freeze(["drop", "repair", "force"]);
 
 /**
+ * Asks every part its question, shows them in one confirm, and on a Yes runs
+ * the parts that asked.
  * @param {object} o
  * @param {"drop"|"repair"|"force"} o.mode
  * @param {{label: string, run: (ask: Function) => Promise<unknown>}[]} o.parts
