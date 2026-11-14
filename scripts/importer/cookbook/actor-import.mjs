@@ -26,22 +26,19 @@ import {
 import { laddersForEntry, liftBookSpells } from "./classes.mjs";
 
 /**
- * Run a list of entry ids through importOne with a progress bar, bounded to
- * IMPORT_CONCURRENCY at a time.
+ * Run a list of entry ids through importOne with a progress bar, at most
+ * IMPORT_CONCURRENCY at a time; returns how many produced an actor.
  *
- * Each import parses pages out of the seat's PDF, so a whole book is minutes of
- * work: without feedback the client looks hung. Errors are per-entry — one
- * unreadable page must not abandon the other 286 — and the shared iterator means
- * a slow entry never blocks a free worker from starting the next.
+ * Errors are per entry: a failed one is logged and the batch carries on. The
+ * workers share one iterator, so a slow entry never holds up the next.
  */
 export async function importMany(ids, label) {
   const total = ids.length;
   const bar = progressBar(label, total);
   let done = 0;
   try {
-    // Every id names its OWN book (a batch may span every connected book) and its
-    // own destination folder; the tree is built up front so the workers below
-    // only ever read the cache.
+    // Every id names its own book and destination folder; the tree is built up
+    // front so the workers only read the cache.
     await prepareFolders("Actor", ids);
     const it = ids[Symbol.iterator]();
     const worker = async () => {
@@ -87,18 +84,17 @@ export async function importOne(bookId, id, folderId) {
   }
   const { system, items, flags, prototypeToken } = bindMonster(node);
 
-  // The Full Monster Sheet is acks-extras' own sheet. Prose always routes to
-  // its extras flag; system.details.biography is never a fallback destination.
+  // Prose routes to the Full Monster Sheet's extras flag, never to
+  // system.details.biography.
   const { extras } = monsterProseChannels(node, id, found.entry.cite);
 
-  // FILE IT NOW: the stat block has just told us the creature's TYPE, the axis
-  // monsters are grouped by, and nothing afterwards decides a destination.
+  // FILE IT NOW: the stat block's type decides the destination, and nothing
+  // afterwards does.
   const typed = primaryTypeOf(node);
   const folder = (await actorFolderFor(id, found, { type: typed }))?.id ?? folderId;
 
-  // ONE write, not four: the embedded items, the cookbook id and the FMS extras
-  // fold into the single create rather than costing a socket round-trip each.
-  // Art follows separately — it needs the uploaded file path.
+  // One create carries the embedded items, the cookbook id and the extras. Art
+  // follows separately: it needs the uploaded file path.
   const actor = await createDoc(Actor, {
     // A person's row ships a neutral label; the name is the page's own.
     name: printedNameOf(node, found.entry.name),
@@ -106,17 +102,16 @@ export async function importOne(bookId, id, folderId) {
     folder,
     system,
     ...(prototypeToken ? { prototypeToken } : {}),
-    // Merge, don't replace: an embedded shared ability keeps its cookbook id
-    // (that id is what marks it as the shared one).
+    // Merged, so an embedded shared ability keeps its cookbook id, which marks
+    // it as the shared one.
     items: items.map((i) => ({
       ...i,
       flags: { ...(i.flags ?? {}), [MODULE_ID]: { ...(i.flags?.[MODULE_ID] ?? {}), minted: true } },
     })),
     flags: {
       ...(flags ?? {}),
-      // The stat block's TYPE rides on OUR flag, not only the Full Monster
-      // Sheet's extras: it is the axis monsters are filed by, and a monster
-      // with no extras would otherwise have nothing to group on.
+      // The stat block's type also rides on this module's flag: monsters are
+      // filed by it, and one with no extras has nothing else to group on.
       [MODULE_ID]: {
         ...((flags ?? {})[MODULE_ID] ?? {}),
         cookbook: { id, cite: found.entry.cite, ...(typed ? { type: typed } : {}) },
@@ -124,9 +119,7 @@ export async function importOne(bookId, id, folderId) {
       },
     },
   });
-  // Foundry reports a schema-validation failure and returns undefined rather
-  // than throwing, so an unimportable monster reads as one skipped rather
-  // than a crash in the importer.
+  // Foundry returns undefined on a schema-validation failure instead of throwing.
   if (!actor) {
     ui.notifications.warn(`${MODULE_ID} | ${found.entry.name}: the system rejected the extracted stats — skipped (see console).`);
     return null;
@@ -192,8 +185,7 @@ async function importAdventureActor(bookId, id, folderId) {
     if (missing.length) console.log(`${MODULE_ID} | ${id}: unresolved proficiencies ${missing.join(", ")}`);
   }
   const actor = await createDoc(Actor, {
-    // The entry ships an ordinal label; the person is named from the page the
-    // recipe just read, like every other document the book fills.
+    // The entry ships an ordinal label; the name is the page's own.
     name: printedNameOf(node, found.entry.name),
     type: "monster",
     folder: folderId,
@@ -226,11 +218,9 @@ async function importAdventureActor(bookId, id, folderId) {
 }
 
 /**
- * Same art path as the MM import: the compiled entry names ITS illustration
- * (associated by placement inside the entry's claimed region), and the seat
- * extracts + uploads it. A shipped placement BOX needs no runtime XObject
- * resolution (the AX books' art never registers on page.objs), so the box
- * alone is enough to proceed.
+ * Extracts and uploads the illustration the compiled entry names, the same art
+ * path as the monster import. A shipped placement box alone is enough to
+ * proceed: the AX books' art never registers on page.objs.
  */
 async function adventureActorArt(actor, session, id, found, node) {
   const artInstr = found.entry.fields?.art ?? null;
@@ -281,14 +271,14 @@ function libraryNameFor({ matchClass, matchSpell }, read = []) {
 }
 
 /**
- * A person the page prints in full, as a core character (DECISIONS
- * 2026-10-17, "A person the page prints in full becomes a character, and the
- * derivation wins"). The shell takes the entry's stable id, so a rebuild keeps
- * every reference to it; the sheet import binds the class at the printed level
- * and writes the scores, hit points and alignment; morale is written here, to
- * the system's bounds; and the biography carries the page's prose, then the
- * stamped "as printed" block with every figure the class works out differently
- * and every name the library could not answer. Owned by the Judges alone.
+ * Imports a person the page prints in full as a core character. The shell takes
+ * the entry's stable id, so a rebuild keeps every reference to it; the sheet
+ * import binds the class at the printed level and writes the scores, hit points
+ * and alignment; morale is written here, clamped to the system's bounds; the
+ * biography carries the page's prose, then the stamped "as printed" block of
+ * every figure the class works out differently and every name the library could
+ * not answer. Owned by the Judges alone. See docs/importer/DECISIONS.md, "A
+ * person the page prints in full becomes a character, and the derivation wins".
  */
 async function importCharacter(bookId, id, folderId, node, found) {
   const sl = node.fields.statline ?? {};
@@ -302,11 +292,10 @@ async function importCharacter(bookId, id, folderId, node, found) {
     ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
     flags: { [MODULE_ID]: { cookbook: { id, book: bookId, kind } } },
   };
-  // A document already standing under the stable id is this entry's from an
-  // earlier run; making another under it is a duplicate-id throw.
-  // A character answered rewrite is held: the create below returns it, and the
-  // sheet import and the biography write that follow land on it where it stands;
-  // a biography a Judge wrote in is kept under a decision (`keepsJudgeProse`).
+  // A document already under the stable id is this entry's; a second create
+  // under it throws a duplicate id. A character answered by a rewrite is held:
+  // the create returns it, and the writes below land on it; a biography a Judge
+  // wrote in is kept under a decision (`keepsJudgeProse`).
   const { pack } = await packOptsFor("Actor", lineOfData(shell));
   if (!isRewriting(id) && (pack ? game.packs.get(pack)?.index.has(_id) : game.actors.has(_id))) {
     console.warn(`${MODULE_ID} | ${id}: a character already stands under its id — skipped.`);
@@ -329,8 +318,8 @@ async function importCharacter(bookId, id, folderId, node, found) {
   const spellLevel = (n) => matchers.matchSpell(n)?.system?.lvl ?? null;
   const { values, morale, unplaced } = sheetValuesFromStatline(sl, { rename, bookSpells, spellLevel });
   // The sheet import grants what the library holds, so a proficiency the
-  // cookbook can supply is imported first, through the tiers a monster's list
-  // resolves by; what nothing supplies is reported below as unmatched.
+  // cookbook supplies is imported first; what nothing supplies is reported
+  // below as unmatched.
   await resolveAbilities([...(sl.proficiencies ?? []), ...(sl.classProficiencies ?? [])]);
   const report = await importSheet({ actor, values, writeDomain: false, record: false, fixedAwards: true });
   // What the sheet import granted is the import's own, stamped so a repair can
@@ -361,20 +350,17 @@ async function importCharacter(bookId, id, folderId, node, found) {
 }
 
 /**
- * Build — or REUSE — the shared ability item for a definition id. Deduped by
- * cookbook id, so every monster/NPC referencing a proficiency links to the SAME
- * item instead of minting a per-actor copy. Nothing is imported without the
- * citing book: the entry is passed over (`readForImport`), counted into
- * `passed` where a `passedOver` tally is given.
+ * Builds, or reuses, the shared ability item for a definition id. Deduped by
+ * cookbook id, so every actor referencing a proficiency links to one item.
+ * Nothing is imported without the citing book: the entry is passed over
+ * (`readForImport`) and counted into `passed` where a tally is given.
  */
 export async function importAbility(id, folderId, { pageCache = null, passed = null } = {}) {
   const found = cookbookEntry(id);
   if (!found) return null;
-  // NOTE an alias gets its OWN item. The books list a name whose rules text is
-  // printed under another entry; that makes it a distinct ability sharing a
-  // passage, not a synonym to redirect away. Its recipe already carries a
-  // pointer to where that text lives, so it extracts and classifies normally —
-  // it just does not stack with the entry it points at.
+  // An alias gets its own item: a distinct ability sharing a passage, not a
+  // synonym to redirect. It extracts normally and does not stack with the
+  // entry it points at.
   return claimImport(id, async () => {
     const { data: built, reason } = await abilityData(id, { folderId, pageCache });
     if (!built) return passed?.count(reason) ?? null;
@@ -383,10 +369,9 @@ export async function importAbility(id, folderId, { pageCache = null, passed = n
 }
 
 /**
- * Everything an ability import does EXCEPT the write. Split out so a bulk
- * run can build every document first and write them in chunks (`createDocs`),
- * which building and writing as one call cannot do. Resolves to `{data}`,
- * the creation data with its folder resolved, or to `{data: null, reason}` —
+ * Everything an ability import does except the write, so a bulk run can build
+ * every document first and write them in chunks (`createDocs`). Resolves to
+ * `{data}`, the creation data with its folder resolved, or to `{data: null, reason}` —
  * `no-entry` when the cookbook does not know the id, else `readForImport`'s
  * reason. See docs/importer/DECISIONS.md, "Writes are batched, because a
  * write costs what the shelf already holds".
@@ -411,29 +396,25 @@ export async function abilityData(id, { folderId = null, pageCache = null } = {}
 /* -------------------------------------------- */
 
 /**
- * Fill a companion effect's actor slot. `ref` names the monster entry the
- * ability confers — a pointer the recipe can ship because it is not the book's
- * text. When that book is connected we import the creature and link it; when it
- * is not, the slot stays EMPTY on purpose so a GM can drop an actor in, or so
- * `cookbookFillCompanions()` can fill it once the book loads.
+ * Fills a companion effect's actor slot. `ref` names the monster entry the
+ * ability confers. When that book is connected the creature is imported and
+ * linked; when it is not, the slot stays empty for a GM to fill, or for
+ * `cookbookFillCompanions()` once the book loads.
  *
- * Abilities whose creature is BUILT rather than named (a totem animal, a
- * familiar chosen from a list) carry no `ref` at all and keep an empty slot for
- * good — there is no single entry to point at.
+ * Abilities whose creature is built or chosen rather than named carry no `ref`
+ * and keep an empty slot: there is no single entry to point at.
  */
 async function resolveCompanion(effect) {
   if (effect?.type !== "companion" || effect.actorUuid || !effect.ref) return effect;
   const found = cookbookEntry(effect.ref);
   if (!found) return effect;
-  // The library's own creature, never a copy dragged out of it: the slot is a
-  // link that outlives the copy, and a copy answering would stop the import.
+  // The library's own creature, never a copy: the slot is a link that must
+  // outlive one.
   const existing = await importedActor(effect.ref, { copies: false });
   if (existing) return { ...effect, actorUuid: existing.uuid };
   const bookId = bookOf(found);
   if (!ctx.sessionDocs.has(bookId)) return effect; // bookless: leave the bucket
-  // No fallback folder: importOne resolves the creature's own destination from
-  // its freshly extracted type, which is strictly better than anything a caller
-  // could name before the page has been read.
+  // No fallback folder: importOne files the creature by its extracted type.
   const actor = await importOne(bookId, effect.ref, null).catch((err) => {
     console.error(`${MODULE_ID} | companion ${effect.ref}`, err);
     return null;
@@ -456,8 +437,8 @@ export async function resolveCompanions(effects) {
 export async function cookbookFillCompanions() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
   let filled = 0;
-  // A slot that resolves IMPORTS the creature from the seat's book, so this is
-  // an actor import wearing a different name — same page extraction, same wait.
+  // A slot that resolves imports the creature from the seat's book: an actor
+  // import under another name.
   const all = await allAbilities();
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressCompanions`), all.length);
   try {
@@ -497,9 +478,8 @@ export async function resolveAbilities(tokens) {
     const m = token.match(/^(.*?)\s*\(([^)]+)\)\s*\d*$/);
     const base = (m ? m[1] : token.replace(/\s*\d+$/, "")).trim();
     const specialty = m?.[2] ?? null;
-    // A short form the books print for a name this module already ships is
-    // authored on the entry as an alias and reaches the index through it, so
-    // nothing here needs to know which words a printing merged.
+    // A printed short form reaches the index through an alias authored on the
+    // entry; nothing here knows which words a printing merged.
     const guess = idForName(nameIndex, base, present);
     reportGuess(base, guess);
     const id = guess?.id ?? null;
@@ -522,7 +502,7 @@ export async function resolveAbilities(tokens) {
  * text layer ("Name spec) 2"), read as the token it stands for ("Name (spec)
  * 2"). The name is the longest run of leading words `known` accepts; a token
  * with both brackets or none, or whose words name nothing, comes back as it
- * was. No extraction can supply the bracket — the printing does not hold it.
+ * was.
  * @param {string} token
  * @param {(name: string) => boolean} known  whether a name is a defined ability
  * @returns {string}
