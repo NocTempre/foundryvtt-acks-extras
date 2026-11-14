@@ -1,8 +1,7 @@
 /**
  * What a vehicle's hold is carrying and how much room is left in it — the one
  * answer the sheet's bar, boarding, the land speed tiers and a market's
- * loading all read, so a load a market sells into a wagon is refused at the
- * same line the sheet's bar turns red.
+ * loading all read.
  *
  * The weights are the occupant feeder's: a named actor costs its true mass,
  * and the vehicle's per-head rate prices only the unnamed. Passengers draw on
@@ -57,7 +56,6 @@ export function holdFrom(sys, { aboardStone = 0, occupants = [] } = {}) {
     cargoActorStone,
     marineGear,
     trade,
-    // A bar reads faster than two numbers when the answer is "nearly full".
     pct: capacity > 0 ? Math.min(100, Math.round((base.used / capacity) * 100)) : 0,
   };
 }

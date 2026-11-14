@@ -5,9 +5,8 @@
  * whom where. The pure half is `standing-logic.mjs`; this file only finds the
  * documents and reads the subjects off a formation.
  *
- * Every writer here is a Judge's: the ledger, the relations and the holdings
- * are the Judge's record, and a player's client is refused rather than left to
- * fail at the document layer.
+ * Every writer here is a Judge's: a player's client is refused up front rather
+ * than left to fail at the document layer.
  */
 import { MODULE_ID, FACTION_TYPE, AUTHORITY_KINDS, HOOKS, RELATION_STANCES, SETTING_STANDING_STEP } from "./constants.mjs";
 import {
@@ -20,7 +19,7 @@ import { allPlaces, packIdOf } from "../lib/place.mjs";
 /** Is this document a faction actor? */
 export const isFaction = (doc) => doc?.documentName === "Actor" && doc?.type === FACTION_TYPE;
 
-/** Every faction in the world. Compendium factions are not consulted: a rule that reads a ledger reads the world's. */
+/** Every faction in the world. Compendium factions are not consulted. */
 export function allFactions() {
   return (game.actors ?? []).filter((a) => a.type === FACTION_TYPE);
 }
@@ -39,9 +38,8 @@ export function factionsOfMember(actorUuid) {
 
 /**
  * The factions that hold a PLACE: seated at it or holding it, or at a place it
- * is inside of (a guild seated in the city holds every market in it), or
- * controlling the quarter the place is — its own region, or the region its
- * scene link's quarter names. One place scan, the sheet's own.
+ * is inside of, or controlling the quarter the place is — its own region, or
+ * the region its scene link's quarter names.
  */
 export function factionsAt(place) {
   if (!place) return [];
@@ -82,9 +80,7 @@ function peopleOf(formation) {
  * The subject set of one actor: the actor itself, and — when it is a party
  * actor or marches in a formation — that formation's party and members, plus
  * every organisation any of them belongs to and the actor's own uuid when the
- * actor IS one. A faction that favours the party favours the character who is
- * in it, and a faction that has written the guild down deals that way with
- * every guildsman.
+ * actor IS one.
  */
 export function subjectsOfActor(actor) {
   if (!actor) return subjectsOf();
@@ -98,9 +94,8 @@ export function subjectsOfActor(actor) {
 }
 
 /**
- * The uuids of the factions rostering any of these actors. One scan of the
- * world's factions however many actors are asked about — a subject set is
- * built on a render path and on every reaction roll.
+ * The uuids of the factions rostering any of these actors, in one scan of the
+ * world's factions however many actors are asked about.
  */
 function factionsRostering(actorUuids) {
   const wanted = new Set((actorUuids ?? []).filter((u) => !!u));

@@ -2,25 +2,19 @@
 /**
  * FactionSheet — ActorSheetV2 for the `acks-extras.faction` sub-type.
  *
- * Five tabs. OVERVIEW is what the organisation is and holds: its kind, its
- * seat, the other places it keeps, its leader, the organisation it belongs to,
- * and the quarters it controls. MEMBERS is the roster — drag an actor onto the
- * sheet. RELATIONS is whom it deals with: its own stance toward other
- * organisations, the reverse view of what they say about it, and its totals
- * per subject, so one tab answers how it stands toward an organisation, a
- * character and a party alike. STANDING is the Judge's ledger: rows about a
- * party, a character or an organisation, each with a value and a reason,
- * totalled per subject. NOTES is the shared record, and for the Judge the
- * private one beside it.
+ * Five tabs. OVERVIEW: kind, seat, other holdings, leader, parent organisation
+ * and controlled quarters. MEMBERS: the roster (drag an actor onto the sheet),
+ * with the STRENGTH table of unnamed people counted by level beneath it; the
+ * Judge edits it cell by cell and a player reads it unless it is hidden whole.
+ * RELATIONS: its own stance toward other organisations, the reverse view, and
+ * totals per subject. STANDING: the Judge's ledger of valued, reasoned rows
+ * about a party, a character or an organisation, totalled per subject. NOTES:
+ * the shared record and, for the Judge, a private one.
  *
  * Drops are read by what is dropped and by the tab showing: a place seats the
  * organisation or joins its holdings, a faction becomes a relation, a ledger
  * row or the parent, anyone else joins the membership or opens a ledger row.
- * Goods are refused: an organisation carries nothing.
- *
- * Beneath the roster, MEMBERS carries the STRENGTH table: the unnamed people,
- * counted by level under the headings the Judge (or the page) gave them. The
- * Judge edits it cell by cell; a player reads it unless it is hidden whole.
+ * Goods are refused.
  *
  * Array rows are rewritten whole on every edit. A schema array cannot be
  * patched by index through the form, so the row controls carry no `name` and
@@ -67,6 +61,7 @@ export function districtRegionOptions() {
   return out;
 }
 
+/** The actor sheet registered as the default for the faction sub-type. */
 export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-faction-sheet"],
@@ -142,9 +137,8 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
     context.leader = refOf(readableLeaderUuid(sys, isGM));
     context.parent = refOf(sys.parentUuid);
     // The parent picker offers every other faction that would not close a
-    // loop: a chapter cannot belong to its own lodge. The picker is a named
-    // form field, so it must always carry the stored value among its options,
-    // or the next submit-on-change writes the field empty.
+    // loop. It is a named form field, so it always carries the stored value
+    // among its options, or the next submit-on-change writes the field empty.
     const factions = allFactions();
     const index = indexPlaces(factions.map(factionRecord));
     context.parentOptions = [
@@ -165,8 +159,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
     });
     context.districtOptions = districtRegionOptions().filter((o) => !held.has(o.uuid));
 
-    // The other places it is behind the door of. A hidden holding is a Judge's
-    // own — a safehouse is not on the guild's public list.
+    // The other places it keeps; a hidden holding is the Judge's own.
     context.holdings = readableRows(sys.holdings, isGM)
       .map((row) => ({ ...row, name: liveName(row.uuid) || row.name || row.uuid, missing: !docOf(row.uuid) }));
 
@@ -194,8 +187,7 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
         missing: !fromUuidSync(row.uuid),
         kindLabel: game.i18n.localize(`ACKS-LOCATION.occupant.kind.${row.kind}`),
       }));
-    // The tally counts what this reader can see. A total that included the
-    // concealed rows would announce that there are some.
+    // The tally counts only what this reader can see.
     context.headcount = isGM ? sys.headcount : headcountOf(context.members);
 
     // The strength table: hidden whole or shown whole. A row's head is its
@@ -277,10 +269,8 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
   /* -------------------------------------------- */
 
   /**
-   * @override — goods from elsewhere are refused in the words every sheet
-   * that lists none uses (`refuseGoods`), neither moved nor copied: the base
-   * class would create a copy here, on an actor whose sheet lists nothing it
-   * holds. Any other item is the base class's.
+   * @override — goods from elsewhere are refused (`refuseGoods`), neither moved
+   * nor copied; any other item is the base class's.
    */
   async _onDropItem(event, item) {
     if (isGoods(item) && item.parent?.uuid !== this.actor.uuid) {
@@ -293,17 +283,15 @@ export class FactionSheet extends PicksMixin(HandlebarsApplicationMixin(ActorShe
   /** @override */
   async _onDropActor(event, actor) {
     if (!actor || actor.uuid === this.actor.uuid || !this.isEditable) return;
-    // A domain is neither a member nor a holding: it answers to other domains,
-    // on a domain's own sheet. Asked through the api, so organisations import
-    // nothing of domains, which already reads them.
+    // A domain is neither a member nor a holding. Asked through the api, so
+    // this file imports nothing of domains.
     if (acksExtras.domains?.isDomain?.(actor)) {
       ui.notifications.warn(loc("sheet.domainDropped", { name: actor.name }));
       return;
     }
     const tab = event?.target?.closest?.(".tab")?.dataset?.tab ?? this.tabGroups.primary;
-    // A place takes the seat when it is dropped on the seat row or when there
-    // is no seat yet, and otherwise joins the holdings — never both, so the
-    // same roof is never counted twice.
+    // A place takes the seat when dropped on the seat row or when there is no
+    // seat yet, and otherwise joins the holdings — never both.
     if (isLocation(actor)) {
       if (event?.target?.closest?.('[data-drop-zone="seat"]') || !this.actor.system.seatUuid) return this.#setSeat(actor);
       return this.#addHolding(actor);

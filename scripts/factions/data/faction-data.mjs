@@ -2,18 +2,16 @@
 /**
  * FactionData — the `acks-extras.faction` actor sub-type: AN ORGANISATION.
  *
- * A guild, a temple, a syndicate, a noble house, the watch. It is an actor
- * for one reason: everything that deals with people already deals with
- * actors. A member's reaction roll can target it, the ordinary attitude item
- * keeps its relationship, a token of it can stand on a map. What it adds is
- * a LEDGER — the Judge's own record of how it stands toward a party and its
- * members, with the one row that has a consequence of its own (`wanted`) —
- * and what it holds: a seat (a place), a leader, members, and the quarters
- * it controls.
+ * A guild, a temple, a syndicate, a noble house, the watch. It is an actor so
+ * that everything that deals with people can deal with it: a reaction roll can
+ * target it and a token of it can stand on a map. It adds a ledger — the
+ * Judge's record of how it stands toward a party and its members, with the one
+ * row that has a consequence of its own (`wanted`) — and what it holds: a seat
+ * (a place), a leader, members, and the quarters it controls.
  *
- * No score is derived from the books: RAW has no reputation number, so every
- * value is what the Judge typed, and the one knob that turns standing into a
- * market shift defaults to off.
+ * Every value is what the Judge typed; nothing is derived from a rule.
+ *
+ * See docs/factions/DECISIONS.md, "A faction is an Actor sub-type (2026-09-16)".
  */
 import { headcountOf, strengthColumnTotals, strengthRevenue, strengthTotal } from "../standing-logic.mjs";
 import { acksCompatStubs } from "../../lib/actor-compat.mjs";
@@ -25,9 +23,8 @@ const fields = foundry.data.fields;
 
 /**
  * One standing row: who it is about, how much, why, when, and where it came
- * from. The subject's name is denormalised beside its uuid for the reason the
- * roster's is — a row about a party that has since dissolved still says whom
- * it was about.
+ * from. The subject's name is stored beside its uuid so a row about a vanished
+ * party still says whom it was about.
  */
 function standingField() {
   return new fields.SchemaField({
@@ -46,9 +43,8 @@ function standingField() {
 
 /**
  * One relation row: how THIS organisation regards another. Directed — the
- * other side's view of this one is its own row on its own sheet, because two
- * organisations rarely regard each other the same way. The name is
- * denormalised beside the uuid for the reason the roster's is.
+ * other side's view is its own row on its own sheet. The name is stored beside
+ * the uuid.
  */
 function relationField() {
   return new fields.SchemaField({
@@ -56,16 +52,14 @@ function relationField() {
     name: str(),
     stance: new fields.StringField({ required: true, initial: "neutral", choices: RELATION_STANCES }),
     note: str(),
-    // A relation a player must not read off the sheet: the guild does not
-    // advertise whose money it takes.
+    // A relation a player must not read off the sheet.
     hidden: new fields.BooleanField({ initial: false }),
   });
 }
 
 /**
- * One holding: a place this organisation keeps beyond its seat — a chapter
- * hall, a front, a safehouse. The seat is the principal one and stays its own
- * field; a holding is every other roof it is behind.
+ * One holding: a place this organisation keeps beyond its seat. The seat stays
+ * its own field.
  */
 function holdingField() {
   return new fields.SchemaField({
@@ -77,13 +71,13 @@ function holdingField() {
 }
 
 /**
- * The body's STRENGTH: its unnamed people, counted. A column per kind — a
- * class, an order, a troop type — and a row per level, or per posting where
- * no level applies, with a count under each column and the revenue that row
- * brings in where the page states one. The named roster is the other list;
- * a printed strength grid counts the named members among its figures, so the
- * two are shown side by side and never added. Every figure is the page's or
- * the Judge's: nothing here is derived from a rule.
+ * The body's STRENGTH: its unnamed people, counted. A column per kind (a
+ * class, an order, a troop type) and a row per level, or per posting where no
+ * level applies, with a count under each column and the revenue that row
+ * brings in where one is stated. The named roster is the other list; the two
+ * are shown side by side and never added. Nothing here is derived from a rule.
+ *
+ * See docs/factions/DECISIONS.md, "The unnamed people are a table, and it is the body's (2026-09-30)".
  */
 function strengthField() {
   return new fields.SchemaField({
@@ -98,8 +92,7 @@ function strengthField() {
     ),
     // Where the figures come from: a page reference, or the Judge's word.
     note: str(),
-    // Display gating, like a concealed roster row: a syndicate's true size is
-    // not on its public sheet.
+    // Display gating, like a concealed roster row.
     hidden: new fields.BooleanField({ initial: false }),
   });
 }
@@ -122,24 +115,19 @@ export class FactionData extends foundry.abstract.TypeDataModel {
       // Its seat: the place it is found at. A uuid, so a place in a
       // compendium serves as readily as one in the world.
       seatUuid: str(),
-      // The other places it holds. Empty by default, so an actor with
-      // none stored loads with none.
+      // The other places it holds.
       holdings: new fields.ArrayField(holdingField()),
       // How it regards other organisations. One row per other faction.
       relations: new fields.ArrayField(relationField()),
       // Who leads it — any actor.
       leaderUuid: str(),
-      // The organisation this one is part of (a chapter of a wider guild).
-      // Cycles are refused at the write, never merely tolerated by readers.
+      // The organisation this one is part of. Cycles are refused at the write.
       parentUuid: str(),
-      // Its members: the roster row a place uses, so a guild's list and an
-      // inn's list are one shape.
+      // Its members: the roster row a place uses.
       members: new fields.ArrayField(occupantField()),
-      // Its unnamed people, counted by kind and level. Empty by default, so
-      // an actor with none stored loads with none.
+      // Its unnamed people, counted by kind and level.
       strength: strengthField(),
-      // The scene Regions it controls — quarters drawn as Districts. Uuids of
-      // Region documents; a quarter with no faction over it is simply absent.
+      // The scene Regions it controls — quarters drawn as Districts, by uuid.
       controls: new fields.ArrayField(new fields.StringField({ blank: false })),
 
       // --- the ledger ----------------------------------------------------

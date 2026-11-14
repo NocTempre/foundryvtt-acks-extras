@@ -2,22 +2,17 @@
 /**
  * Map modes: what a GM's map draws over its terrain, one mode at a time.
  * Terrain is the rest state, where core's terrain regions are the whole
- * drawing. Any other mode is registered (`registerMapMode`) — the module's own
- * is Territory, a feature brings its own — and draws a module overlay in the
- * regions layer above core's region fills: a border, in the value's colour,
- * along every side of a hex whose neighbour across it holds another value or
- * none, drawn on the hex's own side so two values meeting show as two lines.
- * The terrain fill under it stays readable. A mode may weight each side by
- * the two values it parts (a realm's edge heavier than a barony's), and
- * stripe a hex whose painted value differs from the one it would take
- * otherwise (a territory painted over its domain's class).
+ * drawing. Any other mode is registered (`registerMapMode`) and draws a module
+ * overlay in the regions layer above core's region fills: a border, in the
+ * value's colour, along every side of a hex whose neighbour across it holds
+ * another value or none, drawn on the hex's own side. A mode may weight each
+ * side by the two values it parts, and stripe a hex whose painted value
+ * differs from the one it would take otherwise.
  *
  * The mode, the overlay's opacity and the handout switch are this client's
- * view (`mapView`, a client setting the Map modes window writes), and they
- * outlive the brush: the mode a palette pill shows stays on through every
- * control until the Judge picks Terrain again. The handout switch hides every
- * GM overlay, the road markers included (`acksExtrasMapView`). A player is
- * drawn none.
+ * view (`mapView`, a client setting the Map modes window writes) and outlive
+ * the brush. The handout switch hides every GM overlay, the road markers
+ * included (`acksExtrasMapView`). A player is drawn none.
  *
  * See docs/battlemap/DECISIONS.md, "The map shows one mode at a time".
  */
@@ -387,10 +382,9 @@ export function installMapModes() {
 /*  The module's own mode                                                */
 /* -------------------------------------------------------------------- */
 
-// Territory: the border colour says how settled the land is; the terrain
-// stays the fill. A hex painted into a domain takes its class, and one painted
-// a territory over it is striped where the two differ. A hex with neither is
-// drawn no border and reads as the scene's default, which the legend names.
+// Territory: the border colour is the territory, the terrain stays the fill. A
+// hex with none painted or derived draws no border and reads as the scene's
+// default, which the legend names.
 registerMapMode({
   key: "territory",
   label: `${LANG_PREFIX}.mapMode.territory`,
@@ -419,8 +413,9 @@ const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applic
 
 /**
  * The Map modes window: one pill per mode, the active one pressed; the mode's
- * legend, what an unpainted hex reads as and what a stripe means; the map's climate; the overlay's
- * opacity; and the handout switch. Every control writes the view at once.
+ * legend, what an unpainted hex reads as and what a stripe means; the map's
+ * climate; the overlay's opacity; and the handout switch. Every control writes
+ * the view at once.
  */
 export class MapModesApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {

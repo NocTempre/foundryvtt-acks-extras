@@ -1,11 +1,9 @@
 /**
  * The country under a point, read off the map: what the brush painted on its
- * layers, the lines drawn through it, and what the scene says of the rest —
- * the climate always, since a map holds one. ONE reader: the journey's trace,
- * the seat on arrival, the Judge's refresh and the encounter context all ask
- * here, so a hex never reads two ways. No canvas: it reads the scene document
- * and what a registered layer derives from the world (a domain's class), so any
- * client holding both can ask.
+ * layers, the lines drawn through it, and the scene's defaults for the rest.
+ * The one reader: the journey's trace, the seat on arrival, the Judge's refresh
+ * and the encounter context all ask here. No canvas: it reads the scene
+ * document and what a registered layer derives from the world.
  *
  * See docs/battlemap/MODEL.md, "Country layers".
  */
@@ -42,25 +40,20 @@ function readBrushValue(key) {
 /**
  * Read the country at a point.
  *
- * Each key answers from the map where the map says something — a painted hex,
- * a drawn line — and from the scene's default where it does not; the climate
- * is the scene's alone, never painted per hex; `source`
- * names which, per key: "map", "scene", or null where neither answered and the
- * value is null. The territory has a source between the two: a hex with no
- * territory painted takes the one a layer DERIVES for it (a domain's class),
- * and `source` names that layer by its key ("domain"); a territory painted on
- * the hex is the Judge's word over it. A drawn layer speaks only on a scene that has one: `road` is
- * read where the scene has road walls and `following` where it has water
- * lines (a navigable one under the point is "river"), and each is null
- * elsewhere — silence the next source answers, not a "none" the map never
- * said. A painted hex that names no encounter table leaves it null rather
- * than borrowing the scene default's, which describes other country.
+ * Each key answers from the map where it says something (a painted hex, a
+ * drawn line) and from the scene's default where it does not; the climate is
+ * the scene's alone. `source` names which, per key: "map", "scene", or null
+ * where neither answered. A hex with no painted territory takes the one a layer
+ * derives for it, and `source` names that layer by key; a painted territory
+ * wins. `road` is read only where the scene has road walls and `following`
+ * only where it has water lines (a navigable one under the point is "river");
+ * each is null elsewhere. A painted hex naming no encounter table leaves it
+ * null rather than taking the scene default's.
  *
- * `waterBorne` is the party moving on the water: while it holds and any water
+ * `waterBorne` is the party moving on the water: while it holds and a water
  * line is under the point, the encounter table is the river's for the ground
- * (`riverTableFor`). The formation does not pass it: it caches the reading
- * with its `water` and applies the same rule at resolution, so the option
- * serves a caller asking the scene directly.
+ * (`riverTableFor`). The formation does not pass it; it applies the same rule
+ * at resolution.
  *
  * @returns {{ground: string|null, encounterTerrain: string|null,
  *   territory: string|null, climate: string|null, road: string|null,

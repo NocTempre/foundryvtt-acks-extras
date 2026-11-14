@@ -37,9 +37,8 @@ const FACTION_IMG = "icons/svg/hanging-sign.svg";
 const TEMPLATES = [`modules/${MODULE_ID}/templates/factions/faction-sheet.hbs`];
 
 Hooks.once("init", () => {
-  // The data model and the sheet register HERE and only here — this feature
-  // owns the sub-type. Unconditional: nothing gates a registration whose
-  // failure costs the whole sheet.
+  // The one place the data model and the sheet register; this feature owns the
+  // sub-type.
   CONFIG.Actor.dataModels[FACTION_TYPE] = FactionData;
   registerFactionSheet();
 
@@ -59,11 +58,10 @@ Hooks.once("init", () => {
     .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
 
   /**
-   * A faction is the Judge's record: it opens with default ownership, so a
-   * player sees it only when given it. Its token — a banner on a map, if it
-   * ever has one — is a marker like a place's: named on hover, on no side,
-   * tracking no bars, seeing nothing. Field by field, and only where the
-   * creation data said nothing.
+   * A faction opens with default ownership, so a player sees it only when
+   * given it. Its token is a marker like a place's: named on hover, on no
+   * side, no bars, no sight. Set field by field, only where the creation data
+   * said nothing.
    */
   Hooks.on("preCreateActor", (doc, data) => {
     if (doc.type !== FACTION_TYPE) return;
@@ -88,8 +86,6 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   acksExtras.factions = {
-    // 3 adds the strength readers (normalizeStrength, strengthTotal,
-    // strengthColumnTotals, strengthRevenue).
     apiVersion: 3,
     FACTION_TYPE,
     FACTION_KINDS,
@@ -101,8 +97,7 @@ Hooks.once("ready", () => {
     isFaction,
     allFactions,
     // Who holds what: a region, a place, an actor. `factionsAt` answers for the
-    // place and everything it is inside of; `factionsHolding` for the place
-    // alone, which is what a place's own sheet asks.
+    // place and everything it is inside of; `factionsHolding` for the place alone.
     factionsControlling,
     factionsAt,
     factionsHolding,
@@ -120,11 +115,10 @@ Hooks.once("ready", () => {
     isWantedBy,
     huntersOf,
     // The one knob: standing into market steps. The henchmen feature reads
-    // `marketClassShift` through this api rather than importing the feature.
+    // `marketClassShift` through this api.
     classStepsFor,
     marketClassShift,
-    // How organisations regard one another. A stance is a label; the figure
-    // that goes with a rivalry is a `faction`-scope ledger row.
+    // How organisations regard one another; a stance is a label.
     relationBetween,
     regardedByFactions,
     // The strength table: the unnamed people, counted. Readers over a stored

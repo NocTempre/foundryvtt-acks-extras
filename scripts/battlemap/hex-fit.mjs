@@ -2,9 +2,9 @@
  * Lattice alignment: the shift that lays Foundry's grid over a drawn cell.
  *
  * The one owner of that answer. A caller names a drawn cell's centre in scene
- * pixels (the scene's padded origin included) and gets back the shift that
- * puts the nearest Foundry cell centre on it; the scene may be saved or not,
- * since only `clone` is asked of it.
+ * pixels (padded origin included) and gets the shift that puts the nearest
+ * Foundry cell centre on it; the scene may be unsaved, since only `clone` is
+ * asked of it.
  *
  * Document methods only — no canvas, no `game` — so it runs on any client and
  * under a mock in Node.
@@ -14,13 +14,11 @@
  * The `shiftX`/`shiftY` that put a Foundry cell centre exactly on a drawn
  * cell's centre, or null when the grid cannot answer.
  *
- * It asks a zero-shift CLONE of the scene carrying the target size and grid
- * for the cell centre nearest the point, because a phase cannot express the
- * row or column offset hex packing needs; the clone is never saved. With the
- * shift zeroed, the clone's `sceneX`/`sceneY` are the pre-shift padded
- * origin, so a caller whose point is measured from the picture's corner
- * passes `point` as a function of the clone's dimensions and the one clone
- * answers both.
+ * It asks a zero-shift CLONE of the scene (never saved) carrying the target
+ * size and grid for the cell centre nearest the point. The clone's
+ * `sceneX`/`sceneY` are then the pre-shift padded origin, so a caller measuring
+ * from the picture's corner passes `point` as a function of the clone's
+ * dimensions.
  *
  * @param {Scene} scene a saved or unsaved Scene document
  * @param {object} p

@@ -38,17 +38,16 @@ export function printedLabel(tableId, key, docId = MORALE_DOC) {
 
 /**
  * A page's declared modifier rows as the rows the roller runs. A mode declares
- * three kinds the roller does not know, because what each is worth is printed:
+ * three kinds whose worth is read from the imported page:
  *
  *  - `ladder`, mutually exclusive rungs named by `rungs`. With a figure read
  *    for any rung it becomes a `select` of those rungs in page order under a
  *    blank first option, `byIndex` so the chosen OPTION is stored and two
- *    rungs printing one figure, or a rung printing zero, stay distinct.
+ *    rungs with one figure, or a rung of zero, stay distinct.
  *  - `printed`, one figure named by `figure`. Read, it becomes a `check` worth
  *    that figure.
- *  - `printedFactor`, a figure named by `figure` that is owed once per count
- *    of something. Read, it becomes a `factor` of that figure, keeping the
- *    row's `auto` count.
+ *  - `printedFactor`, a figure named by `figure` owed once per count of
+ *    something. Read, it becomes a `factor`, keeping the row's `auto` count.
  *
  * A `ladder` marked `ordinal` stores each rung's place, which its consumer
  * prices by, so it reads whole or not at all: any rung unread leaves a
@@ -57,12 +56,11 @@ export function printedLabel(tableId, key, docId = MORALE_DOC) {
  * `{figure, label}`, each shown with its figure beside its name.
  *
  * A row reads the mode's table unless it names its own in `printed` and
- * `printedDoc`, as a page whose result column is not printed does for the one
- * figure that is.
+ * `printedDoc`.
  *
- * Any of them, unread, becomes a `signed` field flagged `unread`: the Judge
- * types the figure off their own page. Every other row passes through
- * untouched, and a group keeps the keys it declared beside its rows.
+ * Any of them, unread, becomes a `signed` field flagged `unread`, for the Judge
+ * to type. Every other row passes through untouched, and a group keeps the
+ * keys it declared beside its rows.
  * @param {{printed?: string, printedDoc?: string, groups: Array<{group: string, mods: object[]}>}} mode
  * @returns {Array<{group: string, mods: object[]}>}
  */
@@ -80,10 +78,8 @@ export function modeRows(mode) {
         return { ...named, figure: printedFigure(tableId, key, docId), printedLabel: printedLabel(tableId, key, docId) };
       });
       const rungs = all.filter((rung) => rung.figure !== null);
-      // An `ordinal` ladder is read as a whole or not at all: the option chosen
-      // is the rung's place, which a consumer prices by, so a rung left out
-      // would renumber the ones after it. Unread, it stays a select holding
-      // only the blank, disabled, and names its table.
+      // An `ordinal` ladder reads whole or not at all: a rung left out would
+      // renumber the ones after it.
       if (mod.ordinal && rungs.length !== all.length) {
         return {
           key: mod.key,
@@ -155,10 +151,9 @@ export function figureOrigin(tableId, docId = MORALE_DOC) {
  *    own wording of it where the import caught one.
  *
  * A row names another table of the document in `table` (and its page in
- * `cite`) where its figures sit on a different page than the tone's; that
- * table is then the one it reads and names. A select marked `complete` reads
- * whole or not at all, because the option chosen is the rung's place and a
- * rung left out would renumber the rest.
+ * `cite`) where its figures sit elsewhere than the tone's page; that table is
+ * then the one it reads and names. A select marked `complete` reads whole or
+ * not at all, as an `ordinal` ladder does.
  *
  * Unread, a row is disabled and flagged `unread`: it contributes nothing, and
  * a proficiency row stops claiming its item, so the item's own effect still
@@ -178,8 +173,7 @@ export function toneRows(groups, tableId, docId) {
       return mod.autoFigures || mod.autoThreshold ? { ...mod, figureFrom: from } : mod;
     }
     const dash = { value: 0, label: "ACKS-INFLUENCE.opt.dash" };
-    // A proficiency box that cannot be worth anything does not claim the
-    // item, so the item's own effect still reaches the page.
+    // An unread proficiency box does not claim the item.
     const unread = () => {
       const { auto, ...bare } = rest;
       const kept = auto?.startsWith("prof:") ? bare : rest;

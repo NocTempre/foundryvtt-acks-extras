@@ -1,13 +1,12 @@
 /* global game, ui, document, foundry, CONST, Hooks */
 /**
- * Water: a river or a coast the Judge DREW, on any grid — a Wall that
- * restricts nothing, flagged as water, drawn with core's own wall tool the way
- * a road is (roads.mjs). A line answers what a hex cannot: a river runs along
- * and between cells, and a party is on it by how near its token stands to the
+ * Water: a river or a coast the Judge drew, on any grid — a Wall that
+ * restricts nothing, flagged as water, drawn with core's wall tool the way a
+ * road is (roads.mjs). A party is on it by how near its token stands to the
  * line. `move`/`sight`/`sound`/`light` are all NONE and it is not a door. The
- * hex topology takes no links from water: a river is not a road.
+ * hex topology takes no links from water.
  *
- * See docs/battlemap/DECISIONS.md, "A river or a coast is a line."
+ * See docs/battlemap/DECISIONS.md, "A river or a coast is a line".
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
@@ -33,9 +32,8 @@ export const WATER_FLAG = "water";
 export const WATER_KINDS = Object.freeze(["river", "coast"]);
 
 /**
- * Whether a line of this kind is navigable when nobody has said: a river the
- * Judge drew at map scale is one a boat can follow, a coast is a shore. The
- * wall's own row overrides it per line.
+ * Whether a line of this kind is navigable when nobody has said: a river is,
+ * a coast is not. The wall's own row overrides it per line.
  */
 const navigableByDefault = (kind) => kind === "river";
 
@@ -64,10 +62,8 @@ export function waterWallsOf(scene) {
 
 /**
  * The whole shape of a fresh water line: a wall that obstructs nothing,
- * carrying a water layer. One function for the preset and for any wall made
- * by hand, so the two never drift; `door` is stated because the preset
- * persists, and a river armed after a secret door would otherwise inherit the
- * doorway.
+ * carrying a water layer. Serves the preset and any wall made by hand; `door`
+ * is stated because the preset persists across draws.
  */
 export function waterWallData({ kind = WATER_KINDS[0], navigable = null, name = "" } = {}) {
   const k = kindOf(kind);

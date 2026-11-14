@@ -4,34 +4,23 @@
  * on the influence roller's own modifier hook, in the shape the district's
  * reception set (`formation/district-influence.mjs`).
  *
- * Three rows can arrive, each named after the faction it comes from:
+ * Rows that can arrive, each named after the faction it comes from:
  *
  *  - **the other side's own standing** — when the target IS a faction, or is
- *    listed on one's membership, that faction's standing toward the party
- *    is on the table;
+ *    listed on one's membership, that faction's standing toward the party;
  *  - **the quarter's holders** — every faction controlling the district the
  *    party stands in prices the roll with its standing toward them, whoever
- *    the target is: a syndicate's quarter is a cold place for a party that
- *    crossed it;
- *  - **legal authority** — a NOTE (a row with no figure, which the roller
- *    keeps because it is marked one) when a watch or noble faction controlling
- *    that quarter lists the INFLUENCER as a member. The authority modifier
- *    itself is the Judge's tick on the dialog; this row says only that the
- *    law is on this side of the table here.
+ *    the target is;
+ *  - **legal authority** — a NOTE (a row with no figure) when a watch or noble
+ *    faction controlling that quarter lists the INFLUENCER as a member. The
+ *    authority modifier itself is the Judge's tick on the dialog;
+ *  - **the other side's organisation's stance toward the speaker's** — a note
+ *    too: a relation is a label, never a figure. A hidden relation is drawn
+ *    only on a Judge's dialog.
  *
- * A faction is counted once however many of these it qualifies through.
- *
- * A fourth row is a note too: **what the other side's organisation thinks of
- * the speaker's**. A relation is a label, never a figure, so it is said and
- * not added — the Judge prices a standing rivalry with a `faction` ledger row,
- * which arrives on the numeric side above because the subject set carries the
- * organisations each side answers for. A hidden relation is a Judge's own and
- * is drawn only on a Judge's dialog.
- *
- * A concealed membership is the Judge's own as well: where an actor's roster
- * row is hidden, the organisation that holds it speaks through none of the
- * rows above on a player's dialog — no standing row, no relation note, no
- * authority note — since its name in a label would publish the tie.
+ * A faction is counted once however many of these it qualifies through. A
+ * concealed membership speaks through none of these rows on a player's dialog,
+ * since the faction's name in a label would publish the tie.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
@@ -81,9 +70,8 @@ export function pushFactionModifiers(context, finders = {}) {
     isConcealedMember: (faction, uuid) => isConcealedMember(faction?.system?.members, uuid),
     ...finders,
   };
-  // The organisations of a list the viewing seat may be told this actor
-  // belongs to: every one for a Judge, and for anyone else those whose roster
-  // row for the actor is not hidden.
+  // The organisations the viewing seat may be told this actor belongs to:
+  // every one for a Judge, otherwise those whose roster row is not hidden.
   const gm = f.isGM();
   const readable = (factions, uuid) => (gm ? factions : (factions ?? []).filter((fac) => !f.isConcealedMember(fac, uuid)));
 

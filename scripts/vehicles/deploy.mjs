@@ -15,9 +15,9 @@
  * Goods stashed aboard while it stood keep the provider switch on: they are
  * aboard, and travel with it.
  *
- * Formation and location are reached through their published APIs rather
- * than by import: both already import vehicles, and reading them at call time
- * keeps the dependency one-way.
+ * Formation and location are reached through their published APIs, not by
+ * import: both import vehicles, so reading them at call time keeps the
+ * dependency one-way.
  */
 import { MODULE_ID, LANG_PREFIX, VEHICLE_TYPE } from "./constants.mjs";
 import { isProvider, setProvider } from "../lib/storage.mjs";
@@ -94,7 +94,7 @@ function markerSpot(scene, partyToken, prototype) {
 
 /**
  * Create the vehicle's marker: a LINKED token, so the map shows the world
- * actor whose hold the goods are in rather than a synthetic copy.
+ * actor whose hold the goods are in.
  */
 async function createMarker(vehicle, scene, { x, y }) {
   const data = (await vehicle.getTokenDocument({ x, y, hidden: false, actorLink: true })).toObject();

@@ -7,12 +7,10 @@
  * actor's uuid, every member's, and every organisation that side answers for —
  * and a row counts for that set when its scope names everyone, the party, one
  * of the characters, or one of those organisations. One row matches at most
- * one branch, so a party-wide favour and a member's own offence are two rows
- * and never one counted twice — the same shape the location feature's slander
- * registry keeps.
+ * one branch, so no row is counted twice.
  *
- * RELATIONS are the other half and carry no arithmetic: one organisation's
- * stance toward another is a label and a note, read here and never summed.
+ * RELATIONS carry no arithmetic: one organisation's stance toward another is a
+ * label and a note, read here and never summed.
  */
 import { ancestorUuids } from "../lib/place-logic.mjs";
 
@@ -80,10 +78,9 @@ export function huntersAmong(factions, regionUuid, subjects) {
 
 /**
  * How many market-class steps a standing sum is worth at a given step size.
- * Toward the LARGER market for good standing, the smaller for bad; a step of
- * zero (the default) prices nothing. Whole steps only — a standing short of
- * the step moves nothing rather than rounding up to a market it has not
- * earned.
+ * Toward the larger market for good standing, the smaller for bad; a step of
+ * zero (the default) prices nothing. Whole steps only: a standing short of the
+ * step moves nothing.
  */
 export function classStepsFor(sum, step) {
   const size = Number(step) || 0;
@@ -127,9 +124,7 @@ export function relationOf(record, otherUuid) {
 /**
  * The REVERSE view: what the other organisations in a set say about this one.
  * One entry per other record that names the uuid, carrying that record's own
- * identity rather than the row's — the row's `name` is a copy of this side's,
- * and what a reader of the reverse list wants to know is who holds the
- * opinion.
+ * identity (the row's `name` is a copy of this side's).
  * @returns {{uuid: string, name: string, stance: string, note: string, hidden: boolean}[]}
  */
 export function regardedBy(records, uuid) {
@@ -157,9 +152,9 @@ export function placesHeld(record) {
 }
 
 /**
- * The rows of a list a reader is allowed to read. Concealment is a DISPLAY
- * rule and never an access one: the Judge holds every row, and a row the city
- * is not supposed to know is simply left out of everyone else's copy.
+ * The rows of a list a reader is allowed to read. Concealment is a display
+ * rule, not an access one: the Judge holds every row, and a hidden row is left
+ * out of everyone else's copy.
  * @param {object[]} rows stored rows, model-backed or plain
  * @returns {object[]} plain copies, safe to decorate
  */
@@ -184,10 +179,9 @@ export function isConcealedMember(members, uuid) {
 }
 
 /**
- * The head a reader is allowed to be told. A secret head is a concealed member
- * row like any other, so a reader who cannot see the row is not told the office
- * either — naming the leader beside a roster the leader is missing from
- * publishes exactly the tie the row conceals.
+ * The head a reader is allowed to be told. A concealed member row hides the
+ * office as well, since naming the leader would publish the tie the row
+ * conceals.
  * @param {{leaderUuid?: string, members?: object[]}} sys
  * @returns {string} the uuid to show, or "" when the office is not this reader's
  */

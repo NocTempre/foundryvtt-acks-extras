@@ -2,24 +2,20 @@
 /**
  * The travel system a map declares, on its navigation card: one icon per
  * scene in core's Scene Navigation bar showing the system the scene's setup
- * record names — a dungeon, a wilderness map, a settlement — or that it
- * names none, and for a GM the control that declares one. A left click opens
- * a picker over the three systems and the clearing entry; a right click on
- * the icon clears the declaration outright. Players see no icon: the
- * declaration is the Judge's statement about the map, and what a party is
- * doing is read off the party sheet (docs/battlemap/DECISIONS.md, 2026-10-28).
+ * record names (a dungeon, a wilderness map, a settlement) or that it names
+ * none, and for a GM the control that declares one. A left click opens a
+ * picker over the three systems and the clearing entry; a right click on the
+ * icon clears the declaration. Players see no icon.
  *
- * The icon is a control inside core's clickable card, so it carries a
- * `data-action` core has no handler for: core's click handling takes the
- * nearest `[data-action]` and, finding none registered under that name, does
- * nothing, which is what keeps a press on the icon from viewing the scene.
- * The picker is core's own ContextMenu, bound once to the navigation root
- * (which core keeps across re-renders, replacing only its children) and
- * opened by click, placed at the icon rather than the pointer so a keyboard
- * press opens it at the same place. The flag is written through
- * `writeSceneSystem`, the writer the setup panel uses too; core re-renders
- * the navigation on every scene update, so the icon follows the flag with no
- * render call of its own.
+ * See docs/battlemap/DECISIONS.md, "The map's declaration is on its navigation card".
+ *
+ * The icon sits inside core's clickable card and carries a `data-action` core
+ * has no handler for, which keeps a press on it from viewing the scene. The
+ * picker is core's ContextMenu, bound once to the navigation root (core keeps
+ * it across re-renders) and placed at the icon, not the pointer, so a keyboard
+ * press opens it in the same place. The flag is written through
+ * `writeSceneSystem`, the setup panel's writer; core re-renders the navigation
+ * on every scene update, so the icon follows the flag.
  */
 import { LANG_PREFIX, MODULE_ID, FLAG_BATTLEMAP, TRAVEL_MODES } from "./constants.mjs";
 import { sceneSetup, writeSceneSystem } from "./scene-setup.mjs";

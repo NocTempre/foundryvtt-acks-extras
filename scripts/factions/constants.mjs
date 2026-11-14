@@ -1,8 +1,9 @@
 /**
  * The factions feature's vocabulary: the actor sub-type, the kinds an
  * organisation can be, the sources a standing row can come from, and the hook
- * a standing change fires. Every number a faction carries is the Judge's own
- * — the books print no reputation score, so nothing here is a page value.
+ * a standing change fires. Every number a faction carries is the Judge's own.
+ *
+ * See docs/factions/DECISIONS.md, "Standing is a ledger of the Judge's values; RAW has no score (2026-09-16)".
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 export { MODULE_ID };
@@ -14,17 +15,15 @@ export const LANG_PREFIX = "ACKS-FACTIONS";
 export const FACTION_TYPE = `${MODULE_ID}.faction`;
 
 /**
- * What sort of organisation a faction is. A classification for the Judge's
- * eye and for the one rule that reads it (`AUTHORITY_KINDS`); nothing else
- * branches on it.
+ * What sort of organisation a faction is. Only `AUTHORITY_KINDS` branches on
+ * it.
  */
 export const FACTION_KINDS = Object.freeze(["guild", "temple", "syndicate", "noble", "watch", "merchant", "other"]);
 
 /**
- * The kinds whose control of a quarter is LEGAL authority there: a member of
- * the watch or of the ruling house acts under the law's own weight when the
- * party stands in a quarter that faction holds. The reaction dialog is told
- * so by a label row; the authority modifier itself stays the Judge's tick.
+ * The kinds whose control of a quarter is legal authority there. The reaction
+ * dialog is told so by a label row; the authority modifier itself stays the
+ * Judge's tick.
  */
 export const AUTHORITY_KINDS = new Set(["watch", "noble"]);
 
@@ -40,22 +39,22 @@ export const STANDING_SOURCES = Object.freeze(["favour", "offence", "crime", "wa
  * Who a standing row is about: everyone, one party, one character, or one
  * other organisation. A `faction` row counts for every member of the
  * organisation it names, the way a `party` row counts for every member of the
- * party — a syndicate that hates the guild receives the guild's people coldly.
+ * party.
  */
 export const SUBJECT_SCOPES = Object.freeze(["all", "party", "character", "faction"]);
 
 /**
- * How one organisation regards another. A LABEL the Judge picks, like `kind`:
- * nothing derives a number from it and nothing reads it as a modifier. The
- * numeric side of a rivalry is a ledger row of `faction` scope, which is the
- * Judge's own figure like every other row.
+ * How one organisation regards another. A label the Judge picks: nothing
+ * derives a number from it. The numeric side of a rivalry is a ledger row of
+ * `faction` scope.
+ *
+ * See docs/factions/DECISIONS.md, "A relation is a stance and a note (2026-09-17)".
  */
 export const RELATION_STANCES = Object.freeze(["allied", "friendly", "neutral", "rival", "hostile"]);
 
 /**
  * World setting: how much standing moves a market class one step. Zero, the
- * default, turns the availability shift off — the books price no reputation,
- * so a Judge who wants standing to open or close a market chooses the step.
+ * default, turns the availability shift off.
  */
 export const SETTING_STANDING_STEP = "standingPerClassStep";
 
