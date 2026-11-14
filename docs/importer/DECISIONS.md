@@ -10806,3 +10806,80 @@ already decides).
 *Cost:* a book that paints two pictures of one size on a page cannot be read
 this way until a recipe can tell them apart, for example by placement as a
 scene's crop does.
+
+## 2026-11-13 — Lairs & Encounters is a Judge's book whose lairs are places and whose plates are their Scenes
+
+The owner asked for lair maps: "The lairs from the MM was an ask for the maps,
+not just journals." The MM prints none (a census of its 67 lair pages and the
+page after each found only art), so the owner was asked where maps should come
+from and picked "Lairs & Encounters" (ACKS I, 2016). "This is not due for
+release, start as a new branch": the work lives on `topic/lair-maps` and lands
+after the Public Beta. This reverses the 2026-11-12 public-major plan's Q8,
+which held L&E out as a comparison source; the new evidence is that census and
+the owner's first ruling. On how a lair stands in the world the owner had
+asked: "New lair actor type needed? Possible extension of the monster
+group/encounter actor type? It should link without creating duplicates." Asked
+again with options on 2026-11-13, the owner picked:
+
+- Scope: "All 168 listings". Each of Chapter 3's 168 listings is a lair; the
+  37 that print a full-page plate also get its Scene.
+- Shape: "Place actor (Recommended)".
+- Text: "As AX books do": the listing is the place's notes and every stat line
+  is a creature, bound as an ACKS I adventure's are.
+- Grid: "5 ft per square (Recommended)".
+
+**Ruled:**
+
+- **L&E is `REGISTRY.le`**, short `LE`, `judge: true` with no `line`, as the
+  AX books are, on the closed Judge shelf. Its Adventure carries its lairs and
+  their Scenes. Nothing else of the book is read: not its other chapters, its
+  appendix tables, or its monster parts.
+- **A lair is a keyed place** (2026-08-20 "A keyed room is a place…"):
+  `le.lair<n>` labelled `Lair <n>`, in the key space of a `le.lairs`
+  container, anchored by hash on its heading. A new `meta.of` names the ACKS II
+  monster (or monster template) row it is the lair of. It is authored from the
+  MM's names and the conversion pairs, never guessed at import, and a listing
+  with no ACKS II monster carries none. The place's roster refers to that
+  monster's library actor and never copies it (2026-09-17, a roster row "goes
+  on pointing at them there"). Imported before the MM, the lair links on the
+  Judge's-book Repair.
+- **Stat lines bind as 2026-10-17 "An ACKS I adventure binds to ACKS II"
+  rules**: to the ACKS II monster where the line names one or a registered
+  replacement, otherwise reported and made. That is what keeps "without
+  creating duplicates": an L&E stat line never makes a second copy of an MM
+  monster.
+- **A lair's map is its plate** (Appendix Two). Each plate is a `kind.scene`
+  recipe with the AX fields, a square grid of 5 ft, and `place` naming its
+  lair. A plate is paired with its listing by the listing's own pointer to the
+  plate's page, read offline by the harvest tool and pinned by a test. Every
+  plate recipe must name a `place`: without one, a grid recipe is read as the
+  book's region map.
+- **Labels are neutral** (`.claude/rules/ip-doctrine.md`): `Lair <n>` and
+  `Lair <n> Map`, hash locators, page numbers and `meta.of` ship. Headings,
+  captions, prose, stat lines, treasure and named individuals arrive at import
+  from the Judge's own copy.
+- **The MM's own lairs stay where 2026-11-13's A3 ruling put them**, in the
+  monster's Encounter field; no `mm.lair*` row and no MM Lairs journal is
+  minted here.
+
+**Rejected:**
+
+- The listings' inline maps as a second source: each is a smaller copy of its
+  plate, with the same keys.
+- A group actor per lair: a stack needs a world actor, so every lair would copy
+  its monster, and a group has no notes, nesting or map.
+- A new lair actor type: it re-invents the location actor and needs a relaunch
+  and a sheet.
+- A region site as the lair: no plan names a site as its `place`, and a site
+  has no roster.
+- Maps only, with no text: the compiler and the place import both assume a
+  body, and the owner chose the AX shape.
+- A grid distance measured off each plate's scale bar (one square reads about
+  4.2 ft on one plate and 5.3 ft on another): the owner chose 5 ft.
+- `L&E` as the short: `&` fails the citation parser.
+
+*Cost:* a first-edition book's how-to prose stands as the container's notes.
+Only 3 of the 37 plated lairs belong to a monster the MM prepares a lair for,
+and about 4 have no ACKS II monster, so these are L&E's own lairs, not maps of
+the MM's. Each `meta.of` and each replacement pair costs a reviewer's read.
+Room keys stay in the prose until a reader for inline keys is built.
