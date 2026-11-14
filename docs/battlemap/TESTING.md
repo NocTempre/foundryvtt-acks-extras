@@ -484,12 +484,10 @@ formation recipe's "The country" fixtures, which it keeps.
 Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
 square-gridded scene `battlemap/layers-square` with a scale in miles, kept and
 written back to its grid with its battlemap record unset (one holding a
-region, a wall or a token is rebuilt); and three HEX-gridded scenes rebuilt every run, since
-what each is walked for is a brush, a line tool or a first view on an empty
-map — `battlemap/layers-hex` for steps 1-8 and step 10's
-`battlemap/layers-painted-climate` and `battlemap/layers-declared-climate`.
-Each is retired before it is built, and takes the regions and walls drawn on
-it with it. Nothing else: every read here is `countryAt` over the scene
+region, a wall or a token is rebuilt); and a HEX-gridded scene
+`battlemap/layers-hex` for steps 1-8, rebuilt every run, since what it is
+walked for is a brush or a line tool on an empty map. It is retired before it
+is built, and takes the regions and walls drawn on it with it. Nothing else: every read here is `countryAt` over the scene
 document, and the party's half is `docs/formation/TESTING.md`, "The country".
 
 **Drive mechanics.** View the hex scene first, as for terrain painting. The
@@ -582,21 +580,6 @@ bubbling `change`.
    the scene, read by nothing (`layerRegionsOf` answers empty for the key; count
    the scene's regions by the flag to see it). The registration lives in the
    page alone and goes with a reload.
-10. Build two more hex scenes in the shape a map painted before the climate
-    was the map's: on the first, GM-only regions flagged `climate` and
-    `climateHexes`, one climate on two hexes and a second on one, and no
-    climate of its own; on the second, one such region and a scene default
-    climate. Make each region with `scene.createEmbeddedDocuments("Region",
-    …)` (the brush does not write one) and track its id. View the
-    first as a GM.
-    *Observable:* its setup record's climate is the one painted on two hexes,
-    `climateFolded` is true, and a notification names that climate; its two
-    regions stay, and `countryAt` at the hex painted the second climate
-    answers the map's with `source.climate` "scene". Clear the climate in the
-    record, view another scene and view this one again: the climate stays
-    cleared and nothing is said. View the second scene: its own climate
-    stands, `climateFolded` is true, and nothing is said.
-
 Teardown: none of the scenes; the next run retires the hex maps. The wall
 preset is client state: arm core's ordinary wall once more if the run left a
 water preset armed, so this seat's next wall is not a river.
@@ -605,14 +588,11 @@ water preset armed, so this seat's next wall is not a river.
 
 Fixtures, found by marker (`flags.world.fixture`) or built carrying it: a
 HEX-gridded scene `battlemap/modes-hex` whose scene default names a territory
-and a climate, with one water line for step 3's markers; a second hex scene
-`battlemap/modes-old` built in the shape of a map painted before the
-territory moved to the Regions control (step 7); and a square-gridded scene
-`battlemap/modes-square`. The two hex scenes are rebuilt every run — retired
-with what was drawn on them, then built — since the steps paint and draw on
-them and step 7 walks a first view; the square one is kept and written back
-to its grid with its battlemap record unset (one holding a region, a wall or
-a token is rebuilt).
+and a climate, with one water line for step 3's markers; and a square-gridded scene
+`battlemap/modes-square`. The hex scene is rebuilt every run — retired with
+what was drawn on it, then built — since the steps paint and draw on it; the
+square one is kept and written back to its grid with its battlemap record
+unset (one holding a region, a wall or a token is rebuilt).
 
 **Drive mechanics.** The API is `acksExtras.battlemap.mapModes` (`mapModes`,
 `mapView`, `setMapView`, `openMapModes`, `registerMapMode`). The window is
@@ -657,19 +637,11 @@ back at the end.
    borders back.
 6. Repaint one hex of the cluster the other territory.
    *Observable:* the overlay redraws within a moment, the hex's borders moved.
-7. On the second hex scene, make two regions flagged `territory` and
-   `territoryHexes` with `scene.createEmbeddedDocuments("Region", …)` at
-   `visibility` 1 (GAMEMASTER), as the brush made them before, and one
-   region flagged `terrain`; track their ids. View the scene as a GM.
-   *Observable:* both territory regions are at `visibility` 0, the terrain
-   region as it was made, and the setup record holds `regionsSettled` true. Set
-   one territory region back to 1 in its config, view another scene and
-   view this one again: it stays at 1.
-8. View the square scene with the window open.
+7. View the square scene with the window open.
    *Observable:* the window says the modes are drawn on a hex map, and the
    overlay holds no child.
 
-Teardown: none of the scenes; the next run retires the hex ones. Set this
+Teardown: none of the scenes; the next run retires the hex one. Set this
 seat's view back with `setMapView({mode: "terrain", opacity: 0.85, handout:
 false})`.
 

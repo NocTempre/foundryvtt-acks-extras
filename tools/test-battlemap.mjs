@@ -1247,12 +1247,10 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 /* --- the scene's default country --------------------------------------------
    What the Judge said of a map's unpainted country, stored inside the setup
    record. The write merges into that record; the read drops what it does not
-   know. A map painted with climates hex by hex folds them into its one
-   climate, once. Values below are invented. */
+   know. Values below are invented. */
 {
-  const { sceneCountry, writeSceneSetup, paintedClimateOf, foldPaintedClimate } = await import("../scripts/battlemap/scene-setup.mjs");
+  const { sceneCountry, writeSceneSetup } = await import("../scripts/battlemap/scene-setup.mjs");
   const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
-  const { CLIMATES } = await import("../scripts/formation/weather.mjs");
   const flags = {};
   const scene = {
     getFlag: (ns, key) => flags[ns]?.[key],
@@ -1274,42 +1272,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   await writeSceneSetup(scene, { country: { ground: "", territory: "nowhere", climate: "Q9" } });
   assert.deepEqual(sceneCountry(scene), silent, "a blank or a value the module does not know reads as unsaid");
 
-  const painted = (code, hexes) => ({ getFlag: (_ns, key) => (key === "climate" ? code : key === "climateHexes" ? hexes : undefined) });
-  const mapOf = (regions, country = null) => {
-    const held = { [MODULE_ID]: { battlemap: country ? { country } : {} } };
-    return {
-      regions,
-      held,
-      getFlag: (ns, key) => held[ns]?.[key],
-      setFlag: async (ns, key, value) => { held[ns] = { ...(held[ns] ?? {}), [key]: structuredClone(value) }; },
-    };
-  };
-  assert.deepEqual(paintedClimateOf(mapOf([])), { climate: null, regions: 0 }, "a map with no painted climate holds none");
-  assert.deepEqual(paintedClimateOf(null), { climate: null, regions: 0 });
-  const listedFirst = Object.keys(CLIMATES).find((k) => k === "BSk" || k === "Csb");
-  assert.equal(paintedClimateOf(mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2"])])).climate, listedFirst,
-    "a tie goes to the climate the module lists first");
-  assert.deepEqual(
-    paintedClimateOf(mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2", "1:3"]), painted("Q9", ["1:4", "1:5", "1:6"])])),
-    { climate: "BSk", regions: 3 }, "the climate most hexes hold wins; an unknown one counts as a region and never wins");
-
-  const folding = mapOf([painted("Csb", ["1:1"]), painted("BSk", ["1:2", "1:3"])], { ground: "forest" });
-  assert.equal(await foldPaintedClimate(folding), "BSk", "a map that says no climate takes its painted one");
-  assert.deepEqual(folding.held[MODULE_ID].battlemap, { country: { ground: "forest", climate: "BSk" }, climateFolded: true },
-    "into the setup record, the rest of the record kept");
-  assert.equal(folding.regions.length, 2, "the painted regions are left as they are");
-  await writeSceneSetup(folding, { country: { ground: "forest" } });
-  assert.equal(await foldPaintedClimate(folding), null, "a map is folded once");
-  assert.equal(sceneCountry(folding).climate, null, "so a climate the Judge clears afterwards stays cleared");
-
-  const declared = mapOf([painted("BSk", ["1:2"])], { climate: "Csb" });
-  assert.equal(await foldPaintedClimate(declared), null, "a map that says its own climate keeps it");
-  assert.equal(sceneCountry(declared).climate, "Csb");
-  assert.equal(declared.held[MODULE_ID].battlemap.climateFolded, true, "and is marked folded all the same");
-
-  const unpainted = mapOf([]);
-  assert.equal(await foldPaintedClimate(unpainted), null);
-  assert.equal(unpainted.held[MODULE_ID].battlemap.climateFolded, undefined, "a map with no painted climate is never written");
 }
 
 /* --- the country under a point ----------------------------------------------
@@ -1330,7 +1292,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   });
   const terrain = (value, hexes) => region(TERRAIN_FLAG, value, HEXES_FLAG, hexes);
   const territory = (value, hexes) => region("territory", value, "territoryHexes", hexes);
-  const climate = (value, hexes) => region("climate", value, "climateHexes", hexes);
   const line = (c, layer) => ({ c, move: 0, flags: { [MODULE_ID]: layer } });
   const sceneOf = ({ regions = [], walls = [], country = null, type = CONST.GRID_TYPES.HEXODDR, id = "scene-country" } = {}) => ({
     id,
@@ -1356,7 +1317,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     regions: [
       terrain("forestTaiga", ["1:1"]), terrain("desertSandy", ["1:3"]), terrain("forest", ["1:5"]),
       terrain("ashWaste", ["1:7"]), terrain("riverLand", ["1:9"]),
-      territory("outlands", ["1:1"]), territory("wildlands", ["1:3"]), climate("Csb", ["1:1"]),
+      territory("outlands", ["1:1"]), territory("wildlands", ["1:3"]),
     ],
     walls: [
       line([100, 150, 250, 150], { road: { surface: "paved" } }),
@@ -1372,7 +1333,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     ground: "forest", encounterTerrain: "forestTaiga", territory: "outlands", climate: "BSk", road: "paved", following: "none",
   }, "a hex painted on every layer, a road through it and no navigable water under it");
   assert.deepEqual(at.source, { ...all("map"), climate: "scene" },
-    "every painted answer is the map's; a climate painted before the climate was the map's is not read");
+    "every painted answer is the map's; the climate is the scene's, since the brush paints none");
   assert.equal(at.water, null);
 
   at = read(scene, 1, 3);
@@ -1460,7 +1421,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     MAP_VIEW_DEFAULT, MapModesApp, borderSegments, installMapModes, layerPlan, mapModes, mapView, modeForLayer,
     registerMapMode, registerMapViewSetting, setMapView,
   } = await import("../scripts/battlemap/map-modes.mjs");
-  const { TERRITORY_COLORS, layerLabelFor, layerRegionsOf, paintHexAt, settleRegionsOnly, terrainPaint } =
+  const { TERRITORY_COLORS, layerLabelFor, paintHexAt, terrainPaint } =
     await import("../scripts/battlemap/terrain-paint.mjs");
   const { TERRITORY_KEYS } = await import("../scripts/formation/country-keys.mjs");
   const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
@@ -1514,7 +1475,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   // A layer's plan, and the borders it draws.
   const flags = { [MODULE_ID]: { battlemap: { calibrated: true, country: { territory: "outlands", climate: "Csb" } } } };
   let rid = 0;
-  const updates = [];
   const scene = {
     id: "scene-modes",
     grid: {
@@ -1547,10 +1507,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
       }));
       scene.regions.push(...made);
       return made;
-    },
-    async updateEmbeddedDocuments(name, data) {
-      updates.push([name, structuredClone(data)]);
-      for (const { _id, ...change } of data) Object.assign(scene.regions.find((r) => r.id === _id), change);
     },
   };
   const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
@@ -1621,20 +1577,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     delete MapModesApp.prototype.render;
     delete globalThis.canvas;
   }
-
-  // Old territory regions, painted for a GM, move to the Regions control once.
-  const [territoryRegion] = layerRegionsOf(scene, "territory");
-  territoryRegion.visibility = CONST.REGION_VISIBILITY.GAMEMASTER;
-  assert.equal(await settleRegionsOnly(scene), 1, "a region drawn for a GM is moved");
-  assert.deepEqual(updates, [["Region", [{ _id: territoryRegion.id, visibility: CONST.REGION_VISIBILITY.LAYER }]]],
-    "in one write, of that region alone: the terrain is left drawn for everyone");
-  assert.deepEqual(flags[MODULE_ID].battlemap, { calibrated: true, country: { territory: "outlands", climate: "Csb" }, regionsSettled: true },
-    "and the scene is marked, the rest of its setup record kept");
-  territoryRegion.visibility = CONST.REGION_VISIBILITY.GAMEMASTER;
-  assert.equal(await settleRegionsOnly(scene), 0, "a scene is settled once, so a visibility the Judge sets afterwards stands");
-  assert.equal(updates.length, 1);
-  const bare = { regions: [], getFlag: () => undefined, setFlag: async () => assert.fail("a scene with no territory is not written") };
-  assert.equal(await settleRegionsOnly(bare), 0);
 }
 
 /* --- a layer that derives the territory -------------------------------------
@@ -1789,4 +1731,4 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.doesNotThrow(() => dispose(), "and its spent handle removes nothing");
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country and its painted climate folded, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides)");
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides)");

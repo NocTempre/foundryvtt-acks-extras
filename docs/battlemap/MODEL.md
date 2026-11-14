@@ -99,19 +99,6 @@ the whole setup record). `sceneCountry` reads it and drops a key the module
 does not know. `ground` takes a terrain brush value, read the way a painted
 hex reads it.
 
-**A map painted with climates.** A map painted before the climate was the
-map's holds GM-only regions flagged `climate` and `climateHexes`. The first
-time a GM's client draws such a map (`canvasReady`), `foldPaintedClimate`
-([scene-setup.mjs](../../scripts/battlemap/scene-setup.mjs)) writes the
-climate most of its hexes hold (`paintedClimateOf`; a tie goes to the code
-`CLIMATES` lists first, and a code the module does not know never wins) into
-the scene default where the map says none, marks the setup record
-`climateFolded` either way, and says which climate it took in a notification.
-The viewing GM writes it, since `canvasReady` fires only on the client that
-draws the map. A map is folded once, so a climate cleared afterwards stays
-cleared. Nothing reads the regions after the fold; they stay until the Judge
-deletes them from the Regions tab.
-
 **One reader.** `countryAt(scene, point)`
 ([country.mjs](../../scripts/battlemap/country.mjs)) answers the six keys the
 journey asks — `ground`, `encounterTerrain`, `territory`, `climate`, `road`,
@@ -214,12 +201,8 @@ its module flags, or a `paintLayerChanged`.
 
 **Regions on the Regions control.** A territory region is made with
 `REGION_VISIBILITY.LAYER`, since the mode draws it and core's fill would cover
-the terrain under it. A map painted before then holds territory regions drawn
-for a GM; the first time a GM's client draws it, `settleRegionsOnly` moves
-every such region of a `regionsOnly` layer onto the Regions control in one
-write and marks the setup record `regionsSettled`. A scene is settled once,
-so a visibility the Judge sets by hand afterwards stands; a scene holding no
-such region is never written.
+the terrain under it. A visibility the Judge sets by hand afterwards stands;
+nothing rewrites it.
 
 ## Files
 

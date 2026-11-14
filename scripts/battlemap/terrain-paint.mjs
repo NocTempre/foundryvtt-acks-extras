@@ -22,8 +22,7 @@
  * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
  * cell key is the identity."
  */
-import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP } from "./constants.mjs";
-import { writeSceneSetup } from "./scene-setup.mjs";
+import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
@@ -487,27 +486,6 @@ function regionVisibilityOf(spec) {
   if (spec.visible) return V.ALWAYS ?? 2;
   if (spec.regionsOnly) return V.LAYER ?? 0;
   return V.GAMEMASTER ?? 1;
-}
-
-/**
- * Move a scene's regions on a `regionsOnly` layer that were painted to be
- * drawn for a GM onto the Regions control alone, once. A scene holding any
- * region of such a layer is marked `regionsSettled` in its setup record and
- * never settled again, so a visibility the Judge sets by hand afterwards
- * stands; a scene holding none is not written.
- * @returns {Promise<number>} how many regions moved
- */
-export async function settleRegionsOnly(scene) {
-  if (scene?.getFlag?.(MODULE_ID, FLAG_BATTLEMAP)?.regionsSettled) return 0;
-  const regions = [...layers.values()].filter((l) => l.regionsOnly).flatMap((l) => layerRegionsOf(scene, l.key));
-  if (!regions.length) return 0;
-  const gm = CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1;
-  const updates = regions
-    .filter((r) => r.visibility === gm)
-    .map((r) => ({ _id: r.id, visibility: regionVisibilityOf({ regionsOnly: true }) }));
-  if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
-  await writeSceneSetup(scene, { regionsSettled: true });
-  return updates.length;
 }
 
 /**

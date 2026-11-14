@@ -17,7 +17,7 @@ import {
 } from "./token-scale.mjs";
 import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
 import {
-  familyOfScene, foldPaintedClimate, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents,
+  familyOfScene, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents,
   writeSceneSetup,
 } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
@@ -38,8 +38,6 @@ import {
   PAINT_LAYERS,
   TERRAIN_COLORS,
   TERRITORY_COLORS,
-  climateLabelFor,
-  settleRegionsOnly,
 } from "./terrain-paint.mjs";
 import {
   WATER_KINDS,
@@ -100,22 +98,6 @@ Hooks.once("init", () => {
   Hooks.on("canvasReady", () => session.onCanvasReady());
   // A system declared from a navigation card reaches an open panel's select.
   Hooks.on("updateScene", (scene, changes) => sessionFollowsScene(session, scene, changes));
-  // A map painted with climates hex by hex is folded into its one climate,
-  // and its territory regions drawn for a GM are moved onto the Regions
-  // control, the first time a GM opens it. The viewing GM writes both, never
-  // the active GM: canvasReady fires only on the client drawing the map, so a
-  // map opened by an assistant alone would otherwise never settle. Two GMs
-  // opening it at once write the same answer.
-  Hooks.on("canvasReady", (board) => {
-    if (!game.user?.isGM || !board?.scene) return;
-    foldPaintedClimate(board.scene)
-      .then((climate) => {
-        if (!climate) return;
-        ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.setup.climateFolded`, { climate: climateLabelFor(climate) }));
-      })
-      .then(() => settleRegionsOnly(board.scene))
-      .catch((err) => console.error(`${MODULE_ID} | settling the painted layers failed`, err));
-  });
 
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)

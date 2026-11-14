@@ -24,8 +24,7 @@
  * or token has no shape a step can write back and is rebuilt. The hex maps are
  * rebuilt every run, since what each is walked for is a brush, a line tool or
  * a first view on an empty map: `battlemap/layers-hex`,
- * `battlemap/layers-painted-climate`, `battlemap/layers-declared-climate`,
- * `battlemap/modes-hex`, `battlemap/modes-old`, `battlemap/water-shot` and
+ * `battlemap/modes-hex`, `battlemap/water-shot` and
  * `formation/country-hex-scene` are retired first and take their regions,
  * walls and tokens with them. The party `formation/country-party` is retired
  * before its map, its delete dissolving the formation, and built again. The
@@ -60,8 +59,8 @@ const CELL = 100;
 const MILES = 7; // invented cell width, equal to the invented cadence figure for X
 const X = "outlands"; // cadence = one cell  -> "grid"
 const Y = "unsettled"; // cadence = two cells -> "miles", one cell carried
-const CLIMATE_A = "Csa"; // a map's own, and the one a map painted with climates folds into
-const CLIMATE_SCENE = "BSk"; // the scene default's, and the fold's loser
+const CLIMATE_A = "Csa"; // a map's own climate
+const CLIMATE_SCENE = "BSk"; // a second scene default's climate
 const TARGET = 11; // invented navigation target; the dice are rigged to a natural 20 for the country walk
 // Release plates are taken only under SHOTS=1; shotDir() makes the release directory, so it is not asked otherwise.
 const SHOTS = process.env.SHOTS === "1";
@@ -379,34 +378,6 @@ const P = {
     return { ok: r, terrain: H.B.terrain.layerValueAt(scene, point, "terrain"), territory: H.B.terrain.layerValueAt(scene, point, "territory") };
   },
 
-  /** A climate painted on a hex as the brush wrote one before the climate was the map's: a GM-only region, flagged `climate` and `climateHexes`. */
-  paintedClimate: async ({ sceneId, offsets, value }) => {
-    const H = globalThis.__rb;
-    const scene = game.scenes.get(sceneId);
-    const [made] = await scene.createEmbeddedDocuments("Region", [{
-      name: `QA painted climate ${value}`, color: "#4a8a3c", visibility: CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1,
-      shapes: offsets.map((o) => ({ type: "polygon", hole: false, points: scene.grid.getVertices(o).flatMap((v) => [v.x, v.y]) })),
-      flags: { "acks-extras": { climate: value, climateHexes: offsets.map((o) => `${o.i}:${o.j}`) } },
-    }]);
-    await H.sleep(300);
-    return { id: made.id, uuid: made.uuid };
-  },
-
-  /** What the fold left on a scene: its setup record's climate and mark, its painted climate regions, and the notifications since the last read. */
-  foldState: async ({ sceneId, offset = null }) => {
-    const H = globalThis.__rb;
-    const scene = game.scenes.get(sceneId);
-    const record = scene.getFlag("acks-extras", "battlemap") ?? {};
-    const at = offset ? H.B.country.countryAt(scene, scene.grid.getCenterPoint(offset)) : null;
-    return {
-      climate: H.B.country.sceneCountry(scene).climate,
-      folded: record.climateFolded === true,
-      regions: scene.regions.filter((r) => !!r.getFlag("acks-extras", "climate")).length,
-      at: at && { climate: at.climate, source: at.source.climate },
-      notes: H.takeNotes().filter((n) => /climate/i.test(n.text)),
-    };
-  },
-
   regions: async ({ sceneId, layer }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
@@ -650,34 +621,6 @@ const P = {
     ui.controls.activate({ control, tool });
     await H.sleep(700);
     return ui.controls.control?.name ?? null;
-  },
-
-  /** A territory region as the brush made one before the territory moved to the Regions control: drawn for a GM. */
-  oldTerritory: async ({ sceneId, offsets, value }) => {
-    const H = globalThis.__rb;
-    const scene = game.scenes.get(sceneId);
-    const [made] = await scene.createEmbeddedDocuments("Region", [{
-      name: `QA old territory ${value}`, color: "#c47a36", visibility: CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1,
-      shapes: offsets.map((o) => ({ type: "polygon", hole: false, points: scene.grid.getVertices(o).flatMap((v) => [v.x, v.y]) })),
-      flags: { "acks-extras": { territory: value, territoryHexes: offsets.map((o) => `${o.i}:${o.j}`) } },
-    }]);
-    await H.sleep(300);
-    return { id: made.id, uuid: made.uuid, visibility: made.visibility };
-  },
-
-  /** A scene's regions by id with their visibility, and its settle mark. */
-  settleState: async ({ sceneId }) => {
-    const scene = game.scenes.get(sceneId);
-    return {
-      regions: Object.fromEntries(scene.regions.map((r) => [r.id, r.visibility])),
-      settled: scene.getFlag("acks-extras", "battlemap")?.regionsSettled === true,
-    };
-  },
-
-  setVisibility: async ({ sceneId, regionId, visibility }) => {
-    const region = game.scenes.get(sceneId).regions.get(regionId);
-    await region.update({ visibility });
-    return region.visibility;
   },
 
   /** Put an application at 16,16 in front, by its id; reports its box against the viewport. */
@@ -1705,36 +1648,6 @@ async function walkLayers(W) {
   note("square countryAt", sqAt);
   check("L8: the ground reads the default with source scene; territory and climate null with a null source", sq.flagCountry?.ground === "grassland" && sqAt.ground === "grassland" && sqAt.source.ground === "scene" && sqAt.territory === null && sqAt.source.territory === null && sqAt.climate === null && sqAt.source.climate === null, sqAt);
   note("palette closed", await page(gm, P.closePalette));
-
-  section("layers 10. a map painted with climates folds into its one climate");
-  const painted = await rebuiltScene(gm, "battlemap/layers-painted-climate", sceneData("QA Layers painted climate", { type: 2 }));
-  const declared = await rebuiltScene(gm, "battlemap/layers-declared-climate", sceneData("QA Layers declared climate", { type: 2 }, { flags: { [MOD]: { battlemap: { country: { climate: CLIMATE_SCENE } } } } }));
-  for (const [sceneId, offsets, value] of [
-    [painted.id, [{ i: 5, j: 5 }, { i: 5, j: 6 }], CLIMATE_A],
-    [painted.id, [{ i: 6, j: 5 }], CLIMATE_SCENE],
-    [declared.id, [{ i: 5, j: 5 }], CLIMATE_A],
-  ]) {
-    const made = await page(gm, P.paintedClimate, { sceneId, offsets, value });
-    gm.track(made.uuid, "Region");
-  }
-  const f0 = await page(gm, P.foldState, { sceneId: painted.id });
-  check("fixture: the painted map holds two climate regions, no climate of its own, and is not folded", f0.regions === 2 && f0.climate === null && !f0.folded, f0);
-  note("painted map viewed", await page(gm, P.viewScene, painted.id));
-  const f1 = await page(gm, P.foldState, { sceneId: painted.id, offset: { i: 6, j: 5 } });
-  note("fold", f1);
-  check("L10: on first view the map takes the climate most of its hexes were painted, is marked folded, and says which", f1.climate === CLIMATE_A && f1.folded && f1.notes.length === 1 && f1.notes[0].text.includes(CLIMATE_A), f1);
-  check("L10: the painted regions stay and nothing reads them: a hex painted the other climate answers the map's, sourced scene", f1.regions === 2 && f1.at?.climate === CLIMATE_A && f1.at?.source === "scene", f1.at);
-  // Cleared as the Judge clears it, in the Battlemap window: an empty patch merges into the record and clears nothing.
-  const clearedClimate = await page(gm, P.assistant, { sceneId: painted.id, country: {}, clearKey: "climate" });
-  note("climate cleared", { flagCountry: clearedClimate.flagCountry, sceneCountry: clearedClimate.sceneCountry, waitedMs: clearedClimate.waitedMs });
-  note("assistant closed", await page(gm, P.closeAssistant));
-  note("square viewed", await page(gm, P.viewScene, square.id));
-  note("painted map viewed again", await page(gm, P.viewScene, painted.id));
-  const f2 = await page(gm, P.foldState, { sceneId: painted.id });
-  check("L10: a map is folded once: the climate cleared after the fold stays cleared, and nothing is said", f2.climate === null && f2.folded && f2.notes.length === 0, f2);
-  note("declared map viewed", await page(gm, P.viewScene, declared.id));
-  const f3 = await page(gm, P.foldState, { sceneId: declared.id });
-  check("L10: a map that says its own climate keeps it, is marked folded, and nothing is said", f3.climate === CLIMATE_SCENE && f3.folded && f3.notes.length === 0, f3);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1753,7 +1666,6 @@ async function walkModes(W) {
     }
   }
   const hex = await rebuiltScene(gm, "battlemap/modes-hex", sceneData("QA Modes hex", { type: 2 }));
-  const old = await rebuiltScene(gm, "battlemap/modes-old", sceneData("QA Modes old", { type: 2 }));
   const square = await keptScene(gm, "battlemap/modes-square", sceneData("QA Modes square", { type: 1 }));
   const tracked = new Set();
   const trackRegions = async (sceneId) => {
@@ -1838,25 +1750,10 @@ async function walkModes(W) {
   check("M6: repainting a hex the other class moves its borders", same(m.overlay?.drawn, m.expected) && Object.values(m.expected).reduce((s, n) => s + n, 0) !== 18, { drawn: m.overlay?.drawn, expected: m.expected });
   note("closed palette", await page(gm, P.closePalette));
 
-  section("modes 7. a map painted before is settled once");
-  const o1 = await page(gm, P.oldTerritory, { sceneId: old.id, offsets: [{ i: 3, j: 3 }, { i: 3, j: 4 }], value: X });
-  const o2 = await page(gm, P.oldTerritory, { sceneId: old.id, offsets: [{ i: 4, j: 3 }], value: Y });
-  const t1 = await page(gm, P.handRegion, { sceneId: old.id, offset: { i: 6, j: 6 }, value: "forestTaiga" });
-  for (const r of [o1, o2, t1]) gm.track(r.uuid, "Region");
-  note("old regions", { o1: o1.visibility, o2: o2.visibility });
-  note("old scene viewed", await page(gm, P.viewScene, old.id));
-  let s = await page(gm, P.settleState, { sceneId: old.id });
-  check("M7: on a GM's view both territory regions move to the Regions control, the terrain stays as made, and the scene is marked", s.regions[o1.id] === 0 && s.regions[o2.id] === 0 && s.regions[t1.id] === 1 && s.settled, s);
-  note("set one back by hand", await page(gm, P.setVisibility, { sceneId: old.id, regionId: o1.id, visibility: 1 }));
-  note("hex scene viewed", await page(gm, P.viewScene, hex.id));
-  note("old scene viewed again", await page(gm, P.viewScene, old.id));
-  s = await page(gm, P.settleState, { sceneId: old.id });
-  check("M7: a scene is settled once: the visibility set by hand stands", s.regions[o1.id] === 1 && s.regions[o2.id] === 0, s);
-
-  section("modes 8. a square map");
+  section("modes 7. a square map");
   note("square scene viewed", await page(gm, P.viewScene, square.id));
   m = await page(gm, P.modeWindow, {});
-  check("M8: on a square map the window says the modes draw on a hex map and the overlay holds no child", m.window?.hexScene === false && m.overlay?.children === 0, { window: m.window, overlay: m.overlay });
+  check("M7: on a square map the window says the modes draw on a hex map and the overlay holds no child", m.window?.hexScene === false && m.overlay?.children === 0, { window: m.window, overlay: m.overlay });
 }
 
 async function walkWaterShot(W) {

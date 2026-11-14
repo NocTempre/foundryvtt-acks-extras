@@ -7713,7 +7713,6 @@
   "ACKS-BATTLEMAP.setup.countryClimate": "Climate of this map",
   "ACKS-BATTLEMAP.setup.countryNone": "Not said",
   "ACKS-BATTLEMAP.setup.countryHint": "The ground and territory every hex on this scene reads as where the country brush has not painted it; a painted hex answers for itself. The climate is the whole map's. Saved the moment you choose.",
-  "ACKS-BATTLEMAP.setup.climateFolded": "This map was painted with climates hex by hex. {climate}, the one most of its hexes held, is now the climate of the whole map. Nothing reads the painted climate regions any more; delete them from the Regions tab when you like.",
   "ACKS-BATTLEMAP.family.square": "Square grid",
   "ACKS-BATTLEMAP.family.hexRows": "Hex grid — rows (pointy top)",
   "ACKS-BATTLEMAP.family.hexCols": "Hex grid — columns (flat top)",
