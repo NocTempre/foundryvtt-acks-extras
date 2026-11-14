@@ -9,10 +9,8 @@
  * the four modifiers that shift the throw and the two cadences that decide how
  * often it is made.
  *
- * The cadences are kept as TURNS rather than hours because that is the unit
- * both are printed in, and because the aerial exception is three turns where
- * the ordinary case is six — expressed in hours, one of them is a fraction for
- * no reason. Like every binding here, no value ships.
+ * The cadences are kept as TURNS, the unit both are printed in. Like every
+ * binding here, no value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -23,7 +21,7 @@ import { parseCount } from "./survival-binding.mjs";
 import { parseTargetPlus, parseSignedClause } from "./binding-parse.mjs";
 import { terrainKeys } from "./terrain-vocab.mjs";
 
-/** The engine doc both halves agree on (acks-extras `expectTables`). */
+/** The engine doc both halves agree on (`expectTables`). */
 export const SEARCHING_DOC_ID = "searching";
 
 /**
@@ -52,8 +50,8 @@ export const PRODUCES = Object.freeze({
 
 /**
  * A cadence in TURNS: a throws-per-turn-count clause, or an hour with its turn
- * count in parentheses (RR p. 274). The parenthesised turn count is preferred where the page gives both,
- * because it is the exact figure and the hour is its round description.
+ * count in parentheses (RR p. 274). The parenthesised turn count is preferred
+ * where the page gives both.
  */
 export function parseTurns(text) {
   const t = String(text ?? "").toLowerCase();
@@ -74,16 +72,14 @@ export function parseTurns(text) {
  * The terrains named in a clause, up to the word "terrain".
  *
  * Both clauses on this page are a comma list ending in that noun, so the noun
- * is the terminator rather than punctuation — which a terrain list is full of.
+ * is the terminator.
  */
 export function parseTerrainList(text) {
   const t = String(text ?? "").toLowerCase();
   const m = /([a-z,\s]+?)\s*\bterrain\b/.exec(t);
   if (!m) return null;
   // Everything up to and including "searching" is run-in, wherever it sits: a
-  // window can open on the clause itself or one connective word
-  // earlier (RR p. 274), and an anchored strip only handles
-  // whichever of the two it was written against.
+  // window can open on the clause itself or one connective word earlier (RR p. 274).
   const list = m[1]
     .replace(/^.*\bsearching\s+/s, "")
     .replace(/^[^a-z]+/, "")
@@ -98,15 +94,12 @@ export function parseTerrainList(text) {
  *
  * The recipe reads each row's label as a `milesBand` — `{min, max}` with a null
  * max on the open top row — so the bounds ride the row and this only has to
- * pair them with their target and put them in order. An unbounded row that
- * sorts anywhere but last would silently swallow the ladder.
+ * pair them with their target and put them in order.
  */
 export function assembleLadder(rows = {}) {
   const out = [];
-  // `numOrNull` reads null and "" as absent: `Number(null)` is 0 and 0 is
-  // finite, so a finiteness test alone turns the open top row into one that
-  // ends at zero miles — a ladder that then covers nothing above its last
-  // bounded band.
+  // `numOrNull` reads null and "" as absent, so the open top row keeps a null
+  // max instead of becoming a zero.
   for (const cells of Object.values(rows)) {
     if (!cells || cells.__missing) continue;
     const target = parseTargetPlus(cells.target);

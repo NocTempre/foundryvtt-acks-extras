@@ -9,7 +9,7 @@
  * ever persist in their world (via the ruledata-import contract).
  *
  * Pure module: no Foundry imports. Runs in the browser (against a connected
- * PDF's pageItems) and in Node (tools/verification against the reference PDFs).
+ * PDF's pageItems) and in Node (the dev tools under `tools/importer/`).
  */
 import { BOOKS } from "./books.mjs";
 import { findHeading, holdsKey } from "./printed-name.mjs";
@@ -35,14 +35,12 @@ export function rowsByY(items, tol = 3) {
  * Join a row's runs into one string.
  *
  * Runs concatenate BLIND by default, because a small-cap opening letter is one
- * word split across two runs ("c" + "rusader") and a space there would be wrong.
+ * word split across two runs and a space there would be wrong.
  *
  * `gapMin` opts a recipe into a GAP-AWARE join: where the next run starts more
  * than that many points past the end of the previous one, the page is showing a
  * word space the text layer does not carry, so one is inserted. The JJ sets its
- * class lists in small caps, and "dwarven craftpriest" arrives as four runs —
- * joined blind it reads "dwarvencraftpriest", which no consumer can match. In
- * that printing the intra-word gap is ~0.1pt and the word gap ~1.9pt, so the
+ * class lists in small caps, which arrive as one run per word part. The
  * threshold is a recipe's own number rather than a constant here: it is page
  * geometry, like every other bound in a recipe.
  */
@@ -62,16 +60,14 @@ export const joinRuns = (runs, gapMin = null) => {
  * Stable camelCase key for a printed row/column label, shared by the grid
  * executor, the template compiler and the importer so the same label always
  * yields the same key. Parentheticals carrying digits or no letters are
- * dropped ("Name (12-14 years)" → "name", "Poison (*)" → "poison"); purely
- * alphabetic ones are kept ("Speed (Land)" → "speedLand", which must not
- * collide with "Speed (Fly)"). Trailing colons and XP-star marks never
- * contribute ("8*****" → "8").
+ * dropped; purely alphabetic ones are kept, so two labels that differ only by
+ * a qualifier never collide. Trailing colons and XP-star marks never
+ * contribute.
  */
 export function slugLabel(label) {
   let s = String(label ?? "").trim().replace(/:\s*$/, "");
-  // Parentheticals that are ANNOTATION drop (roll bands "(101-200 years)",
-  // cost marks "(*)", "(1/2)", "(varies)", "(* or more)"); purely alphabetic
-  // qualifiers stay ("Speed (Land)" must not collide with "Speed (Fly)").
+  // Parentheticals that are ANNOTATION (roll bands, cost marks, "varies")
+  // drop; purely alphabetic qualifiers stay.
   s = s.replace(/\(([^)]*)\)/g, (_, inner) => {
     const t = inner.trim();
     return /\d/.test(t) || !/[a-z]/i.test(t) || /varies/i.test(t) || /^[^a-z]/i.test(t) ? " " : ` ${t} `;
@@ -102,9 +98,8 @@ export function applyCellPattern(text, pattern = "raw") {
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
     }
     case "dashZero": {
-      // A count grid prints a dash for none: the cell is a zero, not a blank,
-      // so a row of dashes still parses as a row. A footnote mark on the
-      // number ("21*") is not part of it.
+      // A count grid prints a dash for none: the cell is a zero, not a blank.
+      // A footnote mark on the number is not part of it.
       if (t === "-" || t === "—" || t === "–") return 0;
       const m = t.match(/\d[\d,]*/);
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
@@ -129,7 +124,7 @@ export function applyCellPattern(text, pattern = "raw") {
       return words.length === 1 && words[0] === "none" ? [] : words;
     }
     case "spreadBand": {
-      // "2, 3, 4" | "5, 6" | "14+" (a name may trail) -> {min, max};
+      // "a, b, c" | "a, b" | "n+" (a name may trail) -> {min, max};
       // an open "+" spread leaves max null.
       const open = t.match(/^(\d+)\s*\+/);
       if (open) return { min: +open[1], max: null };
@@ -138,11 +133,11 @@ export function applyCellPattern(text, pattern = "raw") {
       return { min: Math.min(...nums), max: Math.max(...nums) };
     }
     case "rollBand": {
-      // "11-16" | "10 or lower" | "19–20" -> {min?, max?}
+      // "a-b" | "n or lower" | "a–b" -> {min?, max?}
       const range = t.match(/(\d+)\s*[-–]\s*(\d+)/);
       if (range) {
         let min = +range[1], max = +range[2];
-        if (max < min) max += 100; // d100 bands print "91–00" for 91–100
+        if (max < min) max += 100; // a d100 band's top prints as 00
         return { min, max };
       }
       const lower = t.match(/(\d+)\s*or lower/i);
@@ -157,19 +152,19 @@ export function applyCellPattern(text, pattern = "raw") {
       return m ? m[0].toLowerCase() : null;
     }
     case "gpPerUnit": {
-      // "250gp/month" | "2sp/page" | "1gp/day/patient" -> {wage, wageUnit}
+      // "Ngp/unit" | "Nsp/unit" -> {wage, wageUnit}, the wage in gp
       const m = t.match(/([\d,.]+)\s*(gp|sp)\s*\/\s*(.+)/i);
       if (!m) return null;
       const wage = Number(m[1].replace(/,/g, "")) * (m[2].toLowerCase() === "sp" ? 0.1 : 1);
       return { wage, wageUnit: m[3].trim().replace(/\s+/g, "") };
     }
     case "diceFormula": {
-      // "1d6+15gp" amid prose -> "1d6+15"; "1d3gp" -> "1d3"
+      // "NdM+Kgp" amid prose -> "NdM+K"
       const m = t.match(/\d+d\d+(?:\s*[+x×]\s*\d+)?/);
       return m ? m[0].replace(/\s+/g, "") : null;
     }
     case "agePlus": {
-      // Age-ladder cell: "44" | "44+" (column cap) | "-" (class caps earlier).
+      // Age-ladder cell: "N" | "N+" (column cap) | "-" (class caps earlier).
       // Stray superscript footnote glyphs y-merge in — letters are never data.
       const s = t.replace(/[^\d+\-]/g, "");
       if (!s || s === "-") return null;
@@ -177,18 +172,18 @@ export function applyCellPattern(text, pattern = "raw") {
       return m ? Number(m[1]) : null;
     }
     case "ageBand": {
-      // "9-12" -> [9,12]; "88+" -> [88,999] (open-ended top band)
+      // "a-b" -> [a,b]; "n+" -> [n,999] (open-ended top band)
       const range = t.match(/(\d+)\s*[-–]\s*(\d+)/);
       if (range) return [Number(range[1]), Number(range[2])];
       const open = t.match(/(\d+)\s*\+/);
       return open ? [Number(open[1]), 999] : null;
     }
     case "hdCell": {
-      // "1/4 H|d|(1 hp)" drop-cap runs -> "1/4 HD (1 hp)"
+      // "n/m H|d|(k hp)" drop-cap runs -> "n/m HD (k hp)"
       return t.replace(/\s*h\s*d\s*/i, " HD ").replace(/\s*\(/, " (").replace(/\s+/g, " ").trim() || null;
     }
     case "romanClass": {
-      // "... c lass VI" (drop-caps) -> 6; takes the LAST roman numeral
+      // A drop-capped "class <numeral>" label -> the numeral's value; takes the LAST roman numeral
       const m = [...t.matchAll(/lass\s*([IVX]+)/gi)].pop();
       if (!m) return null;
       const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
@@ -228,10 +223,9 @@ export function applyCellPattern(text, pattern = "raw") {
     }
     case "countBand": {
       // A count band as a population or vassal ladder prints it, bare:
-      // "2,350 – 7,700" | "12-19" -> {min, max}; "45 or more" | "31+" ->
-      // max null; "3 or fewer" -> min null; a lone "6" -> both. A K or M
-      // scales its figure ("4K – 9.5K"), and a "+" after the upper figure
-      // opens the band above it.
+      // "A – B" -> {min, max}; "N or more" | "N+" -> max null; "N or fewer" ->
+      // min null; a lone "N" -> both. A K or M scales its figure, and a "+"
+      // after the upper figure opens the band above it.
       const FIG = "(\\d[\\d,]*(?:\\.\\d+)?)\\s*([km])?(?![a-z])";
       const n = (s, unit) => Math.round(Number(s.replace(/,/g, "")) * ({ k: 1e3, m: 1e6 }[unit?.toLowerCase()] ?? 1));
       const range = t.match(new RegExp(`^${FIG}\\s*[–—-]\\s*${FIG}\\s*(\\+)?`, "i"));
@@ -245,7 +239,7 @@ export function applyCellPattern(text, pattern = "raw") {
     }
     case "gpRate": {
       // A coin rate per unit as a revenue or expense table prints it:
-      // "7 – 11gp / barrel" | "6sp/ cart" -> {min, max, per}, in gp. A cell
+      // "A – Bgp / unit" | "Nsp/ unit" -> {min, max, per}, in gp. A cell
       // holding a word instead of a rate is a rate set elsewhere: null.
       const m = t.match(/^(\d[\d,]*(?:\.\d+)?)\s*(?:[–—-]\s*(\d[\d,]*(?:\.\d+)?)\s*)?(gp|sp|cp)\s*\/\s*(.+)$/i);
       if (!m) return null;
@@ -262,14 +256,14 @@ export function applyCellPattern(text, pattern = "raw") {
     }
     case "signedList": {
       // A modifier cell of one figure, or one per band its row names,
-      // slash-separated: "+1" -> [1]; "-1/-2/-3" -> [-1, -2, -3].
+      // slash-separated: "+a" -> [a]; "-a/-b/-c" -> [-a, -b, -c].
       const parts = t.replace(/[−–—]/g, "-").split("/").map((s) => s.trim());
       return parts.every((s) => /^[-+]?\d+$/.test(s)) ? parts.map(Number) : null;
     }
     case "parenthetical": {
       // A label that carries its own note in brackets, read as a
-      // `labelPattern`: "Troop (what it carries)" -> {note: "what it
-      // carries"}. A bracket the line cut off before its close still reads.
+      // `labelPattern`: "Label (note)" -> {note: "note"}. A bracket the line
+      // cut off before its close still reads.
       const m = t.match(/\(([^)]*)\)?/);
       const note = m ? m[1].replace(/\s+/g, " ").trim() : "";
       return note ? { note } : null;
@@ -368,11 +362,9 @@ export function extractGridRows(items, recipe) {
   const rows = rowsByY(items, recipe.rowTol ?? 3);
   const out = {};
   let cursor = 0;
-  // startAfter: a page may STACK two grids in the same print column (RR p160
-  // sets Armor and Equipment directly below Piercing/Slashing, both sharing the
-  // left column and the same d20 row labels). Skipping to the marker row is what
-  // stops the upper grid from answering for the lower one. Same convention the
-  // pairs/bandGrid shapes already use.
+  // startAfter: a page may STACK two grids in the same print column with the
+  // same row labels (RR p160); skipping to the marker row stops the upper grid
+  // from answering for the lower one. The pairs/bandGrid shapes use the same convention.
   if (recipe.startAfter) {
     const idx = rows.findIndex((r) => r.items.some((it) => it.str.includes(recipe.startAfter)));
     if (idx >= 0) cursor = idx + 1;
@@ -419,17 +411,15 @@ export function extractGridRows(items, recipe) {
     const lines = blocks.get(idx) ?? [rows[idx]];
     const lineItems = lines.flatMap((r, line) => (line ? r.items.map((it) => ({ ...it, _line: line })) : r.items));
     // Where a run IS, for the label bound and the windows: its start, or its
-    // centre when the recipe says `anchor: "center"`. A grid whose cells are
-    // set centred has starts that wander with each name's width — a long
-    // name opens inside the column before it — while its centre stays over
-    // its own column, first letter and wrap line included.
+    // centre when the recipe says `anchor: "center"`, for a grid whose cells
+    // are set centred and so have starts that wander with each name's width.
     const anchorX = (it) => (recipe.anchor === "center" ? it.x + (it.w ?? 0) / 2 : it.x);
     // Footnote markers (*, †, ‡) sit between rows and can y-merge into one;
     // they are never a cell value, so drop lone-marker runs from the band.
     let cellRuns = lineItems.filter((it) => anchorX(it) >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
     // joinCellGap: the book's small-caps face splits a cell's initial glyph
-    // into its own run ("c"+"rates"). A gap smaller than joinCellGap is a
-    // glyph boundary, not a column gutter — merge those runs into one cell.
+    // into its own run. A gap smaller than joinCellGap is a glyph boundary,
+    // not a column gutter — merge those runs into one cell.
     if (recipe.joinCellGap != null) {
       const sorted = [...cellRuns].sort((a, b) => (a._line ?? 0) - (b._line ?? 0) || a.x - b.x);
       cellRuns = [];
@@ -444,9 +434,9 @@ export function extractGridRows(items, recipe) {
     const cells = cellRuns.map((r) => r.str.trim());
     let row;
     if (recipe.cellColumns) {
-      // X-anchored columns: sparse rows may omit their dash cells entirely
-      // (RR cataphract row), so positions lie — bind each run to the nearest
-      // declared column x instead. `row: true` entries land on the row.
+      // X-anchored columns: sparse rows may omit their dash cells entirely, so
+      // positions lie — bind each run to the nearest declared column x
+      // instead. `row: true` entries land on the row.
       const obj = {};
       row = recipe.cellsKey ? { [recipe.cellsKey]: obj } : (row = {});
       const tol = recipe.columnTol ?? 14;
@@ -497,9 +487,7 @@ export function extractGridRows(items, recipe) {
       for (const { col, runs } of Object.values(windowed)) {
         // A joinGap makes the windowed join GAP-AWARE: a run starting a real
         // word-space past its neighbour keeps the space, a small-caps weld
-        // (near-zero gap) glues — "Herd"+"a"+"nimal" reads "Herd animal",
-        // not "Herdanimal". Without one the historical glue-all join stands,
-        // which existing recipes' bindings repair themselves. A wrapped
+        // (near-zero gap) glues. Without one every run glues. A wrapped
         // cell's lines join with a space: a line break is a word break.
         const gap = col.joinGap ?? recipe.joinGap;
         const joinLine = (sorted) => (gap != null
@@ -560,9 +548,8 @@ export function extractGridRows(items, recipe) {
 }
 
 /**
- * `pairs`: a two-column key→value table (e.g. the Henchmen Monthly Wage
- * ladder: level → gp). Label band left of `labelMaxX`, the single value run
- * to its right.
+ * `pairs`: a two-column key→value table (e.g. a ladder of level → gp). Label
+ * band left of `labelMaxX`, the single value run to its right.
  */
 export function extractPairs(items, recipe) {
   // `parts`: independent column bands (side-by-side ladder halves) merged
@@ -577,7 +564,7 @@ export function extractPairs(items, recipe) {
   const rows = rowsByY(inCol, recipe.rowTol ?? 3);
   const out = {};
   // startAfter: skip everything above the marker row (a page may stack an
-  // identically-labeled table above this one — the JS screen does).
+  // identically-labeled table above this one).
   let cursor = 0;
   if (recipe.startAfter) {
     const idx = rows.findIndex((r) => r.items.some((it) => it.str.includes(recipe.startAfter)));
@@ -603,28 +590,26 @@ export function extractPairs(items, recipe) {
   return out;
 }
 
-/**
- * `nameList`: a culture's name lists (RR People) — `Male Names:`,
- * `Female Names:`, `Surnames:` each a comma list that wraps across lines. The
- * page is two-column, so `column` bounds the culture's side; each field runs
- * from its label to the next field's label (the last one until the list stops
- * looking like names). Names are DATA and persist; the surrounding appearance
- * PROSE is never touched. A valid name is one capitalized token (accents ok).
- * `startAfterKey` starts the search at the row holding the name whose
- * `printKey` it is, for a list located without its first name written down.
- */
-// Full Unicode letters: the books print Buǧra, Mătine, Tϋlay — extraction
-// keeps them as printed (the seat's book is authoritative over any
-// hand-typed transliteration).
+// Full Unicode letters: extraction keeps accented names as the seat's book prints them.
 const NAME_RE = /^[\p{L}][\p{L}'’-]*$/u;
 
+/**
+ * `nameList`: a culture's name lists (RR People), each field a comma list that
+ * wraps across lines. The page is two-column, so `column` bounds the culture's
+ * side; each field runs from its label to the next field's label (the last one
+ * until the list stops looking like names). Names are DATA and persist; the
+ * surrounding appearance PROSE is never touched. A valid name is one
+ * capitalized token (accents ok). `startAfterKey` starts the search at the row
+ * holding the name whose `printKey` it is, for a list located without its
+ * first name written down.
+ */
 export function extractNameList(items, recipe) {
   const { xMin = 0, xMax = Infinity } = recipe.column ?? {};
   const inCol = items.filter((it) => it.x >= xMin && it.x <= xMax);
   const rows = rowsByY(inCol, recipe.rowTol ?? 3);
-  // Labels match on the ROW's joined text (drop-caps split "M ale Names:"
-  // across runs; joining repairs it), searching below an optional anchor so
-  // stacked culture blocks in one column pick the right one.
+  // Labels match on the ROW's joined text (a drop-cap splits a label across
+  // runs; joining repairs it), searching below an optional anchor so stacked
+  // culture blocks in one column pick the right one.
   const rowText = (r) => r.items.map((it) => it.str).join("").replace(/\s+/g, " ").trim();
   let from = 0;
   if (recipe.startAfterKey || recipe.startAfter) {
@@ -668,8 +653,8 @@ export function extractNameList(items, recipe) {
         line = line.slice(li);
       }
       for (const raw of line.split(",").map((s) => s.trim()).filter(Boolean)) {
-        // Drop-cap repair: a line-initial name splits as "U nnhild" — fuse
-        // the lone letter back on (uppercased; the glyph extracts lowercase).
+        // Drop-cap repair: a line-initial name splits after its first letter —
+        // fuse the lone letter back on (uppercased; the glyph extracts lowercase).
         const t = /^[\p{L}]\s[\p{Ll}'’-]/u.test(raw) ? raw[0].toUpperCase() + raw.slice(2) : raw;
         if (NAME_RE.test(t)) names.push(t);
         else { done = true; break; }
@@ -753,11 +738,10 @@ export function extractBandGrid(items, recipe) {
 /**
  * `harvestPairs`: label→text rows harvested structurally rather than by an
  * enumerated spec — used where the row KEYS are themselves page content (the
- * JJ occupation→proficiency packages, ~100 rows over four pages). A row with
- * a label starts an entry; a row with only value-band runs continues the
- * previous entry's wrapped list; a label-only row (section heading) closes
- * the entry. Values split on commas into tokens, keeping parentheticals
- * ("Craft (scribe)").
+ * JJ occupation→proficiency packages). A row with a label starts an entry; a
+ * row with only value-band runs continues the previous entry's wrapped list; a
+ * label-only row (section heading) closes the entry. Values split on commas
+ * into tokens, keeping parentheticals.
  */
 export function extractHarvestPairs(items, recipe) {
   const { xMin = 0, xMax = Infinity } = recipe.column ?? {};
@@ -794,8 +778,7 @@ export function extractHarvestPairs(items, recipe) {
     // prose pages interleave the table and must not mint entries.
     if (key.split(/\s+/).length > (recipe.maxKeyWords ?? 3)) continue;
     if (/[.:;!?]/.test(key)) continue;
-    // Split on commas OUTSIDE parentheses: "Weapon Proficiency (axes,
-    // bludgeons)" is one token.
+    // Split on commas OUTSIDE parentheses, so a parenthetical list stays in one token.
     const tokens = [];
     let depth = 0, buf = "";
     for (const ch of text) {
@@ -817,8 +800,8 @@ export function extractHarvestPairs(items, recipe) {
 }
 
 /**
- * `bandList`: one occupation sub-table (JJ) — a header row ("Laborer
- * Occupation") then rows of d100-band | occupation | optional special note.
+ * `bandList`: one occupation sub-table (JJ) — a header row, then rows of
+ * d100-band | occupation | optional special note.
  * The caller supplies items already stitched into a single virtual left
  * column (reading order, R halves shifted); extraction starts below
  * `startAfter` (the header), harvests every banded row, and stops at the
@@ -855,7 +838,7 @@ export function extractBandList(items, recipe) {
       const txt = rowStr(rows[ri]);
       if (!txt) continue;
       // A row living entirely in the note window is the previous entry's
-      // WRAPPED trade note (Mercantile Interest columns) — append and go on.
+      // WRAPPED note — append and go on.
       if (started && rows[ri].items.every((it) => it.x >= spW[0])) {
         if (out.length) out[out.length - 1].special = ((out[out.length - 1].special ?? "") + " " + txt).trim();
         continue;
@@ -877,15 +860,7 @@ export function extractBandList(items, recipe) {
   return { rows: out };
 }
 
-/**
- * `proseValues`: values the book states in running prose rather than a grid
- * (BTA caste percentages, JJ slavery costs). Each capture is an ANCHOR PHRASE
- * (never containing the value) plus a `take` micro-pattern applied to the
- * text window after it (or before, with `before: true`). Repeated phrasings
- * disambiguate by `occurrence` in reading order. The page is flattened
- * two-column reading order (L then R at `colSplit`), lowercased, whitespace
- * collapsed — the same normalization drop-caps and line wraps need anyway.
- */
+/** Number words a prose `take` reads, one to ten. */
 const WORD_INTS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 
 /**
@@ -1136,14 +1111,14 @@ function takeProse(window, take, spec = {}) {
       return m ? m[0] : undefined;
     }
     case "rollFormula": {
-      // A die as Foundry rolls it: a printed exploding mark ("1d10!") is
+      // A die as Foundry rolls it: a printed exploding mark ("NdM!") is
       // Foundry's `x` modifier, which `dice` reads past.
       const m = window.match(/(\d*)d(\d+)(\s*!)?/);
       return m ? `${m[1] || 1}d${m[2]}${m[3] ? "x" : ""}` : undefined;
     }
     case "num": {
       // A figure that may carry a decimal point as well as thousands
-      // separators: "12.5%" -> 12.5; "0.6" -> 0.6.
+      // separators.
       const m = window.match(/-?\d[\d,]*(?:\.\d+)?|-?\.\d+/);
       return m ? num(m[0]) : undefined;
     }
@@ -1218,8 +1193,8 @@ function takeProse(window, take, spec = {}) {
     }
     case "window": {
       // The raw span, periods and all — for anchors whose values live in
-      // SEVERAL sentences (the JJ Ready-for-Play build paragraphs); the
-      // consumer parses the window mechanically.
+      // SEVERAL sentences (JJ build paragraphs); the consumer parses the
+      // window mechanically.
       const s = window.replace(/\s+/g, " ").trim();
       return s || undefined;
     }
@@ -1256,8 +1231,8 @@ const ROW_LABEL_MAX = 200;
  * page has no edge after it and runs to the end of the text. Undefined when no
  * edge opens the row inside `span`, or the row is longer than a row is.
  *
- * A small-caps initial reaches the text layer as its own lowercase run
- * ("t ask"), so a label opening with one is rejoined and capitalized.
+ * A small-caps initial reaches the text layer as its own lowercase run, so a
+ * label opening with one is rejoined and capitalized.
  */
 function rowLabel(text, at, len, span) {
   const head = text.slice(Math.max(0, at - span), at);
@@ -1323,8 +1298,12 @@ function findIn(text, v) {
 }
 
 /**
- * `proseValues`: each value is read from the window of text beside a phrase.
- * With `section: {key, headH}` the text is bounded to the part of the page that
+ * `proseValues`: values the book states in running prose rather than a grid.
+ * Each capture is an ANCHOR PHRASE (never containing the value) plus a `take`
+ * micro-pattern applied to the text window after it (or before, with
+ * `before: true`); repeated phrasings disambiguate by `occurrence` in reading
+ * order. The page is flattened to two-column reading order (L then R at
+ * `colSplit`), lowercased and whitespace-collapsed. With `section: {key, headH}` the text is bounded to the part of the page that
  * follows the heading whose `printKey` is `key` (`sectionRuns`), so a phrase
  * shared by several headings' paragraphs is read from the paragraph under the
  * one asked for. Phrases are matched on the lowercased page.
@@ -1402,12 +1381,10 @@ export function extractProseValues(items, recipe) {
  * `indentTree`: every row of a printed taxonomy, with its depth taken from
  * how far the cell is indented.
  *
- * THE POINT OF THIS SHAPE is that it names nothing. The other shapes select
- * their rows by label — a list of the strings to look for — which for a
- * taxonomy would mean shipping the taxonomy. Here the recipe carries only
- * geometry: where the region starts, which x-bands hold which column, and the
- * indent step that turns a cell's x into its place in the tree. What the rows
- * SAY is read from the reader's own book and never enters this repo.
+ * This shape names nothing: the recipe carries only geometry — where the
+ * region starts, which x-bands hold which column, and the indent step that
+ * turns a cell's x into its place in the tree. What the rows SAY is read from
+ * the reader's own book.
  *
  * Depth is `round((x - baseX) / step)`, so a cell one step in is a child of
  * the last cell one step out. Rows whose first run sits left of `baseX` — a

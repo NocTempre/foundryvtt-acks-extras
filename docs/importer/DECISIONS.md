@@ -10532,3 +10532,7 @@ nine. A recipe per page whose corrections hold only on the pinned read.
 Shipped replacement text that writes words and figures of the page, which an
 IP sweep reviews as this entry's exception. Two Chromium browsers agreed; a
 browser with another JS and wasm engine was not compared.
+
+## 2026-11-13 — A survival ladder is carried as printed
+
+**Ruled.** The survival binding passes every printed shape and clause through to the engine table and invents no figure. Hunger is charged a flat figure a day and thirst a die, and both are kept as they read: no average is made for the die, which is what the registry exists to prevent. The page states three thirst onsets (no water, below half, below full) and the engine's ration vocabulary has three levels that do not line up with them; all three are carried, because dropping a printed clause here would leave it unrecoverable without a re-import, and what the reader does with each is the engine's business. The heat band's `dehydrationDrain` is a multiplier of the ordinary toll, not a copy of the die it replaces: the page states the worse toll relative to the ordinary one, and a ratio survives a re-read of the thirst die where a copied expression would silently disagree with it. The Judge's provisioning shortcut carries how often it is safe (`confidence`), since a readout that shows its amounts without it quotes a recommendation with its caveat removed.

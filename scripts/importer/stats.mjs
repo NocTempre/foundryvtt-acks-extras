@@ -1,18 +1,11 @@
 /**
- * Monster stat-block extraction + mapping (PoC).
+ * Monster stat-block extraction.
  *
- * MM stat tables are bold-label/regular-value pairs ("Armor Class:" → "4").
- * extractStatPairs() collects them from a page's text stream; mapPairs()
- * converts the labels we understand into the acks monster schema. Unknown
- * labels are returned untouched (and stashed on the actor under this
- * module's own flag namespace) — per the recipe philosophy, odd entries get
- * one-off recipe directions later rather than a cleverer parser.
- *
- * IP posture: parsed NUMBERS from the seat's own PDF are persisted into the
- * WORLD actor (actor data must be shared and playable — equivalent to typing
- * the stat block in by hand at your own table). Nothing here ships content:
- * the monster saves grid is the `acks` system's own (`CONFIG.ACKS.monster_saves`),
- * read when asked for and never copied into this module.
+ * MM stat tables are bold-label/regular-value pairs. `extractStatPairs`
+ * collects them from a page's text stream; `parseHitDice` and `savesForLevel`
+ * read the values. Nothing here ships content: the monster saves grid is the
+ * `acks` system's own (`CONFIG.ACKS.monster_saves`), read when asked for and
+ * never copied into this module.
  */
 
 /** The fractions the books set as single glyphs. */
@@ -20,18 +13,16 @@ const VULGAR = { "½": 0.5, "¼": 0.25, "⅓": 1 / 3, "¾": 0.75, "⅛": 0.125 }
 
 /**
  * A printed Hit Dice rating as `{count, bonus, asterisks}`, or null when the
- * text leads with no rating. Whole dice with a bonus ("3", "2+1", "1-1"); a
- * fraction of one die as a glyph or a slash ("½", "1/2", with or without a
- * hit-point aside); and a creature too slight to rate, which prints its hit
- * die or hit points instead ("1d4 hp", "1 hp") — read as the fraction of a d8
- * that die stands for, never above one. Asterisks are the special-ability
- * marks. A bonus absent is null, so a consumer can tell "none printed" from
- * zero; the same for the marks.
+ * text leads with no rating. Reads whole dice with an optional signed bonus; a
+ * fraction of one die as a glyph or a slash, with or without a hit-point
+ * aside; and a creature too slight to rate, which prints its hit die or hit
+ * points instead, read as the fraction of a d8 that stands for, never above
+ * one. Asterisks are the special-ability marks. A bonus absent is null, so a
+ * consumer can tell "none printed" from zero; the same for the marks.
  */
 export function parseHitDice(text) {
   const s = String(text ?? "").trim();
-  // The marks may sit before OR after a hit-point aside ("½* (1d4 hp)",
-  // "½ (2 hp)*"), so both places are read.
+  // The marks may sit before OR after a hit-point aside, so both places are read.
   const MARKS = /\s*(\**)\s*(?:\([^)]*\))?\s*(\**)/;
   const tail = (m, i) => (m[i] ?? "").length + (m[i + 1] ?? "").length || null;
   let m = new RegExp(`^([½¼⅓¾⅛])${MARKS.source}`, "u").exec(s);

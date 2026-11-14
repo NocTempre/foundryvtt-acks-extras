@@ -4,24 +4,20 @@
  *
  * The recipes take four paragraphs WHOLE rather than one window per figure,
  * because every threshold on these pages is stated before the condition it
- * produces ("After two consecutive days without any food… becomes underfed")
- * and a window opens after its anchor. Finding the condition therefore eats
- * the number. So the recipe locates the paragraph and this step reads the
- * rungs out of it — the sentence patterns live here, in one place, where a
- * printing change is one edit rather than five.
+ * produces and a window opens after its anchor. The recipe locates the
+ * paragraph and this step reads the rungs out of it, so the sentence patterns
+ * live in one place.
  *
- * The two ladders are charged differently on purpose: hunger takes a flat
- * figure a day, thirst takes a die. Both shapes pass through untouched — the
- * reader knows which it is holding, and inventing an average for the die is
- * exactly what the registry exists to prevent. Like every binding here, no
- * value ships.
+ * Hunger takes a flat figure a day and thirst takes a die; both shapes pass
+ * through untouched. Like every binding here, no value ships.
+ * See docs/importer/DECISIONS.md, "A survival ladder is carried as printed".
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 
-/** The engine doc both halves agree on (acks-extras `expectTables`). */
+/** The engine doc both halves agree on (`expectTables`). */
 export const SURVIVAL_DOC_ID = "survival";
 
 /**
@@ -68,8 +64,7 @@ export function parseCount(token) {
  * The first capture of `re` in `text`, read as a count.
  *
  * A leading article is dropped first: the page writes a day count with an
- * article as readily as with a bare number (RR p. 276), and a pattern that captures one token would
- * otherwise read the article and give up.
+ * article as readily as with a bare number (RR p. 276).
  */
 export function countFrom(text, re) {
   const m = re.exec(String(text ?? ""));
@@ -78,7 +73,7 @@ export function countFrom(text, re) {
   return parseCount(token === "a" || token === "an" ? (m[2] ?? token) : token);
 }
 
-/** A toll that may be flat ("1 CON") or rolled ("1d6 CON"): kept as it reads. */
+/** A toll that may be flat or rolled: kept as it reads. */
 export function parseToll(text, re) {
   const m = re.exec(String(text ?? ""));
   if (!m) return null;
@@ -88,7 +83,7 @@ export function parseToll(text, re) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** "one-half" | "1/2" | "50%" → 0.5. */
+/** A share written as a word, a fraction or a percentage → a ratio. */
 export function parseShare(text, re) {
   const m = re.exec(String(text ?? ""));
   if (!m) return null;
@@ -108,8 +103,7 @@ const TURNS_PER_HOUR = 6;
 
 /**
  * A duration in the exposure prose, normalized to HOURS. The page gives one
- * band in turns and the other in hours-with-turns, so a reader that took the
- * first number it saw would compare four against twenty-four.
+ * band in turns and the other in hours-with-turns.
  */
 export function parseHours(text) {
   const t = String(text ?? "");
@@ -151,11 +145,8 @@ export function assembleFood(paragraph) {
 /**
  * The thirst ladder out of the dehydration paragraph.
  *
- * The page states THREE onsets — no water, below half, below full — and the
- * engine's ration vocabulary has three levels that do not line up with them.
- * All three are carried anyway: what the reader does with `dehydratedBelowHalf`
- * is the engine's business, and dropping a printed clause here would make it
- * unrecoverable without a re-import.
+ * The page states THREE onsets — no water, below half, below full — and all
+ * three are carried; what the reader does with each is the engine's business.
  */
 export function assembleWater(paragraph) {
   const p = String(paragraph ?? "").toLowerCase();
@@ -189,10 +180,8 @@ export function assembleExposure(raw = {}) {
 /**
  * The heat band's three modifiers.
  *
- * `dehydrationDrain` is carried as a MULTIPLIER, not as the die it replaces:
- * the page states the worse toll relative to the ordinary one ("2d6 rather
- * than 1d6"), and a ratio survives a re-read of the thirst die where a copied
- * expression would silently disagree with it.
+ * `dehydrationDrain` is carried as a MULTIPLIER of the ordinary toll, not as
+ * the die it replaces, since the page states the worse toll relative to it.
  */
 export function assembleHeat(paragraph) {
   const p = String(paragraph ?? "").toLowerCase();
@@ -222,10 +211,7 @@ export function assembleSimplified(raw = {}) {
   if (share != null) out.foodShareOfTrip = share;
   const days = countFrom(String(raw.carry ?? ""), /to\s+last\s+for\s+(\S+)\s+days?/i);
   if (days != null) out.waterDays = days;
-  // How often the shortcut is actually safe. It is the whole reason the
-  // shortcut is offered as a shortcut rather than as the rule, so a readout
-  // that shows the amounts without it is quoting a recommendation with its
-  // caveat removed.
+  // How often the shortcut is actually safe; carried so a readout can show it beside the amounts.
   const confidence = parseShare(String(raw.carry ?? ""), /safe\s+from[^.]*?(\d+\s*%)/i);
   if (confidence != null) out.confidence = confidence;
   return Object.keys(out).length ? out : null;

@@ -3,9 +3,8 @@
  * extras (the monster extras schema) + embedded items (weapons from
  * Attacks/Damage, abilities from Proficiencies).
  *
- * Unknown labels stay raw (stored on the actor by the caller) — one-off
- * recipe directions come later, per the recipe philosophy. Enum keys are the
- * monster feature's and lib's vocabularies (`scripts/monsters/config.mjs`,
+ * Unknown labels stay raw (stored on the actor by the caller). Enum keys are
+ * the monster feature's and lib's vocabularies (`scripts/monsters/config.mjs`,
  * `scripts/lib/vocab.mjs`).
  */
 import { savesForLevel, parseHitDice } from "./stats.mjs";
@@ -24,13 +23,11 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const PUA_RE = /[\uE000-\uF8FF]/g;
 const clean = (v) => (v ?? "").replace(PUA_RE, "").replace(/\s+/g, " ").trim();
 
-// Damage-type icon glyph -> the lib DAMAGE_TYPES enum key, decoded from
-// the MM Damage-table legend (verified against the real Monstrous Manual by
-// codepoint). The legend prints the SAME codepoint in the Mundane and
-// Extraordinary columns — they differ only by COLOUR (red = extraordinary),
-// which text extraction can never see. Extraordinary is therefore DERIVED from
-// the monster (extraordinaryNatural below), the exact RAW ruling the book uses
-// when it is not overriding with a red icon.
+// Damage-type icon glyph -> the lib DAMAGE_TYPES enum key, decoded from the MM
+// Damage-table legend. The legend prints one codepoint for both its Mundane
+// and Extraordinary columns, which differ only by colour, so text extraction
+// cannot see which; extraordinary is DERIVED from the monster
+// (`extraordinaryNatural`).
 const DAMAGE_GLYPHS = Object.fromEntries(
   Object.entries({
     e900: "acidic",
@@ -59,11 +56,8 @@ export const damageTypeOf = (segment) => {
   return null;
 };
 
-// Natural-weapon name -> the lib NATURAL_WEAPONS enum key + that key's
-// default damage type (MM Damage table: Bludgeoning = Constriction/Hoof/Tail/
-// Tentacle/Tongue; Piercing = Bite/Stinger; Slashing = Claw/Talon; remaining
-// keys from lib's NATURAL_WEAPONS). Ordered so a more
-// specific stem wins (stinger before sting).
+// Natural-weapon name -> the lib NATURAL_WEAPONS enum key + that key's default
+// damage type (MM Damage table). Ordered so a more specific stem wins.
 const NATURAL_WEAPON_KEYS = [
   ["bite", /^bit/, "piercing"],
   ["stinger", /^stinger/, "piercing"],
@@ -94,13 +88,8 @@ function naturalWeaponOf(name) {
 
 /**
  * Whether a monster's NATURAL attacks deal extraordinary (vs mundane) damage,
- * per the MM Damage-table rulings (the icon's red/black colour is unreadable in
- * text, so we apply the same rules the book states):
- *   incarnation / enchanted    -> always extraordinary
- *   humanoid (not enchanted)    -> always mundane
- *   animal                      -> extraordinary iff > 4+1 HD AND huge-or-larger
- *   construct/giant/monstrosity/undead/vermin -> extraordinary iff > 4+1 HD
- *   anything else (ooze/plant/beastman/unknown) -> mundane (recipe override later)
+ * derived from its types, hit dice and size by the MM Damage-table rulings
+ * (the icon's colour is unreadable in text); every other type is mundane.
  */
 function extraordinaryNatural(types = [], hd = {}, size = "") {
   const t = new Set(types);
@@ -266,7 +255,7 @@ export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
     const range = /lightless[^(]*\((\d+)/i.exec(vision);
     if (range) extras.lightlessRange = parseInt(range[1], 10);
   }
-  take("Other Senses"); // acknowledged; structured senses get per-recipe directions later
+  take("Other Senses"); // acknowledged, not mapped
 
   /* --- carrying --- */
 
@@ -304,8 +293,7 @@ export function mapPairs(pairs, { proficiency = namesakeAbility } = {}) {
       const dmg = /\d*d\d+(?:[+-]\d+)?/.exec(clean(dmgSeg))?.[0] ?? clean(dmgSeg);
       const rawName = (names[i] ?? names[names.length - 1] ?? `attack ${i + 1}`).trim();
       const nw = naturalWeaponOf(rawName);
-      // Damage type: prefer the printed icon glyph; fall back to the natural
-      // weapon's RAW default (Claw -> slashing, etc.).
+      // Damage type: prefer the printed icon glyph; fall back to the natural weapon's default.
       const damageType = damageTypeOf(dmgSeg) ?? nw?.damage ?? null;
       const name = capitalize(rawName);
       items.push({

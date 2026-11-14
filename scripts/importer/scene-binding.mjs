@@ -84,11 +84,9 @@ const FOG_INDIVIDUAL = 1;
 /**
  * What a walled map's scene states about sight: token vision, each user's own
  * explored fog, and full darkness with no global light, locked, and no weather.
- * A token sees by the lights it carries and its own senses (`lib/light.mjs`,
- * `lib/perception.mjs`), and the formation reads the scene as dark. A walled
- * map is indoors: core drops a darkness change from any update that does not
- * also name the lock, so a module that sets darkness by the clock leaves it
- * dark, and its `indoorRegionData` keeps out any weather drawn over it.
+ * A walled map is indoors: core drops a darkness change from any update that
+ * does not also name the lock, and its `indoorRegionData` keeps out any
+ * weather drawn over it. See docs/importer/DECISIONS.md, "A walled map is dark, and its tokens see by their own light".
  */
 const WALLED_SIGHT = Object.freeze({
   tokenVision: true,
@@ -217,9 +215,8 @@ export function turnMatrix(frame) {
  * A short key for the PICTURE a recipe draws — its page, crop, turn and scale,
  * and for a grid recipe every grid field the scale and lattice are read from,
  * and nothing else. It names the uploaded file, so a recipe whose picture
- * changed is rendered again instead of being laid over a stale file whose
- * pixels no longer agree with the outlines. A recipe without a grid keys
- * exactly as it always has, so its uploaded file is still found.
+ * changed is rendered again. A recipe without a grid keys on its page, crop,
+ * turn and scale alone.
  */
 export function pictureKey(recipe) {
   const c = recipe?.crop ?? {};
@@ -412,14 +409,10 @@ export const isRegionRecipe = (recipe) => !!recipe?.grid && !recipe.districts?.l
  * Asked by the compiler, the lint and the verifier over `recipeContext` of a
  * book's compiled entries — `{id: {kind, meta, sections?}}` is all the checks
  * read. On a map with quarters a place must stand inside the quarter its own
- * group names, because the quarter under a place is found by geometry at the
- * table and a place drawn over its neighbour would be priced as the
- * neighbour's; a map with no quarters has none to check. A place is a keyed
+ * group names; a map with no quarters has none to check. A place is a keyed
  * point of interest, a region site, or a key space's keyed area; a map that
- * names the place it is (`place`) holds only areas inside that place, so a
- * room set down on the wrong level's plan is refused. A key space itself
- * stands only on a map that names no place: on a plan it is the map, or
- * holds it. `feetPerPoint` is
+ * names the place it is (`place`) holds only areas inside that place. A key
+ * space itself stands only on a map that names no place. `feetPerPoint` is
  * required only of a recipe with no `grid`. A `walls` block is held to
  * `wallsProblems`, the corrections cap included, and `levels` to whole cells
  * on a square grid.
@@ -512,12 +505,10 @@ export function recipeProblems(recipe, entries = {}) {
 }
 
 /**
- * The padding a grid map is made with. The lattice shift moves the picture up
- * to half a cell off the canvas's origin, and with no padding the canvas is the
- * picture's own size, so the strip the shift pushes past an edge is cut off
- * with every wall drawn in it. Core rounds any padding up to whole cells (whole
- * strides on a hex grid), so the smallest step it accepts leaves a cell of
- * canvas round the picture; a value under half that step is rounded to none.
+ * The padding a grid map is made with. Core rounds any padding up to whole
+ * cells (whole strides on a hex grid), so the smallest step it accepts leaves a
+ * cell of canvas round the picture; a value under half that step is rounded to
+ * none. See docs/importer/DECISIONS.md, "A grid map carries a cell of canvas round its picture".
  */
 export const GRID_SCENE_PADDING = 0.05;
 
@@ -530,26 +521,21 @@ export const GRID_SCENE_PADDING = 0.05;
  * over the drawn cells and `GRID_SCENE_PADDING` round it, and is set up for
  * journey travel; the picture is scaled by `pixelsPerPoint` (`gridScale` of
  * the grid unless the caller measured one live). Sight and fog are off,
- * because a printed map is a plan the party reads and not a place its tokens
- * see from — except on a map with walls, which is an indoor place its tokens
- * explore in the dark (`WALLED_SIGHT`) and carries, after the caller's
- * regions, one over its whole canvas (`indoorRegionData`). A map without walls
- * is outdoors and states nothing of its sky, so whatever keeps the world's
- * clock may light it and send weather over it. It is kept out of the navigation bar: a map that
- * arrives with a book is for the Judge to put in front of a table, not
- * something a running session finds added to its bar.
+ * except on a map with walls, which is an indoor place with `WALLED_SIGHT` and
+ * carries, after the caller's regions, one over its whole canvas
+ * (`indoorRegionData`). A map without walls is outdoors and states nothing of
+ * its sky. The scene is kept out of the navigation bar.
  *
  * A plate of storeys is one scene with a level per storey, each its own picture
  * under the one grid, and opens on the first.
  *
  * Three things here are forced by how core creates a scene. The picture goes
- * in as the scene's first LEVEL, spelled out: the older top-level `background`
- * is stripped from creation data before core's own carry-over reads it.
+ * in as the scene's first LEVEL, spelled out: core strips a top-level
+ * `background` from creation data before its own carry-over reads it.
  * `active` is stated, because core activates a scene that does not say when
- * the world has none active — and an activated scene is drawn at once, under
- * whatever is still being written to it. And the quarters, places and walls
- * ride in the same create, already linked, so there is no second write for a
- * draw to race.
+ * the world has none active, and an activated scene is drawn at once. The
+ * quarters, places and walls ride in the same create, already linked, so there
+ * is no second write for a draw to race.
  *
  * @param {object} p
  * @param {string} p.id cookbook id of the recipe
@@ -827,8 +813,7 @@ const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v ===
  * stray drag, carrying the encounter-zone behaviour with the zone's list and
  * figures, and flagged with the zone it answers to and the cells it covers.
  * A zone over its map's whole picture (`whole`) is drawn on the Regions layer
- * alone: drawn always, its fill would lie over every part of the map and mark
- * none.
+ * alone.
  *
  * Its shapes are one polygon per snapped cell when `hexes` are given — the
  * offsets `offsetsInside` kept, with `cells` holding each one's vertices in
@@ -1053,20 +1038,15 @@ export function linkRegionData({ name, rect, levels = [], mode, destinations = [
 /**
  * A compendium actor's source, made ready to be created again in the world.
  *
- * A scene link, a region link and a token all need a WORLD actor, while the
- * library keeps what it imports in compendiums, so the places and
- * organisations a scene stands on are brought across. Every reference to a
- * document that is in the world, or on its way there, is rewritten to the
- * world's form, so a quarter still sits inside its city and an organisation is
- * still seated in its quarter; a reference to anything staying behind (a person
- * on a roster) is left pointing at the library. The `worldCopy` flag tells a
- * copy from a document the Judge made, and `compendiumSource` says what it
- * is a copy of, exactly as a drag out of the compendium would.
+ * Every reference to a document that is in the world, or on its way there, is
+ * rewritten to the world's form; a reference to anything staying behind (a
+ * person on a roster) is left pointing at the library. The `worldCopy` flag
+ * tells a copy from a document the Judge made, and `compendiumSource` says what
+ * it is a copy of.
  *
- * A copy is owned by NOBODY, and says so: a keyed place's notes are the
- * Judge's page, and a place that arrives with no ownership of its own is
- * shared with the table by the rule every new place is made under. The caller
- * must keep what is stated here (`fromCompendium`'s `clearOwnership: false`).
+ * A copy states `ownership.default` NONE, and the caller must keep it
+ * (`fromCompendium`'s `clearOwnership: false`). See docs/importer/DECISIONS.md,
+ * "A map and what stands on it are world documents, owned by nobody (2026-09-17)".
  *
  * @param {object} source the document's `toObject()`; not changed
  * @param {Map<string, string>} worldIds library id to world id, for every
