@@ -83,9 +83,3 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
-- **Blank figures that have no page reference yet.** Fields left blank when
-  nothing is imported carry a page-reference tooltip only where one was
-  written. These carry none, and each needs its page looked up:
-  `ACKS-HENCHMEN` `service.tip.shareUnimported`, `roster.limitNotImported`, and
-  the unread and not-imported badges (the influence feature's matching row is
-  in [../influence/ROADMAP.md](../influence/ROADMAP.md)).

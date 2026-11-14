@@ -71,10 +71,3 @@ each result's printed text from the Judge's own copy, and a card that shows it
 beside the name when it is imported. Owner ruling on T-0512 ("Name now, import
 text later"). The henchmen strings that name the same
 results are the matching row in [../henchmen/ROADMAP.md](../henchmen/ROADMAP.md).
-
-## 6. Blank figures that have no page reference yet
-
-Fields left blank when nothing is imported carry a page-reference tooltip only
-where one was written. The influence feature's unread and not-imported badges
-carry none, and each needs its page looked up. The henchmen feature's matching
-row is in [../henchmen/ROADMAP.md](../henchmen/ROADMAP.md).

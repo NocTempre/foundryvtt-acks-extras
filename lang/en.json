@@ -1791,8 +1791,7 @@
       "fromDocument": "Read from {name}.",
       "byHand": "Set by hand on {name}.",
       "editedByHand": "Edited by hand on {name}; the import read it from {cite}.",
-      "capacityNotImported": "capacity not imported",
-      "capacityNotImportedTip": "This holds gear, but how much is not imported, so no limit is counted. Import it from your own book, or set a capacity on the item."
+      "capacityNotImported": "capacity not imported"
     },
     "strap": {
       "cycle": "Carry position — click to cycle in hand / on the back / on the front. A strapped shield costs no hand.",

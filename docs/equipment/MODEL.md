@@ -103,7 +103,7 @@ is a union"). A single-valued domain reads its one value through
 | `styleInit` | numeric | flat initiative, for a hand-made effect |
 | `styleAC` `styleAttackMelee` `styleAttackMissile` `styleDamageMelee` | numeric | flat combat mods, for a hand-made effect |
 | `weaponFocus` | CSV | Weapon Focus categories (roll-time nat-20 die) |
-| `slayer` | CSV `group:bonus` | Goblin-/Vermin-Slaying (roll-time, situational) |
+| `slayer` | CSV `group:bonus` | Goblin-/Vermin-Slaying (declared; nothing reads it yet) |
 | `martialWeapons` | CSV | weapon categories added to proficiency |
 | `weaponProf` | CSV grant tokens (below) | weapon proficiency from class training |
 | `armourProficiency` | CSV | armour categories granted by class training; the heaviest one counts |

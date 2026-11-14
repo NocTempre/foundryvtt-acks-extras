@@ -77,9 +77,7 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
 - **The `SLAYER` effect domain is declared but not read.** `EFFECT_DOMAINS.SLAYER`
   (`scripts/equipment/constants.mjs`) is a seam for a future situational
   roll-time consumer (e.g. Goblin-/Vermin-Slaying); nothing in
-  `scripts/equipment` currently reads it. Note: `docs/equipment/MODEL.md`'s
-  effect-contract table lists `slayer` as already consumed — that line is
-  stale and should be corrected when this lands or is dropped.
+  `scripts/equipment` currently reads it.
 - **The `NO_SHIELD_BENEFIT` effect domain is declared but not read.**
   Same shape as `SLAYER` (`scripts/equipment/constants.mjs`): a seam for a
   future consumer, currently write-only.
@@ -121,9 +119,3 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   `sheet.mjs` moves core's inventory rows into wear-location buckets. If the
   system gains a list the module can extend, the regrouping is deleted in
   favour of it.
-- **Blank figures that have no page reference yet.** Fields left blank when
-  nothing is imported carry a page-reference tooltip only where one was
-  written. These carry none, and each needs its page looked up:
-  `ACKS-EQUIPMENT` `printed.capacityNotImportedTip`, `printed.notImportedTip`,
-  `itemLoss.notImportedTip`, `props.figureMissing` and
-  `maneuver.notImportedTip`.

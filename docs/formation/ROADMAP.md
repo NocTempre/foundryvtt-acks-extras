@@ -69,7 +69,7 @@ Still unbuilt, in likely order:
 |---|---|---|
 | Hex-click tool and a Region overlay for the stock | not built | The Wilderness tab's Points of interest section is the surface, and a Region per hex was rejected (DECISIONS 2026-10-09, *A hex's stock lives on its map*). |
 | Climate by terrain | not built | The monster sub-tables stay a terrain pick (DECISIONS 2026-10-09, *Climate does not pick the monster sub-table*). |
-| `lost.mjs` `hexKey` duplicates `battlemap/terrain-paint.mjs` `hexKeyOf` | defect | One key, one owner. |
+| `lost.mjs` `hexKey` is the same function as `battlemap/terrain-paint.mjs` `hexKeyOf` | refactor | Behaviour is identical; one key, one owner. |
 | Carrying the stock into a promoted place's notes | not built | |
 | Substituting only a share of the lairs | not built | `substitute` rolls every lair on the bands, which is the page's own worked example; a cap on the share is the Judge's by hand. |
 | Moonlight on the card; measuring along waypoints; two journeying parties on one clock; voyages | not built | Named out of scope by the movement ruling (DECISIONS 2026-10-09, *A drag on a journey spends miles*). |

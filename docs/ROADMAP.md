@@ -45,21 +45,12 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   - *Printed content in tracked, unshipped files:* a masterwork bonus and price in
     the pristine-snapshot ruling of `docs/equipment/DECISIONS.md`; printed
     item strings quoted in `docs/importer/DECISIONS.md`.
-  - *Stale text:* `docs/equipment/MODEL.md` lists the `slayer` effect domain as
-    consumed, and no script reads it by name.
   - *Code:* `bindVariation` in `scripts/importer/cookbook/variations.mjs` spreads `data`
     and `dataFields` twice (harmless).
 - **A namespace key reached twice.** The API publisher settles two keys by last
   write with no manifest involved: `henchmen.rules.arrivalSplit` and
   `vehicles.OFFICER_STATIONS`. The publisher's duplicate-key rule is generalised
   once both are gone.
-- **Stale walks and their dead lang keys.** Keys a `tools/live` walk still
-  quotes stay in `lang/en.json` as dead strings, because `validate` reads walk
-  literals. Not done: rewriting the walks that assert text a field no longer
-  prints (equipment printed figures and weapon nulls, typed modifiers,
-  formation column, day and steps, henchmen, influence bribe price, classes
-  level cap and hit-point record, markets, battlemap) and deleting the keys
-  with them.
 - **Provenance tooltips: the retrofit.** `.claude/rules/ui-tooltips.md` asks
   every figure to name where it came from. Done: the henchmen Service panel.
   A census of `templates/` on 2026-10-24 counted the lines that render a
