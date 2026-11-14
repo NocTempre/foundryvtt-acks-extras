@@ -7,9 +7,8 @@
  * Query: ?src=<same-origin url> reads the PDF from that url instead of the
  * file input; ?pages=417-425 picks the pages; ?scale=2 the factor.
  */
-import { getDocument, GlobalWorkerOptions, OPS } from "../../../vendor/pdfjs/pdf.mjs";
-import Tesseract from "../../../vendor/tesseract/tesseract.esm.min.js";
-import { toGrey, scaleUp, toPgm } from "./pixels.mjs";
+import { GlobalWorkerOptions } from "../../../vendor/pdfjs/pdf.mjs";
+import { openPinned, pagePictures, pictureSamples, scaledPicture, toPgm, createReader } from "../../../scripts/importer/ocr.mjs";
 
 const base = new URL("../../../", import.meta.url);
 const at = (p) => new URL(p, base).href;
@@ -27,74 +26,41 @@ const show = () => {
   document.getElementById("out").textContent = JSON.stringify({ ...state, ua: undefined }, null, 1);
 };
 
-/** The page's image objects, resolved through page.objs, largest first. */
-async function pictures(page) {
-  const ops = await page.getOperatorList();
-  const names = new Set();
-  for (let i = 0; i < ops.fnArray.length; i++) if (ops.fnArray[i] === OPS.paintImageXObject) names.add(ops.argsArray[i][0]);
-  const out = [];
-  for (const name of names) {
-    const img = await new Promise((resolve) => {
-      const t = setTimeout(() => resolve(null), 10000);
-      const done = (v) => { clearTimeout(t); resolve(v ?? null); };
-      try { page.objs.get(name, done); } catch { try { page.commonObjs.get(name, done); } catch { done(null); } }
-    });
-    if (img) out.push({ name, img });
-  }
-  return out.sort((a, b) => b.img.width * b.img.height - a.img.width * a.img.height);
-}
-
 async function run(bytes) {
   state.status = "opening";
   show();
-  const task = getDocument({
-    data: new Uint8Array(bytes),
-    isOffscreenCanvasSupported: false,
-    isImageDecoderSupported: false,
-    wasmUrl: at("vendor/pdfjs/wasm/"),
-    verbosity: 0,
-  });
-  const doc = await task.promise;
+  const doc = await openPinned(bytes, { wasmUrl: at("vendor/pdfjs/wasm/") });
   state.status = "starting engine";
   show();
   const t0 = performance.now();
-  const worker = await Tesseract.createWorker("eng", 1, {
-    workerPath: at("vendor/tesseract/worker.min.js"),
-    corePath: at("vendor/tesseract/tesseract-core-simd-lstm.wasm.js"),
-    langPath: at("vendor/tesseract/lang"),
-    gzip: true,
-    cacheMethod: "none",
-    workerBlobURL: false,
-  });
-  await worker.setParameters({ tessedit_pageseg_mode: "3" });
+  const reader = await createReader();
   state.engineStartMs = Math.round(performance.now() - t0);
   for (let p = first; p <= last; p++) {
     state.status = `page ${p}`;
     show();
     const page = await doc.getPage(p);
-    const pics = await pictures(page);
-    const row = { page: p, rotate: page.rotate, images: pics.map(({ name, img }) => `${name} ${img.width}x${img.height} kind ${img.kind} ${img.bitmap ? "BITMAP" : img.data ? img.data.length : "no data"}`) };
+    const pics = await pagePictures(page);
+    const row = { page: p, rotate: page.rotate, images: pics.map((img) => `${img.name} ${img.width}x${img.height} kind ${img.kind}`) };
     state.pages.push(row);
     // The scenario is the one picture about 1340 × 1034 (a recipe names its
     // XObject); the larger ones are the page's frame art.
-    const chosen = pics.find(({ img }) => img.width >= 1300 && img.width <= 1400 && img.height >= 1000 && img.height <= 1060);
+    const chosen = pics.find((img) => img.width >= 1300 && img.width <= 1400 && img.height >= 1000 && img.height <= 1060);
     row.picture = chosen?.name ?? null;
-    const pic = chosen?.img;
+    const pic = chosen ? await pictureSamples(page, chosen.name) : null;
     if (!pic?.data) { row.error = "no decoded samples"; continue; }
     row.samplesSha = await hex(pic.data);
     const t = performance.now();
-    const grey = toGrey(pic);
-    const big = scaleUp(grey, pic.width, pic.height, SCALE);
+    const big = scaledPicture(pic, SCALE);
     row.scaledSha = await hex(big.grey);
-    const { data } = await worker.recognize(toPgm(big.grey, big.width, big.height), {}, { text: true });
+    const read = await reader.read(toPgm(big.grey, big.width, big.height));
     row.seconds = Math.round(performance.now() - t) / 1000;
-    row.chars = data.text.length;
-    row.confidence = data.confidence;
-    row.textSha = await hex(new TextEncoder().encode(data.text));
+    row.chars = read.text.length;
+    row.confidence = read.confidence;
+    row.textSha = await hex(new TextEncoder().encode(read.text));
     show();
   }
-  await worker.terminate();
-  await task.destroy();
+  await reader.terminate();
+  await doc.loadingTask.destroy();
   state.status = "done";
   show();
 }
