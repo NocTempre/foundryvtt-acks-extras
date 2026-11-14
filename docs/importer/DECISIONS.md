@@ -11120,3 +11120,47 @@ its place is dragged out of the compendium into the world; the Roll button on
 the shelf place is a dead end that says so. A world copy dragged out by core
 rather than made by the importer carries the shelf place's flag as it stands,
 which is the monster alone for any place that rolled after this entry.
+
+## 2026-11-14 — A made L&E stat line is paired where its figures match the MM row
+
+The owner, on the rank-and-file stat lines that may duplicate an MM row: "Pair
+after compare (Recommended)". This supersedes in part the rejected "a pair for a
+label qualified by a role, age or size" of "A lair links to its monster…"
+(2026-11-13): the new evidence is that answer and the comparison itself, which
+shows which of those lines print the row's own figures.
+
+**Ruled:** `tools/importer/compare-lines.mjs` reads the Judge's L&E and MM copies
+through the shipping executor and compares every made stat line with the MM rows
+its label may stand for (a row sharing a creature word with the label, the row
+the lair's `meta.of` names, the row the conversion table renames the label to).
+**A match** is every gating figure equal at every occurrence of the label: armor
+class, hit dice (dice and modifier), attacks with their damage, save (class and
+level) and morale. Movement, experience and alignment are reported and gate
+nothing. Notation is normalised, and only that: a hit-dice mark or
+parenthetical, a minus sign, spacing and case, a comma in a damage list read as
+a slash, and a morale printed as two figures read as its first. A figure one
+side did not read is a difference. A label two rows both match, and a row that
+prints no single profile, are left made. A match is registered as a hash-keyed
+pair for `le` in `creatureReplacement.json`, like the 41 before it.
+
+The first run read 355 stat lines: 44 bound by a registered pair, 80 by name, 231
+made in 224 label groups. Of those, 199 groups had a candidate row and were
+compared; 5 groups, 5 stat lines, matched and are paired (10 keys, 5 rows, so
+the register holds 91 keys over 44 rows); 194 groups, 201 stat lines, were
+compared and did not; 25 groups had no candidate. The run after the pairs reads
+49 bound by a pair and 226 made.
+
+**Rejected:** matching a line whose attack or damage did not read, since an
+empty figure agreeing with an empty figure is no agreement; a rule that lets a
+variant match where it agrees at some occurrences of its label and not at
+every one.
+
+*Cost:* 226 of 355 stat lines are still made. Few rank-and-file lines match,
+because L&E prints a figure the MM row does not: a damage bonus where the row
+prints "by weapon", a different weapon, a different morale or save. Near misses
+stay made: a printed weapon's damage against the row's "by weapon", a label
+whose occurrences disagree, a row whose attack text did not read, and the
+rows that print a regular and a veteran profile. A paired line's creature is
+the library's actor, so each such lair's printed residents bind to its monster;
+the lair still rolls (the owner, "Yes, roll anyway", same day). The morale
+rule reads only the first of two printed figures; the second goes unchecked.

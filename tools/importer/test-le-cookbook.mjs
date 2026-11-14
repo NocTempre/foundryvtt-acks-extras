@@ -342,8 +342,8 @@ t("the creature replacements are reviewed for this book, key no name, and bind a
   assert.equal(reg.registry, "creatureReplacement");
   assert.deepEqual(replacementProblems(reg.table, rows), []);
   const pairs = Object.values(reg.table);
-  assert.equal(pairs.length, 81);
-  assert.equal(new Set(pairs.map((p) => p.ref)).size, 39);
+  assert.equal(pairs.length, 91);
+  assert.equal(new Set(pairs.map((p) => p.ref)).size, 44);
   assert.ok(pairs.every((p) => rows.get(p.ref)?.kind === "kind.monster" && p.books.length === 1 && p.books[0] === "le"));
   // Whatever a lair is the lair of, its own stat line is registered to the same row where one is.
   assert.ok(lairRows.filter((r) => r.meta.of && pairs.some((p) => p.ref === r.meta.of)).length >= 20);

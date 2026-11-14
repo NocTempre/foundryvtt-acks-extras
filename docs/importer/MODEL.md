@@ -1690,9 +1690,10 @@ another name, another spelling, another word order or an irregular plural. A
 row is keyed by `hash36` of one folded form of the label (`creatureKeys`, so the
 plural and the singular meet one key), names the row (`ref`, a `kind.monster`
 row of the Monstrous Manual) and the books it was reviewed for (`books`), and
-carries no name (`replacementProblems`). `replacementOf` reads it. A label
-qualified by a role, an age or a size, a named person and a generic crowd are not
-paired: they are made as the AX books' are. A registered label whose monster is
+carries no name (`replacementProblems`). `replacementOf` reads it. A label whose
+every stat line equals the row's figures (`tools/importer/compare-lines.mjs`)
+is paired too. Any other label qualified by a role, an age or a size, a named
+person and a generic crowd are not paired: they are made as the AX books' are. A registered label whose monster is
 not yet in the library is made and not bound to its same-name row; a repair
 binds it once the monster is there.
 

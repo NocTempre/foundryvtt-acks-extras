@@ -1229,10 +1229,15 @@ Parties journal of their introductions. Left:
   is built (the same reader the picture-tables rows need).
 - **The plate pointer in a neighbour's notes.** Eight listings' notes carry
   the pointer line of a plate that belongs to the listing beside them.
-- **Ordinary warriors and generic crowds.** The rank-and-file of the beastman
-  and demi-human lairs, sized swarms, a variant of a paired creature, and the
-  men of a role are made from their stat lines rather than paired to the ACKS
-  II row; pairing them needs each line compared with the MM's figures.
+- **Ordinary warriors and generic crowds.** Compared with the MM's figures
+  (DECISIONS 2026-11-14, "A made L&E stat line is paired…"), five lines match and
+  are paired; the other rank-and-file of the beastman and demi-human lairs,
+  the sized swarms, the variants of a paired creature and the men of a role
+  print a figure the row does not and are made from their stat lines. Left
+  to a reviewer: the near misses (a printed weapon's damage against the row's
+  "by weapon", a label whose occurrences disagree, a row whose attack text did
+  not read) and the rows that print a regular and a veteran profile, which
+  cannot be compared line against line.
 - **A lair list on the monster.** A monster's sheet does not list the lairs
   whose `meta.of` names it.
 - **A lair on a hex.** A lair is not placed on a region map's hex or tied to
