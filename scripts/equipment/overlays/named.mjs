@@ -23,13 +23,17 @@ import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { attackBonusOf, damageFormulaOf } from "../properties.mjs";
 
-/** Bonus categories a named item can unlock (JJ p. 399). */
+/**
+ * Bonus categories a named item can unlock (JJ p. 399): each with the lang key
+ * of its label and the item field its points are applied to, null where the
+ * points are applied to none.
+ */
 export const NAMED_CATEGORIES = Object.freeze({
-  hit: { label: "+1 to hit", field: "bonus" },
-  damage: { label: "+1 to damage", field: "damage" },
-  ac: { label: "+1 to AC", field: "ac" },
-  encumbrance: { label: "−1 to encumbrance", field: "weight6" },
-  power: { label: "a special power or ceremonial spell", field: null },
+  hit: { label: "ACKS-EQUIPMENT.itemSheet.named.cat.hit", field: "bonus" },
+  damage: { label: "ACKS-EQUIPMENT.itemSheet.named.cat.damage", field: "damage" },
+  ac: { label: "ACKS-EQUIPMENT.itemSheet.named.cat.ac", field: "ac" },
+  encumbrance: { label: "ACKS-EQUIPMENT.itemSheet.named.cat.encumbrance", field: "weight6" },
+  power: { label: "ACKS-EQUIPMENT.itemSheet.named.cat.power", field: null },
 });
 
 /** Whether the `overlayNamed` world setting is on. */

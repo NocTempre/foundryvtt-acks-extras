@@ -440,7 +440,7 @@ function namedSnapshot(item, gm) {
   for (const k of ladder) if (k in full) full[k] += 1;
   const cats = Object.entries(named.NAMED_CATEGORIES)
     .filter(([k]) => full[k] || bonuses[k])
-    .map(([k, def]) => ({ key: k, label: def.label, now: bonuses[k], full: full[k] }));
+    .map(([k, def]) => ({ key: k, label: game.i18n.localize(def.label), now: bonuses[k], full: full[k] }));
   return {
     given: rec.givenName ?? item.name,
     trueName: gm ? rec.trueName ?? "" : null,

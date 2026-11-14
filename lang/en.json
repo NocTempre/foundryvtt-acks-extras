@@ -2258,7 +2258,14 @@
         "trueLine": "True name, Judge only · spoken aloud it unlocks every point",
         "revealed": "Revealed",
         "unrevealed": "Unrevealed",
-        "guessHint": "Speak a guess at the true name (JJ p. 399)."
+        "guessHint": "Speak a guess at the true name (JJ p. 399).",
+        "cat": {
+          "hit": "To hit",
+          "damage": "Damage",
+          "ac": "Armor class",
+          "encumbrance": "Encumbrance",
+          "power": "Power or spell"
+        }
       },
       "tag": {
         "named": "Named"

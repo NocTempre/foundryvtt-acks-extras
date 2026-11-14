@@ -1,0 +1,1 @@
+- **A named item's bonus rows:** each row is labelled with the field its points go to (To hit, Damage, Armor class, Encumbrance, Power or spell), and the count beside it comes from the ladder the Judge set. Items sidebar → open a named weapon or armor → Effects tab → **The Name**.
