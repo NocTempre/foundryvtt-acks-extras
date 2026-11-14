@@ -58,3 +58,43 @@ differently, and one of the forty stored keys does differ from the print.
 **What it cost.** A monster that stored the spelling that differs from the print
 shows its key as an orphan option and no band name until the Judge picks the
 printed form. A world without the Rules tables imported shows a blank Body Form.
+
+## 2026-11-14 — An attack throw that is not a number shows no figure
+
+**Ruled (owner).** "Caught printed values are fixed on the spot" (2026-11-04);
+"a figure a page prints is imported; stop asking" (2026-11-14); and "Missing
+imports stay blank with page reference as a subtle clue on where they could get
+that info. Fields that require imports stay blank period." (2026-11-14). The
+readers of an actor's attack throw fell back to one printed row of the attack
+throw column when the field held no number. Nothing needs reading for this one:
+each reader now shows no figure.
+
+**Calls made here.** The statblock's `N+` cell and the rail's attack figure are
+empty, the group's caption reads without its figure, and the rail button's
+tooltip says what the button does (`frame.rail.attackNoThrow`). The caption's
+tooltip is the page reference where the import marked the throw missing and
+none otherwise: the code that builds it is unchanged. The Rolls tab shows an
+attack's bonus alone, the Stats tab's field is blank, and the follower card
+prints a row's bonus without a target.
+
+**The roll with no throw.** Core builds an attack's target as the actor's own
+throw plus the target's armour class (`attack-throw-builder.mjs`), so a blank
+throw rolls against the armour class alone and an absent one against NaN. The
+rail button is disabled, and an attack row on the monster sheet, a Rolls tab
+attack (`atk:`, `unarmed`, a weapon's attack mode) and a Follower Card attack
+refuse with a warning, as a monster's missing save does
+(`ACKS-MONSTERS.notify.noAttackThrow`, `ACKS-CHARACTER.rolls.noAttackThrow`,
+`ACKS-LIB.followerCard.noAttackThrow`). Two computations that subtracted the
+throw are dropped while it is absent: the non-proficient package's difference
+against the imported throw (`equipment/attack-mods.mjs`) and a follower card's
+typed target, which is a difference from the shown throw. Neither has anything
+to measure against.
+
+**Rejected.** Leaving the buttons live: they would post a roll whose target is
+the armour class alone.
+
+**What it cost.** A weapon rolled from its own item sheet or the character
+sheet's Equipment tab is not refused and takes core's target. Core declares the
+field with a default and no null, so a sheet may clean a blank back to a number;
+the blank face is reached by an actor whose data holds none, and no live walk
+has made one (monsters TESTING, "An actor with no attack throw").

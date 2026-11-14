@@ -37,6 +37,11 @@ export function withMod(dice, mod) {
   return m ? `${dice}${signed(m)}` : `${dice}`;
 }
 
+/** An attack throw as its target figure, `9+`; blank where the throw is not a number. */
+export function throwFigure(target) {
+  return Number.isFinite(target) ? `${target}+` : "";
+}
+
 /**
  * The line under the name: the class and its level for a body with a class,
  * the Hit Dice and the type's own name for one without, the type's name alone

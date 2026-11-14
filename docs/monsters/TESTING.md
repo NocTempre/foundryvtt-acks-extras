@@ -681,3 +681,33 @@ imports → Rules tables).
 
 **Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
 built.
+
+## An actor with no attack throw
+
+The Statblock's Attacks group and the right rail's attack button; the Rolls
+tab, the Stats tab and the follower card read the same field and are unwalked.
+
+**Fixtures.** A disposable `monster` actor carrying `flags.world.fixture` =
+`monsters/no-throw`, found or built with `api.fixture`, with a weapon item on
+it.
+
+**Steps.**
+
+1. Clear the Attack throw field on the Classification tab and read
+   `actor.system.attack.throw`. Core declares the field with a default and no
+   null, so it may restore a number; if it does, drive the render directly:
+   import `scripts/monsters/statblock.mjs` in page context and call
+   `statblockColumns` and `attackReading` with a snapshot whose `attackThrow`
+   is absent.
+2. Read the Statblock tab's Attacks group and the right rail's attack button.
+   *Observable:* each attack row's throw cell is empty (no `NaN+`, `null+` or
+   `0+`), the group's caption reads `throw`, the rail button shows no figure,
+   is dimmed and disabled, and its tooltip says `Attack throw — roll`. The
+   caption's tooltip names the page only where the import marked the throw
+   missing.
+3. Click an attack row.
+   *Observable:* a warning says the monster has no attack throw, and no roll
+   card is posted.
+
+**Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
+built.

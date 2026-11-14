@@ -15,7 +15,7 @@
  * docs/lib/DECISIONS.md, "Card-only overrides bake onto whichever field
  * actually exists, or stay overrides".
  */
-import { toNum as num, unset } from "../util.mjs";
+import { toNum as num, numOrNull, unset } from "../util.mjs";
 import { MODULE_ID } from "../constants.mjs";
 import { actorProvides, followerCardContext, shownAttackBonus, shownDamageBonus, FOLLOWER_CARD_TEMPLATE, STAR_FLAG } from "../follower-card.mjs";
 import { toggleStar } from "../follower-card-model.mjs";
@@ -365,6 +365,11 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
    * shows the override as a row rather than a changed base.
    */
   static #onRollAttack(event, target) {
+    // Core builds the target from the actor's own throw; with none, nothing to roll against.
+    if (numOrNull(this.actor.system?.attack?.throw) == null) {
+      ui.notifications.warn(game.i18n.localize("ACKS-LIB.followerCard.noAttackThrow"));
+      return;
+    }
     const side = target.dataset.attack === "missile" ? "missile" : "melee";
     const key = target.closest("[data-attack-key]")?.dataset.attackKey;
     const ov = key ? ((this.actor.getFlag(MODULE_ID, "fcOverrides") ?? {}).attacks ?? {})[key] : null;
@@ -421,7 +426,10 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
     const label = game.i18n.localize("ACKS-LIB.attack.override");
     const terms = [];
     const damageTerms = [];
-    if (ov.target != null) terms.push({ label, value: num(this.actor.system?.attack?.throw, 10) - num(ov.target) });
+    // A typed target is measured against the throw the actor holds; with none
+    // there is nothing to measure it against and no row.
+    const held = numOrNull(this.actor.system?.attack?.throw);
+    if (ov.target != null && held != null) terms.push({ label, value: held - num(ov.target) });
     if (ov.bonus != null) terms.push({ label, value: num(ov.bonus) - shownAttackBonus(this.actor, side) });
     if (ov.damageBonus != null) damageTerms.push({ label, value: num(ov.damageBonus) - shownDamageBonus(this.actor, side) });
     return { terms, damageTerms };

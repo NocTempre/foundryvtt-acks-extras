@@ -6,7 +6,7 @@
  * shortens, and which rows a star list picks.
  */
 import assert from "node:assert";
-import { stones, hdText, withMod, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
+import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -37,6 +37,12 @@ test("a damage line carries a modifier only when there is one", () => {
   assert.equal(withMod("1d6", -2), "1d6−2");
   assert.equal(withMod("1d6", 0), "1d6");
   assert.equal(withMod("", 3), "");
+});
+
+test("an attack throw prints as its target, and as nothing where it is not a number", () => {
+  assert.equal(throwFigure(9), "9+");
+  assert.equal(throwFigure(0), "0+");
+  for (const none of [null, undefined, "", NaN, "x"]) assert.equal(throwFigure(none), "", `${String(none)} prints no figure`);
 });
 
 console.log("follower card: the rank under the name");

@@ -39,6 +39,7 @@ import { hasEffectFlag, stringFlagValue } from "./effects.mjs";
 import { maneuverMods, MANEUVERS, overlayEnabled as maneuverOverlayEnabled } from "./overlays/maneuvers.mjs";
 import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
+import { numOrNull } from "../lib/util.mjs";
 import { hasDoc, getDoc } from "../lib/tables.mjs";
 
 /**
@@ -182,9 +183,11 @@ export function attackThrowRows(actor, item, attackType, { maneuver = null } = {
     let penalty = 0;
     // 1st level and up attacks with the throw of a character of no level; one
     // with no level already fights with it and takes the further penalty
-    // instead. Each figure applies once imported and never before.
+    // instead. Each figure applies once imported and never before, and the
+    // difference needs the actor's own throw to be a number.
     if (level >= 1) {
-      if (figures.attackThrow != null) penalty += num(actor.system?.attack?.throw ?? 10) - figures.attackThrow;
+      const own = numOrNull(actor.system?.attack?.throw);
+      if (figures.attackThrow != null && own != null) penalty += own - figures.attackThrow;
     } else if (figures.zeroLevelPenalty != null) {
       penalty += figures.zeroLevelPenalty;
     }

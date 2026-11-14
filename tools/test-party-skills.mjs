@@ -89,7 +89,7 @@ globalThis.foundry = {
 const { PARTY_CHECKS, resolveCheck, rollPartyCheck } = await import("../scripts/formation/party-rolls.mjs");
 const { rollsOf, throwOutcome, throwText, defaultKeyOf, keyOf } = await import("../scripts/abilities/ability-rolls.mjs");
 const { adventuringThrow } = await import("../scripts/abilities/adventuring-throw.mjs");
-const { rollInventory } = await import("../scripts/character-sheet/rolls.mjs");
+const { rollInventory, rollById } = await import("../scripts/character-sheet/rolls.mjs");
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 
@@ -277,6 +277,25 @@ await ok("rolling the party's check posts one card whispered to the Judges, a ro
   assert.equal((html.match(/data-tooltip-text="Target 12\+: [^"]+"/g) ?? []).length, 2, "each target carries its source");
   assert.match(html, /Moss/, "a member with no skill is named in the footnote");
   assert.equal(html.includes("<td>Moss"), false, "and has no row");
+});
+
+await ok("an attack throw the actor holds no number for leaves the Rolls tab's attack rows with the bonus alone", async () => {
+  const a = member("Quill", []);
+  assert.match(rowOf(a, "atk:melee").value, /^\d+\+ · [+−]\d+$/, "a stored throw leads the bonus");
+  for (const none of [null, undefined, ""]) {
+    a.system.attack.throw = none;
+    for (const id of ["atk:melee", "atk:missile"]) assert.match(rowOf(a, id).value, /^[+−]\d+$/, `${id}: the bonus alone for ${String(none)}`);
+  }
+  // Core builds the attack's target from that throw, so the row is refused, not rolled against nothing.
+  reset();
+  let made = 0;
+  a.makeAttackThrow = async () => { made++; };
+  for (const id of ["atk:melee", "unarmed"]) assert.equal(await rollById(a, id, {}), false, `${id} is refused`);
+  assert.equal(made, 0, "nothing was thrown");
+  assert.equal(seen.warned.length, 2, "and each refusal says so");
+  a.system.attack.throw = 9;
+  assert.equal(await rollById(a, "atk:melee", {}), true, "a stored throw rolls");
+  assert.equal(made, 1);
 });
 
 await ok("a hurried party is refused the hasty search and posts no card", async () => {

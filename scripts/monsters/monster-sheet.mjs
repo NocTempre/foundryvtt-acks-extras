@@ -32,11 +32,11 @@ import { makeEncounter } from "../lib/group-encounter.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
-import { statblockColumns, rollRows, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
+import { statblockColumns, rollRows, attackReading, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
 import { bodyFormView } from "./body-forms.mjs";
 import { importedKits } from "./kits.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
-import { makeLoc, plainRoll } from "../lib/util.mjs";
+import { makeLoc, numOrNull, plainRoll } from "../lib/util.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
@@ -554,6 +554,7 @@ export function createFullMonsterSheet(Base) {
       const move = moveReading(snap.speeds, this.#ui.moveRow);
       const senses = sensesReading({ vision: snap.vision.map((v) => v.key), lightlessRange: snap.lightlessRange, otherSenses: snap.otherSenses });
       const group = snap.group;
+      const attackThrow = attackReading(snap, loc);
       const right = [
         {
           key: "hp",
@@ -574,7 +575,14 @@ export function createFullMonsterSheet(Base) {
           sub: move.sub,
           disabled: move.pad,
         },
-        { key: "attack", action: "rollAttack", cls: "is-hi", title: loc("frame.rail.attack", { n: num(snap.attackThrow, 10) }), inside: { icon: "fa-solid fa-hand-fist", n: `${num(snap.attackThrow, 10)}+` } },
+        {
+          key: "attack",
+          action: "rollAttack",
+          cls: attackThrow.cell ? "is-hi" : "is-pad",
+          title: attackThrow.title,
+          disabled: !attackThrow.cell,
+          inside: { icon: "fa-solid fa-hand-fist", n: attackThrow.cell },
+        },
         {
           key: "senses",
           action: "senseMenu",
@@ -685,6 +693,12 @@ export function createFullMonsterSheet(Base) {
           return true;
         case "atk":
         case "abl": {
+          // Core builds an attack's target from the actor's own throw, so an
+          // attack with none to build it from is refused, as a missing save is.
+          if (kind === "atk" && numOrNull(sys.attack?.throw) == null) {
+            ui.notifications.warn(game.i18n.localize("ACKS-MONSTERS.notify.noAttackThrow"));
+            return false;
+          }
           const item = actor.items.get(a);
           if (!item) return false;
           await item.use({ skipDialog });

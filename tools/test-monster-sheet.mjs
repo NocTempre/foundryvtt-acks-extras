@@ -10,7 +10,7 @@
  */
 import assert from "node:assert";
 import {
-  hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows,
+  hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows, attackReading,
 } from "../scripts/monsters/statblock.mjs";
 import { printKey } from "../scripts/importer/printed-name.mjs";
 
@@ -213,6 +213,19 @@ test("an attack row carries the throw, the damage, the counter and the item; a m
   assert.ok(claw.line.includes("Slashing") && claw.line.includes("statblock.row.natural"));
   assert.equal(bite.damage, "—");
   assert.ok(bite.line.includes("statblock.row.extraordinary"));
+});
+test("an attack throw that is not a number shows no figure: an empty cell, the captions without it", () => {
+  const read = attackReading(snap(), loc);
+  assert.deepEqual(read, { cell: "7+", note: 'statblock.note.attacks:{"n":7}', title: 'frame.rail.attack:{"n":7}' });
+  for (const none of [null, undefined, "", "x", NaN]) {
+    const bare = { ...snap(), attackThrow: none };
+    assert.deepEqual(attackReading(bare, loc), { cell: "", note: "statblock.note.attacksNoThrow", title: "frame.rail.attackNoThrow" }, `${String(none)} reads as no figure`);
+    const group = statblockColumns(bare, loc).columns[1][0];
+    assert.equal(group.note, "statblock.note.attacksNoThrow");
+    assert.deepEqual(group.rows.map((r) => r.value), ["", ""], "no `N+` cell, no 0+ or NaN+ in its place");
+    assert.deepEqual(group.rows.map((r) => r.id), ["atk:w1", "atk:w2"], "the rows are still there to roll");
+  }
+  assert.equal(attackReading({ ...snap(), attackThrow: 0 }, loc).cell, "0+", "a stored zero is a number");
 });
 test("an ability with a throw rolls it; one without posts its card", () => {
   const { columns } = statblockColumns(snap(), loc);

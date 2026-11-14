@@ -20,7 +20,7 @@
  * kind, so a throw added later can never take its id.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
-import { makeLoc, plainRoll } from "../lib/util.mjs";
+import { makeLoc, numOrNull, plainRoll } from "../lib/util.mjs";
 import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
@@ -96,13 +96,15 @@ export function rollInventory(actor) {
     ],
   });
 
-  const T = num(sys.attack?.throw, 10);
+  // The throw leads each attack's figure; an actor with no number for it shows the bonus alone.
+  const T = numOrNull(sys.attack?.throw);
+  const lead = T == null ? "" : `${T}+ · `;
   const melee = bestAttackBonus(actor, "melee");
   const missile = bestAttackBonus(actor, "missile");
   const loadout = getLoadout(actor);
   const attackRows = [
-    row("atk:melee", game.i18n.localize("ACKS.Melee"), `${T}+ · ${signed(melee.total)}`, { big: true }),
-    row("atk:missile", game.i18n.localize("ACKS.Missile"), `${T}+ · ${signed(missile.total)}`, { big: true }),
+    row("atk:melee", game.i18n.localize("ACKS.Melee"), `${lead}${signed(melee.total)}`, { big: true }),
+    row("atk:missile", game.i18n.localize("ACKS.Missile"), `${lead}${signed(missile.total)}`, { big: true }),
   ];
   const wielded = new Set(loadout.weapons.map((w) => w.item.id));
   const weapons = actor.items.filter((i) => i.type === ITEM_TYPE.weapon);
@@ -116,7 +118,7 @@ export function rollInventory(actor) {
       const bonus = (missileMode ? missile.total : melee.total) + num(item.system?.bonus?.attack);
       const suffix = mode.twoHanded ? loc("rolls.mode.twoHanded") : missileMode && item.system?.melee ? loc("rolls.mode.thrown") : "";
       attackRows.push(
-        row(`wpn:${item.id}:${mode.id}`, suffix ? `${item.name}, ${suffix}` : item.name, `${T}+ · ${signed(bonus)}`, {
+        row(`wpn:${item.id}:${mode.id}`, suffix ? `${item.name}, ${suffix}` : item.name, `${lead}${signed(bonus)}`, {
           line: [`${mode.v} ${typeLabel}`.trim(), state].filter(Boolean).join(" · "),
           lineTip: mode.tip ?? "",
           eq: wielded.has(item.id),
@@ -128,7 +130,7 @@ export function rollInventory(actor) {
     }
   }
   if (!loadout.weapons.length) {
-    attackRows.push(row("unarmed", game.i18n.localize("ACKS-EQUIPMENT.action.unarmed"), `${T}+ · ${signed(melee.total)}`, { line: loc("rolls.state.unarmed") }));
+    attackRows.push(row("unarmed", game.i18n.localize("ACKS-EQUIPMENT.action.unarmed"), `${lead}${signed(melee.total)}`, { line: loc("rolls.state.unarmed") }));
   }
   groups.push({ key: "attack", name: loc("rolls.group.attack"), note: loc("rolls.note.throwBonus"), rows: attackRows });
 
@@ -210,6 +212,12 @@ export async function rollById(actor, id, { event } = {}) {
   // reads as `atk` and rolls as melee.
   const rest = String(id).split(":").slice(2).join(":");
   const sys = actor.system ?? {};
+  // Core builds an attack's target from the actor's own throw, so an attack
+  // with none to build it from is refused rather than rolled against nothing.
+  if ((kind === "atk" || kind === "unarmed" || (kind === "wpn" && rest.startsWith("atk:"))) && numOrNull(sys.attack?.throw) == null) {
+    ui.notifications?.warn(loc("rolls.noAttackThrow"));
+    return false;
+  }
   switch (kind) {
     case "save":
       await actor.rollSave(saveSystemKey(a), { event });

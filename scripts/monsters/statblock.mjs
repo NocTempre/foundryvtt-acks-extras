@@ -16,6 +16,7 @@ import { SAVE_KEYS, num, signed, clampPct } from "../lib/frame-model.mjs";
 import { convertedDie } from "./kits.mjs";
 import { loadStanding } from "./load-rule.mjs";
 import { printKey } from "../importer/printed-name.mjs";
+import { numOrNull } from "../lib/util.mjs";
 
 /**
  * The glyph a body form puts on the band, keyed by `printKey` of the form's
@@ -127,6 +128,19 @@ export function loadReading({ stone = 0, normal = null, max = null, maxMultiple 
   const tick = clampPct((n / denom) * 100);
   const tone = state === "overloaded" ? "bad" : state === "encumbered" ? "warn" : null;
   return { pct, tick, tone, unset: false, carried, normal: n, max: ceiling };
+}
+
+/**
+ * The creature's attack throw as the Attacks group and the rail's attack
+ * button read it, from `snap.attackThrow`: `{cell, note, title}`, the `N+` cell
+ * of a row, the group's caption and the button's tooltip. A throw that is not a
+ * number reads as no figure in all three: an empty cell and the captions
+ * without it, never a stand-in.
+ */
+export function attackReading(snap, loc) {
+  const n = numOrNull(snap.attackThrow);
+  if (n == null) return { cell: "", note: loc("statblock.note.attacksNoThrow"), title: loc("frame.rail.attackNoThrow") };
+  return { cell: `${n}+`, note: loc("statblock.note.attacks", { n }), title: loc("frame.rail.attack", { n }) };
 }
 
 /** An attack's damage text with the creature's own modifier after it, where it has one. */
@@ -323,15 +337,16 @@ export function statblockColumns(snap, loc) {
     ],
   };
 
+  const attackThrow = attackReading(snap, loc);
   const attacks = {
     key: "attacks",
     kind: "attacks",
     name: loc("statblock.group.attacks"),
-    note: loc("statblock.note.attacks", { n: num(snap.attackThrow, 10) }),
+    note: attackThrow.note,
     noteTip: throwTip,
     empty: loc("statblock.row.noAttacks"),
     rows: (snap.attacks ?? []).map((a) =>
-      row(pins, `atk:${a.id}`, a.name, `${num(snap.attackThrow, 10)}+`, {
+      row(pins, `atk:${a.id}`, a.name, attackThrow.cell, {
         line: [a.damageType, a.natural ? loc("statblock.row.natural") : "", a.extraordinary ? loc("statblock.row.extraordinary") : ""].filter(Boolean).join(" · "),
         // The creature's own damage modifier rides every roll beside the
         // attack's die, so the tag shows both and the tooltip names each.

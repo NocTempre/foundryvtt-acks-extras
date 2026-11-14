@@ -149,7 +149,7 @@
           <button type="button" class="acks-extras-frame__mini" data-action="fcRollAttack" data-attack="{{this.type}}" data-item-id="{{this.itemId}}"{{#if this.damageMode}} data-damage-mode="{{this.damageMode}}"{{/if}} data-label="{{this.label}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.roll'}} {{this.label}}"><i class="fa-solid fa-dice-d20" inert></i></button>
           <i class="{{this.icon}} acks-lib-follower-card__icon" inert></i>
           <span class="acks-extras-frame__row-label is-plain acks-lib-follower-card__attack-name">{{this.label}}</span>
-          <span class="acks-extras-frame__row-line acks-nums">{{this.target}}+ · {{this.bonus}}</span>
+          <span class="acks-extras-frame__row-line acks-nums">{{#if this.targetText}}{{this.targetText}} · {{/if}}{{this.bonus}}</span>
           {{#if this.size.count}}<span class="acks-lib-follower-card__size" data-tooltip="{{this.size.label}}">{{#each this.size.pips}}<i class="fa-solid fa-circle" inert></i>{{/each}}</span>{{/if}}
           <span class="acks-extras-frame__row-value acks-nums"{{#if this.dmgTip}} data-tooltip-text="{{this.dmgTip}}"{{/if}}>{{this.at}} · {{this.dmg}}</span>
           <button type="button" class="acks-extras-frame__ctl" data-action="fcToggleAttackEdit" data-tooltip="{{localize 'ACKS-LIB.followerCard.editAttack'}}"><i class="fa-solid fa-pen" inert></i></button>
@@ -276,13 +276,13 @@
 
   <div class="acks-extras-frame__subhead">
     <span>{{localize "ACKS-LIB.followerCard.attacks"}}</span>
-    <span class="acks-extras-frame__subhead-note">{{#if routine}}{{localize "ACKS-LIB.followerCard.routine" n=routine}}{{else}}{{localize "ACKS-LIB.followerCard.atDmg"}}{{/if}}</span>
+    <span class="acks-extras-frame__subhead-note">{{#if byRoutine}}{{#if routineKnown}}{{localize "ACKS-LIB.followerCard.routine" n=routine}}{{else}}{{localize "ACKS-LIB.followerCard.routineNone"}}{{/if}}{{else}}{{localize "ACKS-LIB.followerCard.atDmg"}}{{/if}}</span>
   </div>
   {{#each attacks}}
   <div class="acks-extras-frame__row is-bare acks-lib-follower-card__row">
     <i class="{{this.icon}} acks-lib-follower-card__icon" data-tooltip="{{this.damageTypeLabel}}" inert></i>
     <span class="acks-extras-frame__row-label is-plain">{{this.label}}</span>
-    {{#unless @root.routine}}<span class="acks-extras-frame__row-line acks-nums">{{this.target}}+ {{this.bonus}}</span>{{else if this.damageTypeLabel}}<span class="acks-extras-frame__row-line">{{this.damageTypeLabel}}</span>{{/unless}}
+    {{#unless @root.byRoutine}}<span class="acks-extras-frame__row-line acks-nums">{{#if this.targetText}}{{this.targetText}} {{/if}}{{this.bonus}}</span>{{else if this.damageTypeLabel}}<span class="acks-extras-frame__row-line">{{this.damageTypeLabel}}</span>{{/unless}}
     <span class="acks-extras-frame__row-value acks-nums"{{#if this.dmgTip}} data-tooltip-text="{{this.dmgTip}}"{{/if}}>{{this.at}} · {{this.dmg}}</span>
   </div>
   {{/each}}
@@ -302,7 +302,7 @@
     <span class="acks-extras-frame__row-label is-plain">{{savesAs}}</span>
     {{#if saves}}<span class="acks-extras-frame__row-value acks-nums">{{saves.line}}</span>{{/if}}
   </div>
-  {{else if routine}}{{#if saves}}
+  {{else if byRoutine}}{{#if saves}}
   <div class="acks-extras-frame__row is-bare acks-lib-follower-card__row">
     <span class="acks-extras-frame__row-label is-plain">{{localize "ACKS-LIB.followerCard.saves"}}</span>
     <span class="acks-extras-frame__row-value acks-nums">{{saves.line}}</span>

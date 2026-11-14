@@ -82,14 +82,6 @@ imported the field stays blank with the page as its tooltip.
   `scripts/equipment/config.mjs`. `ACCESS_COSTS` is also a table of options a
   reader picks from, so it is registered rather than shipped. The ring figure
   is printed on JJ p. 144 as well as in the Treasure Tome.
-- **An attack throw that is not there shows a figure.** Four readers fall back
-  to a literal when an actor's attack throw is not a number: the monster
-  statblock's attacks group and the monster sheet's rail
-  (`monsters/statblock.mjs`, `monsters/monster-sheet.mjs`), the character
-  sheet's Stats tab (`character-sheet/tabs/stats.mjs`) and the follower card
-  (`lib/follower-card.mjs`). The literal is one row of the attack throw column
-  (RR p. 296). No read is needed: each shows nothing where the field holds no
-  number.
 - **The progression shorthand still drives one effect.** `PROGRESSION_LEVELS`
   in `scripts/lib/vocab.mjs` is kept only to decode stored values (abilities
   DECISIONS, 2026-08-30), and the `progressionAs` effect still takes it as its

@@ -328,6 +328,14 @@ check("weapon+style both untrained → one package, not two", rows.length === 1 
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 1 }, attack: { throw: 10 }, scores: { str: { mod: -1 }, dex: { mod: 0 } } } });
 check("attribute penalty kept: only the throw is replaced (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
 
+// An actor whose own throw is not a number has nothing to measure the imported
+// throw against, so that part of the package does not apply; the attribute
+// bonus is still cancelled.
+for (const none of [null, undefined, ""]) {
+  a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 4 }, attack: { throw: none }, scores: { str: { mod: 2 }, dex: { mod: 1 } } } });
+  check(`non-prof weapon, throw ${String(none)} → the attribute bonus only (−2), no stand-in throw`, sumRows(attackThrowRows(a, swordItem, "melee")) === -2);
+}
+
 // 0th-level characters still fight as 0th level, at the imported further penalty.
 a = rollActor([swordItem], { flags: { weaponProficiency: "axe", styles: "single,twoHanded" }, system: { details: { level: 0 }, attack: { throw: 12 }, scores: { str: { mod: 0 }, dex: { mod: 0 } } } });
 check("0th-level non-proficient → the further penalty only (−2)", sumRows(attackThrowRows(a, swordItem, "melee")) === -2);

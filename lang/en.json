@@ -1158,6 +1158,8 @@
   "ACKS-LIB.followerCard.attacks": "Attacks",
   "ACKS-LIB.followerCard.atDmg": "#AT · DMG",
   "ACKS-LIB.followerCard.routine": "Routine throw {n}+",
+  "ACKS-LIB.followerCard.routineNone": "Routine throw",
+  "ACKS-LIB.followerCard.noAttackThrow": "This body has no attack throw value yet — set one on the full sheet first.",
   "ACKS-LIB.followerCard.saves": "Saves",
   "ACKS-LIB.followerCard.trained": "Trained",
   "ACKS-LIB.followerCard.mount": "Mount",
@@ -6012,7 +6014,8 @@
     "notify": {
       "noManagers": "No character actors exist to serve as a manager.",
       "henchmanSet": "Now serving as a henchman of {name}.",
-      "noSave": "This monster has no \"{save}\" saving throw value yet — set one in the field first. (Legacy monsters may use breath/wand instead of blast/implements.)"
+      "noSave": "This monster has no \"{save}\" saving throw value yet — set one in the field first. (Legacy monsters may use breath/wand instead of blast/implements.)",
+      "noAttackThrow": "This monster has no attack throw value yet — set one on the Classification tab first."
     },
     "animal": {
       "mountableLabel": "Can be ridden",
@@ -6059,6 +6062,7 @@
         "move": "{mode}: {value} — pick the speed shown",
         "moveNone": "No speeds recorded",
         "attack": "Attack throw {n}+ — roll",
+        "attackNoThrow": "Attack throw — roll",
         "senses": "Senses: {what}",
         "sensesNone": "No senses recorded",
         "employer": "In service of {name} — open their sheet",
@@ -6089,6 +6093,7 @@
         "savesAs": "as {cls} {level}",
         "ecologyPen": "set on Ecology",
         "attacks": "throw {n}+",
+        "attacksNoThrow": "throw",
         "abilities": "with a throw roll; the rest post",
         "movement": "combat / run, in feet",
         "senses": "range in feet",
@@ -8283,6 +8288,7 @@
   "ACKS-CHARACTER.rolls.group.post": "Post to chat",
   "ACKS-CHARACTER.rolls.group.retainer": "As a retainer",
   "ACKS-CHARACTER.rolls.note.throwBonus": "throw · bonus",
+  "ACKS-CHARACTER.rolls.noAttackThrow": "This character has no attack throw value yet — set one on the Stats tab first.",
   "ACKS-CHARACTER.rolls.mode.twoHanded": "two-handed",
   "ACKS-CHARACTER.rolls.mode.thrown": "thrown",
   "ACKS-CHARACTER.rolls.state.wielded": "wielded",

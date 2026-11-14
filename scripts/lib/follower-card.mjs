@@ -16,7 +16,7 @@
  * throw, a monster's saves-as class) arrives through `FOLLOWER_CARD_HOOK`,
  * so the lib reads no feature's flag.
  */
-import { toNum as num } from "./util.mjs";
+import { toNum as num, numOrNull } from "./util.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { monsterHd } from "./actor-read.mjs";
 import { isCurrency, canWear, isWorn, stackCountOf } from "./item-model.mjs";
@@ -27,7 +27,7 @@ import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.m
 import { ITEM_TYPE } from "./vocab.mjs";
 import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
 import { signed } from "./frame-model.mjs";
-import { STAR_FLAG, stones, hdText, withMod, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
+import { STAR_FLAG, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
 
 export { STAR_FLAG };
 
@@ -253,7 +253,7 @@ export async function followerCardContext(actor, { editable = false, interactive
     moraleSigned: signed(num(sys.details?.morale)),
     loyalty: num(sys.retainer?.loyalty),
     loyaltySigned: signed(num(sys.retainer?.loyalty)),
-    attackThrow: num(sys.attack?.throw, 10),
+    attackThrow: numOrNull(sys.attack?.throw),
     powers,
     starredRows: starredRows(powers, starred),
     equipment,
@@ -382,14 +382,17 @@ export async function followerCardContext(actor, { editable = false, interactive
 
   // ATTACKS — one row per option the body has. Target vs bonus stays
   // distinct, as the system's attack throw states them: the throw is the
-  // number to meet, the modifiers are what the die carries.
-  const throwTarget = num(sys.attack?.throw, 10);
+  // number to meet, the modifiers are what the die carries. A throw the actor
+  // holds no number for is null, and a target built on it reads blank.
+  const throwTarget = numOrNull(sys.attack?.throw);
   const bonusFor = (type) => shownAttackBonus(actor, type);
   const dmgModFor = (type) => shownDamageBonus(actor, type);
 
   const equippedWeapons = weapons.filter((w) => w.system?.equipped);
   // A body without scores fights by its routine: one throw for every attack.
+  ctx.byRoutine = !hasScores;
   ctx.routine = hasScores ? null : throwTarget;
+  ctx.routineKnown = ctx.routine != null;
   if (!hasScores && !equippedWeapons.length) {
     // A creature with no gear fights with its own routine, not "unarmed" — the
     // unarmed / improvised repertoire belongs to a body that has hands and scores.
@@ -402,6 +405,7 @@ export async function followerCardContext(actor, { editable = false, interactive
         icon: DAMAGE_TYPE_ICONS.varies ?? UNTYPED_ICON,
         damageTypeLabel: "",
         target: throwTarget,
+        targetText: throwFigure(throwTarget),
         bonus: signed(0),
         at: 1,
         dmg: "",
@@ -419,19 +423,21 @@ export async function followerCardContext(actor, { editable = false, interactive
       const dmgDie = ov.damage ?? o.damage;
       const shownDie = ov.damage ?? (o.heldDamage || o.damage);
       const dmgBonus = ov.damageBonus != null ? num(ov.damageBonus) : baseDmgMod;
+      const target = ov.target != null ? num(ov.target) : throwTarget;
       return {
         ...o,
         label: ov.label || o.label,
         damageTypeLabel: damageTypeLabel(o.damageType),
         size: item ? sizePips(item) : { count: 0, label: "", pips: [] },
-        target: ov.target != null ? num(ov.target) : throwTarget,
+        target,
+        targetText: throwFigure(target),
         bonus: signed(ov.bonus != null ? num(ov.bonus) : baseBonus),
         dmg: shownDie ? withMod(shownDie, dmgBonus) : "",
         dmgTip: ov.damage != null ? game.i18n.localize("ACKS-LIB.followerCard.dieSetByHand") : (o.dmgTip ?? ""),
         // raw values for the edit row + the roll
         edit: {
           label: ov.label ?? o.label,
-          target: ov.target != null ? num(ov.target) : throwTarget,
+          target,
           bonus: ov.bonus != null ? num(ov.bonus) : baseBonus,
           damage: dmgDie ?? "",
           damageBonus: dmgBonus,

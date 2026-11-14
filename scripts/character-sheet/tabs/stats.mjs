@@ -10,7 +10,7 @@
  * reads (this is the pen; Rolls is the gauge).
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS, MOVE_MODES, LIGHT_ICONS } from "../constants.mjs";
-import { makeLoc } from "../../lib/util.mjs";
+import { makeLoc, numOrNull } from "../../lib/util.mjs";
 import { profileStrips, SLOT_VOCAB } from "../../lib/proficiency-strip.mjs";
 import { EFFECT_DOMAINS } from "../../equipment/constants.mjs";
 import { weaponProficiency, isWeaponProficient, armorMax, grantMatches } from "../../equipment/proficiency.mjs";
@@ -563,7 +563,7 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
     acMod: num(stored.ac?.mod),
     cleaves: num(stored.fight?.cleaves),
     mortalWounds: num(stored.fight?.mortalwounds),
-    attackThrow: num(stored.attack?.throw, 10),
+    attackThrow: numOrNull(stored.attack?.throw),
   };
 
   const throws = buildThrows(actor);
