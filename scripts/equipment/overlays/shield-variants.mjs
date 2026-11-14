@@ -2,7 +2,7 @@
 /**
  * Overlay: JJ shield variants (Judges Journal pp. 407–408; equipment RULES.md §4).
  * Gated by the `overlayShieldVariants` world setting; off, every shield is the
- * standard +1 AC shield core already models.
+ * standard shield core already models.
  *
  * Two facts drive the automation, and core models neither:
  *

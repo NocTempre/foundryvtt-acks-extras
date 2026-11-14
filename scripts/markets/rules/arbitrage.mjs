@@ -24,13 +24,13 @@ export const NEGOTIATION_RESULTS =Object.freeze(["outrage", "refusal", "continue
  */
 export const VENTURE_MODES = Object.freeze(["party", "separately"]);
 
-/** "30,000 st" → 30000; "-" → 0. */
+/** "9,000 st" → 9000; "-" → 0. */
 export function parseStones(text) {
   const m = String(text ?? "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
   return m ? Number(m[1]) : 0;
 }
 
-/** "0.2cp/st" → 0.2 (copper per stone); "none" → 0. */
+/** "0.7cp/st" → 0.7 (copper per stone); "none" → 0. */
 export function parseTollCpPerSt(text) {
   const t = String(text ?? "").toLowerCase();
   if (!t || t.includes("none")) return 0;

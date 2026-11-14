@@ -439,7 +439,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // A network find is in its holder's market and nobody else's.
   if (candidate.networkFor && candidate.networkFor !== employer?.uuid) return { error: "not-yours" };
 
-  // Attributes roll ONCE, at hire (3d6 ×6 in order, RR 168) — class and
+  // Attributes roll ONCE, at hire (in order, RR 168) — class and
   // level were fixed when the monthly pool was rolled.
   if (candidate.attributes?.str == null) {
     candidate.attributes = await rollAttributes(roll);

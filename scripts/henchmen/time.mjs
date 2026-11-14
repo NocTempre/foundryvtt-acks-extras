@@ -15,9 +15,9 @@ export function now() {
   return Math.floor(game.time.worldTime);
 }
 
-/** The length of a market month in seconds: the `daysPerMonth` setting, 28 where it is unset. */
+/** The length of a market month in seconds: the `daysPerMonth` setting, a fallback where it is unset. */
 export function secondsPerMonth() {
-  // No-calendar fallback: 4 weeks (28 days), per RAW's weekly market cadence.
+  // No-calendar fallback: a month of whole weeks, for the weekly market cadence.
   return (Number(getSetting("daysPerMonth")) || 28) * SECONDS_PER_DAY;
 }
 

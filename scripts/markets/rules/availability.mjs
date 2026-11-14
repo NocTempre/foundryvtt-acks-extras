@@ -4,8 +4,8 @@
  * dice itself.
  *
  * Cell language (the imported Equipment Availability / Magic Item
- * Transaction grids): "2,750" — monthly units of each specific item per
- * party; "25%" — chance exactly ONE unit exists in the market this month;
+ * Transaction grids): "1,234" — monthly units of each specific item per
+ * party; "17%" — chance exactly ONE unit exists in the market this month;
  * "-" / "NA" — never available. This grammar is narrower than the
  * recruitment tables' dice expressions (henchmen rules/dice.mjs), which is
  * why it is parsed here and not there.
@@ -31,14 +31,14 @@ export function parseCell(cell) {
 /**
  * The availability band row for a price, from the imported grid's rows
  * (each `{band, minCost, maxCost, byMarketClass}`). Prices below the lowest
- * band's floor fall into it (a 4sp flask is "1gp or less"); a non-positive
+ * band's floor fall into it; a non-positive
  * price is not tradeable.
  */
 export function priceBandOf(costGp, rows) {
   const gp = Number(costGp);
   if (!Number.isFinite(gp) || gp <= 0) return null;
-  // Band bounds are the book's integers ("2 – 10gp"); a 1.5gp price belongs
-  // to the band above the floor it exceeds, so bracket the ceiling.
+  // Band bounds are the book's integers; a fractional price belongs to the
+  // band above the floor it exceeds, so bracket the ceiling.
   return bracketRow(rows, Math.ceil(gp), "minCost", "maxCost") ?? null;
 }
 

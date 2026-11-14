@@ -7,8 +7,8 @@
  */
 
 /**
- * Printed money to integer copper: "3gp" → 300, "2sp" → 20, "1gp, 33cp" →
- * 133. Dual-rate cells print alternatives ("10gp / 15gp†") — the PRIMARY
+ * Printed money to integer copper: "7gp" → 700, "4sp" → 40, "2gp, 17cp" →
+ * 217. Dual-rate cells print alternatives ("11gp / 16gp†") — the PRIMARY
  * (solo-work) variant before the slash is the one a lone commission uses.
  */
 export function parseMoneyCp(text) {

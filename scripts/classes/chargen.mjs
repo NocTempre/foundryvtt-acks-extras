@@ -60,7 +60,7 @@ export const coinLine = (coin = {}) =>
  * each purse is the character's own row of that name where they keep one,
  * else a copy of the world's coin of that name (the lib's `coinTemplate`),
  * and the lib lands the count on it — topping a purse up rather than making
- * a second. Whether a template pays the coin or a 3d6×10 roll does, it lands
+ * a second. Whether a template pays the coin or a gold roll does, it lands
  * here.
  *
  * @param {object} coin - amounts by denomination key (`gp`, `sp`)
@@ -394,7 +394,7 @@ export async function applyChargen(
   // No template is a build made the Judges Journal's way (JJ Ch. 16,
   // Generating Characters without Templates): no package, so no equipment and
   // no spellbook, every proficiency the character is owed chosen rather than
-  // printed, and 3d6×10 gold to outfit themselves with.
+  // printed, and a gold roll to outfit themselves with.
   let report;
   if (template) {
     report = await applyTemplate(actor, cls, template, { generalRefs, intScore, gold });

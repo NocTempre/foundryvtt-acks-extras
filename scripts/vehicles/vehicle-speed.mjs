@@ -188,7 +188,7 @@ export function windSpec(key) {
   return rows.find((r) => r?.key === key) ?? null;
 }
 
-/** The wind a 2d6 (plus a winter +2) landed on; moderate when no table is in. */
+/** The wind a roll (its seasonal modifier included) landed on; moderate when no table is in. */
 export function windFor(roll) {
   const rows = readTable(VOYAGES_DOC, "windStrength");
   if (!Array.isArray(rows)) return "moderate";
