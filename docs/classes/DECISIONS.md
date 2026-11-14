@@ -2139,3 +2139,7 @@ adjustment on one human-bodied race), so the cap is a base plus a racial
 adjustment, and a class of that race derives the base only until it is built. How
 the adjustment is carried is an open design call: ROADMAP "A racial power that
 raises the maximum level".
+
+## 2026-11-13 — a language's descent is not read, and written-word powers belong to the ability model
+
+**Ruled.** A language may record its parent for flavour, but nothing in the classes feature branches on it: no rule grants partial comprehension of a parent tongue or a bonus for a sibling. What lets a character get sense out of a language they do not speak is a written-word power a character either has or lacks (Deciphering, JJ ch. 12; Loremastery, RR ch. 3). Neither is a slot, and neither cares which tongue descends from which, so both live in the ability model and nothing about them lives in `languages.mjs`.

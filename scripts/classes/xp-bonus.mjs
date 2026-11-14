@@ -12,7 +12,7 @@ import { getDoc, hasDoc, expectTables, bracketRow } from "../lib/tables.mjs";
 import { ATTRIBUTES } from "../lib/vocab.mjs";
 import { classForActor } from "./registry.mjs";
 
-/** The registered ruledata document the adjustment reads. */
+/** The registered tables document the adjustment reads. */
 export const EXPERIENCE_DOC = "experience";
 
 /** Declare what is read — here and by `legacy.mjs` — so import UX can name the gap. */

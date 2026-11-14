@@ -5,10 +5,8 @@
  * Publishes two things at WORLD priority whenever the world's class items
  * change: `acks.classProgressions` (the four chassis attack/save progressions
  * every human class borrows) and one `acks.class.<key>` document per class
- * that prints its own bands or ladders. This is the resolution source the
- * abilities ROADMAP's `progression` seam was waiting on — a roll target of
- * kind `progression` ("as fighter at half level") resolves here instead of
- * returning null.
+ * that prints its own bands or ladders. It is the resolution source for a roll
+ * target of kind `progression` ("as fighter at half level").
  *
  * Reads are pure lookups over what was published; a world with no class
  * documents publishes nothing and every resolver degrades to null.
@@ -40,11 +38,8 @@ export const BOOK_ORDER = ["rr", "bta"];
  * Where a class sits when classes are listed as the books print them: the
  * book's rank times a thousand, plus the page its spread starts on.
  *
- * A class may state its own place in `system.sortOrder` — what an import
- * assigns and what a homebrew class is given by hand. Zero means "work it
- * out from `source`", so a world that re-imports nothing still lists its
- * classes in book order. A class naming no book sorts after every printed
- * one and can never displace it.
+ * A class may state its own place in `system.sortOrder`; zero means work it out
+ * from `source`. A class naming no book sorts after every printed one.
  */
 export function classSortKey(item) {
   const sys = item?.system ?? {};
@@ -65,10 +60,9 @@ export function classByKey(key) {
 }
 
 /**
- * The class Item a name or a class key names — its name first, as the reader's
- * book spells it, then its key — or null. What a caller holding only a
- * class's name (an actor's free-text class, a henchman roll's class column)
- * reaches the class's key and race through.
+ * The class Item a name or a class key names, name first, or null. For a caller
+ * holding only a class's name (an actor's free-text class, a henchman roll's
+ * class column).
  */
 export function classNamed(nameOrKey) {
   const k = String(nameOrKey ?? "").trim().toLowerCase();
@@ -77,22 +71,20 @@ export function classNamed(nameOrKey) {
 }
 
 /**
- * Whether a `fromUuidSync` answer is a compendium INDEX ROW rather than a
- * document. Foundry drops a pack's documents five idle minutes after the last
- * read and keeps its index, and `fromUuidSync` then answers with the row —
- * name, type and img, no data model. A row passes a type test and fails on
- * the first `.system` read, so no lookup below hands one on.
+ * Whether a `fromUuidSync` answer is a compendium index row rather than a
+ * document. Foundry drops an idle pack's documents and keeps its index; a row
+ * passes a type test and fails on the first `.system` read, so no lookup below
+ * hands one on.
  */
 const isIndexRow = (doc) => !!doc && typeof doc.documentName !== "string";
 
-/** Loads in flight, by uuid: a miss read a dozen times in one render starts one fetch. */
+/** Loads in flight, by uuid: repeated misses start one fetch. */
 const warming = new Map();
 
 /**
  * Load an evicted compendium document back into its pack, once per uuid at a
  * time. With `actor` given, its open windows re-render when the document
- * lands, so a surface that read the cold shelf shows the class without a
- * reload. Resolves to the document, or null when the pack no longer has it.
+ * lands. Resolves to the document, or null when the pack no longer has it.
  */
 function warmDocument(uuid, actor = null) {
   if (warming.has(uuid)) return warming.get(uuid);
@@ -133,9 +125,8 @@ export function classForActor(actor) {
 }
 
 /**
- * The uuids of the library's class rows called `name` (already lower-cased).
- * Read off the packs' indexes, which a pack keeps when it drops its
- * documents, so finding the one class a name means loads no shelf.
+ * The uuids of the library's class rows called `name` (already lower-cased),
+ * read off the packs' indexes so finding one loads no shelf.
  */
 function classRowsNamed(name) {
   const out = [];
@@ -150,13 +141,12 @@ function classRowsNamed(name) {
 }
 
 /**
- * The bound class as a document, for a caller that can await: a class
- * evicted from its pack is loaded back first, and so is a class a character
- * names without being bound to it — the rows of that name and nothing else.
- * A name no row carries (a key, or text no class matches) is answered from
- * what is loaded: the shelves warm behind the read, and the next render has
- * them. The character sheet awaits this on every render, so what it waits on
- * is what every open sheet waits on — one document, never the library.
+ * The bound class as a document, for a caller that can await: a class evicted
+ * from its pack is loaded back first, and so is a class a character names
+ * without being bound to it (the rows of that name only). A name no row carries
+ * is answered from what is loaded while the shelves warm behind the read. The
+ * character sheet awaits this on every render, so it waits on one document,
+ * never the library.
  */
 export async function classForActorAsync(actor) {
   const flag = actor?.getFlag?.(MODULE_ID, FLAG_CLASSES);
@@ -178,16 +168,12 @@ export async function classForActorAsync(actor) {
  * importer's stamp (`flags[MODULE_ID].cookbook.id`), a `uuid:` ref resolves
  * directly. Null when nothing in this world carries the ref.
  *
- * A CLASS'S OWN COPY NEVER ANSWERS FOR THE DEFINITION IT COPIED. A template
- * package skins its gear and specializes its proficiencies by copying, and a
- * copy carries the original's flags — so a world holds many documents stamped
- * `def.weapon.staff`, only one of which is the Staff. Answered with the copy,
- * a lookup for the base returned one template's reworded staff (RR p. 66), and
- * the next template skinned itself over that. A part is identified by its own
- * flag, never by name, so a Judge who renames one loses nothing.
- *
- * A `uuid:` ref is left alone: it names one document on purpose, and a bundle
- * row that points at a part is asking for that part.
+ * A class's own copy never answers for the definition it copied: a template
+ * package's skinned gear and specialized proficiencies carry the original's
+ * stamp, so a part is identified by its own flag (`templatePartOf`), never by
+ * name. A `uuid:` ref names one document on purpose and is left alone. See
+ * docs/classes/DECISIONS.md, "a ref answers with the definition, never a
+ * class's own copy of it".
  */
 export function findByRef(ref) {
   if (!ref) return null;
@@ -204,13 +190,10 @@ export function findByRef(ref) {
 }
 
 /**
- * The stamp naming what a document is a PART of — a class's own skinned gear,
- * its specialized proficiency, its copied spell — or null for anything else.
- *
- * Stated here because it is what separates the library's DEFINITIONS from the
- * copies this feature mints from them, and every read that wants definitions
- * has to make that separation: a lookup by ref (above), and equally every list
- * a player picks from.
+ * The stamp naming what a document is a part of (a class's skinned gear,
+ * specialized proficiency or copied spell), or null for anything else. It
+ * separates the library's definitions from the copies minted from them; every
+ * read that wants definitions, a pick list included, makes that separation.
  */
 export const templatePartOf = (doc) => doc?.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART] ?? null;
 
@@ -233,7 +216,7 @@ const attackRows = (sys) => (sys.attack ?? []).map((b) => ({ min: b.minLevel, ma
 
 /**
  * The save bands a class actually uses: its own when printed, else the
- * chassis class's (one hop — the book never chains chassis).
+ * chassis class's (one hop; chassis never chain).
  */
 export function effectiveSaves(classItem) {
   const sys = classItem?.system;
@@ -278,7 +261,7 @@ export const PRODUCES = Object.freeze({
 const _published = new Set();
 
 /**
- * Rebuild and publish every class-derived ruledata document. Idempotent:
+ * Rebuild and publish every class-derived registry document. Idempotent:
  * ids that vanished are unregistered, the rest replace their WORLD layer.
  * Each table cites the page its class item names (`source.cite`); a class
  * naming none, as a homebrew one does, cites nothing.
@@ -341,14 +324,13 @@ export function publish() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Progression resolution (the ROADMAP seam)                          */
+/*  Progression resolution                                             */
 /* ------------------------------------------------------------------ */
 
 /**
  * The attack throw of chassis `as` at a fraction of `level` — the meaning of
  * a `progression`-kind LevelValue ("attacks as a fighter of half his level").
- * The fraction's rounding is the rule's own (`round`); the books print "round
- * up" beside these fractions, so up is the default.
+ * `round` is the rule's own rounding; up is the default.
  *
  * @returns {number|null} the throw, or null when the chassis is unpublished
  */
@@ -359,13 +341,9 @@ export function progressionThrow(as, atLevel = "full", level = 1, round = "up") 
 }
 
 /**
- * The value a named LADDER gives at a level — "as a thief's Climb Walls at
- * half his level", where the table wanted is not the attack bands.
- *
- * A ladder is a list of rungs (`atLevel`, `value`), so the answer is the
- * LAST rung the level has reached rather than a bracket: a table stating 1, 4
- * and 7 gives the level-6 answer at rung 4. Reading it any other way makes a
- * character lose the rung they climbed at 4 the moment they hit 5.
+ * The value a named ladder gives at a level, where the table wanted is not the
+ * attack bands. The answer is the last rung (`atLevel`, `value`) the level has
+ * reached, not a bracket.
  *
  * @param {string} as    a class key
  * @param {string} table the ladder's key, as the class document names it
@@ -377,13 +355,9 @@ export function ladderValue(as, table, atLevel = "full", level = 1, round = "up"
 }
 
 /**
- * The LEVEL a character reads a borrowed table at — their own, scaled by the
- * fraction the rule prints and rounded the way it prints it.
- *
- * The floor is 1, not 0: a fraction of a 1st-level character is less than a
- * level, and a table has no rung below its first. Which way a fraction rounds
- * is printed beside it, so `round` is passed rather than assumed; `up` is only
- * the default for a caller that states nothing.
+ * The level a character reads a borrowed table at: their own, scaled by the
+ * fraction and rounded as `round` says (`up` where a caller states nothing).
+ * The floor is 1, since a table has no rung below its first.
  */
 export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
   const raw = Math.max(1, level) * levelFactor(atLevel);
@@ -391,14 +365,10 @@ export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
 }
 
 /**
- * The published RUNG a character reaches on a borrowed ladder — the whole cell,
- * not the number in it.
- *
- * `ladderValue` answers for the numeric columns and is what every existing
- * caller wants. A throw needs more: a printed column may end in cells that are
- * not numbers at all, and a caller that only ever sees a null cannot tell
- * "automatic" from "unpublished". Both read the same rungs through the
- * same rule, so they cannot disagree about which one a level reaches.
+ * The published rung a character reaches on a borrowed ladder: the whole cell,
+ * not the number in it. A cell may be non-numeric, which `ladderValue` reports
+ * as null and so cannot tell from "unpublished"; both read rungs through this
+ * rule.
  *
  * A ladder the class document does not publish is read from the world's
  * imported skill of that key (`abilities/skill-ladders.mjs`), whatever `as`
@@ -409,12 +379,10 @@ export function effectiveLevel(atLevel = "full", level = 1, round = "up") {
 export function ladderRungAt(as, table, atLevel = "full", level = 1, round = "up") {
   const key = String(as ?? "").toLowerCase();
   const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
-  // getDoc THROWS on an id nobody registered, so a class with no published
-  // tables must be caught here rather than at roll time.
+  // getDoc throws on an unregistered id.
   const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
   const published = doc?.tables?.[`ladder.${table}`];
-  // A class that publishes no such ladder borrows the imported skill's own: a
-  // thief's skills live on the skill items, not on the class document.
+  // A class publishing no such ladder borrows the imported skill's own.
   const rungs = Array.isArray(published) && published.length ? published : skillLadderRungs(table);
   if (!rungs.length) return null;
   const eff = effectiveLevel(atLevel, level, round);
@@ -440,8 +408,7 @@ export function ladderRungs(as, table) {
 export function laddersOf(classKey) {
   const key = String(classKey ?? "").toLowerCase();
   const docId = key ? `${CLASS_DOC_PREFIX}${key}` : null;
-  // getDoc THROWS on an id nobody registered, so a class with no published
-  // tables must be caught here rather than at roll time.
+  // getDoc throws on an unregistered id.
   const doc = docId && hasTableDoc(docId) ? getTableDoc(docId) : null;
   return Object.keys(doc?.tables ?? {})
     .filter((t) => t.startsWith("ladder."))
@@ -450,11 +417,8 @@ export function laddersOf(classKey) {
 
 /**
  * lib `resolveLevelValue`, completed: the `progression` kind (which lib
- * returns null for, by design) resolves through the published tables.
- *
- * A progression target that NAMES a table reads that ladder; one that names
- * none reads the attack bands, which is what the kind meant before ladders
- * were reachable and what every throw already stored keeps meaning.
+ * returns null for) resolves through the published tables. A progression that
+ * names a table reads that ladder; one naming none reads the attack bands.
  */
 export function resolveLevelValue(lv, level = 1, scales = {}) {
   const resolved = libResolveLevelValue(lv, level, scales);
@@ -472,8 +436,8 @@ const isProgression = (lv) => !!lv && typeof lv === "object" && (lv.kind === "pr
 /**
  * lib `resolveLevelOutcome`, completed the same way `resolveLevelValue` is.
  *
- * A `progression` reads the NAMED ladder's rung whole, so a borrowed table's
- * non-numeric cells reach a throw exactly as an inline ladder's do. The attack-band form has no such cells and
+ * A `progression` reads the named ladder's rung whole, so a borrowed table's
+ * non-numeric cells reach a throw as an inline ladder's do; the attack-band form
  * answers as a plain target.
  *
  * @returns {{outcome: string, target: number|null, text: string}}
@@ -495,11 +459,10 @@ let firstPublication = Promise.resolve();
 /**
  * Resolves once the registry's first publication (`registerRegistryHooks`'s
  * ready hook, after the library has warmed) has run, or failed. A pass that
- * retires documents for the docs no longer registered (`materializeAll`) awaits
- * it, because before it the `acks.class.*` docs are absent rather than gone.
- * Already resolved where nothing is pending: the hooks were never registered
- * (a test, a seat without the classes feature), they were registered after
- * `ready`, or the publication has run.
+ * retires documents for docs no longer registered (`materializeAll`) awaits it,
+ * since before it the `acks.class.*` docs are absent rather than gone. Already
+ * resolved where nothing is pending: the hooks were never registered, were
+ * registered after `ready`, or the publication has run.
  * @returns {Promise<void>}
  */
 export const whenPublished = () => firstPublication;
@@ -512,10 +475,8 @@ export function registerRegistryHooks() {
       settleFirstPublication = resolve;
     });
   }
-  // The library warms in the background and lib's own ready hook does not await
-  // it, so publishing here reads whatever happened to be loaded — and this
-  // publication is not repeated, so a cold read is what the registry answers
-  // with for the rest of the session. Await the shelves before reading them.
+  // The library warms in the background and this publication is not repeated,
+  // so the shelves are awaited before they are read.
   Hooks.once("ready", async () => {
     try {
       await whenReady();

@@ -67,9 +67,9 @@ const named = (ref) => ({ ref, name: findByRef(ref)?.name ?? "" });
  * picker has bound their class at 1st (RR ch. 6; JJ ch. 9). Each one the
  * character held is answered in a dialog, first answers from
  * `settleProficiencies`: kept; replaced by a class power, and deleted unless
- * the held one IS that power; lost; or marked to erode, which the Judge
- * resolves a month at a time. The general limit and how far past it the character stands head the
- * dialog. Nothing is written if the dialog is dismissed.
+ * the held one is that power; lost; or marked to erode, which the Judge
+ * resolves a month at a time. The general limit and how far past it the
+ * character stands head the dialog. Nothing is written if it is dismissed.
  * @param {Actor} actor
  * @param {Item} classItem the class just bound
  * @param {Array<{id: string, name: string, ref: string, bucket: string}>} before
@@ -129,9 +129,8 @@ export async function settleAdvance(actor, classItem, before) {
   if (!Array.isArray(answers)) return;
 
   const settled = rows.map((r, index) => ({ ...r, first: r.answer, answer: answers[index] }));
-  // A replaced proficiency that shares the power's ref or name stays where the
-  // grant found it already held, since it IS the power then; every other
-  // replaced one goes, the Judge having named the power that covers it.
+  // A replaced proficiency that is itself the power stays; every other replaced
+  // one goes.
   const doomed = settled.filter(
     (r) => r.answer === SETTLE.lost || (r.answer === SETTLE.replaced && (r.first !== SETTLE.replaced || standsBeside(actor, r, held))),
   );

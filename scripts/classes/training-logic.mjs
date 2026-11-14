@@ -138,14 +138,11 @@ function trainingDiffers(have, want) {
 
 /**
  * The writes that turn the training effects a character holds into the ones
- * an apply wants, made IN PLACE: each wanted effect takes over a held one —
- * the one of its own name first, else the next unclaimed — and is written
- * only where that changes it. Only a surplus is created or removed, so a
- * re-apply of the class already held writes nothing.
- *
- * In place is what keeps the character trained through the swap: a removal
- * ahead of the create leaves a moment holding no training, and a reader that
- * runs in it (the equipment loadout) writes for an untrained character.
+ * an apply wants, made in place: each wanted effect takes over a held one (the
+ * one of its own name first, else the next unclaimed) and is written only where
+ * that changes it. Only a surplus is created or removed, so a re-apply of the
+ * class already held writes nothing. See docs/classes/DECISIONS.md, "a re-apply
+ * replaces the training in place".
  *
  * @param {object[]} held the held effects' source data, each with its `_id`
  * @param {object[]} wanted the effect data an apply would create

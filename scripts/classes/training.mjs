@@ -1,32 +1,25 @@
 /* global game, fromUuidSync */
 /**
- * The class's combat training as something a Judge can EDIT, slot by slot —
- * and the answer to WHERE each piece of a character's training came from.
+ * The class's combat training as something a Judge can edit slot by slot, and
+ * where each piece of a character's training came from.
  *
- * `apply.mjs` writes the training effect; this reads and rewrites the grants
- * inside it. The two are deliberately separate concerns: applying a class
- * REPLACES the effect wholesale from the class document, while these edits
- * adjust the copy already on the character — which is the point of the copy
- * (a character's training is theirs, and editing the class should not retrain
- * everyone who ever took it).
+ * `apply.mjs` writes the training effect, replacing it wholesale from the class
+ * document; this reads and rewrites the grants inside the copy already on the
+ * character. See docs/classes/DECISIONS.md, "the class's training is edited as
+ * slots, in a section of its own".
  *
- * A weapon edit is made at the granularity of the UNIT — one weapon — or of
- * any wider clause the grammar has (a category, a size, every missile,
- * everything), and the grant is always written back in canonical form
- * (`equipment/training-view.mjs`): the shortest clause list that covers
- * exactly the units now granted, in a fixed order. Nothing is ever widened by
- * an edit, because a single weapon can always be named; nothing needs to stay
- * explicit for a later edit's sake, because the canonical form is a function
- * of the set and not of its history. A token nothing recognises is kept as
+ * A weapon edit is made at the granularity of one weapon or of any wider clause
+ * the grammar has, and the grant is always written back in canonical form
+ * (`equipment/training-view.mjs`): the shortest clause list covering exactly the
+ * units now granted, in a fixed order. A token nothing recognises is kept as
  * written through every edit.
  *
- * Armour is a ladder and edits like one: a rung sets the ceiling, the ceiling
- * clears it. Styles toggle. The shield is not an armour rung — it is the
- * Weapon & Shield style, and toggling it toggles that.
+ * Armour is a ladder: a rung sets the ceiling, the ceiling clears it. Styles
+ * toggle. The shield is the Weapon & Shield style, not an armour rung.
  *
  * A character whose class states no training has no effect to edit; the first
- * edit made by hand creates one, stamped `fromClass: "manual"`, which applying
- * a class later replaces the way it replaces any training it wrote.
+ * hand edit creates one, stamped `fromClass: "manual"`, which applying a class
+ * later replaces like any training it wrote.
  */
 import { MODULE_ID, FLAG_FROM_CLASS, LANG_PREFIX } from "./constants.mjs";
 import { SLOT_VOCAB, weaponTokenClasses, abilityContributions } from "../lib/proficiency-strip.mjs";
@@ -63,11 +56,10 @@ function targetEffect(actor, group) {
 }
 
 /**
- * Which slot keys of a group this effect grants, at CLASS granularity — what
- * the system sheet's injected section still draws as chips.
+ * Which slot keys of a group this effect grants, at class granularity (what the
+ * system sheet's injected section draws as chips).
  *
- * Weapons are read through `weaponTokenClasses`, the one resolver of the grant
- * grammar at class granularity. Armour is a LADDER, not a set: the stored
+ * Weapons are read through `weaponTokenClasses`. Armour is a ladder: the stored
  * value is the heaviest rung allowed, so every rung at or below it reads as
  * granted.
  * @returns {Set<string>} normalised slot keys (`SLOT_VOCAB[group][].key`)
@@ -122,20 +114,17 @@ export async function ensureTrainingEffect(actor) {
 /**
  * Toggle one slot of the class training on or off.
  *
- * Weapons take ANY grant token — a weapon key, a category, `melee:<size>`,
- * `missile:all`, `all`: ON adds every unit the token covers, OFF removes
- * them, and the grant is rewritten canonically. Armour is a ladder: a rung
- * SETS the ceiling, and the rung that is already the ceiling clears the grant
- * — a character trained in heavy armour but not light is not a state the
- * profile has. `shield` is the Weapon & Shield style by another name.
+ * Weapons take any grant token (a weapon key, a category, `melee:<size>`,
+ * `missile:all`, `all`): on adds every unit the token covers, off removes them,
+ * and the grant is rewritten canonically. Armour is a ladder: a rung sets the
+ * ceiling, and the rung already the ceiling clears the grant. `shield` is the
+ * Weapon & Shield style.
  *
  * @param {Actor} actor
  * @param {"styles"|"weapons"|"armour"} group
  * @param {string} key a slot key or, for weapons, any grant token
  * @param {{create?: boolean, on?: boolean|null}} [options] `create` the effect
  *   when the actor has none; `on` forces the direction of a weapon toggle
- *   (a chip lit at class granularity for a partly covered category withdraws
- *   on click rather than completing it)
  * @returns {Promise<boolean>} whether anything was written
  */
 export async function toggleTraining(actor, group, key, { create = false, on = null } = {}) {
@@ -169,11 +158,10 @@ export async function toggleTraining(actor, group, key, { create = false, on = n
 }
 
 /**
- * Press one of the printed-group shortcuts: ON adds every unit it resolves to,
- * OFF removes them, and the weapons grant is rewritten canonically, the write a
- * pill makes (`toggleTraining`). The units are resolved from the shortcut's id
- * at the press. Left to decide, a shortcut whose units are all covered goes OFF
- * and any other goes ON.
+ * Press one of the printed-group shortcuts: on adds every unit it resolves to,
+ * off removes them, and the weapons grant is rewritten canonically
+ * (`toggleTraining`). Left to decide, a shortcut whose units are all covered
+ * goes off and any other goes on.
  *
  * @param {Actor} actor
  * @param {string} id a shortcut id (`training-view.mjs` `shortcuts`)
@@ -195,8 +183,7 @@ export async function toggleTrainingShortcut(actor, id, { create = false, on = n
 /**
  * The weapons grant the editor rewrites, as tokens: the CSV of the effect a
  * press writes into (`toggleTraining`, `toggleTrainingShortcut`), empty where
- * the actor has none. What a control shows of the grant and what a press
- * changes are this one list.
+ * the actor has none.
  */
 export const editedWeaponTokens = (actor) => grantTokens(rawValue(targetEffect(actor, "weapons"), "weapons"));
 
@@ -216,9 +203,9 @@ export function trainingClassItem(actor) {
 }
 
 /**
- * Put the class's printed training back: re-apply the training alone, which
- * replaces every effect this module stamped — the standing undo for a hand
- * edit. False when there is no class document to read it from.
+ * Put the class's printed training back by re-applying the training alone,
+ * which replaces every effect this module stamped. False when there is no class
+ * document to read it from.
  */
 export async function resetTraining(actor) {
   const classItem = trainingClassItem(actor);
@@ -257,7 +244,7 @@ const csvTokens = (v) => (Array.isArray(v) ? v.map(String) : String(v ?? "").spl
  *   effect   any other effect carrying a training change (an item's, a hand's)
  *   ability  an ability item read through the abilities model
  *   flag     the actor's own profile flag (the Configure Proficiencies macro)
- * Explains; never decides — the lit state is the profile's own answer.
+ * Explains only; the lit state is the profile's own answer.
  * @returns {{weapons: object[], armour: object[], styles: object[]}}
  */
 export function trainingProvenance(actor) {
@@ -297,10 +284,9 @@ export function trainingProvenance(actor) {
 }
 
 /**
- * What the class PRINTS: the training its document states plus the chosen
- * path options', as token lists per group — or null when the class document
- * cannot be found (a hand-made training, a class since deleted), in which
- * case no edit can be told from a printed grant.
+ * What the class prints: the training its document states plus the chosen
+ * path options', as token lists per group; null when the class document cannot
+ * be found (a hand-made training, a deleted class).
  * @returns {{weapons: string[], armour: string, styles: string[]}|null}
  */
 export function printedTraining(actor) {
@@ -320,11 +306,11 @@ export function classTraining(actor) {
 }
 
 /**
- * Write `training` onto the CLASS document as its training effect: the
- * effect already carrying a training change is rewritten in place (its other
- * changes kept), a class with none gets one, and a training blank in every
- * group deletes it. Characters are untouched — a class's training reaches
- * them only when the class is applied (`syncClassTraining`).
+ * Write `training` onto the class document as its training effect: the effect
+ * already carrying a training change is rewritten in place (its other changes
+ * kept), a class with none gets one, and a training blank in every group
+ * deletes it. Characters are untouched until the class is applied
+ * (`syncClassTraining`).
  * @returns {Promise<"created"|"updated"|"deleted"|null>} what was written; null when nothing changed
  */
 export async function setClassTraining(classItem, training) {

@@ -2,24 +2,15 @@
 /**
  * A pick the character owes, as something they can see and act on.
  *
- * A printed package does not only hand over things; sometimes it hands over a
- * CHOICE — a spell left to the character's pick, a proficiency cell offering
- * a pick rather than naming one (RR p. 35). Recorded as a sentence on a note, that choice
- * is invisible on the character sheet and is simply never made: the player
- * never learns they were owed it. So the offer is minted as an owned item that
- * says what it is and opens a chooser when clicked, and is REPLACED by the
- * document the player picks.
+ * A pick the character owes, as something they can see and act on: a package
+ * that hands over a choice (a spell left to the pick, a proficiency cell
+ * offering a pick, RR p. 35) is minted as an owned item that opens a chooser
+ * when clicked and is replaced by the document the player picks.
  *
- * WHY THIS IS NOT PLACEHOLDER MINTING FOR UNRESOLVED NAMES (lib/DECISIONS.md):
- * an unresolved name has a right answer, so a placeholder for it is a duplicate
- * waiting to happen — it answers its own name search, reads as real, and gets
- * dragged onto a character beside the real thing when the import finally
- * arrives. An open CHOICE has no right answer until a player makes one. The
- * distinction is where the document lives: nothing here is ever written to the
- * world library, only ever embedded on the actor who owes the pick. A
- * placeholder in the library is a lie about what the world contains; a
- * placeholder on a character is a true statement about what that character
- * owes.
+ * The marker is only ever embedded on the actor who owes the pick, never written
+ * to the world library, which is what separates it from a placeholder minted for
+ * an unresolved name. See docs/classes/DECISIONS.md, "a pick the character owes
+ * is an item on the character".
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_PENDING_CHOICE, FLAG_REDEEMED_CHOICES } from "./constants.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -31,24 +22,19 @@ import { elementOf } from "../lib/util.mjs";
 /**
  * Is this template row an OFFER rather than a grant?
  *
- * Read off the explicit flag and nothing else. An emptiness test would be
- * cheaper and is wrong: the class sheet's row-add builds a blank row, and a
- * blank row's ChoiceSpec initialises with a source, so "no name and a choice"
- * describes a Judge who has just pressed + as accurately as it describes an
- * offer — and would put a phantom pending pick on every character generated on
- * that band.
+ * Read off the explicit flag alone: a blank row the class sheet's row-add
+ * builds also has a ChoiceSpec with a source, so an emptiness test would mint a
+ * phantom pick.
  */
 export const isOffer = (entry) => entry?.offer === true;
 
 /**
  * How one offer is remembered.
  *
- * NEVER an array index: materializing a template rewrites the row's arrays
- * (the represented entries are stripped out), and the non-bundle path grants
- * from a spliced copy, so the same printed offer sits at different positions on
- * different passes and an index-keyed marker would be minted twice. The
+ * Never an array index: the same offer sits at different positions across
+ * materializing and the non-bundle grant, so an index key would mint twice. The
  * importer writes a stable `choice.key`; without one the offer is identified by
- * what it OFFERS, which is stable for the same printed cell.
+ * what it offers.
  */
 export function offerKey(entry, { classKey = "", band = "", kind = "" } = {}) {
   const c = entry?.choice ?? {};
@@ -71,10 +57,9 @@ function settledKeys(actor) {
 /**
  * The item data for one pending choice.
  *
- * Typed `ability` whatever it offers — including a spell — because it is not
- * the thing yet, and typing it `spell` would put an empty spell in the
- * character's repertoire with a casting time and no effect. What it becomes is
- * created fresh from the document the player picks.
+ * Typed `ability` whatever it offers, a spell included: typed `spell` it would
+ * put an empty spell in the repertoire. What it becomes is created fresh from
+ * the document the player picks.
  */
 export function buildPendingChoice(entry, { key, classUuid = "" } = {}) {
   const label = String(entry?.choice?.label ?? "").trim();
@@ -97,9 +82,7 @@ export function buildPendingChoice(entry, { key, classUuid = "" } = {}) {
 /**
  * Mint a marker for every offer among `rows` this character has not settled.
  *
- * Idempotent by construction: an offer whose key is already open or already
- * redeemed is skipped, so re-materializing, re-applying and re-running chargen
- * cannot double one, and a pick the player has already made never comes back.
+ * Idempotent: an offer whose key is already open or redeemed is skipped.
  *
  * @returns {Promise<Array<{key: string, name: string}>>} what was minted
  */
@@ -124,9 +107,7 @@ export async function mintPendingChoices(actor, rows, { classKey = "", band = ""
 /**
  * Replace a pending choice with what the player picked.
  *
- * The grant comes first and the marker is deleted only if it landed: a failed
- * grant that had already removed the marker would lose the pick with nothing
- * on screen to say so.
+ * The grant comes first; the marker is deleted only if it landed.
  */
 export async function redeemChoice(actor, item, ref) {
   const pending = item?.getFlag?.(MODULE_ID, FLAG_PENDING_CHOICE);
@@ -149,10 +130,8 @@ export async function openChoiceDialog(actor, item) {
   const pending = item?.getFlag?.(MODULE_ID, FLAG_PENDING_CHOICE);
   if (!pending) return false;
   const classItem = pending.classUuid ? await fromUuid(pending.classUuid).catch(() => null) : null;
-  // The general-proficiency options are read out of the imported library, so a
-  // shelf still warming presents as an offer nothing can answer — and the
-  // warning below would say the world holds no options when it does. Cheaper
-  // than the spell warm on the next line, which indexes every Item pack.
+  // The options are read from the imported library; a shelf still warming would
+  // read as no options.
   await whenReady();
   // Spells live in compendia that are cold until something loads them.
   if (pending.choice?.from === "spellList") await warmSpellPacks();
@@ -165,9 +144,8 @@ export async function openChoiceDialog(actor, item) {
     name: "pick",
     label: pending.choice?.label || game.i18n.localize(`${LANG_PREFIX}.pending.offer`),
     options,
-    // The "already on the sheet" and "leave open" answers are not ones this
-    // dialog can honour — it redeems a marker or leaves it standing — so the
-    // only way to close it without spending the pick is to cancel.
+    // This dialog redeems a marker or leaves it standing, so it offers no
+    // "already on the sheet" or "leave open" answer.
     offerAnswered: false,
     placeholder: true,
   });

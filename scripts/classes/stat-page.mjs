@@ -1,41 +1,25 @@
 /* global game, ui, Hooks, foundry, document, console, Roll */
 /**
- * Character generation, on the page that was already doing half of it.
+ * Character generation, injected into the system's Scores Generator page in
+ * three columns: the attributes and the rule they are rolled under, the class
+ * and the template die it is read against, then what is left to choose. See
+ * docs/classes/DECISIONS.md, "Chargen lives on the Scores Generator, not in a
+ * window of its own".
  *
- * The system's Scores Generator rolls the six attributes, a template die
- * and starting gold. Three things were wrong with that: nothing could be taken
- * back once rolled, the dice were offered without the rule that governs them —
- * every row carried all three formulas, unlimited, with no minimums — and the
- * template die was rolled, shown, and then DISCARDED on save, core's submit
- * handler writing the scores and the gold and never reading `scores.template`.
- * So the number that decides a character's starting package was a decoration.
+ * Core's submit handler is a private static, so nothing here subclasses it. Its
+ * roll actions hang off the instance's own options and are wrapped there: a roll
+ * writes its result onto a readonly input after awaiting the dice, so no event
+ * fires and a fixed delay would race the animation. Each injected box is
+ * written only when its markup differs from what is on screen, so nothing
+ * flickers or loses focus.
  *
- * This adds the missing half in place rather than in a second window, and lays
- * the page out in the order a character is actually built: the attributes and
- * the rule they are rolled under on the left, the class and the template die it
- * is read against in the middle, what that leaves to choose and what it comes
- * to on the right.
+ * The picks are read off the form on submit and applied when the window closes,
+ * the point at which core's own write of the scores has landed: Intellect has to
+ * be on the actor before the bonus proficiencies are counted against it.
  *
- * INJECTED, REBUILT ON CHANGE. Core is an unmodifiable reference and its submit
- * handler is a private static, so nothing here subclasses it. Its roll actions
- * ARE reachable — they hang off the instance's own options — and are wrapped
- * there, because a roll writes its result straight onto a readonly input after
- * awaiting the dice: no event fires, and any fixed delay is a race with the
- * animation. Each injected box is written only when its markup differs from
- * what is on screen, so nothing flickers and nothing loses focus.
- *
- * The picks are read off the form when it is submitted and applied when the
- * window closes, which is the only point at which core's own write of the
- * scores is known to have landed: the character's Intellect has to be on the
- * actor before the bonus proficiencies are counted against it.
- *
- * ONE OF THE TWO FAMILY DRESSINGS REACHES THIS PAGE. Its root carries
- * `acks2 stat-gen-app acks-ui`: no `.acks`, so the sheet theme's field rule
- * never applies, but the vendored `.acks-ui` one does — and that rule claims
- * `background`, `border`, `border-radius`, `color`, `font-size`, `font-family`
- * and `padding` on selects at (0,2,1). The block's own select rule leads with
- * its module class and clears it; do not weaken that selector on the
- * assumption that nothing is competing.
+ * The page root carries `acks2 stat-gen-app acks-ui`, no `.acks`, so the
+ * vendored `.acks-ui` field rule applies to selects at (0,2,1). The block's own
+ * select rule leads with its module class to clear it; never weaken that selector.
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { classItems, byBookOrder } from "./registry.mjs";
@@ -61,8 +45,7 @@ const CLASSBOX = "acks-extras-classes-chargen";
 const TPLBOX = "acks-extras-classes-tplbox";
 const PICKS = "acks-extras-classes-picks";
 
-/** The module's scroll contract (styles/lib.css) — what keeps a window's own
- *  content reachable once it is taller than the screen. */
+/** The module's scroll contract (styles/lib.css). */
 const SCROLL_CLASS = "acks-extras-scroll";
 
 /** Where the Judge unlock is remembered, on the Judge's own user document. */
@@ -78,15 +61,12 @@ const ROLLED = 'input[data-kind="score"], input[name="scores.template"], input[n
  * How a campaign rolls attributes.
  *
  * `standard` is the printed method (RR ch. 1, Attributes): a count of rolls per
- * formula, with a floor under the results of two of them. The player chooses
- * WHICH attribute gets which, so the rule is an allowance rather than a fixed
- * order. The other three are the Judges Journal's options (JJ ch. 16,
- * Generating Attributes): one formula for every attribute, and no minimum.
- * The counts, floors and formulas in this table are printed values held in
- * source; core's roll buttons carry the same formulas as `data-formula`.
- *
- * The formulas are core's own — the page's buttons carry them as `data-formula`
- * — so nothing here decides how dice are thrown, only how many times.
+ * formula, with a floor under two of them. The player chooses which attribute
+ * gets which, so the rule is an allowance, not a fixed order. The other three
+ * are the Judges Journal's options (JJ ch. 16, Generating Attributes): one
+ * formula for every attribute, and no minimum. The formulas are core's own
+ * (`data-formula` on its roll buttons); nothing here decides how dice are
+ * thrown, only how many times.
  */
 export const METHODS = {
   standard: { allowance: { "5d6kh3": 1, "4d6kh3": 2, "3d6": 3 }, minimum: { "5d6kh3": 13, "4d6kh3": 9 } },
@@ -137,11 +117,7 @@ const currentMethod = () => {
 /**
  * Requirements this class states that these scores do not meet.
  *
- * A score that has not been rolled is UNKNOWN, never zero: it fails nothing,
- * the same way an unrolled template die legalises no package rather than
- * disqualifying every one. Reading absence as zero withheld every class with
- * a printed minimum until the deciding die was thrown, and said nothing about
- * having done so.
+ * A score that has not been rolled is unknown, never zero: it fails nothing.
  */
 export function unmetRequirements(classItem, scores) {
   return (classItem.system?.requirements ?? []).filter((r) => {
@@ -155,11 +131,9 @@ export function unmetRequirements(classItem, scores) {
  * Throw the template die for a character who left it unthrown, and take the
  * best package it reaches.
  *
- * The page defaults an unanswered selector to the HIGHEST band the die
- * legalises, so this only supplies the die that default is read against — a
- * skipped roll and a skipped selection converge on the same package. A die
- * that reaches no printed band still yields one: the lowest, so a character is
- * never handed an empty package as the price of a low roll.
+ * The page defaults an unanswered selector to the highest band the die
+ * legalises, so this only supplies the die that default is read against. A die
+ * that reaches no printed band yields the lowest, never an empty package.
  *
  * @param {object} cls - the chosen class item
  * @param {string} formula - the template die, as core's roll button carried it
@@ -184,10 +158,8 @@ async function autoTemplate(cls, formula) {
  * Offer only the dice the campaign's rule still allows.
  *
  * Under the printed method each formula has an allowance, and a row that has
- * already claimed one gives it back when it claims another — the book lets the
- * player decide which attribute gets the good dice, not which order they are
- * thrown in. Under a Judges Journal option there is one formula and no limit.
- * A Judge override lifts all of it.
+ * claimed one gives it back when it claims another. Under a Judges Journal
+ * option there is one formula and no limit. A Judge override lifts all of it.
  */
 function applyRule(root, state, judge) {
   const rule = METHODS[currentMethod()];
@@ -207,13 +179,10 @@ function applyRule(root, state, judge) {
 }
 
 /**
- * Raise a score the printed method sets a floor under.
- *
- * The modifier beside it is core's to write and it wrote the one belonging to
- * the roll, so it is re-derived — by asking the actor's own data model rather
- * than by carrying a copy of the book's table, which no repo in this family
- * ships. If that cannot be reached the box is left blank, which is honest; the
- * character sheet computes the real one the moment the scores are saved.
+ * Raise a score the printed method sets a floor under. The modifier beside it
+ * is re-derived from the actor's own data model, never a copied table; if that
+ * cannot be reached the box is left blank. See docs/classes/DECISIONS.md, "The
+ * page is three columns, and it enforces the campaign's dice".
  */
 function raiseToMinimum(root, actor, key, minimum) {
   const input = root.querySelector(`input[name="scores.${key}"]`);
@@ -223,12 +192,9 @@ function raiseToMinimum(root, actor, key, minimum) {
   if (mod) {
     let derived = "";
     try {
-      // The system's character model derives a score's modifier through one
-      // static reader, which answers for a score the actor does not hold yet.
+      // The system's static reader answers for a score the actor does not hold yet.
       const value = actor.system?.constructor?.getAttributeModifier?.(minimum);
-      // The box is `type="number"`, so it is written UNSIGNED, as core writes
-      // the ones beside it: a leading "+" fails the value sanitisation every
-      // number input applies and lands as an empty box.
+      // Written unsigned: a leading "+" fails a number input's sanitisation and lands empty.
       if (Number.isFinite(value)) derived = String(value);
     } catch {
       derived = "";
@@ -248,18 +214,17 @@ function put(root, cls, state, html) {
   if (!box || state.html[cls] === html) return;
   state.html[cls] = html;
   box.innerHTML = html;
-  // This page is core's, so only the markup written here is bound - and it is
-  // bound here because the injector is async and lands after the render hook
-  // that binds every window this module draws itself.
+  // The injector lands after the render hook that binds this module's own
+  // windows, so the markup written here is bound here.
   associateLabels(box);
 }
 
 /**
  * Rebuild every injected box, and every pick the class and template imply.
  *
- * Called on every change the page can make, because all of it is downstream of
- * the scores: the classes a character QUALIFIES for, how many bonus
- * proficiencies their Intellect buys, and which templates the die reaches.
+ * Called on every change the page can make: the classes qualified for, the
+ * bonus proficiencies Intellect buys and the templates the die reaches all
+ * follow the scores.
  */
 function refresh(root, state) {
   if (!root.querySelector(`.${CLASSBOX}`)) return;
@@ -267,8 +232,7 @@ function refresh(root, state) {
   const rolled = templateRollOn(root);
   const isGM = game.user.isGM;
   const judge = isGM && state.judge;
-  // Building without a package at all (JJ Ch. 16) — a Judge's option, so it is
-  // only reachable behind the override.
+  // Building without a package at all (JJ Ch. 16), behind the Judge override.
   const manual = judge && state.manual;
   const method = currentMethod();
   state.templateFormula = formulaOf(root, "rollTemplate");
@@ -277,8 +241,7 @@ function refresh(root, state) {
   const qualified = all.filter((c) => !unmetRequirements(c, scores).length);
   const offered = judge ? all : qualified;
 
-  // A class the scores no longer qualify for stops being the selection rather
-  // than sitting there unreachable.
+  // A class the scores no longer qualify for stops being the selection.
   if (!offered.some((c) => c.uuid === state.classUuid)) state.classUuid = offered[0]?.uuid ?? "";
   const cls = offered.find((c) => c.uuid === state.classUuid) ?? null;
 
@@ -324,9 +287,8 @@ function refresh(root, state) {
 
   /* --- column two: the class, then the die read against it --- */
 
-  // The class and template boxes are the same two the class picker shows
-  // (panels.mjs) — this page adds the Judge's own row above them, which is the
-  // one thing a picker has no use for.
+  // The class and template boxes are the picker's (panels.mjs); this page adds
+  // the Judge's row above them.
   put(
     root,
     CLASSBOX,
@@ -363,11 +325,8 @@ function refresh(root, state) {
       legal,
       selectedMin: state.templateMin,
       template,
-      // A class that prints no packages is answered BEFORE the die: the box is
-      // disabled because there is nothing to put in it, and telling a reader to
-      // roll — or which band they may take — sends them at a control that
-      // cannot open however they answer. The Judge override reaches the same
-      // empty array, so it does not relieve this one either.
+      // A class that prints no packages is answered before the die: the box has
+      // nothing to put in it, and the Judge override reaches the same empty array.
       ruleHint: manual
         ? loc("chargen.manualRule")
         : cls && !templates.length
@@ -383,18 +342,16 @@ function refresh(root, state) {
 
   const awards = (cls?.system?.awards ?? []).filter((a) => a.atLevel === 1 && a.kind === "choice");
   const asked = template ? awards.filter((a) => !answeredByTemplate(a)) : awards;
-  // The Intellect picks are chosen in addition to the template's own list
-  // (RR p. 23), so the rungs stay — but an ability the package itself hands
-  // over is not something to spend one of them on.
+  // The Intellect picks are in addition to the template's own list (RR p. 23),
+  // but exclude an ability the package hands over.
   const granted = template ? templateGrantKeys(template) : null;
   const generalOptions = choosableGenerals()
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((i) => ({ ref: refOf(i), name: i.name }))
     .filter((o) => !isGranted(granted, o));
 
-  // A character being generated owns nothing yet, so no rung here is offered
-  // the "already on the sheet" answer — there is no sheet to have it on. The
-  // picker binding a played character passes true (assign-app.mjs).
+  // No rung here is offered the "already on the sheet" answer; the picker
+  // binding a played character passes true (assign-app.mjs).
   put(
     root,
     PICKS,
@@ -412,16 +369,13 @@ function refresh(root, state) {
         options: generalOptions,
         selected: state.bonusPicks[i] ?? "",
       })),
-      // The printed encumbrance parenthetical belongs with what the character
-      // is carrying, which is the column that totals them up.
+      // The printed encumbrance parenthetical sits with what the character carries.
       trailer: template?.enc ? `<p class="hint">${esc(loc("chargen.templateEnc", { enc: template.enc }))}</p>` : "",
     }),
   );
 
-  // The template names the coin its character starts with, so the page's gold
-  // row shows what the chosen package pays instead of a figure rolled beside
-  // it. Written only when the chosen template CHANGES, so a Judge's own number
-  // stands until they choose a different package.
+  // The gold row shows what the chosen package pays, written only when the
+  // chosen template changes so a Judge's own number stands.
   const stamp = manual ? "manual" : template ? `${cls?.uuid}|${template.rollMin}` : "";
   if (stamp !== state.templateStamp) {
     state.templateStamp = stamp;
@@ -429,9 +383,8 @@ function refresh(root, state) {
     if (gold) gold.value = template ? (template.gp ?? "") : "";
   }
 
-  // Coin is the package's to pay, so it is not rolled beside it. Building
-  // WITHOUT a package is the one case the book has a character roll for their
-  // own money (RR ch. 1), with the formula core's own button already carries.
+  // Coin is the package's to pay; only building without a package rolls for it
+  // (RR ch. 1), with the formula core's own button carries.
   const goldButton = root.querySelector('button[data-action="rollGold"]');
   if (goldButton) {
     goldButton.disabled = !judge;
@@ -448,22 +401,18 @@ function refresh(root, state) {
   applyUnlock(root, judge);
   state.cls = cls;
   state.template = template;
-  // What the page is OFFERING, not what a checkbox behind a lifted override
-  // once said. Building without a package is a Judge's option, so the tick only
-  // counts while the override is up: with it down the page offers packages
-  // again, and what closes has to apply what was offered. Never read
-  // `state.manual` outside this function.
+  // What the page is offering: the manual tick counts only while the override
+  // is up. Never read `state.manual` outside this function.
   state.manualInForce = manual;
 }
 
 /**
  * The Judge unlock frees the fields a Judge SETS.
  *
- * Core marks every input on the page readonly in its own template and never
- * clears the attribute, so this is a DOM edit. The derived boxes stay locked:
- * `stats.*` are recomputed from the scores, and `scores.<k>.mod` is the one
- * field whose name is a path UNDER a field that submits — freeing it would put
- * both `scores.str` and `scores.str.mod` into the form data core expands.
+ * Core marks every input readonly in its template and never clears it, so this
+ * is a DOM edit. The derived boxes stay locked: `stats.*` are recomputed, and
+ * freeing `scores.<k>.mod`, a path under a field that submits, would put both
+ * `scores.str` and `scores.str.mod` into the form data core expands.
  */
 function applyUnlock(root, on) {
   for (const el of root.querySelectorAll(ROLLED)) el.toggleAttribute("readonly", !on);
@@ -476,12 +425,10 @@ function applyUnlock(root, on) {
 /**
  * Lay the page out in the order a character is built.
  *
- * Core prints two columns: the six attribute rows, then a stack holding the
- * summary and the template and gold dice. A third column is opened between
- * them and the template row MOVED into it, because a template die means
- * nothing until a class is chosen and everything once one is — so the class it
- * is read against belongs directly above it. What is left to choose, and what
- * the character comes to, stay together on the right.
+ * Core prints the six attribute rows, then a stack holding the summary and the
+ * template and gold dice. A middle column is opened between them and the
+ * template row moved into it beneath the class it is read against; what is
+ * left to choose stays on the right.
  *
  * Idempotent: the columns are built once, and the moved row is recognised by
  * where it now lives.
@@ -501,8 +448,7 @@ function layout(root) {
 
   const middle = box(`standard-form ${COLUMN}`);
   const panel = box("standard-form panel");
-  // Two rows stand together: the die, and the package it reaches. Only one of
-  // them can be called "Template".
+  // The die row is relabelled, since the package box beside it is the Template.
   const dieLabel = templateGroup.querySelector("label");
   if (dieLabel) dieLabel.textContent = loc("chargen.templateDie");
   panel.append(box(CLASSBOX), templateGroup, box(TPLBOX));
@@ -511,11 +457,8 @@ function layout(root) {
 
   scoresPanel.prepend(box(RULES));
   statsPanel.parentElement.prepend(box(`standard-form panel ${PICKS}`));
-  // The sum, the average and the spread describe the roll rather than the
-  // character, and the rule that governs the roll is now stated where it is
-  // rolled. The panel is HIDDEN, not removed: core writes into those three
-  // boxes from a private method after every score, and it does not check that
-  // they are there.
+  // The summary panel is hidden, not removed: core writes into its three boxes
+  // after every score without checking they exist.
   statsPanel.classList.add(STATS);
   return true;
 }
@@ -540,8 +483,7 @@ function addReset(fields, onReset) {
  * Recompute the page's own sum / average / spread.
  *
  * Core does this inside a private method reachable only from its own roll
- * actions, so a field cleared here would otherwise leave the three summary
- * boxes describing scores that are gone.
+ * actions.
  */
 function recomputeStats(root) {
   const values = Array.from(root.querySelectorAll('input[data-kind="score"]'), (el) =>
@@ -564,18 +506,14 @@ function recomputeStats(root) {
  * Wrap the instance's roll actions so each roll is recorded and the injected
  * boxes rebuilt once it lands.
  *
- * Core writes a rolled value straight onto a readonly input, which fires no
- * event to listen for, and it does so only after awaiting the roll — so a
- * fixed delay is a race with however long the dice take to settle. The
- * instance's own action handlers are wrapped instead: one rebuild, after the
- * write has landed, whatever the animation cost. The handlers live on the
- * instance's options, which are frozen only at the top level.
+ * Core writes a rolled value onto a readonly input after awaiting the dice and
+ * fires no event, so the instance's own action handlers are wrapped: one
+ * rebuild, after the write has landed. The handlers live on the instance's
+ * options, frozen only at the top level.
  *
- * Runs on the first render, ahead of the library wait, because the page's own
- * roll buttons work from that first frame while the injected controls arrive
- * later: a roll thrown in between is still counted against the dice allowance.
- * Until `inject` has built the boxes, `refresh` finds none and does nothing.
- * Idempotent per state.
+ * Runs on the first render, ahead of the library wait, so a roll thrown before
+ * the injected controls arrive still counts against the dice allowance; until
+ * `inject` has built the boxes, `refresh` does nothing. Idempotent per state.
  */
 function wrapRolls(app, root, state) {
   if (state.wrapped) return;
@@ -602,10 +540,8 @@ function wrapRolls(app, root, state) {
 }
 
 function inject(app, root, state) {
-  // Our own marker on the page root. The page's own classes are `acks2` and
-  // `stat-gen-app`, neither of which this module may write rules against
-  // (CSS here is namespaced `acks-extras-`), so the styles that lay the page
-  // out in three columns hang off this.
+  // The module's own marker on the page root; its styles hang off this, since
+  // CSS here is namespaced `acks-extras-`.
   root.classList.add(PAGE_CLASS);
   if (!layout(root)) return;
 
@@ -614,8 +550,7 @@ function inject(app, root, state) {
   for (const input of root.querySelectorAll('input[data-kind="score"]')) {
     const fields = input.closest(".form-fields");
     const key = (input.name ?? "").split(".")[1];
-    // A score row carries more than core built it for, and its label is a
-    // single long word. Marked so the row rule reaches it and nothing else.
+    // Marked so the score-row styles reach it and nothing else.
     fields?.parentElement?.classList.add(SCOREROW);
     addReset(fields, () => {
       input.value = "";
@@ -647,24 +582,20 @@ function inject(app, root, state) {
       else if (name === "acks-keep") state.keep = event.target.checked;
       else if (name === "acks-manual") state.manual = event.target.checked;
       else if (name === "acks-method") {
-        // The generation rule is the campaign's, not this character's, so it
-        // is written where the campaign keeps its rules. Only a Judge can.
+        // The campaign's rule, written to the world setting; only a Judge can.
         game.settings
           .set(MODULE_ID, METHOD_SETTING, event.target.value)
           .catch((err) => console.warn(`${MODULE_ID} | generation rule not saved`, err));
       } else if (name === "acks-judge") {
         state.judge = event.target.checked;
-        // Remembered on the Judge's own user document, so the unlock comes
-        // back the next time they open the page. Fire and forget: a write that
-        // fails costs the memory, never the toggle.
+        // Remembered on the Judge's user; a failed write costs the memory, not the toggle.
         game.user
           .setFlag(MODULE_ID, JUDGE_FLAG, state.judge)
           .catch((err) => console.warn(`${MODULE_ID} | judge unlock not remembered`, err));
       } else if (name.startsWith("acks-award-")) state.awardPicks[Number(name.slice(11))] = event.target.value;
       else if (name.startsWith("acks-bonus-")) state.bonusPicks[Number(name.slice(11))] = event.target.value;
       else if (name.startsWith("scores.")) {
-        // A score set by hand leaves its modifier box describing the roll it
-        // replaced, and owes nothing to the campaign's dice allowance.
+        // A score set by hand clears its modifier box and frees its dice allowance.
         const mod = root.querySelector(`input[name="${name}.mod"]`);
         if (mod) mod.value = "";
         delete state.rolledWith[name.split(".")[1]];
@@ -673,23 +604,15 @@ function inject(app, root, state) {
       refresh(root, state);
     });
 
-    // Read the picks at SUBMIT and apply them at CLOSE. Core's handler writes
-    // the scores; the Intellect that decides the bonus proficiencies has to be
-    // on the actor before they are counted, and close is the first moment that
-    // write is known to have finished.
-    //
-    // The application's own element IS the form (core declares `tag: "form"`),
-    // so there is no descendant to find.
+    // Picks are read at submit and applied at close, once core's score write has
+    // finished. The application's own element is the form (`tag: "form"`).
     const form = root.querySelector("form") ?? (root.tagName === "FORM" ? root : null);
     form?.addEventListener(
       "submit",
       () => {
-        // The flag is set before anything that could throw: a character half
-        // read is still a character to build.
+        // Set before anything that could throw.
         state.submitted = true;
-        // The page AS SUBMITTED is the authority on what was chosen. Reading
-        // it again here costs nothing when nothing moved, and it is what keeps
-        // a choice from depending on which refresh happened to run last.
+        // The page as submitted is the authority on what was chosen.
         try {
           refresh(root, state);
         } catch (err) {
@@ -701,10 +624,9 @@ function inject(app, root, state) {
         const field = root.querySelector('input[name="scores.gold"]');
         const gold = field?.valueAsNumber;
         state.gold = Number.isNaN(gold) ? null : gold;
-        // Core's own submit hands the gold field to the system's coin
-        // bookkeeping. Whatever is about to pay this character — a package or a
-        // gold roll — would then pay them twice, so the field is cleared and
-        // chargen stays the single writer.
+        // Core's submit hands the gold field to the system's coin bookkeeping,
+        // which would pay twice beside a package or gold roll; chargen stays
+        // the single writer.
         if (field && state.cls && (state.template || state.manualInForce)) field.value = "";
       },
       { capture: true },
@@ -726,34 +648,23 @@ export const chargenStateOf = (app) => states.get(app);
 
 /** Register the Scores Generator injection (once, from classes/module.mjs). */
 export function registerChargenPage() {
-  // Core builds this page fixed at 680 wide and NOT resizable, and its resize
-  // handle is created once — while the frame is built, from the option. So the
-  // option is set BEFORE the frame exists: `preRender` runs ahead of the frame,
-  // and the frame update reads the render options first, so both are set. The
-  // page is recognised by what it DOES, exactly as its DOM is.
+  // Core builds this page fixed-width and not resizable, and creates its resize
+  // handle once, while the frame is built from the option; so the option is set
+  // in `preRender`, ahead of the frame, in both the options and the render
+  // options.
   Hooks.on("preRenderApplicationV2", (app, _context, options) => {
     try {
       if (game.system?.id !== "acks" || !options?.isFirstRender) return;
       if (!app.options?.actions?.rollTemplate || !app.options?.window) return;
       app.options.window.resizable = true;
       if (options.window) options.window.resizable = true;
-      // The render options ARE the application's live position, so this is the
-      // only reachable place to widen it — `app.options.position` was copied
-      // out at construction. Three columns do not fit in the two the page was
-      // built for.
-      // The height is left as core set it — `auto`, so the window is exactly
-      // as tall as the build it is showing, and the handle is there for anyone
-      // who wants it otherwise.
+      // The render options are the live position (`app.options.position` was
+      // copied at construction), so the width for three columns is set here.
+      // Height stays core's `auto`.
       if (options.position) options.position.width = Math.max(Number(options.position.width) || 0, 1100);
-      // …but `auto` only sizes to content while the content FITS. Past the
-      // screen the window stops growing and core's
-      // `.application .window-content { overflow: hidden }` amputates the rest,
-      // and the third column — which carries the Intellect bonus picks, the
-      // last thing on the page — is what falls off. Measured on the live page:
-      // the generator's window-content computes `overflow-y: hidden` and does
-      // not scroll. `acks-extras-scroll` is the module's own contract for
-      // exactly this (styles/lib.css) and is what the module's dialogs use, so
-      // the page borrows it rather than growing a second answer.
+      // `auto` sizes only while the content fits the screen; past it core's
+      // `overflow: hidden` clips the third column, so the page takes the
+      // module's scroll contract (styles/lib.css).
       if (Array.isArray(app.options.classes) && !app.options.classes.includes(SCROLL_CLASS)) {
         app.options.classes.push(SCROLL_CLASS);
       }
@@ -769,8 +680,7 @@ export function registerChargenPage() {
       if (!root || !isStatPage(root)) return;
       const actor = app.options?.actor ?? app.actor ?? null;
       if (!actor?.isOwner) return;
-      // The state and the roll wrap come before the wait: the page's own roll
-      // buttons work from the first frame, and `inject` is what arrives late.
+      // The state and the roll wrap come before the wait; `inject` arrives late.
       let state = states.get(app);
       if (!state) {
         state = {
@@ -795,14 +705,9 @@ export function registerChargenPage() {
         states.set(app, state);
       }
       wrapRolls(app, root, state);
-      // Warm unconditionally. A cold shelf answers with what is in hand, and
-      // core's page never re-renders itself, so a partial reading is not a
-      // moment's wrong list — it is the wrong list for the LIFE of the window.
-      // Never gate this warm on the library reading empty: `libraryDocs`
-      // answers from the world sidebar before any pack, so one homebrew class
-      // makes an evicted shelf read as a stocked one, and the page builds its
-      // class box out of the sidebar alone. Emptiness is not coldness. Cheap
-      // when nothing is cold — `warmLibrary` resolves already-settled.
+      // Warm unconditionally; never gate it on the library reading empty. See
+      // docs/classes/DECISIONS.md, "the library is warmed unconditionally,
+      // because emptiness is not coldness".
       await whenReady();
       if (!root.isConnected || !classItems().length) return;
       inject(app, root, state);
@@ -818,10 +723,8 @@ export function registerChargenPage() {
     try {
       let template = state.template;
       let roll = state.roll;
-      // The die is thrown FOR a character who reached the end of the page
-      // without it. An unthrown die legalises no package at all, so leaving it
-      // alone spent the whole build: a player who chose their class and pressed
-      // save walked away with six numbers, no class and no starting package.
+      // The die is thrown for a character who reached the end of the page
+      // without it, since an unthrown die legalises no package.
       if (state.cls && !template && !state.manualInForce) {
         const auto = await autoTemplate(state.cls, state.templateFormula);
         if (auto.template) {
@@ -830,7 +733,6 @@ export function registerChargenPage() {
           ui.notifications?.info(loc("chargen.templateAutoRolled", { roll: auto.roll, name: auto.template.name }));
         }
       }
-      // A build with no package is a deliberate choice, not an unfinished one.
       if (!state.cls || (!template && !state.manualInForce)) {
         ui.notifications?.info(loc("chargen.nothingApplied"));
         return;

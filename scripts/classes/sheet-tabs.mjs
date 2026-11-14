@@ -2,14 +2,12 @@
 /**
  * Category tabs over the character sheet's ability and spell lists.
  *
- * Abilities file into fixed buckets — fighting, thief skills, general
- * proficiencies, class proficiencies, class powers, racial abilities —
- * resolved from what the items already carry:
- * the training flag, the importer's cookbook id, the proficiency type, and
- * the bound class document's award notes (a racial trait is whatever the
- * class awards with a racial-trait note). Spells file by their tradition
- * (`system.class`: Arcane, Divine, and whatever later books add), so an
- * eldritch or ceremonial list grows its tab the day such spells exist.
+ * Abilities file into fixed buckets (fighting, thief skills, general
+ * proficiencies, class proficiencies, class powers, racial abilities) resolved
+ * from what the items carry: the training flag, the importer's cookbook id, the
+ * proficiency type, and the bound class's award notes (a racial trait is
+ * whatever the class awards with a racial-trait note). Spells file by their
+ * tradition (`system.class`).
  *
  * The bar filters rows in place; the active pick survives re-renders on the
  * application instance. Only lists that would actually split get a bar.
@@ -47,8 +45,7 @@ export function abilityBucket(item, racialRefs) {
 
 function categorize(item, racialRefs) {
   const id = cookbookId(item);
-  // A language is declared, never inferred from its name: "Goblin" is a
-  // language and a monster and a class restriction, and only the record knows.
+  // A language is declared, never inferred from its name.
   if (item.type === "language" || item.flags?.[MODULE_ID]?.extras?.category === "language") {
     return "language";
   }

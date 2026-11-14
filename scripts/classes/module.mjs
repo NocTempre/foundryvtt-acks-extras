@@ -5,12 +5,10 @@
  * the class-derived rules tables, wires the character-sheet class picker,
  * and exposes the subsystem API.
  *
- * The document model stores what an RR class spread PRINTS (tables, bands,
- * awards, templates). Advanced mode holds the Judges Journal's builder
- * workflow as INPUT state and derives those same printed fields from the
- * world's imported builder tables (builder-logic.mjs) — simple mode types
- * them, advanced mode computes them, and everything downstream reads one
- * shape.
+ * The document model stores what a class spread prints (tables, bands, awards,
+ * templates). Advanced mode holds the builder workflow as input and derives
+ * those same fields from the imported builder tables (builder-logic.mjs);
+ * everything downstream reads one shape.
  */
 import * as languages from "./languages.mjs";
 import { acksExtras } from "../namespace.mjs";
@@ -79,9 +77,8 @@ Hooks.once("init", () => {
   // Picks a character owes, drawn on the sheet and answerable from it.
   registerPendingChoices();
 
-  // How a campaign rolls attributes: the printed method (RR Ch. 1 §I.2), or
-  // one of the Judges Journal's options (JJ Ch. 16). A campaign rule, so the
-  // world holds it and every player's generator obeys it.
+  // How a campaign rolls attributes (RR Ch. 1 §I.2, JJ Ch. 16): world scope, so
+  // every player's generator obeys it.
   game.settings.register(MODULE_ID, METHOD_SETTING, {
     name: `${LANG_PREFIX}.settings.chargenAttributeMethod.name`,
     hint: `${LANG_PREFIX}.settings.chargenAttributeMethod.hint`,
@@ -122,8 +119,7 @@ Hooks.once("init", () => {
      * hold them.
      */
     languages,
-    // Sending a character back through the Scores Generator: the page works,
-    // but the system clears the flag that offers it on the first score edit.
+    // Sends a character back through the Scores Generator.
     reopenChargen,
     CLASS_TYPE,
     RACE_TYPE,
@@ -139,9 +135,9 @@ Hooks.once("init", () => {
     registry,
     applyClass,
     syncClassTraining,
-    /** Paths — a class's groups of mutually exclusive options (DECISIONS
-     *  2026-08-22). `pathGroups(system)` resolves every group with its options,
-     *  a `templates` group included; `setActorPath` records one choice. */
+    /** Paths — a class's groups of mutually exclusive options.
+     *  `pathGroups(system)` resolves every group with its options, a `templates`
+     *  group included; `setActorPath` records one choice. */
     paths: {
       pathGroups,
       pathOptions,
@@ -155,8 +151,8 @@ Hooks.once("init", () => {
     classUpdateData,
     normalizeHd,
     parseHd,
-    // The imported 1st-level hit-die floor, and the ruledata document it is
-    // read from — exposed so a live check can see what the world imported.
+    // The imported 1st-level hit-die floor and the registry document it is
+    // read from.
     HITPOINTS_DOC,
     firstLevelDieMinimum,
     /** Open picks: a printed offer a character has not answered yet, minted as
@@ -179,13 +175,13 @@ Hooks.once("init", () => {
     },
     applyChargen,
     applyTemplate,
-    // The starting coin, in the denominations a package prints it in, and the
-    // one way this family writes it down.
+    // The starting coin in the denominations a package prints it in, and its
+    // one written form.
     grantCoin,
     coinLine,
     legalTemplates,
     intBonusPicks,
-    // Bonus picks NET of what a template already spends, and what a template
+    // Bonus picks net of what a template already spends, and what a template
     // hands out that its character may not hold (RR Ch.2 §II.1).
     netBonusPicks,
     templateShortfall,
@@ -199,9 +195,8 @@ Hooks.once("init", () => {
      */
     templates: {
       materializeTemplates,
-      // The way back: clears every row's package link (and optionally deletes
-      // the documents), so the class applies from its printed entries exactly
-      // as it did before packages existed.
+      // Clears every row's package link (and optionally deletes the documents),
+      // so the class applies from its printed entries.
       detachTemplatePackages,
       templateContents,
       expandTemplate,
@@ -209,9 +204,8 @@ Hooks.once("init", () => {
       buildProfData,
       applyShortfall,
       bestBaseMatch,
-      // Resolution reaches the COMPENDIA as well as the world, because the
-      // importer can be configured to import into a pack — and a locked pack
-      // document is exactly what a Judge cannot repair, so it is copied in.
+      // Resolution reaches the compendia as well as the world; a locked pack
+      // document is copied in so a Judge can repair it.
       findSource,
       resolveBaseDoc,
       TEMPLATE_PART,

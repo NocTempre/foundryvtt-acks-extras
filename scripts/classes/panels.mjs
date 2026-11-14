@@ -1,17 +1,11 @@
 /* global game, foundry */
 /**
- * The boxes a character-building surface is made of, built once and used by
- * both surfaces that show them.
+ * The boxes a character-building surface is made of, shared by the Scores
+ * Generator page (stat-page.mjs) and the class picker (assign-app.mjs): class,
+ * package, Intellect picks, each rung.
  *
- * The Scores Generator page (stat-page.mjs) and the class picker ask the same
- * questions — class, package, Intellect picks, each rung. The markup lives here
- * and both call it: the picker IS the generator's middle and right columns,
- * with the attribute rolls it has no use for replaced by the level it is
- * setting (assign-app.mjs).
- *
- * Pure string builders. Nothing here reads the DOM, holds state or writes to an
- * actor — a caller passes what it has decided and gets markup back, which is
- * what lets one page inject them and another render them.
+ * Pure string builders: nothing here reads the DOM, holds state or writes to an
+ * actor.
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { coinLine, templateItemName } from "./chargen.mjs";
@@ -26,8 +20,7 @@ const loc = makeLoc(LANG_PREFIX);
 export const grantLabel = (a) =>
   `${a.name || findByRef(a.ref)?.name || a.ref}${a.selection ? ` (${a.selection})` : ""}${a.rank > 1 ? ` ×${a.rank}` : ""}`;
 
-/** What a template's equipment entry is called on the page — the same name the
- *  grant will give it, so the list and the sheet agree. */
+/** What a template's equipment entry is called on the page: the name the grant gives it. */
 export const itemLabel = (i) => `${templateItemName(i) || findByRef(i.ref)?.name || i.ref}${i.qty > 1 ? ` ×${i.qty}` : ""}`;
 
 /** What a template's spellbook entry is called on the page. */
@@ -64,11 +57,8 @@ export function classPanelHtml({ offered = [], selectedUuid = "", unmet = [], co
 }
 
 /**
- * The template box: which starting package, and what it hands over.
- *
- * What the package brings is said BEFORE it is applied rather than only in the
- * chat card afterwards — a starting package is the largest single write either
- * surface makes.
+ * The template box: which starting package, and what it hands over, said before
+ * it is applied.
  *
  * @param {object} opts
  * @param {object[]} opts.legal      the packages this surface may offer
@@ -80,9 +70,8 @@ export function classPanelHtml({ offered = [], selectedUuid = "", unmet = [], co
  *   surface binding a character who may already own one
  */
 export function templatePanelHtml({ legal = [], selectedMin = null, template = null, ruleHint = "", shortfall = null, noneLabel = "" }) {
-  // What the package brings is read from its materialized bundle when one is
-  // bound (the repairable contents a grant will actually clone), else from
-  // the row's own arrays — the same order applyTemplate grants in.
+  // The materialized bundle when one is bound, else the row's own arrays: the
+  // order applyTemplate grants in.
   const contents = template ? templateContents(template) : null;
   const none = noneLabel
     ? `<option value=""${selectedMin == null ? " selected" : ""}>${esc(noneLabel)}</option>`
@@ -115,16 +104,14 @@ export function templatePanelHtml({ legal = [], selectedMin = null, template = n
 /**
  * The picks box: every question the class and package leave open.
  *
- * Both kinds of question are rungs, and both are rendered by picks.mjs — the
- * class ladder's own choices, and the general proficiencies an Intellect bonus
- * buys on top of them.
+ * Both kinds of question are rungs rendered by picks.mjs: the class ladder's
+ * choices, and the proficiencies an Intellect bonus buys.
  *
  * @param {object} opts
  * @param {object[]} opts.rungs      `{name, label, atLevel, options, selected}`
  * @param {object[]} opts.bonus      the same shape, one per Intellect pick
- * @param {boolean} [opts.offerAnswered] let a rung be closed without a pick.
- *   A character being generated owns nothing yet, so the generator says no;
- *   one being bound from their sheet may already carry the answer.
+ * @param {boolean} [opts.offerAnswered] let a rung be closed without a pick;
+ *   false for a character being generated, who owns nothing yet.
  * @param {string} [opts.trailer]    markup appended after the rungs
  */
 export function picksPanelHtml({ rungs = [], bonus = [], offerAnswered = false, trailer = "" }) {

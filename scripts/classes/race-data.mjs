@@ -1,20 +1,17 @@
 /* global foundry */
-/**
- * Data model for the `acks-extras.race` Item sub-type — a RACE as a document:
- * the racial-value ladder the Judges Journal's class builder spends (0–4,
- * each rung an XP cost, a level cap and the racial powers it grants), plus
- * the race's attribute minimums and prose.
- *
- * The model is structure only: every rung's numbers and every power the book
- * prints reach a world through the importer (`def.race.<key>` cookbook
- * entries), or are typed by hand. A race document serves both class modes —
- * advanced mode spends its ladder through the builder, and a simple-mode
- * (imported) class may bind one by ref so its racial traits resolve from the
- * race instead of being restated per class.
- */
 import { num, str, int, bool, html, choice, refList } from "../lib/fields.mjs";
 import { ATTRIBUTES } from "../lib/vocab.mjs";
 
+/**
+ * Data model for the `acks-extras.race` Item sub-type: the racial-value ladder
+ * the class builder spends (each rung an XP cost, a level cap and the racial
+ * powers it grants), plus the race's attribute minimums and prose.
+ *
+ * Structure only: every rung's numbers and every power reach a world through
+ * the importer (`def.race.<key>` cookbook entries) or are typed by hand. Advanced
+ * mode spends the ladder through the builder; a simple-mode class may bind a
+ * race by ref so its racial traits resolve from the race.
+ */
 export default class RaceData extends foundry.abstract.TypeDataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = ["values", "minimumAttributes", "traits", "postEight", "languages.granted"];
@@ -22,12 +19,11 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     const { ArrayField, SchemaField } = foundry.data.fields;
 
-    /** One rung of the racial-value ladder (value 0 is a legal rung: the
-     *  book's demi-human 0 classes pay its cost and take its powers). */
+    /** One rung of the racial-value ladder (value 0 is a legal rung). */
     const valueRung = () =>
       new SchemaField({
         value: int(0, { min: 0 }),
-        label: str(), // the book's row label ("Dwarf + 2 Proficiencies")
+        label: str(), // the book's row label
         xpCost: num({ integer: true }), // null = not printed / not imported yet
         maxLevel: num({ integer: true }), // level cap this rung imposes; null = none
         powers: refList(), // racial powers granted AT this rung (cookbook id or uuid:…)
@@ -50,7 +46,7 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
       /** Attribute floors the race imposes on any class built with it. */
       minimumAttributes: new ArrayField(new SchemaField({ attr: choice(ATTRIBUTES), min: num({ integer: true }) })),
 
-      /** The racial-value ladder, one rung per spendable value (usually 0–4). */
+      /** The racial-value ladder, one rung per spendable value. */
       values: new ArrayField(valueRung()),
 
       /** Always-on traits outside the ladder (tongues, size), for the sheet
@@ -58,11 +54,8 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
       traits: new ArrayField(new SchemaField({ name: str(), ref: str(), html: html() })),
 
       /**
-       * The tongues this race is born to (RR §I.10: a demi-human begins with
-       * its racial language, Common, and certain others). Same shape and same
-       * reasoning as the class's — names the book prints, resolved against
-       * the world at grant time — and the two ADD: an elven fighter speaks
-       * what the race brings and what the class brings.
+       * The tongues this race is born to (RR §I.10). Same shape as the class's,
+       * resolved against the world at grant time; the two add.
        */
       languages: new SchemaField({
         granted: refList(),
@@ -74,13 +67,11 @@ export default class RaceData extends foundry.abstract.TypeDataModel {
       factored: bool(),
 
       /**
-       * Magic category this race's value STACKS with (JJ: elf points "stack
-       * with points allocated to the Arcane Value"). "" = no stacking. The
-       * builder adds the racial value to that category's effective value.
+       * Magic category this race's value stacks with (JJ); "" = no stacking.
+       * The builder adds the racial value to that category's effective value.
        */
       stacksWith: str(),
-      /** Printed XP discount on the stacked category's cost (the elf's
-       *  Arcane reduction). Null when the race prints none. */
+      /** Printed XP discount on the stacked category's cost; null when none. */
       stackXpDiscount: num({ integer: true }),
       /** Extra hit points per level past the last die level the race prints. */
       hpAfter9: num({ integer: true }),

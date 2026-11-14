@@ -1,12 +1,4 @@
 /* global foundry, fromUuid */
-/**
- * The race constructor sheet — the editable face of `acks-extras.race`.
- *
- * One pane: identity, attribute minimums, the racial-value ladder (each rung
- * an XP cost, a level cap and the powers it grants), and always-on traits.
- * Rung power lists and the traits list ACCEPT ability drops, like the class
- * sheet's inventory — nothing is offered from a catalogue.
- */
 import { MODULE_ID } from "./constants.mjs";
 import RaceData from "./race-data.mjs";
 import { findByRef } from "./registry.mjs";
@@ -18,6 +10,12 @@ import { bindDropHighlight, confirmRowDelete, openRef, rejectDrop } from "./shee
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
+/**
+ * The race constructor sheet, the editable face of `acks-extras.race`: identity,
+ * attribute minimums, the racial-value ladder (each rung an XP cost, a level cap
+ * and the powers it grants), and always-on traits. Rung power lists and the
+ * traits list accept ability drops; nothing is offered from a catalogue.
+ */
 export default class RaceSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-extras-classes-sheet"],

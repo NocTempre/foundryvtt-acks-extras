@@ -1,21 +1,17 @@
 /* global game */
 /**
- * PATHS — a class's groups of mutually exclusive options.
+ * Paths: a class's groups of mutually exclusive options ("exactly one of
+ * these"), any of which can change what the character is trained to fight with.
+ * See docs/classes/DECISIONS.md, "a class's mutually exclusive options are
+ * PATHS, and a starting template is one".
  *
- * A spread that offers a choice offers it as a set: the Barbarian's region, class
- * 21's dark path, a dwarven caste, and the eight starting templates. Every
- * one of them is "exactly one of these", and every one of them can change what
- * the character is trained to fight with, so they are one concept rather than a
- * special case each (2026-08-22, DECISIONS).
+ * A group whose `source` is `"templates"` draws its options from the class's
+ * own `system.templates` rows, which stay where they are; the selector keeps no
+ * copy.
  *
- * TEMPLATES ARE POINTED AT, NOT MOVED. A group whose `source` is `"templates"`
- * draws its options from the class's own `system.templates` rows, which stay
- * where they are — bundles, roll table and all — so the selector needs no copy
- * of them.
- *
- * The resolution here is pure: it takes a class's `system` object and a
- * selection map, and answers what was chosen and what it grants. Walking
- * documents and writing to actors belongs to the callers.
+ * The resolution is pure: it takes a class's `system` object and a selection
+ * map and answers what was chosen and what it grants. Walking documents and
+ * writing to actors belongs to the callers.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { trainingChanges } from "./training-logic.mjs";
@@ -24,15 +20,14 @@ import { trainingChanges } from "./training-logic.mjs";
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /** The stable key a template row contributes as a path option: its annotation
- *  where it prints one (the Barbarian's region), else its name. */
+ *  where it prints one, else its name. */
 export const templateOptionKey = (row) => fold(row?.annotation || row?.name);
 
 /**
  * A group's options, resolved.
  *
- * A `templates` group has none of its own: its options are the class's rows,
- * turned into the same `{key, label}` shape so every consumer reads one list
- * whichever kind of group it is holding.
+ * A `templates` group has none of its own: its options are the class's rows in
+ * the same `{key, label}` shape.
  * @returns {{key: string, label: string, note: string, training: object|null}[]}
  */
 export function pathOptions(system, group) {
@@ -67,11 +62,8 @@ export function pathGroups(system) {
 /**
  * The option a selection names inside one group, or null.
  *
- * Matched on the folded key so a caller may pass what the page printed — a
- * template's annotation, a Judge's typing — rather than having to know the
- * slug. An unknown selection resolves to nothing rather than to the first
- * option: a group with no valid choice is unchosen, and silently picking one
- * would grant a training nobody selected.
+ * Matched on the folded key, so a caller may pass what the page printed. An
+ * unknown selection resolves to null, never to the first option.
  */
 export function chosenOption(system, groupKey, selection) {
   const group = pathGroups(system).find((g) => g.key === groupKey);
@@ -83,10 +75,9 @@ export function chosenOption(system, groupKey, selection) {
 /**
  * The training every chosen option grants, as effect changes.
  *
- * Same three keys a class-wide training writes, and `add` for the same reason:
- * a class stating a training and a path adding to it are cumulative, which is
- * what a spread that prints both means. A group whose option states no training
- * contributes nothing — a starting template is the ordinary case of that.
+ * Same three keys a class-wide training writes, with `add`, so a path's training
+ * is cumulative with the class's. A group whose option states no training
+ * contributes nothing (a starting template, for one).
  */
 export function pathTrainingChanges(system, selections = {}) {
   const changes = [];
@@ -125,11 +116,8 @@ export async function setActorPath(actor, groupKey, optionKey) {
 /**
  * The selection a TEMPLATE makes for the character who takes it.
  *
- * A template row prints its variant as an annotation — "Pit Fighter (<region>)"
- * — and that annotation IS the option key in whichever group the class states
- * it under. So applying a template answers the group without asking, which is
- * the point: the template sets it, and the group is still a first-class choice
- * for a character built without one.
+ * A template row's annotation is the option key in whichever group the class
+ * states it under, so applying a template answers that group without asking.
  * @returns {{group: string, option: string}|null}
  */
 export function templateSelection(system, row) {

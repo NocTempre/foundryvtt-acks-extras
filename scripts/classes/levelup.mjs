@@ -3,10 +3,11 @@
  * Level-up: watching XP cross the threshold, and the wizard that applies a
  * gained level — never automatically.
  *
- * HP follows the user-confirmed RAW: reroll the FULL Hit Dice for the new
- * level (Constitution applying per die, never to the printed flat bonus past
- * the class's last die level) and keep at least one point over the old
- * maximum. The roll is made once per level climbed (`levelUpHitPoints`).
+ * Hit points: reroll the full Hit Dice for the new level (Constitution applying
+ * per die, never to the flat bonus past the class's last die level) and keep at
+ * least one point over the old maximum. The roll is made once per level climbed
+ * (`levelUpHitPoints`). See docs/classes/DECISIONS.md, "Level-up HP is RAW:
+ * reroll the full HD, minimum +1".
  *
  * Awards for the new level come off the class document's ladder: fixed
  * grants materialize as owned ability items (deduped by cookbook ref);
@@ -100,20 +101,18 @@ const ROLL_KEY = "levelUpRoll";
 /**
  * The hit points a climb to `next` offers, and the dice behind them.
  *
- * The dice are rolled once per (character, target level): the roll is kept on
- * the character and answers every later open of the wizard, so cancelling and
- * reopening cannot fish for a better one. A kept roll counts only for the
- * level and the hit dice it was rolled under, and only where its `mode` is
- * "full", so one kept under a mode the wizard no longer offers is rolled
- * again; a record that differs in any of them is replaced by a fresh roll.
- * Every level rolls its whole pool, past the class's last die level too, and
- * keeps the better of that total and one over the old maximum. The record keeps the faces, and
- * Constitution is applied to them at every read (`hitPointsFromFaces`), so a
- * modifier that moved since — a temporary one included — changes the
- * Constitution part and never the dice. A record without its faces counts only
- * for the modifier it was rolled under. The record is cleared when the level
- * is applied or moves (`runLevelUp`, `guardLevelWrite`). The old maximum is
- * the stored one, never the prepared figure (`storedMaxHp`).
+ * The dice are rolled once per (character, target level) and the roll is kept
+ * on the character, so reopening the wizard cannot fish for a better one. A
+ * kept roll counts only for the level and hit dice it was rolled under and a
+ * `mode` of "full"; any other record is replaced by a fresh roll. Every level
+ * rolls its whole pool and keeps the better of that total and one over the old
+ * maximum. The record keeps the faces and Constitution is applied at every read
+ * (`hitPointsFromFaces`), so a moved modifier changes the Constitution part and
+ * never the dice; a record without faces counts only for the modifier it was
+ * rolled under. It is cleared when the level is applied or moves (`runLevelUp`,
+ * `guardLevelWrite`). The old maximum is the stored one, never the prepared
+ * figure (`storedMaxHp`). See docs/classes/DECISIONS.md, "the level-up roll is
+ * kept per level, and the last die level is derived".
  *
  * @returns {Promise<{oldMax: number, newMax: number, conMod: number,
  *   roll: {formula: string, total: number}|null, missingHd: boolean, step: object}>}
@@ -135,17 +134,14 @@ export async function levelUpHitPoints(actor, classItem, next) {
   const answers = held && Object.entries(stamp).every(([key, value]) => held[key] === value);
   let kept = answers && (Array.isArray(held.faces) || held.con === conMod) ? held : null;
   if (!kept) {
-    // Constitution applies to each die and cannot take any of them below one
-    // (hitpoints.mjs) — the same arithmetic the picker's rebuild uses, so a
-    // character built at 5th and one levelled to 5th are rolled alike.
+    // Constitution applies per die, none below one (hitpoints.mjs), as in the
+    // picker's rebuild.
     const rolled = await rollHitDice(hd, conMod);
     kept = { ...stamp, con: conMod, formula: rolled.roll.formula, dice: rolled.roll.total, faces: rolled.faces, total: rolled.total };
     await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.${ROLL_KEY}`]: kept });
   }
-  // The total is the faces under the modifier held now. A record kept without
-  // its faces was rolled under its own modifier, which is the one it is read
-  // under. A maximum held over the roll names the one it was held over, which
-  // the record may not carry.
+  // The total is the faces under the modifier held now; a record without faces
+  // reads under the modifier it was rolled with.
   const total = Array.isArray(kept.faces) ? hitPointsFromFaces(kept.faces, conMod, { flat: hd.flat ?? 0 }) : kept.total;
   const newMax = Math.max(total, oldMax + 1);
   const step = hpRollStep({
@@ -162,10 +158,10 @@ export async function levelUpHitPoints(actor, classItem, next) {
 }
 
 /**
- * Run the level-up wizard for one character. Rolls HP up front so the dialog
- * SHOWS the roll it will apply; nothing writes until the wizard confirms. A
- * second open while one is up does nothing, and a wizard whose character's
- * level moved while it was open writes nothing.
+ * Run the level-up wizard for one character. Hit points are rolled up front so
+ * the dialog shows what it will apply; nothing writes until the wizard
+ * confirms. A second open while one is up does nothing, and a wizard whose
+ * character's level moved while it was open writes nothing.
  */
 export async function openLevelUp(actor) {
   if (isZeroLevel(actor)) {
@@ -174,8 +170,7 @@ export async function openLevelUp(actor) {
       ui.notifications?.info(game.i18n.format(`${LANG_PREFIX}.zero.judgeChooses`, { name: actor.name }));
       return;
     }
-    // Loaded on demand: the picker is an application, and this file is read
-    // by surfaces that never open one.
+    // Loaded on demand: surfaces that read this file never open the picker.
     const { openClassPicker } = await import("./assign-app.mjs");
     await openClassPicker(actor);
     return;
@@ -204,8 +199,8 @@ async function runLevelUp(actor) {
   }
   const { oldMax, newMax, conMod, roll: hpRoll, missingHd, step: hpStep } = await levelUpHitPoints(actor, classItem, next);
 
-  // The rung this level climbs, carrying the keys the picker remembers rungs
-  // by — so a question answered here is one the picker does not ask again.
+  // The rung's keys are the ones the picker remembers, so an answer here is
+  // not asked again there.
   const takenAlready = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
   const { fixed, choices } = awardsAt(actor, classItem, next, takenAlready);
   const choiceBlocks = choices
@@ -221,10 +216,8 @@ async function runLevelUp(actor) {
     .map((a) => `<li>${foundry.utils.escapeHTML(findByRef(a.ref)?.name ?? a.name ?? a.ref)}</li>`)
     .join("");
 
-  // Boxed: the subsystem's hint rule reaches a `.hint` only inside a named
-  // box (styles/classes.css), and a bare one in a dialog body falls to the
-  // vendored micro-annotation step — present, styled, and too small to read
-  // as the sentence it is.
+  // Boxed: the hint rule in styles/classes.css reaches a `.hint` only inside a
+  // named box.
   const content = `
     <div class="acks-extras-classes-levelup-body">
     <p>${game.i18n.format(`${LANG_PREFIX}.levelup.prompt`, { name: actor.name, class: classItem.name, level: next })}</p>
@@ -237,46 +230,36 @@ async function runLevelUp(actor) {
     ${choiceBlocks ? `<p class="hint">${game.i18n.localize(`${LANG_PREFIX}.levelup.openHint`)}</p>` : ""}
     </div>`;
 
-  // The wizard's body is a list — one line per fixed award, one picker per
-  // choice — so it grows with the class it is climbing. `acks-extras-scroll`
-  // is the module's scroll contract (styles/lib.css): without it core's
-  // `.window-content { overflow: hidden }` amputates the content past the
-  // window, footer buttons first, and the wizard cannot be answered at all.
+  // The body grows with the class; `acks-extras-scroll` (styles/lib.css) keeps
+  // it from being clipped under core's `overflow: hidden`.
   const picked = await foundry.applications.api.DialogV2.prompt({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: game.i18n.localize(`${LANG_PREFIX}.levelup.title`), resizable: true },
     content,
     ok: {
-      // Position-preserving, empties included — the position is what says which
-      // rung an answer belongs to, and a rung left open has to keep its place.
+      // Position-preserving, empties included: position names the rung.
       label: game.i18n.localize(`${LANG_PREFIX}.levelup.apply`),
       callback: (_event, button) => readRungs(button.form, "choice-", choices.length),
     },
     rejectClose: false,
   });
   if (!picked) return;
-  // Another seat, or the picker, may have moved the level while the wizard was
-  // open; climbing from a level the character no longer holds would write the
-  // wrong rung and the wrong hit points.
+  // Another seat or the picker may have moved the level while the wizard was open.
   if (levelOf(actor) !== level) {
     ui.notifications?.warn(game.i18n.format(`${LANG_PREFIX}.levelup.moved`, { name: actor.name, level: levelOf(actor) }));
     return;
   }
 
-  // Each write names its step, so a climb cut short says where it stopped and
-  // what stands (`levelup.failed.<step>`) instead of leaving a rejection on the
-  // console.
+  // Each write names its step, so a climb cut short says where it stopped
+  // (`levelup.failed.<step>`).
   let step = "level";
   try {
-    // The level lands first and everything else only once it has: an apply that
-    // is refused (a stub class, a dismissed election) leaves no grant and no hit
-    // points behind for a level that never arrived.
+    // The level lands first; a refused apply leaves no grant or hit points behind.
     const applied = await applyClass(actor, classItem, { level: next, confirm: false });
     if (!applied?.applied) return;
 
-    // A rung closes once what answers it is on the sheet: its pick granted (as
-    // the proficiency type of the list the rung draws from) or already held, or
-    // "already on the sheet". A pick the world cannot resolve leaves it open.
+    // A rung closes once what answers it is on the sheet, granted as the
+    // proficiency type of its list or already held; an unresolved pick leaves it open.
     step = "grants";
     const grants = [];
     for (const a of fixed) await grantAbility(actor, a.ref, grants, { upTo: a.copies });
@@ -292,12 +275,9 @@ async function runLevelUp(actor) {
       closed.push(choice.key);
     }
 
-    // The maximum held on each side of the climb is recorded, so lowering the
-    // level again (`guardLevelWrite`) can put back the one this climb replaced.
-    // The closed rungs ride the same write, so the picker — which asks the
-    // WHOLE ladder up to a level — asks again any rung a climb cut short left
-    // unrecorded, and none a played character has already answered. The
-    // level's step joins the hit point record in the same write.
+    // The maximum on each side of the climb is recorded so lowering the level
+    // (`guardLevelWrite`) can restore it; the closed rungs and the level's step
+    // ride the same write.
     step = "hitPoints";
     const flag = actor.getFlag(MODULE_ID, FLAG_CLASSES) ?? {};
     const oldValue = Number(actor.system?.hp?.value) || 0;
@@ -331,12 +311,10 @@ async function runLevelUp(actor) {
 
 /**
  * Roll a character's hit points afresh and write them as the full total,
- * current points with it: the sheet's hit-dice roll. The class is found the
- * way the wizard finds it, and `rollFullHitPoints` holds the arithmetic. A
- * character with a class has the climbs' record (`hpAt`) replaced by the new
- * figure, as a rebuilt maximum replaces it in `guardLevelWrite`, so lowering
- * the level later never restores a maximum from before the roll. The hit
- * point record is replaced by the roll's steps, with or without a class.
+ * current points with it: the sheet's hit-dice roll. `rollFullHitPoints` holds
+ * the arithmetic. A character with a class has the climbs' record (`hpAt`)
+ * replaced by the new figure, as `guardLevelWrite` does for a rebuilt maximum;
+ * the hit point record is replaced by the roll's steps either way.
  * @returns {Promise<{max: number, steps: object[]}|null>} `steps` are the
  *   record's (`hpRollStep`); null where the hit dice cannot be read and
  *   nothing was written (`rerollRefusal` says why)
@@ -404,9 +382,8 @@ export function guardLevelWrite(actor, changes, options) {
   const writtenLevel = getProperty(changes, "system.details.level");
   const writtenXp = getProperty(changes, "system.details.xp.value");
   if (writtenLevel === undefined && writtenXp === undefined) return;
-  // A 0th-level character's next threshold is the gate's, written beside the
-  // experience it is read against. A write that moves the level off 0th is
-  // the class picker's, and goes on below.
+  // A 0th-level character's next threshold is the gate's; a write that moves
+  // the level off 0th is the class picker's and goes on below.
   if (isZeroLevel(actor) && (writtenLevel === undefined || sameValue(writtenLevel, 0))) {
     const need = writtenXp !== undefined && earnsExperience(actor) ? zeroLevelXp(actor) : null;
     if (need != null) setProperty(changes, "system.details.xp.next", need);
@@ -443,8 +420,7 @@ export function guardLevelWrite(actor, changes, options) {
   const kept = taken.filter((key) => (awardKeyLevel(key) ?? 0) <= level);
   if (kept.length !== taken.length) setProperty(changes, `${flagPath}.awardsTaken`, kept);
   if (Number(flag.notifiedLevel) >= level) setProperty(changes, `${flagPath}.notifiedLevel`, null);
-  // Steps above the new level describe levels no longer held; a write carrying
-  // its own record (a rebuild) has already replaced them.
+  // Steps above the new level are dropped unless the write carries its own record.
   const rolls = flag[HP_ROLLS_KEY];
   if (Array.isArray(rolls) && getProperty(changes, `${flagPath}.${HP_ROLLS_KEY}`) === undefined) {
     const below = rolls.filter((s) => Number(s?.level) <= level);

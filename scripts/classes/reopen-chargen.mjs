@@ -2,17 +2,11 @@
 /**
  * Sending a character back through the Scores Generator.
  *
- * The system offers its generator only while it considers the character NEW
- * (`system.isNew`), and it clears that on the first update that touches the
- * scores. That is the right default — a played character should not meet a
- * "roll your attributes" page every time they open their sheet — but it means
- * a character built by hand, or one generated wrongly, can never be sent back.
- * The page itself works perfectly; nothing could reach it.
- *
- * So the flag is set again, deliberately, by someone who has been told what it
- * costs. It is NOT a quiet toggle: generating a character replaces the last
- * run of the page, so re-opening it on a character who owns anything is a
- * destructive act and is confirmed as one.
+ * The system offers its generator only while it considers the character new
+ * (`system.isNew`), and clears that on the first update that touches the
+ * scores. This sets the flag again. Generating replaces the last run of the
+ * page, so re-opening it on a character who owns anything is confirmed as a
+ * destructive act.
  */
 import { LANG_PREFIX } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -21,9 +15,7 @@ import { elementOf } from "../lib/util.mjs";
 /**
  * Mark this character new again, so the system offers its generator.
  *
- * Asks first, and the question names what is actually at stake — the item
- * count, because "this will replace your equipment" means nothing next to
- * "this will replace your 23 items".
+ * Asks first, naming the actor's item count as what is at stake.
  */
 export async function reopenChargen(actor) {
   if (!actor?.isOwner) return false;
@@ -43,9 +35,8 @@ export async function reopenChargen(actor) {
 }
 
 /**
- * Offer the control beside the class picker — and only on a character the
- * system is NOT already offering its generator to, since a new character has
- * the page in front of them already.
+ * Offer the control beside the class picker, except on a character the system
+ * already offers its generator to.
  */
 function onRenderCharacterSheet(app, element) {
   const root = elementOf(element);
@@ -64,8 +55,7 @@ function onRenderCharacterSheet(app, element) {
     event.preventDefault();
     reopenChargen(doc);
   });
-  // After the picker and any level-up control, so the destructive one is last
-  // in a row a player clicks through left to right.
+  // Placed after the picker and any level-up control: the destructive one is last.
   const row = pick.parentElement;
   row.appendChild(btn);
 }
