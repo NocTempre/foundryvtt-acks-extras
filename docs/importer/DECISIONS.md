@@ -11018,3 +11018,29 @@ Manual's row until a reviewer compares their figures. A host row adds one to
 the place's headcount where no stat line bound to the monster. A lair imported
 before the Manual keeps the creatures its stat lines made until a Repair, and
 Repair lists that roster as an edit rather than replacing it.
+
+## 2026-11-14 — L&E lairs: four owner answers after the first build
+
+Asked once the lairs, plates and bindings were built, the owner answered:
+
+- On the rank-and-file stat lines that may duplicate an MM row (warriors of
+  the beastman and demi-human lairs, sized swarms, variants): "Pair after
+  compare (Recommended)". A line's figures are compared with the MM row and a
+  pair is registered where they match; a mismatch stays made.
+- On the four "Men, X" labels paired to the MM's "Man, X" rows: "Keep pairs
+  (Recommended)".
+- On the p. 214 plate, drawn in miles with a gridded inset and shared by two
+  listings: "Crop out the locations at the 5' grid and link them to the full
+  map at the 1/10 mi map (gridless exploration speed map)." This supersedes,
+  for that plate alone, the one-Scene shape of "A lair's plate is cut inside
+  its frame…" (same day): the new evidence is the owner's own reading of the
+  plate. The full plate becomes a gridless map at its own scale, and each
+  gridded location on it a 5 ft Scene of its own, linked from the full map.
+- On the hidden roster row that links a lair's monster and adds one to the
+  headcount: "It links to that monster's in lair ecology as an encounter group
+  rolled upon entry". This supersedes the host row of "A lair links to its
+  monster…" (same day); the new evidence is that ruling. The lair does not
+  count its monster as one body; it links the monster's lair ecology, rolled
+  as an encounter group when the lair is entered.
+
+The shapes of the last two are designed before they are built.
