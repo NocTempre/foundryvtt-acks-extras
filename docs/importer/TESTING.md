@@ -1398,9 +1398,9 @@ imported it. Flags are stored in
 4. **Join as a player** (a real seat, per the shared rule) and open the actor.
    The player owns no book and has connected nothing; they must read the same
    text. A stub, a tag, or an empty field here is the bug.
-5. Search the actor's HTML for `@PdfText`. Zero hits — including the journal
-   pages, roll tables, traps, equipment and class items an "Import Everything"
-   run produces.
+5. Search the actor's HTML for a `data-acks-entry` block. Every imported
+   description holds one — including the journal pages, roll tables, traps,
+   equipment and class items an "Import Everything" run produces.
 6. Confirm the text is ESCAPED, not parsed: import an entry whose page prints a
    `<` or `&` (a formula or a "&" in a name) and confirm the character shows as
    itself rather than vanishing into markup.

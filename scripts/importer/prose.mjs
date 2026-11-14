@@ -31,13 +31,8 @@ export const CITE_LINK_CLASS = "acks-extras-importer-cite-link";
 /** A materialized book table — rows the page printed, headed by authored words. */
 export const BOOK_TABLE_CLASS = "acks-extras-importer-table";
 
-/**
- * Matches a stamped block, and the `@PdfText` tag form of the same text. A tag
- * captures its paragraph's opening, the entry id (with any `#section`), the
- * page reference, and its paragraph's closing.
- */
+/** Matches a stamped block of imported book text. */
 const BOOK_TEXT_BLOCK = /<div\b[^>]*\bdata-acks-entry=[^>]*>[\s\S]*?<\/div>/gi;
-const PDF_TEXT_TAG = /(<p>\s*)?@PdfText\[([^\]]*)\](?:\{([^}]*)\})?(\s*<\/p>)?/gi;
 
 /** Extracted text is never markup. */
 export const escapeText = (value) =>
@@ -159,10 +154,9 @@ export const entryTable = (node, id, cite, columns = []) =>
  * The same description with everything this module wrote removed.
  *
  * What is left is the Judge's own work, and callers that overwrite descriptions
- * ask this before they do. `@PdfText` tags count as ours: a description that
- * holds a tag holds this module's writing exactly as one that holds the text.
+ * ask this before they do.
  */
-export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ").replace(PDF_TEXT_TAG, " ");
+export const stripBookText = (html) => String(html ?? "").replace(BOOK_TEXT_BLOCK, " ");
 
 const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 

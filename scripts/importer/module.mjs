@@ -98,10 +98,9 @@ const sessionDocs = new Map();
  * origin, so a GM joining over plain http on the LAN — or anyone on Firefox —
  * had nothing remembered at all.
  */
-const IDB_STORE = "bookHandles"; // store name predates the record shape; renaming it would strand every already-remembered book
+const IDB_STORE = "bookHandles"; // every remembered book lives here; renaming it strands them
 const IDB_BYTES = "bookBytes"; // refresh bridge only — swept on every join, see below
-const IDB_META = "bookMeta"; // the bridge's freshness stamp, kept out of the byte store so the heartbeat is cheap
-const IDB_VERSION = 2;
+const IDB_VERSION = 2; // never lowered: opening below a seat's stored version throws
 const TOUCH_KEY = "touched";
 
 function idb() {
@@ -112,7 +111,7 @@ function idb() {
       // Additive, and each store guarded: this runs for a fresh seat AND for
       // one whose database already holds bookHandles, which must survive
       // untouched — its records are the whole point of the store.
-      for (const name of [IDB_STORE, IDB_BYTES, IDB_META]) {
+      for (const name of [IDB_STORE, IDB_BYTES]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
       }
     };
@@ -733,11 +732,6 @@ function stampClear() {
   } catch {
     /* nothing to do */
   }
-  // A stamp kept in this store cannot survive pagehide (see above). Clear the
-  // store so a seat is not carrying a dead record around forever.
-  return idbOp("readwrite", (s) => s.clear(), IDB_META).catch((err) =>
-    console.debug(`${MODULE_ID} | refresh-bridge stamp store could not be cleared`, err),
-  );
 }
 
 /**

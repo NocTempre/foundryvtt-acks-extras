@@ -56,9 +56,7 @@ export const gettingStartedDismissed = () => !!game.settings.get(MODULE_ID, SETT
  *                   abilities were imported before any creature existed, so the
  *                   link can only be made once 6 has run;
  *  8. journals + roll tables — reference the creatures imported in 6;
- *  9. placeholders — book text held as an `@PdfText` tag, wherever a copy
- *                   carried it, read from the books this seat has open;
- * 10. adventures  — each open adventure book as one Adventure on its line's
+ *  9. adventures  — each open adventure book as one Adventure on its line's
  *                   shelf, carrying what every step above made of it.
  *
  * The list groups the single-purpose steps (variations, traps, vehicles,

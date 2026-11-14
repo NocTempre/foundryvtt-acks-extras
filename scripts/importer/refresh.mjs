@@ -49,8 +49,8 @@ function setPath(node, keys, value) {
 /**
  * Does this description hold something this module cannot prove it wrote?
  *
- * What the module wrote is a stamped block of imported book text or its
- * `@PdfText` tag form, and nothing else. Structure-only markup (the empty
+ * What the module wrote is a stamped block of imported book text, and nothing
+ * else. Structure-only markup (the empty
  * paragraph an editor leaves behind) is empty; an image, a heading or a word of
  * text is someone's work and is offered before it is overwritten. Every rewrite
  * writes the stamped shape, so a second run passes over what the first settled.
