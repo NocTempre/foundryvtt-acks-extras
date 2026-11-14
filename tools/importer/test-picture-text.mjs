@@ -39,6 +39,13 @@ await t("a line becomes a run at its left edge and vertical centre, in source sa
   assert.deepEqual(runs, [{ str: "alpha beta ", x: (8 + 20) / 2, y: (16 + 50) / 2, w: 100, h: 10 }]);
 });
 
+await t("every run of a box takes the box's median line height, so a short icon-led line keeps its place", () => {
+  const reads = [boxRead([line("tall one", 0, 0, 200, 24), line("short", 0, 30, 200, 42), line("tall two", 0, 50, 200, 70)])];
+  const { runs } = pictureRuns(reads, P());
+  assert.deepEqual(runs.map((r) => r.h), [10, 10, 10]);
+  assert.deepEqual(runs.map((r) => r.y), [6, 18, 30]);
+});
+
 await t("boxes follow one another in the recipe's order, and a box that read nothing gives no run", () => {
   const reads = [boxRead([line("one", 0, 0, 20, 10)]), boxRead([]), boxRead([line("two", 0, 100, 20, 110)])];
   const { runs, boxText } = pictureRuns(reads, P());

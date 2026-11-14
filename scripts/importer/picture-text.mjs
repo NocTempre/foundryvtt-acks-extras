@@ -103,7 +103,11 @@ function matchesOf(text, find, flags) {
  * the correction's `flags`. The corrected text is split on newlines again: line
  * i keeps raw line i's box, and a line past the raw count keeps the last one's.
  * Each line is one run `{str: text + " ", x: left edge, y: vertical centre, w,
- * h}` in the picture's source samples. A box that read no line gives no run.
+ * h}` in the picture's source samples. Every run of a box takes the box's median
+ * line height as `h`: a line led by an icon reads taller or shorter than its
+ * neighbours, and the text ops' superscript cut would otherwise file it onto
+ * another line and break the reading order. A box that read no line gives no
+ * run.
  *
  * Returns `{ runs, boxText, hits, spans }`: `boxText[i]` is box i's corrected
  * text, `hits[j]` the number of matches correction j had at its place in the
@@ -133,9 +137,12 @@ export function pictureRuns(boxReads, picture) {
     boxText.push(text);
     if (!read.lines.length) return;
     const [ox, oy] = read.origin;
+    const heights = read.lines.map(({ bbox }) => bbox.y1 - bbox.y0).sort((a, b) => a - b);
+    const mid = heights.length >> 1;
+    const h = (heights.length % 2 ? heights[mid] : (heights[mid - 1] + heights[mid]) / 2) / read.k;
     text.split("\n").forEach((str, j) => {
       const { x0, y0, x1, y1 } = read.lines[Math.min(j, read.lines.length - 1)].bbox;
-      runs.push({ str: `${str} `, x: (ox + x0) / read.k, y: (oy + (y0 + y1) / 2) / read.k, w: (x1 - x0) / read.k, h: (y1 - y0) / read.k });
+      runs.push({ str: `${str} `, x: (ox + x0) / read.k, y: (oy + (y0 + y1) / 2) / read.k, w: (x1 - x0) / read.k, h });
     });
   });
   return { runs, boxText, hits, spans };
