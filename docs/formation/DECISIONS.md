@@ -5694,3 +5694,7 @@ append-only, keep them; they are marked superseded in part.
 
 **Ruled.** The settlement derivations read the registered document `cityTravel`. The henchmen feature already registers a `settlement` document for market class by families, and a settlement in this codebase means a place where people live.
 **Rejected.** Sharing the `settlement` id: it would put two unrelated features' tables in one document and make "is the settlement data imported?" an ambiguous question.
+
+## 2026-11-13 — Who goes short when the packs cannot feed everyone is a setting, and even is the default
+
+**Ruled.** The book does not state who goes short when the packs cannot feed everyone: it prices what hunger does, never whom a captain feeds. The choice is therefore a world setting (`provisionSharing`), not a rule, and the kinder reading, `even`, is the default.

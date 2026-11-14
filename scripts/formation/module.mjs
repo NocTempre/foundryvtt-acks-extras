@@ -212,9 +212,8 @@ Hooks.once("init", () => {
   installTrapDrop();
   installTrapMarkers();
   installColumnView();
-  // Core's party overview deals XP by its own reckoning; with this module's
-  // formation as the roster of record the two would disagree, so core's
-  // button is hidden rather than left to argue. Off restores core untouched.
+  // Hides core's party-overview XP button, whose reckoning would disagree with
+  // the formation's roster; off restores core untouched.
   installCoreXpSuppression();
   /* --- Settings --- */
   game.settings.register(MODULE_ID, SETTING_FORMATIONS, {
@@ -224,9 +223,7 @@ Hooks.once("init", () => {
     default: {},
   });
 
-  // Saved marching orders. World-scoped and keyed by id, like the formations
-  // themselves: an arrangement is worth reusing across parties, not owned by
-  // the one it was captured from.
+  // Saved marching orders: world-scoped and keyed by id, shared across parties.
   game.settings.register(MODULE_ID, SETTING_TEMPLATES, {
     scope: "world",
     config: false,
@@ -279,11 +276,9 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // Light-source equipment enforcement (RR p265): lighting a torch needs a
-  // torch, a lantern needs the lantern AND a flask of oil. "require" (default)
-  // blocks lighting without the gear; "warn" lights anyway with a warning;
-  // "off" ignores equipment entirely. When enforced (require/warn) the fuel is
-  // consumed — the torch/candle itself, or a lantern's flask of oil.
+  // Light-source equipment enforcement (RR p. 265): "require" blocks lighting
+  // without the gear, "warn" lights anyway with a warning, "off" ignores
+  // equipment. Both enforcing modes consume the fuel.
   game.settings.register(MODULE_ID, "lightItemEnforcement", {
     name: "ACKS-FORMATION.settings.lightItemEnforcement.name",
     hint: "ACKS-FORMATION.settings.lightItemEnforcement.hint",
@@ -330,9 +325,8 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // How long a city incident's marker outlives its turn. A lifetime in the
-  // module's own turns, not a printed figure: nothing in the book says how
-  // long a commotion stays visible on a map.
+  // How long a city incident's marker outlives its turn, in the module's own
+  // turns.
   game.settings.register(MODULE_ID, SETTING_TRANSIENT_TURNS, {
     name: "ACKS-FORMATION.settings.transientIncidentTurns.name",
     hint: "ACKS-FORMATION.settings.transientIncidentTurns.hint",
@@ -379,42 +373,27 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // The delve's own: the turns an unrested party explores before it is
-  // winded, the load a carried body adds, and the swimming throw's figures
-  // (`swimming.mjs`). All printed, so none of them ship.
+  // The delve's own printed figures, all imported: rest, carried load and the
+  // swimming throw (`swimming.mjs`).
   expectTables(FORMATION_DOC, [
     "restInterval", "carriedBodyStone", "carriedGearShare",
     "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
-    // Jumping and the Spelunking tables (`jumping.mjs`, `obstacles.mjs`): the
-    // jump's figures, what a fall deals, the stretch and targets of the
-    // obstacles, and what a missed throw costs at each. Printed, so none of
-    // them ship.
+    // Jumping and the Spelunking tables (`jumping.mjs`, `obstacles.mjs`).
     "jumping", "fall", "spelunking", "spelunkingOutcomes",
-    // The column's spacing: the frontage a combatant takes on the battlemap
-    // (marching, and with a wide weapon) and the interval between ranks, in
-    // feet. Printed, so none of them ship.
+    // The column's spacing on the battlemap, in feet.
     "marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet",
-    // The traps' figures (`trap-rules.mjs` `trapFigures`, `pitFigures`): the
-    // automatic search's reach bare and with a pole, the pole's lead, the
-    // secret die and the band that springs it, the trapbreak reach, the botch
-    // bands and the methodical bonus, and the pit's spike dice. Printed, so
-    // none of them ship.
+    // The traps' figures (`trap-rules.mjs` `trapFigures`, `pitFigures`).
     "searchReachFeet", "poleSearchReachFeet", "poleLeadFeet", "trapTriggerDie", "trapTriggerOn",
     "trapbreakReachFeet", "trapbreakHastyBotch", "trapbreakMethodicalBotch", "trapbreakMethodicalBonus",
     "pitSpikeCount", "pitSpikeDie",
   ]);
-  // The delve's wandering throw: its die, the turns between throws, the throw
-  // that meets a monster, and the encounter distance's dice
-  // (`getEncounterParams`). A figure neither set nor imported is not guessed:
-  // no throw is made without a die and a target, and no distance is rolled
-  // without its dice.
+  // The delve's wandering throw (`getEncounterParams`): with no die and target
+  // no throw is made, and with no dice no distance is rolled.
   expectTables(DELVE_ENCOUNTER_DOC, ["die", "every", "target", "distance"]);
-  // The journey's registry reads still ahead of it — the getting-lost targets
-  // and the encounter frequencies — declared now so the import UX names them.
+  // The journey's registry tables: getting lost, encounter frequency and the
+  // navigation bonus.
   expectTables(TRAVEL_DOC, ["gettingLost", "encounterFrequency", "navigationBonus"]);
-  // The sky's: the daily generator's bands and modifiers, the condition
-  // speed factors, the footing thresholds, and what each condition does to
-  // the throws, the eye and the body (`weather-effects.mjs`).
+  // The sky's generator, speed factors and condition effects (`weather-effects.mjs`).
   expectTables(WEATHER_DOC, [
     "climateModifiers",
     "dailyTemperatureLow",
@@ -426,58 +405,41 @@ Hooks.once("init", () => {
     "conditionEffects",
   ]);
 
-  // The encounter chain's: every band, name, distance die, visibility
-  // figure, evasion target and terrain-encounter list.
+  // The encounter chain's bands, distances, visibility, evasion and terrain lists.
   expectTables(ENCOUNTERS_DOC, ENCOUNTER_TABLE_IDS);
-  // City travel: the paces' block rates, the navigation target and its
-  // known-destination modifier, the straggling ladder, and the street's
-  // encounter cadence. Every one of them is printed, so none of them ships.
+  // City travel: paces, navigation, the straggling ladder and the street's
+  // encounter cadence.
   expectTables(SETTLEMENT_DOC, [
     "paces", "navigation", "straggling", "encounters",
     "encounterIntent", "encounters100", "encounterAfterDark",
     // The dice the street's encounter throw and the incident list are thrown on.
     "dice",
     // The turns a walk between two points of interest costs (`poi.mjs`). It
-    // arrives from a second book, so a world can hold every figure above and
-    // not this one: declaring it is what makes that absence VISIBLE — the
-    // table browser lists an expected table that never arrived, where an
-    // undeclared one is simply not there and reads as nothing having been meant.
+    // arrives from a second book; declaring it makes its absence visible in the
+    // table browser.
     "districtTravel",
-    // What a gate pass costs a load of merchandise, and what the syndicate's
-    // smuggling service charges and risks. Both are printed, so both arrive by import.
+    // Gate tolls and the syndicate's smuggling service.
     "gateTolls", "smuggling",
   ]);
-  // Flight: the day-aloft factor, what wind costs a flier, and the load
-  // threshold's own factor. All printed, so none of them ship.
+  // Flight: the day-aloft, wind and load factors.
   expectTables(FLIGHT_DOC, ["aloftFactor", "windFactor", "loadFactors"]);
-  // Hunger and thirst: how long each rung takes to reach, what it drains, how
-  // fast the debt comes back, what the heat adds, and the shortcut a Judge can
-  // provision by; fatigue's day counts and Endurance's allowance, and what
-  // sleeping armoured costs (`lib/fatigue.mjs`). Printed to the last figure,
-  // so none ships.
+  // Hunger, thirst, exposure, fatigue and sleep (`lib/fatigue.mjs`).
   expectTables(SURVIVAL_DOC, ["food", "water", "exposure", "heat", "simplified", "fatigue", "sleep"]);
-  // Living off the country: the forage targets, what Survival is worth, the
-  // party size one throw covers, the hunting target and its territory
-  // modifiers, the dog pack's help and cap, what a success yields, and which
-  // country starves a grazer. Printed to the last figure.
+  // Living off the country: foraging, hunting and the dog pack.
   expectTables(FORAGING_DOC, [
     "targets", "forageTerrain", "forageTerritory", "survivalBonus", "partyGroupSize",
     "huntTarget", "huntTerritory", "dogTarget", "dogHelpPerDog", "dogHelpCap",
     "yields", "barrenTerrains", "efficientGrazers",
   ]);
-  // Searching the wild: the ladder of daily distances to targets, what a
-  // quarry on the move or a named one costs, the cadence a throw comes at,
-  // which country closes over a searcher's head, and the survey's own target
-  // and its bonus per search already made. The ladder is printed; that a
-  // faster party finds more is the rule, and lives in the code.
+  // Searching the wild: the ladder of daily distances to targets, the cost of a
+  // moving or named quarry, the cadence of a throw and the survey.
   expectTables(SEARCHING_DOC, [
     "targets", "movingQuarry", "specificTarget", "turnsPerThrow",
     "canopyTerrains", "canopyPenalty", "aerialTurnsPerThrow",
     "surveyTarget", "surveyPerSearch", "trackingBonus",
   ]);
 
-  // How many finished days a formation's travel log keeps; trimming eats the
-  // oldest. It gates the settings blob's growth, not the journey.
+  // How many finished days a formation's travel log keeps, oldest trimmed first.
   game.settings.register(MODULE_ID, SETTING_TRAVEL_LOG_CAP, {
     name: "ACKS-FORMATION.settings.travelLogCap.name",
     hint: "ACKS-FORMATION.settings.travelLogCap.hint",
@@ -499,12 +461,9 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  // Straggling is marked optional in the book, and ships ON: it is the only
-  // thing that makes party SIZE matter to a city, and a crowd rule nobody
-  // meets is not a rule. Off, a large party moves at its bare pace.
   // The sky cache: one roll per (day, climate, season), shared by every party
-  // standing in it. World state, bounded, and disposable — losing it costs a
-  // re-roll. Not shown in the settings UI; it is a cache, not a choice.
+  // standing in it. Bounded and disposable (losing it costs a re-roll), and
+  // hidden from the settings UI.
   game.settings.register(MODULE_ID, SETTING_SKY_CACHE, {
     scope: "world",
     config: false,
@@ -523,9 +482,8 @@ Hooks.once("init", () => {
     default: "",
   });
 
-  // Who goes short when the packs cannot feed everyone. Not a rule the book
-  // states — it prices what hunger DOES, never who a captain feeds — so it is
-  // a choice, and the kinder reading is the default.
+  // Who goes short when the packs cannot feed everyone. See
+  // docs/formation/DECISIONS.md, "Who goes short when the packs cannot feed everyone is a setting, and even is the default".
   game.settings.register(MODULE_ID, SETTING_SHARE_POLICY, {
     name: "ACKS-FORMATION.settings.provisionSharing.name",
     hint: "ACKS-FORMATION.settings.provisionSharing.hint",
@@ -536,6 +494,7 @@ Hooks.once("init", () => {
     default: "even",
   });
 
+  // See docs/formation/DECISIONS.md, "Straggling ships on".
   game.settings.register(MODULE_ID, SETTING_STRAGGLING, {
     name: "ACKS-FORMATION.settings.straggling.name",
     hint: "ACKS-FORMATION.settings.straggling.hint",
@@ -561,10 +520,8 @@ Hooks.once("init", () => {
   registerDistrictZone();
 
   /* --- Trap Zone region behavior, trap Item sub-type + sheet --- */
-  // Wrapped whole: everything below this point in `init` — the party actor,
-  // its sheet, the public api — is dead if anything here throws, and traps are
-  // the newest and least load-bearing thing in the hook. Never let them take
-  // the feature down with them.
+  // Wrapped whole: a throw here would leave the party actor, its sheet and the
+  // public api below unregistered.
   try {
     registerTrapZone();
     CONFIG.Item ??= {};
@@ -593,199 +550,14 @@ Hooks.once("init", () => {
   /* --- Public API (used by macros and companion modules, e.g. traps) --- */
   const api = {
     /**
-     * THE CONTRACT a companion module keys on (the trap module's half lives in
-     * its own repo). Frozen at 1: `marchingOrder(formation)` rows
+     * The contract version of this namespace, which a companion module keys on.
+     * It rises on every additive change; a removal or a shape change is a major
+     * of the module. The stable core is `marchingOrder(formation)` rows
      * ({actorId, name, roles, rank, file}), `ROLES`, `getFormations()`,
-     * `rollPartyCheck(formation, key)` and `PARTY_CHECKS`. Additions bump this;
-     * removals or shape changes are a major of this module.
-     *
-     * 2 adds `doors` — `bashPlan()` (the throw as arithmetic, no dice),
-     * `bashDoor`/`spikeDoor`/`unspikeDoor`/`batterPlan`, `doorState(wall)` and
-     * `openDoorApp(wall)`. A trap module wanting to spike a door shut, or to
-     * ask what forcing one would take, calls these rather than re-deriving the
-     * modifiers.
-     *
-     * 3 adds `traps` — the §7 rule and the placements it runs on. The pure half
-     * (`probeSequence`, `victimsOf`, `disarmPlan`, `firingPlan`, the botch
-     * bands, the repeat lock) computes without dice or documents; the rest
-     * (`runTrapCheck`, `attemptDisarm`, `attemptRearm`, `layTrapOnSelection`,
-     * `regionFromSelection`) is the live surface a macro drives. Published for
-     * the same reason doors are: the alternative is a second derivation of the
-     * same rule somewhere else.
-     *
-     * 4 adds `travel` — the overland mode: the day board and its ancillary
-     * budget, journey/delve mode switching (coupled to the turn clock's
-     * pause), the hex trace, the append-only day log, and the pure pieces
-     * (`travelOf`, `freshDay`, `withDayKind`, `composeLogEntry`) a companion
-     * module reads instead of re-deriving the day's shape.
-     *
-     * 5 adds `weather` — the daily generator and its vocabularies
-     * (`generateDay`, `conditionsOf`, `advanceGround`, the band and
-     * condition key lists), so a sea or encounter module reads the same sky
-     * this panel shows.
-     *
-     * 6 adds `encounters` — the wilderness chain (`runEncounter` and its
-     * steps, the terrain and outcome vocabularies, detection and evasion
-     * derivations) plus the card runners (`postEncounterThrow`,
-     * `resolveCreature`), so a lair or domain module rolls the same chain
-     * the journey does.
-     *
-     * 7 adds `settlement` — city travel: the paces, the street locations, the
-     * route memory, the straggling ladder and the derivations that price them
-     * from the registry.
-     *
-     * 8 adds `lost` (the episode ledger and its four transitions), `shadow`
-     * (the hidden true-position token, and the distance queries between lost
-     * parties that it makes possible) and `lostEpisode` — the one caller that
-     * knows the ORDER the three move in.
-     *
-     * 9 adds `district` — a settlement quarter drawn as a Region:
-     * `DISTRICT_TYPE`, `findDistrict(formation)` (the district the party is
-     * standing in, if any), `districtReaction(district, {where})` (what it
-     * charges a reaction or influence throw made there), and the two Judge
-     * tools that make one (`markControlledRegions`, `districtFromSelection`).
-     * 10 adds `poi` — points of interest: `travelToPlace(formationId,
-     * tokenId)` and `pickAndTravel(formationId)` (a walk to a place token
-     * priced by the imported district-travel figure), `poiTargets(formation)`,
-     * the incident marker's `dropIncidentNote`/`expireTransientNotes`/
-     * `transientNotesOn`/`promoteIncident`, and `TRAVEL_OPTION`.
-     *
-     * 11 adds the city list a MAP names: `settlement.readIncident` (one banded
-     * read, the shift and the band handed in), `settlement.incidentBand`, and
-     * `settlement.pickIncidentSource({city})`, whose `map` candidate carries
-     * the district's special list.
-     *
-     * 12 adds `formationCarrying(carrier)` — the formation whose train a
-     * vehicle is in — and `getPartyToken(formation)`, which a vehicle deploying
-     * as a place reads to stand its marker beside the party (vehicles/deploy.mjs).
-     *
-     * 13 adds `settlement.incidentRouting(pick, nameOf)` — which list the next
-     * incident is read from, and which named lists are gone — and the `map`
-     * candidate's `specialAfterDark`, what the quarter's special list adds
-     * after dark.
-     *
-     * 14 replaces the board's `night` boolean with `hour` (`settlement.HOUR_MODES`:
-     * `clock`, `day`, `night`), resolved by `settlement.isNight(board, {dark})`
-     * against the world clock's `lib.worldTime.clockReading()`. `patchSettlement`
-     * takes `hour`; a `night` boolean is still read as the Judge's word for
-     * night or day.
-     *
-     * 15 turns the journey into miles and hours. A drag on any scene is
-     * measured in miles and spends hours at the readout's miles-per-hour; the
-     * world clock runs by those hours and End day jumps to the next dawn.
-     * `travel` gains the journey's functions — `onPartyTokenMoved` (the
-     * dispatcher on the movement seam), `onJourneyTokenMoved`,
-     * `journeyMilesBetween`, `spendJourneyMiles(formationId, miles, {scene,
-     * trace, hex, anchor})`, `nextHex`, `advanceJourneyClock`,
-     * `spendSearchHour`, `hexContext` and `journeyNight` — plus `traceStep`,
-     * `dayBudget`, `inferredTravelSystem` and the day's `miles`, `hours`,
-     * `cadenceCarry`, `carrySeconds`, `secondsAdvanced` and `done` fields and
-     * `travel.hour`. `dayIsSpent(day, budget, {dark})` now compares hours to the
-     * budget `dayBudget` prices, no longer hexes to an allowance.
-     * `adoptSceneSystem` resolves `{mode, source}` (source `declared`, `scale`
-     * or `districts`) instead of the bare mode. `clock.pausedBy` records who
-     * paused the turn clock: only `"judge"` stops a journey. Two hooks announce
-     * the journey: `acksExtras.hexEntered` (once per cadence unit walked, after
-     * the record patch and before the throw) with `{formationId, sceneId, hex,
-     * ground, encounterTerrain, territory, lost, cadence, night, throwOwed}`, and
-     * `acksExtras.searchHourSpent` (after a search hour resolves) with
-     * `{formationId, sceneId, hex, ground, encounterTerrain, territory, lost,
-     * subject, specific, attempts, found, present}`; `hex` is `{i, j, label}` or
-     * null, and `cadence` is `grid` or `miles`.
-     *
-     * 15 also adds `hexStock` — the stock a Judge keeps on one hex of the map
-     * (a scene flag keyed by the cell): `trueHexOf(formation)`, `readStock`,
-     * `writeStock`, `clearStock`, `stockFromInputs`, `surveyHex`,
-     * `placeFromPoint`, `hexStockView`, and `pure` (`stockHex`,
-     * `stockSummary`, `unfoundPoints`, `markFound`, `creditSearch`,
-     * `recordAssessment`, `falseCount`, `hexStockKey`). A consumer of
-     * `acksExtras.hexEntered` that stocks a hex reads `lost` from the payload and
-     * refuses to consume while it is true: the token then stands on the believed
-     * hex, not the one the party is really in.
-     *
-     * 16 adds `encounters.journeyZones(formation)` — the encounter zones under
-     * the party's TRUE point, composed smallest zone first, with the layers
-     * and regions that answered; a zone imported from a book carries its
-     * `journeyCadence` (`entry` or `periods`) and its `dayThrows` /
-     * `nightThrows`, which `spendJourneyMiles` now follows instead of the
-     * terrain's cadence while the party stands in it.
-     *
-     * 17 reads the country off the map. `travel.travelOf` resolves `ground`,
-     * `encounterTerrain`, `territory`, `weather.climate`, `road` and
-     * `following` as the Judge's word (`travel.override`), then the map's
-     * cached reading (`travel.map`, valid on the party token's own scene),
-     * then the scene's default, then the declared keys, and adds
-     * `provenance` (key → `override`, `map`, `scene`, `declared` or
-     * `default`). `traceStep` takes `{map, sceneId}` and writes `travel.map`,
-     * never the declared keys; `spendJourneyMiles` takes `reading` on a
-     * gridless drag; `applyTravelForm` routes the six keys to
-     * `travel.override`, a blank clearing one. `travel` gains
-     * `storedTravelOf` (the record as stored, for a writer to spread),
-     * `countryOf`, `mapReadingAt`, `sameReading`, `tokenCentre`,
-     * `refreshCountryOn`, `countryRefresher`, `COUNTRY_DEFAULTS` and
-     * `countryValueValid`.
-     *
-     * 18 moves the navigation throw to the day's first step off a road and
-     * splits belief from truth. `closeDay` no longer throws for navigation;
-     * `onJourneyTokenMoved` and `nextHex` do, once per journey day, through
-     * `throwDayNavigation`, for the day the step began in. The day is
-     * `journeyDayKey`'s string, `"<calendar day>:<End-day count>"`, new when
-     * either moves. A drag on an open lost episode walks the shadow
-     * (`walkTheTruth`, `astrayPath`, `walkAstrayPath`), and `onPartyTokenMoved`
-     * spends one move at a time per formation. `travel` gains `trueTravelOf`
-     * (the country under the shadow while an episode is open, read on the
-     * episode's scene), `journeyDayKey`, `navigationOf`, `navigationEntry`,
-     * `withNavigationThrow`, `recordNavigationThrow`, `claimNavigationDay`,
-     * `navigationOwed(formation, {day})`, `SHOWN_KINDS`, `NAVIGATION_HISTORY`
-     * and `NAVIGATION_BY`, and the record's `travel.shown` and
-     * `travel.navigation`, whose rows carry `day` (the key) and `count` (the
-     * End-day count). Encounter throws, the cadence and the strip's next-throw
-     * tile read the true hex; `hexContext`, and with it the `hexEntered` and
-     * `searchHourSpent` payloads, now carry the TRUE position's hex and
-     * country, so 15's note that the token stands on the believed hex no
-     * longer holds, and `hexStock.trueHexOf` reads the shadow only while an
-     * episode is open. `hexStock.pure.stockSummary(record, {secondsPerDay})`
-     * adds `stockedDay`, and `hexStockView` says its age as `stockedAgo` and
-     * `stockedLine`.
-     *
-     * 19 passes the map's `source` through: a key a paint layer derived reads
-     * provenance that layer's key (battlemap's `countryAt` source), which 17
-     * folded into `map`. `travel` gains `partyScenesPaintedWith(layer)`, and
-     * a layer's change (`acksExtrasPaintLayerChanged`) re-reads the parties
-     * standing on its paint.
-     *
-     * 20 reads `travel.movement.mode` off the attachments and stores only
-     * `travel.movement.set`, the Judge's word. `addMember` raises
-     * `acksExtras.memberJoined`, and `carrierSpeedFor` takes `adding`, the stone
-     * to price a wagon's tier with beyond its load.
-     *
-     * 21 drops `alertness`, `trapfinding` and `skillBonus` from the
-     * `PARTY_CHECKS` rows, which name a `rollKey` instead: the abilities
-     * resolve each member's throw and its bonuses.
-     *
-     * 22 drops `travel.ANCILLARY_SLOTS` for `travel.ancillarySlots()`, which
-     * answers null with nothing imported, and drops `obstacles.OUTCOME` and the
-     * `fail`/`botch` keys of `OBSTACLES`: `readThrow` returns the imported
-     * outcome as `{text, falls}` or null, beside `ends`.
-     *
-     * 23 drops `mergeFogCopies`. `traps.victimsOf` takes `rankFeet`, how deep
-     * a rank stands in feet, and `runTrapCheck` and `sweepForTraps` read each
-     * body's rank from the column as it is laid on the map (a blank square and
-     * a stack's bodies counted, a file a wall squeezes out one rank back) and
-     * measure ranks by the imported rank interval where the scene is spaced.
-     * `marchingOrder` is as it was. It also drops `traps.FEET_PER_RANK`,
-     * `SEARCH_REACH_FEET`, `POLE_REACH_FEET`, `TRAPBREAK_REACH_FEET`,
-     * `TRIGGER_DIE`, `TRIGGER_DEFAULT` and `BOTCH_BANDS` for the imported
-     * figures `traps.trapFigures()` and `traps.pitFigures()` (each null until
-     * imported). `probeSequence` takes `poleRanks` (the pole's lead in ranks,
-     * `poleLeadRanks`) and probes with no pole without it; `victimsOf`'s
-     * `rankFeet` defaults to null and `rankDepth` answers null for no length;
-     * `autoSearchers` and `searcherReachFeet` join the pure half, taking the
-     * figures and `rankFeet`; `triggerFires` takes no default band; `disarmPlan` and
-     * `isBotch` take `figures`; `pitDamage` and `firingPlan` take the pit
-     * figures, and `firingPlan` also answers `pitUnknown`. A trap's `triggerOn`
-     * is null for the imported band, and `runTrapCheck` answers `byHand` where
-     * the secret die or its band is not imported.
+     * `rollPartyCheck(formation, key)` and `PARTY_CHECKS`; every other member
+     * publishes one feature's pure pieces and live surface so a consumer reads
+     * the rule from here rather than deriving it a second time. The journey's
+     * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
     apiVersion: 23,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
@@ -863,22 +635,14 @@ Hooks.once("init", () => {
       TRAP_ZONE_TYPE,
     },
     doors: { ...doors, openDoorApp },
-    // The Spelunking table and the wrong-floor encounter adjustment, published
-    // for the same reason as doors: a companion module asking what a sheer
-    // face costs, or how a level-3 table lands on level 5, should read the
-    // rule from here rather than re-derive it.
+    // The Spelunking table and the wrong-floor encounter adjustment.
     obstacles,
-    // Deep water is NOT one of the obstacles: its target is the swimmer's own
-    // encumbrance, it is thrown every round rather than per hundred feet, and
-    // failing it starts a drowning rather than costing progress.
+    // Deep water is not an obstacle: it is its own throw (`swimming.mjs`).
     swimming,
-    // Nor is a chasm: clearing one is not a throw at all but a DISTANCE the
-    // jumper has against a gap the dungeon has, with a saving throw owed only
-    // for a precarious landing.
+    // Nor is a chasm: a jump is a distance against a gap (`jumping.mjs`).
     jumping,
     encounterScaling,
-    // Dividing adventure XP: full shares, henchman halves, and the mercenaries
-    // and wagons that take none.
+    // Dividing adventure XP among the members.
     xp: xpShares,
     ROLES,
     marchingOrder,
@@ -887,8 +651,7 @@ Hooks.once("init", () => {
     advanceTurns,
     advanceRounds,
     getFormations,
-    // Drop several members at the cost of one write — the batched primitive a
-    // caller with a whole squad to disband uses instead of a remove per name.
+    // Drops several members in one write.
     removeMembers,
     rollPartyCheck,
     PARTY_CHECKS,
@@ -897,26 +660,25 @@ Hooks.once("init", () => {
     anchorMap,
     saveFogAsMapItem,
     requestPartyAction,
-    // Hand integration (the equipment feature). handsOccupied tells equipment how many
-    // hands the mapper's kit has filled and kitInHand which items it lists at
-    // them (lights it reads through lib's bearerLights); getFormationForActor
-    // + the light mutators let equipment's sheet controls light/douse/shutter
-    // by actor.
+    // Hand integration for the equipment feature: `handsOccupied` is how many
+    // hands the mapper's kit fills, `kitInHand` the items it lists at them;
+    // `getFormationForActor` and the light mutators let equipment's sheet
+    // controls light, douse and shutter by actor.
     handsOccupied,
     heldLightCount,
     kitInHand,
     getFormationForActor,
-    // A vehicle deploying as a place stands its marker beside the party whose
-    // train it is in (vehicles/deploy.mjs); vehicles reaches formation through
-    // here rather than by import, since formation imports vehicles.
+    // Vehicles reach formation through here, not by import, since formation
+    // imports vehicles (vehicles/deploy.mjs stands a deployed place beside the
+    // party whose train it is in).
     formationCarrying,
     getPartyToken,
-    // lib/light.mjs reads this to decide which record owns an actor's lights.
-    // It is consumed through the namespace, so removing it here silently sends
-    // every member's token back to reading its own (empty) actor flag.
+    // lib/light.mjs reads this, through the namespace, to decide which record
+    // owns an actor's lights; removing it sends every member's token back to
+    // its own empty actor flag.
     lightsForBearer,
     // lib/light.mjs's brightestLightReaching reads the column's lights through
-    // this: they stand on no token, so a token sweep alone never sees them.
+    // this: they stand on no token, so a token sweep never sees them.
     carriedLightPoints,
     addLight,
     toggleLight,
@@ -968,27 +730,25 @@ Hooks.once("ready", () => {
   registerRequestSocket();
   // Index the skill ladders the importer imported.
   initLadders();
-  // The delve's lights and its wandering throw read imported figures and have
-  // none of their own, so a world that lacks them is told once, on a GM seat,
-  // by the declared tables that are readable.
+  // A GM seat is told once which of the delve's light and wandering-throw
+  // tables the world lacks.
   if (game.user.isGM) {
     const missing = missingTablesList([LIGHT_DOC, DELVE_ENCOUNTER_DOC]);
     if (missing.length) ui.notifications.warn(game.i18n.format("ACKS-FORMATION.tablesMissing", { list: missing.join(", ") }));
   }
   // A party holed up in a city has no movement to read, so its stay is
-  // credited off the calendar instead. Idempotent: the board carries the world
-  // time each stay is counted from, so a clock the Judge drags forward pays
-  // once for the days it crossed.
+  // credited off the calendar. Idempotent: the board carries the world time
+  // each stay is counted from.
   onWorldTimeAdvanced((_worldTime, dt) => {
     creditHoledUpDays().catch((err) => console.error(`${MODULE_ID} | holed-up day failed`, err));
     // The sky and the ground's footing move with the calendar day, however the
-    // clock came to move. Idempotent: each formation keeps the day it settled.
+    // clock moved. Idempotent: each formation keeps the day it settled.
     const today = calendarDay();
     const settled = today != null
       ? settleAllOnDayChange(today).catch((err) => console.error(`${MODULE_ID} | day change failed`, err))
       : Promise.resolve();
-    // Each party takes its ride for the new day once its sky is settled. Read
-    // off the crossing, with no watermark: arranging twice moves nobody.
+    // Each party takes its ride for the new day once its sky is settled;
+    // arranging twice moves nobody.
     if (dawnWithin(clockReading(), dt)) {
       settled.then(arrangeAllAtDawn).catch((err) => console.error(`${MODULE_ID} | the dawn arrangement failed`, err));
     }
@@ -998,8 +758,8 @@ Hooks.once("ready", () => {
   // The startup sync waits to learn whether this window automates.
   primaryGMSettled().then((primary) => {
     if (!primary) return;
-    // Prune dead records FIRST (formations whose party actor is gone — the
-    // phantom source), then sync the environments of what remains.
+    // Prune formations whose party actor is gone first, then sync the
+    // environments of what remains.
     pruneFormations()
       // A true-position marker whose formation is gone stands in no episode.
       .then(() => clearOrphanShadows(new Set(Object.values(getFormations()).map((f) => f.id))))
@@ -1017,11 +777,10 @@ Hooks.on(ROLL_CONTEXT_HOOK, (answer) => {
 /*  Actor deletion cleanup                       */
 /* -------------------------------------------- */
 
-/* Deleting a party actor dissolves its formation: stashed member tokens are
- * restored and the record removed. Without this, the record lingered, the next
- * "Add to party" adopted it, and ensurePartyActor resurrected the deleted
- * actor — the "phantom actor that cannot be deleted". A deleted MEMBER actor
- * is likewise dropped from every formation, so its ghost cannot hold a rank. */
+/* Deleting a party actor dissolves its formation (stashed member tokens are
+ * restored, the record removed), so a later "Add to party" cannot adopt it and
+ * `ensurePartyActor` cannot resurrect the actor. A deleted member actor is
+ * dropped from every formation, so it cannot hold a rank. */
 Hooks.on("deleteActor", (actor) => {
   if (!isPrimaryGM()) return;
   if (actor.type === PARTY_TYPE) {
@@ -1048,10 +807,9 @@ Hooks.on("deleteActor", (actor) => {
 /*  Party token movement → dungeon turns        */
 /* -------------------------------------------- */
 
-// A hand resize of the party token: in the `order` shape the module owns the
-// size and puts it back; in `fixed` the sync reads the new size as the
-// Judge's and leaves it. Gated on a size change the module did not make, so a
-// walk writes nothing here.
+// A hand resize of the party token: in the `order` shape the module puts the
+// size back; in `fixed` the sync reads it as the Judge's and leaves it.
+// Gated on a size change the module did not make.
 Hooks.on("updateToken", (tokenDoc, changes, options) => {
   if (!("width" in changes) && !("height" in changes)) return;
   if (options?.[RESIZE_OPTION]) return;
@@ -1063,9 +821,9 @@ Hooks.on("updateToken", (tokenDoc, changes, options) => {
 });
 
 // The ground the party token walks, which the drawn column, its lights and a
-// deploy read (column-trail.mjs). Every early return of the movement hook
-// below has its own answer here (column.mjs `trailDecision`), so this runs
-// apart from it, after the step's animation, as a flag-only write.
+// deploy read (column-trail.mjs). Runs apart from the movement hook below,
+// after the step's animation, as a flag-only write; the early returns of that
+// hook have their own answers here (column.mjs `trailDecision`).
 Hooks.on("updateToken", (tokenDoc, changes, options) => {
   if (!("x" in changes) && !("y" in changes) && !("rotation" in changes)) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
@@ -1085,19 +843,16 @@ Hooks.on("updateToken", (tokenDoc, changes, options) => {
 
 Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   if (!("x" in changes) && !("y" in changes)) return;
-  // A trap halting the party moves its token. That is not the party walking:
-  // it costs no turns, and re-entering the trap check here would resolve the
-  // same trap a second time before the first pass has spent it.
+  // Four moves that are not the party walking. A trap's halt costs no turns,
+  // and re-entering the trap check would resolve the same trap twice.
   if (options?.[HALT_OPTION]) return;
-  // Nor is a walk to a point of interest: that was priced by the printed
-  // district figure before the token moved, and the clock's baseline was
-  // moved with it.
+  // A walk to a point of interest was priced before the token moved, and the
+  // clock's baseline moved with it.
   if (options?.[TRAVEL_OPTION]) return;
-  // Nor is the module's own resize. It holds the token's centre still, which
-  // moves the top-left corner every consumer below reads, and reports travel
-  // nobody walked. `syncPartyTokenSize` re-baselines the clock itself.
+  // The module's own resize moves the top-left corner every consumer below
+  // reads; `syncPartyTokenSize` re-baselines the clock itself.
   if (options?.[RESIZE_OPTION]) return;
-  // Nor is stepping onto the lost party's true position: it was always there.
+  // Stepping onto the lost party's true position moves nothing real.
   if (options?.[TRUTH_MOVE_OPTION]) return;
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId) return;
@@ -1110,12 +865,11 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // The party caught up: every scout ahead of it may range a fresh round.
   reanchorDetached(formationId).catch((err) => console.error(`${MODULE_ID} | re-anchor failed`, err));
 
-  // Where the party came FROM, read before the clock consumes it: a trap wall
-  // is met by CROSSING it, so the check needs the path and not just the
-  // destination. `onPartyTokenMoved` overwrites `clock.lastPosition`. Where it
-  // went TO is the stored position, read once here for the clock and the trap
-  // check alike: on a client drawing the token, `tokenDoc.x`/`y` are the
-  // move's animation, which starts at the corner the party is leaving.
+  // Where the party came from, read before `onPartyTokenMoved` overwrites
+  // `clock.lastPosition`: a trap wall is met by crossing it, so the check needs
+  // the path. Where it went to is the stored position, read once for the clock
+  // and the trap check alike, since `tokenDoc.x`/`y` on a client drawing the
+  // token are the move's animation.
   const before = record.clock?.lastPosition;
   const from = before ? { x: before.x, y: before.y } : null;
   const to = storedPosition(tokenDoc);
@@ -1126,11 +880,9 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
       if (!formation) return null;
       return runTrapCheck(formation, { from, to });
     })
-    // A journey's tracker counts miles and hours; when the day's march has
-    // been walked off, or the party marches on after dusk, the Judge is asked
-    // whether the day is over. Wired here rather than
-    // inside the tracker: ending a day spends provisions and the calendar, and
-    // that is an answer, not an arithmetic consequence.
+    // Once the day's march is walked off, or the party marches on after dusk,
+    // the Judge is asked whether the day is over. Wired here, not in the
+    // tracker, since ending a day spends provisions and the calendar.
     .then(() => offerDayEnd(formationId))
     .catch((err) => console.error(`${MODULE_ID} | movement processing failed`, err));
 });
@@ -1139,14 +891,8 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
  * The leash on a detached member (deployment.mjs): they may not get further than
  * one round's movement from where they stood when the party last moved.
  *
- * Cancelling in preUpdateToken rather than snapping the token back afterwards —
- * a refused move should never have happened, and a corrective second write is
- * one more thing to fail. Runs on whichever client is dragging, which is the
- * client that must be told no.
- *
- * The GM is warned, not stopped: they are the one who decides where anything
- * ends up, and hard-blocking them would make repositioning a scout impossible
- * without first recalling them.
+ * A breach is cancelled in preUpdateToken, on the dragging client, so no
+ * corrective write follows. The GM is warned and not stopped.
  */
 Hooks.on("preUpdateToken", (tokenDoc, changes) => {
   if (!("x" in changes) && !("y" in changes)) return;
@@ -1180,20 +926,16 @@ Hooks.on("deleteToken", (tokenDoc, options) => {
   const formationId = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (!formationId || !isPrimaryGM()) return;
   // Resolved now, not at write time: a party teleported straight back has
-  // already deleted this replacement by the time the write's turn comes.
+  // already deleted this replacement when the write's turn comes.
   const next = replacementPartyToken(tokenDoc, options);
-  // A patch, not a read-then-write: this fires from an incoming deletion, so
-  // the record may be dissolved before the write's turn comes, and a token
-  // adopted meanwhile owns the linkage. Both are decided against the ledger as
-  // it is at write time — the guard included. The guard names the scene too:
-  // a token keeps its id across scenes (a teleport, a duplicated scene), so
-  // the id alone also matches a token on a scene the party is not on.
+  // A patch, so the guard reads the ledger as it is at write time: the record
+  // may be dissolved, or another token adopted, meanwhile. The guard names the
+  // scene too, since a token keeps its id across scenes.
   patchFormation(formationId, (record) => {
     if (!isLinkedPartyToken(record, tokenDoc)) return false;
     record.tokenId = next?.id ?? null;
     record.sceneId = next?.parent?.id ?? null;
-    // The clock measures the next step from where the party now stands, not
-    // from where it left on the other scene.
+    // The clock measures from where the party now stands.
     if (next) record.clock = { ...(record.clock ?? {}), lastPosition: { x: next.x, y: next.y } };
   })
     .then(() => PartySheet.refreshAll())
@@ -1281,14 +1023,13 @@ function onFormationsChanged(setting) {
   }
 }
 
-// The very first save in a world CREATES the Setting document; later saves
-// update it. Both must refresh open windows on every client.
+// The first save in a world creates the Setting document and later ones update
+// it; both refresh open windows on every client.
 Hooks.on("createSetting", onFormationsChanged);
 Hooks.on("updateSetting", onFormationsChanged);
 
-// A settlement board following the world clock reads the hour off it, so the
-// panel's cadence and its clock line go stale the moment the clock moves —
-// in either direction, on every client, whether or not a formation changed.
+// A board following the world clock reads its hour off it, so every client
+// redraws when the clock moves in either direction.
 Hooks.on("updateWorldTime", () => {
   if (Object.values(getFormations()).some((f) => f.travel?.mode === "settlement" || f.travel?.mode === "journey")) PartySheet.refreshAll();
 });
@@ -1339,9 +1080,8 @@ for (const hook of ["createActiveEffect", "deleteActiveEffect"]) {
     const actor = effect.parent;
     if (!holdsMapperRole(actor)) return;
     syncKit();
-    // A surprise the system lifts as a round turns over can land after the new
-    // round's first turn is already the mapper's: from round 2 on, the lift is
-    // the cue to look again. In round 1 a lifted surprise is the round ending.
+    // From round 2 on, a lifted surprise is the cue to look again: it can land
+    // after the new round's first turn is already the mapper's.
     if (effect.statuses.has(STATUS_SURPRISED)) {
       for (const combat of game.combats ?? []) if ((combat.round ?? 0) >= 2 && combat.combatant?.actor === actor) stashFor(combat);
     }
@@ -1353,11 +1093,10 @@ Hooks.on("updateActor", (actor, changes) => {
 });
 
 /* Whether a party is mapping reads the light where the mapper stands
- * (mapping.mjs), and almost nothing that moves that light writes the formation
- * record the sweep otherwise answers to: the day turning, an ambient light
- * edited, a token walking or changing its light, a magic light shuttered or
- * stowed. Each is a fresh look at every party that has a mapper on that scene,
- * debounced so a drag or a burst of edits is one sweep. */
+ * (mapping.mjs), and little that moves that light writes the formation record:
+ * the day turning, an ambient light edited, a token walking or changing its
+ * light, a magic light shuttered or stowed. Each is a fresh look at every party
+ * with a mapper on that scene, debounced to one sweep per burst. */
 const mappingParties = () =>
   Object.values(getFormations()).filter((f) => f.members.some((m) => m.roles?.includes(ROLES.MAPPER)));
 const mapsOnScene = (sceneId) => !!sceneId && mappingParties().some((f) => f.sceneId === sceneId);
@@ -1436,10 +1175,9 @@ async function addTokensToParty(seedToken) {
 
   const formations = Object.values(getFormations());
   let formation = formations.find((f) => f.sceneId === scene.id && f.tokenId && scene.tokens.get(f.tokenId));
-  // A fresh formation (hand-created Party Formation actor, no token placed
-  // yet) is adopted rather than silently spawning a duplicate party — but ONLY
-  // when its party actor still exists. A record whose actor is gone is dead:
-  // adopting it would resurrect the deleted actor with its stale members.
+  // A fresh formation (a hand-created party actor with no token yet) is
+  // adopted, but only while its party actor still exists: adopting a dead
+  // record would resurrect the deleted actor with its stale members.
   formation ??= formations.find((f) => !getPartyToken(f) && getPartyActor(f));
   formation ??= await createFormation();
 
@@ -1450,16 +1188,12 @@ async function addTokensToParty(seedToken) {
 }
 
 /**
- * Put the party back into a saved marching order from the party token itself.
- *
- * The picker only appears when there is a choice to make: one saved order is
- * applied outright, because a dialog whose every run has one answer is a click
- * spent on nothing.
+ * Put the party back into a saved marching order from the party token itself;
+ * the picker appears only when more than one order is saved.
  */
 async function formUpFromHud(tokenDoc) {
-  // By the token's own flag first, then by whose party actor this is. Never by
-  // `getFormationForActor`: that searches MEMBERS, and a party actor is not a
-  // member of its own formation, so it would answer null every time.
+  // Never `getFormationForActor`: it searches members, and a party actor is not
+  // a member of its own formation.
   const formation =
     formationForToken(tokenDoc) ??
     Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id) ??
@@ -1494,8 +1228,7 @@ Hooks.on("renderTokenHUD", (hud, html) => {
 
   const isGM = game.user.isGM;
   const isParty = tokenDoc.actor.type === PARTY_TYPE;
-  // A saved order is what the button restores, so with none saved there is
-  // nothing to offer and the button stays off the HUD entirely.
+  // With no saved order the party token's button stays off the HUD.
   if (isParty && (!isGM || !listTemplates().length)) return;
   if (!isParty && !canJoin(tokenDoc)) return;
   const party = isGM ? null : partyOnScene(tokenDoc.parent, game.user);
@@ -1516,9 +1249,8 @@ Hooks.on("renderTokenHUD", (hud, html) => {
 });
 
 /* A hand-created Party Formation actor becomes a real formation record. The
- * lead is asked only once the seat election settles: a GM who creates the
- * actor while their window is still joining is not the lead yet, and no other
- * window would adopt it. */
+ * lead is asked only once the seat election settles, since a GM whose window is
+ * still joining is not the lead yet and no other window would adopt it. */
 Hooks.on("createActor", (actor) => {
   if (!game.user?.isGM || actor.type !== PARTY_TYPE) return;
   primaryGMSettled()
@@ -1531,11 +1263,10 @@ Hooks.on("createActor", (actor) => {
     .catch((err) => console.error(`${MODULE_ID} | party actor adoption failed`, err));
 });
 
-/* The country under a journeying party is the map's (`travel.map`), and the
- * map changes under a party that has not moved: the Judge paints its hex,
- * draws a river through it, or sets the scene's default country. The active
- * GM re-reads it, once per burst of edits, and the sheets redraw only when a
- * reading changed. */
+/* The country under a journeying party is the map's (`travel.map`), and it
+ * changes under a party that has not moved (a painted hex, a drawn river, the
+ * scene's default). The active GM re-reads it once per burst of edits, and the
+ * sheets redraw only when a reading changed. */
 const requestCountryRefresh = travel.countryRefresher({
   then: (changed) => {
     if (changed.length) PartySheet.refreshAll();
@@ -1550,17 +1281,16 @@ for (const hook of ["createWall", "updateWall", "deleteWall"]) {
 Hooks.on("updateScene", (scene, changes) => {
   if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap.country`)) requestCountryRefresh(scene.id);
 });
-/* A layer's values change what they derive with no region written, and the
- * registrant says so by the layer alone: every scene a party stands on that
- * holds that layer's paint is re-read. Nothing drawn changed. */
+/* A layer's values change what it derives with no region written: every scene
+ * a party stands on that holds the layer's paint is re-read. */
 Hooks.on(PAINT_LAYER_CHANGED_HOOK, (layer) => {
   for (const sceneId of travel.partyScenesPaintedWith(layer)) requestCountryRefresh(sceneId);
 });
 
-/* A second party token placed by hand is refused outright while the record
- * links a live one. Only an UNFLAGGED token is refused: a flagged one is the
- * party's own, and a teleport creates it on the new scene before the delete
- * hands the linkage over. Runs on whichever client places the token. */
+/* A second party token placed by hand is refused while the record links a live
+ * one. Only an unflagged token is refused: a flagged one is the party's own,
+ * and a teleport creates it on the new scene before the delete hands the
+ * linkage over. Runs on whichever client places the token. */
 Hooks.on("preCreateToken", (tokenDoc) => {
   if (tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID) || tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
   const actor = game.actors.get(tokenDoc.actorId);
@@ -1580,11 +1310,9 @@ Hooks.on("createToken", (tokenDoc) => {
   // and is never the party token.
   if (tokenDoc.getFlag(MODULE_ID, SHADOW_FLAG)) return;
   const arrived = () => requestCountryRefresh(tokenDoc.parent?.id);
-  // Module-created tokens carry the formation flag in their creation data and
-  // ensurePartyToken records their linkage itself. Adopting them here too
-  // would write back a STALE settings copy read mid-addMember — the write
-  // race that erased freshly added members. Only manual placements (dragged
-  // from the sidebar, no flag yet) need adoption.
+  // Module-created tokens carry the formation flag and `ensurePartyToken`
+  // records their linkage itself; adopting them here too would write back a
+  // stale copy read mid-`addMember`. Only a manual placement needs adoption.
   const owned = tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID);
   if (owned) return void adoptSceneSystem(owned, tokenDoc.parent).then(arrived);
   const formation = Object.values(getFormations()).find((f) => f.actorId === tokenDoc.actor.id);
@@ -1601,10 +1329,10 @@ Hooks.on("createToken", (tokenDoc) => {
 });
 
 /**
- * The scene says what a party DOES on it (the battlemap setup tool writes the
- * declaration), and a party standing there follows — both on arrival and when
- * the Judge changes the declaration under it. Announced, because the switch
- * starts or pauses a clock and a silent one reads as the module losing count.
+ * The scene says what a party does on it (the battlemap setup tool writes the
+ * declaration), and a party standing there follows, on arrival and when the
+ * declaration changes under it. The switch is announced, since it starts or
+ * pauses a clock.
  */
 function adoptSceneSystem(formationId, scene) {
   return travel
@@ -1623,9 +1351,9 @@ function adoptSceneSystem(formationId, scene) {
     .catch((err) => console.error(`${MODULE_ID} | scene travel system adoption failed`, err));
 }
 
-/* A scene's declared system changing is the same event as arriving on it, for
- * every party already standing there; so is its scale changing, which is what
- * an undeclared map's system is read from. */
+/* A scene's declared system changing, or its scale (an undeclared map's system
+ * is read from it), is the same event as arriving on it, for every party
+ * already standing there. */
 Hooks.on("updateScene", (scene, changes) => {
   if (!isPrimaryGM()) return;
   if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.battlemap`) && !travel.sceneScaleChanged(changes)) return;

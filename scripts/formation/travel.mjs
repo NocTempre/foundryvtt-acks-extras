@@ -1,30 +1,23 @@
 /* global game, Roll */
 /**
- * The overland MODE: a formation that knows what ground it is crossing, how
+ * The overland mode: a formation that knows what ground it is crossing, how
  * the day is being spent, and where the days went.
  *
- * State lives on the formation RECORD (a `travel` subtree), written only
- * through the ledger's own lock — the alternatives were all rejected in
- * docs/formation/DECISIONS.md: scene flags (travel is party-scoped and
- * crosses scenes), a second world setting (a parallel store re-invents the
- * lock and drifts from the roster), vehicle-sheet state (per-sheet and
- * unshared). The subtree is ADDITIVE: a record without one is a party that
- * has never journeyed, and `travelOf` answers for it without a migration.
+ * State lives on the formation record (a `travel` subtree), written only
+ * through the ledger's own lock; see docs/formation/DECISIONS.md, "Travel state lives on the formation record, as a mode".
+ * A record without the subtree is a party that has never journeyed, and
+ * `travelOf` answers for it.
  *
  * A journey is counted in miles and spent in hours: the day owns a budget of
- * marching hours (one dedicated day-kind plus the ancillary activity slots
- * the wilderness rules budget — RR ch. 6: a forced march spends every
- * ancillary activity), the world clock runs by the hours the miles take, and
- * the dungeon turn tracker stays out of it. Ending the day advances the
- * world clock to the next dawn through the module's one world-time switch,
- * appends the day to an append-only log, and hands the entry back for the
- * panel to show.
+ * marching hours (the day kind's pace plus the ancillary activity slots, RR
+ * ch. 6), the world clock runs by the hours the miles take, and the dungeon
+ * turn tracker stays out of it. Ending the day advances the world clock to the
+ * next dawn through the module's one world-time switch, appends the day to an
+ * append-only log, and hands the entry back for the panel to show.
  *
- * The activity taxonomy carries each activity's encounter-frequency KIND —
- * per hex entered, per hour, per attempt, per period — because that is the
- * structural half of the wilderness encounter system (JJ ch. 2): WHICH
- * cadence an activity uses is the rule's shape; how often each cadence fires
- * per territory is a printed table and arrives through the registry.
+ * The activity taxonomy carries each activity's encounter-frequency kind (per
+ * hex entered, per hour, per attempt, per period; JJ ch. 2); how often each
+ * cadence fires per territory arrives through the registry.
  *
  * Pure derivations (defaults, the day board, the log) are exported for the
  * committed tests; everything that writes goes through `patchFormation`.
@@ -91,9 +84,8 @@ export function ancillarySlotsProvenance() {
 }
 
 /**
- * How the DAY itself is spent — the dedicated activity. A forced march buys
- * its longer day's distance by spending every ancillary slot on the road; camp
- * is a day that goes nowhere on purpose.
+ * How the day itself is spent: a forced march spends every ancillary slot on
+ * the road, and camp is a day that goes nowhere.
  */
 export const DAY_KINDS = Object.freeze({
   march: { label: "ACKS-FORMATION.travel.day.march", pace: "dedicated", travels: true },
@@ -103,9 +95,7 @@ export const DAY_KINDS = Object.freeze({
 
 /**
  * What an ancillary hour can be spent on, and the encounter cadence each
- * activity answers to. The KIND is structure (JJ ch. 2 keys its frequency
- * table on exactly these activities); the frequencies themselves are printed
- * and arrive through the registry.
+ * activity answers to (JJ ch. 2); the frequencies arrive through the registry.
  */
 export const ANCILLARY_ACTIVITIES = Object.freeze({
   travel: { label: "ACKS-FORMATION.travel.activity.travel", frequency: "perHex" },
@@ -114,8 +104,8 @@ export const ANCILLARY_ACTIVITIES = Object.freeze({
   search: { label: "ACKS-FORMATION.travel.activity.search", frequency: "perHour" },
   rest: { label: "ACKS-FORMATION.travel.activity.rest", frequency: "perPeriod" },
   other: { label: "ACKS-FORMATION.travel.activity.other", frequency: "perPeriod" },
-  // Managing traps is declared as a COUNT on the day (`day.traps`), not spent
-  // in a slot, so the slot picker leaves it out.
+  // Managing traps is a count on the day (`day.traps`), not a slot, so the
+  // slot picker leaves it out.
   traps: { label: "ACKS-FORMATION.travel.activity.traps", frequency: "perAttempt", declared: true },
 });
 
@@ -134,11 +124,9 @@ import { shadowFor } from "./shadow.mjs";
 import { weatherEffects, throwPenalty } from "./weather-effects.mjs";
 
 /**
- * The three things a formation can be doing, re-exported so this feature's
- * consumers keep one import path. A `journey` is the one that stops the turn
- * clock — a delve and a city are both timed in turns the party walks off;
- * a SCENE may declare which of them applies on it (`docs/battlemap/MODEL.md`),
- * which is why the list itself lives in `lib/vocab.mjs`.
+ * The three things a formation can be doing, re-exported from `lib/vocab.mjs`
+ * (a scene may declare which applies on it, `docs/battlemap/MODEL.md`). A
+ * `journey` is the one that stops the turn clock.
  */
 export { TRAVEL_MODES };
 
@@ -159,10 +147,9 @@ export function freshDay(kind = "march") {
     // Extra distance the day's bends cost over straight crossings, in hexes.
     winding: 0,
     // What the day has spent, unrounded: miles walked, the hours those miles
-    // took (the march's hours, which the budget is measured against — a
-    // resolved ancillary slot is not among them), the miles and the seconds
-    // not yet worth a cadence unit or a whole second (`spendMarch`), and the
-    // seconds the world clock has advanced for the day so far, slots included.
+    // took (the march's hours, not a resolved ancillary slot's), the miles and
+    // seconds not yet worth a cadence unit or a whole second (`spendMarch`),
+    // and the seconds the world clock has advanced for the day, slots included.
     miles: 0,
     hours: 0,
     cadenceCarry: 0,
@@ -170,11 +157,7 @@ export function freshDay(kind = "march") {
     secondsAdvanced: 0,
     // Which ancillary slots have been resolved (a search hour, a forage).
     done: Array.from({ length: slots }, () => false),
-    /**
-     * Whether the party has already been asked to call this day done. Deliberately
-     * NOT carried across a kind change: pushing on buys more distance, so the
-     * question becomes worth asking again when that is spent too.
-     */
+    /** Whether the party has been asked to call this day done; a kind change resets it. */
     offered: false,
     // The day's own declarations: how many traps the order managed, and
     // whether the order goes without sleep tonight. Both end with the day.
@@ -184,13 +167,10 @@ export function freshDay(kind = "march") {
 }
 
 /**
- * Apply a day-kind to a board. A forced march CONSUMES the ancillary budget
+ * Apply a day-kind to a board. A forced march consumes the ancillary budget
  * (every slot becomes the march itself); stepping back down returns a fresh
- * budget rather than resurrecting whatever the forced march overwrote.
- *
- * What the day has already WALKED survives every kind change: the ground is
- * crossed whatever the party decides to do with the rest of the day, and only
- * ending the day (`withDayKind(null, …)`) puts the tally back to nothing.
+ * budget. What the day has already walked survives every kind change; only
+ * ending the day (`withDayKind(null, …)`) zeroes the tally.
  */
 export function withDayKind(day, kind) {
   const next = freshDay(kind);
@@ -234,11 +214,9 @@ export function dayBudget(travel, milesPerHour) {
 }
 
 /**
- * Has the day's march been walked?
- *
- * The day is spent when the hours it has taken reach the budget, or when the
- * step just taken was after dusk (`dark`). A budget nobody could price never
- * announces the day over by hours alone.
+ * Has the day's march been walked? True when the hours taken reach the budget,
+ * or when the step just taken was after dusk (`dark`); a budget nobody could
+ * price never ends the day by hours alone.
  *
  * @param {object} day              the day board (`travel.day`)
  * @param {{hours: number}} budget  from `dayBudget`
@@ -315,26 +293,21 @@ function mapReadingOf(formation, t) {
 /**
  * The six country keys resolved, each by the first source that answers it:
  * the Judge's override (`travel.override`), the map's reading of the party's
- * hex (`travel.map`, whose own `source` says whether the hex, the scene's
- * default or a layer deriving the key answered), the declared record (the six
- * keys as a record stores them), then the module's default. A declared
- * value equal to the default reads as the default: a stored default says
- * nothing about what was declared.
+ * hex (`travel.map`), the declared record, then the module's default. A
+ * declared value equal to the default reads as the default.
  *
- * The map's provenance is the reading's own `source`, passed through as it is
- * handed: `map`, `scene`, or the key of the layer that derived the value. A
- * reading that names no source is the map's.
+ * The map's provenance is the reading's own `source` passed through: `map`,
+ * `scene`, or the key of the layer that derived the value; a reading naming no
+ * source is the map's.
  *
  * While the party moves on the water and a water line runs under it, the map's
  * encounter terrain is the river's table for the ground. An overridden ground
  * takes the table with it: the map's and the record's tables describe the
- * ground they were read with, so neither answers, and the ground's own table
- * (`encounterTerrainFor`) does wherever the table is consulted. The river's
- * table is the water's and stands.
+ * ground they were read with, so neither answers and the ground's own table
+ * (`encounterTerrainFor`) does. The river's table stands.
  *
- * `mapValues` is what the map alone answers for each key — the hex's own or
- * the scene default's, null where it says nothing — whether or not a source
- * above it won.
+ * `mapValues` is what the map alone answers for each key, null where it says
+ * nothing, whether or not a source above it won.
  *
  * @returns {{values: Record<string, string>, provenance: Record<string,
  *   string>, mapValues: Record<string, string|null>, map: object|null}}
@@ -358,8 +331,7 @@ function resolveCountry(formation, t, movementMode) {
   const mapValues = {};
   for (const key of COUNTRY_KEYS) {
     const valid = COUNTRY_VALID[key];
-    // `ground` comes first in COUNTRY_KEYS, so the river's table is read for
-    // the ground already resolved.
+    // `ground` is first in COUNTRY_KEYS, so the river's table reads the resolved ground.
     const river = key === "encounterTerrain" && waterBorne;
     const fromMap = river ? riverTableFor(values.ground) : map?.[key];
     mapValues[key] = valid(fromMap) ? fromMap : null;
@@ -372,7 +344,7 @@ function resolveCountry(formation, t, movementMode) {
     const grounded = key === "encounterTerrain" && !river && provenance.ground === "override";
     if (mapValues[key] != null && !grounded) {
       values[key] = fromMap;
-      // Afloat, the river's table is the map's water, whatever answered the hex's own.
+      // Afloat, the river's table is the map's water.
       provenance[key] = (!river && map.source?.[key]) || "map";
       continue;
     }
@@ -485,9 +457,7 @@ function travelBase(formation) {
     // Judge says otherwise.
     hour: Object.hasOwn(HOUR_MODES, t.hour ?? "") ? t.hour : "clock",
     hex: { label: "", note: "", i: null, j: null, ...(t.hex ?? {}) },
-    // A record from before the day counted miles reads as a day with nothing
-    // walked; `done` is always one boolean per slot the day carries, however
-    // many it was made with.
+    // `done` is one boolean per slot the day carries, however many it was made with.
     day: {
       ...freshDay(),
       ...(t.day ?? {}),
@@ -495,45 +465,37 @@ function travelBase(formation) {
       traps: trapCount(t.day?.traps),
       noSleep: !!t.day?.noSleep,
     },
-    // The camp's declarations: three plain yes-or-noes (the Judge's word that
-    // the party takes what is not its own, that water is at hand, and that the
-    // order sleeps armoured) and the search's two answers, kept so the selects
-    // re-draw what the Judge chose after the submit a change makes.
+    // The camp's declarations: three yes-or-noes (the party takes what is not
+    // its own, water is at hand, the order sleeps armoured) and the search's two
+    // answers, kept so the selects re-draw what the Judge chose.
     camp: {
       steal: !!t.camp?.steal, water: !!t.camp?.water, sleepInArmour: !!t.camp?.sleepInArmour,
       present: campPresent(t.camp?.present), target: campTarget(t.camp?.target),
     },
     // Traps declared on a day that did not make a whole batch, carried to the
-    // next; and the runs the sky has kept a condition, keyed by condition
-    // (written by the night, carried here untouched).
+    // next; and the runs the sky has kept a condition, keyed by condition.
     trapsCarry: trapCount(t.trapsCarry),
     weatherRuns: { ...(t.weatherRuns ?? {}) },
     dayCount: Number(t.dayCount) || 0,
     lost: lostOf(t),
-    // What a player's seat is shown of the hex the party stands in: the party
-    // token's hex as the map reads it, or nothing at all (`SHOWN_KINDS`).
+    // What a player's seat is shown of the party's hex (`SHOWN_KINDS`).
     shown: SHOWN_KINDS.includes(t.shown) ? t.shown : SHOWN_KINDS[0],
     navigation: navigationOf(t),
-    // HOW the order moves, which decides which factors it meets at all. Named
-    // `movement` rather than `mode`, because `mode` above is already the kind
-    // of adventuring (delve / journey / settlement) and the two are
-    // independent: a party can fly a journey or walk one. `mode` is the answer
-    // and is never stored (`storedTravelOf`); `set` is the Judge's word.
+    // How the order moves (flying, afloat, on foot), independent of `mode`
+    // above, which is the kind of adventuring. `mode` is the answer and is
+    // never stored (`storedTravelOf`); `set` is the Judge's word.
     movement: {
       mode: movementModeOf(formation, movementSetOf(t)),
       set: movementSetOf(t),
       hoursAloft: Math.max(0, Number(t.movement?.hoursAloft) || 0),
-      // How long the travelling day was. Declared, never assumed: how many
-      // hours a day's travel takes is printed, and a flier that spent part of
-      // the day aloft is priced on the SHARE. Left at zero it means the whole
-      // travelling day was spent flying, which is the ordinary case.
+      // The length of the travelling day, declared and never assumed, so a
+      // flier that spent part of it aloft is priced on the share. Zero means the
+      // whole travelling day was spent flying.
       dayHours: Math.max(0, Number(t.movement?.dayHours) || 0),
       load: FLIGHT_LOADS[t.movement?.load] ? t.movement.load : "normal",
     },
     // How long the order stood in the weather, and whether anything was done
-    // about it. The COUNT is the Judge's — a march is not automatically a day
-    // spent unprotected, and guessing the hours would charge a party for
-    // shelter it actually had.
+    // about it; the hours are the Judge's count, never guessed.
     exposure: {
       hours: Math.max(0, Number(t.exposure?.hours) || 0),
       atHeatSource: !!t.exposure?.atHeatSource,
@@ -547,14 +509,14 @@ function travelBase(formation) {
 }
 
 /**
- * The travel subtree, defaults answered and the country resolved — never
+ * The travel subtree, defaults answered and the country resolved; never
  * mutates the record. The six country keys (`ground`, `encounterTerrain`,
  * `territory`, `road`, `following`, and the climate at `weather.climate`)
  * are each the first answer of override → map → scene default → declared →
- * default (`resolveCountry`), and `provenance` names which source answered
- * each. `map` and `override` are the record's own, as stored. This is the
- * READER's view: a writer spreads `storedTravelOf`, or the resolved values
- * would be written back as the Judge's declaration.
+ * default (`resolveCountry`), and `provenance` names which answered. `map` and
+ * `override` are the record's own. This is the reader's view: a writer spreads
+ * `storedTravelOf`, or the resolved values would be written back as the
+ * Judge's declaration.
  */
 export function travelOf(formation) {
   const t = formation?.travel ?? {};
@@ -575,11 +537,10 @@ export function travelOf(formation) {
 }
 
 /**
- * The travel subtree as a WRITER spreads it: every key `travelOf` defaults is
- * defaulted the same way, and the country keys are left exactly as stored —
- * absent where the record holds none — with `map` and `override` carried. A
- * patch built on this writes back what it changed and nothing the map or the
- * override only lent the reader.
+ * The travel subtree as a writer spreads it: every key `travelOf` defaults is
+ * defaulted the same way, and the country keys are left as stored (absent where
+ * the record holds none) with `map` and `override` carried, so a patch writes
+ * back only what it changed.
  */
 export function storedTravelOf(formation) {
   const t = formation?.travel ?? {};
@@ -593,9 +554,8 @@ export function storedTravelOf(formation) {
 }
 
 /**
- * One finished day as a log row. Append-only and newest-first; the cap keeps
- * a seasons-long campaign from growing the settings blob without bound, and
- * trimming eats the OLDEST rows.
+ * One finished day as a log row; the log is append-only and newest-first, and
+ * the cap trims the oldest rows.
  */
 export function composeLogEntry(travel, { miles = null, hours = null, hexes = null, notes = "", worldTime = null } = {}) {
   return {
@@ -608,13 +568,12 @@ export function composeLogEntry(travel, { miles = null, hours = null, hexes = nu
     dayKind: travel.day?.kind ?? "march",
     pace: DAY_KINDS[travel.day?.kind]?.pace ?? null,
     activities: (travel.day?.activities ?? []).filter(Boolean),
-    // The day's declarations ride the row, because End day resets the board
-    // before the day's owed throws and the night's costs are resolved.
+    // The day's declarations ride the row, since End day resets the board
+    // before the night's costs are resolved.
     traps: trapCount(travel.day?.traps),
     noSleep: !!travel.day?.noSleep,
     hexesEntered: travel.day?.hexesEntered ?? 0,
-    // The DISPLAY half of the weather only — the generator's working state
-    // (rolls, run counters) has no business in a season of log rows.
+    // The display half of the weather only, not the generator's working state.
     weather: {
       temperature: travel.weather?.temperature ?? "",
       temperatureNight: travel.weather?.temperatureNight ?? "",
@@ -626,8 +585,7 @@ export function composeLogEntry(travel, { miles = null, hours = null, hexes = nu
     },
     lost: !!travel.lost?.active,
     miles,
-    // The hours the day took, beside the miles: the day's own tally unless
-    // the caller states another.
+    // The day's own hours tally unless the caller states another.
     hours: hours ?? Math.round((Number(travel.day?.hours) || 0) * 100) / 100,
     hexes,
     notes,
@@ -653,22 +611,18 @@ const logCap = () => {
 };
 
 /**
- * Enter or leave a mode. A journey is timed by the world clock the miles run
- * and a delve by the turn tracker, so a mode change clears any pause and
- * re-anchors the movement baseline at the token's present position: the next
- * drag is measured from where the party stands now, never from where the
- * last mode left it. The day board is held where it stood (a dungeon on the
- * route does not reset the march).
+ * Enter or leave a mode. A mode change clears any pause and re-anchors the
+ * movement baseline at the token's present position, so the next drag is
+ * measured from where the party stands now. The day board is held where it
+ * stood.
  *
  * @param {string} formationId
  * @param {string|boolean} journey the mode to adopt (a bare boolean is the
  *   journey/delve switch)
  * @param {string|null} [opts.sceneId] the scene a settlement board is being
  *   counted on; the board is stamped with its city (`cityStampOf`). Naming
- *   none leaves whatever stamp the board carries — a
- *   re-entry wherever the party already is. Callers that know the scene pass
- *   it: a board left unstamped is the one state the next arrival reads as
- *   foreign.
+ *   none leaves whatever stamp the board carries. Callers that know the scene
+ *   pass it, since an unstamped board is read as foreign on the next arrival.
  */
 export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
   // A mode string, or a bare boolean for the journey/delve switch.
@@ -678,21 +632,18 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
   return patchFormation(formationId, (record) => {
     const t = storedTravelOf(record);
     const token = getPartyToken(record);
-    // Where the party stands is the token's stored corner, as `storedPosition`
-    // (turn-engine.mjs) reads it: a move this client is still drawing has its
-    // prepared corner part way along. Read here, not imported: the turn engine
-    // reaches this module, and the patch is synchronous.
+    // The token's stored corner, as `storedPosition` (turn-engine.mjs) reads it,
+    // since a move still being drawn has its prepared corner part way along.
+    // Read here, not imported: the turn engine reaches this module.
     const stored = token ? (token._source ?? token) : null;
     const corner = stored ? { x: stored.x, y: stored.y, width: token.width, height: token.height } : null;
     record.travel = {
       ...t,
       mode,
       // Entering a city asks the factions' ledgers whether anyone hunts the
-      // party in the quarter it arrives in (hunt.mjs); leaving one keeps the
-      // board whole.
+      // party in its quarter (hunt.mjs); leaving one keeps the board whole.
       settlement: mode === "settlement" ? withHunt(enteredSettlement(t, sceneId), record) : t.settlement,
-      // A journey begun where the party's token stands reads the country under
-      // it now, not at its first step.
+      // A journey begun on the token reads the country under it now.
       ...(mode === "journey" && token?.parent
         ? { map: mapReadingAt(token.parent, tokenCentre(corner, token.parent), { at: game.time?.worldTime ?? null }) }
         : {}),
@@ -707,19 +658,13 @@ export function setJourneyMode(formationId, journey, { sceneId = null } = {}) {
 }
 
 /**
- * The settlement board a party entering settlement mode lands on.
- *
- * Entering a settlement starts a fresh TALLY and keeps what the Judge set, so
- * stepping out to the country and back does not forget the route; leaving one
- * keeps the board whole. Arriving in ANOTHER city is an entry too, whether or
- * not the mode changed — the blocks, the turns, the hunted flag and the stay's
- * stamp were all counted in the city being left, and a party walked straight
- * from one to the next would otherwise open the panel a mile into a city it
- * has just reached and be charged the journey as a stay.
- *
- * A board reaching a NAMED city that it does not itself name is foreign, an
- * unstamped board included — see `boardIsElsewhere`. The scene it is handed
- * is stamped as its city (`cityStampOf`), whoever handed it.
+ * The settlement board a party entering settlement mode lands on: a fresh
+ * tally that keeps what the Judge set. Arriving in another city is an entry
+ * too, whether or not the mode changed, since the blocks, turns, hunted flag
+ * and stay stamp were counted in the city being left. A board reaching a named
+ * city it does not itself name is foreign, an unstamped board included
+ * (`boardIsElsewhere`); the scene handed in is stamped as its city
+ * (`cityStampOf`).
  */
 function enteredSettlement(travel, sceneId) {
   const board = travel.settlement;
@@ -729,24 +674,11 @@ function enteredSettlement(travel, sceneId) {
 }
 
 /**
- * Is this board's tally counted in a city OTHER than the one being entered?
- *
- * The one test both settlement writers ask. Never spell it twice: the decision
- * to re-enter and the decision to announce that re-entry must not be able to
- * disagree, and the boards they disagree over are exactly the ones this field
- * exists for.
- *
- * An UNSTAMPED board is foreign. A board that names no city has no claim on the
- * one it is arriving in, and the stay stamp it carries was counted somewhere
- * nobody can point at; reading it as "here" is what lets a whole journey be
- * charged as a stay in the city at the end of it. A fresh tally is the honest
- * answer. The two errors are not the same size — a wrong reset loses blocks and
- * turns a Judge can re-enter from the panel, a wrong keep silently bills the
- * party for a month it spent on the road.
- *
- * An arrival that names no city is NOT somewhere new: there is no stamp to
- * write, so calling it foreign would wipe the tally on every call and never
- * settle.
+ * Is this board's tally counted in a city other than the one being entered?
+ * The one test both settlement writers ask, so the decision to re-enter and
+ * the decision to announce it cannot disagree. An unstamped board is foreign;
+ * an arrival that names no city is not somewhere new, since there is no stamp
+ * to write and the tally would be wiped on every call.
  */
 function boardIsElsewhere(board, stamp) {
   return stamp != null && board.sceneId !== stamp;
@@ -760,14 +692,12 @@ const sceneLinks = () => globalThis.acksExtras?.location?.scenes ?? null;
  * the outermost place, from the scene's own place up its parents, that has
  * one; else the scene's own id. Takes a scene or its id.
  *
- * A city drawn over several maps — its streets on one, a map for each building
- * inside it — is one city, so stepping indoors keeps the tally and only a
- * scene outside every city's chain is somewhere new. The chain is the places'
- * own parent walk, and a place's city map is `cityMapOf`'s. A place with no
- * city map is climbed through: one with no map at all, and one whose map
- * calls for something else, such as the region map a city stands on. A city
- * map's own stamp is itself, so stamping a stamp changes nothing.
- * Synchronous, because the board's writers decide inside one ledger patch.
+ * A city drawn over several maps is one city, so stepping indoors keeps the
+ * tally and only a scene outside every city's chain is somewhere new. The
+ * chain is the places' own parent walk, and a place's city map is
+ * `cityMapOf`'s; a place with no city map is climbed through. A city map's own
+ * stamp is itself. Synchronous, because the board's writers decide inside one
+ * ledger patch.
  *
  * @returns {string|null}
  */
@@ -801,10 +731,9 @@ function cityMapOf(place, links) {
 
 /**
  * The travel system a scene calls for, and what said so: the one the Judge
- * DECLARED (the battlemap setup tool writes it), else a journey for a map
+ * declared (the battlemap setup tool writes it), else a journey for a map
  * whose cell is a mile or more across, else a settlement for a map with a
- * district drawn on it, else nothing. Scale outranks districts, and a
- * declaration outranks both.
+ * district drawn on it, else nothing.
  * @returns {{system: string|null, source: "declared"|"scale"|"districts"|null}}
  */
 export function inferredTravelSystem(scene) {
@@ -828,9 +757,8 @@ export function sceneEncounterLine(scene) {
 }
 
 /**
- * Whether a scene update's `changes` touch what `isExpeditionScale` reads — the
- * grid's distance or its units — so the scale the map shows may have changed.
- * A grid's size in pixels, colour or style says nothing about the scale.
+ * Whether a scene update's `changes` touch what `isExpeditionScale` reads, the
+ * grid's distance or units.
  */
 export function sceneScaleChanged(changes) {
   const grid = changes?.grid;
@@ -838,21 +766,14 @@ export function sceneScaleChanged(changes) {
 }
 
 /**
- * Take the travel system the SCENE calls for (`inferredTravelSystem`) — a
- * dungeon map runs the turn clock, a wilderness map runs the day, a
- * settlement crosses in blocks.
+ * Take the travel system the scene calls for (`inferredTravelSystem`); it
+ * runs when a party token lands and when the declaration itself changes. A
+ * scene that says nothing and shows nothing changes nothing, so a party
+ * mid-march is not reset by crossing an unlabelled scene.
  *
- * Arriving on a map is the moment the question is answered, so this runs when
- * a party token lands and when the declaration itself changes. A scene that
- * says nothing and shows nothing changes nothing: silence is "nobody has
- * said", not "dungeon", and a party mid-march must not be reset by crossing
- * an unlabelled scene.
- *
- * A second CITY is an arrival even though the mode does not change: the board
- * belongs to the city it was counted in, so a scene declaring settlement
- * while the board names a different city enters afresh — `boardIsElsewhere` is
- * the whole of that test, and is the same one the write itself asks. A map of
- * a building inside the city is the same city (`cityStampOf`).
+ * A second city is an arrival even though the mode does not change
+ * (`boardIsElsewhere`); a map of a building inside the city is the same city
+ * (`cityStampOf`).
  *
  * @returns {Promise<{mode: string, source: string}|null>} the mode adopted and
  *   what called for it, or null if nothing moved.
@@ -875,20 +796,16 @@ export function patchSettlement(formationId, patch = {}) {
   return patchFormation(formationId, (record) => {
     const t = storedTravelOf(record);
     const next = { ...t.settlement };
-    // Every picker the panel shows, because this is the api the panel's own
-    // vocabulary is reachable through: a key accepted by the form and dropped
-    // here is a setting a caller can write and never see take effect.
-    // `settlementOf` below is what rejects a value outside a vocabulary.
-    // `days` and `holeUpSince` are deliberately absent — the world clock owns
-    // the stay, and a caller writing either desynchronises it from the
-    // calendar it is counted against.
+    // Every picker the panel shows; `settlementOf` below rejects a value
+    // outside a vocabulary. `days` and `holeUpSince` are absent: the world
+    // clock owns the stay.
     for (const key of ["pace", "where", "route", "hour", "intent", "conveyance"]) {
       if (patch[key] !== undefined) next[key] = String(patch[key]);
     }
     if (patch.wanted !== undefined) {
       next.wanted = !!patch.wanted;
-      // The Judge's untick outranks the ledger: the hunter's name goes with
-      // the flag, and the quarter stays asked so it is not re-armed next turn.
+      // The Judge's untick outranks the ledger: the hunter's name goes with the
+      // flag, and the quarter stays asked.
       if (!next.wanted) next.huntedBy = "";
     }
     if (patch.blocks !== undefined) next.blocks = Number(patch.blocks) || 0;
@@ -918,18 +835,16 @@ export function clearDeclaredCountry(formationId, key) {
 
 /**
  * Does the Judge's seat override a barred forced march? `override` is a
- * request; only a Gamemaster's seat is heard.
+ * request that only a Gamemaster's seat is heard on.
  */
 const overrides = (override) => override === true && !!game.user?.isGM;
 
 /**
- * Choose how the day is spent. Forced marches consume the ancillary budget.
- *
- * Changing INTO a forced march is refused while a marching member's survival
- * state bars one (`forcedMarchBar`): the seat is warned, naming them, and the
- * kind stays. The Judge's seat passes `{ override: true }` to set it anyway,
- * which whispers the Judges who was barred. A day already forced is not asked
- * again.
+ * Choose how the day is spent. Changing into a forced march is refused while
+ * a marching member's survival state bars one (`forcedMarchBar`): the seat is
+ * warned, naming them, and the kind stays. The Judge's seat passes
+ * `{ override: true }` to set it anyway, which whispers the Judges who was
+ * barred. A day already forced is not asked again.
  *
  * @returns the record written, or `false` when the bar refused the kind
  */
@@ -957,8 +872,7 @@ export async function setDayKind(formationId, kind, { override = false } = {}) {
 
 /**
  * Record a hex entered: the label updates and the day counts it. Spends no
- * miles and moves no clock — the trace alone; `nextHex` (journey.mjs) is the
- * Judge's override that also spends a cadence unit.
+ * miles and moves no clock; `nextHex` (journey.mjs) also spends a cadence unit.
  */
 export function enterHex(formationId, label) {
   return patchFormation(formationId, (record) => {
@@ -1003,7 +917,7 @@ export function mapReadingAt(scene, point, { at = null } = {}) {
 
 /**
  * Do two map readings say the same thing about the same place? `at` is not
- * compared: a re-read that found nothing new is not a change worth a write.
+ * compared, so a re-read that found nothing new is not worth a write.
  */
 export function sameReading(a, b) {
   if (!a || !b) return a === b;
@@ -1017,10 +931,8 @@ export function sameReading(a, b) {
 /**
  * The reading a trace step carries, at the step's offset: its `map` (a
  * `mapReadingAt` result), with any of `ground`, `encounterTerrain` and `road`
- * the step names laid over it as the map's own answer — the journey's road
- * walked between two hexes, or a caller tracing by hand, whose reading is of
- * the step's `sceneId` (else the last reading's scene). Null when the step
- * reads nothing at all.
+ * the step names laid over it as the map's own answer, read on the step's
+ * `sceneId` (else the last reading's scene). Null when the step reads nothing.
  */
 function stepReading(previous, { map, i, j, sceneId, ground, encounterTerrain, road }) {
   const told = Object.entries({ ground, encounterTerrain, road }).filter(([, v]) => v !== undefined);
@@ -1038,15 +950,13 @@ function stepReading(previous, { map, i, j, sceneId, ground, encounterTerrain, r
 /**
  * One step of the hex trace, pure: the party's token stands in the hex at
  * offset (`i`, `j`). The offset is the identity, the label its name, and the
- * map's reading of it is cached as `travel.map` — the country keys themselves
- * are never written here, so the map stays a source under the Judge's
- * override and over the declared record (`travelOf`). The first arrival (no
- * prior offset) NAMES the hex without counting it (you do not enter the hex
- * you were already standing in). A repeat of the same offset counts nothing:
- * it returns the very object it was given unless the step reads the hex
- * differently (the same offset on another scene), and then only the reading
- * changes. A crossing whose step read nothing leaves no reading, so the last
- * hex's is never taken for this one's.
+ * map's reading of it is cached as `travel.map`; the country keys themselves
+ * are never written here. The first arrival (no prior offset) names the hex
+ * without counting it. A repeat of the same offset counts nothing: it returns
+ * the very object it was given unless the step reads the hex differently (the
+ * same offset on another scene), and then only the reading changes. A crossing
+ * whose step read nothing leaves no reading, so the last hex's is never taken
+ * for this one's.
  *
  * @param {object} travel  a `storedTravelOf` result
  * @param {object} step    `{label, i, j, map, sceneId, ground,
@@ -1074,8 +984,7 @@ export function traceStep(travel, { label = "", i = null, j = null, map = null, 
         ? {
             ...travel.day,
             hexesEntered: (travel.day.hexesEntered ?? 0) + 1,
-            // Only the EXCESS is banked: a straight crossing costs nothing
-            // extra, so a road with no bends never shows a tax.
+            // Only the excess is banked: a straight crossing costs nothing extra.
             winding: (travel.day.winding ?? 0) + Math.max(0, (Number(winding) || 1) - 1),
           }
         : travel.day,
@@ -1085,11 +994,10 @@ export function traceStep(travel, { label = "", i = null, j = null, map = null, 
 
 /**
  * Seat a journeying party under a token that was set down rather than walked
- * — stepped onto its true position — so the hex and the map's reading of it
- * change and nothing is counted: no hex entered, no road step. Off a hex grid
- * there is no hex to name, and only the reading is written. A formation not
- * on a journey changes nothing. `at` is the corner to read at; a caller
- * hearing a move passes the stored one (`storedPosition`), since a drawn
+ * (stepped onto its true position): the hex and the map's reading of it change
+ * and nothing is counted. Off a hex grid only the reading is written; a
+ * formation not on a journey changes nothing. `at` is the corner to read at; a
+ * caller hearing a move passes the stored one (`storedPosition`), since a drawn
  * token's own `x`/`y` lag it.
  */
 export function seatJourneyHex(tokenDoc, formationId, at = tokenDoc) {
@@ -1112,15 +1020,14 @@ export function seatJourneyHex(tokenDoc, formationId, at = tokenDoc) {
 }
 
 /**
- * The travel subtree read where the party REALLY is. While a lost episode is
- * open, in either phase, and its shadow stands on the episode's scene, this
- * is `travelOf` resolved over the map's reading at the shadow — its hex, its
- * country and its water — through the Judge's override and the grounded rule
- * exactly as at the token; otherwise it is `travelOf` itself. The reading is
- * resolved on the episode's scene, which is where the shadow stands, even
- * where the party token has since been placed on another. The encounter
- * column reads this; the sheet's hex and country read `travelOf`, which is the
- * hex the party believes it stands in. Never written back.
+ * The travel subtree read where the party really is. While a lost episode is
+ * open and its shadow stands on the episode's scene, this is `travelOf`
+ * resolved over the map's reading at the shadow (hex, country, water), through
+ * the Judge's override and the grounded rule as at the token; otherwise it is
+ * `travelOf` itself. The reading is taken on the episode's scene even where
+ * the party token has since been placed on another. The encounter column reads
+ * this; the sheet reads `travelOf`, the hex the party believes it stands in.
+ * Never written back.
  */
 export function trueTravelOf(formation) {
   const t = travelOf(formation);
@@ -1138,11 +1045,10 @@ export function trueTravelOf(formation) {
 
 /**
  * Re-read the map under every journeying party standing on a scene, and cache
- * what changed (`travel.map`): the Judge painted the hex a party stands in,
- * drew a river through it, or set the scene's default country, and the party
- * has not moved. With `walls` false nothing drawn changed, so a reading of
- * the same hex keeps its cached road, route and water — the road may be the
- * one the last step walked, which a re-read at the token cannot see.
+ * what changed (`travel.map`), for a party that has not moved. With `walls`
+ * false a reading of the same hex keeps its cached road, route and water,
+ * since the road may be the one the last step walked, which a re-read at the
+ * token cannot see.
  *
  * @returns {Promise<string[]>} the ids of the formations whose reading changed
  */
@@ -1181,9 +1087,8 @@ export async function refreshCountryOn(sceneId, { walls = true } = {}) {
 
 /**
  * The scenes a change to one paint layer can re-read a party on: each scene a
- * party's token stands on that holds paint of that layer. A layer's values can
- * change what they mean with no region written, which `paintLayerChanged`
- * reports by the layer alone.
+ * party's token stands on that holds paint of that layer (`paintLayerChanged`
+ * reports a change by the layer alone).
  *
  * @returns {string[]} scene ids, each once
  */
@@ -1230,13 +1135,10 @@ export function countryRefresher({ wait = 250, then = null, schedule = setTimeou
 }
 
 /**
- * Who in the marching order can find the way.
- *
- * Two separate competences: the Navigation proficiency and the Pathfinding
- * class power. Holding EITHER helps and holding BOTH helps more — that
- * asymmetry is the rule and lives here. What each is worth is printed, so the
- * two figures are read from the travel document's `navigationBonus` row and a
- * world with nothing imported gets no bonus rather than an invented one.
+ * Who in the marching order can find the way: the Navigation proficiency and
+ * the Pathfinding class power, either helping and both helping more. What each
+ * is worth is read from the travel document's `navigationBonus` row; with
+ * nothing imported there is no bonus and `unpriced` is set.
  */
 export function navigationCompetence(formation) {
   const members = realMembers(formation);
@@ -1274,17 +1176,10 @@ function routeFollowed(t) {
 }
 
 /**
- * The day's navigation prospect, before any dice.
- *
- * `throws` is false on a road or a navigable river — a party following an
- * established route does not lose its way, which is structural and needs no
- * table. Otherwise the target is the terrain's, from the imported
- * `gettingLost` row, and a null target means UNIMPORTED, never "no target".
- *
- * This deliberately stops short of the consequence: what a failure does is the
- * card's (`navigation-card.mjs` opens the episode where the party stands), and
- * a success restores no position. This returns only what is decided before
- * the dice.
+ * The day's navigation prospect, before any dice. `throws` is false on a road
+ * or a navigable river; otherwise the target is the terrain's, from the
+ * imported `gettingLost` row, and a null target means not imported. What a
+ * failure does is the card's (`navigation-card.mjs`).
  */
 export function landNavigationSpec(formation) {
   const t = travelOf(formation);
@@ -1303,30 +1198,24 @@ export function landNavigationSpec(formation) {
 }
 
 /**
- * How many faces a hex has, and therefore how the Judge rolls a stray.
- *
- * Structural: a hex has six sides, so a stray is a d6 among them. WHICH face
- * the party takes is the Judge's to decide from the lie of the land — this is
- * only the fallback when they would rather it be blind.
+ * How many faces a hex has, and therefore the die a blind stray is rolled on.
  */
 export const HEX_FACES = 6;
 
-/** A blind stray: a face index, 0-5. The Judge may always choose instead. */
+/** A blind stray: a face index, 0-5; the fallback where the Judge does not choose the face. */
 export async function rollStrayFace() {
   const roll = await new Roll(`1d${HEX_FACES}`).evaluate();
   return { face: roll.total - 1, roll };
 }
 
 /**
- * The day's navigation throw.
- *
- * A d20 against the terrain's imported target, plus whatever the marching
- * order's competence is worth and the sky's modifier. An unmodified 1 fails whatever the bonus — the
- * one modifier-proof outcome the rule keeps.
+ * The day's navigation throw: a d20 against the terrain's imported target,
+ * plus the marching order's competence and the sky's modifier; an unmodified 1
+ * fails whatever the bonus.
  *
  * Returns `{throws: false}` untouched when a road or river carries the party,
- * and `{missing}` when the target was never imported. It reports; it does not
- * write. What a failure DOES is the episode's business.
+ * and `{missing}` when the target was never imported. It reports and writes
+ * nothing.
  */
 export async function rollLandNavigation(formation) {
   const spec = landNavigationSpec(formation);
@@ -1351,13 +1240,8 @@ export async function rollLandNavigation(formation) {
 /**
  * The day a navigation throw is owed on, as a key: the calendar day the world
  * clock stands in (empty where the clock keeps no calendar) and the End-day
- * counter, joined — `"<calendar day>:<counter>"`. A new day begins when
- * either moves: End day advances the counter whether or not the module may
- * move the clock, and a clock another hand moves rolls the calendar day
- * without it. Neither alone would do: a clock the module may not advance
- * keeps one calendar day for the whole journey, and a counter nobody presses
- * keeps one day for a clock that runs. `travel` is a `travelOf` or
- * `storedTravelOf` result.
+ * counter, joined as `"<calendar day>:<counter>"`. A new day begins when
+ * either moves. `travel` is a `travelOf` or `storedTravelOf` result.
  */
 export function journeyDayKey(travel) {
   const calendar = calendarDay();
@@ -1461,8 +1345,8 @@ export function navigationOwed(formation, { day = null } = {}) {
  * The Judge's override group of a submit, merged over the record's: each of
  * the six country keys the form names is set when valid and CLEARED when
  * blank; one it does not name stands. The group is `tv.override`; a key named
- * at the form's top level (`tv.ground`, `tv.weather.climate`) is the same
- * word and routes here too. Null when the submit names none of them.
+ * at the form's top level (`tv.ground`, `tv.weather.climate`) routes here too.
+ * Null when the submit names none of them.
  */
 function overrideFromForm(current, tv) {
   const named = {
@@ -1480,19 +1364,18 @@ function overrideFromForm(current, tv) {
 }
 
 /**
- * The panel's whole form in ONE ledger write: the Judge's overrides, weather
- * flags, the day board, the hex label, the lost note, what a player's seat is
- * shown (`tv.shown`, one of `SHOWN_KINDS`). The form submits itself
- * entire on every change (submitOnChange), so writing field-by-field would
- * queue a patch per field per keystroke; this applies what the form carries
- * and lets `travelOf` refuse the rest. The six country keys land in
+ * The panel's whole form in one ledger write: the Judge's overrides, weather
+ * flags, the day board, the hex label, the lost note and what a player's seat
+ * is shown (`tv.shown`, one of `SHOWN_KINDS`). The form submits itself entire
+ * on every change (submitOnChange), so this applies what the form carries and
+ * lets `travelOf` refuse the rest. The six country keys land in
  * `travel.override` (`overrideFromForm`), never in the declared record. Slot
- * edits under a forced march are ignored — the march owns the budget.
+ * edits under a forced march are ignored.
  *
- * A day-kind change INTO a forced march obeys the same bar as `setDayKind`:
- * barred, the kind alone is dropped (the rest of the form still lands) and the
- * seat is warned; with `{ override: true }` from a Judge's seat it is set and
- * the Judges are told who was barred.
+ * A day-kind change into a forced march obeys the bar `setDayKind` does:
+ * barred, the kind alone is dropped (the rest of the form lands) and the seat
+ * is warned; with `{ override: true }` from a Judge's seat it is set and the
+ * Judges are told who was barred.
  */
 export async function applyTravelForm(formationId, tv = {}, { override = false } = {}) {
   let barred = [];
@@ -1507,17 +1390,16 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
       else delete next.override;
     }
     if (Object.hasOwn(HOUR_MODES, tv.hour ?? "")) next.hour = tv.hour;
-    // The settlement board rides the same submit as the journey pickers: an
-    // ApplicationV2 action fires on CLICK, so a select bound to one never
-    // reports a change at all.
+    // The settlement board rides the same submit as the journey pickers (an
+    // ApplicationV2 action fires on click, so a select bound to one reports no
+    // change).
     if (tv.settlement) {
       next.settlement = settlementOf({
         settlement: {
           ...t.settlement,
           ...tv.settlement,
-          // The checkbox is read explicitly rather than left to the spread: an
-          // unticked checkbox is ABSENT from the submit, so a spread keeps
-          // whatever was there and the box can be ticked but never cleared.
+          // An unticked checkbox is absent from the submit, so a spread would
+          // keep the old value; it is read explicitly.
           wanted: !!tv.settlement.wanted,
         },
       });
@@ -1539,8 +1421,7 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
       };
       next.weather = w;
     }
-    // A flier's hours and load. Read as a group for the same reason the cold's
-    // inputs are: a picker and two fields submit together.
+    // A flier's hours and load, read as a group: a picker and two fields submit together.
     if (tv.movement) {
       next.movement = {
         ...t.movement,
@@ -1549,10 +1430,8 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
         load: FLIGHT_LOADS[tv.movement.load] ? tv.movement.load : "normal",
       };
     }
-    // The cold's declared inputs. The checkboxes are absent from the submit
-    // when unticked, so the whole group is read together or not at all —
-    // reading them one at a time would clear the other two on every keystroke
-    // in the hours field.
+    // The cold's declared inputs. Unticked checkboxes are absent from the
+    // submit, so the group is read whole or not at all.
     if (tv.exposure) {
       next.exposure = {
         hours: Math.min(24, Math.max(0, Math.floor(Number(tv.exposure.hours) || 0))),
@@ -1581,17 +1460,17 @@ export async function applyTravelForm(formationId, tv = {}, { override = false }
         }
         day = { ...day, activities };
       }
-      // The day's declarations. An unticked checkbox is absent from the submit,
-      // so they are written explicitly once the group is present (its hidden
-      // `declared` marker makes it so) and left alone when it is not.
+      // The day's declarations: written explicitly once the group is present
+      // (its hidden `declared` marker makes it so), since an unticked checkbox
+      // is absent from the submit; left alone otherwise.
       if (tv.day.declared !== undefined || tv.day.traps !== undefined || tv.day.noSleep !== undefined) {
         day = { ...day, traps: trapCount(tv.day.traps), noSleep: !!tv.day.noSleep };
       }
       next.day = day;
     }
-    // The camp's declarations, read as a group for the same reason. The
-    // search's two selects are the Judge's alone and absent from a player's
-    // submit, so each keeps its word when the group arrives without it.
+    // The camp's declarations, read as a group. The search's two selects are
+    // the Judge's and absent from a player's submit, so each keeps its word
+    // when the group arrives without it.
     if (tv.camp) {
       next.camp = {
         steal: !!tv.camp.steal, water: !!tv.camp.water, sleepInArmour: !!tv.camp.sleepInArmour,
@@ -1618,8 +1497,7 @@ function seasonMapSetting() {
 /**
  * The generator season in force for a party: the calendar's season, when the
  * calendar declares one and it maps (`seasonKeyFor`), else the season the party
- * declared. One shape for every reader — the key the sky is cached under, the
- * day change that settles it, and the sheet that shows it.
+ * declared; the one reading the sky cache key, the day change and the sheet share.
  * @param {object} travel  a `travelOf` result
  * @returns {{season: string, fromCalendar: boolean, calendarName: string}}
  *   `calendarName` is the calendar season's localized name when `fromCalendar`.
@@ -1635,20 +1513,18 @@ export function effectiveSeason(travel) {
 }
 
 /**
- * The day a sky is filed under: the calendar day the world clock stands in,
- * or — only where the clock keeps no calendar — the End-day counter, which is
- * what the day change settles under. Never `journeyDayKey`: that is the string
- * the navigation claim is keyed on, and `skyKey` reads a number.
+ * The day a sky is filed under: the calendar day the world clock stands in, or
+ * where the clock keeps no calendar the End-day counter. Never
+ * `journeyDayKey`, a string, where `skyKey` reads a number.
  */
 function skyDayOf(t) {
   return calendarDay() ?? (Number(t?.dayCount) || 0);
 }
 
 /**
- * The sky cache key for a party's ground on a day (`skyDayOf`). `dayCount`
- * keeps numbering the log; it is not the sky's identity. The climate is `t`'s
- * as `travelOf` resolves it — the map's, the scene's or the Judge's — so `t`
- * is a `travelOf` result, never a stored one.
+ * The sky cache key for a party's ground on a day (`skyDayOf`). The climate is
+ * `t`'s as `travelOf` resolves it, so `t` is a `travelOf` result, never a
+ * stored one.
  */
 function skyParams(t, season, day = skyDayOf(t)) {
   return { day, climate: t.weather.climate, season };
@@ -1667,15 +1543,13 @@ function settledDayOf(weather) {
  *
  * The formation's `weather.settledDay` is the last day settled. Absent, it is
  * stamped with `today` and nothing is paid back; at or past `today` it is a
- * no-op, so a clock that is dragged or a hook that fires twice settles once.
- * Only a formation in journey mode is settled — any other is stamped, so one
- * that enters journey mode later does not back-pay. Each crossed day runs in
- * order against ONE local copy of the cache, which is written once; the
- * formation takes one patch.
+ * no-op, so a dragged clock or a hook firing twice settles once. Only a
+ * formation in journey mode is settled; any other is stamped, so one entering
+ * journey mode later does not back-pay. Each crossed day runs in order against
+ * one local copy of the cache, written once, and the formation takes one patch.
  *
  * `counter` is the calendar-less path: End day settles the single day it
- * names, in any mode, and neither reads nor writes the watermark (a counter and
- * a calendar day must never meet in it).
+ * names, in any mode, and neither reads nor writes the watermark.
  * @returns {Promise<boolean>} whether the formation was settled
  */
 export async function settleDayChange(formationId, today, { counter = false } = {}) {
@@ -1708,7 +1582,7 @@ export async function settleDayChange(formationId, today, { counter = false } = 
   };
   for (let d = counter ? day : settled + 1; d <= day; d++) {
     // The finished day's bands settle onto the ground first; the new day's sky
-    // is read after, so it governs the NEXT settling.
+    // governs the next settling.
     const { mud, snow, runs } = advanceGround(footing, {
       temperature: bands.temperature,
       precipitation: bands.precipitation,
@@ -1759,22 +1633,19 @@ export function settleAllOnDayChange(today) {
 }
 
 /**
- * The Judge rolls the sky on demand — the journey's first morning, or a
- * result worth re-rolling. An on-demand roll is a fresh sky, never a front:
- * the drift compares to a prior day, and this roll is REPLACING today.
- * Refused (no write) when the registry cannot answer; the panel's hint
- * already names the missing document.
+ * The Judge rolls the sky on demand. An on-demand roll is a fresh sky, never a
+ * front: the drift compares to a prior day, and this roll replaces today.
+ * Refused (no write) when the registry cannot answer.
  */
 export async function rollWeatherNow(formationId) {
-  // The sky is shared: two parties in one climate on one calendar day read a
-  // single roll, and re-rolling the same day is a cache hit rather than new
-  // weather.
+  // The sky is shared: re-rolling the same day for a climate is a cache hit,
+  // not new weather.
   const record0 = getFormation(formationId);
   const t0 = travelOf(record0 ?? {});
   const season = effectiveSeason(t0).season;
   const params = skyParams(t0, season);
   // No prior and no drift, whatever the fronts toggle says: the drift belongs
-  // to the day change (`settleDayChange`), and this roll replaces today.
+  // to the day change (`settleDayChange`).
   const { sky: gen } = await skyFor(params, () => generateDay({
     climate: t0.weather.climate,
     season,
@@ -1801,23 +1672,18 @@ export async function rollWeatherNow(formationId) {
 
 /**
  * End the day: log it, reset the board, advance the world clock to the next
- * dawn (when the module may). The caller supplies the derived figures the panel already
- * shows — miles and hexes made — so the log records what the Judge saw, not
- * a second derivation that could disagree with it.
+ * dawn (when the module may). The caller supplies the miles and hexes the panel
+ * shows, so the log records what the Judge saw.
  *
- * The weather does not settle here where the clock keeps a calendar: the
- * jump to dawn crosses the day change, and the day-change watcher settles the
- * ground and the new sky (`settleDayChange`). With the module not moving the
- * clock, End day fakes no day — the sky follows the real clock. Where the
- * clock keeps NO calendar, End day settles the day itself, keyed on its own
- * counter, exactly as the one-clock-per-party days always did.
- *
- * The jump is to the next dawn by the calendar. A clock that keeps no calendar
- * advances what the day has not already advanced of a whole day, so hours the
- * march ran earlier are absorbed and never charged twice.
+ * Where the clock keeps a calendar the weather does not settle here: the jump
+ * to dawn crosses the day change, and the day-change watcher settles the ground
+ * and the new sky (`settleDayChange`). Where it keeps no calendar, End day
+ * settles the day itself, keyed on its own counter. Without a calendar the jump
+ * is what the day has not already advanced of a whole day, so hours the march
+ * ran are never charged twice.
  *
  * End day makes no navigation throw: the next day's is made at its first step
- * off a road (`throwDayNavigation`, journey.mjs), keyed on `journeyDayKey`.
+ * off a road (`throwDayNavigation`, journey.mjs).
  *
  * @returns the log entry written, or null when the formation is gone
  */
@@ -1825,8 +1691,8 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
   let entry = null;
   let advancedToday = 0;
 
-  // Feed the order and walk every ladder one step, BEFORE the patch: reading
-  // packs and writing bodies is async, and the patch callback is not.
+  // Feed the order and walk every ladder one step before the patch, since
+  // reading packs is async and the patch callback is not.
   let provisions = null;
   try {
     provisions = await runProvisionDay(getFormation(formationId));
@@ -1836,8 +1702,8 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
 
   const record = await patchFormation(formationId, (rec) => {
     const t = storedTravelOf(rec);
-    // The day is logged as the party READ it — the country resolved — while
-    // the record keeps only what it stored.
+    // The day is logged as the party read it (the country resolved); the
+    // record keeps only what it stored.
     entry = composeLogEntry(travelOf(rec), { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
     advancedToday = t.day.secondsAdvanced ?? 0;
     rec.travel = {
@@ -1848,8 +1714,8 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
     };
   });
   if (!record) return null;
-  // No calendar, no day change to watch: this day's settling is End day's own,
-  // keyed on the counter the patch just advanced.
+  // With no calendar there is no day change to watch: End day settles, keyed
+  // on the counter the patch just advanced.
   if (calendarDay() == null) {
     try {
       await settleDayChange(formationId, entry.day, { counter: true });
@@ -1859,8 +1725,7 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
   }
   const jump = untilNextDawn() ?? Math.max(0, DAY_SECONDS - advancedToday);
   if (jump > 0 && mayAdvanceWorldTime()) await game.time.advance(jump);
-  // The finished day carries how it was fed, so the log can say the party ate
-  // short on the fourteenth rather than leaving it to memory.
+  // The finished day carries how it was fed.
   if (entry && provisions) {
     entry.provisions = {
       short: provisions.short,

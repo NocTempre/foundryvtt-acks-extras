@@ -30,40 +30,33 @@ import {
 
 /**
  * "Trap Zone" scene-region behavior: draw a Region over the squares a trap
- * covers, and the party walking through it is resolved by the book instead of
- * by the Judge's memory.
+ * covers, and the party walking through it is resolved by the book.
  *
- * The sequence is the one the delve's own sequence of play lays down, in that
- * order and for its reasons: anyone searching the ground throws FIRST, because
- * a trap found is a trap not sprung; then the pole, which is an adventurer
- * moving ahead of its bearer; then the party itself, rank by rank, each with
- * its own secret die. The first throw that comes up inside the trigger band
- * ends the sequence — one trap goes off once. The reaches, the die and the
- * band are imported figures (`trapFigures`); a figure not imported is said on
- * the card and never defaulted.
+ * The sequence: anyone searching the ground throws first, then the pole, then
+ * the party itself rank by rank, each with its own secret die. The first throw
+ * inside the trigger band ends the sequence. The reaches, the die and the band
+ * are imported figures (`trapFigures`); a figure not imported is said on the
+ * card and never defaulted.
  *
- * Everything the Judge sees is whispered. A trap the party crossed untouched is
- * reported too, and only to the Judge: knowing that the corridor was clear is
- * how a Judge keeps track of a trap that is still armed, and telling the table
- * would give away that there was ever anything to cross.
+ * Everything the Judge sees is whispered, including a trap the party crossed
+ * untouched, which is reported to the Judge alone.
  *
- * The rule itself — probe order, who is caught, the disarm throw, the botch
- * bands — is `trap-rules.mjs`, which holds no dice and no documents. This file
- * is the world: the zone's stored state, the throws, and the cards.
+ * The rule itself (probe order, who is caught, the disarm throw, the botch
+ * bands) is `trap-rules.mjs`, which holds no dice and no documents. This file
+ * is the world: the zone's stored state, the throws, and the cards. See
+ * docs/formation/MODEL.md, "Traps".
  */
 
 const LANG_PREFIX = "ACKS-FORMATION.traps";
 const loc = makeLoc(LANG_PREFIX);
 
-// The sub-type id lives in constants.mjs so Foundry-free code can name it.
+/** The trap zone's behavior sub-type id, defined in constants.mjs so Foundry-free code can name it. */
 export { TRAP_ZONE_TYPE };
 
 /**
- * Update option marking a token write as the trap's own halt.
- *
- * The movement hook must ignore it. A halt is not the party walking, so it
- * costs no dungeon turns and — the reason this exists at all — must not start
- * a second trap check while the first is still resolving.
+ * Update option marking a token write as the trap's own halt. The movement
+ * hook ignores it: a halt costs no dungeon turns and must not start a second
+ * trap check while the first is still resolving.
  */
 export const HALT_OPTION = `${MODULE_ID}.trapHalt`;
 
@@ -74,14 +67,9 @@ export const HALT_OPTION = `${MODULE_ID}.trapHalt`;
 /**
  * One trap, buried in one place.
  *
- * The zone holds a REFERENCE to a trap Item and the state of this particular
- * burial, and nothing else. What a scything blade is belongs to the trap
- * document — shared, importable from the GM's own book, editable once for every
- * corridor it sits in. Whether THIS one is still armed, already spotted, or
- * spent belongs here, because it is true of the place and not of the idea.
- *
- * A zone naming no trap resolves nothing; it is an unfinished note to the Judge
- * rather than an error.
+ * The zone holds a reference to a trap Item and the state of this burial
+ * (armed, spotted, spent), and nothing else; what the trap is belongs to the
+ * trap document. A zone naming no trap resolves nothing.
  */
 export class TrapZoneBehavior extends foundry.data.regionBehaviors.RegionBehaviorType {
   static LOCALIZATION_PREFIXES = ["ACKS-FORMATION.TRAP_ZONE"];
@@ -94,20 +82,13 @@ export class TrapZoneBehavior extends foundry.data.regionBehaviors.RegionBehavio
 
       state: new fields.StringField({ required: true, initial: STATES.armed, choices: Object.values(STATES) }),
       /**
-       * Who has already failed a hasty attempt here, and at what level — the
-       * rule that a failed hasty attempt waits for a higher level needs to know
-       * WHEN, not just that it happened. Cleared by re-arming.
+       * Who has already failed a hasty attempt here, and at what level.
+       * Cleared by re-arming.
        */
       repeatLock: new fields.ObjectField(),
-      /** The same ledger for the automatic hasty SEARCH, which has its own. */
+      /** The same ledger for the automatic hasty search, which has its own. */
       searchLock: new fields.ObjectField(),
-      /**
-       * Has the party learned this trap is here?
-       *
-       * Not derivable from the state. A trap the thief found, disarmed and
-       * re-armed reads `armed` again and is still perfectly well known; a trap
-       * the Judge rebuilt from scratch reads `armed` and is not.
-       */
+      /** Has the party learned this trap is here? Not derivable from the state. */
       known: new fields.BooleanField({ initial: false }),
     };
   }
@@ -130,12 +111,9 @@ export function findTrapZone(formation) {
 /* -------------------------------------------- */
 
 /**
- * Where a trap is buried, behind one interface.
- *
- * A trap can be laid two ways — along a wall the party crosses, or over a
- * region the party walks into — and the rules do not care which. The sequence,
- * the searching, the probe order, the disarm throws and the botch bands are one
- * body of code, and it reaches its placement only through these four members.
+ * Where a trap is buried, behind one interface: along a wall the party crosses
+ * or over a region it walks into. The rules reach a placement only through
+ * these members.
  *
  * @typedef {object} Placement
  * @property {"zone"|"wall"} kind
@@ -161,8 +139,8 @@ export function zonePlacement(zone) {
     known: !!s.known,
     repeatLock: s.repeatLock ?? {},
     searchLock: s.searchLock ?? {},
-    // Objects go in as forced replacements: an ordinary update merges, so a
-    // patch emptying a ledger leaves every entry in it standing.
+    // Objects go in as forced replacements: an update merges, so a patch
+    // emptying a ledger would leave every entry standing.
     write: (patch) =>
       zone.behavior.update(
         Object.fromEntries(
@@ -200,22 +178,20 @@ export async function trapFor(placement) {
 
 /**
  * The placement the party is standing in or has just crossed, whichever is
- * live. A crossed WALL wins over a region: the party met the line on the way
- * in, so that is the trap they met first.
+ * live; a crossed wall wins over a region, as the line was met first.
  */
 export async function livePlacement(formation, { from = null, to = null } = {}) {
   const token = getPartyToken(formation);
   if (token && from && to) {
-    // `from`/`to` arrive as the token's top-left corner, which is where a
-    // TokenDocument stores itself. What meets a tripwire is the token's
-    // CENTRE, so the path is shifted onto it before anything is intersected —
-    // and `haltParty` shifts the crossing back the other way.
+    // `from`/`to` arrive as the token's top-left corner; what meets a tripwire
+    // is its centre, so the path is shifted onto it before anything is
+    // intersected, and `haltParty` shifts the crossing back.
     const gs = token.parent.grid.size;
     const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
     const path = [from, to].map((p) => ({ x: p.x + half.x, y: p.y + half.y }));
     const crossed = trapWallsCrossed(token.parent, path[0], path[1]).find((h) => h.trap.state === STATES.armed);
-    // `approach` is where the party came from, in the same centre coordinates —
-    // it is what lets the halt pull up on the NEAR side of the line.
+    // `approach` is where the party came from, in centre coordinates, so the
+    // halt pulls up on the near side of the line.
     if (crossed) return { placement: wallPlacement(crossed.wall), haltAt: crossed.at, approach: path[0] };
   }
   const zone = findTrapZone(formation);
@@ -230,10 +206,8 @@ export async function livePlacement(formation, { from = null, to = null } = {}) 
 /* -------------------------------------------- */
 
 /**
- * The ground the party covered, in canvas pixels and centre coordinates.
- *
- * A standing party is a zero-length segment at its own centre, which every
- * distance test below handles without a second code path.
+ * The ground the party covered, in canvas pixels and centre coordinates; a
+ * standing party is a zero-length segment at its own centre.
  *
  * @returns {{seg: number[], gs: number, feetPerPixel: number, halfToken: number}|null}
  *   null for a scene that says no cell size: no distance in feet can be read off it
@@ -253,10 +227,8 @@ function partyPath(formation, { from = null, to = null } = {}) {
     scene,
     gs,
     seg: [a.x, a.y, b.x, b.y],
-    // Distances are measured from the token's EDGE, not from the pip at its
-    // centre: a party token is often larger than a square, and measuring from
-    // the middle of a 2×2 marker would put a tripwire it is touching two
-    // squares away.
+    // Distances are measured from the token's edge, not its centre: a party
+    // token is often larger than a square.
     halfToken: Math.max(half.x, half.y),
     feetPerPixel: feetPerCell / gs,
   };
@@ -272,8 +244,8 @@ function placementDistanceFeet(placement, path) {
     const edges = regionEdges(placement.region);
     if (!edges.length) return Infinity;
     px = Math.min(...edges.map((e) => segmentDistance(path.seg, e)));
-    // Inside the outline is zero away from it, and the edge distance alone
-    // would report a party standing in the middle of a pit as far from it.
+    // Inside the outline is zero away; the edge distance alone would put a
+    // party in the middle of a region far from it.
     const inside = [
       { x: path.seg[0], y: path.seg[1] },
       { x: path.seg[2], y: path.seg[3] },
@@ -296,8 +268,7 @@ function pointInsideEdges(edges, pt) {
 /**
  * How far from the party a trap can be and still be worked on, in feet: the
  * imported trapbreak reach, else 0, which reaches only a trap the party's
- * token is touching or standing in. A trapbreak is never offered at a distance
- * nothing imported states.
+ * token is touching or standing in.
  */
 export function trapbreakReach() {
   return trapFigures().trapbreakReachFeet ?? 0;
@@ -305,10 +276,7 @@ export function trapbreakReach() {
 
 /**
  * Every trap placed on this scene, as placements — trapped walls and enabled
- * Trap Zone behaviors alike.
- *
- * Read straight off the scene rather than from the canvas, so it answers on a
- * client whose canvas is not the one the party is standing on.
+ * Trap Zone behaviors alike, read off the scene and not the canvas.
  */
 export function allPlacements(scene) {
   const out = [];
@@ -345,12 +313,9 @@ export function placementsNear(formation, { feet = trapbreakReach(), from = null
 }
 
 /**
- * The traps within reach that the party actually KNOWS about.
- *
- * What a Trapbreaking attempt may be pointed at, and the only trap list any
- * player-facing surface is allowed to show: offering an unfound trap as a
- * target announces its existence, which is the one thing a hidden feature is
- * for.
+ * The traps within reach that the party knows about: what a Trapbreaking
+ * attempt may be pointed at, and the only trap list a player-facing surface
+ * may show.
  */
 export function knownPlacementsNear(formation, feet = trapbreakReach()) {
   return placementsNear(formation, { feet }).filter((p) => p.known);
@@ -383,27 +348,18 @@ const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.acto
 
 /**
  * The automatic hasty search, swept over every hidden trap the party came
- * within reach of — not merely the one it was about to step on.
+ * within reach of, not merely the one it was about to step on. It runs on
+ * every party move, silently, and says something only when a trap is spotted.
+ * Who reaches is `autoSearchers`, by the imported reaches and the laid
+ * column's rank depth.
  *
- * This is the book's own automatic search and it is deliberately wider than the
- * corridor: a thief moving at exploration speed throws against ANY hidden
- * feature he passes within reach of (a longer one with a pole), and the Judge
- * makes the throw in secret. So the sweep runs on every party move, silently,
- * and only says anything when something is spotted. Who reaches is
- * `autoSearchers`, by the imported reaches and the laid column's rank depth.
- *
- * **With no search reach imported** only the front rank searches, and only the
+ * With no search reach imported only the front rank searches, and only the
  * trap the party crossed (`include`); the result's `reachImported` is false so
  * the card can say so.
  *
- * **A searcher gets one attempt per trap per level.** The automatic throw is a
- * hasty search and carries the hasty search's price — a failure is a failure to
- * hastily search that feature, and it cannot be repeated until the character
- * has grown. Without the ledger a party could find every trap in the dungeon by
- * shuffling back and forth over it.
- *
- * At combat speed there is no sweep at all: the party has lost its pole and its
- * hasty searching together.
+ * A searcher gets one attempt per trap per level (the `searchLock` ledger), as
+ * a failed hasty search cannot be repeated until the character has grown. At
+ * combat speed there is no sweep.
  *
  * @param {object} formation
  * @param {object} [opts]
@@ -411,8 +367,8 @@ const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.acto
  * @param {object} [opts.to] the move's end
  * @param {boolean} [opts.hurried] combat speed — no automatic searching
  * @param {Placement} [opts.include] a placement to sweep whatever the distance
- *   says: the wall the party CROSSED is met by definition, however far the step
- *   that crossed it carried them past it.
+ *   says: the wall the party crossed is met however far the step carried them
+ *   past it.
  * @returns {Promise<{found: Set<string>, rows: object[], rolls: Roll[],
  *   reachImported: boolean}>} `reachImported` is false when searchers stood in
  *   the party and no search reach is imported
@@ -434,8 +390,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   const path = partyPath(formation, { from, to });
   if (!path) return { ...empty, reachImported };
 
-  // Every searcher's reach is a length where the search reach is imported; with
-  // none imported only the crossed placement is swept, at no distance.
+  // With no search reach imported only the crossed placement is swept.
   const reach = reachImported ? Math.max(...searchers.map((row) => reachOf(row) ?? 0)) : -1;
   const candidates = allPlacements(path.scene)
     .map((p) => ({ ...p, distanceFeet: placementDistanceFeet(p, path) }))
@@ -457,8 +412,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
 
     for (const row of searchers) {
       if (spotted) break;
-      // Reach is a length where it is stated; where it is not, the front rank
-      // searches the crossed placement and nothing else.
+      // A null reach is the not-imported case: the crossed placement alone.
       const own = reachOf(row);
       if (own === null ? placement.uuid !== include?.uuid : placement.distanceFeet > own) continue;
       const actor = game.actors.get(row.actorId);
@@ -502,8 +456,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
  * The party crosses a trap zone: search, then probe, then walk into it.
  *
  * Called when the party token has moved. Answers null when there is nothing to
- * resolve — no zone, or a zone whose trap is already spotted, disarmed or
- * spent — so a party may walk back and forth over a dealt-with trap freely.
+ * resolve: no zone, or a zone whose trap is already spotted, disarmed or spent.
  *
  * @returns {Promise<{outcome: string, victims?: object[]}|null>}
  */
@@ -513,14 +466,12 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   const { order, rankFeet } = await laidOrder(formation);
   if (!order.length) return null;
 
-  // At combat speed the party loses its pole and its hasty searching together
-  // (RR p. 263) — it is moving too fast for either.
+  // At combat speed the party loses its pole and its hasty searching (RR p. 263).
   const hurried = isHurried(formation);
   const rolls = [];
   const figures = trapFigures();
 
-  /* (a) Anyone searching the ground throws first — against every hidden trap
-     they passed within reach of, not only the one in the way. */
+  /* (a) Anyone searching the ground throws first, against every hidden trap in reach. */
   const search = await sweepForTraps(formation, { from, to, hurried, include: placement });
   rolls.push(...search.rolls);
   const crossedFound = !!placement && search.found.has(placement.uuid);
@@ -542,8 +493,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     return { outcome: "found" };
   }
 
-  // Something OFF the line of march turned up. Reported on its own, because the
-  // party is not standing at it and nothing further resolves.
+  // A trap off the line of march turned up: reported alone, and nothing further resolves.
   if (search.found.size) {
     await whisper(
       renderRollCard({
@@ -639,29 +589,21 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   });
 }
 
-/**
- * Stop the party where it met the trap.
- *
- * A trap wall blocks nothing on its own — the party walks through it as if it
- * were not there, which is what a tripwire does — so the halt is applied here,
- * on detection, rather than by making the wall a barrier. Without it the party
- * would be told about a tripwire three squares after stepping over it.
- *
- * A region has no crossing point and needs no halt: the party is standing in
- * the thing already.
- */
 /** How far short of the line the party pulls up, in pixels. */
 const HALT_CLEARANCE = 4;
 
+/**
+ * Stop the party where it met the trap. A trap wall blocks nothing, so the halt
+ * is applied here on detection; a region has no crossing point and needs none.
+ */
 async function haltParty(formation, haltAt, from = null) {
   if (!haltAt) return;
   const token = getPartyToken(formation);
   if (!token) return;
   const gs = token.parent.grid.size;
 
-  // Stop just SHORT of the line, on the near side. Halting exactly on it looks
-  // like the party is standing in the tripwire, and leaves them somewhere every
-  // subsequent step departs from — which is a trap sprung again on the way out.
+  // Stop just short of the line, on the near side: halting on it would leave
+  // the party somewhere every later step departs from, springing the trap again.
   let { x, y } = haltAt;
   if (from) {
     const dx = haltAt.x - from.x;
@@ -673,14 +615,8 @@ async function haltParty(formation, haltAt, from = null) {
     }
   }
   haltAt = { x, y };
-  // The crossing is where the token's CENTRE met the line; back the top-left
-  // corner out of it, and pull up just short so the party stops ON the near
-  // side rather than straddling it.
-  //
-  // `HALT_OPTION` marks this write as the trap's OWN. Without it the update
-  // re-enters the movement hook, which starts a second trap check against a
-  // trap this one has not finished spending yet — the party takes the damage
-  // twice, gets two cards, and pays dungeon turns for a step it did not walk.
+  // The crossing is where the token's centre met the line; back the top-left
+  // corner out of it. `HALT_OPTION` keeps this write out of the movement hook.
   await token.update(
     { x: Math.round(haltAt.x - (token.width * gs) / 2), y: Math.round(haltAt.y - (token.height * gs) / 2) },
     { animate: false, [HALT_OPTION]: true },
@@ -697,15 +633,12 @@ async function haltParty(formation, haltAt, from = null) {
  * The trap fires. Rolls each victim's save or the trap's attack throw, rolls
  * damage once per victim, and spends the trap.
  *
- * Damage is REPORTED, not applied. A trap's damage lands on a character sheet
- * through the Judge's own hand for the same reason the party's saves do: half
- * on a made save, none if a rider says so, and a Judge who wanted the pit to be
- * a bruise this once. The card carries the number; the sheet is nobody's to
- * write from here.
+ * Damage is reported, not applied: the card carries the number and the Judge
+ * writes it. See docs/formation/DECISIONS.md, "A trap reports its damage; the Judge writes it".
  */
 async function fireTrap(formation, placement, trap, caught, { preface = [], rolls = [], sprungBy = null, notes: extraNotes = [] } = {}) {
   const cfg = trap.system;
-  // What the trap does comes from the row its level selects; how it was BUILT
+  // What the trap does comes from the row its level selects; how it was built
   // (crudely or well) is the same at every level and stays on the trap.
   const tier = cfg.tier;
   const plan = firingPlan({
@@ -724,10 +657,8 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     const actor = game.actors.get(victim.actorId);
     if (!actor) continue;
     const name = actor.name;
-    // Did this victim beat the trap's throw? `null` when it offered none, in
-    // which case the damage lands whole. The damage line below is computed from
-    // this rather than printed beside it — a bolt that missed deals nothing,
-    // and a made save is worth whatever the trap says it is worth.
+    // Did this victim beat the trap's throw? `null` when it offered none, and
+    // the damage then lands whole.
     let beat = null;
 
     if (plan.resolution === RESOLUTIONS.save && plan.saveKey) {
@@ -750,13 +681,13 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
       });
     } else if (plan.resolution === RESOLUTIONS.attack) {
       const ac = Number(actor.system?.ac?.value) || 0;
-      // The ACKS attack throw: 1d20 + modifiers against the throw value plus
-      // the target's AC. A crude trap's penalty is already in `attackModifier`.
+      // 1d20 + modifiers against the throw value plus the target's AC; a crude
+      // trap's penalty is already in `attackModifier`.
       const needed = plan.attackThrow + ac;
       const roll = await new Roll(plan.attackModifier ? `1d20 + ${plan.attackModifier}` : "1d20").evaluate();
       rolls.push(roll);
       const hit = roll.total >= needed;
-      beat = !hit; // beating an attack throw means it MISSED you
+      beat = !hit; // beating an attack throw means it missed
       rows.push({
         name,
         total: roll.total,
@@ -779,8 +710,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
       const dmg = await new Roll(plan.formula).evaluate();
       rolls.push(dmg);
       const { taken, mitigated } = damageTaken(dmg.total, beat, plan.onSuccess);
-      // A trap that dealt nothing to this victim says so, rather than printing
-      // a damage line they are meant to know not to apply.
+      // A trap that dealt nothing to this victim says so.
       rows.push({
         name: loc("damageTo", { name }),
         total: taken,
@@ -792,7 +722,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
     }
   }
 
-  // Spent, and no longer a secret: it went off in front of everybody.
+  // Spent, and no longer a secret.
   await placement.write({ state: STATES.discharged, known: true });
 
   const notes = [loc("sprungNote", { name: sprungBy?.name ?? "" })];
@@ -824,8 +754,8 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
 /* -------------------------------------------- */
 
 /**
- * Thieves' tools. The book gates disabling traps on holding a set, so the
- * pattern is matched against carried gear the same way the pole is.
+ * Thieves' tools: disabling a trap needs a set, matched by name against carried
+ * gear as the pole is.
  */
 export const TOOLS_ITEM_PATTERN = /thie(f|ves)'?s?\s*tools|lock\s*picks?|pick\s*locks?/i;
 
@@ -834,16 +764,12 @@ const carriesTools = (actor) =>
 
 /**
  * Why a character may not work on this trap right now, or null if they may.
- *
- * Every refusal is reported BEFORE anything is rolled, which is the shape the
- * obstacle helper and the door helper both use: a throw nobody is allowed to
- * make should be said, not silently skipped.
+ * Every refusal is reported before anything is rolled.
  */
 export function disarmRefusal(placement, actor, mode) {
   if (!placement) return "noZone";
-  // A hidden feature nobody has found is not a thing anyone can kneel down and
-  // work on, and offering it as a target would announce it. The Judge who has
-  // narrated a discovery some other way marks it spotted first.
+  // An unfound trap cannot be worked on, and offering it would announce it;
+  // the Judge marks a discovery made some other way as spotted first.
   if (!placement.known) return "notFound";
   if (!placement.trapUuid) return "noTrap";
   if (placement.state === STATES.discharged) return "alreadyDischarged";
@@ -862,14 +788,11 @@ export function disarmRefusal(placement, actor, mode) {
 
 /**
  * Work on the trap: one character, one throw, by the column of the table they
- * chose.
- *
- * The outcomes are the book's and they are not symmetrical. A made throw lets
- * the thief choose whether the trap is disarmed (and so re-armable) or
- * deliberately discharged; a plain failure ends a hasty attempt for good at
- * this level but leaves a methodical one open; and the imported botch bands
- * (`isBotch`; none imported, none botch) set the thing off with the thief on
- * top of it (RR ch. 6, Traps and Trapbreaking).
+ * chose. A made throw lets the thief choose whether the trap is disarmed (and
+ * so re-armable) or discharged; a plain failure ends a hasty attempt at this
+ * level but leaves a methodical one open; and the imported botch bands
+ * (`isBotch`; none imported, none botch) set the trap off with the thief on top
+ * of it (RR ch. 6, Traps and Trapbreaking).
  *
  * @param {object} formation
  * @param {Actor} actor the character doing the work
@@ -881,10 +804,8 @@ export function disarmRefusal(placement, actor, mode) {
  * @returns {Promise<{ok: boolean, reason?: string, outcome?: string}>}
  */
 export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true } = {}) {
-  // Which trap is being worked on is ASKED, not guessed. A party halted in a
-  // corridor may be standing at more than one, and the thief who found the
-  // tripwire has no business having their hands moved onto the pressure plate
-  // beside it because that one happened to be nearer.
+  // The target is named, never guessed: a halted party may stand at more than
+  // one trap.
   const target = targetUuid
     ? placementNearByUuid(formation, targetUuid)
     : (knownPlacementsNear(formation)[0] ?? null);
@@ -903,8 +824,8 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   const check = resolveCheck(actor, PARTY_CHECKS[cfgKey]);
   const plan = disarmPlan({ mode, crude, skilled: check.skilled, extra });
 
-  // `resolveCheck` already carries the character's bonuses in its target; the
-  // die adds what is true of the TRAP rather than of the character.
+  // `resolveCheck` carries the character's bonuses in its target; the die adds
+  // what is true of the trap.
   const bonus = check.bonus + (crude ? CRUDE.remove : 0) + (Number(extra) || 0);
   const roll = await new Roll(bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20").evaluate();
   const natural = roll.dice[0]?.results?.[0]?.result ?? roll.total - bonus;
@@ -916,8 +837,7 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
 
   let outcome;
   if (success) {
-    // The thief's own call: a disarmed trap can be re-armed later, a
-    // discharged one is spent. Only they can say which they wanted.
+    // The thief's call: a disarmed trap can be re-armed later, a discharged one is spent.
     const discharge = await askDischarge(actor);
     outcome = discharge ? STATES.discharged : STATES.disarmed;
     await target.write({ state: outcome, known: true });
@@ -956,7 +876,7 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
     [roll],
   );
 
-  // A botch springs it, with the thief on top of it and nobody else near.
+  // A botch springs it on the thief alone.
   if (botched) {
     await fireTrap(
       formation,
@@ -976,9 +896,8 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
 }
 
 /**
- * Disarm, or set it off on purpose? The book gives the choice to whoever made
- * the throw, so it is asked rather than assumed — and it matters, because only
- * a disarmed trap can be re-armed afterwards.
+ * Disarm, or set it off on purpose? The choice is the thrower's, and only a
+ * disarmed trap can be re-armed afterwards.
  */
 async function askDischarge(actor) {
   const chosen = await foundry.applications.api.DialogV2.wait({
@@ -991,14 +910,13 @@ async function askDischarge(actor) {
     ],
     rejectClose: false,
   }).catch(() => null);
-  // Dismissing the question leaves the trap disarmed: it is the safer of the
-  // two and the one a thief who stopped paying attention already achieved.
+  // Dismissing the question leaves the trap disarmed.
   return chosen === true;
 }
 
 /**
- * Set a disarmed trap going again. Only a DISARMED trap can be re-armed — a
- * discharged one has already fired and there is nothing left to re-arm.
+ * Set a disarmed trap going again. Only a disarmed trap can be re-armed; a
+ * discharged one has fired.
  */
 export async function attemptRearm(formation, actor, { targetUuid = "" } = {}) {
   const target = disarmedPlacementAt(formation, targetUuid);
@@ -1019,7 +937,7 @@ export async function attemptRearm(formation, actor, { targetUuid = "" } = {}) {
 
   const roll = await new Roll(check.bonus ? `1d20 + ${check.bonus}` : "1d20").evaluate();
   const success = roll.total >= check.target;
-  // Re-armed by the party's own hand, so they still know exactly where it is.
+  // Re-armed by the party's own hand, so they still know where it is.
   if (success) await target.write({ state: STATES.armed, repeatLock: {}, known: true });
 
   await whisper(
@@ -1052,36 +970,26 @@ export async function attemptRearm(formation, actor, { targetUuid = "" } = {}) {
 /* -------------------------------------------- */
 
 /**
- * Put a trap back the way it was. A discharged trap can be reset by the Judge
- * (the mechanism is rebuilt); a DISARMED one is what a thief may re-arm, which
- * is the throw `attemptRearm` makes. Clears the hasty repeat-lock either way:
- * a rebuilt trap is not the one anybody failed against.
+ * Put a trap back the way it was: armed, unfound, and with both lock ledgers
+ * cleared, since a rebuilt trap is not the one anybody failed against. A
+ * thief's re-arm of a disarmed trap is `attemptRearm`'s throw.
  */
 export async function resetTrap(placement) {
   return placement.write({ state: STATES.armed, repeatLock: {}, searchLock: {}, known: false });
 }
 
 /**
- * The Judge says the party has found it — a discovery made some other way than
- * a Searching throw: a warning from a captive, a map, a description read aloud.
- * The state moves to `found` for the same reason a made throw does.
+ * The Judge says the party has found it, by some way other than a Searching
+ * throw; the state moves to `found` as a made throw would move it.
  */
 export async function markTrapFound(placement) {
   return placement.write({ state: STATES.found, known: true });
 }
 
 /**
- * Set the mechanism, or make it safe — the Judge's hand on the trap itself.
- *
- * Armed and not-armed is the only distinction this makes, because it is the
- * only one the Judge is asserting: an armed trap goes safe, and anything else
- * goes armed. A SPENT trap is a special case and defers to `resetTrap` —
- * re-arming a discharged mechanism means rebuilding it, so the throws anybody
- * failed against the old one do not carry over onto the new one.
- *
- * Deliberately does not touch `known`. What the party has learned is not
- * changed by the Judge's hand on the mechanism, and a trap the party watched
- * being re-armed is still a trap they know about.
+ * Set the mechanism, or make it safe: an armed trap goes safe and anything
+ * else goes armed, except a spent trap, which defers to `resetTrap` (rebuilding
+ * it drops the throws failed against the old one). Never touches `known`.
  */
 export async function toggleArmed(placement) {
   if (placement.state === STATES.armed) return placement.write({ state: STATES.disarmed });
@@ -1090,13 +998,9 @@ export async function toggleArmed(placement) {
 }
 
 /**
- * Show the trap to the party, or take it back out of sight.
- *
- * Writes `known` and nothing else. `markTrapFound` is the other half of this
- * pair and is a different act: it says the party DISCOVERED the trap, and moves
- * the state to `found` accordingly. This one only decides who is looking at the
- * marker, which is why an armed trap revealed this way stays armed — that
- * combination is the one a re-armed trap has always had.
+ * Show the trap to the party, or take it back out of sight. Writes `known` and
+ * nothing else, so a trap revealed this way stays armed; `markTrapFound` is
+ * the different act that also moves the state to `found`.
  */
 export async function toggleKnown(placement) {
   return placement.write({ known: !placement.known });

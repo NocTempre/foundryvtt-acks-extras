@@ -3,26 +3,20 @@
  * The journey's movement engine: what a party token's drag spends while its
  * formation is on a journey, on every kind of scene.
  *
- * A drag is measured in MILES, whatever the grid. One record patch then writes
- * the hex trace (the hex's identity and the map's reading of it, `travel.map`)
- * and the day's spend together; the world clock runs by the hours those miles
- * take; the
- * `acksExtras.hexEntered` hook fires once per cadence unit walked; and each
- * unit owes its encounter throw. The order is fixed: measure → record patch →
- * clock → hooks → throws, so a hook listener and a throw both read a record
- * that already holds the step.
- *
- * While a lost episode is open the drag also walks the truth: the party
- * token is where the party believes it is, and its shadow takes the same
- * steps from where the party really stands (`walkTheTruth`), before the
- * spend, so the throws read the true hex. After the spend, the day's first
- * step off a road makes the day's navigation throw (`throwDayNavigation`).
+ * A drag is measured in miles, whatever the grid. One record patch writes the
+ * hex trace (`travel.map` holds the map's reading) and the day's spend; the
+ * world clock then runs by the hours those miles take, `acksExtras.hexEntered`
+ * fires once per cadence unit walked, and each unit owes its encounter throw,
+ * so a hook listener and a throw both read a record that already holds the
+ * step. While a lost episode is open the drag first walks the truth
+ * (`walkTheTruth`); after the spend, the day's first step off a road makes the
+ * day's navigation throw (`throwDayNavigation`).
  *
  * This file is the one owner of the `acksExtras.hexEntered` and
- * `acksExtras.searchHourSpent` hooks. It sits above `turn-engine.mjs` (the
- * delve's tracker, which a journey never uses), `travel.mjs` (the record),
- * `march.mjs` (the arithmetic) and `combat-bridge.mjs` (a fight that is over,
- * re-formed before any move is spent); nothing below it imports it.
+ * `acksExtras.searchHourSpent` hooks. It sits above `turn-engine.mjs`,
+ * `travel.mjs` (the record), `march.mjs` (the arithmetic) and
+ * `combat-bridge.mjs`; nothing below it imports it. See
+ * docs/formation/MODEL.md for the journey.
  */
 import { TURN_SECONDS } from "./constants.mjs";
 import { isActiveGMSeat } from "../lib/util.mjs";
@@ -62,18 +56,13 @@ const moveQueues = new Map();
 
 /**
  * The party token moved: hand it to the engine its formation's mode uses,
- * one move at a time per formation. A second move that arrives while the
- * first is still spending waits for it, so it measures from the baseline the
- * first wrote and walks the truth from where the first left the shadow;
- * handled at once, both would measure from the same baseline and walk the
- * shadow twice. `to` is where this move put the token (`storedPosition`),
- * read when the move is heard: by the time a queued move's turn comes, a later
- * move has written its own destination over the token's. `primary` is whether
- * this window does the move's GM-side half (the navigation throw, the truth's
- * walk), read when the move is heard too, since the seat's lead can change
- * while a move waits: the caller's seat by default, which the movement hook
- * has already narrowed to the elected window. Resolves with the engine's own
- * answer; a move that throws rejects without holding the next.
+ * one move at a time per formation, so a queued move measures from the
+ * baseline the move before it wrote. `to` is where this move put the token
+ * (`storedPosition`) and `primary` is whether this window does the move's
+ * GM-side half (the navigation throw, the truth's walk); both are read when
+ * the move is heard, since a later move overwrites the token's destination
+ * and the seat's lead can change while a move waits. Resolves with the
+ * engine's own answer; a move that throws rejects without holding the next.
  */
 export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc), { primary = isActiveGMSeat() } = {}) {
   const prior = moveQueues.get(formationId) ?? Promise.resolve();
@@ -87,12 +76,10 @@ export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPositi
 }
 
 /**
- * One move, spent: a journey whose Judge has paused it (`clock.pausedBy ===
+ * One move, spent: a journey the Judge has paused (`clock.pausedBy ===
  * "judge"`) bills nothing and follows the token; any other journey spends
  * miles; every other mode keeps the turn clock. On the primary window a party
- * whose fight is over first reforms where the move put it
- * (`reformIfOver`), in the move's turn, so a second move waiting behind it
- * finds the party already reformed.
+ * whose fight is over first reforms where the move put it (`reformIfOver`).
  */
 async function dispatchPartyTokenMoved(tokenDoc, formationId, to, primary) {
   if (primary) {
@@ -106,8 +93,7 @@ async function dispatchPartyTokenMoved(tokenDoc, formationId, to, primary) {
     await patchFormation(formationId, (record) => {
       record.clock = { ...(record.clock ?? {}), lastPosition: { x: to.x, y: to.y } };
     });
-    // The hex and the reading follow the token too, so what the party stands
-    // on when the pause lifts is what it reads, with nothing billed.
+    // The hex and the reading follow the token, with nothing billed.
     await seatJourneyHex(tokenDoc, formationId, to);
     return null;
   }
@@ -115,12 +101,10 @@ async function dispatchPartyTokenMoved(tokenDoc, formationId, to, primary) {
 }
 
 /**
- * Miles between two token positions on a scene. The grid measures the move in
- * the scene's own units (hex steps times the cell distance on a hex grid, the
- * straight line on a square or gridless one); a grid that cannot, or answers
- * nothing finite, is measured as the straight line in cells. Both ends are the
- * token's top-left corner, so a move is the same distance whatever the token's
- * size.
+ * Miles between two token positions on a scene, measured by the grid in the
+ * scene's own units; a grid that cannot, or answers nothing finite, is
+ * measured as the straight line in cells. Both ends are the token's top-left
+ * corner, so the distance does not depend on the token's size.
  * @param {Scene} scene
  * @param {{x: number, y: number}} from
  * @param {{x: number, y: number}} to
@@ -133,8 +117,7 @@ export function journeyMilesBetween(scene, from, to) {
 /**
  * The drag measured as `journeyMilesBetween` does, with the grid's own count
  * of hex steps beside it: `spaces` is that count, or null where the grid gave
- * none. A measure taken from a token's corner carries a Euclidean remainder in
- * its distance, so the step count is what says how many hexes were crossed.
+ * none. The step count, not the distance, says how many hexes were crossed.
  * @returns {{miles: number, spaces: number|null}}
  */
 export function journeyMeasure(scene, from, to) {
@@ -165,19 +148,14 @@ function cadenceFor(territory, scene) {
 /**
  * A journeying party token moved: measure the drag in miles, read the map
  * under the token (`mapReadingAt`), trace the hex it stands in when the scene
- * is a hex grid, and spend the miles. Off a hex grid there is no hex to trace,
- * and the reading alone is cached. The baseline for the next drag is this
- * position.
+ * is a hex grid (off one, the reading alone is cached), and spend the miles.
+ * This position is the baseline for the next drag.
  *
- * On a hex grid with a lost episode open, the truth walks the drag first
- * (`walkTheTruth`). A drag that spent miles then owes the day's navigation
- * throw when it is the day's first step off a road (`throwDayNavigation`), on
- * the window that runs the automation only (`primary`, read once by the
- * caller), for the day the step BEGAN in: the key is read before the spend
- * moves the clock, so a march that crosses midnight owes the new day's throw
- * at its next step, not at the step that crossed. `begin` is the episode
- * opener a failed throw calls, `beginEpisode`'s shape; `to` is where the move
- * put the token (`storedPosition`).
+ * A drag that spent miles owes the day's navigation throw when it is the day's
+ * first step off a road (`throwDayNavigation`), on the `primary` window only,
+ * for the day the step began in: the key is read before the spend moves the
+ * clock. `begin` is the episode opener a failed throw calls, `beginEpisode`'s
+ * shape; `to` is where the move put the token (`storedPosition`).
  */
 export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = beginEpisode, to = storedPosition(tokenDoc), primary = isActiveGMSeat() } = {}) {
   const scene = tokenDoc?.parent;
@@ -204,11 +182,9 @@ export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = begin
 async function stepOnHexes(scene, tokenDoc, formation, { from, here, point, map, miles, spaces, primary }) {
   const formationId = formation.id;
   const offset = scene.grid.getOffset(point);
-  // Which road, if any, this STEP followed. Only asked when a network exists:
-  // a scene nobody has drawn routes on leaves the map's own reading of the
-  // hex standing rather than declaring every march off-road. A move inside
-  // the hex the party already stands in is no step: the road its last step
-  // walked stays the map's answer, which a read at the token cannot see.
+  // Which road, if any, this step followed. Asked only where routes are drawn;
+  // a move inside the hex the party stands in is no step, so the road its last
+  // step walked stays the answer.
   let road;
   let winding = 1;
   const { hex: prior, map: held } = travelOf(formation);
@@ -229,9 +205,7 @@ async function stepOnHexes(scene, tokenDoc, formation, { from, here, point, map,
  * The hexes a drag walked and where each puts the truth, pure. The believed
  * path is the grid's direct path between the token's centres before and after
  * the drag (`getDirectPath`); each hex on it past the first moves the truth by
- * that hex's own displacement from the first, centre to centre, so the shadow
- * takes the same steps from wherever it stands and the whole drag moves it by
- * the token's displacement snapped to the grid.
+ * that hex's displacement from the first, centre to centre.
  *
  * @param {Scene} scene  a hex scene
  * @param {object} o
@@ -260,10 +234,9 @@ export function astrayPath(scene, { from, to, truth } = {}) {
 /**
  * The drag walks the truth: while a lost episode is open, in either phase,
  * and its shadow stands on the scene the party token walked, each hex the
- * drag entered moves the shadow one step (`astrayPath`) and records the pair,
- * in order, through `walkAstrayPath` — one call for the whole drag, so the
- * players' fog is painted once for every hex it faked. `from` and `to` are
- * the token's top-left corners before and after.
+ * drag entered moves the shadow one step (`astrayPath`) and `walkAstrayPath`
+ * records the pairs in order, in one call for the whole drag. `from` and `to`
+ * are the token's top-left corners before and after.
  *
  * @returns {Promise<number>} how many hexes the truth walked
  */
@@ -281,13 +254,10 @@ export async function walkTheTruth(scene, tokenDoc, formation, { from, to, walk 
 
 /**
  * The day's navigation throw, made at the day's first step off a road: when
- * `navigationOwed` says it is owed for `day` (the key the step began in;
- * today's where none is handed in), the day is claimed inside the ledger's
- * lock (`claimNavigationDay`), so a second step the same day on this client
- * finds it made, and the throw is rolled, recorded and whispered
- * (`postNavigationThrow`). The caller guards the client: the active GM's for
- * a drag, the pressing Judge's for a hex entered by hand. `begin` is the
- * episode opener a failure calls.
+ * `navigationOwed` says it is owed for `day` (today's where none is handed
+ * in), the day is claimed inside the ledger's lock (`claimNavigationDay`) and
+ * the throw is rolled, recorded and whispered (`postNavigationThrow`). The
+ * caller guards the client. `begin` is the episode opener a failure calls.
  *
  * @returns {Promise<object|null>} `postNavigationThrow`'s answer, or null when nothing was owed
  */
@@ -302,9 +272,7 @@ export async function throwDayNavigation(formationId, { begin = beginEpisode, da
 }
 
 /**
- * The stored travel subtree once a step's trace or reading is applied, pure:
- * what the record patch below writes the step from, and what the cadence of
- * the walk is read from before it.
+ * The stored travel subtree once a step's trace or reading is applied, pure.
  */
 function steppedTravel(t, { trace = null, reading = null } = {}) {
   if (trace) return traceStep(t, trace);
@@ -319,12 +287,10 @@ function steppedTravel(t, { trace = null, reading = null } = {}) {
  * One record patch applies the hex trace (or, off a hex grid, the map's
  * `reading` alone; or, for `hex`, a named hex counted as one crossing) and the
  * miles together, and re-anchors the movement baseline when an `anchor` is
- * given. The hours come from the party's speed on the current ground (a camp
- * day is priced at the march pace, so its travel slots can be walked); a speed
+ * given. The hours come from the party's speed on the current ground; a speed
  * the readout cannot price moves no clock. The cadence is the territory's the
- * step arrives in — the country the throws it owes are thrown in, which is the
- * party's true position's while a lost episode is open (`trueTravelOf`) — and
- * the cadence units the walk earned (`cadenceOf`) each fire
+ * step arrives in, the party's true position's while a lost episode is open
+ * (`trueTravelOf`); the cadence units the walk earned (`cadenceOf`) each fire
  * `acksExtras.hexEntered` and then owe their encounter throw.
  *
  * The encounter zones under the party's true position (`journeyZones`) can
@@ -332,8 +298,7 @@ function steppedTravel(t, { trace = null, reading = null } = {}) {
  * `periods` the units still fire the hook, with `throwOwed: false`, and throw
  * nothing; under `entry`, crossing into the zone that states it throws once,
  * after the hooks. A crossing is read against `clock.zoneIds`, the regions
- * the party stood in after its last spend, which the same record patch
- * rewrites.
+ * the party stood in after its last spend, which the same patch rewrites.
  *
  * @param {string} formationId
  * @param {number} miles
@@ -373,10 +338,9 @@ export async function spendJourneyMiles(formationId, miles, { scene = null, trac
     let travel = t;
     if (trace) {
       ({ travel, crossed } = steppedTravel(t, { trace }));
-      // The trace records one change of hex; a drag spans whole cells. The
-      // grid's own count of hex steps is the crossings, and the miles in cells
-      // stand in where none was measured. The day's tally and the cadence both
-      // count every hex the party passed through.
+      // The trace records one change of hex but a drag spans whole cells: the
+      // grid's count of hex steps is the crossings, the miles in cells where
+      // none was measured.
       const cell = scene ? sceneMilesPerCell(scene) : 0;
       const spanned = crossings != null && Number.isFinite(Number(crossings))
         ? Math.max(0, Math.floor(Number(crossings)))
@@ -427,12 +391,11 @@ export async function spendJourneyMiles(formationId, miles, { scene = null, trac
 }
 
 /**
- * The Judge's override: the party crosses into the next hex without a drag (a
- * journey with no map, or a click in place of a walk). Spends one cadence
- * unit's miles — none when no cadence is known — against the party's scene if
- * it has one, and names the hex `label`. It is a step like a drag's, so it
- * owes the day's navigation throw the same way (`throwDayNavigation`, for the
- * day the step began in), on the pressing Judge's client.
+ * The Judge's override: the party crosses into the next hex without a drag.
+ * Spends one cadence unit's miles (none when no cadence is known) against the
+ * party's scene if it has one, and names the hex `label`. It owes the day's
+ * navigation throw as a drag does (`throwDayNavigation`), on the pressing
+ * Judge's client.
  */
 export async function nextHex(formationId, label, { begin = beginEpisode } = {}) {
   const formation = getFormation(formationId);
@@ -482,8 +445,7 @@ export async function advanceJourneyClock(formationId, seconds) {
 /**
  * An hour of the day spent searching: it marks the first unresolved search
  * slot done and runs the clock an hour. The day's `hours` are the march's
- * alone — they are what the budget is measured against, and a slot spent
- * looking is an hour the budget never held — so this leaves them standing.
+ * alone, and this leaves them standing.
  * @returns {Promise<{seconds: number, notes: object[]}>}
  */
 export function spendSearchHour(formationId) {

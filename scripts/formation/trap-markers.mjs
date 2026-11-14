@@ -5,39 +5,23 @@ import { wallTrap } from "./trap-walls.mjs";
 
 /**
  * What a Judge can see of a trap, what the party has earned the right to, and
- * the two gestures that change either one.
+ * the two gestures that change either one; the model is in docs/formation/MODEL.md, "Traps".
  *
- * **Seeing it.** Modelled on the secret door, which is the closest thing the
- * system already has, and it has two stages. **Hidden:** while a trap is armed
- * and unfound a player is shown nothing at all — no icon, no wall, no hint that
- * the square is different — and only the Judge sees a marker. **Known:** once
- * the party has found the thing, sprung it, or disarmed it, the marker is
- * theirs too, and it says which state it is in — armed, spotted, disarmed,
- * spent — the same way a discovered secret door goes on to show whether it is
- * open or shut.
+ * **Seeing it.** Two stages. While a trap is armed and unfound a player is
+ * shown nothing and only the Judge sees a marker; once the party has found,
+ * sprung or disarmed it, the marker is theirs too and says which state it is
+ * in (armed, spotted, disarmed, spent). The stage is `known`, not the state,
+ * so re-arming a trap does not make the party forget it. A player's marker is
+ * what the Trapbreaking dialog points at.
  *
- * The stage is `known`, not the state. A trap the thief disarmed and re-armed
- * reads `armed` again and is perfectly well known; a trap the Judge rebuilt
- * reads `armed` and is a fresh secret. Reading the stage off the state would
- * make the party forget a trap by re-arming it.
+ * **Working it.** For a Judge the marker is also the trap's control, with
+ * core's door gestures: **left** sets the mechanism or makes it safe,
+ * **right** decides whether the party can see it. Both are the Judge's hand,
+ * never a throw.
  *
- * A player's marker is the thing the Trapbreaking dialog points at, which is
- * why the two stages exist at all: a target you cannot see is a target you
- * cannot choose.
- *
- * **Working it.** For a Judge the marker is also the trap's CONTROL, and it
- * takes core's door gestures because a trap sits on a wall and a door is the
- * gesture already learned there: **left** sets the mechanism or makes it safe,
- * **right** decides whether the party can see it. Both are the Judge's hand
- * moving directly, never a throw — a throw is Trapbreaking and has its own
- * dialog.
- *
- * Drawn into the controls layer rather than onto the walls: a trap wall is
- * non-blocking and often lies on top of an ordinary wall or a door, so the
- * marker has to be visible when the Walls layer is not the active one.
- *
- * The gate is at the point of DRAWING, not a hide applied after the fact.
- * Nothing about an unfound trap reaches a player's client through this file.
+ * Drawn into the controls layer, so the marker shows when the Walls layer is
+ * not active. The gate is at the point of drawing: nothing about an unfound
+ * trap reaches a player's client through this file.
  */
 
 /** The glyph and colour each state is drawn in. */
@@ -51,12 +35,8 @@ const MARKS = Object.freeze({
 /**
  * The scene controls under which a Judge is editing traps.
  *
- * Marker clicks are live only here, which is the whole reason they are safe to
- * add: every other placeable in Foundry answers the mouse only on its own
- * layer, and a trap that answered it everywhere would disarm itself under a
- * mis-aimed token drag. Both controls are listed because a trap is laid on
- * either half — a wall, or a region — and the Judge is on the matching control
- * when they are working on one.
+ * Marker clicks are live only here, so a mis-aimed token drag cannot spring
+ * one. A trap is laid on a wall or a region, so both controls are listed.
  */
 const EDIT_CONTROLS = Object.freeze(["walls", "regions"]);
 
@@ -70,8 +50,8 @@ let label = null;
 function markerLayer() {
   if (layer && !layer.destroyed) return layer;
   layer = new PIXI.Container();
-  // `passive`, not `none`: the container itself must never swallow a click
-  // meant for the map, while the controls inside it still have to hear one.
+  // `passive`, not `none`: the container never swallows a click meant for the
+  // map, while the controls inside it still hear one.
   layer.eventMode = "passive";
   canvas.controls.addChild(layer);
   return layer;
@@ -84,14 +64,9 @@ function markerLayer() {
 /**
  * Build one trap's marker — and, for a Judge in trap-editing mode, its control.
  *
- * A factory rather than a `PIXI.Container` subclass: this file is imported by
- * the offline suite, where PIXI does not exist, and a class extending it would
- * be evaluated at load. Everything the gestures need is closed over instead.
- *
- * The DOCUMENTS are what is captured, never a placement. A marker outlives
- * several changes to the trap beneath it, and a state read at draw time is a
- * state that can be acted on after it has moved on — so a gesture reads the
- * document again before it writes.
+ * A factory, not a `PIXI.Container` subclass, since the offline suite imports
+ * this file where PIXI does not exist. The documents are captured, never a
+ * placement: a gesture reads the document again before it writes.
  *
  * @param {object} mark the marker's state, position and what it stands for
  * @param {boolean} interactive may this client work the trap from here?
@@ -110,9 +85,8 @@ function makeTrapControl(mark, interactive) {
   bg.beginFill(0x000000, 1).drawRoundedRect(-box / 2, -box / 2, box, box, box * 0.2).endFill();
   bg.alpha = 0;
 
-  // A ring says the PARTY can see this one. Drawn for the Judge only: every
-  // marker a player is shown is known by definition, so a ring there would
-  // mark the only kind of trap they ever get.
+  // A ring says the party can see this one; for the Judge only, since every
+  // marker a player is shown is known.
   if (known && game.user?.isGM) {
     control.addChild(new PIXI.Graphics())
       .lineStyle(Math.max(1.5, size * 0.07), glyphMark.color, 0.9)
@@ -155,14 +129,11 @@ function makeTrapControl(mark, interactive) {
   }
 
   /**
-   * The placement this marker stands for, read fresh — or null once the
-   * document behind it is gone. A marker survives a hook or two past a deleted
-   * wall, and a gesture landing in that window must do nothing rather than
-   * write to a corpse.
-   *
-   * `trap-zone.mjs` declares a RegionBehaviorType subclass as it loads, so it
-   * cannot be imported where Foundry is absent — and this file is. Taken at the
-   * point of use, where the world exists and the module is already resolved.
+   * The placement this marker stands for, read fresh, or null once the
+   * document behind it is gone: a marker survives a hook or two past a deleted
+   * wall. `trap-zone.mjs` declares a RegionBehaviorType subclass as it loads,
+   * so it is imported at the point of use, not where this file is loaded
+   * offline.
    */
   const placement = async () => {
     const { wallPlacement, zonePlacement } = await import("./trap-zone.mjs");
@@ -231,11 +202,7 @@ function makeTrapControl(mark, interactive) {
 
 /**
  * Name the trap, its state and who can see it, above the marker under the
- * cursor.
- *
- * One shared text object rather than one per marker: a scene can hold a dozen
- * traps and only ever one is hovered, and a marker is redrawn wholesale on
- * every change.
+ * cursor, with one shared text object since only one marker is hovered.
  */
 function showLabel(control) {
   const container = markerLayer();
@@ -269,19 +236,15 @@ function hideLabel() {
 /* -------------------------------------------- */
 
 /**
- * Redraw every trap marker on the current scene.
- *
- * Cheap enough to run wholesale on any change: a scene holds a handful of
- * traps, and rebuilding is the only way to be certain a marker for a deleted
- * wall does not survive its wall.
+ * Redraw every trap marker on the current scene, wholesale, so a marker for a
+ * deleted wall cannot survive its wall.
  */
 export function refreshTrapMarkers() {
   if (!canvas?.ready) return;
   const container = markerLayer();
   container.removeChildren().forEach((child) => child.destroy({ children: true }));
   label = null;
-  // The gate, applied once: a Judge sees every trap, everyone else sees only
-  // the ones the party has found.
+  // The gate: a Judge sees every trap, everyone else only the found ones.
   const gm = game.user.isGM;
   const interactive = canWorkTraps();
   container.interactiveChildren = interactive;
@@ -321,22 +284,13 @@ export function refreshTrapMarkers() {
 }
 
 /**
- * Nudge markers that land on the same spot into a row.
- *
- * A trap on a door already shares its midpoint with core's own door control,
- * and two traps can share a midpoint with each other — a wall trapped along a
- * region's edge, or two segments drawn over one another. Stacked glyphs read as
- * one, so the Judge sees a single trap where there are two and cannot tell
- * which state belongs to which.
- *
- * Laid out left to right around the shared point, so the row stays centred on
- * the thing it marks rather than drifting off it.
+ * Nudge markers that land on the same spot into a row, left to right and
+ * centred on the shared point, so stacked glyphs do not read as one trap.
  */
 export function spread(marks, gap = 18) {
   const buckets = new Map();
   for (const mark of marks) {
-    // Quantised to the gap so "near enough to overlap" groups, not just exact
-    // ties — two wall midpoints a pixel apart still collide visually.
+    // Quantised to the gap, so near-overlapping midpoints group, not just exact ties.
     const key = `${Math.round(mark.x / gap)}:${Math.round(mark.y / gap)}`;
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(mark);
@@ -350,11 +304,8 @@ export function spread(marks, gap = 18) {
 }
 
 /**
- * The middle of a region's first solid shape.
- *
- * The average of a polygon's vertices rather than its true centroid: for the
- * rectangles and rough loops a Judge draws round a trap the two are close
- * enough, and this one cannot divide by a zero area.
+ * The middle of a region's first solid shape; a polygon's is the average of
+ * its vertices, which cannot divide by a zero area.
  */
 function regionCentre(region) {
   const shape = (region.shapes ?? []).find((s) => !s.hole);
@@ -392,8 +343,8 @@ export function installTrapMarkers() {
     }
   };
   Hooks.on("canvasReady", redraw);
-  // Switching scene control puts the Judge into or out of trap-editing mode,
-  // which is what decides whether the markers answer the mouse at all.
+  // Switching scene control enters or leaves trap-editing mode, which decides
+  // whether the markers answer the mouse.
   Hooks.on("renderSceneControls", redraw);
   for (const hook of [
     "createWall",
