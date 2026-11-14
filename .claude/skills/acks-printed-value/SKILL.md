@@ -64,12 +64,15 @@ the `take` kinds.
 2. **A Judge can edit it.** A registry table has this already: the Ruledata
    Browser's override layer (`scripts/location/ruledata-browser.mjs`). A value
    outside the registry needs the feature's own form.
-3. **Nothing imported, nothing shown.** The surface says "not imported" (a
-   lang key) and shows no figure in its place. The consumer answers null, and
-   so does every figure derived from it; nothing falls back to the old
-   literal, and no zero stands in for a missing price.
+3. **Nothing imported, nothing shown.** The field stays blank: no figure, no
+   "not imported" text, and no toast, warning or refusal written only to say
+   the value is missing. The consumer answers null, and so does every figure
+   derived from it; nothing falls back to the old literal, and no zero stands
+   in for a missing price. Without the value the feature only has to fail
+   without breaking: nothing throws and no wrong figure is written.
 4. **Its tooltip says where it came from** (`ui-tooltips.md`), in one of three
-   states: the page `citeOf` names, the Judge's override, or not imported.
+   states: the page `citeOf` names, the Judge's override, or, with nothing
+   imported, the page reference alone.
 5. **Every copy is gone**: each literal, its sample row, each label and
    comment that restated it. The page reference stays (doctrine, "What a
    citation does not do"). Removing an exported constant is an API change: the
@@ -89,7 +92,8 @@ the `take` kinds.
    - `npm run validate` stays green, `validate-producers.mjs` included.
 7. **Live** (`live-testing.md`), on a GM seat with the book connected: the
    import reads the figure and the consumer acts on it; with the table absent
-   the surface says not imported; an override set in the Ruledata Browser
+   the field is blank, its tooltip names the page, and nothing throws; an
+   override set in the Ruledata Browser
    wins and reverts. The walk goes into the feature's `TESTING.md`.
 8. **Docs** (`docs-doctrine.md`): the feature's `MODEL.md` says what it reads,
    from which page, and what it does without it; `docs/importer/MODEL.md`
@@ -100,7 +104,7 @@ the `take` kinds.
 ## When it cannot be done as written
 
 - **The page prints no figure for a case the code covered.** That case
-  answers null and the surface says so; the gap is reported, never filled
+  answers null and its field stays blank; the gap is reported, never filled
   with a default.
 - **No page prints the number at all.** Whether it is structural or printed
   is a doctrine call, and it goes to the owner with the search that was made.
@@ -110,6 +114,5 @@ the `take` kinds.
   put with what the base is and where it is printed.
 - **The read cannot be made reliable on this machine's printing.** Both
   ways out cost something: the doctrine forbids leaving the literal on a
-  ledger row, and pulling it leaves a working surface saying not imported
-  until a Judge fills the declared table's placeholder by hand. That is the
+  ledger row, and pulling it leaves a blank field until a Judge fills the declared table's placeholder by hand. That is the
   owner's call; take it to them with what the attempt found.

@@ -23,8 +23,10 @@ already in acks-extras:
   form.
 - **Set by a hand or an effect**: which, and the figure it stands in for
   (the character sheet's `is-overridden` mark, `stats.effectiveTip`).
-- **With nothing behind it**: that it is not imported, and no number in its
-  place.
+- **With nothing behind it**: the page reference alone, on a field left
+  blank. No number in its place, and no words saying it was not imported.
+  `citeOf` answers null here by design, since nothing was read; the
+  reference is the citation the module ships in the field's lang string.
 
 The names of the parts and how they combine are the procedure, and ship; the
 numbers interpolate from the world at render. A tooltip is held to
@@ -39,16 +41,16 @@ the book hovers the figure, opens the page it names, and finds there the
 parts it lists. When it cannot be written that way the figure is suspect, and
 that is the result to report, not a gap to word around:
 
-- no page to point at — `citeOf` null where a table should have been
-  imported;
+- no page to point at — `citeOf` null on a table the world did import, or
+  a field the module ships no citation for;
 - a part the cited page does not print, or a page that prints none of them;
 - parts that do not produce the figure beside them;
 - a figure that reaches the screen from a constant in source instead of a
   table or the actor — the value rule's case in `ip-doctrine.md`.
 
 Register each on the bug-intake ledger (`acks-bug-triage`, source
-`tooltip:<YYYY-MM-DD>`) and write the tooltip with what is true: "not
-imported", or the parts that do exist. **Never make a tooltip match by
+`tooltip:<YYYY-MM-DD>`) and write the tooltip with what is true: the page
+reference alone, or the parts that do exist. **Never make a tooltip match by
 bringing the page's words to it.** The match is the reader's, made with the
 book open. A tooltip that paraphrases the page until the two agree is the
 leak the doctrine exists to stop, and it hides the discrepancy the tooltip

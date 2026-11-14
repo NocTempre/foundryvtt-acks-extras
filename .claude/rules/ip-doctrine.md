@@ -56,8 +56,11 @@ A radius, a rate, a modifier size or a ladder rung already shipping in source
 is not left on a ledger row for a later program. The work that finds it moves
 it, in three parts: the importer reads the value from the Judge's own copy;
 the world exposes it where a Judge can edit it (the registry's override
-layer, or the feature's own form); and with nothing imported, the surface
-says "not imported" and shows no figure in its place. Where the file is
+layer, or the feature's own form); and with nothing imported, the field
+stays blank. No figure stands in its place and no words say it is missing:
+its tooltip carries the page reference, the clue to where the figure is
+printed. Without the value the feature only has to fail without breaking:
+nothing throws and no wrong figure is written. Where the file is
 another session's in-flight work, the finding goes to that session instead
 of into its lines. The procedure is the `acks-printed-value` skill.
 
