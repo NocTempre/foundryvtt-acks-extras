@@ -148,6 +148,17 @@ export default class MonsterExtras extends foundry.abstract.DataModel {
           label: str(),
           cite: str(),
         }),
+        // Figures an import's picture read left unread (importer/unread-figures.mjs):
+        // the actor path, the value the actor held there when created, and the
+        // page reference. The sheet draws such a figure blank while the actor
+        // still holds that value (monsters/unread-figures.mjs).
+        unread: new ArrayField(
+          new SchemaField({
+            path: str(),
+            held: new fields.AnyField({ required: false, nullable: true, initial: null, serializable: true }),
+            cite: str(),
+          }),
+        ),
       }),
 
       // --- The troop kit a template generated the creature in

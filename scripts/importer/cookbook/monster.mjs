@@ -7,7 +7,7 @@ import { bookText, entryText, escapeText, nodeParagraphs } from "../prose.mjs";
 import { REPAIR, REFILL_STAT_PATHS, repairWrite, asMinted } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
 import { BOOKS } from "../books.mjs";
-import { executeEntry, attackModel, convertName, frequencyOf, frequencyTextOf } from "../executor.mjs";
+import { executeEntry, attackModel, convertName, frequencyOf, frequencyTextOf, stemNw } from "../executor.mjs";
 import { slugLabel } from "../table-extract.mjs";
 import { savesForLevel, parseHitDice } from "../stats.mjs";
 import { namesakeAbility } from "../stats-map.mjs";
@@ -1424,13 +1424,44 @@ export function bindNpc(node) {
   };
   const mv = /(\d+)/.exec(String(sl.mv ?? ""));
   if (mv) system.movement = { base: parseInt(mv[1], 10) };
+  // A figure the read left unread (`sl.unread`, paths into the parse) is gone
+  // from the line, and nothing is worked out from it in its place: no save
+  // row from a class level, no hit dice from a level, no hit points from dice.
+  const unread = sl.unread ?? [];
+  const gone = (p) => unread.some((u) => u === p || u.startsWith(`${p}.`) || p.startsWith(`${u}.`));
+  if (gone("save")) delete system.saves;
+  if (gone("hd") && system.hp) delete system.hp.hd;
+  // Hit dice with no hit points printed give the average of the dice, by `bindStatsScalars`' rule.
+  if (!system.hp && sl.hd && !gone("hp") && !gone("hd")) {
+    const fromHd = bindStatsScalars({ hitDice: sl.hd }).system.hp;
+    if (fromHd) system.hp = fromHd;
+  }
+  // Read hit dice beside unread hit points still give the dice, and no hit points.
+  if (!system.hp && sl.hd && gone("hp") && !gone("hd")) {
+    const hd = bindStatsScalars({ hitDice: sl.hd }).system.hp?.hd;
+    if (hd) system.hp = { hd };
+  }
   if (sl.atk?.throw != null) system.attack = { throw: sl.atk.throw };
   if (sl.atk) system.attacks = [sl.atk.count, sl.atk.text ? `(${sl.atk.text})` : "", sl.dmg ? `— ${sl.dmg}` : ""].filter(Boolean).join(" ");
   // A "by weapon ±N" damage is the creature's modifier, as `bindMonster` takes it.
   const lift = splitWeaponModifier(sl.dmg);
   if (lift?.mod) system.damage = damageTotal(lift.mod);
   const items = [];
-  if (sl.atk?.text) {
+  // An unread attack throw binds no throw, and the attack's text, which prints it, goes with it.
+  if (gone("atk")) {
+    delete system.attack;
+    delete system.attacks;
+  }
+  // A line read routine by routine mints one weapon a routine, typed by its own damage word.
+  // A routine whose throw differs from the first's carries the difference as its attack
+  // bonus, which core adds to the roll against the creature's one throw.
+  if (sl.atks?.length) {
+    for (const r of sl.atks) {
+      const weapon = weaponPayload(capitalize(r.text || "Attack"), r.dmg ?? "", { naturalWeapon: stemNw(r.text), damageType: r.dmgType ?? null });
+      if (!gone("atk") && Number.isInteger(sl.atk?.throw) && Number.isInteger(r.throw)) weapon.system.bonus.attack = sl.atk.throw - r.throw;
+      items.push(weapon);
+    }
+  } else if (sl.atk?.text) {
     items.push({
       name: capitalize(sl.atk.text),
       type: "weapon",

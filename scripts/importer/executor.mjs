@@ -15,6 +15,7 @@
 import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
+import { scenarioRoutines } from "./statline-attacks.mjs";
 import { levelFraction } from "../lib/vocab.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
@@ -1459,10 +1460,21 @@ function applyPattern(raw, instr, registers, misses) {
  *
  * A repertoire runs on over the semicolons that close its spell levels: every
  * segment after it that opens with an ordinal ("3rd-…") joins `repertoire`.
+ *
+ * A line that prints each routine's throw and damage inside the `#AT`
+ * parenthesis also reads `atks`, one `{text, throw, dmg, dmgType?, rider?,
+ * count?}` per routine (`scenarioRoutines`), with `atk.throw` the first
+ * routine's; a line that keeps its damage under `Dmg` reads no `atks`. A
+ * morale dash reads as "N/A", "Wil" scores as `wis`, and `MV` and `hp` may
+ * carry a colon.
  */
 export function parseStatline(text) {
   const out = { text };
   const segments = text.replace(/−/g, "-").split(/;/).map((s) => s.trim()).filter(Boolean);
+  // A routine parenthesis the printer split off "#AT <n>" with a semicolon rejoins it.
+  for (let i = segments.length - 2; i >= 0; i--) {
+    if (/#AT\s*[^\s,;(]+$/i.test(segments[i]) && segments[i + 1].startsWith("(")) segments.splice(i, 2, `${segments[i]} ${segments[i + 1]}`);
+  }
   const rest = [];
   let inRepertoire = false;
   for (const seg of segments) {
@@ -1484,10 +1496,10 @@ export function parseStatline(text) {
       } else out.spells = ((out.spells ? out.spells + "; " : "") + `${labeled[1]}: ${body}`).trim();
       continue;
     }
-    // Ability-score segment: pairs like "Str 13, Int 18, ..." (any subset).
-    if (/^(Str|Int|Wis|Dex|Con|Cha)\b/i.test(seg) && !/\bhp\b|#AT|\bAC\b/i.test(seg)) {
-      for (const m of seg.matchAll(/\b(Str|Int|Wis|Dex|Con|Cha)\s+(\d+)/gi)) {
-        (out.abilities ??= {})[m[1].toLowerCase()] = parseInt(m[2], 10);
+    // Ability-score segment: pairs like "Str 13, Int 18, ..." (any subset); Wil is the sheet's wis.
+    if (/^(Str|Int|Wis|Wil|Dex|Con|Cha)\b/i.test(seg) && !/\bhp\b|#AT|\bAC\b/i.test(seg)) {
+      for (const m of seg.matchAll(/\b(Str|Int|Wis|Wil|Dex|Con|Cha)\s+(\d+)/gi)) {
+        (out.abilities ??= {})[m[1].toLowerCase() === "wil" ? "wis" : m[1].toLowerCase()] = parseInt(m[2], 10);
       }
       continue;
     }
@@ -1497,10 +1509,17 @@ export function parseStatline(text) {
       out.mv = bareMv[1].trim();
       continue;
     }
-    // Core stat clause: identified by hp/#AT/AC keywords, read by key.
-    if (/\bhp\s*\d|#AT|\bAC\s*-?\d/i.test(seg)) {
+    // Core stat clause: identified by hp/#AT/AC keywords, read by key. A
+    // segment of nothing but save, morale, alignment and experience clauses
+    // (at least one not experience) is one too. A key may carry a colon.
+    const statTail = /^(?:SV|Save|ML|AL|XP)\s/.test(seg) && /\b(?:SV|Save|ML|AL)\s/.test(seg) && seg.split(/,\s*/).every((c) => /^(?:SV|Save|ML|AL|XP)\s+\S+$/.test(c));
+    if (/\bhp\s*:?\s*\d|#AT|\bAC\s*-?\d/i.test(seg) || statTail) {
       const grab = (re) => re.exec(seg)?.slice(1);
-      const mv = grab(/\bMV\s*([^,;]+?)(?=,|$)/i);
+      // Capitalised scores that run on into the clause with no semicolon read as scores.
+      if (/^(STR|INT|WIL|DEX|CON|CHA)\s+\d/.test(seg)) {
+        for (const m of seg.matchAll(/\b(STR|INT|WIL|DEX|CON|CHA)\s+(\d+)/g)) (out.abilities ??= {})[m[1] === "WIL" ? "wis" : m[1].toLowerCase()] = parseInt(m[2], 10);
+      }
+      const mv = grab(/\bMV\s*:?\s*([^,;]+?)(?=,|$)/i);
       if (mv) out.mv = mv[0].trim();
       const ac = grab(/\bAC\s*(-?\d+)\s*(?:\(([^)]*)\))?/i);
       if (ac) {
@@ -1509,7 +1528,7 @@ export function parseStatline(text) {
       }
       const hd = grab(/\bHD\s*((?:\d+|½)(?:[+-]\d+)?\**)/i);
       if (hd) out.hd = hd[0].trim();
-      const hp = grab(/\bhp\s*(\d+(?:\s*,\s*\d+)*)\s*(each)?\s*(?:\(([^)]*)\))?/i);
+      const hp = grab(/\bhp\s*:?\s*(\d+(?:\s*,\s*\d+)*)\s*(each)?\s*(?:\(([^)]*)\))?/i);
       if (hp) {
         const list = hp[0].split(/\s*,\s*/).map((n) => parseInt(n, 10));
         out.hp = list[0];
@@ -1524,13 +1543,24 @@ export function parseStatline(text) {
         if (weapon) out.atk.text = weapon.trim();
         if (at[2]) out.atk.throw = parseInt(at[2], 10);
       }
+      // A parenthesis printing each routine's throw and damage (alternatives may
+      // stand in parentheses of their own, joined by "or") reads routine by
+      // routine; `atk` keeps the printed text and takes the first routine's throw.
+      const chain = /#AT\s*([^,;(]+?)\s*((?:\([^()]*\)\s*(?:or\s*(?=\())?)+)/i.exec(seg);
+      const printed = chain?.[2].trim().replace(/^\(|\)$/g, "").replace(/\)\s*or\s*\(/g, " or ");
+      const routines = printed ? scenarioRoutines(printed, DAMAGE_WORDS) : null;
+      if (routines) {
+        out.atk = { count: chain[1].trim(), text: printed, throw: routines[0].throw };
+        out.atks = routines;
+      }
       const dmg = grab(/\bDmg\s*(.+?)(?=,\s*(?:Save|SV)\b|;|$)/i) ?? grab(/(?:^|,\s*)D\s+(.+?)(?=,\s*(?:Save|SV)\b|;|$)/);
       if (dmg) out.dmg = dmg[0].trim();
       const sv = grab(/\b(?:Save|SV)\s*([A-Z]+)\s*(\d+)?\s*(?:\(([^)]*)\))?/);
       if (sv) {
         out.save = { class: sv[0], ...(sv[1] ? { level: parseInt(sv[1], 10) } : {}), ...(sv[2] ? { note: sv[2].trim() } : {}) };
       }
-      const ml = grab(/\bML\s*([+-]?\d+|N\s*\/?\s*A)/i);
+      // A morale dash, printed where no figure applies, reads as "N/A".
+      const ml = grab(/\bML\s*([+-]?\d+|N\s*\/?\s*A|[-–—](?=\s*(?:,|$)))/i);
       if (ml) out.ml = /\d/.test(ml[0]) ? parseInt(ml[0], 10) : "N/A";
       const al = grab(/\bAL\s*([A-Z])\b/);
       if (al) out.al = al[0];

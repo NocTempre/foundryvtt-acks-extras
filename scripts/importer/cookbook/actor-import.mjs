@@ -10,6 +10,7 @@ import { BOOKS } from "../books.mjs";
 import { executeEntry, convertName } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { stableDocId } from "../adventure-binding.mjs";
+import { unreadRecord, unreadOfStatline } from "../unread-figures.mjs";
 import { sheetValuesFromStatline, asPrintedBlock, classBehindQualifier } from "../character-binding.mjs";
 import { slug } from "../../lib/vocab.mjs";
 import { lineOfData, data, ctx, cookbookEntry, bookOf, characterEntry } from "./state.mjs";
@@ -213,6 +214,11 @@ async function importAdventureActor(bookId, id, folderId) {
       },
     },
   });
+  // The value an unread figure holds is core's own at creation, so it is read back from the created actor;
+  // a repair keeps the values an earlier import listed, and clears a list the row no longer needs.
+  const earlier = actor?.flags?.[MODULE_ID]?.extras?.derived?.unread ?? [];
+  const unread = actor && kind === "kind.npc" ? unreadRecord(unreadOfStatline(sl), (path) => foundry.utils.getProperty(actor, path), found.entry.cite, earlier) : [];
+  if (unread.length || earlier.length) await actor.update({ [`flags.${MODULE_ID}.extras.derived.unread`]: unread });
   await adventureActorArt(actor, session, id, found, node);
   return actor;
 }

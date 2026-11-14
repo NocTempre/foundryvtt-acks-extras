@@ -41,6 +41,7 @@ import { FLAG_RECORD } from "../henchmen/constants.mjs";
 import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
 import { getManager } from "../henchmen/acks-adapter.mjs";
+import { blankedFigures, blankUnreadRows } from "./unread-figures.mjs";
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const loc = makeLoc("ACKS-MONSTERS");
@@ -345,6 +346,8 @@ export function createFullMonsterSheet(Base) {
       // The frame: the snapshot, the Statblock, the band, the rails, the pins.
       const snap = this.#snapshot(extras, context, saveKeys);
       const statblock = statblockColumns(snap, loc);
+      // A figure the import's picture read left unread draws blank while the actor still holds core's value.
+      blankUnreadRows(statblock.columns, blankedFigures(extras.derived?.unread, (p) => foundry.utils.getProperty(actor, p)), saveKeys);
       this.#columns = statblock.columns;
       const tabs = this.#frameTabs(context);
 
