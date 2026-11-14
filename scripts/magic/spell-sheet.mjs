@@ -100,6 +100,8 @@ function knownTraditions() {
 }
 
 /**
+ * The ACKS Spell sheet class, subclassing `Base`; built at ready, once the
+ * system's sheet is registered.
  * @param {typeof foundry.applications.api.ApplicationV2} Base the system's spell sheet class
  */
 export function createSpellSheet(Base) {

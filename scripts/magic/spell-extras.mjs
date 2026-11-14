@@ -1,14 +1,13 @@
 /* global foundry */
 /**
  * SpellExtras — the spell primitive the core ACKS `spell` item does not
- * carry. Stored at `item.flags["acks-extras"].spell` (NOT a document
- * sub-type: every consumer keys on `type === "spell"`, and core's packs, the
- * community compendia and hand-made spells are all spell Items). Core keeps
- * owning name, description, `lvl`, `class`, `range`, `duration`, `save`,
- * `roll` and the cast counter; this adds the structured stat line — which
- * lists at which levels, the type, the shapes a range and a duration take,
- * casting time, components, target, save — the reversal pair, and the
- * executable effect rows in the shared vocabulary.
+ * carry. Stored at `item.flags["acks-extras"].spell`, not as a document
+ * sub-type (docs/magic/DECISIONS.md, "The spell primitive is a flag on core's
+ * spell Item"). Core keeps owning name, description, `lvl`, `class`, `range`,
+ * `duration`, `save`, `roll` and the cast counter; this adds the structured
+ * stat line — which lists at which levels, the type, the shapes a range and a
+ * duration take, casting time, components, target, save — the reversal pair,
+ * and the executable effect rows in the shared vocabulary.
  *
  * Core's display strings are WRITTEN from this flag wherever it states a
  * shape (`spell-logic.mjs` `coreFieldsFrom`): the sheet derives them on
@@ -34,6 +33,7 @@ import { splitList } from "./spell-logic.mjs";
 
 const asArray = (v) => (v && !Array.isArray(v) && typeof v === "object" ? Object.values(v) : v);
 
+/** The spell primitive's DataModel: the structured stat line and effect rows a spell item carries in its flag. */
 export default class SpellExtras extends foundry.abstract.DataModel {
   /** Array-valued paths, reconstructed from FormDataExtended's numeric-keyed objects. */
   static ARRAY_PATHS = ["lists", "effects"];
@@ -46,9 +46,9 @@ export default class SpellExtras extends foundry.abstract.DataModel {
     return {
       // Which lists the spell prints on, at which level, for which classes. A
       // spell may print on several at different levels; the first row is
-      // what core's `lvl` and `class` show. `source` is an OPEN magic-type
-      // key (arcane, divine, …), never a closed enum — the set of magic types
-      // is data (docs/classes/DECISIONS.md, 2026-08-11).
+      // what core's `lvl` and `class` show. `source` is an open magic-type
+      // key, never a closed enum (docs/classes/DECISIONS.md, "Magic values are
+      // an open, data-defined set").
       lists: new ArrayField(
         new SchemaField({ source: str(), level: num({ integer: true }), classes: strList(), note: str() }),
       ),

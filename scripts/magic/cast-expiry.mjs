@@ -8,18 +8,17 @@
  * someone presses it: the card tells, it does not remove.
  *
  * The end is this file's own reading of the record, start time plus duration
- * on the world clock, and never core's `duration.expired`: core counts a
- * duration it cannot convert to seconds as already run, and this system's
- * combat round has no length on core's clock. A `rounds` record counts its
- * rounds at the module's structural round length (`ROUND_SECONDS`); a record
- * with no duration never ends here. Only a step of the clock decides, read on
- * the one window that runs the automation (`onWorldTimeAdvanced`), so a combat
- * that does not move the clock does not age a record.
+ * on the world clock, never core's `duration.expired`. A `rounds` record counts
+ * its rounds at `ROUND_SECONDS`; a record with no duration never ends here.
+ * Only a step of the clock decides, read on the one window that runs the
+ * automation (`onWorldTimeAdvanced`).
  *
- * Once means once: the record is stamped `ended` before the card is made, so a
- * second step of the clock, a reload or a second GM window finds it closed. A
- * record whose creatures were all dismissed already is stamped and posts
- * nothing.
+ * The record is stamped `ended` before the card is made, so a second step of
+ * the clock, a reload or a second GM window finds it closed; a record whose
+ * creatures were all dismissed already is stamped and posts nothing.
+ *
+ * See docs/magic/DECISIONS.md, "A cast's end is told on a card, read from the
+ * module's own clock math".
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_SPELL_EFFECT } from "./constants.mjs";
 import { spellEffectOf } from "./spell-effect.mjs";

@@ -1,5 +1,8 @@
 export { MODULE_ID } from "../lib/constants.mjs";
+
+/** Lang root for this feature's own keys. */
 export const LANG_PREFIX = "ACKS-MAGIC";
+
 
 /** The core `spell` item type this feature extends. */
 export const SPELL_TYPE = "spell";

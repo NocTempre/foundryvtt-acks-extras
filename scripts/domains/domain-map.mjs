@@ -32,8 +32,10 @@ const loc = makeLoc(LANG_PREFIX);
 /** The layer's key, which is also the map mode's and the `source` a derived territory names. */
 export const DOMAIN_LAYER = "domain";
 
-/** Region flags: the domain's uuid, and the painted cells as offset keys. */
+/** Region flag holding the painted value: the domain's uuid. */
 export const DOMAIN_FLAG = "domain";
+
+/** Region flag holding the painted cells, as offset keys. */
 export const DOMAIN_HEXES_FLAG = "domainHexes";
 
 /** The colour of a hex painted into a domain no longer in the world. */

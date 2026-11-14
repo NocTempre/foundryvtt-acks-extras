@@ -10,7 +10,7 @@
  * world time. A `rounds` duration maps onto Foundry's `rounds`, which the
  * engine ages only through a combat's own round counter; outside combat it
  * does not expire on the world clock, because the world's round length is
- * zero. That gap stays open here: the pair is correct, the aging is Foundry's.
+ * zero. The pair is right either way; the aging is Foundry's.
  *
  * A duration with no time to count (instantaneous, any concentration,
  * perpetual, indefinite, permanent, special) and one whose figures cannot be

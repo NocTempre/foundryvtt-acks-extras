@@ -110,6 +110,7 @@ async function pickOne({ title, label, options }) {
   return typeof picked === "string" && picked ? picked : null;
 }
 
+/** The actor sheet for the `acks-extras.domain` sub-type; the file header says how it is laid out. */
 export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its tab PART roots, not at

@@ -318,8 +318,8 @@ const STAT_LABELS = ["Type", "Range", "Duration"];
 
 /**
  * A printed stat block as its parts. The block opens with the magic types and
- * the level the spell holds on each (a source name and a number per magic type; RR p. 215), then labelled
- * runs: `Type:` the spell types, `Range:` and `Duration:` as printed. Each
+ * the level the spell holds on each (a source name and a number per magic
+ * type; RR p. 215), then labelled runs: `Type:` the spell types, `Range:` and `Duration:` as printed. Each
  * part comes back as printed text (`lists` as `{source, level}` pairs,
  * `types` as a list); a label the block lacks leaves its part empty.
  */
@@ -391,15 +391,13 @@ export const headingCase = (text) =>
     .map((w, i) => (i && SMALL_WORDS.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ");
 
-/**
- * How a reversible spell's prose names its reverse: "the reverse of this
- * spell, X, …", "the reverse form of this spell, X, …", "the reverse of this
- * spell (X) …", "reversed, this spell becomes X", "reversed, <spell> becomes
- * X", "the reverse, X, …", "the reverse spell, X, …", "the reverse form, X,
- * …", "the reverse of <spell> is called X", and "X, the reverse of <spell>, …"
- * where X opens a sentence.
- */
+/** A name inside a phrase: lazily up to the next comma, stop or bracket. */
 const NAME = String.raw`[^,.;()]+?`;
+
+/**
+ * The phrasings a reversible spell's prose names its reverse by, each
+ * capturing the name; the last takes a name that opens a sentence.
+ */
 const REVERSE_RULES = [
   new RegExp(String.raw`\breverse(?:d)?(?: form)? of (?:this|the) spell,\s*(${NAME})\s*[,.;]`, "i"),
   new RegExp(String.raw`\breverse(?:d)?(?: form)? of (?:this|the) spell\s*\(\s*(${NAME})\s*\)`, "i"),

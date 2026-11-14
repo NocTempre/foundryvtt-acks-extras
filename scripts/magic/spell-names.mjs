@@ -102,8 +102,7 @@ const sentenceAround = (text, at) => {
  * The spells a creature's prose names, read four ways: "X (as the spell)",
  * "(as the spell X)", a "spell-like abilities:" list whose groups close on a
  * frequency in parentheses, and a printed repertoire "1st - a, b; 2nd - c".
- * `known` trims a paraphrase to the title it closes on — "… objects within
- * 60' (as the spell)" names the title its last words are — and without it
+ * `known` trims a paraphrase to the title its last words name, and without it
  * the words after "can cast" stand; `freqOf` reads a frequency phrase to its
  * key, and `phraseOf` reads the words to keep beside a key whose wording is
  * the book's (empty for any other). Returns
@@ -178,10 +177,10 @@ export function scanMonsterSpells(text, { known = null, freqOf = null, phraseOf 
 }
 
 /**
- * "casts spells as a 13th-level crusader", "the spellcasting abilities of a
- * 9th level mage": the class word and the level, or null. The level's
- * ordinal may run straight into "level" — extraction drops the hyphen — and
- * the class may be printed in the plural.
+ * Prose of the form "casts spells as a Nth-level <class>" or "the spellcasting
+ * abilities of a Nth level <class>": the class word and the level, or null. The
+ * level's ordinal may run straight into "level" — extraction drops the hyphen —
+ * and the class may be printed in the plural.
  */
 export function castsAsClass(text) {
   const m =

@@ -95,9 +95,9 @@ export function summonRefusal(req, lookups = worldLookups()) {
 
 /**
  * The effect duration a cast leaves: the spell's own imported duration, else
- * its library twin's, through `castDuration`. No caster level is passed, since
- * a class's level is not always its caster level, so a per-level duration
- * answers none and the record stays until its owner removes it.
+ * its library twin's, through `castDuration`. No caster level is passed, so a
+ * per-level duration answers none and the record stays until its owner removes
+ * it.
  * @returns {{value: number, units: string}|{none: string}}
  */
 export function summonCastDuration(spell, { lookups = worldLookups(), roll } = {}) {

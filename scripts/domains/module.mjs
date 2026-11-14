@@ -74,7 +74,6 @@ Hooks.once("init", () => {
   });
 
   acksExtras.domains = {
-    // 2: promoteVassal and foundSettlement. 3: territoryOf and hexCountFor.
     apiVersion: 3,
     DOMAIN_TYPE,
     CLASSIFICATIONS,
