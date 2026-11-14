@@ -10,7 +10,7 @@ import { num, signed, SAVE_KEYS, togglePin } from "./frame-model.mjs";
 /** The flag that lists the item ids starred on a follower's own card. */
 export const STAR_FLAG = "fcStarred";
 
-/** The save keys a legacy actor stores under other names. */
+/** The other keys a stored actor may keep a save under, by the frame's key. */
 const LEGACY_SAVE_KEYS = Object.freeze({ blast: "breath", implements: "wand" });
 
 /**
@@ -49,9 +49,9 @@ export function rankLine({ klass = "", level = "", hd = "", hdWord = "HD", typeL
 }
 
 /**
- * The five save targets in the frame's order, read from the new keys first
- * and the legacy ones a stored actor may still carry; null where the body
- * stores none of them.
+ * The five save targets in the frame's order, read from the frame's keys first
+ * and then the other keys a stored actor may carry; null where the body stores
+ * none of them.
  */
 export function saveTargets(saves) {
   if (!saves || typeof saves !== "object") return null;

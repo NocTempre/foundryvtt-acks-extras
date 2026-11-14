@@ -3,7 +3,7 @@
  * named `band`, and this moves it into Foundry's `.window-header`, before the
  * header's controls, so the header stays the drag handle and keeps its
  * buttons while the band's fields still live in the sheet's form. The
- * mechanics are docs/equipment/MODEL.md, "The band is the window header."
+ * mechanics are docs/lib/MODEL.md, "The band is the window header."
  *
  * Each render appends a fresh band to the window content; the copy already in
  * the header is the previous render's and is removed, because the mixin

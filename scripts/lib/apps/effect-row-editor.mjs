@@ -3,19 +3,16 @@
  * The effect-row editor — one window per row of an `effectsField()` list,
  * and the sheet actions that add, open, delete and reorder rows.
  *
- * A list of effect rows is an INVENTORY: the sheet shows one line per row and
- * this window edits one row. The window knows nothing about where the rows
- * live: it is handed a STORE — `{key, label, domain, read(), write(rows)}` —
- * and every write goes through `store.write`, so the spell primitive, an
- * ability's extras and any later carrier of effect rows share one editor.
- * The `domain` decides which kinds and subjects the pickers offer
- * (`effectTypesFor`, `effectSubjectsFor`); a stored row keeps its type
- * whatever the picker shows.
+ * The sheet shows one line per row and this window edits one row. The window
+ * is handed a STORE — `{key, label, domain, read(), write(rows)}` — and every
+ * write goes through `store.write`, so the spell primitive and an ability's
+ * extras share one editor. The `domain` decides which kinds and subjects the
+ * pickers offer (`effectTypesFor`, `effectSubjectsFor`); a stored row keeps
+ * its type whatever the picker shows.
  *
- * Edits apply as they are made, the way an item sheet applies them; there is
- * no Save button. A row is addressed by index, so the sheet closes every
- * editor on the store when it deletes or reorders a row — an index that
- * survived a splice would edit whichever row slid into its place.
+ * Edits apply as they are made; there is no Save button. A row is addressed by
+ * index, so the sheet closes every editor on the store when it deletes or
+ * reorders a row.
  *
  * A summon row's creature field takes a dropped Actor, from the sidebar or a
  * compendium, as its uuid, and says under it which creature the ref names.

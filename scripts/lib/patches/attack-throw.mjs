@@ -13,7 +13,7 @@
  *
  * This file wraps those questions (one libWrapper WRAPPER per method) and
  * answers them from a set of CONTRIBUTORS: the conditions, the equipment
- * feature's per-weapon modifiers, and whatever a later feature registers. A
+ * feature's per-weapon modifiers, and whatever else a feature registers. A
  * contributor sees the attack in flight — attacker, weapon, target, options —
  * because `makeAttackThrow` is wrapped too, and the wrapper holds the attack's
  * context for the attacker while the system builds and rolls it. A sheet

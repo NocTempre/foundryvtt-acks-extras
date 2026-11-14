@@ -297,8 +297,8 @@ export function openHpTool(from = null) {
 }
 
 /**
- * The Tokens layer gets a button for it, for the GM, seeded with the
- * selection.
+ * Adds the hit-point button to the Tokens scene controls, for the GM; it opens
+ * the window seeded with the selection.
  */
 export function installHpControl() {
   Hooks.on("getSceneControlButtons", (controls) => {

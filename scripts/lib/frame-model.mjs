@@ -12,7 +12,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 
-/** How many rail cells a side: the design's six. */
+/** How many rail cells a side. */
 export const RAIL_ROWS = 6;
 
 /**
@@ -34,7 +34,7 @@ export const sheetFlag = (doc) => doc?.getFlag?.(MODULE_ID, SHEET_FLAG) ?? {};
 /** The five saving throws, in the printed order, keyed as the released system stores them. */
 export const SAVE_KEYS = Object.freeze(["paralysis", "death", "blast", "implements", "spell"]);
 
-/** The glyph each save cell wears (Font Awesome, per the character sheet's DECISIONS "the rails draw Foundry's icons"). */
+/** The glyph each save cell wears (Font Awesome). See docs/character-sheet/DECISIONS.md, "The rails draw Foundry's icons". */
 export const SAVE_ICONS = Object.freeze({
   paralysis: "fa-solid fa-snowflake",
   death: "fa-solid fa-skull",
@@ -228,12 +228,11 @@ export function togglePin(pins, id) {
 /**
  * The Load bar's two readings on one track: the burden the bearer moves
  * under, filled, and what they actually carry, as a dashed phantom running
- * on from the fill to where the true weight falls. The gap is what the
- * carrying rules are worth — a harness, a slung bow, the clothes on their
- * back — drawn so a figure lighter than the kit adds up to reads as a rule
- * working, not a miscount. No phantom when the two agree or a correction
- * runs the other way; past the maximum the phantom stops at the end of the
- * track and `capped` says it did.
+ * on from the fill to where the true weight falls. No phantom when the two
+ * agree or a correction runs the other way; past the maximum the phantom stops
+ * at the end of the track and `capped` says it did. See
+ * docs/character-sheet/DECISIONS.md, "The hands span, and the bar shows what
+ * is forgiven".
  * @param {object} enc {value6, true6, max6, pct, breakpoints} in sixths
  * @returns {{pct:number, phantom:number, capped:boolean, eased6:number, ticks:number[]}}
  *   widths in percent of the track; `eased6` the sixths that do not weigh

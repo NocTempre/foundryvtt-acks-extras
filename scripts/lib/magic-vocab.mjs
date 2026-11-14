@@ -9,8 +9,8 @@
  * tables, a branch of the cast engine. A list a reader picks from — schools,
  * elements, shades, components — is not here: it ships empty as an open
  * vocabulary family (`SELECTION_VOCAB_DOC` in `vocab.mjs`) and is filled from
- * the Judge's own book. The line between the two is
- * `docs/magic/DECISIONS.md`.
+ * the Judge's own book. See docs/magic/DECISIONS.md, "A code enum names a
+ * mechanism; a pick-list ships empty".
  *
  * Each family is a descriptor map `{ key: { label } }`. The inline label is
  * the fallback; the label a window shows comes from
