@@ -1993,8 +1993,6 @@ const stepTwo = atOf("Armor Training", "def.prof.armorTraining", { kind: "flat",
 check("bridge: an imported step of 2 at rank 1 raises very light → medium", armorMax(stepTwo) === "medium");
 check("bridge: the step is the typed row's value times the rank",
   sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", { kind: "flat", flat: 2 }, 3), "armorTraining") === 6);
-check("bridge: a step held as a bare number, not a LevelValue, still applies",
-  sumEffectModifiers(atOf("Armor Training", "def.prof.armorTraining", 4, 2), "armorTraining") === 8);
 check("bridge: US and UK spellings both resolve when the row is present",
   sumEffectModifiers(atOf("Armour Training", null, { kind: "flat", flat: 2 }, 1), "armorTraining") === 2 &&
   sumEffectModifiers(atOf("Armor Training", null, { kind: "flat", flat: 2 }, 1), "armorTraining") === 2);
@@ -2202,8 +2200,7 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     check("a phrase naming one option's nouns resolves the same way", pick("quuxes and dorbs") === "dorb,hurl,quux" && pick("Hurl") === "dorb,hurl,quux");
     check("an option holding a whole category collapses to its category token", pick("martial.1") === "axe" && pick("zorgs") === "axe");
     check("an option over two categories is both tokens", pick("martial.2") === "sworddagger,bowcrossbow" && pick("blorps") === "sworddagger,bowcrossbow");
-    check("a bare category key resolves through the one option whose weapons all carry it, and never to the category's other weapons", pick("other") === "dorb,hurl,quux" && pick("axe") === "axe");
-    check("a category key no single option holds stays the key itself", pick("bowcrossbow") === "bowcrossbow" && pick("crossbow") === "bowcrossbow" && pick("sworddagger") === "sworddagger");
+    check("a pick worded as a category's own name resolves to that category", pick("crossbow") === "bowcrossbow");
     check("a combination grants nothing, and so does an id no option has", pick("martial.3") === "" && pick("martial.9") === "" && resolveWeaponGroupPick("martial.3").length === 0);
     check("a pick no option names is the weapon, else the category named, else the pick", pick("Stray") === "stray" && pick("Crossbows") === "bowcrossbow" && pick("Zorgle") === "zorgle");
     const grants = (...selections) => [...collectStringFlags(withItems([abil("Martial Training", "def.prof.martialTraining", { selections })]), "martialWeapons")].sort().join();
@@ -2223,7 +2220,7 @@ check("resolveWeaponGroupPick reads a category by its own name when the lists do
     unregisterTable(WEAPONS_DOC, layer);
     useSource(previous);
   }
-  check("nothing imported, the pick falls back without throwing", pick("martial.4") === "" && pick("other") === "other" && pick("Crossbows") === "bowcrossbow" && pick("axes") === "axe");
+  check("nothing imported, the pick falls back without throwing", pick("martial.4") === "" && pick("Crossbows") === "bowcrossbow" && pick("axes") === "axe");
 }
 
 /* ---------------------------------------------------------------------- */

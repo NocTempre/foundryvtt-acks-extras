@@ -980,10 +980,6 @@ items `equipment/armour-step-hand` and `equipment/armour-step-row`.
 6. **Player seat** owning the fixture: open both item sheets. *Observable:*
    the Imported mechanics rows show no Edit, Delete or Add controls; the
    Stats tab lines and their tooltips read as on the GM seat.
-7. Pre-change copy: give the imported copy's row a bare `value: 2` (the shape
-   an import made before the step was located, a bare number; the figure is
-   invented). *Observable:* its line reads `+2`, the rungs end at Medium.
-   Restore the LevelValue.
 
 ### Teardown
 

@@ -118,9 +118,8 @@ is a union"). A single-valued domain reads its one value through
 An imported ability raises the wearable armour category through its typed
 `modifies` row on the `armor` domain (`abilities-bridge.mjs`
 `addTypedEffects`): the row's `value`, a LevelValue read off the page at
-import (RR ch. 3 and JJ ch. 12, Armor Training) or a bare number on a copy
-whose step was not located, times the ability's rank, whatever the
-ability is called. Nothing is keyed on the name, so a copy with no such row,
+import (RR ch. 3 and JJ ch. 12, Armor Training) or set by a Judge on the row,
+times the ability's rank, whatever the ability is called. Nothing is keyed on the name, so a copy with no such row,
 hand-made or imported without its book, adds nothing. `armourTrainingRows`
 lists every ability that carries the row or is named Armour Training (either
 spelling) with `{step, rank, steps, cite}`, `step` null where no step was
@@ -1110,12 +1109,10 @@ holds both (DECISIONS, "Bows and crossbows are one proficiency category");
 `abilities-bridge.mjs` resolves a
 Martial Training pick (`resolveWeaponGroupPick`) to the grant tokens of one
 martial option's own weapons: an option id, or a phrase naming one option's
-nouns, gives `optionUnits(id)`; a stored category key gives the one option
-whose weapons all carry it (`martialOption`), else the key; any other pick is
-the weapon it names, else the category its words name. Each is spelled by
-`canonicalGrant`, so a whole category stays its token, a combination or an
-unknown id grants nothing, and with nothing imported the last two steps stand
-alone. A Weapon Focus pick goes through `listedKind`, and one no imported focus
+nouns, gives `optionUnits(id)`; any other pick is the weapon it names, else
+the category its words name. Each option is spelled by `canonicalGrant`, so a
+whole category stays its token, a combination or an unknown id grants nothing,
+and with nothing imported the weapon-or-category step stands alone. A Weapon Focus pick goes through `listedKind`, and one no imported focus
 names is null; `lib/proficiency-strip.mjs` keeps
 only the plain spellings of a category's own name, and places a single weapon
 through its row. A weapon needs both hands where its row says so or the item

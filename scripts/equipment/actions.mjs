@@ -261,9 +261,9 @@ export async function setGearAccess(item, value) {
 
 /**
  * The container record's keys that describe what goes in — the kinds taken,
- * the refusal, and a capacity stated there before capacity moved to the gear
- * flag. The lock, its keys and the row's fold are the record's other half and
- * are never these.
+ * the refusal, and a capacity stated on the record (`lib/storage.mjs` stamps
+ * one on the container it makes). The lock, its keys and the row's fold are the
+ * record's other half and are never these.
  */
 export const HOLDING_KEYS = Object.freeze(["accepts", "refusal", "capacity"]);
 

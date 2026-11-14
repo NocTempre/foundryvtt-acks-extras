@@ -29,7 +29,7 @@ import { EFFECT_PREFIX, EFFECT_DOMAINS } from "./constants.mjs";
 import { WEAPON_CATEGORY } from "./config.mjs";
 import { slug, abilitySlug, namedPicks, resolveLevelValue, ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 import { forms, keyForName, listedKind, martialOption, optionUnits } from "../lib/weapons.mjs";
-import { CATEGORY_TOKENS, canonicalGrant, grantTokens } from "./training-view.mjs";
+import { canonicalGrant, grantTokens } from "./training-view.mjs";
 
 const ABILITIES_FLAG_SCOPE = "acks-extras";
 
@@ -157,15 +157,12 @@ function categoryNamedBy(pick) {
  *     token also covers an item flagged with a class that has no row, which
  *     per-weapon tokens would not). A combination holds no weapons and grants
  *     none; an id no option has grants none. A phrase that names an option
- *     whose weapons are not imported falls through to 2 and 3.
- *  2. A pick that is a stored category key resolves to the one martial option
- *     whose weapons all carry that category, spelled the same way; with no such
- *     option, to the key itself.
- *  3. Otherwise the weapon the pick names, else the category whose own name
+ *     whose weapons are not imported falls through to 2.
+ *  2. Otherwise the weapon the pick names, else the category whose own name
  *     the pick holds, else the normalized pick itself (which grantMatches
  *     treats as a named-weapon key).
  *
- * Nothing imported resolves by 2 and 3 alone. Call-time only: it reads
+ * Nothing imported resolves by 2 alone. Call-time only: it reads
  * `training-view.mjs`, which reaches back to this file through its imports, so
  * no top-level code here or there may read an import.
  *
@@ -181,7 +178,6 @@ export function resolveWeaponGroupPick(pick) {
     const units = optionUnits(option);
     if (units.length || asId) return grantTokens(canonicalGrant(units));
   }
-  if (CATEGORY_TOKENS.some((c) => c.token === n)) return [n];
   const key = keyForName(pick);
   if (key) return grantTokens(canonicalGrant([key]));
   const category = categoryNamedBy(pick);
@@ -252,8 +248,7 @@ function typedEffects(item) {
 const raisesArmour = (spec) => spec?.type === "modifies" && spec.domain === "armor";
 
 /**
- * The step one armour-raising spec carries: its `value`, a bare number (a
- * spec whose step was not read off the page) or a LevelValue (read
+ * The step one armour-raising spec carries: its `value`, a LevelValue (read
  * at import, or set by a Judge on the row). Null when it resolves to no number.
  */
 function armourStep(spec) {
