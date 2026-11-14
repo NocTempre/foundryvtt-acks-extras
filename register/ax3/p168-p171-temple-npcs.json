@@ -36,7 +36,8 @@
       "group": "Temple District — Notable Residents"
     },
     "assists": {
-      "statLabelKey": "19k4vvl"
+      "statLabelKey": "19k4vvl",
+      "joinTurns": true
     }
   },
   {

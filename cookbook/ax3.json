@@ -10417,7 +10417,8 @@
                 "joinSpace": [
                   0
                 ]
-              }
+              },
+              "continues": true
             }
           ]
         }
@@ -11020,7 +11021,8 @@
                 "mergeHyphen": [
                   2
                 ]
-              }
+              },
+              "continues": true
             },
             {
               "box": {
@@ -16519,7 +16521,8 @@
                 "joinSpace": [
                   0
                 ]
-              }
+              },
+              "continues": true
             }
           ]
         }
@@ -19980,7 +19983,8 @@
                   3,
                   5
                 ]
-              }
+              },
+              "continues": true
             }
           ]
         }

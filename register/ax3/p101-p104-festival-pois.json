@@ -120,6 +120,9 @@
     ],
     "meta": {
       "group": "Festival District — Points of Interest"
+    },
+    "assists": {
+      "joinTurns": true
     }
   },
   {

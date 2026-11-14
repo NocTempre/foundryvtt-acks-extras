@@ -3110,7 +3110,7 @@ async function compileNpc(doc, entry, kindRow, bookCtx) {
       ...(sameColBlock && !assists.noDescStop ? { stopYOnce: labelRun.y - 4 } : {}),
     };
     const segs = await axFlow(doc, entry, assists, { page, pd, cols, col: a.col, endY: a.endY }, clusterItems, flowOpts);
-    const { paras } = axParas(segs, page, { iconTags: entry.book === "ax2" });
+    const { paras } = axParas(segs, page, { iconTags: entry.book === "ax2", joinTurns: assists.joinTurns === true });
     if (paras.length) fields.description = { op: "text", page, paras };
   }
 

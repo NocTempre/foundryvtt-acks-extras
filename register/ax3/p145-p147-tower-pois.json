@@ -105,6 +105,9 @@
     ],
     "meta": {
       "group": "Tower District — Points of Interest"
+    },
+    "assists": {
+      "joinTurns": true
     }
   }
 ]

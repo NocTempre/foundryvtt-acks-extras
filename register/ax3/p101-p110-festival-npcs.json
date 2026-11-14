@@ -17,7 +17,8 @@
     },
     "assists": {
       "statLabelKey": "1y48l63",
-      "statlineAt": 105
+      "statlineAt": 105,
+      "joinTurns": true
     }
   },
   {
