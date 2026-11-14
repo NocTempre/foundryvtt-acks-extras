@@ -40,25 +40,23 @@ import { bindNpc } from "./monster.mjs";
 
 /* -------------------------------------------- */
 /*  Adventure binding (AX line)                 */
-/*  location -> journal page, rolltable ->      */
+/* -------------------------------------------- */
 
 /** The kinds that bind to a journal page: a keyed room, a setting-detail table, and a passage read whole. */
 const JOURNAL_KINDS = new Set(["kind.location", "kind.settingTable", "kind.prose"]);
 
 /**
  * A page's title. A keyed room and a table are named by their row; a passage
- * ships no name of its own — its page prints a title as a picture, and the
- * book's words are not the module's — so its row names the page by what the
- * passage IS (`meta.title`: an introduction, a tavern, conversion notes).
+ * is named by what it is (`meta.title`), since its page prints a title as a
+ * picture.
  */
 const journalPageName = (e) => (e.kind === "kind.prose" ? (e.meta?.title ?? e.name) : e.name);
 
 /**
  * A page-bound entry. A keyed place of a settlement's quarter, a region's site
  * or overview, and an adventure's keyed area or key space, is a location ACTOR
- * or its notes (`cookbookImportPoiPlaces`) and is not a page as well: two
- * documents for one printed place would be the thing a Judge then keeps in
- * step by hand. `spaces` is the book's `keySpacesOf`.
+ * or its notes (`cookbookImportPoiPlaces`) and is not a page as well.
+ * `spaces` is the book's `keySpacesOf`.
  */
 export const journalBound = (e, id, spaces) =>
   JOURNAL_KINDS.has(e.kind) && !isPoiEntry(e) && !isRegionSite(e) && !isRegionOverview(e) && !isKeyedPlace(e, id, spaces);
@@ -75,16 +73,15 @@ const journalEntriesOf = (entries) => {
  * seat-extracted creature lookups, deferring to the ACKS II entry when the
  * register maps one); a setting table's is the printed rows laid out as a
  * table under the register's header words; a passage's is its paragraphs.
- * Pages update in place on re-import, so coverage grows without duplicating.
- * A page whose stored text holds a Judge's prose, or an edit inside its stamped
- * block, that differs from the build
+ * Pages update in place on re-import. A page whose stored text holds a Judge's
+ * prose, or an edit inside its stamped block, that differs from the build
  * keeps it (`writeJournalPage`) and is counted in `preserved`: outside a
  * repair always, and inside a merged repair unless its decision takes it, where
  * a page kept is listed as a held edit.
- * `books` scopes the run to those book ids; a seat that holds every shelved
- * book open otherwise writes them all. `created.journals` lists the uuids of
- * the journals this run made. A run with nothing to write resolves null with
- * no notice when it is scoped or `quiet` (one step of a batch).
+ * `books` scopes the run to those book ids; otherwise every open book is
+ * written. `created.journals` lists the uuids of the journals this run made. A
+ * run with nothing to write resolves null with no notice when it is scoped or
+ * `quiet` (one step of a batch).
  */
 export async function cookbookImportJournals({ books = null, quiet = false } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates journals).`);
@@ -94,9 +91,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
   let updated = 0;
   let preserved = 0;
   let refused = 0;
-  // Every page is a fresh extraction from the seat's PDF, so a book's worth of
-  // districts is minutes of work — counted up front so the bar can say how far
-  // through them it is rather than only that it is busy.
+  // Counted up front so the bar can say how far through the pages it is.
   const total = openBooks.reduce((n, b) => n + journalEntriesOf(data.books.get(b).entries).length, 0);
   if (!total && (quiet || books)) return null;
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressJournals`), total);
@@ -106,8 +101,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
       const session = ctx.sessionDocs.get(bookId);
       const locs = journalEntriesOf(cb.entries);
       if (!locs.length) continue;
-      // The BOOK is the folder now, so the journal itself is named by its group
-      // alone ("A. Entrance Caves") rather than repeating the book on every row.
+      // The book is the folder, so a journal is named by its group alone.
       const folder = await ensureFolderPath("JournalEntry", [bookLabel(bookId)], lineOf(bookId));
       const groups = new Map();
       for (const [id, e] of locs) {
@@ -115,9 +109,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
         if (!groups.has(g)) groups.set(g, []);
         groups.get(g).push([id, e]);
       }
-      // Journals go wherever imports go, so the "did I already make this one?"
-      // lookup has to read the same target — a world-only search re-created
-      // every district journal on each run in compendium mode.
+      // Journals go wherever imports go, so the presence lookup reads the same target.
       const journalPack = await packFor("JournalEntry", lineOf(bookId));
       const journals = journalPack ? await game.packs.get(journalPack).getDocuments() : [...game.journal];
       for (const [group, list] of groups) {
@@ -144,29 +136,21 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
         for (const [id, e] of list) {
           sort += 100;
           const node = await executeEntry(session.doc, cb, data.registers, id).catch(() => null);
-          // `ok` is the heading anchor, and a page is written only when it
-          // holds. Every location entry carries one, so a box that no longer
-          // frames its room — a printing that moved the text, or a file
-          // fingerprinting as no known book and read into the wrong slot — is
-          // refused rather than written: the room's own name and citation over
-          // whatever prose now occupies those coordinates is a page nothing
-          // downstream can tell from a good one.
+          // `ok` is the heading anchor: a box that no longer frames its room
+          // (a printing that moved the text, or a file read into the wrong slot)
+          // is refused rather than written.
           if (!node?.ok) {
             refused++;
             bar.step(e.name);
             continue;
           }
           const creatures = Object.values(node.fields?.creatures ?? {}).filter((c) => c && (c.ref || c.text));
-          // The creature line is a cross-reference, not prose: it names what
-          // the room holds, and each name is the reader's route to the imported
-          // creature in the compendium.
+          // The creature line is a cross-reference to the imported creatures, not prose.
           const creatureHtml = creatures.length
             ? `<p><strong>Creatures:</strong> ${creatures.map((c) => escapeText(c.text)).join(" · ")}</p>`
             : "";
           // `creatureHtml` stays what `CREATURE_LINE` matches, so an untouched page is never read as an edit.
-          // A setting table is its rows under the register's header words; the
-          // executor paired each row's label and text by section, and the page
-          // holds the pairs as a table rather than as prose.
+          // A setting table's page holds the executor's label/text pairs as a table.
           const content =
             e.kind === "kind.settingTable" ? entryTable(node, id, e.cite, e.columns ?? []) : entryText(node, id, e.cite) + creatureHtml;
           const existing = journal.pages.find((p) => p.getFlag(MODULE_ID, "cookbook")?.id === id);
@@ -192,9 +176,7 @@ export async function cookbookImportJournals({ books = null, quiet = false } = {
   } finally {
     bar.finish();
   }
-  // A run that refused everything is a wrong file or a printing this build does
-  // not read, not an empty book — say so instead of asking for a connection the
-  // reader already made.
+  // A run that refused everything is a wrong file or an unread printing, not an empty book.
   if (!made && !updated && !preserved && refused)
     return ui.notifications.warn(`${MODULE_ID} | journals: ${refused} page(s) did not match the cookbook (different printing?) — none written.`);
   if (!made && !updated && !preserved) {
@@ -271,9 +253,8 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
       const block = blockTarget(id);
       const held = overview || block || isRewriting(id) ? null : await importedActor(id, { copies: false });
       if (held) {
-        // A role is structural (which kind of place), not a page value, so a
-        // held place with no role is stamped without a page read; a role the
-        // Judge already set is left standing.
+        // A role is structural, so a held place with no role is stamped without a
+        // page read; a role the Judge set stands.
         if (isPlaceRole(e.meta?.role) && !held.system?.role) {
           await held.update({ "system.role": e.meta.role });
           stamped++;
@@ -292,15 +273,13 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
         createDoc(Actor, districtPlaceData({
           book: bookId, bookLabel: label, district: group.district, parentUuid: city?.uuid ?? "", folderId: folder,
         })));
-      // Notes that hold anything are the world's — asked before the page is
-      // read, which is what keeps a second run from reading it at all. A
-      // repair writes the overview's own block over in place instead.
+      // Notes that hold anything are the world's, asked before the page is read;
+      // a repair writes the overview's own block over in place instead.
       if (overview && !block && (!district || district.system?.notes)) {
         already++;
         continue;
       }
-      // The anchor proves the heading still titles this place; a printing that
-      // moved the text is refused rather than imported under the wrong name.
+      // The anchor proves the heading still titles this place.
       const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, cb, data.registers, id).catch(() => null);
       if (!node?.ok) {
         refused++;
@@ -315,8 +294,7 @@ export async function cookbookImportPoiPlaces({ books = null, ids = null, quiet 
         described++;
         continue;
       }
-      // The entry ships a label built from the key number; the place is named
-      // by the heading the Judge's own page prints under that number.
+      // The entry ships a label built from the key number; the Judge's own page names the place.
       const place = await claimActorImport(id, () =>
         createDoc(Actor, poiLocationData({
           name: printedNameOf(node, e.name), entryId: id, notes: entryText(node, id, e.cite), book: bookId, bookLabel: label,
@@ -690,16 +668,14 @@ const pairWritesParent = ({ place, takesOver }) => takesOver || !place.system?.p
 /**
  * One region row, as `cookbookImportPoiPlaces` takes a quarter's: the
  * region's place (`regionPlaceData`, once per book) is claimed on the first
- * need of this book's rows: its overview is that place's notes, a site made
- * is a place under it, and a bound or paired place takes it as parent only
- * where it holds none, so a book whose every site binds onto a place that
- * has its parent makes none. A book that carries a region's map always makes
- * it, for the map stands on it. A site is a place under the region, or is
- * bound onto the market or settlement its row names (`regionSiteClaim`), or
- * joins the place its pair already stands as (`joinPaired`). Presence and
- * held notes are asked of the library's own document before the page is read,
- * as for a point of interest. Counts into `tally`; a place it makes is listed
- * in `run.created`.
+ * need of this book's rows. Its overview is that place's notes; a site is a
+ * place under it, or is bound onto the market or settlement its row names
+ * (`regionSiteClaim`), or joins the place its pair already stands as
+ * (`joinPaired`). A bound or paired place takes the region as parent only where
+ * it holds none; a book that carries a region's map always makes the place,
+ * for the map stands on it. Presence and held notes are asked of the library's
+ * own document before the page is read. Counts into `tally`; a place it makes
+ * is listed in `run.created`.
  */
 async function importRegionRow({ bookId, id, e, region }, tally, run) {
   const cb = data.books.get(bookId);
@@ -1171,8 +1147,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
   // Narrowed to books that print no organisation, the step has nothing to say.
   if (!authored.length) return books ? counts : ui.notifications.warn(`${MODULE_ID} | no organisations in any open book — connect AX3 first.`);
 
-  // The quarter's own place, made the way the POI step makes it, so whichever
-  // step runs first the other finds the same document.
+  // The quarter's own place, made the way the POI step makes it.
   const seatsOf = async (bookId, district) => {
     const label = bookLabel(bookId);
     const placeFolder = (await ensureFolderPath("Actor", [label, "Places"], lineOf(bookId)))?.id ?? null;
@@ -1188,8 +1163,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
     let added = 0;
     for (const { id, hidden } of members) {
       const found = await importedActor(id);
-      // The lookup may answer with an index row; the roster row wants the
-      // document, for its type and its own retainer record.
+      // The lookup may answer with an index row; the roster row wants the document.
       const person = found?.system ? found : found?.uuid ? await fromUuid(found.uuid) : null;
       if (!person) {
         counts.missing++;
@@ -1233,8 +1207,7 @@ export async function cookbookImportFactions({ books = null } = {}) {
         if (owed.length) patch["system.holdings"] = [...held, ...owed.map((h) => ({ ...h, note: "", hidden: false }))];
         if (Object.keys(patch).length) await faction.update(patch);
       } else {
-        // The hash proves the box still holds the name this row was cut for; a
-        // printing that moved it is refused rather than named after other words.
+        // The hash proves the box still holds the name this row was cut for.
         const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, data.books.get(bookId), data.registers, id).catch(() => null);
         if (!node?.ok || node.fields?.anchor?.ok === false) {
           counts.refused++;
@@ -1275,10 +1248,8 @@ export async function cookbookImportFactions({ books = null } = {}) {
     }
 
     // The bodies' unnamed people. A grid is read once and its columns land on
-    // the factions its block names; a faction that already carries figures
-    // keeps them, whether the Judge's or an earlier run's. The page's own
-    // total row is checked against the columns, and a column that disagrees
-    // is said on the console — a mis-cut column looks exactly like that.
+    // the factions its block names; a faction that already carries figures keeps
+    // them. A column disagreeing with the page's total row is warned on the console.
     for (const { bookId, id, e, plan } of grids) {
       if (!plan.owners.size) continue;
       const node = await executeEntry(ctx.sessionDocs.get(bookId).doc, data.books.get(bookId), data.registers, id).catch(() => null);

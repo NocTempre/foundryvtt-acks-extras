@@ -12,7 +12,7 @@ import { limitRowsFor } from "../../equipment/armour-limits.mjs";
 import { bookStamp, data, warnedAmbiguous, abilityEntries } from "./state.mjs";
 import { importedCache, importedDocs } from "./target.mjs";
 
-/** "kw:sensingevil" -> "Sensing Evil"-ish, for the system's requirements field. */
+/** A capability token ("kw:<name>") → the name of the ability it stands for, else the bare token; for the system's requirements field. */
 const capabilityLabel = (token) => {
   const slug = String(token).replace(/^kw:/, "");
   for (const [id, e] of abilityEntries()) {
@@ -26,16 +26,13 @@ const NICHE_ICON_MODULE = "game-icons-net";
 
 /**
  * Which picture this ability gets: `iconNiche` from the optional game-icons.net
- * pack when it is installed, else `icon` from core. Referencing those paths
- * carries no licensing weight here — the art ships in that module under its
- * own terms, and nothing is copied. An item's img is set at creation and
- * never rewritten afterwards; Update Abilities leaves presentation alone, so
- * installing the pack later repaints only what is imported after it.
+ * pack when it is installed, else `icon` from core. An item's img is set at
+ * creation and never rewritten by an update, so installing the pack later
+ * repaints only what is imported after it.
  */
 export function abilityIcon(entry) {
   if (entry?.iconNiche && game.modules?.get?.(NICHE_ICON_MODULE)?.active) return entry.iconNiche;
-  // Falls back to the generic book, so an entry nobody has picked an icon for
-  // looks exactly as it did before rather than breaking.
+  // An entry with no icon takes the generic book.
   return entry?.icon || DEFAULT_IMG.ABILITY;
 }
 
@@ -59,9 +56,8 @@ function abilityCategory(value) {
 export function bindAbility(entry, node, id, opts = {}) {
   const meta = entry.meta ?? {};
   const cite = entry.cite ?? "";
-  // An alias is a DISTINCT ability that shares another entry's rules text, not a
-  // redirect to it. Two names for one capability do not stack, so the relation
-  // ships as a real effect rather than a note the reader has to interpret.
+  // An alias is a distinct ability sharing another entry's text; the
+  // not-stacking relation ships as a `capability` effect.
   const aliasEffects = meta.notStacksWith?.length
     ? [{ type: "capability", ref: entry.aliasOf ?? meta.notStacksWith[0], notStacksWith: meta.notStacksWith }]
     : [];
@@ -69,14 +65,11 @@ export function bindAbility(entry, node, id, opts = {}) {
     category: abilityCategory(meta.category),
     general: !!meta.general,
     repeatable: !!meta.repeatable,
-    // A retired entry is still imported — an older or converted source may name
-    // it — but carries the flag and a pointer at whatever superseded it.
+    // A retired entry is still imported, flagged, with a pointer at its successor.
     deprecated: !!meta.deprecated,
     ...(meta.replacedBy ? { replacedBy: meta.replacedBy } : {}),
-    // The build cost is READ FROM THE SEAT'S BOOK, never shipped — so it is
-    // present only once someone with the book imports or updates, like every
-    // other value. `meta.powerValue` remains only as the inherited value an
-    // alias takes from its target.
+    // The build cost is read from the seat's book; `meta.powerValue` is only the
+    // value an alias inherits from its target.
     ...(node?.fields?.powerValue != null
       ? { powerValue: node.fields.powerValue }
       : meta.powerValue != null
@@ -85,47 +78,34 @@ export function bindAbility(entry, node, id, opts = {}) {
     ...(meta.requires ? { requires: meta.requires } : {}),
     ...(entry.aliasOf ? { aliasOf: entry.aliasOf } : {}),
     // Capabilities this ability confers, so a prerequisite written against a
-    // capability resolves no matter which of the same-capability entries the
-    // character actually holds.
+    // capability resolves whichever same-capability entry the character holds.
     ...(meta.provides?.length ? { provides: meta.provides } : {}),
-    // Scan-classified mechanics still bind, but present as unverified until the
-    // register entry gains its `audited` sign-off. Written EXPLICITLY either
-    // way, never omitted: update() merges flags, so an omitted `false` would
-    // leave a stale `true` once an entry is signed off.
+    // Scan-classified mechanics present as unverified until the entry gains its
+    // `audited` sign-off. Written either way: update() merges flags, so an
+    // omitted `false` would leave a stale `true`.
     unaudited: !entry.audited,
     // Which reader produced `effects`: a register recipe ("recipe") or the
-    // vocabulary scan ("scan"). Applied modifiers mark a scan's as unverified
-    // (lib/typed-modifiers.mjs isUnverified). Written explicitly either way,
-    // for the same merge reason as `unaudited`.
+    // vocabulary scan ("scan"); written either way, for the same merge reason.
     effectsFrom: effectsOriginOf(entry),
-    // Set when this reference arrived under an older/foreign name: the reader's
-    // source calls it `conversionFrom`, ACKS II calls it `entry.name`.
+    // Set when the reference arrived under a converted name: the reader's source
+    // calls it `conversionFrom`, ACKS II calls it `entry.name`.
     ...(opts.conversionStatus ? { conversionStatus: opts.conversionStatus } : {}),
     ...(opts.conversionFrom ? { conversionFrom: opts.conversionFrom } : {}),
-    // Structured effects are CLASSIFIED from the seat's own prose (type, target
-    // and value all materialize; the cookbook pre-declares none of them). An
-    // alias reads the TARGET's prose through its pre-baked pointer. A
-    // chef-authored spec with no `from` locator is pure structure (a
-    // prerequisite, a companion slot) and applies without the book; anything
-    // pointing at a number still waits for it.
+    // Structured effects are classified from the seat's own prose; an alias
+    // reads its target's prose. A spec with no `from` locator is pure structure
+    // (a prerequisite, a companion slot) and applies without the book.
     effects: [...aliasEffects, ...(node?.fields?.effects ?? materializeEffects(entry.fields?.effects?.specs, [])), ...limitRowsFor(entry.name, id)],
-    // `rolls` is assembled below and assigned onto this same object, once the
-    // throws are classified.
-    // Materialized from the seat's OWN prose via the executor's vocabulary
-    // scan — nothing about which is shipped.
+    // `rolls` is assembled below and assigned onto this object.
+    // Materialized from the seat's own prose by the executor's vocabulary scan.
     ...(node?.fields?.defenses ? { defenses: node.fields.defenses } : {}),
   };
-  // EVERY throw the extract classified becomes a roll, not just the first. The
-  // recipe's own `rolls` wins when present; otherwise the classified `throw`
-  // effects are lifted in order. Ladders are carried WHOLE, resolved by
-  // the abilities feature at render time rather than flattened here.
-  // These go to the abilities flag and NOT to `system.roll` /
-  // `system.rollTarget`: the core item can hold exactly one roll, so writing
-  // there too would mean two stores for the same thing.
-  // The abilities feature owns ability rolls and folds core's fields in on read
-  // for items it has not written.
-  // Throws from a class's published TABLE lead the list: the books
-  // cross-reference the table first and roll whatever follows second.
+  // Every throw the extract classified becomes a roll. The recipe's own `rolls`
+  // win when present; otherwise the classified `throw` effects are lifted in
+  // order, ladders carried whole for the abilities feature to resolve at render.
+  // Rolls go to the abilities flag, never `system.roll` / `system.rollTarget`:
+  // the abilities feature owns ability rolls and folds core's fields in on read.
+  // Throws borrowed from a class's published table lead the list. See
+  // docs/importer/DECISIONS.md, "A borrowed throw is a recipe, and a typed row names its mode".
   const fromLadders = (entry.fields?.rolls?.specs ?? []).filter((sp) => sp?.fromLadders);
   const borrowed = [];
   for (const sp of fromLadders) {
@@ -140,9 +120,8 @@ export function bindAbility(entry, node, id, opts = {}) {
           kind: "progression",
           as: sp.fromLadders.as,
           table: ladder.key,
-          // The FRACTION of level, and which way it rounds, are printed beside
-          // the rule; a spec that locates neither reads the table at the whole
-          // level, which is what an unqualified power does.
+          // The fraction of level and its rounding are located on the page; a spec
+          // that locates neither reads the table at the whole level.
           ...(sp.fromLadders.atLevelNum ? { atLevelNum: sp.fromLadders.atLevelNum } : {}),
           ...(sp.fromLadders.atLevelDen ? { atLevelDen: sp.fromLadders.atLevelDen } : {}),
           ...(sp.fromLadders.round ? { round: sp.fromLadders.round } : {}),
@@ -175,8 +154,7 @@ export function bindAbility(entry, node, id, opts = {}) {
     system: {
       description: entryText(node, id, cite),
       proficiencytype: meta.general ? "general" : "class",
-      // `requirements` is plain descriptive text with no second store behind
-      // it, so it still lands on the core field the sheet already shows.
+      // `requirements` is plain text with no second store, so it lands on the core field.
       ...(gate.length ? { requirements: gate.map(capabilityLabel).join(", ").slice(0, 120) } : {}),
     },
     flags: {
@@ -186,12 +164,9 @@ export function bindAbility(entry, node, id, opts = {}) {
 }
 
 /**
- * The extras subkeys bindAbility emits only when the definition carries them —
- * the conditional spreads above, kept in one list because an UPDATE must
- * retract them: update() merges nested objects and never deletes an absent
- * key, so a rebuild that no longer emits one of these (an entry un-deprecated,
- * a prerequisite dropped) has to say so with an explicit forced deletion (`unset()`) or the
- * stale value survives every later run.
+ * The extras subkeys `bindAbility` emits only when the definition carries
+ * them. An update must retract them explicitly (`unset()`): update() merges
+ * nested objects and never deletes an absent key.
  */
 export const ABILITY_EXTRAS_OPTIONAL = [
   "replacedBy",
@@ -207,10 +182,7 @@ export const ABILITY_EXTRAS_OPTIONAL = [
 
 /**
  * Every ability item the library holds — loose in the pack and on actors alike.
- *
- * Async because the pack has to be loaded; `game.items` alone would leave an
- * empty library for Update to walk. Actors stay a world read: a character is
- * not an import.
+ * Async because the pack has to be loaded; actors stay a world read.
  */
 export async function allAbilities() {
   const extrasOf = (doc) => doc.getFlag(MODULE_ID, "extras") ?? {};
@@ -229,9 +201,8 @@ export async function allAbilities() {
 
 /**
  * Folded printed name -> the definition it means, from the `powerSource`
- * register — the printed name and the definition's own name are not always
- * the same name. A name several definitions answer to resolves to NOTHING
- * rather than a guess. Built once and memoised on the register.
+ * register. A name several definitions answer to resolves to nothing. Built
+ * once and memoised on the register.
  *
  * A row that withholds the printed name carries `nameKey`, the `printKey` of
  * it, instead: the row is then indexed under that key as well, in the same map
@@ -278,10 +249,8 @@ export const refForPrintedName = (name) => {
 
 /**
  * Resolve an item name to a definition id. Tries the name as printed, then
- * again with a trailing throw value stripped: a stat block writes its
- * proficiencies as "climbing 6+", which is the same proficiency as "Climbing"
- * with its target number attached. Without this, every monster-embedded
- * proficiency fails to match and never gets adopted.
+ * again with a trailing throw value ("<name> N+") stripped, which is how a
+ * stat block writes a proficiency.
  */
 export function idForName(index, name, present) {
   let ids = index.get(slug(name));
@@ -294,12 +263,9 @@ export function idForName(index, name, present) {
 }
 
 /**
- * Folded name -> every definition id printing that name.
- *
- * The books reuse names across categories: 14 of them, "Alertness" and
- * "Climbing" among them, are both a proficiency and a class power. A name is
- * therefore only a guess at identity, and the index keeps ALL the candidates so
- * the caller can choose deliberately instead of silently taking the first.
+ * Folded name -> every definition id printing that name. The books reuse names
+ * across categories, so the index keeps all the candidates for the caller to
+ * choose among (`preferredId`).
  */
 export function abilityNameIndex() {
   const index = new Map();
@@ -317,25 +283,18 @@ export function abilityNameIndex() {
 }
 
 /**
- * Definition id -> the item already standing for it.
+ * Definition id -> the item already standing for it; the first one wins.
+ * Settles a name collision by which definitions this world holds.
  *
- * Doubles as the "which definitions does this world hold" signal that settles a
- * name collision without guessing. First one wins: duplicates are a world the
- * GM built by hand, and picking the earliest is at least stable across runs.
- *
- * SYNCHRONOUS, so it can only see a compendium library through the warm
- * `importedIndex()` cache — `bindMonster` is sync and calls this, and making it
- * async would thread a promise through the whole monster bind. Async callers
- * should `await importedIndex()` (below) instead; this form falls back to the
- * world so a cold session still resolves whatever is loose there.
+ * Synchronous (`bindMonster` calls it), so it sees a compendium library only
+ * through the warm `importedIndex()` cache and otherwise falls back to the
+ * world. Async callers should `await importedIndex()` instead.
  */
 export function loadedAbilityIndex() {
   if (importedCache) return importedCache;
   const byId = new Map();
   for (const item of game.items) {
-    // Never a template skin: it carries the id of the definition it was copied
-    // from, and answering with one hands a monster a class's engraved silver
-    // waterskin in place of the shared item.
+    // Never a template skin: it carries the id of the definition it was copied from.
     if (item.flags?.[MODULE_ID]?.templatePart) continue;
     const id = item.getFlag(MODULE_ID, "cookbook")?.id;
     if (id && !byId.has(id)) byId.set(id, item);
@@ -343,18 +302,7 @@ export function loadedAbilityIndex() {
   return byId;
 }
 
-/**
- * Pick among same-named definitions.
- *
- * A collision stops being a guess when only ONE of the candidates is actually
- * available — a world that imported the proficiency list but not the powers has
- * already answered the question. So candidates present in the world win outright,
- * and only when that leaves the choice open (none present, or several) does the
- * category preference apply: a stat block's proficiency list and a hand-made
- * ability both far more often mean the PROFICIENCY than the same-named class
- * power. `ranked` reports a pick the category ranking settled; `ambiguous`
- * reports a real guess, a tie inside the best-ranked category.
- */
+/** Category prefixes in preference order for same-name candidates: a proficiency beats a same-named class power. */
 const CATEGORY_RANK = ["def.prof.", "def.skill.", "def.power.", "def.drawback."];
 const categoryRank = (id) => {
   const i = CATEGORY_RANK.findIndex((p) => id.startsWith(p));
@@ -363,7 +311,12 @@ const categoryRank = (id) => {
 /** The id whose category ranks first. */
 export const byCategory = (ids) => [...ids].sort((a, b) => categoryRank(a) - categoryRank(b))[0];
 
-/** Picks one id among same-name candidates, preferring one already present, then the best-ranked category, and flags whether the pick was ambiguous or ranked. */
+/**
+ * Picks one id among same-named definitions. A candidate present in the world
+ * wins outright; only when that leaves the choice open does the category
+ * ranking apply. `ranked` reports a pick the ranking settled; `ambiguous`
+ * reports a tie inside the best-ranked category.
+ */
 export function preferredId(ids, present) {
   if (ids.length === 1) return { id: ids[0], ambiguous: false, ranked: false };
   const here = ids.filter((id) => present.has(id));

@@ -63,8 +63,8 @@ const CITE_TAIL = /\s\([A-Z][A-Za-z0-9]{0,5} p\.\d+\)$/;
 const PAGE_REF = /\b(?:[A-Z][A-Za-z0-9]{0,5}\s)?p\.\s?\d+/g;
 
 /**
- * An amount followed by a unit of game time ("3 rounds", "a turn", "half an
- * hour", "10-minute"): a printed time cost, which arrives from the page and
+ * An amount followed by a unit of game time ("N rounds", "a turn", "half an
+ * hour", "N-minute"): a printed time cost, which arrives from the page and
  * never ships in a prose field. The separator is `\s+` or `-`, so "around" is
  * not a "round", and a bare "per day" names a frequency and has no amount.
  */

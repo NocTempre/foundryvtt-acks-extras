@@ -4,8 +4,9 @@
  * missing and writes to nothing it holds. Core's own import runs; this only
  * waits for the library before it, narrows what it was handed, and only for
  * an Adventure carrying one of `ADVENTURE_KINDS`: a book's. Every other
- * Adventure imports as core imports it. The arithmetic is `adventure-binding.mjs`; the step that
- * writes the Adventure is `cookbook/adventure-maps.mjs` (`ensureBookAdventure`).
+ * Adventure imports as core imports it. The arithmetic is
+ * `adventure-binding.mjs`; the step that writes the Adventure is
+ * `cookbook/adventure-maps.mjs` (`ensureBookAdventure`).
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";

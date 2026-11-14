@@ -35,11 +35,10 @@ import { weaponDamage } from "./monster.mjs";
 
 /**
  * Does the document the library holds already say everything this import
- * would? DIRECTIONAL: only the keys the INCOMING data sets are checked,
- * against what the existing document holds for them — a live document's
- * `system` carries every schema field, defaults included, so comparing both
- * whole never matches. See docs/importer/DECISIONS.md, "Same name, two
- * books: merge unless they differ beyond their source".
+ * would? Directional: only the keys the incoming data sets are checked, since
+ * a live document's `system` carries every schema field. See
+ * docs/importer/DECISIONS.md, "Same name, two books: merge unless they differ
+ * beyond their source".
  */
 function sameMaterial(existing, data) {
   if ((existing?.type ?? null) !== (data?.type ?? null)) return false;
@@ -80,8 +79,7 @@ async function reconcileByName(data, id, bookId) {
   const keys = nameKeys(data.name);
   if (!keys.size) return { skip: false };
 
-  // Reads an INDEX rather than the library — see docs/importer/DECISIONS.md,
-  // "Same name, two books: merge unless they differ beyond their source".
+  // Reads an index, not the library.
   const index = await libraryNameIndex();
   const candidates = new Set();
   for (const k of keys) for (const doc of index.get(k) ?? []) candidates.add(doc);
@@ -91,13 +89,12 @@ async function reconcileByName(data, id, bookId) {
     if (!otherId || otherId === id) continue;
 
     const otherBook = other.getFlag(MODULE_ID, "cookbook")?.book ?? bookOf(cookbookEntry(otherId));
-    // Never across LINES.
-    // See docs/importer/DECISIONS.md, "Reconciling is a claim about one game's library".
+    // Never across lines. See docs/importer/DECISIONS.md, "Reconciling is a claim about one game's library".
     if (lineOfClaim(otherId, otherBook) !== lineOfClaim(id, bookId)) continue;
     if (sameMaterial(other, data)) {
-      // The same item, printed twice. Keep the printing `keptBook` names and
-      // teach it this id; if it is THIS book's, the kept document takes this
-      // entry's name and content instead.
+      // The same item, printed twice: keep the printing `keptBook` names and
+      // teach it this id; if that is this book's, the kept document takes this
+      // entry's name and content.
       const incomingWins = bookId !== otherBook && keptBook(bookId, otherBook) === bookId;
       const merged = new Set([...(other.getFlag(MODULE_ID, "cookbook")?.merged ?? []), incomingWins ? otherId : id]);
       await other.update({
@@ -110,9 +107,7 @@ async function reconcileByName(data, id, bookId) {
       return { skip: true, doc: other };
     }
 
-    // Different things that share a name. Both are kept and both are tagged,
-    // because tagging only the newcomer leaves the reader guessing which book
-    // the untagged one came from.
+    // Different things that share a name: both are kept and both are tagged.
     const tag = (b) => BOOKS[b]?.short ?? b;
     if (otherBook && bookId && otherBook !== bookId) {
       const otherPrinted = printedName(other);
@@ -134,21 +129,12 @@ async function reconcileByName(data, id, bookId) {
 /*  Vehicles (kind.vehicle → the vehicle actor) */
 /* -------------------------------------------- */
 
-/* -------------------------------------------- */
-/*  Traps (kind.trap → acks-extras.trap)        */
-/* -------------------------------------------- */
-
-
 /** The vehicle ACTOR sub-type — the vehicles feature's own constant, not an item. */
 const VEHICLE_ACTOR_TYPE = VEHICLE_TYPE;
 
 /**
- * "60’/30’" → [60, 30]; "12 / 6" → [12, 6]; "80" → [80].
- *
- * A segment carrying no digit yields NOTHING rather than zero. The table
- * prints "By creature" where a howdah's pace belongs, and an absent cell is
- * absent; reading either as 0 would give a vehicle a capacity of nought and a
- * speed of nought, both of which look like facts read off the page.
+ * A slash-separated cell → its numbers ("A/B" → [A, B]; "A" → [A]). A segment
+ * carrying no digit yields nothing rather than zero: an absent cell is absent.
  */
 const printedPair = (cell) =>
   String(cell ?? "")
@@ -169,9 +155,8 @@ const printedPair = (cell) =>
 export function bindVehicleRow(row, entry, id) {
   if (entry?.meta?.kindOfVehicle === "sea") return bindSeaVesselRow(row, entry, id);
   const cells = row?.cells ?? {};
-  // Presentation only: the table sets each row's first letter as a small
-  // capital, which extracts lowercase ("cart, Large"), and a comma at a line
-  // break loses its following space ("Howdah,riding"). Neither is content.
+  // Presentation only: a small-capital first letter extracts lowercase, and a
+  // comma at a line break loses its following space.
   const label = String(row?.label ?? "")
     .replace(/\s*,\s*/g, ", ")
     .replace(/\s+/g, " ")
@@ -203,8 +188,7 @@ export function bindVehicleRow(row, entry, id) {
     name: label,
     type: VEHICLE_ACTOR_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
-    // The stamp Remove ALL Imports finds documents by. A row claims its own id
-    // so removal is per vehicle, matching how they were created.
+    // The stamp Remove All Imports finds documents by; a row claims its own id.
     flags: { [MODULE_ID]: { cookbook: { id: `${id}.${rowClaimKey(row)}`, cite: entry.cite ?? "" } } },
     system: {
       kind: "land",
@@ -222,20 +206,17 @@ export function bindVehicleRow(row, entry, id) {
 /**
  * One printed row of the Sea Vessels table as a sea `acks-extras.vehicle`.
  * Its conventions differ from the land table's: three crew columns are three
- * ROLE complements (sailors and rowers motive, marines not); four combat
- * speeds and two voyage speeds land on the schema's named sea fields rather
- * than tiers; cargo is a single figure, never a pair. A dash is an absent
- * cell, not a zero. A parenthesised marines figure binds as a bench (the
- * schema's `required` on a non-motive role), not extra manpower. Cost is not
+ * role complements (sailors and rowers motive, marines not); combat and voyage
+ * speeds land on the schema's named sea fields rather than tiers; cargo is a
+ * single figure. A dash is an absent cell. A parenthesised marines figure
+ * binds as a bench (the schema's `required` on a non-motive role). Cost is not
  * read.
  * See docs/importer/DECISIONS.md, "The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count".
  */
 function bindSeaVesselRow(row, entry, id) {
   const cells = row?.cells ?? {};
-  // Same presentation repairs as the land binder, plus one of its own: this
-  // table prints Title Case after the comma ("Boat, Row") and the small-cap
-  // R extracts lowercase. The land table genuinely prints lowercase there
-  // ("Howdah, riding"), so the repair stays sea-side.
+  // The land binder's presentation repairs, plus Title Case after the comma,
+  // which this table prints and the land table does not.
   const label = String(row?.label ?? "")
     .replace(/\s*,\s*/g, ", ")
     .replace(/\s+/g, " ")
@@ -289,14 +270,10 @@ function bindSeaVesselRow(row, entry, id) {
 }
 
 /**
- * What makes one table ROW distinct from its neighbours, for the dedup claim.
- *
- * NOT the grid's own row key, which is `slugLabel` of the label and therefore
- * drops the parenthetical: two cart rows differing only in the team named
- * in parentheses (RR pp. 134, 151, 161) both slug to one key, and a claim on that silently skips the second as
- * already imported. The table distinguishes those rows ONLY by the
- * parenthetical — it is the team, and it is what changes the cargo — so the
- * claim is folded from the whole printed label.
+ * What makes one table ROW distinct from its neighbours, for the dedup claim:
+ * the whole printed label, folded. Never the grid's own row key (`slugLabel`),
+ * which drops the parenthetical, so two rows differing only in it (RR pp. 134,
+ * 151, 161) would share a claim and the second be skipped.
  */
 export const rowClaimKey = (row) =>
   String(row?.label ?? row?.key ?? "")
@@ -307,11 +284,8 @@ export const rowClaimKey = (row) =>
 /**
  * Import the printed vehicles, one ACTOR per table row.
  *
- * Unlike every other binding here this makes actors, because a vehicle is one:
- * it carries an inventory, a crew and a token. The dedup claim is per ROW and
- * not per entry — one register entry covers the whole table, so claiming the
- * entry id would make a second run skip every remaining vehicle because the
- * first row already existed.
+ * A vehicle is an actor. The dedup claim is per row, not per entry: one register
+ * entry covers the whole table (`rowClaimKey`).
  *
  * `repair`, a tally (`repairTally`), writes each row this world already holds
  * over its vehicle in place (`REPAIR.vehicle`) instead of passing over it, and
@@ -346,9 +320,7 @@ export async function importVehicles({ only = null, repair = null } = {}) {
           continue;
         }
         const doc = await claimActorImport(rowId, async () => {
-          // The ACTOR rule, like every other actor importer — a vehicle asking
-          // for an Item folder got an Item-typed folder for an Actor, and every
-          // row ended up loose at the top of the Actors tree.
+          // An Actor folder (`actorFolderFor`), never an Item one.
           const folder = (await actorFolderFor(id, found))?.id ?? null;
           return createDoc(Actor, { ...bindVehicleRow(row, entry, id), folder });
         });
@@ -369,8 +341,8 @@ export async function importVehicles({ only = null, repair = null } = {}) {
 
 /**
  * The core item type an equipment entry becomes, from the register's own
- * group rather than a name scan. `animal` is deliberately NOT here: a mule
- * is a creature, not a thing, and imports as an actor. See importEquipment.
+ * group rather than a name scan. `animal` is not here: a mount imports as an
+ * actor (see importEquipment).
  */
 const EQUIPMENT_TYPE = Object.freeze({
   weapon: "weapon",
@@ -384,10 +356,8 @@ export const equipmentTypeOf = (entry) => EQUIPMENT_TYPE[entry?.meta?.group] ?? 
 /**
  * The numbers a `values` recipe located in the seat's own prose, as the flat
  * fields the binding reads (`aac`, `cost`, `weight6`). The recipe names the
- * field AND the unit the page states it in — encumbrance prints in stone or
- * in items, and `weight6` counts sixths of a stone — so this only converts
- * units, never values. A field this version does not know is skipped rather
- * than guessed at.
+ * field and the unit the page states it in (`weight6` counts sixths of a
+ * stone), so this only converts units, never values. An unknown field is skipped.
  */
 export function locatedValues(node) {
   const out = {};
@@ -404,8 +374,7 @@ export function locatedValues(node) {
         out.weight6 = amount * SIXTHS_PER_STONE;
         break;
       case "weight6.item":
-        // An "item" IS the sixth-stone unit: the page's count is already the
-        // number the schema wants.
+        // An "item" is the sixth-stone unit: the page's count is the schema's number.
         out.weight6 = amount;
         break;
       default:
@@ -416,19 +385,12 @@ export function locatedValues(node) {
 }
 
 /**
- * Bind an equipment entry to the core item it should become. Mirrors
- * bindAbility's posture: the cookbook pre-declares NOTHING the page says —
- * name + citation always; the descriptor text is whatever the page yielded;
- * cost and weight materialize only when a chef-authored locator lands on the
- * register row (none ship yet, so they default to core's 0 and the printed
- * table governs — the entry says so via its unaudited marker).
- *
- * The TYPE-SPECIFIC fields follow the same rule. A weapon's damage and an
- * armour's AC are page values: absent a locator that read them from the seat's
- * own book, the item is created with the system's defaults and the printed
- * table governs. What the type buys even with nothing extracted is the
- * behaviour — a weapon can be equipped, attacks, and takes a fighting style;
- * armour can be worn and counts toward AC — which an `item` never could.
+ * Bind an equipment entry to the core item it should become. The cookbook
+ * pre-declares nothing the page says: name and citation always, the
+ * descriptor text from the page, and cost, weight, a weapon's damage and an
+ * armour's AC only when a locator read them from the seat's own book; absent
+ * one, the item takes the system's defaults and carries its `unaudited` marker.
+ * The type still buys the behaviour (a weapon attacks, armour is worn).
  */
 export function bindEquipment(entry, node, id) {
   const cite = entry.cite ?? "";
@@ -436,10 +398,9 @@ export function bindEquipment(entry, node, id) {
   const f = { ...(node?.fields ?? {}), ...locatedValues(node) };
   let type = equipmentTypeOf(entry);
 
-  // EQUIPMENT ROOT. The equipment feature owns the rule mapping a gear NAME to
-  // the core item type and stats it should carry; the rules live there and are
-  // never baked here. With no class for the name, the register's own type
-  // stands. See docs/equipment/DECISIONS.md, "The equipment root".
+  // The equipment feature owns the rule mapping a gear name to its item type
+  // and stats; with no class for the name, the register's own type stands.
+  // See docs/equipment/DECISIONS.md, "The equipment root".
   const klass = equipmentClass(entry.name) ?? null;
   if (klass?.type) type = klass.type;
 
@@ -450,9 +411,8 @@ export function bindEquipment(entry, node, id) {
     typed.subtype = meta.subtype === "clothing" ? "clothing" : "item";
     typed.quantity = { value: 1, max: 0 };
   } else if (type === "weapon") {
-    // Prefer a page-extracted value; fall back to the equipment root's RAW stat
-    // for gear the weapons table never listed (a torch's 1d4 is a rule, not a
-    // table cell). melee/missile likewise.
+    // A page-extracted value wins; gear the weapons table never listed falls
+    // back to the equipment root's stat. melee/missile likewise.
     const damage = f.damage ?? (klass?.damage || undefined);
     if (damage) typed.damage = weaponDamage(damage);
     if (Number.isFinite(f.bonus)) typed.bonus = { attack: f.bonus, damage: 0 };
@@ -461,24 +421,19 @@ export function bindEquipment(entry, node, id) {
     if (typeof melee === "boolean") typed.melee = melee;
     if (typeof missile === "boolean") typed.missile = missile;
     if (f.range) typed.range = f.range;
-    // NB: a weapon-torch is a SINGLE wielded torch — core weapons carry no
-    // `quantity` field, so it cannot be a stack. It is "consumable" only in that
-    // it burns out on its timer (the formation feature). A supply of torches is a
-    // stackable `item`, which keeps its quantity and decrements when lit.
+    // A weapon-torch is a single wielded torch: core weapons carry no `quantity`.
+    // A supply of torches is a stackable `item`.
   } else if (type === "armor") {
     // The recipe's field is still spelled `aac`; the system's is `ac`.
     if (Number.isFinite(f.aac)) typed.ac = { value: f.aac };
-    // The system's armour `type` choices are unarmored/veryLight/light/medium/
-    // heavy/shield. A shield entry is that type by definition; anything else
-    // waits for the page to say so rather than being guessed from its weight.
+    // A shield entry is the `shield` type; any other type waits for the page.
     if (meta.group === "shield") typed.type = "shield";
     else if (f.armorType) typed.type = f.armorType;
   }
 
-  // What the extras layer is told about the document, in ITS scope (see the flags
-  // block below). A shield FORM is one of these: the register names which form
-  // the entry is, the overlay owns what the form does, and the item carries the
-  // ordinary AC its own page states so the overlay has something to correct.
+  // What the extras layer is told about the document, in its scope (see the
+  // flags block below). The register names a shield's form; the overlay owns
+  // what the form does.
   const extras = {
     ...(klass?.light ? { light: true } : {}),
     ...(meta.shieldVariant ? { shieldVariant: meta.shieldVariant } : {}),
@@ -491,24 +446,17 @@ export function bindEquipment(entry, node, id) {
     system: {
       description: entryText(node, id, cite),
       ...typed,
-      // Page values — present only when a locator materialized them from the
-      // seat's own book. Absent locators leave core's defaults.
+      // Page values: present only when a locator read them from the seat's own book.
       ...(Number.isFinite(f.cost) ? { cost: f.cost } : {}),
       ...(Number.isFinite(f.weight6) ? { weight6: f.weight6 } : {}),
     },
     flags: {
       [MODULE_ID]: {
-        // Our own provenance: bookkeeping for re-import, update and prune.
+        // Provenance: bookkeeping for re-import, update and prune.
         cookbook: { id, cite, unaudited: !entry.audited, ...bookStamp(entry.book) },
         minted: true,
-        // These markers are equipment's, not ours — it writes the SAME markers
-        // in this scope (the light when it readies a torch, in
-        // equipment/actions.mjs; the shield form when a Judge picks one off
-        // the item sheet) and its sheets, overlays and formation layers read
-        // them from here. Omitting them would leave an imported torch
-        // invisible to both, and an imported shield form a plain shield. The
-        // rule of WHICH names are lights is the equipment root's and WHAT a
-        // form does is the overlay's; we only record the verdict.
+        // The markers the equipment feature also writes in this scope (the light
+        // and the shield form) and its sheets, overlays and formation layers read.
         ...extras,
       },
     },
@@ -516,14 +464,10 @@ export function bindEquipment(entry, node, id) {
 }
 
 /**
- * What a printed animal name says the creature is trained for.
- *
- * The RR prices animals BY ROLE, a species followed by a comma and a
- * qualifier (RR p. 130), so the qualifier in the name the book
- * printed IS its statement of training, and the words it uses are the same
- * set `ANIMAL_TRAINING` enumerates. Reading a qualifier out of a
- * name the seat's own book supplied is extraction like any other: no roster of
- * animals and no rate is shipped here, only the name-form rule.
+ * What a printed animal name says the creature is trained for: the animals
+ * are priced by role, a species followed by a comma and a qualifier (RR p.
+ * 130), and the qualifier's words are the set `ANIMAL_TRAINING` enumerates.
+ * Only the name-form rule ships; no roster and no rate.
  */
 export function trainingFromName(name) {
   const n = String(name ?? "").toLowerCase();
@@ -539,14 +483,10 @@ export function trainingFromName(name) {
 export const animalSpecies = (name) => String(name ?? "").split(",")[0].trim().toLowerCase();
 
 /**
- * Which species the reader's book prices in a RIDING form.
- *
- * Training and mountability are different questions and the book answers them
- * differently: a war DOG is trained for war and is still not a mount. What the
- * page states is that some species are sold to be ridden — so a species with a
+ * Which species the reader's book prices in a riding form, from the entries
+ * actually loaded. Training and mountability are separate: a species with a
  * riding row is mountable in every form it is sold in, and one without is not
- * marked either way. Computed from the entries actually loaded, so it says
- * what THIS book prints.
+ * marked either way.
  */
 export function mountableSpecies(entries) {
   const out = new Set();
@@ -558,10 +498,9 @@ export function mountableSpecies(entries) {
 }
 
 /**
- * The loads an animal's own printed description states, in SIXTHS of a stone
- * (the family's one weight unit) — its normal and maximum load, read out of
- * the same prose already imported as the creature's description. An animal
- * whose book says nothing simply arrives unstated.
+ * The loads an animal's own description states, in sixths of a stone: its
+ * normal and maximum load, read out of the prose imported as its description.
+ * An animal whose book says nothing arrives unstated.
  */
 export function loadsFromText(text) {
   const t = String(text ?? "").toLowerCase().replace(/\s+/g, " ");
@@ -576,9 +515,8 @@ export function loadsFromText(text) {
 }
 
 /**
- * The land speed an animal's description states, in feet per turn — the
- * first of the printed pair, which is the exploration figure every other
- * speed in the family derives from.
+ * The land speed an animal's description states, in feet per turn: the first
+ * of the printed pair, the exploration figure the other speeds derive from.
  */
 export function speedFromText(text) {
   const m = /speed of ([\d,]+)\s*[’']/.exec(String(text ?? "").replace(/\s+/g, " "));
@@ -597,23 +535,16 @@ export function loadedAnimalEntries() {
 }
 
 /**
- * Bind an `animal` equipment entry to an ACTOR instead of an item — a
- * creature fights, can be attacked, has morale and can be ridden, none of
- * which an inventory item has.
- *
- * Needs the `acks-extras.animal` sub-type. Where the world has no actor
- * collection there is nowhere for a creature to go, so the entry stays an
- * item rather than failing the import; the caller decides.
+ * Bind an `animal` equipment entry to an ACTOR instead of an item. Needs the
+ * `acks-extras.animal` sub-type; where the world cannot hold it the entry
+ * stays an item, which the caller decides.
  */
 export function bindAnimal(entry, node, id, { ridable = null } = {}) {
   const cite = entry.cite ?? "";
   const f = node?.fields ?? {};
-  // A field the book supplied always wins; the name-form rule fills the gap
-  // the animal entries leave, so an imported war horse arrives FLAGGED rather
-  // than defaulting to untrained and unridable.
+  // A field the book supplied wins; the name-form rule fills the gap.
   const training = f.training ?? trainingFromName(entry.name);
-  // The creature's own printed description states what it carries and how
-  // fast it goes; a field the book supplied directly still wins.
+  // The description states what it carries and how fast it goes; a field supplied directly wins.
   const prose = entryText(node, id, cite);
   const loads = loadsFromText(prose);
   const six = (v) => (Number.isFinite(v) ? v / 6 : null);
@@ -635,16 +566,14 @@ export function bindAnimal(entry, node, id, { ridable = null } = {}) {
     type: ANIMAL_TYPE,
     img: abilityIcon(entry),
     system: {
-      // ONE details object. Spreading a second `details` later would replace
-      // this one wholesale and silently drop the citation.
+      // One details object: a second `details` spread would replace it wholesale.
       details: {
         biography: prose,
         ...(Number.isFinite(f.morale) ? { morale: f.morale } : {}),
       },
       animal: {
         species: entry.name,
-        // Everything below is a PAGE VALUE: present only if the seat's book
-        // supplied it. Nothing about an animal's price, load or speed ships.
+        // Page values: present only if the seat's book supplied them.
         ...(Number.isFinite(f.cost) ? { cost: f.cost } : {}),
         ...(typeof mountable === "boolean" ? { mountable } : {}),
         ...(training ? { training } : {}),
@@ -655,11 +584,9 @@ export function bindAnimal(entry, node, id, { ridable = null } = {}) {
       [MODULE_ID]: {
         cookbook: { id, cite, unaudited: !entry.audited, ...bookStamp(entry.book) },
         minted: true,
-        // A creature's carrying capacity has ONE live store — the one
-        // `capacity6()` reads and the monster sheet edits — so the loads read
-        // off this animal's own description are written there, in the stone
-        // the page prints, rather than to the animal sub-type's like-named
-        // fields, which nothing consumes.
+        // A creature's carrying capacity has one live store, the one `capacity6()`
+        // reads and the monster sheet edits; the loads are written there, not to
+        // the animal sub-type's like-named fields.
         ...(loadFlags ? { extras: { load: loadFlags } } : {}),
       },
     },
@@ -669,10 +596,8 @@ export function bindAnimal(entry, node, id, { ridable = null } = {}) {
 /**
  * Import one equipment entry, deduped by cookbook id.
  *
- * Most entries become world ITEMS. An animal becomes an ACTOR — a mule is a
- * creature you buy, not a thing you carry — provided the world can hold
- * actors (`canImportAnimals`). Where it cannot, the animal falls back to an item
- * rather than failing the import, so the shop list still arrives.
+ * Most entries become world ITEMS. An animal becomes an ACTOR when the world
+ * can hold actors (`canImportAnimals`), else an item.
  *
  * An entry whose book is not open on this seat, or whose page no longer
  * matches, is passed over (`readForImport`) and counted into `passed`, a
@@ -687,9 +612,7 @@ export async function importEquipment(id, folderId, { repair = null, passed = nu
   if (!found) return null;
 
   const asActor = isAnimalEntry(found.entry) && canImportAnimals();
-  // Ask the compendium imports actually land in, never `game.items`/
-  // `game.actors` directly. An animal is an ACTOR, so it is asked of the
-  // actor side of the same target.
+  // Ask the compendium imports land in, never `game.items`/`game.actors`; an animal is asked of the actor side.
   const existing = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
   if (existing) {
     if (unrepaired(repair, existing)) countRepair(repair, await repairEquipment(existing, id, asActor, repair));
@@ -705,7 +628,7 @@ export async function importEquipment(id, folderId, { repair = null, passed = nu
   if (asActor) {
     const node = await build();
     if (!node) return null;
-    // The one actor destination rule (actorFolderFor → the "Animals" home).
+    // The one actor destination rule (`actorFolderFor`).
     const folder = (await actorFolderFor(id, found))?.id ?? null;
     return createDoc(Actor, { ...bindAnimal(found.entry, node, id), folder });
   }
@@ -734,8 +657,7 @@ async function repairEquipment(doc, id, asActor, tally = null) {
 async function importEquipmentItem(found, id, folderId, node) {
   const folder = folderId ?? (await ensureItemFolder(id))?.id ?? null;
   const doc = await buildEquipmentItem(found, id, node);
-  // Two books printing one thing is ONE document (see reconcileByName): merge
-  // when nothing but the source differs, tag both when something does.
+  // Two books printing one thing is one document (`reconcileByName`).
   const verdict = await reconcileByName(doc, id, bookOf(found));
   if (verdict.skip) return verdict.doc;
   const item = await createDoc(Item, {
@@ -748,9 +670,8 @@ async function importEquipmentItem(found, id, folderId, node) {
         }
       : {}),
   });
-  // The equipment feature owns the RAW annotation layer (container capacities,
-  // the harness, the bowquiver). Its profiles key off the printed name, so a
-  // generated item annotates exactly like a core one. Reuse, never restate.
+  // The equipment feature owns the annotation layer (container capacities and
+  // the like); its profiles key off the printed name.
   try {
     await annotateItem(item);
   } catch (err) {
@@ -768,8 +689,7 @@ async function importEquipmentItem(found, id, folderId, node) {
 async function buildEquipmentItem(found, id, node) {
   const doc = bindEquipment(found.entry, node, id);
   // Enrich gear/clothing with cost/weight from the RR price grids (p131/p132),
-  // materialized per-seat. A general category with several priced variants
-  // stays unpriced (priceFor returns null) rather than take a guessed variant.
+  // materialized per-seat; a category with several priced variants stays unpriced.
   if (["gear", "clothing"].includes(found.entry.meta?.group)) {
     const priced = priceFor(await gearPriceMap(), found.entry.name);
     if (priced?.cost != null) doc.system.cost = priced.cost;
@@ -777,9 +697,8 @@ async function buildEquipmentItem(found, id, node) {
     const held = capacityFor(priced, found.entry.name);
     if (held != null) withCapacity(doc, held);
   }
-  // What the grids do not price, the entry's own paragraphs often do — the
-  // "Cost: 25gp" run-in, a stated stone weight, a stated damage die (the BTA
-  // dwarven chapter prints all three in prose). Page values, per seat.
+  // What the grids do not price, the entry's own paragraphs often do: a cost
+  // run-in, a stated stone weight, a stated damage die. Page values, per seat.
   if (node?.fields?.description) {
     const prose = node.fields.description.map((p) => p.text ?? "").join(" ");
     if (!doc.system.cost) {
@@ -811,8 +730,6 @@ async function buildEquipmentItem(found, id, node) {
  * tables it writes over as well.
  */
 export async function importAllEquipment({ only = null, repair = null } = {}) {
-  // Same reason as importClasses: the macro says "(GM)" but every seat can run
-  // it, and a player who does adds a second shop list to the world.
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates items).`);
   const ids = cookbookEquipmentIds().filter((id) => !only || only.has(id));
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressEquipment`), ids.length);
@@ -824,11 +741,8 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
     const folder = null; // per-id shelf
     for (const id of ids) {
       const entry = cookbookEntry(id)?.entry;
-      // An animal lands in the ACTOR collection, so "was it already here?" has
-      // to be asked of the collection it actually goes to — asked of items, an
-      // imported animal looks new on every run and the count lies. Asked of the
-      // WORLD while imports go to a compendium, everything looks new and the
-      // count lies the same way.
+      // "Already here?" is asked of the collection the document goes to: actors
+      // for an animal, and the compendium imports land in, not the world.
       const asActor = isAnimalEntry(entry) && canImportAnimals();
       const before = asActor ? await importedActor(id, { copies: false }) : await importedItem(id);
 
@@ -844,14 +758,12 @@ export async function importAllEquipment({ only = null, repair = null } = {}) {
   }
   if (passed.lines.length) ui.notifications?.info(`${MODULE_ID} | equipment: ${passed.lines.join("; ")}.`);
   const over = { closed: passed.closed, unmatched: passed.unmatched };
-  // The weapon, armour and price TABLES are no entry's, so a pass narrowed to
-  // entries reaches only the tables its repair tally names (`tally.tables`, set
-  // by the shelf or book repair that owns them); a whole import reaches all three.
+  // The tables are no entry's: a pass narrowed to entries reaches only the tables
+  // its repair tally names (`tally.tables`); a whole import reaches all three.
   const tables = repair ? (repair.tables ?? new Set()) : only ? new Set() : new Set(["weapons", "armor", "priced"]);
   const weapons = tables.has("weapons") ? await importWeapons(undefined, { repair }) : null;
   const armor = tables.has("armor") ? await importArmor(undefined, { repair }) : null;
-  // Last: it asks which price rows the entries above already claim, so it has
-  // to run after they have had their chance at them.
+  // Last: it asks which price rows the entries above already claim.
   const priced = tables.has("priced") ? await importPricedGear(undefined, { repair }) : null;
   reportOverlaps();
   return { total: ids.length, created, animals, passed: over, weapons, armor, priced };
@@ -867,11 +779,9 @@ const weaponId = (name) => `def.weapon.${slugLabel(name).replace(/-([a-z0-9])/g,
 
 /**
  * Materialize the RR weapons TABLE into `weapon` items from the reader's own
- * book — the clean-break pipeline (see weapon-tables.mjs). Unlike the run-in
- * gear cookbook, a grid has no prose of its own, so a bookless seat gets
- * nothing here. Deduped by cookbook id; each item carries its full set of
- * attack/damage modes (weapon-tables `damageModes`), which the core
- * compendium could not express and split into separate items instead.
+ * book (see weapon-tables.mjs). A grid has no prose of its own, so a bookless
+ * seat gets nothing here. Deduped by cookbook id; each item carries its full
+ * set of attack/damage modes (weapon-tables `damageModes`).
  * `repair`, a tally (`repairTally`), writes each row this world already holds
  * over its document in place (`rewriteRow`) instead of passing over it.
  * @param {string} [folderId]
@@ -892,16 +802,12 @@ export async function importWeapons(folderId, { repair = null } = {}) {
   const folder = folderId ?? (await ensureItemFolder("def.weapon."))?.id ?? null;
   let created = 0;
   // Which kind each row is cannot be asked here: the weapon rows are published
-  // from the documents this loop makes, so before it ends every row would read
-  // as unplaced. A row the lists cannot place says "not imported" on its own
-  // sheet.
+  // from the documents this loop makes.
   for (const row of rows) {
     const id = weaponId(row.name);
     const cite = citeFor(WEAPON_TABLE.book, WEAPON_TABLE.page);
     // Whether an ammunition row names a carrying device is the equipment root's
-    // question — it owns the gear profiles that answer it — so it is asked, not
-    // restated here. A row the equipment root names no device for is a bare
-    // stack, which is the shape that needs nothing of it.
+    // question; a row it names none for is a bare stack.
     const build = () =>
       row.ammunition
         ? bindAmmoRow(row, id, cite, { device: !!gearProfileFor(row.name) })
@@ -913,8 +819,7 @@ export async function importWeapons(folderId, { repair = null } = {}) {
     }
     const doc = build();
     const item = rememberImported(id, await createDoc(Item, { ...doc, folder }));
-    // The RAW annotation layer belongs to the equipment feature, exactly as the gear
-    // cookbook defers to it: a case rides on the belt and is free to draw from.
+    // The annotation layer belongs to the equipment feature.
     if (row.ammunition) {
       try {
         await annotateItem(item);
@@ -931,23 +836,19 @@ export async function importWeapons(folderId, { repair = null } = {}) {
 const armorId = (name) => `def.armor.${slugLabel(name).replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())}`;
 
 /**
- * Cookbook id for an item materialized from a printed price row.
- *
- * Folds the WHOLE printed name, parenthetical included — `slugLabel` drops it,
- * and it is exactly what tells two rows of one thing apart (two rows of one
- * item differing only in the material named in parentheses; RR p. 129). The same distinction `rowClaimKey` keeps
- * for a vehicle whose team is its only difference.
+ * Cookbook id for an item materialized from a printed price row. Folds the
+ * whole printed name, parenthetical included (`slugLabel` drops it), which is
+ * what tells two rows of one thing apart (RR p. 129); `rowClaimKey` keeps the
+ * same distinction for vehicles.
  */
 const pricedId = (name) =>
   `def.priced.${String(name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "row"}`;
 
 /**
- * The core item subtype a printed price SECTION corresponds to, defaulting
- * to plain inventory. A described entry gets this from the register
- * (`bindEquipment`); a grid row has no entry, so the heading it was printed
- * under is the page's own answer. Which headings mean something is asked of
- * the SYSTEM's subtype vocabulary, by key and by localized label alike, so
- * no name off the page is written down here.
+ * The core item subtype a printed price section corresponds to, defaulting to
+ * plain inventory. A grid row has no register entry, so its section heading
+ * answers, matched against the system's subtype vocabulary by key and by
+ * localized label.
  * See docs/importer/DECISIONS.md, "A grid row is what the SECTION above it says, not what its name looks like".
  */
 function subtypeForSection(section) {
@@ -975,9 +876,7 @@ async function rewriteRow(held, build, policy, repair) {
  * and its price and weight from the page.
  */
 export function pricedDoc(row, id, cite) {
-  // The equipment root owns the rule mapping a NAME to the item type it should
-  // be, exactly as bindEquipment defers to it; a row it has no class for is
-  // plain inventory.
+  // The equipment root maps a name to its item type; a row it has no class for is plain inventory.
   const klass = equipmentClass(row.name) ?? null;
   const type = klass?.type ?? "item";
   const subtype = subtypeForSection(row.section);
@@ -1004,21 +903,16 @@ export function pricedDoc(row, id, cite) {
 export function withCapacity(doc, stone) {
   const flags = (doc.flags[MODULE_ID] ??= {});
   flags[FLAG_GEAR] = { ...flags[FLAG_GEAR], capacity: stone };
-  // The figure the page gave, beside the import's stamp, so a surface can tell
-  // it from one a Judge typed or changed (`printed-layers.mjs` `capacitySource`).
+  // The page's figure, beside the import's stamp, so a surface can tell it from a Judge's (`printed-layers.mjs` `capacitySource`).
   const cookbook = (flags.cookbook ??= {});
   cookbook.read = { ...cookbook.read, capacity: stone };
 }
 
 /**
  * Materialize the printed price rows that no cookbook entry of its own
- * claims. The gear cookbook is a list of things the book DESCRIBES; the
- * price grid is a list of things it SELLS, itemizing what a description
- * treats as one subject and pricing things no paragraph describes at all.
- *
- * A row an entry already resolves is left alone — that item exists and
- * carries the book's own description, which a grid row does not have.
- * Everything else becomes an item priced from the reader's own page.
+ * claims. A row an entry already resolves is left alone (that item carries the
+ * book's own description); everything else becomes an item priced from the
+ * reader's own page.
  *
  * `repair`, a tally (`repairTally`), first writes each row this world already
  * made an item of over that item in place (`rewriteRow`).
@@ -1051,10 +945,9 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     }
   }
 
-  // Exactly what priceFor resolves, asked once for the whole grid: a row is
-  // claimed by an entry with its key, or by an entry whose key it alone
-  // extends. A key several rows extend claims none of them — which is the
-  // category whose variants this function is here to produce.
+  // What `priceFor` resolves, asked once for the whole grid: a row is claimed by
+  // an entry with its key, or by an entry whose key it alone extends. A key
+  // several rows extend claims none of them.
   const rowKeys = rows.map((r) => priceKey(r.name));
   const claimed = new Set();
   for (const id of cookbookEquipmentIds()) {
@@ -1067,9 +960,8 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     }
   }
 
-  // And whatever the LIBRARY already holds, under either spelling — the loop
-  // above only knows the equipment chapter's declared entries, not what the
-  // weapon and armour tables mint from a grid at run time.
+  // And whatever the library already holds, under either spelling: the loop
+  // above knows only the declared entries, not what the tables mint at run time.
   // See docs/importer/DECISIONS.md, "One name has many printed forms, and the rule lives in lib".
   const libraryKeys = new Set();
   for (const doc of await importedDocs("Item")) for (const k of nameKeys(doc.name)) libraryKeys.add(k);
@@ -1082,13 +974,8 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
     }
   });
 
-  // Their own shelf under Equipment, beside the group shelves the described
-  // entries file into. Dropped on the Equipment folder itself they sit loose
-  // among those folders — a hundred-odd items with nothing holding them — and
-  // they cannot join the group shelves either: a row's group is a fact the
-  // register records about a described entry, and these rows have no entry.
-  // Sorting them by the page they were printed on does not help, because the
-  // clothing page carries the provisions and livestock too.
+  // Their own shelf under Equipment: a row's group is a register fact about a
+  // described entry, and these rows have no entry.
   const folder =
     folderId ?? (await ensureItemFolder("def.priced."))?.id ?? null;
   const cite = citeFor(WEAPON_TABLE.book, PRICE_TABLES.gear.page);
@@ -1097,16 +984,11 @@ export async function importPricedGear(folderId, { repair = null } = {}) {
   for (const row of rows) {
     const key = priceKey(row.name);
     const id = pricedId(row.name);
-    // Claiming asks the lookup key, which drops the parenthetical because a
-    // reader looking a thing up does not type it. Deduping asks the id, which
-    // keeps it — otherwise the second of two rows that differ ONLY by their
-    // parenthetical is dropped as a repeat of the first.
+    // Claiming asks the lookup key, which drops the parenthetical; deduping asks
+    // the id, which keeps it.
     if (!key || claimed.has(key) || seen.has(id)) continue;
     seen.add(id);
     if (await importedItem(id)) continue;
-    // The equipment root owns the rule mapping a NAME to the item type it
-    // should be, exactly as bindEquipment defers to it; a row it has no class
-    // for is plain inventory.
     const item = rememberImported(id, await createDoc(Item, { ...pricedDoc(row, id, cite), folder }));
     await annotatePriced(item);
     created++;
@@ -1144,10 +1026,9 @@ async function gearPriceMap() {
 
 /**
  * Materialize the RR armour TABLE (suits, shields, helmets, barding) into
- * `armor` items from the reader's own book — the sibling of importWeapons.
- * AC, encumbrance and cost come from the seat's page; a bookless seat gets
- * nothing (a grid has no prose of its own). Deduped by cookbook id, into ACKS
- * Cookbook / Armor. `repair`, a tally (`repairTally`), writes each row this
+ * `armor` items from the reader's own book, as `importWeapons` does. AC,
+ * encumbrance and cost come from the seat's page; a bookless seat gets
+ * nothing. Deduped by cookbook id. `repair`, a tally (`repairTally`), writes each row this
  * world already holds over its document in place (`rewriteRow`).
  * @param {string} [folderId]
  * @param {{repair?: object|null}} [opts]

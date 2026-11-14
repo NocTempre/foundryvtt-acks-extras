@@ -1,32 +1,17 @@
 /**
  * City-travel assembly: the raw JJ (Settlement Adventures) reads → the
- * engine-shaped `cityTravel` ruledata tables acks-extras declares.
+ * engine-shaped `cityTravel` tables the formation feature declares. The paces
+ * and navigation, the straggling ladder and the street's encounter cadence are
+ * read from prose and one table into one shape. No value ships.
  *
- * Travelling a city is the wilderness rules at a different scale, and the
- * differences are the point: distance is counted in blocks rather than hexes,
- * the navigation throw comes every turn rather than every day, being lost is
- * a short detour a party notices at once rather than an episode, and the
- * street's encounter cadence is a grid of where-you-are against what time it
- * is. Two of those are printed as prose and the third as a real table, so
- * this step reads all three into one shape.
+ * `districtTravel` extends the same document from AX3: the time between two
+ * points of interest in the same versus an adjacent district, at each pace.
+ * `gateTolls` and `smuggling` are two more figures from the same AX3 page,
+ * read by the gate action and the consignment service; a world that never
+ * imported the page refuses rather than prices.
  *
- * `districtTravel` extends the same document from a second book: AX3 states,
- * for a city built of districts, how long it takes to cross between two
- * points of interest in the SAME district versus an ADJACENT one, at each of
- * the JJ's two paces. It ships no consumer yet — the points of interest it
- * measures between are a later phase's register rows — so an absent import
- * reads as absent, same as every other table here.
- *
- * `gateTolls` and `smuggling` are two more figures from the same AX3 page:
- * what passing one of the city's gates with goods costs, and the terms on
- * which a syndicate carries goods past the gates instead. The gate action
- * (`formation/gate.mjs`) and the consignment service (`factions/smuggling.mjs`)
- * read them; a world that never imported the page refuses rather than prices.
- *
- * `cityTravel`, NOT `settlement`: the henchmen feature already registers a
- * `settlement` document for market class, and two features writing one id
- * would have them overwrite each other. Like every binding here, no value
- * ships.
+ * The document is `cityTravel`, not `settlement`. See docs/formation/DECISIONS.md,
+ * "The city's travel tables register as `cityTravel`, not `settlement`".
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -36,7 +21,7 @@ import { parseCount, countFrom } from "./survival-binding.mjs";
 import { parseDie } from "./formation-binding.mjs";
 import { parseThrowTarget, parseTargetPlus, parseSignedClause } from "./binding-parse.mjs";
 
-/** The engine doc both halves agree on (acks-extras `expectTables`). */
+/** The engine doc both halves agree on (`expectTables`). */
 export const CITY_TRAVEL_DOC_ID = "cityTravel";
 
 /**
@@ -71,19 +56,17 @@ export function parseBlocks(text) {
   return countFrom(String(text ?? ""), /walk\s+(\S+)\s+city\s+blocks?/i);
 }
 
-/** The first dice expression, kept as it reads ("1d4+1"). */
+/** The first dice expression, spaces closed and lower-cased. */
 export function parseDice(text) {
   const m = /(\d*\s*d\s*\d+(?:\s*[+-]\s*\d+)?)/i.exec(String(text ?? ""));
   return m ? m[1].replace(/\s+/g, "").toLowerCase() : null;
 }
 
 /**
- * The straggling ladder: "7 or more characters… reduced by 50%… 15 or more…
- * reduced by 75%" → `[{from: 7, multiplier: 0.5}, {from: 15, multiplier: 0.25}]`.
- *
- * A REDUCTION is turned into the factor it leaves, because that is what a
- * speed derivation multiplies by; carrying the reduction instead would make
- * every reader do the subtraction and one of them eventually forget.
+ * The straggling ladder: each "N or more characters… reduced by P%" clause →
+ * `{from: N, multiplier: (100 - P) / 100}`, ascending by `from`. The reduction
+ * is stored as the factor it leaves, which is what a speed derivation
+ * multiplies by.
  */
 export function parseStragglingTiers(text) {
   const t = String(text ?? "").toLowerCase();
@@ -102,11 +85,9 @@ export function parseStragglingTiers(text) {
 
 /**
  * A street cadence in TURNS: an hour, minute or day interval, with a
- * parenthesised turn or hour count where the page gives one (JJ p. 80).
- *
- * The parenthesised turn count is preferred where the page gives one. A row
- * stated only in hours is converted, because the engine ticks in turns and a
- * mixed-unit table would compare a day against ten minutes.
+ * parenthesised turn or hour count where the page gives one (JJ p. 80). The
+ * turn count is preferred; a row stated only in hours is converted, since the
+ * engine ticks in turns.
  */
 export function parseCadenceTurns(text) {
   const t = String(text ?? "").toLowerCase();
@@ -126,19 +107,10 @@ export function parseCadenceTurns(text) {
 /**
  * A bracketed travel-time clause anywhere ahead of its own district scope: a
  * parenthesised duration, then the phrase naming which districts it spans
- * (AX3 p.58).
- *
- * Deliberately silent on the VERB between the bracket and the scope. A
- * line-wrap hyphen can split a pace's name mid-word, and a pattern that names
- * the verb loses the reading exactly there; the bracket and the scope phrase
- * are the two stable parts, so they are all this matches on.
- *
- * `[^.(]*?` excludes BOTH the sentence break and a second bracket, and the
- * second exclusion is the one that matters: the page prints another bracketed
- * duration in the sentence before this one, so with only the sentence break
- * excluded a lost full stop lets the match reach back and credit that figure to
- * this scope. A wrong figure is the failure to design against — an absent one
- * is the only safe way for an extraction to miss.
+ * (AX3 p.58). Silent on the verb between the bracket and the scope, which a
+ * line-wrap hyphen can split mid-word. `[^.(]*?` excludes both the sentence
+ * break and a second bracket, so a lost full stop cannot credit the previous
+ * sentence's duration to this scope; an absent figure is the safe miss.
  */
 const DISTRICT_CLAUSE_RE = /\(([^()]+)\)[^.(]*?\bin\s*(the\s*same\s*district|adjacent\s*districts?)/gi;
 
@@ -157,12 +129,9 @@ function districtClauses(text) {
 /**
  * The four district-travel figures out of the whole paces paragraph: how
  * long each of the two paces takes between two points of interest in the
- * same district versus an adjacent one, in turns.
- *
- * Read as one paragraph and split on the meandering-speed marker (JJ p. 79) rather than
- * windowed per figure, for the same reason the survival paragraphs are: the
- * commuting reading and the meandering reading share both scope phrases, so
- * a single scan would not know which paragraph a clause belongs to.
+ * same district versus an adjacent one, in turns. The paragraph is split on
+ * the meandering-speed marker (JJ p. 79), since both paces share both scope
+ * phrases.
  */
 export function assembleDistrictTravel(paragraph) {
   const p = String(paragraph ?? "").toLowerCase();
@@ -184,7 +153,7 @@ export function assembleDistrictTravel(paragraph) {
   return Object.keys(out).length ? out : null;
 }
 
-/** A dice expression with its modifier, spaces closed ("2d8 + 3" → "2d8+3"). */
+/** A dice expression with its modifier. */
 const DICE_PART = String.raw`(\d*\s*d\s*\d+(?:\s*[+-]\s*\d+)?)`;
 const tidyDice = (s) => String(s).replace(/\s+/g, "").toLowerCase();
 const intOf = (s) => {
@@ -241,11 +210,8 @@ export function assembleSmuggling(window) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Where each cadence row belongs in the engine's `<where>.<day|night>` shape.
- *
- * A row with no time of day is filed under `any`, which is how a party holed
- * up is printed: it is not a place you pass through, so day and night are the
- * same rule.
+ * Where each cadence row belongs in the engine's `<where>.<day|night>` shape;
+ * a row with no time of day is filed under `any`.
  */
 const CADENCE_ROWS = Object.freeze({
   avenueDay: ["avenue", "day"],
@@ -286,11 +252,7 @@ export function assembleCityTravelTables(raw = {}) {
   if (Object.keys(paces).length) out.paces = paces;
 
   const navigation = {};
-  // The target is stated in the commuting sentence and again where the
-  // known-route modifier is; either window will do. Both windows are read as
-  // they stand — prefixing one with the phrase the pattern looks for only
-  // matches prose that happens to OPEN with the figure, which is the one
-  // shape neither window has (JJ p. 79).
+  // The target is stated in two windows (JJ p. 79); either will do, and both are read as they stand.
   const target = parseThrowTarget(prose.commuting) ?? parseThrowTarget(prose.navigation);
   if (target != null) navigation.target = target;
   const known = parseSignedClause(prose.navigation);
@@ -308,19 +270,15 @@ export function assembleCityTravelTables(raw = {}) {
   const districtTravel = assembleDistrictTravel(raw.districtProse?.paragraph);
   if (districtTravel) out.districtTravel = districtTravel;
 
-  // What making a nuisance of yourself is worth. Kept as a positive bonus to
-  // the THROW; the engine subtracts it from the target, because that is the
-  // direction the rule moves in and a reader should not have to know the sign.
+  // Kept as a positive bonus to the throw; the engine subtracts it from the target.
   const trouble = parseSignedClause(raw.intentProse?.trouble);
   if (trouble != null) out.encounterIntent = { trouble: Math.abs(trouble) };
 
-  // The shift the dark puts on the incident roll — a bare figure, not a row.
+  // The shift after dark puts on the incident roll: a bare figure, not a row.
   const dark = /adding\s+(\d+)\s+to\s+the\s+roll/i.exec(String(raw.afterDarkProse?.shift ?? ""));
   if (dark) out.encounterAfterDark = Number(dark[1]);
 
-  // The two dice the street throws on: the encounter throw's, and the
-  // incident list's. Each is rebuilt from its integers, and each is left out
-  // when its window did not print one.
+  // The street's encounter die and the incident list's, each left out when its window printed none.
   const dice = {};
   const street = parseDie(raw.streetDieProse?.die);
   if (street) dice.street = street;

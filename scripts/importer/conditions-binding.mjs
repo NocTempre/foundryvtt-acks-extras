@@ -3,19 +3,15 @@
  * combat chapter's Defend, countercharge and cover (RR 294-303) → the
  * `conditions` ruledata table `lib/conditions.mjs` reads.
  *
- * The recipes take one short window per FIGURE, anchored on the few words that
- * lead into it, because a condition's entry states each modifier on a line of
- * its own and a window opens after its anchor. This step reads the number out
- * of each window and decides its sign; the sentence patterns live here, in one
- * place, where a printing change is one edit.
+ * The recipes take one short window per figure, anchored on the few words that
+ * lead into it. This step reads the number out of each window and decides its
+ * sign; the sentence patterns live here, in one place.
  *
- * What a row carries is a SIGNED delta on the roll its slot names, whatever
- * the page does to say so: a bonus is positive, a penalty negative, and an
- * AC "reduced by" a figure is that figure negated. The two multiplier slots
- * (`speedFactor`, `damageFactor`) are shares between 0 and 1. A window that
- * yields nothing leaves its slot ABSENT — never zero, never a guess — and each
- * slot assembles on its own, so one unread window costs one figure. Like every
- * binding here, no value ships.
+ * A row carries a SIGNED delta on the roll its slot names: a bonus is
+ * positive, a penalty negative, and an AC "reduced by" a figure is that
+ * figure negated. The two multiplier slots (`speedFactor`, `damageFactor`) are
+ * shares between 0 and 1. A window that yields nothing leaves its slot ABSENT,
+ * never zero, and each slot assembles on its own. No value ships.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
@@ -24,7 +20,7 @@ import { CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_SLOTS } from "../lib/condit
 import { assembledDoc } from "./produces.mjs";
 import { parseShare } from "./survival-binding.mjs";
 
-/** The engine doc both halves agree on (acks-extras `expectTables`). */
+/** The engine doc both halves agree on (`expectTables`). */
 export const CONDITIONS_DOC_ID = CONDITIONS_DOC;
 
 /**
@@ -65,8 +61,8 @@ const BONUS_CUE = /\b(?:bonus|gain|increas|add)/;
 
 /**
  * The first figure in a window, signed. A mark written before the number
- * decides the sign; with none, the window's own wording does ("reduced by 2"
- * is negative, "a bonus of 2" positive). A figure whose direction the window
+ * decides the sign; with none, the window's own wording does ("reduced by N"
+ * is negative, "a bonus of N" positive). A figure whose direction the window
  * does not give is null rather than assumed.
  *
  * @param {string} window  lowercased prose

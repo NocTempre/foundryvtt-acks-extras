@@ -1,29 +1,29 @@
 /**
  * Armour/shield/helmet/barding TABLE extraction → core `armor` items
- * (RR PDF p. 130). The sibling of weapon-tables.mjs: same clean-break pipeline,
- * same IP posture — the recipe ships column GEOMETRY and canonical row NAMES
+ * (RR PDF p. 130). The recipe ships column GEOMETRY and canonical row NAMES
  * (locators); AC, encumbrance and cost materialize per-seat from the reader's
- * own book. Reuses the weapon module's row primitives (stripNoise, bindRowCells).
+ * own book. Reuses the row primitives of weapon-tables.mjs (stripNoise,
+ * bindRowCells).
  */
 import { rowsByY, joinRuns } from "./table-extract.mjs";
 import { stripNoise, bindRowCells, encToWeight6 } from "./weapon-tables.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 import { bookText } from "./prose.mjs";
 
+/** The armour table's recipe: its page, the anchors that identify it, and its column geometry. */
 export const ARMOR_TABLE = Object.freeze({
   book: "rr",
   page: 130,
   anchors: ["Armor and Barding", "Leather Armor"], // section title + a known row
   labelMaxX: 175,
   rowTol: 3,
-  // The category column (first armor tier through the shield and barding rows) is centered
-  // like the weapons' type column, so it is read as a band, not a point value.
+  // The category column is centered, so it is read as a band, not a point value.
   typeBand: { x0: 176, x1: 250 },
   columns: [
-    { key: "ac", x: 262, tol: 12 }, // "1".."6" | "+1" | "-"
-    { key: "enc", x: 309, tol: 14 }, // "1" | "1/6" | "Varies" | "-"
-    { key: "cost", x: 356, tol: 20 }, // "10gp" | "0 gp (5gp)" | "Varies" | "+50%"
-    { key: "special", x: 500, w: 90 }, // "revealing"
+    { key: "ac", x: 262, tol: 12 },
+    { key: "enc", x: 309, tol: 14 },
+    { key: "cost", x: 356, tol: 20 },
+    { key: "special", x: 500, w: 90 },
   ],
 });
 
@@ -75,14 +75,14 @@ function armorType(category, name) {
   return "light";
 }
 
-/** AC cell → ac.value. "+1"/"1".."6" → N; "-"/blank → 0. */
+/** AC cell → ac.value: its number, or 0 for a dash or a blank. */
 function acValue(ac) {
   const m = String(ac ?? "").match(/[+-]?\d+/);
   const n = m ? Number(m[0]) : 0;
-  return n < 0 ? 0 : n; // "-" (helmets) grants no AC
+  return n < 0 ? 0 : n; // a dash grants no AC
 }
 
-/** Cost cell → gp. First number only; "Varies"/"+50%"→null. */
+/** Cost cell → gp. First number only; a "varies" or percentage cell → null. */
 function costGp(cost) {
   const s = String(cost ?? "");
   if (/var|%/i.test(s)) return null;
@@ -154,14 +154,10 @@ function bardingMaterial(name) {
 /**
  * Build a core `armor` item from a materialized row.
  *
- * BARDING is modelled, not skipped. The book prints "Varies" for barding
- * encumbrance and cost because they are NOT intrinsic to the barding — they
- * derive from the MOUNT's size (a warhorse's plate barding weighs and costs
- * more than a pony's). So a barding item carries its fixed AC and an explicit
- * `sizeScales` descriptor (material + the rule) that a consumer resolves once a
- * mount is known, rather than a fake fixed number or a silent null. Spiked
- * barding is a cost modifier (+50%) and an attack rider, not a base suit — it
- * carries no AC and is flagged as a modifier.
+ * A barding row's encumbrance and cost depend on the mount's size, so the item
+ * carries its AC and a `sizeScales` flag (with its material) that a consumer
+ * resolves once a mount is known. Spiked barding is a cost multiplier and an
+ * attack rider, not a base suit: it carries no AC and is flagged `modifier`.
  */
 export function bindArmorRow(row, id, cite) {
   const c = row.cells ?? {};
@@ -182,8 +178,7 @@ export function bindArmorRow(row, id, cite) {
 
   const armorFlag = { helmet: isHelmet, barding: isBarding, category: row.category };
   if (isBarding) {
-    // The barding size model: the item is size-relative; cost/encumbrance come
-    // from the mount. Make it explicit on the sheet AND in structured data.
+    // Stated on the sheet and in the flag: cost and encumbrance come from the mount.
     system.description += `<p><em>${
       isSpiked
         ? "Adds +1 damage per die to the mount's natural attacks; cost +50%."
