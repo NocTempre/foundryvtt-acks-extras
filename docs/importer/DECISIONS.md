@@ -11129,7 +11129,10 @@ label qualified by a role, age or size" of "A lair links to its monster…"
 (2026-11-13): the new evidence is that answer and the comparison itself, which
 shows which of those lines print the row's own figures.
 
-**Ruled:** `tools/importer/compare-lines.mjs` reads the Judge's L&E and MM copies
+**Ruled** (the owner's answer is the quotation; the definition of a match is
+the design's; the normalisations and the treatment of an unread figure are the
+implementing session's, open to the owner's ruling):
+`tools/importer/compare-lines.mjs` reads the Judge's L&E and MM copies
 through the shipping executor and compares every made stat line with the MM rows
 its label may stand for (a row sharing a creature word with the label, the row
 the lair's `meta.of` names, the row the conversion table renames the label to).
@@ -11156,8 +11159,8 @@ variant match where it agrees at some occurrences of its label and not at
 every one.
 
 *Cost:* 226 of 355 stat lines are still made. Few rank-and-file lines match,
-because L&E prints a figure the MM row does not: a damage bonus where the row
-prints "by weapon", a different weapon, a different morale or save. Near misses
+because L&E prints a figure that differs from the MM row's: a damage, a
+weapon, a morale or a save. Near misses
 stay made: a printed weapon's damage against the row's "by weapon", a label
 whose occurrences disagree, a row whose attack text did not read, and the
 rows that print a regular and a veteran profile. A paired line's creature is

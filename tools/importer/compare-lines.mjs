@@ -127,7 +127,7 @@ function rowAttacks(text) {
   return m ? attackModes(m[1], m[2]) : [];
 }
 
-/** A save as class letters and level: `{class: "F", level: 3}` or "F3" alike. */
+/** A save as class letters and level: `{class, level}` or a text of the two alike. */
 function saveOf(save) {
   if (save && typeof save === "object") return `${String(save.class ?? "").toUpperCase()}${save.level ?? ""}`;
   const m = /^([A-Za-z]+)\s*(\d+)$/.exec(String(save ?? "").trim());
