@@ -2,7 +2,7 @@
 /**
  * `acks-extras.template` — a GENERATOR actor: the book's "characteristics by
  * rank/age/tier" pages held as a document that stamps out concrete creatures.
- * See docs/lib/API.md, "`acks-extras.template` — the generator actor (v0.16)".
+ * See docs/lib/API.md, "`acks-extras.template` — the generator actor".
  *
  * Generation is pure selection + merge (template-logic.mjs): pinned >
  * derived-from-a-dropped-base > rolled per the book's own dice. All
