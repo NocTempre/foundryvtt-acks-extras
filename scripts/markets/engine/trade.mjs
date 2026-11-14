@@ -214,7 +214,8 @@ export function availabilityFor(location, { itemName, costGp, trader = null, dir
   if (!band) return tag({ status: "untradeable" });
   const trueClass = location.system.marketClass;
   const marketClass = trader ? effectiveMarketClass(location, trader) : trueClass;
-  if (marketClass == null) return { status: "noMarket" };
+  // A market whose class is not known shows no label: the class is the one thing every cell reads by.
+  if (marketClass == null) return { status: "tablesMissing" };
   const cell = cellFor(band, marketClass);
   const marketCell = cellFor(band, trueClass ?? marketClass);
   if (cell.kind === "none") return tag({ status: "unavailable", band: band.band });
@@ -525,7 +526,8 @@ export async function resolveMonthlyAvailability(location, goods, { itemData, ba
   // bigger market.
   const trueClass = location.system.marketClass;
   const marketClass = effectiveMarketClass(location, trader);
-  if (marketClass == null) return err("noMarket");
+  // The market is here (its goods are read), so a null class is an unknown one: a refusal that shows nothing.
+  if (marketClass == null) return err("tablesMissing");
   const cell = cellFor(band, marketClass);
   const marketCell = cellFor(band, trueClass ?? marketClass);
   if (cell.kind === "none") return err("unavailable");

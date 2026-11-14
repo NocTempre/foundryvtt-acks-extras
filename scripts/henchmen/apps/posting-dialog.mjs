@@ -17,8 +17,8 @@ import { hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
-/** Refusal codes that name a missing import and nothing else; the post stops and the dialog says nothing. */
-const SILENT_REFUSALS = new Set(["arrivals-missing", "tables-missing"]);
+/** Refusal codes that name a missing import or an unknown figure and nothing else; the post stops and the dialog says nothing. */
+const SILENT_REFUSALS = new Set(["arrivals-missing", "tables-missing", "no-market-class"]);
 
 /** Shows a posting refusal's reason, except one that only names a missing import. */
 function refusal(code) {

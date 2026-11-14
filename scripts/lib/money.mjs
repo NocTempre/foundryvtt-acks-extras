@@ -61,15 +61,15 @@ export function standingCoinScope() {
 }
 
 /**
- * The exchange terms a place offers. A market (any market class) changes
- * denominations freely; anywhere else barters. A GM override on the market
+ * The exchange terms a place offers. A place with a market (whatever its
+ * class, known or not) changes denominations freely; anywhere else barters. A GM override on the market
  * subtree wins when present ("market" | "none").
  */
 export function exchangeTermsAt(place) {
   if (!place || !isLocation(place)) return { mode: "none" };
   const override = place.system?.market?.exchangeOverride ?? null;
   if (override === "market" || override === "none") return { mode: override };
-  return { mode: place.system?.marketClass != null ? "market" : "none" };
+  return { mode: place.system?.hasMarket ? "market" : "none" };
 }
 
 /**

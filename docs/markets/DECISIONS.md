@@ -145,3 +145,26 @@ answered: "B: AX3 toll at that city". The gate the toll is charged at is
 before the party has assessed the market, and rolls that price at the gate
 where none was rolled. Merchandise under half a unit pays no toll, as the
 rounding prints.
+
+## 2026-11-14 — A market with no known class reads no figure, and says nothing
+
+Every availability cell, the characteristics row, the Range of Trade row and the
+venture's class arithmetic are read by the market's class, which can now be
+unknown (`docs/location/DECISIONS.md`, "A market's class is the Judge's or the
+table's, and otherwise unknown"). The ventures' `|| 6` fallbacks are gone, and
+each reader answers before a clamp or a comparison, where `roll > null` would
+have been true and `null <= edge` too. The session's calls, owner may overrule:
+
+- **A blank refusal, not "no market".** The market is there, so the
+  availability and trade engines answer `tablesMissing` (blank label, refusal
+  with no text) rather than `noMarket`, whose text says there is no market.
+- **A negotiated trade is refused `noCharacteristics` before its roll.** The
+  merchant's side of the haggle is read against the class; a plain purchase at
+  the month's price does not need it and is unchanged.
+- **A solicitation resolves unresolved** (the venture log's existing line),
+  and a queued entry the same, since the class that priced them is gone.
+- **The till reads the market's presence, not its class**, as does the coin
+  exchange: neither uses the class.
+
+*Cost:* a Judge who clears the class of a market with ventures in flight sees
+those days resolve unresolved.

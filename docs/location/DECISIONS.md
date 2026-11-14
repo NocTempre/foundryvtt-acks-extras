@@ -130,3 +130,36 @@ gate action" is not built and is not the role's reader.
 *Cost:* every gated market has a second body for deposits and coin as well as
 entry, since reach is one rule. A world's gates are walked once per reach
 sweep, or once per call where a caller holds no scan.
+
+## 2026-11-14 — A market's class is the Judge's or the table's, and otherwise unknown
+
+A place with a market and no `marketClassOverride` and no urban families read as
+a class the module chose, and so did a family count below the settlement table's
+smallest bracket. Both defaults are gone:
+`system.marketClass` is the override, else the imported table's class for the
+families, else `null` (the owner's "Missing imports stay blank with page
+reference as a subtle clue", and "a figure a page prints is imported"). The
+class badge on the sheet is then blank with the page reference (RR 352) as its
+tooltip, and no search fee shows.
+
+- **The session's call, owner may overrule: the 1 to 6 range stays.** The
+  clamp and the override field's bounds are the count of the grid's class
+  columns, structure and not a printed rung.
+- **The session's call, owner may overrule: a count below the smallest bracket
+  is unknown.** The page prints one more settlement row below the recipe's
+  first, a class with a footnote that confines it to a domain's stronghold, so
+  its answer is conditional and no single class names it. `table-recipes.mjs`
+  does not read that row; reading it would be a recipe change, and a row the
+  getter could then return only where the place is a stronghold. Until then
+  that count answers null.
+- **The session's call, owner may overrule: `hasMarket`, not the class, says
+  whether a place is a market for coin.** `exchangeTermsAt` and the till read
+  `marketClass != null` as "has a market" only because the class had never
+  been null for one; neither uses the class, so both read the subtree's
+  presence.
+
+Rejected: a blank class option on the override select that stands for a
+default; a "class not set" notice (the owner's ruling is a blank field and a
+page reference, no text saying it is missing). *Cost:* a market a Judge adds
+and does not describe does nothing in henchmen and trade until a class is set;
+a world that relied on the fourth class sets it once.

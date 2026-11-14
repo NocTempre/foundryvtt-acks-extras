@@ -4620,7 +4620,7 @@
   "ACKS-HENCHMEN.location.blockedClassesEmpty": "Every class can be offered here.",
   "ACKS-HENCHMEN.location.sourceOverride": "Set by GM override",
   "ACKS-HENCHMEN.location.sourceFamilies": "Derived from urban families (RR 352)",
-  "ACKS-HENCHMEN.location.sourceDefault": "Default (Class IV) — set urban families or an override",
+  "ACKS-HENCHMEN.location.sourceDefault": "Market class (RR 352)",
   "ACKS-HENCHMEN.location.settings": "Market settings",
   "ACKS-HENCHMEN.location.region": "Region (slander scope)",
   "ACKS-HENCHMEN.location.urbanFamilies": "Urban families",

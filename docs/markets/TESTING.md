@@ -1303,6 +1303,12 @@ name and figures, tracked by id). Create by hand with `system.cost` and
 
 **Teardown:** delete the character by id.
 
+## A market whose class is not known
+
+The Trade tab, the Enter dialog, solicitation and a negotiated trade at a
+market with no class are walked in docs/location/TESTING.md, step 27. Not
+walked live when written.
+
 ## Teardown
 
 By hand, delete the location, the buyer and the merchandise fixtures by their

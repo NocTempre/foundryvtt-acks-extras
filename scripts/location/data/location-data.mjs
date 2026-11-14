@@ -167,8 +167,9 @@ function candidateField() {
  */
 function marketSchema() {
   return {
-    // Market-class derivation inputs: explicit override wins, then urban
-    // families (local bracket table), then default IV.
+    // Market-class derivation inputs: explicit override wins, then the urban
+    // families through the imported settlement table; with neither the class
+    // is unknown (see the `marketClass` getter).
     marketClassOverride: num({ integer: true, min: 1, max: 6 }),
     // The Judge's word on denomination exchange here, outranking the derived
     // rule (a market changes freely; anywhere else barters): "market" | "none".
@@ -477,8 +478,11 @@ export class LocationData extends foundry.abstract.TypeDataModel {
   /* -------------------------------------------- */
 
   /**
-   * Effective market class 1..6 (1 = largest), before per-actor effect shifts.
-   * `null` when this place has no market.
+   * Effective market class 1..6 (1 = largest), before per-actor effect shifts:
+   * the Judge's override, else the imported settlement table's class for the
+   * urban families. `null` when this place has no market, and when its class is
+   * not known (no override, no families, no imported table, or a count no
+   * bracket holds): no figure stands in for it, and every reader answers null.
    */
   get marketClass() {
     const market = this.market;
@@ -491,7 +495,7 @@ export class LocationData extends foundry.abstract.TypeDataModel {
         /* tables not loaded yet */
       }
     }
-    return 4;
+    return null;
   }
 
   /** Living things recorded here, counting a group row as its whole stack. */

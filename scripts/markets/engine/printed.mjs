@@ -186,6 +186,7 @@ export function stayRates() {
  * @returns {{road: number, water: number}|null}
  */
 export function rangeOfTradeFor(marketClass) {
+  if (marketClass == null) return null;
   const rows = optTable("demand", "rangeOfTrade")?.rows;
   if (!Array.isArray(rows)) return null;
   const row = findRow(rows, (r) => Number(r.marketClass) === Number(marketClass));

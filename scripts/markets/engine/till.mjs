@@ -39,7 +39,7 @@ const hasStoredTarget = (market) => {
  * nothing, for a place with no market or no stated families to derive from. */
 export async function tillTargetGp(location) {
   const market = location.system?.market;
-  if (!market || location.system?.marketClass == null) return 0;
+  if (!market) return 0;
   if (hasStoredTarget(market)) return Number(market.tillTargetGp);
   const families = Number(market.urbanFamilies);
   const income = familyIncomeGp();
@@ -60,7 +60,7 @@ export const tillCoinCp = (location) => coinTotalCp(ownCoin(location));
  */
 export async function refreshTill(location, { force = false } = {}) {
   const market = location.system?.market;
-  if (!market || location.system?.marketClass == null) return { refreshed: false };
+  if (!market) return { refreshed: false };
   const monthStart = marketMonthStart(now());
   if (!force && Number(market.tillRefreshTime) >= monthStart) return { refreshed: false };
   // No target and nothing to derive one from: leave the month unwatermarked so the

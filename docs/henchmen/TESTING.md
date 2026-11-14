@@ -1148,6 +1148,9 @@ walked in docs/lib/TESTING.md, "The repair tool".
     by their tracked uuids, the layer lifted, the world's `loyaltyChanges` read
     again. Not walked live when written.
 
+30. A market whose class is not known posts, rolls and charges nothing: walked
+    in docs/location/TESTING.md, step 27. Not walked live when written.
+
 ## Teardown
 
 Nothing is swept: the fixtures stay, and the next run brings them to shape

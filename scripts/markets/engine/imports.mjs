@@ -99,7 +99,7 @@ export async function placeImportOrder(location, payload) {
   const wait = hubWait(hub);
   if (!hubRules || !wait) return printedError("marketRulesProse");
   const localClass = effectiveMarketClass(location, buyer);
-  if (localClass == null) return err("noMarket");
+  if (localClass == null) return err("tablesMissing");
   const sourceClass = hubClass(localClass, hub === "regional" ? hubRules.regionalHubShift : hubRules.localHubShift);
   // A magic item imports on the magic transaction grid and prices as Tower
   // stock, exactly as a local purchase of it does.

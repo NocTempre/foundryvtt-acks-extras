@@ -85,7 +85,8 @@ by hand.
 1. Create the location and open it.
    *Observable:* `LocationSheet`, with Contents (0) and Storage (0).
 2. Press **Add a market**.
-   *Observable:* Market class and search fee appear; the Recruitment,
+   *Observable:* The Market class badge appears (blank until a class is known,
+   step 27); the Recruitment,
    Henchmen, Mercenaries, Specialists, Trade and Ventures tabs appear, Trade
    carrying the catalogue's row count (every source Shop sources leaves in)
    and Ventures the count of queued venture days the viewer's party (the
@@ -515,6 +516,31 @@ by hand.
     the shapes apart, since it is OWNER of every document, so any drive of this
     step sets the ownership map as described under Core drive mechanics and
     reads from the Player seat.
+
+27. **A market whose class is not known.** *Unwalked when written.* Fixture:
+    a disposable location with a market added and no `marketClassOverride`
+    and no `urbanFamilies` (the GM Settings tab's Urban families and Market class override fields blank), with the
+    `settlement` table layer present and again lifted. A character with coin
+    stands at it.
+    *Observable, location sheet:* the Market class badge in the header is
+    blank, its tooltip the page reference (RR 352) alone, and no Search fee
+    badge shows; nothing says a class is missing. Setting the Override select
+    makes the badge and the fee appear at once (Market class override); entering urban families with
+    the table imported does the same, and a count below the table's smallest
+    bracket leaves the badge blank.
+    *Henchmen:* Post a search from the Recruitment tab: no toast, no fee
+    charged, no posting created and no chat card; `system.market.postings`
+    and the character's coin are unchanged. A Judge's placement of a named
+    level (Post dialog, class and level chosen) still adds the candidate.
+    Advance the world clock past the month: `monthAnchorTime` stays 0 and no
+    candidates appear.
+    *Markets:* the Trade tab's header shows no class line and every row's
+    availability label is blank; buying is refused with no text; the Enter
+    dialog's quote shows no figure and Enter does nothing; Solicit and a
+    negotiated trade do nothing. The coin exchange still changes denominations
+    there, and the till still refreshes once families are entered.
+    *Teardown:* the fixture by its tracked uuid. Offline:
+    `tools/test-market-class-unknown.mjs`.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

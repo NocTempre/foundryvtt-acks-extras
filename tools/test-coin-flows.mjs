@@ -149,7 +149,7 @@ function makeActor({ id, name = id, type = "character", items = [] }) {
 function makePlace({ id, name = id, type = LOCATION, items = [], vaultOf = null, market = false }) {
   const place = makeActor({ id, name, type, items });
   place.flags = { "acks-extras": { storage: { provider: true, ...(vaultOf ? { vaultOf } : {}) } } };
-  if (market) place.system = { marketClass: 4 };
+  if (market) place.system = { hasMarket: true };
   worldActors.set(place.id, place);
   return place;
 }
@@ -498,7 +498,7 @@ await test("a wage pays only what the purse represents exactly and books the res
 });
 await test("a market's till mints what it is short, and makes any change", async () => {
   const market = makeActor({ id: "market", type: LOCATION });
-  market.system = { marketClass: 4 };
+  market.system = { hasMarket: true };
   const seller = makeActor({ id: "seller" });
   assert.equal((await transferCoin({ from: market, to: seller, gp: 12, gate: false, allowMint: true })).ok, true);
   assert.equal(cp(seller), 1200);

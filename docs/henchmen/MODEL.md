@@ -44,7 +44,7 @@ One actor per settlement (see `scripts/data/location-data.mjs`):
 
 | Field | Meaning |
 |---|---|
-| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, local table) → default IV. Derived getter: `system.marketClass`. |
+| `marketClassOverride` / `urbanFamilies` / `domainUuid` | Market-class derivation inputs: override → urban-families bracket (RR 352, the imported settlement table) → unknown (`null`, no default). Derived getter: `system.marketClass`. A market whose class is unknown posts, rolls and charges nothing: see "A market whose class is not known". |
 | `classRarityTableId` | Which JJ class-rarity variant applies (`default`, or setting-specific additions). |
 | `rarityOverrides[]` | `{classKey, rarity}` — the Judge's word on a class's rarity in THIS market, consulted before the variant on every directed search (`overrideRarity`). |
 | `blockedClasses[]` | Class keys THIS market never offers (`classBlocked`). Every class draw here passes them to `rollClassFromDistribution`, which draws again on one and ends on `special` after `BLOCKED_CLASS_DRAWS` draws; `rollMonthlyPool` refuses a search directed at one `class-blocked`. A GM-placed candidate's named class is placed. |
@@ -755,3 +755,24 @@ fact through the api at call time.
 feature's `marketClassShift` (asked through the api at call time, never
 imported) to the employer's effect shift; at the default setting it is zero
 and every market is exactly what the sheet says (`docs/factions/MODEL.md`).
+
+## A market whose class is not known
+
+A market has a class only from the Judge's override or from the imported
+settlement table's bracket for its urban families (RR 352). With neither, or
+with a count the table holds no bracket for, `system.marketClass` is `null`
+and no figure stands in for it. `clampMarketClass`, `shiftMarketClass` and
+every availability reader (`searchFeeFormula`, `henchmanExpr`,
+`mercenaryExpr`, `specialistExpr`, `rarityExpr`, `rollMonthlyPool`) keep a
+null a null, never reading it as the largest market. The engine then does
+nothing for that market:
+
+- `createPosting` refuses `no-market-class`, which the posting dialog
+  swallows with the other silent refusals. A Judge's placement of a named
+  level rolls nothing and still goes through.
+- `rollMonth` rolls no month, and `processLocation` keeps the market it holds
+  and leaves the month unrolled, as it does for unloaded tables.
+- A posting's weekly fee is neither read, charged nor refused, and a directed
+  search keeps its results unrolled; both resume when a class is set, the fee
+  for every week not yet paid.
+- `effectiveMarketClass` answers `null`.

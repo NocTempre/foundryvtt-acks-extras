@@ -435,6 +435,20 @@ party's find.
   qualified through the identifier's own ability items or level; failures
   lock per method and identifier until a level is gained.
 
+## A market whose class is not known
+
+Every cell of the availability grids, the characteristics row, the Range of
+Trade row and the venture's class arithmetic is read by the market's class
+(`location.system.marketClass`, `docs/location/MODEL.md`, "A market's
+class"). With it unknown, nothing here reads a figure: `availabilityFor` and
+`resolveMonthlyAvailability` answer `tablesMissing` (a blank label, a refusal
+with no text), as does an import order; `characteristicsFor` and
+`rangeOfTradeFor` answer `null`, so an entry quote refuses `noCharacteristics`
+(blank) and a queued entry resolves unresolved; a solicitation resolves
+unresolved and a negotiated trade is refused `noCharacteristics` before any
+roll. The till and the coin exchange depend on the market's presence and not its
+class, and go on as before.
+
 ## What a party carries
 
 A party's merchandise loads — the items they have bought for resale or trade —

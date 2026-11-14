@@ -13,53 +13,68 @@ export const ARRIVALS_DOC = "availability";
 /** The prose table of `ARRIVALS_DOC` holding them (RR 162). */
 export const ARRIVALS_TABLE = "arrivalProse";
 
-/** Clamp a market class to the legal 1..6 range (1 is the largest market). */
+/**
+ * Clamp a market class to the legal 1..6 range (1 is the largest market).
+ * A class that is not known (null, undefined, not a number) stays null: it is
+ * never read as a number, since a null would clamp to the largest market.
+ */
 export function clampMarketClass(mc) {
-  return Math.min(6, Math.max(1, Math.round(mc)));
+  if (mc == null || mc === "" || !Number.isFinite(Number(mc))) return null;
+  return Math.min(6, Math.max(1, Math.round(Number(mc))));
 }
 
 /**
- * Derive market class from urban families (RR 352). Below the smallest
- * bracket → Class 6 (per the local settlement table's default).
+ * Derive market class from urban families (RR 352) by the imported settlement
+ * table's bracket. Null when no bracket holds the count, or the row names no
+ * class: the class is then unknown, never a default.
  */
 export function marketClassFromFamilies(urbanFamilies) {
   const rows = getTable("settlement", "marketClassByFamilies").rows;
   const row = bracketRow(rows, Number(urbanFamilies) || 0);
-  return row ? row.marketClass : 6;
+  return Number.isInteger(row?.marketClass) ? row.marketClass : null;
 }
 
 /**
  * Apply an effect shift (Mercantile Network: previously-entered markets count
- * one class larger; Class 1 stays Class 1).
+ * one class larger; Class 1 stays Class 1). An unknown class stays unknown.
  */
 export function shiftMarketClass(marketClass, shift) {
-  if (!shift) return clampMarketClass(marketClass);
-  return clampMarketClass(marketClass - shift);
+  const known = clampMarketClass(marketClass);
+  if (known == null || !shift) return known;
+  return clampMarketClass(known - shift);
 }
 
-/** The weekly market search fee formula for a market class (dice string). */
+/** The weekly market search fee formula for a market class (dice string), or null for an unknown class. */
 export function searchFeeFormula(marketClass) {
-  return getTable("availability", "searchFees").byMarketClass[String(clampMarketClass(marketClass))];
+  const mc = clampMarketClass(marketClass);
+  return mc == null ? null : (getTable("availability", "searchFees").byMarketClass[String(mc)] ?? null);
 }
 
-/** Availability expression for henchmen of a level in a market class. */
+/** The availability cell of a class-indexed row, or null for an unknown class. */
+function classCell(row, marketClass) {
+  const mc = clampMarketClass(marketClass);
+  return mc == null ? null : (row.byMarketClass[mc - 1] ?? null);
+}
+
+/** Availability expression for henchmen of a level in a market class; null where the class is unknown. */
 export function henchmanExpr(level, marketClass) {
   const row = getTable("availability", "henchmanAvailability").rows.find((r) => r.level === level);
-  return row ? { expr: row.byMarketClass[clampMarketClass(marketClass) - 1], wage: row.wage } : null;
+  const expr = row ? classCell(row, marketClass) : null;
+  return expr == null ? null : { expr, wage: row.wage };
 }
 
-/** Availability expression for a mercenary troop type. */
+/** Availability expression for a mercenary troop type; null where the class is unknown. */
 export function mercenaryExpr(type, marketClass) {
   const row = getTable("availability", "mercenaryAvailability").rows.find((r) => r.type === type);
-  return row ? { expr: row.byMarketClass[clampMarketClass(marketClass) - 1], row } : null;
+  const expr = row ? classCell(row, marketClass) : null;
+  return expr == null ? null : { expr, row };
 }
 
-/** Availability expression + wage for a specialist type. */
+/** Availability expression + wage for a specialist type; null where the class is unknown. */
 export function specialistExpr(type, marketClass) {
   const row = getTable("availability", "specialistAvailability").rows.find((r) => r.type === type);
-  return row
-    ? { expr: row.byMarketClass[clampMarketClass(marketClass) - 1], wage: row.wage, wageUnit: row.wageUnit }
-    : null;
+  const expr = row ? classCell(row, marketClass) : null;
+  return expr == null ? null : { expr, wage: row.wage, wageUnit: row.wageUnit };
 }
 
 /** Rarity tier of a class name within a rarity table variant. */
@@ -143,7 +158,7 @@ export function searchSteps() {
 /** Availability expression for a rarity tier in a market class (JJ 118). */
 export function rarityExpr(tier, marketClass) {
   const row = (optTable("rarity", "rarityAvailability")?.rows ?? []).find((r) => r.rarity === tier);
-  return row ? row.byMarketClass[clampMarketClass(marketClass) - 1] : null;
+  return row ? classCell(row, marketClass) : null;
 }
 
 /**
@@ -162,6 +177,8 @@ export function rarityExpr(tier, marketClass) {
  */
 export async function rollMonthlyPool(spec, marketClass, rollDice, rand = Math.random, rarityVariant = "default", rarityOverrides = [], blockedClasses = []) {
   const mc = clampMarketClass(marketClass);
+  // Nothing in a pool reads without the class: a null never reaches an expression.
+  if (mc == null) return { error: "no-market-class" };
   if ((spec.kind === "henchmanByClass" || spec.kind === "henchmanByClassProficiency") && classBlocked(blockedClasses, spec.classKey)) {
     return { error: "class-blocked" };
   }

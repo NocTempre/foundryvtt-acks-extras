@@ -40,6 +40,7 @@ const SALE_TYPES = new Set([ITEM_TYPE.item, ITEM_TYPE.weapon, ITEM_TYPE.armor]);
 
 /** The imported Market Characteristics row for a class (null when absent). */
 export function characteristicsFor(marketClass) {
+  if (marketClass == null) return null;
   const rows = optTable("mercantile", "marketCharacteristics")?.rows ?? [];
   return findRow(rows, (r) => Number(r.marketClass) === Number(marketClass)) ?? null;
 }

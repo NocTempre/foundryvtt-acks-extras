@@ -81,6 +81,25 @@ sibling features (henchmen today; domains later) read through lib.
 - **Invent**: nothing the system provides. No book values, no fallback
   sample tables (ruling 1): absent tables render as stubs + citations.
 
+## A market's class
+
+`system.marketClass` (1 to 6, 1 the largest) is the Judge's
+`market.marketClassOverride`, else the imported settlement table's class for
+`market.urbanFamilies` (RR 352, `settlement.marketClassByFamilies`, read by
+`scripts/importer/table-recipes.mjs`). With neither, or with a count the table
+holds no bracket for, it is `null`: the class is unknown and no figure stands
+in for it. The 1 to 6 range is the count of the grid's class columns
+(`clampMarketClass`, the override field's bounds), not a printed figure.
+`hasMarket` is the market subtree's presence and is true for a market whose
+class is unknown; the coin exchange (`exchangeTermsAt`) and the till read it,
+not the class.
+
+The location sheet's class badge is blank for an unknown class, its tooltip the
+page reference (RR 352) alone, and the search fee beside it is not shown. What
+each feature does without a class is in `docs/henchmen/MODEL.md` ("A market
+whose class is not known") and `docs/markets/MODEL.md` ("A market whose class
+is not known").
+
 ## Reaching a place
 
 Depositing is gated on being able to reach the place; **retrieving is not** —

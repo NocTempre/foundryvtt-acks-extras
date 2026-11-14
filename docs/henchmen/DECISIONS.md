@@ -179,3 +179,26 @@ executor: the page prints three specialist figures beside the officer one the
   combined id and stored null.
 - Rejected: one key per specialist type (the page prints three figures, not one
   per type). Cost: a record written before this change keeps its null.
+
+## 2026-11-14 — A market with no known class posts, rolls and charges nothing
+
+With the class unknown (`docs/location/DECISIONS.md`, "A market's class is the
+Judge's or the table's, and otherwise unknown") a null would have clamped to the
+largest market, so every reader answers null before a clamp. These are the
+session's calls, owner may overrule:
+
+- **`createPosting` refuses `no-market-class`, silently.** The code joins the
+  dialog's silent refusals (a refusal that only names a missing figure shows no
+  toast). A Judge's placement that names its level rolls and charges nothing and
+  goes through.
+- **A month is deferred like an unloaded registry.** `processLocation` keeps the
+  market it holds and rolls nothing, as in "A month roll never fires against an
+  unloaded table registry"; that ruling stands and this is one more condition.
+- **A weekly fee for a posting at an unknown class is skipped, not refused.** A
+  refusal closes the posting and warns; the class is not the employer's fault.
+  The weeks owed are charged when a class is set.
+- **A directed re-roll with no class keeps the posting's results** and does not
+  purge them.
+
+*Cost:* a search posted while the class was known and run on after the Judge
+clears the class pays nothing for those weeks and then the arrears.

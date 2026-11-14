@@ -320,7 +320,7 @@ export async function postVentureAction(location, payload) {
     if (unpriced.length) {
       const merchPrices = clone(goods.merchPrices);
       const known = merchPrices.length;
-      for (const category of unpriced) await ensureMerchPrice(goods, merchPrices, category, Number(location.system.marketClass) || 6, monthStart);
+      for (const category of unpriced) await ensureMerchPrice(goods, merchPrices, category, location.system.marketClass, monthStart);
       if (merchPrices.length > known) {
         gate = entryQuote(location, actor, { ...declared, prices: merchPrices });
         if (gate.error) return gate;
@@ -519,6 +519,7 @@ const trueDm = (goods, category) => trueDemand(goods, category);
 async function ensureMerchPrice(goods, merchPrices, category, marketClass, monthStart) {
   let row = merchPrices.find((p) => p.category === category && Number(p.monthStartTime) === monthStart);
   if (row) return row;
+  if (marketClass == null) return null;
   const merch = merchandiseFor(category);
   const shifts = priceShifts();
   if (!merch || !shifts) return null;
@@ -628,7 +629,7 @@ export async function processVentureActions(location, log, t) {
         ...limits,
         cargoSt: action.cargoSt,
         baselineCargoSt: parseStones(ch.baselineCargo),
-        marketClass: Number(location.system.marketClass) || 6,
+        marketClass: Number(location.system.marketClass),
         urbanFamilies: Number(location.system.market.urbanFamilies) || 0,
         baselineOfClass: (cls) => parseStones(characteristicsFor(cls)?.baselineCargo),
         entrants,
@@ -799,11 +800,16 @@ export async function processVentureActions(location, log, t) {
         continue;
       }
       if (!venture?.entered) continue;
-      const price = await ensureMerchPrice(goods, merchPrices, action.category, Number(location.system.marketClass) || 6, monthStart);
+      // Every figure below reads by the market's class.
+      const trueClass = location.system.marketClass;
+      if (trueClass == null) {
+        logUnresolved(actor, action, log, t);
+        continue;
+      }
+      const price = await ensureMerchPrice(goods, merchPrices, action.category, trueClass, monthStart);
       if (!price) continue;
       // The network that counts is the soliciting trader's, in a market they
       // had been in before this visit; the price stays the market's own.
-      const trueClass = Number(location.system.marketClass) || 6;
       const base = { cls: Number(venture.effectiveClass) || trueClass, imp: Number(venture.impact) || 0 };
       const stonesAt = (cls, imp) => solicitedStones({ baseStones: Number(merch.dailyStones?.[cls - 1]) || 0, impact: imp });
       const known = marketKnownTo(location, actor, { at: Number(action.postedTime) || t });
@@ -913,11 +919,13 @@ export async function tradeMerchandise(location, payload) {
   if (negotiate && !printed) return printedError("negotiationProse");
   let unitCp = price.priceCp;
   let negotiationLine = null;
+  // The merchant's side of a haggle is read against the market's class.
+  if (negotiate && location.system.marketClass == null) return err("noCharacteristics");
   if (negotiate) {
     const typical = merch.tier === "precious" ? printed.precious : printed.common;
     const merchantCha = typical.cha;
     let merchantRanks = typical.ranks;
-    if ((await new Roll("1d6").evaluate()).total > (Number(location.system.marketClass) || 6)) merchantRanks += printed.extraRanks;
+    if ((await new Roll("1d6").evaluate()).total > Number(location.system.marketClass)) merchantRanks += printed.extraRanks;
     const roll = await new Roll("2d6").evaluate();
     const total = roll.total + adapter.getChaMod(actor) + printed.rankStep * abilityRanks(actor, "Bargaining") - merchantCha - printed.rankStep * merchantRanks;
     const outcome = negotiationOutcome(total, roll.total, printed.bands);
