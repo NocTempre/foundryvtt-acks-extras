@@ -92,10 +92,9 @@ export async function repairFromEntry(doc, id, build, policy, tally = null) {
  * page yielded one, else `{node: null, reason}` — `book-closed` when the
  * entry's book is not open here, `no-match` when its page no longer matches
  * the cookbook. Inside `holdingReads`, a repeated read of one entry is served
- * from the first. An import creates nothing from a null node: a document built
- * from the entry's shape alone reads as the thing on every sheet, and a book
- * opened later imports what was passed over, since every import steps over
- * what the world holds and builds the rest. `opts` is `executeEntry`'s.
+ * from the first. An import creates nothing from a null node. `opts` is
+ * `executeEntry`'s.
+ * See docs/importer/DECISIONS.md, "Nothing is imported without the book — SUPERSEDED IN PART 2026-11-13 (the three equipment sweeps: `docs/DECISIONS.md` §29)".
  */
 export async function readForImport(id, opts = {}) {
   const found = cookbookEntry(id);
@@ -137,12 +136,10 @@ export function passedOver() {
 }
 
 /**
- * One page cache per BOOK, living exactly as long as one bulk run.
- * `executeEntry` caches pages only for the duration of a single call, which
- * re-extracts the same page for every entry printed on it. Nothing here
- * outlives the run — a session-long cache would hold every page of every
- * opened book for as long as the world is up.
- * See docs/importer/DECISIONS.md, "Writes are batched, because a write costs what the shelf already holds".
+ * One page cache per book, living exactly as long as one bulk run, so a page
+ * printed with many entries is extracted once per run rather than once per
+ * entry. Nothing here outlives the run.
+ * See docs/importer/DECISIONS.md, "Writes are batched, because a write costs what the shelf already holds (2026-08-24)".
  *
  * @returns a `(bookId) => Map` to pass as `executeEntry`'s `opts.pageCache`
  */

@@ -1,27 +1,20 @@
 /**
- * The importer — bring-your-own-book content streamer (PoC).
+ * The importer: the bring-your-own-book content streamer.
  *
- * POSSESSION MODEL: what persists across sessions is the LOCATION of each
- * seat's book (in IndexedDB, per seat) — never the book. Nothing is ever read
- * without the file: a session that cannot open the PDF imports nothing.
+ * What persists across sessions is the LOCATION of each seat's book (in
+ * IndexedDB, per seat), never the book; a session that cannot open the PDF
+ * imports nothing. What an import produces is written into world documents by
+ * the GM who owns the book and persists there; reading an imported document
+ * needs no book on any seat.
  *
- * What an import produces DOES persist, and all of it: stats, attacks, spoils
- * and the entry's own text, written into world documents by the GM who owns the
- * book, and held there like hand-entered data. Reading an imported document
- * needs no book on any seat, the importing GM's included.
+ * A location is a file handle, a fetchable path, or the remembered NAME of the
+ * file, which the join-time reconnect dialog offers back with a picker beside
+ * it.
  *
- * A location is a file handle, a fetchable path, or — where the browser allows
- * neither — the remembered NAME of the file, which the join-time reconnect
- * dialog offers back with a picker beside it. Same enforcement throughout;
- * only the number of clicks changes.
- *
- * A book the SERVER holds is the exception, and the reason the shelf exists: a
- * PDF staged under the Foundry data directory is a JOURNAL in the world — one
- * JournalEntry per book, its PDF page pointing at the staged file — rather
- * than a record per seat, so every GM seat reads it on join with no gesture
- * and no picker, and the Judge can open the book from the sidebar. The
- * per-seat kinds remain — they are how a book is read the first time, and how
- * its bytes reach the shelf.
+ * A PDF staged under the Foundry data directory is the shelf: one JournalEntry
+ * per book, its PDF page pointing at the staged file, read by every GM seat on
+ * join with no gesture. The per-seat kinds are how a book is read the first
+ * time and how its bytes reach the shelf. Design: docs/importer/MODEL.md.
  *
  * api (acksExtras.importer / game.modules.get("acks-extras").api.importer):
  *   bookStatus()     the import manager on its Books tab: every book's state, and its control
@@ -77,26 +70,19 @@ const sessionDocs = new Map();
 
 /**
  * Where each book lives ON THIS SEAT, so the next session can offer to reopen
- * it. The LOCATION persists; the book's text still never does.
+ * it. The location persists; the book's text never does.
  *
- * Three kinds, because the three ways a seat can reach its own PDF have three
- * different reconnect stories:
+ * Three kinds, one per way a seat can reach its own PDF:
  *
- *   handle  a FileSystemFileHandle (Chromium on a secure origin). Reopens
- *           itself after the one permission click browsers insist on per page
- *           load — the original, and still the best case.
+ *   handle  a FileSystemFileHandle (Chromium on a secure origin). Reopens after
+ *           the one permission click browsers require per page load.
  *   url     a path this seat can fetch (a copy staged on the host). The only
- *           kind that reconnects with NO gesture at all.
- *   file    the IDENTITY of a file picked through <input type="file"> — name,
- *           size, mtime. No browser will reopen that from storage, so this is
- *           a reminder rather than a location: on join we can name the exact
- *           file and put a picker in front of it, which is the difference
- *           between "reconnect Monstrous Manual.pdf?" and a seat that starts
- *           blank and silent every session.
- *
- * `file` is not a nicety: the File System Access API is absent on any insecure
- * origin, so a GM joining over plain http on the LAN — or anyone on Firefox —
- * had nothing remembered at all.
+ *           kind that reconnects with no gesture.
+ *   file    the identity of a file picked through <input type="file"> (name,
+ *           size, mtime). No browser reopens it from storage, so it is a
+ *           reminder: on join the exact file is named and a picker offered. It
+ *           is the only kind available where the File System Access API is
+ *           absent (an insecure origin, Firefox).
  */
 const IDB_STORE = "bookHandles"; // every remembered book lives here; renaming it strands them
 const IDB_BYTES = "bookBytes"; // refresh bridge only — swept on every join, see below
@@ -108,9 +94,7 @@ function idb() {
     const rq = indexedDB.open(MODULE_ID, IDB_VERSION);
     rq.onupgradeneeded = () => {
       const db = rq.result;
-      // Additive, and each store guarded: this runs for a fresh seat AND for
-      // one whose database already holds bookHandles, which must survive
-      // untouched — its records are the whole point of the store.
+      // Additive and guarded per store: an existing bookHandles store survives untouched.
       for (const name of [IDB_STORE, IDB_BYTES]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
       }
@@ -166,12 +150,7 @@ async function locations() {
     if (key === DIR_KEY) return; // the remembered folder is not a book record
     const record = asLocation(values[i]);
     if (!record) return;
-    // A record for a book with no REGISTRY entry (the Judge's Screen inserts,
-    // whose tables are read from the JJ and RR) must not be offered for
-    // reconnect: there is nothing for it to unlock, and every downstream
-    // caller would have to defend itself against a book id with no entry in
-    // REGISTRY. The record is left in place rather than deleted — harmless, and a
-    // withdrawn book that ever comes back finds its location still remembered.
+    // A record for a book with no REGISTRY entry is not offered for reconnect, and is left in place.
     if (!REGISTRY[key]) {
       console.log(`${MODULE_ID} | remembered location for "${key}" ignored — no book of that id is read.`);
       return;
@@ -192,12 +171,10 @@ const rememberFile = (bookId, file) =>
   );
 
 /**
- * The remembered PARENT FOLDER, under a reserved key in the same store — not a
- * book record, and never surfaced as one. A seat that connected by pointing at
- * the folder holding its PDFs gets the whole shelf back in ONE permission
- * gesture next session: the directory handle re-grants once and every book
- * inside re-reads from it, where per-file handles cost one gesture each.
- * Forget Books clears it with everything else (locationClear sweeps the store).
+ * The remembered PARENT FOLDER, under a reserved key in the same store; it is
+ * not a book record and is never surfaced as one. The directory handle re-grants
+ * once and every book inside re-reads from it. `locationClear` sweeps it with
+ * the rest of the store.
  */
 const DIR_KEY = "__folder__";
 const dirPut = (handle) =>
@@ -214,37 +191,22 @@ async function dirGet() {
 /* -------------------------------------------- */
 
 /**
- * Books staged in the Foundry data directory, each one a JOURNAL in the world.
+ * Books staged under `SHELF_DIR` in the Foundry data directory, each one a
+ * JOURNAL in the world, so every GM seat reads it silently on join.
  *
- * Every other location kind is a property of one seat's browser: a handle that
- * needs a permission gesture, or a filename that needs the picker again. That
- * is a fair price for a book only this browser can reach, and no price at all
- * for a book the SERVER can reach — so a PDF the GM puts under `SHELF_DIR` is
- * remembered in the world instead of the seat, and every GM seat on any machine
- * reads it silently on join. This is what ends the reconnect-every-session
- * treadmill; the per-seat kinds stay, because they are how a book gets read the
- * first time and how its bytes reach the upload.
- *
- * The record is a JournalEntry — one per book, filed under the shelf folder,
- * stamped `flags[MODULE_ID].shelf = {book, name, size}` — whose single PDF page
- * points at the staged file. The page's `src` IS the shelf entry: it is what
- * `shelf()` reads, what the join-time restore fetches, and what the Judge sees
- * when they open the journal and press Load PDF. Deleting the journal takes
- * the book off the shelf; the file stays where it was put, because Foundry
- * offers no delete.
+ * The record is a JournalEntry, one per book, filed under the shelf folder and
+ * stamped `flags[MODULE_ID].shelf = {book, name, size}`. Its single PDF page
+ * points at the staged file; the page's `src` IS the shelf entry, read by
+ * `shelf()` and fetched by the join-time restore. Deleting the journal takes
+ * the book off the shelf; the file stays where it was put.
  *
  * The record is a PATH, never bytes: `connectBookUrl` fetches it like any other
- * served file. What a shelf entry asserts is only "this path holds this book",
- * and it is asserted by connecting and fingerprinting the file before the entry
- * is written — never by its filename.
+ * served file, and an entry is written only after the file is connected and
+ * fingerprinted, never on its filename.
  *
- * Worth stating plainly, because a journal invites the wrong conclusion in the
- * other direction: a file under the data directory is fetchable by any
- * signed-in user who learns its path, whatever the journal's ownership says.
- * Ownership decides who can find and open the book from the sidebar — the
- * journal is created for the GM alone, and sharing it is the Judge's gesture —
- * but the shelf makes a book undiscoverable, not inaccessible.
- *
+ * A file under the data directory is fetchable by any signed-in user who learns
+ * its path, whatever the journal's ownership says.
+ * See docs/importer/DECISIONS.md, "A book the server holds is a journal (2026-09-03)".
  */
 const SHELF_FLAG = "shelf";
 const SHELF_DIR = "acks-extras-books";
@@ -281,10 +243,9 @@ const shelfReadable = (record) =>
  *
  * The shelf journal's PDF page is rendered by core's own sheet, whose Load PDF
  * button builds a pdf.js viewer URL from the page's source. This builds the
- * same URL and adds the page fragment the viewer scrolls to, so the reader
- * lands on the cited page rather than on the cover; a viewer already open is
- * moved by its hash instead of reloaded. A book not on the shelf, or one this
- * user may not observe, is refused with a notice — never a blank frame.
+ * same URL plus the page fragment; a viewer already open is moved by its hash
+ * instead of reloaded. A book not on the shelf, or one this user may not
+ * observe, is refused with a notice.
  *
  * @param {string} bookId register book id ("rr")
  * @param {number} pdfPage 1-based PDF page — the register's page, not the printed folio
@@ -340,13 +301,12 @@ function citeTarget(el) {
 }
 
 /**
- * Every citation this module wrote opens its page. One listener on the
- * document, because the references live in sheets, journal pages and chat
- * cards this module does not render — and in the capture phase, because
- * core's own document listener opens every `a[href]` it reaches in a new
- * browser tab; a citation stops here and never reaches it. A reference naming
- * no shelvable book, or one inside an open editor, is left to whatever else
- * the click meant.
+ * Opens the cited page for every citation this module wrote. One listener on
+ * the document, because the references live in sheets, journal pages and chat
+ * cards this module does not render; in the capture phase, so core's own
+ * `a[href]` listener never sees the click. A reference naming no shelvable
+ * book, or one inside an open editor, is left alone.
+ * See docs/importer/DECISIONS.md, "A citation click runs before core's hyperlink handler (2026-09-11)".
  */
 function onCiteClick(event) {
   const el = event.target?.closest?.(`a.${CITE_LINK_CLASS}, p.${CITE_CLASS}`);
@@ -382,10 +342,9 @@ function shelf() {
 
 /**
  * The sidebar folder every shelf journal is filed under. Found by its own
- * stamp first, then by name, so a folder the Judge renamed is still theirs and
- * a folder they already had under that name is adopted rather than doubled.
- * Stamped with the shelf flag, never the cookbook one: Remove Imports sweeps
- * cookbook-flagged folders, and the shelf is not an import.
+ * stamp first, then by name, so a renamed folder is still found and an existing
+ * one of that name is adopted. Stamped with the shelf flag, never the cookbook
+ * one, so Remove Imports leaves it alone.
  */
 async function shelfFolder() {
   const name = game.i18n.localize(`${LANG_PREFIX}.ui.shelfFolder`);
@@ -408,14 +367,11 @@ const shelfPageData = (label, path) => ({ name: label, type: "pdf", src: path })
 /**
  * Write one shelf entry, or drop it when `record` is null.
  *
- * Writing means the book's journal: made if absent, otherwise brought up to
- * date in place — the stamp, the title, and the PDF page's `src`, which is
- * re-pointed rather than duplicated so a second staging of the same book never
- * leaves two pages. Dropping deletes the journal and only the journal.
- *
- * Reads `game.journal` at the moment of writing rather than a copy taken when
- * the window opened: two GM seats staging different books is exactly the case
- * where a stale read would make a twin.
+ * Writing means the book's journal: made if absent, otherwise updated in place
+ * (the stamp, the title, and the PDF page's `src`, re-pointed so a second
+ * staging never leaves two pages). Dropping deletes the journal and only the
+ * journal. Reads `game.journal` at the moment of writing, so two GM seats
+ * staging different books never make a twin.
  */
 async function shelfPut(bookId, record) {
   const existing = shelfJournal(bookId);
@@ -435,10 +391,8 @@ async function shelfPut(bookId, record) {
     return shelf();
   }
   const folder = await shelfFolder();
-  // A book's ownership is left at Foundry's default — the creating GM owns
-  // it, nobody else sees it — so handing a book to a player is a deliberate
-  // gesture on the journal, never a side effect of staging. A form is the
-  // exception: every player's export writes into it, so it is created shared.
+  // Ownership stays at Foundry's default (the creating GM alone); a form is
+  // created shared, since every player's export writes into it.
   const { OBSERVER, OWNER } = CONST.DOCUMENT_OWNERSHIP_LEVELS;
   await game.journal.documentClass.create({
     name: label,
@@ -453,8 +407,8 @@ async function shelfPut(bookId, record) {
 /**
  * Read a staged path into its book and shelve it once it proves to be that
  * book. Returns the shelf record, or null when the file was not what the path
- * claimed — `ingestBook` refuses a file that fingerprints as another book, and
- * a refusal must not leave an entry behind promising the book is available.
+ * claimed; `ingestBook` refuses a file that fingerprints as another book, and a
+ * refusal leaves no entry behind.
  */
 async function shelvePath(bookId, path, { name = null, size = 0 } = {}) {
   try {
@@ -475,28 +429,18 @@ async function shelvePath(bookId, path, { name = null, size = 0 } = {}) {
 
 /**
  * Every PDF already sitting in the shelf directory, matched to the books it
- * holds. The GM who copies files onto the server themselves — by drag, by FTP,
- * by host panel — is done after this.
+ * holds.
  *
  * `FilePicker.browse` answers with paths and no sizes, so the size pass of
  * `matchFilesToBooks` never fires here and matching rests on the remembered
- * name and the book's own title in the filename. That is the right strength
- * for a directory the GM curated: a stray PDF matches nothing and is left
- * alone, exactly as it is in a folder connect.
+ * name and the book's own title in the filename; a stray PDF matches nothing
+ * and is left alone.
  *
- * One pass is added that belongs only to this directory: a file whose stem is
- * exactly a BOOK ID is that book. This is the convention `shelveUpload` writes
- * ("jj.pdf"), and without it the scan could not recognise the module's own
- * uploads — a shelf staged from the rows read as empty the moment it was
- * scanned, because "jj.pdf" contains neither a remembered name nor the words
- * "Judges Journal". It runs FIRST, since an exact id is stronger evidence than
- * a title found inside a longer filename, and it is confined to the shelf,
- * where the module controls the naming; a folder of the reader's own files is
- * matched on its own merits.
- *
- * A match here still only proposes a book. `shelvePath` opens the file and
- * lets the fingerprint refuse it, so a PDF named after the wrong book is
- * rejected rather than staged under a name it does not answer to.
+ * One pass belongs only to this directory and runs first: a file whose stem is
+ * exactly a book id is that book, the convention `shelveUpload` writes
+ * ("<bookId>.pdf"). A match only proposes a book; `shelvePath` lets the
+ * fingerprint refuse a PDF named after the wrong book.
+ * See docs/importer/DECISIONS.md, "A book the server holds asks nobody for anything (2026-08-21)".
  */
 async function scanShelf() {
   const FP = filePicker();
@@ -512,11 +456,8 @@ async function scanShelf() {
   const rest = [];
   for (const file of files) {
     const stem = file.name.replace(/\.pdf$/i, "").toLowerCase();
-    // A file whose stem names a book the shelf ALREADY holds is not a file
-    // that matched nothing — it is the file that book is read from. Counting
-    // it as unmatched told a GM whose whole library was staged that all
-    // nineteen of their PDFs "matched no book", which reads as total failure
-    // over a shelf that is completely full.
+    // A file whose stem names a book the shelf already holds is that book's own
+    // file, not an unmatched one.
     if (already[stem]) held.push(file);
     else if (candidates.includes(stem) && !byId.has(stem)) byId.set(stem, file);
     else rest.push(file);
@@ -538,25 +479,16 @@ async function shelfFile(name) {
 }
 
 /**
- * Put a book on the shelf from a file this seat holds. Upload goes through the
- * same `FilePicker.upload` call the art importer uses.
+ * Put a book on the shelf from a file this seat holds, through the same
+ * `FilePicker.upload` call the art importer uses.
  *
- * The shelf copy is always named `<bookId>.pdf`. That is the module's own
- * directory and its own convention — the scan's first pass reads it, and one
- * name per book is what makes "is this book already up there?" a question with
- * an answer.
+ * The shelf copy is always named `<bookId>.pdf`, which the scan's first pass
+ * reads and which makes "is this book already up there?" answerable. Foundry
+ * refuses to overwrite a non-media file, so a taken name is answered by reading
+ * what is already there, and it is staged only if it fingerprints as this book.
  *
- * Which matters, because **Foundry refuses to overwrite a non-media file**: a
- * second upload over a name already taken fails the request outright rather
- * than replacing it. So a taken name is answered by reading what is already
- * there instead of by a second copy of a hundred-megabyte book — and it is
- * staged only if it fingerprints as this book, which is also how a leftover
- * from another printing is caught rather than silently adopted.
- *
- * `verified` says the caller fingerprinted THESE bytes. That is stronger
- * evidence than re-reading the copy just written, so the entry is recorded
- * from the upload; an unverified upload is read back before anything is
- * written.
+ * `verified` says the caller fingerprinted THESE bytes, so the entry is
+ * recorded from the upload; an unverified upload is read back first.
  */
 async function shelveUpload(bookId, file, { verified = false } = {}) {
   const FP = filePicker();
@@ -566,8 +498,7 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   const name = `${bookId}.pdf`;
   const taken = await shelfFile(name);
   if (taken) {
-    // Size is left at 0 rather than copied from the local pick: nothing was
-    // uploaded, and the file up there is not necessarily this one.
+    // Size stays 0: nothing was uploaded, and the file up there is not necessarily this one.
     const held = await shelvePath(bookId, taken, { name });
     if (!held) throw new Error(game.i18n.format(`${LANG_PREFIX}.ui.shelfTaken`, { path: taken }));
     return held;
@@ -582,13 +513,9 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
 }
 
 /**
- * Put a book that is OPEN on this seat onto the server.
- *
- * The server is asked first, because it may already hold this book — a file
- * the GM copied there by hand, or one this world staged and then removed — and
- * a copy already up there needs no bytes from this seat at all. Only when the
- * name is free are the bridged bytes needed, and they are the bytes this seat
- * fingerprinted when it opened the book, so nothing is read back.
+ * Put a book that is OPEN on this seat onto the server. The server is asked
+ * first, since a copy already up there needs no bytes from this seat; only when
+ * the name is free are the bridged bytes uploaded, already fingerprinted.
  */
 async function shelveOpen(bookId) {
   const name = `${bookId}.pdf`;
@@ -605,16 +532,11 @@ async function shelveOpen(bookId) {
 
 /**
  * Put a book on the server from a file this seat can read, whether or not that
- * book is open here. This is what a GM who has never connected a book on this
- * machine reaches for: staging is a property of the world, so it must not cost
- * a seat-local connect first.
+ * book is open here.
  *
- * The fingerprint is read BEFORE the upload, because an upload cannot be taken
- * back — Foundry offers no delete, so a file written before it was identified
- * leaves the wrong book on the server under a right name. `ingestBook` refuses
- * a file that fingerprints as another book, and only what it accepted is sent.
- * Reading it also opens it here, which is the same thing the row's own connect
- * control would have done.
+ * The fingerprint is read BEFORE the upload, since Foundry offers no delete:
+ * `ingestBook` refuses a file that fingerprints as another book, and only what
+ * it accepted is sent. Reading it also opens the book here.
  */
 async function stageFile(bookId, file) {
   await ingestBook(bookId, await file.arrayBuffer(), { cache: file });
@@ -625,8 +547,7 @@ async function stageFile(bookId, file) {
  * Open every shelved book this seat may read: all of them on a GM seat, on a
  * player seat only what the Judge shared. Each is a fetch and a parse of the
  * whole PDF, so a seat never opens a book it may not read. Runs on join before
- * the per-seat restore, so a book the server holds never asks this seat for
- * anything and never appears in the list of books waiting for a gesture.
+ * the per-seat restore, so a shelved book never waits for a gesture.
  */
 async function restoreShelf() {
   const staged = shelf();
@@ -651,44 +572,25 @@ async function restoreShelf() {
 /* -------------------------------------------- */
 
 /**
- * A Foundry client reloads constantly — a module toggled, a macro saved, a
- * dropped connection — and on an insecure origin (any remote seat on plain
- * http, and every Firefox seat) each of those reloads costs the reader a
- * fresh trip through the file picker for every book they own. The location
- * was remembered; the FILE could not be reopened from it, because no browser
- * hands a picked file back from storage and the File System Access API that
- * would is absent outside a secure context.
- *
- * So the bytes are bridged across the reload, and ONLY across the reload:
+ * The refresh bridge: the bytes of an open book are cached across a page
+ * reload, and only across the reload. Where no browser hands a picked file back
+ * from storage (an insecure origin, Firefox), a reload would otherwise cost a
+ * trip through the file picker per book.
  *
  *   • while a page with books open is alive it stamps the clock every 20s, and
  *     once more as it goes away;
  *   • the next page load compares that stamp against the moment IT started.
- *     Inside the window (60s by default) the cached bytes are reopened with no
- *     gesture at all — that is a refresh;
- *   • outside it, the bytes are deleted before anything else happens, and the
- *     seat goes through the normal reconnect gesture — that is a new session.
+ *     Inside the window (`SETTING_REFRESH_CACHE`) the cached bytes are reopened
+ *     with no gesture;
+ *   • outside it, the bytes are deleted before anything else happens and the
+ *     seat goes through the normal reconnect gesture.
  *
- * Two details are load-bearing:
- *
- *   The stamp lives in localStorage, not IndexedDB, because it is written from
- *   `pagehide` and an async IndexedDB transaction started there NEVER COMMITS —
- *   the page is torn down first. localStorage.setItem is synchronous and lands.
- *   With the async write silently lost, the freshest stamp was whatever the 20s
- *   heartbeat had last managed, which quietly ate a third of the window.
- *
- *   The comparison is against `performance.timeOrigin` — when this document
- *   started — and NOT against the time this code happens to run. Foundry takes
- *   20-45s to reach `ready` on a real world, so measuring at `ready` charged
- *   the reader's window for the boot they were sitting through, and a 60s
- *   window bought perhaps fifteen. The question the window has to answer is
- *   "how long was this seat away?", which is exactly timeOrigin minus stamp.
- *
- * This is deliberately NOT a copy of the book. It cannot outlive the window,
- * closing the tab for a minute empties it, and Forget Books empties it now.
- * The possession model is unchanged: a seat still cannot read a book it has
- * not opened from its own file this session, and the prose still never
- * persists anywhere.
+ * The stamp lives in localStorage, because it is written from `pagehide`, where
+ * an async IndexedDB transaction never commits. The comparison is against
+ * `performance.timeOrigin` (when this document started), not the time this code
+ * runs, so the window measures how long the seat was away and not Foundry's boot.
+ * Forget Books empties the cache.
+ * See docs/importer/DECISIONS.md, "The refresh bridge: bytes may cross a reload, and nothing longer (2026-07-29)".
  */
 const CACHE_HEARTBEAT_MS = 20_000;
 const STAMP_KEY = "acks-extras.bridgeTouched";
@@ -708,9 +610,8 @@ const bytesPut = (bookId, blob) => idbOp("readwrite", (s) => s.put(blob, bookId)
 const bytesGet = (bookId) => idbOp("readonly", (s) => s.get(bookId), IDB_BYTES);
 const bytesClear = () => idbOp("readwrite", (s) => s.clear(), IDB_BYTES);
 /**
- * The stamp. Synchronous on purpose — see the note above about `pagehide`.
- * A profile with storage blocked throws on access rather than returning null,
- * and a bridge that cannot stamp simply never hits.
+ * The stamp, read synchronously (see the refresh bridge note). A profile with
+ * storage blocked throws on access, and a bridge that cannot stamp never hits.
  */
 function stampGet() {
   try {
@@ -737,11 +638,8 @@ function stampClear() {
 /**
  * Stash the bytes this seat just read, so a reload inside the window is free.
  *
- * Takes the File/Blob the caller already holds rather than the ArrayBuffer it
- * passed to the reader: pdf.js takes ownership of that buffer and transfers it
- * to its worker, so by the time a book is open the array is detached and there
- * is nothing left to store. A File also costs no copy on Chromium — IndexedDB
- * keeps a reference to the file already on disk.
+ * Takes the File/Blob the caller holds, not the ArrayBuffer given to the
+ * reader: pdf.js transfers that buffer to its worker, leaving it detached.
  */
 async function cacheBytes(bookId, blob) {
   if (!blob || !cacheWindowMs()) return;
@@ -749,8 +647,7 @@ async function cacheBytes(bookId, blob) {
     await bytesPut(bookId, blob);
     stampPut(Date.now());
   } catch (err) {
-    // Over quota, private mode, a locked-down profile — the bridge is a
-    // convenience and must never take an opened book down with it.
+    // Over quota, private mode, a locked-down profile: the bridge must never take an opened book down.
     console.warn(`${MODULE_ID} | refresh bridge unavailable for ${bookId} (books still open this session)`, err);
   }
 }
@@ -770,8 +667,7 @@ async function openCached(bookId) {
   }
   if (!blob) return false;
   try {
-    // Re-stash: the buffer below is about to be detached, and a seat that
-    // refreshes twice in a row should be bridged both times.
+    // Re-stashed through `cache`, so a second refresh in a row is bridged too.
     await ingestBook(bookId, await blob.arrayBuffer(), { silent: true, cache: blob });
     console.log(`${MODULE_ID} | ${REGISTRY[bookId]?.label ?? bookId} restored across a page reload — no gesture needed.`);
     return true;
@@ -789,15 +685,10 @@ async function openCached(bookId) {
 async function sweepCache() {
   const windowMs = cacheWindowMs();
   const stamp = stampGet();
-  // How long the seat was AWAY: from the old page going quiet to this document
-  // starting. Explicitly not "until now" — `now` is after Foundry's whole boot,
-  // which the reader should not be charged for.
+  // How long the seat was away: the old page's last stamp to this document's start.
   const away = performance.timeOrigin - stamp;
-  // A reload records the INCOMING document's timeOrigin before the outgoing
-  // page is given `pagehide`, so the gap on an ordinary refresh is a few
-  // milliseconds NEGATIVE. Requiring it to be positive rejected every single
-  // refresh — the exact thing the bridge exists for. Only a stamp implausibly
-  // far ahead means the clock actually moved, and that one is not trustworthy.
+  // An ordinary reload yields a gap a few milliseconds negative; only a stamp
+  // far ahead of this document means the clock moved.
   const skewed = away < -CLOCK_TOLERANCE_MS;
   if (windowMs && stamp && !skewed && away <= windowMs) {
     console.log(
@@ -820,10 +711,8 @@ async function sweepCache() {
 let heartbeat = null;
 
 /**
- * Keep the stamp current while this page is alive and books are open. Without
- * it the window would be measured from the moment a book was connected, so a
- * seat that had played for an hour would find its bridge expired on the very
- * reload it exists to cover.
+ * Keeps the stamp current while this page is alive and books are open, so the
+ * window is measured from the last heartbeat and not from the connect.
  */
 function startCacheHeartbeat() {
   if (heartbeat) return;
@@ -832,13 +721,11 @@ function startCacheHeartbeat() {
     stampPut(Date.now());
   };
   heartbeat = setInterval(touch, CACHE_HEARTBEAT_MS);
-  // pagehide fires on reload, navigation and tab close alike — and unlike
-  // unload it also fires when the page goes into the back/forward cache. The
-  // write inside it must be synchronous; see the note above.
+  // pagehide covers reload, navigation, tab close and the back/forward cache;
+  // its write must be synchronous.
   window.addEventListener("pagehide", touch);
-  // pagehide is not guaranteed on mobile, where a backgrounded tab can be
-  // discarded outright; hidden is the last moment such a page is certain to
-  // get. Both are cheap and idempotent.
+  // pagehide is not guaranteed on mobile; hidden is the last moment such a page
+  // is certain to get.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") touch();
   });
@@ -859,28 +746,22 @@ const allRecipes = () => [...RECIPES, ...Object.values(dynamicRecipes())];
 /**
  * Programmatic connect: read a PDF from a URL this seat can fetch (a file the
  * GM staged under the Foundry data dir, or any served path). The interactive
- * connectBook() stays the normal path; this one serves hosted copies and
+ * connectBook() is the normal path; this one serves hosted copies and
  * automated live tests.
  *
- * The file itself is never kept — what persists is the PATH, so the seat
- * reconnects itself on every future join. Pass `{ remember: false }` for a
- * one-off read that should leave nothing behind.
+ * The file itself is never kept; what persists is the PATH, so the seat
+ * reconnects itself on every future join. `{ remember: false }` leaves nothing
+ * behind.
  *
- * `bridge` says whether the bytes are worth keeping across a page reload. The
- * refresh bridge exists for a file this seat CANNOT reopen without a gesture;
- * a book the server holds is refetched on every join with no gesture at all,
- * so bridging one buys nothing and costs the whole shelf — seventeen books is
- * better than half a gigabyte written into this seat's storage at every join,
- * for reads that were never going to ask the reader for anything.
+ * `bridge` says whether the bytes are kept across a page reload; a shelved book
+ * is refetched on every join, so the shelf passes false.
+ * See docs/importer/DECISIONS.md, "A book the server holds is never bridged (2026-08-24)".
  *
  * `silent` opens the book without a progress bar or an "entries available"
  * notice (see `ingestBook`); a failure still warns.
  */
 async function connectBookUrl(bookId, url, { remember = true, bridge = true, silent = false } = {}) {
-  // Throws rather than warning-and-returning: the shelf decides whether to
-  // record a path from whether this resolved, and a soft return told it the
-  // read had succeeded. Callers that only want the message still get it — the
-  // notification is raised here and the error carries the same text.
+  // Throws as well as warning: the shelf records a path only when this resolves.
   if (!BOOKS[bookId]) {
     const message = `${MODULE_ID} | unknown book id "${bookId}".`;
     ui.notifications.warn(message);
@@ -892,12 +773,10 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true, sil
     ui.notifications.warn(message);
     throw new Error(message);
   }
-  // Blob first, buffer from it: pdf.js detaches the array it is handed, and a
-  // re-download of a whole book is exactly what the refresh bridge saves.
+  // Blob first, buffer from it: pdf.js detaches the array it is handed.
   const blob = await resp.blob();
   const hits = await ingestBook(bookId, await blob.arrayBuffer(), { silent, cache: bridge ? blob : null });
-  // A path IS a location, and the one kind that needs no gesture to reopen, so
-  // a seat pointed at a staged copy reconnects itself on every future join.
+  // A path is the one location kind that reopens with no gesture.
   if (remember) {
     await locationPut(bookId, { kind: "url", url, name: url.split("/").pop() || url }).catch((err) =>
       console.warn(`${MODULE_ID} | could not remember ${url}`, err),
@@ -909,30 +788,24 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true, sil
 /**
  * Read a book into this session.
  *
- * Opening is an open and a fingerprint: nothing is extracted here. Text is read
- * from the page an import names, at the moment it is imported, and written into
- * the document — so a connect costs one parse instead of one parse per recipe.
+ * Opening is an open and a fingerprint: nothing is extracted here; text is read
+ * from the page an import names, at import time.
  *
  * `cache` is the File/Blob the caller read `buffer` from, when it still holds
- * one. It is bridged across page reloads (see the refresh bridge above) and is
- * never a substitute for the file itself.
+ * one; it is bridged across page reloads (see the refresh bridge above).
  */
 async function ingestBook(bookId, buffer, { silent = false, cache = null } = {}) {
   const entries = cookbookCount(bookId);
-  // A silent open raises no bar and no notice: the seat restoring its shelf at
-  // join opens a book per shelved PDF, and the caller reports the batch once.
+  // A silent open raises no bar and no notice; the caller reports the batch once.
   const bar = silent
     ? { note() {}, step() {}, finish() {} }
     : progressBar(game.i18n.format(`${LANG_PREFIX}.ui.progressReading`, { book: BOOKS[bookId]?.label ?? bookId }), 1);
   try {
     bar.note(game.i18n.localize(`${LANG_PREFIX}.ui.progressOpening`));
     const { doc, numPages, title } = await openBook(buffer);
-    // A file that fingerprints as ANOTHER book in the registry is never read
-    // into this one. Every recipe this build extracts is a page number, so a
-    // book filled from the wrong PDF imports the wrong page's content under the
-    // right name, and nothing downstream can tell. Refusing costs a reader one
-    // message; proceeding costs them an import they have to find and undo.
-    // Edition drift stays a warning — see identifyBook.
+    // A file that fingerprints as another book in the registry is never read
+    // into this one; edition drift stays a warning (see identifyBook).
+    // See docs/importer/DECISIONS.md, "Position is not evidence, and a file that is another book is refused (2026-08-11)".
     const actualId = identifyBook(numPages, title);
     if (actualId && actualId !== bookId) {
       await doc.destroy?.();
@@ -945,9 +818,8 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
       err.wrongBook = actualId;
       throw err;
     }
-    // A form is the form only if its fields are: a printed copy carries the
-    // same pages and no field to write into, and it is refused here, before
-    // the shelf can upload it.
+    // A printed copy of a form has the same pages and no fields; it is refused
+    // here, before the shelf can upload it.
     if (bookIsForm(bookId)) {
       const { isForm, share } = await readForm(doc);
       if (!isForm) {
@@ -959,14 +831,12 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
     }
     const warning = fingerprintWarning(bookId, numPages, title);
     if (warning && !silent) ui.notifications.warn(`${MODULE_ID} | ${warning}`);
-    // Tagged before anything reads a page of it: the compiler tags its copy
-    // the same way, and a page read without the tag is read on the wrong
-    // size ladder and with the book's ligatures still encoded.
+    // Tagged before anything reads a page: an untagged read uses the wrong size
+    // ladder and leaves the book's ligatures encoded.
     useTypography(doc, bookId);
     sessionDocs.set(bookId, { doc, title });
     Hooks.callAll("acksExtras.bookOpened", bookId);
-    // Only once the book actually opened: a file that failed the read is not
-    // worth bridging, and bridging it would keep re-failing every reload.
+    // Bridged only once the book actually opened.
     await cacheBytes(bookId, cache);
     // A book nothing in this build reads yet says so, rather than counting 0.
     const book = BOOKS[bookId]?.label ?? bookId;
@@ -985,10 +855,9 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
 }
 
 /**
- * Import ACKS rules TABLES (availability, wages, rarity, …) from the connected
- * books into the world, via the lib ruledata-import contract. GM-only
- * (it writes world data). Other features read the result from the lib's tables
- * registry; markets, wages and hiring light up as coverage grows.
+ * Imports the rules TABLES from the connected books into the world, via the lib
+ * subsystem's ruledata-import contract. GM-only (it writes world data); other
+ * features read the result from the lib's tables registry.
  *
  * The run has two phases. `read` reads the pages and assembles the engine
  * tables into the store; it writes no importer document. `apply` writes the
@@ -997,8 +866,6 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
  * apply after the classes (getting-started.mjs).
  *
  * @param {string[]} [only] ruledata document ids to read; omitted, every one.
- *        A full run locates pages for all 138 recipes, so re-reading ONE
- *        document is the difference between seconds and minutes.
  * @param {object} [opts]
  * @param {object|null} [opts.repair] a tally (`repairTally`) counting the
  *        language and race items this run writes over in place.
@@ -1063,8 +930,7 @@ async function cookbookImportTables(only = null, { repair = null, phase = "both"
       }),
     );
   }
-  // A table that read but lacks rows the page should hold stores a placeholder
-  // no lookup matches; name the tables and how many rows, never the rows.
+  // A table that read but lacks rows stores a placeholder no lookup matches; name the tables and how many rows.
   if (report.incomplete?.length) {
     ui.notifications.warn(
       game.i18n.format(`${LANG_PREFIX}.tables.incomplete`, {
@@ -1086,23 +952,12 @@ const fsaAvailable = () => typeof window.showOpenFilePicker === "function";
 /* -------------------------------------------- */
 
 /**
- * Hand DialogV2 markup it will not rewrite.
- *
- * A STRING `content` goes through `foundry.utils.cleanHTML`, which rebuilds
- * every element and copies only allowlisted attributes: `accept` is on no list
- * at all, and `multiple` is allowed on `<select>` but NOT on `<input>`. A
- * multi-file picker therefore arrives as a single-file one, and every branch
- * behind it becomes unreachable — silently, since the markup is never wrong,
- * only rewritten. An attribute-less `<div>` is treated as trusted and its
- * innerHTML used verbatim (DialogV2 rejects any other tag, and rejects the div
- * if it carries a single attribute).
- *
- * Every DialogV2 in this module is built through here, whether or not its
- * current markup happens to survive cleaning — otherwise the next attribute
- * added to a dialog decides for itself whether the dialog still works.
- *
- * Declared as a function rather than a const so a sibling module can import it
- * across the module cycle without meeting it in its temporal dead zone.
+ * Wraps `html` in an attribute-less `<div>`, the one form DialogV2 uses
+ * verbatim. A STRING `content` goes through `foundry.utils.cleanHTML`, which
+ * copies only allowlisted attributes (`accept` is on no list, `multiple` is not
+ * allowed on `<input>`), so a multi-file picker would arrive as a single-file
+ * one. Every DialogV2 in this module is built through here. A function
+ * declaration, so a sibling can import it across the module cycle.
  */
 export function dialogContent(html) {
   const div = document.createElement("div");
@@ -1111,10 +966,8 @@ export function dialogContent(html) {
 }
 
 /**
- * The name survives as an alias because macros already imported into worlds
- * call it, and a compendium macro outlives the build that shipped it. It opens
- * the import manager on its Books tab, where a row names each book and carries
- * its control.
+ * Alias kept for macros that call it by this name; opens the import manager on
+ * its Books tab.
  */
 const connectBook = () => openBooksDialog();
 
@@ -1122,15 +975,11 @@ const connectBook = () => openBooksDialog();
  * Read each paired file into its book and remember where it came from.
  *
  * Each book is remembered in the strongest form this seat supports: the FSA
- * handle when the pick came through `showOpenFilePicker` (one-click reopen next
- * session), name-only otherwise — all a browser without the File System Access
- * API will let us keep, and still worth keeping, since next session says the
- * name and offers the picker instead of leaving the seat to work it out.
+ * handle when the pick came through `showOpenFilePicker`, name-only otherwise.
  *
- * Reads are sequential: several ACKS PDFs parsed at once is hundreds of
- * megabytes in flight. One file that fails to open is reported against its own
- * book and costs the others nothing, and a file refused for being another book
- * says so instead of reading as a failed read.
+ * Reads are sequential, to bound the PDFs in memory. One file that fails to
+ * open is reported against its own book and costs the others nothing; a file
+ * refused for being another book says so.
  *
  * @param {Map<string, File>} matched  bookId → the file that answers it
  * @param {Map<File, {file: File, handle?: FileSystemFileHandle}>} byFile  each file's pick, for its handle
@@ -1154,9 +1003,7 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
       continue;
     }
     done.push(REGISTRY[bookId].label);
-    // Remembering is a separate outcome from reading, and reported as one: the
-    // book is open either way, and saying "could not be opened" over a storage
-    // failure describes a book the reader can see working.
+    // Remembering is reported as its own outcome: the book is open either way.
     try {
       if (handle) {
         await locationPut(bookId, { kind: "handle", handle, name: handle.name ?? null, size: file.size });
@@ -1178,26 +1025,20 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
 }
 
 /**
- * Reopen ONE remembered book. Returns whether this seat can now read it.
+ * Reopen ONE remembered book. Returns whether this seat can now read it; each
+ * kind's failure is logged as itself.
  *
- * Each kind fails differently and each failure is logged as itself — "it did
- * not reconnect" and "there was nothing to reconnect" are not the same
- * problem, and the log tells them apart.
- *
- * `interactive` is the caller promising it holds a fresh user gesture, which
- * is the only state in which a browser will re-grant file permission.
+ * `interactive` is the caller promising it holds a fresh user gesture, the only
+ * state in which a browser re-grants file permission.
  */
 async function openRemembered(bookId, record, { interactive = false } = {}) {
   if (sessionDocs.has(bookId)) return true;
   const label = REGISTRY[bookId]?.label ?? bookId;
 
-  // Was this page just reloaded? Then the bytes are still bridged and every
-  // kind reopens for free — including the `file` kind, which has no other way
-  // back and is what every remote seat on plain http gets.
+  // A page just reloaded still has its bridged bytes, for every kind including `file`.
   if (await openCached(bookId)) return true;
 
-  // A served path needs no permission and no gesture: this is the one kind
-  // that puts a seat back exactly where it was, silently, on every join.
+  // A served path needs no permission and no gesture.
   if (record?.kind === "url") {
     try {
       const resp = await fetch(record.url);
@@ -1211,8 +1052,7 @@ async function openRemembered(bookId, record, { interactive = false } = {}) {
     }
   }
 
-  // Identity only — no browser hands a picked file back from storage. The
-  // dialog names it and offers the picker; there is nothing to try here.
+  // Identity only: the reconnect dialog names the file and offers the picker.
   if (record?.kind === "file") {
     console.log(`${MODULE_ID} | remembered ${label}: "${record.name}" must be re-picked (this browser cannot reopen it by itself).`);
     return false;
@@ -1226,10 +1066,8 @@ async function openRemembered(bookId, record, { interactive = false } = {}) {
   }
   try {
     let perm = await record.handle.queryPermission({ mode: "read" });
-    // Expected on every reload: browsers drop file permission when the page
-    // goes away, so a remembered book is "prompt" until a user gesture
-    // re-grants it. That gesture is the reconnect dialog — this is the normal
-    // path, not a failure, and saying so stops it reading like one.
+    // Expected on every reload: browsers drop file permission with the page, so
+    // a remembered book is "prompt" until the reconnect dialog's gesture re-grants it.
     if (perm === "prompt" && interactive) perm = await record.handle.requestPermission({ mode: "read" });
     if (perm !== "granted") {
       console.log(`${MODULE_ID} | remembered ${label}: permission "${perm}" — needs the unlock gesture this session.`);
@@ -1264,9 +1102,7 @@ async function restoreBooks() {
 
 /**
  * Every PDF file handle under a directory handle, one level of subfolders deep
- * — enough for a shelf sorted into "Core"/"Adventures", shallow enough that
- * pointing at a whole drive does not become a filesystem crawl. Capped for the
- * same reason; the cap is far above any real shelf.
+ * and capped at 200, so pointing at a whole drive is not a filesystem crawl.
  */
 async function pdfHandlesIn(dirHandle, depth = 1) {
   const out = [];
@@ -1281,12 +1117,10 @@ async function pdfHandlesIn(dirHandle, depth = 1) {
 /**
  * Connect every recognised book among a folder's PDFs.
  *
- * A folder is a GROUP, so only evidence places a file — remembered name, byte
- * size, or the book's title in the filename — and the positional fallback the
- * connect dialog uses for hand-named books never runs here: a folder full of
- * adventures must not have one dealt into an empty slot. Unrecognised PDFs are
- * NORMAL in a folder (that is where the rest of a collection lives), so they
- * are counted in the toast and named only on the console, not warned about.
+ * A folder is a GROUP, so only evidence places a file (remembered name, byte
+ * size, or the book's title in the filename); no positional fallback runs.
+ * Unrecognised PDFs are normal in a folder, so they are counted in the toast
+ * and named only on the console.
  *
  * @param {{file: File, handle?: FileSystemFileHandle}[]} picks  the folder's PDFs
  * @param {object} [options]
@@ -1303,8 +1137,7 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
   }
   const byFile = new Map(picks.map((pick) => [pick.file, pick]));
   const { matched, unmatched } = matchFilesToBooks([...byFile.keys()], candidates, await locations());
-  // The folder is worth remembering even when nothing matched yet — the books
-  // may land in it later, and the group reconnect re-scans on every use.
+  // Remembered even when nothing matched yet: the group reconnect re-scans on every use.
   if (remember) await dirPut(remember);
   if (unmatched.length) {
     console.log(`${MODULE_ID} | folder scan: ${unmatched.length} PDF(s) matched no book — ${unmatched.map((f) => f.name).join(", ")}`);
@@ -1323,33 +1156,28 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
 }
 
 /**
- * "Your ACKS Books" — the Books tab of the import manager, the one place the
- * book lives. Every entry point (the macros, the join-time offer, the sheet's
- * book link) opens the manager on this tab; the panel is built here, where the
- * seat's books, shelf and file handles are, and handed to the manager as
- * `{html, wire}`.
+ * "Your ACKS Books": the Books tab of the import manager. Every entry point
+ * (the macros, the join-time offer, the sheet's book link) opens the manager on
+ * this tab; the panel is built here, where the seat's books, shelf and file
+ * handles are, and handed to the manager as `{html, wire}`.
  *
- * A ROW names one book, carries one control, acts the moment it is used and
- * says what happened. There is no select that asks "which book?", so there is
- * no positional pairing of files to books either: evidence places a file or
+ * A ROW names one book, carries one control and acts the moment it is used; no
+ * positional pairing of files to books exists, so evidence places a file or
  * nothing does.
  *
  * Four bands, in the order a seat needs them:
  *
  *   1. the first-run walkthrough, open on a seat with nothing connected and
  *      collapsed once there is;
- *   2. the shelf — books the SERVER holds, which need no gesture from anyone;
- *   3. this computer — the controls that answer for SEVERAL books at once;
+ *   2. the shelf, the books the SERVER holds;
+ *   3. this computer, the controls that answer for SEVERAL books at once;
  *   4. the books themselves, grouped by what each one needs.
  *
- * The one-gesture rule shapes band 3 and 4 between them. Re-granting file
- * permission consumes the user activation that authorized it, so one click can
- * only ever unlock one handle — which is why each waiting book keeps its own
- * Unlock and why "Reconnect all" spends its single gesture on the remembered
- * FOLDER when there is one (a directory re-grants once and every book inside
- * re-reads from it) and reports honestly about the rest when there is not. A
- * plain file picker grants no persistent permission and so consumes nothing,
- * which is why "Pick PDFs…" can answer for the whole shelf at once.
+ * Re-granting file permission consumes the user activation that authorized it,
+ * so one click unlocks one handle: each waiting book keeps its own Unlock, and
+ * "Reconnect all" spends its single gesture on the remembered FOLDER when there
+ * is one. A plain file picker grants no persistent permission and consumes
+ * nothing, so "Pick PDFs…" answers for the whole shelf at once.
  *
  * @param {object} [options]
  * @param {boolean} [options.firstRun] open the walkthrough whatever the seat holds
@@ -1372,8 +1200,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const pending = Object.keys(BOOKS).filter((id) => records.has(id) && !sessionDocs.has(id));
   const closed = Object.keys(BOOKS).filter((id) => !sessionDocs.has(id));
 
-  // What a connection unlocks — the scope figures of a book, on the row they
-  // describe.
+  // What a connection unlocks: the scope figures of a book, on its row.
   const scopeOf = (id) => {
     const entries = cookbookCount(id);
     const recipes = allRecipes().filter((r) => r.book === id).length;
@@ -1384,13 +1211,9 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
 
   /* ---- band 1: the first-run walkthrough ---------------------------- */
 
-  // Open when this seat has nothing at all and has not asked otherwise; a seat
-  // with books already reading gets it collapsed, because by then it is
-  // reference material rather than instructions.
+  // Open when this seat has nothing at all and has not dismissed it.
   const nothingYet = !sessionDocs.size && !records.size && !Object.keys(staged).length;
   const startOpen = (firstRun || nothingYet) && !gettingStartedDismissed();
-  // The import chain, the merchandise build and the other controls are tabs of
-  // the window this panel sits in; the walkthrough only points at them.
   const gmBand = isGM ? `<h4>${G("gmHead")}</h4><p>${G("gmBody")}</p>` : "";
   const intro = `<details class="acks-extras-importer-gs"${startOpen ? " open" : ""}>
     <summary>${G("title")}</summary>
@@ -1403,13 +1226,9 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
 
   /* ---- band 2: the shelf -------------------------------------------- */
 
-  // GM-only: staging a book writes world settings and uploads to the data
-  // directory, neither of which a player may do. A player still SEES the shelf
-  // rows, each saying whether this seat reads that book from the server or
-  // the Judge has not shared it. Each row opens its own journal — the book
-  // itself, in the sidebar's PDF viewer — on any seat that can see that
-  // journal; a seat the Judge has not shared it with gets the row and no
-  // button.
+  // Staging is GM-only (it uploads to the data directory). A player still sees
+  // the shelf rows, each saying whether this seat reads the book or the Judge
+  // has not shared it; a row's journal button shows only where the journal is visible.
   const openable = (record) => !!game.journal.get(record.journalId)?.visible;
   const shelfRows = Object.entries(staged)
     .filter(([id]) => BOOKS[id])
@@ -1424,12 +1243,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
       </div>`,
     )
     .join("");
-  // Two ways in, because a book does not have to be open here to belong on the
-  // server: pick the files and they are read, checked and uploaded; or copy
-  // them onto the host yourself and scan. Neither asks the seat to connect
-  // first — staging is a property of the WORLD, and making it cost a
-  // seat-local connect left a GM with no control at all on the rows of books
-  // this browser had never opened.
+  // Two ways in, neither needing a seat-local connect first: pick the files to
+  // be read, checked and uploaded, or copy them onto the host and scan.
   const shelfControls = isGM
     ? `<div class="acks-extras-importer-reconnect-head acks-extras-importer-band-actions">
          <input type="file" name="shelf-bulk" data-shelf-bulk accept="application/pdf" multiple>
@@ -1443,10 +1258,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
        </div>
        <p class="notes">${L("shelfScanNote", { dir: esc(SHELF_DIR) })}</p>`
     : "";
-  // A full shelf is every book the reader owns, listed twice in one window —
-  // once here and once in its own group below. Past a handful it collapses
-  // behind its count, the same way the book groups do, so the controls under
-  // it stay reachable without a scroll to the bottom.
+  // Past a handful the shelf list collapses behind its count, as the book groups do.
   const staffCount = Object.keys(staged).filter((id) => BOOKS[id]).length;
   const shelfList = !shelfRows
     ? `<p class="notes">${L(isGM ? "shelfEmpty" : "shelfEmptyPlayer")}</p>`
@@ -1462,10 +1274,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
 
   /* ---- band 3: controls that answer for several books --------------- */
 
-  // The folder button is ONE control doing both jobs: re-granting the folder
-  // this seat already remembers, or choosing one for the first time. They were
-  // two buttons in two dialogs, and the difference between them was never the
-  // reader's to care about.
+  // One control for both jobs: re-granting the remembered folder, or choosing one.
   const folderControl = dir
     ? `<button type="button" data-folder="reopen">${L("reconnectFolderGo")}</button>`
     : fsa
@@ -1488,8 +1297,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const control = (id, record) => {
     if (staged[id]) return ""; // the server answers for it; nothing to ask this seat
     if (!record) {
-      // Never connected here. The row names the book, so a picker on it needs
-      // no guessing at which book a file is.
+      // Never connected here; the row names the book the picker reads.
       return fsa
         ? `<button type="button" data-pick="${esc(id)}">${L("booksConnectGo")}</button>`
         : `<input type="file" name="pdf-${esc(id)}" data-book="${esc(id)}" accept="application/pdf">`;
@@ -1499,11 +1307,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     }
     return `<button type="button" data-book="${esc(id)}">${L(record.kind === "url" ? "reconnectRetry" : "reconnectGo")}</button>`;
   };
-  // "Add to server" on a book that is NOT open here. The row names the book,
-  // so the file it is handed needs no guessing — the same evidence a row-level
-  // connect rests on, and the strongest available anywhere in this window.
-  // Nothing is uploaded before the file has been read and identified, so a
-  // wrong pick is refused rather than staged.
+  // "Add to server" on a book that is not open here; nothing is uploaded before
+  // the file has been read and identified.
   const stage = (id) => {
     if (!isGM || staged[id]) return "";
     return fsa
@@ -1517,8 +1322,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     if (record?.kind === "url") return L("reconnectUrlFailed", { where: esc(record.url) });
     return L("reconnectHandle", { where: esc(describeLocation(record)) });
   };
-  // What the library holds of each open adventure book's Adventure. The
-  // shelf is the Judge's, so only a GM row says.
+  // What the library holds of each open adventure book's Adventure; only a GM row says.
   const census = new Map();
   if (isGM) {
     for (const id of Object.keys(BOOKS)) {
@@ -1536,8 +1340,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     const scope = scopeOf(id) || L("booksNoScope");
     if (sessionDocs.has(id)) {
       const where = staged[id] ? L("shelfSource") : record ? ` [${esc(describeLocation(record))}]` : "";
-      // Shelving is offered on a book that is OPEN, because the file has to
-      // have been read before anything can vouch for what it is.
+      // Shelving is offered on an open book, whose file has already been identified.
       const stage =
         isGM && !staged[id] ? `<button type="button" data-shelve="${esc(id)}">${L("shelfAdd")}</button>` : "";
       return `<div class="acks-extras-importer-reconnect-row acks-extras-importer-reconnect-done" data-row="${esc(id)}">
@@ -1561,9 +1364,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
     ["booksOpenHead", Object.entries(BOOKS).filter(([id]) => sessionDocs.has(id)), false],
     ["booksAbsentHead", Object.entries(BOOKS).filter(([id]) => !sessionDocs.has(id) && !records.has(id)), false],
   ];
-  // Waiting books stay expanded — they are the reason the window opened. The
-  // other two collapse behind their count, which is what keeps a twenty-book
-  // shelf from being a scroll to the bottom for one Unlock button.
+  // Waiting books stay expanded; the other two collapse behind their count.
   const bookBands = groups
     .filter(([, list]) => list.length)
     .map(
@@ -1582,8 +1383,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const bridge = !windowMs
     ? "refresh bridge: off — every page reload re-picks"
     : `refresh bridge: ${windowMs / 1000}s window, ${cached?.length ?? 0} book(s) bridged` +
-      // The away figure belongs to the join-time sweep (sweepCache): a live page refreshes the
-      // stamp every 20 s, so measured here it reads negative, and before any stamp it reads the epoch.
+      // The away figure belongs to the join-time sweep (sweepCache); measured here it is meaningless.
       (stamp ? `, stamped ${Math.round((Date.now() - stamp) / 1000)}s ago` : ", not stamped yet");
   const stateOf = (id) =>
     sessionDocs.has(id)
@@ -1612,8 +1412,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   return {
     html,
     wire: (host, { rerender }) => {
-      // Scoped to the panel: the manager's other tabs carry buttons of their
-      // own, a `data-book` among them.
+      // Scoped to the panel: the manager's other tabs carry a `data-book` button too.
       const root = host.querySelector("[data-books-panel]") ?? host;
       const left = new Set(pending);
       const settle = (bookId, ok, message) => {
@@ -1628,23 +1427,15 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         if (el) el.textContent = text;
       };
       /**
-       * Build the panel again, carrying the report of what just happened.
-       *
-       * Every band is a snapshot of the world as it was when the panel was
-       * built, so a book staged since then is in the wrong place in all of
-       * them at once: absent from "On the server", still counted among the
-       * books waiting for this seat, and describing itself as held on the
-       * server from a row in another band. A GM who staged thirteen books saw
-       * a server list of six and could only read that as failure. The report
-       * travels into the new build rather than dying with the old one.
+       * Builds the panel again, carrying the report of what just happened. Every
+       * band is a snapshot taken at build time, so a change to the shelf needs a
+       * rebuild of all of them.
        */
       const rebuild = async (report = "") => rerender(report);
 
       /* -- band 1 ---------------------------------------------------- */
 
-      // Persists the moment it is toggled: a dialog closed via Escape or the
-      // X never reads its form, and "don't show this again" must stick however
-      // the reader leaves.
+      // Persists on toggle: a dialog closed by Escape or the X never reads its form.
       root.querySelector("input[name=dismiss]")?.addEventListener("change", (ev) => {
         game.settings.set(MODULE_ID, SETTING_DISMISSED, ev.currentTarget.checked);
       });
@@ -1673,9 +1464,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         });
       }
 
-      // Staging a book this seat does NOT have open: from its own row, or
-      // several at once from the shelf band. Both land in `stageFile`, which
-      // reads and identifies the file here and uploads only what it accepted.
+      // Staging a book this seat does not have open, from its own row or several
+      // at once from the shelf band; both land in `stageFile`.
       const stageInto = async (bookId, file, control) => {
         if (control) control.disabled = true;
         say(`[data-status="${bookId}"]`, L("shelfUploading"));
@@ -1726,15 +1516,12 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         if (!files.length) return;
         shelfBulk.disabled = true;
         say("[data-shelf-bulk-status]", L("shelfUploading"));
-        // The files' own evidence decides: a name this seat remembers, a size
-        // it has seen, or the book's title in the filename. A file that names
-        // no book is never guessed at — it is reported by name, and that
-        // book's own row takes it in one pick.
+        // The files' own evidence decides (remembered name, seen size, or the
+        // book's title in the filename); a file that names no book is reported by name.
         const candidates = Object.keys(BOOKS).filter((id) => !shelf()[id]);
         const { matched, unmatched } = matchFilesToBooks(files, candidates, records);
         let added = 0;
-        // Sequentially: several ACKS PDFs read at once is hundreds of
-        // megabytes in flight, and each is parsed here before it is uploaded.
+        // Sequential, to bound the PDFs in memory.
         for (const [bookId, file] of matched) if (await stageInto(bookId, file)) added++;
         shelfBulk.disabled = false;
         shelfBulk.value = "";
@@ -1751,10 +1538,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
           button.disabled = true;
           const record = shelf()[bookId];
           await shelfPut(bookId, null);
-          // The journal goes with the entry. The FILE stays where it was put —
-          // Foundry offers no delete, and a GM who wants the disk space back
-          // needs to be told where to look rather than left assuming the
-          // removal took it with it.
+          // The journal goes with the entry; the file stays, and the report names its path.
           await rebuild(L("shelfRemoved", { path: record?.path ?? SHELF_DIR }));
         });
       }
@@ -1770,9 +1554,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
             return;
           }
           let added = 0;
-          // Sequentially: several ACKS PDFs parsed at once is hundreds of
-          // megabytes in flight, and the shelf is read through the same
-          // pdf.js path a local connect uses.
+          // Sequential, to bound the PDFs in memory.
           for (const [bookId, file] of matched) {
             if (await shelvePath(bookId, file.path, { name: file.name })) added++;
           }
@@ -1796,9 +1578,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
       const reconnectBtn = root.querySelector("[data-reconnect-all]");
       reconnectBtn?.addEventListener("click", async () => {
         reconnectBtn.disabled = true;
-        // The gesture goes FIRST. Transient activation lasts seconds, and
-        // reading a book takes longer than that, so a permission asked for
-        // after the silent pass is a permission asked for too late.
+        // The gesture goes first: transient activation lasts seconds, less than
+        // a book read takes.
         let folderOpened = [];
         if (dir && left.size) {
           try {
@@ -1809,8 +1590,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
             console.warn(`${MODULE_ID} | reconnect all: folder`, err);
           }
         }
-        // Then everything that needs no gesture at all: the shelf, served
-        // paths, bridged bytes, and any handle whose permission still stands.
+        // Then everything that needs no gesture: the shelf, served paths, bridged
+        // bytes, and any handle whose permission still stands.
         await restoreShelf();
         const stillWaiting = await restoreBooks();
         for (const id of Object.keys(BOOKS)) {
@@ -1818,8 +1599,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         }
         const blocked = stillWaiting.filter((id) => !sessionDocs.has(id));
         const opened = folderOpened.length + (pending.length - blocked.length);
-        // "opened 0" reads as a failure on the seat where nothing was waiting,
-        // which is the ordinary state of a seat whose books are on the server.
+        // A seat with nothing waiting (its books are on the server) gets its own "nothing" message.
         say(
           "[data-status-bulk]",
           blocked.length
@@ -1836,9 +1616,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         const files = [...(bulkInput.files ?? [])];
         if (!files.length) return;
         bulkInput.disabled = true;
-        // Match against every book NOT open, not merely the remembered ones:
-        // this is now the way a seat connects for the first time as well as
-        // the way it reconnects.
+        // Matched against every book not open, not only the remembered ones: this
+        // is also how a seat connects for the first time.
         const candidates = Object.keys(BOOKS).filter((id) => !sessionDocs.has(id));
         const { matched, unmatched } = matchFilesToBooks(files, candidates, records);
         let opened = 0;
@@ -1847,10 +1626,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
             await ingestBook(bookId, await file.arrayBuffer(), { cache: file });
             const record = records.get(bookId);
             if (record?.kind === "handle") {
-              // Never downgrade a handle to a name-only record: the handle
-              // still reopens with one click next session, which a re-picked
-              // name never will. Refresh the size so a renamed copy can still
-              // be matched by pass 2 next time.
+              // Never downgrade a handle to a name-only record; refresh the size so
+              // a renamed copy still matches next time.
               await locationPut(bookId, { ...record, size: file.size }).catch((err) =>
                 console.warn(`${MODULE_ID} | could not update remembered location for ${bookId}`, err),
               );
@@ -1866,8 +1643,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         }
         bulkInput.disabled = false;
         bulkInput.value = "";
-        // Naming what went unused is the difference between "it half worked"
-        // and knowing the seat picked the wrong file, or one book too few.
+        // Names the files that went unused.
         say(
           "[data-status-bulk]",
           unmatched.length
@@ -1938,8 +1714,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
       }
 
       // A book this seat has never opened, on a browser that can remember a
-      // handle: pick its file through the picker so the location persists,
-      // rather than through an input that can only ever remember a name.
+      // handle: the picker is used so the location persists.
       for (const button of root.querySelectorAll("button[data-pick]")) {
         button.addEventListener("click", async () => {
           const bookId = button.dataset.pick;
@@ -1971,10 +1746,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
           if (!file) return;
           input.disabled = true;
           try {
-            // Bridged like every other read: this row exists for the seat that
-            // cannot reopen a file by itself, which is the seat the refresh
-            // bridge is for — dropping the cache here costs it the file picker
-            // again on the very next reload.
+            // Bridged like every other read: this row serves the seat the refresh bridge is for.
             await ingestBook(bookId, await file.arrayBuffer(), { cache: file });
             await rememberFile(bookId, file); // may be a different copy than last time
             settle(bookId, true, L("reconnectOpened"));
@@ -2013,11 +1785,8 @@ const openBooksDialog = (opts = {}) => openImportManager({ tab: "books", ...opts
 
 /**
  * Re-read every book a granted directory holds, settling each row as it lands.
- *
- * Shared by the folder button and by Reconnect all, which reaches for the
- * folder first precisely because it answers for the whole shelf on one
- * permission. Matches run against every book not open — a folder can reconnect
- * what was waiting AND connect a book this seat never named.
+ * Shared by the folder button and Reconnect all. Matches run against every book
+ * not open, so a folder can also connect a book this seat never named.
  */
 async function reopenFromFolder(dir, records, settle) {
   const handles = await pdfHandlesIn(dir.handle);
@@ -2026,14 +1795,12 @@ async function reopenFromFolder(dir, records, settle) {
   const candidates = Object.keys(BOOKS).filter((id) => !sessionDocs.has(id));
   const { matched } = matchFilesToBooks([...byFile.keys()], candidates, records);
   const opened = [];
-  // Sequentially — several ACKS PDFs parsed at once is hundreds of megabytes
-  // in flight.
+  // Sequential, to bound the PDFs in memory.
   for (const [bookId, file] of matched) {
     try {
       await ingestBook(bookId, await file.arrayBuffer(), { cache: file });
       const handle = byFile.get(file);
-      // The per-file handle is remembered too, so the per-row Unlock still
-      // works next session even if the folder record is lost.
+      // The per-file handle is remembered too, for the per-row Unlock.
       await locationPut(bookId, { kind: "handle", handle, name: handle.name ?? null, size: file.size }).catch((err) =>
         console.warn(`${MODULE_ID} | could not remember ${bookId} from the folder`, err),
       );
@@ -2048,14 +1815,11 @@ async function reopenFromFolder(dir, records, settle) {
 }
 
 /**
- * Reconnect on demand — retry the silent pass that runs on join (a plugged-in
- * drive, a restored network, or a book newly put on the shelf may answer it
- * now), then open the Books tab whatever the outcome: a tab showing every
- * book open IS the "all open" report, where a toast left nothing on screen to
- * check it against.
+ * Reconnect on demand: retries the silent pass that runs on join, then opens
+ * the Books tab whatever the outcome.
  *
- * Three api names reach this one tab, and they stay because macros already
- * imported into worlds call them: connectBook, reconnectBooks, bookStatus.
+ * Three api names reach this one tab and are kept for macros that call them:
+ * connectBook, reconnectBooks, bookStatus.
  */
 async function reconnectBooks() {
   await restoreShelf();
@@ -2068,10 +1832,14 @@ async function bookStatus() {
   return openBooksDialog();
 }
 
+/**
+ * Drops this computer's remembered book locations, the bridged bytes and the
+ * open books, and notifies what was cleared. The shelf is world data and is
+ * untouched.
+ * See docs/importer/DECISIONS.md, "A book the server holds asks nobody for anything (2026-08-21)".
+ */
 async function forgetBooks() {
-  // The success toast is a claim about the clears, so each clear reports its
-  // outcome instead of being swallowed — a failed IndexedDB clear must not
-  // tell the GM the forget succeeded.
+  // The success toast reflects each clear's outcome.
   let allCleared = true;
   const attempt = async (label, clear) => {
     try {
@@ -2082,13 +1850,9 @@ async function forgetBooks() {
     }
   };
   await attempt("remembered locations", locationClear);
-  // Forget means forget: the refresh bridge goes with the locations, or the
-  // next reload would quietly reopen the very books that were just dropped.
+  // The bridge goes with the locations, or the next reload would reopen the dropped books.
   await attempt("bridged book bytes", bytesClear);
   await stampClear();
-  // The SHELF is world data and is deliberately untouched: forgetting is a
-  // statement about this browser, and a GM clearing their own seat must not
-  // silently unstage the books every other seat reads.
   sessionDocs.clear();
   if (allCleared) {
     ui.notifications.info(`${MODULE_ID} | remembered book locations on this computer dropped; in-memory prose cleared. Books on the shelf are unaffected.`);
@@ -2109,6 +1873,10 @@ function guessKind(bookId, mode) {
   return bookId === "mm" ? "monster" : "ability";
 }
 
+/**
+ * GM only: prompts for a book and a PDF page, lets the GM choose headings on it,
+ * and loads each as an actor or item (see `pickHeadings`, `loadHeadings`).
+ */
 async function browseAndLoad() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates documents and world recipes).`);
 
@@ -2222,35 +1990,17 @@ async function loadHeadings(bookId, page, pageData, picked, kindChoice) {
 /*  Stat setup (numbers → world actor data)     */
 /* -------------------------------------------- */
 
-/** Extract the page illustration from the GM's book and set it as actor+token
- *  art. NOTE the deliberate asymmetry with prose: art must render on every
- *  client's canvas, so it uploads into world data (acks-extras-art/) — a
- *  world asset sourced from the GM's own book, like a scan the GM saved. */
-/**
- * Extract + upload a page illustration WITHOUT touching an actor — returns
- * `{path, width, height}` or null. The path-only half exists for the family
- * importer, whose art belongs to a template OPTION rather than the actor.
- * Name-first: with the wasm decoders shipped, the placed XObject itself
- * extracts cleanly (the AX books' art is JPEG2000). The placement-box
- * page-render crop stays as a fallback for a seat whose decoders fail.
- */
+/** The world data directory page and scene art uploads into; art must render on every client's canvas. */
 const ART_DIR = "acks-extras-art";
 
 /**
- * Filename → full path for everything already in the art directory, listed
- * ONCE per session.
- *
- * A reuse check that browsed the whole directory per actor would be a
- * server round trip whose response grows with every import, taken hundreds of
- * times in a bulk run and serialized behind the other three import workers —
- * so a world whose art was entirely cached would still spend minutes proving
- * it. The listing changes only when this seat uploads, and every upload updates the
- * map, so one listing is the whole truth for the run.
+ * Filename → full path for everything already in the art directory, listed once
+ * per session. The listing changes only when this seat uploads, and every
+ * upload updates the map.
  */
 let artListing = null;
 function artIndex(FP) {
-  // The PROMISE is cached, not the map: four import workers start together and
-  // would otherwise each fire the listing this exists to fire once.
+  // The promise is cached, so concurrent import workers share one listing.
   artListing ??= (async () => {
     const map = new Map();
     try {
@@ -2285,20 +2035,10 @@ function ensureDirectory(FP, dir) {
 }
 
 /**
- * The usable art file already on disk for a recipe id, or null.
- *
- * Shared with the importers so a re-import can skip the `art` OP entirely, not
- * merely the upload. That op walks the page's operator list to CHOOSE which
- * placed image to extract — measured at 1.8s for one Monstrous Manual creature
- * and 15s for another — and when the chosen image is already a file on disk
- * there is nothing left to choose. The upload cache alone never saved that
- * walk, so a world whose art was entirely cached still paid it per creature.
- *
- * A tiny file is a corrupt/aborted upload, and an unanswerable one is a file
- * deleted since the listing was taken — both are treated as absent rather than
- * handed to an actor as an image path that renders nothing. That check is why
- * skipping the op afterwards is safe: the caller is told "cached" only about a
- * file that really is there and really is usable.
+ * The usable art file already on disk for a recipe id, or null. Shared with the
+ * importers so a re-import can skip the `art` OP entirely, not merely the
+ * upload. A tiny file (a corrupt or aborted upload) or one deleted since the
+ * listing was taken counts as absent.
  */
 const cachedArt = (id) => cachedFile(`${String(id).replaceAll(".", "-")}.png`);
 
@@ -2315,12 +2055,16 @@ async function cachedFile(filename) {
   return null;
 }
 
+/**
+ * Extracts and uploads a page illustration without touching an actor, returning
+ * `{path, width, height}` or null (`cached: true` when a file was reused). The
+ * placed image itself is extracted first; the placement-box page-render crop is
+ * the fallback for a seat whose decoders fail.
+ */
 async function uploadPageArt(doc, recipe) {
   const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
   const dir = ART_DIR;
   const filename = `${recipe.id.replaceAll(".", "-")}.png`;
-  // Already imported? Reuse it — decode + upload is the expensive half of a
-  // re-import.
   const existing = await cachedArt(recipe.id);
   if (existing) return { path: existing, width: 0, height: 0, cached: true };
   const index = await artIndex(FP);
@@ -2337,18 +2081,13 @@ async function uploadPageArt(doc, recipe) {
 }
 
 /**
- * Render + upload a scene recipe's picture — returns `{path, width, height}`
- * or null. A world asset for the same reason a creature's art is: every seat's
- * canvas has to load it.
- *
- * The file is named by the recipe's id AND its picture key, so the picture a
- * world already holds is reused only while the recipe still draws the same
- * one; a recipe that moved its crop or its scale renders again under a new
- * name instead of laying new outlines over old pixels.
+ * Renders and uploads a scene recipe's picture, returning `{path, width,
+ * height}` or null. The file is named by the recipe's id AND its picture key,
+ * so a held picture is reused only while the recipe draws the same one.
  *
  * `pixelsPerPoint` is a grid recipe's scale as the map step measured it
- * (`gridScenePlan`); the picture is cut at exactly that scale. Without one
- * the picture is cut at the recipe's feet-per-point scale.
+ * (`gridScenePlan`); without one the picture is cut at the recipe's
+ * feet-per-point scale.
  */
 async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
   const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
@@ -2369,15 +2108,12 @@ async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
 }
 
 /**
- * Trace a scene recipe's walls off the Judge's own page: the crop rendered to
- * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`, or
- * on a plan of storeys every storey's crop, read by `traceStoreys`.
- * Returns `{walls, digest}` with the walls in page points, or null when a
- * render failed or the trace threw. A map whose walls failed is still made,
- * wall-less, because the walls are an addition to the map and not its
- * condition. Rendered apart from the picture: a held picture comes from the
- * art cache with no render, and a picture's scale is several times the
- * pixels a trace needs.
+ * Traces a scene recipe's walls off the Judge's own page: the crop rendered to
+ * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`, or on a
+ * plan of storeys every storey's crop, read by `traceStoreys`. Returns
+ * `{walls, digest}` with the walls in page points, or null when a render failed
+ * or the trace threw; the map is then made without walls. Rendered apart from
+ * the picture, whose scale and cache differ.
  */
 async function traceSceneWalls(doc, id, recipe) {
   const scale = TRACE_PITCH / Number(recipe.grid?.box?.w);
@@ -2417,20 +2153,13 @@ async function importArt(actor, doc, recipe) {
 async function applyStatsToActor(actor, doc, pageData, recipe) {
   const pairs = extractStatPairs(pageData);
   if (!pairs.length) return ui.notifications.warn(`${MODULE_ID} | ${recipe.name}: no stat rows found on PDF p. ${recipe.page}.`);
-  // A named proficiency resolves against the library's definitions before it
-  // is minted as a bare namesake.
+  // A named proficiency resolves against the library's definitions before it is minted bare.
   const { system, extras, items, applied, unmapped } = mapPairs(pairs, { proficiency: await proficiencyResolver() });
 
-  // The entry's text goes to the visible APPEARANCE field
-  // (extras.description.appearance) — the first field on the Description tab,
-  // which is where the reader looks. Each target is written as ONE object/path
-  // — never a parent object plus a dotted leaf of it in the same update() (that
-  // ambiguity clobbered the write).
+  // The entry's text goes to `extras.description.appearance`, and nowhere else.
+  // Each target is written as one object or path, never a parent plus a dotted
+  // leaf of it in the same update().
   const update = { [`flags.${MODULE_ID}.statPairs`]: pairs };
-  // The Full Monster Sheet is this module's own sheet, so the stat-block
-  // channel is always available. The prose has one home, never also
-  // system.details.biography: two possible homes for one description is what
-  // the channel split exists to prevent.
   const prose = await extractRecipe(doc, recipe).catch(() => null);
   extras.description = {
     ...(extras.description ?? {}),
@@ -2441,7 +2170,7 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
   Object.assign(update, sumsUpdate(extras.description.appearance, "flags.extras.description.appearance"));
   update.system = system;
   await actor.update(update);
-  // Truthful diagnostics: verify the description actually landed.
+  // Verifies the description landed.
   const back = actor.getFlag(MODULE_ID, "extras")?.description?.appearance;
   console.log(`${MODULE_ID} | ${actor.name}: description ${back ? "VERIFIED on actor" : "MISSING after write (!)"}`);
 
@@ -2476,7 +2205,7 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
   );
 }
 
-/** The monster recipe whose name matches an actor ("Griffon" or "Griffon (PoC)"). */
+/** The monster recipe whose name matches an actor's, or `<name> (PoC)`. */
 function monsterRecipeForActor(actor) {
   return (
     allRecipes().find(
@@ -2502,14 +2231,8 @@ async function fillMonster(actor, recipe) {
 }
 
 /**
- * Which monsters Apply Stats should act on.
- *
- * Selected tokens, plus any monster whose SHEET is open. A monster that has
- * never been placed on a scene has no token to select, which made the whole
- * feature unreachable for it — and an imported bestiary is mostly actors
- * nobody has dragged out yet. Opening the sheet is the natural way to say
- * "this one". Deduped, because an open sheet for a selected token is one
- * monster, not two.
+ * The monsters Apply Stats acts on: selected tokens plus any monster whose
+ * SHEET is open (a monster never placed on a scene has no token), deduped.
  */
 function applyStatsTargets() {
   const fromTokens = (canvas.tokens?.controlled ?? []).map((t) => t.actor);
@@ -2519,10 +2242,8 @@ function applyStatsTargets() {
 }
 
 /**
- * Re-read stats from the connected book for the selected/open monsters.
- *
- * Never every monster in the world: this rewrites system data, so it acts on
- * what the GM pointed at and nothing else.
+ * Re-reads stats from the connected book for the selected or open monsters.
+ * Never every monster in the world: this rewrites system data.
  */
 async function applyStats() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
@@ -2537,11 +2258,8 @@ async function applyStats() {
   const unknown = [];
   const noStats = [];
   for (const actor of selected) {
-    // A cookbook-imported monster knows exactly which entry it came from, so
-    // ask it rather than guessing from its name. Before this, Apply Stats
-    // resolved names against allRecipes() alone — the dozen hand-written PoC
-    // recipes — so it could not touch ANY of the hundreds of monsters the
-    // cookbook imports, with or without a token.
+    // A cookbook-imported monster knows which entry it came from; ask it before
+    // resolving by name against `allRecipes()`.
     const refilled = await refillMonster(actor).catch((err) => {
       console.error(`${MODULE_ID} | refill ${actor.name}`, err);
       return { ok: false, reason: "error" };
@@ -2554,9 +2272,7 @@ async function applyStats() {
       closed.add(REGISTRY[refilled.book]?.label ?? refilled.book);
       continue;
     }
-    // Ours, but its entry carries no stat block this surface can re-read. Named
-    // rather than counted as a refill: nothing was written, and a silent skip
-    // reads as "applied" to the GM who pressed the button.
+    // Ours, but its entry carries no stat block to re-read; nothing was written, so it is named.
     if (refilled?.reason === "no-stats") {
       noStats.push(actor.name);
       continue;
@@ -2591,9 +2307,7 @@ async function applyStats() {
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SETTING_DYNAMIC, { scope: "world", config: false, type: Object, default: {} });
-  // The refresh bridge (see above). Client scope: how long a seat's own bytes
-  // may survive its own reload is that seat's business, and the answer differs
-  // between a GM on the host and a player on a phone tether.
+  // The refresh bridge window; client scope, since it is per seat.
   game.settings.register(MODULE_ID, SETTING_REFRESH_CACHE, {
     name: `${LANG_PREFIX}.cache.settingName`,
     hint: `${LANG_PREFIX}.cache.settingHint`,
@@ -2603,8 +2317,7 @@ Hooks.once("init", () => {
     range: { min: 0, max: 300, step: 10 },
     default: 60,
     onChange: (value) => {
-      // Turning it off must take effect now, not at the next join — a reader
-      // who changes their mind about bytes on disk means it.
+      // Turning it off clears the cached bytes now, not at the next join.
       if (!Number(value)) {
         bytesClear().catch((err) =>
           console.warn(`${MODULE_ID} | bridged book bytes could not be cleared after disabling the refresh bridge`, err),
@@ -2665,6 +2378,7 @@ Hooks.once("ready", async () => {
     importEquipment, importAllEquipment, cookbookEquipmentIds,
     importWeapons, importArmor,
     importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
+    /** Opens the Books tab with the first-run walkthrough open. */
     gettingStarted: () => openBooksDialog({ firstRun: true }),
     RECIPES, BOOKS,
   };
@@ -2682,28 +2396,20 @@ Hooks.once("ready", async () => {
   });
   document.addEventListener("click", onCiteClick, { capture: true });
 
-  // Provide the ability-resolution contract (lib docs/API.md): other features
-  // embed proficiency packages on hired actors through this, without naming
-  // this feature.
+  // The ability-resolution contract (docs/lib/API.md), through which other
+  // features embed proficiency packages without naming this feature.
   services.register("ability-provider", { resolve: resolveAbilities });
   console.log(
     `${MODULE_ID} | ready. Macros in the "ACKS Extras Macros" compendium (folders "Your Books" and "Import from your books"), or: acksExtras.importer.bookStatus() · acksExtras.importer.cookbookImport() · acksExtras.importer.cookbookImportAbilitiesDialog() · acksExtras.importer.cookbookUpdateAbilities() · acksExtras.importer.importClasses() · acksExtras.importer.cookbookUpdateClasses() · acksExtras.importer.browseAndLoad().`,
   );
 
-  // Before anything reads bytes: decide whether this page load is a reload
-  // inside the bridge window or a genuinely new session, and empty the bridge
-  // if it is the latter. Nothing below may see stale bytes.
+  // Before anything reads bytes: empty the bridge unless this load is a reload inside its window.
   await sweepCache();
   startCacheHeartbeat();
 
-  // The shelf first: a book the server holds needs nothing from this seat, and
-  // opening it before the per-seat restore keeps it out of the list of books
-  // waiting for a gesture. Then reopen what this browser remembers, and offer
-  // the window for whatever is left. A seat with nothing anywhere, in a world
-  // with nothing on its shelf, is (probably) brand new and gets the same
-  // window with its walkthrough open — one surface either way, never two
-  // stacked dialogs. A player seat the shelf is withheld from opens nothing
-  // and is still not new.
+  // The shelf first, so a shelved book never waits for a gesture; then what
+  // this browser remembers. The same window opens for whatever is left, or with
+  // its walkthrough open on a seat with nothing anywhere.
   await restoreShelf();
   const pending = await restoreBooks();
   if (pending.length) await openBooksDialog();
