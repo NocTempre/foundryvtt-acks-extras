@@ -3,20 +3,18 @@
  * Clothing) → a name→{cost,weight6} map that enriches the gear/clothing
  * cookbook items (which carry names + descriptions but no price).
  *
- * These pages are TWO-COLUMN price grids (left Item/Cost/Enc, right
- * Item/Cost/Enc). Same IP posture as the weapon/armour tables: geometry ships,
- * the prices materialize per-seat from the reader's own book. Cost is in gp;
- * the book prints gp/sp/cp (1gp = 10sp = 100cp — verified against core).
+ * These pages are two-column price grids (Item/Cost/Enc on each side). The
+ * geometry ships; the prices come from the reader's own book. Cost is in gp,
+ * converted from the gp/sp/cp the book prints.
  */
 import { rowsByY, joinRuns } from "./table-extract.mjs";
 import { encToWeight6 } from "./weapon-tables.mjs";
 
 /**
- * Drop only footnote marks — NOT the weapon module's stripNoise, which also
- * eats single-letter runs matching the EQUIPMENT side-tab and so would swallow
- * a small-capped first letter ("Target" → "arget"). The running "EQUIPMENT"
- * header sits at the top margin (its own y-row, no price) and is filtered out
- * by the price requirement anyway, so nothing here needs the side-tab strip.
+ * Drop only footnote marks, never the weapon tables' `stripNoise`: it also eats
+ * single-letter runs matching the side-tab and would swallow a small-capped
+ * first letter. The running header has no price and is filtered out by the
+ * price requirement.
  */
 function dropMarks(items) {
   return items.filter((it) => it.str && it.str.trim() && !/^[*†‡]+$/.test(it.str.trim()));
@@ -28,13 +26,17 @@ const SIDE = (nameX0, nameX1, costX, encX) => ({ nameX0, nameX1, costX, encX });
 /**
  * Run gap (in page units) above which two runs of a name are separate words.
  * A name arrives as several runs and the space between words is geometry, not
- * a character: joined with no threshold the rows read "Saddle andtack,draft",
- * and at too fine a threshold the kerning inside a word splits it ("d raft").
- * Measured against the grid: anything from ~0.3 to ~1.5 reproduces the printed
- * spacing exactly, so this sits in the middle of that band.
+ * a character: with no threshold words run together, and at too fine a
+ * threshold the kerning inside a word splits it. The value sits in the middle
+ * of the band that reproduces the printed spacing.
  */
 const NAME_GAP = 1;
 
+/**
+ * The price grids by recipe name: the printed page each is read from, the
+ * anchors that identify the page, the row tolerance, and the column bands of
+ * each side (`SIDE`).
+ */
 export const PRICE_TABLES = Object.freeze({
   gear: {
     page: 131,
@@ -52,9 +54,8 @@ export const PRICE_TABLES = Object.freeze({
 
 /**
  * The printed name as a name: the grid small-caps the opening letter of each
- * comma-separated part, which extracts lowercase (a clothing row's first
- * part comes out as "cloak" and is restored to "Cloak"; RR p. 130). Only that letter is restored — title-casing the
- * rest would be inventing capitals the page does not print.
+ * comma-separated part, which extracts lowercase (RR p. 130). Only that letter
+ * is restored; no other capital is added.
  */
 export function tidyRowName(name) {
   return String(name ?? "")
@@ -68,16 +69,14 @@ export function tidyRowName(name) {
 export function priceKey(name) {
   return String(name ?? "")
     .toLowerCase()
-    .replace(/\(.*?\)/g, "") // drop "(1 lb)", "(1 pint)" qualifiers
+    .replace(/\(.*?\)/g, "") // drop parenthetical qualifiers
     .replace(/[^a-z0-9]+/g, "");
 }
 
 /**
- * Look up a gear/clothing entry's price. Exact key first; then an UNAMBIGUOUS
- * prefix (exactly one priced variant whose key extends the entry's — e.g.
- * "Torch" → "Torches (6)"). A general category with several priced variants
- * ("Army Emblem" → Silver + Gold) returns null: those are not one priced item,
- * and guessing a variant would be wrong. Honest over a fabricated number.
+ * Look up a gear/clothing entry's price. Exact key first; then an unambiguous
+ * prefix: exactly one priced variant whose key extends the entry's. A category
+ * with several priced variants returns null, since it is not one priced item.
  * @returns {{cost:number|null, weight6:number|null}|null}
  */
 export function priceFor(map, name) {
@@ -88,13 +87,10 @@ export function priceFor(map, name) {
   return variants.length === 1 ? map.get(variants[0]) : null;
 }
 
-/** "10gp"→10, "3sp"→0.3, "2cp"→0.02, "5gp/60gp value"→5; "Varies"/blank→null. */
+/** A price in gp from a gp/sp/cp amount (a trailing note is ignored); null for "Varies" or a blank cell. */
 export function parseCost(text) {
-  // Thousands separators go first: matched as part of the number they would
-  // end it early, and "1,200gp" would price at 200.
-  // No \b after the group: the unit follows the digits with no boundary
-  // between them ("1,500gp"), so anchoring on one leaves the separator in and
-  // the number reads from after it.
+  // Thousands separators go first: left in, they end the number early.
+  // No \b after the group: the unit follows the digits with no boundary.
   const s = String(text ?? "").replace(/(\d)[,\s]+(?=\d{3}(?!\d))/g, "$1").trim();
   if (!s || /var/i.test(s)) return null;
   const m = s.match(/(\d+(?:\.\d+)?)\s*(gp|sp|cp)/i);
@@ -134,11 +130,7 @@ export function capacityFor(priced, name) {
 
 /**
  * The whole cell at an x-anchor: every run within tol, in x order, joined.
- *
- * Taking only the NEAREST run silently truncates a price split across runs —
- * "1,200gp" arrives as "1" and ",200gp", and the nearest of the two is the
- * one without the thousands digit. That reads as 200gp: an order of magnitude
- * off, in the direction that looks like a plausible price.
+ * The nearest run alone truncates a price split across runs.
  */
 function cellAt(runs, x, tol = 16) {
   return runs
@@ -152,13 +144,9 @@ function cellAt(runs, x, tol = 16) {
 /**
  * Extract every {name, cost, weight6, section} from a price grid (both columns).
  *
- * A price page can stack several SECTIONS under one grid — the second one
- * prints clothing, then livestock, then provisions — and what a row IS is
- * stated by the heading above it and nowhere else on the row. A grid row
- * carries the last heading seen, so a caller that has to decide what kind of
- * thing a row becomes has the page's own answer instead of the row's name.
- * The section is whatever the page printed, verbatim; nothing here knows or
- * declares which headings mean anything.
+ * A price page can stack several sections under one grid, and the heading
+ * above a row is the only statement of what the row is. Each row carries the
+ * last heading seen, verbatim; nothing here knows which headings mean anything.
  * @returns {{name:string, cost:number|null, weight6:number|null, section:string}[]}
  */
 export function extractPrices(items, recipe) {
@@ -173,24 +161,18 @@ export function extractPrices(items, recipe) {
       const nameRuns = r.items.filter((it) => it.x >= side.nameX0 && it.x < side.nameX1);
       const raw = joinRuns(nameRuns, recipe.nameGap ?? NAME_GAP).replace(/\s+/g, " ").trim();
       if (!raw || raw.length < 2) continue;
-      // A long name reaches into the price column, so its own price can be
-      // read as part of the name (a comma-bearing clothing row with a four-digit
-      // price, RR p. 130). It is the row's
-      // price wherever it landed: taken off the name, and used as the cost
-      // when the cost column itself came back empty. This happens BEFORE the
-      // name is tidied, because the tidier treats a comma as separating parts
-      // of a name and a thousands separator is not that.
-      // Spaces are allowed inside the figure: the same run gap that separates
-      // words also lands between a thousands comma and the digits after it,
-      // so the price prints here as "1, 500gp".
+      // A long name reaches into the price column (a comma-bearing clothing
+      // row with a four-digit price, RR p. 130), so its price can read as part
+      // of the name. It is taken off the name and used as the cost when the
+      // cost column came back empty. This runs before the name is tidied, since
+      // the tidier treats a comma as separating name parts. Spaces are allowed
+      // inside the figure: the run gap also lands after a thousands comma.
       const bled = /(\d[\d\s,]*(?:\.\d+)?\s*(?:gp|sp|cp))\s*$/i.exec(raw);
       const name = tidyRowName(bled ? raw.slice(0, bled.index).replace(/[\s,]+$/, "") : raw);
       if (!name || name.length < 2) continue;
       names[names.length - 1] = name;
-      // The bled reading wins when there is one. It begins at the price's
-      // first digit, whereas the cost column starts wherever its own tolerance
-      // does — which for these rows is past the leading digit, so the column
-      // reads "1,500gp" as 500 while the name holds the whole figure.
+      // The bled reading wins when there is one: it begins at the price's first
+      // digit, while the cost column's tolerance can start past it.
       const cost = (bled ? parseCost(bled[1]) : null) ?? parseCost(cellAt(r.items, side.costX));
       const weight6 = side.encX != null ? encToWeight6(cellAt(r.items, side.encX)) : null;
       // A real row must carry a price; header/section rows do not.
@@ -198,10 +180,9 @@ export function extractPrices(items, recipe) {
       priced++;
       out.push({ name, cost, weight6, section, capacity: labelCapacity(name) });
     }
-    // A SECTION HEADING, not a row: nothing on the line is priced, and only
-    // the first column carries text. The column-heading line under it repeats
-    // across every column, so it can never be read as one; a data row whose
-    // price failed to parse always has its neighbour column beside it.
+    // A section heading: nothing on the line is priced and only the first
+    // column carries text. The column-heading line repeats across every column,
+    // and a data row whose price failed to parse has its neighbour beside it.
     if (!priced && names[0] && names.slice(1).every((n) => !n)) section = names[0];
   }
   return out;
@@ -230,12 +211,8 @@ export async function extractPriceMapFromDoc(doc, readPage) {
 /**
  * Every printed price row, in page order, keeping the name each was printed
  * under and the section it was printed in. The map above folds these to one
- * entry per key; the row list is what a caller needs to make an ITEM out of a
- * row, which requires its name and what kind of thing the page says it is.
- *
- * `table` is the RECIPE that read the row; `section` is the heading the page
- * printed it under. They are not the same fact and the second page is why:
- * one recipe reads a grid that stacks clothing, livestock and provisions.
+ * entry per key. `table` is the recipe that read the row; `section` is the
+ * heading the page printed it under, and one recipe can read several.
  * @returns {Promise<{name:string, cost:number|null, weight6:number|null, section:string, table:string}[]>}
  */
 export async function extractPriceRowsFromDoc(doc, readPage) {

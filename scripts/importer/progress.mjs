@@ -1,27 +1,21 @@
 /**
  * Progress bars for the jobs that take long enough to look hung.
  *
- * Every import here is a per-entry PIPELINE over the seat's own PDF — page
- * extraction, binding, one or more document writes — so a whole-book run is
- * minutes during which the only honest thing to say is "still going, N of M".
- * Foundry's progress notification is the right shape for that (one line,
- * non-modal, survives a closed dialog), but its raw API has two sharp edges:
- * a bar never taken to pct 1 stays on screen for the rest of the session, and
- * `update()` on a notification the user dismissed throws — into the middle of
- * an import, where a cosmetic failure has no business being.
- *
- * So callers get this instead:
- *   • it counts, so a caller passes the total once and then just steps;
- *   • every call is failure-tolerant — no progress bar may ever break an
- *     import, on any core version, dismissed or not;
+ * A whole-book import runs for minutes, and Foundry's progress notification
+ * (one line, non-modal) is the shape for "N of M". Its raw API leaves a bar
+ * never taken to pct 1 on screen for the session, and `update()` on a
+ * dismissed notification throws. Callers get this wrapper instead:
+ *   • it counts: pass the total once, then step;
+ *   • every call is failure-tolerant, so no progress bar breaks an import;
  *   • finish() is idempotent and belongs in a `finally`, so an import that
- *     throws half way still clears its bar;
- *   • the bar is not echoed to the console, where core would write one line
- *     per step; a run logs its start and its finish at debug instead.
+ *     throws still clears its bar;
+ *   • the bar is not echoed to the console; a run logs its start and finish at
+ *     debug.
  */
 import { MODULE_ID } from "./constants.mjs";
 
 /**
+ * Starts a progress bar for one job and returns its `step`, `note` and `finish` controls.
  * @param {string} label   localized job name, shown for the whole run
  * @param {number} [total] units of work; 0 means "unknown", and the bar then
  *                         reports activity without a fraction it cannot honour

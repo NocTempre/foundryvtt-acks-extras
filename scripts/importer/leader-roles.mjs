@@ -44,12 +44,13 @@ export function throwStep(hd) {
   return n;
 }
 
-/**
- * The registry document monster tables are imported into, and its attack-throw
- * ladder: the Monster HD column of RR ch. 6, Attack Throws by Level and HD,
- * one row per `throwStep`, each `{throw}`.
- */
+/** The registry document monster tables are imported into. */
 export const MONSTERS_DOC = "monsters";
+
+/**
+ * The attack-throw ladder's table key: the Monster HD column of RR ch. 6,
+ * Attack Throws by Level and HD, one row per `throwStep`, each `{throw}`.
+ */
 export const THROW_LADDER_TABLE = "attackThrowByHd";
 
 /** A ladder row's key for a `throwStep`: the fraction row, the 1-1 row, then one per whole die. */
@@ -447,9 +448,11 @@ function roleAxis(axes, found, out) {
   return axis;
 }
 
-/** The leader-source axis's key and options: the book's printed leaders, or the procedure's. */
+/** The leader-source axis's key. */
 export const SOURCE_AXIS = "leaderSource";
-export const SOURCE = Object.freeze({ printed: "printed", procedure: "axioms" });
+
+/** The leader-source axis's option keys: the book's printed leaders, or the procedure's. */
+export const SOURCE =Object.freeze({ printed: "printed", procedure: "axioms" });
 
 /**
  * The leaders the AXIOMS procedure builds (`monsters/leader-derive.mjs`), as

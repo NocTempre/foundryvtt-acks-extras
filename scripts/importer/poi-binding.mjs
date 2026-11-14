@@ -68,9 +68,8 @@ export const districtPlaceId = (book, district) => `${book}.district.${slug(dist
 
 /**
  * Actor data for a quarter's own place. Built empty by whichever step meets
- * the quarter first — its identity is what makes the nesting mean something,
- * and what a second run finds instead of building it twice — and given its
- * prose by the quarter's overview entry when the book prints one.
+ * the quarter first, found by its id on a second run, and given its prose by
+ * the quarter's overview entry when the book prints one.
  */
 export function districtPlaceData({ book, bookLabel = "", district, parentUuid = "", folderId = null }) {
   return {
@@ -123,11 +122,9 @@ export const adventurePlaceId = (book) => `${book}.adventure`;
 /**
  * Actor data for the adventure the areas belong to.
  *
- * Created so the rooms have something to nest under. It carries no prose of its
- * own — the book's introduction is not a place — only the identity that makes
- * the nesting mean something on the sheet. The `ose` flag and `kind.oseAdventure`
- * are the stamp a world already holds on such a place, whatever book made it;
- * both names stay.
+ * The place the rooms nest under: an identity and no prose of its own. The
+ * `ose` flag and `kind.oseAdventure` are the stamp a world already holds on
+ * such a place, whatever book made it, and are written as they stand.
  */
 export function adventurePlaceData({ book, bookLabel, folderId = null }) {
   return {

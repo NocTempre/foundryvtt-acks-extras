@@ -49,14 +49,11 @@ function setPath(node, keys, value) {
 /**
  * Does this description hold something this module cannot prove it wrote?
  *
- * The test is never "is this worth keeping", it is "is this ours": a stamped
- * block of imported book text, or its `@PdfText` tag form, and nothing else. Structure-only markup (the empty paragraph an editor leaves
- * behind) is empty; an image, a heading or a word of text is someone's work and
- * is never overwritten without being offered first.
- *
- * Every rewrite writes descriptions in exactly the stamped shape, which is what
- * lets a second run pass over everything the first run settled without asking
- * again.
+ * What the module wrote is a stamped block of imported book text or its
+ * `@PdfText` tag form, and nothing else. Structure-only markup (the empty
+ * paragraph an editor leaves behind) is empty; an image, a heading or a word of
+ * text is someone's work and is offered before it is overwritten. Every rewrite
+ * writes the stamped shape, so a second run passes over what the first settled.
  */
 export function handWrittenProse(html) {
   return !!stripBookText(html)
@@ -185,9 +182,9 @@ export const REPAIR = Object.freeze({
     top: ["prototypeToken"],
     minted: ["items"],
   },
-  // A class is rewritten whole, as Update Classes always has; only a
-  // description a Judge wrote, an effect a Judge took over, and a level's
-  // experience or title the build could not read and a Judge typed stay.
+  // A class is rewritten whole; only a description a Judge wrote, an effect a
+  // Judge took over, and a level's experience or title the build could not
+  // read and a Judge typed stay.
   class: {
     prose: ["description"],
     flags: ["tongues", "xpBuild"],

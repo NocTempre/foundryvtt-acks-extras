@@ -2,33 +2,20 @@
 /**
  * The language taxonomy, materialized into a world from the seat's own book.
  *
- * READ AND REGISTER, not transcribe. The recipe in `table-recipes.mjs` carries
- * a heading, two x-bands and an indent step — no names — so the taxonomy is
+ * Read and register, not transcribe: the recipe in `table-recipes.mjs` carries
+ * a heading, two x-bands and an indent step and no names, so the taxonomy is
  * extracted from the reader's own Revised Rulebook at import time and turned
- * into language items here. Nothing about which languages exist, or what each
- * descends from, is in this repo.
+ * into language items here. Ids are derived from the extracted names at
+ * runtime, in the importing world.
  *
- * That is the whole reason a language does not get one register entry apiece
- * like a power or a proficiency. Those entries anchor on a printed name
- * because they have a MECHANIC to bind to and the name is an index into it. A
- * language has no mechanic: its entry would be a name and nothing else, and
- * fifty-eight of those is not a way of finding the list, it is the list.
+ * A language is a `language` item, never an ability: the system owns the type,
+ * its sheet section and the Polyglot provider's scan. Find before minting: the
+ * world may already hold the tongue under its derived id, under a name a Judge
+ * typed, or as the system compendium's document; each is adopted in that order
+ * and stamped with the derived id, so re-importing converges on one document
+ * per language.
  *
- * The ids are derived from the extracted names at RUNTIME, in the world doing
- * the importing. A derived id is not shipped content.
- *
- * A LANGUAGE IS A `language`, NOT AN ABILITY. The system owns the type — it
- * declares it, gives it an icon and a details template, files it in its own
- * section of the character sheet, and reads it in the Polyglot provider it
- * registers (`getUserLanguages` scans an actor for `type === "language"` and
- * nothing else). Minting abilities here put every imported tongue outside all
- * of that at once.
- *
- * FIND BEFORE MINTING. The world may already hold the tongue — under its
- * derived id from a previous import, under a name a Judge typed, or as the
- * system compendium's own document. Each is adopted in that order and stamped
- * with the derived id, so re-importing converges on ONE document per language
- * instead of laying a fresh twin beside every one that was already there.
+ * See docs/importer/DECISIONS.md, "an imported language is a `language`".
  */
 
 import { ensureItemFolder, importedDocs, itemIds, packOptsFor } from "./cookbook/target.mjs";
@@ -49,14 +36,10 @@ const SYSTEM_PACK = "acks.acks-languages";
 export const LANGUAGES_DOC_ID = "languages";
 
 /**
- * A stable id for one extracted row: `def.language.` plus the name camelCased
- * — the segment `itemShelfFor` keys on, so the items file under the Languages
- * shelf like every other imported document (`def.lang.*` would lint clean and
- * land all of them in the unsorted root).
- *
- * Derived in the seat's own world from the seat's own book, so re-importing
- * lands on the same item rather than minting a twin, and two worlds owning the
- * same book agree without either of them having been told the answer.
+ * A stable id for one extracted row: `def.language.` plus the name camelCased,
+ * the segment `itemShelfFor` keys on to file the item under the Languages
+ * shelf. Derived from the seat's own book, so re-importing lands on the same
+ * item and two worlds owning the same book agree.
  */
 export function languageId(name) {
   const slug = String(name ?? "")
@@ -76,11 +59,9 @@ export const cookbookIdOf = (doc) => String(doc?.flags?.[MODULE_ID]?.cookbook?.i
 /**
  * Turn extracted rows into language items.
  *
- * Descent is kept as the PARENT'S ID rather than as an index, because indices
- * are meaningful only inside one extraction and a world may re-import against
- * a differently-paginated printing. It rides in flags rather than in `system`:
- * the system's language type carries a description and nothing else, and a
- * field it does not declare is dropped on the way in.
+ * Descent is kept as the parent's id, since an index is meaningful only inside
+ * one extraction. It rides in flags: the system's language type declares no
+ * field for it and drops one it does not declare.
  *
  * @param {{rows: object[]}} table the extracted taxonomy
  * @returns {object[]} item data, ready to create
@@ -134,9 +115,8 @@ async function libraryIndex() {
 /**
  * The system compendium's languages by lowercased name, or an empty map.
  *
- * Adopting one keeps whatever the system wrote on it — its description and its
- * art — instead of replacing a furnished document with a bare name. The pack
- * is optional: a world without it simply mints, and the import does not care.
+ * Adopting one keeps its description and art. The pack is optional: a world
+ * without it mints.
  */
 async function systemLanguages() {
   const pack = game.packs?.get(SYSTEM_PACK);
@@ -147,10 +127,7 @@ async function systemLanguages() {
 
 /**
  * Materialize the taxonomy: adopt what the world already has, mint only what
- * is genuinely missing.
- *
- * Idempotent on the derived id, so importing twice does not double the world's
- * languages — the same guard every other importer path uses.
+ * is missing. Idempotent on the derived id.
  *
  * `repair`, a tally (`repairTally`), writes each language this world already
  * holds over its document in place: its place in the taxonomy is re-read, and
@@ -183,11 +160,9 @@ export async function applyLanguageImport(table, { repair = null } = {}) {
       continue;
     }
 
-    // A tongue the LIBRARY already knows under this name without the derived
-    // id. Adopt it and stamp the id so the next run
-    // finds it. A Judge's own world language is deliberately not adopted: the
-    // pack is the library, and stamping a sidebar document into it would leave
-    // the taxonomy with a hole the pack's ownership does not cover.
+    // A tongue the library already holds under this name without the derived
+    // id: adopt it and stamp the id so the next run finds it. A Judge's own
+    // world language is not adopted; the pack is the library.
     const local = byName.get(data.name.toLowerCase());
     if (local) {
       stamps.push({ _id: local.id, [`flags.${MODULE_ID}`]: data.flags[MODULE_ID] });

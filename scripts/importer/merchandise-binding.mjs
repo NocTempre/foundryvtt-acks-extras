@@ -31,8 +31,8 @@ const COIN_GP = { gp: 1, sp: 0.1, cp: 0.01 };
 const MINUSES = /[−–—]/g;
 
 /**
- * A printed price as gp: "0.12gp" → 0.12, "5sp" → 0.5, a bare "2,000" → 2000.
- * Several coins add ("1gp, 33cp"). Null when the cell holds no figure.
+ * A printed price as gp, from a gp, sp or cp amount or a bare figure with
+ * thousands separators. Several coins add. Null when the cell holds no figure.
  * @param {*} raw
  * @returns {number|null}
  */
@@ -50,8 +50,8 @@ export function parseGp(raw) {
 }
 
 /**
- * A printed quantity: "2,000" → 2000, "0.4" → 0.4. A dash or an empty cell is
- * null. Anything else that holds no figure is null too.
+ * A printed quantity, whole or decimal, thousands separators removed. A dash,
+ * an empty cell, or anything else that holds no figure is null.
  * @param {*} raw
  * @returns {number|null}
  */
@@ -62,8 +62,8 @@ export function parseQuantity(raw) {
 }
 
 /**
- * A printed demand modifier: "+2" → 2, "-1 1/2" → -1.5, "+1/2" → 0.5,
- * "0" → 0. `value` is null for an empty cell or a bare dash, which the page
+ * A printed demand modifier: a signed whole, decimal, fraction or mixed
+ * number. `value` is null for an empty cell or a bare dash, which the page
  * prints for no modifier; `bad` is set for text that is neither, so the caller
  * reports it instead of storing it.
  * @param {*} raw
@@ -92,9 +92,9 @@ export function parseDemand(raw) {
 }
 
 /**
- * A random-table band: "1 – 20" → 1..20, "92" → 92..92, "* 100" → 100..100,
- * "Special" → the special mark with no range. Null when the cell is none of
- * those.
+ * A random-table band: a range, a single figure (a range of one), or the
+ * word that marks a special result, which has no range. Null when the cell is
+ * none of those.
  * @param {*} raw
  * @returns {{min: number|null, max: number|null, special: boolean}|null}
  */
@@ -138,8 +138,8 @@ export function parseRacialGroups(text) {
 
 /**
  * A list of goods as printed: comma-separated with a closing "and". A chunk
- * that names no good whole is tried again split at "and", so "rare books and
- * art" survives as one name when the vocabulary knows it whole.
+ * that names no good whole is tried again split at "and", so a name that holds
+ * "and" survives as one when the vocabulary knows it whole.
  */
 function splitGoods(list) {
   const chunks = String(list ?? "")

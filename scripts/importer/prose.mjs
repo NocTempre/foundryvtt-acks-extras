@@ -251,8 +251,8 @@ export const sumsUpdate = (html, path) =>
 /**
  * Whether a Judge edited inside a field's blocks since the import wrote them:
  * a block the stored text still holds digests differently from the sum the
- * stamp recorded for it. A block with no sum (written before sums were
- * recorded) and a sum whose block is gone are not edits of this kind.
+ * stamp recorded for it. A block with no recorded sum and a sum whose block is
+ * gone are not edits of this kind.
  * @param {Object<string, string>|undefined} sums the document's `cookbook.sums`
  * @param {string} path the field's path, as `sumKey` takes it
  * @param {string} html the field's stored text

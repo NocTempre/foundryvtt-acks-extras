@@ -4,15 +4,16 @@
  * typeset:
  *   mode "display" — large display heading (TrajanPro, >=12pt): proficiencies,
  *                    monster entries.
- *   mode "runin"   — 9pt bold run-in entry ("Grappling Hook:"); the extractor
- *                    self-calibrates the bold font from the matched heading,
- *                    so no font names are hardcoded.
+ *   mode "runin"   — 9pt bold run-in entry; the extractor self-calibrates the
+ *                    bold font from the matched heading, so no font names are
+ *                    hardcoded.
  *
  * A recipe is read at the moment its document is created, and what it read is
  * written into that document with its citation — the recipe is the route to the
  * text, never a copy of it.
  */
 
+/** The browse recipes: one pointer per monster, proficiency or item, each with its page citation. */
 export const RECIPES = [
   // One monster (Monstrous Manual)
   { id: "mm.griffon", book: "mm", page: 171, mode: "display", heading: "GRIFFON", cite: "MM PDF p. 171", kind: "monster", name: "Griffon" },

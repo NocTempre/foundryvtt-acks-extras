@@ -119,9 +119,8 @@ export const opensWithNumber = (text, number) => !!keyFold(number) && keyFold(le
 
 /**
  * A keyed heading without its key number: what a body of people is called when
- * it is named after the place it keeps ("22. Hall of the Wardens" is a place,
- * "Hall of the Wardens" is who meets there). A text that opens with no key
- * number is returned as it came.
+ * it is named after the place it keeps. A text that opens with no key number is
+ * returned as it came.
  */
 export const withoutKeyNumber = (text) =>
   String(text ?? "").replace(/^\s*[A-Z]?\d+(?:[A-Za-z][-–][A-Za-z]|[A-Za-z]?(?:[-–]\d+[A-Za-z]?)?)(?:\/[A-Z]?\d+[A-Za-z]?)?\.\s+/u, "").trim();
@@ -169,8 +168,8 @@ export function titleCaseHeading(text) {
 
 /**
  * Whether a printed line's CASE carries nothing: it is set in capitals, or in
- * small capitals, whose glyphs extract as a scatter of upper and lower case
- * ("tRibune naRmiRio"). A naturally cased line has lower-case letters, no
+ * small capitals, whose glyphs extract as a scatter of upper and lower case.
+ * A naturally cased line has lower-case letters, no
  * capital after a lower-case letter inside a word, and no word but a small one
  * opening in lower case. Decided where the page can be seen, by the compiler,
  * and shipped as the heading's `caps`.
