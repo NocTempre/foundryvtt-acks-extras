@@ -4,7 +4,7 @@
  * Pure: every input is a plain value or a HenchmanRecord-shaped object. The
  * Foundry readers that feed these are in `scripts/henchmen/service-view.mjs`.
  */
-import { sumPermanents, isActivePermanent, clampScore } from "./loyalty.mjs";
+import { sumPermanents, isActivePermanent, clampScore, effectiveLoyalty, loyaltyStartOf, startFromSheet } from "./loyalty.mjs";
 import { clampPct, num, signed } from "../../lib/frame-model.mjs";
 import { resolveShare } from "./wages.mjs";
 import { JUDGE_PICK_CLASS } from "./candidates.mjs";
@@ -51,23 +51,33 @@ export function wageClock({ lastPaid, now, month, day }) {
  * The pieces an effective loyalty is summed from: the start at hiring, the
  * permanents still counting (and how many entries count), the employer's
  * Charisma and the employer's powers. `total` is the sum held to `bounds`.
+ *
+ * The start is the record's (`from: "record"`; zero is a figure). A record
+ * with none reads the sheet's own Loyalty field when that holds a number
+ * (`from: "sheet"`): the score is then the field's, and `start` is what leaves
+ * the other parts summing to it. With neither, `from`, `start` and `total` are
+ * null.
  * @param {object} record HenchmanRecord-shaped
  * @param {{chaLoyalty?: number, baseLoyaltyBonus?: number}} mods
  * @param {{min?: number, max?: number}} [bounds] the hireling's loyalty field's range
+ * @param {number|null} [sheet] the sheet's own Loyalty field
  */
-export function loyaltyParts(record, mods = {}, bounds) {
+export function loyaltyParts(record, mods = {}, bounds, sheet = null) {
   const permanents = record?.loyalty?.permanents ?? [];
-  const start = num(record?.loyalty?.start);
   const sum = sumPermanents(permanents);
   const cha = num(mods.chaLoyalty);
   const powers = num(mods.baseLoyaltyBonus);
+  const total = effectiveLoyalty(record, { chaLoyalty: cha, baseLoyaltyBonus: powers }, bounds, sheet);
+  const held = loyaltyStartOf(record);
+  const from = held !== null ? "record" : total === null ? null : "sheet";
   return {
-    start,
+    start: from === "record" ? held : from === "sheet" ? startFromSheet(record, sheet, { chaLoyalty: cha, baseLoyaltyBonus: powers }) : null,
+    from,
     permanents: sum,
     uncompensated: permanents.filter(isActivePermanent).length,
     cha,
     powers,
-    total: clampScore(start + sum + cha + powers, bounds),
+    total,
   };
 }
 

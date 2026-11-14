@@ -150,6 +150,16 @@ test("an attack's damage tag carries the creature's own modifier, and its toolti
   assert.equal(modded[1].damage, "—", "no die, nothing to add to");
   assert.equal(statblockColumns({ ...snap(), damageMod: -1 }, loc).columns[1][0].rows[0].damage, "1d4 −1");
 });
+test("the Loyalty row: none for a creature that serves nobody, blank with the page for an empty field, signed for a score", () => {
+  const loyaltyRows = (s) => statblockColumns(s, loc).columns.flat().find((g) => g.key === "reactions").rows.filter((r) => r.id === "loyalty");
+  assert.deepEqual(loyaltyRows(snap()), [], "null is a creature in nobody's service");
+  const blank = loyaltyRows({ ...snap(), loyalty: "" });
+  assert.equal(blank.length, 1, "an empty field keeps its row, which still rolls (and is refused there)");
+  assert.equal(blank[0].value, "", "no figure stands in");
+  assert.ok(blank[0].valueTip, "and the tooltip names the page");
+  assert.equal(loyaltyRows({ ...snap(), loyalty: 0 })[0].value, "+0", "a score of zero is a score");
+  assert.equal(loyaltyRows({ ...snap(), loyalty: -2 })[0].valueTip ?? "", "");
+});
 test("three columns: throws, attacks and abilities, then the readings", () => {
   const { columns } = statblockColumns(snap(), loc);
   assert.deepEqual(columns.map((c) => c.map((g) => g.key)), [

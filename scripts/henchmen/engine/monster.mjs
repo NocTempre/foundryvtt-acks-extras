@@ -8,7 +8,7 @@
 import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { henchmanWage } from "../rules/wages.mjs";
-import { startingLoyalty, effectiveLoyalty } from "../rules/loyalty.mjs";
+import { startingLoyalty, effectiveLoyalty, hireStart } from "../rules/loyalty.mjs";
 import { collectStringFlags, sumEffectModifiers, toDialogModifiers, collectEffectModifiers, unvaluedDialogModifiers } from "../effects.mjs";
 import { hiringOffer } from "../rules/hiring-offer.mjs";
 import { IRREFUSABLE, irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure } from "../rules/irrefusable.mjs";
@@ -146,8 +146,9 @@ export async function hireMonster(monster, employer, opts = {}) {
   const hd = monsterHd(monster);
   const wage = henchmanWage(hd);
   // An Irrefusable Offer start is the whole start: no élan figure rides on it.
+  // Any other hire begins where the loyalty page puts it, or at none.
   const loyaltyStart = startingLoyalty({
-    base: opts.baseLoyalty ?? 0,
+    base: opts.baseLoyalty ?? hireStart().figure,
     elan: opts.irrefusable == null ? elanFigure(monster.name, opts.elan) : 0,
     irrefusable: opts.irrefusable ?? null,
     bounds: adapter.loyaltyBounds(monster.type),
@@ -157,9 +158,11 @@ export async function hireMonster(monster, employer, opts = {}) {
   const { employerOwnership } = await import("./hire.mjs");
   await monster.update({ ownership: { ...monster.ownership, ...employerOwnership(employer) } });
 
+  // Core's field is emptied here and written with the effective score once
+  // the record holds the start (see `hireExistingActor`).
   await adapter.setRetainer(monster, {
     enabled: true,
-    loyalty: loyaltyStart,
+    loyalty: null,
     wage: String(wage),
     managerid: employer.id,
     category: "henchman",

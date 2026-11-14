@@ -111,7 +111,11 @@ export default class HenchmanRecord extends foundry.abstract.DataModel {
       }),
 
       loyalty: new fields.SchemaField({
-        start: int(0),
+        // Null where no figure was read for this hireling: the readers then
+        // take the sheet's own Loyalty field, or show none
+        // (`rules/loyalty.mjs` `effectiveLoyalty`). Zero is a figure, so it is
+        // never the unset value.
+        start: num({ integer: true }),
         permanents: new fields.ArrayField(ledgerEntry()),
       }),
       morale: new fields.SchemaField({

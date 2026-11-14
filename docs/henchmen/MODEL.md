@@ -207,7 +207,8 @@ refused payment never stops the hire: the full bonus is written as
 `signingBonusOwed` event is logged, and the refusal is recorded as a
 calamity through `recordCalamity` (`engine/events.mjs`), as a missed wage is, its note the
 `ACKS-HENCHMEN.hire.signingBonusCalamity` string: the calamity counter, the
-uncompensated loyalty point, and the Judge's card or the auto-roll. Like the
+imported calamity figure as an uncompensated ledger entry (none where it is not
+imported), and the Judge's card or the auto-roll. Like the
 missed-wage calamity it does not set `special.pendingCalamity`, which is the
 downed watcher's. It is kept apart from `arrearsGp`, which
 a payday bills and `forgiveWageDebts` zeroes as wages. It is cleared by
@@ -219,7 +220,8 @@ both are on the api and the Service panel (§4d). Neither touches the
 calamity recorded at hire: it has already happened, and a later payment does
 not undo it.
 - `loyalty {start, permanents[]}` / `morale {base, permanents[]}` — the
-  ledgers; **effective scores are computed at read time** (base + permanents +
+  ledgers (`loyalty.start` is nullable, "A loyalty can be blank", below);
+  **effective scores are computed at read time** (base + permanents +
   employer CHA + employer effect bonuses) so transfers recalculate (RR 163),
   and held to the range the system's data model gives the field for the
   hireling's actor type (`lib/score-bounds.mjs` `loyaltyBounds` /
@@ -362,9 +364,40 @@ loyalty a result changes or a hire starts at, are read from the Judge's
 | Hireling Loyalty's result column | `hirelingLoyalty` (RR 166) | `rules/loyalty.mjs > hirelingLoyaltyOutcomes`, with the natural-roll clamps naming their rungs | the fallback throw posts its total and names no result; nothing is applied |
 | The permanent change of a Grudging or Fanatic result | `loyaltyChanges.grudging` / `.fanatic` (RR 166) | `loyaltyDeltaForOutcome` | no change is applied |
 | What an Accept with élan adds to a start | `loyaltyChanges.elan` (RR 166) | `engine/events.mjs > elanFigure` | nothing is added |
+| A hire's starting loyalty | `loyaltyChanges.start` (RR 166) | `rules/loyalty.mjs > hireStart` | the record's start is null: the loyalty is blank |
+| A mercenary officer's starting loyalty | `baseLoyalty.mercenaryOfficers` (RR 171), in the `wages` document | `hireStart({officer: true})` | as above |
+| The permanent change per level gained | `loyaltyChanges.levelGain` (RR 166) | `onUpdateActor` in `engine/events.mjs`, times the levels gained | no entry is recorded |
+| The permanent change per calamity | `loyaltyChanges.calamity` (RR 166) | `recordCalamity` | no entry is recorded |
 | The Irrefusable Offer's result column and opposite-alignment figure | `irrefusableOffer` (MM 351) | `rules/irrefusable.mjs > irrefusableOutcomes`, `oppositeAlignmentFigure` | the throw rolls, names no result and hires nothing; the checkbox shows a dash and adds nothing |
 | The start of each entering Irrefusable result | `irrefusableOffer.hesitateLoyalty` / `acceptLoyalty` / `elanLoyalty` (MM 351) | `irrefusableStart` | the monster is not hired |
 | The start of a feigned acceptance (Betrayal, Escape) | `loyaltyChanges.forcedServitude` (RR 166) | `irrefusableStart` | as above |
+
+**A loyalty can be blank.** The record's `loyalty.start` is nullable, and a hire
+whose start is not imported records null (`startingLoyalty` answers null; élan
+adds only to a start that was read; zero is a figure). Every module hire writes
+core's `system.retainer.loyalty` with the effective score or an explicit null
+through `adapter.setLoyalty` once the record exists, so the two always agree.
+The field's own range and nullability are core's: its `NumberField` declares no
+`nullable`, and Foundry's default is nullable.
+
+With no start, `effectiveLoyaltyFor` reads the sheet's Loyalty field when it
+holds a number, as the whole score (`effectiveLoyalty`'s `sheet` argument; the
+Service panel labels the start `from: "sheet"`), and otherwise answers null.
+`adoptSheetLoyalty` derives a start from a typed score (the score less the
+permanents counting, the employer's Charisma and the employer's powers,
+`startFromSheet`); it runs before `addLoyaltyPermanent` appends and from the
+actor-update watcher when the field changes by hand and the update does not carry
+`LOYALTY_WRITE_OPTION`, the option every `setLoyalty` sets. Syncing again leaves
+an adopted score where it is.
+
+A blank shows as an empty figure on the Service panel (value and start part), the
+roster row, the Rolls tab row, the Stats tab field, the Follower Card and the
+Statblock row, each with the page reference
+(`lib/score-bounds.mjs > blankLoyaltyCite`) as its tooltip. A loyalty roll for a
+hireling with no score is refused with a warning naming the sheet's Loyalty
+field: a guard at the top of `openLoyaltyRoll`, and lib's
+`patches/loyalty-roll.mjs`, the one wrapper on core's `Actor#rollLoyalty`, which
+every other Loyalty button ends in.
 
 An Irrefusable start is the whole start: no élan figure is added to it. An
 offer to a captured monster is applied the same way from either surface. The

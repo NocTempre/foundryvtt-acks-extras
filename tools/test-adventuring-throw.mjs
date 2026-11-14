@@ -260,6 +260,23 @@ await ok("the skill's methodical throw is listed once, the hasty one stays in th
   assert.equal(inv.ids.includes("adv:searching"), true);
 });
 
+await ok("a hireling's Loyalty row is blank with the page for an empty field, and signed for any score, zero included", async () => {
+  const loyaltyRow = (loyalty) => {
+    const a = sheetActor(3, []);
+    a.system.retainer = { enabled: true, loyalty };
+    return rows(rollInventory(a), "retainer").find((r) => r.id === "loyalty");
+  };
+  for (const empty of [null, undefined, ""]) {
+    const blank = loyaltyRow(empty);
+    assert.equal(blank.value, "", `${JSON.stringify(empty)} stays empty, never a zero`);
+    assert.ok(blank.tip, "and names the page that prints it");
+    assert.equal(blank.rollable, true, "the row still rolls; the roll is refused with the reason");
+  }
+  assert.equal(loyaltyRow(0).value, "+0");
+  assert.equal(loyaltyRow(0).tip ?? "", "");
+  assert.equal(loyaltyRow(-2).value, "−2");
+});
+
 await ok("a skill whose only throw backs a row leaves the proficiencies and does not become a post-to-chat row", async () => {
   const listening = item("Listening", [throwOf("throw1", ladder([1, 14], [3, 12]))], { provides: ["kw:listening"] });
   const inv = rollInventory(sheetActor(3, [listening]));

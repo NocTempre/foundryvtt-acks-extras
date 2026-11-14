@@ -823,20 +823,25 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 // ---- Hireling Loyalty and the Irrefusable Offer: every figure is the import's ----
 // The figures below are authored for the test; none is a page's.
 {
-  const { loyaltyDeltaForOutcome, loyaltyChange, hirelingLoyaltyOutcomes, LOYALTY_CHANGES } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
+  const { loyaltyDeltaForOutcome, loyaltyChange, hirelingLoyaltyOutcomes, LOYALTY_CHANGES, hireStart, OFFICER_START, blankLoyaltyCite } = await import(new URL("../scripts/henchmen/rules/loyalty.mjs", import.meta.url));
   const { irrefusableOutcomes, irrefusableStart, oppositeAlignmentFigure, IRREFUSABLE, IRREFUSABLE_OUTCOMES } = await import(new URL("../scripts/henchmen/rules/irrefusable.mjs", import.meta.url));
   const { outcomeFromTable } = await import(new URL("../scripts/henchmen/rules/bulk-offer.mjs", import.meta.url));
   const { EXTERNAL_MODES } = await import(new URL("../scripts/influence/constants.mjs", import.meta.url));
   const { THROWS_DATA } = await import(new URL("../scripts/henchmen/data/throws-data.mjs", import.meta.url));
   const BANDS = [{ min: null, max: 4 }, { min: 5, max: 6 }, { min: 7, max: 9 }, { min: 10, max: 13 }, { min: 14, max: null }];
   const docs = {
-    [LOYALTY_CHANGES.tableId]: { fanatic: 3, grudging: -5, elan: 7, forcedServitude: -6 },
+    [LOYALTY_CHANGES.tableId]: { fanatic: 3, grudging: -5, elan: 7, forcedServitude: -6, start: 8, levelGain: 9, calamity: -10 },
     hirelingLoyalty: { bands: BANDS },
     [IRREFUSABLE.tableId]: { bands: BANDS, oppositeAlignment: -9, hesitateLoyalty: -3, acceptLoyalty: 2, elanLoyalty: 4 },
+    [OFFICER_START.tableId]: { mercenaryOfficers: -7 },
   };
   const saved = globalThis.acksExtras;
   try {
-    globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "influence", getTable: (doc, id) => docs[id] ?? null } } };
+    globalThis.acksExtras = { lib: { tables: { hasDoc: (doc) => doc === "influence" || doc === OFFICER_START.docId, getTable: (doc, id) => docs[id] ?? null } } };
+    assert.deepStrictEqual([loyaltyChange("start"), loyaltyChange("levelGain"), loyaltyChange("calamity")], [8, 9, -10], "the start, the level-gain and the calamity figures are read");
+    assert.deepStrictEqual(hireStart(), { figure: 8, ...LOYALTY_CHANGES }, "a hire begins at the start figure and names where it is read");
+    assert.deepStrictEqual(hireStart({ officer: true }), { figure: -7, ...OFFICER_START }, "an officer begins at the officers' own figure");
+    assert.strictEqual(OFFICER_START.tableId, "baseLoyalty", "which is the table the wages recipe fills");
     assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), 3, "a Fanatic result applies the imported figure");
     assert.strictEqual(loyaltyDeltaForOutcome("grudging"), -5, "and so does a Grudging one");
     assert.strictEqual(loyaltyDeltaForOutcome("loyal"), 0, "a result that changes no loyalty applies none");
@@ -867,11 +872,18 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.deepStrictEqual(optOrigin("influence", LOYALTY_CHANGES.tableId), { state: "override", cite: null }, "a Judge's layer reads as the override, never as imported");
     assert.strictEqual(optOrigin("influence", "absentTable").state, "missing", "a table nobody holds is not imported");
 
-    docs[LOYALTY_CHANGES.tableId] = { fanatic: "", grudging: 1.5 };
+    docs[LOYALTY_CHANGES.tableId] = { fanatic: "", grudging: 1.5, start: "", levelGain: 1.5, calamity: null };
     assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), null, "a blank figure is unread, never zero");
     assert.strictEqual(loyaltyDeltaForOutcome("grudging"), null, "and so is a fractional one");
+    assert.deepStrictEqual([hireStart().figure, loyaltyChange("levelGain"), loyaltyChange("calamity")], [null, null, null], "a blank, fractional or null start, level-gain or calamity figure is unread, never zero");
+    docs[LOYALTY_CHANGES.tableId] = { start: 0 };
+    assert.strictEqual(hireStart().figure, 0, "a start of zero is a figure");
+    docs[OFFICER_START.tableId] = {};
+    assert.strictEqual(hireStart({ officer: true }).figure, null, "an officers' table with no figure is unread");
 
     globalThis.acksExtras = { lib: { tables: { hasDoc: () => false } } };
+    assert.deepStrictEqual([hireStart().figure, hireStart({ officer: true }).figure, loyaltyChange("calamity")], [null, null, null], "nothing imported: a hire has no start");
+    assert.strictEqual(blankLoyaltyCite(), LOYALTY_CHANGES.cite, "a blank loyalty points at the page that prints the figures where the import recorded none");
     assert.strictEqual(loyaltyDeltaForOutcome("fanatic"), null, "nothing imported: the change is unknown");
     assert.strictEqual(loyaltyDeltaForOutcome("hostility"), 0, "a result that changes none still changes none");
     assert.strictEqual(hirelingLoyaltyOutcomes(), null, "no column, no loyalty table");
@@ -1054,6 +1066,8 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const posted = [];
   const warned = [];
   let covered = false;
+  // The loyalty figures the stand-in registry holds; invented, and null once none is imported.
+  let figures = { start: 4, calamity: -3 };
   const actors = new Map();
   globalThis.ChatMessage = { create: async (m) => { posted.push(m); return m; }, getSpeaker: () => ({}) };
   globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
@@ -1096,7 +1110,13 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   globalThis.Actor = { create: async (d) => { d.system.hp = { hd: "1d8", max: 4, value: 4 }; return makeActor("hire1", d); } };
   ns.lib = {
     money: { transferCoin: async () => ({ ok: covered }), sinkCoin: async () => ({ ok: covered }), spendableGp: () => 0 },
-    tables: { getDoc: () => null, hasDoc: () => false, expectTables() {}, optTable: () => null },
+    tables: {
+      getDoc: () => null,
+      hasDoc: (d) => d === "influence" && !!figures,
+      getTable: (d, id) => (d === "influence" && id === "loyaltyChanges" ? figures : null),
+      expectTables() {},
+      optTable: () => null,
+    },
     services: { get: () => null },
   };
   globalThis.fromUuidSync = () => null;
@@ -1130,7 +1150,9 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.deepStrictEqual(rec().events.map((e) => e.type).slice(-2), ["signingBonusOwed", "calamity"], "and the refusal is a calamity");
     assert.strictEqual(rec().events.at(-1).note, "ACKS-HENCHMEN.hire.signingBonusCalamity", "the calamity names the unpaid bonus");
     assert.strictEqual(rec().counters.calamities, 1, "the calamity counter counts it");
-    assert.deepStrictEqual(rec().loyalty.permanents.map((p) => [p.delta, p.reason, p.compensated]), [[-1, "calamity", false]], "and charges its loyalty point");
+    assert.deepStrictEqual(rec().loyalty.permanents.map((p) => [p.delta, p.reason, p.compensated]), [[figures.calamity, "calamity", false]], "and charges the imported calamity figure");
+    assert.strictEqual(hireling._source.system.retainer.loyalty, null, "core's own Loyalty field was created empty, and the ledger entry gave it no figure");
+    assert.strictEqual(rec().loyalty.start ?? null, null, "a ledger entry never invents a start");
     assert.strictEqual(posted.filter((m) => /calamityTitle/.test(m.content ?? "")).length, 1, "the Judge is prompted with the calamity card");
     assert.ok(!rec().special?.pendingCalamity, "the downed watcher's flag is left alone");
 
@@ -1153,6 +1175,14 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(rec().terms.arrearsGp, 3, "the arrears are not");
     assert.strictEqual(rec().events.at(-1).type, "signingBonusForgiven", "and the forgiveness logged");
     assert.strictEqual(rec().counters.calamities, 1, "the calamity stands");
+
+    // A calamity whose figure is not imported is counted and logged, and records no change.
+    figures = null;
+    const { recordCalamity } = await import(new URL("../scripts/henchmen/engine/events.mjs", import.meta.url));
+    await recordCalamity(hireling, "again");
+    assert.strictEqual(rec().counters.calamities, 2, "the calamity is counted");
+    assert.strictEqual(rec().events.at(-1).type, "calamity", "and logged");
+    assert.deepStrictEqual(rec().loyalty.permanents.map((p) => p.delta), [-3], "but no unread figure is charged to the ledger");
   } finally {
     for (const k of keys) globalThis[k] = saved[k];
     ns.lib = savedLib;

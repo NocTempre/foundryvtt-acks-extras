@@ -76,7 +76,8 @@ const TABLES = {
   // The henchman shares: a fraction of a full share each, for treasure and for experience.
   // The officer-role morale modifier: one signed figure.
   // The command ladder: three rungs, a minimum leader level and a count of each arm.
-  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare", "commandCapacity"],
+  // A mercenary officer's starting loyalty: one signed figure.
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare", "commandCapacity", "baseLoyalty"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die; and item loss's six figures
@@ -390,11 +391,12 @@ VERIFY["influence.mysticAura"] = (out, recipe, fail) => {
   if (isNum(out?.at) && !(Number.isInteger(out.at) && out.at >= 2 && out.at <= 12)) fail("at: not a 2d6 total");
 };
 // RR 166's loyalty figures: the raising ones whole and above zero, the
-// lowering ones whole and below it.
+// lowering ones whole and below it, and the start whole, which may be zero.
 VERIFY["influence.loyaltyChanges"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
-  for (const key of ["fanatic", "elan"]) if (!(Number.isInteger(out?.[key]) && out[key] > 0)) fail(`${key}: not a whole number above zero`);
-  for (const key of ["grudging", "forcedServitude"]) if (!(Number.isInteger(out?.[key]) && out[key] < 0)) fail(`${key}: not a whole number below zero`);
+  for (const key of ["fanatic", "elan", "levelGain"]) if (!(Number.isInteger(out?.[key]) && out[key] > 0)) fail(`${key}: not a whole number above zero`);
+  for (const key of ["grudging", "forcedServitude", "calamity"]) if (!(Number.isInteger(out?.[key]) && out[key] < 0)) fail(`${key}: not a whole number below zero`);
+  if (!Number.isInteger(out?.start)) fail("start: not a whole number");
 };
 // The bribery charge mark: an unmodified 2d6 roll.
 VERIFY["influence.bribeCrime"] = (out, recipe, fail) => {
@@ -457,6 +459,11 @@ VERIFY["wearSlots.ringCapacity"] = (out, recipe, fail) => {
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.modifier) && !(Number.isInteger(out.modifier) && out.modifier > 0)) fail("modifier: not a positive whole number");
+};
+// A mercenary officer's starting loyalty: a whole number below zero, the sign the reader keeps.
+VERIFY["wages.baseLoyalty"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (!(Number.isInteger(out?.mercenaryOfficers) && out.mercenaryOfficers < 0)) fail("mercenaryOfficers: not a whole number below zero");
 };
 // The henchman limit's base: a whole number the reader accepts as it stands.
 VERIFY["wages.henchmanLimit"] = (out, recipe, fail) => {

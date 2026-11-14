@@ -7,6 +7,8 @@
  * not bound, or a system that does not carry the field, is null, and the
  * score stays open on that side; no range is written here.
  */
+import { citeOf } from "./tables.mjs";
+
 /**
  * The `{min, max}` the system's data model for an actor `type` holds the field
  * at `path` (relative to `system`) to.
@@ -22,6 +24,19 @@ export function schemaBounds(type, path) {
 
 /** The range the system holds a hireling's loyalty score to, for an actor `type`. */
 export const loyaltyBounds = (type) => schemaBounds(type, "retainer.loyalty");
+
+/**
+ * Where a hireling's loyalty figures are imported (`influence.loyaltyChanges`)
+ * and the page that prints them.
+ */
+export const LOYALTY_FIGURES = Object.freeze({ docId: "influence", tableId: "loyaltyChanges", cite: "RR 166" });
+
+/**
+ * The page a blank loyalty points at: the one the Judge's import recorded for
+ * the loyalty figures, else the page that prints them. A loyalty field with no
+ * score shows nothing, and this is its tooltip.
+ */
+export const blankLoyaltyCite = () => citeOf(LOYALTY_FIGURES.docId, LOYALTY_FIGURES.tableId) ?? LOYALTY_FIGURES.cite;
 
 /** The range the system holds a morale score to, for an actor `type`; a monster's differs from a character's. */
 export const moraleBounds = (type) => schemaBounds(type, "details.morale");

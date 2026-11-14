@@ -34,6 +34,7 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { saveSystemKey, saveLabel } from "./snapshot.mjs";
 import { isAdventuring } from "../classes/grants.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
+import { blankLoyaltyCite } from "../lib/score-bounds.mjs";
 
 const loc = makeLoc(LANG);
 const frameLoc = makeLoc(FRAME_LANG_PREFIX);
@@ -188,11 +189,16 @@ export function rollInventory(actor) {
   if (postRows.length) groups.push({ key: "post", name: loc("rolls.group.post"), rows: postRows });
 
   const morale = () => row("morale", game.i18n.localize("ACKS.details.morale"), signed(num(sys.details?.morale)));
+  // An empty Loyalty field is a blank figure that names the page printing it; the row still rolls, and the roll refuses with the reason.
+  const loyalty = () => {
+    const score = numOrNull(sys.retainer?.loyalty);
+    return row("loyalty", game.i18n.localize("ACKS.Loyalty"), score === null ? "" : signed(score), score === null ? { tip: blankLoyaltyCite() } : {});
+  };
   if (sys.retainer?.enabled) {
     groups.push({
       key: "retainer",
       name: loc("rolls.group.retainer"),
-      rows: [morale(), row("loyalty", game.i18n.localize("ACKS.Loyalty"), signed(num(sys.retainer?.loyalty)))],
+      rows: [morale(), loyalty()],
     });
   } else if (carriesMorale(actor)) {
     groups.push({ key: "morale", name: game.i18n.localize("ACKS.details.morale"), rows: [morale()] });

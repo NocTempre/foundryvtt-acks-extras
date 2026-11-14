@@ -54,7 +54,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-11 — [A signing bonus the employer cannot pay is owed, a calamity, and the hire stands (2026-11-11)](DECISIONS-through-v11.14.5.md#a-signing-bonus-the-employer-cannot-pay-is-owed-a-calamity-and-the-hire-stands-2026-11-11)
 - 2026-11-11 — [A henchman's shares are printed values, and arrive through the importer (2026-11-11)](DECISIONS-through-v11.14.5.md#a-henchmans-shares-are-printed-values-and-arrive-through-the-importer-2026-11-11)
 
-## 2026-11-14 — A market hire's morale base is a troop's imported figure or none
+## 2026-11-14 — A market hire's morale base is a troop's imported figure or none — SUPERSEDED IN PART 2026-11-14
 
 Owner rulings behind it: a printed figure is imported, and "missing imports stay
 blank" with the page as the clue. A market hire used to store a base of zero for
@@ -84,3 +84,67 @@ kept core's own morale field from ever being read.
   leaving the stored zero where a troop's figure is unread (the zero is exactly
   the stand-in). Cost: a record written before this change keeps its stored zero,
   with no migration.
+
+## 2026-11-14 — A hire's starting loyalty is the figure an import read, or blank
+
+Supersedes in part the entry above: its "Not done, the starting loyalty
+(stopped)" bullet. Owner rulings behind it: "Dix so loyalty can be blank" (read by
+the orchestrator as "Fix so loyalty can be blank"), "caught printed values are
+fixed on the spot", "a figure a page prints is imported" and "missing imports stay
+blank with a page reference as a subtle clue". **New evidence, since the entry is
+under a week old:** the owner's ruling this day, and a probe of the installed
+Foundry 14 common code: core's `retainer.loyalty` declares a `NumberField` with no
+`nullable` option and the field's default is nullable, so null cleans and
+validates. The "stopped" bullet rested on the opposite premise. Core's only code
+reader of the field is `Actor#rollLoyalty`.
+
+- **Where the blank lives.** The record's `loyalty.start` is nullable; null is no
+  figure and zero is a figure. Every module hire writes into core's field the
+  effective score or an explicit null (`adapter.setLoyalty`, after the record is
+  written), so the field and the record agree and no figure left by the sheet or
+  an earlier employer stands in. A hire's own create data and `setRetainer` carry
+  `loyalty: null`.
+- **The start, by kind** (`rules/loyalty.mjs` `hireStart`, resolved at hire as
+  `hiredMorale` is): a mercenary officer takes `wages.baseLoyalty` (RR p. 171,
+  which had no reader), every other hire `influence.loyaltyChanges.start`
+  (RR p. 166), and a captured monster keeps the Irrefusable Offer or
+  forced-servitude start. Élan adds only to a start that was read. Followers of a
+  class and ruffians are printed with starts but nothing hires them, so they have
+  no key; the followers ROADMAP row stands.
+- **Level gain and calamity are printed figures** and had been written into
+  `events.mjs` as literals. They are `loyaltyChanges.levelGain` (times the levels
+  gained) and `.calamity`. A figure that was read records its ledger entry even
+  while the start is blank; one that was not records no entry, as the unread
+  morale bumps do. `WOUND_PENALTIES` stays in source under its own ROADMAP row.
+- **Blank against sheet.** A record with no start reads the sheet's Loyalty field
+  when it holds a number the module did not write (a hand entry, or a hireling
+  `enrollNewcomers` adopted), as the whole score, labelled "set on the sheet".
+  `adoptSheetLoyalty` turns that figure into a start (the score less the
+  permanents counting, the employer's Charisma and powers, the back-calculation
+  `enrollHenchman` already does). It runs before `addLoyaltyPermanent` appends,
+  and from the actor-update watcher when the field changes by hand; the module's
+  own writes carry `LOYALTY_WRITE_OPTION` and the watcher skips them. A hand edit
+  made while a start is recorded is overwritten at the next sync.
+- **Rolls refuse.** A hireling with no score is refused with a warning naming the
+  sheet's Loyalty field, never rolled as if a figure were printed: a guard at the
+  top of `openLoyaltyRoll`, and lib `patches/loyalty-roll.mjs`, the one wrapper on
+  core's `Actor#rollLoyalty`, since the Service panel's own row, core's header
+  button and hireling list, the monster sheet and the Follower Card all end there.
+- **Surfaces.** The Service panel's figure and start part, the roster's value and
+  title, the Rolls tab row, the Stats tab field, the Follower Card and the
+  Statblock row show nothing and carry the page reference as their tooltip
+  (`lib/score-bounds.mjs` `blankLoyaltyCite`: the imported table's recorded page,
+  else the page that prints the figures). No "not imported" text.
+- Rejected: working the start out at read time (it breaks the morale ruling's
+  fix-at-hire and leaves core's field blank after an import); leaving core's field
+  unwritten for an unread start (a stale figure would roll as printed); refusing
+  only at module call sites (the Service panel's row ends in core's method).
+- Cost: a record written before this change keeps its stored zero, with no
+  migration; a world that imported `loyaltyChanges` before the three new keys
+  existed records no start, level-gain or calamity entry until it re-imports; a
+  pre-module hireling whose field holds core's initial figure reads as set by
+  hand; an officer's start reaches the record but `keepsLoyalty` still draws a dash
+  for a non-henchman (2026-10-23).
+- Not done: `scripts/lib/data/group-data.mjs` `unit.loyalty` keeps its stored zero
+  (ROADMAP row). Registered for correction: the monsters 2026-11-14 entry says
+  core's `attack.throw` has "no null"; the same field default makes it nullable.

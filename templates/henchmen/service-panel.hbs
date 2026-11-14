@@ -32,13 +32,13 @@
           <span class="acks-extras-frame__row-label">{{localize "ACKS-HENCHMEN.service.loyalty"}}</span>
           <span class="acks-extras-frame__row-line">{{localize "ACKS-HENCHMEN.service.loyaltyLine"}}</span>
         </span>
-        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.standing.loyalty.tip}}">{{s.standing.loyalty.value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{s.standing.loyalty.tip}}">{{#if s.standing.loyalty.value}}{{s.standing.loyalty.value}}{{else}}&nbsp;{{/if}}</span>
         <span class="acks-extras-frame__mini"><i class="fa-solid fa-dice-d20" inert></i></span>
       </div>
       {{#each s.standing.loyalty.parts}}
       <div class="acks-extras-frame__row is-bare acks-extras-service__sub">
         <span class="acks-extras-frame__row-line">{{label}}</span>
-        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{tip}}">{{value}}</span>
+        <span class="acks-extras-frame__row-value acks-nums" data-tooltip-text="{{tip}}">{{#if value}}{{value}}{{else}}&nbsp;{{/if}}</span>
       </div>
       {{/each}}
       {{#if @root.isGM}}

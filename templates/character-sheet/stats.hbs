@@ -228,7 +228,7 @@
         </div>
         <div class="acks-extras-frame__fact">
           <span class="acks-extras-frame__fact-label">{{localize "ACKS.Loyalty"}}</span>
-          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{st.retainer.loyalty}}" {{disabled (not @root.editable)}}>
+          <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{st.retainer.loyalty}}"{{#if st.retainer.loyaltyTip}} data-tooltip-text="{{st.retainer.loyaltyTip}}"{{/if}} {{disabled (not @root.editable)}}>
         </div>
       </div>
       {{/if}}

@@ -15,7 +15,7 @@ import {
   judgePickHitPoints, offersClassPick,
 } from "../scripts/henchmen/rules/service.mjs";
 import { JUDGE_PICK_CLASS, hiredClassName } from "../scripts/henchmen/rules/candidates.mjs";
-import { effectiveMorale, effectiveLoyalty, clampScore, startingLoyalty } from "../scripts/henchmen/rules/loyalty.mjs";
+import { effectiveMorale, effectiveLoyalty, clampScore, startingLoyalty, startFromSheet } from "../scripts/henchmen/rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite, importedShare, importedShareCite, resolveShare } from "../scripts/henchmen/rules/wages.mjs";
 import * as tables from "../scripts/lib/tables.mjs";
 
@@ -79,7 +79,48 @@ const record = {
 };
 test("loyalty sums start, the permanents still counting, Charisma and powers, and counts the uncompensated", () => {
   const p = loyaltyParts(record, { chaLoyalty: 1, baseLoyaltyBonus: 0 });
-  assert.deepEqual(p, { start: 1, permanents: -1, uncompensated: 1, cha: 1, powers: 0, total: 1 });
+  assert.deepEqual(p, { start: 1, from: "record", permanents: -1, uncompensated: 1, cha: 1, powers: 0, total: 1 });
+});
+test("a record with no start has no loyalty: start and total are blank, and the other parts still read", () => {
+  for (const r of [{}, { loyalty: {} }, { loyalty: { start: null, permanents: [{ delta: -1 }] } }]) {
+    const p = loyaltyParts(r, { chaLoyalty: 2, baseLoyaltyBonus: 1 }, CHAR_LOYALTY);
+    assert.equal(p.start, null);
+    assert.equal(p.from, null);
+    assert.equal(p.total, null, "no start is no sum: Charisma and powers alone are not a score");
+    assert.equal(p.cha, 2);
+    assert.equal(p.powers, 1);
+    assert.equal(effectiveLoyalty(r, { chaLoyalty: 2 }, CHAR_LOYALTY), null);
+  }
+  assert.equal(loyaltyParts({ loyalty: { permanents: [{ delta: -1 }] } }).permanents, -1);
+});
+test("a start of zero is a figure, never the unset value", () => {
+  const p = loyaltyParts({ loyalty: { start: 0 } }, { chaLoyalty: 1 }, CHAR_LOYALTY);
+  assert.deepEqual([p.from, p.start, p.total], ["record", 0, 1]);
+  assert.equal(effectiveLoyalty({ loyalty: { start: 0 } }, {}, CHAR_LOYALTY), 0);
+});
+test("with no start, the sheet's figure is the whole score, as written and held to the bounds", () => {
+  const mods = { chaLoyalty: 2, baseLoyaltyBonus: 1 };
+  const r = { loyalty: { permanents: [{ delta: -1 }, { delta: -1, compensated: true }] } };
+  const p = loyaltyParts(r, mods, CHAR_LOYALTY, 3);
+  assert.deepEqual([p.from, p.total], ["sheet", 3], "Charisma, powers and permanents are not added to a figure that already holds them");
+  assert.equal(p.start + p.permanents + p.cha + p.powers, 3, "the start shown is what leaves the parts summing to the figure");
+  assert.equal(effectiveLoyalty(r, mods, CHAR_LOYALTY, 3), 3);
+  assert.equal(effectiveLoyalty(r, mods, CHAR_LOYALTY, 9), 5, "held to the range");
+  assert.equal(effectiveLoyalty(r, mods, CHAR_LOYALTY, 0), 0, "a sheet figure of zero is a figure");
+  for (const unread of [null, undefined, NaN, "", "3"]) assert.equal(effectiveLoyalty(r, mods, CHAR_LOYALTY, unread), null, `a sheet value of ${JSON.stringify(unread)} is no figure`);
+});
+test("a recorded start wins over the sheet, and the figure adopted from the sheet sums back to it", () => {
+  const mods = { chaLoyalty: 1, baseLoyaltyBonus: 1 };
+  assert.equal(effectiveLoyalty({ loyalty: { start: 1 } }, mods, CHAR_LOYALTY, 4), 3, "the record's start is read, the sheet's figure is not");
+  assert.equal(loyaltyParts({ loyalty: { start: 1 } }, mods, CHAR_LOYALTY, 4).from, "record");
+  const r = { loyalty: { permanents: [{ delta: -2 }, { delta: 1, compensated: true }] } };
+  for (const sheet of [-3, 0, 2, 4]) {
+    const start = startFromSheet(r, sheet, mods);
+    const adopted = { loyalty: { start, permanents: r.loyalty.permanents } };
+    assert.equal(effectiveLoyalty(adopted, mods, CHAR_LOYALTY), sheet, "a second sync leaves the sheet's figure where it is");
+  }
+  assert.equal(startFromSheet(r, null, mods), null);
+  assert.equal(startFromSheet(r, "2", mods), null);
 });
 test("the loyalty parts' total is the figure the panel and the throws read", () => {
   const cases = [[record, { chaLoyalty: 1, baseLoyaltyBonus: 0 }], [{ loyalty: { start: 4 } }, { chaLoyalty: 3 }], [{}, {}], [{ loyalty: { start: -4, permanents: [{ delta: -3 }] } }, { baseLoyaltyBonus: 1 }]];
@@ -132,6 +173,15 @@ test("a starting loyalty is held to the bounds handed in", () => {
   assert.equal(startingLoyalty({ base: 1, elan: true, bounds: CHAR_LOYALTY }), 1, "a flag in place of a figure adds nothing");
   assert.equal(startingLoyalty({ base: 1, irrefusable: -4, bounds: CHAR_LOYALTY }), -3, "the imported figure replaces the base, then is held");
   assert.equal(startingLoyalty({ base: 99 }), 99, "no bounds, no clamp");
+});
+test("a starting loyalty is blank where no figure was read, and zero is a figure", () => {
+  assert.equal(startingLoyalty({}), null, "nothing read, nothing stands in");
+  assert.equal(startingLoyalty({ base: null, bounds: CHAR_LOYALTY }), null);
+  assert.equal(startingLoyalty({ base: null, elan: 3, bounds: CHAR_LOYALTY }), null, "élan adds only to a start that was read");
+  assert.equal(startingLoyalty({ base: 0 }), 0, "a base of zero is a figure");
+  assert.equal(startingLoyalty({ base: 0, elan: 2 }), 2);
+  assert.equal(startingLoyalty({ base: null, irrefusable: -3, bounds: CHAR_LOYALTY }), -3, "an irrefusable start stands without a base");
+  assert.equal(startingLoyalty({ base: "2" }), null, "a string is no figure");
 });
 test("the badge is one while a calamity's throw is owed", () => {
   assert.equal(serviceBadge(record), 1);

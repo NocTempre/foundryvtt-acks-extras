@@ -4,7 +4,7 @@
  * generating the people is not this feature's job (docs/ROADMAP.md § Henchmen).
  */
 import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
-import { henchmanWage, hiredMorale } from "../rules/wages.mjs";
+import { henchmanWage, hiredMorale, officerTitle } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 
 /** Normalized package key: lowercase alphanumerics (matches the harvest). */
@@ -27,7 +27,7 @@ const SPECIALIST_PACKAGE_KEYS = Object.freeze({
   sage: ["sage"],
   lawyer: ["lawyer"],
 });
-import { startingLoyalty, effectiveLoyalty, clampScore } from "../rules/loyalty.mjs";
+import { startingLoyalty, effectiveLoyalty, clampScore, hireStart } from "../rules/loyalty.mjs";
 import { hiredClassName, isJudgePick, rollAttributes } from "../rules/candidates.mjs";
 import { sumEffectModifiers, hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
@@ -253,13 +253,20 @@ export async function hireExistingActor(location, specialHireId, employer, opts 
   } else {
     // Visibility: the hiring player(s) become owners of their new hireling.
     await target.update({ ownership: { ...target.ownership, ...employerOwnership(employer) } });
-    const loyaltyStart = startingLoyalty({ base: opts.baseLoyalty ?? 0, elan: elanFigure(target.name, opts.elan), bounds: adapter.loyaltyBounds(target.type) });
+    const loyaltyStart = startingLoyalty({
+      base: opts.baseLoyalty ?? hireStart().figure,
+      elan: elanFigure(target.name, opts.elan),
+      bounds: adapter.loyaltyBounds(target.type),
+    });
     // Only a henchman's wage falls back to the ladder.
     const wage =
       Number(target.system?.retainer?.wage) || (category === "henchman" ? henchmanWage(adapter.getWageLevel(target)) : 0);
+    // Core's field is emptied here and written with the effective score only
+    // once the record holds the start, so no figure of the sheet's or of an
+    // earlier employer's stands in for one.
     await adapter.setRetainer(target, {
       enabled: true,
-      loyalty: loyaltyStart,
+      loyalty: null,
       wage: wage ? String(wage) : "",
       managerid: employer.id,
       category,
@@ -336,9 +343,10 @@ export async function enrollHenchman(employer, actor, { loyalty = null, morale =
   const baseLoyaltyBonus = sumEffectModifiers(employer, "baseLoyalty");
   const have = Number.isFinite(Number(loyalty)) && loyalty !== null ? Number(loyalty) : null;
   const loyaltyBounds = adapter.loyaltyBounds(actor.type);
-  const start = have === null ? startingLoyalty({ bounds: loyaltyBounds }) : have - chaLoyalty - baseLoyaltyBonus;
+  const start = have === null ? startingLoyalty({ base: hireStart().figure, bounds: loyaltyBounds }) : have - chaLoyalty - baseLoyaltyBonus;
   const wage = Number(actor.system?.retainer?.wage) || henchmanWage(adapter.getWageLevel(actor));
-  await adapter.setRetainer(actor, { enabled: true, wage: String(wage), managerid: employer.id, category: "henchman", quantity: 1 });
+  // Core's field is emptied until the record holds the start; see `hireExistingActor`.
+  await adapter.setRetainer(actor, { enabled: true, loyalty: null, wage: String(wage), managerid: employer.id, category: "henchman", quantity: 1 });
   if (morale !== null && Number.isFinite(Number(morale))) await actor.update({ "system.details.morale": clampScore(Number(morale), adapter.moraleBounds(actor.type)) });
   await adapter.addHenchman(employer, actor.id);
   const record = new HenchmanRecord({
@@ -443,8 +451,10 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // Limit enforcement (setting-gated) — only true henchmen consume slots.
   if (category === "henchman" && !opts.skipLimit && !admitsHenchman(employer)) return { error: "limit" };
 
+  // A mercenary officer begins where the officers' page puts it, every other
+  // hire where the loyalty page does; neither read, the start is null.
   const loyaltyStart = startingLoyalty({
-    base: opts.baseLoyalty ?? 0,
+    base: opts.baseLoyalty ?? hireStart({ officer: !!officerTitle(candidate.specialistType) }).figure,
     elan: elanFigure(candidate.name, opts.elan),
     irrefusable: opts.irrefusable ?? null,
     bounds: adapter.loyaltyBounds(ACTOR_TYPE.character),
@@ -460,7 +470,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     system: {
       retainer: {
         enabled: true,
-        loyalty: loyaltyStart,
+        loyalty: null,
         wage: String(candidate.wageGp ?? ""),
         managerid: employer.id,
         category,

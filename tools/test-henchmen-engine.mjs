@@ -63,6 +63,7 @@ globalThis.game = {
 function makeActor({ id, type = "character", system = {}, flags = {} }) {
   const src = { system: structuredClone(system), flags: structuredClone(flags) };
   const writes = [];
+  const optionsSeen = [];
   const actor = {
     id,
     uuid: `Actor.${id}`,
@@ -77,7 +78,9 @@ function makeActor({ id, type = "character", system = {}, flags = {} }) {
       writes.push(["flag", key]);
       (src.flags[scope] ??= {})[key] = structuredClone(value);
     },
-    update: async (data) => {
+    optionsSeen,
+    update: async (data, options) => {
+      optionsSeen.push(options);
       writes.push(["update", Object.keys(data)]);
       if (!actors.has(id)) throw new Error(`${id} no longer exists`);
       for (const [path, value] of Object.entries(data)) {
@@ -183,6 +186,125 @@ await test("a written loyalty is held to the range too", async () => {
   assert.equal(person.system.retainer.loyalty, 5);
   await adapter.setLoyalty(person, -40);
   assert.equal(person.system.retainer.loyalty, -3);
+});
+
+/* -------------------------------------------- */
+/*  A hireling with no loyalty                  */
+/* -------------------------------------------- */
+
+const { LOYALTY_WRITE_OPTION } = await import("../scripts/henchmen/constants.mjs");
+const events = await import("../scripts/henchmen/engine/events.mjs");
+
+console.log("henchmen: a loyalty that is blank");
+await test("a score that is not a number is written as null, never as zero, and every write carries the module's option", async () => {
+  const person = makeActor({ id: "blank1", type: "character", system: { retainer: { loyalty: 3 } } });
+  for (const none of [null, undefined, NaN, "2", Infinity]) {
+    await adapter.setLoyalty(person, none);
+    assert.equal(person.system.retainer.loyalty, null, `${String(none)} writes the empty field`);
+  }
+  await adapter.setLoyalty(person, 0);
+  assert.equal(person.system.retainer.loyalty, 0, "zero is a figure and is written");
+  assert.ok(person.optionsSeen.every((o) => o?.[LOYALTY_WRITE_OPTION] === true), "the watcher is told these are the module's own");
+});
+await test("the retainer reads null for an empty field and a figure otherwise", () => {
+  const read = (loyalty) => adapter.getRetainer(makeActor({ id: `read${String(loyalty)}`, system: { retainer: { loyalty } } })).loyalty;
+  assert.equal(read(null), null);
+  assert.equal(read(undefined), null);
+  assert.equal(read(0), 0);
+  assert.equal(read(-2), -2);
+});
+
+/** An employer with a Charisma loyalty modifier, and a hireling of its with `record` and `sheet` for its loyalty field. */
+function serving({ id, record, sheet, cha = 1 }) {
+  const employer = makeActor({ id: `boss-${id}`, system: { scores: { cha: { mod: cha } } } });
+  const hand = makeActor({
+    id,
+    system: { retainer: { enabled: true, managerid: employer.id, category: "henchman", loyalty: sheet } },
+    flags: { [MODULE]: { record } },
+  });
+  return { employer, hand, record: () => hand.getFlag(MODULE, "record") };
+}
+await test("no start and no sheet figure is no loyalty; a typed figure stands as the score; a start wins", () => {
+  assert.equal(effectiveLoyaltyFor(serving({ id: "n1", record: { loyalty: { start: null, permanents: [] } }, sheet: null }).hand), null);
+  assert.equal(effectiveLoyaltyFor(serving({ id: "n2", record: {}, sheet: undefined }).hand), null, "a record that was never written reads blank too");
+  assert.equal(effectiveLoyaltyFor(serving({ id: "n3", record: { loyalty: { start: null, permanents: [{ delta: -1 }] } }, sheet: 2 }).hand), 2, "the sheet's figure is the whole score");
+  assert.equal(effectiveLoyaltyFor(serving({ id: "n4", record: { loyalty: { start: null, permanents: [] } }, sheet: 0 }).hand), 0, "a zero on the sheet is a score");
+  assert.equal(effectiveLoyaltyFor(serving({ id: "n5", record: { loyalty: { start: 1, permanents: [] } }, sheet: 4 }).hand), 2, "a recorded start is summed with the employer's Charisma and the sheet's figure is not read");
+});
+await test("a typed score is adopted as the start; syncing again leaves the field where it is", async () => {
+  const { hand, record } = serving({ id: "a1", record: { loyalty: { start: null, permanents: [{ delta: -1, compensated: false }, { delta: 2, compensated: true }] } }, sheet: 3, cha: 2 });
+  assert.equal(await events.adoptSheetLoyalty(hand), true);
+  assert.equal(record().loyalty.start, 3 - -1 - 2, "the start is the figure less the permanents counting and the Charisma");
+  for (let i = 0; i < 3; i++) {
+    await events.syncLoyalty(hand);
+    assert.equal(hand.system.retainer.loyalty, 3, `sync ${i + 1} writes the same score`);
+  }
+  assert.equal(await events.adoptSheetLoyalty(hand), false, "a record that holds a start is left alone");
+});
+await test("nothing is adopted from an empty field, or by a record that already has a start", async () => {
+  const blank = serving({ id: "a2", record: { loyalty: { start: null, permanents: [] } }, sheet: null });
+  assert.equal(await events.adoptSheetLoyalty(blank.hand), false);
+  assert.equal(blank.record().loyalty.start, null);
+  const held = serving({ id: "a3", record: { loyalty: { start: 0, permanents: [] } }, sheet: 4 });
+  assert.equal(await events.adoptSheetLoyalty(held.hand), false, "a start of zero is a start");
+  assert.equal(held.record().loyalty.start, 0);
+});
+await test("a permanent change adds to a typed score rather than to the figure it was typed as", async () => {
+  const { hand, record } = serving({ id: "p1", record: { loyalty: { start: null, permanents: [] } }, sheet: 2, cha: 1 });
+  await events.addLoyaltyPermanent(hand, -2, "wound");
+  assert.equal(record().loyalty.start, 1, "adopted before the entry was appended");
+  assert.equal(hand.system.retainer.loyalty, 0, "and the score is the typed one less the change");
+  assert.equal(effectiveLoyaltyFor(hand), 0);
+});
+await test("a change with no start and no score is recorded and leaves the field empty", async () => {
+  const { hand, record } = serving({ id: "p2", record: { loyalty: { start: null, permanents: [] } }, sheet: null });
+  await events.addLoyaltyPermanent(hand, -1, "wound");
+  assert.deepEqual(record().loyalty.permanents.map((p) => p.delta), [-1]);
+  assert.equal(record().loyalty.start, null);
+  assert.equal(hand.system.retainer.loyalty, null);
+  await events.addLoyaltyPermanent(hand, 1, "wound");
+  assert.equal(record().loyalty.start, null, "the ledger never invents a start");
+});
+await test("the actor-update watcher adopts a score typed by hand, and leaves the module's own writes alone", async () => {
+  const prior = globalThis.foundry.utils.getProperty;
+  globalThis.foundry.utils.getProperty = (obj, path) => path.split(".").reduce((o, k) => o?.[k], obj);
+  try {
+    events.registerEventEngine();
+    const watcher = hooks.get("updateActor");
+    const typed = serving({ id: "w1", record: { loyalty: { start: null, permanents: [] } }, sheet: 2, cha: 1 });
+    watcher(typed.hand, { system: { retainer: { loyalty: 2 } } }, { [LOYALTY_WRITE_OPTION]: true }, "gm");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(typed.record().loyalty.start, null, "the module's own write is not a typed score");
+    watcher(typed.hand, { system: { retainer: { loyalty: 2 } } }, {}, "gm");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(typed.record().loyalty.start, 1, "a typed score becomes the record's start");
+    watcher(typed.hand, { system: { retainer: { loyalty: null } } }, {}, "gm");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(typed.record().loyalty.start, 1, "emptying the field adopts nothing and clears nothing");
+  } finally {
+    globalThis.foundry.utils.getProperty = prior;
+  }
+});
+await test("a loyalty roll for a hireling with no score is refused with a warning naming the field, and no page opens", () => {
+  const warned = [];
+  const saved = globalThis.ui;
+  globalThis.ui = { notifications: { warn: (m) => warned.push(m), info() {}, error() {} } };
+  const opened = [];
+  const ns = globalThis.acksExtras;
+  globalThis.acksExtras = { henchmen: { integrations: { influence: { hostsModes: () => true, openLoyaltyViaInfluence: (o) => opened.push(o) } } } };
+  try {
+    const { hand } = serving({ id: "r1", record: { loyalty: { start: null, permanents: [] } }, sheet: null });
+    assert.equal(events.openLoyaltyRoll(hand), undefined);
+    assert.deepEqual(warned, ["ACKS-LIB.loyaltyRoll.blank"]);
+    assert.deepEqual(opened, [], "neither the hosted page nor the throw dialog opened");
+    const { hand: scored } = serving({ id: "r2", record: { loyalty: { start: 1, permanents: [] } }, sheet: null });
+    events.openLoyaltyRoll(scored);
+    assert.equal(warned.length, 1, "a hireling with a score is not refused");
+    assert.equal(opened[0].effectiveLoyalty, 2, "and the page is handed the score");
+  } finally {
+    globalThis.ui = saved;
+    globalThis.acksExtras = ns;
+  }
 });
 
 /* -------------------------------------------- */

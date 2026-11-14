@@ -18,7 +18,6 @@ import {
   openObedienceRoll,
   recordCalamity,
   payWagesFor,
-  effectiveLoyaltyFor,
   effectiveMoraleFor,
   employerLoyaltyMods,
   addLoyaltyPermanent,
@@ -26,7 +25,7 @@ import {
   syncLoyalty,
   wageBill,
 } from "../engine/events.mjs";
-import { WOUND_PENALTIES, penaltyReason } from "../rules/loyalty.mjs";
+import { WOUND_PENALTIES, penaltyReason, blankLoyaltyCite } from "../rules/loyalty.mjs";
 import { ROSTER_FILTERS, bucketOf, keepsLoyalty, loyaltyParts, slotOf, filterRows, filterCounts } from "../rules/service.mjs";
 import { ledgerRows, eventRows, termsFor, clockFor, clockLine } from "../service-view.mjs";
 import * as adapter from "../acks-adapter.mjs";
@@ -209,7 +208,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const terms = termsFor(actor, record, retainer);
     const clock = clockFor(record);
     const quantity = Number(retainer.quantity) || 1;
-    const parts = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type));
+    const parts = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type), retainer.loyalty);
 
     const tags = [{ label: game.i18n.localize(`ACKS-HENCHMEN.category.${category}`) }];
     if (isMonster) {
@@ -224,11 +223,14 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === "noSlot") tags.push({ label: loc("noSlotTag"), ghost: true, title: loc("noSlot") });
     if (terms.signingOwed > 0) tags.push({ label: loc("owedTag"), owed: true, title: loc("owedTitle", { gp: terms.signingOwed }) });
 
+    // A blank score shows nothing and points at the page that prints it.
     const loyalty = henchman
       ? {
-          value: signed(effectiveLoyaltyFor(actor)),
+          value: parts.total === null ? "" : signed(parts.total),
           title:
-            loc("loyaltyBreakdown", { start: parts.start, permanents: parts.permanents, cha: parts.cha, effects: parts.powers }) +
+            (parts.total === null
+              ? blankLoyaltyCite()
+              : loc("loyaltyBreakdown", { start: parts.start, permanents: parts.permanents, cha: parts.cha, effects: parts.powers })) +
             (pending ? ` · ${loc("pending")}` : ""),
         }
       : { value: "—", title: loc("noLoyalty") };

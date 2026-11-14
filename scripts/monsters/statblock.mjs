@@ -17,6 +17,7 @@ import { convertedDie } from "./kits.mjs";
 import { loadStanding } from "./load-rule.mjs";
 import { printKey } from "../importer/printed-name.mjs";
 import { numOrNull } from "../lib/util.mjs";
+import { blankLoyaltyCite } from "../lib/score-bounds.mjs";
 
 /**
  * The glyph a body form puts on the band, keyed by `printKey` of the form's
@@ -294,7 +295,9 @@ export function statblockColumns(snap, loc) {
     name: loc("statblock.group.reactions"),
     rows: [
       row(pins, "morale", loc("statblock.row.morale"), signed(num(snap.morale)), { valueTip: moraleTip }),
-      ...(snap.loyalty != null ? [row(pins, "loyalty", loc("statblock.row.loyalty"), signed(num(snap.loyalty)))] : []),
+      ...(snap.loyalty != null
+        ? [row(pins, "loyalty", loc("statblock.row.loyalty"), snap.loyalty === "" ? "" : signed(num(snap.loyalty)), snap.loyalty === "" ? { valueTip: blankLoyaltyCite() } : {})]
+        : []),
       row(pins, "reaction", loc("statblock.row.reaction"), "", { line: "2d6" }),
       row(pins, "init", loc("statblock.row.initiative"), signed(num(snap.initiative))),
       row(pins, "surprise:others", loc("statblock.row.surpriseOthers"), signed(num(snap.surpriseOthers))),

@@ -13,12 +13,12 @@
  * Wages: every `daysPerMonth` of worldTime per hireling, a per-employer
  * whisper offers [Pay] / [Mark missed]; missed wages are calamities (RR 166).
  */
-import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED } from "../constants.mjs";
+import { MODULE_ID, HOOKS, FLAG_RECORD, FLAG_MONSTER_LIST, FLAG_WAGE_REMINDED, LOYALTY_WRITE_OPTION } from "../constants.mjs";
 import { isPrimaryGM, locOr } from "../../lib/util.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import {
   effectiveLoyalty, effectiveMorale, loyaltyDeltaForOutcome, outcomeLeavesService, clampScore, reasonKey, apparentLevelPenalty, insistPenalty,
-  loyaltyChange, LOYALTY_CHANGES, hirelingLoyaltyOutcomes,
+  loyaltyChange, LOYALTY_CHANGES, hirelingLoyaltyOutcomes, loyaltyStartOf, startFromSheet,
 } from "../rules/loyalty.mjs";
 import { optCite, optOrigin } from "../rules/tables.mjs";
 import { henchmanWage, mercenaryWage, levelMoraleBumps } from "../rules/wages.mjs";
@@ -47,11 +47,35 @@ export function employerLoyaltyMods(employer) {
   };
 }
 
-/** Effective loyalty of a hireling actor (record + employer). */
+/**
+ * Effective loyalty of a hireling actor (record + employer), or null where it
+ * has none: the record holds no start and the sheet's Loyalty field holds no
+ * number. The field is read only in place of a start.
+ * @returns {number|null}
+ */
 export function effectiveLoyaltyFor(actor) {
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const employer = adapter.getManager(actor);
-  return effectiveLoyalty(record, employerLoyaltyMods(employer), adapter.loyaltyBounds(actor.type));
+  return effectiveLoyalty(record, employerLoyaltyMods(employer), adapter.loyaltyBounds(actor.type), adapter.getRetainer(actor).loyalty);
+}
+
+/**
+ * Give a hireling whose record holds no starting loyalty the one that makes its
+ * sheet's Loyalty field the score (`startFromSheet`), so a score the Judge typed
+ * becomes the record's own and the ledger adds to it. A record that holds a
+ * start, or a field that holds no number, is left alone.
+ * @returns {Promise<boolean>} whether a start was written
+ */
+export async function adoptSheetLoyalty(actor) {
+  const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
+  if (loyaltyStartOf(record) !== null) return false;
+  const start = startFromSheet(record, adapter.getRetainer(actor).loyalty, employerLoyaltyMods(adapter.getManager(actor)));
+  if (start === null) return false;
+  await actor.setFlag(MODULE_ID, FLAG_RECORD, {
+    ...record,
+    loyalty: { ...(record.loyalty ?? {}), start, permanents: record.loyalty?.permanents ?? [] },
+  });
+  return true;
 }
 
 /** The employer's `moraleBase` powers, which every hireling's morale score adds; 0 without an employer. */
@@ -98,13 +122,18 @@ export function elanFigure(name, elan) {
   return loyaltyChange("elan") ?? 0;
 }
 
-/** Append a permanent loyalty ledger entry and resync. */
+/**
+ * Append a permanent loyalty ledger entry and resync. A sheet figure standing
+ * in for a missing start is adopted first, so the entry adds to it rather than
+ * to the figure it was typed as.
+ */
 export async function addLoyaltyPermanent(actor, delta, reason, note = "") {
+  await adoptSheetLoyalty(actor);
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const permanents = [...(record.loyalty?.permanents ?? []), { time: now(), delta, reason, note, compensated: false }];
   await actor.setFlag(MODULE_ID, FLAG_RECORD, {
     ...record,
-    loyalty: { ...(record.loyalty ?? { start: 0 }), permanents },
+    loyalty: { ...(record.loyalty ?? { start: null }), permanents },
   });
   await syncLoyalty(actor);
   Hooks.callAll(HOOKS.LOYALTY_EVENT, { actor, delta, reason, note });
@@ -192,10 +221,17 @@ export async function applyLoyaltyOutcome(actor, { outcome, total = null, note =
  * hosted page when the influence feature hosts the modes (consistent UI, tones
  * hidden), else the module's own ThrowDialog. Outcome bookkeeping applies
  * automatically either way.
+ * A hireling with no loyalty score is refused with a warning naming the
+ * sheet's Loyalty field, before either page opens: the roll is never made as
+ * if a score were printed.
  * @param {Actor} actor - the hireling
  * @param {object} [opts] - { reason, title }
  */
 export function openLoyaltyRoll(actor, opts = {}) {
+  if (effectiveLoyaltyFor(actor) === null) {
+    ui.notifications.warn(game.i18n.format("ACKS-LIB.loyaltyRoll.blank", { name: actor.name }));
+    return;
+  }
   const employer = adapter.getManager(actor);
 
   // RR 168 presented-level lie: once a henchman has cause to doubt, the roll
@@ -315,16 +351,19 @@ export async function applyObedienceOutcome(actor, { outcome, total, note = "" }
 /* ------------------------- calamities ------------------------- */
 
 /**
- * Record a calamity: counter +1, permanent −1 loyalty, event log; then a
- * loyalty roll (prompt or auto) unless the record skips calamity rolls
- * (crusader/bladedancer followers, Utter Domination).
+ * Record a calamity: counter +1, the imported calamity figure (RR 166) as a
+ * permanent loyalty change, event log; then a loyalty roll (prompt or auto)
+ * unless the record skips calamity rolls (crusader/bladedancer followers,
+ * Utter Domination). A figure that is not imported records no change; a blank
+ * start does not stop a figure that was read from being recorded.
  */
 export async function recordCalamity(actor, note = "") {
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const counters = { ...(record.counters ?? {}), calamities: (record.counters?.calamities ?? 0) + 1 };
   await actor.setFlag(MODULE_ID, FLAG_RECORD, { ...record, counters });
   await HenchmanRecord.logEvent(actor, { type: "calamity", note });
-  await addLoyaltyPermanent(actor, -1, "calamity", note);
+  const change = loyaltyChange("calamity");
+  if (change !== null) await addLoyaltyPermanent(actor, change, "calamity", note);
   Hooks.callAll(HOOKS.CALAMITY, { actor, note });
 
   const skip = record.special?.skipCalamityLoyalty || hasEffectFlag(adapter.getManager(actor) ?? actor, "skipCalamityLoyalty");
@@ -821,9 +860,13 @@ function isManagedHireling(actor) {
   return actor?.type !== undefined && adapter.isRetainer(actor) && !!adapter.getManager(actor);
 }
 
-async function onUpdateActor(actor, changes) {
+async function onUpdateActor(actor, changes, options = {}) {
   if (!isPrimaryGM()) return;
   if (!isManagedHireling(actor)) return;
+
+  // --- A score typed on the sheet where the record holds no start: adopted ---
+  const typed = foundry.utils.getProperty(changes, "system.retainer.loyalty");
+  if (typeof typed === "number" && !options?.[LOYALTY_WRITE_OPTION] && (await adoptSheetLoyalty(actor))) await syncLoyalty(actor);
 
   // --- Calamity: hp crossing to ≤ 0 (guarded against healing yo-yos) ---
   const newHp = foundry.utils.getProperty(changes, "system.hp.value");
@@ -844,7 +887,7 @@ async function onUpdateActor(actor, changes) {
     }
   }
 
-  // --- Level gain: +1 permanent loyalty and a loyalty roll (RR 166) ---
+  // --- Level gain: a permanent loyalty change per level and a loyalty roll (RR 166) ---
   const newLevel = foundry.utils.getProperty(changes, "system.details.level");
   if (newLevel !== undefined) {
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
@@ -869,7 +912,9 @@ async function onUpdateActor(actor, changes) {
       }));
       if (bumps.length) morale = { ...morale, permanents: [...(morale.permanents ?? []), ...bumps] };
       await actor.setFlag(MODULE_ID, FLAG_RECORD, { ...record, counters, morale });
-      await addLoyaltyPermanent(actor, newLevel - known, "levelGain");
+      // The imported per-level figure; unread, none is recorded.
+      const perLevel = loyaltyChange("levelGain");
+      if (perLevel !== null) await addLoyaltyPermanent(actor, perLevel * (newLevel - known), "levelGain");
       await postEventCard({
         titleKey: "ACKS-HENCHMEN.card.levelGainTitle",
         bodyKey: "ACKS-HENCHMEN.card.levelGainBody",
@@ -887,8 +932,8 @@ async function onUpdateActor(actor, changes) {
 
 /** Registers the actor-update watcher, the wages-due queue on world-time advance, and the engine's chat-card actions. */
 export function registerEventEngine() {
-  Hooks.on("updateActor", (actor, changes) => {
-    onUpdateActor(actor, changes).catch((err) => console.error(`${MODULE_ID} | event watcher failed`, err));
+  Hooks.on("updateActor", (actor, changes, options) => {
+    onUpdateActor(actor, changes, options).catch((err) => console.error(`${MODULE_ID} | event watcher failed`, err));
   });
   onTimeAdvanced((worldTime) => queueWagesDue(worldTime));
 

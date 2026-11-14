@@ -8,7 +8,7 @@
  * Sanctioned writes: coin items (spendGold/grantGold), `system.retainer.*`
  * fields, and roster changes through the system's own addHenchman/delHenchman.
  */
-import { MODULE_ID, FLAG_RETAIN_BONUS } from "./constants.mjs";
+import { MODULE_ID, FLAG_RETAIN_BONUS, LOYALTY_WRITE_OPTION } from "./constants.mjs";
 import { sumEffectModifiers } from "./effects.mjs";
 import { henchmanLimitBase } from "./rules/wages.mjs";
 import { clampScore, loyaltyBounds, moraleBounds } from "../lib/score-bounds.mjs";
@@ -86,12 +86,16 @@ export function getMorale(actor) {
 /** The score ranges are `lib/score-bounds.mjs`'s; the adapter re-exports them for its callers. */
 export { loyaltyBounds, moraleBounds };
 
-/** The actor's core retainer block, each field coerced to its type with a default for a missing one. */
+/**
+ * The actor's core retainer block, each field coerced to its type with a
+ * default for a missing one. `loyalty` is null where the sheet's field holds no
+ * number: the field is empty, and nothing stands in for a score.
+ */
 export function getRetainer(actor) {
   const r = actor?.system?.retainer ?? {};
   return {
     enabled: !!r.enabled,
-    loyalty: Number(r.loyalty ?? 0),
+    loyalty: typeof r.loyalty === "number" && Number.isFinite(r.loyalty) ? r.loyalty : null,
     wage: Number(r.wage ?? 0) || 0, // core stores wage as a String
     managerid: r.managerid ?? "",
     category: r.category ?? "henchman",
@@ -212,9 +216,16 @@ export async function setRetainer(actor, fields) {
   return actor.update(update);
 }
 
-/** Write the effective loyalty score so core's own loyalty button agrees, held to the range the actor's type allows. */
+/**
+ * Write the effective loyalty score so core's own loyalty button agrees, held
+ * to the range the actor's type allows. A score that is not a number writes
+ * null, core's own empty field: a figure left there would stand in for it.
+ * The write carries `LOYALTY_WRITE_OPTION`, which the actor-update watcher
+ * reads to leave it alone.
+ */
 export async function setLoyalty(actor, loyalty) {
-  return actor.update({ "system.retainer.loyalty": clampScore(loyalty, loyaltyBounds(actor.type)) });
+  const score = typeof loyalty === "number" && Number.isFinite(loyalty) ? clampScore(loyalty, loyaltyBounds(actor.type)) : null;
+  return actor.update({ "system.retainer.loyalty": score }, { [LOYALTY_WRITE_OPTION]: true });
 }
 
 /** Roster changes go through the system's own methods (character hirelings). */

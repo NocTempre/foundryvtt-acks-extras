@@ -9,6 +9,12 @@ export const LOCATION_TYPE = `${MODULE_ID}.location`;
 
 /** Flag key on hireling actors holding the HenchmanRecord DataModel data. */
 export const FLAG_RECORD = "record";
+/**
+ * The update option the module sets on its own write of `system.retainer.loyalty`
+ * (`acks-adapter.mjs` `setLoyalty`), so the actor-update watcher tells it from a
+ * score typed on the sheet.
+ */
+export const LOYALTY_WRITE_OPTION = "acksExtrasLoyaltyWrite";
 /** Flag key on employer actors: array of monster-henchman actor ids. */
 export const FLAG_MONSTER_LIST = "monsterHenchmenList";
 /** Flag key on employer actors: extra henchman slots granted manually. */

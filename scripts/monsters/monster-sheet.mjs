@@ -472,7 +472,8 @@ export function createFullMonsterSheet(Base) {
           ? { cls: labelOf(CFG.SAVE_CLASSES, saveAs.class), level: saveAs.levelMax != null && saveAs.levelMax !== saveAs.level ? `${num(saveAs.level)}–${num(saveAs.levelMax)}` : `${num(saveAs.level)}` }
           : null,
         morale: sys.details?.morale,
-        loyalty: retainer.enabled ? retainer.loyalty : null,
+        // Null for a creature that serves nobody; "" for a hireling whose Loyalty field is empty, which keeps its row with no figure.
+        loyalty: retainer.enabled ? (numOrNull(retainer.loyalty) ?? "") : null,
         initiative: sys.initiative?.mod ?? sys.initiative?.value,
         surpriseOthers: sys.surprise?.surpriseothers,
         surpriseAvoid: sys.surprise?.avoidsurprise,

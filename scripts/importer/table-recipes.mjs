@@ -4451,12 +4451,17 @@ export const TABLE_RECIPES = {
         yMax: 175,
         values: [{ key: "bands", find: "(2d6)", take: "bandEdges", span: 120 }],
       },
-      // The two hireling-loyalty results' permanent changes in the list RR 166
-      // prints, each figure with its sign before the clause naming what earns it,
-      // so each anchor is read backwards from that clause; and two
-      // starting-loyalty figures from the paragraph above the list: the one the
-      // best acceptance adds, and the one a creature forced into servitude starts
-      // at.
+      // The permanent changes in the list RR 166 prints, each figure with its
+      // sign before the clause naming what earns it, so each anchor is read
+      // backwards from that clause: the two Hireling Loyalty results' changes,
+      // and what a level gained and a calamity suffered change. And three
+      // starting-loyalty figures from the paragraph above the list: what the best
+      // acceptance adds, what a creature forced into servitude starts at, and
+      // `start`, the one the clause naming the most kinds of hireling gives (the
+      // sentences for officers, followers of a class and ruffians open on the
+      // same words and are not read). `start` prints no sign, so it reads
+      // `signedInt`. The three read by `findRe` take a seam where the layer may
+      // weld or split a word.
       loyaltyChanges: {
         shape: "proseValues",
         book: "rr",
@@ -4467,6 +4472,9 @@ export const TABLE_RECIPES = {
           { key: "grudging", find: "permanent decrease each time the employer rolls grudging", before: true, take: "signed", span: 6 },
           { key: "elan", find: "if the hireling rolled", before: true, take: "signed", span: 6 },
           { key: "forcedServitude", find: "forced into servitude begin with loyalty scores of", take: "signedInt", span: 6 },
+          { key: "start", findRe: "and\\s*followers\\s*begin\\s*with\\s*a\\s*loyalty\\s*of", take: "signedInt", span: 6 },
+          { key: "levelGain", findRe: "permanent\\s*increase\\s*each\\s*time\\s*the\\s*hireling\\s*gains\\s*a\\s*level", before: true, take: "signed", span: 6 },
+          { key: "calamity", findRe: "permanent\\s*decrease\\s*each\\s*time\\s*the\\s*hireling\\s*suffers\\s*a\\s*calamity", before: true, take: "signed", span: 6 },
         ],
       },
       // The irrefusable offer (MM 351): the result column, the figure for an

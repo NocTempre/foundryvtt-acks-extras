@@ -94,6 +94,7 @@ import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/i
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installTurnOrderPatch } from "./patches/turn-order.mjs";
 import { installMoraleRollPatch, SETTING_MORALE_PAGE } from "./patches/morale-roll.mjs";
+import { installLoyaltyRollPatch } from "./patches/loyalty-roll.mjs";
 import { installAdventuringRollPatch } from "./patches/adventuring-roll.mjs";
 import { installStoredInputs } from "./patches/stored-inputs.mjs";
 import { installLegacyCombatRescue } from "./patches/legacy-source.mjs";
@@ -917,6 +918,10 @@ Hooks.once("ready", () => {
   // The morale roll's one owner; see docs/lib/DECISIONS.md, "One owner for
   // the morale roll, and the page is a provider's".
   installMoraleRollPatch();
+
+  // The loyalty roll's one owner: a blank Loyalty field is refused with a
+  // warning, never rolled; see patches/loyalty-roll.mjs.
+  installLoyaltyRollPatch();
 
   // The adventuring throw's one owner; see docs/lib/DECISIONS.md, "The throws
   // the Judge makes in secret are posted blind by the adventuring throw's one

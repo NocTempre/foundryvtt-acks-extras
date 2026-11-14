@@ -4,10 +4,12 @@
  * The stored data shape is HenchmanRecord (scripts/henchmen/data/henchman-record.mjs):
  *   loyalty: { start, permanents: [{time, delta, reason, note, compensated}] }
  *   morale:  { base, permanents: [...] }
+ * A `start` of null is no figure; the score is then the sheet's own, or none.
  * Employer-derived pieces (CHA, effect bonuses) are computed at read time so
  * transfers between employers recalculate automatically (RR 163).
  */
 import { optTable } from "./tables.mjs";
+import { LOYALTY_FIGURES, blankLoyaltyCite } from "../../lib/score-bounds.mjs";
 import { outcomeTableFromBands } from "./bulk-offer.mjs";
 
 /** Hireling Loyalty's results worst first, in the throw's outcome vocabulary. */
@@ -50,17 +52,41 @@ export function insistPenalty() {
 /**
  * Where RR 166's loyalty changes and starting-loyalty figures arrive: the
  * Judge's imported `influence.loyaltyChanges` table. Its keys are `fanatic`
- * and `grudging` (each a signed permanent change), `elan`
- * (what an Accept with élan adds to a hire's start) and `forcedServitude` (the
- * start of a creature held against its will).
+ * and `grudging` (each a signed permanent change), `levelGain` (per level
+ * gained in service) and `calamity` (each a signed permanent change), `start`
+ * (what a hire begins at), `elan` (what an Accept with élan adds to a hire's
+ * start) and `forcedServitude` (the start of a creature held against its will).
  */
-export const LOYALTY_CHANGES = Object.freeze({ docId: "influence", tableId: "loyaltyChanges", cite: "RR 166" });
+export const LOYALTY_CHANGES = LOYALTY_FIGURES;
 
 /** One figure of the imported loyalty-changes table, or null; a blank or non-integer figure is unread. Zero is a figure. */
 export function loyaltyChange(key) {
   const figure = optTable(LOYALTY_CHANGES.docId, LOYALTY_CHANGES.tableId)?.[key];
   return Number.isInteger(figure) ? figure : null;
 }
+
+/** Where a mercenary officer's starting loyalty is read: the imported `wages.baseLoyalty` table's `mercenaryOfficers` figure. */
+export const OFFICER_START = Object.freeze({ docId: "wages", tableId: "baseLoyalty", cite: "RR 171" });
+
+/**
+ * The loyalty a new hire begins at and where that figure is read: a mercenary
+ * officer takes `OFFICER_START`'s figure, every other hire the loyalty-changes
+ * table's `start`. `figure` is null where it is not imported, and a hire then
+ * has no starting loyalty (never zero). A creature held against its will starts
+ * at `irrefusableStart`'s figure instead.
+ * @param {{officer?: boolean}} [o]
+ * @returns {{figure: number|null, docId: string, tableId: string, cite: string}}
+ */
+export function hireStart({ officer = false } = {}) {
+  if (officer) {
+    const figure = optTable(OFFICER_START.docId, OFFICER_START.tableId)?.mercenaryOfficers;
+    return { figure: Number.isInteger(figure) ? figure : null, ...OFFICER_START };
+  }
+  return { figure: loyaltyChange("start"), ...LOYALTY_CHANGES };
+}
+
+/** The page a blank loyalty points at is `lib/score-bounds.mjs`'s; the rules here re-export it for their callers. */
+export { blankLoyaltyCite };
 
 import { clampScore } from "../../lib/score-bounds.mjs";
 
@@ -89,17 +115,43 @@ export function reasonKey(track, reason) {
   return `ACKS-HENCHMEN.${track === "morale" ? "morale" : "loyalty"}Reason.${reason}`;
 }
 
+/** The record's starting loyalty, or null where it holds no figure; zero is a figure. */
+export function loyaltyStartOf(record) {
+  const start = record?.loyalty?.start;
+  return typeof start === "number" && Number.isFinite(start) ? start : null;
+}
+
 /**
  * Effective loyalty score = start + Σ permanents + employer CHA loyalty mod
- * + employer baseLoyalty effect bonuses, held to `bounds`.
+ * + employer baseLoyalty effect bonuses, held to `bounds`. With no start the
+ * score is the sheet's own figure as written, already the whole score, and
+ * with neither it is null.
  * @param {object} record - HenchmanRecord-shaped plain object
  * @param {{chaLoyalty:number, baseLoyaltyBonus:number}} employer
  * @param {{min?: number, max?: number}} [bounds] the hireling's loyalty field's range
+ * @param {number|null} [sheet] the sheet's own Loyalty field, read only when the record holds no start
+ * @returns {number|null}
  */
-export function effectiveLoyalty(record, employer, bounds) {
-  const start = Number(record?.loyalty?.start ?? 0);
+export function effectiveLoyalty(record, employer, bounds, sheet = null) {
+  const start = loyaltyStartOf(record);
+  if (start === null) return typeof sheet === "number" && Number.isFinite(sheet) ? clampScore(sheet, bounds) : null;
   const permanents = sumPermanents(record?.loyalty?.permanents ?? []);
   return clampScore(start + permanents + (employer?.chaLoyalty ?? 0) + (employer?.baseLoyaltyBonus ?? 0), bounds);
+}
+
+/**
+ * The starting loyalty that, under this employer and these permanents, gives a
+ * hireling the score the sheet already shows: the sheet's figure less the
+ * permanents still counting, the employer's Charisma and the employer's powers.
+ * Null where the sheet holds no figure.
+ * @param {object} record
+ * @param {number|null} sheet
+ * @param {{chaLoyalty?: number, baseLoyaltyBonus?: number}} [employer]
+ * @returns {number|null}
+ */
+export function startFromSheet(record, sheet, employer) {
+  if (!(typeof sheet === "number" && Number.isFinite(sheet))) return null;
+  return sheet - sumPermanents(record?.loyalty?.permanents ?? []) - (employer?.chaLoyalty ?? 0) - (employer?.baseLoyaltyBonus ?? 0);
 }
 
 /**
@@ -153,16 +205,19 @@ export function penaltyReason(key) {
 
 /**
  * Starting loyalty for a new hire: the role's base, or the Irrefusable Offer
- * result's own start in its place, plus the élan figure.
+ * result's own start in its place, plus the élan figure. Null where neither
+ * figure was read: élan adds only to a start that was, and nothing stands in
+ * for one that was not.
  * @param {object} o
- * @param {number} [o.base=0] - the role's base loyalty, read from the imported tables
+ * @param {number|null} [o.base] - the role's base loyalty (`hireStart`'s figure), read from the imported tables
  * @param {number} [o.elan=0] - what an Accept with élan adds (`loyaltyChange("elan")`), 0 for any other result
- * @param {number} [o.irrefusable] - the Irrefusable Offer result's start, read from the imported table
+ * @param {number|null} [o.irrefusable] - the Irrefusable Offer result's start, read from the imported table
  * @param {{min?: number, max?: number}} [o.bounds] - the hireling's loyalty field's range
+ * @returns {number|null}
  */
-export function startingLoyalty({ base = 0, elan = 0, irrefusable = null, bounds } = {}) {
-  let start = base;
-  if (irrefusable !== null && irrefusable !== undefined) start = irrefusable;
-  start += Number.isFinite(elan) ? elan : 0;
-  return clampScore(start, bounds);
+export function startingLoyalty({ base = null, elan = 0, irrefusable = null, bounds } = {}) {
+  const read = (v) => typeof v === "number" && Number.isFinite(v);
+  const start = read(irrefusable) ? irrefusable : read(base) ? base : null;
+  if (start === null) return null;
+  return clampScore(start + (Number.isFinite(elan) ? elan : 0), bounds);
 }

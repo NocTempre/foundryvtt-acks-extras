@@ -76,7 +76,7 @@
       </label>
       <label class="acks-extras-frame__fact">
         <span class="acks-extras-frame__fact-label">{{localize "ACKS.Loyalty"}}</span>
-        <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{loyalty}}" data-dtype="Number" min="-4" max="4">
+        <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.retainer.loyalty" value="{{loyalty}}"{{#if loyaltyTip}} data-tooltip-text="{{loyaltyTip}}"{{/if}} data-dtype="Number" min="-4" max="4">
       </label>
 
       {{#if appearing}}
@@ -267,10 +267,10 @@
     {{#if enc}}<span class="acks-lib-follower-card__fact{{#if enc.overridden}} is-overridden{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.stoneOf' value=enc.value max=enc.max}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.encShort"}}</span><b class="acks-nums">{{enc.value}}/{{enc.max}}</b></span>{{/if}}
     {{#if controls}}
     <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingMorale" data-tooltip="{{localize 'ACKS-LIB.followerCard.moraleThrow' n=moraleSigned}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></button>
-    <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingLoyalty" data-tooltip="{{localize 'ACKS-LIB.followerCard.loyaltyThrow' n=loyaltySigned}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></button>
+    <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingLoyalty"{{#if loyaltyTip}} data-tooltip-text="{{loyaltyTip}}"{{else}} data-tooltip="{{localize 'ACKS-LIB.followerCard.loyaltyThrow' n=loyaltySigned}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></button>
     {{else}}
     <span class="acks-lib-follower-card__fact" data-tooltip="{{localize 'ACKS.details.morale'}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></span>
-    <span class="acks-lib-follower-card__fact" data-tooltip="{{localize 'ACKS.Loyalty'}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></span>
+    <span class="acks-lib-follower-card__fact"{{#if loyaltyTip}} data-tooltip-text="{{loyaltyTip}}"{{else}} data-tooltip="{{localize 'ACKS.Loyalty'}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></span>
     {{/if}}
   </div>
 

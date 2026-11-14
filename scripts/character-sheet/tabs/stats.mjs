@@ -28,6 +28,7 @@ import { LIGHT_SOURCES, lightFigures, lightCite } from "../../lib/light.mjs";
 import { senseCite, senseProfile, VISION_MODES } from "../../lib/senses.mjs";
 import { ATTRIBUTES, slug } from "../../lib/vocab.mjs";
 import { carriesMorale, signed, storedSystem } from "../view-model.mjs";
+import { blankLoyaltyCite } from "../../lib/score-bounds.mjs";
 import { saveSystemKey, saveLabel, saveModifiers } from "../snapshot.mjs";
 
 const loc = makeLoc(LANG);
@@ -568,10 +569,14 @@ export function buildStatsTab(actor, { openBuckets = new Set(), editing = false,
 
   const throws = buildThrows(actor);
 
+  // An empty Loyalty field stays empty and names the page that prints the
+  // figure; a blank read as zero would be written back on the next save.
+  const storedLoyalty = numOrNull(stored.retainer?.loyalty);
   const retainer = sys.retainer?.enabled
     ? {
         wage: String(stored.retainer?.wage ?? ""),
-        loyalty: num(stored.retainer?.loyalty),
+        loyalty: storedLoyalty,
+        loyaltyTip: storedLoyalty === null ? blankLoyaltyCite() : "",
         category: String(sys.retainer.category ?? ""),
         employer: actor.getManagerName?.() ?? "",
       }

@@ -202,7 +202,7 @@ const P = {
       hpUntouched: a._source.system.hp.max === new Actor.implementation({ name: "x", type: "character" }).toObject().system.hp.max,
       noHpAt: hpAt == null,
       calamities: r.counters?.calamities ?? 0,
-      calamityPermanents: (r.loyalty?.permanents ?? []).filter((p) => p.reason === "calamity" && p.delta === -1 && p.note === game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity")).length,
+      calamityPermanents: (r.loyalty?.permanents ?? []).filter((p) => p.reason === "calamity" && Number.isInteger(p.delta) && p.note === game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity")).length,
       calamityNote: (r.events ?? []).some((e) => e.type === "calamity" && e.note === game.i18n.localize("ACKS-HENCHMEN.hire.signingBonusCalamity")),
       pending: !!r.special?.pendingCalamity,
       badge: globalThis.__ht.SV.buildServicePanel(a, { isGM: game.user.isGM })?.badge ?? null,
@@ -634,7 +634,7 @@ try {
   const r1 = await run(gm, P.readHire, { actorId: h1Id, level: 2 });
   check("20: the record keeps the agreed bonus and owes all of it, the arrears untouched", r1.record && r1.bonus === BONUS && r1.owed === BONUS && r1.arrears === 0, { bonus: r1.bonus === BONUS, owed: r1.owed === BONUS, arrears: r1.arrears });
   check("20: the events end hired, signingBonusOwed, calamity, the calamity naming the unpaid bonus", r1.events.slice(-3).join(",") === "hired,signingBonusOwed,calamity" && r1.calamityNote, { events: r1.events.length, calamityNote: r1.calamityNote });
-  check("20: the refusal is a calamity: the counter at one and one uncompensated loyalty point charged for it", r1.calamities === 1 && r1.calamityPermanents === 1, { calamities: r1.calamities, permanents: r1.calamityPermanents });
+  check("20: the refusal is a calamity: the counter at one and one uncompensated ledger entry, at the imported calamity figure, charged for it (a world that has not re-imported the loyalty page records none)", r1.calamities === 1 && r1.calamityPermanents === 1, { calamities: r1.calamities, permanents: r1.calamityPermanents });
   check("20: the Judge is prompted with the calamity card and its loyalty-roll button", await run(gm, P.calamityCard, { ids: h1.chat, actorId: h1Id }));
   note("pending-calamity flag and Service badge after the refused bonus", { pending: r1.pending, badge: r1.badge });
   check("20: hit points rolled: maximum and current equal the record's roll, one step per level, each the class's own cell", r1.hpRoll && r1.hpMatches && r1.steps === 2 && r1.stepLevels && r1.stepFormulas && r1.hpUnrolled === "", { hpRoll: r1.hpRoll, hpMatches: r1.hpMatches, steps: r1.steps, stepLevels: r1.stepLevels, stepFormulas: r1.stepFormulas });

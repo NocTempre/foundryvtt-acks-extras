@@ -27,6 +27,7 @@ import { profileStrips, isProfileAbility, sizePips } from "./proficiency-strip.m
 import { ITEM_TYPE } from "./vocab.mjs";
 import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
 import { signed } from "./frame-model.mjs";
+import { blankLoyaltyCite } from "./score-bounds.mjs";
 import { STAR_FLAG, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
 
 export { STAR_FLAG };
@@ -233,6 +234,8 @@ export async function followerCardContext(actor, { editable = false, interactive
   // ("Monster", "Animal"), and nothing to edit there.
   const hasClass = actorProvides(actor, "details.class");
 
+  const loyalty = numOrNull(sys.retainer?.loyalty);
+
   const ctx = {
     editable,
     interactive,
@@ -251,8 +254,11 @@ export async function followerCardContext(actor, { editable = false, interactive
     hp: { value: num(sys.hp?.value), max: num(sys.hp?.max) },
     morale: num(sys.details?.morale),
     moraleSigned: signed(num(sys.details?.morale)),
-    loyalty: num(sys.retainer?.loyalty),
-    loyaltySigned: signed(num(sys.retainer?.loyalty)),
+    // An empty Loyalty field stays empty and names the page that prints the
+    // figure; a blank read as zero would be written back on the next save.
+    loyalty,
+    loyaltySigned: loyalty === null ? "" : signed(loyalty),
+    loyaltyTip: loyalty === null ? blankLoyaltyCite() : "",
     attackThrow: numOrNull(sys.attack?.throw),
     powers,
     starredRows: starredRows(powers, starred),

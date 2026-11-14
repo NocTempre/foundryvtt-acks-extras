@@ -7,8 +7,8 @@
  * `rules/service.mjs`; this file reads the world and puts words on them.
  */
 import { MODULE_ID, FLAG_RECORD } from "./constants.mjs";
-import { effectiveLoyaltyFor, effectiveMoraleFor, employerLoyaltyMods, employerMoraleBase } from "./engine/events.mjs";
-import { reasonKey } from "./rules/loyalty.mjs";
+import { effectiveMoraleFor, employerLoyaltyMods, employerMoraleBase } from "./engine/events.mjs";
+import { reasonKey, blankLoyaltyCite } from "./rules/loyalty.mjs";
 import { henchmanWage, henchmanWageCite, importedShare, importedShareCite } from "./rules/wages.mjs";
 import {
   wageClock, loyaltyParts, moraleParts, ledgerEntries, termsOf, rolledOf, slotOf, keepsLoyalty, serviceBadge, ROLLED_SCORES, signingControls,
@@ -166,7 +166,9 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const category = retainer.category || "henchman";
   const henchman = keepsLoyalty(category);
   const mods = employerLoyaltyMods(employer);
-  const loyalty = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type));
+  const loyalty = loyaltyParts(record, mods, adapter.loyaltyBounds(actor.type), retainer.loyalty);
+  // A blank figure shows nothing and points at the page that prints it.
+  const loyaltyPage = blankLoyaltyCite();
   const morale = moraleParts(record, adapter.getMorale(actor), employerMoraleBase(employer), adapter.moraleBounds(actor.type));
   const moraleValue = signed(effectiveMoraleFor(actor));
   const pending = !!record.special?.pendingCalamity;
@@ -175,16 +177,20 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     pending,
     henchman,
     loyalty: {
-      value: signed(effectiveLoyaltyFor(actor)),
-      tip: partsTip([
-        [loc("loyaltyStart"), loyalty.start],
-        [loc("tip.permanents"), loyalty.permanents],
-        [loc("loyaltyCha"), loyalty.cha],
-        [loc("loyaltyPowers"), loyalty.powers],
-      ], loyalty.total, "tip.loyalty"),
+      value: loyalty.total === null ? "" : signed(loyalty.total),
+      tip: loyalty.total === null
+        ? loyaltyPage
+        : partsTip([
+          [loc("loyaltyStart"), loyalty.start],
+          [loc("tip.permanents"), loyalty.permanents],
+          [loc("loyaltyCha"), loyalty.cha],
+          [loc("loyaltyPowers"), loyalty.powers],
+        ], loyalty.total, "tip.loyalty"),
       pinned: pins.includes("loyalty"),
       parts: [
-        { label: loc("loyaltyStart"), value: signed(loyalty.start), tip: loc("tip.start") },
+        loyalty.from === null
+          ? { label: loc("loyaltyStart"), value: "", tip: loyaltyPage }
+          : { label: loc("loyaltyStart"), value: signed(loyalty.start), tip: loc(loyalty.from === "sheet" ? "tip.startSheet" : "tip.start") },
         { label: loc("loyaltyPermanents", { n: loyalty.uncompensated }), value: signed(loyalty.permanents), tip: loc("tip.ledger") },
         { label: loc("loyaltyCha"), value: signed(loyalty.cha), tip: loc("tip.cha") },
         { label: loc("loyaltyPowers"), value: signed(loyalty.powers), tip: loc("tip.powers") },

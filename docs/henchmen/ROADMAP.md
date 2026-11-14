@@ -37,13 +37,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   freeze the sample automation into the world layer, so the same change makes
   the import merge over the written layer only, makes picker presence read the
   world layer, and lists only world and override tables in the journal.
-- **Loyalty figures still in source beside the imported ones.** The
-  calamity and level-gain loyalty changes in `engine/events.mjs` are printed
-  in the same list `influence.loyaltyChanges` reads (RR 166), so each is one
-  more row of that recipe. The signing-bonus option values in
-  `data/throws-data.mjs` are the same kind as the bribe tiers the influence
-  roller now imports. The `judgeAdj` stepper's bounds want a ruling on whether
-  they are printed before they move.
+- **Figures still in source beside the imported ones.** The signing-bonus
+  option values in `data/throws-data.mjs` are the same kind as the bribe tiers
+  the influence roller now imports. The `judgeAdj` stepper's bounds want a
+  ruling on whether they are printed before they move.
 - **The liberation loyalty throw opens from nowhere.** `throws-data.mjs`
   still declares `liberationLoyalty`, no surface opens it, and no page for its
   figures has been found; it is wired to a page or removed.
@@ -97,11 +94,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   stays empty and falls back to core's field. `engine/hire-group.mjs` reads
   `mercenaryMorale` without `wageTroopType`, so a combined-entry group gets
   none.
-- **A hire's starting loyalty is a stored zero.** `engine/hire.mjs` and
-  `engine/monster.mjs` call `startingLoyalty` with a base no caller passes; the
-  page prints the start by kind (RR ch. 4, Hirelings Loyalty), and the
-  mercenary-officer figure the `baseLoyalty` recipe reads (RR p. 171) never
-  reaches a hire.
+- **A hired unit's loyalty is a stored zero.** `lib/data/group-data.mjs`
+  declares `unit.loyalty` as an integer with initial 0, so a unit hired through
+  the group path carries a figure no page was read for. It wants the nullable
+  shape the hire's record took ([DECISIONS.md](DECISIONS.md), 2026-11-14).
 - **Blank figures that have no page reference yet.** Fields left blank when
   nothing is imported carry a page-reference tooltip only where one was
   written. These carry none, and each needs its page looked up:

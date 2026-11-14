@@ -488,7 +488,8 @@ a step it does not name is walked by hand.
     refusal naming the employer, a slander row reads `slandered`, and the
     location's `slander` gains one entry per slandering head. The accepting
     heads are ONE new actor whose `system.retainer.quantity` is the accept
-    count, an élan group a second actor whose loyalty is one higher, and the
+    count, an élan group a second actor whose start is the élan figure higher
+    (where the start and the élan figure are imported), and the
     employer paid the bonus once per head hired. Rig the dice
     (`CONFIG.Dice.randomUniform`, read from the top) to force a mix the first
     time it lands all one way. Track every hired actor from the roster.
@@ -817,8 +818,9 @@ a step it does not name is walked by hand.
       `terms.arrearsGp` 0, and its events end `hired`, `signingBonusOwed`,
       `calamity`, the calamity's note the localized
       `ACKS-HENCHMEN.hire.signingBonusCalamity`. `counters.calamities` is 1,
-      `loyalty.permanents` holds one uncompensated -1 `calamity` entry with
-      that note, and with `autoRollCalamity` off (the walk sets it and
+      `loyalty.permanents` holds one uncompensated `calamity` entry at the
+      imported `loyaltyChanges.calamity` figure with that note (none where the
+      figure is not imported), and with `autoRollCalamity` off (the walk sets it and
       restores it) a GM-whispered event card speaking as the hire carries
       the Roll Loyalty button (`rollLoyaltySecret`); with it on, the loyalty
       roll opens at once instead. `special.pendingCalamity` stays false and
@@ -862,7 +864,7 @@ a step it does not name is walked by hand.
     - As the Player seat, open the first hire's Service tab. *Observable:*
       Pay renders and Forgive does not. Press Pay: the employer's purse
       drops by 40 with no warning, `signingBonusOwedGp` 0, the events end
-      `signingBonusPaid`, and the calamity and its loyalty point stay.
+      `signingBonusPaid`, and the calamity and its ledger entry stay.
       The Player's hire, paid in full, records no calamity.
     The walk also measures, writing nothing, how many `classKey` values the
     world's market candidates and the imported rarity tables name resolve
@@ -1086,12 +1088,51 @@ walked in docs/lib/TESTING.md, "The repair tool".
     henchman: `morale.base` is null on both records, the Morale figure is the
     sheet's own Morale field, and the tooltip's first part reads "base, the
     sheet's own Morale field". Set the sheet's Morale and read the Service
-    figure follow it. The starting loyalty is not part of this step: a hire's
-    loyalty start is still stored as a number (see the ROADMAP). The reader and
+    figure follow it. The starting loyalty is step 29's. The reader and
     the hire's base are checked offline (`tools/test-henchmen.mjs`,
     `tools/test-service-view.mjs`, `tools/test-henchmen-engine.mjs`). Teardown:
     the hirelings swept by their tracked uuids, the layer lifted. Not walked live
     when written.
+29. A hire's starting loyalty, imported and blank. **First live checks, before
+    anything is built on them:** `actor.update({"system.retainer.loyalty": null})`
+    on a kept hireling reads back null (core's `NumberField` declares no
+    `nullable`, and the framework default is nullable); blanking the Loyalty field
+    on the character sheet's Stats tab (a hireling's) and on the Follower Card
+    submits null and not zero; and core's own header Loyalty button, pressed on a
+    hireling whose field is empty, is refused by lib's `patches/loyalty-roll.mjs`
+    with the warning below and does not throw. Whether a custom update option
+    (`LOYALTY_WRITE_OPTION`) reaches the primary GM's `updateActor` hook from
+    another seat is live-only: hand-type a score into a hireling's Stats-tab
+    Loyalty field as the Player seat, with a GM seat connected.
+    *Imported.* With `influence.loyaltyChanges` (RR 166) and `wages.baseLoyalty`
+    (RR 171) read off the connected book, hire a henchman from the market and a
+    mercenary officer (a `mercOfficer*` specialist). *Observable:* each record's
+    `loyalty.start` is the page's figure for its kind (compare with the page and
+    report the match, never the figure), core's `system.retainer.loyalty` equals
+    the effective score, and the Service panel's Loyalty figure and its start part
+    show it. Gain a level on the henchman and suffer a calamity: each records a
+    `levelGain` / `calamity` ledger entry at the imported figure (times the
+    levels gained, for the first).
+    *Blank.* Lift the layer (a priority-30 empty `influence.loyaltyChanges`) and
+    hire a henchman. *Observable:* `loyalty.start` is null, core's field reads
+    null, and the Service panel's Loyalty figure, its start part, the roster's
+    Loyalty value, the Rolls tab row, the Stats tab field and a Follower Card show
+    nothing, each with the page reference (RR 166) as its tooltip and no "not
+    imported" text. Press the Service panel's Loyalty row, the roster's Loyalty
+    throw, the Rolls tab row and the header button: each is refused with the
+    warning "<name> has no loyalty score to roll with. Set one on the sheet's
+    Loyalty field." and no roll or page opens. Suffer a calamity with the figure
+    unread: the counter and the event log advance, the ledger gains no entry.
+    *Typed.* Type a score into the hireling's Stats-tab Loyalty field. *Observable:*
+    the panel shows that score labelled as set on the sheet's Loyalty field, then
+    the record's `loyalty.start` is the score less the permanents counting, the
+    employer's Charisma and the employer's powers (the primary GM's client writes
+    it), a loyalty roll opens, and a later calamity at an imported figure adds to
+    the typed score. *Absent export.* Hire a henchman with every layer lifted and
+    import the sheet's PDF form with a Loyalty value (`enrollHenchman`): the start
+    is the value less Charisma and powers, as before. Teardown: the hirelings swept
+    by their tracked uuids, the layer lifted, the world's `loyaltyChanges` read
+    again. Not walked live when written.
 
 ## Teardown
 
