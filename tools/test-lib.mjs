@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import * as vocab from "../scripts/lib/vocab.mjs";
-import { cleanDelta, isDerivedEffect, memberName, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
+import { BELOW_EVERY_RUNG, cleanDelta, commandStatus, isDerivedEffect, memberName, nextOrdinal, platoonCapacity, sizeFromEcology } from "../scripts/lib/group-logic.mjs";
 import { chooseAxes, mergePatch, resolveActor, rollDie, rollMenu, rollOption, seededRng } from "../scripts/lib/template-logic.mjs";
 import { CHANGE, changePriority, orderedChanges, applyNumericChange, activeNumericChanges, netNumericChange, csvFlagSet, csvFlagValue, abilityModifiers } from "../scripts/lib/effect-scan.mjs";
 import { UI_PRESET, chooseDefault, declaredDefaults, presetLook, rungOrder, withoutLadderPins } from "../scripts/lib/ui-preset-logic.mjs";
@@ -645,12 +645,49 @@ t("nextOrdinal + memberName address ONE stack's roster (per-stack numbering)", (
   assert.equal(memberName(spears, { ordinal: 2 }), "Spearman #2");
 });
 
-t("platoonCapacity: RR 169 personally-led limit by commander level", () => {
-  assert.equal(platoonCapacity(4), 30, "a lieutenant (4th) leads a platoon");
-  assert.equal(platoonCapacity(3), 30, "3rd+ = a platoon");
-  assert.equal(platoonCapacity(2), 15, "2nd = a half-platoon");
-  assert.equal(platoonCapacity(1), 7, "1st = a squad (interpretation)");
-  assert.equal(platoonCapacity(0), 0, "0th cannot lead mercenaries into danger");
+// Invented rungs: the module holds no ladder, so every level and count here is made up.
+const INVENTED_RUNGS = [
+  { level: 6, infantry: 40, cavalry: 12 },
+  { level: 2, infantry: 5, cavalry: 3 },
+  { level: 4, infantry: 20, cavalry: 7 },
+];
+
+t("platoonCapacity: the highest rung the officer's level meets, from imported rungs", () => {
+  assert.deepEqual(platoonCapacity(6, INVENTED_RUNGS), { level: 6, infantry: 40, cavalry: 12 }, "a level on a rung's minimum stands on it");
+  assert.deepEqual(platoonCapacity(9, INVENTED_RUNGS), { level: 6, infantry: 40, cavalry: 12 }, "a level past the top stands on the top");
+  assert.deepEqual(platoonCapacity(5, INVENTED_RUNGS), { level: 4, infantry: 20, cavalry: 7 }, "between rungs, the one below, whatever the order given");
+  assert.deepEqual(platoonCapacity(2, INVENTED_RUNGS), { level: 2, infantry: 5, cavalry: 3 });
+  assert.equal(platoonCapacity(1, INVENTED_RUNGS), BELOW_EVERY_RUNG, "under the lowest minimum is its own state");
+  assert.equal(platoonCapacity(0, INVENTED_RUNGS), BELOW_EVERY_RUNG);
+  assert.deepEqual(platoonCapacity(0, [{ level: 0, infantry: 4, cavalry: 2 }]), { level: 0, infantry: 4, cavalry: 2 }, "a rung printed at level zero is met by level zero");
+});
+
+t("platoonCapacity: nothing imported is null, never a limit of zero", () => {
+  assert.equal(platoonCapacity(5, undefined), null);
+  assert.equal(platoonCapacity(5, []), null);
+  assert.equal(platoonCapacity(5, [{ level: 2, infantry: null, cavalry: 3 }, { level: "4", infantry: 9, cavalry: 3 }, { level: 1, infantry: 0, cavalry: 0 }]), null, "a rung with a blank, text or zero figure is not a rung");
+  assert.deepEqual(platoonCapacity(5, [{ level: 2, infantry: null, cavalry: 3 }, { level: 3, infantry: 9, cavalry: 4 }]), { level: 3, infantry: 9, cavalry: 4 }, "an unusable rung leaves the others in force");
+});
+
+t("commandStatus: each arm against its own count of the rung in force", () => {
+  const at = (level, infantry, cavalry) => commandStatus({ infantry, cavalry }, level, INVENTED_RUNGS);
+  assert.deepEqual(at(4, 20, 0), { over: false, rung: INVENTED_RUNGS[2] }, "a pure infantry unit at its count is within it");
+  assert.equal(at(4, 21, 0).over, true, "one past it is over");
+  assert.equal(at(4, 0, 7).over, false, "a pure cavalry unit at its own count is within it");
+  assert.equal(at(4, 0, 8).over, true, "one past it is over; cavalry is not counted against the infantry count");
+  assert.equal(at(4, 10, 3).over, false, "a mixed unit whose two shares sum under one is within");
+  assert.equal(at(4, 10, 3).rung.level, 4);
+  assert.equal(at(4, 10, 4).over, true, "a mixed unit whose shares sum past one is over, though each arm is under its own count");
+  assert.equal(at(4, 0, 0).over, false, "an empty unit is never over");
+});
+
+t("commandStatus: three states stay apart", () => {
+  assert.equal(commandStatus({ infantry: 9, cavalry: 9 }, 9, []), null, "nothing imported: no status, so no warning");
+  assert.equal(commandStatus({ infantry: 1, cavalry: 0 }, 9, undefined), null);
+  assert.deepEqual(commandStatus({ infantry: 1, cavalry: 0 }, 1, INVENTED_RUNGS), { over: true, rung: null }, "below every rung, any body is over");
+  assert.deepEqual(commandStatus({ infantry: 0, cavalry: 0 }, 1, INVENTED_RUNGS), { over: false, rung: null }, "below every rung with no troops is not over");
+  assert.equal(commandStatus({ infantry: 1, cavalry: 0 }, 6, INVENTED_RUNGS).over, false, "a rung in force compares");
+  assert.equal(commandStatus(undefined, 6, INVENTED_RUNGS).over, false, "no counts read is an empty unit");
 });
 
 t("isDerivedEffect: a module-managed effect is derived, an authored one is not", () => {

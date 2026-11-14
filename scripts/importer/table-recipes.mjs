@@ -2813,6 +2813,33 @@ export const TABLE_RECIPES = {
         locateBare: true,
         values: [{ key: "modifier", find: "officers have morale", take: "signed", span: 12 }],
       },
+      // How many a leader of each rank personally leads (RR 169 prose): three
+      // rungs, each a minimum leader level and a count of infantry and of
+      // cavalry. The rungs are the sentence's three units in reading order, the
+      // largest first. Each figure is found by the punctuation or wording its
+      // unit's clause prints around it, with no digit of its own: a count sits
+      // after the unit's opening bracket (infantry) or before its closing one
+      // (cavalry), and the level after the clause that names who may lead.
+      // Ordinal suffixes reach the text layer as words of their own, wherever
+      // their runs sort, and are passed over by the integer read.
+      commandCapacity: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 169,
+        locate: "count as personally",
+        locateBare: true,
+        values: [
+          { key: "platoonInfantry", findRe: "each\\s*platoon\\s*\\(", take: "int", span: 10 },
+          { key: "platoonCavalry", findRe: "\\)\\s*has\\s*an\\s*adventurer", before: true, span: 14, take: "int" },
+          { key: "platoonLevel", findRe: "henchman\\s*of\\s*at", take: "int", span: 25 },
+          { key: "halfInfantry", findRe: "half.{0,2}platoon\\s*\\(", take: "int", span: 10 },
+          { key: "halfCavalry", findRe: "\\)\\s*can\\s*be\\s*lea?d\\s*by", before: true, span: 14, take: "int" },
+          { key: "halfLevel", findRe: "can\\s*be\\s*lea?d\\s*by\\s*a", take: "int", span: 10 },
+          { key: "squadInfantry", findRe: "squad\\s*\\(", take: "int", span: 10 },
+          { key: "squadCavalry", findRe: "\\)\\s*by\\s*a(?![a-z])", before: true, span: 14, take: "int" },
+          { key: "squadLevel", findRe: "\\)\\s*by\\s*a(?![a-z])", take: "int", span: 10 },
+        ],
+      },
       // Mercenary-officer base loyalty (RR 171 prose).
       baseLoyalty: {
         shape: "proseValues",

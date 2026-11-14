@@ -75,7 +75,8 @@ const TABLES = {
   // The level-gain morale bonuses: two levels and the bonus each earns.
   // The henchman shares: a fraction of a full share each, for treasure and for experience.
   // The officer-role morale modifier: one signed figure.
-  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare"],
+  // The command ladder: three rungs, a minimum leader level and a count of each arm.
+  wages: ["henchmanLimit", "employerLevelCap", "levelMorale", "officerMorale", "treasureShare", "xpShare", "commandCapacity"],
   // The domain month: every table its procedure runs on.
   // The equipment document's two one-sentence figures: the sizes Weapon
   // Finesse takes and the unarmed strike's die; and item loss's six figures
@@ -421,6 +422,23 @@ VERIFY["wages.levelMorale"] = (out, recipe, fail) => {
   for (const key of ["fromLevel", "reachLevel"]) if (isNum(out?.[key]) && !whole(out[key])) fail(`${key}: not a whole number`);
   for (const key of ["fromBonus", "reachBonus"]) if (isNum(out?.[key]) && !(Number.isInteger(out[key]) && out[key] > 0)) fail(`${key}: not a positive whole number`);
   if (whole(out?.fromLevel) && whole(out?.reachLevel) && !(out.fromLevel + 1 < out.reachLevel)) fail("reachLevel: not above the first rung");
+};
+// The command ladder: nine whole numbers, a level and two positive counts per
+// rung, the minimum levels distinct and the counts rising with the level, so the
+// reader keeps every rung. Shape only; no figure is named.
+VERIFY["wages.commandCapacity"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const rungs = ["platoon", "half", "squad"].map((unit) => ({ unit, level: out?.[`${unit}Level`], infantry: out?.[`${unit}Infantry`], cavalry: out?.[`${unit}Cavalry`] }));
+  for (const r of rungs) {
+    if (isNum(r.level) && !(Number.isInteger(r.level) && r.level >= 0)) fail(`${r.unit}Level: not a whole number`);
+    for (const arm of ["infantry", "cavalry"]) if (isNum(r[arm]) && !(Number.isInteger(r[arm]) && r[arm] > 0)) fail(`${r.unit}${arm[0].toUpperCase()}${arm.slice(1)}: not a positive whole number`);
+  }
+  if (rungs.every((r) => isNum(r.level) && isNum(r.infantry) && isNum(r.cavalry))) {
+    const [a, b, c] = rungs;
+    if (!(a.level > b.level && b.level > c.level)) fail("levels: not falling from the largest unit to the smallest");
+    if (!(a.infantry > b.infantry && b.infantry > c.infantry)) fail("infantry counts: not falling from the largest unit to the smallest");
+    if (!(a.cavalry > b.cavalry && b.cavalry > c.cavalry)) fail("cavalry counts: not falling from the largest unit to the smallest");
+  }
 };
 // The officer-role morale modifier: a positive whole number, the sign the reader keeps.
 VERIFY["wages.officerMorale"] = (out, recipe, fail) => {

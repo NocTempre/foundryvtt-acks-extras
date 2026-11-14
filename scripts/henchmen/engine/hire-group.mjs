@@ -11,7 +11,7 @@
 import { MODULE_ID, HOOKS } from "../constants.mjs";
 import { GROUP_ACTOR_TYPE as GROUP_TYPE } from "../../lib/group-logic.mjs";
 import { hire, employerOwnership } from "./hire.mjs";
-import { mercenaryMorale, officerMoraleModifier, officerTitle } from "../rules/wages.mjs";
+import { commandRungs, mercenaryMorale, officerMoraleModifier, officerTitle } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 import { takeFromRow } from "../rules/bulk-offer.mjs";
 import { hiredClassName } from "../rules/candidates.mjs";
@@ -175,14 +175,21 @@ export async function hireAsGroup(location, employer, { troops = [], officerCand
     }
   }
 
-  // RR 169: warn when the unit is larger than its commander can lead; the hire still stands.
+  // RR 169: warn when the unit is larger than its commander can lead; the hire
+  // still stands. With no ladder imported the status is null and nothing shows.
   const settled = game.actors.get(group.id) ?? group;
-  if (settled.system.overCommand) {
+  const command = settled.system.commandStatus(commandRungs());
+  if (command?.over) {
+    const { infantry, cavalry } = settled.system.troopCounts;
     ui.notifications?.warn(
-      game.i18n.format("ACKS-HENCHMEN.group.overCommand", {
-        strength: settled.system.troopStrength,
-        cap: settled.system.commandCapacity,
-      })
+      command.rung
+        ? game.i18n.format("ACKS-HENCHMEN.group.overCommand", {
+            infantry,
+            cavalry,
+            capInfantry: command.rung.infantry,
+            capCavalry: command.rung.cavalry,
+          })
+        : game.i18n.format("ACKS-HENCHMEN.group.overCommandRank", { infantry, cavalry })
     );
   }
 

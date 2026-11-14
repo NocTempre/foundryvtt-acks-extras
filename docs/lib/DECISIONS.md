@@ -122,3 +122,19 @@ reads", shows the loads gone.
 ## 2026-11-13 — A wear slot is an exclusion counted against magic items
 
 **Ruled.** A slot is an exclusion, not a bonus: an item's form is mechanically irrelevant except that a character may not wear two magic items of the same form at once. `capacity` is therefore the magic capacity of the place, what `item-model.mjs` `slotUse` counts magic items against; what the body can physically carry twice is a second count there, where armour and weapons take a place and clothing and plain gear take none. `capacity: null` is unlimited, and the belt and the back are uncapped because several different forms hang from each. A slot assignment that is slightly wrong costs only mis-scoped exclusivity, which is why gear may declare its slot as a correctable guess.
+
+## 2026-11-14 — The command capacity is read off the page, all three rungs
+
+**New evidence.** The archived 2026-09-22 entry "The squad command-capacity figure is an interpretation, not a printed number" (in `DECISIONS-through-v11.14.5.md`) held the first-level rung to be unprinted. RR p. 169, the Mercenaries section's bullet on personal leadership, prints three rungs, each a minimum leader level and a count for infantry and a count for cavalry, the first level's among them. The mounted count is not half the infantry count at every rung. That entry is superseded, and it has no row under "In force" to change.
+
+**Ruled.** The module holds no level and no count of that ladder. A `proseValues` recipe, `wages.commandCapacity`, reads the nine figures from the Judge's own copy (`importer/table-recipes.mjs`); `henchmen/rules/wages.mjs` `commandRungs` turns them into rungs; `group-logic.mjs` `platoonCapacity(level, rungs)` answers the highest rung whose minimum the officer meets. Three states stay apart and each shows differently:
+
+- Nothing imported, or any rung unreadable: no status and no warning at all, and no "not imported" text. The table is taken whole or not at all, because a ladder with a rung missing would rank an officer below every rung they in fact hold.
+- An officer under the lowest rung: over-command, as the 0th-level case was, with a message that names no limit.
+- A rung in force: the unit is compared with it, and the warning names the rung's two counts.
+
+**The session's call, owner may overrule: a unit of both arms.** The page states nothing for a mixed unit. Infantry and cavalry are each held to their own count of the rung in force, and a unit with both is over when the infantry's share of its count plus the cavalry's share of its own passes one, which reproduces the page exactly for a pure unit. `troopStrength`'s doubling of mounted bodies is gone, since the page's cavalry count is not half the infantry's. A reversal (a mixed unit over only where either arm alone is, or where a Judge's own rule of conversion applies) changes `group-logic.mjs` `commandStatus` and its two suites, and nothing imported.
+
+**Rejected.** Keeping the first rung as an interpretation beside the two printed ones; converting cavalry to infantry-equivalents at a fixed ratio, which the page's own counts contradict.
+
+*Cost:* the group's `troopStrength`, `commandCapacity` and `overCommand` getters are removed for `troopCounts` and `commandStatus(rungs)`, so lib `apiVersion` is 45. A world that has not imported the Rules tables hires an over-large unit with no warning.

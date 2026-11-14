@@ -164,21 +164,54 @@ export function moveRefusal(from, to, stack) {
   return out ? { reason: "deployed", name: stack.template?.label ?? "", n: out } : null;
 }
 
+/** The answer of `platoonCapacity` for an officer ranked below every rung read: no unit is theirs to lead. */
+export const BELOW_EVERY_RUNG = Object.freeze({ below: true });
+
+/** A command rung as read: a whole minimum leader level and a whole count of each arm above zero. */
+const isRung = (r) => Number.isInteger(r?.level) && r.level >= 0 && Number.isInteger(r?.infantry) && r.infantry > 0 && Number.isInteger(r?.cavalry) && r.cavalry > 0;
+
 /**
- * RR 169 "personally led" command capacity, in INFANTRY-EQUIVALENTS, by the
- * commander's level. Cavalry count double toward the limit, so the group's
- * strength and this capacity are both in infantry-equivalents. 0th level
- * cannot lead mercenaries into danger at all. The 1st-level (squad) figure is
- * a documented interpretation pending confirmation — see docs/lib/DECISIONS.md,
- * "The squad command-capacity figure is an interpretation, not a printed
- * number".
+ * The rung of the personally-led command ladder (RR 169) an officer of `level`
+ * stands on: the highest rung whose minimum level the officer meets. The
+ * rungs are the imported ones (`{level, infantry, cavalry}`, any order); this
+ * module holds no level and no count. Three answers, kept apart: the rung in
+ * force; `BELOW_EVERY_RUNG` for an officer under the lowest minimum; and null
+ * where no usable rung is imported, which is an absence and never a limit of
+ * zero. See docs/lib/DECISIONS.md, "The command capacity is read off the page,
+ * all three rungs".
+ * @param {number} level - the officer's level
+ * @param {{level: number, infantry: number, cavalry: number}[]} rungs
+ * @returns {{level: number, infantry: number, cavalry: number}|typeof BELOW_EVERY_RUNG|null}
  */
-export function platoonCapacity(level) {
+export function platoonCapacity(level, rungs) {
+  const usable = (Array.isArray(rungs) ? rungs : []).filter(isRung);
+  if (!usable.length) return null;
   const L = Number(level) || 0;
-  if (L >= 3) return 30;
-  if (L === 2) return 15;
-  if (L === 1) return 7;
-  return 0;
+  const met = usable.filter((r) => r.level <= L);
+  if (!met.length) return BELOW_EVERY_RUNG;
+  return met.reduce((best, r) => (r.level > best.level ? r : best));
+}
+
+/**
+ * Whether a unit is larger than its officer can personally lead (RR 169), or
+ * null where no rung is imported, so a caller shows nothing. Infantry and
+ * cavalry are each held to their own count of the rung in force; a unit of
+ * both is over when the two shares of their counts add past one, which is the
+ * pure unit's comparison exactly. Under every rung, any body is over. Returns
+ * `{over, rung}` where `rung` is the rung in force or null below every rung.
+ * @param {{infantry: number, cavalry: number}} counts - living bodies by arm
+ * @param {number} level - the officer's level
+ * @param {{level: number, infantry: number, cavalry: number}[]} rungs
+ * @returns {{over: boolean, rung: {level: number, infantry: number, cavalry: number}|null}|null}
+ */
+export function commandStatus(counts, level, rungs) {
+  const standing = platoonCapacity(level, rungs);
+  if (standing === null) return null;
+  const infantry = Math.max(0, Number(counts?.infantry) || 0);
+  const cavalry = Math.max(0, Number(counts?.cavalry) || 0);
+  if (standing === BELOW_EVERY_RUNG) return { over: infantry + cavalry > 0, rung: null };
+  // infantry/capI + cavalry/capC > 1, cleared of its denominators so the test is exact.
+  return { over: infantry * standing.cavalry + cavalry * standing.infantry > standing.infantry * standing.cavalry, rung: standing };
 }
 
 /**

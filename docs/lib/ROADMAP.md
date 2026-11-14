@@ -76,13 +76,6 @@ Each moves onto the import the way `acks-printed-value` describes: the importer
 reads it from the Judge's own copy, a Judge can edit it, and with nothing
 imported the field stays blank with the page as its tooltip.
 
-- **A leader's command capacity.** `platoonCapacity` in
-  `scripts/lib/group-logic.mjs` (RR p. 169) is a ladder of rungs by the
-  commander's level in code, and `troopStrength` in `lib/data/group-data.mjs`
-  and the Hire as Group path in `henchmen/engine/hire-group.mjs` read it. The
-  first-level rung is an interpretation, not a printed figure (DECISIONS, "The
-  squad command-capacity figure is an interpretation, not a printed number"),
-  so the import's reading of the page decides it.
 - **A slot's capacity and a container's access.** The `ring` entry of
   `WEAR_SLOTS` and `ACCESS_COSTS` in `scripts/lib/vocab.mjs` (RR pp. 293–294
   for the access kinds), and which carriers are free against an action in

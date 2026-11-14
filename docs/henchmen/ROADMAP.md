@@ -89,13 +89,6 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   employer holds. It wants a setting that gates a read of the imported wage
   ladder in the loyalty roll, and a tooltip on the roll naming which level
   answered.
-- **The command capacity ships its figures.** `lib/group-logic.mjs`
-  `platoonCapacity` returns a capacity by commander level (RR p. 169), and the
-  group's `troopStrength` (`lib/data/group-data.mjs`) is the measure it is
-  compared with; Hire as Group reads the strength. The figures are printed
-  and each is a literal in source. They want a recipe and a Judge-editable
-  override, with nothing shown where nothing is imported. The 1st-level figure
-  is an interpretation (`docs/lib/DECISIONS.md`).
 - **A people's caste names are printed names in identifiers.**
   `importer/table-recipes.mjs` `dwarvenCastes` carries the castes' names in its
   merge keys, order and labels, and `rules/identity.mjs` `generateOccupation`

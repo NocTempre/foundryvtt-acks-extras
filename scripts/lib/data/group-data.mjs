@@ -12,7 +12,7 @@
  */
 import { acksCompatStubs, creatureAttackModifiers, migrateLegacyCombatSource, savingThrowFields } from "../actor-compat.mjs";
 import { attackThrowModifiersFor, damageModifiersFor } from "../patches/attack-throw.mjs";
-import { platoonCapacity } from "../group-logic.mjs";
+import { commandStatus } from "../group-logic.mjs";
 import { clampScore, moraleBounds } from "../score-bounds.mjs";
 import { ACTOR_TYPE } from "../vocab.mjs";
 
@@ -298,24 +298,27 @@ export default class GroupData extends foundry.abstract.TypeDataModel {
 
   /* --- RR 169 command capacity (skirmish "personally led") --- */
 
-  /** Group strength in INFANTRY-EQUIVALENTS: living bodies, cavalry counted
-   *  double (a platoon is 30 infantry OR 15 cavalry). */
-  get troopStrength() {
-    return this.stacks.reduce((n, s) => n + (s.size?.current ?? 0) * (s.mounted ? 2 : 1), 0);
+  /** Living bodies by arm: the stacks marked mounted are cavalry, the rest
+   *  infantry. Each is held to its own count of the rung in force
+   *  (`commandStatus`), never converted into the other. */
+  get troopCounts() {
+    return this.stacks.reduce(
+      (n, s) => {
+        n[s.mounted ? "cavalry" : "infantry"] += s.size?.current ?? 0;
+        return n;
+      },
+      { infantry: 0, cavalry: 0 },
+    );
   }
 
-  /** How many infantry-equivalents the commanding officer may personally lead
-   *  (RR 169), from the cached commander level. 0 = no valid commander. */
-  get commandCapacity() {
-    return platoonCapacity(this.unit?.officerLevel ?? 0);
-  }
-
-  /** True when the group is larger than its commander can personally lead — it
-   *  needs a higher-level officer, or (past a platoon) the multi-unit army
-   *  command structure that is army scale, not skirmish scale. A group with
-   *  troops but no commander (capacity 0) is over-command by definition. */
-  get overCommand() {
-    const cap = this.commandCapacity;
-    return cap > 0 ? this.troopStrength > cap : this.troopStrength > 0;
+  /** Whether the group is larger than its commander, by the cached commander
+   *  level, can personally lead: `{over, rung}` (`group-logic.mjs`
+   *  `commandStatus`), or null where `rungs` holds nothing imported. The rungs
+   *  are passed in because the figures are the Judge's imported ones and this
+   *  model holds none. A group with troops but no commander is over by
+   *  definition. See docs/lib/DECISIONS.md, "The command capacity is read off
+   *  the page, all three rungs". */
+  commandStatus(rungs) {
+    return commandStatus(this.troopCounts, this.unit?.officerLevel ?? 0, rungs);
   }
 }

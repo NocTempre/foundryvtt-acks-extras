@@ -358,6 +358,44 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     });
   }
 
+  // The command ladder: three units, each a minimum level and an infantry and a
+  // cavalry count. Each figure is found by a fragment of the recipe's own
+  // anchors set in invented filler, so the recipe's anchors are what is under
+  // test and no sentence of the page is reproduced; the figures are invented.
+  // An ordinal suffix sorts in as a word of its own.
+  const { commandRungs } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  const { commandStatus } = await import(new URL("../scripts/lib/group-logic.mjs", import.meta.url));
+  const commandCapacity = TABLE_RECIPES.wages.tables.commandCapacity;
+  const ladder = extractTable(page([
+    "Mole note one: squad (11 or 6) by a 4 owls.",
+    "Mole note two: half-platoon (19 or 13) can be lead by a 6 owls.",
+    "Mole note three: each platoon (44 foxes or 21 stoats) has an adventurer.",
+    "Mole note four: henchman of at rd 8 owls.",
+  ]), commandCapacity);
+  assert.deepStrictEqual(ladder, {
+    platoonInfantry: 44, platoonCavalry: 21, platoonLevel: 8,
+    halfInfantry: 19, halfCavalry: 13, halfLevel: 6,
+    squadInfantry: 11, squadCavalry: 6, squadLevel: 4,
+  }, "the recipe reads nine figures, each from its own clause");
+  const rungs = [{ level: 4, infantry: 11, cavalry: 6 }, { level: 6, infantry: 19, cavalry: 13 }, { level: 8, infantry: 44, cavalry: 21 }];
+  withTables({ wages: { commandCapacity: ladder } }, () => {
+    assert.deepStrictEqual(commandRungs(), rungs, "the reader answers the rungs in ascending order of level");
+    assert.deepStrictEqual(commandStatus({ infantry: 19, cavalry: 0 }, 6, commandRungs()), { over: false, rung: rungs[1] }, "a rung in force compares");
+    assert.strictEqual(commandStatus({ infantry: 1, cavalry: 0 }, 3, commandRungs()).rung, null, "below the lowest read rung");
+  });
+  for (const [docs, label] of [
+    [{}, "nothing imported"],
+    [{ wages: { commandCapacity: {} } }, "an empty table"],
+    [{ wages: { commandCapacity: { ...ladder, halfCavalry: undefined } } }, "one figure blank"],
+    [{ wages: { commandCapacity: { ...ladder, squadLevel: "2" } } }, "a level read as text"],
+    [{ wages: { commandCapacity: { ...ladder, platoonInfantry: 0 } } }, "a count of zero"],
+  ]) {
+    withTables(docs, () => {
+      assert.deepStrictEqual(commandRungs(), [], `${label}: no ladder, and so no warning`);
+      assert.strictEqual(commandStatus({ infantry: 40, cavalry: 40 }, 9, commandRungs()), null, `${label}: no status`);
+    });
+  }
+
   const apparentLevel = TABLE_RECIPES.influence.tables.apparentLevel;
   const figure = extractTable(page([`A badger with 4 setts rolls at -3 ${apparentLevel.values[0].find}, and 2 cousins watch.`]), apparentLevel);
   assert.deepStrictEqual(figure, { perLevel: -3 }, "the recipe reads the signed figure before its clause");

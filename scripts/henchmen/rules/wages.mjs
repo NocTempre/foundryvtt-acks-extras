@@ -99,6 +99,26 @@ export function levelMoraleRungs() {
 }
 
 /**
+ * The personally-led command ladder (RR 169) as rungs `{level, infantry,
+ * cavalry}`, one per unit size the imported `commandCapacity` table names, in
+ * ascending order of minimum leader level. The table is read whole or not at
+ * all: a rung with a blank or non-integer figure leaves the ladder unread, since
+ * a ladder with a rung missing would rank a leader below every rung it still
+ * holds. Nothing imported is `[]`, which the group's `commandStatus` answers
+ * with null.
+ * @returns {{level: number, infantry: number, cavalry: number}[]}
+ */
+export function commandRungs() {
+  const t = optTable("wages", "commandCapacity");
+  const rungs = COMMAND_UNITS.map((unit) => ({ level: t?.[`${unit}Level`], infantry: t?.[`${unit}Infantry`], cavalry: t?.[`${unit}Cavalry`] }));
+  const whole = (r) => Number.isInteger(r.level) && r.level >= 0 && Number.isInteger(r.infantry) && r.infantry > 0 && Number.isInteger(r.cavalry) && r.cavalry > 0;
+  return rungs.every(whole) ? rungs.sort((a, b) => a.level - b.level) : [];
+}
+
+/** The unit sizes whose keys the `commandCapacity` table carries (`<unit>Level`, `<unit>Infantry`, `<unit>Cavalry`). */
+const COMMAND_UNITS = ["platoon", "half", "squad"];
+
+/**
  * The rungs a level gain from `known` to `level` crosses, or null while no
  * rung is imported, which a caller tells apart from a gain that crosses none.
  * @returns {{level: number, bonus: number}[]|null}

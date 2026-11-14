@@ -1032,6 +1032,31 @@ walked in docs/lib/TESTING.md, "The repair tool".
     the recipe's shape against the real book is
     `tools/importer/test-recipe-content.mjs`. Teardown: the layers lifted, the
     group and officer swept by their tracked uuids.
+26. The over-command warning, imported, absent and overridden. On step 25's
+    location, open the Mercenaries tab, **Hire as Group**, take a troop row and
+    an officer, and read the warning the hire raises and the group's
+    `system.troopCounts` and `system.commandStatus(commandRungs())` (the
+    reader is `rules/wages.mjs`).
+    - *Imported.* With `wages.commandCapacity` read off the connected book
+      (`TABLE_RECIPES.wages.tables.commandCapacity` into the world layer), hire
+      a unit larger than the officer's rung. *Observable:* the warning names the
+      unit's two counts and the rung's two counts; compare them in page and
+      report the match, never the figures. Hire a unit within the rung:
+      *Observable:* no warning.
+    - *Under every rung.* Hire any unit under an officer whose level is below
+      the lowest rung's. *Observable:* the rank warning, which names no limit.
+    - *Override.* Register invented rungs at priority 30 (all nine keys, for
+      instance `platoonLevel: 5, platoonInfantry: 12, platoonCavalry: 6` and
+      the other two units lower). *Observable:* the warning follows the
+      invented counts; lifting the layer returns the imported ones.
+    - *Absent.* Register an empty `wages.commandCapacity` (`table: {}`) at
+      priority 30, or one with a single key missing. *Observable:* `commandRungs()` is `[]`,
+      `commandStatus` is null, and the hire raises no warning and no text.
+    The reader, the recipe and the status are checked offline
+    (`tools/test-henchmen.mjs`, `tools/test-group-command.mjs`); the recipe's
+    shape against the real book is `tools/importer/test-recipe-content.mjs`.
+    Teardown: the layers lifted, the group and officer swept by their tracked
+    uuids. Not walked live when written.
 
 ## Teardown
 

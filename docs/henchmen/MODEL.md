@@ -323,6 +323,22 @@ mercenaryMorale`, the troop type's own `wages.mercenaryWages` row (RR 166). A
 type with no imported figure answers null, the stack stores null
 (`unitMoraleOf` counts it as nothing).
 
+Hire as Group warns when the unit is larger than its officer can personally
+lead (RR 169), and the figures are the imported `wages.commandCapacity` table:
+three rungs, each a minimum leader level and a count of infantry and of cavalry.
+`rules/wages.mjs > commandRungs` reads them as rungs `{level, infantry, cavalry}`
+in ascending order of level, the whole table or none (a ladder with a rung
+missing would rank an officer below every rung they hold). The group's
+`commandStatus(rungs)` (lib `group-logic.mjs`) holds the officer's cached level
+against the highest rung it meets, and each arm of the unit against its own
+count of that rung, a unit of both arms being over where the two shares of
+their counts pass one (lib DECISIONS, "The command capacity is read off the
+page, all three rungs"). Three states: no rung imported answers null and the
+hire shows no warning and no text; an officer under the lowest rung is over
+for any troop (`group.overCommandRank`); a rung in force compares and names the
+rung's two counts (`group.overCommand`). A Judge changes the figures in the
+Ruledata Browser's override layer.
+
 The Hireling Loyalty roll counts a henchman's levels of apparent difference,
 the employer level claimed at hire (`terms.claimedEmployerLevel`) less the
 employer's own (RR 168). What each level costs is the `influence` document's
