@@ -5000,7 +5000,7 @@
   "ACKS-HENCHMEN.monster.hiredNote": "Entered service of {employer} ({hd} HD)",
   "ACKS-HENCHMEN.monster.feigned.betrayal": "<strong>GM only:</strong> {name}'s Irrefusable Offer result is Betrayal, a feigned acceptance (MM 351).",
   "ACKS-HENCHMEN.monster.feigned.escape": "<strong>GM only:</strong> {name}'s Irrefusable Offer result is Escape, a feigned acceptance (MM 351).",
-  "ACKS-HENCHMEN.followers.levelGate": "{name} is level {level}, below the level the followers table opens at (RR 334).",
+  "ACKS-HENCHMEN.followers.levelGate": "{name} is level {level} — followers arrive at a higher level, and require a stronghold (RR 334).",
   "ACKS-HENCHMEN.followers.title": "Generate followers — {name}",
   "ACKS-HENCHMEN.followers.strongholdReq": "{stronghold}, min {value} gp",
   "ACKS-HENCHMEN.followers.strongholdFound": "Stronghold on record: {name} ({value} gp).",
