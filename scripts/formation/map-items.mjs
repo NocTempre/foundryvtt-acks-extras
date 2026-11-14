@@ -12,7 +12,7 @@ import {
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 
 /**
- * Maps as objects (FOG-DESIGN.md Phases 1–2).
+ * Maps as objects (docs/formation/FOG.md).
  *
  * All live exploration belongs to a **map session** backed by a **Map item**
  * in the mapper's inventory — an ordinary item, so maps are carried, looted,
@@ -36,6 +36,7 @@ import { getSocket, registerHandler } from "../lib/sockets.mjs";
  * exist for the viewed scene).
  */
 
+/** The item flag key (under the module scope) that holds a Map item's record. */
 export const MAP_FLAG = "map";
 
 const loc = makeLoc("ACKS-FORMATION");
@@ -83,11 +84,13 @@ function warpMatrix(warp, width, height) {
 /*  Texture compositing                         */
 /* -------------------------------------------- */
 
+/** The fog texture's `{width, height}` in pixels, as the visibility layer configures it. */
 export function fogTextureDims() {
   const cfg = canvas.visibility.textureConfiguration;
   return { width: cfg.width, height: cfg.height };
 }
 
+/** Resolves a PIXI texture from a base64 image once it has loaded. */
 export async function textureFromBase64(b64) {
   const baseTexture = new PIXI.BaseTexture(b64, { alphaMode: PIXI.ALPHA_MODES.NPM });
   const texture = new PIXI.Texture(baseTexture);
@@ -250,13 +253,11 @@ async function openSession(formation, mapper, scene) {
       },
     },
   ]);
-  // This runs from the environment sync, whose copy of the record can be
-  // OLDER than saves made since (deploy's combat flag was being erased by
-  // exactly this write). Patch the one field onto the fresh record, with the
-  // guards re-checked against current reality; never write the stale copy.
-  // A combat taking the party over writes its flag last, after its deploy has
-  // marked the members it took (`deployedCombatId`): they stand for the fight
-  // until the flag lands.
+  // This runs from the environment sync, whose copy of the record can be older
+  // than saves made since: patch the one field onto the fresh record with the
+  // guards re-checked, never write the stale copy. A combat taking the party
+  // over writes its flag last, after its deploy has marked the members it took
+  // (`deployedCombatId`): they stand for the fight until the flag lands.
   const patched = await patchFormation(formation.id, (rec) => {
     if (rec.mapSession || rec.combat?.active || rec.members?.some((m) => m?.deployedCombatId)) return false;
     rec.mapSession = { itemUuid: item.uuid, sceneId: rec.sceneId };
@@ -297,9 +298,7 @@ export async function startMapSession(formation) {
 
   if (formation.mapSession) await closeMapSession(formation, { silent: true });
 
-  // The new map starts from black: after the session opens, every client
-  // viewing the scene re-pulls its fog. (This was a bare game.socket.emit on
-  // an unregistered channel before — dead traffic the server never relayed.)
+  // The new map starts from black: every client viewing the scene re-pulls its fog.
   const socket = getSocket();
   if (socket) await socket.executeForEveryone("reloadFog", formation.sceneId);
   else await reloadFog(formation.sceneId);
@@ -333,7 +332,7 @@ export async function archiveSession(formation, { warn = false } = {}) {
     return false;
   }
 
-  // Mapping is deactivated during combat (RR: you cannot map mid-battle).
+  // Mapping is deactivated during combat.
   if (formation.combat?.active) return false;
 
   // Recording is paused (no working mapper → fog DISABLED): the live fog

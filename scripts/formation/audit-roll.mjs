@@ -15,17 +15,13 @@ import { boundChecks, rollCheckFor } from "./party-rolls.mjs";
  * one card.
  *
  * An ability a party check takes (`boundChecks`) rolls that check's resolved
- * throw for each holder, through `rollCheckFor`: the target the Resolution table
- * shows, with the same parts. Any other ability rolls the default throw of the
- * holder's own copy through `evaluateThrow`. Neither posts, so the party's
- * results land on a single grouped card (`renderRollCard`, the shape a party
- * check posts) whispered to the Judges like every other card the exploration
- * party posts. A member who is not rolling is named in the card's footnote with
- * the reason: the ability is not on their sheet, it offers no throw or no check
- * can be made from it, they are down, or the roll failed. A rung
- * that is automatic or not yet open to the member is a row of its own, since
- * the member did answer. A party in which nobody rolls still posts, and the
- * card says so. Nothing is advanced: an audit roll is not a turn spent.
+ * throw for each holder, through `rollCheckFor`; any other ability rolls the
+ * default throw of the holder's own copy through `evaluateThrow`. Neither
+ * posts: the results land on one grouped card (`renderRollCard`) whispered to
+ * the Judges. A member who is not rolling is named in the footnote with the
+ * reason; an automatic or not-yet-open rung is a row of its own. A party in
+ * which nobody rolls still posts. Nothing is advanced: an audit roll is not a
+ * turn spent.
  */
 
 const loc = makeLoc("ACKS-FORMATION");

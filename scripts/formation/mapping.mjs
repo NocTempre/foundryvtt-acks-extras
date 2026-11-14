@@ -76,10 +76,9 @@ const effectsOf = (actorId) => effectLight(game.actors?.get?.(actorId));
  * light reader takes (`{x, y, bright}`, bright in scene units) and whether a
  * lit, open flame has no imported reach.
  *
- * Read from the record, never from the canvas: the party's column lights are
- * drawn client-side and only when light sync is on, and a deployed member's
- * token carries the light the sync wrote. Mapping must answer the same with
- * either off.
+ * Read from the record, never from the canvas: column lights are drawn
+ * client-side and only when light sync is on, so mapping must answer the same
+ * with it off.
  */
 function recordLights(formation, scene, at, gs) {
   const units = scene?.grid?.units;

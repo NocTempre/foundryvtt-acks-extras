@@ -3,32 +3,26 @@
  * Obstacles the party has to get past one member at a time (RR ch. 6, the
  * Spelunking tables): a wall to climb, a rope to rappel, a ledge to edge along.
  *
- * The tables' shape is the whole feature. Each obstacle answers four questions
- * and they do NOT move together:
+ * Each obstacle answers four independent questions:
  *
- *  - **may an ordinary adventurer try at all?** Some obstacles are open to
- *    Adventuring and the rest are not permitted without Climbing or
- *    Mountaineering, and no roll changes that. Which is which, and the target
- *    an open one throws against, are printed: they arrive in the `spelunking`
- *    registered table (`adventuringTarget`);
+ *  - **may an ordinary adventurer try at all, and against what target?** Read
+ *    from the `spelunking` registered table (`adventuringTarget`);
  *  - **what does a failed throw cost?** and **what does a natural 1 cost?**
- *    Each is its own row of the tables, and both arrive in the
- *    `spelunkingOutcomes` registered table (`obstacleOutcome`): the row's words,
- *    which the card prints, and whether they name a fall. A fall ends that
- *    climber's attempt; any other outcome leaves the next stretch to throw;
- *  - **is the climber helpless while doing it?** Some obstacles leave them
- *    Vulnerable in combat and one does not.
+ *    Read from the `spelunkingOutcomes` registered table (`obstacleOutcome`):
+ *    the row's words, which the card prints, and whether they name a fall. A
+ *    fall ends that climber's attempt; any other outcome leaves the next
+ *    stretch to throw;
+ *  - **is the climber helpless while doing it?** (`vulnerable`).
  *
  * One throw per stretch of the obstacle, the stretch being the imported figure
  * (`stretchFeet`). Nothing here knows a distance, a target or an outcome: with
  * the table not imported an ordinary adventurer's attempt is reported as
  * unknown, never rolled against a guess, and a missed throw whose outcome is
- * not imported ends that climber's attempt rather than assume it cost nothing.
+ * not imported ends that climber's attempt.
  *
- * A party has three ways to make a sheer face easy, and the module models the
- * outcome rather than the method: a rope secured by a proficient climber, a
- * grappling hook, or a mountaineer supervising. All three turn `sheer` into
- * `easy` for everyone who follows, which is what `assisted` means below.
+ * A rope secured by a proficient climber, a grappling hook, or a mountaineer
+ * supervising each turn `sheer` into `easy` for everyone who follows: that is
+ * what `assisted` means below.
  */
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { citeOf } from "../lib/tables.mjs";
@@ -107,8 +101,8 @@ export function stretchFeet() {
 }
 
 /**
- * Throws a distance demands — a wall is not one roll because it is one wall.
- * Null until the stretch one throw covers is imported.
+ * The throws a distance demands, one per stretch. Null until the stretch one
+ * throw covers is imported.
  */
 export function throwsFor(feet) {
   const stretch = stretchFeet();
@@ -126,23 +120,20 @@ export function throwsFor(feet) {
  * @returns {{permitted: boolean, target: number|null, reason: string|null, obstacle: object}}
  */
 export function obstaclePlan({ kind, proficient = false, classThrow = null, assisted = false } = {}) {
-  // A fixed rope or a supervising mountaineer turns the hard vertical climb
-  // into the easy one — that is what the party bought by sending a climber up
-  // first. It does not help along a ledge, which nobody can rope for you.
+  // Assistance turns the sheer climb into the easy one; it does not help along a ledge.
   const effective = assisted && kind === "sheerClimb" ? "easyClimb" : kind;
   const obstacle = OBSTACLES[effective];
   if (!obstacle) return { permitted: false, target: null, reason: "unknown", obstacle: null };
 
   if (proficient) {
-    // A proficient climber throws against their own class value; without one
-    // recorded, the Judge is told rather than given an invented number.
+    // A proficient climber throws against their own class value; with none
+    // recorded the plan says `needsClassThrow`.
     return classThrow != null
       ? { permitted: true, target: classThrow, reason: null, obstacle, effective }
       : { permitted: true, target: null, reason: "needsClassThrow", obstacle, effective };
   }
   const open = adventuringTarget(effective);
-  // Not imported is its own answer: an ordinary adventurer's attempt is
-  // neither refused nor rolled when the table that says which is absent.
+  // Not imported is its own answer: neither refused nor rolled.
   if (open === null) return { permitted: false, target: null, reason: "notImported", obstacle, effective };
   if (open === false) return { permitted: false, target: null, reason: "notPermitted", obstacle, effective };
   return { permitted: true, target: open, reason: null, obstacle, effective };
@@ -174,8 +165,7 @@ export function readThrow({ plan, natural, total }) {
 /**
  * Send a party at an obstacle, one member at a time, and report what happened
  * to each. Members who may not attempt it at all are listed as such rather
- * than rolled for — being unable to try is a fact the party needs BEFORE
- * someone falls, not a failed roll.
+ * than rolled for.
  *
  * The length is the obstacle's, in feet; left out it is one stretch of the
  * imported table. With the stretch not imported no throw count can be made, so

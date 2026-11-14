@@ -11,10 +11,8 @@
  * and cleared with a forced deletion: an ordinary update merges, which keeps a
  * restocked hex's old finds and search credit standing.
  *
- * The hex is the TRUE hex. A party that is lost is standing somewhere other
- * than its marker, and a stock read at the believed position would hand the
- * Judge's map the wrong cell: the position comes from the party's true-position
- * token when an episode keeps one, else from its own token.
+ * The hex is the TRUE hex: the position comes from the party's true-position
+ * token when a lost episode keeps one, else from its own token.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc, gmIds, elementOf, escape as esc, unset } from "../lib/util.mjs";
@@ -277,8 +275,8 @@ export function creditSearchHere(formation) {
 /**
  * Make a point a place: a location actor with its token at the hex centre,
  * hidden while no formation has found the point. Refused while the party is
- * astray (the centre read is the true hex, and a place made there would
- * announce where the party really is) and when the hex has no centre.
+ * astray (a place made at the true hex would reveal where the party really
+ * is) and when the hex has no centre.
  * Resolves the actor, or null.
  */
 export async function placeFromPoint(formation, pointId) {
@@ -464,9 +462,8 @@ export function installHexStockCardActions() {
  * no key reads `noScene` and an empty summary. The summary's `stockedDay` is
  * the calendar's (null on a clock that keeps none); `stockedAgo` is how many
  * calendar days ago that was, counted from today, and `stockedLine` says it
- * ("Stocked today", "yesterday", "N days ago"). An age, not a day number: the
- * calendar's day count and the sheet's End-day count are different numbers,
- * and an age reads the same against either.
+ * ("Stocked today", "yesterday", "N days ago"). See docs/formation/DECISIONS.md,
+ * "The day is keyed twice, the stock says its age, and the card's Begin is the throw's own opening".
  */
 export function hexStockView(formation) {
   if (!game.user?.isGM) return null;

@@ -6,7 +6,7 @@
  * the Judge overrides. Every route that writes the forced kind asks here:
  * `setDayKind`, the sheet's day-kind form (`applyTravelForm`), and the dusk
  * offer's push answer. See docs/formation/DECISIONS.md, "A forced march is
- * barred by a marcher's survival state".
+ * barred by a marcher's survival state (2026-10-15)".
  */
 import { getMemberActor, realMembers } from "./formation-model.mjs";
 import { survivalStateOf } from "./provision-day.mjs";

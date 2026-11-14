@@ -52,8 +52,9 @@ const loc = makeLoc("ACKS-FORMATION");
 /** The actor flag holding a member's own say: `{ pinned }`. */
 export const CONVEYANCE_FLAG = "conveyance";
 
-/** A pin on the member's own legs, and a member's press that hands the choice back. */
+/** A pin on the member's own legs. */
 export const ON_FOOT = "foot";
+/** A member's press that hands the choice back to the arrangement. */
 export const AUTOMATIC = "auto";
 
 /** The attachments an arrangement may undo. A station or a harness is a job, and cargo is freight. */

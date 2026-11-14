@@ -9,31 +9,17 @@ import { announceChange } from "../lib/util.mjs";
  * into after a fight has scattered it.
  *
  * A saved order records the SHAPE and nothing else: who stands where, what each
- * of them is doing, and how many march abreast. No token snapshots, no hit
- * points, no lights, no clock. Restoring one is therefore always safe — it can
- * lose an arrangement, never a character.
+ * of them is doing, and how many march abreast (no token snapshots, hit
+ * points, lights or clock). See docs/formation/DECISIONS.md, "A saved marching
+ * order restores an arrangement, not a roster".
  *
- * "Template" is already this family's word for the Monster Manual's
- * stat-by-rank pages (`lib/template-logic.mjs`), so everything here says
- * **marching order** instead and the two never have to be told apart.
- *
- * The reconciliation is deliberately pure (`captureOrder`, `reconcile`): the
- * party a saved order is applied to is never the party it was saved from —
- * people die, get hired, and drop the quill they were mapping with — and that
- * mismatch is exactly the part worth testing offline.
- *
- * **Which calls write** is the distinction an outside caller has to hold, and
- * the file states it because assuming otherwise reads as a module bug.
- * `captureOrder` and `reconcile` are pure — they compute and return, and
- * `reconcile` is the one to ask what an order *would* do. Everything that
- * stores or applies one persists immediately: `saveTemplate` and
- * `deleteTemplate` rewrite the world setting, `applyTemplate` and `formUp`
- * rewrite the formation. Neither of the last two is a dry run.
- *
- * The applying calls take the saved order OBJECT or its id interchangeably, and
- * the storing call refuses a reversed argument pair by name rather than saving
- * an empty order under a stringified formation. Both guards exist because this
- * API is reached from macros, where a wrong shape has no type to catch it.
+ * `captureOrder` and `reconcile` are pure; `reconcile` is the one to ask what
+ * an order *would* do. Everything that stores or applies one persists
+ * immediately: `saveTemplate` and `deleteTemplate` rewrite the world setting,
+ * `applyTemplate` and `formUp` rewrite the formation. The applying calls take
+ * the saved order OBJECT or its id, and the storing call refuses a reversed
+ * argument pair by name. See docs/formation/DECISIONS.md, "The marching-order
+ * API is guarded at the boundary, not renamed".
  */
 
 /** World-setting key holding every saved marching order, keyed by id. */
@@ -46,9 +32,8 @@ export const SETTING_TEMPLATES = "marchingTemplates";
 /**
  * The formation's current arrangement, reduced to what can be restored.
  *
- * A cell naming nobody is recorded as a blank whether it was a deliberate gap
- * or a record whose actor went missing: either way it holds a square and names
- * no one, and that is all a saved order can say about it.
+ * A cell naming nobody is recorded as a blank, whether a gap or a record whose
+ * actor went missing.
  *
  * @returns {{frontage: number, cells: Array<{actorId?: string, blank?: boolean, roles?: string[]}>}}
  */
@@ -66,31 +51,23 @@ export function captureOrder(formation) {
 /**
  * Lay the party as it stands now into a saved arrangement.
  *
- * Pure, and returns NEW member records rather than editing the ones passed in,
- * so a caller can report what would change before committing to it.
- *
- * Three mismatches are all resolved without losing anybody:
+ * Pure, and returns NEW member records rather than editing the ones passed in.
  *
  *  - a saved cell naming someone no longer in the party is **dropped and the
- *    line closes up**, rather than left as a hole the Judge has to clear. It is
- *    counted in `missing`, so the absence is reported instead of implied.
+ *    line closes up**, and counted in `missing`.
  *  - a member the saved order never knew about is **appended**, keeping their
- *    current roles. A template is an arrangement, not a roster: it may not
- *    quietly discharge the henchman hired since it was saved.
- *  - a role whose gear the character no longer holds is **refused**, exactly as
- *    `toggleRole` refuses it, and counted in `skipped`. Restoring a mapper who
- *    has lost their quill would put the formation in a state its own rules say
- *    is impossible.
+ *    current roles.
+ *  - a role whose gear the character no longer holds is **refused**, as
+ *    `toggleRole` refuses it, and counted in `skipped`.
  *
- * Blank cells come from the saved order alone — the arrangement owns the shape,
- * so gaps in the current line are not carried over on top of it.
+ * Blank cells come from the saved order alone; gaps in the current line are
+ * not carried over.
  *
  * @param {object[]} members the formation's current member records
  * @param {object[]} cells the saved order's cells
  * @param {object} [opts]
  * @param {(actorId: string, role: string) => boolean} [opts.roleAllowed] may
- *   this character take this role back up? Injected so the rule that reads a
- *   character's gear stays on the Foundry side of the wall.
+ *   this character take this role back up? Injected to keep this file pure.
  * @returns {{members: object[], restored: number, missing: string[], skipped:
  *   Array<{actorId: string, role: string}>, added: number}}
  */
@@ -116,8 +93,7 @@ export function reconcile(members, cells, { roleAllowed = () => true } = {}) {
       missing.push(cell.actorId);
       continue;
     }
-    // A saved order naming the same character twice would otherwise clone them
-    // into two squares; the first mention wins and the rest are ignored.
+    // A character named twice takes one square: the first mention wins.
     if (used.has(cell.actorId)) continue;
     used.add(cell.actorId);
 
@@ -140,11 +116,7 @@ export function reconcile(members, cells, { roleAllowed = () => true } = {}) {
 /*  Argument shapes                             */
 /* -------------------------------------------- */
 
-/**
- * What the caller actually passed, named closely enough to spot the mistake
- * from the message alone — "a formation" where an order belongs is the whole
- * diagnosis, and `[object Object]` is none of it.
- */
+/** What the caller passed, named for an error message ("a formation", "an array"). */
 function describeArg(value) {
   if (value === null) return "null";
   if (Array.isArray(value)) return "an array";
@@ -156,11 +128,7 @@ function describeArg(value) {
 /**
  * The saved order an applying call was handed: the order OBJECT, or its id.
  *
- * Both are accepted because both are things a caller legitimately holds —
- * `getTemplate` and `listTemplates` hand back objects, while a macro that
- * stashed an id has nothing to convert with. An id that names nothing throws
- * rather than resolving to null, so a stale id reports itself instead of
- * arriving deeper in as a missing-order no-op.
+ * An id that names nothing throws rather than resolving to null.
  *
  * @param {object|string} order the saved order, or its id
  * @param {string} caller the exported function's name, for the error text
@@ -181,20 +149,13 @@ function resolveOrder(order, caller) {
 }
 
 /**
- * Guard the `(formation, …)` argument order on the calls that store one.
- *
- * Reversing the pair is otherwise SILENT: `captureOrder` reads `members` off a
- * string as undefined and stores an order with no cells, named after whatever
- * the formation stringifies to. The reversed case is detected and said out
- * loud, because "the arguments are the wrong way round" is the only sentence
- * the caller needs.
+ * Guard the `(formation, …)` argument order on the calls that store one: a
+ * reversed pair would otherwise store an order with no cells.
  */
 function assertFormation(formation, caller, second) {
   if (Array.isArray(formation?.members)) return;
-  // Keyed on the SECOND argument looking like a formation rather than on the
-  // first looking like a name: that catches `saveTemplate(name, formation)` and
-  // `applyTemplate(order, formation)` with one rule, and the diagnosis is the
-  // same sentence either way.
+  // Keyed on the SECOND argument looking like a formation: one rule catches both
+  // `saveTemplate(name, formation)` and `applyTemplate(order, formation)`.
   if (Array.isArray(second?.members)) {
     throw new Error(`${MODULE_ID} | ${caller}: arguments are reversed — the formation comes first`);
   }
@@ -223,9 +184,7 @@ export function getTemplate(id) {
 /**
  * Save the formation's current arrangement under `name`.
  *
- * Re-saving under a name already in use OVERWRITES it: a Judge tightening up
- * "Standard order" means to replace it, and a settings blob quietly filling
- * with same-named copies is how the picker becomes useless.
+ * Re-saving under a name already in use OVERWRITES it.
  *
  * WRITES the world setting. `formation` first, `name` second.
  *
@@ -274,10 +233,8 @@ function roleIsAvailable(actorId, role) {
 /**
  * Put the formation into a saved arrangement: order, roles and frontage.
  *
- * Role changes are announced one by one exactly as `toggleRole` announces them,
- * because a role can fill hands (the mapper's kit) and the equipment feature
- * recomputes a loadout off that hook. Restoring four members' roles in one write and
- * telling nobody would leave every one of those loadouts stale.
+ * Role changes are announced one by one as `toggleRole` announces them: the
+ * equipment feature recomputes a loadout off that hook.
  *
  * WRITES the formation — not a dry run. Ask `reconcile` what an order would do.
  *
@@ -318,21 +275,17 @@ export async function applyTemplate(formation, template) {
  * Form the party up: gather anyone standing on the map back inside the party
  * token, and put the marching order back the way it was saved.
  *
- * Refused during a combat, on the same ground `toggleDetachMember` refuses:
- * the fight owns who is on the field, and recalling a fighter mid-battle would
- * take them out of the initiative they are in. A fight no combat still holds a
- * body of is over: it reforms first, as a combat's end would, and the order is
- * applied to the party that comes back.
+ * Refused during a combat, as `toggleDetachMember` refuses. A fight no combat
+ * still holds a body of is over: it reforms first, and the order is applied to
+ * the party that comes back.
  *
  * The clock's last position is re-anchored BEFORE the party token moves to the
- * reform point, or the jump would read as the party having walked there and
- * spend dungeon turns nobody took.
+ * reform point, so the jump spends no dungeon turns.
  *
  * WRITES the formation and moves tokens. Not a dry run.
  *
- * A nullish `formation` or `template` is a DECLINED request, not a misuse — the
- * HUD path passes the result of a picker the Judge may have dismissed — so it
- * returns null where a wrong-shaped argument throws.
+ * A nullish `formation` or `template` is a DECLINED request (a dismissed
+ * picker) and returns null where a wrong-shaped argument throws.
  *
  * @param {object} formation the formation to form up
  * @param {object|string} template the saved order, or its id
@@ -344,7 +297,7 @@ export async function formUp(formation, template) {
   assertFormation(formation, "formUp", template);
   template = resolveOrder(template, "formUp");
   if (formation.combat?.active) {
-    // Loaded late, as the turn engine below: the bridge imports it.
+    // Loaded late, like the turn engine below: the bridge imports this file.
     const { reformIfOver } = await import("./combat-bridge.mjs");
     const reformed = await reformIfOver(formation.id);
     const fresh = reformed ? getFormation(formation.id) : null;
@@ -383,8 +336,7 @@ export async function formUp(formation, template) {
 /* -------------------------------------------- */
 
 /**
- * Ask what to call the arrangement being saved, offering the name it already
- * has so re-saving over it is one keystroke rather than an exact retype.
+ * Ask what to call the arrangement being saved, offering the formation's name.
  *
  * @returns {Promise<string|null>} the name, or null if dismissed
  */
@@ -409,9 +361,6 @@ export async function promptForOrderName(formation) {
 
 /**
  * Choose one of the saved orders, and whether to march into it or forget it.
- *
- * A shortlist rather than a typed name: the saved orders are data the world
- * already holds, so there is nothing here for a Judge to remember.
  *
  * @returns {Promise<{template: object, action: "apply"|"delete"}|null>}
  */
@@ -465,10 +414,8 @@ export async function pickMarchingOrder() {
 }
 
 /**
- * A one-line account of what applying an order actually did, for the Judge.
- *
- * Always says something: "restored" alone reads as a no-op when in fact three
- * people were dropped and a mapper lost their role.
+ * A one-line account of what applying an order did, for the Judge: the restored
+ * count, then each of recalled, appended, absent and gear-refused that applies.
  */
 export function describeResult(result) {
   const parts = [game.i18n.format("ACKS-FORMATION.marching.restored", { count: result.restored })];

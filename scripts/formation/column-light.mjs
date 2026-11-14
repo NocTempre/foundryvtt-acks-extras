@@ -4,12 +4,9 @@
  * bearer still inside the party token, at the centre of that bearer's cell
  * (`column-light-logic.mjs` says which and where).
  *
- * Built on every client from the formation record and the token, so no write
- * carries them: lighting, dousing or shuttering a source is a record write,
- * and every client rebuilds. Their radius is the figure in feet at the
- * scene's scale with no padding, which a token's own light carries through
- * core's `getLightRadius`; lib's padding patch takes the same padding off a
- * member's token, so a lantern reaches as far in the column as in a hand.
+ * Built on every client from the formation record and the token; no write
+ * carries them. Their radius is the figure in feet at the scene's scale with no
+ * padding, matching the lib subsystem's padding patch on a member's own token.
  *
  * `carriedLightPoints` is the same set at rest, for the Night Vision sweep,
  * which runs on the primary GM over scenes no canvas is drawing.
@@ -73,9 +70,8 @@ export function syncColumnLights(state, formation, token, points) {
   const units = scene.grid.units;
   let defaults = null;
   for (const [bearerId, point] of wanted) {
-    // A token refreshes every frame, and a perception update refreshes it
-    // again: a source is re-initialised only when what it shines changed, or
-    // the two would drive each other.
+    // Re-initialise only when what the source shines changed: a token refresh
+    // and a perception update would otherwise drive each other.
     const key = `${point.x},${point.y},${point.bright},${point.dim},${point.kind},${doc.elevation ?? 0},${doc.level ?? ""},${pixels},${units}`;
     let source = state.lights.get(bearerId);
     // Still in core's collection too: a source a re-initialisation dropped is

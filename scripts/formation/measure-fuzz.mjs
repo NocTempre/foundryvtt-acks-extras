@@ -16,11 +16,12 @@ import { MODULE_ID } from "./constants.mjs";
  * protected `_getWaypointLabelContext` wrapped via **libWrapper** (WRAPPER
  * type), so other ruler modules that touch the same method still compose.
  *
- * Honest limits: the canvas geometry itself stays exact — players can still
- * count grid squares. This is a deterrent and a mood-setter.
+ * Only the displayed label is changed; the canvas geometry stays exact.
  */
 
+/** The scene flag key (under the module scope) that holds the scene's measurement mode and factor. */
 export const MEASURE_FLAG = "measure";
+/** The measurement modes a scene's flag may carry: exact, vague (`fuzzy`) or shown as "?" (`unknown`). */
 export const MEASURE_MODES = Object.freeze({ OFF: "off", FUZZY: "fuzzy", UNKNOWN: "unknown" });
 
 /** The fuzz state applying to the current user on the viewed scene, or null. */

@@ -1,18 +1,14 @@
 /**
- * The encounter terrains a Judge can stand a party in — the UNION of the
- * grains the book's tables are printed at, because they differ: the monster
- * sub-tables split by weather biome (tundra barrens, three mountain skies,
- * two rivers), while distance and evasion split by cover and rivers have no
- * row at all. Each pick maps itself onto every consumer: `monsters` names
- * its sub-table, `distance`/`evasion` its RR row (null = the book prints
- * none — the card hands those steps back), `civilized` its column group.
- * `closed` marks the country that shelters a party from flyers (the aerial
- * evasion exemption); `ground` is the coarse travel-ground key the pick
- * stands on (null for a river, which runs through whatever ground the party
- * keeps) and `groundDefault` marks the pick a bare ground answers for;
- * `treasure` and `ruin` name the terrain-group row the pick reads in each
- * terrain lookup; `lairs` names the row the pick reads in the lairs-per-hex
- * table (null = the book prints no row for it).
+ * The encounter terrains a Judge can stand a party in: the union of the grains
+ * the book's tables are printed at, since they differ. Each pick maps itself
+ * onto every consumer: `monsters` names its sub-table, `distance`/`evasion`
+ * its RR row (null = none printed, and the card hands those steps back),
+ * `civilized` its column group. `closed` marks the country that shelters a
+ * party from flyers (the aerial evasion exemption); `ground` is the coarse
+ * travel-ground key the pick stands on (null for a river) and `groundDefault`
+ * marks the pick a bare ground answers for; `treasure` and `ruin` name the
+ * terrain-group row the pick reads in each lookup; `lairs` names its row in
+ * the lairs-per-hex table (null = none printed).
  *
  * A leaf: the encounter chain and the battlemap's brush both read the
  * register, and neither imports the other for it. Plain objects, no Foundry.
@@ -43,7 +39,7 @@ export const ENCOUNTER_TERRAINS = Object.freeze({
   swampForested: { label: "ACKS-FORMATION.travel.enc.terrain.swampForested", lairs: "swamp", ground: "swamp", closed: true, civilized: "swamp", monsters: "swamp", distance: "swampForested", evasion: "swampForested", treasure: "hillsBarrenSwamp", ruin: "jungleSwampOceanDesertBarren" },
 });
 
-/** The eighteen monster sub-tables the picks above draw from. */
+/** The distinct monster sub-table keys the picks above draw from. */
 export const MONSTER_TABLE_KEYS = Object.freeze([
   ...new Set(Object.values(ENCOUNTER_TERRAINS).map((t) => t.monsters)),
 ]);

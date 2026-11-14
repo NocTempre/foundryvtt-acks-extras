@@ -8,10 +8,9 @@
 /**
  * A route the party is following, which spares it the navigation throw.
  *
- * RAW exempts navigable rivers, roads and other established routes (RR p. 275).
- * A road is reported through the record's `road`, so this carries the other
- * two. A map with water lines drawn answers `river` itself; `knownRoute` is
- * deliberately vague because the book is, and stays the Judge's call.
+ * RR p. 275. A road is reported through the record's `road`, so this carries
+ * the other two. A map with water lines drawn answers `river` itself;
+ * `knownRoute` stays the Judge's call.
  */
 export const FOLLOWING_KINDS = Object.freeze(["none", "river", "knownRoute"]);
 

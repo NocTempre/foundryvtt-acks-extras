@@ -1,27 +1,23 @@
 /**
  * Being lost: two positions, one of them a lie the party believes.
  *
- * A lost party is somewhere real and thinks it is somewhere else, and both
- * facts have to be kept. The party token stands at the BELIEVED position, the
- * one the table sees and the players move; the TRUE position is a shadow token
- * ([shadow.mjs](./shadow.mjs)), because every question worth asking about a lost
- * party — how far to another one, to the landmark, to a searching group — is a
- * distance Foundry already measures. The offsets recorded here are the
- * observations' provenance, not a position.
+ * The party token stands at the BELIEVED position, the one the table sees and
+ * the players move; the TRUE position is a shadow token
+ * ([shadow.mjs](./shadow.mjs)). The offsets recorded here are the
+ * observations' provenance, not a position. See docs/formation/DECISIONS.md,
+ * "The true position is a SHADOW TOKEN, not a coordinate".
  *
  * The ledger here owns the episode: its phase, the scene and level it runs on,
  * where the lie started, which hexes the party has since walked believing
  * them, what it saw and where it really saw it, and the one fog snapshot taken
- * at the moment the lie began. It is pure — no canvas, no documents — so the
- * transitions can be tested.
+ * at the moment the lie began. It is pure — no canvas, no documents.
  *
  * An episode has two phases. ASTRAY: the party does not know. AWARE: a
  * successful navigation throw told it so, and it still does not know where it
- * is. **Discovery is not rescue**: it hands back neither the position nor the
- * faked ground — the faked reveal is reverted whole, which is the moment the
- * players learn the last few days were not where they thought. Only re-anchor
- * (the landmark found) credits anything, and retreat (`endLost`) credits
- * nothing. Both close the episode from either phase.
+ * is. Discovery reverts the faked reveal whole and hands back neither the
+ * position nor the ground. Only re-anchor (the landmark found) credits
+ * anything, and retreat (`endLost`) credits nothing. Both close the episode
+ * from either phase.
  */
 
 /** The phases of an open episode; a closed ledger's phase is null. */
@@ -55,8 +51,8 @@ export function freshLost() {
 }
 
 /**
- * Normalize whatever the record holds. A record from before phases were kept
- * reads as astray when it was active. `level` is the scene level the fog was
+ * Normalize whatever the record holds. A record with no `phase` reads as astray
+ * when it is `active`. `level` is the scene level the fog was
  * snapshotted on, and stays `undefined` for a record that never stored one,
  * which the fog code reads as "any level".
  */
@@ -116,9 +112,8 @@ export function beginLost(lost, {
  * A day walked while astray: the party believes it reached `believed`, and
  * that hex joins the faked reveal.
  *
- * Recording the hex is what makes the revert exact — the ledger, not the fog
- * bitmap, is the authority on what was faked. A repeat of the same hex adds
- * nothing.
+ * The ledger, not the fog bitmap, is the authority on what was faked. A repeat
+ * of the same hex adds nothing.
  */
 export function walkBelieving(lost, believedOffset, trueOffset = null) {
   const l = lostOf({ lost });
@@ -148,14 +143,12 @@ const closed = (l) => ({ ...freshLost(), judgeNote: l.judgeNote });
  * The throw succeeded: the party realises it is lost, and the episode turns
  * AWARE.
  *
- * Returns the aware ledger AND the revert instruction — the hexes to close and
- * the snapshot to write back — because the caller owns the canvas and this
- * file must not. A `null` return for `revert` means there was nothing faked to
- * undo, which is the case when the party notices on the very first day.
- *
- * Strict RAW: nothing here restores the party's knowledge of WHERE it is. The
- * believed marker is retired, not moved; the anchor, scene and shadow stay,
- * because a later re-anchor still needs them.
+ * Returns the aware ledger and the revert instruction (the hexes to close and
+ * the snapshot to write back); the caller owns the canvas. A `null` `revert`
+ * means nothing was faked. Nothing here restores the party's knowledge of
+ * WHERE it is: the believed marker is retired, not moved, and the anchor,
+ * scene and shadow stay for a later re-anchor. See docs/formation/DECISIONS.md,
+ * "Lost: the players hold the reckoning, and strict RAW governs the return".
  */
 export function discoverLost(lost) {
   const l = lostOf({ lost });
@@ -170,13 +163,12 @@ export function discoverLost(lost) {
  * The party re-establishes itself — it found its last known landmark, or the
  * Judge ruled it recognised the ground. Closes an episode in either phase.
  *
- * This is the ONLY transition that credits anything. Every observation is
- * re-keyed from where the party thought it was to where it really was, and the
- * caller commits those hexes as genuinely explored. An aware party has none
- * left to commit: discovery discarded them.
+ * The only transition that credits anything: every observation is re-keyed
+ * from where the party thought it was to where it really was, and the caller
+ * commits those hexes as explored. An aware party has none left to commit.
  *
- * Returns `commit` — the true hexes earned — and the cleared ledger. The faked
- * ground still has to be closed first, so `revert` rides along.
+ * Returns `commit` (the true hexes earned), the cleared ledger, and `revert`
+ * for the faked ground still to be closed.
  */
 export function reanchorLost(lost) {
   const l = lostOf({ lost });

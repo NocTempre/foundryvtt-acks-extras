@@ -36,9 +36,8 @@ export const MAP_BLOCK = Object.freeze({
  * With the light requirement off the module assumes light and nothing else is
  * read. Otherwise the day outside lights them; so does a light whose bright
  * reach covers their place (`reach` > 0); and so does a lit, open flame whose
- * reach no table gives (`unimportedFlame`), because a world that has imported
- * no light figures has no way to say it does not reach, and the surface says
- * "not imported" instead of a figure.
+ * reach no table gives (`unimportedFlame`): with no light figures imported the
+ * surface says "not imported" instead of a figure.
  *
  * @param {object} facts
  * @param {boolean} facts.needsLight the light requirement is on

@@ -123,19 +123,16 @@ export async function postNavigationThrow(formation, { by = "step", begin = begi
     if (opened) {
       notes.push(loc("nav.opened"));
     } else {
-      // Two refusals: the Judge was not viewing the party's scene, or the
-      // party stands on no traced hex of a map. Begin is offered for both:
-      // it reads the record afresh when pressed.
+      // Refused (the Judge is not viewing the party's scene, or no traced hex):
+      // Begin is offered, and reads the record afresh when pressed.
       notes.push(loc(here ? "nav.notOpened" : "nav.noHex"));
       buttons.push(cardButton("acks-extras-nav-begin", formation.id, "fa-solid fa-compass-drafting", loc("nav.begin")));
       notes.push(loc("nav.judgeChooses"));
     }
   }
 
-  // No `type` and no `rolls`: in v12+ `type` is a document SUBTYPE, and passing
-  // the old numeric style there makes creation fail without throwing — the
-  // message simply never appears. The sibling encounter card sets neither, and
-  // the throw's own total is already in the card's text.
+  // No `type` and no `rolls`: `type` is a document SUBTYPE, and a numeric one
+  // fails creation without throwing. The throw's total is already in the text.
   await ChatMessage.create({
     speaker: { alias: loc("nav.speaker") },
     whisper: gmIds(),

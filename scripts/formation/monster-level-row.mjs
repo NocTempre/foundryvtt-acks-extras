@@ -11,7 +11,7 @@ import { elementOf } from "../lib/util.mjs";
  * written on change — a write re-renders the sheet from the document and
  * discards the Judge's unsaved edits — and added only to a Summary part that
  * lacks it, so a render of the other parts keeps a typed value. See
- * docs/formation/DECISIONS.md, "A table's monster level is set on the table".
+ * docs/formation/DECISIONS.md, "A table's monster level is set on the table (2026-09-23)".
  */
 export function installMonsterLevelRow() {
   Hooks.on("renderRollTableSheet", (app, element) => {

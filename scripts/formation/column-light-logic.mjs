@@ -16,6 +16,8 @@ import { memberCells } from "./column.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
 
 /**
+ * The light points the column sheds: one per lit bearer still inside the party token.
+ *
  * @param {object} formation the record (members and lights)
  * @param {{x: number, y: number}[]} points `columnFor(...).points`: the centre of
  *   every body of the formation

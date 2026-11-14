@@ -211,16 +211,13 @@ export function installColumnView() {
   };
   Hooks.on("createSetting", onSetting);
   Hooks.on("updateSetting", onSetting);
-  // A light figure and the frontage figures are read from the lib's table
-  // registry, which an import or a Judge's override rewrites without touching
-  // any setting named above.
+  // Light and frontage figures come from the lib subsystem's table registry,
+  // which changes without touching any setting named above.
   onTablesChanged((docId) => {
     if (docId === LIGHT_DOC || docId === FORMATION_DOC) refreshAllColumns();
   });
-  // A member's effect light (a spell on them, an item they carry) is read off
-  // their actor, not the record: an effect or an item with effects that
-  // changes on a member lays the columns again. Drawing only, so every
-  // client does it and none writes.
+  // A member's effect light is read off their actor, not the record: an effect
+  // or an item with effects changing on a member lays the columns again.
   const relightMember = (actor) => {
     if (actor?.id && getFormationForActor(actor.id)) refreshAllColumns();
   };
