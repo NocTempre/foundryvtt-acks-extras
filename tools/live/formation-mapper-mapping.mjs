@@ -79,6 +79,7 @@ const P = {
     H.mapping = await import(`${base}formation/mapping.mjs`);
     H.view = await import(`${base}formation/formation-view.mjs`);
     H.light = await import(`${base}lib/light.mjs`);
+    H.column = await import(`${base}formation/column.mjs`);
     H.formation = (partyId) => Object.values(H.model.getFormations()).find((f) => f.actorId === partyId) ?? null;
     /** A lang template as a pattern, its `{names}` standing for anything. */
     H.pattern = (key) => new RegExp("^" + game.i18n.localize(key).replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{names\}/g, ".+") + "$");
@@ -174,7 +175,7 @@ const P = {
 
   /**
    * The party's known shape: both characters are members in marching order
-   * (the mapper first, the bearer one cell behind), the mapper holds the role,
+   * (the mapper first, the bearer second), the mapper holds the role,
    * the party token stands at a cell and is adopted, no combat, no hurry, no
    * lights in the record, no leftover of the walk on either character.
    */
@@ -249,6 +250,16 @@ const P = {
     const eff = game.actors.get(actorId).effects.get(effectId);
     await eff.update({ changes: [{ key: H.light.MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: String(bright) }] });
     return H.light.magicLights(game.actors.get(actorId)).find((l) => l.id === effectId)?.bright ?? null;
+  },
+  /** The distance in feet between the mapper's laid point and the bearer's, as the column lays them now, or null. */
+  gapFeet: async ({ partyId, sceneId }) => {
+    const H = globalThis.__mm;
+    const f = H.formation(partyId);
+    const scene = game.scenes.get(sceneId);
+    const laid = H.column.columnFor(f, scene.tokens.get(f.tokenId));
+    const [a, b] = laid?.points ?? [];
+    if (!a || !b) return null;
+    return (Math.hypot(a.x - b.x, a.y - b.y) * scene.grid.distance) / scene.grid.size;
   },
   /** The shutter, by the call the Judge's seat makes. */
   shutter: async ({ actorId, effectId, on }) => {
@@ -478,9 +489,11 @@ try {
   check("the player seat reads the same flag, and neither seat is told of missing light", lit.p.measure === "fuzzy" && !lit.g.warnLight && !lit.p.warnLight, { player: lit.p.measure });
 
   section("3. the same light, out of reach");
-  note("reach set below one cell", await run(gm, P.setReach, { actorId: ids.bearerId, effectId: made.id, bright: 3 }));
+  const gap = await run(gm, P.gapFeet, view);
+  check("the bearer's laid point is apart from the mapper's and inside the 20 ft reach", gap > 0 && gap < 20, { gap });
+  note("reach set to half the gap between the mapper and the bearer", await run(gm, P.setReach, { actorId: ids.bearerId, effectId: made.id, bright: gap / 2 }));
   const far = await both({ mapping: false, measure: "unknown" });
-  check("one cell is past a reach of three feet: no light, no mapping, \"?\"", far.g.matched && far.g.block === "dark" && far.g.measure === "unknown" && far.g.warnLight, { block: far.g.block, measure: far.g.measure });
+  check("the mapper stands past a reach of half the gap to the bearer: no light, no mapping, \"?\"", far.g.matched && far.g.block === "dark" && far.g.measure === "unknown" && far.g.warnLight, { block: far.g.block, measure: far.g.measure });
   note("reach set back", await run(gm, P.setReach, { actorId: ids.bearerId, effectId: made.id, bright: 20 }));
   check("and back in reach it maps again", (await both({ mapping: true, measure: "fuzzy" })).g.matched);
 

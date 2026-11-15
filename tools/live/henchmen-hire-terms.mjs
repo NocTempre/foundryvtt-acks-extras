@@ -525,7 +525,7 @@ const P = {
       kept: rec?.special?.irrefusableResult ?? "",
       managed: monster.system.retainer?.managerid === employerId,
       listed: (employer.getFlag("acks-extras", "monsterHenchmenList") ?? []).includes(monsterId),
-      warned: warns.length > 0,
+      warned: warns.some((w) => w !== game.i18n.localize("ACKS-HENCHMEN.monster.animalGate")),
       whispered: ids.filter((id) => game.messages.get(id)?.whisper?.length).length,
       cards: ids.map((id) => game.messages.get(id)?.uuid).filter(Boolean),
     };
@@ -762,7 +762,7 @@ try {
   check("25: the offer opens the influence-hosted page, not the fallback dialog", t.opened, { opened: t.opened, throwDialog: t.throwDialog });
   check("25: the top roll names the top result in this feature's vocabulary", t.fired && t.outcome === "acceptElan", { fired: t.fired, outcome: t.outcome });
   check("25: the captive is hired: record, employer, monster list, the result kept", t.hired && t.managed && t.listed && t.kept === "acceptElan", { hired: t.hired, managed: t.managed, listed: t.listed, kept: t.kept });
-  check("25: it starts at the table's figure for that result, and nothing warns", t.start === INVENTED.irrefusableOffer.elanLoyalty && !t.warned && t.whispered === 0, { start: t.start, warned: t.warned, whispered: t.whispered });
+  check("25: it starts at the table's figure for that result, and nothing warns but the animal gate", t.start === INVENTED.irrefusableOffer.elanLoyalty && !t.warned && t.whispered === 0, { start: t.start, warned: t.warned, whispered: t.whispered });
   const b = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: bottom, u: 0.975 });
   for (const uuid of b.cards ?? []) await track(uuid, "ChatMessage");
   check("25: the bottom roll names a feigned acceptance and the captive is hired at the forced-servitude start", b.fired && b.outcome === "betrayal" && b.hired && b.managed && b.listed && b.start === INVENTED.loyaltyChanges.forcedServitude, { outcome: b.outcome, hired: b.hired, start: b.start });
@@ -770,7 +770,7 @@ try {
   check("25: the empty table is read from this page's layer", (await run(gm, P.irrLayer, { mode: "absent" })).read);
   const n = await run(gm, P.irrOffer, { employerId: employer.id, monsterId: none, u: 0.025 });
   for (const uuid of n.cards ?? []) await track(uuid, "ChatMessage");
-  check("25: with the table not imported the roll names no result, hires nothing, and says nothing (no warning)", n.opened && n.fired && n.outcome === null && !n.hired && !n.managed && !n.listed && !n.warned, { opened: n.opened, fired: n.fired, outcome: n.outcome, hired: n.hired, listed: n.listed, warned: n.warned });
+  check("25: with the table not imported the roll names no result, hires nothing, and says nothing (no warning but the animal gate)", n.opened && n.fired && n.outcome === null && !n.hired && !n.managed && !n.listed && !n.warned, { opened: n.opened, fired: n.fired, outcome: n.outcome, hired: n.hired, listed: n.listed, warned: n.warned });
   note("layer", await run(gm, P.irrRestore));
 
   const pe = player ? await run(player, P.drain) : { errors: [] };

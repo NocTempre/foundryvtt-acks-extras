@@ -255,10 +255,11 @@ const P = {
     const control = [...doc.sheet._headerControlButtons()].find((c) => c.class === "aaItemSettings");
     if (!control) return { control: false };
     await control.onClick();
-    const isMenu = (app) => /^A-A Item/.test(app.options?.title ?? "");
+    const isMenu = (app) => app.constructor?.name === "DocumentMenu" || /^AA-item-settings-/.test(app.id ?? "") || /^A-A Item/.test(app.options?.title ?? "");
+    const menus = () => [...Object.values(ui.windows), ...foundry.applications.instances.values()].filter(isMenu);
     const stop = Date.now() + 8000;
-    while (Date.now() < stop && !Object.values(ui.windows).some((app) => isMenu(app) && app.rendered)) await H.sleep(100);
-    const opened = Object.values(ui.windows).filter(isMenu);
+    while (Date.now() < stop && !menus().some((app) => app.rendered)) await H.sleep(100);
+    const opened = menus();
     const shown = opened.map((app) => {
       const root = app.element?.[0] ?? app.element;
       const box = root?.getBoundingClientRect?.();

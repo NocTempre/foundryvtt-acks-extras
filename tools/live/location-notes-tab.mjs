@@ -109,6 +109,13 @@ const P = {
 
   exists: async ({ id }) => !!game.actors.get(id),
 
+  /** Wait, up to `seconds`, for this seat's copy of the place to carry the shared notes. */
+  hasNotes: async ({ id, notes, seconds }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (let i = 0; i < seconds * 5 && game.actors.get(id)?.system.notes !== notes; i++) await sleep(200);
+    return game.actors.get(id)?.system.notes === notes;
+  },
+
   /** Whether the world-start prune, run dry, would take the place: as it stands, then with both notes saved empty. Writes nothing but the notes, which it puts back. */
   dryPrune: async ({ id }) => {
     const LM = await import("/modules/acks-extras/scripts/location/module.mjs");
@@ -227,7 +234,8 @@ try {
   await run(gm, P.shape, { id: place.id, notes: SHARED, gmNotes: PRIVATE });
 
   section("24. the Player seat");
-  const p = await run(player, P.sheet, { id: place.id, shared: plain(SHARED), secret: plain(PRIVATE) });
+  check("the Player seat's copy carries the restored shared notes", await run(player, P.hasNotes, { id: place.id, notes: SHARED, seconds: 15 }));
+  const p =await run(player, P.sheet, { id: place.id, shared: plain(SHARED), secret: plain(PRIVATE) });
   note("player", p);
   check("the Player seat opens the place and gets the Notes tab second", p.visible && p.order[0] === "contents" && p.order[1] === "notes" && p.active, { order: p.order, active: p.active });
   check("it reads the shared notes, with no editor for an observer", p.sharedText && !p.sharedEditor, p);

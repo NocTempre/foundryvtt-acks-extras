@@ -16,7 +16,7 @@
  * `monsters/encounter-times`, `monsters/encounter-literal` and
  * `monsters/encounter-percent`, each an actor
  * standing for one cookbook entry by its `cookbook` flag, and the invented
- * generator template `monsters/pin-template` (two variants, one role cell).
+ * generator template `monsters/pin-template` (two variants, three roles, three cells).
  * Each section writes the shape it needs first: the typed monster's lines
  * blank, the template's axes and cells, and on the three the old parser's
  * writes. The cards the run posts are tracked by id and swept in
@@ -476,16 +476,16 @@ try {
   check("an observer sees the line fields and can edit none", offered.inputs === 12 && offered.disabled === 12, offered);
   note("closed (player)", await run(player, P.closeAll));
 
-  // The pin is per window and writes nothing: the Role select re-marks what the chosen variant has no cell for.
+  // The pin is per window and writes nothing: the Role select re-marks what the chosen variant has no cell for; an axis offering one option is not drawn.
   const tpl = await gm.fixture("monsters/pin-template", "Actor", { name: "Pin Template", type: "acks-extras.template" });
   const option = (key, label) => ({ key, label, nameLabel: "", merge: {}, items: [], flags: {}, token: {} });
   note("template shaped", await run(gm, P.shapeTemplate, {
     actorId: tpl.id,
     axes: [
       { key: "variant", label: "Variant", roll: "", default: "", options: [option("a", "Variant A"), option("b", "Variant B")] },
-      { key: "role", label: "Role", roll: "", default: "standard", options: [option("standard", "Standard"), option("champion", "Champion")] },
+      { key: "role", label: "Role", roll: "", default: "standard", options: [option("standard", "Standard"), option("champion", "Champion"), option("veteran", "Veteran")] },
     ],
-    cells: [{ by: ["variant", "role"], key: "a|champion", merge: {}, items: [], flags: {} }],
+    cells: ["a|champion", "a|veteran", "b|veteran"].map((key) => ({ by: ["variant", "role"], key, merge: {}, items: [], flags: {} })),
   }));
   note("granted (template)", await run(gm, P.grantObserver, { actorId: tpl.id, name: MACHINE.player }));
   await run(player, P.openTemplate, { actorId: tpl.id });

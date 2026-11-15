@@ -100,7 +100,7 @@ const P = {
         if (!doc || !H.PP.answersFor(flag, place)) { rows.push({ id, place, uuid: null }); continue; }
         rows.push({
           id, place, uuid: doc.uuid, heldBy: flag.book ?? String(flag.id).split(".")[0], claim: flag.id,
-          hasBlock: !!H.PR.bookTextBlock(doc.system?.notes ?? "", id), stamped: (flag.blocks ?? []).some((b) => b?.id === id),
+          hasBlock: !!H.PR.bookTextBlock(doc.system?.notes ?? "", id), stamped: !!flag.sums?.[H.PR.sumKey("system.notes", id)],
         });
       }
       const pregens = [];
@@ -135,14 +135,14 @@ const P = {
     const title = asked?.title === "repairMergedTitle";
     return { asked: !!asked, title, places: count("forceCensusPlaces"), left: count("repairMergedAdventureLeft"), writes: H.writes.length };
   },
-  /** A document's notes, biography, name, blocks stamp, play stamp, times and uuid. */
-  read: async ({ uuid }) => {
+  /** A document's notes, biography, name, the entry ids among `ids` its notes stamp holds a digest for, play stamp, times and uuid. */
+  read: async ({ uuid, ids = [] }) => {
     const doc = await fromUuid(uuid);
     if (!doc) return null;
     const flag = doc.getFlag("acks-extras", "cookbook") ?? {};
     return {
       uuid: doc.uuid, name: doc.name, notes: doc.system?.notes ?? null, bio: doc.system?.details?.biography ?? null,
-      blocks: flag.blocks ?? [], printed: flag.printed ?? null, merged: flag.merged ?? [], id: flag.id ?? null,
+      stamped: ids.filter((id) => !!flag.sums?.[globalThis.__fp.PR.sumKey("system.notes", id)]), printed: flag.printed ?? null, merged: flag.merged ?? [], id: flag.id ?? null,
       playStamp: doc.getFlag("acks-extras", "playStamp") ?? null, keptFrom: doc.getFlag("acks-extras", "keptFrom") ?? null,
       modified: doc._stats?.modifiedTime ?? null, created: doc._stats?.createdTime ?? null,
     };
@@ -273,6 +273,7 @@ try {
 
   section("Fixtures (read)");
   const T = await run(gm, P.targets, { ids: BOOKS });
+  const IDS = BOOKS.flatMap((b) => T[b].rows.map((r) => r.id));
   for (const book of BOOKS) {
     const held = T[book].rows.filter((r) => r.uuid);
     note(`${book} rows writing onto a place`, {
@@ -310,9 +311,9 @@ try {
   for (const book of BOOKS) {
     const heldKeys = new Set((first[book].edits ?? []).map((e) => e.key));
     for (const r of T[book].rows.filter((r) => r.uuid)) {
-      const now = await run(gm, P.read, { uuid: r.uuid });
+      const now = await run(gm, P.read, { uuid: r.uuid, ids: IDS });
       if (!now || now.uuid !== before[r.uuid].uuid || now.created !== before[r.uuid].created || now.id !== before[r.uuid].id) kept = false;
-      if (!now?.blocks.some((b) => b.id === r.id) && !heldKeys.has(`${r.uuid}#system.notes#${r.id}`)) stampedOrHeld = false;
+      if (!now?.stamped.includes(r.id) && !heldKeys.has(`${r.uuid}#system.notes#${r.id}`)) stampedOrHeld = false;
     }
   }
   check("1: every place keeps its uuid, creation time and claim", kept);
@@ -335,8 +336,8 @@ try {
 
   section("Step 2: this run's edits are held; the character edited and rewritten");
   const after1 = {};
-  for (const book of BOOKS) for (const r of T[book].rows.filter((r) => r.uuid)) after1[r.uuid] = await run(gm, P.read, { uuid: r.uuid });
-  const stampedRows = (book) => T[book].rows.filter((r) => r.uuid && after1[r.uuid].blocks.some((b) => b.id === r.id));
+  for (const book of BOOKS) for (const r of T[book].rows.filter((r) => r.uuid)) after1[r.uuid] = await run(gm, P.read, { uuid: r.uuid, ids: IDS });
+  const stampedRows = (book) => T[book].rows.filter((r) => r.uuid && after1[r.uuid].stamped.includes(r.id));
   const mine = [];
   const edited = stampedRows("ax1").find((r) => r.heldBy === "ax3");
   if (edited) {

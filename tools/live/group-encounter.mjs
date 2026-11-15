@@ -1074,8 +1074,8 @@ try {
   check("the first stands on the square under the cursor", firstBody?.x % 100 === 0 && firstBody?.y % 100 === 0 && Math.abs(firstBody?.x + 50 - whole.point.x) <= 50 && Math.abs(firstBody?.y + 50 - whole.point.y) <= 50, { firstBody, point: whole.point });
   check("the next stands beside it", nextBody?.x - firstBody?.x === 100 && nextBody?.y === firstBody?.y, { firstBody, nextBody });
   check("and the sixth starts the next rank", whole.fresh[5]?.x === firstBody?.x && whole.fresh[5]?.y - firstBody?.y === 100, whole.fresh[5]);
-  state = await run(gm, P.state, { groupId: second.id });
-  check("the bodies go out on record and the count stands", state.list[0].deployed === 7 && state.list[0].roster === 7 && state.list[0].current === 7, state.list[0]);
+  state = await until(gm, P.state, { groupId: second.id }, (s) => s.list[0].deployed === 7);
+  check("the bodies go out on record and the count stands", state?.list[0].deployed === 7 && state?.list[0].roster === 7 && state?.list[0].current === 7, state?.list[0]);
   state = await recallAll();
   check("Recall rests every body on its record", state?.list[0].roster === 7 && state?.list[0].current === 7, state?.list[0]);
   await pressRow("addCasualty", 1);

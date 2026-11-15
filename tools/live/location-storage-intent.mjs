@@ -21,7 +21,8 @@
  * world item the GM drops. Each location also carries a plain item no one keeps
  * there, so the world-start prune leaves it standing while storage is off.
  * `location/intent-new` is the create hook's subject: retired and built again
- * each run. `location/intent-spoil` is a location the player seat only
+ * each run. `location/intent-spoil`, built at step 25 since the world-start
+ * prune deletes an empty place, is a location the player seat only
  * observes (a place the seat owns takes its own writes without the Judge's
  * relay, so the lock would gate nothing), holding one locked house spoil row
  * that carries `flags.world.fixtureItem`; the retrieval carries that row to
@@ -441,10 +442,9 @@ try {
   const stocked = await gm.fixture("location/intent-stocked", "Actor", { name: "Intent Walk Stocked Place", type: LOCATION, items: [LEDGER, ROPE], flags: { "acks-extras": { storage: { provider: true } } } });
   const hero = await gm.fixture("location/intent-hero", "Actor", { name: "Intent Walk Hero", type: "character", ownership: { default: 0, ...ownPlayer }, items: [HERO_ROPE] });
   const rope = await gm.fixture("location/intent-rope", "Item", { name: "Intent Walk Dropped Rope", type: "item" });
-  const spoilPlace = await gm.fixture("location/intent-spoil", "Actor", { name: "Intent Walk Spoil Place", type: LOCATION, ownership: { default: 0, [pc.userId]: 2 } });
   const ids = { place: place.id, empty: empty.id, stocked: stocked.id };
-  opened = [...Object.values(ids), spoilPlace.id];
-  note("fixtures", { place: place.built, empty: empty.built, stocked: stocked.built, hero: hero.built, rope: rope.built, spoilPlace: spoilPlace.built });
+  opened = Object.values(ids);
+  note("fixtures", { place: place.built, empty: empty.built, stocked: stocked.built, hero: hero.built, rope: rope.built });
   const shaped = {
     place: await run(gm, P.shapePlace, { id: place.id, provider: false, ledger: LEDGER }),
     empty: await run(gm, P.shapePlace, { id: empty.id, provider: true, ledger: LEDGER }),
@@ -529,6 +529,9 @@ try {
   check("the prune spares every place holding goods, and takes the new empty one", !dry.empty.pruned && !dry.stocked.pruned && !dry.place.pruned && dry.made.pruned, dry);
 
   section("25. a spoil in the house pile is released by the Judge's lock");
+  const spoilPlace = await gm.fixture("location/intent-spoil", "Actor", { name: "Intent Walk Spoil Place", type: LOCATION, ownership: { default: 0, [pc.userId]: 2 } });
+  opened.push(spoilPlace.id);
+  note("spoil place", { built: spoilPlace.built });
   const spoil = await run(gm, P.shapeSpoil, { placeId: spoilPlace.id, heroId: hero.id, tag: SPOIL_TAG });
   check("the spoil place holds one locked house spoil, and the hero carries none of the section's items", spoil.provider && spoil.rows === 1 && spoil.spoil && spoil.houseOwned && spoil.locked && spoil.heroItems === 0, spoil);
   const refused = await run(player, P.spoilRetrieve, { placeId: spoilPlace.id, heroId: hero.id, itemId: spoil.itemId, tag: SPOIL_TAG, release: false, gmId: census.userId });

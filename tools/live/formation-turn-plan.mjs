@@ -125,7 +125,8 @@ const P = {
 
   /**
    * The start shape: the three members in the party on the walk's scene, the
-   * party token there, no plan, no fight, not paused, nobody moved this turn.
+   * party token there, no plan, no fight, not paused, nobody moved this turn,
+   * no partial turn and no carried distance.
    */
   startShape: async ({ fid, partyId, sceneId, members }) => {
     const H = globalThis.__tpl;
@@ -137,6 +138,8 @@ const P = {
       rec.combat = null;
       rec.clock.paused = false;
       rec.clock.movedThisTurn = false;
+      rec.clock.roundsPartial = 0;
+      rec.clock.carryFeet = 0;
     });
     const f0 = H.model.getFormation(fid);
     if (f0.sceneId && f0.sceneId !== sceneId) {

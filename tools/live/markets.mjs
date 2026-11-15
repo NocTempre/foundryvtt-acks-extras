@@ -2112,7 +2112,7 @@ try {
   await run(player, P.tradeTab, { locationId: M5.id, traderId: V.id });
   const ne6 = await run(player, P.ventureEnterUI, { locationId: M5.id, submit: false });
   note("enter dialog (step 6)", { pressed: ne6.pressed, dialog: ne6.dialog, networkText: ne6.networkText, modes: ne6.modes });
-  check("N6: with the impact value removed from both networks in the party the select offers no impact mode, and the item with no value at all is named as having none imported",ne6.dialog && !ne6.modes.includes("impact") && ne6.modes.includes("class") && /Mercantile Network has no value imported/.test(ne6.networkText), { modes: ne6.modes, networkText: ne6.networkText });
+  check("N6: with the impact value removed from both networks in the party the select offers no impact mode, and the item with no value at all is not named anywhere in the block",ne6.dialog && !ne6.modes.includes("impact") && ne6.modes.includes("class") && /Counted on this visit/.test(ne6.networkText) && !/imported|no value/i.test(ne6.networkText), { modes: ne6.modes, networkText: ne6.networkText });
   note("dialog closed", await run(player, P.closeDialog));
   note("closed (player)", await run(player, P.closeAll));
   note("the network walk's party roster removed", await run(gm, P.roster, { off: networkRoster }));

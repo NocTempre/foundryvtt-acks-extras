@@ -143,7 +143,7 @@ const P = {
       // The "Auto" option of a select, as printed: with no table answer it is the bare word, with one it carries a guess.
       const autoOption = (row) => H.text(row?.querySelector("select option[value='auto']") ?? null);
       const notes = [...root.querySelectorAll(".acks-extras-item-sheet__props .acks-extras-item-sheet__prop-note")].map((n) => H.text(n));
-      const gripsParts = loc("ACKS-EQUIPMENT.props.gripsAutoNoSize").split("{grips}");
+      const noSizeNotes = ["1h", "2h", "versatile"].map((k) => game.i18n.format("ACKS-EQUIPMENT.props.gripsAutoNoSize", { grips: loc(`ACKS-EQUIPMENT.grip.${k}`) }));
       const lines = [...root.querySelectorAll(".acks-extras-item-sheet__row-line")].map((n) => H.text(n));
       // The weapon's own attack rows (roll ids atk:*); a maneuver row answers to the maneuver tables.
       const attackLines = [...root.querySelectorAll(".acks-extras-item-sheet__row")]
@@ -162,7 +162,7 @@ const P = {
         // The class and size selects' Auto option carries no guess when the row states none.
         classAutoBare: autoOption(figures.cls.rows[0]) === autoWord,
         sizeAutoBare: autoOption(figures.size.rows[0]) === autoWord,
-        gripsNoSizeNote: notes.some((t) => t.startsWith(gripsParts[0].trim()) && t.endsWith(gripsParts[1].trim())),
+        gripsNoSizeNote: notes.some((t) => noSizeNotes.includes(t)),
         panelSaysMissing: SAYS_MISSING.test(panelText),
         linesSayMissing: lines.filter((t) => SAYS_MISSING.test(t)).length,
         tagsSayMissing: mods.filter((t) => SAYS_MISSING.test(t)).length,

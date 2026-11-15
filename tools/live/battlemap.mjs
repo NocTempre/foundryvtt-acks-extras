@@ -388,6 +388,11 @@ const P = {
     }));
   },
 
+  /** How many regions of the scene carry a module flag named for climate. */
+  climateRegions: async ({ sceneId }) => ({
+    regions: [...game.scenes.get(sceneId).regions].filter((r) => Object.keys(r.flags?.["acks-extras"] ?? {}).some((k) => /climate/i.test(k))).length,
+  }),
+
   layerValues: async ({ sceneId, point }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
@@ -1518,7 +1523,7 @@ async function walkLayers(W) {
   note("climate pill", { found: climPress.found, pressed: pal.pressed, pills: pal.pills.map((p) => p.layer) });
   const climPaint = await page(gm, P.paintAt, { sceneId: hex.id, point: pt("C"), value: CLIMATE_A, layer: "climate" });
   note("climate paintHexAt", climPaint);
-  const climRegions = await page(gm, P.foldState, { sceneId: hex.id });
+  const climRegions = await page(gm, P.climateRegions, { sceneId: hex.id });
   check("L2: no Climate pill to press, the brush paints no climate, and no climate region appears", climPress.found === false && pal.pressed === "territory" && !pal.pills.some((p) => p.layer === "climate") && paintable.climate === 0 && climPaint.ok === false && climRegions.regions === 0, { found: climPress.found, pressed: pal.pressed, paintable: paintable.climate, ok: climPaint.ok, regions: climRegions.regions });
 
   section("layers 3. erase and repaint on the Territory pill");
