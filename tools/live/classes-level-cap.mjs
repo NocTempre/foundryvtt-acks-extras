@@ -132,12 +132,13 @@ const P = {
     const hp = await import("/modules/acks-extras/scripts/classes/hitpoints.mjs");
     const has = (id) => T.hasDoc(id);
     const budget = has(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget : null;
-    const rates = budget?.hpAfterNine ?? null;
+    const rates = budget?.hpPastLastDie ?? null;
     const floorDoc = has(FLOOR_DOC) ? T.getDoc(FLOOR_DOC) : null;
     return {
       builderDoc: has(BUILDER_DOC),
       afterLevel: Number.isInteger(rates?.afterLevel) && rates.afterLevel > 1,
       humanCap: Number.isInteger(budget?.humanMaxLevel) && budget.humanMaxLevel >= 1,
+      xpFlatAfter: Number.isInteger(budget?.xpFlatAfter),
       rates: Number.isInteger(rates?.crusaderMage) && Number.isInteger(rates?.fighterThief),
       floorDoc: !!floorDoc,
       floor: Number.isInteger(floorDoc?.tables?.firstLevel?.dieMinimum) && floorDoc.tables.firstLevel.dieMinimum > 0,
@@ -158,10 +159,10 @@ const P = {
     if (other(BUILDER_DOC)) return { hidden: false, reason: "foreign override" };
     const budget = structuredClone(T.getDoc(BUILDER_DOC).tables.budget);
     if (what === "humanCap") delete budget.humanMaxLevel;
-    else if (what === "afterLevel") delete budget.hpAfterNine?.afterLevel;
-    else delete budget.hpAfterNine;
+    else if (what === "afterLevel") delete budget.hpPastLastDie?.afterLevel;
+    else delete budget.hpPastLastDie;
     T.registerTable({ id: BUILDER_DOC, tables: { budget } }, { priority: T.PRIORITY.OVERRIDE, source: globalThis.__lc.tag });
-    const hp = T.getDoc(BUILDER_DOC).tables.budget.hpAfterNine;
+    const hp = T.getDoc(BUILDER_DOC).tables.budget.hpPastLastDie;
     return { hidden: true, afterLevel: Number.isInteger(hp?.afterLevel), rates: Number.isInteger(hp?.crusaderMage), humanCap: Number.isInteger(T.getDoc(BUILDER_DOC).tables.budget.humanMaxLevel) };
   },
   /** Remove every OVERRIDE layer this run's tag registered. */
@@ -412,7 +413,7 @@ const P = {
     H.root(sheet).querySelector('[data-action="classTab"][data-tab="builder"]').click();
     await H.sleep(700);
     // A table gap (the last die level, the rate after it, the human maximum level) has no line: neither wording nor a raw lang key may appear in the list or the dialog.
-    const GAP = /ACKS-CLASSES\.|missingLastDieLevel|missingHpAfterNine|missingHumanMaxLevel/;
+    const GAP = /ACKS-CLASSES\.|missingLastDieLevel|missingHpPastLastDie|missingHumanMaxLevel/;
     const sheetIssues = [...H.root(sheet).querySelectorAll(".acks-extras-classes-issues li")].map((li) => li.textContent.trim());
     const button = H.root(sheet).querySelector('[data-action="builderDerive"]');
     const out = {
@@ -530,8 +531,8 @@ const P = {
     const item = game.items.get(itemId);
     const hd = await import("/modules/acks-extras/scripts/classes/hitpoints.mjs");
     const rows = item.system.levels;
-    const A = T.hasDoc(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget?.hpAfterNine?.afterLevel : null;
-    const cell = (n) => rows.find((r) => r.level === n)?.hd ?? "";
+    const A = T.hasDoc(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget?.hpPastLastDie?.afterLevel : null;
+    const cell =(n) => rows.find((r) => r.level === n)?.hd ?? "";
     const out = { rows: rows.length, allBlank: rows.length > 0 && rows.every((r) => !r.hd), anyCell: rows.some((r) => !!r.hd) };
     if (Number.isInteger(A)) {
       out.diceRiseToIt = new RegExp(`^${A}d\\d+$`).test(cell(A));
@@ -546,8 +547,8 @@ const P = {
     const { BUILDER_DOC } = globalThis.__lcK;
     const T = acksExtras.lib.tables;
     const hd = await import("/modules/acks-extras/scripts/classes/hitpoints.mjs");
-    const A = T.hasDoc(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget?.hpAfterNine?.afterLevel : null;
-    const imported = game.items.filter((i) => i.type === "acks-extras.class" && i.system.source?.ref && !i.getFlag("world", "fixture"));
+    const A = T.hasDoc(BUILDER_DOC) ? T.getDoc(BUILDER_DOC).tables?.budget?.hpPastLastDie?.afterLevel : null;
+    const imported =game.items.filter((i) => i.type === "acks-extras.class" && i.system.source?.ref && !i.getFlag("world", "fixture"));
     const withDice = imported.filter((i) => hd.lastDieLevel(i) != null);
     return { imported: imported.length, withDice: withDice.length, agree: Number.isInteger(A) ? withDice.filter((i) => hd.lastDieLevel(i) === A).length : null };
   },
@@ -700,6 +701,7 @@ try {
     tables = await run(gm, P.tables);
     note("tables after", tables);
   }
+  check("precondition: the world's builder budget holds xpFlatAfter, which the imported-cap sections' Derive rows need (the import supplies it)", tables.xpFlatAfter, tables);
   check("the world holds the builder's last die level, its rates, its human maximum level and the 1st-level floor", tables.builderDoc && tables.afterLevel && tables.rates && tables.humanCap && tables.floor && tables.floorServed, tables);
   const player0 = await run(player, P.tables);
   check("the Player seat's registry holds the same", player0.afterLevel && player0.floor, player0);
