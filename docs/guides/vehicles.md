@@ -49,11 +49,11 @@ asks for wears an **unqualified** badge. Once your voyage tables are imported,
 the group shows what its hands are effectively worth beside their head count
 (RR ch. 7); until then it counts them in full and shows no worth beside them.
 
-![](../releases/v11.0.0/vehicles.png)
+![](../releases/v2026.11.14/vehicles.png)
 
-*A galley short of rowers: the sailors at full strength, a named hand without
-the proficiency the seat asks for wearing the unqualified badge beside the
-unnamed complement; the marines are short, the captain's chair is filled, the
+*A galley short of hands: a named rower without the proficiency the seat asks
+for wearing the unqualified badge, counted at what the voyage tables make such
+a hand worth; the sailors and marines are short, the captain's chair is filled, the
 navigator's is empty with what that costs, and one passenger is aboard.*
 
 Drag a character, an animal, another vehicle or an item onto the sheet. An

@@ -309,10 +309,11 @@ resolve as game time passes:
      it with a world script on the `acksExtras.marketGateQuote` hook (see
      below).
 
-   ![](../releases/v11.9.0/markets-gate-enter.png)
+   ![](../releases/v2026.11.14/markets-gate-enter.png)
 
-   *A party of two at the gate: entering as the party or separately, and
-   the goods it brings, with the goblets ticked as brought to sell.*
+   *The goods at the gate: each member's merchandise with whose packs or
+   vehicle carries it, a Smuggled tick on every row, and Brought to sell on
+   what the trader means to sell.*
 2. **Assess supply & demand** — opens the influence page against the
    market: your Charisma, a tone proficiency, a bribe (RR 287) and your
    reaction effects set the Judge's throw against the imported bands, which

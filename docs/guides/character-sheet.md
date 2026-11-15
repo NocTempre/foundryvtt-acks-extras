@@ -8,10 +8,10 @@ this sheet is the default. The system's sheet is a choice away — **Configure
 Sheet** in the window menu (the ⋮ in the title bar) of any actor switches
 it — and the two read and write the same fields.
 
-![](../releases/v11.0.0/character-sheet.png)
+![](../releases/v2026.11.14/character-sheet.png)
 
-*A character fresh from chargen: the class band across the header, the rails
-around the portrait, and the Stats tab with the Training editor armed.*
+*A character at the table: the experience band across the header, the rails
+around the portrait, and the Rolls tab with every throw a row of its own.*
 
 ## Rolls
 

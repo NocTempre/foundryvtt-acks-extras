@@ -21,21 +21,20 @@ const guide = `${base}guides/formation/`;
 
 const plates = [
   {
-    shot: "v5.3.0/formation-weather.png",
+    shot: "v2026.11.14/formation-weather.png",
     title: "The sky, and what it costs",
     body:
       "Weather is settled once a day for the ground you are standing on, derived from the date and " +
       "the climate rather than stored on whoever happened to roll it — so two parties in the same " +
       "country get the same day. The conditions it produces are named, and every one of them shows " +
-      "up in the march beneath: forest, a road, snowfall, wind and snow underfoot, each as its own " +
+      "up in the march: forest, a road, snowfall, wind and snow underfoot, each as its own " +
       "factor. Mud and snow accumulate and dry out on their own.",
     alt:
-      "The travel panel's weather controls — climate, season, temperature, precipitation, wind and " +
-      "ground state — above the conditions they produced and a day's march of three miles with " +
-      "every factor itemized.",
+      "The party sheet's Sky section — the climate the map gives, the season, rolling each new day " +
+      "and fronts, Roll the sky, and the day's temperature, precipitation, wind, mud and lying snow.",
   },
   {
-    shot: "v5.3.0/formation-camp.png",
+    shot: "v2026.11.14/formation-camp-section.png",
     title: "The camp",
     body:
       "How many days the packs hold for everyone in the order, who is going short, and what tonight's " +
@@ -43,24 +42,24 @@ const plates = [
       "you choose. The hours in the weather are yours to declare — a marching day is not automatically " +
       "a day spent unprotected, so the module does not assume one.",
     alt:
-      "The camp section: days of food and water for three people, a field for hours spent in the " +
-      "weather with at-a-fire and got-wet toggles, and the night's forage, water, firewood and " +
-      "hunting throws each priced.",
+      "The camp section: days of food and water for the two in the order, a field for hours spent " +
+      "in the weather with at-a-fire and got-wet toggles, and the night's choices — willing to " +
+      "steal, water at hand, sleeping in armour.",
   },
   {
-    shot: "v5.3.0/formation-flight.png",
+    shot: "v2026.11.14/formation-flight.png",
     title: "Flying, and what a flier skips",
     body:
       "How the order moves decides which factors it meets at all. Pick flying and two more fields " +
       "appear — how much of the day was spent aloft, and what the flier is carrying. A flier still " +
       "meets the ground below it, ignores roads entirely, and feels wind by its own rule rather than " +
-      "the one that slows a walker. The readout names which factor replaced which.",
+      "the one that slows a walker.",
     alt:
-      "The journey pickers with Moving by set to Flying, showing hours aloft, the length of the day, " +
-      "and the flier's load alongside the ground, road and territory.",
+      "The Movement section with Flying set for the group, showing hours aloft, the length of the " +
+      "day and the flier's load beneath the pace and the way it is moving.",
   },
   {
-    shot: "v5.3.0/formation-city.png",
+    shot: "v2026.11.14/formation-city.png",
     title: "In the city",
     body:
       "A settlement is crossed the way a wilderness is, at a different scale: a pace, the avenues or " +
@@ -68,19 +67,22 @@ const plates = [
       "covers its blocks, tests its way, and the street gets its own chance at them. A party that goes " +
       "looking for trouble finds it more easily — the throw eases, it does not come round sooner.",
     alt:
-      "The settlement board: pace, streets, route knowledge, after dark, drawing attention set to " +
-      "looking for trouble, and how the party is carried — with the blocks covered, the navigation " +
-      "throw and the street's own cadence beneath.",
+      "The city section: pace, streets, route knowledge, the hour, drawing attention and how the " +
+      "party is carried — with what times its turns, whether the pace needs a navigation throw, and " +
+      "whose incident table the street answers from beneath.",
   },
   {
-    shot: "v5.3.0/formation-journey.png",
+    shot: "v2026.11.14/formation-plate.png",
     title: "A day, end to end",
     body:
-      "The whole Travel tab as a Judge sees it: the ground and the sky at the top, the day board and " +
-      "its four ancillary hours, the march with every factor named, the camp below, and the log of " +
-      "days already walked. End day throws for navigation, feeds the order, walks every body's hunger, " +
-      "thirst and exposure one step, and writes the day down.",
-    alt: "The complete travel tab, from the ground and weather pickers through the day board and march to the camp.",
+      "The party sheet on a journey, as a Judge sees it: the hex the party stands in drawn in the " +
+      "picture, the day's own actions at the head of the Wilderness tab, the strip of pace, miles, " +
+      "hex, next throw, clock and supplies, and the country the map or the scene reads out beneath. " +
+      "End day throws for navigation, feeds the order, walks every body's hunger, thirst and " +
+      "exposure one step, and writes the day down.",
+    alt:
+      "The party sheet on a journey: the hex drawn in the picture, the Wilderness tab's actions and " +
+      "strip, the Country cards and the points of interest in the hex.",
   },
 ].map((p) => {
   const image = shots[`../assets/shots/${p.shot}`]?.default;

@@ -48,10 +48,10 @@ block.
 
 ## The sheet
 
-![](../releases/v11.9.0/monsters.png)
+![](../releases/v2026.11.14/monsters.png)
 
 *The full sheet on the shared frame: the band, the rails, and the Statblock
-tab of a creature in service — every throw a row with its pin.*
+tab of an imported creature — every throw a row with its pin.*
 
 **Full sheet** from the card, or open an **animal** actor, and this is the
 sheet you get: the same frame as the character sheet. The **band** in the

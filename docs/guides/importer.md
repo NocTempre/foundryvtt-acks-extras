@@ -583,7 +583,7 @@ it, delete it and import again.
 Your edits to the Adventure are kept. A later run rebuilds it only when what
 it carries has changed and you have not edited it since.
 
-![](../releases/v11.11.0/importer-adventure.png)
+![](../releases/v2026.11.14/importer-adventure.png)
 
 *An adventure book's Adventure in the library, from beneath its title and map: what it carries, counted, and the Import button.*
 

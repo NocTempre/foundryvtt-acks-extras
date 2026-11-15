@@ -30,7 +30,7 @@ summoning spell's rows are read when it is cast (below); the other kinds of
 row are recorded on the spell and nothing casts them. The system's Active
 Effects sit below them.
 
-![](../releases/v11.0.0/magic.png)
+![](../releases/v2026.11.14/magic.png)
 
 *An imported spell on the Overview tab.*
 

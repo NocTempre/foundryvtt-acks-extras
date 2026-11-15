@@ -127,11 +127,11 @@ silver, material, shield variant, helm), a strip of toggles wherever it takes
 several (grips, qualities, where it is worn), and *Other tags* only for what no
 list names.
 
-![](../releases/v11.0.0/equipment.png)
+![](../releases/v2026.11.14/equipment.png)
 
 *The Details tab armed: under Construction, Auto naming its guess on every
-drop-down, the grips dashed from the size table and Melee lit from its field,
-with the masterwork row beneath.*
+drop-down, the grips dashed from the size and Melee lit from its field, with
+Other tags beneath.*
 
 **Clothing is declared once.** Set *Base type* to Clothing under
 **Construction** and the rail beside the art shows it. The item then weighs as
