@@ -155,6 +155,22 @@ Never present: user names or ids, world id or title, host, a PDF's
 metadata title, a PDF's file name or shelf path, any setting outside the
 `ui` whitelist.
 
+**Open design point, settled in 1a before the scrub is built: the
+dictionary's reach.** Steps 4 and 5 as written can leave a log useless.
+Many imported documents are named with common words, so a whole-word pass
+over every pack index replaces those words wherever an engine message uses
+them; and an engine error quotes the property or type name it failed on,
+which step 5 blanks. Session 1a measures both on the test world before it
+fixes the rule: build a bundle from stock engine errors (an undefined
+property read, a failed validation, a missing type) with the world's real
+dictionary loaded, and count what was replaced. The candidates to choose
+among, with the count beside each: names of two words or more only; world
+documents only, not pack indexes; no replacement inside a stack frame or an
+engine-authored message (`src` of `hook` with a core `where`); quoted
+spans kept when they are an identifier (`[\w.$-]+`). The offline suite
+then pins the choice with common-word names against stock engine error
+text, where invented names alone cannot fail.
+
 **Residual:** text a message interpolates unquoted that equals no document
 name gets through. Three mitigations: a per-entry exclude tick in the
 preview, a "GitHub issues are public" line on that route, and slice 1d's
@@ -206,6 +222,10 @@ by `options.classes`, since the system build is minified.
   `flags[MODULE_ID].cookbook`, so `heldEdit` grows no field. The locator
   is resolved from the edit's uuid in a new
   `scripts/importer/corrections.mjs`.
+- Three producers pass `uuid: doc.uuid ?? ""` (`target.mjs`'s `heldRoster`
+  and `keepsJudgeFigure`, `adventure-places.mjs`'s `marketTakes`). An edit
+  whose uuid is empty or resolves to no document is an unlocated item,
+  never a thrown error; slice 1b's locator test covers both.
 - An item: `entry` (the shipped cookbook entry the document's claim
   resolves to, through `rebuild.mjs`'s `entryUnder` exported as
   `shippedEntryOf`; null when it resolves to none, shown as unlocated),
@@ -294,7 +314,8 @@ kind is the owner's to declare; the new surface is a minor's tripwire.
 | 1b | Corrections: the held-edits checkbox, `corrections.mjs`, `editRelation`, `openBookPrints`, the rebuild path's failure sites moved to `logFailure` | `implementer` | 1a |
 | 1c | The triage skill in the template, then a sync | `implementer`, in the template repo | Q4 |
 | 1d | The remaining `console.error` sites moved to `logFailure`, a file at a time | `scout` (haiku) enumerates, skipping files an open topic touches; `implementer` applies | 1a |
-| 2 | The picture | `architect` (opus) rules on the library after the proof; `implementer` builds | the desktop-app proof |
+| 2p | The picture proof: each candidate library run by hand from the console on one module sheet, in the desktop app and in a browser, the PNG looked at; fonts, icons, form values and a cross-origin image each noted as drawn or lost. Nothing is vendored or committed | the session that walks 1a, after its walk | 1a |
+| 2 | The picture | `architect` (opus) rules on the library from 2p's result; `implementer` builds | 2p |
 | 3 | A Discord intake bot or a relay on the owner's side | `architect` first | Q2 |
 | 4 | Value-carrying private bundles | `architect` first | Q3 |
 | 5 | A player's report gains the GM's sections over `lib/sockets.mjs` | `architect` first | none; low priority |
@@ -348,6 +369,12 @@ Fixture: `feedback/named-actor`, an actor with an invented name, kept.
 
 ### Not verified, and where it gets checked
 
+- The source claims in "Design" marked by no file path of the planning
+  session's own reading are the architect's report: the 296 and 166
+  call-site counts, the `flags[MODULE_ID].cookbook` stamp on every
+  producer's document, core's `SupportDetails` and settings-menu
+  behaviour, and the absence of a zip writer in core. The session that
+  builds on one reads it first.
 - GitHub prefills an issue-form field from a query key equal to its `id`
   (walk step 6), and a textarea takes a dropped `.txt` (the same step).
 - Discord turns a long paste into a text attachment (by hand, once Q1 is
@@ -373,6 +400,14 @@ flags the mismatch; Q3 answers it for private bundles.
 
 ## Start prompt, session 1a
 
+The session runs on the planning session's own model, the strongest
+available: it settles the scrub's reach from a measurement, judges what
+its walk shows and reviews two agents' work against the IP line, none of
+which is `implementer` work. Its agents are the synced ones, started with
+no override. It shares `main`'s checkout and opens the topic's worktree
+with `acks-branch`; the app's own worktrees are refused by the branch
+guard.
+
 > You are the orchestrator for slices 1a and 1b of
 > `docs/lib/wip/20261115-feedback-intake-plan.md` in
 > `C:\Proj\foundryvtt-acks-extras`. Read that file whole, then `CLAUDE.md`,
@@ -384,11 +419,15 @@ flags the mismatch; Q3 answers it for private bundles.
 > Open `topic/feedback` with `acks-branch`. Before any agent writes under
 > `scripts/lib/` or `scripts/importer/`, list the running sessions, read
 > their latest turns and `main`'s dirty paths, and say in one line what you
-> found. Build 1a with one `implementer` (no model override), to the
+> found. Settle the scrub's reach first, by the measurement the plan's
+> "Open design point" names, and write the rule you chose into the plan.
+> Build 1a with one `implementer` (no model override), to the
 > plan's file list and offline tests, to an offline green on the branch.
 > Land it with `branch.mjs land`, then drive the plan's eight-step walk
 > yourself on `main` through `tools/live` (the `live-tester` agent is not
-> used), and commit what the walk finds on `main` with `acks-commit`. Then
+> used), and commit what the walk finds on `main` with `acks-commit`. Run
+> slice 2p, the picture proof, after that walk and record what each
+> candidate drew and lost. Then
 > build 1b with a fresh `implementer`, land and walk it the same way. The
 > defaults in the plan's question table hold unless the owner has answered
 > since; check the plan's "Owner answers" section first. Nothing is
