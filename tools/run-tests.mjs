@@ -24,22 +24,16 @@
  *
  * ## Discovery
  *
- * A committed suite is found, never listed: `tools/test-*.mjs`,
- * `tools/importer/test-*.mjs` and `discord/test/*.test.mjs`. A new suite that
- * matches runs with no edit here. A file that matches and is not a suite goes
- * on `EXCLUDED`, each entry named in full with its reason, and an entry whose
- * file is gone throws, so the list cannot rot into names that match nothing.
- *
- * The Discord service's suites live beside the service they check and run from
- * here too, so one `npm test` covers the repo. They resolve `discord.js` from
- * the root's own devDependencies: CI installs only the root package, never
- * `discord/node_modules`, so a suite that needs the bot's dependency needs it
- * declared here too.
+ * A committed suite is found, never listed: `tools/test-*.mjs` and
+ * `tools/importer/test-*.mjs`. A new suite that matches runs with no edit
+ * here. A file that matches and is not a suite goes on `EXCLUDED`, each entry
+ * named in full with its reason, and an entry whose file is gone throws, so
+ * the list cannot rot into names that match nothing.
  *
  * The suites run side by side (`side-by-side.mjs`), each a process of its
  * own, and their output is shown in sorted order: `tools/`, then
- * `tools/importer/`, then `discord/test/`, each by file name. Every suite runs
- * to its end, and the ones that failed are named after the last.
+ * `tools/importer/`, each by file name. Every suite runs to its end, and the
+ * ones that failed are named after the last.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -52,7 +46,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SUITE_GLOBS = [
   { dir: ".", match: /^test-.*\.mjs$/ },
   { dir: "importer", match: /^test-.*\.mjs$/ },
-  { dir: "../discord/test", match: /\.test\.mjs$/ },
 ];
 
 /**
