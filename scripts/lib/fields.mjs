@@ -37,6 +37,10 @@ import {
   VALUE_KINDS,
   VALUE_ROUNDING,
   RUNG_OUTCOMES,
+  SAVE_EFFECTS,
+  EFFECT_DELIVERIES,
+  EFFECT_LASTS,
+  EFFECT_RECURRENCES,
 } from "./vocab.mjs";
 import { OCCUPANT_KIND } from "./place-logic.mjs";
 
@@ -321,6 +325,26 @@ export function effectField() {
     // a damage or heal effect rolls; `damage` its damage types; `amount` a
     // summon's creature count and `value` its Hit Dice; `ref` the creature.
     healKind: choice(HEAL_KINDS),
+    // Cast behaviour of a spell row (docs/magic/MODEL.md, "Importing spells"):
+    // `saveEffect` overrides the spell's `save.effect` for this row (blank
+    // inherits it); `delivery` is the attack throw the caster must land first;
+    // `extraordinary` is the damage's printed mark, null where nothing read
+    // it (a missed capture is not a "no"); `lasts` and `recur` say whether the
+    // row is spent in the cast or runs with the spell; `pick` names a choice
+    // group of which the caster takes one row; `reversed` marks the reverse
+    // form's rows; `max` is a ceiling (reserved). `origin` is "register" on a
+    // row the importer wrote, and cleared when a Judge edits it, which is how
+    // a repair tells the two apart. `unread` lists the fields a capture missed.
+    saveEffect: choice(SAVE_EFFECTS),
+    delivery: choice(EFFECT_DELIVERIES),
+    extraordinary: new (F().BooleanField)({ required: false, nullable: true, initial: null }),
+    origin: str(),
+    reversed: bool(),
+    lasts: choice(EFFECT_LASTS),
+    recur: choice(EFFECT_RECURRENCES),
+    pick: str(),
+    max: levelValueField(),
+    unread: new (F().ArrayField)(new (F().StringField)({ blank: false })),
     summonFormat: choice(SUMMON_FORMATS),
     control: choice(CONTROL_KINDS),
     // resource / economic

@@ -185,6 +185,47 @@ export const SAVE_EFFECTS = Object.freeze({
   special: { label: "Special" },
 });
 
+/**
+ * How a saving throw reaches a spell (`save.kind`): `save` is a throw the
+ * recipient rolls, `attack` an attack throw the caster makes in its place,
+ * `other` a number the spell derives (a target's score, an item's bonus) that
+ * the Judge decides.
+ */
+export const SAVE_KINDS = Object.freeze({
+  save: { label: "A saving throw" },
+  attack: { label: "An attack throw" },
+  other: { label: "Something else" },
+});
+
+/**
+ * How an effect row reaches its target (`delivery`): `none` needs no throw, the
+ * others need the caster to land an attack of that kind first.
+ */
+export const EFFECT_DELIVERIES = Object.freeze({
+  none: { label: "No attack throw" },
+  melee: { label: "Melee attack throw" },
+  missile: { label: "Missile attack throw" },
+});
+
+/** Whether a row is spent in the cast (`instant`) or lasts as long as the spell (`duration`). */
+export const EFFECT_LASTS = Object.freeze({
+  instant: { label: "Once, at the cast" },
+  duration: { label: "For the duration" },
+});
+
+/** Whether a row repeats while the spell lasts (`recur`). */
+export const EFFECT_RECURRENCES = Object.freeze({
+  none: { label: "Does not repeat" },
+  eachRound: { label: "Each round" },
+});
+
+/**
+ * The `origin` of an effect row the importer wrote from a register recipe. A
+ * repair replaces rows that carry it and keeps every other row; the row editor
+ * clears it on any edit, which hands the row to the Judge.
+ */
+export const REGISTER_ORIGIN = "register";
+
 /** What a `heal` effect restores — the heal executor's branch. */
 export const HEAL_KINDS = Object.freeze({
   hitPoints: { label: "Hit points" },
@@ -252,6 +293,10 @@ export const MAGIC_VOCAB = Object.freeze({
   targetFilter: TARGET_FILTERS,
   saveCategory: SAVE_CATEGORIES,
   saveEffect: SAVE_EFFECTS,
+  saveKind: SAVE_KINDS,
+  effectDelivery: EFFECT_DELIVERIES,
+  effectLasts: EFFECT_LASTS,
+  effectRecur: EFFECT_RECURRENCES,
   healKind: HEAL_KINDS,
   controlKind: CONTROL_KINDS,
   summonFormat: SUMMON_FORMATS,

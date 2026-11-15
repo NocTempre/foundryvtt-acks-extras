@@ -18,6 +18,7 @@ import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { scenarioProblems, rosterProblems } from "./scenario-rules.mjs";
+import { spellRecipeProblems } from "./spell-recipe-rules.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
@@ -761,6 +762,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
       for (const [name, t] of Object.entries(e.class?.tables ?? {})) checkColQualifiers(t.cols, id, `table "${name}"`);
       if (e.kind === "kind.rolltable") checkRollTable(e, id);
       for (const problem of specConditionProblems([...(e.effects ?? []), ...(e.rolls ?? [])])) err(`${id}: ${problem}`);
+      if (e.kind === "kind.spell") for (const problem of spellRecipeProblems({ effects: e.effects, values: e.values })) err(`${id}: ${problem}`);
       capStrings(e, id);
     }
   }
@@ -932,6 +934,7 @@ if (fs.existsSync(COOKBOOK)) {
     }
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       for (const problem of specConditionProblems([...(e.fields?.effects?.specs ?? []), ...(e.fields?.rolls?.specs ?? [])])) err(`${label}: ${id} ${problem}`);
+      if (e.kind === "kind.spell") for (const problem of spellRecipeProblems({ effects: e.fields?.effects?.specs, values: e.fields?.values?.specs })) err(`${label}: ${id} ${problem}`);
       for (const [field, instr] of Object.entries(e.fields ?? {})) {
         for (const problem of instrProblems(instr)) err(`${label}: ${id}.${field} ${problem}`);
         if (instr.op === "ocr") for (const problem of ocrProblems(instr, pictureRecipes)) err(`${label}: ${id}.${field} ${problem}`);

@@ -13,6 +13,7 @@
  * true})`, `policyFor`) lifts the hand-written prose guard and nothing else.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
 import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
@@ -153,9 +154,11 @@ export function withBlockSums(data) {
  *   document's own.
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
- * - `keepFlags` — paths under the module's flags that keep their stored value
- *   when the build leaves them empty (an empty array or an absent key): what
- *   a Judge authored where the page gave the binder nothing.
+ * - `mergeByOrigin` — paths under the module's flags that hold rows with an
+ *   `origin`: the rows the build wrote (stamped `origin: "register"`) replace
+ *   the stored ones that carry the stamp, in the place of the first, and every
+ *   other stored row stays where it is. A row a Judge made or edited has no
+ *   stamp (the row editor clears it), so a repair never touches it.
  */
 export const REPAIR = Object.freeze({
   trap: { keep: ["level"], prose: ["description"] },
@@ -194,13 +197,13 @@ export const REPAIR = Object.freeze({
     fillUnread: [{ path: "levels", key: "level", fields: ["xp", "title"] }],
   },
   // A spell's cast counter, memorized mark and favourite star are play's;
-  // the primitive is rewritten from the page, except effect rows a Judge
-  // authored on a spell whose build carries none.
+  // the primitive is rewritten from the page, except the effect rows a Judge
+  // made or edited, which stay beside the register's.
   spell: {
     keep: ["cast", "memorized", "favorite"],
     prose: ["description"],
     flags: ["spell"],
-    keepFlags: ["spell.effects"],
+    mergeByOrigin: ["spell.effects"],
   },
   // The rows a printed table builds: its figures, its page reference and the
   // structured modes the module reads are rewritten; what is worn, carried or
@@ -280,7 +283,7 @@ export function unstampedTwins(have = [], built = []) {
  *   change.
  */
 export function refreshPlan(source, built, policy = {}) {
-  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [], keepFlags = [] } = policy;
+  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [], mergeByOrigin = [] } = policy;
   const keptProse = [];
   if (built?.type && source?.type && built.type !== source.type) {
     return { refused: "type", update: {}, retract: [], replace: {}, keptProse };
@@ -339,13 +342,12 @@ export function refreshPlan(source, built, policy = {}) {
     dropPath(flagUpdate, path.split("."));
     keptProse.push(`flags.${path}`);
   }
-  for (const path of keepFlags) {
-    const built = getPath(flagUpdate, path);
-    const empty = built === undefined || built === null || (Array.isArray(built) && built.length === 0);
-    if (!empty) continue;
+  for (const path of mergeByOrigin) {
+    const fresh = getPath(flagUpdate, path);
     const stored = getPath(source?.flags?.[MODULE_ID], path);
-    if (stored === undefined) continue;
-    setPath(flagUpdate, path.split("."), structuredClone(stored));
+    const merged = mergeRowsByOrigin(stored, fresh);
+    if (!merged.length && !(Array.isArray(stored) && stored.length)) continue; // nothing stored, nothing built
+    setPath(flagUpdate, path.split("."), structuredClone(merged));
   }
   // What the write carries is what the stamp records: a field kept above was
   // dropped from the payload and keeps the sum of what the import last wrote.
@@ -378,6 +380,28 @@ export function refreshPlan(source, built, policy = {}) {
     };
   }
   return { update, retract: retracted, replace, keptProse };
+}
+
+/**
+ * Stored rows merged with a fresh build's by `origin`: the stored rows that
+ * carry the register's stamp give way to the build's rows (all of them, at the
+ * place of the first stamped row, or first when none is stored), and every
+ * other stored row is kept in its order.
+ */
+export function mergeRowsByOrigin(stored, fresh) {
+  const have = Array.isArray(stored) ? stored : [];
+  const built = Array.isArray(fresh) ? fresh : [];
+  const out = [];
+  let placed = false;
+  for (const row of have) {
+    if (row?.origin !== REGISTER_ORIGIN) {
+      out.push(row);
+    } else if (!placed) {
+      out.push(...built);
+      placed = true;
+    }
+  }
+  return placed ? out : [...built, ...out];
 }
 
 /** The Foundry document class name for an embedded collection. */

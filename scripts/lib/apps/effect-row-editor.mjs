@@ -288,6 +288,9 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!current) return this.close();
     const form = this.#fromForm() ?? {};
     const next = { ...current, ...form };
+    // Any edit makes the row the Judge's: a repair replaces the importer's rows
+    // (`origin: "register"`) and keeps the others.
+    if (current.origin) next.origin = "";
     if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
     // A frequency picked here is the Judge's own: the phrase the importer read
     // for the previous one no longer describes it.

@@ -15,7 +15,7 @@ import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
 import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { scenarioRoutines } from "./statline-attacks.mjs";
-import { levelFraction } from "../lib/vocab.mjs";
+import { levelFraction, DAMAGE_TYPES, SAVE_CATEGORIES, TARGET_FILTERS } from "../lib/vocab.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
 
@@ -432,12 +432,17 @@ function ladderFrom(match, { pairs = false, steps = null } = {}) {
 }
 
 /**
- * Effect fields a locator may fill, and the shape each one needs. Only numbers
- * are locatable; every other effect field is shape, which the recipe states.
- * `value` is a LevelValue SchemaField and needs the object form; `amount` and
- * `belowFraction` may be fractional; `armourRung` is read through `ceilingOf`.
+ * Effect fields a locator may fill, and the shape each one needs. A figure and
+ * the few words a page prints beside one (a dice expression, a damage type, a
+ * save category, a target filter, a mark) are locatable; every other effect
+ * field is shape, which the recipe states. `value` is a LevelValue SchemaField
+ * and needs the object form; `amount` and `belowFraction` may be fractional;
+ * `armourRung` is read through `ceilingOf`. The `dice`, `damageType`, `flag`,
+ * `saveCategory` and `filters` shapes serve a spell recipe (`materializeEffects`,
+ * "Spell recipes"), and the paths under `save` and `target` name SpellExtras
+ * fields a spell's `values` spec fills.
  */
-const LOCATABLE_FIELDS = {
+export const LOCATABLE_FIELDS = Object.freeze({
   value: "levelValue",
   amount: "number",
   range: "integer",
@@ -455,20 +460,34 @@ const LOCATABLE_FIELDS = {
   // the clause naming the armour rung, which `ceilingOf` maps to the ladder key.
   "gate.loadMax": "number",
   "gate.armourMax": "armourRung",
-};
+  // A spell row's dice, its damage type, its printed extraordinary mark and its ceiling.
+  roll: "dice",
+  damage: "damageType",
+  extraordinary: "flag",
+  max: "levelValue",
+  // A spell's own SpellExtras fields.
+  "save.category": "saveCategory",
+  "save.modifier": "levelValue",
+  "save.exemptBelowHd": "levelValue",
+  "target.filters": "filters",
+  "target.count": "levelValue",
+  "target.hdCap": "levelValue",
+  "target.area.size": "levelValue",
+});
 
 /**
- * Write a located value at `into`, which may name one level of nesting
- * ("gate.loadMax"): the spec's own object at the head is copied, so a shared
- * recipe object is never written through.
+ * Write a located value at `into`, a dotted path of any depth ("gate.loadMax",
+ * "target.area.size"): every object along the path is copied on the way down,
+ * so a shared recipe object is never written through.
  */
-function setLocated(effect, into, value) {
-  const [head, tail] = into.split(".");
-  if (!tail) {
-    effect[head] = value;
+function setLocated(node, into, value) {
+  const [head, ...rest] = into.split(".");
+  if (!rest.length) {
+    node[head] = value;
     return;
   }
-  effect[head] = { ...(effect[head] ?? {}), [tail]: value };
+  node[head] = { ...(node[head] ?? {}) };
+  setLocated(node[head], rest.join("."), value);
 }
 
 /** The longest condition a locator may read; a longer capture ran past its clause. */
@@ -524,6 +543,82 @@ export function locateCondition(loc, text) {
   return out && out.length <= CONDITION_MAX ? out : null;
 }
 
+/** What a locator answers when its pattern finds nothing, or finds something its field cannot hold. */
+const MISS = Symbol("miss");
+
+/** A dice expression: terms of `NdM` or a whole number, joined by + or -, with a die among them. */
+const DICE_TERMS = /^(?:\d*d\d+|\d+)(?:[+-](?:\d*d\d+|\d+))*$/;
+
+/** A captured dice expression with its spaces removed, or MISS when it is no dice formula. */
+function readDice(raw) {
+  const t = String(raw ?? "").toLowerCase().replace(/\s+/g, "");
+  return DICE_TERMS.test(t) && /d\d/.test(t) ? t : MISS;
+}
+
+/**
+ * The key of the vocabulary member a captured word names, by key or by label,
+ * singular or plural; null when none, or when the member is in `skip`.
+ */
+function memberOf(vocab, word, skip = []) {
+  const w = String(word ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  if (!w) return null;
+  for (const form of [w, w.replace(/s$/, "")]) {
+    const hit = Object.entries(vocab).find(
+      ([key, v]) => !skip.includes(key) && (key.toLowerCase() === form || String(v.label ?? "").toLowerCase().replace(/[^a-z]/g, "") === form),
+    );
+    if (hit) return hit[0];
+  }
+  return null;
+}
+
+/**
+ * Read one matched locator into the value its field holds: a number, a
+ * LevelValue, a dice string, a one-member damage set, a save category, a list
+ * of filter keys, a rung or the mark's `true`. MISS when the match holds
+ * nothing that field can use.
+ */
+function locateField(loc, kind, m) {
+  // A ladder reads every capture group at once, before the single-value path.
+  if (kind === "levelValue" && loc.on) {
+    const breakpoints = ladderFrom(m, { pairs: loc.pairs, steps: loc.steps });
+    if (!breakpoints.length) return MISS;
+    return loc.on === "level"
+      ? { kind: "breakpoints", breakpoints, ...(loc.round ? { round: loc.round } : {}) }
+      : { kind: "conditional", on: loc.on, breakpoints, ...(loc.round ? { round: loc.round } : {}) };
+  }
+  if (kind === "flag") return true;
+  const raw = String(m[loc.group ?? 1] ?? m[0]);
+  if (kind === "armourRung") return ceilingOf(raw) ?? MISS; // a rung is a word; a clause naming none reads none
+  if (kind === "dice") return readDice(raw);
+  if (kind === "damageType") {
+    const key = memberOf(DAMAGE_TYPES, raw, ["varies"]);
+    return key ? [key] : MISS;
+  }
+  if (kind === "saveCategory") return memberOf(SAVE_CATEGORIES, raw, ["none"]) ?? MISS;
+  if (kind === "filters") {
+    const keys = [...new Set(raw.split(/[^A-Za-z]+/).map((w) => memberOf(TARGET_FILTERS, w)).filter(Boolean))];
+    return keys.length ? keys : MISS;
+  }
+  // The punctuation strip keeps the decimal point for every field but an
+  // integer one; `value` may be a fraction of class level (RR pp. 41, 60; JJ p. 311).
+  const n = readNumber(raw, kind !== "integer");
+  if (!Number.isFinite(n)) return MISS;
+  // A rate printed apart from the base is read from its own group; `perSign`
+  // is the direction the page's verb states (-1 for "reduces").
+  let per = loc.per ?? n;
+  if (loc.as === "perLevel" && loc.perGroup) {
+    const rate = readNumber(String(m[loc.perGroup] ?? ""), true);
+    if (!Number.isFinite(rate)) return MISS;
+    per = (loc.perSign === -1 ? -1 : 1) * Math.abs(rate);
+  }
+  if (kind !== "levelValue") return n;
+  return loc.as === "perLevel"
+    ? // The located number is both the first-level value and the rate;
+      // an explicit `per` overrides the rate.
+      { kind: "perLevel", base: n, per, ...(loc.round ? { round: loc.round } : {}) }
+    : { kind: "flat", flat: n };
+}
+
 /**
  * Materialize an ability's structured EFFECTS from authored specs.
  *
@@ -560,94 +655,64 @@ export function locateCondition(loc, text) {
  * `conditionFrom`, `restrictionFrom`, `consequenceFrom` and `noteFrom` read
  * that field off the page in place of the shipped neutral label or remark
  * (`locateCondition`, `CLAUSE_FIELDS`); none of them decides completeness.
+ *
+ * Spell recipes. A spell register row's `effects` become rows of the spell's
+ * `effects` list, and its `values` become fragments of its SpellExtras, which
+ * `bindSpell` deep-merges. Five shapes locate what a page prints beside a
+ * figure: `roll` reads a dice expression (spaces removed, held to a dice
+ * formula); `damage` a damage word, written as a one-member set;
+ * `extraordinary` is true where its pattern matches; `save.category` reads a
+ * word onto a save category; `target.filters` reads target words onto the
+ * filter keys it knows. A word no vocabulary member answers to is a miss.
+ *
+ * `"onMiss": "blank"` on a spec changes what a miss costs: the locator that
+ * missed leaves its field unset, the row keeps every other field it located,
+ * and the fields missed are listed in the row's `unread`. Without it a miss
+ * drops the row, as above. `onMiss` never reaches the result.
  */
 export function materializeEffects(specs, paras) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   const out = [];
   for (const spec of specs ?? []) {
-    const { from, ...effect } = spec ?? {};
+    const { from, onMiss, ...effect } = spec ?? {};
+    const blank = onMiss === "blank";
     // The clause locators never ride into the world: they are read here or not at all.
     const clauses = CLAUSE_FIELDS.map((field) => [field, effect[`${field}From`]]);
     for (const field of CLAUSE_FIELDS) delete effect[`${field}From`];
     const locators = (Array.isArray(from) ? from : from ? [from] : []).filter((l) => l?.pattern);
-    // All or nothing: a half-matched effect is dropped whole.
+    // All or nothing unless the spec asks for blanks: a half-matched effect is dropped whole.
     let complete = true;
+    const unread = [];
     for (const loc of locators) {
       const into = loc.into ?? "value";
       const kind = LOCATABLE_FIELDS[into];
-      if (!kind || !text) {
+      if (!kind) {
         complete = false;
         break;
       }
       let m = null;
       try {
-        m = new RegExp(loc.pattern, loc.flags ?? "i").exec(text);
+        m = text ? new RegExp(loc.pattern, loc.flags ?? "i").exec(text) : null;
       } catch {
         m = null; // a malformed locator never throws at the table
       }
-      if (!m) {
-        complete = false;
-        break;
-      }
-      // A ladder reads every capture group at once, before the single-value path.
-      if (kind === "levelValue" && loc.on) {
-        const breakpoints = ladderFrom(m, { pairs: loc.pairs, steps: loc.steps });
-        if (!breakpoints.length) {
+      const got = m ? locateField(loc, kind, m) : MISS;
+      if (got === MISS) {
+        if (!blank) {
           complete = false;
           break;
         }
-        effect[into] =
-          loc.on === "level"
-            ? { kind: "breakpoints", breakpoints, ...(loc.round ? { round: loc.round } : {}) }
-            : { kind: "conditional", on: loc.on, breakpoints, ...(loc.round ? { round: loc.round } : {}) };
+        unread.push(into);
         continue;
       }
-      const raw = String(m[loc.group ?? 1] ?? m[0]);
-      // A rung is a word: a clause naming no ladder word reads no rung and drops the row.
-      if (kind === "armourRung") {
-        const rung = ceilingOf(raw);
-        if (!rung) {
-          complete = false;
-          break;
-        }
-        setLocated(effect, into, rung);
-        continue;
-      }
-      // The punctuation strip keeps the decimal point for every field but an
-      // integer one; `value` may be a fraction of class level (RR pp. 41, 60; JJ p. 311).
-      const n = readNumber(raw, kind !== "integer");
-      if (!Number.isFinite(n)) {
-        complete = false;
-        break;
-      }
-      // A rate printed apart from the base is read from its own group; `perSign`
-      // is the direction the page's verb states (-1 for "reduces").
-      let per = loc.per ?? n;
-      if (loc.as === "perLevel" && loc.perGroup) {
-        const rate = readNumber(String(m[loc.perGroup] ?? ""), true);
-        if (!Number.isFinite(rate)) {
-          complete = false;
-          break;
-        }
-        per = (loc.perSign === -1 ? -1 : 1) * Math.abs(rate);
-      }
-      setLocated(
-        effect,
-        into,
-        kind === "levelValue"
-          ? loc.as === "perLevel"
-            ? // The located number is both the first-level value and the rate;
-              // an explicit `per` overrides the rate.
-              { kind: "perLevel", base: n, per, ...(loc.round ? { round: loc.round } : {}) }
-            : { kind: "flat", flat: n }
-          : n,
-      );
+      setLocated(effect, into, got);
     }
     if (!complete) continue;
     for (const [field, loc] of clauses) {
       const read = locateCondition(loc, text);
       if (read) effect[field] = read;
     }
+    if (unread.length) effect.unread = [...new Set(unread)];
     out.push(effect);
   }
   return out;

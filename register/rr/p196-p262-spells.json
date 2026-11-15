@@ -1691,7 +1691,68 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "type": "heal",
+        "appliesTo": "recipient",
+        "healKind": "hitPoints",
+        "pick": "cure",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "caster\\s*of\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          }
+        ]
+      },
+      {
+        "type": "conditionRemove",
+        "appliesTo": "recipient",
+        "conditions": [
+          "paralyzed"
+        ],
+        "pick": "cure",
+        "lasts": "instant"
+      },
+      {
+        "type": "damage",
+        "appliesTo": "recipient",
+        "reversed": true,
+        "delivery": "melee",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "deals\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*extraordinary"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "target.filters",
+            "pattern": "heal\\s*an?\\s*(\\w+)\\s*creature"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.cureMajorInjury",
@@ -1977,7 +2038,69 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "type": "damage",
+        "appliesTo": "area",
+        "saveEffect": "half",
+        "delivery": "none",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      },
+      {
+        "type": "conditionGrant",
+        "appliesTo": "area",
+        "conditions": [
+          "dehydrated"
+        ],
+        "saveEffect": "negates"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "sphere"
+          }
+        },
+        "save": {
+          "effect": "half",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.area.size",
+            "pattern": "creates\\s*an?\\s*(\\d+)\\S?\\s*diameter"
+          },
+          {
+            "into": "target.filters",
+            "pattern": "each\\s*(\\w+)\\s*creature"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.destroyDead",
@@ -2967,7 +3090,41 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "type": "conditionGrant",
+        "appliesTo": "target",
+        "conditions": [
+          "frightened"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.filters",
+            "pattern": "frighten\\s*an?\\s*(\\w+\\s+\\w+)\\s*target"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.frostbite",
@@ -3319,7 +3476,59 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "type": "ward",
+        "appliesTo": "area",
+        "lasts": "duration"
+      },
+      {
+        "type": "modifier",
+        "target": "ac",
+        "mode": "add",
+        "appliesTo": "area",
+        "condition": "against a creature kind",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "gain\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
+          }
+        ]
+      },
+      {
+        "type": "modifier",
+        "target": "save",
+        "mode": "add",
+        "appliesTo": "area",
+        "condition": "against a creature kind",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "AC\\s*and\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus\\s*on\\s*saving"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "special"
+          }
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "target.area.size",
+            "pattern": "with\\s*an?\\s*(\\d+)\\S?\\s*radius"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.holyCircleSustained",
@@ -5145,7 +5354,70 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMundane"
+        },
+        "notStacksWith": [
+          "kw:masterwork"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "magic\\s*weapon\\s*\\+\\s*(\\d+)"
+          }
+        ]
+      },
+      {
+        "type": "modifier",
+        "target": "damage",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMundane"
+        },
+        "notStacksWith": [
+          "kw:masterwork"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "magic\\s*weapon\\s*\\+\\s*(\\d+)"
+          }
+        ]
+      },
+      {
+        "type": "modifier",
+        "target": "damage",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMagical"
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "additional\\s*\\+\\s*(\\d+)\\s*to\\s*damage"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "object"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.shatterBlade",

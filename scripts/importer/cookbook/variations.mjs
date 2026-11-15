@@ -16,6 +16,7 @@ import { TRAP_LEVELS } from "../../formation/trap-rules.mjs";
 // The spell DataModel is not imported: this file loads under plain Node, and the
 // model needs `foundry`. The bind writes the plain shape `spellFromStat` returns.
 import { SPELL_TYPE, FLAG_SPELL } from "../../magic/constants.mjs";
+import { REGISTER_ORIGIN } from "../../lib/magic-vocab.mjs";
 import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../../magic/spell-logic.mjs";
 import {
   bookStamp, data, ctx, cookbookEntry, bookOf, merchandiseEntries, SIXTHS_PER_STONE, variationEntries, trapEntries,
@@ -361,6 +362,15 @@ export async function importTraps({ only = null, repair = null } = {}) {
   return made;
 }
 
+/** Fold `from` into `into`: plain objects merge key by key, every other value (an array included) replaces. */
+function mergeInto(into, from) {
+  for (const [key, value] of Object.entries(from ?? {})) {
+    const plain = value && typeof value === "object" && !Array.isArray(value);
+    into[key] = plain ? mergeInto({ ...(into[key] && typeof into[key] === "object" && !Array.isArray(into[key]) ? into[key] : {}) }, value) : value;
+  }
+  return into;
+}
+
 /**
  * Build one core `spell` Item from a spell entry and its materialized text.
  * The stat block the seat read is parsed into the primitive (`spell-logic.mjs`
@@ -369,6 +379,15 @@ export async function importTraps({ only = null, repair = null } = {}) {
  * the spell reversible, and the reverse's name is read off the prose where it
  * states one. A row anchored by hash names the document from the heading the
  * seat read; with the book closed it keeps the row's numbered label.
+ *
+ * A spell entry that carries authored recipes (`fields.effects.specs`,
+ * `fields.values.specs`) gets what they materialized. Its effect rows are
+ * written to `effects`, each stamped `origin: "register"` so a repair can tell
+ * them from a Judge's. Its `values` are fragments of the primitive, deep-merged
+ * in order over the stat block's: objects merge, anything else replaces, and a
+ * fragment's `unread` list stays behind (the primitive has no such field).
+ * The test is the entry's recipe, never the node's rows: `executeEntry` runs
+ * `effectScan` over every spell's prose, and those guesses never reach a spell.
  */
 export function bindSpell(entry, node, id) {
   const cite = entry.cite ?? "";
@@ -383,6 +402,12 @@ export function bindSpell(entry, node, id) {
     reversedName: marker ? reversedNameFrom(paras.join(" ")) : "",
     cite,
   };
+  if (entry.fields?.values?.specs?.length) {
+    for (const { unread, ...fragment } of node?.fields?.values ?? []) mergeInto(extras, fragment);
+  }
+  if (entry.fields?.effects?.specs?.length) {
+    extras.effects = (node?.fields?.effects ?? []).map((row) => ({ ...row, origin: REGISTER_ORIGIN }));
+  }
   return {
     name: printed.replace(/\*\s*$/, "").trim(),
     type: SPELL_TYPE,

@@ -1858,3 +1858,58 @@ beside the old ones and migrates nothing, so the test world held both
 generations of the two classes, each with its own kit parts and tables. The
 older generation was deleted by hand (137 documents); one older proficiency
 document stayed, because three other classes' kit bundles still link it.
+
+## 2026-11-15 — A spell row's missed capture leaves its field blank and keeps the row
+
+The architect's ruling 2 of `docs/magic/wip/20261115-spell-effects-plan.md`,
+built in slice S1. A locator that misses has dropped its whole row since the
+recipe channel began, so that a half-read effect never ships looking complete
+(`materializeEffects`). That holds for abilities and stays.
+
+**Ruled:** a spell recipe spec may carry `"onMiss": "blank"`. Under it a
+locator that misses leaves its field unset, appends the field's path to the
+row's `unread` list, and the row is kept with every other field it located
+or the recipe states. The spec without `onMiss` keeps the all-or-nothing
+drop. `onMiss` is read by the materializer and never reaches the world. A
+mark the page could not state is null, never false: `extraordinary` is a
+nullable boolean, so a missed capture is not read as "mundane".
+
+**New evidence.** Two things the original rule did not know. The owner's
+2026-11-14 ruling is that a missing import stays blank with its page
+reference, and a dropped row is the opposite of blank: it removes the
+structure a Judge needs along with the figure. And a spell row's structure
+(what it does, to whom, how a save changes it, which condition it grants) is
+shipped by the recipe and true whether or not a figure was read, which is not
+so of an ability modifier whose whole content is its number.
+
+**Rejected:** loosening the rule for every recipe. An ability modifier with
+no value is a row that applies nothing and reads as applied; blank is right
+only where the row's structure carries meaning of its own.
+
+*Cost:* a half row can read as complete. The Mechanics list's mark for `unread` is a
+later slice of the plan, and a cast rolls nothing for a blank figure. The PDF's damage
+type mark carries `extraordinary` as the glyph's fill colour, which the text
+op does not read, so a spell damage row's mark is `unread` on every real
+import until a glyph-colour read is built.
+
+## 2026-11-15 — A repair tells a spell's rows apart by `origin`
+
+Ruling 3 of the same plan. `REPAIR.spell` kept `spell.effects` whole, which
+could not tell a row the register wrote from a row a Judge made, so a spell
+that gained register rows would have kept its stale ones and a repair could
+not replace a row it wrote.
+
+**Ruled:** a row the importer writes carries `origin: "register"`. A repair
+(`mergeByOrigin`, `mergeRowsByOrigin`) replaces the stamped rows with the
+fresh build's, at the place of the first stamped row, and keeps every other
+row in its order. The row editor clears `origin` on any edit, so an edited
+register row becomes the Judge's and a repair never touches it. `keepFlags`,
+which kept stored rows only when the build had none, is gone.
+
+**Rejected:** a document-level stamp (a Judge's one edit would freeze every
+register row), and matching a Judge's edited row to its register twin to
+replace it (a figure typed by hand would be silently overwritten).
+
+*Cost:* a register row a Judge edited stays, and the next repair adds the
+register's fresh row beside it, so the spell shows both until the Judge
+deletes one.

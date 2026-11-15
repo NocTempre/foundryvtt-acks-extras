@@ -80,11 +80,18 @@ and writes one core `spell` Item: the flag, core's strings, the prose as the
 description with its cite, the row's icon, the cookbook stamp. `importSpells`
 is the entry — `acksExtras.importer.importSpells()`, the *Spells* shelf of
 Reimport One Shelf, and the getting-started step that runs before the classes
-so a template's spellbook finds what it names. `REPAIR.spell` (`refresh.mjs`)
-keeps `cast`, `memorized`, `favorite`, a description the Judge wrote and the
-effect rows across a repair. A damage-type mark in the prose lands as its
-word through the shipped `damageGlyph` table (executor `glyphWords`); the
-mark's colour does not.
+so a template's spellbook finds what it names. A row carrying authored `effects` and `values`
+recipes (the importer's "Spell recipes", docs/importer/MODEL.md) also writes
+the effect rows, each `origin: "register"`, and the figures and captured
+words its locators read into `target` and `save`; a row with none writes no
+effect rows. A missed capture leaves its field blank and the row's `unread`
+names it. `REPAIR.spell` (`refresh.mjs`) keeps `cast`, `memorized`,
+`favorite` and a description the Judge wrote across a repair, replaces the
+rows stamped `origin: "register"` from the fresh bind and keeps every other
+row; the row editor clears `origin` on any edit, which makes the row the
+Judge's. A damage-type mark in the prose lands as its word through the
+shipped `damageGlyph` table (executor `glyphWords`); the mark's colour does
+not, so the extraordinary mark of a damage row is not read from text.
 
 **Printed names** (`spell-names.mjs`, pure). `titleIndex(pairs)` resolves a
 printed title whole, in the singular, or from a column's closing abbreviation

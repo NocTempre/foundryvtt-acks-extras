@@ -28,6 +28,7 @@ import {
   TARGET_FILTERS,
   SAVE_CATEGORIES,
   SAVE_EFFECTS,
+  SAVE_KINDS,
 } from "../lib/magic-vocab.mjs";
 import { splitList } from "./spell-logic.mjs";
 
@@ -85,6 +86,8 @@ export default class SpellExtras extends foundry.abstract.DataModel {
         model: choice(TARGET_MODELS),
         count: levelValueField(),
         hdPool: levelValueField(),
+        // The Hit Dice a target must be under to be affected at all; a target over it reads unaffected on its row.
+        hdCap: levelValueField(),
         area: new SchemaField({ shape: choice(AREA_SHAPES), size: levelValueField(), height: num() }),
         filters: choiceSet(TARGET_FILTERS),
         beholding: bool(),
@@ -93,6 +96,9 @@ export default class SpellExtras extends foundry.abstract.DataModel {
       save: new SchemaField({
         category: choice(SAVE_CATEGORIES),
         effect: choice(SAVE_EFFECTS),
+        kind: choice(SAVE_KINDS), // blank reads as a saving throw
+        // Targets under this many Hit Dice are exempt from the throw.
+        exemptBelowHd: levelValueField(),
         perTarget: bool(),
         modifier: levelValueField(),
         note: str(),

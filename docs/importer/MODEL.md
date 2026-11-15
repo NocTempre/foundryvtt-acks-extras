@@ -239,8 +239,8 @@ it or has nothing to write from:
   damage, a stack's quantity and equipped state, a spell's cast count): play
   state, or settled by `annotateItem` after creation;
 - a field the build does not produce: an array row's unbuilt fields
-  (`keepUnrenderedFields`), spell effect rows a Judge authored where the page
-  gave none (`keepFlags`), a class level's experience or title the build could
+  (`keepUnrenderedFields`), the spell effect rows a Judge made or edited, kept
+  beside the register's (`mergeByOrigin`), a class level's experience or title the build could
   not read (`fillUnread`);
 - a document with nothing to be written from: its book is not open on this
   seat, its page no longer matches, a monster entry that claims no stats, a
@@ -1060,6 +1060,39 @@ outside a page reference, and a TODO (`noteProblem`). Both prose fields also
 refuse an amount followed by a unit of game time ("three rounds", "a turn",
 "10-minute"), at any length (`TIME_PHRASE`). Whether a remark
 paraphrases the rule is left to review: no pattern tells the two apart.
+
+**Spell recipes.** A spell register row (`kind.spell`) may carry the same
+`effects` and `values` recipes, and `bindSpell` reads them only when the
+entry has them: `executeEntry` runs `effectScan` over every spell's prose,
+and its guesses never reach a spell. `effects` specs become the spell's effect
+rows (`flags["acks-extras"].spell.effects`), each stamped `origin:
+"register"`. `values` specs are fragments of the spell's SpellExtras
+(`save`, `target`), each `{save?, target?, from, onMiss?}`: the structure it
+states (`target.model`, `target.area.shape`, `save.effect`, `save.kind`,
+`save.perTarget`) and the fields its locators fill are deep-merged, in order,
+over what the stat block gave (objects merge, any other value replaces).
+`LOCATABLE_FIELDS` lists every `into`: besides the figure shapes, `roll`
+(a dice expression, spaces removed, held to a dice formula), `damage` (a word
+mapped to a `DAMAGE_TYPES` key by key or label, kept as a one-member set;
+`varies` never maps), `extraordinary` (true where the pattern matches),
+`save.category` (a word onto a `SAVE_CATEGORIES` key) and `target.filters`
+(the words that name a `TARGET_FILTERS` key). A word no member answers to is a
+miss. The damage mark's colour is not in the text layer (`glyphWords` writes
+its word), so the extraordinary mark of a printed damage cannot be read from
+text.
+
+A spec with `"onMiss": "blank"` keeps its row when a locator misses: the field
+is left unset, its path is listed in the row's `unread`, and the later
+locators still read. Without `onMiss` a miss drops the row, as above. A
+fragment's `unread` stays out of the primitive. A spell recipe ships structure
+and locators only: `lint-register.mjs` (`spell-recipe-rules.mjs`) refuses a
+number outside a locator, a located field written as a literal, a locator that
+carries a figure of its own (`per`, `steps`), an unknown row kind, subject,
+delivery, condition key or gate kind (`SPELL_GATE_KINDS`; the evaluators are lib's),
+and an `onMiss` other than `"blank"`.
+`REPAIR.spell` replaces the stamped rows and keeps the others
+([DECISIONS.md](DECISIONS.md), 2026-11-15, "A repair tells a spell's rows
+apart by `origin`").
 
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
 prints the borrowing and a `progression` object (`{as, table, fraction?,
