@@ -65,6 +65,14 @@
           <p class="hint">{{localize "ACKS-LIB.effectEditor.value.ladder"}}</p>
         {{/if}}
       </fieldset>
+    {{else if (eq f.kind "readonly")}}
+      <div class="form-group">
+        {{!-- label-ok: read-only text, not a control a label can name --}}
+        <label>{{f.label}}</label>
+        <div class="form-fields">
+          <output class="acks-extras-effect-readonly" tabindex="0">{{f.text}}</output>
+        </div>
+      </div>
     {{else}}
       <div class="form-group"{{#if f.drop}} data-acks-extras-ref-drop{{/if}}>
         <label>{{f.label}}</label>

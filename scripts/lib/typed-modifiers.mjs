@@ -26,7 +26,7 @@
  * Every number comes from the spec; this file ships the procedure and the
  * map from a target to the field it writes. Foundry-free.
  */
-import { resolveLevelValue, scopeApplies, satisfies, abilitySlug } from "./vocab.mjs";
+import { resolveLevelValue, scopeApplies, satisfies, abilitySlug, hasScope } from "./vocab.mjs";
 import { cookbookId } from "./library.mjs";
 import { RELEASED_SAVE_KEYS } from "./actor-compat.mjs";
 
@@ -187,7 +187,7 @@ export function modifierPaths(spec, actorType) {
 
 /** True when a spec states a scope a roll must settle. */
 function hasRollScope(spec) {
-  return (spec.vsKinds?.length ?? 0) > 0 || !!spec.vsAlignment || (spec.tones?.length ?? 0) > 0;
+  return hasScope(spec) || (spec.tones?.length ?? 0) > 0;
 }
 
 /**

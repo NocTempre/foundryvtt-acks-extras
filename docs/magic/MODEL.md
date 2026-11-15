@@ -93,6 +93,28 @@ Judge's. A damage-type mark in the prose lands as its word through the
 shipped `damageGlyph` table (executor `glyphWords`); the mark's colour does
 not, so the extraordinary mark of a damage row is not read from text.
 
+**An area's measure** (`target.area`: `shape`, `measure`, `size`, `width`, `unit`,
+`height`). A page prints an area's size as a radius, a diameter or a length by a
+width, so the spell keeps the figure as printed and which measure it is
+(`AREA_MEASURES` in `lib/magic-vocab.mjs`); the importer's recipe states the
+measure and locates the size and the width, and `unit` is a `DISTANCE_UNITS`
+key, feet unless set. `cast-area.mjs` `areaExtent({measure, size, width, height,
+unit})` is pure and stores nothing: it turns the resolved figures into one extent
+in feet (a radius gives its diameter and the reverse; a length carries its width),
+and a size with no known measure gives no extent, since the figure alone does not
+say which one it is. The Overview's Measure, Unit and Width controls edit the
+fields, and the Extent in feet beside them carries a tooltip naming its parts: the
+measure, the figure and unit as printed, the unit's worth in feet, and the page
+reference, which stands alone where nothing could be normalized. A size that
+varies by level shows no extent on the sheet.
+
+**A row's scope.** A modifier or ward row scopes itself with `lib`'s scope fields
+(docs/lib/API.md, "Scoping"): kinds, an alignment fixed or the source's, an enemy
+test and an `anyOf` of branches. A spell's rows author them as structure, and
+the importer's recipe ships them with the row; the row editor edits the flat
+fields and shows an `anyOf` as text, keeping it as stored. No cast reads a
+spell's scope against an attacker yet.
+
 **Printed names** (`spell-names.mjs`, pure). `titleIndex(pairs)` resolves a
 printed title whole, in the singular, or from a column's closing abbreviation
 — over the register's entries at import, over the world's documents at bind

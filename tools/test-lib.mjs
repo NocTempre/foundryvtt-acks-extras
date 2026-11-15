@@ -60,7 +60,7 @@ import {
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "../scripts/lib/patches/spell-use.mjs";
-import { hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
+import { actorAlignment, areEnemies, creatureKinds, hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
@@ -4037,5 +4037,133 @@ await (async () => {
   n++;
   console.log("ok - score bounds: the system's schema range per type, an open side stays open, a group reads it too");
 }
+
+/* ---------------------------------------------------------------- */
+/*  Scoping: alignment reader, kinds, enemies, anyOf                  */
+/* ---------------------------------------------------------------- */
+
+t("alignmentKey folds the words a sheet or a page writes to an ALIGNMENTS key, and anything else to null", () => {
+  for (const [text, key] of [["L", "lawful"], ["Lawful", "lawful"], ["law", "lawful"], ["  LAWFUL good ", "lawful"], ["c", "chaotic"], ["Chaos", "chaotic"], ["Chaotic", "chaotic"], ["N", "neutral"], ["neutral", "neutral"]]) {
+    assert.equal(vocab.alignmentKey(text), key, `"${text}"`);
+    assert.ok(Object.hasOwn(vocab.ALIGNMENTS, key), "every key it answers is an ALIGNMENTS key");
+  }
+  for (const text of ["None", "", "  ", null, undefined, "evil", "good", "3"]) assert.equal(vocab.alignmentKey(text), null, `"${text}" names none`);
+  assert.equal(actorAlignment({ system: { details: { alignment: "Chaotic" } } }), "chaotic", "an actor's sheet is read through it");
+  assert.equal(actorAlignment({ system: {} }), null);
+});
+
+t("hasScope counts kinds, an alignment, the source's alignment, an enemy test and an anyOf, and not a tone", () => {
+  assert.equal(vocab.hasScope({}), false);
+  assert.equal(vocab.hasScope(undefined), false);
+  assert.equal(vocab.hasScope({ vsKinds: [], anyOf: [] }), false, "empty lists declare nothing");
+  assert.equal(vocab.hasScope({ vsEnemy: false }), false);
+  assert.equal(vocab.hasScope({ tones: ["diplomacy"] }), false, "a tone is the roll's, not the target's");
+  for (const scope of [{ vsKinds: ["x"] }, { vsAlignment: "lawful" }, { vsAlignmentOf: "source" }, { vsEnemy: true }, { anyOf: [{ vsEnemy: true }] }]) {
+    assert.equal(vocab.hasScope(scope), true, JSON.stringify(scope));
+  }
+});
+
+t("scopeApplies: except against a fixed alignment and against the source's", () => {
+  const fixed = { vsAlignment: "lawful", vsAlignmentMode: "except" };
+  assert.deepEqual(vocab.scopeApplies(fixed, { alignment: "chaotic" }), { applies: true, sign: 1, undetermined: false });
+  assert.equal(vocab.scopeApplies(fixed, { alignment: "lawful" }).applies, false);
+  assert.equal(vocab.scopeApplies(fixed, {}).undetermined, true, "no alignment known is undetermined");
+  const ofSource = { vsAlignmentOf: "source", vsAlignmentMode: "except" };
+  assert.equal(vocab.scopeApplies(ofSource, { alignment: "neutral", sourceAlignment: "lawful" }).applies, true);
+  assert.equal(vocab.scopeApplies(ofSource, { alignment: "lawful", sourceAlignment: "lawful" }).applies, false);
+  assert.equal(vocab.scopeApplies(ofSource, { alignment: "lawful" }).undetermined, true, "a source with no alignment settles nothing");
+  assert.equal(vocab.scopeApplies(ofSource, { sourceAlignment: "lawful" }).undetermined, true, "nor does a target with none");
+  const gate = { vsAlignmentOf: "source" };
+  assert.equal(vocab.scopeApplies(gate, { alignment: "lawful", sourceAlignment: "lawful" }).applies, true, "a source gate applies to the same alignment");
+  assert.equal(vocab.scopeApplies(gate, { alignment: "chaotic", sourceAlignment: "lawful" }).applies, false);
+  const signed = { vsAlignment: "lawful", vsAlignmentMode: "sign" };
+  assert.deepEqual(vocab.scopeApplies(signed, { alignment: "chaotic" }), { applies: true, sign: -1, undetermined: false }, "the sign flip is untouched");
+});
+
+t("scopeApplies: vsEnemy is true for an enemy, fails for a friend and is undetermined when unknown", () => {
+  const scope = { vsEnemy: true };
+  assert.equal(vocab.scopeApplies(scope, { enemy: true }).applies, true);
+  assert.deepEqual(vocab.scopeApplies(scope, { enemy: false }), { applies: false, sign: 1, undetermined: false });
+  for (const enemy of [null, undefined]) assert.equal(vocab.scopeApplies(scope, { enemy }).undetermined, true);
+  assert.equal(vocab.scopeApplies({ vsEnemy: false }, { enemy: false }).applies, true, "a false flag declares no test");
+});
+
+t("scopeApplies: anyOf applies when a branch does, is undetermined when none does and one is, and fails otherwise", () => {
+  const effect = {
+    anyOf: [
+      { vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" },
+      { vsKinds: ["alpha", "beta"], vsAlignment: "chaotic" },
+    ],
+  };
+  const verdict = (ctx) => {
+    const r = vocab.scopeApplies(effect, ctx);
+    return r.applies ? "applies" : r.undetermined ? "undetermined" : "fails";
+  };
+  const enemyOther = { enemy: true, alignment: "neutral", sourceAlignment: "lawful" };
+  assert.equal(verdict(enemyOther), "applies", "branch one alone");
+  assert.equal(verdict({ enemy: false, alignment: "chaotic", kinds: ["beta"] }), "applies", "branch two alone");
+  assert.equal(verdict({ ...enemyOther, kinds: ["gamma"] }), "applies", "a failing branch does not mask a passing one");
+  assert.equal(verdict({ enemy: false, alignment: "lawful", sourceAlignment: "lawful", kinds: ["gamma"] }), "fails", "both determined false");
+  assert.equal(verdict({ enemy: false, alignment: "neutral", sourceAlignment: "lawful", kinds: ["alpha"] }), "fails", "kinds met but the alignment fails, and branch one fails on the enemy test");
+  assert.equal(verdict({ enemy: null, alignment: "neutral", sourceAlignment: "lawful", kinds: ["gamma"] }), "undetermined", "branch one cannot be settled and branch two fails");
+  assert.equal(verdict({ enemy: false, alignment: "chaotic" }), "undetermined", "branch two has no kinds to read");
+  assert.equal(verdict({}), "undetermined");
+  // A branch never carries a sign: a sign mode there is a gate.
+  const sign = { anyOf: [{ vsAlignment: "lawful", vsAlignmentMode: "sign" }] };
+  assert.deepEqual(vocab.scopeApplies(sign, { alignment: "chaotic" }), { applies: false, sign: 1, undetermined: false });
+  // A branch that declares no clause settles nothing; the effect's own clauses are ANDed with it.
+  assert.equal(vocab.scopeApplies({ anyOf: [{}] }, {}).undetermined, true);
+  const both = { vsKinds: ["alpha"], anyOf: effect.anyOf };
+  assert.equal(vocab.scopeApplies(both, { kinds: ["gamma"], ...enemyOther }).applies, false, "a failing top-level clause beats a passing branch");
+  assert.equal(vocab.scopeApplies(both, { kinds: ["alpha"], ...enemyOther }).applies, true);
+  assert.equal(vocab.scopeApplies(both, { kinds: ["gamma"], enemy: null }).applies, false, "and beats an undetermined anyOf");
+});
+
+t("creatureKinds: types, summoned, the defined term enchanted, character, and an untyped monster is empty", () => {
+  const monster = (types, summoner) => ({
+    type: "monster",
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { types } : scope === "acks-extras" && key === "summonedBy" ? summoner : undefined),
+  });
+  assert.deepEqual([...creatureKinds(monster(["Beta"]))], ["beta"], "a type is lowercased and nothing is added to it");
+  assert.deepEqual([...creatureKinds(monster(new Set(["undead"])))].sort(), ["enchanted", "undead"], "a set of types reads like a list");
+  for (const type of ["construct", "enchanted", "incarnation"]) assert.ok(creatureKinds(monster([type])).has("enchanted"), `${type} is enchanted`);
+  assert.ok(!creatureKinds(monster(["beta"])).has("enchanted"));
+  assert.deepEqual([...creatureKinds(monster(["beta"], "Actor.x"))].sort(), ["beta", "enchanted", "summoned"], "a summoned creature is enchanted whatever its type");
+  assert.deepEqual([...creatureKinds(monster([], "Actor.x"))].sort(), ["enchanted", "summoned"]);
+  assert.equal(creatureKinds(monster([])).size, 0, "an untyped, unsummoned monster is empty");
+  assert.equal(creatureKinds({ type: "monster", getFlag: () => undefined }).size, 0, "a monster with no stat block is empty");
+  assert.deepEqual([...creatureKinds({ type: "character", getFlag: () => undefined })], ["character"]);
+  assert.equal(creatureKinds(null).size, 0);
+});
+
+t("areEnemies: friendly against hostile is true, one side false, neutral secret and missing are unknown", () => {
+  const prior = globalThis.CONST;
+  globalThis.CONST = { TOKEN_DISPOSITIONS: { FRIENDLY: 7, HOSTILE: 3, NEUTRAL: 0, SECRET: -9 } };
+  try {
+    const tok = (disposition) => ({ disposition });
+    assert.equal(areEnemies(tok(7), tok(3)), true);
+    assert.equal(areEnemies(tok(3), tok(7)), true, "in either order");
+    assert.equal(areEnemies(tok(7), tok(7)), false);
+    assert.equal(areEnemies(tok(3), tok(3)), false);
+    assert.equal(areEnemies(tok(0), tok(3)), null, "a neutral token is unknown");
+    assert.equal(areEnemies(tok(7), tok(-9)), null, "a secret token is unknown");
+    assert.equal(areEnemies(tok(7), null), null);
+    assert.equal(areEnemies(undefined, undefined), null);
+    assert.equal(areEnemies({ document: { disposition: 7 } }, { document: { disposition: 3 } }), true, "a placeable reads its document");
+  } finally {
+    globalThis.CONST = prior;
+  }
+});
+
+{
+  const { modifierDisposition, DISPOSITION } = await import("../scripts/lib/typed-modifiers.mjs");
+  t("a row's scope reaches its roll: modifierDisposition treats the new scope fields as roll scope", () => {
+    const base = { type: "modifier", target: "ac", mode: "add", value: { kind: "flat", flat: 1 } };
+    for (const scope of [{ vsEnemy: true }, { vsAlignmentOf: "source" }, { anyOf: [{ vsEnemy: true }] }]) {
+      assert.equal(modifierDisposition({ ...base, ...scope }).kind, DISPOSITION.AT_ROLL, JSON.stringify(scope));
+    }
+  });
+}
+
 
 console.log(`\n${n} tests passed`);

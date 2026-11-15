@@ -26,7 +26,7 @@ const paras = (...lines) => lines.map((text) => ({ text }));
 
 // An invented spell. Its prose is made up, with welded words and a curly apostrophe as extraction leaves them.
 const PROSE = paras(
-  "This spell hurls a 15’ cone of glittering frost. Every living creature caught in the cone is allowed a Death save.",
+  "This spell hurls a cone of glittering frost with a 15’ radius. Every living creature caught in the cone is allowed a Death save.",
   "A creature that fails takes 2d8 + 3 extraordinary acidic damage and is chilled. A creature that saves takes half.",
 );
 const DICE = "\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?";
@@ -43,11 +43,11 @@ const ROW = {
   ],
 };
 const VALUES = {
-  target: { model: "area", area: { shape: "cone" } },
+  target: { model: "area", area: { shape: "cone", measure: "radius" } },
   save: { effect: "half", kind: "save", perTarget: true },
   from: [
     { into: "save.category", pattern: "allowed\\s*an?\\s*(\\w+)\\s*save" },
-    { into: "target.area.size", pattern: "hurls\\s*an?\\s*(\\d+)\\S?\\s*cone" },
+    { into: "target.area.size", pattern: "with\\s*an?\\s*(\\d+)\\S?\\s*radius" },
     { into: "target.filters", pattern: "every\\s*(\\w+)\\s*creature" },
   ],
 };
@@ -69,6 +69,7 @@ t("a values spec materializes a SpellExtras fragment, at any depth, without writ
   assert.deepEqual(frag.save.effect, "half", "the recipe's own structure is kept beside the located category");
   assert.deepEqual(frag.target.area.size, { kind: "flat", flat: 15 });
   assert.equal(frag.target.area.shape, "cone");
+  assert.equal(frag.target.area.measure, "radius", "the authored measure rides beside the located size");
   assert.deepEqual(frag.target.filters, ["living"]);
   assert.equal(spec.target.area.size, undefined, "the shared recipe object is copied, never written through");
   assert.equal(spec.save.category, undefined);
@@ -234,5 +235,79 @@ t("the recipe rules accept a well-formed spell recipe and refuse a printed figur
   assert.deepEqual(spellRecipeProblems({ effects: [{ type: "modifier", target: "damage", gate: { kind: "weaponMundane" }, notStacksWith: ["kw:x"] }] }), []);
   assert.ok(spellRecipeProblems({ effects: [{ type: "modifier", target: "damage", gate: { kind: "nowhere" } }] }).some((p) => p.includes("gate.kind")));
 });
+
+t("a row's scope rides through materialize and bind untouched, a nested anyOf included", () => {
+  const scope = {
+    vsKinds: ["alpha"],
+    anyOf: [
+      { vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" },
+      { vsKinds: ["beta", "gamma"], vsAlignment: "chaotic" },
+    ],
+  };
+  const specs = [{ ...ROW, ...scope, onMiss: "blank" }];
+  const [row] = materializeEffects(specs, PROSE);
+  assert.deepEqual(row.anyOf, scope.anyOf);
+  assert.deepEqual(row.vsKinds, ["alpha"]);
+  const built = bindSpell(entryFor(specs, null), nodeFor(specs, null), "def.spell.glimmerfrost");
+  assert.deepEqual(built.flags[MODULE_ID].spell.effects[0].anyOf, scope.anyOf, "the binder writes the branches as authored");
+  assert.deepEqual(spellRecipeProblems({ effects: [specs[0]] }), [], "and the rules accept them");
+});
+
+t("a values spec carries the area's measure and unit, and locates its size and its width", () => {
+  const prose = paras("The spell fills a strip of mist, 20’ in length and 6’ wide.");
+  const spec = {
+    target: { model: "area", area: { shape: "line", measure: "length", unit: "feet" } },
+    onMiss: "blank",
+    from: [
+      { into: "target.area.size", pattern: "(\\d+)\\S?\\s*in\\s*length" },
+      { into: "target.area.width", pattern: "length\\s*and\\s*(\\d+)\\S?\\s*wide" },
+    ],
+  };
+  const [frag] = materializeEffects([spec], prose);
+  assert.deepEqual(frag.target.area.size, { kind: "flat", flat: 20 });
+  assert.deepEqual(frag.target.area.width, { kind: "flat", flat: 6 }, "the width is a located level value");
+  assert.equal(frag.unread, undefined);
+  assert.equal(frag.target.area.measure, "length");
+  assert.equal(frag.target.area.unit, "feet");
+  assert.deepEqual(spellRecipeProblems({ values: [spec] }), [], "a length with its width locator is well formed");
+});
+
+t("the recipe rules refuse an area size with no measure, a pattern that never names it, a length with no width, and a stray width", () => {
+  const sizeLoc = (pattern) => ({ into: "target.area.size", pattern });
+  const area = (areaSpec, from) => spellRecipeProblems({ values: [{ target: { model: "area", area: areaSpec }, from }] });
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  has(area({ shape: "sphere" }, [sizeLoc("an (\\d+) radius")]), "states no target.area.measure");
+  has(area({ shape: "sphere", measure: "radius" }, [sizeLoc("an (\\d+) diameter")]), 'never says "radius"');
+  assert.deepEqual(area({ shape: "sphere", measure: "radius" }, [sizeLoc("a (\\d+)\\S? RADIUS")]), [], "the word is found whatever its case");
+  has(area({ shape: "line", measure: "length" }, [sizeLoc("is (\\d+) length")]), "locates no target.area.width");
+  assert.deepEqual(area({ shape: "line", measure: "length" }, [sizeLoc("is (\\d+) length"), { into: "target.area.width", pattern: "by (\\d+)" }]), []);
+  has(area({ shape: "sphere", measure: "radius" }, [sizeLoc("a (\\d+) radius"), { into: "target.area.width", pattern: "(\\d+)" }]), "only a length measure reads");
+  has(area({ shape: "sphere", measure: "breadth" }, []), "is not an area measure");
+  has(area({ shape: "sphere", measure: "radius", unit: "leagues" }, []), "is not a distance unit");
+  has(area({ shape: "sphere", size: { kind: "flat", flat: 5 } }, []), "target.area.size is not structure");
+  assert.deepEqual(area({ shape: "sphere", measure: "diameter", unit: "miles" }, []), [], "a measure and a unit with no located size are well formed");
+});
+
+t("the recipe rules check an anyOf branch: its keys, its values, a clause, and never a sign", () => {
+  const row = (anyOf) => spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", anyOf }] });
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  assert.deepEqual(row([{ vsEnemy: true }, { vsKinds: ["alpha"], vsAlignment: "lawful" }]), []);
+  has(row([]), "non-empty list");
+  has(row("alpha"), "non-empty list");
+  has(row(["alpha"]), "is not an object");
+  has(row([{ vsEnemy: true, sign: -1 }]), 'carries "sign"');
+  has(row([{ vsAlignment: "lawful", vsAlignmentMode: "sign" }]), "never takes sign");
+  has(row([{ anyOf: [{ vsEnemy: true }] }]), 'carries "anyOf"');
+  has(row([{ tones: ["alpha"] }]), 'carries "tones"');
+  has(row([{}]), "declares no clause");
+  has(row([{ vsEnemy: false }]), "declares no clause");
+  has(row([{ vsEnemy: "yes" }]), "vsEnemy is true or false");
+  has(row([{ vsAlignment: "sideways" }]), "is not an alignment");
+  has(row([{ vsAlignmentOf: "target" }]), "is not an alignment reference");
+  has(row([{ vsKinds: "alpha" }]), "list of kind tokens");
+  has(spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", vsAlignmentOf: "elsewhere" }] }), "is not an alignment reference");
+  assert.deepEqual(spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" }] }), [], "a row's own scope keys are structure");
+});
+
 
 console.log(`\n${n} tests passed`);

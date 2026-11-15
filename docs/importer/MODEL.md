@@ -1068,7 +1068,8 @@ and its guesses never reach a spell. `effects` specs become the spell's effect
 rows (`flags["acks-extras"].spell.effects`), each stamped `origin:
 "register"`. `values` specs are fragments of the spell's SpellExtras
 (`save`, `target`), each `{save?, target?, from, onMiss?}`: the structure it
-states (`target.model`, `target.area.shape`, `save.effect`, `save.kind`,
+states (`target.model`, `target.area.shape`, `target.area.measure`,
+`target.area.unit`, `save.effect`, `save.kind`,
 `save.perTarget`) and the fields its locators fill are deep-merged, in order,
 over what the stat block gave (objects merge, any other value replaces).
 `LOCATABLE_FIELDS` lists every `into`: besides the figure shapes, `roll`
@@ -1076,7 +1077,8 @@ over what the stat block gave (objects merge, any other value replaces).
 mapped to a `DAMAGE_TYPES` key by key or label, kept as a one-member set;
 `varies` never maps), `extraordinary` (true where the pattern matches),
 `save.category` (a word onto a `SAVE_CATEGORIES` key) and `target.filters`
-(the words that name a `TARGET_FILTERS` key). A word no member answers to is a
+(the words that name a `TARGET_FILTERS` key). An area's `target.area.size` and
+`target.area.width` are located level values. A word no member answers to is a
 miss. The damage mark's colour is not in the text layer (`glyphWords` writes
 its word), so the extraordinary mark of a printed damage cannot be read from
 text.
@@ -1089,7 +1091,14 @@ and locators only: `lint-register.mjs` (`spell-recipe-rules.mjs`) refuses a
 number outside a locator, a located field written as a literal, a locator that
 carries a figure of its own (`per`, `steps`), an unknown row kind, subject,
 delivery, condition key or gate kind (`SPELL_GATE_KINDS`; the evaluators are lib's),
-and an `onMiss` other than `"blank"`.
+and an `onMiss` other than `"blank"`. A row's scope is structure:
+`vsKinds`, `vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode`, `vsEnemy` and an
+`anyOf` list, whose branches hold those keys, declare at least one clause and
+never take a `sign` mode. An area states its `measure` (`AREA_MEASURES`: the
+word the page prints the size in) and `unit`, and the lint holds the size to
+it: a located `target.area.size` needs a `measure`, its pattern names the
+measure's word so the locator proves the page prints that measure, a `length`
+needs a located `target.area.width`, and a width belongs to a `length`.
 `REPAIR.spell` replaces the stamped rows and keeps the others
 ([DECISIONS.md](DECISIONS.md), 2026-11-15, "A repair tells a spell's rows
 apart by `origin`").

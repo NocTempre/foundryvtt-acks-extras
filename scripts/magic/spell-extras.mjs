@@ -25,6 +25,7 @@ import {
   CASTING_TIME_SHAPES,
   TARGET_MODELS,
   AREA_SHAPES,
+  AREA_MEASURES,
   TARGET_FILTERS,
   SAVE_CATEGORIES,
   SAVE_EFFECTS,
@@ -88,7 +89,16 @@ export default class SpellExtras extends foundry.abstract.DataModel {
         hdPool: levelValueField(),
         // The Hit Dice a target must be under to be affected at all; a target over it reads unaffected on its row.
         hdCap: levelValueField(),
-        area: new SchemaField({ shape: choice(AREA_SHAPES), size: levelValueField(), height: num() }),
+        // `measure` is the word the page prints the size in; `size` and `width`
+        // are read in `unit`, and `areaExtent` (cast-area.mjs) normalizes them.
+        area: new SchemaField({
+          shape: choice(AREA_SHAPES),
+          measure: choice(AREA_MEASURES),
+          size: levelValueField(),
+          width: levelValueField(),
+          unit: choice(DISTANCE_UNITS, { initial: "feet" }),
+          height: num(),
+        }),
         filters: choiceSet(TARGET_FILTERS),
         beholding: bool(),
         note: str(),

@@ -14,6 +14,11 @@
  * index, so the sheet closes every editor on the store when it deletes or
  * reorders a row.
  *
+ * A modifier or ward row edits its scope: the kinds it applies against, an
+ * alignment (a fixed one or the source's) with its mode, and the enemy test. A
+ * nested `anyOf` is shown as text and kept exactly as stored on every edit; it
+ * is authored by the importer's recipe, not here.
+ *
  * A summon row's creature field takes a dropped Actor, from the sidebar or a
  * compendium, as its uuid, and says under it which creature the ref names.
  * A companion row's `ref` is the importer's entry id and takes no drop.
@@ -85,6 +90,13 @@ const FIELD_SPECS = {
   routine: { kind: "text" },
   condition: { kind: "text" },
   note: { kind: "text" },
+  // Scope: the target-side clauses `scopeApplies` decides. `anyOf` is read-only.
+  vsKinds: { kind: "list" },
+  vsAlignment: { kind: "select", choices: () => V.choicesOf(V.ALIGNMENTS) },
+  vsAlignmentOf: { kind: "select", choices: () => V.choicesOf(V.SCOPE_ALIGNMENT_REFERENCES) },
+  vsAlignmentMode: { kind: "select", choices: () => V.choicesOf(V.SCOPE_ALIGNMENT_MODES) },
+  vsEnemy: { kind: "boolean" },
+  anyOf: { kind: "readonly" },
   // A limitation's armour limit, written on the row's `gate`: the rung the worn
   // suit may not exceed and whether a shield breaks it. Setting either marks
   // the row an `armourCeiling` limit (`GATE_KIND`).
@@ -95,9 +107,13 @@ const FIELD_SPECS = {
 /** The gate kind a limitation row takes once an armour limit field is set on it. */
 const GATE_KIND = "armourCeiling";
 
+/** The scope fields a modifier or a ward row edits, in the order they are shown. */
+const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"];
+
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
-  modifier: ["appliesTo", "target", "mode", "value", "forWhat"],
+  modifier: ["appliesTo", "target", "mode", "value", "forWhat", ...SCOPE_FIELDS],
+  ward: ["appliesTo", "value", "range", ...SCOPE_FIELDS],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
   progressionAs: ["as", "atLevelNum", "atLevelDen"],
@@ -130,10 +146,54 @@ const TYPE_FIELDS = {
 const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 const TAIL_FIELDS = ["condition", "note"];
 const SET_FIELDS = new Set(["damage", "effects", "conditions"]);
-const LIST_FIELDS = new Set(["refs"]);
+const LIST_FIELDS = new Set(["refs", "vsKinds"]);
 
 /** The fields a row of this type edits. */
 export const fieldsForType = (type) => [...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...TAIL_FIELDS];
+
+/**
+ * The row an edit makes: the window's fields laid over the stored row, so a
+ * field the window does not show keeps what the row holds, and an `anyOf`
+ * the window only displays is carried over as stored. Any edit makes the row
+ * the Judge's, since a repair replaces the importer's rows (`origin:
+ * "register"`) and keeps the others.
+ * @param {object} current the stored row
+ * @param {object} form the fields the window holds, as `FormDataExtended` reads them
+ */
+export function mergeRowEdit(current, form) {
+  const next = { ...current, ...form };
+  if (current.origin) next.origin = "";
+  if (current.anyOf !== undefined) next.anyOf = current.anyOf;
+  if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
+  // A frequency picked here is the Judge's own: the phrase the importer read
+  // for the previous one no longer describes it.
+  if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
+  // The gate's fields arrive as a fragment: merged into the row's gate, never
+  // over it, and the row keeps its kind or takes the armour limit's once a
+  // field of it is set; a row that sets none stays a plain limitation.
+  if (form.gate && typeof form.gate === "object" && (current.gate?.kind || form.gate.armourMax || form.gate.noShield)) next.gate = { ...(current.gate ?? {}), ...form.gate, kind: current.gate?.kind || GATE_KIND };
+  return next;
+}
+
+/**
+ * An `anyOf` as the one line the editor shows: each branch's clauses joined,
+ * the branches joined by "or". Alignment words come from the lang, never from
+ * a stored string.
+ * @param {object[]} anyOf the stored branches
+ * @param {(key: string, data?: object) => string} say the editor's lang reader, `scope.<key>`
+ */
+export function anyOfText(anyOf, say) {
+  const branchText = (branch) => {
+    const parts = [];
+    if (branch.vsEnemy === true) parts.push(say("scope.enemy"));
+    if (branch.vsKinds?.length) parts.push(say("scope.kinds", { kinds: [...branch.vsKinds].join(", ") }));
+    const except = branch.vsAlignmentMode === "except";
+    if (branch.vsAlignmentOf === "source") parts.push(say(except ? "scope.sourceExcept" : "scope.source"));
+    if (branch.vsAlignment) parts.push(say(except ? "scope.alignmentExcept" : "scope.alignment", { alignment: V.ALIGNMENTS[branch.vsAlignment]?.label ?? branch.vsAlignment }));
+    return parts.join(" · ");
+  };
+  return (anyOf ?? []).map(branchText).join(` ${say("scope.or")} `);
+}
 
 /** One row of one list, in a window of its own. */
 export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -192,11 +252,13 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     // select would fall to its first option and the next change rewrite it.
     if (row.type && !context.types[row.type]) context.types[row.type] = V.EFFECT_TYPES[row.type]?.label ?? row.type;
     context.none = loc("none");
-    context.fields = fieldsForType(row.type).map((name) => {
+    context.fields = fieldsForType(row.type).filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
       const field = { name, kind: spec.kind, label: loc(`field.${name}`) };
-      if (spec.kind === "boolean") {
+      if (spec.kind === "readonly") {
+        field.text = anyOfText(value, loc);
+      } else if (spec.kind === "boolean") {
         field.checked = value === true;
       } else if (spec.kind === "select") {
         field.choices = spec.choices(domain);
@@ -287,19 +349,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const current = rows[this.index];
     if (!current) return this.close();
     const form = this.#fromForm() ?? {};
-    const next = { ...current, ...form };
-    // Any edit makes the row the Judge's: a repair replaces the importer's rows
-    // (`origin: "register"`) and keeps the others.
-    if (current.origin) next.origin = "";
-    if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
-    // A frequency picked here is the Judge's own: the phrase the importer read
-    // for the previous one no longer describes it.
-    if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
-    // The gate's fields arrive as a fragment: merged into the row's gate, never
-    // over it, and the row keeps its kind or takes the armour limit's once a
-    // field of it is set; a row that sets none stays a plain limitation.
-    if (form.gate && typeof form.gate === "object" && (current.gate?.kind || form.gate.armourMax || form.gate.noShield)) next.gate = { ...(current.gate ?? {}), ...form.gate, kind: current.gate?.kind || GATE_KIND };
-    rows[this.index] = next;
+    rows[this.index] = mergeRowEdit(current, form);
     await this.store.write(rows);
     this.render();
   }

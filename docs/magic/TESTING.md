@@ -220,9 +220,15 @@ join) and the five recipe spells already imported (`def.spell.desiccate`,
 
 ### Fixtures
 
-None. The rows are written onto the library's own imported spells, the path
-an existing world takes (the Spells repair), and the walk leaves each spell
-with register rows only.
+Steps 1 to 5 and 7 build none. The rows are written onto the library's own
+imported spells, the path an existing world takes (the Spells repair), and the
+walk leaves each spell with register rows only. Step 6 uses three kept
+fixtures, each found by its marker (`flags.world.fixture`) with the capture
+driver's `api.fixture(marker, kind, data)` and built from `data` when none
+carries it: `magic/scope-chaotic-undead` (a monster actor typed undead, of
+Chaotic alignment, and a hostile token), `magic/scope-ally-caster` (a character
+of Lawful alignment and a friendly token) and `magic/scope-neutral-token` (a
+monster actor with no type and a neutral token).
 
 ### Steps
 
@@ -247,6 +253,29 @@ with register rows only.
    in the editor.
    *Observable:* the row's `origin` is cleared and a repair keeps it; the
    repair also writes the register row afresh beside it.
+
+5. Read the scope and the measure off the repaired rows.
+   *Observable:* holy circle's ward row carries `vsKinds` of one token; its
+   two bonus rows carry an `anyOf` of two branches (an enemy of an alignment
+   other than the source's; two kinds of one alignment) and no `condition`;
+   three more rows carry `reversed: true`, their second branch one kind of the
+   opposite alignment; desiccate's `target.area.measure` is `diameter` and
+   holy circle's is `radius`, each with a located size. The Overview's
+   Extent in feet reads the normalized figures, and its tooltip names the
+   measure, the printed figure and unit, the unit's worth in feet and the
+   page.
+6. Evaluate a bonus row's scope in page context, with
+   `scopeApplies(row, ctx)` from `scripts/lib/vocab.mjs` and a `ctx` built from
+   three fixtures: `magic/scope-chaotic-undead` (an undead monster of
+   Chaotic alignment, hostile token), `magic/scope-ally-caster` (a
+   Lawful character, friendly token) and `magic/scope-neutral-token` (a monster
+   with no type, neutral token). *Observable:* with the caster's alignment as
+   `sourceAlignment`, the chaotic undead applies (`creatureKinds` and
+   `areEnemies` from `actor-read.mjs` build `kinds` and `enemy`), the ally
+   fails, and the neutral token is undetermined.
+7. Open a bonus row in the row editor and change a flat scope field.
+   *Observable:* the `anyOf` reads back as stored, shown in the editor as one
+   line of text, and the row's `origin` is cleared.
 
 ### Drive mechanics
 

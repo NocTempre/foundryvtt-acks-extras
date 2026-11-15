@@ -473,6 +473,7 @@ export const LOCATABLE_FIELDS = Object.freeze({
   "target.count": "levelValue",
   "target.hdCap": "levelValue",
   "target.area.size": "levelValue",
+  "target.area.width": "levelValue",
 });
 
 /**

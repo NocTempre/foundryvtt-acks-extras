@@ -10357,7 +10357,8 @@
               "target": {
                 "model": "area",
                 "area": {
-                  "shape": "sphere"
+                  "shape": "sphere",
+                  "measure": "diameter"
                 }
               },
               "save": {
@@ -17100,6 +17101,9 @@
             {
               "type": "ward",
               "appliesTo": "area",
+              "vsKinds": [
+                "enchanted"
+              ],
               "lasts": "duration"
             },
             {
@@ -17107,7 +17111,20 @@
               "target": "ac",
               "mode": "add",
               "appliesTo": "area",
-              "condition": "against a creature kind (RR p.225)",
+              "anyOf": [
+                {
+                  "vsEnemy": true,
+                  "vsAlignmentOf": "source",
+                  "vsAlignmentMode": "except"
+                },
+                {
+                  "vsKinds": [
+                    "incarnation",
+                    "undead"
+                  ],
+                  "vsAlignment": "chaotic"
+                }
+              ],
               "lasts": "duration",
               "onMiss": "blank",
               "from": [
@@ -17121,8 +17138,84 @@
               "target": "save",
               "mode": "add",
               "appliesTo": "area",
-              "condition": "against a creature kind (RR p.225)",
+              "anyOf": [
+                {
+                  "vsEnemy": true,
+                  "vsAlignmentOf": "source",
+                  "vsAlignmentMode": "except"
+                },
+                {
+                  "vsKinds": [
+                    "incarnation",
+                    "undead"
+                  ],
+                  "vsAlignment": "chaotic"
+                }
+              ],
               "lasts": "duration",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "pattern": "AC\\s*and\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus\\s*on\\s*saving"
+                }
+              ]
+            },
+            {
+              "type": "ward",
+              "appliesTo": "area",
+              "vsKinds": [
+                "enchanted"
+              ],
+              "lasts": "duration",
+              "reversed": true
+            },
+            {
+              "type": "modifier",
+              "target": "ac",
+              "mode": "add",
+              "appliesTo": "area",
+              "anyOf": [
+                {
+                  "vsEnemy": true,
+                  "vsAlignmentOf": "source",
+                  "vsAlignmentMode": "except"
+                },
+                {
+                  "vsKinds": [
+                    "incarnation"
+                  ],
+                  "vsAlignment": "lawful"
+                }
+              ],
+              "lasts": "duration",
+              "reversed": true,
+              "onMiss": "blank",
+              "from": [
+                {
+                  "pattern": "gain\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus\\s*to\\s*AC"
+                }
+              ]
+            },
+            {
+              "type": "modifier",
+              "target": "save",
+              "mode": "add",
+              "appliesTo": "area",
+              "anyOf": [
+                {
+                  "vsEnemy": true,
+                  "vsAlignmentOf": "source",
+                  "vsAlignmentMode": "except"
+                },
+                {
+                  "vsKinds": [
+                    "incarnation"
+                  ],
+                  "vsAlignment": "lawful"
+                }
+              ],
+              "lasts": "duration",
+              "reversed": true,
               "onMiss": "blank",
               "from": [
                 {
@@ -17139,7 +17232,8 @@
               "target": {
                 "model": "area",
                 "area": {
-                  "shape": "special"
+                  "shape": "special",
+                  "measure": "radius"
                 }
               },
               "onMiss": "blank",

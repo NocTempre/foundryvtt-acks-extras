@@ -148,6 +148,18 @@ export const AREA_SHAPES = Object.freeze({
 });
 
 /**
+ * The measure a page prints an area's size in: a radius, a diameter, or a
+ * length (which is read with a width). The figure rides the spell's
+ * `target.area.size`; this says which one it is, so the extent is normalized
+ * where it is used (`magic/cast-area.mjs`).
+ */
+export const AREA_MEASURES = Object.freeze({
+  radius: { label: "Radius" },
+  diameter: { label: "Diameter" },
+  length: { label: "Length and width" },
+});
+
+/**
  * Which creatures a spell can affect — the RR ch. 5 §V.8 defined terms the
  * cast engine filters targets by. A spell lists the filters it applies; an
  * empty list affects any target.
@@ -290,6 +302,7 @@ export const MAGIC_VOCAB = Object.freeze({
   castingTimeShape: CASTING_TIME_SHAPES,
   targetModel: TARGET_MODELS,
   areaShape: AREA_SHAPES,
+  areaMeasure: AREA_MEASURES,
   targetFilter: TARGET_FILTERS,
   saveCategory: SAVE_CATEGORIES,
   saveEffect: SAVE_EFFECTS,

@@ -43,7 +43,7 @@ import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effe
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
-import { scopeApplies } from "../lib/vocab.mjs";
+import { hasScope, scopeApplies } from "../lib/vocab.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { signed } from "../lib/frame-model.mjs";
 import { sinkCoin, spendableGp, transferCoin } from "../lib/money.mjs";
@@ -342,7 +342,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         bewitched: Number.isFinite(m.kickerAt) || m.bewitching === true,
         kickerAt: m.kickerAt ?? null,
         // Target-scoped: the GM's real target data decides on hidden resolves.
-        vsGated: Boolean(m.vsKinds?.length || m.vsAlignment),
+        vsGated: hasScope(m),
       };
     };
 

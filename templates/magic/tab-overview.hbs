@@ -275,6 +275,13 @@
         </div>
       </div>
       <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.areaMeasure"}}</label>
+        <div class="form-fields">
+          <select name="{{x}}.target.area.measure">{{selectOptions choices.areaMeasure selected=extras.target.area.measure blank=none}}</select>
+        </div>
+        <p class="hint">{{localize "ACKS-MAGIC.overview.areaMeasureHint"}}</p>
+      </div>
+      <div class="form-group">
         {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
       <label>{{localize "ACKS-MAGIC.overview.areaSize"}}</label>
         <div class="form-fields">
@@ -282,10 +289,33 @@
         </div>
         <p class="hint">{{localize "ACKS-MAGIC.overview.areaSizeHint"}}</p>
       </div>
+      {{#if show.areaWidth}}
+        <div class="form-group">
+          {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+          <label>{{localize "ACKS-MAGIC.overview.areaWidth"}}</label>
+          <div class="form-fields">
+            {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.areaWidth}}
+          </div>
+        </div>
+      {{/if}}
+      <div class="form-group">
+        <label>{{localize "ACKS-MAGIC.overview.areaUnit"}}</label>
+        <div class="form-fields">
+          <select name="{{x}}.target.area.unit">{{selectOptions choices.distanceUnit selected=extras.target.area.unit}}</select>
+        </div>
+        <p class="hint">{{localize "ACKS-MAGIC.overview.areaUnitHint"}}</p>
+      </div>
       <div class="form-group">
         <label>{{localize "ACKS-MAGIC.overview.areaHeight"}}</label>
         <div class="form-fields">
           <input type="number" step="any" min="0" name="{{x}}.target.area.height" value="{{extras.target.area.height}}" placeholder="—">
+        </div>
+      </div>
+      <div class="form-group">
+        {{!-- label-ok: the extent is read-only text, not a control a label can name --}}
+        <label>{{localize "ACKS-MAGIC.overview.areaExtentLabel"}}</label>
+        <div class="form-fields">
+          <output class="acks-magic-area-extent" tabindex="0" data-tooltip-text="{{areaExtent.tip}}">{{#if areaExtent.text}}{{areaExtent.text}}{{else}}—{{/if}}</output>
         </div>
       </div>
     {{/if}}

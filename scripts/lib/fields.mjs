@@ -12,6 +12,7 @@ import {
   ATTRIBUTES,
   INFLUENCE_TONES,
   SCOPE_ALIGNMENT_MODES,
+  SCOPE_ALIGNMENT_REFERENCES,
   DAMAGE_TYPES,
   EFFECT_KEYS,
   CONDITION_KEYS,
@@ -254,6 +255,16 @@ export const visionField =() => choiceSet(VISION_TYPES);
  */
 export function effectField() {
   const { SchemaField } = F();
+  // One branch of an `anyOf` disjunction: the target-side clauses and never a
+  // `sign` mode, since a branch decides applies or fails and no more.
+  const scopeBranch = () =>
+    new SchemaField({
+      vsKinds: refList(),
+      vsAlignment: choice(ALIGNMENTS),
+      vsAlignmentOf: choice(SCOPE_ALIGNMENT_REFERENCES),
+      vsAlignmentMode: choice(SCOPE_ALIGNMENT_MODES, { initial: "gate" }),
+      vsEnemy: bool(),
+    });
   return new SchemaField({
     type: choice(EFFECT_TYPES, { initial: "modifier" }),
     // modifier / throw
@@ -369,6 +380,12 @@ export function effectField() {
     vsKinds: refList(),
     vsAlignment: choice(ALIGNMENTS),
     vsAlignmentMode: choice(SCOPE_ALIGNMENT_MODES, { initial: "gate" }),
+    // `source` reads the alignment of whoever the effect comes from instead of
+    // a fixed `vsAlignment`; `vsEnemy` applies only against the source's
+    // enemy; `anyOf` is a disjunction ANDed with the clauses above.
+    vsAlignmentOf: choice(SCOPE_ALIGNMENT_REFERENCES),
+    vsEnemy: bool(),
+    anyOf: new (F().ArrayField)(scopeBranch()),
     tones: new (F().ArrayField)(new (F().StringField)({ choices: choicesOf(INFLUENCE_TONES) })),
     optionalRule: str(),
     // Kicker: a rider that fires on a good enough total. See docs/lib/API.md,

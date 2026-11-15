@@ -153,9 +153,8 @@ export function looseCreatureName(raw, names) {
   return null;
 }
 
-// No alignment normalizer lives here: influence keeps its own token set and
-// translates at its boundary. See docs/influence/DECISIONS.md, "Alignment is
-// translated at the boundary, not renamed".
+// `alignmentKey` (Scoping, below) is the one reader of a free-text alignment;
+// influence keeps its own token set and delegates its classifier to it.
 
 /* ---------------------------------------------------------------- */
 /*  Shared vocabulary — defined here, re-exported by monsters/config */
@@ -968,14 +967,107 @@ export const INFLUENCE_TONES = {
 
 /**
  * How a target-alignment scope behaves: a `gate` applies only versus the named
- * alignment; a `sign` flips to a penalty versus everyone else. See
- * docs/lib/DECISIONS.md, "A target-alignment scope is a gate or a sign flip, and
- * they are different rules".
+ * alignment; a `sign` flips to a penalty versus everyone else; `except` applies
+ * versus every alignment but the reference one. See docs/lib/DECISIONS.md, "A
+ * target-alignment scope is a gate or a sign flip, and they are different
+ * rules" and "A scope can be relative to the source, an enemy test and a
+ * disjunction".
  */
 export const SCOPE_ALIGNMENT_MODES = {
   gate: { label: "Only Versus This Alignment" },
   sign: { label: "Bonus Versus, Penalty Otherwise" },
+  except: { label: "Versus Every Alignment But This" },
 };
+
+/**
+ * What an alignment scope's reference alignment may be besides a fixed
+ * `vsAlignment`: `source` reads `ctx.sourceAlignment`, the alignment of
+ * whoever the effect comes from.
+ */
+export const SCOPE_ALIGNMENT_REFERENCES = {
+  source: { label: "The Source's Alignment" },
+};
+
+/** The alignment a free-text alignment names, by the words an actor sheet or a page writes. */
+const ALIGNMENT_WORDS = Object.freeze({
+  l: "lawful",
+  law: "lawful",
+  lawful: "lawful",
+  n: "neutral",
+  neutral: "neutral",
+  c: "chaotic",
+  chaos: "chaotic",
+  chaotic: "chaotic",
+});
+
+/**
+ * The `ALIGNMENTS` key a free-text alignment names, or null when it names none.
+ * Reads the first word, case and punctuation folded, so "L", "Lawful", "law"
+ * and "Lawful Good" are one key; "None", blank and anything else is null,
+ * which `scopeApplies` reads as undetermined. Pure.
+ */
+export function alignmentKey(text) {
+  const word = String(text ?? "")
+    .toLowerCase()
+    .match(/[a-z]+/);
+  return ALIGNMENT_WORDS[word?.[0]] ?? null;
+}
+
+/** The target-side scope fields of one effect, which are the keys an `anyOf` branch may hold. */
+export const SCOPE_BRANCH_FIELDS = Object.freeze(["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy"]);
+
+/** Whether a branch or effect declares a target-side clause at all. */
+const declaresClause = (scope) =>
+  (scope?.vsKinds?.length ?? 0) > 0 || !!scope?.vsAlignment || scope?.vsAlignmentOf === "source" || scope?.vsEnemy === true;
+
+/**
+ * Whether an effect declares a scope that is decided against its target: kinds,
+ * an alignment (fixed or the source's), an enemy test or an `anyOf`. Tones and
+ * optional rules are the roll's, not the target's, and do not count.
+ */
+export function hasScope(effect) {
+  return declaresClause(effect) || (effect?.anyOf?.length ?? 0) > 0;
+}
+
+/**
+ * Settle one scope's target-side clauses against `ctx`: `pass`, `fail` or
+ * `undetermined`, with the sign an alignment `sign` mode asks for. A clause
+ * that fails decides the scope whatever another leaves undetermined.
+ */
+function clauseVerdict(scope, ctx, { allowSign }) {
+  let sign = 1;
+  let undetermined = false;
+
+  const kinds = scope.vsKinds ?? [];
+  if (kinds.length) {
+    const have = ctx.kinds instanceof Set ? ctx.kinds : new Set(ctx.kinds ?? []);
+    if (!have.size) undetermined = true;
+    else if (![...kinds].some((k) => have.has(String(k).toLowerCase()))) return { verdict: "fail", sign };
+  }
+
+  const ofSource = scope.vsAlignmentOf === "source";
+  if (scope.vsAlignment || ofSource) {
+    const mode = scope.vsAlignmentMode || "gate";
+    const reference = ofSource ? ctx.sourceAlignment : scope.vsAlignment;
+    if (!ctx.alignment || !reference) undetermined = true;
+    else {
+      const same = ctx.alignment === reference;
+      if (mode === "except") {
+        if (same) return { verdict: "fail", sign };
+      } else if (!same) {
+        if (mode === "sign" && allowSign) sign = -1;
+        else return { verdict: "fail", sign };
+      }
+    }
+  }
+
+  if (scope.vsEnemy === true) {
+    if (ctx.enemy === false) return { verdict: "fail", sign };
+    if (ctx.enemy !== true) undetermined = true;
+  }
+
+  return { verdict: undetermined ? "undetermined" : "pass", sign };
+}
 
 /**
  * Does a scoped effect apply to this roll, and with which sign?
@@ -985,11 +1077,25 @@ export const SCOPE_ALIGNMENT_MODES = {
  * and Foundry-free.
  *
  * `ctx` supplies what is known about the roll:
- *   kinds          Set|Array of the target's kind tokens (the consumer's own
- *                  vocabulary)
- *   alignment      the target's alignment (an ALIGNMENTS key)
- *   tone           the active INFLUENCE_TONES key, when it is an influence roll
- *   optionalRules  { [ruleName]: boolean } — absent means enabled
+ *   kinds             Set|Array of the target's kind tokens (the consumer's own
+ *                     vocabulary)
+ *   alignment         the target's alignment (an ALIGNMENTS key)
+ *   sourceAlignment   the alignment of whoever the effect comes from (a spell
+ *                     record's caster, an ability's holder); read where an
+ *                     effect scopes by `vsAlignmentOf: "source"`
+ *   enemy             true / false / null: whether the target is the source's
+ *                     enemy (`areEnemies`); null is unknown
+ *   tone              the active INFLUENCE_TONES key, when it is an influence roll
+ *   optionalRules     { [ruleName]: boolean } — absent means enabled
+ *
+ * On a defensive row (a bonus the recipient gains against an attacker) `ctx`
+ * describes the ATTACKER: `kinds`, `alignment` and `enemy` are the attacker's.
+ *
+ * An effect's `anyOf` is a disjunction of branches, each holding `vsKinds`,
+ * `vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode` and `vsEnemy`; the effect's
+ * own clauses AND it. It applies when a branch applies, is undetermined when no
+ * branch applies and one is undetermined, and fails otherwise. A branch never
+ * takes `sign`, and a branch that declares no clause is undetermined.
  *
  * Returns `{ applies, sign, undetermined }`. `undetermined` means a scope was
  * declared but `ctx` could not settle it, which is not a scope that failed:
@@ -997,21 +1103,16 @@ export const SCOPE_ALIGNMENT_MODES = {
  * dropping or auto-applying it.
  */
 export function scopeApplies(effect = {}, ctx = {}) {
-  let sign = 1;
-  let undetermined = false;
+  const own = clauseVerdict(effect, ctx, { allowSign: true });
+  const sign = own.sign;
+  if (own.verdict === "fail") return { applies: false, sign, undetermined: false };
+  let undetermined = own.verdict === "undetermined";
 
-  const kinds = effect.vsKinds ?? [];
-  if (kinds.length) {
-    const have = ctx.kinds instanceof Set ? ctx.kinds : new Set(ctx.kinds ?? []);
-    if (!have.size) undetermined = true;
-    else if (![...kinds].some((k) => have.has(String(k).toLowerCase()))) return { applies: false, sign, undetermined: false };
-  }
-
-  if (effect.vsAlignment) {
-    const mode = effect.vsAlignmentMode || "gate";
-    if (!ctx.alignment) undetermined = true;
-    else if (ctx.alignment !== effect.vsAlignment) {
-      if (mode === "sign") sign = -1;
+  const branches = effect.anyOf ?? [];
+  if (branches.length) {
+    const verdicts = branches.map((branch) => (declaresClause(branch) ? clauseVerdict(branch, ctx, { allowSign: false }).verdict : "undetermined"));
+    if (!verdicts.includes("pass")) {
+      if (verdicts.includes("undetermined")) undetermined = true;
       else return { applies: false, sign, undetermined: false };
     }
   }

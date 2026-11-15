@@ -4,12 +4,14 @@
  *
  * Read the system's character/monster schema and fall back to 0 when a field
  * is absent. Pure reads, no writes; Foundry-free (they touch only the plain
- * `system` object and the document's own flag and ownership answers), so
+ * `system` object, the document's own flag and ownership answers, and a
+ * token's disposition), so
  * offline tooling can import them too.
  */
 
-import { ACTOR_TYPE } from "./vocab.mjs";
+import { ACTOR_TYPE, alignmentKey } from "./vocab.mjs";
 import { MODULE_ID } from "./constants.mjs";
+import { summonerOf } from "./summons-logic.mjs";
 
 /** An ability-score modifier ("cha", "wis", …), 0 when absent. */
 export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.mod ?? 0);
@@ -73,6 +75,58 @@ export function hdFormula({ count, dieType, bonus } = {}) {
  */
 export const hitDiceOrLevel = (actor) =>
   actor?.type === ACTOR_TYPE.character ? classLevel(actor) : monsterHd(actor);
+
+/** The `ALIGNMENTS` key an actor's sheet names, or null for a blank or unrecognised alignment. */
+export const actorAlignment = (actor) => alignmentKey(actor?.system?.details?.alignment);
+
+/**
+ * The monster stat block's flag, where a monster's `types` live. The monsters
+ * feature owns the model; lib reads the stored flag as `senses.mjs` does.
+ */
+const MONSTER_EXTRAS = Object.freeze({ scope: "acks-extras", key: "extras" });
+
+/** The monster types that are enchanted creatures by definition (RR p. 227, the defined term). */
+const ENCHANTED_TYPES = Object.freeze(["construct", "enchanted", "incarnation", "undead"]);
+
+/**
+ * The kind tokens a creature answers to, lowercase, as `scopeApplies` reads
+ * them in `ctx.kinds`: a monster's types, `summoned` where a character
+ * summoned it, `enchanted` when any of those makes it one (the defined term:
+ * a construct, an incarnation, undead, any summoned creature, or a monster typed
+ * enchanted), and `character` for a character. An untyped monster that nobody
+ * summoned gives an empty set, which a scope reads as undetermined.
+ * @returns {Set<string>}
+ */
+export function creatureKinds(actor) {
+  const kinds = new Set();
+  if (!actor) return kinds;
+  if (actor.type === ACTOR_TYPE.character) kinds.add("character");
+  const types = actor.getFlag?.(MONSTER_EXTRAS.scope, MONSTER_EXTRAS.key)?.types;
+  for (const type of types ? [...types] : []) kinds.add(String(type).toLowerCase());
+  if (summonerOf(actor)) kinds.add("summoned");
+  if (kinds.has("summoned") || ENCHANTED_TYPES.some((type) => kinds.has(type))) kinds.add("enchanted");
+  return kinds;
+}
+
+/** A token's disposition, from the document or the placeable that holds one. */
+const dispositionOf = (token) => token?.disposition ?? token?.document?.disposition ?? null;
+
+/**
+ * Whether two tokens stand on opposite sides, read from their dispositions as
+ * core sorts a combat's sides by them: friendly against hostile is true, the same
+ * side is false, and a neutral, secret or missing token is null (unknown). It
+ * answers how a token is drawn, which a Judge can set per token.
+ */
+export function areEnemies(tokenA, tokenB) {
+  const dispositions = globalThis.CONST?.TOKEN_DISPOSITIONS ?? {};
+  const friendly = dispositions.FRIENDLY ?? 1;
+  const hostile = dispositions.HOSTILE ?? -1;
+  const a = dispositionOf(tokenA);
+  const b = dispositionOf(tokenB);
+  const side = (d) => (d === friendly || d === hostile ? d : null);
+  if (side(a) === null || side(b) === null) return null;
+  return a !== b;
+}
 
 /** Wage bases that mean "paid in coin, not in experience" (RR ch. 8). */
 export const UNSHARED_BASES = Object.freeze(["mercenary", "specialist"]);

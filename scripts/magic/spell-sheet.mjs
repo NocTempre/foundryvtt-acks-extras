@@ -24,6 +24,8 @@ import { summonRefName } from "../lib/summons-logic.mjs";
 import { classItems } from "../classes/registry.mjs";
 import * as V from "../lib/vocab.mjs";
 import { vocabChoices, vocabLabel } from "../lib/magic-vocab.mjs";
+import { feetPerUnit } from "../lib/distance-units.mjs";
+import { areaExtent } from "./cast-area.mjs";
 
 const T = `modules/${MODULE_ID}/templates/magic`;
 /** The system's Active Effects partial, folded into the Mechanics tab. */
@@ -70,6 +72,41 @@ function levelValue(name, value, label) {
     kinds: V.choicesOf(V.VALUE_KINDS),
     rounds: V.choicesOf(V.VALUE_ROUNDING),
   };
+}
+
+/** A level value's figure when it is a flat one; a figure that varies by level has none to show. */
+const flatFigure = (value) => ((value?.kind || "flat") === "flat" ? (value?.flat ?? null) : null);
+
+/**
+ * The Overview's normalized area extent: the text the field shows and the
+ * tooltip that names its parts, each part read off the spell's own fields, and
+ * the page reference alone where nothing could be normalized.
+ */
+function areaExtentView(area, cite) {
+  const unit = area?.unit || "feet";
+  const size = flatFigure(area?.size);
+  const width = flatFigure(area?.width);
+  const extent = areaExtent({ measure: area?.measure, size, width, height: area?.height, unit });
+  const figure = (value) => (value === null ? "" : String(Math.round(value * 100) / 100));
+  const shown = [
+    ["radius", extent.radius],
+    ["diameter", extent.diameter],
+    ["length", extent.length],
+    ["width", extent.width],
+    ["height", extent.height],
+  ]
+    .filter(([, value]) => value !== null)
+    .map(([key, value]) => loc(`overview.areaExtent.${key}`, { value: figure(value) }));
+  const parts = [];
+  if (shown.length && extent.measure) {
+    const unitLabel = vocabLabel("distanceUnit", unit);
+    parts.push(loc("overview.areaTip.measure", { measure: vocabLabel("areaMeasure", extent.measure) }));
+    if (size !== null) parts.push(loc("overview.areaTip.size", { size: figure(size), unit: unitLabel }));
+    if (extent.measure === "length" && width !== null) parts.push(loc("overview.areaTip.width", { width: figure(width), unit: unitLabel }));
+    parts.push(loc("overview.areaTip.factor", { unit: unitLabel, factor: figure(feetPerUnit(unit)) }));
+  }
+  if (cite) parts.push(loc("overview.areaTip.cite", { cite }));
+  return { text: shown.join(" · "), tip: parts.join(" · ") };
 }
 
 /** The reversal partner's document, by uuid then by importer id; null when neither answers. */
@@ -153,6 +190,7 @@ export function createSpellSheet(Base) {
         castingTimeShape: vocabChoices("castingTimeShape"),
         targetModel: vocabChoices("targetModel"),
         areaShape: vocabChoices("areaShape"),
+        areaMeasure: vocabChoices("areaMeasure"),
         saveCategory: vocabChoices("saveCategory"),
         saveEffect: vocabChoices("saveEffect"),
       };
@@ -177,6 +215,7 @@ export function createSpellSheet(Base) {
         count: ["creature", "recipient", "object"].includes(tm),
         hdPool: tm === "hdPool",
         area: tm === "area",
+        areaWidth: data.target?.area?.measure === "length",
       };
       context.rangeText = displayRange(data.range);
       context.durationText = displayDuration(data.duration);
@@ -184,8 +223,10 @@ export function createSpellSheet(Base) {
         count: levelValue(`${FLAG_PATH}.target.count`, data.target?.count, loc("overview.count")),
         hdPool: levelValue(`${FLAG_PATH}.target.hdPool`, data.target?.hdPool, loc("overview.hdPool")),
         areaSize: levelValue(`${FLAG_PATH}.target.area.size`, data.target?.area?.size, loc("overview.areaSize")),
+        areaWidth: levelValue(`${FLAG_PATH}.target.area.width`, data.target?.area?.width, loc("overview.areaWidth")),
         saveModifier: levelValue(`${FLAG_PATH}.save.modifier`, data.save?.modifier, loc("overview.saveModifier")),
       };
+      context.areaExtent = areaExtentView(data.target?.area, data.cite);
       const ticked = new Set(data.target?.filters ?? []);
       context.filters = Object.keys(V.TARGET_FILTERS).map((key) => ({
         key,

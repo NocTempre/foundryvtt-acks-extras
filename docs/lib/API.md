@@ -1,4 +1,4 @@
-# lib API (apiVersion 49)
+# lib API (apiVersion 50)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 49,
+  apiVersion: 50,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -306,7 +306,10 @@ that decides them.
 |---|---|
 | `vsKinds` | target kind tokens (`animal`, `dwarf`, `human`, `demi-human`, `monster`). The token vocabulary belongs to the **consumer** — lib carries the list and matches it. |
 | `vsAlignment` | an `ALIGNMENTS` key the target must be |
-| `vsAlignmentMode` | `gate` (default) — applies only versus that alignment; `sign` — applies always, negated otherwise |
+| `vsAlignmentMode` | `gate` (default) — applies only versus that alignment; `sign` — applies always, negated otherwise; `except` — applies versus every alignment but that one |
+| `vsAlignmentOf` | `source` — the reference alignment is `ctx.sourceAlignment`, whoever the effect comes from, in place of a fixed `vsAlignment` |
+| `vsEnemy` | applies only against the source's enemy (`ctx.enemy`) |
+| `anyOf` | a list of branches, each holding `vsKinds`, `vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode` and `vsEnemy` and never a `sign`; the effect's own clauses AND it |
 | `tones` | restrict to some of the three `INFLUENCE_TONES` |
 | `optionalRule` | obeys a world setting of this name; **absent means enabled** |
 | `kickerAt` / `kickerNote` | a rider that fires when the roll total reaches `kickerAt` (Mystic Aura's bewitched rider) |
@@ -321,6 +324,24 @@ different rules: Ancient Pacts applies against Chaotic monsters and nothing
 otherwise; Deathly Visage applies a bonus versus Chaotic and a penalty versus
 everyone else. Storing either as the other is wrong, in the direction that
 matters most.
+
+`ctx` carries `kinds`, `alignment`, `sourceAlignment`, `enemy`, `tone` and `optionalRules`. On a
+defensive row (a bonus a recipient gains against an attacker) it describes the
+ATTACKER. The readers are lib's: `alignmentKey(text)` folds a free-text alignment
+to a key (null for "None", blank or anything else), `actorAlignment(actor)`,
+`creatureKinds(actor)` and `areEnemies(tokenA, tokenB)` (`actorRead`).
+`hasScope(effect)` is true when an effect declares any target-side clause, and
+is what `modifierDisposition` and influence's target gating ask; a tone is the
+roll's, not the target's, and does not count.
+
+`anyOf` is three-valued. It applies when a branch applies; failing that it is
+undetermined when a branch is; failing that it fails. Inside a branch a failing
+clause fails the branch whatever another clause leaves undetermined, and a branch
+that declares no clause is undetermined. A top-level clause that fails fails the
+effect, and one that is undetermined leaves it undetermined, so an effect is
+never applied on a branch alone. `vsEnemy` is true for an enemy, fails for the
+same side, and is undetermined for a neutral, secret or missing token. The row
+editor shows an `anyOf` as text and keeps it as stored on every edit.
 
 **`undetermined` is the field to respect.** It means a scope was declared but
 `ctx` could not settle it — an untyped target, no tone chosen yet. That is not

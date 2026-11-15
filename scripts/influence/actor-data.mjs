@@ -10,23 +10,21 @@ import { inferRace, optionalRuleEnabled, parseKindList } from "./racial.mjs";
 // Ability mod and level-or-HD read once from the lib subsystem (the
 // henchmen feature reads the same schema).
 import { abilityMod, hitDiceOrLevel } from "../lib/actor-read.mjs";
-import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_TYPE, alignmentKey } from "../lib/vocab.mjs";
 
 const GENERIC_IMG = "icons/svg/mystery-man.svg";
 
 /**
- * Alignment enum. Classify a free-text alignment by its (capitalized) first
- * letter: L → law, C → chaos, N → neutral; anything else (blank/unknown) → other.
+ * Alignment enum: law, chaos, neutral; anything else (blank/unknown) → other.
  */
 export const ALIGNMENT = Object.freeze({ LAW: "law", CHAOS: "chaos", NEUTRAL: "neutral", OTHER: "other" });
 
-/** Returns the `ALIGNMENT` value for a free-text alignment, read from its first letter. */
+/** The `ALIGNMENT` value of each lib alignment key. */
+const FROM_LIB_KEY = Object.freeze({ lawful: ALIGNMENT.LAW, chaotic: ALIGNMENT.CHAOS, neutral: ALIGNMENT.NEUTRAL });
+
+/** Returns the `ALIGNMENT` value for a free-text alignment; lib's `alignmentKey` reads it. */
 export function classifyAlignment(value) {
-  const c = String(value ?? "").trim().charAt(0).toUpperCase();
-  if (c === "L") return ALIGNMENT.LAW;
-  if (c === "C") return ALIGNMENT.CHAOS;
-  if (c === "N") return ALIGNMENT.NEUTRAL;
-  return ALIGNMENT.OTHER;
+  return FROM_LIB_KEY[alignmentKey(value)] ?? ALIGNMENT.OTHER;
 }
 
 /**

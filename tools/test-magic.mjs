@@ -30,6 +30,8 @@ import {
   headingCase,
 } from "../scripts/magic/spell-logic.mjs";
 import { describeSpellEffect } from "../scripts/magic/describe.mjs";
+import { areaExtent } from "../scripts/magic/cast-area.mjs";
+import { DISTANCE_UNITS as SCENE_UNITS } from "../scripts/lib/distance-units.mjs";
 import { castDuration, NONE } from "../scripts/magic/cast-duration.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "../scripts/magic/spell-effect.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef, SUMMONING_TYPE } from "../scripts/magic/summon-spell.mjs";
@@ -1218,5 +1220,123 @@ t("the cast-end card's strings exist, and the record's stamp is read back", () =
   assert.equal(spellEffectOf(castRecordDoc({ ended: 77 })).ended, 77);
   assert.equal("ended" in spellEffectOf(castRecordDoc()), false, "an open record carries no stamp");
 });
+
+/* ------------------------------------------------------------------ */
+/*  Area measure and extent, and the scope a row carries               */
+/* ------------------------------------------------------------------ */
+
+t("areaExtent normalizes a radius, a diameter and a length to feet, and says nothing for a size with no known measure", () => {
+  assert.deepEqual(areaExtent({ measure: "radius", size: 4 }), { measure: "radius", radius: 4, diameter: 8, length: null, width: null, height: null });
+  assert.deepEqual(areaExtent({ measure: "diameter", size: 6, height: 3 }), { measure: "diameter", radius: 3, diameter: 6, length: null, width: null, height: 3 });
+  assert.deepEqual(areaExtent({ measure: "length", size: 30, width: 5 }), { measure: "length", radius: null, diameter: null, length: 30, width: 5, height: null });
+  assert.equal(areaExtent({ measure: "length", size: 30 }).width, null, "a length with no width has none");
+  const bare = areaExtent({ size: 12, height: 2 });
+  assert.deepEqual([bare.measure, bare.radius, bare.diameter, bare.length, bare.height], ["", null, null, null, 2], "a size alone is not an extent; a height needs no measure");
+  assert.equal(areaExtent({ measure: "breadth", size: 12 }).radius, null, "an unknown measure is none");
+  for (const size of [null, undefined, NaN, "x", -1]) assert.equal(areaExtent({ measure: "radius", size }).radius, null, `size ${size}`);
+  assert.equal(areaExtent({ measure: "radius", size: 0 }).diameter, 0, "zero is a figure");
+  assert.deepEqual(areaExtent(), { measure: "", radius: null, diameter: null, length: null, width: null, height: null });
+});
+
+t("areaExtent converts the spell's unit to feet through the shared unit table", () => {
+  assert.equal(areaExtent({ measure: "radius", size: 2, unit: "feet" }).radius, 2);
+  assert.equal(areaExtent({ measure: "radius", size: 2, unit: "" }).radius, 2, "no unit is feet");
+  assert.equal(areaExtent({ measure: "diameter", size: 1, unit: "miles" }).diameter, SCENE_UNITS.mi.feet);
+  assert.equal(areaExtent({ measure: "length", size: 1, width: 2, height: 3, unit: "miles" }).width, 2 * SCENE_UNITS.mi.feet, "every length is converted");
+  assert.equal(areaExtent({ measure: "radius", size: 3, unit: "unheard-of" }).radius, 3, "an unknown unit counts as feet");
+});
+
+// The spell primitive's schema needs the data-field classes at import; these record what each was built from.
+const schemaProbe = await (async () => {
+  const prior = globalThis.foundry;
+  class Field {
+    constructor(a, b) {
+      this.a = a;
+      this.b = b;
+    }
+  }
+  class Schema extends Field {
+    get fields() {
+      return this.a;
+    }
+  }
+  class List extends Field {
+    get element() {
+      return this.a;
+    }
+  }
+  globalThis.foundry = {
+    abstract: { DataModel: class {} },
+    data: { fields: { SchemaField: Schema, ArrayField: List, StringField: Field, NumberField: Field, BooleanField: Field, SetField: Field, HTMLField: Field } },
+  };
+  try {
+    const { default: SpellExtras } = await import("../scripts/magic/spell-extras.mjs");
+    return SpellExtras.defineSchema();
+  } finally {
+    globalThis.foundry = prior;
+  }
+})();
+
+t("the area measures are a closed set, and the spell schema carries the new area fields", () => {
+  assert.deepEqual(Object.keys(MAGIC_VOCAB.areaMeasure), ["radius", "diameter", "length"]);
+  assert.deepEqual(Object.keys(schemaProbe.target.fields.area.fields), ["shape", "measure", "size", "width", "unit", "height"], "an Overview submit normalizes through these keys");
+});
+
+t("a normalized effect row keeps a nested scope: the schema holds exactly the branch keys, one level deep, with no sign", () => {
+  const row = schemaProbe.effects.element.fields;
+  const branch = row.anyOf.element.fields;
+  assert.deepEqual(Object.keys(branch).sort(), [...V.SCOPE_BRANCH_FIELDS].sort());
+  assert.ok(!("anyOf" in branch) && !("sign" in branch));
+  for (const key of V.SCOPE_BRANCH_FIELDS) assert.ok(key in row, `the row itself holds ${key}`);
+});
+
+{
+  // The row editor declares a window class at load, so it needs the two application bases.
+  const priorFoundry = globalThis.foundry;
+  const priorGame = globalThis.game;
+  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: {} };
+  globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
+  const { mergeRowEdit, anyOfText, fieldsForType } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+  globalThis.foundry = priorFoundry;
+  globalThis.game = priorGame;
+
+  const stored = {
+    type: "modifier",
+    target: "ac",
+    origin: "register",
+    vsKinds: ["alpha"],
+    anyOf: [{ vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" }, { vsKinds: ["beta"], vsAlignment: "chaotic" }],
+  };
+
+  t("a row-editor submit keeps a nested anyOf as stored, edits the flat scope beside it, and hands the row to the Judge", () => {
+    const next = mergeRowEdit(stored, { vsKinds: ["gamma"], vsEnemy: true, note: "x" });
+    assert.deepEqual(next.anyOf, stored.anyOf, "the branches are carried over untouched");
+    assert.deepEqual(next.vsKinds, ["gamma"], "the flat scope takes the edit");
+    assert.equal(next.origin, "", "any edit clears the importer's stamp");
+    assert.equal(stored.origin, "register", "the stored row is not written through");
+    assert.deepEqual(mergeRowEdit(stored, { anyOf: [] }).anyOf, stored.anyOf, "even a stray field named anyOf cannot replace it");
+    assert.equal(mergeRowEdit({ type: "modifier" }, { note: "x" }).anyOf, undefined, "a row with none gains none");
+    assert.deepEqual(mergeRowEdit({ value: { kind: "flat", flat: 1 } }, { value: { flat: 2 } }).value, { kind: "flat", flat: 2 }, "a value fragment merges into the stored value");
+  });
+
+  t("a modifier and a ward row edit their scope, and no other kind does", () => {
+    for (const type of ["modifier", "ward"]) {
+      const fields = fieldsForType(type);
+      for (const name of ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"]) assert.ok(fields.includes(name), `${type} edits ${name}`);
+    }
+    assert.ok(!fieldsForType("damage").includes("vsKinds"));
+  });
+
+  t("anyOfText names each branch's clauses through the lang and joins the branches with or", () => {
+    const say = (key, data = {}) => `${key}${Object.keys(data).length ? JSON.stringify(data) : ""}`;
+    assert.equal(
+      anyOfText(stored.anyOf, say),
+      'scope.enemy · scope.sourceExcept scope.or scope.kinds{"kinds":"beta"} · scope.alignment{"alignment":"Chaotic"}',
+    );
+    assert.equal(anyOfText([{ vsAlignment: "lawful", vsAlignmentMode: "except" }], say), 'scope.alignmentExcept{"alignment":"Lawful"}');
+    assert.equal(anyOfText(undefined, say), "");
+  });
+}
+
 
 console.log(`\n${n} magic tests passed`);

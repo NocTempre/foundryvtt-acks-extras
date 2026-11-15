@@ -10,17 +10,24 @@
  * located at import (`materializeEffects`), so no number appears outside a
  * locator's `from` and no located field appears as a literal. See
  * docs/importer/MODEL.md, "Spell recipes".
+ *
+ * A row's scope is structure too: `vsKinds`, `vsAlignment`, `vsAlignmentOf`,
+ * `vsAlignmentMode`, `vsEnemy` and an `anyOf` list of branches that hold those
+ * keys and never a `sign` mode. An area's `measure` and `unit` are structure;
+ * its size and width are located, and a located size names the measure word in
+ * its pattern so the locator proves the page uses that measure.
  */
 import { LOCATABLE_FIELDS } from "../../scripts/importer/executor.mjs";
 import {
   AREA_SHAPES, CONDITION_KEYS, EFFECT_DELIVERIES, EFFECT_LASTS, EFFECT_RECURRENCES, EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
-  SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES,
+  SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope,
 } from "../../scripts/lib/vocab.mjs";
+import { AREA_MEASURES, DISTANCE_UNITS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
   "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "pick", "reversed",
-  "vsAlignment", "vsAlignmentMode", "vsKinds", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
+  "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate",
 ]);
 
@@ -46,6 +53,34 @@ function figureProblems(node, path, out) {
   else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) figureProblems(v, `${path}.${k}`, out);
 }
 
+/** The problems in one scope's keys: its kinds, its alignment fields and its enemy test. */
+function scopeProblems(scope, label, out) {
+  if (scope.vsKinds !== undefined && !(Array.isArray(scope.vsKinds) && scope.vsKinds.every((k) => typeof k === "string" && k))) out.push(`${label}.vsKinds is a list of kind tokens`);
+  if (!inTable(ALIGNMENTS, scope.vsAlignment)) out.push(`${label}.vsAlignment "${scope.vsAlignment}" is not an alignment`);
+  if (!inTable(SCOPE_ALIGNMENT_REFERENCES, scope.vsAlignmentOf)) out.push(`${label}.vsAlignmentOf "${scope.vsAlignmentOf}" is not an alignment reference`);
+  if (!inTable(SCOPE_ALIGNMENT_MODES, scope.vsAlignmentMode)) out.push(`${label}.vsAlignmentMode "${scope.vsAlignmentMode}" is not a scope mode`);
+  if (scope.vsEnemy !== undefined && typeof scope.vsEnemy !== "boolean") out.push(`${label}.vsEnemy is true or false`);
+}
+
+/** The problems in a row's `anyOf`: a non-empty list of branches, each a scope of its own keys and no `sign`. */
+function anyOfProblems(anyOf, label, out) {
+  if (!Array.isArray(anyOf) || !anyOf.length) {
+    out.push(`${label}.anyOf is a non-empty list of branches`);
+    return;
+  }
+  for (const [i, branch] of anyOf.entries()) {
+    const at = `${label}.anyOf[${i}]`;
+    if (!branch || typeof branch !== "object" || Array.isArray(branch)) {
+      out.push(`${at} is not an object`);
+      continue;
+    }
+    for (const key of Object.keys(branch)) if (!SCOPE_BRANCH_FIELDS.includes(key)) out.push(`${at} carries "${key}", which a branch does not (it holds ${SCOPE_BRANCH_FIELDS.join(", ")})`);
+    if (branch.vsAlignmentMode === "sign") out.push(`${at}.vsAlignmentMode is "sign"; a branch never takes sign`);
+    scopeProblems(branch, at, out);
+    if (!hasScope({ ...branch, anyOf: undefined })) out.push(`${at} declares no clause`);
+  }
+}
+
 /** The problems in one spec's `from` (one locator or a list): known `into`, a compiling pattern, no literal figure. */
 function locatorProblems(from, allow, label, out) {
   const list = Array.isArray(from) ? from : from === undefined ? [] : [from];
@@ -65,6 +100,26 @@ function locatorProblems(from, allow, label, out) {
     }
     for (const key of FIGURE_LOC_KEYS) if (loc?.[key] !== undefined) out.push(`${at}.${key} is a literal figure; read it from the page`);
   }
+}
+
+/**
+ * The problems in how a `values` spec locates an area: a located size needs the
+ * authored measure and a pattern naming that measure's word (so the locator
+ * proves the page prints the size as that measure), a length needs a located
+ * width, and a width belongs to a length.
+ */
+function areaLocatorProblems(area, from, label, out) {
+  const list = (Array.isArray(from) ? from : from === undefined ? [] : [from]).filter(Boolean);
+  const sizes = list.filter((loc) => loc.into === "target.area.size");
+  const widths = list.filter((loc) => loc.into === "target.area.width");
+  if (sizes.length && !area.measure) out.push(`${label} locates target.area.size and states no target.area.measure`);
+  if (area.measure && Object.hasOwn(AREA_MEASURES, area.measure)) {
+    for (const loc of sizes) {
+      if (typeof loc.pattern === "string" && !loc.pattern.toLowerCase().includes(area.measure)) out.push(`${label} locates target.area.size for a ${area.measure} but its pattern never says "${area.measure}"`);
+    }
+    if (area.measure === "length" && sizes.length && !widths.length) out.push(`${label} states a length and locates no target.area.width`);
+  }
+  if (widths.length && area.measure !== "length") out.push(`${label} locates target.area.width, which only a length measure reads`);
 }
 
 /**
@@ -93,8 +148,8 @@ export function spellRecipeProblems({ effects, values } = {}) {
     if (!inTable(EFFECT_RECURRENCES, spec.recur)) out.push(`${label}.recur "${spec.recur}" is not a recurrence`);
     if (!inTable(HEAL_KINDS, spec.healKind)) out.push(`${label}.healKind "${spec.healKind}" is not a heal kind`);
     if (spec.type === "modifier" && !inTable(MODIFIER_TARGETS, spec.target)) out.push(`${label}.target "${spec.target}" is not a modifier target`);
-    if (!inTable(ALIGNMENTS, spec.vsAlignment)) out.push(`${label}.vsAlignment "${spec.vsAlignment}" is not an alignment`);
-    if (!inTable(SCOPE_ALIGNMENT_MODES, spec.vsAlignmentMode)) out.push(`${label}.vsAlignmentMode "${spec.vsAlignmentMode}" is not a scope mode`);
+    scopeProblems(spec, label, out);
+    if (spec.anyOf !== undefined) anyOfProblems(spec.anyOf, label, out);
     if (spec.gate !== undefined) {
       if (Object.keys(spec.gate ?? {}).some((k) => k !== "kind")) out.push(`${label}.gate carries only a kind; a spell gate's arguments are not located`);
       if (!SPELL_GATE_KINDS.includes(spec.gate?.kind)) out.push(`${label}.gate.kind "${spec.gate?.kind}" is not a spell gate kind`);
@@ -123,7 +178,11 @@ export function spellRecipeProblems({ effects, values } = {}) {
     const target = spec.target ?? {};
     for (const key of Object.keys(save)) if (!["effect", "kind", "perTarget"].includes(key)) out.push(`${label}.save.${key} is not structure a recipe states (category, modifier and the rest are located)`);
     for (const key of Object.keys(target)) if (!["model", "area", "beholding"].includes(key)) out.push(`${label}.target.${key} is not structure a recipe states (count, cap and filters are located)`);
-    for (const key of Object.keys(target.area ?? {})) if (key !== "shape") out.push(`${label}.target.area.${key} is not structure a recipe states (the size is located)`);
+    const area = target.area ?? {};
+    for (const key of Object.keys(area)) if (!["shape", "measure", "unit"].includes(key)) out.push(`${label}.target.area.${key} is not structure a recipe states (the size and the width are located)`);
+    if (!inTable(AREA_MEASURES, area.measure)) out.push(`${label}.target.area.measure "${area.measure}" is not an area measure`);
+    if (!inTable(DISTANCE_UNITS, area.unit)) out.push(`${label}.target.area.unit "${area.unit}" is not a distance unit`);
+    areaLocatorProblems(area, from, label, out);
     if (!inTable(SAVE_EFFECTS, save.effect)) out.push(`${label}.save.effect "${save.effect}" is not a save effect`);
     if (!inTable(SAVE_KINDS, save.kind)) out.push(`${label}.save.kind "${save.kind}" is not a save kind`);
     if (!inTable(TARGET_MODELS, target.model)) out.push(`${label}.target.model "${target.model}" is not a target model`);
