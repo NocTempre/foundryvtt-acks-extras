@@ -123,8 +123,8 @@ Fixtures, by marker: scenes `battlemap/scale-mark-hex` and
 
 ### Owner questions on the mark
 
-Each default is the first answer; slice I builds the defaults unless told
-otherwise.
+**Ruled** (owner, 2026-11-15, asked "Build the not-to-scale mark with its
+three defaults?"): "Keep defaults". Slice I builds the first answer of each.
 
 1. Do players see the mark? **Yes** / Judge only (the handout view then hides
    it).
