@@ -14,6 +14,7 @@
 import { CATALOG_EXCLUDED_SETTING } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { findGearEntry } from "../../equipment/grant.mjs";
+import { openPacks } from "../../lib/library.mjs";
 import { WORLD_SOURCE, normalizeExcluded, sourceAllowed, sourceOfUuid } from "../rules/sources.mjs";
 
 /** The sources the shop leaves out, cleaned; none where the setting is unreadable. */
@@ -28,9 +29,9 @@ export function excludedSources() {
 /** Whether the shop lists the world's own items. */
 export const shopListsWorld = (excluded = excludedSources()) => sourceAllowed(WORLD_SOURCE, excluded);
 
-/** The Item compendiums the shop lists, in `game.packs` order: the order a name's first copy is taken in. */
+/** The Item compendiums the shop lists on this seat, in `game.packs` order: the order a name's first copy is taken in. */
 export function shopPacks(excluded = excludedSources()) {
-  return [...(game.packs ?? [])].filter((p) => p.documentName === "Item" && sourceAllowed(p.collection, excluded));
+  return openPacks("Item").filter((p) => sourceAllowed(p.collection, excluded));
 }
 
 /** A world or compendium Item's creatable data and address; null for anything else, an embedded item included. */

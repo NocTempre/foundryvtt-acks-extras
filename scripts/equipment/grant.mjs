@@ -13,6 +13,7 @@
  * `grant.mjs`").
  */
 import { carriesItem } from "../lib/item-model.mjs";
+import { openPacks } from "../lib/library.mjs";
 import { getLoadout, releaseOrder } from "./loadout.mjs";
 import { sheatheItem } from "./actions.mjs";
 
@@ -63,8 +64,7 @@ export async function findGearEntry(name, { world: searchWorld = true, pack: pac
   const world = searchWorld ? game.items?.find?.((i) => i.name?.toLowerCase() === wanted) : null;
   if (world) return { data: world.toObject(), uuid: world.uuid, inCompendium: false };
 
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item") continue;
+  for (const pack of openPacks("Item")) {
     if (packAllowed && !packAllowed(pack)) continue;
     const entry = pack.index?.find?.((e) => e.name?.toLowerCase() === wanted);
     if (!entry) continue;
@@ -100,8 +100,7 @@ export async function findGearByPattern(pattern) {
   if (world) return world.toObject();
 
   let best = null;
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item") continue;
+  for (const pack of openPacks("Item")) {
     const index = (await pack.getIndex?.({ fields: ["system.quantity.value"] })) ?? pack.index ?? [];
     const found = largest([...index].filter((e) => pattern.test(e.name ?? "")));
     if (found && (!best || stackSize(found) > stackSize(best.entry))) best = { pack, entry: found };

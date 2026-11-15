@@ -32,7 +32,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
-import { libraryItems, libraryDocs, cookbookId, isLibraryPack, lineOfPack } from "../lib/library.mjs";
+import { libraryItems, libraryDocs, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
 import { ensureLibraryPack, ensureFolderIn } from "../lib/library-target.mjs";
 import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
@@ -185,8 +185,8 @@ async function packIndex(pack) {
  */
 async function importPacks() {
   const out = [];
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item" || pack.metadata?.packageType !== "world") continue;
+  for (const pack of openPacks("Item")) {
+    if (pack.metadata?.packageType !== "world") continue;
     const index = await packIndex(pack);
     if (!index) continue;
     const rows = [...index];

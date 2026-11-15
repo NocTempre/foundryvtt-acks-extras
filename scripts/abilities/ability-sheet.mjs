@@ -10,7 +10,7 @@
  */
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, openPacks } from "../lib/library.mjs";
 import AbilityExtras, { storedSelections } from "./ability-extras.mjs";
 import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf, citeOf } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
@@ -117,8 +117,7 @@ function refName(ref) {
   // Any OTHER Item pack a world happens to hold, for a ref pointing outside
   // the library. Only already-loaded packs are searched: this is a synchronous
   // render path and must not await; an unopened pack falls back to the id.
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item") continue;
+  for (const pack of openPacks("Item")) {
     const hit = pack.contents?.find?.(match);
     if (hit) return hit.name;
   }

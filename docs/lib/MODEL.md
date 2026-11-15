@@ -42,7 +42,10 @@ whichever pack Foundry registered first.
   documents first, then every shelf's. The sidebar still counts: a Judge's
   homebrew class lives there with the template package it builds, and so does
   whatever an earlier release wrote there.
-- `libraryPacks(type)` — the shelves themselves, unlined first.
+- `libraryPacks(type)` — the shelves this seat can open, unlined first.
+- `seatOpens(pack)` / `openPacks(type)` — whether this seat can open a pack
+  (core's `visible`), and every pack of a type it can. Every scan of
+  `game.packs` for content goes through `openPacks`.
 - `libraryPackLabel(type, line)` / `findLibraryPack(type, line)` /
   `isLibraryPack(collection)` / `lineOfPack(collection)` — one shelf by its
   label, and whether a document's `pack` is one of ours (and which line).
@@ -51,6 +54,22 @@ whichever pack Foundry registered first.
   finds one class's engraved silver waterskin where the shared Waterskin was
   meant.
 - `whenReady()` — awaits the warm, for callers that can.
+
+**A seat's library is the shelves it opens, and a closed shelf is not a
+secret one.** A Judge's shelf (`judgeLine`) is made with
+`JUDGE_SHELF_OWNERSHIP`, NONE for every player role. On core 14 that keeps
+the pack out of a player's Compendium Packs sidebar and refuses a player its
+documents' sheets and every write. It refuses no read: the server answers a
+`getIndex`, `getDocument` or `getDocuments` from any seat, every seat holds
+every pack's index from connect, and module code runs on clients, so nothing
+this module ships stands in front of that. What the module does is leave a
+shelf the seat cannot open out of its own reads: the warm asks the server for
+none, `libraryDocs` and `byCookbookId` answer with no document of one, and a
+lookup that would have found its document there finds none. A Gamemaster and
+an Assistant open every shelf. Whether a pack is one of the library's
+(`importedPacks`, `findLibraryPack`, `isLibraryPack`, `lineOfPack`) is asked
+of every shelf, since it reads nothing of the shelf's content. The ruling is
+importer DECISIONS, 2026-11-15.
 
 The reads are **synchronous**, because their callers are sheet getters and
 `_prepareContext` bodies. That is paid for by warming the packs at `ready`
@@ -2536,7 +2555,8 @@ relays. The world copy stays in the GM's folder.
 this module: a pack declares `ownership` by role, defaulting to OBSERVER for
 a player, and the importer's Judge shelves are NONE for every player seat
 (`JUDGE_SHELF_OWNERSHIP`). The picker lists `pack.visible` shelves only, and
-says so when there is none.
+says so when there is none. Ownership decides what a seat is shown, never
+what it can read ("The imported library").
 
 ## The repair tool
 

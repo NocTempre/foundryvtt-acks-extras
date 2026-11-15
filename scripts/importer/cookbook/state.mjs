@@ -22,7 +22,7 @@ export const UNLINED_LINE = "Your Books";
  * Every write (`packFor`, `ensureFolderPath`) and presence check
  * (`importedActor`, `importedIdsOfType`) derives its destination from this. A
  * Judge's book resolves to its series' Judge line (`judgeLine`), whose packs no
- * player seat can open. This is the line of a book's own rows; a `def.` content
+ * player seat is shown. This is the line of a book's own rows; a `def.` content
  * row files by `lineOfClaim`.
  */
 export function lineOf(bookId) {

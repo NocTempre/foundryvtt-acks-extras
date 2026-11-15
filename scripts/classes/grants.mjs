@@ -14,7 +14,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { findByRef, templatePartOf } from "./registry.mjs";
 import { choiceOptions } from "../lib/choice-spec.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections } from "../lib/vocab.mjs";
-import { libraryItems, cookbookId } from "../lib/library.mjs";
+import { libraryItems, cookbookId, openPacks } from "../lib/library.mjs";
 import { foldKey, spellTraditions, spellDedupeKey } from "../magic/spell-logic.mjs";
 import { levelUnder } from "../magic/spell-names.mjs";
 import { FLAG_SPELL } from "../magic/constants.mjs";
@@ -181,9 +181,7 @@ export async function grantAdventuring(actor, grants) {
 export function choosableSpells(classItem, { level = null } = {}) {
   const lanes = spellLanes(classItem, { level });
   if (!lanes.length) return [];
-  const packed = (game.packs ?? [])
-    .filter((p) => p.documentName === "Item")
-    .flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
+  const packed = openPacks("Item").flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
   const seen = new Set();
   const offered = new Set();
   // The library first, so an imported copy of a spell stands for a core-pack
@@ -258,8 +256,7 @@ export function admitsSpell(lanes, doc) {
  */
 export async function warmSpellPacks() {
   const wanted = [];
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item") continue;
+  for (const pack of openPacks("Item")) {
     const index = await pack.getIndex({ fields: ["type"] }).catch(() => null);
     if (index?.some((e) => e.type === ITEM_TYPE.spell)) wanted.push(pack.getDocuments().catch(() => null));
   }

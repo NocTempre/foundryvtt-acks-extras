@@ -199,7 +199,9 @@ function renderCompendia(packs, library) {
     "",
     `- **A book whose own rows are the Judge's**, an adventure, a gazetteer or a supplement with a keyed place: ${code(library.judge.label)}, and so on for each type. ` +
       "What such a book adds to the lists above, a class or a power, stays open: on the shelf above for a book of the ACKS library, on its series' own shelf for a book of another series." +
-      (library.judge.closed ? " No player seat can see these compendiums or open a document in them." : ""),
+      (library.judge.closed
+        ? " A player is not shown these compendiums and cannot open a document in them. They are out of sight and not secret: Foundry answers a macro or script run on a player's seat that asks for one."
+        : ""),
     `- **Another game's book**: ${code(library.series.label)}, named for the series it belongs to, or ` +
       `${code(library.series.unnamed)} when it was registered with none. Where both apply the name carries both: ${code(library.series.judge)}.`,
     "",

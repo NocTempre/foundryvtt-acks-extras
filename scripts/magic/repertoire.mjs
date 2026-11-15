@@ -16,7 +16,7 @@
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { libraryItems } from "../lib/library.mjs";
+import { libraryItems, openPacks } from "../lib/library.mjs";
 import { CLASS_TYPE } from "../classes/constants.mjs";
 import { choosableSpells } from "../classes/grants.mjs";
 import { slotRowAt } from "../classes/casting.mjs";
@@ -166,9 +166,7 @@ export function spellPayload(doc) {
  * source.
  */
 export function spellsByName() {
-  const packed = (game.packs ?? [])
-    .filter((p) => p.documentName === "Item")
-    .flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
+  const packed = openPacks("Item").flatMap((p) => [...p.contents].filter((i) => i.type === ITEM_TYPE.spell));
   const docs = [
     ...libraryItems().filter((i) => i.type === ITEM_TYPE.spell && !i.flags?.[MODULE_ID]?.templatePart),
     ...packed,

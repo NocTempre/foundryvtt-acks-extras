@@ -3108,6 +3108,10 @@ check("only the missing half is supplied", halfKitted.items.length === 2 && half
   check("world: false searches the packs only", (await findGearEntry("Quill, writing", { world: false }))?.uuid === "Compendium.mod.alpha.Item.a1");
   check("a pack the scope refuses is not searched", (await findGearEntry("Quill, writing", { world: false, pack: (p) => p.collection !== "mod.alpha" }))?.uuid === "Compendium.mod.beta.Item.b1");
   check("a scope refusing everything finds nothing", (await findGearEntry("Quill, writing", { world: false, pack: () => false })) === null);
+  globalThis.game.packs[0].visible = false;
+  check("a pack this seat cannot open is not searched", (await findGearEntry("Quill, writing", { world: false }))?.uuid === "Compendium.mod.beta.Item.b1");
+  globalThis.game.packs[1].visible = false;
+  check("and with every pack closed to the seat, nothing is found", (await findGearEntry("Quill, writing", { world: false })) === null);
   const kitted = grantee();
   await grantGear(kitted, [QUILL]);
   check("a grant is never narrowed: it takes the world's item", kitted.items.length === 1 && kitted.items[0].system.cost === 1);

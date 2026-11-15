@@ -14,7 +14,7 @@
  * the registry and the roller may both import it.
  */
 import { ITEM_TYPE, resolveLevelValue } from "../lib/vocab.mjs";
-import { cookbookId } from "../lib/library.mjs";
+import { cookbookId, openPacks } from "../lib/library.mjs";
 
 const ABILITIES_ID = "acks-extras";
 
@@ -70,8 +70,8 @@ export async function refreshLadders() {
   const mine = ++generation;
   const map = new Map();
   for (const item of game.items ?? []) takeLadder(map, item);
-  for (const pack of game.packs ?? []) {
-    if (pack.documentName !== "Item" || pack.metadata?.packageType !== "world") continue;
+  for (const pack of openPacks("Item")) {
+    if (pack.metadata?.packageType !== "world") continue;
     try {
       for (const doc of await pack.getDocuments()) takeLadder(map, doc);
     } catch (err) {

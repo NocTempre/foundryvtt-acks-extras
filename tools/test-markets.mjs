@@ -1225,6 +1225,12 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.strictEqual((await orderedSource({ sourceUuid: baseSword.uuid, itemName: "Sword" }))?.uuid, baseSword.uuid, "a paid order arrives as what it was placed for, left out since or not");
   assert.strictEqual((await orderedSource({ sourceUuid: "Compendium.mod.beta.Item.gone", itemName: "Rope" }))?.uuid, rope.uuid, "an order whose document is gone arrives by name from the shop's sources");
 
+  excluded = [];
+  globalThis.game.packs[1].visible = false;
+  assert.deepStrictEqual(shopPacks().map((p) => p.collection), ["mod.alpha"], "a pack this seat cannot open is not one of the shop's");
+  assert.deepStrictEqual(await listed(), { Lantern: lantern.uuid, Rope: rope.uuid }, "and none of its items is listed there");
+  delete globalThis.game.packs[1].visible;
+
   excluded = ["world", "mod.alpha", "mod.beta"];
   assert.deepStrictEqual(await listed(), {}, "nothing ticked lists nothing");
   assert.strictEqual(await listedSource({ itemName: "Lantern" }), null, "the world's items left out are not bought by name");

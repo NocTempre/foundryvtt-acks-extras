@@ -15,7 +15,7 @@
  * `judge` marks a book whose own rows are the Judge's — an adventure, a
  * gazetteer, a supplement that prints a keyed place: every document its ids
  * name (its places, people, organisations, lists, maps, monsters and its
- * Adventure) is shelved where no player seat can open them (`lineOf` in
+ * Adventure) is shelved where no player seat is shown them (`lineOf` in
  * `cookbook.mjs`). What such a book contributes to the library's own lists —
  * a class, a power, a proficiency — carries a `def.` id and files on its
  * line's OPEN shelf (`lineOfClaim`): the series' own for a book with a

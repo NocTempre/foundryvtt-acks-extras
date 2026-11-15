@@ -38,6 +38,7 @@ import { arrivalOf } from "./bundles-logic.mjs";
 import { containedIn, isContainer, isShutAway } from "./item-model.mjs";
 import { coinMayEnter, consolidateMoney, landGoods, providers, resolveActorSync, vaultOwnerUuid } from "./storage.mjs";
 import { isLocation } from "./place.mjs";
+import { openPacks } from "./library.mjs";
 import { registerHandler, executeAsGM } from "./sockets.mjs";
 
 // The sentinel is storage-logic's; it is offered here because coin is what it
@@ -387,7 +388,7 @@ export async function coinTemplate({ cv = null, name = null } = {}) {
     const slot = `${ofSystem ? "system" : "other"}|${key}`;
     if (shelfCoins.has(slot)) return shelfCoins.get(slot);
     let found = null;
-    const packs = game.packs?.filter((p) => p.documentName === "Item" && (p.metadata?.packageType === "system") === ofSystem) ?? [];
+    const packs = openPacks("Item").filter((p) => (p.metadata?.packageType === "system") === ofSystem);
     for (const pack of packs) {
       const index = await pack.getIndex().catch(() => null);
       // The rate is not an index field, so every coin a shelf lists is opened

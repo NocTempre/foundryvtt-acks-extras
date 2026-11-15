@@ -8,7 +8,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { cookbookId } from "../lib/library.mjs";
+import { cookbookId, openPacks } from "../lib/library.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 import { readFormations, patchFormation, realMembers } from "./formation-model.mjs";
 import { storedTravelOf, travelOf } from "./travel.mjs";
@@ -289,7 +289,7 @@ export async function findCityIncidentTable() {
 
   const world = game.tables?.find(flagged) ?? null;
   if (world) return world;
-  for (const pack of game.packs.filter((p) => p.documentName === "RollTable")) {
+  for (const pack of openPacks("RollTable")) {
     // Per pack: one unreadable compendium must not hide the table in the next.
     try {
       const index = await pack.getIndex({ fields: ["flags"] });

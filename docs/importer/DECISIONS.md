@@ -181,7 +181,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-17 — [What AX1's cave level taught the contour trace](DECISIONS-through-v11.14.5.md#2026-10-17--what-ax1s-cave-level-taught-the-contour-trace) — superseded in part by "2026-10-18 — A recipe is checked on the importer's own render, never on a plate"
 - 2026-10-18 — [A book's page geometry is the book's, and an aside is no room's prose](DECISIONS-through-v11.14.5.md#2026-10-18--a-books-page-geometry-is-the-books-and-an-aside-is-no-rooms-prose)
 - 2026-10-18 — [AX1 prints ten inhabitants, and a stat block may run on into the next column](DECISIONS-through-v11.14.5.md#2026-10-18--ax1-prints-ten-inhabitants-and-a-stat-block-may-run-on-into-the-next-column)
-- 2026-10-18 — [A mixed book is a Judge's book by its Judge's half; its player's half never took the flag](DECISIONS-through-v11.14.5.md#2026-10-18--a-mixed-book-is-a-judges-book-by-its-judges-half-its-players-half-never-took-the-flag) — superseded in part by "2026-10-23 — A book's content stands on its own open shelf"
+- 2026-10-18 — [A mixed book is a Judge's book by its Judge's half; its player's half never took the flag](DECISIONS-through-v11.14.5.md#2026-10-18--a-mixed-book-is-a-judges-book-by-its-judges-half-its-players-half-never-took-the-flag) — superseded in part by "2026-10-23 — A book's content stands on its own open shelf"; "2026-11-15 — A Judge's shelf is closed in the sidebar and not to a read, and the library reads only the shelves a seat opens (T-0572)"
 - 2026-10-18 — [A community book joins the shelf, and a book's typography is declared beside its fingerprint](DECISIONS-through-v11.14.5.md#2026-10-18--a-community-book-joins-the-shelf-and-a-books-typography-is-declared-beside-its-fingerprint) — superseded in part by "2026-10-18 — A mixed book is a Judge's book by its Judge's half; its player's half never took the flag"; "2026-10-23 — A person written out is read by her labels"
 - 2026-10-18 — [A secret door stands on both mouths, a split box is a double door, and the crop's edge walls nothing](DECISIONS-through-v11.14.5.md#2026-10-18--a-secret-door-stands-on-both-mouths-a-split-box-is-a-double-door-and-the-crops-edge-walls-nothing) — superseded in part by "2026-10-18 — A double door is two leaves meeting at its bar, and a correction may be a drawn line"; "2026-10-24 — A raised structure off the lattice is a rect"
 - 2026-10-18 — [A double door is two leaves meeting at its bar, and a correction may be a drawn line](DECISIONS-through-v11.14.5.md#2026-10-18--a-double-door-is-two-leaves-meeting-at-its-bar-and-a-correction-may-be-a-drawn-line) — superseded in part by "2026-10-18 — A thin wall between two rocks is a wall, a symbol in a niche is no door, and a spiral stair is walled along its circle"
@@ -1752,3 +1752,84 @@ should not replace import text".
 *Rejected:* options (a) and (b). *Cost:* a long anchor stays readable in the
 repo, which the owner accepted; a recipe can still move to a `printKey` or
 `findKey` locator one at a time.
+
+## 2026-11-15 — A Judge's shelf is closed in the sidebar and not to a read, and the library reads only the shelves a seat opens (T-0572)
+
+The prepared-parties recipe's step 4 said a player seat's `game.packs` holds no
+pack carrying a `jj.pc` row. On the release's hand walk it held the Judge's
+Actor shelf, and a script's `getIndex` and `getDocuments` returned it whole.
+The owner answered "Fix next hotfix", and then, asked whether the hotfix
+carries the corrected wording alone or also the module's own reads, "A and B
+together in this hotfix".
+
+What core 14.370 does, read from its own code and measured on the Player seat:
+
+- **A pack's ownership gates its writes and its place in the sidebar.** The
+  server tests the user on create, update and delete
+  (`dist/database/backend/server-backend.mjs`, `canUserModify`; a pack binds its
+  `getUserLevel` to those three). Its `get` is handed the user and never tests
+  it. The client's `visible` is read by the sidebar; `getIndex`, `getDocument`
+  and `getDocuments` do not read it.
+- **Every seat is sent every pack's index and every world document** in the
+  world payload (`dist/packages/world.mjs`), whatever its role.
+- **Measured.** With the shelf's ownership as `JUDGE_SHELF_OWNERSHIP` writes
+  it (`visible` false, the seat's level NONE), `getDocuments` returned the
+  shelf's 1144 actors, 27 of them stamped `jj.pc<n>`, and a `modifyDocument`
+  get sent over the socket, which no client collection stands in front of,
+  returned the same 1144. The 661 world actors the seat has no permission on
+  were on it with their data.
+- **Module code runs on clients.** Nothing a module ships stands in front of
+  the server's `get`.
+
+**Ruled.**
+
+- **A Judge's shelf is not listed for a player seat and its documents do not
+  open there. Nothing says it cannot be read.** The statements that did are
+  corrected: the importer's recipe steps (`TESTING.md`, the prepared parties'
+  step 4 and the lairs' note), the docstrings of `judgeLine`,
+  `JUDGE_SHELF_OWNERSHIP` and `lineOf`, the registry's header
+  (`importer/books.mjs`), lib's index row for `library.mjs`, and the docs
+  site's compendia page. The limit is stated once, in `docs/lib/MODEL.md`,
+  "The imported library". An archived entry that calls a Judge's shelf closed
+  to players is read as this: closed in the sidebar.
+- **The library on a seat is the shelves that seat opens.** `libraryPacks`
+  answers only a shelf whose pack the seat can open (`seatOpens`, core's own
+  `visible`), so the ready-time warm asks the server for no Judge's shelf on a
+  player seat and no library read there answers with one. The module's other
+  scans of `game.packs` for content go through `openPacks`. A Gamemaster and
+  an Assistant open every shelf, so nothing changes on their seats.
+- **A shelf's identity is not a read.** `importedPacks`, `findLibraryPack`,
+  `isLibraryPack` and `lineOfPack` still answer for every shelf: whether a
+  pack is one of the library's is asked of documents a seat already holds.
+
+*Rejected:*
+
+- **Hiding a Judge's shelf on the player client,** by dropping it from
+  `game.packs` or wrapping the collection's reads. The socket get never
+  touches the client collection, so it refuses nothing; core's
+  `#handleDeleteCompendium` throws for a pack the client does not hold, and a
+  compendium document resolves its collection strictly; and it would have made
+  step 4 pass while what a reader takes from it stayed false.
+- **Moving a Judge's rows into world documents.** Those are sent whole to
+  every seat at connect, where a pack's documents are sent when asked for.
+- **A read gate.** None can be built in a module, at any release size.
+
+*Cost:* a script on a player seat still reads a Judge's shelf, and the pack's
+index (each entry's name, picture and type) is on that seat from connect. On a
+player seat a library lookup no longer finds a Judge's shelf's document: a lair
+the Judge shared whose monster sits on one reads as not imported
+(`lairMonster`), and a creature a Judge's book prints is not found by name or
+by id there. The shop's sources still include the Judge's Item shelves on a
+Judge's seat (T-0575).
+
+*Walked* on core 14.370, the module's own readers counted on a seat before
+and after. Player seat before: 1402 of the 1419 documents on the 15 Judge's
+shelves loaded within fifteen seconds of `ready`, the library answered 1336
+actors, 11 items, 49 tables and 6 journals from them, the shop listed 13
+packs, and a gear name only a Judge's shelf holds was found. Player and
+Trusted Player seats after: none loaded, none answered, 11 packs, the name
+not found; the class, spell, companion, summon, ladder, goods, language and
+coin reads and an owned character's sheet as before, with no error heard by
+a recorder attached after `ready`. The Gamemaster seat's counts are the same
+before and after. A script's `getDocuments` on the Judge's Actor shelf was
+answered with all 1144 on both player seats after the change.

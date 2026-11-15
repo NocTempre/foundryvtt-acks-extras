@@ -1,7 +1,8 @@
 /**
- * A Judge's book is shelved where no player seat can open it.
+ * A Judge's book is shelved where no player seat is shown it, and the library
+ * on a seat reads only the shelves that seat opens.
  *
- * Five things this guards. The Judge's line is a LABEL shape, so every reader
+ * Six things this guards. The Judge's line is a LABEL shape, so every reader
  * that takes a shelf's line off its label has to get the same line back, and a
  * shelf of that line has to be recognised by the label alone. A shelf is closed
  * when it is MADE and never afterwards, so a Judge who opens one keeps it open.
@@ -14,7 +15,9 @@
  * book's OPEN line — the series' shelf for a lined book, the library's own
  * for an unlined one, never a Judge's — and every row of a book's own file
  * carries the book's prefix, so a mixed book's Judge's half closes and its
- * player's half does not.
+ * player's half does not. And a seat that cannot open a shelf has none of it
+ * loaded or answered by the library, while the shelf stays one of the
+ * library's.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -224,7 +227,45 @@ for (const book of index.books) {
 check("every row of a book's own file carries the book's prefix, so the flag reaches it", strayed, []);
 const mixed = index.books.find((b) => bookIsJudges(b) && bookLine(b));
 ok("a lined Judge's book's own ids take its series' Judge line", !!mixed && lineOf(mixed) === judgeLine(bookLine(mixed)), mixed ?? "no lined Judge's book shipped");
-ok("and the same book's content rows take the series' open line", !!mixed && lineOfClaim(`${mixed}.room1`, null) === judgeLine(bookLine(mixed)) && lineOfClaim("def.class.anyone", mixed) === bookLine(mixed), mixed ?? "no lined Judge's book shipped");
+/* ---------------- a seat's library is the shelves it opens ---------------- */
+
+const { libraryPacks, libraryDocs, warmLibrary, openPacks, seatOpens, isLibraryPack } = await import("../scripts/lib/library.mjs");
+// A shelf as a seat holds it at connect: its index, no document loaded, and
+// every read asked of the server recorded.
+const reads = [];
+const stock = (pack, ids) => {
+  let loaded = [];
+  pack.index = { size: ids.length };
+  Object.defineProperty(pack, "size", { get: () => loaded.length, configurable: true });
+  Object.defineProperty(pack, "contents", { get: () => loaded, configurable: true });
+  pack.getDocuments = async () => {
+    reads.push(pack.collection);
+    loaded = ids.map((id) => ({ id, pack: pack.collection }));
+    return loaded;
+  };
+};
+for (const pack of packs) stock(pack, pack === judges ? ["j1", "j2"] : pack === shared ? ["s1"] : []);
+const isJudges = (pack) => isJudgeLine(lineOfPack(pack.collection));
+const seat = (opens) => packs.forEach((pack) => (pack.visible = opens(pack)));
+const collections = (list) => list.map((pack) => pack.collection);
+
+seat((pack) => !isJudges(pack));
+ok("a seat that cannot open a Judge's shelf does not count it in its library", collections(libraryPacks("Actor")).includes(shared.collection) && !libraryPacks("Actor").some(isJudges));
+await warmLibrary();
+ok("the warm asks the server for no shelf the seat cannot open", reads.includes(shared.collection) && !reads.some((c) => isJudges(packs.get(c))), reads.join(", "));
+check("a library read on that seat answers with none of its documents", libraryDocs("Actor").map((d) => d.id), ["s1"]);
+ok("a scan of the packs passes it over", !openPacks("Actor").some(isJudges) && openPacks("Actor").includes(shared));
+ok("it is still one of the library's shelves", isLibraryPack(judges.collection) && importedPacks().some(({ pack }) => pack === judges));
+
+seat(() => true);
+check("a seat that opens every shelf reads the library's own first", libraryPacks("Actor")[0].collection, shared.collection);
+ok("and counts the Judge's", collections(libraryPacks("Actor")).includes(judges.collection));
+await warmLibrary();
+ok("the warm loads the Judge's shelf there", reads.includes(judges.collection), reads.join(", "));
+check("and a library read answers with both shelves' documents", libraryDocs("Actor").map((d) => d.id).sort(), ["j1", "j2", "s1"]);
+ok("a pack that gives no answer counts as open, and only a refusal closes one", seatOpens({}) && seatOpens({ visible: true }) && !seatOpens({ visible: false }));
+
+ok("and the same book's content rows take the series' open line",!!mixed && lineOfClaim(`${mixed}.room1`, null) === judgeLine(bookLine(mixed)) && lineOfClaim("def.class.anyone", mixed) === bookLine(mixed), mixed ?? "no lined Judge's book shipped");
 
 if (failed) {
   console.error(`${failed} check(s) failed`);

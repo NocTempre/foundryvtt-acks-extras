@@ -17,6 +17,7 @@ import { merchandiseLabel } from "../config.mjs";
 import { DEMAND_COLUMN_KEYS, MARKET_CLASS_COUNT, MERCHANDISE_KEYS, merchandiseTierOf } from "../merchandise-keys.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
 import { isMissingRow, citeOf } from "../../lib/tables.mjs";
+import { openPacks } from "../../lib/library.mjs";
 
 /** The good whose tariff and season follow the printed procedure for staple food. */
 const STAPLE_KEY = "grainVegetables";
@@ -113,8 +114,7 @@ export function invalidateMerchandiseCatalog({ pack = false } = {}) {
  */
 export async function primeMerchandiseCatalog() {
   const rows = [];
-  for (const pack of [...(game.packs ?? [])]) {
-    if (pack.documentName !== "Item") continue;
+  for (const pack of openPacks("Item")) {
     const ids = [...(pack.index ?? [])].filter((entry) => entry.type === MERCHANDISE_TYPE).map((entry) => entry._id ?? entry.id);
     for (const id of ids) {
       try {

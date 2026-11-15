@@ -3547,8 +3547,15 @@ the book gets its own Adventure (`cookbookImportAdventures`).
 3. Open the JJ's Adventure on the shelf. *Observable:* it holds the 27
    characters and the Parties journal, and its links open the library's own
    copies.
-4. On the player seat, list the compendium packs. *Observable:* the Judge-only
-   library is not listed; `game.packs` holds no pack carrying a `jj.pc` row.
+4. On the player seat, fifteen seconds after `ready`, read the Judge-only
+   Actor library's pack. *Observable:* `pack.visible` is false, which is what
+   core's Compendium Packs tab lists by; the module has loaded none of it
+   (`pack.size` 0), and `libraryActors()` (`scripts/lib/library.mjs`) answers
+   no document whose pack's `visible` is false. The pack is in `game.packs`
+   with its index. Then, last, since it loads the shelf: a script's
+   `getDocuments()` on it is answered with every `jj.pc` character, and each
+   refuses the seat `testUserPermission(game.user, "LIMITED")` (lib MODEL,
+   "The imported library").
 5. Draw from the settlement-encounter table through a city turn on the GM
    seat. *Observable:* the draw lands as before the table moved to the Judge
    shelf.
@@ -3576,7 +3583,9 @@ owns which plate. Nothing of the page is read to check it.
 What a scripted walk meets:
 
 - The book is ACKS I and on the Judge shelf; connect it by its stock file name
-  (the PDF carries no title). A Player seat sees none of it.
+  (the PDF carries no title). A Player seat is shown none of it, and the
+  library's reads there answer none of it; a script's own read of the pack
+  is still answered (lib MODEL, "The imported library").
 - A place's name, notes and roster names come from the Judge's copy; the
   report quotes ids and counts, never a listing's words, and a canvas shot of
   a plate is the book's art and stays in the local log directory (hide

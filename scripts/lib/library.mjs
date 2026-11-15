@@ -46,7 +46,7 @@ const JUDGE_SHELF = "Judge";
  * The line a JUDGE'S book is shelved under: its own series with the Judge's
  * segment added, or that segment alone for a book of the ACKS library. An
  * adventure's keyed places, people and organisations are the Judge's page, so
- * they go to shelves no player seat can open, where one pack setting answers
+ * they go to shelves no player seat is shown, where one pack setting answers
  * for all of them. The marker rides in the LABEL because the label is the one
  * thing every reader of a shelf already has (`importedPacks`).
  */
@@ -57,9 +57,25 @@ export const isJudgeLine = (line) => line === JUDGE_SHELF || String(line ?? "").
 
 /**
  * What a Judge's shelf is created with, and what a library restore puts back:
- * no player seat, trusted or not, can see the pack or read a document in it.
+ * no player seat, trusted or not, is shown the pack or can open a document in
+ * it. The server answers a read of it from any seat (docs/lib/MODEL.md, "The
+ * imported library"), so this module's own reads leave it out (`seatOpens`).
  */
 export const JUDGE_SHELF_OWNERSHIP = Object.freeze({ GAMEMASTER: "OWNER", ASSISTANT: "OWNER", TRUSTED: "NONE", PLAYER: "NONE" });
+
+/**
+ * Whether this seat can open a pack: core's `visible`, the test its sidebar
+ * lists a pack by. Never read as whether the seat can READ the pack, which the
+ * server answers for every seat.
+ */
+export const seatOpens = (pack) => pack?.visible !== false;
+
+/**
+ * Every pack of a document type this seat can open, in `game.packs` order. A
+ * scan of the packs for content goes through here, so a seat is never handed
+ * a document from a pack it is not shown.
+ */
+export const openPacks = (type) => (game.packs ?? []).filter((p) => p.documentName === type && seatOpens(p));
 
 /** The shelf for one type and line, or null when this world has none yet. */
 export function findLibraryPack(type, line = null) {
@@ -91,20 +107,16 @@ const worldCollection = (type) =>
   ({ Item: game.items, Actor: game.actors, JournalEntry: game.journal, RollTable: game.tables })[type] ?? null;
 
 /**
- * Every shelf the importer has minted for a document type — every LINE of it.
- * Matched on the label PREFIX, never on a whole label (see docs/lib/MODEL.md,
- * "The imported library"), and found by label rather than by collection id,
- * because the id differs between worlds. The unlined shelf sorts FIRST.
+ * Every shelf the importer has minted for a document type that this seat can
+ * open (`seatOpens`) — every LINE of it. Matched on the label PREFIX, never on
+ * a whole label (see docs/lib/MODEL.md, "The imported library"), and found by
+ * label rather than by collection id, because the id differs between worlds.
+ * The unlined shelf sorts FIRST.
  */
 export function libraryPacks(type) {
   const own = `${PACK_LABEL_PREFIX}${type}`;
-  return (game.packs ?? [])
-    .filter(
-      (p) =>
-        p.metadata.packageType === "world" &&
-        p.documentName === type &&
-        String(p.metadata.label ?? "").startsWith(PACK_LABEL_PREFIX),
-    )
+  return openPacks(type)
+    .filter((p) => p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith(PACK_LABEL_PREFIX))
     .sort((a, b) =>
       a.metadata.label === own
         ? -1
