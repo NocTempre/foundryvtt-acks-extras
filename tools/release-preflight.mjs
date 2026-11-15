@@ -77,7 +77,8 @@
  *      excluding this release's own; with none, the changed-files clause is
  *      silent.
  *   8. `logs-rolled`, on a major: for each CHANGELOG.md and
- *      `docs/**\/DECISIONS.md` present at the previous tag, its
+ *      `docs/**\/DECISIONS.md` present at the previous tag (less one whose
+ *      folder holds no file now, a feature removed whole), its
  *      `<NAME>-through-v<prev>.md` archive exists beside it with the tag's
  *      blob hash (`node tools/logs.mjs roll` writes it); the live CHANGELOG
  *      holds no section for a version that has a tag and links the archive;
@@ -523,6 +524,7 @@ if (kind === "major" && prevTag) {
   const SHAPE = /^\d{4}-\d{2}-\d{2} — \S.*$/u;
   for (const source of atTag.filter((f) => f === "CHANGELOG.md" || /^docs\/(?:.+\/)?DECISIONS\.md$/u.test(f))) {
     const dir = path.posix.dirname(source);
+    if (dir !== "." && !src.list(dir).length) continue;
     const base = path.posix.basename(source, ".md");
     const archiveName = `${base}-through-${prevTag}.md`;
     const archive = dir === "." ? archiveName : `${dir}/${archiveName}`;
