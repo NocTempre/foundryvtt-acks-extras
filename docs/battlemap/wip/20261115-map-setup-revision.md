@@ -192,8 +192,11 @@ Answered 2026-11-15 (§1 has the words):
   the scene's scale is marked as not to scale, with a border or a
   looking-glass effect. Slice C builds the auto-sizing half; the mark is
   slice I, designed in `20261115-map-ui-audit.md` beside this file.
-- **Q2: not understood**, so it is still open, asked again in plainer words;
-  slice G waits on it.
+- **Q2: two counts; slice G is in.** First not understood; asked again in
+  plainer words the same day, the owner chose: "Two numbers (recommended): “3
+  across, 1 down”. Any box shape works." A box on a square grid carries a
+  count across and a count down (recorded first in `main`'s
+  `20261115-map-ui-audit.md` §1, d72419f8).
 - **Q3: yes.** Slice F is in.
 - **Q4:** the owner has seen "a lot of bugs and duplication in the UI" and
   named none. An audit of the map tools' surfaces is `20261115-map-ui-audit.md`
@@ -350,8 +353,13 @@ then landed and closed with `acks-branch`, and the walk is on `main`.
 - **Slice F** (`implementer`, after C; `capture.mjs` alone): the hex preview.
 - **Walk** (the phase session, GM seat, on the §2 fixture reset to gridless,
   and on a hex-columns scene): with **real pointer drags**, the three reported
-  attempts in the reporter's order; five boxes over four rows read tight; the
-  notice's wording; a one-cell token dropped after a mile-scale apply keeps
+  attempts in the reporter's order; five boxes over four rows read tight or
+  fair with no box unreachable, their `rmsPx` recorded (Phase 1's results:
+  the bands are image px against hand accuracy, and a fit of fewer than three
+  boxes is never tight); the live `hexProbe` (`refW`, `refH`, `basis`,
+  `vertices`, all four hex types) compared with the test mock; one token's
+  and one wall's position read before and after a hex apply; the notice's
+  wording; a one-cell token dropped after a mile-scale apply keeps
   its size; a party token placed there takes Journey with the scale notice;
   both parities applied from one box; `TokenDocument.schema.fields.width`
   read for the half-cell question; `init`, `setup` and `ready` clean on a
@@ -359,15 +367,33 @@ then landed and closed with `acks-branch`, and the walk is on `main`.
 - The `DECISIONS.md` entry of §6 and `TESTING.md`'s changed steps land here.
 
 Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md`,
-in `topic/map-setup`'s worktree and including Phase 1's results, and run its
-Phase 2 as that phase's orchestrator: slice C, then slice F, one fresh
-`implementer` each, committed by hand in the worktree; land and close the
-branch with the `acks-branch` skill; then walk it live yourself on `main` per
+in `topic/map-setup`'s worktree (`<repo>.map-setup`, the branch at a343e518
+or later) and including Phase 1's results, and run its Phase 2 as that
+phase's orchestrator: slice C, then slice F, one fresh `implementer` each,
+committed by hand in the worktree; land and close the branch with the
+`acks-branch` skill; then walk it live yourself on `main` per
 `.claude/rules/live-testing.md` and `docs/battlemap/TESTING.md`, committing
-the walk's fixes with `acks-commit`. Append
-'Results — Phase 2' sorted into exercised live, offline only and not checked,
-correct Phase 3's start prompt, put Phase 3 up as a proposal card, and report
-to the owner, opening with the card."
+the walk's fixes with `acks-commit`. Slice C's brief carries, from Phase 1's
+results: `fitHexLattice`'s output contract as committed (per-box
+`notOneHex`/`unreachable`, fit-level `warnings`, `rmsPx`, `worst` null below
+three boxes or on a tight fit; no per-box `otherFamily`), fed with `hexProbe`
+for BOTH hex families (`otherProbe`) and with `scale` as canvas px per image
+px on each axis, which the caller computes and a test pins, since a 4:3
+stretch is exactly the ratio between the families; the bar's worth through
+`unitsPerCentreSpacing`; `planSetup`'s needs, unused, warnings and rows,
+with `expeditionScale` computed by the caller through `isExpeditionScale` from
+the solution's distance and unit and pinned by a test (six miles leaves
+auto-sizing off, five feet turns it on); a loose-fit line that reads without a
+box name when `worst` is null; and no wording that says placed tokens, tiles
+or walls move with the image, which they do not (no apply passes
+`autoReposition`; `20261115-map-ui-audit.md` §3 finding 1 on `main`). The
+walk adds Phase 1's items: the live probe against the test mock, a token's
+and a wall's position across a hex apply, `rmsPx` of real drags, and what the
+panel says for a lone box drawn around several hexes (Phase 1 found it is
+taken as one hex, with only a shape warning). Append 'Results — Phase 2'
+sorted into exercised live, offline only and not checked, correct Phase 3's
+start prompt, put Phase 3 up as a proposal card, and report to the owner,
+opening with the card."
 
 ### Phase 3 — the panel's surface, the tokens, and the audit's findings
 
@@ -435,3 +461,130 @@ with the release question."
 - The square family's loose-fit warning names no sample.
 
 ## Results
+
+### Results — Phase 1
+
+Run 2026-11-15 in `topic/map-setup`'s worktree, opened at 98cf65cf. Four
+commits, none pushed or landed:
+
+| Commit | Slice | What |
+|---|---|---|
+| 793fddfe | A | `fitHexLattice`, `unitsPerCentreSpacing`, `hexProbe` gains `basis` and `vertices` |
+| eb7db213 | B | `setup-plan.mjs` `planSetup`, `resolveCellWorth`, and their suite |
+| 4546de08 | A2 | the fit brought to the review's ruling (below) |
+| a343e518 | B2 | the planner on the fit's real output; `moves: true` dropped |
+
+A2 and B2 exist because the review found that A's tests could not fail
+where the report lives (below). §7's slice list is unchanged; the fix took
+one round.
+
+**Ledger (step 0).** T-0576 to T-0591, source `feedback:2026-11-15`; no
+earlier row matched. T-0576 to T-0589 are §3's rows, claimed
+`2026-11-15 topic/map-setup`; T-0583 (the half cell), T-0584 (Journey) and
+T-0589 (the even offset) carry their §3 status, inferred or not shown, in
+their notes. T-0590 and T-0591 are §8's two rows, left `new`.
+
+#### Checked offline
+
+- **Gates.** `npm test` printed "229 committed suite(s)", exit 0, on the
+  trees of eb7db213, 4546de08 and a343e518 in the worktree, and "228" on
+  793fddfe alone in a replica built by `git archive`. `npm run validate`
+  printed "validate: scripts, templates, JSON, packs, module.json, i18n, and
+  namespacing OK", exit 0, on the same four. `test-battlemap-setup-plan`
+  printed "OK (53 tests …)" at eb7db213 and "OK (83 tests …)" at a343e518.
+- **The fixture is the walk's.** Today's `fitGrid` run over the test's
+  stretched boxes (a square texture over a 4:3 scene, the exact box 30.7 by
+  47.3 image px) reads three boxes over two rows 19.71% loose and five over
+  four rows 30.44% loose, which is §2's figures. On an unstretched image the
+  same boxes read 18.4% and 25.8%, so the control depends on the fixture.
+- **The hex mock is core's.** Compared with core 14's `HexagonalGrid`
+  (`common/grid/hexagonal.mjs` of the desktop install): `sizeX`, `sizeY`,
+  `getCenterPoint` and `getVertices` for all four hex types agree on 3592
+  numbers in the author's check and on 24216 in the reviewer's, with the
+  largest difference 2.3e-13.
+- **Review verdict** (`architect`, given the diffs and §2 only). Q1, whether
+  a wrong implementation could pass: weak. Every fixture had exact box sizes,
+  so a size read off the edges was already right and assignment could not go
+  wrong. Q2, the stretch: sound, with one gap, `scale.y` never other than 1.
+  Q3, the shape tolerance: the wrong instrument at the walk's size; a fixed
+  aspect gate rejects about a quarter of honest 31 px boxes, and with each
+  axis free the centres of pointy rows and flat columns are one point set.
+  Q4, the 1% small-hex bound: fair for that noise model, but the fit dropped
+  the edges where the span is short. Q5, the planner: weak, nine of 21
+  mutants survived, and `moves: true` was a constant asserted as behaviour.
+  Reproduced on 793fddfe from the reviewer's probes: the walk's five boxes
+  on the small hex under ±3 px of position noise read the size p95 35.8%,
+  max 44.1% wrong (rows), and the anchor 0.2 hex off reads it 44.8% wrong.
+- **The ruling A2 builds** (a second `architect`, asked for exact numbers).
+  Hand accuracy `HAND_PX` 3 image px per edge. Each axis fits every placed
+  box's edges with its centre, and boxes not yet placed lend their sides. A
+  box whose node cannot be pinned within half a centre spacing at `REACH_Z`
+  3.5 is `unreachable` and left out. The family is decided from the other
+  family's fit once three boxes span both axes. Otherwise it is the set's
+  mean proportion at `FAMILY_Z` 2. Either way it is a warning, and the
+  Judge's family stands. Shape is a plausibility bound only (`HEX_SHAPE_LEAN`
+  0.12 plus a hand allowance), and the size consensus is a symmetric log
+  ratio. Confidence is the edge residual in px: `TIGHT_PX` 2.5, `FAIR_PX` 6.
+  Fewer than three boxes is never tight.
+- **A2's acceptance**, 400 seeds by four hex types, measured max against the
+  ruled bound, all met: the walk's five on the small hex 5.90% under edge
+  noise (6.5%) and 6.31% under position noise (7.0%); the same at 150 px
+  1.29% (1.5%); a diagonal pair on the small hex 18.73% under edge noise
+  (20.5%); the anchor 0.2 hex off 10.82% on the small hex (12%); a ladder at
+  0, 1, 3, 8 and 25 hexes on the small hex 8.11% (9%), its far rung
+  unreachable until a rung at 16 is added; the committed far set at 150 px
+  0.16% (0.2%). The far pair drawn 4% oversize, which read tight on the wrong
+  hex, is unreachable. A pointy map stretched 1.25 times fitted as columns
+  reads `familyMismatch` and loose.
+- **Mutation check of A's suite**, single edits in a replica outside both
+  trees. On 793fddfe: 19 edits, 12 killed, 7 survived. The survivors were a
+  narrow shape lean, a narrow size spread, plain rounding, a residual off
+  one axis, the RMS without its root, `worst` always named, and no
+  reassignment pass. On 4546de08, with a table rewritten for the new code:
+  26 edits, 24 killed, 2 survived. The survivors are the nearest-first sort,
+  near-redundant since the reach loop takes the first reachable box, and the
+  reassignment pass, which the ruling measured moving no node. Six edits to
+  the constants were run again with the test that reads the constants back
+  removed, and all six were still killed.
+- **B2 against the real fit.** The planner now takes the fit's answer as
+  produced. A lone three-hex strip is the one-hex need. A box 3 px off every
+  edge is used. The far pair is an `unreachable` warning with Apply on. The
+  stretched map as columns is a `familyMismatch` warning with Apply on.
+
+#### Not checked
+
+- Nothing is wired and nothing was walked; that is Phase 2.
+- ±3 px of hand accuracy is an assumption about image px. A Judge drags in
+  screen px at some zoom, and §2's samples were pushed, not dragged.
+- The mock is checked against core's source, not against a live clone's
+  probe; Phase 2's walk compares them.
+- The caller that computes `scale` does not exist yet.
+- The planner's suite was not mutation-checked after B2 (the task named A's).
+- The reviewer's own mutation scripts target 793fddfe and were not re-run;
+  A2's implementer ran its own table on 4546de08 (11 killed, the
+  reassignment pass surviving), and the table above is independent of it.
+
+#### Not settled (found, recorded, not fixed)
+
+- A lone real 2×2 hex block is taken as one hex 3.75 times too large, with
+  only a shape-based `familyMismatch` warning. One box alone cannot show its
+  own size; with one-hex companions the size consensus leaves blocks out.
+- Several boxes sharing one outline bias, with a far box beyond them: on the
+  column types the far box lands one hex short. It reads fair or loose,
+  never tight. A bias term that closes it refuses the committed far set.
+- At the small hex a tight fit is not always an accurate one: the anchor 0.2
+  hex off reaches 10.8% with some runs tight.
+- A stretched canvas with no spread on both axes leaves the family to the
+  shape fallback, which is wrong for pointy rows stretched 1.25 times with
+  one or two boxes or one row.
+- At the small hex one honest box draws `familyAmbiguous` in 147 to 200 of
+  200 runs, so the panel's wording for it matters (slice D).
+- The planner reads a unit respelled (`Miles` to `mi`) as unchanged, so a
+  scene can read as matching while an apply would still rewrite the unit's
+  spelling. A mile-scale apply writes auto-sizing off even where the scene
+  had it on. That is read as "leaves it off"; Phase 2 can confirm it against
+  §5 Q1.
+
+The probes, the two rulings, the diffs, the mutation tables and every log
+quoted above are kept outside the repo in the session family's shared notes
+folder, `%APPDATA%\Claude\side-session-notes\local_6a0ea1de-306e-410c-893c-53ad4db2e8f3\phase1-evidence\`.
