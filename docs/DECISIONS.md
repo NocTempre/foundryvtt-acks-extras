@@ -332,3 +332,24 @@ the current `acks` system writes still holds the shape it handled.
 **Cost.** A world that still holds one of those shapes is not converted: it
 starts new, or deletes its imports and imports again (the Beta's upgrading
 note).
+
+## 2026-11-14 — The Discord bridge leaves `main` for a parked branch
+
+**Ruled by the owner** (2026-11-14): "Can you park the discord bot as well,
+similar to the OSE imports? I'm not ready to release that beyond personal
+testing".
+
+**Ruled.** The whole bridge line leaves `main`: `scripts/bridge/`, its
+templates and stylesheet, the `discord/` service and its `discord.js`
+dependency, its suite and walk, the `ACKS-BRIDGE` lang keys, and `docs/bridge/`
+and its guide, with the rows and links in the docs and the docs site that
+named them. What stays is what a world already wrote: its settings and flags
+remain in that world as stored data nothing reads, and the module ships
+nothing for them. The line lives on `parked/bridge`, which holds `main` as it
+stood with the feature whole; restoring it is a merge of that branch.
+
+**Rejected:** keeping the module half on `main` behind a switch, because its
+two settings menus would show with no client behind them.
+
+*Cost:* a dev install junctioned to `main` has no bridge, so the owner's own
+testing runs from a checkout of the parked branch.

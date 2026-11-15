@@ -28,7 +28,7 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
   and JJ parties tracks) and `abilities/skill-ladders.mjs` (an unowned dirty
   line). The files the lair-maps track added or changed after the cut, under
   `scripts/` (`lib/lair.mjs` among them), have not been measured against it.
-  Outside `scripts/`, `tools/`, `discord/`, the templates and the stylesheets
+  Outside `scripts/`, `tools/`, the templates and the stylesheets
   are not in the cut. The pass's method: one agent per file list, with the
   comment-only gate proving each file's code token stream unchanged; each
   DECISIONS entry a job stages is read against the comment text it removed

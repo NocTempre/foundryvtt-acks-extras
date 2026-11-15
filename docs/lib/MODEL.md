@@ -1857,7 +1857,7 @@ the select. Closing it returns `null` and nothing is rolled.
 `skipDialogFor(event, explicit)` is the one read of the system's skip-dialog key
 (`acks.skip-dialog-key`): the dialog is skipped when the caller passes
 `skipDialog: true` or the named key is held on the click. A caller that acts on
-the result instead of showing it (a lock the throw opens, a bridge command)
+the result instead of showing it (a lock the throw opens)
 passes `skipDialog: true`.
 
 The modifier enters the formula as its own term, `+ 2[Situational]`, so the dice

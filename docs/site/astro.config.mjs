@@ -92,7 +92,6 @@ export default defineConfig({
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },
             { label: "Exploration formations", slug: "guides/formation" },
-            { label: "Playing from Discord", slug: "guides/bridge" },
             { label: "Map alignment & token scale", slug: "guides/battlemap" },
             { label: "Vehicles, wagons & vessels", slug: "guides/vehicles" },
             { label: "Henchmen & hirelings", slug: "guides/henchmen" },

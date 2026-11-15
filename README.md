@@ -417,15 +417,6 @@ it by default.
 
 Guide: [The Monstrous Manual stat block](https://noctempre.github.io/foundryvtt-acks-extras/guides/monsters/).
 
-### Playing from Discord
-
-A bot that runs beside your Foundry server, holds a seat of its own in the
-world, and lets the members of your Discord server roll, speak and read their
-characters without opening Foundry. Every command runs as the Foundry user the
-member is linked to, and the world keeps every roll and every word.
-
-Guide: [Playing from Discord](https://noctempre.github.io/foundryvtt-acks-extras/guides/bridge/).
-
 ---
 
 ## Compendia

@@ -1,0 +1,1 @@
+- **The Discord bridge is not part of this release.** The Discord bot and its two settings menus, **Discord Bot** and **Discord Members** (`Settings tab → Game Settings → ACKS II — Extras → Discord Bot` and `… → Discord Members`), are gone from the module. <!-- no-shot: the surface is removed -->

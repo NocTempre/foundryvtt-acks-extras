@@ -37,12 +37,10 @@ those links survive the next refresh.
 | Item markets — a trader's history | A venturer's own Trade history on their character sheet: the market, what was done there, the ledger's note and the coin each row moved, with the net beneath | [guide](guides/markets.md#trade-history) | [shot](releases/v11.0.0/markets-history.png) |
 | Magic | An imported spell on the ACKS Spell sheet's Overview: the banner naming the entry it was imported as, the list it prints on with its magic type and level, and its type and schools beneath | [guide](guides/magic.md) | [shot](releases/v11.0.0/magic.png) |
 | Vehicles | A galley's Aboard tab under the header every tab keeps: its stations — the sailors at full strength, a named rower without the proficiency the seat asks for wearing the unqualified badge beside the unnamed complement, the rowers and marines short with the note that the short-handed count in full until the voyage tables are imported, the captain's chair filled and the navigator's empty with what that costs stated, one passenger aboard — and the crew complement beneath | [guide](guides/vehicles.md#stations-and-loading-it) | [shot](releases/v11.0.0/vehicles.png) |
-| Playing from Discord | The bot's window in Foundry: what still stands between this world and a bot that answers stated at the top, the token field that seals what is pasted to the bot's own key, the server and the relay channel it can see offered as dropdowns, and the seat the bot joins the world with | [guide](guides/bridge.md#5-configure-it-in-foundry) | [shot](releases/v11.0.0/bridge.png) |
 
 There is no plate for [Appearance](guides/appearance.md), because the ACKS
 look is in all of the above — a plate of its own would show what every other
-plate already shows. The Discord plate is the bot's window in Foundry, not a
-Discord channel, because a channel can only be shot from a live bot.
+plate already shows.
 
 ## Adding to it
 

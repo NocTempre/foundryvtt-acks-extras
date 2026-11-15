@@ -24,7 +24,7 @@ None. The check reads what the module attached; it creates nothing.
    *Observable:* one key per subsystem `scripts/module.mjs` imports — `lib`,
    `abilities`, `equipment`, `classes`, `magic`, `formation`, `influence`,
    `henchmen`, `location`, `factions`, `markets`, `monsters`, `battlemap`,
-   `vehicles`, `characterSheet`, `bridge`, `importer` — each a non-empty
+   `vehicles`, `characterSheet`, `importer` — each a non-empty
    object. The importer's api is attached at `ready`, after its cookbook
    loads; give it a few seconds on a large library.
 3. `game.modules.get("acks-extras").api === globalThis.acksExtras`.
@@ -33,10 +33,7 @@ None. The check reads what the module attached; it creates nothing.
 4. `Object.keys(globalThis).filter((k) => /^acks/i.test(k))`.
    *Observable:* exactly `["acksExtras"]` — no per-feature or compat-alias
    global (`validate` 7c refuses one in source; this proves none arrives at
-   runtime either). On the Discord bot's own seat there is one more,
-   `acksExtrasBridgeEmit`: the binding the seat holder installs to hear the
-   world's events (`docs/bridge/MODEL.md`). `tools/bridge-walk.mjs` runs
-   steps 1–4 from that seat and expects exactly those two.
+   runtime either).
 5. Under Node, from the repo root:
    `node --input-type=module -e "await import('./scripts/namespace.mjs')"`.
    *Observable:* exits clean. The namespace tolerates a harness with no

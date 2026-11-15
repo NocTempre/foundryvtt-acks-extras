@@ -16,11 +16,9 @@ this file only indexes what this repo has.
   gate's live half as code, one walk per recipe area, run by
   `node tools/live/run.mjs`; each `TESTING.md` names its walk.
 
-Per-feature: `abilities`, `battlemap`, `bridge`, `character-sheet`, `classes`,
+Per-feature: `abilities`, `battlemap`, `character-sheet`, `classes`,
 `domains`, `equipment`, `factions`, `formation`, `henchmen`, `importer`, `influence`, `lib`,
 `location`, `magic`, `markets`, `monsters`, `vehicles`.
-The `bridge` feature covers both halves of the Discord bot: `scripts/bridge/`
-inside the world and the `discord/` service beside it.
 The `lib` feature additionally splits by topic (API, GROUPS, PLACES, FOLLOWER-CARD)
 because it is the shared surface every other feature reads. The `importer`
 feature additionally splits by topic (COOKBOOK, RECIPES, BINDING-FOUNDRY, EXTRACTION)
