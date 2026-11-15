@@ -209,3 +209,61 @@ three states.
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
 caster records, and the world copies where none stood before. The fixtures
 stay. Quote `gm.sweepTracked({only})`'s result.
+
+## Spell effect rows (the recipe channel)
+
+Walk: `tools/live/magic-spell-recipes.mjs`, on the GM seat only: nothing here
+is a player's surface. It needs the seat's own RR open (the shelf opens it on
+join) and the five recipe spells already imported (`def.spell.desiccate`,
+`def.spell.cureLightInjury`, `def.spell.frightenHumanoid`,
+`def.spell.holyCircle`, `def.spell.sharpness`).
+
+### Fixtures
+
+None. The rows are written onto the library's own imported spells, the path
+an existing world takes (the Spells repair), and the walk leaves each spell
+with register rows only.
+
+### Steps
+
+1. Run the Spells repair over the five
+   (`acksExtras.importer.importSpells({only, repair})`).
+   *Observable:* each spell's `flags["acks-extras"].spell.effects` holds the
+   recipe's row kinds in order, every row `origin: "register"`; every damage
+   and heal row has its dice, every damage row one damage type, every
+   modifier row its figure; the save category, the area size and the creature
+   filters read where the recipe locates one; the only `unread` field is
+   `extraordinary` (the PDF prints that mark as the damage glyph's colour,
+   which the text op does not read).
+2. Append a row of the Judge's own (no `origin`) to one spell and repair it.
+   *Observable:* the hand row is there once, and the register rows number as
+   before (replaced, not doubled).
+3. Open the spell's sheet and change a text field on the Overview, letting
+   the sheet submit.
+   *Observable:* every row's `origin`, `unread`, `extraordinary`,
+   `saveEffect`, `lasts` and `delivery` read back as before, an unset field
+   reading back as the schema's empty value.
+4. On the Mechanics tab press a row's edit control and change a text field
+   in the editor.
+   *Observable:* the row's `origin` is cleared and a repair keeps it; the
+   repair also writes the register row afresh beside it.
+
+### Drive mechanics
+
+- The importer's api is published after `ready`, once the cookbook has
+  loaded, and the shelf opens the seat's books after that: wait on
+  `acksExtras.importer.bookOpen("rr")` before the first step.
+- The library's spell is found in page with
+  `import("/modules/acks-extras/scripts/lib/library.mjs")` and
+  `byCookbookId("Item", id, {original: true})`; the module's own URL gives
+  the loaded instance.
+- A sheet submit writes every row whole through the schema, so a field the
+  row left unset reads back as `""` or `[]`, never as missing.
+- The row editor is a form with `submitOnChange`: set a field's value and
+  dispatch a bubbling `change` on it. Its first text field is `condition`.
+
+### Teardown
+
+The walk removes the rows without a register origin from the spell it edited
+and repairs it once more; its last check is that the spell holds register
+rows only.

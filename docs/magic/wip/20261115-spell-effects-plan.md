@@ -731,4 +731,97 @@ defenses (lib). Rituals come with research (ROADMAP part 5).
 
 ## Results
 
-None yet.
+### Results, 1a (2026-11-15)
+
+Session 1a took the exit point: S1 and the "Not verified" list filled it,
+and S2 is not started. S2 is split (ruling 27) and S2a is the next card.
+
+**Built.** `573a42ac` (docs: owner rulings 1 to 4, rulings 17 to 27, the
+bucket map and cast flow they change) and `58f009c3` (S1, the importer
+channel and the five spells' register rows), written on `topic/spell-effects`
+and landed on `main` above `ab0f921a`. The walk, `tools/live/magic-spell-recipes.mjs`,
+and its recipe, `docs/magic/TESTING.md` "Spell effect rows (the recipe
+channel)", are committed on `main` beside this section. Nothing is pushed;
+the topic branch stays open for S2a.
+
+**Exercised live** (GM seat, on `main`'s junction after the landing):
+
+- `node tools/live/run.mjs magic-spell-recipes`: "passed (21 pass, 0 fail,
+  exit 0)". The Spells repair writes each of the five spells' recipe row
+  kinds in order, all `origin: "register"`; every damage and heal row has its
+  dice, every damage row one type, every modifier row its figure; save
+  categories, area sizes and creature filters read; the only `unread` field
+  is `extraordinary`. A Judge's own row survives a repair with the register
+  rows replaced, not doubled. An Overview submit keeps `origin`, `unread`,
+  `extraordinary`, `saveEffect`, `lasts` and `delivery`. A row-editor change
+  clears `origin` and a repair keeps the row. Teardown left desiccate with
+  register rows only.
+- The three runtime probes of the "Not verified" list, each swept by id: a
+  transient unsaved weapon parented to an actor prepares its damage, passes
+  `makeAttackThrow` and posts core's card without being persisted;
+  `toggleStatusEffect` off deletes every effect holding only that status,
+  one carrying changes beside it included (ruling 20); core's `renderHTML`
+  strips `[data-acks-visibility]` on a module card per seat.
+
+**Offline only:** `tools/importer/lint-register.mjs` green; `npm test` 229
+suites green, `test-spell-recipes` (16 tests, invented spells) among them;
+`npm run validate` green with no drift; the cookbook recompile kept its
+entry count with no mismatches; the local rules test (gitignored) reads every
+figure of the five from the RR but the extraordinary mark. The "Not verified"
+rules items were settled by lookup and spot-check, and their answers are
+rulings 21 to 24. The runtime label for the magic type is unverified against
+validate: validate scans globals, hooks, helpers and lang keys, not a runtime
+write, so S2a confirms it when it writes one.
+
+**Not checked:** the console at `init`, `setup` and `ready` (the walk's
+recorder attached after `ready`); the Player seat (S1 has no player surface);
+any cast (S2).
+
+**Findings, for S2a or 1b to rule:**
+
+- The extraordinary mark is unread on every printed row: the PDF prints it as
+  the damage glyph's fill colour, which the text op does not read. The field
+  stays null and is listed in `unread`, as `onMiss: "blank"` intends.
+- An edited register row plus a repair leaves two rows: the edited one,
+  now the Judge's, and a fresh register row beside it (seen live: two
+  register rows, four in all, on desiccate). A deleted register row also
+  returns on a repair, and `values` fields carry no origin, so a Judge's
+  edit to the primitive is overwritten. Whether a repair should skip a row
+  the Judge has taken over needs a ruling before S3 widens the rows.
+- `target.area.size` carries no unit and no shape of measure: one spell's
+  figure is a diameter and another's a radius. S2a's area handling needs one
+  before it draws or counts.
+- Holy circle's bonus rows are scoped by the caster's own alignment, which
+  no fixed `vsAlignment` key expresses; the rows ship unscoped.
+
+**Owner questions open** (defaults in rulings 22 and 24, built on unless
+answered): is an area spell's damage one roll for every target, or one per
+target; does save-halved damage with no throw have a floor; do spell attack
+throws use core's criticals; does the end of concentration also end the
+recipients' records (default no)?
+
+### Start prompt, session S2a
+
+> Run slice S2a of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`: the vertical cast engine's first half,
+> lib then magic, for `def.spell.desiccate`, `def.spell.cureLightInjury`
+> and `def.spell.frightenHumanoid`, with the files and live acceptance
+> ruling 27 gives S2a. Read the plan whole first (its owner rulings 1 to 4,
+> rulings 17 to 27 and "Results, 1a"), then `docs/magic/MODEL.md`,
+> `docs/lib` where the plan names a seam, `.claude/rules/ip-doctrine.md` and
+> `.claude/rules/live-testing.md`. You are the orchestrator: one
+> `implementer` for the lib half and a fresh one for the magic half, each
+> brief quoting the owner's words from the plan and each report restating
+> them with one example; an `architect` for any design question the plan
+> does not answer, the area-size unit of "Results, 1a" first. Review each
+> change against the IP doctrine yourself: committed tests use invented
+> spells. Before an agent writes under `scripts/lib/`, list the running
+> sessions and `main`'s dirty paths. You work in the worktree
+> `C:\Proj\foundryvtt-acks-extras.spell-effects` on `topic/spell-effects`:
+> `git rebase main` there first, commit by hand, land with
+> `branch.mjs land spell-effects`, walk on `main` yourself through
+> `tools/live` (never the `live-tester` agent), and check who is seated
+> before a world relaunch. Push nothing. Finish by appending "Results, S2a"
+> to the plan (by sha, sorted exercised live / offline only / not checked),
+> writing the S2b start prompt under it, and reporting to the owner. You
+> start no session; put the next one up as a card.
