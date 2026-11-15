@@ -45,9 +45,16 @@ the agent's report restates each with one example before building on it.
    buff certain spells"
 7. "Yes to damage types/resistances/immunities interactions" (the answer to
    owner question 4)
+8. "1) yes; follow raw, 2) maybe yes, check raw, 3) maybe yes, check raw, 4)
+   yes, automation with transparency is the design principle, size per
+   spell, normalize for stats, ask case by case
+   Build out missing surfaces like alignment checks (should already exist)"
+   (the answers to session 1a's four owner questions and its area-size
+   finding)
 
 Messages 6 and 7 reached session 1a through the planning session on
-2026-11-15, after it had started; their readings are under "Owner rulings".
+2026-11-15, after it had started; message 8 answered session 1a's report.
+Their readings are under "Owner rulings".
 
 The readings the plan proceeds on (the planning session's, tested against
 source by the architect):
@@ -249,7 +256,8 @@ counter-argument are kept so a later session can reopen one with evidence.
     the `casting` condition already uses. Casting again warns and lifts it on
     confirm. When the caster's record goes, a card to the GMs and the
     caster's owners lists the recipients' records with an End button; the
-    card tells and a press removes. A recurring row raises a prompt card at
+    card tells and a press removes (superseded in part by ruling 31: the end
+    removes them, and the card lists what ended). A recurring row raises a prompt card at
     the relevant initiative, never an automatic effect. `castDuration`
     answers `{none: "untimed", held, cap?, tail?}` for concentration shapes.
 12. **A reversed form is rows marked `reversed`.** The cast dialog offers the
@@ -443,6 +451,7 @@ counter, as above.
     attacking, other actions, movement (`POST_ATTACK_HOOK` is the route for
     attacks). Whether concentration's end also ends the recipients' records
     goes to the owner; default no (the end card tells, a press removes).
+    *Superseded in part by ruling 31* (owner message 8): it ends them.
 25. **Capacity and the relay** (ruling 17). `castCapacity(actor, spell)` is
     pure: ruling 6's tradition, for a vancian one `slotRowAt` minus the spent
     pool; else core's `system.spells.<lvl>.max` minus the level's summed
@@ -482,6 +491,106 @@ counter, as above.
     magic — declaration, held records and the end card, the weapon pick,
     equipment's masterwork registration; live: holyCircle, a lost
     declaration, sharpness cast twice on a masterwork weapon.
+
+## S1b rulings (owner message 8 and session 1a's architect, 2026-11-15)
+
+Message 8 answered the four questions "Results, 1a" asked and two of its
+findings. The print was checked for each (`rules-lookup.md`): no general rule
+on rolling area damage once or per creature; RR ch. 6 "Dealing Damage" floors
+an attack's damage against modifiers, magic excepted, and prints no floor for
+a spell with no throw; JJ ch. 16's Critical Hits is optional and names no
+spell; area sizes print as a diameter, a radius or a length by width, with no
+general convention.
+
+28. **"1) yes; follow raw."** One roll per row per cast, each target saving
+    against it. *Example:* desiccate at three tokens rolls once and each
+    target that saves takes the halved amount. A page that prints a roll per
+    creature gets a row flag for `rollAmounts`' `perTarget`; none of the five
+    does. Ruling 22 stands.
+29. **"2) maybe yes, check raw."** The printed floor belongs to an attack, and
+    no house rules ship: a row with a throw keeps core's floor, a row without
+    one has none. *Example:* a rolled 1, halved by a save, applies 0. Ruling
+    22 stands.
+30. **"3) maybe yes, check raw."** The optional rule is core's setting; a row
+    whose delivery is an attack throw takes it, and a row with no throw is
+    never critical. That it reaches a spell's delivery throw is inferred from
+    "attack throw", since the rule names no spell. Ruling 22 stands.
+31. **"4) yes, automation with transparency is the design principle."** When
+    concentration ends, that cast's recipient records end with it; a record
+    whose duration prints a time after concentration runs that tail instead.
+    The primary GM's client ends what the seat does not own; with no GM
+    connected the card offers End. The card lists what ended and carries a
+    Judge's Restore. *Example:* holy circle's caster is hurt; the caster's
+    record and every recipient's record of that cast go, and one card names
+    them. Supersedes in part rulings 11 and 24; S2b's list (ruling 27),
+    Phase 1's holyCircle acceptance and cast-flow step 13 follow it.
+32. **"Size per spell, normalize for stats, ask case by case."**
+    `target.area` becomes `{shape, measure, size, width, unit, height}`:
+    `measure` (`AREA_MEASURES`: radius, diameter, length, in magic-vocab) is
+    the word the page uses and is authored; every number is located; `width`
+    joins `LOCATABLE_FIELDS`; `unit` is a `DISTANCE_UNITS` key, feet by
+    default. `scripts/magic/cast-area.mjs` `areaExtent` computes the
+    normalized extent from resolved figures and stores nothing. Lint: a
+    located size needs a `measure`, its pattern contains the measure word, and
+    `length` needs a width locator. A spell whose measure is ambiguous ships
+    no size locator: the size stays blank with its page reference, and its id
+    goes on the owner's list in the session's results. Desiccate's measure is
+    a diameter, holy circle's a radius; the other three have no area.
+33. **"Build out missing surfaces like alignment checks (should already
+    exist)."** The evaluator exists (`lib/vocab.mjs` `scopeApplies`); the
+    reader, a caster-relative scope, a disjunction and an enemy test did not.
+    - `vsAlignmentOf: "source"` reads the reference alignment from
+      `ctx.sourceAlignment` (whoever the effect comes from: a spell record's
+      caster, stamped on the record at cast; an ability's holder), and the
+      new mode `except` applies against every alignment but the reference.
+      On a defensive row `ctx` describes the attacker.
+    - `anyOf: [branch]` on `effectField`, one level deep, each branch holding
+      `vsKinds`, `vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode` and
+      `vsEnemy`; top-level clauses AND the `anyOf`. Three-valued: applies if a
+      branch applies, else undetermined if a branch is, else fails. A branch
+      never takes `sign`. `hasScope(effect)` is exported and
+      `typed-modifiers`' `hasRollScope` and influence's `vsGated` call it.
+    - `vsEnemy` reads `ctx.enemy` from lib's `areEnemies(tokenA, tokenB)`:
+      friendly against hostile is true, the same side false, a neutral,
+      secret or missing token null (undetermined); the tooltip names the
+      dispositions read.
+    - `creatureKinds(actor)` in lib: the monster's types (`MONSTER_TYPES`
+      already holds construct, enchanted, incarnation, undead), `summoned`
+      where `summonerOf` is set, the defined term `enchanted` when any member
+      holds, `character` for a character; an untyped monster gives an empty
+      set (undetermined).
+    - `alignmentKey(text)` in `vocab.mjs` and `actorAlignment(actor)` in
+      `actor-read.mjs`; influence's `classifyAlignment` delegates to it, which
+      supersedes influence's "Alignment is translated at the boundary"
+      reason ("no live consumer") now that magic is a second one.
+    - Holy circle: the ward scoped to `vsKinds: ["enchanted"]`; the two bonus
+      rows scoped by `anyOf` (an enemy of an alignment other than the
+      caster's, or incarnations and undead of the chaotic alignment) with
+      their free-text `condition` gone; reversed twins whose second branch is
+      incarnations of the lawful alignment, the print's one example (on the
+      owner's list: whether lawful undead count too).
+    *Rejected:* a sentinel `vsAlignment` value (that enum feeds `choice()`,
+    the PDF reader and the lint); two conjunctive rows sharing ruling 19's
+    capability (doubles the located figures, lets a Judge edit one twin).
+    *Counter (medium):* disposition is how a token is drawn, not whom it
+    fights for.
+34. **S1b, one slice on the branch before S2a** (`implementer`): lib
+    (`fields.mjs`, `vocab.mjs`, `magic-vocab.mjs`, `actor-read.mjs`,
+    `typed-modifiers.mjs`, `apps/effect-row-editor.mjs` scope fields for
+    modifier and ward rows with `anyOf` shown read-only, `influence/actor-data.mjs`,
+    README, API "Scoping", a lib DECISIONS entry, the api version), importer
+    (`LOCATABLE_FIELDS`, `spell-recipe-rules.mjs`, MODEL, the recompile),
+    register (holy circle's rows and twins, the two measures), magic
+    (`spell-extras.mjs`, `cast-area.mjs`, the Overview's measure, unit and
+    width with a tooltip on the normalized extent, lang, MODEL). *Accept,
+    live:* after the Spells repair the ward's scope, both branches, the twins
+    and the two measures are on the rows; in page context `scopeApplies`
+    answers applies, fails and undetermined on fixtures
+    `magic/scope-chaotic-undead`, `magic/scope-ally-caster` and
+    `magic/scope-neutral-token`; a row-editor submit keeps `anyOf`. Runtime
+    evaluation against an attacker stays S2b. *Finding for S2b:*
+    `modifierDisposition` answers unsupported for an area or recipient
+    subject before it tests any scope, against ruling 10's classification.
 
 ## Data shapes
 
