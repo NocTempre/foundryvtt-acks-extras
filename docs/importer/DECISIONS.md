@@ -1840,3 +1840,21 @@ coin reads and an owned character's sheet as before, with no error heard by
 a recorder attached after `ready`. The Gamemaster seat's counts are the same
 before and after. A script's `getDocuments` on the Judge's Actor shelf was
 answered with all 1144 on both player seats after the change.
+
+## 2026-11-15 — Printed names leave ids on a rolling basis, and a world holds one generation of an entry
+
+**Ruled** by the owner, asked whether to revert the ordinal ids of 2026-11-11
+or delete the older documents: "Delete the leftovers, mark aliasing ids for
+rolling fix whenever new/revisions touch something." The ordinal ids already
+shipped (Class 20 and 21, Tribal Origin 1 to 3, the class power and
+Proficiency 15) stay. Every other entry whose id carries a printed proper
+name moves to an ordinal id and a neutral label when a new entry or a
+revision touches it, by the procedure of 2026-11-11; no program sweeps them
+all at once. The owner on a future all-books register: "If I move to an
+alias register it will be all or none."
+
+**What it cost.** A re-import after an id change writes the new documents
+beside the old ones and migrates nothing, so the test world held both
+generations of the two classes, each with its own kit parts and tables. The
+older generation was deleted by hand (137 documents); one older proficiency
+document stayed, because three other classes' kit bundles still link it.
