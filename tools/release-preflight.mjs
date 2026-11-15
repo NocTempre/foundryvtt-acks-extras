@@ -36,7 +36,7 @@
  *      committed or not, tracked or not: the run at the bump reads a release
  *      that is not committed yet, and a gate that read only commits would
  *      waive itself for exactly that run. Under `--at` it is the commit the
- *      tag will name.
+ *      tag will name. A feature removed whole owes no recipe.
  *   4. On a major or a minor, every top-level bullet under `### Added` or
  *      `### Changed` in the version's CHANGELOG.md section accounts for its
  *      release snapshot (TOOLCHAIN §4b). `<!-- shot: <feature-slug> -->` names
@@ -332,6 +332,7 @@ if (lastTag) {
     else if (/^scripts\/[^/]+$/u.test(file)) flatChanged = true;
   }
   for (const slug of [...slugs].sort()) {
+    if (!src.list(`scripts/${slug}`).length) continue;
     const recipe = path.posix.join("docs", slug, "TESTING.md");
     if (src.exists(recipe)) recipes.add(recipe);
     else fail(`scripts/${slug}/ changed since ${lastTag} but ${recipe} does not exist — write the surface's live-test recipe first`);
