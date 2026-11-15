@@ -5,7 +5,8 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { boxCells, fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
+import { boxCells, fitGrid, fitHexLattice, unitsPerCentreSpacing, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
+import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
@@ -516,6 +517,340 @@ for (const [key, entry] of Object.entries(SIZES)) {
     const source = readFileSync(new URL(name, dir), "utf8");
     assert.ok(!/trap-rules|FEET_PER_RANK/.test(source), `${name} reads the formation's square`);
   }
+}
+
+/* -------------------------------------------- */
+/*  Hex lattice fit — boxes drawn on hexes       */
+/* -------------------------------------------- */
+
+/**
+ * A stand-in for core 14's hexagonal grid at `size`, ported from its
+ * `getCenterPoint` and `getVertices` (and the 2/√3 on one axis of `sizeX` /
+ * `sizeY`). The geometry is written here and only here: the shipped code asks
+ * a clone for it.
+ */
+function coreHexGrid({ columns, even, size = 100 }) {
+  const sizeX = columns ? (size * 2) / Math.sqrt(3) : size;
+  const sizeY = columns ? size : (size * 2) / Math.sqrt(3);
+  const qx = sizeX / 4;
+  const qy = sizeY / 4;
+  return {
+    sizeX,
+    sizeY,
+    getCenterPoint({ i, j }) {
+      if (columns) return { x: (2 / Math.sqrt(3)) * ((0.75 * j + 0.5) * size), y: (i + (even === ((j + 1) % 2 === 0) ? 0 : 0.5)) * size };
+      return { x: (j + (even === ((i + 1) % 2 === 0) ? 0 : 0.5)) * size, y: (2 / Math.sqrt(3)) * ((0.75 * i + 0.5) * size) };
+    },
+    getVertices({ i, j }) {
+      if (columns) {
+        const x = 3 * j;
+        const y = 4 * i - (even === ((j + 1) % 2 === 0) ? 2 : 0);
+        return [{ x: x * qx, y: (y + 2) * qy }, { x: (x + 1) * qx, y: y * qy }, { x: (x + 3) * qx, y: y * qy }, { x: (x + 4) * qx, y: (y + 2) * qy }, { x: (x + 3) * qx, y: (y + 4) * qy }, { x: (x + 1) * qx, y: (y + 4) * qy }];
+      }
+      const y = 3 * i;
+      const x = 4 * j - (even === ((i + 1) % 2 === 0) ? 2 : 0);
+      return [{ x: (x + 2) * qx, y: y * qy }, { x: (x + 4) * qx, y: (y + 1) * qy }, { x: (x + 4) * qx, y: (y + 3) * qy }, { x: (x + 2) * qx, y: (y + 4) * qy }, { x: x * qx, y: (y + 3) * qy }, { x: x * qx, y: (y + 1) * qy }];
+    },
+  };
+}
+
+/** A scene whose clone carries the grid of whatever type it is asked for. */
+const hexScene = (patch = {}) => ({
+  clone(data) {
+    const type = data["grid.type"];
+    return { grid: { type, ...coreHexGrid({ columns: type === 4 || type === 5, even: type === 3 || type === 5 }), ...patch } };
+  },
+});
+
+/** Deterministic PRNG (mulberry32): the noise below is the same on every run. */
+function seeded(seed) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// The four hex types, each as the probe the module would ask for it.
+const HEX_TYPES_UNDER_TEST = [
+  { name: "pointy rows, odd", family: "hexRows", even: false, columns: false },
+  { name: "pointy rows, even", family: "hexRows", even: true, columns: false },
+  { name: "flat columns, odd", family: "hexCols", even: false, columns: true },
+  { name: "flat columns, even", family: "hexCols", even: true, columns: true },
+].map((t) => ({ ...t, grid: coreHexGrid(t), probe: hexProbe(hexScene(), t.family, t.even) }));
+const otherOf = (t) => HEX_TYPES_UNDER_TEST.find((o) => o.columns !== t.columns && !o.even);
+
+// How a map's image sits on the canvas: `k` is image px per probe px, `scale`
+// canvas px per image px. The stretched one is the reported case: a square
+// picture drawn over a 4:3 scene, where an exact one-hex box measures
+// 30.7 x 47.3 image px (pointy rows) and is a regular hex on screen.
+const ROWS_PROBE = HEX_TYPES_UNDER_TEST[0].probe;
+const IMAGES = {
+  large: { k: { x: 1.5, y: 1.5 }, scale: { x: 1, y: 1 } },
+  stretched: { k: { x: 30.7 / ROWS_PROBE.refW, y: 47.3 / ROWS_PROBE.refH }, scale: { x: 4 / 3, y: 1 } },
+};
+const ORIGIN = { x: 217.3, y: 91.1 };
+
+/** The exact box around the hex at offset (i, j), in image px. */
+const hexBox = (t, image, i, j) => {
+  const c = t.grid.getCenterPoint({ i, j });
+  const w = t.probe.refW * image.k.x;
+  const h = t.probe.refH * image.k.y;
+  return { x: ORIGIN.x + c.x * image.k.x - w / 2, y: ORIGIN.y + c.y * image.k.y - h / 2, w, h };
+};
+const boxesAt = (t, image, cells) => cells.map(([i, j]) => hexBox(t, image, i, j));
+const fitFor = (t, image, boxes) => fitHexLattice({ boxes, probe: t.probe, scale: image.scale, otherProbe: otherOf(t).probe });
+const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * image.k.x) - 1), Math.abs(fit.sizeY / (t.probe.refH * image.k.y) - 1));
+
+// hexProbe asks the clone for the lattice and one hex's corners, and leaves the
+// old shape alone where the grid cannot answer.
+{
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    const p = t.probe;
+    assert.equal(p.refSize, 100);
+    assert.equal(p.refW, t.grid.sizeX);
+    assert.equal(p.refH, t.grid.sizeY);
+    const c00 = t.grid.getCenterPoint({ i: 0, j: 0 });
+    const c10 = t.grid.getCenterPoint({ i: 1, j: 0 });
+    const c01 = t.grid.getCenterPoint({ i: 0, j: 1 });
+    near(p.basis.u.x, c10.x - c00.x, 1e-9, `${t.name} u.x`);
+    near(p.basis.u.y, c10.y - c00.y, 1e-9, `${t.name} u.y`);
+    near(p.basis.v.x, c01.x - c00.x, 1e-9, `${t.name} v.x`);
+    near(p.basis.v.y, c01.y - c00.y, 1e-9, `${t.name} v.y`);
+    assert.equal(p.vertices.length, 6);
+    near(p.vertices.reduce((a, q) => a + q.x, 0), 0, 1e-9, `${t.name} corners centred in x`);
+    near(p.vertices.reduce((a, q) => a + q.y, 0), 0, 1e-9, `${t.name} corners centred in y`);
+    near(Math.max(...p.vertices.map((q) => q.x)), p.refW / 2, 1e-9, `${t.name} corner extent x`);
+    near(Math.max(...p.vertices.map((q) => q.y)), p.refH / 2, 1e-9, `${t.name} corner extent y`);
+  }
+  const old = { refW: 100, refH: (200 / Math.sqrt(3)), refSize: 100 };
+  const noCentres = hexProbe(hexScene({ getCenterPoint: undefined, getVertices: undefined }), "hexRows");
+  near(noCentres.refH, old.refH, 1e-9, "old shape: refH");
+  assert.deepEqual(Object.keys(noCentres), ["refW", "refH", "refSize"], "a clone without getCenterPoint gives the old three keys and no more");
+  const throwing = hexProbe(hexScene({ getCenterPoint() { throw new Error("no"); } }), "hexRows");
+  assert.deepEqual(Object.keys(throwing), ["refW", "refH", "refSize"], "a grid that throws gives the old shape, not an error");
+  const noCorners = hexProbe(hexScene({ getVertices: undefined }), "hexRows");
+  assert.deepEqual(Object.keys(noCorners), ["refW", "refH", "refSize", "basis"], "the lattice stands without the corners");
+  const lost = hexProbe(hexScene({ getCenterPoint: () => ({ x: NaN, y: 0 }) }), "hexRows");
+  assert.deepEqual(Object.keys(lost), ["refW", "refH", "refSize"], "a centre that is no point is no lattice");
+}
+
+// Five exact boxes over four rows fit to nothing, on both images and all four
+// types. One lattice step, one hex size: the box's own sides are not the ruler.
+{
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const where = `${t.name}, ${imageName}`;
+      const boxes = boxesAt(t, image, [[0, 0], [1, 0], [2, 1], [3, 0], [0, 2]]);
+      const fit = fitFor(t, image, boxes);
+      assert.equal(fit.ok, true, where);
+      assert.ok(fit.rmsPct < 0.001, `${where}: rms ${fit.rmsPct}`);
+      assert.equal(fit.used, 5, where);
+      assert.ok(fit.boxes.every((b) => !b.notOneHex && !b.otherFamily && b.cell && b.residual < 0.001), `${where}: nothing flagged, every box placed`);
+      assert.deepEqual(fit.boxes[0].cell, { i: 0, j: 0 }, `${where}: the anchor is the origin`);
+      near(fit.sizeX, t.probe.refW * image.k.x, 1e-9, `${where} sizeX`);
+      near(fit.sizeY, t.probe.refH * image.k.y, 1e-9, `${where} sizeY`);
+      const c = t.grid.getCenterPoint({ i: 0, j: 0 });
+      near(fit.centre.x, ORIGIN.x + c.x * image.k.x, 1e-6, `${where} centre x`);
+      near(fit.centre.y, ORIGIN.y + c.y * image.k.y, 1e-6, `${where} centre y`);
+      near(fit.k.x, image.k.x, 1e-9, `${where} k.x`);
+      near(fit.k.y, image.k.y, 1e-9, `${where} k.y`);
+      near(fit.spacing.u.x, t.probe.basis.u.x * image.k.x, 1e-9, `${where} spacing`);
+      assert.deepEqual(fit.from, { x: "centres", y: "centres" });
+      assert.equal(fit.confidence, "tight");
+      assert.equal(fit.worst === null || fit.maxPct < 1e-6, true);
+      assert.equal(fit.samples, 5);
+    }
+  }
+}
+
+// One box alone answers its own size and centre, from its edges.
+{
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const box = hexBox(t, image, 4, 3);
+      const fit = fitFor(t, image, [box]);
+      assert.equal(fit.ok, true);
+      near(fit.sizeX, box.w, 1e-9, `${t.name}, ${imageName}: lone sizeX`);
+      near(fit.sizeY, box.h, 1e-9, `${t.name}, ${imageName}: lone sizeY`);
+      near(fit.centre.x, box.x + box.w / 2, 1e-9, "lone centre x");
+      near(fit.centre.y, box.y + box.h / 2, 1e-9, "lone centre y");
+      assert.deepEqual(fit.from, { x: "edges", y: "edges" });
+      assert.equal(fit.used, 1);
+      assert.deepEqual(fit.boxes[0], { index: 0, cell: { i: 0, j: 0 }, residual: 0, notOneHex: false, otherFamily: false });
+    }
+  }
+  // Two boxes in one place span nothing: the size is still the box's own.
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const twin = fitFor(t, IMAGES.large, boxesAt(t, IMAGES.large, [[2, 2], [2, 2]]));
+  assert.deepEqual(twin.from, { x: "edges", y: "edges" });
+  // Two boxes in a row span x only; y has one position and reads its edges.
+  const pair = fitFor(t, IMAGES.large, boxesAt(t, IMAGES.large, [[2, 2], [2, 3]]));
+  assert.deepEqual(pair.from, { x: "centres", y: "edges" });
+}
+
+// Boxes 25 hexes apart, each placed up to three pixels (uniformly, seeded) off
+// its hex, its size exact. The size is only as good as the span over the noise:
+// at the large hex 3 px over 25 hexes is far under 0.2%, and at the walk's small
+// hex (about 31 x 47 image px) the same 3 px is as much as 0.4% of the span, so
+// 0.2% is held at the large hex only; the small hex is held to 1% and to every
+// box being placed on the right hex.
+{
+  const far = [[0, 0], [0, 25], [25, 0], [25, 25], [12, 13]];
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const exact = boxesAt(t, image, far);
+      const bound = imageName === "large" ? 0.002 : 0.01;
+      let worst = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const rnd = seeded(seed * 7919);
+        const jitter = () => (rnd() * 2 - 1) * 3;
+        const noisy = exact.map((b) => ({ ...b, x: b.x + jitter(), y: b.y + jitter() }));
+        const fit = fitFor(t, image, noisy);
+        assert.equal(fit.ok, true);
+        assert.equal(fit.used, 5, `${t.name}, ${imageName}, seed ${seed}: nothing flagged`);
+        worst = Math.max(worst, relErr(t, image, fit));
+        assert.ok(relErr(t, image, fit) < bound, `${t.name}, ${imageName}, seed ${seed}: size off by ${relErr(t, image, fit)}`);
+        assert.ok(fit.rmsPct < 0.2, `${t.name}, ${imageName}, seed ${seed}: boxes placed on the right hexes`);
+      }
+      assert.ok(worst > 0, "the noise moved something");
+    }
+  }
+}
+
+// A box that is not one hex is left out and says why. A strip of three hexes
+// and a block three hexes each way both fail; neither moves the size.
+{
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const where = `${t.name}, ${imageName}`;
+      const good = boxesAt(t, image, [[0, 0], [0, 4], [3, 2]]);
+      const one = good[0];
+      const strip = { ...one, x: one.x + 9 * one.w, w: 3 * one.w };
+      const block = { ...one, x: one.x + 9 * one.w, w: 3 * one.w, h: 3 * one.h };
+      for (const [label, odd] of [["strip", strip], ["block", block]]) {
+        const fit = fitFor(t, image, [...good, odd]);
+        assert.equal(fit.ok, true, `${where}: ${label}`);
+        assert.equal(fit.boxes[3].notOneHex, true, `${where}: the ${label} is not one hex`);
+        assert.equal(fit.boxes[3].otherFamily, false);
+        assert.equal(fit.boxes[3].cell, null);
+        assert.equal(fit.boxes[3].residual, null);
+        assert.equal(fit.used, 3);
+        near(fit.sizeX, one.w, 1e-6, `${where}: ${label} leaves sizeX`);
+        near(fit.sizeY, one.h, 1e-6, `${where}: ${label} leaves sizeY`);
+      }
+    }
+  }
+  // A lone block among two boxes the other size is not the consensus: the
+  // earlier box stands.
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const first = hexBox(t, IMAGES.large, 0, 0);
+  const lone = fitHexLattice({ boxes: [first, { ...first, x: first.x + 600, w: 3 * first.w, h: 3 * first.h }], probe: t.probe });
+  assert.equal(lone.used, 1);
+  assert.equal(lone.boxes[1].notOneHex, true);
+  assert.ok(HEX_SHAPE_LEAN > 0 && HEX_SHAPE_LEAN < 0.15, "the shape lean stays under half-way to the other family");
+  assert.ok(HEX_SIZE_SPREAD > 0);
+}
+
+// A box of the other family's shape is flagged, left out, and never an anchor.
+{
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    const other = otherOf(t);
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const where = `${t.name}, ${imageName}`;
+      const foreign = { x: ORIGIN.x - 200, y: ORIGIN.y - 200, w: other.probe.refW * image.k.x, h: other.probe.refH * image.k.y };
+      const good = boxesAt(t, image, [[0, 0], [1, 0], [0, 3]]);
+      // First in the list: the anchor is the first box that IS one hex.
+      const fit = fitFor(t, image, [foreign, ...good]);
+      assert.equal(fit.ok, true, where);
+      assert.deepEqual(fit.boxes[0], { index: 0, cell: null, residual: null, notOneHex: false, otherFamily: true }, `${where}: the foreign box`);
+      assert.deepEqual(fit.boxes[1].cell, { i: 0, j: 0 }, `${where}: the anchor is the first one-hex box`);
+      assert.equal(fit.used, 3);
+      assert.ok(fit.rmsPct < 0.001);
+      // With no other probe to compare, the same box is simply not one hex.
+      const blind = fitHexLattice({ boxes: [foreign, ...good], probe: t.probe, scale: image.scale });
+      assert.equal(blind.boxes[0].notOneHex, true, `${where}: unmatched shape`);
+      assert.equal(blind.boxes[0].otherFamily, false);
+      // A lone foreign box: no fit, and the flags say it was the other family.
+      const none = fitFor(t, image, [foreign]);
+      assert.equal(none.ok, false);
+      assert.equal(none.reason, "noOneHex");
+      assert.equal(none.boxes[0].otherFamily, true);
+      assert.equal(none.boxes[0].cell, null);
+      assert.equal(none.samples, 1);
+    }
+  }
+}
+
+// An exact one-hex box on the stretched image is NOT flagged, and without the
+// scale it would be: the shape is judged on canvas.
+{
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const box = hexBox(t, IMAGES.stretched, 0, 0);
+  near(box.w, 30.7, 1e-9, "the reported box width");
+  near(box.h, 47.3, 1e-9, "the reported box height");
+  const withScale = fitFor(t, IMAGES.stretched, [box, hexBox(t, IMAGES.stretched, 1, 0)]);
+  assert.equal(withScale.boxes.every((b) => !b.notOneHex && !b.otherFamily), true);
+  const blind = fitFor(t, { ...IMAGES.stretched, scale: { x: 1, y: 1 } }, [box]);
+  assert.equal(blind.ok, false, "read as image px the box is not a pointy hex");
+}
+
+// The failures.
+{
+  const t = HEX_TYPES_UNDER_TEST[0];
+  assert.deepEqual(fitHexLattice({ boxes: [], probe: t.probe }), { ok: false, reason: "noBoxes", samples: 0 });
+  const box = hexBox(t, IMAGES.large, 0, 0);
+  assert.equal(fitHexLattice({ boxes: [box], probe: null }).reason, "noProbe");
+  const { basis, ...old } = t.probe;
+  assert.equal(fitHexLattice({ boxes: [box], probe: old }).reason, "noProbe", "a probe without its lattice cannot fit one");
+  assert.equal(fitHexLattice({ boxes: [{ ...box, w: 0 }], probe: t.probe }).reason, "noOneHex");
+}
+
+// A scale bar converts through the step between centres, along either axis,
+// for either family, on both images. The unit is the bar's own.
+{
+  const perCell = 7.5;
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const fit = fitFor(t, image, boxesAt(t, image, [[0, 0], [1, 0], [0, 3]]));
+      const step = Math.hypot(t.probe.basis.u.x, t.probe.basis.u.y);
+      for (const cells of [1, 4]) {
+        const along = { x: { dx: cells * step * fit.k.x, dy: 0 }, y: { dx: 0, dy: cells * step * fit.k.y } };
+        for (const [axis, bar] of Object.entries(along)) {
+          near(unitsPerCentreSpacing({ ...bar, value: cells * perCell, k: fit.k, basis: t.probe.basis }), perCell, 1e-9, `${t.name}, ${imageName}, ${axis}, ${cells} cells`);
+        }
+      }
+    }
+  }
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const k = { x: 1, y: 1 };
+  assert.equal(unitsPerCentreSpacing({ dx: 0, dy: 0, value: 30, k, basis: t.probe.basis }), null);
+  assert.equal(unitsPerCentreSpacing({ dx: 100, dy: 0, value: 0, k, basis: t.probe.basis }), null);
+  assert.equal(unitsPerCentreSpacing({ dx: 100, dy: 0, value: 30, k, basis: null }), null);
+  assert.equal(unitsPerCentreSpacing({ dx: 100, dy: 0, value: 30, k: { x: 0, y: 1 }, basis: t.probe.basis }), null);
+  // The box sides read the same bar differently: this is why `feetPerSquare` is not the hex's ruler.
+  const bar = { dx: 4 * t.probe.basis.v.x, dy: 0 };
+  const bySides = feetPerSquare({ ...bar, value: 30, sizeX: t.probe.refW, sizeY: t.probe.refH });
+  near(unitsPerCentreSpacing({ ...bar, value: 30, k, basis: t.probe.basis }), 7.5, 1e-9, "four steps along a row");
+  near(bySides, 7.5, 1e-9, "along a row a side equals a step, so the two rulers agree there");
+  const diagonal = { dx: 0, dy: 3 * t.probe.basis.u.y };
+  assert.ok(Math.abs(feetPerSquare({ ...diagonal, value: 30, sizeX: t.probe.refW, sizeY: t.probe.refH }) - unitsPerCentreSpacing({ ...diagonal, value: 30, k, basis: t.probe.basis })) > 0.1,
+    "down the rows a side and a step disagree");
+}
+
+// The control: today's rect fit, on the very boxes above, reads them loose.
+// Three boxes over two rows 19.7%, five over four 30.4% — the figures the live
+// walk reported — so the fixtures are the reported ones.
+{
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const rect = (cells) => fitGrid({ squares: boxesAt(t, IMAGES.stretched, cells), corners: [], mode: "rect" });
+  near(rect([[0, 0]]).rmsPct, 0, 1e-9, "control: one box");
+  near(rect([[0, 0], [0, 1]]).rmsPct, 0, 1e-9, "control: two in a row");
+  near(rect([[0, 0], [0, 1], [1, 0]]).rmsPct, 0.197, 0.001, "control: three over two rows");
+  near(rect([[0, 0], [1, 0], [2, 1], [3, 0], [0, 2]]).rmsPct, 0.304, 0.001, "control: five over four rows");
+  assert.equal(rect([[0, 0], [1, 0], [2, 1], [3, 0], [0, 2]]).confidence, "loose");
 }
 
 console.log("test-battlemap: all assertions passed");

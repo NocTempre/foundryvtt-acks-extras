@@ -155,8 +155,16 @@ export function familyOfScene(scene) {
  * core's hex ratio here would drift. The size it is measured at is arbitrary
  * — callers scale the answer.
  *
- * @returns {{refW:number, refH:number, refSize:number}|null} null when the
- *   family writes no hexes or the clone's grid cannot be read.
+ * The same clone's grid also names the lattice: `basis` holds the two
+ * centre-to-centre steps that generate it (`u` from hex {i:0,j:0} to {i:1,j:0},
+ * `v` to {i:0,j:1}, both at `refSize`), and `vertices` the six corners of hex
+ * {i:0,j:0} relative to its centre. Both keys are absent, never null, when the
+ * grid cannot answer, so a caller that only scales the box is unaffected.
+ *
+ * @returns {{refW:number, refH:number, refSize:number,
+ *   basis?:{u:{x:number,y:number}, v:{x:number,y:number}},
+ *   vertices?:Array<{x:number,y:number}>}|null} null when the family writes no
+ *   hexes or the clone's grid cannot be read.
  */
 export function hexProbe(scene, family, even = false) {
   const type = gridTypeFor(family, even);
@@ -167,5 +175,34 @@ export function hexProbe(scene, family, even = false) {
   // Equal edges mean the clone never rebuilt its grid from the changed type;
   // refuse rather than scale a map by a ratio of one.
   if (!(refW > 0) || !(refH > 0) || Math.abs(refW - refH) < 1e-6) return null;
-  return { refW, refH, refSize: HEX_PROBE_SIZE };
+  return { refW, refH, refSize: HEX_PROBE_SIZE, ...latticeOf(probe.grid) };
+}
+
+const isPoint = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
+
+/**
+ * What a hex grid says about its own lattice: the two steps between hex
+ * centres and one hex's corners about its centre. A grid that lacks the
+ * methods, throws, or answers with a non-point yields `{}` for the part it
+ * cannot give.
+ */
+function latticeOf(grid) {
+  const out = {};
+  try {
+    if (typeof grid?.getCenterPoint !== "function") return out;
+    const c00 = grid.getCenterPoint({ i: 0, j: 0 });
+    const c10 = grid.getCenterPoint({ i: 1, j: 0 });
+    const c01 = grid.getCenterPoint({ i: 0, j: 1 });
+    if (![c00, c10, c01].every(isPoint)) return out;
+    out.basis = { u: { x: c10.x - c00.x, y: c10.y - c00.y }, v: { x: c01.x - c00.x, y: c01.y - c00.y } };
+    if (typeof grid.getVertices === "function") {
+      const corners = grid.getVertices({ i: 0, j: 0 });
+      if (Array.isArray(corners) && corners.length && corners.every(isPoint)) {
+        out.vertices = corners.map((p) => ({ x: p.x - c00.x, y: p.y - c00.y }));
+      }
+    }
+  } catch {
+    // Whatever was read before the throw stands; the rest stays absent.
+  }
+  return out;
 }

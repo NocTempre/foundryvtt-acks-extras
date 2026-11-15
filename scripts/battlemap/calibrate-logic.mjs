@@ -507,3 +507,249 @@ export function hexSizeFromBox({ boxW, boxH, refW, refH, refSize }) {
   const size = votes.reduce((a, b) => a + b, 0) / votes.length;
   return Number.isFinite(size) && size > 0 ? size : null;
 }
+
+/**
+ * How far a drawn box may lean from the proportions of one hex before it stops
+ * reading as that hex, as a fraction. The measure is the box's canvas aspect
+ * (`w·scale.x` by `h·scale.y`) against the probe's `refW` by `refH`: a box
+ * passes when its aspect is within a factor of `1 + HEX_SHAPE_LEAN` of the
+ * hex's, either way. It absorbs a hand-drawn edge and a scale that is a little
+ * off per axis. It stays under the half-way lean between the two hex families,
+ * which is what keeps a box of the other family from passing as this one.
+ */
+export const HEX_SHAPE_LEAN = 0.12;
+
+/**
+ * How far a box's size may differ from the size most boxes agree on before it
+ * is taken for more or less than one hex, as a fraction per axis. A box that
+ * spans several hexes both ways has a hex's proportions and only this
+ * disagreement gives it away.
+ */
+export const HEX_SIZE_SPREAD = 0.25;
+
+const isLatticePoint = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
+
+/** A probe's two lattice steps with their determinant, or null when unusable. */
+function probeLattice(probe) {
+  if (!(probe?.refW > 0) || !(probe?.refH > 0)) return null;
+  const u = probe.basis?.u;
+  const v = probe.basis?.v;
+  if (!isLatticePoint(u) || !isLatticePoint(v)) return null;
+  const det = cross(u, v);
+  return Math.abs(det) > 1e-9 * len(u) * len(v) ? { u, v, det, step: len(u) } : null;
+}
+
+/** The lattice node nearest a point in probe space: `{i, j}` in basis coordinates. */
+function nearestNode(p, { u, v, det }) {
+  const fi = (p.x * v.y - p.y * v.x) / det;
+  const fj = (u.x * p.y - u.y * p.x) / det;
+  let best = null;
+  // Rounding in a skewed basis is not nearest-node; the neighbours settle it.
+  for (let i = Math.round(fi) - 1; i <= Math.round(fi) + 1; i++) {
+    for (let j = Math.round(fj) - 1; j <= Math.round(fj) + 1; j++) {
+      const d = Math.hypot(p.x - i * u.x - j * v.x, p.y - i * u.y - j * v.y);
+      if (!best || d < best.d) best = { i, j, d };
+    }
+  }
+  return { i: best.i, j: best.j };
+}
+
+/**
+ * Fit one axis of the lattice to the placed boxes: `centre = O + k·p`, where
+ * `p` is the node's position along the axis in probe px. Once the nodes hold
+ * two distinct positions the line is fitted through the box centres; with one
+ * the size comes from the box sides and the origin from the mean centre.
+ */
+function fitHexAxis(placed, axis, lattice, ref) {
+  const pos = (n) => n.i * lattice.u[axis] + n.j * lattice.v[axis];
+  const ps = placed.map(pos);
+  const cs = placed.map((n) => n.c[axis]);
+  const n = placed.length;
+  const pm = ps.reduce((a, b) => a + b, 0) / n;
+  const cm = cs.reduce((a, b) => a + b, 0) / n;
+  let spp = 0;
+  let spc = 0;
+  for (let t = 0; t < n; t++) {
+    spp += (ps[t] - pm) ** 2;
+    spc += (ps[t] - pm) * (cs[t] - cm);
+  }
+  const distinct = Math.max(...ps) - Math.min(...ps) > 1e-6 * lattice.step;
+  if (distinct) {
+    const k = spc / spp;
+    if (Number.isFinite(k) && k > 0) return { k, o: cm - k * pm, from: "centres" };
+  }
+  const k = placed.reduce((a, b) => a + b.side[axis], 0) / n / ref[axis];
+  return { k, o: cs.reduce((a, c, t) => a + c - k * ps[t], 0) / n, from: "edges" };
+}
+
+/**
+ * Fit a hex lattice to boxes the GM drew around single hexes.
+ *
+ * A box's edges cannot be scored against a rectangular lattice: hex rows repeat
+ * at a fraction of a box's height and alternate by half its width, so exact
+ * boxes on different rows disagree by construction. Here the lattice is the
+ * probe's own — the centre-to-centre steps core's grid reports for the chosen
+ * family — scaled per axis, so no hex geometry is stated here.
+ *
+ * Shape is judged on canvas (the box scaled by `scale`), so a map whose image
+ * is stretched over its scene still reads a regular hex as one. A box that is
+ * not one hex is left out of the fit and flagged: `otherFamily` when its shape
+ * is the other family's hex, `notOneHex` for anything else, which includes a
+ * box that spans several hexes and one whose size disagrees with the rest
+ * (`HEX_SHAPE_LEAN`, `HEX_SIZE_SPREAD`). The anchor is the first box that is
+ * one hex; its node is `{i:0, j:0}`. Other boxes are given nodes outward from
+ * it, nearest first, the size refitted as the span grows, then reassigned
+ * until the nodes hold still.
+ *
+ * Per axis, the size comes from the box CENTRES once the used boxes hold two
+ * distinct positions along that axis and from the box EDGES before that, which
+ * is the whole of what one box can say.
+ *
+ * @param {object} input
+ * @param {Array<{x:number,y:number,w:number,h:number}>} input.boxes  Image px,
+ *   normalized (w, h > 0).
+ * @param {object} input.probe  `hexProbe`'s answer for the chosen family:
+ *   `{refW, refH, refSize, basis:{u,v}}`, in probe px.
+ * @param {{x:number,y:number}} [input.scale]  Canvas px per image px, per axis.
+ * @param {object|null} [input.otherProbe]  `hexProbe`'s answer for the other
+ *   family; without it no box is flagged `otherFamily`.
+ * @returns {object} On success `{ ok:true, sizeX, sizeY, centre, k, spacing,
+ *   from, boxes, used, rmsPct, maxPct, worst, confidence, samples }`:
+ *   `sizeX`/`sizeY` are ONE hex's bounding box in image px; `centre` the fitted
+ *   centre of the anchor's hex in image px; `k` image px per probe px per axis;
+ *   `spacing` the probe's `u` and `v` steps in image px; `from` per axis
+ *   `"centres"` or `"edges"`; `boxes` one `{index, cell, residual, notOneHex,
+ *   otherFamily}` per input box, where `cell` is `{i, j}` in basis coordinates
+ *   (`i` along `u`, `j` along `v`) and `residual` is the box centre's distance
+ *   from its node as a share of one hex, both null for a box left out;
+ *   `rmsPct`/`maxPct` are over the used boxes as fractions and `worst` is the
+ *   index of the largest residual. On failure `{ ok:false, reason, samples }`
+ *   with `reason` one of "noBoxes", "noProbe", "noOneHex"; "noOneHex" also
+ *   carries `boxes`, the same per-box flags, so a caller can tell boxes of the
+ *   other family from boxes that span several hexes.
+ */
+export function fitHexLattice({ boxes = [], probe = null, scale = { x: 1, y: 1 }, otherProbe = null } = {}) {
+  const samples = boxes.length;
+  if (!samples) return { ok: false, reason: "noBoxes", samples };
+  const lattice = probeLattice(probe);
+  if (!lattice) return { ok: false, reason: "noProbe", samples };
+  const sx = scale?.x > 0 ? scale.x : 1;
+  const sy = scale?.y > 0 ? scale.y : 1;
+  const ref = { x: probe.refW, y: probe.refH };
+  const other = otherProbe?.refW > 0 && otherProbe?.refH > 0 ? otherProbe : null;
+
+  // Shape on canvas: how far the box's aspect sits from a probe's, as a log ratio.
+  const lean = (b, p) => Math.abs(Math.log((b.w * sx) / (b.h * sy) / (p.refW / p.refH)));
+  const leanMax = Math.log(1 + HEX_SHAPE_LEAN);
+  const info = boxes.map((b, index) => ({ index, cell: null, residual: null, notOneHex: false, otherFamily: false }));
+  const candidates = [];
+  boxes.forEach((b, index) => {
+    if (!(b?.w > 0) || !(b?.h > 0) || !Number.isFinite(b.x) || !Number.isFinite(b.y)) {
+      info[index].notOneHex = true;
+      return;
+    }
+    const own = lean(b, probe);
+    const alt = other ? lean(b, other) : Infinity;
+    if (alt < own && alt <= leanMax) info[index].otherFamily = true;
+    else if (own > leanMax) info[index].notOneHex = true;
+    else candidates.push({ index, k: { x: b.w / ref.x, y: b.h / ref.y } });
+  });
+
+  // Size consensus: the candidate most others agree with, earliest on a tie.
+  const agrees = (a, b) => Math.abs(a.k.x / b.k.x - 1) <= HEX_SIZE_SPREAD && Math.abs(a.k.y / b.k.y - 1) <= HEX_SIZE_SPREAD;
+  let cluster = [];
+  for (const c of candidates) {
+    const group = candidates.filter((o) => agrees(o, c));
+    if (group.length > cluster.length) cluster = group;
+  }
+  if (!cluster.length) return { ok: false, reason: "noOneHex", boxes: info, samples };
+  const inCluster = new Set(cluster.map((c) => c.index));
+  for (const c of candidates) if (!inCluster.has(c.index)) info[c.index].notOneHex = true;
+
+  const placed = cluster.map(({ index }) => {
+    const b = boxes[index];
+    return { index, i: 0, j: 0, c: { x: b.x + b.w / 2, y: b.y + b.h / 2 }, side: { x: b.w, y: b.h } };
+  });
+  const anchor = placed[0];
+  const median2 = (axis) => median(cluster.map((c) => c.k[axis]));
+  let fit = { x: { k: median2("x"), o: anchor.c.x, from: "edges" }, y: { k: median2("y"), o: anchor.c.y, from: "edges" } };
+  const refit = (list) => ({ x: fitHexAxis(list, "x", lattice, ref), y: fitHexAxis(list, "y", lattice, ref) });
+  const assign = (n) => {
+    const node = nearestNode({ x: (n.c.x - fit.x.o) / fit.x.k, y: (n.c.y - fit.y.o) / fit.y.k }, lattice);
+    n.i = node.i;
+    n.j = node.j;
+  };
+
+  // Outward: nearest first, each box placed with the size the nearer ones gave.
+  const far = placed.slice(1).sort((a, b) => Math.hypot(a.c.x - anchor.c.x, a.c.y - anchor.c.y) - Math.hypot(b.c.x - anchor.c.x, b.c.y - anchor.c.y));
+  const settled = [anchor];
+  for (const n of far) {
+    assign(n);
+    settled.push(n);
+    fit = refit(settled);
+  }
+  // Then reassign against the whole fit until the nodes hold still.
+  for (let pass = 0; pass < 8; pass++) {
+    const before = placed.map((n) => `${n.i},${n.j}`).join(";");
+    for (const n of far) assign(n);
+    fit = refit(placed);
+    if (placed.map((n) => `${n.i},${n.j}`).join(";") === before) break;
+  }
+
+  const k = { x: fit.x.k, y: fit.y.k };
+  const sizeX = ref.x * k.x;
+  const sizeY = ref.y * k.y;
+  const rs = [];
+  for (const n of placed) {
+    const px = fit.x.o + k.x * (n.i * lattice.u.x + n.j * lattice.v.x);
+    const py = fit.y.o + k.y * (n.i * lattice.u.y + n.j * lattice.v.y);
+    const residual = Math.hypot((n.c.x - px) / sizeX, (n.c.y - py) / sizeY);
+    info[n.index].cell = { i: n.i, j: n.j };
+    info[n.index].residual = residual;
+    rs.push({ index: n.index, residual });
+  }
+  const rmsPct = Math.sqrt(rs.reduce((a, r) => a + r.residual ** 2, 0) / rs.length);
+  const worst = rs.reduce((a, r) => (r.residual > a.residual ? r : a), rs[0]);
+  return {
+    ok: true,
+    sizeX,
+    sizeY,
+    centre: { x: fit.x.o, y: fit.y.o },
+    k,
+    spacing: {
+      u: { x: lattice.u.x * k.x, y: lattice.u.y * k.y },
+      v: { x: lattice.v.x * k.x, y: lattice.v.y * k.y },
+    },
+    from: { x: fit.x.from, y: fit.y.from },
+    boxes: info,
+    used: placed.length,
+    rmsPct,
+    maxPct: worst.residual,
+    worst: worst.residual > 0 ? worst.index : null,
+    confidence: confidence(rmsPct),
+    samples,
+  };
+}
+
+/**
+ * What one cell is worth in a scale bar's own unit, with a cell measured
+ * centre to centre: the bar is mapped back into probe space through the fit's
+ * per-axis `k` and divided by the probe's centre spacing. A hex's box sides are
+ * the wrong ruler for a hex (`feetPerSquare` reads them); the distance a token
+ * moves is the step between centres. The unit is whatever the bar was printed
+ * in, which need not be feet.
+ *
+ * @param {object} input
+ * @param {number} input.dx / input.dy  The bar's extent, image px.
+ * @param {number} input.value  The bar's printed length, in the scene's unit.
+ * @param {{x:number,y:number}} input.k  The fit's image px per probe px.
+ * @param {{u:{x:number,y:number}}} input.basis  The probe's lattice steps.
+ * @returns {number|null} units per cell, or null on unusable input.
+ */
+export function unitsPerCentreSpacing({ dx, dy, value, k, basis }) {
+  if (!(value > 0) || !(k?.x > 0) || !(k?.y > 0) || !isLatticePoint(basis?.u)) return null;
+  const step = len(basis.u);
+  if (!(step > 0)) return null;
+  const cells = Math.hypot(dx / k.x, dy / k.y) / step;
+  return cells > 0 ? value / cells : null;
+}
