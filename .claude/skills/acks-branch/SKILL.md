@@ -1,6 +1,6 @@
 ---
 name: acks-branch
-description: Open, land, park and close a topic branch kept in a sibling worktree, in an acks-* repo. Use when a track of work qualifies for a branch (`.claude/rules/shared-tree.md`, "Topic and parked branches"), when the user says "open a branch", "land the branch", "park this", "close the topic", or when the Stop hook lists a topic as landed and still open. Not for work that is walked live before it is finished, and not a release (acks-release).
+description: Open, land, park and close a topic branch kept in a sibling worktree, in an acks-* repo. Use when a new feature starts or its next slice lands (`.claude/rules/shared-tree.md`, "Topic and parked branches"), when the user says "open a branch", "land the branch", "park this", "close the topic", or when the Stop hook lists a topic as landed and still open. Not for a fix, docs or a release's own commits, which are written in main's tree (acks-commit), and not a release (acks-release).
 ---
 
 `branch.mjs`, beside this file, carries out every command; its header is the
@@ -8,9 +8,13 @@ reference. Run it from any checkout of the repository, as
 `node .claude/skills/acks-branch/branch.mjs <mode> <slug> ...`. A slug is
 `^[a-z0-9][a-z0-9-]{0,40}$`.
 
-A track goes on a branch only when the three-part test in
-`.claude/rules/shared-tree.md`, "Topic and parked branches", holds; otherwise
-it is written in `main`'s tree.
+Which work takes a branch is `.claude/rules/shared-tree.md`, "Topic and
+parked branches": a new feature does, and a fix, docs and a release's own
+commits are written in `main`'s tree. A topic that lands a slice for its walk
+stays open: the Stop hook then lists it as landed and still open, and it is
+closed once the feature is walked. `land` refuses a topic with nothing new,
+so between landings `git rebase main` in the worktree brings in what `main`
+gained.
 
 ## The four commands
 

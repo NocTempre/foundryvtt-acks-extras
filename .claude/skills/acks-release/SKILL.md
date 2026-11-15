@@ -62,9 +62,12 @@ the full pipeline (build + validate, no publish) is available anytime:
    going out. Modified paths that are not this release's are another session's:
    list them and ask once whether they ship (`.claude/rules/shared-tree.md`).
    That list is read from the tree, never asked of sessions: a session's "done"
-   is not a landing, and the release cuts what `main` holds. An unlanded
-   `topic/*` branch does not ship: list each one to the owner once, from
-   `git branch --list "topic/*" --no-merged main`. Run the toolchain
+   is not a landing, and the release cuts what `main` holds. What a
+   `topic/*` branch has not landed does not ship: list each open topic to
+   the owner once, from `git branch --list "topic/*"`, and say which have
+   slices on `main` already. `--no-merged main` names the topics holding
+   unlanded commits; one it leaves out may be between two landings. Run the
+   toolchain
    check, the one push-triggered gate no later step covers:
    `node C:\Proj\acks-module-template\bin\sync-toolchain.mjs --check` (zero
    drift against the template's pushed `main`, which is what CI checks out —

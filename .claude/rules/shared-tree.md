@@ -70,8 +70,8 @@ shape") names, run on the release's own commits.
   the release commit (`acks-release` step 4) to the tag's push, the session
   cutting the release is the only one that lands a change to what the zip ships
   (the paths `tools/walk-results.mjs` hashes as the runtime tree). A peer's
-  runtime landing in that window makes the walks stale, and the preflight run on
-  the tag's commit refuses.
+  runtime landing in that window, a topic's included, makes the walks stale,
+  and the preflight run on the tag's commit refuses.
 - **Every commit is reported by sha, with whether it is pushed.** Whether to
   push is TOOLCHAIN §2 unless the user said otherwise.
 
@@ -84,11 +84,26 @@ rebase and a merge each wait for the owner's word.
 - **`main` is what is released and walked, and its tree never leaves
   `main`.** A hook refuses a switch of `main`'s tree to another branch or
   commit.
-- **A track goes on `topic/<slug>` only when all three hold:** nothing in it
-  is walked live until it is finished, it spans more than one commit, and one
-  writer works it at a time. Its live walk, and the fixes that walk finds,
-  happen on `main` after it lands. Everything else is written in `main`'s
-  tree.
+- **A new feature is built on `topic/<slug>`.** A feature is work whose plan,
+  brief or ledger row adds or reworks a surface a user or another module
+  reaches: a window, a setting, a document sub-type, an importer for a book
+  or a kind of entry, an API. The plan or brief names its tree before the
+  first edit, as it names its agent.
+- **Written in `main`'s tree:** a fix that restores what a shipped surface
+  already claims (a triage row, a hotfix, what a walk finds, a printed value
+  moved by the work that found it), docs and plans, a release's own commits,
+  and a change that neither adds nor reworks a surface. Such a change may
+  take a topic branch
+  when it spans more than one commit and nothing in it is walked live until
+  it is finished.
+- **A feature is walked on `main`.** The Foundry junction points at `main`'s
+  tree, so a slice is built to an offline green in the worktree and landed,
+  then walked live on `main`, and what the walk finds is fixed on `main`. A
+  feature is not reported built until that walk has run. A topic lands once
+  for each slice that needs its walk and stays open between landings; a
+  `git rebase main` in its worktree brings in what `main` gained meanwhile.
+  The plan it is built from stays in `main`'s tree, where its sessions read
+  it and append to it.
 - **`acks-branch` is the one way a branch or a worktree comes to exist or
   goes away**: `open`, `land`, `close`, `park`. The worktree is the sibling
   folder `<repo>.<slug>`. A hook refuses a hand-made branch or worktree, a
@@ -98,9 +113,10 @@ rebase and a merge each wait for the owner's word.
   folder (`git worktree remove`, `rm -r`, `Remove-Item -Recurse`) reaches
   through the link and empties `main`'s; `close` removes the link first. No
   hook catches every spelling of a delete.
-- **One writer per worktree, who commits there by hand.** The edit ledger and
-  the shared-tree guard stand down in a linked worktree; the pre-commit IP
-  quarantine still runs. The session's brief carries what the track needs.
+- **One session writes a worktree at a time, with the agents it starts, and
+  commits there by hand.** The edit ledger and the shared-tree guard stand
+  down in a linked worktree; the pre-commit IP quarantine still runs. The
+  session's brief carries what the track needs.
 - **The session that wrote a topic branch lands it** with `branch.mjs land`:
   a rebase onto `main` in the worktree, which stops at the first conflict,
   then the full gate on the tip under the landing lease, then a fast-forward.
@@ -108,7 +124,8 @@ rebase and a merge each wait for the owner's word.
   that rebase of an unpushed topic branch and for the tool's fast-forward;
   every other merge, rebase, push or history rewrite still asks.
 - **Rebase conflicts.** `CHANGELOG.md`: none, since entries are fragments.
-  DECISIONS and ROADMAP appends: keep both, `main`'s first. Generated files
+  DECISIONS and ROADMAP appends: keep both, `main`'s first. `lang/en.json`:
+  keep both sides' keys. Generated files
   (`packs/_source`, `cookbook/*.json`): take `main`'s side, rerun the
   generator, commit the result.
 - **A topic branch is never pushed.** A parked branch, `parked/<slug>`, is
@@ -116,6 +133,8 @@ rebase and a merge each wait for the owner's word.
   never built by CI.
 - **Nothing is left unnamed.** The Stop hook lists unmerged topic branches,
   topics landed but still open, unpushed parked branches and any other local
-  branch. `close` deletes a landed branch; an unmerged one goes only on the
-  owner's word. An unlanded topic branch does not ship (`acks-release`
-  step 1).
+  branch. A topic between two landings is listed as landed and still open,
+  and is closed once its feature is walked. `close` deletes a landed branch;
+  an unmerged one goes only on the owner's word. What a topic has not landed
+  does not ship, and a release asks once about a feature landed in part
+  (`acks-release` step 1).

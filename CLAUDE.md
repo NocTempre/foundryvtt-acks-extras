@@ -37,6 +37,9 @@ drives the test world), `doc-scribe` (haiku: docs chores).
   the enumeration is the review.
 - Runtime-surface change → implement, then walk the feature's
   `docs/<feature>/TESTING.md` recipe live (`live-tester`) before it ships.
+- New feature → its plan or brief names `topic/<slug>` before the first
+  edit; each slice is built there, landed, and walked on `main`
+  (`.claude/rules/shared-tree.md`, "Topic and parked branches").
 - Architecture, cross-feature design, reversing a documented decision, or a
   bug that resists first diagnosis → `architect` or plan mode first; the
   write comes after the ruling.
@@ -50,9 +53,16 @@ How much one agent and one session carry:
   fixed in the batch that picks them up. A printed value found in source is
   the exception: the work that finds it fixes it
   (`.claude/rules/ip-doctrine.md`).
-- **The agent definition picks the model.** An `implementer` is started with
-  no model override; work that needs a stronger model is design, and goes to
-  `architect`.
+- **Every agent and session starts on a model chosen for its work.** The
+  owner: "always select agent model intentionally". Picking a synced agent
+  by the work is that choice: it is started with no model override, and work
+  that needs a stronger model than `implementer`'s is design, and goes to
+  `architect`. A start no definition covers names its model: a session
+  started from another, a general-purpose, search or planning agent, a
+  workflow's agents. Left unnamed, it runs on the starter's own wherever
+  nothing else sets one. A fork
+  takes no other model, so it is for work that needs this one. A plan and
+  each brief say which agent or model takes each slice, and why.
 - **An owner ruling reaches an agent in the owner's words.** The brief quotes
   it, and the agent's report restates it with one example before anything is
   built on it.
@@ -140,11 +150,11 @@ renders and hides exactly this.
 
 ## Conventions
 
-- **`main` is released and walked, and its tree never leaves `main`.** A
-  track goes on `topic/<slug>`, in the sibling worktree `<repo>.<slug>`, only
-  when nothing in it is walked live until it is finished, it spans more than
-  one commit, and one writer works it; a shelved line is `parked/<slug>`;
-  tags `v<version>` are the only other refs. `acks-branch` opens, lands,
+- **`main` is released and walked, and its tree never leaves `main`.** A new
+  feature is built on `topic/<slug>`, in the sibling worktree
+  `<repo>.<slug>`, and walked on `main` after each landing; a fix, docs and a
+  release's own commits are written in `main`'s tree; a shelved line is
+  `parked/<slug>`; tags `v<version>` are the only other refs. `acks-branch` opens, lands,
   closes and parks them, and a worktree folder is never deleted by hand
   (`.claude/rules/shared-tree.md`, "Topic and parked branches").
   `.claude/hooks/branch-guard.mjs` refuses a hand-made branch or worktree, a
