@@ -122,11 +122,13 @@ const P = {
       "system.market.candidates": [],
       "system.market.postings": [],
       "system.market.classRarityTableId": "default",
+      "system.market.marketClassOverride": 4,
       [`ownership.${playerId}`]: OWN.OBSERVER,
     });
     await employer.update({ [`ownership.${playerId}`]: OWN.OWNER, "system.henchmenList": [] });
     return {
       market: !!place.system.hasMarket,
+      marketClass: place.system.marketClass,
       blocked: place.system.market.blockedClasses.length,
       candidates: (place.system.candidates ?? []).length,
       placeSeen: place.ownership[playerId] === OWN.OBSERVER,
@@ -509,7 +511,7 @@ try {
   const employer = await gm.fixture("henchmen/blocked-classes-employer", "Actor", { name: "QA Blocked Classes Employer", type: "character" });
   const shaped = await run(gm, P.shape, { placeId: place.id, employerId: employer.id, playerId });
   note("shape", shaped);
-  check("17: the place has a market and an empty list, the Player seat observes it and owns the employer", shaped.market && shaped.blocked === 0 && shaped.candidates === 0 && shaped.placeSeen && shaped.employerOwned, shaped);
+  check("17: the place has a market of a set class and an empty list, the Player seat observes it and owns the employer", shaped.market && shaped.marketClass === 4 && shaped.blocked === 0 && shaped.candidates === 0 && shaped.placeSeen && shaped.employerOwned, shaped);
   const target = await run(gm, P.target);
   check("17: a die of 1 draws a class the place can offer, and the same bucket holds another", target.found && target.offerable, target);
   if (!target.found) throw new Error("the imported distribution gives no class for a die of 1 with another beside it");

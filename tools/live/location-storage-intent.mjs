@@ -330,7 +330,9 @@ const P = {
   spoilRetrieve: async ({ placeId, heroId, itemId, tag, release, gmId }) => {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const S = acksExtras.lib.storage;
-    const place = game.actors.get(placeId);
+    let place = game.actors.get(placeId);
+    for (let i = 0; i < 100 && !place; i++) { await sleep(100); place = game.actors.get(placeId); }
+    if (!place) return { placeSeen: false };
     const hero = game.actors.get(heroId);
     const flagged = () => place.items.get(itemId)?.flags?.["acks-extras"]?.storage?.retrievable === true;
     for (let i = 0; i < 50 && flagged() !== release; i++) await sleep(100);

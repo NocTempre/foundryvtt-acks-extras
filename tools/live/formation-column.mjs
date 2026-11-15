@@ -733,7 +733,8 @@ const P = {
     await H.sleep(800);
     let via = "createCombatant";
     const placeable = canvas.tokens.get(tokenId);
-    if (game.combat?.id === combat.id && placeable) {
+    // Core's TokenHUD renders into `#hud`; a page without it takes the combatant route.
+    if (game.combat?.id === combat.id && placeable && document.getElementById("hud")) {
       placeable.control({ releaseOthers: true });
       await canvas.hud.token.bind(placeable);
       await H.sleep(300);
