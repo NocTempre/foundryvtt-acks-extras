@@ -201,7 +201,7 @@ clears the hex on the pill you are on and leaves the other alone. Territory is
 drawn for you alone, as a map mode (below). A stroke paints only the map:
 dragging across a window in front of it paints nothing behind the window.
 
-![](../releases/v11.10.0/battlemap-country-brush.png)
+![](../releases/v2026.11.14/battlemap-country-brush.png)
 
 *The Country brush on its Territory pill: one swatch per territory, and the
 eraser.*

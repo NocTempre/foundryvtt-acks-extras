@@ -13,7 +13,7 @@ reach: your own disk, or a book the GM has staged on the server for the table.
 A book is read at the moment something is imported from it; what comes out is
 written into the world, so nobody needs the file again afterwards.
 
-![](../releases/v11.14.0/importer-books-tab.png)
+![](../releases/v2026.11.14/importer-books-tab.png)
 
 *The Books tab of Manage Imports: the books on the server, the picker and the
 folder scan that put more there, this seat's books folded by state, and Forget

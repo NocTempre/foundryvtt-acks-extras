@@ -82,7 +82,7 @@ results, and what each earlier refusal and each slander takes off the roll,
 come from the Revised Rulebook's tables once they are imported (RR 162). Until
 then the hiring page and the dialog do not roll.
 
-![](../releases/v11.4.0/henchmen-hiring-table.png)
+![](../releases/v2026.11.14/henchmen-hiring-table.png)
 
 **A bulk row is offered head by head.** Hire on a mercenary or specialist row
 asks how many heads the offer goes to, and each head rolls its own reaction

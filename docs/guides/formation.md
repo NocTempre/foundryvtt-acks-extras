@@ -283,7 +283,7 @@ party's mark at its middle. A square grid draws the square; a map with no grid
 draws a square one grid unit across. The drawing is not a button: the picture
 itself is changed from the sheet tools.
 
-![](../releases/v11.4.0/formation-plate.png)
+![](../releases/v2026.11.14/formation-plate.png)
 
 *The sheet on a journey: the hex drawn in the picture frame, with the road
 and the river that cross it, the point the party has found and the one it has

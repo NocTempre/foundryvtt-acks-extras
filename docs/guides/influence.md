@@ -82,7 +82,7 @@ hiring page its hiring effects, and the loyalty page its loyalty-roll effects.
 A power held with no imported value is named in a note on the hiring and
 obedience pages.
 
-![](../releases/v11.4.0/influence-hiring-page.png)
+![](../releases/v2026.11.14/influence-hiring-page.png)
 
 ![](../releases/v11.4.0/influence-obedience-powers.png)
 

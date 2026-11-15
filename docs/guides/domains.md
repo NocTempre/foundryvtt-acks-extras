@@ -98,7 +98,7 @@ row's whole cost. Their costs add up to the stronghold value.
 
 ## Ledger
 
-![](../releases/v11.8.0/domains.png)
+![](../releases/v2026.11.14/domains.png)
 
 Each revenue and expense line takes a rate **per peasant family** and **per
 urban family**, or a flat **gp** figure for either side; a gp figure wins over
