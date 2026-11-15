@@ -195,6 +195,23 @@ counter-argument are kept so a later session can reopen one with evidence.
     the flag: a sub-type needs a world relaunch and leaves invalid documents
     when the module is off. *Rejected:* `holdCondition` (its managed guard
     would fight lib's loss path).
+
+    **A record is a modifier source, and a buff reaches the roll it
+    changes.** Checked against `modifierDisposition` on 2026-11-15: of level
+    1's twelve modifier rows none is standing on a `MODIFIER_PATHS` path.
+    Two are scoped by an attacker's kind or alignment (at the roll); two sit
+    on a weapon, one of them with a printed non-stacking clause; five change
+    or grant a proficiency throw (read by the abilities roller); one changes
+    a reaction roll (read by influence); one changes a single saving throw
+    under a condition; one sets an armour class by the kind of attack, which
+    no path or mode expresses today; one is an object's and the Judge's. A
+    row listed on a card and applied nowhere is not a built effect. Each row
+    reaches its roll through the seam that owns that roll, reading the
+    recipient's cast records as sources: lib's attack seam contributor for a
+    weapon's bonus and for an armour class against an attack, `saveThrow`
+    for a save, the abilities roller and influence for theirs. Slice 2
+    proves the pattern on one weapon buff; slice 5 opens with an `architect`
+    ruling on the readers the others need.
 11. **Concentration is a held status on the caster's record.** Both
     concentration catalogue rows gain what they are lost to, the mechanism
     the `casting` condition already uses. Casting again warns and lifts it on
@@ -214,9 +231,22 @@ counter-argument are kept so a later session can reopen one with evidence.
     and curse rows write the caster's record (and a recipient's where the row
     names one) and a line from `describeSpellEffect`. Nothing more in
     phase 1.
-15. **Casting time is taken from the cast's source.** The RR stat line prints
-    none; the casting chapter's rule by source is structure, and a printed
-    exception is captured from prose. Phase 1 shows it and acts on nothing.
+15. **Casting time is the declaration and what disrupts it.** The RR stat
+    line prints no casting time; the casting chapter's rule by source is
+    structure, and a printed exception is captured from prose. In a started
+    fight a spell is declared before initiative and lost to damage or a
+    failed save (RR ch. 6), and lib's `casting` condition already is that
+    state: it ends at the caster's turn and is lost to both. The cast joins
+    it. Opened in a started fight before the caster's turn, the cast dialog
+    declares: `casting` goes on the caster with the spell named on a pending
+    record, and nothing is spent. Opened on the caster's turn it resolves
+    and lifts `casting`. Where the declaration was lost the dialog says so;
+    a player is blocked and a Judge warned. Outside a fight a cast resolves
+    at once. A casting time longer than an action is shown and tracked only,
+    until rituals. *Rejected:* showing the casting time and acting on
+    nothing, which leaves the owner's third message unbuilt.
+    *Counter (medium):* a table that never uses the `casting` status gets a
+    new step in every fight; the Judge's warning is the way through.
 16. **Judge tools ship with the engine.** The row editor's per-kind fields
     gain: damage `saveEffect`, `delivery`, `extraordinary`, `recur`, `pick`,
     `reversed`; heal `saveEffect`, `pick`, `reversed`; conditionGrant
@@ -237,6 +267,14 @@ idles a slice.
    card saying so, or do both add? *Recommended:* count once.
 3. Do damage, healing and conditions apply on a press (one "Apply all" for
    the Judge), or at cast? *Recommended:* a press.
+4. Nothing in the system or this module changes a damage amount by the
+   target's immunities, resistances or susceptibilities today, for a weapon
+   or a spell: the type is shown and the full amount applies. Should the
+   level 1 rollout build that, once, in lib, for weapons and magic alike,
+   reading the defenses the monster import already writes, or leave the type
+   as display until a later phase? *Recommended:* build it in session 1b,
+   since "correct amount and type" is not met without it. Session 1a is the
+   same either way.
 
 ## Data shapes
 
@@ -264,14 +302,14 @@ applied}]}]}`.
 | Bucket (JJ ch. 14 axis or RR term) | Field | Phase 1 | Gap |
 |---|---|---|---|
 | Type | `type`, `schools` | shown | none |
-| Effects | `effects[]` | ruling 9 roller, `hp.mjs`, status records, listed modifiers | `max` reserved |
+| Effects | `effects[]` | ruling 9 roller, `hp.mjs`, status records, modifiers read at their roll | `max` reserved; readers in slice 5 |
 | Targeting | `target.model`, `count`, `area`, `filters` | targeted tokens, HD cap per target | `hdCap` new; templates later |
 | Attack required | `delivery` | magic throw | new key |
 | Range | `range` | player blocked, Judge warned | none |
 | Duration | `duration` | flag-held duration, expiry fan-out by `castId` | combat rounds do not age a record |
 | Concentration | `duration.shape`, `concentration` | status, loss, end card | `castDuration` change |
 | Until a save ends it | `recur` | prompt card | slice 3 |
-| Casting time | `castingTime` | shown | rituals later |
+| Casting time | `castingTime`, lib's `casting` condition | declared, lost to damage or a failed save, resolved on the caster's turn | rituals later |
 | Saving throw | `save`, `saveEffect` | typed resist in the card | `save.kind` new |
 | Save modifiers | `save.modifier` | per-row toggle | none |
 | Stacking | statuses, `notStacksWith`, `provides` | held-or-not; card notice | owner question 2 |
@@ -317,8 +355,18 @@ applied}]}]}`.
   slice 2's arithmetic: whether halved spell damage rounds as core's
   `applyDamage` does, whether a critical changes spell dice, whether a
   minimum-damage floor applies, whether an area's damage is one roll or one
-  per target, and whether a general stacking rule is printed (the oracle
-  search found none).
+  per target, whether a general stacking rule is printed (the oracle
+  search found none), whether a declaration lost to damage spends the
+  spell, and whether a spell not declared may be cast in a fight at all.
+- The level 1 matrix is one reading pass over the fan oracle, and the
+  register structure authored from it ships. Each authored row's structure
+  is checked against the printed page before its batch is committed; that
+  is an acceptance of every batch below.
+- Authoring a `summon` row on a spell makes `isSummonSpell` true, and the
+  summon claimant then takes the whole cast. The matrix gives five rows a
+  summon kind and three of them are the built summoning spells. Session 1d
+  rules, per remaining row, whether it is a summoning spell or carries
+  another kind.
 
 ## Phase 1: level 1, in four sessions
 
@@ -347,12 +395,15 @@ is pushed without the owner's word.
   `importer/refresh.mjs` (merge by `origin`),
   `tools/importer/lint-register.mjs`, the importer DECISIONS entry, and
   register rows for `def.spell.desiccate`, `def.spell.cureLightInjury`,
-  `def.spell.frightenHumanoid`, `def.spell.holyCircle`. *Accept:* invented
+  `def.spell.frightenHumanoid`, `def.spell.holyCircle`,
+  `def.spell.sharpness`. *Accept:* invented
   spells materialize, go blank on a miss and survive a repair by origin; an
-  import from the PDF shows the four spells' rows with their figures.
+  import from the PDF shows the five spells' rows with their figures.
 - *S2, vertical engine* (`implementer` twice, lib then magic). Lib: the
-  magic type in `patches/attack-throw.mjs`, `lib/saves.mjs`, the loss
-  export, what the concentration rows are lost to. Magic: `cast-spell.mjs`,
+  magic type in `patches/attack-throw.mjs`, a contributor that reads a
+  wielder's cast records for a weapon's bonus, `lib/saves.mjs`, the loss
+  export, what the concentration rows are lost to, and a lib ROADMAP row
+  for damage against defenses. Magic: `cast-spell.mjs`,
   `apps/cast-dialog.mjs`, `templates/magic/cast-card.hbs`, changes to
   `spell-effect.mjs`, `cast-duration.mjs`, `cast-expiry.mjs`, the row
   editor's fields for these four kinds, and the TESTING recipe with its
@@ -362,13 +413,23 @@ is pushed without the owner's word.
   magic with no melee modifier on the damage; `def.spell.frightenHumanoid`
   cast twice on one target leaves one condition and two records, and the
   condition stays when the first ends; `def.spell.holyCircle` loses
-  concentration on damage and raises the end card; a core monster's attack
-  item still posts core's card; a Player seat casts its own spell and cannot
-  apply to an actor it does not own.
+  concentration on damage and raises the end card; `def.spell.sharpness` on
+  a recipient's weapon puts its figure on that weapon's attack throw and
+  damage with a tooltip naming the spell, the figure is gone when the record
+  ends, and beside the source its printed clause names the two resolve
+  through `resolveStacking`; in a started fight a caster declared and then
+  hurt before their turn has lost the declaration, and a Player seat's cast
+  is refused; a core monster's attack item still posts core's card; a Player
+  seat casts its own spell and cannot apply to an actor it does not own.
+- *Exit point.* S1 and the "Not verified" items come first. If they fill
+  the session, it stops there, writes S2's start prompt under its results
+  and puts S2 up as the next card.
 
 **Session 1b: widening.** *S3* (`implementer`): recurring rows and their
 prompts, several instances per cast, picks, HD gates, range checks, the rest
-of the row editor. Rows: `def.spell.blindingFlash`, `def.spell.thunderclap`,
+of the row editor, and, on owner question 4's answer, damage against
+defenses in lib (an `architect` ruling first: where the fractions are
+imported from, and the one place an amount is reduced). Rows: `def.spell.blindingFlash`, `def.spell.thunderclap`,
 `def.spell.fanOfFlames`, `def.spell.earthsExcrescence`,
 `def.spell.kindleFlame`, `def.spell.chokingGrip`, `def.spell.mageMissile`,
 `def.spell.slicingBlow`, `def.spell.slingStone`, `def.spell.frightenBeast`.
@@ -380,8 +441,14 @@ of the row editor. Rows: `def.spell.blindingFlash`, `def.spell.thunderclap`,
 `def.spell.shatterBlade`, `def.spell.sanctuary`, `def.spell.salvingRest`.
 *S5:* `def.spell.allure`, `def.spell.arcaneArmor`, `def.spell.baneRune`,
 `def.spell.chameleon`, `def.spell.leaping`, `def.spell.passWithoutTrace`,
-`def.spell.sharpness`, `def.spell.silentStep`, `def.spell.spiderClimbing`,
-`def.spell.slickness`.
+`def.spell.sharpness` (built in S2; its row is checked here),
+`def.spell.silentStep`, `def.spell.spiderClimbing`, `def.spell.slickness`.
+S5 opens with an `architect` ruling on the readers ruling 10 lists: the
+abilities roller and influence reading a cast record, an armour class set
+by the kind of attack, a save changed under a condition. *Accept, each
+row:* the figure reaches the roll it changes, with a tooltip naming the
+spell; it is gone when the record ends; a second source of the same kind
+resolves through `resolveStacking`.
 
 **Session 1d: tracked kinds and the close.** *S6:*
 `def.spell.angelicChoir`, `def.spell.auditoryIllusion`,
@@ -412,15 +479,15 @@ defenses (lib). Rituals come with research (ROADMAP part 5).
 
 > Run session 1a of `docs/magic/wip/20261115-spell-effects-plan.md` in
 > `C:\Proj\foundryvtt-acks-extras`: slices S1 and S2, the importer channel
-> for spell effect rows and the vertical cast engine, for the four spells the
-> plan names. Read the plan whole first, then `docs/magic/MODEL.md`,
+> for spell effect rows and the vertical cast engine, for the five spells the
+> plan names, with the exit point the plan gives. Read the plan whole first, then `docs/magic/MODEL.md`,
 > `.claude/rules/ip-doctrine.md` and `.claude/rules/live-testing.md`. You are
 > the orchestrator: brief one agent per slice with the routing the plan
 > gives, quote the owner's words from the plan in every brief, review each
 > agent's change against the IP doctrine yourself, and drive the live walk
 > yourself. Settle the plan's "Not verified" list before the code that leans
 > on each item. The level 1 matrix is on the rules shelf beside the magic
-> extract (`L1-EFFECTS.md`); it is LOCAL-ONLY. Proceed on the three owner
+> extract (`L1-EFFECTS.md`); it is LOCAL-ONLY. Proceed on the owner
 > questions' recommended answers. Commit each finished slice with
 > `acks-commit`; push nothing. Finish by appending a "Results, 1a" section to
 > the plan (what was built, walked and not walked, by sha), writing the
