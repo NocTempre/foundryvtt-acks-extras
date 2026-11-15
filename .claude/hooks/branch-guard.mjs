@@ -1,7 +1,7 @@
 /**
  * Claude Code hook that keeps `main`'s working tree on `main` and routes every
  * other line of work through the branch tool,
- * `node .claude/skills/acks-branch/branch.mjs open|land|close|park <slug>`.
+ * `node .claude/skills/acks-branch/branch.mjs open|land|sync|close|park <slug>`.
  * Topic work lives in a sibling worktree on `topic/<slug>`; the rules are in
  * `.claude/rules/shared-tree.md`, "Topic and parked branches".
  *
@@ -323,11 +323,12 @@ if (MODE === "session-start") {
         const slug = branch.replace(/^(topic|parked)\//, "");
         speak(
           `This session is in a linked worktree on branch ${branch}. Nothing here is live until it lands: ` +
-            `commit by hand, then \`${BRANCH_TOOL} land ${slug}\` and \`${BRANCH_TOOL} close ${slug}\`.`,
+            `commit by hand, then \`${BRANCH_TOOL} land ${slug}\` for each slice; \`${BRANCH_TOOL} close ${slug}\` once its feature is walked.`,
           `You are in a linked worktree on branch ${branch}. Work here is not live until it is landed on main: ` +
             "the dev install and the live test world read main's tree, so no live walk sees it. " +
-            `Commit by hand in this worktree, then land it with \`${BRANCH_TOOL} land ${slug}\` and close it with ` +
-            `\`${BRANCH_TOOL} close ${slug}\`. Never \`git worktree remove\` it. See ${SECTION}.`,
+            `Commit by hand in this worktree and land each slice with \`${BRANCH_TOOL} land ${slug}\`. The topic stays ` +
+            `open between landings: \`${BRANCH_TOOL} sync ${slug}\` brings in what main gained before the next slice, and ` +
+            `\`${BRANCH_TOOL} close ${slug}\` closes it once its feature is walked. Never \`git worktree remove\` it. See ${SECTION}.`,
         );
       } else if (ref !== "refs/heads/main") {
         speak(

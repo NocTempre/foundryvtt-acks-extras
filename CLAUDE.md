@@ -155,7 +155,7 @@ renders and hides exactly this.
   `<repo>.<slug>`, and walked on `main` after each landing; a fix, docs and a
   release's own commits are written in `main`'s tree; a shelved line is
   `parked/<slug>`; tags `v<version>` are the only other refs. `acks-branch` opens, lands,
-  closes and parks them, and a worktree folder is never deleted by hand
+  syncs, closes and parks them, and a worktree folder is never deleted by hand
   (`.claude/rules/shared-tree.md`, "Topic and parked branches").
   `.claude/hooks/branch-guard.mjs` refuses a hand-made branch or worktree, a
   hand `git worktree remove` and a switch of `main`'s tree, and says at

@@ -71,7 +71,9 @@ shape") names, run on the release's own commits.
   cutting the release is the only one that lands a change to what the zip ships
   (the paths `tools/walk-results.mjs` hashes as the runtime tree). A peer's
   runtime landing in that window, a topic's included, makes the walks stale,
-  and the preflight run on the tag's commit refuses.
+  and the preflight run on the tag's commit refuses. `acks-branch land`
+  refuses a topic's runtime landing while `main`'s version has no tag (exit
+  6); a commit through `acks-commit` has no such guard.
 - **Every commit is reported by sha, with whether it is pushed.** Whether to
   push is TOOLCHAIN §2 unless the user said otherwise.
 
@@ -100,12 +102,12 @@ rebase and a merge each wait for the owner's word.
   tree, so a slice is built to an offline green in the worktree and landed,
   then walked live on `main`, and what the walk finds is fixed on `main`. A
   feature is not reported built until that walk has run. A topic lands once
-  for each slice that needs its walk and stays open between landings; a
-  `git rebase main` in its worktree brings in what `main` gained meanwhile.
+  for each slice that needs its walk and stays open between landings;
+  `sync` brings what `main` gained meanwhile into its worktree.
   The plan it is built from stays in `main`'s tree, where its sessions read
   it and append to it.
 - **`acks-branch` is the one way a branch or a worktree comes to exist or
-  goes away**: `open`, `land`, `close`, `park`. The worktree is the sibling
+  goes away**: `open`, `land`, `sync`, `close`, `park`. The worktree is the sibling
   folder `<repo>.<slug>`. A hook refuses a hand-made branch or worktree, a
   hand `git worktree remove`, and the app's own worktrees.
 - **A worktree directory is closed by the tool and never deleted by hand.**
@@ -132,9 +134,9 @@ rebase and a merge each wait for the owner's word.
   pushed once, at creation, on the owner's go-ahead; it is never synced and
   never built by CI.
 - **Nothing is left unnamed.** The Stop hook lists unmerged topic branches,
-  topics landed but still open, unpushed parked branches and any other local
-  branch. A topic between two landings is listed as landed and still open,
-  and is closed once its feature is walked. `close` deletes a landed branch;
+  topics landed and open, unpushed parked branches and any other local
+  branch. A topic between two landings is listed as landed and open, is
+  synced before its next slice, and is closed once its feature is walked. `close` deletes a landed branch;
   an unmerged one goes only on the owner's word. What a topic has not landed
   does not ship, and a release asks once about a feature landed in part
   (`acks-release` step 1).

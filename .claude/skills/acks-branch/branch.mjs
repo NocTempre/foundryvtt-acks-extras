@@ -1,9 +1,10 @@
 /**
- * Open, land, park and close a topic branch kept in a worktree beside the
+ * Open, land, sync, park and close a topic branch kept in a worktree beside the
  * main checkout.
  *
  *   node branch.mjs open <slug>
- *   node branch.mjs land <slug> [--wait <minutes>] [--change <dir>]
+ *   node branch.mjs land <slug> [--wait <minutes>] [--change <dir>] [--despite-release <version>]
+ *   node branch.mjs sync <slug>
  *   node branch.mjs close <slug> [--discard-unmerged]
  *   node branch.mjs park <slug> [--at <rev>] [--push]
  *
@@ -16,7 +17,11 @@
  * (stopping at the first conflict), takes the landing lease, runs the full
  * gate on the tip with `commit-own-hunks.mjs postgate` from `main`'s root,
  * fast-forwards `main` to the tip and reads `HEAD` back. It never carries a
- * moved base and never pushes. `close` unlinks every top-level link in the
+ * moved base and never pushes. A topic stays open between landings; `sync`
+ * brings what `main` gained into its worktree, as a rebase of the unpushed
+ * topic onto `main` that stops at the first conflict, and a topic `main`
+ * already holds is left as it is. It never takes the lease and never touches
+ * `main`. `close` unlinks every top-level link in the
  * worktree before `git worktree remove`, because on Windows that command
  * deletes through a junction and empties the folder it points at, then checks
  * `main`'s `node_modules` survived. `park` makes `parked/<slug>`, a branch with
@@ -26,18 +31,35 @@
  * `change.json` gives the gate (`gate`, `link`, `timeoutMinutes`); `land`
  * writes a `{}` one in a temporary directory where none is given.
  *
- * Exit status: 0 done, 1 refused, 2 usage, 5 the landing lease was still held
- * when the wait ran out (run it again).
+ * The gate runs as a child process the event loop keeps awaiting, so the
+ * lease's heartbeat keeps beating through a long gate. A `main` that moved
+ * while `land` waited for the lease is rebased onto once, under the lease; the
+ * lease and `main`'s `HEAD` are checked again after the gate and before the
+ * fast-forward.
+ *
+ * A release's live window is open while `main`'s `module.json` holds a version
+ * with no local tag `v<version>`, in a repository that has tagged before. While
+ * it is open `land` refuses a topic whose runtime tree (`tools/walk-results.mjs`
+ * `runtimeTree`) differs from `main`'s, since only the release session lands a
+ * change to what the zip ships then. It checks once after the pre-lease rebase
+ * and again under the lease before the gate, because a release commit can land
+ * while `land` waits. `--despite-release <version>` passes an abandoned
+ * release's window and stands for the owner's word.
+ *
+ * Exit status: 0 done, 1 refused, 2 usage, 3 main moved or the lease was lost
+ * during the gate (land again), 5 the landing lease was still held when the
+ * wait ran out (run it again), 6 main is in a release's live window and the
+ * topic changes the runtime.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { acquire } from "../acks-commit/lease.mjs";
+import { acquire, holds } from "../acks-commit/lease.mjs";
 
 /** Exit statuses, shared with `commit-own-hunks.mjs` where they overlap. */
-export const EXIT = { ok: 0, refused: 1, usage: 2, leaseHeld: 5 };
+export const EXIT = { ok: 0, refused: 1, usage: 2, movedBase: 3, leaseHeld: 5, releaseWindow: 6 };
 /** A branch slug: lowercase words joined by hyphens. */
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,40}$/;
 /** Minutes `land` waits for the landing lease where `--wait` gives none. */
@@ -210,26 +232,116 @@ export function open(slug, { cwd, say = console.log }) {
   say(`  nothing on this branch is walked live until it lands: the Foundry junction points at ${root}`);
   say(`  start the session in ${dir} and commit there by hand (git add, git commit)`);
   say(`  land it with: node .claude/skills/acks-branch/branch.mjs land ${slug}   (rebases, gates the tip, fast-forwards main, never pushes)`);
-  say(`  the worktree lacks: compiled packs (run build:packs there), aia-tmp/, settings.local.json, the Foundry junction${linked ? "" : ", and node_modules (main has none to link)"}`);
+  say(`  it stays open after a landing: sync ${slug} brings main in before the next slice, close ${slug} once the feature is walked`);
+  say(`  the worktree lacks every gitignored file (git copies none into a new worktree) — compiled packs (run build:packs there), aia-tmp/, settings.local.json, pipeline state — and the Foundry junction${linked ? "" : ", and node_modules (main has none to link)"}`);
   return EXIT.ok;
 }
 
-/** The refusal a stopped rebase gives: what to do, and that main is untouched. */
-function stoppedRebase(dir, slug, output) {
-  refuse(`the rebase onto main stopped; main is untouched and the rebase is left in progress in ${dir}\n${output.split("\n").slice(-12).join("\n")}\nresolve the conflict there, git add the files, git rebase --continue, then land ${slug} again (git rebase --abort drops the attempt)`);
+/** What a stopped rebase asks of the session once `land` ran it, and once `sync` did. */
+const REBASE_NEXT = {
+  land: (slug) => `resolve the conflict there, git add the files, git rebase --continue, then land ${slug} again (git rebase --abort drops the attempt)`,
+  sync: () => "resolve the conflict there, git add the files, git rebase --continue finishes the sync (git rebase --abort drops it)",
+};
+
+/** The refusal a stopped rebase gives: what to do (`REBASE_NEXT[how]`), and that main is untouched. */
+function stoppedRebase(dir, slug, output, how = "land") {
+  refuse(`the rebase onto main stopped; main is untouched and the rebase is left in progress in ${dir}\n${output.split("\n").slice(-12).join("\n")}\n${REBASE_NEXT[how](slug)}`);
+}
+
+/**
+ * Brings what `main` gained into `topic/<slug>`'s worktree: a rebase onto
+ * `main` that stops at the first conflict, so the topic's next slice is
+ * written on the current tree. A topic that already holds `main` is left as it
+ * is, and a contained one fast-forwards. It takes no lease and never touches `main`.
+ */
+export function sync(slug, { cwd, say = console.log }) {
+  const { root, branch, dir, exists } = topicOf(cwd, slug);
+  requireMain(root);
+  if (!exists) refuse(`${branch} does not exist`);
+  if (!dir) refuse(`${branch} has no worktree, and a topic is synced in its own; ask the owner what to do with it`);
+  if (hasRef(root, `refs/remotes/origin/${branch}`)) refuse(`${branch} is on origin; a pushed branch is never rebased. Ask the owner`);
+  if (rebasing(dir)) refuse(`a rebase is in progress in ${dir}; finish it (git rebase --continue) or abort it, then sync again`);
+  const checkedOut = run(dir, ["symbolic-ref", "-q", "HEAD"]).out;
+  if (checkedOut !== `refs/heads/${branch}`) refuse(`${dir} has ${checkedOut || "a detached HEAD"} checked out, not refs/heads/${branch}`);
+  requireClean(dir, `the worktree ${dir}`);
+  const mainSha = rev(root, "main").slice(0, 10);
+  if (isAncestor(root, "main", `refs/heads/${branch}`)) {
+    say(`${branch} already holds main ${mainSha}; nothing to bring in`);
+    return EXIT.ok;
+  }
+  const rebased = run(dir, ["rebase", "main"], { GIT_EDITOR: "true" });
+  if (rebased.status !== 0) stoppedRebase(dir, slug, `${rebased.out}\n${rebased.err}`.trim(), "sync");
+  say(`synced ${branch} onto main ${mainSha}: tip ${rev(dir, "HEAD").slice(0, 10)}`);
+  return EXIT.ok;
 }
 
 /** The words that name a lease's holder to a waiter. */
 const holderName = (held) => `${held?.session ? `session ${String(held.session).slice(0, 8)}` : "another run"}${held?.since ? `, since ${new Date(held.since).toTimeString().slice(0, 8)}` : ""}${held?.change ? `, for ${held.change}` : ""}`;
 
 /**
- * Lands `topic/<slug>` on `main`: rebase when `main` moved, then under the
- * landing lease gate the tip and fast-forward.
- * @param {string} slug
- * @param {{cwd: string, waitMinutes?: number, change?: string|null, say?: Function, session?: string|null, merge?: (root: string, tip: string) => {status: number|null, out: string, err: string}}} options
- *   `merge` is the fast-forward, for a test to replace.
+ * Whether `main` is inside a release's live window: its `module.json` names a
+ * version, the repository has tagged a release before, and that version has no
+ * local tag `v<version>` yet. A repository with no `module.json` on `main`, a
+ * module never tagged and a tagged version are all closed.
+ * @param {string} root The main checkout's root.
+ * @returns {{version: string}|null} the open window's version, or null where it is closed.
  */
-export async function land(slug, { cwd, waitMinutes = WAIT_MINUTES, change = null, say = console.log, session = process.env.CLAUDE_CODE_SESSION_ID ?? null, merge = (root, sha) => run(root, ["merge", "--ff-only", sha]) }) {
+export function releaseWindow(root) {
+  const manifest = run(root, ["show", "main:module.json"]);
+  if (manifest.status !== 0) return null;
+  let version;
+  try {
+    version = JSON.parse(manifest.raw.charCodeAt(0) === 0xfeff ? manifest.raw.slice(1) : manifest.raw).version;
+  } catch {
+    return null;
+  }
+  if (typeof version !== "string" || !version) return null;
+  if (!run(root, ["tag", "--list", "v*"]).out) return null;
+  if (hasRef(root, `refs/tags/v${version}`)) return null;
+  return { version };
+}
+
+/**
+ * Applies the release-window rule to landing `tip`: where the window is open, a
+ * topic that changes the runtime tree is refused, and `despiteRelease` (the
+ * owner's word for an abandoned release) passes it. Says once what it let through.
+ */
+async function checkReleaseWindow(root, { tip, branch, despiteRelease, say, told }) {
+  const open = releaseWindow(root);
+  const tell = (message) => {
+    if (!told.has(message)) say(message);
+    told.add(message);
+  };
+  if (despiteRelease !== null) {
+    if (!open) refuse(`--despite-release ${despiteRelease} given, but main is in no release's live window`);
+    if (open.version !== despiteRelease) refuse(`--despite-release ${despiteRelease} given, but the window is release ${open.version}'s`);
+    tell(`main is in release ${open.version}'s live window (no tag v${open.version} yet); passed on the owner's word (--despite-release ${open.version})`);
+    return;
+  }
+  if (!open) return;
+  const walkResults = path.join(root, "tools", "walk-results.mjs");
+  let walk = null;
+  if (fs.existsSync(walkResults)) {
+    walk = await import(pathToFileURL(walkResults).href);
+    if (walk.runtimeTree(root, { at: "main" }).tree === walk.runtimeTree(root, { at: tip }).tree) {
+      tell(`main is in release ${open.version}'s live window; ${branch} changes nothing the zip ships, so it lands`);
+      return;
+    }
+  }
+  const changed = gitOut(root, ["diff", "--name-only", "main", tip]).split("\n").filter(Boolean).filter((p) => !walk || walk.isRuntimePath(p));
+  const shown = `${changed.slice(0, 5).join(", ")}${changed.length > 5 ? ", ..." : ""}`;
+  refuse(`main is in release ${open.version}'s live window (no tag v${open.version} yet); ${branch} changes the runtime (${shown}) and would make its walks stale. Land after v${open.version} is tagged. An abandoned release is passed with --despite-release ${open.version}, which stands for the owner's word and is never a session's own call`, EXIT.releaseWindow);
+}
+
+/**
+ * Lands `topic/<slug>` on `main`: rebase when `main` moved, then under the
+ * landing lease gate the tip and fast-forward. An open release window refuses a
+ * topic that changes the runtime (see the file header).
+ * @param {string} slug
+ * @param {{cwd: string, waitMinutes?: number, change?: string|null, despiteRelease?: string|null, say?: Function, session?: string|null, beatMs?: number, merge?: (root: string, tip: string) => {status: number|null, out: string, err: string}}} options
+ *   `merge` is the fast-forward and `beatMs` the lease's heartbeat interval, both for a test to replace.
+ */
+export async function land(slug, { cwd, waitMinutes = WAIT_MINUTES, change = null, despiteRelease = null, say = console.log, session = process.env.CLAUDE_CODE_SESSION_ID ?? null, beatMs, merge = (root, sha) => run(root, ["merge", "--ff-only", sha]) }) {
   const { root, branch, dir, exists } = topicOf(cwd, slug);
   requireMain(root);
   if (!exists) refuse(`${branch} does not exist`);
@@ -238,17 +350,20 @@ export async function land(slug, { cwd, waitMinutes = WAIT_MINUTES, change = nul
   if (rebasing(dir)) refuse(`a rebase is in progress in ${dir}; finish it (git rebase --continue) or abort it, then land again`);
   requireClean(dir, `the worktree ${dir}`);
   let tip = rev(root, branch);
-  if (isAncestor(root, tip, "main")) refuse(`${branch} holds nothing main does not: already landed or empty; close it with close ${slug}`);
+  if (isAncestor(root, tip, "main")) refuse(`${branch} holds nothing main does not (landed, or not committed to): sync ${slug} before its next slice, or close ${slug} once its feature is walked`);
   if (!isAncestor(root, "main", tip)) {
     const rebased = run(dir, ["rebase", "main"], { GIT_EDITOR: "true" });
     if (rebased.status !== 0) stoppedRebase(dir, slug, `${rebased.out}\n${rebased.err}`.trim());
     tip = rev(dir, "HEAD");
     say(`rebased ${branch} onto main: tip ${tip}`);
   }
+  const windowArgs = { tip, branch, despiteRelease, say, told: new Set() };
+  await checkReleaseWindow(root, windowArgs);
   const gitDir = path.resolve(root, gitOut(root, ["rev-parse", "--git-common-dir"]));
   let last = null;
   const lease = await acquire(gitDir, { session, change: `branch land ${branch}` }, {
     waitMs: waitMinutes * 60_000,
+    beatMs,
     onWait: (held) => {
       last = held;
       say(`the landing lease is held by ${holderName(held)}; waiting ${waitMinutes} minute(s) at most`);
@@ -258,9 +373,19 @@ export async function land(slug, { cwd, waitMinutes = WAIT_MINUTES, change = nul
   try {
     const staged = gitOut(root, ["diff", "--cached", "--name-only"]);
     if (staged) refuse(`main's index holds staged changes (${staged.split("\n").join(", ")}); wait for that commit, then land again`);
-    if (!isAncestor(root, "main", tip)) refuse("main moved; land again");
+    if (!isAncestor(root, "main", tip)) {
+      requireClean(dir, `the worktree ${dir}`);
+      const rebased = run(dir, ["rebase", "main"], { GIT_EDITOR: "true" });
+      if (rebased.status !== 0) stoppedRebase(dir, slug, `${rebased.out}\n${rebased.err}`.trim());
+      tip = rev(dir, "HEAD");
+      say(`main moved while this run waited; rebased ${branch} onto main: tip ${tip}`);
+      if (!isAncestor(root, "main", tip)) refuse("main moved again during the rebase, by a commit made around the tool; nothing landed; land again", EXIT.movedBase);
+    }
+    await checkReleaseWindow(root, { ...windowArgs, tip });
     const old = rev(root, "HEAD");
-    gate(root, tip, change, say);
+    await gate(root, tip, change, say);
+    if (!holds(gitDir, lease.token)) refuse("the landing lease was taken during the gate; main unmoved; land again", EXIT.movedBase);
+    if (rev(root, "HEAD") !== old) refuse("main moved during the gate, by a commit made around the tool; nothing landed; land again", EXIT.movedBase);
     const merged = merge(root, tip);
     if (merged.status !== 0) {
       const after = rev(root, "HEAD");
@@ -269,21 +394,36 @@ export async function land(slug, { cwd, waitMinutes = WAIT_MINUTES, change = nul
     const head = rev(root, "HEAD");
     if (head !== tip) refuse(`main's HEAD is ${head} after the fast-forward, not the tip ${tip}; look at it before anything else`);
     say(`landed ${branch} ${tip}; main fast-forwarded from ${old}; not pushed`);
+    say(`  ${branch} stays open: sync ${slug} before its next slice; close ${slug} once its feature is walked`);
     return EXIT.ok;
   } finally {
     lease.stop();
   }
 }
 
-/** Runs the full gate on `tip` through `postgate` from `root`; throws a refusal with the log's tail where it is not green. */
-function gate(root, tip, change, say) {
+/** Runs a child to its close without blocking the event loop; answers its exit status and its stdout and stderr together. */
+function runAsync(command, args, options) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, options);
+    let text = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (d) => (text += d));
+    child.stderr.on("data", (d) => (text += d));
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, text }));
+  });
+}
+
+/** Runs the full gate on `tip` through `postgate` from `root`, with the event loop free for the lease's heartbeat; throws a refusal with the log's tail where it is not green. */
+async function gate(root, tip, change, say) {
   const given = change ? path.resolve(change) : null;
   const dir = given ?? fs.mkdtempSync(path.join(os.tmpdir(), "acks-branch-land-"));
   if (!given) fs.writeFileSync(path.join(dir, "change.json"), "{}\n");
   const log = path.join(dir, "branch-land.log");
   try {
-    const r = spawnSync(process.execPath, [path.join(HERE, "..", "acks-commit", "commit-own-hunks.mjs"), "postgate", tip, "--change", dir], { cwd: root, encoding: "utf8", env: cleanEnv(), maxBuffer: 1 << 28 });
-    const text = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+    const r = await runAsync(process.execPath, [path.join(HERE, "..", "acks-commit", "commit-own-hunks.mjs"), "postgate", tip, "--change", dir], { cwd: root, env: cleanEnv() });
+    const text = r.text;
     fs.writeFileSync(log, text);
     if (r.status !== 0) refuse(`the full gate is not green on ${tip} (exit ${r.status}); main unmoved; ${log} holds the run, ending:\n${text.trim().split("\n").slice(-15).join("\n")}`);
     say(`gate green on ${tip}`);
@@ -363,11 +503,12 @@ export function park(slug, { cwd, at = "main", push = false, say = console.log }
 
 const FLAGS = {
   open: { value: [], bool: [] },
-  land: { value: ["--wait", "--change"], bool: [] },
+  land: { value: ["--wait", "--change", "--despite-release"], bool: [] },
+  sync: { value: [], bool: [] },
   close: { value: [], bool: ["--discard-unmerged"] },
   park: { value: ["--at"], bool: ["--push"] },
 };
-const USAGE = "usage: node branch.mjs open <slug> | land <slug> [--wait <minutes>] [--change <dir>] | close <slug> [--discard-unmerged] | park <slug> [--at <rev>] [--push]";
+const USAGE = "usage: node branch.mjs open <slug> | land <slug> [--wait <minutes>] [--change <dir>] [--despite-release <version>] | sync <slug> | close <slug> [--discard-unmerged] | park <slug> [--at <rev>] [--push]";
 
 /**
  * Runs one command line and answers its exit status.
@@ -386,11 +527,12 @@ export async function main(argv, { cwd = process.cwd(), say = console.log } = {}
       else refuse(`${USAGE}\nunknown or incomplete option ${rest[i]}`, EXIT.usage);
     }
     if (mode === "open") return open(slug, { cwd, say });
+    if (mode === "sync") return sync(slug, { cwd, say });
     if (mode === "close") return close(slug, { cwd, say, discard: given["--discard-unmerged"] === true });
     if (mode === "park") return park(slug, { cwd, say, at: given["--at"] ?? "main", push: given["--push"] === true });
     const minutes = Number(given["--wait"] ?? WAIT_MINUTES);
     if (!(minutes >= 0)) refuse("--wait takes a number of minutes", EXIT.usage);
-    return await land(slug, { cwd, say, waitMinutes: minutes, change: given["--change"] ?? null });
+    return await land(slug, { cwd, say, waitMinutes: minutes, change: given["--change"] ?? null, despiteRelease: given["--despite-release"] ?? null });
   } catch (e) {
     if (!(e instanceof Refusal)) throw e;
     console.error(`REFUSED: ${e.message}`);

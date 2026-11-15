@@ -14,7 +14,10 @@
  *
  * It also lists, with no commit unpushed, the local branches other than `main`:
  * an unmerged `topic/*` (commits ahead, worktree path or none, age of its last
- * commit), a `topic/*` already contained in `main` and still open, a `parked/*`
+ * commit), a `topic/*` already contained in `main` after a commit of its own
+ * (landed and open: sync it before its next slice, or close it once its
+ * feature is walked; a topic opened and never committed to is listed as
+ * unmerged with no commits ahead), a `parked/*`
  * that is not on `origin`, and any other branch. Topic branches are never
  * pushed, so none of them is compared with a remote.
  *
@@ -83,12 +86,13 @@ function branchLines(top, trees) {
     const ahead = Number(git(top, ["rev-list", "--count", `main..${name}`]) ?? 0);
     const tree = trees.find((w) => w.branch === `refs/heads/${name}`)?.path ?? "none";
     if (name.startsWith("topic/")) {
-      // A topic opened and not yet committed to is also contained in main; its
-      // reflog holds the one entry that made it, where a landed one holds more.
-      const entries = (git(top, ["reflog", "show", "--format=%H", `refs/heads/${name}`]) ?? "").split("\n").filter(Boolean).length;
-      const landed = ahead === 0 && git(top, ["merge-base", "--is-ancestor", name, "main"]) !== null && entries !== 1;
+      // A topic opened and not yet committed to is also contained in main, and a
+      // rebase onto main (what `sync` does) adds reflog entries to it. A landed
+      // one holds a commit its own reflog recorded, which no rebase writes.
+      const subjects = (git(top, ["reflog", "show", "--format=%gs", `refs/heads/${name}`]) ?? "").split("\n");
+      const landed = ahead === 0 && git(top, ["merge-base", "--is-ancestor", name, "main"]) !== null && subjects.some((s) => /^(commit|cherry-pick)\b/.test(s));
       lines.push(landed
-        ? `  ${name}: landed, still open: close it (worktree ${tree})`
+        ? `  ${name}: landed, open: sync it before its next slice, or close it once its feature is walked (worktree ${tree})`
         : `  ${name}: ${ahead} commit(s) ahead of main, worktree ${tree}, ${age(top, name)}`);
     } else if (name.startsWith("parked/")) {
       if (!hasRef(top, `refs/remotes/origin/${name}`)) lines.push(`  ${name}: not pushed`);
