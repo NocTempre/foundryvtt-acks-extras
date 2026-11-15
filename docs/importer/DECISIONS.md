@@ -1816,11 +1816,18 @@ What core 14.370 does, read from its own code and measured on the Player seat:
 
 *Cost:* a script on a player seat still reads a Judge's shelf, and the pack's
 index (each entry's name, picture and type) is on that seat from connect. On a
-player seat a library lookup no longer finds a Judge's shelf's document: a lair
-the Judge shared whose monster sits on one reads as not imported
-(`lairMonster`), and a creature a Judge's book prints is not found by name or
-by id there. The shop's sources still include the Judge's Item shelves on a
-Judge's seat (T-0575).
+player seat a library lookup no longer finds a Judge's shelf's document: a
+creature a Judge's book prints is not found by name or by id there
+(`byCookbookId("Actor", "jj.pc1")` answers null on the Player seat and the
+character on the Gamemaster's). The place sheet's lair section is drawn on a
+Judge's seat alone, so no player's sheet asks `lairMonster`. `seatOpens` is
+core's `visible` for any pack, not a Judge's shelf alone: a system or module
+compendium a Judge has hidden from players is left out of a player seat's
+coin template, gear search, spell choices, ladders and goods too, and no walk
+was made in a world that hides one. The importer's presence checks
+(`importedActor`) find a shelf by its label and take no account of the seat;
+they run behind an import, which is a Judge's. The shop's sources still
+include the Judge's Item shelves on a Judge's seat (T-0575).
 
 *Walked* on core 14.370, the module's own readers counted on a seat before
 and after. Player seat before: 1402 of the 1419 documents on the 15 Judge's
