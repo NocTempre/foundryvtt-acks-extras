@@ -550,9 +550,22 @@ the real books: a pass over it is by hand.
 5. Pin a printed leader with the same troop type and generate. *Observable:*
    the armour class is the row's plus the leader's printed armour class over
    the member's (read both off the template's cells), and the rail's tooltip
-   names the four figures and the row's page; the damage modifier is the
-   leader's own; move and morale are the row's. Repeat with Leader figures on
-   AXIOMS procedure: the leader's derived armour class is the one moved.
+   names the four figures and the row's page; the damage modifier, on both
+   the melee and the missile side (Actor Tweaks), is the row's plus the
+   leader's over the member's (read the three off the template's cells); move
+   and morale are the row's. Hover a weapon's damage tag. *Observable:* it
+   names the modifier, the row's figure, the leader's over its warrior's and
+   the row's page. Type another damage modifier and hover again: the tag no
+   longer names the parts. Repeat with Leader figures on AXIOMS procedure: the
+   leader's derived armour class is the one moved, and the damage modifier
+   follows the same sum.
+   The blank branch is offline only. A modifier a page does not print reads 0,
+   so no import leaves a part missing; `tools/test-kit-presets.mjs` pins the
+   case of a cell with no recorded warrior (modifier null on both sides, the
+   record `missing`, the tooltip the row's page alone), and a walk reaches it
+   only by writing such a cell by hand: Actor Tweaks' damage field then reads
+   empty, the Statblock shows the die alone and an attack card has no modifier
+   row and no error.
 6. Pin Unarmoured on Standard and generate. *Observable:* the armour class is
    the kind's natural figure from `beastmenByType`, the tooltip names the
    AXIOMS page; the damage modifier and move are the stat block's.

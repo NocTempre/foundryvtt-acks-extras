@@ -535,6 +535,14 @@ counting, run offline in `tools/importer/test-import-manager.mjs` and
    same window; with it already open, raises it.
 8. Join as a player: the macro warns "Only a GM can manage imports" and
    opens nothing; the settings menu is not listed.
+9. The creatures step's own question, walked on the fresh world of the next
+   recipe, before its Import Everything, with the Monstrous Manual open and
+   its creatures missing from the library. Import tab: press **Run** on
+   *Importing monsters & NPCs…* and answer **No**.
+   *Observable:* one confirm, titled *Cookbook — import monsters from your
+   book*, and nothing imported. Then press **Import everything**.
+   *Observable:* no confirm opens at the creatures step, and the chain runs to
+   its end with the window's status line naming each step in turn.
 
 ### Teardown
 
@@ -1967,6 +1975,12 @@ holds nothing, and leave the book folder, which other imports share.
 5. Delete one point's actor and run again.
    *Observable:* that one is rebuilt and nothing else is — the claim cache
    answers for a deleted document only if invalidation is broken.
+6. Read the notes of the places `ax3.poi22` and `ax3.poi52`, and the
+   description of the people `ax3.npc8` and `ax3.npc31` (monster actors, made
+   by the monsters step), and compare each with the page where its text turns.
+   *Observable:* the sentence that breaks at the page turn is one paragraph in
+   each of the four. `ax3.poi61` and `ax3.npc21` are unchanged: their text
+   there reads as two paragraphs, the table's cells not joined to the prose.
 
 ### Teardown
 
@@ -2514,6 +2528,11 @@ step 1 imports the other set beside it.
    pregen's entry. After the rebuild the library's pregen stands under the
    same id with a later `createdTime`, and the player's copy still exists. On
    the Player seat the copy `isOwner`, and its sheet renders.
+5. Call `cookbookImportIds` with a list of one id that names no entry, the id
+   of one of the book's place rows, and the id of a character step 1 imported.
+   *Observable:* one warning naming the count of ids left out, two, and the
+   two ids in list order; the call returns 0, and no twin of the character
+   stands, since an id already imported is skipped without being declined.
 
 Remove Imports' guard is not walked: it deletes every session's imports.
 `playerOwned` is pinned offline (`test-character-binding.mjs`), and the

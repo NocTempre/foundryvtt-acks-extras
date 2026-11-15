@@ -419,6 +419,15 @@ moment their class is re-applied.
 
 ## Class modifiers — editing the training
 
+An imported class's training is read from the paragraph under its run-in label
+(`training.runin` on the compiled entry). Where the page's reading order folds
+that paragraph through the class's level table, the register bounds it with
+`training.page` and `training.boxes`, and the compiler emits the box's text as
+`trainingProse`: raw, with the hyphen merge dropped so a hyphenated name keeps
+its hyphen, in a field of its own, not the `training` field the path grid's rows
+arrive in. `bindClass` hands the field to the training reader first and falls
+back to the body columns where it is absent, empty or reads to nothing.
+
 `syncClassTraining` writes the class's combat training onto the character as an
 Active Effect whose changes are three CSV strings (`weaponProf`,
 `armourProficiency`, `styleProficient`); a class stated per path writes a second
@@ -1041,6 +1050,12 @@ which therefore states none of its own. `"templates"` means the options ARE the
 class's `system.templates` rows, POINTED AT: the rows, their bundles and the 3d6
 table stay exactly where they are, so the selector needs no copy of them.
 Folding them in is ROADMAP's.
+
+A variant table a class's spread prints imports as a group of the first kind,
+one option per row. The group's key and label are the table's printed heading,
+which the compiler carries onto the entry as `training.labelHeader`
+(`bindClass` reads it there); a table that prints no heading gives the group
+the label "Variant" under the key `variant`.
 
 A character's choices live on the class ledger flag (`paths`, keyed by group).
 `applyClass` asks for any group with options, pre-selecting what the character

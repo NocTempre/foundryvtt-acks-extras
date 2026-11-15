@@ -238,7 +238,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-04 — [The monster attack-throw ladder is imported, and a leader's figures name their parts](DECISIONS-through-v11.14.5.md#2026-11-04--the-monster-attack-throw-ladder-is-imported-and-a-leaders-figures-name-their-parts)
 - 2026-11-04 — [AXIOMS leaders are a second source, chosen per template](DECISIONS-through-v11.14.5.md#2026-11-04--axioms-leaders-are-a-second-source-chosen-per-template) — superseded in part by "2026-11-04 — The leader readings settled, and leaders outside a family"
 - 2026-11-04 — [The leader readings settled, and leaders outside a family](DECISIONS-through-v11.14.5.md#2026-11-04--the-leader-readings-settled-and-leaders-outside-a-family)
-- 2026-11-04 — [A beastman's kit is a preset of stat cells, its unprinted armour worked out at generation](DECISIONS-through-v11.14.5.md#2026-11-04--a-beastmans-kit-is-a-preset-of-stat-cells-its-unprinted-armour-worked-out-at-generation)
+- 2026-11-04 — [A beastman's kit is a preset of stat cells, its unprinted armour worked out at generation](DECISIONS-through-v11.14.5.md#2026-11-04--a-beastmans-kit-is-a-preset-of-stat-cells-its-unprinted-armour-worked-out-at-generation) — superseded in part by "2026-11-14 — A kit leader's damage is the row's plus its own over its warrior's, and a part not imported stays blank"
 - 2026-11-04 — [The Books window is a tab of the import manager](DECISIONS-through-v11.14.5.md#2026-11-04--the-books-window-is-a-tab-of-the-import-manager)
 - 2026-11-04 — [A family's leaders follow their own figures (T-0392)](DECISIONS-through-v11.14.5.md#2026-11-04--a-familys-leaders-follow-their-own-figures-t-0392) — superseded in part by "2026-11-04 — The monster attack-throw ladder is imported, and a leader's figures name their parts"
 - 2026-11-04 — [A forced repair, and what it still keeps](DECISIONS-through-v11.14.5.md#2026-11-04--a-forced-repair-and-what-it-still-keeps) — superseded in part by "2026-11-04 — Every kind gets an in-place write"; "2026-11-04 — An adventure book has a forced repair"; "2026-11-11 — One repair, in place, and the Judge chooses what it writes over"
@@ -1006,7 +1006,7 @@ residue across the book falls from 2038 items to 1801, with p.243 of the PDF now
 counted.
 Left: ROADMAP, "A monster's lair: what the Encounter field does not reach".
 
-## 2026-11-13 — A place's text joins a page turn only where its row asks (K17), and a headless sidebar anchors on its first line (J2)
+## 2026-11-13 — A place's text joins a page turn only where its row asks (K17), and a headless sidebar anchors on its first line (J2) — SUPERSEDED IN PART 2026-11-14
 
 **Ruled.** AX3's `site35` breaks a sentence where its text turns from p.24 to
 p.25 of the PDF. The new line opens upper-case, so the executor read two
@@ -1639,3 +1639,89 @@ ships the one scene.
 
 *Cost:* a world that imported the one scene keeps it until the Judge deletes
 it and runs the maps step again; no release shipped it.
+
+## 2026-11-14 — A kit leader's damage is the row's plus its own over its warrior's, and a part not imported stays blank
+
+Supersedes in part "A beastman's kit is a preset of stat cells, its unprinted
+armour worked out at generation" (2026-11-04): its bullet that a leader's own
+damage total stands, and its Cost line that a leader keeps its own damage total
+even where the row prints a larger one than its warrior's. The owner, asked
+"(a) the leader's own total, as now; (b) the kit row's damage plus what the
+leader has over its warrior, the AC rule's twin; (c) for derived leaders only,
+the row's plus the role's imported addition", answered "Row plus leader's
+extra". Asked "Should a kit leader's damage stay blank, not 0, when a part is
+not imported?" with "Blank, check core" and "Keep 0" as the options, beside
+"Fields that require imports stay blank period.", the owner answered "Blank,
+check core".
+
+- **The leader's modifier is worked out at generation, as its armour class
+  is.** The row's damage modifier plus the leader's modifier less its
+  warrior's, written to the melee and the missile modifier, its parts kept on
+  `extras.derived.kit.damage` for the Statblock's tooltip. The troop cell of a
+  leader carries the warrior's modifier (`memberDamage`). A rank and file keeps
+  the row's; Unarmoured still changes the armour class alone.
+- **A part that is not a number leaves the modifier blank.** The row's, the
+  warrior's or the leader's, as a number, is the sum's input; with any of them
+  not a number the modifier is null, the record says `missing`, and the
+  Statblock shows the die alone with the row's page. A modifier a page does
+  not print reads 0, the way the leader procedure reads it, so an unprinted
+  figure is a zero input and not a missing one.
+- **Core was read first, as the answer asked.** On Foundry 14.370's installed
+  common code the field is nullable and keeps a null through `clean` and
+  `validate`, and the attack path adds the modifier through
+  `ModifiedFormula.toSignedValue`, which returns an empty string for null and
+  which `addModifier` then drops, so a null prints as no modifier (a copy
+  rolled "1d8 + 1" with melee null).
+- **Rejected:** (a), the leader's own total, which does not raise a leader
+  where the row prints more than its warrior's stat block; (c), which reaches
+  derived leaders only; and writing core's 0 for a missing part, which the
+  first build did, against "Fields that require imports stay blank period."
+
+*Cost:* a Judge who types 0 over a blank reads, in the Statblock's snapshot,
+like the blank, since both coerce to 0, so the tooltip names the row's page
+for either. Core's Roll was not run under Node, and the legacy
+`Actor#rollDamage`'s handling of a null is read from its code only.
+
+## 2026-11-14 — Four more AX3 rows join a page turn, and the person's reader takes the flag
+
+Supersedes in part "A place's text joins a page turn only where its row asks
+(K17), and a headless sidebar anchors on its first line (J2)" (2026-11-13): its
+sentence that `site35` is the only row that sets `assists.joinTurns`, and its
+Cost line. That entry is under seven days old, so the new evidence is named:
+`compileNpc` never passed the flag to the paragraph reader, so a person's row
+could not take it whatever the register said, and a compile with the flag
+forced on everywhere changed exactly six rows, of which four join one sentence
+(two points of interest, two people) and two glue a table's cells onto the prose
+above them.
+
+- **`compileNpc` reads `joinTurns` as `compileLocation` does.** The opt-in
+  stays per row.
+- **Four rows carry it**, `ax3.poi22`, `ax3.npc8`, `ax3.poi52` and `ax3.npc31`,
+  beside `site35`. `ax3.npc21` and `ax3.poi61` stay off: the table beside their
+  text is what joining breaks, and they wait for the guard the earlier entry
+  names (ROADMAP, "AX3 places split at a page turn").
+- **Rejected:** the flag on for every AX3 row, for the two it breaks.
+
+*Cost:* the cookbook gains `continues: true` on four entries; no other row
+moves.
+
+## 2026-11-14 — A class's variant group is named by its grid's printed heading, and nothing reads the old key
+
+`bindClass` read a heading the compiled entry never carried, so every group a
+printed variant table makes was labelled with the fallback word under the key
+`variant`. A character's chosen path is stored under the group's key, so naming
+the group by its heading moves the key. The owner, asked whether to ship the fix
+with that consequence or leave the row on the roadmap, answered "4A, ignore
+legacy issue concerns".
+
+- **The compiled entry carries the heading.** `compileClass` emits
+  `training: { runin, labelHeader }` from the register's
+  `class.tables.training.labelHeader`, and `bindClass` reads
+  `entry.training?.labelHeader`. The group's key and label come from the
+  heading; a class whose grid prints none keeps the fallback word.
+- **Nothing reads the old key.** A path chosen under the key `variant` stays
+  under it and is read by nothing: no migration, no read of the old key, no
+  note and no check.
+
+*Cost:* the heading's word now sits in the tracked cookbook, as it already
+sat in the tracked register; it is a common word, not a name.

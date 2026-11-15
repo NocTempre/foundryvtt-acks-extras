@@ -1156,8 +1156,9 @@ by hash on its first aside-size line, as a run-in (`as: "runin"` with
 `assists.aside`). `axAsideLines` offers the aside-size lines inside the box as
 its anchor candidates, and the flow starts on the anchor line.
 
-A place's text that turns a page or column mid-sentence is joined only where
-its row asks (`assists.joinTurns`, read by `compileLocation`). In that case the
+A place's or a person's text that turns a page or column mid-sentence is
+joined only where its row asks (`assists.joinTurns`, read by `compileLocation`
+and by `compileNpc`). In that case the
 opening box of a later segment is marked `continues` when it has no section,
 opens upper-case, and follows a box that closed without terminal punctuation.
 The executor joins the two.

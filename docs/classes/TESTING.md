@@ -396,6 +396,13 @@ template rows whose annotations name authored options. It must not be a stub
 5. The class sheet's **Paths** tab.
    *Observable:* one block per group, options listed with their training, and
    the templates group marked as drawing its options from the rows.
+6. **An imported class's variant group.** Needs the rulebook connected and
+   the classes imported (Settings tab → Game Settings → ACKS II — Extras →
+   Manage imports). Open the class sheet of `def.class.barbarian`, Paths tab.
+   *Observable:* the variant group's **Group name** is the heading the page
+   prints over its table's first column, not "Variant", and it holds one
+   option per table row; a class whose variant table prints no heading keeps
+   the label "Variant".
 
 ### A lang/en.json hazard: nested keys under a flat root
 
@@ -440,6 +447,14 @@ walk reads the library's documents by cookbook id.
 5. Without JJ attached, run the same import.
    *Observable:* no race documents are made, and the class documents still
    import.
+6. **Training read from a bounded paragraph.** With the classes imported and
+   the rulebook connected, open the class sheet of `def.class.class21`,
+   Overview tab. *Observable:* a training effect whose `add` changes are on
+   `weaponProf`, `armourProficiency` and `styleProficient`, each holding what
+   the page's paragraph grants (compare the three lists with the page; none is
+   empty, and a style the paragraph denies is absent); the Training tooltip
+   shows the page reference. A class whose spread has no such box (any other
+   imported class) still carries the training its body text states.
 
 ## Teardown
 

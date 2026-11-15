@@ -45,10 +45,12 @@ ladder plus the effect roll ([DECISIONS.md](DECISIONS.md)).
 What is left is the OTHER entries that read the same table at a fraction of
 their own level — a craftpriest at its class level, and the powers and
 proficiency that control undead at a stated fraction of theirs. Each is a
-`fromLadders` spec on its own entry naming the same class and table; the
-fraction and its rounding are printed beside the rule, so each recipe locates
-them rather than stating them. No code is needed for any of it — the spec form,
-the numerator/denominator on the target, and the resolver all ship.
+`fromLadders` spec on its own entry naming the same class and table. The
+fraction and its rounding are printed beside the rule and must be located,
+not stated, but the spec cannot carry a locator: `materializeRolls` skips a
+`fromLadders` spec, and `bindAbility` copies `atLevelNum`, `atLevelDen` and
+`round` off it as literals, so a borrower's fraction has no locator to be
+read by.
 
 ## Cross-book merging beyond the current signals
 
@@ -120,15 +122,12 @@ choices already made".
   no locator: **Utter Domination's morale base** (its shape wants a ruling
   first: extras' `docs/henchmen/ROADMAP.md`), and **Inspire Courage's
   morale-roll bonus**, which reaches nothing at all.
-- **The two slayer proficiencies reach no route.** Goblin-Slaying and
-  Vermin-Slaying wrote a `slayer` grant (`group:bonus`) as an Active Effect.
-  Their register entries carry no effect spec, and `abilities-bridge.mjs` has
-  no case for the domain — it handles presence, numeric, style, martial, focus
-  and trickery grants and stops there. So an imported Goblin-Slaying is prose:
-  the bonus against its kind never reaches `scopeApplies`. Closing it wants
-  either a locator on the two entries or a bridge case reading the pick, and
-  the bridge case is the cheaper of the two because the group is the
-  proficiency's own name.
+- **The slayer proficiencies' bonus is not applied against a target's kind.**
+  The three slayers read their bonus off the imported page (a level ladder for
+  two, flat attack-throw and save rows for the third) and carry `vsKinds`, so
+  the rows are listed and startable, but no attack or saving-throw roll reads
+  `vsKinds` against the target. One slayer's scope omits two listed kinds that
+  have no kind token; they wait for tokens.
 
 ## Money, trade goods, and rows sold as a bundle
 
@@ -167,32 +166,6 @@ Doing it needs two things a patch cannot carry: the actor-side dedup
 a template naming a horse would stop resolving to one and fall back to a bare
 named item. The rows carry the section they were printed under, so the fact
 needed to decide is already there.
-
-## A variant group is labelled from the register, which never reaches it
-
-`bindClass` reads `entry.class?.tables?.training?.labelHeader` to name a path
-group. The compiler CONSUMES that field to lay the grid out and never emits it
-onto the compiled entry, so the read is always undefined and every printed
-variant table imports as a group labelled "Variant" with the key `variant` —
-the barbarian's regions among them.
-
-The fix is one field in the compile, but the group KEY is what a character's
-chosen path is stored under (`actorPaths`, keyed by group), so changing
-`variant` to the printed heading orphans a selection already made. It needs a
-migration, and a recompiled cookbook.
-
-## A class whose paragraph is interleaved with its own table
-
-Class 21 (`def.class.class21`) states its combat training in a paragraph the level
-table sits inside, so extraction folds the table's cells through the sentence
-mid-word. The parse refuses the whole paragraph rather than grant the clauses
-that survived. Reading it needs the paragraph located by its COLUMN — the
-machinery the prose boxes already use — rather than by the page's reading
-order.
-
-The barbarian is a different absence: its training is a table of peoples, one
-row per region, and which row applies is the reader's choice. That is a
-variant to be registered, not a value to be read.
 
 ## Gnostic invocations as documents
 
@@ -352,16 +325,6 @@ answer changes the shape:
 Not blocked on anything. The journal-writing machinery exists and is proven by
 the location journals and the shelf.
 
-## Import everything waits on the monsters step's own question
-
-`cookbookImportMonsters` confirms through a modal every time it runs, so the
-Getting Started chain — whose own note says a chain narrating its progress
-must not stop on a modal, and which skips `cookbookUpdateClasses` for that
-reason — stops at step 7 of 13 until the Judge answers, and an unattended run
-sits there indefinitely. The chain should either ask once, on the panel,
-before it starts, or hand the step a confirmed flag so the modal is the
-standalone macro's alone.
-
 ## Import speed
 
 A full import re-runs each recipe over its pages on every run. The caches that
@@ -514,8 +477,11 @@ plain-string `locate` would put in source.
 
 The text layer reads a damage-type icon as its word (`glyphWords` in
 `executor.mjs`) and does not claim the mark's colour, which tells the
-extraordinary variant from the mundane. A stat block's typed damage therefore
-carries the type and never the variant.
+extraordinary variant from the mundane. A stat block's attack line is the
+exception: its per-segment colours are annotated into the cookbook entry at
+compile time (`attacks.colors`), and the segment's `quality` writes the
+`extraordinary` mark. Damage typed through any other path, a prose read or a
+picture's text, carries the type and never the variant.
 
 ## A monster whose entry runs past its first page
 
@@ -580,9 +546,10 @@ The family import reads its leaders, casters and dependants into role cells
   of each family's prose sentences that name a role and wrote none would show
   which.
 - **A throw the ladder arrived after.** Leader cells and grid rows read the
-  attack-throw ladder at import, so a template imported before the rulebook's
-  tables has no derived throws until it is repaired; generation does not read
-  the ladder again.
+  attack-throw ladder at import, so a creature imported alone before the
+  rulebook's tables has no derived throws until it is repaired; generation
+  does not read the ladder again. Import Everything reads the rules tables
+  first and has no such gap.
 
 ### The AXIOMS beastmen (T-0393)
 
@@ -605,9 +572,6 @@ outside a family"), and the Kit axis with its three tables (monsters MODEL,
 - **Mounted troops.** The rider rows of RR ch. 9 Beastman Troops print a
   rider's and its mount's figures in pairs; a kit for them needs a rule for
   which half a rider's cell takes and how the mount is named.
-- **A leader's damage in a kit.** A leader keeps its own damage total in any
-  kit, so a kit whose row prints more than the warrior's stat block does not
-  raise it.
 - **The kit on the Full Monster Sheet's speeds.** The kit's move reaches the
   system's movement figure, not the sheet's speed rows.
 - **The classes.** The AXIOMS custom beastman classes, through the class
@@ -838,12 +802,12 @@ skips by a row on another page (`axAssistSkips` honours a skip's own
 - **A pair's parent in the earlier book's Adventure.** The place is carried
   with its parent in library form, so importing that Adventure into a world
   without the later book's places gives the place a library parent.
-- **AX3 places split at a page turn.** Four AX3 rows (two points of interest
-  and two people) break a sentence where their text turns a page, so each
-  reads one paragraph as two. `assists.joinTurns` joins such a turn on the
-  row that asks for it. Turned on for every row, it also joins two rows'
-  table cells to the prose above them, so it waits for a guard that tells a
-  table from a sentence.
+- **AX3 places split at a page turn.** Two AX3 rows, one point of interest
+  and one person (`ax3.poi61`, `ax3.npc21`), print a table beside the prose
+  where their text turns a page, so each still reads that paragraph as two.
+  `assists.joinTurns` joins a turn on the row that asks for it, and turned on
+  for these two it glues the table's cells to the prose above them. They wait
+  for a guard that tells a table from a sentence.
 - **The block plates' section drawings** (AX1 pp.11, 14). Each plate prints
   one section of its block below the plan, at another scale and with no
   grid, and the scene stops above it. It would be a scene of its own.

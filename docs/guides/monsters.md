@@ -203,9 +203,9 @@ kind (RR ch. 9). It reads *Stat block* by default, which is the creature as its
 own page prints it. Pick a troop type and the rank and file takes that row's
 armour class, damage bonus, movement and morale; it gains no items, and the
 kit's own words, with the page, are added to its notes. A leader in a kit takes
-the row's movement and morale and keeps its own damage bonus; its armour class
-is worked out when you generate it, from the row's armour class and how much
-better armoured the leader is than its warrior. With the AXIOMS tables
+the row's movement and morale; its armour class and its damage bonus are
+worked out when you generate it, from the row's figure and how much more the
+leader has than its warrior. With the AXIOMS tables
 imported, *Unarmoured* gives the kind's natural armour class instead, read from
 the table when you generate, so an edit to it counts without a repair. Hover the
 armour class on the rail, the morale row or a weapon's damage tag to see which

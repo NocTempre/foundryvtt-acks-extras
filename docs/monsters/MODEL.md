@@ -476,10 +476,13 @@ monsters feature's listener on the template engine's resolved hook
 cells carrying `extras.kit.compute`:
 
 - **A leader in a troop's kit** (champion, sub-chieftain, chieftain, and the
-  casters equivalent to them): its own damage total stands, it takes the row's
-  move and morale, and its armour class is the row's plus the leader's armour
-  class over its warrior's (the leader cell's figure less the member's), so a
-  printed leader and a procedure-derived one alike keep their advantage.
+  casters equivalent to them): it takes the row's move and morale, its armour
+  class is the row's plus the leader's armour class over its warrior's (the
+  leader cell's figure less the member's), and its damage modifier is the
+  row's plus the leader's modifier over its warrior's (`memberDamage` on the
+  leader's cell, the member's own modifier), written to both the melee and
+  the missile modifier. A printed leader and a procedure-derived one alike
+  keep their advantage.
 - **Unarmoured**: the kind's natural armour class, plus that same difference
   for a leader. It changes the armour class alone. The natural figure is read
   from the world's table at generation (the cell names the kind), so a Judge's
@@ -489,7 +492,16 @@ cells carrying `extras.kit.compute`:
 The figure written goes to `ac.value` and its parts to `extras.derived.kit`
 (the base figure and where it came from, the leader's and the warrior's armour
 class, the citation). A part missing (the member's armour class, a natural
-armour class not imported) leaves the armour class the cells wrote. On
+armour class not imported) leaves the armour class the cells wrote.
+
+The leader's damage modifier is a signed integer, so "over" is a subtraction,
+and a sum that comes to none is a worked-out 0. Its parts go to
+`extras.derived.kit.damage` (value, base, step, the leader's and the
+warrior's). A part that is not a number (the row's, the leader's, or a warrior
+the cell recorded none for) leaves the modifier null on both sides and records
+`{missing: true}`: core's field is nullable and its attack path adds a null as
+no modifier. A modifier a page does not print reads 0, so an unprinted figure
+is an input and not a missing one. On
 generation the kit's words are added to both prose channels, the biography
 and the Full Monster Sheet's notes, with the row's citation.
 
@@ -503,8 +515,12 @@ or the parts and the row's or the natural table's citation for one worked out
 morale row names the troop row; an attack's damage tag adds the troop row
 where the modifier is the row's, and the die the conversion table makes of the
 attack's die and the creature's modifier where the table is imported and
-prints a cell for the pair. Each is shown only while the actor still holds
-the figure.
+prints a cell for the pair. A worked-out leader's damage tag names the modifier,
+the row's figure, the leader's modifier over its warrior's, and the page; with
+the modifier left blank the tag is the die alone and its tooltip the row's page. Each is shown only
+while the actor still holds the figure, and a derived leader's tooltip stays
+whole while its armour class and its damage modifier are the ones the kit
+worked out from it.
 
 **Merging.** A variant another book adds to a held template brings its kit
 cells, and the held template gains the Kit axis where it had none
