@@ -29,6 +29,15 @@ I've received and agree with":
 And, on how the work is run: "Orchestrate includes managing tasking with
 intentional subagent selection".
 
+The owner's answers to §5, the same day, in full:
+
+> 1) Yes, and Anything that is outside scale should get a border (maybe a
+> looking glass effect?) to clarify that it is not to scale.
+> 2) I don't understand
+> 3) Yes
+> 4) I noticed a lot of bugs and duplication in the UI
+> 5) doesn't matter develop as a brach
+
 ## 2. What the live reproduction showed
 
 Walked 2026-11-15 on the GM seat, build 2026.11.14, no other seat joined, on
@@ -152,13 +161,14 @@ refused up front, naming the one thing to do instead.
    heading that says so.
 9. **Tokens.** Where a cell is a mile or more (`isExpeditionScale`) the
    section is one line saying tokens are not sized to footprints here, and the
-   apply leaves auto-sizing off (default pending §5 Q1). Below that scale the
+   apply leaves auto-sizing off (§5 Q1, answered yes; a token drawn at a size
+   that is not its footprint is marked, slice I). Below that scale the
    section says what a footprint is, the chips carry their unit and a tooltip
    of their parts, the whole-scene resize moves in from the footer with a
    tooltip and label naming what it leaves alone, and a line says whether
    tokens placed here are auto-sized.
-10. **A hex preview** is drawn from the probe's vertex offsets (default
-    pending §5 Q3).
+10. **A hex preview** is drawn from the probe's vertex offsets (§5 Q3,
+    answered yes).
 
 Rejected: taking only the first box (discards the Judge's best data);
 averaging sizes with no lattice (cannot use distant boxes, and still needs a
@@ -176,9 +186,22 @@ footer pinned at a raised type size (`ui-layout.md`).
 
 ## 5. Owner questions
 
-None blocks Phase 1. Each default is the first answer. Q1 changes an in-force
-ruling, so slice C builds its half only once the owner has answered; Q2 and
-Q3 each gate their own slice.
+Answered 2026-11-15 (§1 has the words):
+
+- **Q1: yes**, and more: a token drawn at a size that is not its footprint at
+  the scene's scale is marked as not to scale, with a border or a
+  looking-glass effect. Slice C builds the auto-sizing half; the mark is
+  slice I, designed in `20261115-map-ui-audit.md` beside this file.
+- **Q2: not understood**, so it is still open, asked again in plainer words;
+  slice G waits on it.
+- **Q3: yes.** Slice F is in.
+- **Q4:** the owner has seen "a lot of bugs and duplication in the UI" and
+  named none. An audit of the map tools' surfaces is `20261115-map-ui-audit.md`
+  beside this file; Phase 3 builds what it finds (slice J).
+- **Q5:** the release kind does not matter yet; the work is developed on a
+  branch (§7).
+
+The questions as they were asked, each default first:
 
 1. On a map whose cells are a mile or more, does applying leave token
    auto-sizing off? **Yes** (the Scene configuration row can still turn it
@@ -239,20 +262,39 @@ From a `scout` inventory, 2026-11-15:
 
 ## 7. Phases
 
-Each phase is a clean session that orchestrates itself in `main`'s tree (the
-work is walked live as it goes, so no topic branch). Agent routing is part of
+Each phase is a clean session that orchestrates itself. The owner's word is
+"develop as a brach", so the code is written on topic branches, each opened,
+landed and closed with the `acks-branch` skill and worked in its sibling
+worktree by one writer at a time, committing there by hand
+(`.claude/rules/shared-tree.md`, "Topic and parked branches"):
+
+- `topic/map-setup` carries Phases 1 and 2. Phase 1 opens it. Phase 2 builds
+  on it, lands it, and then walks it live on `main`, where the walk's fixes
+  are written and committed with `acks-commit`.
+- `topic/map-setup-panel` carries Phase 3, opened from `main` after that
+  landing, landed and walked the same way.
+- Phase 4 is written in `main`'s tree: it is the recipe, the plates and the
+  docs, all of which need the live world.
+
+The test server serves `main`'s tree, so nothing on a topic branch is walked
+before it lands, and no phase repoints the dev junction. While a branch is
+open, its worktree's copy of this file is the live one; `main`'s copy is not
+edited until the branch lands.
+
+Agent routing is part of
 the brief: `implementer` for a scoped slice with its acceptance, one fresh
 agent per slice and never two on one file; `architect` for a review that must
 not be anchored on the author's reading; `scout` for a lookup; `doc-scribe`
 for fragments, index rows and pointer fixes. The phase session itself drives
 the live walks in the browser pane, writes `DECISIONS.md` and `MODEL.md`, and
-commits with `acks-commit` after each slice passes `npm test` and
-`npm run validate`. Agents edit with the Edit and Write tools only, so the
-commit ledger sees their lines. A slice that changes what a user sees ships a
+commits after each slice passes `npm test` and `npm run validate`: by hand in
+a topic worktree, with `acks-commit` in `main`'s tree. Agents edit with the
+Edit and Write tools only, by absolute path in the tree the phase works in. A
+slice that changes what a user sees ships a
 `changelog.d/` fragment; slices A and B change nothing a user sees and ship
 none. Nothing is pushed without the owner's word.
 
-`main` can be released by a peer between phases, so each phase leaves the
+`main` can be released by a peer between landings, so each landing leaves the
 panel coherent by itself: nothing half-wired, no string without its reader.
 
 A phase ends by appending its results, correcting the next phase's start
@@ -285,22 +327,26 @@ saying the card is waiting for the owner's click.
   mutation check of A's suite in a scratch replica.
 
 Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md` and
-run its Phase 1 as that phase's orchestrator: step 0, slices A and B with one
+run its Phase 1 as that phase's orchestrator: open `topic/map-setup` with the
+`acks-branch` skill and work in its worktree; step 0, slices A and B with one
 `implementer` each in parallel, then the `architect` review and the mutation
-check. Commit each slice with `acks-commit` once `npm test` and
-`npm run validate` pass. Append your results under 'Results — Phase 1',
+check. Commit each slice by hand in the worktree once `npm test` and
+`npm run validate` pass there. Append your results under 'Results — Phase 1',
 correct Phase 2's start prompt to what you found, put Phase 2 up as a
 proposal card, and report to the owner, opening with the card."
 
-### Phase 2 — wiring and preview, walked
+### Phase 2 — wiring and preview, landed, then walked
+
+Slices C and F are written in `topic/map-setup`'s worktree. The branch is
+then landed and closed with `acks-branch`, and the walk is on `main`.
 
 - **Slice C** (`implementer`): `session.mjs`, `assistant-app.mjs`,
   `apply.mjs`, `lang/en.json`, `assistant-body.hbs` (the spans input and the
   worst-box line only) and `tools/test-battlemap.mjs` (it reads `session.mjs`
   and `assistant-app.mjs` as text): the lattice fit behind the hex family,
   corners refused, spans gone on hex, the blank cell worth, the solve split
-  from the write, the done notice, the affine leak closed, and auto-sizing by
-  scale once §5 Q1 is answered.
+  from the write, the done notice, the affine leak closed, and auto-sizing
+  left off by a mile-scale apply (§5 Q1, answered yes).
 - **Slice F** (`implementer`, after C; `capture.mjs` alone): the hex preview.
 - **Walk** (the phase session, GM seat, on the §2 fixture reset to gridless,
   and on a hex-columns scene): with **real pointer drags**, the three reported
@@ -313,15 +359,25 @@ proposal card, and report to the owner, opening with the card."
 - The `DECISIONS.md` entry of §6 and `TESTING.md`'s changed steps land here.
 
 Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md`,
-including Phase 1's results, and run its Phase 2 as that phase's
-orchestrator: slice C, then slice F, one fresh `implementer` each, then walk
-it live yourself per `.claude/rules/live-testing.md` and
-`docs/battlemap/TESTING.md`. Commit each slice with `acks-commit`. Append
+in `topic/map-setup`'s worktree and including Phase 1's results, and run its
+Phase 2 as that phase's orchestrator: slice C, then slice F, one fresh
+`implementer` each, committed by hand in the worktree; land and close the
+branch with the `acks-branch` skill; then walk it live yourself on `main` per
+`.claude/rules/live-testing.md` and `docs/battlemap/TESTING.md`, committing
+the walk's fixes with `acks-commit`. Append
 'Results — Phase 2' sorted into exercised live, offline only and not checked,
 correct Phase 3's start prompt, put Phase 3 up as a proposal card, and report
 to the owner, opening with the card."
 
-### Phase 3 — the panel's surface and the token section
+### Phase 3 — the panel's surface, the tokens, and the audit's findings
+
+Written in `topic/map-setup-panel`'s worktree, opened from `main` after
+Phase 2's landing; landed, closed and then walked on `main`. Before slice D
+is briefed, the phase session walks the map tools' surfaces on `main` once
+(the Battlemap group's tools, the setup window, the brush palette, the Map
+modes window, the Scene configuration row, the navigation card's icon) and
+adds what it sees to `20261115-map-ui-audit.md`'s list: that file was written
+from the code, and the owner's report is of what is on screen.
 
 - **Slice D** (`implementer`): `assistant-body.hbs`, `assistant-foot.hbs`,
   `styles/battlemap.css`, `lang/en.json`, `assistant-app.mjs` (context only):
@@ -332,17 +388,24 @@ to the owner, opening with the card."
   of its own in `footprint.mjs` and `token-scale.mjs` with their tests, and
   it takes the quarter-square entry of §6 with it.
 - **Slice G** (`implementer`, after E, only on a yes to §5 Q2).
+- **Slice I** (`implementer`): the not-to-scale mark, to the design in
+  `20261115-map-ui-audit.md`.
+- **Slice J** (one `implementer` per file group, never two on one file): the
+  audit's in-scope findings, in the order that file gives them.
 - **Walk** (the phase session): the flow of §4 read top to bottom by someone
   who has not seen the panel; the footer pinned at a raised type size and in
   a short window; every figure hovered against its parts; the square and
   scale-only families' needs lists; a player seat is offered nothing.
 
 Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md`,
-including the earlier phases' results and the owner's answers in §5, and run
-its Phase 3 as that phase's orchestrator: slices D then E (then G where §5
-says so), one fresh `implementer` each, then the walk, including
-`.claude/rules/ui-layout.md`'s eye checks and `.claude/rules/ui-tooltips.md`'s
-hover pass. Commit each slice with `acks-commit`. Append 'Results — Phase 3',
+and `docs/battlemap/wip/20261115-map-ui-audit.md`, including the earlier
+phases' results and the owner's answers in §5, and run its Phase 3 as that
+phase's orchestrator: the surface walk on `main`, then open
+`topic/map-setup-panel` with the `acks-branch` skill and build slices D, E,
+(G where §5 says so,) I and J in its worktree, one fresh `implementer` each,
+committed by hand there; land and close the branch; then the walk on `main`,
+including `.claude/rules/ui-layout.md`'s eye checks and
+`.claude/rules/ui-tooltips.md`'s hover pass. Append 'Results — Phase 3',
 correct Phase 4's start prompt, put Phase 4 up as a proposal card, and report
 to the owner, opening with the card."
 
