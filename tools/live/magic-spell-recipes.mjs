@@ -9,9 +9,10 @@
  *
  * Fixtures: none. The rows are written onto the library's own imported spells
  * (owner ruling 2026-11-11: a walk may write the test world's items), and the
- * walk leaves each as a repair leaves it: register rows only. The hand-made
- * row and the edited row it adds are removed by their index before the closing
- * repair. Prints counts and booleans, never a figure or a book word.
+ * walk leaves each as it found it. The hand-made row and the edited row it adds
+ * carry the walk's own marks (`walk-hand-row`, `walk-edit`) and are removed by
+ * those marks before the closing repair; a row anyone else added stays.
+ * Prints counts and booleans, never a figure or a book word.
  */
 import { connect } from "./_driver.mjs";
 import { seats, PORTS } from "./_env.mjs";
@@ -142,13 +143,14 @@ try {
   const td = await gm.eval(`(async () => { ${LIB}
     const doc = L.byCookbookId("Item", ${JSON.stringify(D)}, { original: true });
     const rows = ${rowsOf(D)};
-    const keep = rows.filter(r => r.origin === "register");
+    const mine = (r) => r.note === "walk-hand-row" || /walk-edit/.test(\`\${r.note ?? ""} \${r.condition ?? ""}\`);
+    const keep = rows.filter(r => !mine(r));
     await doc.setFlag("acks-extras", "spell.effects", keep);
     ${repair([D])}
     const after = ${rowsOf(D)};
-    return { removed: rows.length - keep.length, after: after.length, allRegister: after.every(r => r.origin === "register") };
+    return { removed: rows.length - keep.length, after: after.length, walkRowsLeft: after.filter(mine).length, register: after.filter(r => r.origin === "register").length };
   })()`);
-  check("desiccate is left with register rows only", td.allRegister, td);
+  check("desiccate keeps no row of the walk's own, and its register rows", td.walkRowsLeft === 0 && td.register === r2.registerBefore, td);
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);

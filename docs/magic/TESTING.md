@@ -264,6 +264,7 @@ with register rows only.
 
 ### Teardown
 
-The walk removes the rows without a register origin from the spell it edited
-and repairs it once more; its last check is that the spell holds register
-rows only.
+The walk removes the two rows it added, found by their own marks
+(`walk-hand-row`, `walk-edit`), and repairs the spell once more; its last
+check is that none of its rows remains and the register rows number as
+before. A row anyone else added stays.

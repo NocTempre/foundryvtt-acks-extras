@@ -773,9 +773,13 @@ rulings 21 to 24. The runtime label for the magic type is unverified against
 validate: validate scans globals, hooks, helpers and lang keys, not a runtime
 write, so S2a confirms it when it writes one.
 
-**Not checked:** the console at `init`, `setup` and `ready` (the walk's
-recorder attached after `ready`); the Player seat (S1 has no player surface);
-any cast (S2).
+The console at `init`, `setup` and `ready`: the GM client reloaded under a
+recorder registered before the document loaded (it ran before Foundry's
+scripts) logged no error and no warning through `ready` and the RR's
+opening. The walk's teardown was narrowed to its own marked rows and run
+again green.
+
+**Not checked:** the Player seat (S1 has no player surface); any cast (S2).
 
 **Findings, for S2a or 1b to rule:**
 
