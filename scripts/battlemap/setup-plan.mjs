@@ -67,7 +67,7 @@
  */
 
 import { CALIBRATABLE_GRIDS } from "./constants.mjs";
-import { DISTANCE_UNITS, unitKey } from "../lib/distance-units.mjs";
+import { DISTANCE_UNITS, isExpeditionScale, unitKey } from "../lib/distance-units.mjs";
 
 /** The tolerance the apply itself reads a written scale back at. */
 const EPS = 1e-6;
@@ -109,6 +109,24 @@ export function resolveCellWorth({ entered = null, fromBar = null, units = null,
   if (!(scene?.distance > 0)) return null;
   const sameUnit = units == null || units === "" || foldUnits(units) === foldUnits(scene.units);
   return sameUnit ? scene.distance : null;
+}
+
+/**
+ * Whether the cell an apply WRITES is a mile or more, the `expeditionScale` the
+ * planner takes. The unit is the one the apply writes (the chosen unit's
+ * abbreviation), or the scene's own when none is chosen, so "keep the scene's
+ * unit" over a scene already in miles reads as miles. The distance is the
+ * solution's, falling back to the scene's when the solution names none.
+ *
+ * @param {object} input
+ * @param {number|null} [input.distance]  The solution's cell worth.
+ * @param {string|null} [input.units]  The unit key or abbreviation chosen; null or blank keeps the scene's.
+ * @param {{distance?: number, units?: string}|null} [input.scene]  The scene's current grid distance and unit.
+ * @returns {boolean}
+ */
+export function expeditionScaleOf({ distance = null, units = null, scene = null } = {}) {
+  const written = units ? (DISTANCE_UNITS[unitKey(units)]?.abbr ?? units) : (scene?.units ?? "");
+  return isExpeditionScale({ grid: { distance: distance ?? scene?.distance, units: written } });
 }
 
 const need = (id, action, hint) => (hint ? { id, action, hint } : { id, action });

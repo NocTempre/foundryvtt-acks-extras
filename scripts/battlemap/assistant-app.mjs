@@ -11,12 +11,13 @@
  * by the toolbar."
  */
 
-import { MODULE_ID, LANG_PREFIX, CALIBRATABLE_GRIDS, GRID_FAMILIES, GRID_TYPE, TRAVEL_MODES } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, GRID_FAMILIES, GRID_TYPE, TRAVEL_MODES } from "./constants.mjs";
 import { imageToCanvas } from "./capture.mjs";
 import { session } from "./session.mjs";
-import { boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
-import { applyGridCalibration, applyHexCalibration, applyScaleOnly, bakeCorrectedBackground } from "./apply.mjs";
-import { hexProbe, sceneCountry, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
+import { FAIR_PX, boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, unitsPerCentreSpacing } from "./calibrate-logic.mjs";
+import { bakeCorrectedBackground, solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "./apply.mjs";
+import { expeditionScaleOf, planSetup, resolveCellWorth } from "./setup-plan.mjs";
+import { sceneCountry, sceneSetup, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
 import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
@@ -175,28 +176,47 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
    */
   #countryDraft = null;
 
+  /**
+   * The plan and the solve this window last rendered, `{ sceneId, family, plan,
+   * solved }`. The Apply handler writes THIS solve, so what it writes is what
+   * the rows and the verdict were built from.
+   */
+  #shown = null;
+
   /* -------------------------------------------- */
-  /*  Derivations                                 */
+  /*  Derivations                                */
   /* -------------------------------------------- */
 
   /**
-   * What one drawn map cell is worth, in the scene's distance units. The
-   * field and its chips write ONE slot — never a second home for this
-   * quantity. See docs/battlemap/DECISIONS.md, "One entered value, one slot."
+   * What one drawn map cell is worth, in the unit the apply will write, or
+   * null while nothing says. The field and its chips write ONE slot — never a
+   * second home for this quantity. An entry wins, then a measured scale bar,
+   * then the scene's own distance only while the unit is the scene's own
+   * (`resolveCellWorth`): a number read in another unit is not a default.
+   * See docs/battlemap/DECISIONS.md, "One entered value, one slot."
    */
   get mapCellFeet() {
-    if (this.opts.mapCellFeet > 0) return this.opts.mapCellFeet;
-    const bar = this.scaleBarFeet;
-    if (bar > 0) return bar;
-    const distance = canvas?.scene?.grid?.distance;
-    return distance > 0 ? distance : null;
+    const grid = canvas?.scene?.grid;
+    return resolveCellWorth({
+      entered: this.opts.mapCellFeet,
+      fromBar: this.scaleBarFeet,
+      units: session.units,
+      scene: { distance: grid?.distance, units: grid?.units },
+    });
   }
 
+  /**
+   * What a dragged scale bar says one cell is worth, in the bar's own unit: a
+   * square cell by its box sides, a hex by the step between hex centres.
+   */
   get scaleBarFeet() {
     const fit = this.fit;
     const seg = this.samples.scale;
     if (!fit?.ok || !seg || !(this.opts.scaleValue > 0)) return null;
-    return feetPerSquare({ dx: seg.x2 - seg.x1, dy: seg.y2 - seg.y1, value: this.opts.scaleValue, sizeX: fit.sizeX, sizeY: fit.sizeY });
+    const dx = seg.x2 - seg.x1;
+    const dy = seg.y2 - seg.y1;
+    if (this.isHex) return unitsPerCentreSpacing({ dx, dy, value: this.opts.scaleValue, k: fit.k, basis: session.hexProbe?.basis });
+    return feetPerSquare({ dx, dy, value: this.opts.scaleValue, sizeX: fit.sizeX, sizeY: fit.sizeY });
   }
 
   /**
@@ -265,16 +285,6 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     return scaleOnlyGrid({ pxPerUnit, distance: this.outputFeet, minSize: gridMinPx(), maxSize: GRID_PX_MAX });
   }
 
-  /**
-   * The drawn hex whose centre places the grid: the first box sampled around
-   * ONE hex. A box spanning several is a fine measurement and a useless
-   * anchor — its centre lands on a vertex as readily as on a centre.
-   */
-  get hexCentre() {
-    const box = this.samples.squares.find((r) => boxCells(r) === 1);
-    return box ? { x: box.x + box.w / 2, y: box.y + box.h / 2 } : null;
-  }
-
   /** Default grid px: keep the drawn cell's current on-canvas size. */
   get gridSizePx() {
     if (this.opts.gridSizePx > 0) return Math.round(this.opts.gridSizePx);
@@ -282,7 +292,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (!fit?.ok) return null;
     const bounded = (px) => Math.round(Math.min(GRID_PX_MAX, Math.max(gridMinPx(), px)));
     if (this.isHex) {
-      const probe = hexProbe(canvas?.scene, this.family, session.hexEven);
+      // The fit's box is ONE hex's, fitted over every box drawn around one.
+      const probe = session.hexProbe;
       if (!probe) return null;
       const box = canvasSpan(fit.sizeX, fit.sizeY);
       const size = hexSizeFromBox({ boxW: box.w, boxH: box.h, ...probe });
@@ -302,8 +313,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const scene = canvas?.scene ?? null;
     const barFeet = this.scaleBarFeet;
     const rawFeet = barFeet ?? (this.opts.mapCellFeet > 0 ? this.opts.mapCellFeet : null);
-    const aligned = fit?.ok ? outputGridSize({ fittedCellPx: 1, mapCellFeet: this.mapCellFeet, outputFeet: this.outputFeet })?.aligned : true;
-    const squareGrid = CALIBRATABLE_GRIDS.has(scene?.grid?.type);
+    const aligned = fit?.ok ? outputGridSize({ fittedCellPx: 1, mapCellFeet: this.mapCellFeet, outputFeet: this.outputFeet })?.aligned ?? true : true;
     const gridless = scene?.grid?.type === GRID_TYPE.GRIDLESS;
     const hasBackground = !!backgroundTexture(scene);
     const dropBack = !!(fit?.ok && fit.u && Math.abs(fit.skewDeg) < 0.5 && Math.abs(fit.rotationDeg) < 0.5);
@@ -316,6 +326,14 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     // from the same table the apply writes from — a second, localized copy of
     // it would let the label and the field disagree.
     const unitLabel = units ? DISTANCE_UNITS[units].abbr : scene?.grid?.units || "";
+
+    // ONE solve per render: the planner reads it for its rows and its verdict,
+    // and the Apply handler writes this same answer.
+    const solved = this.#solve(fit, scale);
+    const plan = this.#plan({ fit, scene, hasBackground, solved });
+    this.#shown = { sceneId: scene?.id ?? null, family: this.family, plan, solved: solved?.ok ? solved : null };
+    const hexFit = this.isHex && !!fit?.ok;
+    const worstLine = this.#warningLines(plan);
 
     return {
       scene,
@@ -336,8 +354,16 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // key built from an interpolation in Handlebars is a key no check can
       // read, and a missing one then fails silently at the user.
       familyHint: loc(`setup.familyHint.${this.family}`),
+      // One line per gap Apply is waiting on, one per sample it leaves out.
+      needLines: this.#needLines(plan),
+      unusedLines: this.#unusedLines(plan),
+      warnLines: worstLine,
+      // Apply is also off where the scene already matches what it would write.
+      matchesLine: plan.matches ? loc("apply.matches") : null,
+      // A map cell's worth has a field on every family but scale-only, where
+      // one is asked for only when a drawn grid is to measure it.
+      showMapCell: !this.isScaleOnly || !!fit?.ok,
       cellUnitLabel: loc(this.isHex ? "fit.pxHex" : "fit.pxCell"),
-      noFitLabel: loc(this.isScaleOnly ? "fit.noneScale" : "fit.none"),
       mapCellLabel: loc(this.isHex ? "fields.mapCellHex" : "fields.mapCellFeet"),
       mapCellHint: loc(this.isHex ? "fields.mapCellHexHint" : "fields.mapCellFeetHint"),
       gridPxLabel: loc(this.isScaleOnly ? "scale.gridPxRuler" : this.isHex ? "scale.gridPxHex" : "scale.gridPx"),
@@ -369,7 +395,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       mapCellFeet: this.mapCellFeet,
       outputChips: this.#outputChips(),
       armedLabel: this.captureMode ? loc(`mode.${this.captureMode}`) : null,
-      armedHint: this.captureMode ? loc(`modeHint.${this.captureMode}`) : null,
+      armedHint: this.captureMode ? loc(this.isHex && this.captureMode === "square" ? "modeHint.squareHex" : `modeHint.${this.captureMode}`) : null,
       outputFeet: this.outputFeet,
       gridSizePx: this.isScaleOnly ? (scale?.size ?? null) : this.gridSizePx,
       // The scale-only readout: the ratio being written, stated both ways.
@@ -378,40 +404,172 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       scaleClamped: !!scale?.clamped,
       scalePinned: !!scale?.pinned,
       notAligned: this.family === "square" && !aligned,
-      canApply: this.#canApply({ fit, squareGrid, hasBackground, scale }),
+      // The planner's verdict: it is also what disables the button, so the
+      // lines above say why whenever it is off.
+      canApply: plan.canApply,
       applyLabel: loc(`apply.${this.isScaleOnly ? "scale" : this.isHex ? "hex" : "grid"}`),
       // Offered whenever the image is wrong in a way a scene field cannot
-      // express straight: crooked, or cells that are not square.
+      // express straight: crooked, or cells that are not square. A hex fit
+      // has no skew or axis pair to straighten.
       canBake:
         !this.isScaleOnly &&
+        !this.isHex &&
         !!fit?.ok &&
         hasBackground &&
         (Math.abs(fit.skewDeg ?? 0) >= 0.1 ||
           Math.abs(fit.rotationDeg ?? 0) >= 0.1 ||
-          (!this.isHex && Math.abs(fit.sizeX - fit.sizeY) / Math.max(fit.sizeX, fit.sizeY) >= 0.005)),
-      warnNotSquare: scene && this.family === "square" && !squareGrid,
-      warnNoHexBox: this.isHex && !!fit?.ok && !this.hexCentre,
+          Math.abs(fit.sizeX - fit.sizeY) / Math.max(fit.sizeX, fit.sizeY) >= 0.005),
       warnRepitch: this.isScaleOnly && !gridless && !!scale && scale.size !== scene?.grid?.size,
       willAddGrid: gridless && !this.isScaleOnly,
       // Named for the grid the family will actually write: a hex apply
       // promising a square one is the footer describing a different button.
       willAddGridLabel: loc(this.isHex ? "apply.willAddGridHex" : "apply.willAddGrid"),
       keepsGridless: gridless && this.isScaleOnly,
-      warnNoBackground: scene && !hasBackground && !this.isScaleOnly,
-      warnResidual: !!(fit?.ok && fit.confidence === "loose"),
       hotbar: hotbarFeet(scene).map((v) => ({ value: v, label: `${v}'` })),
       // The card: the fit read at a glance while the eye is on the map.
       cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? fit.sizeX.toFixed(1) : `${fit.sizeX.toFixed(1)} × ${fit.sizeY.toFixed(1)}`) : null,
-      residualPct: fit?.ok ? (fit.rmsPct * 100).toFixed(1) : null,
+      // The band is decided on the fit's own residual: a hex fit's is the
+      // boxes' edges in image px, a square fit's the share of a cell. With one
+      // hex box a hex fit has no residual and shows its confidence alone.
+      residualText: fit?.ok ? this.#residualText(fit) : null,
       // Full bar at the loose threshold, so the eye reads "how close to bad".
-      residualBar: fit?.ok ? Math.min(100, Math.round((fit.rmsPct / RMS_FULL_BAR) * 100)) : 0,
+      residualBar: fit?.ok ? this.#residualBar(fit) : 0,
+      hexFit,
       confidenceLabel: fit?.ok ? loc(`fit.confidence.${fit.confidence}`) : null,
-      // The prompt for a measurement, only while there is none. A bar that has
-      // been measured and a line saying none has is the panel contradicting
-      // itself in adjacent rows.
-      showNoMeasurement: !fit?.ok && !pxPerUnit,
+      // Empty until there is a fit or a measured bar to show; the lines under
+      // it say what is missing, once.
+      showCard: !!fit?.ok || !!pxPerUnit,
       sampleSummary: this.#sampleSummary(),
     };
+  }
+
+  /**
+   * The solve the planner's rows and the Apply handler share, or null while an
+   * input is missing. A refused solve answers `{ ok: false, reason }`; the
+   * planner words the gap, so nothing here speaks.
+   */
+  #solve(fit, scale) {
+    const scene = canvas?.scene;
+    if (!scene) return null;
+    const common = { units: session.units, mapSystem: session.mapSystem };
+    if (this.isScaleOnly) return scale ? solveScaleOnly({ size: scale.size, distance: scale.distance, ...common }) : null;
+    if (!fit?.ok) return null;
+    const gridSize = this.gridSizePx;
+    const outputFeet = this.outputFeet;
+    if (!(gridSize > 0) || !(outputFeet > 0)) return null;
+    if (this.isHex) {
+      return solveHexCalibration(scene, fit, { ...common, gridSize, outputFeet, family: this.family, hexEven: session.hexEven, probe: session.hexProbe });
+    }
+    if (!(this.mapCellFeet > 0)) return null;
+    return solveGridCalibration(scene, fit, { ...common, gridSize, outputFeet, mapCellFeet: this.mapCellFeet });
+  }
+
+  /** The planner's answer over this render's samples, fit, scene and solve. */
+  #plan({ fit, scene, hasBackground, solved }) {
+    const grid = scene?.grid;
+    const record = sceneSetup(scene);
+    const solution = solved?.ok ? solved.solution : null;
+    return planSetup({
+      family: this.family,
+      samples: {
+        boxes: this.samples.squares.length,
+        corners: this.samples.corners.length,
+        bar: !!this.samples.scale,
+        barValue: this.opts.scaleValue > 0,
+      },
+      fit: fit ?? null,
+      cellWorth: this.mapCellFeet,
+      scene: {
+        gridType: grid?.type,
+        gridSize: grid?.size,
+        distance: grid?.distance,
+        units: grid?.units,
+        width: scene?.width,
+        height: scene?.height,
+        shiftX: scene?.shiftX,
+        shiftY: scene?.shiftY,
+        autoScale: record.autoScale,
+        mapSystem: record.mapSystem,
+        hasBackground,
+      },
+      solution,
+      expeditionScale: expeditionScaleOf({ distance: solution?.distance, units: session.units, scene: { distance: grid?.distance, units: grid?.units } }),
+    });
+  }
+
+  /** The fit card's residual: pixels off on a hex fit (none for one box), a share of a cell otherwise. */
+  #residualText(fit) {
+    if (!this.isHex) return `${(fit.rmsPct * 100).toFixed(1)}%`;
+    return fit.rmsPx == null ? null : loc("fit.pxOff", { px: fit.rmsPx.toFixed(1) });
+  }
+
+  /** The card's bar, full where the band turns from fair to loose. */
+  #residualBar(fit) {
+    const share = this.isHex ? (fit.rmsPx == null ? 0 : fit.rmsPx / FAIR_PX) : fit.rmsPct / RMS_FULL_BAR;
+    return Math.min(100, Math.round(share * 100));
+  }
+
+  /**
+   * One line per gap the planner says Apply is waiting on, each naming the one
+   * control that closes it by the name the panel or the toolbar shows. Every
+   * id the planner emits has a line; a hint the planner attaches picks the
+   * more specific wording where one exists.
+   */
+  #needLines(plan) {
+    const tool = loc("mode.square");
+    const bar = loc("mode.scale");
+    const family = loc("setup.family");
+    const cell = loc(this.isHex ? "fields.mapCellHex" : "fields.mapCellFeet");
+    const reads = loc("samples.reads");
+    const line = {
+      sceneNotSquare: () => loc("warn.notSquareGrid", { family }),
+      background: () => loc("warn.noBackground"),
+      gridSample: (hint) => loc(hint === "barAlone" ? "needs.gridSampleBar" : "needs.gridSample", { tool }),
+      hexBox: (hint) => loc(hint === "barAlone" ? "needs.hexBoxBar" : "needs.hexBox", { tool }),
+      oneHexBox: () => loc("needs.oneHexBox", { tool }),
+      hexProbe: () => loc("needs.hexProbe", { family }),
+      measurement: () => loc("needs.measurement", { tool: bar }),
+      barValue: () => loc("needs.barValue", { field: reads }),
+      cellWorth: (hint) => loc(hint === "barWithoutValue" ? "needs.cellWorthBar" : "needs.cellWorth", { field: cell, reads }),
+      unsolved: () => loc("needs.unsolved"),
+    };
+    return plan.needs.map((n) => (line[n.id] ?? line.unsolved)(n.hint));
+  }
+
+  /** One line per sample the family leaves out. Unreachable boxes are the warning's to state. */
+  #unusedLines(plan) {
+    const tool = loc("mode.square");
+    const line = {
+      corners: (count) => loc("unused.corners", { count, tool }),
+      multiHexBoxes: (count) => loc("unused.multiHexBoxes", { count }),
+      scaleBarWithoutValue: () => loc("unused.scaleBarWithoutValue", { field: loc("samples.reads") }),
+    };
+    return plan.unused.filter((u) => line[u.id]).map((u) => line[u.id](u.count));
+  }
+
+  /**
+   * The fit's warnings as lines, for the worst-box slot. A loose hex fit names
+   * the box that sits furthest off by its row number, or none where the fit
+   * names none; boxes left out as unreachable, and a family the boxes do not
+   * read as, are stated here too, so none vanishes without a word. The square
+   * family's loose line is its own.
+   */
+  #warningLines(plan) {
+    const family = loc("setup.family");
+    const lines = [];
+    for (const w of plan.warnings) {
+      if (w.id === "looseFit") {
+        if (!this.isHex) lines.push(loc("warn.highResidual"));
+        else lines.push(w.worst == null ? loc("warn.looseHex") : loc("warn.looseHexWorst", { n: w.worst + 1 }));
+      } else if (w.id === "unreachable") {
+        lines.push(loc("warn.unreachable", { count: w.count }));
+      } else if (w.id === "familyMismatch") {
+        lines.push(loc("warn.familyMismatch", { family }));
+      } else if (w.id === "familyAmbiguous") {
+        lines.push(loc("warn.familyAmbiguous", { family }));
+      }
+    }
+    return lines;
   }
 
   /**
@@ -441,14 +599,6 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       { name: "country.territory", label: loc("setup.countryTerritory"), options: options("territory", held.territory), groups: [] },
       { name: "country.climate", label: loc("setup.countryClimate"), options: [], groups },
     ];
-  }
-
-  /** What each family needs before its apply can run. */
-  #canApply({ fit, squareGrid, hasBackground, scale }) {
-    if (this.isScaleOnly) return !!scale;
-    if (!fit?.ok || !hasBackground) return false;
-    if (this.isHex) return !!this.hexCentre && !!this.gridSizePx;
-    return squareGrid;
   }
 
   /**
@@ -576,35 +726,16 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     this.render();
   }
 
-  /** One button, three applies — the family chose which before it was pressed. */
+  /**
+   * One button, three applies — the family chose which before it was pressed.
+   * It writes the solve the window last rendered, with the auto-sizing the
+   * plan decided, and only while that plan says Apply is open.
+   */
   static async #onApplyGrid() {
     const scene = canvas?.scene;
-    if (!scene) return;
-    const common = { units: session.units, mapSystem: session.mapSystem };
-    let applied = false;
-    if (this.isScaleOnly) {
-      const scale = this.scaleSolution;
-      if (!scale) return;
-      applied = await applyScaleOnly(scene, { ...scale, ...common });
-    } else {
-      const fit = this.fit;
-      if (!fit?.ok) return;
-      applied = this.isHex
-        ? await applyHexCalibration(scene, fit, {
-            ...common,
-            gridSize: this.gridSizePx,
-            outputFeet: this.outputFeet,
-            hexCentre: this.hexCentre,
-            family: this.family,
-            hexEven: session.hexEven,
-          })
-        : await applyGridCalibration(scene, fit, {
-            ...common,
-            gridSize: this.gridSizePx,
-            outputFeet: this.outputFeet,
-            mapCellFeet: this.mapCellFeet,
-          });
-    }
+    const shown = this.#shown;
+    if (!scene || !shown?.plan.canApply || !shown.solved || shown.sceneId !== (scene.id ?? null)) return;
+    const applied = await writeSetup(scene, shown.solved, { family: shown.family, autoScale: shown.plan.autoScale });
     if (applied) this.render();
   }
 

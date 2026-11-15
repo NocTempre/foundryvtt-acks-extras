@@ -64,18 +64,9 @@
   </div>
   <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.countryHint"}}</p>
 
-  {{#if warnNotSquare}}
-    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.notSquareGrid"}}</p>
-  {{/if}}
-  {{#if warnNoBackground}}
-    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noBackground"}}</p>
-  {{/if}}
-  {{#if warnNoHexBox}}
-    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.noHexBox"}}</p>
-  {{/if}}
-
   {{! The fit, read at a glance: this is the live feedback while sampling, so
       it leads. Sampling itself is the Battlemap scene controls' job. }}
+  {{#if showCard}}
   <div class="acks-extras-battlemap-card">
     {{#if fitOk}}
       <div class="acks-extras-battlemap-cardhead">
@@ -85,21 +76,29 @@
       <div class="acks-extras-battlemap-meter">
         <div class="acks-extras-battlemap-meterbar" style="width: {{residualBar}}%"></div>
       </div>
-      <div class="acks-extras-battlemap-sub">{{residualPct}}% · {{confidenceLabel}}</div>
+      <div class="acks-extras-battlemap-sub" {{#if hexFit}}data-tooltip="{{localize 'ACKS-BATTLEMAP.fit.pxOffTip'}}"{{/if}}>{{#if residualText}}{{residualText}} · {{/if}}{{confidenceLabel}}</div>
       {{#if sampleSummary}}<div class="acks-extras-battlemap-sub">{{sampleSummary}}</div>{{/if}}
       {{#if fitAffine}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.affine"}} {{fitAffine.skew}}° / {{fitAffine.rotation}}°</div>{{/if}}
     {{/if}}
     {{#if pxPerUnit}}
       <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.perUnit" px=pxPerUnit units=unitLabel}}</div>
     {{/if}}
-    {{#if showNoMeasurement}}
-      <div class="acks-extras-battlemap-sub">{{noFitLabel}}</div>
-    {{/if}}
   </div>
-
-  {{#if warnResidual}}
-    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "ACKS-BATTLEMAP.warn.highResidual"}}</p>
   {{/if}}
+
+  {{! What Apply is still waiting on, one line per gap and each naming the one
+      control that closes it, then what the family leaves out, then the fit's
+      own warnings (the worst-box slot). Labels are resolved in the context. }}
+  {{#each needLines}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-circle-info"></i> {{this}}</p>
+  {{/each}}
+  {{#if matchesLine}}<p class="acks-extras-battlemap-hint">{{matchesLine}}</p>{{/if}}
+  {{#each unusedLines}}
+    <p class="acks-extras-battlemap-hint">{{this}}</p>
+  {{/each}}
+  {{#each warnLines}}
+    <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{this}}</p>
+  {{/each}}
 
   {{! Every sample carries the box that says what it REPRESENTS: a drag across
       three cells is three, and the bar reads whatever is printed beside it. }}
@@ -108,10 +107,13 @@
       {{#each boxRows}}
         <li>
           <span>{{label}}</span>
+          {{! A hex fit reads every box as one hex; a count is the square family's. }}
+          {{#if @root.isSquare}}
           <label class="acks-extras-battlemap-spans">
             <span>{{localize "ACKS-BATTLEMAP.samples.spans"}}</span>
             <input type="number" name="boxCells.{{index}}" min="1" step="1" value="{{cells}}">
           </label>
+          {{/if}}
           <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
         </li>
       {{/each}}
@@ -148,7 +150,7 @@
   {{! Each field owns the chips directly beneath it, and says in words what its
       number means. A shared chip row under a two-column pair reads as
       belonging to whichever field the eye is on. }}
-  {{#unless isScaleOnly}}
+  {{#if showMapCell}}
     <div class="acks-extras-battlemap-scalefield">
       <label class="acks-extras-battlemap-field">
         <span>{{mapCellLabel}}</span>
@@ -169,7 +171,7 @@
         <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
       {{/if}}
     </div>
-  {{/unless}}
+  {{/if}}
 
   {{#if isSquare}}
     <div class="acks-extras-battlemap-scalefield">

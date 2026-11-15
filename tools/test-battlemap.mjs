@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { boxCells, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
+import { boxCells, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
@@ -463,6 +463,55 @@ for (const [key, entry] of Object.entries(SIZES)) {
 }
 
 /* -------------------------------------------- */
+/*  Every gap the planner names is shown        */
+/* -------------------------------------------- */
+
+/**
+ * Proves every need and warning id the planner can emit has a visible line in
+ * the panel, so no disabled Apply is left unexplained: a static read, since a
+ * planner id added without a line passes every pure test.
+ */
+{
+  const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+  const planner = read("../scripts/battlemap/setup-plan.mjs");
+  const app = read("../scripts/battlemap/assistant-app.mjs");
+  const body = read("../templates/battlemap/assistant-body.hbs");
+  const lang = JSON.parse(read("../lang/en.json"));
+
+  const needIds = [...new Set([...planner.matchAll(/need\("(\w+)"/g)].map((m) => m[1]))];
+  assert.ok(needIds.length >= 9, `expected the planner's needs, got ${needIds.join(", ")}`);
+  const needLines = app.match(/#needLines\(plan\) \{([\s\S]*?)\n  \}/)[1];
+  for (const id of needIds) {
+    assert.ok(new RegExp(`\\n\\s+${id}: \\(`).test(needLines), `the planner's need "${id}" has no line in the panel`);
+  }
+  const verdicts = [...planner.match(/FAMILY_VERDICTS = new Set\(\[([^\]]*)\]/)[1].matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  const warnIds = [...new Set([...[...planner.matchAll(/warnings\.push\(\{ id: "(\w+)"/g)].map((m) => m[1]), ...verdicts])];
+  assert.deepEqual(warnIds.sort(), ["familyAmbiguous", "familyMismatch", "looseFit", "unreachable"], "the planner's warnings");
+  const warnLines = app.match(/#warningLines\(plan\) \{([\s\S]*?)\n  \}/)[1];
+  for (const id of warnIds) assert.ok(warnLines.includes(`"${id}"`), `the planner's warning "${id}" has no line in the panel`);
+  for (const id of ["corners", "multiHexBoxes", "scaleBarWithoutValue"]) {
+    assert.ok(new RegExp(`\\n\\s+${id}: \\(`).test(app.match(/#unusedLines\(plan\) \{([\s\S]*?)\n  \}/)[1]), `the unused sample "${id}" has no line`);
+  }
+  for (const slot of ["needLines", "unusedLines", "warnLines"]) {
+    assert.ok(body.includes(`{{#each ${slot}}}`), `the panel renders ${slot}`);
+  }
+  // Apply is also off where the scene already matches; that says so too.
+  assert.ok(body.includes("{{#if matchesLine}}") && app.includes("plan.matches ? loc(\"apply.matches\")"), "a matching scene's disabled Apply is explained");
+  assert.ok("ACKS-BATTLEMAP.apply.matches" in lang);
+
+  // Every key the lines read exists, and a retired key is not left behind.
+  for (const [, key] of app.matchAll(/loc\("((?:needs|unused|warn)\.\w+)"/g)) {
+    assert.ok(`ACKS-BATTLEMAP.${key}` in lang, `${key} is read and not defined`);
+  }
+  for (const gone of ["warn.noHexBox", "warn.badSolution", "fit.none", "fit.noneScale"]) {
+    assert.ok(!(`ACKS-BATTLEMAP.${gone}` in lang), `${gone} has no reader and should be gone`);
+  }
+  assert.ok(!/placed tokens, tiles,? and walls\s+(?:move|reposition)/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]) && !/reposition/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]),
+    "the confirmation does not say placed things move with the image");
+  assert.ok(!read("../scripts/battlemap/apply.mjs").includes("autoReposition"), "no apply passes autoReposition");
+}
+
+/* -------------------------------------------- */
 /*  hexAlignment — the lattice shift             */
 /* -------------------------------------------- */
 
@@ -826,6 +875,142 @@ const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * 
   const blind = fitFor(t, { ...IMAGES.stretched, scale: { x: 1, y: 1 } }, [box]);
   assert.equal(blind.ok, true, "read as image px the small box still fits");
   assert.equal(blind.used, 1);
+}
+
+// The scale the session hands the fit is canvas px per IMAGE px, the inverse of
+// the overlay's image scale. On the reported map (a square texture over a 4:3
+// scene) the right answer reads the exact box as one hex; the inverted one
+// reads it as no hex at all, so the two cannot be mixed up unseen.
+{
+  const t = HEX_TYPES_UNDER_TEST[0];
+  const square = canvasPerImage({ texture: { width: 1000, height: 1000 }, dimensions: { sceneWidth: 4000 / 3, sceneHeight: 1000 } });
+  near(square.x, 4 / 3, 1e-12, "a square texture drawn over a 4:3 scene is stretched a third wider");
+  near(square.y, 1, 1e-12, "and not taller");
+  const tall = canvasPerImage({ texture: { width: 800, height: 1000 }, dimensions: { sceneWidth: 1600, sceneHeight: 1000 } });
+  assert.deepEqual(tall, { x: 2, y: 1 }, "each axis is its own ratio, scene over texture");
+  for (const bad of [{}, { texture: null, dimensions: { sceneWidth: 10, sceneHeight: 10 } }, { texture: { width: 0, height: 5 }, dimensions: { sceneWidth: 10, sceneHeight: 10 } }, { texture: { width: 5, height: 5 }, dimensions: null }]) {
+    assert.deepEqual(canvasPerImage(bad), { x: 1, y: 1 }, "an unusable texture or scene reads as identity");
+  }
+
+  const box = hexBox(t, IMAGES.stretched, 0, 0);
+  const next = hexBox(t, IMAGES.stretched, 1, 0);
+  const right = fitHexLattice({ boxes: [box, next], probe: t.probe, scale: square, otherProbe: otherOf(t).probe });
+  assert.equal(right.ok, true);
+  assert.equal(right.boxes.every((b) => !b.notOneHex), true, "with the right scale the exact boxes are one hex each");
+  assert.deepEqual(right.warnings, []);
+  const inverted = { x: 1 / square.x, y: 1 / square.y };
+  const wrong = fitHexLattice({ boxes: [box, next], probe: t.probe, scale: inverted, otherProbe: otherOf(t).probe });
+  assert.equal(wrong.ok === false || wrong.boxes.some((b) => b.notOneHex) || wrong.warnings.length > 0, true,
+    "with the inverted scale the same boxes read differently");
+}
+
+// The session: the affine controls steer only the square family's fit, the hex
+// fit is the lattice fit over the boxes behind one probe pair, computed once
+// per change, and corners are refused on a hex family.
+{
+  const { session } = await import("../scripts/battlemap/session.mjs");
+  const saved = { canvas: globalThis.canvas, foundry: globalThis.foundry, game: globalThis.game, ui: globalThis.ui };
+  try {
+    // Hidden state: ticked under the square family, ignored everywhere else.
+    session.allowSkew = true;
+    session.independentXY = true;
+    const modeOf = (family) => {
+      session.gridFamily = family;
+      return session.fitMode;
+    };
+    assert.equal(modeOf("square"), "affine", "the square family reads Allow skew");
+    assert.equal(modeOf("hexRows"), "rect", "a hex family ignores Allow skew");
+    assert.equal(modeOf("hexCols"), "rect");
+    assert.equal(modeOf("scale"), "square", "the scale-only family ignores both controls");
+    session.allowSkew = false;
+    assert.equal(modeOf("square"), "rect", "the square family reads Independent X / Y");
+    assert.equal(modeOf("scale"), "square", "the scale-only family ignores Independent X / Y");
+    session.independentXY = false;
+    assert.equal(modeOf("square"), "square");
+
+    // One fit per change: a scene counting the clones its probes ask for.
+    let clones = 0;
+    const scene = {
+      id: "scene-under-test",
+      background: { src: "map.webp" },
+      dimensions: { sceneWidth: 4000 / 3, sceneHeight: 1000 },
+      clone(data) {
+        clones++;
+        return hexScene().clone(data);
+      },
+    };
+    globalThis.canvas = { scene };
+    globalThis.foundry = { canvas: { getTexture: () => ({ width: 1000, height: 1000 }) } };
+    const t = HEX_TYPES_UNDER_TEST[0];
+    session.samples = { squares: boxesAt(t, IMAGES.stretched, [[0, 0], [1, 0]]), corners: [], scale: null };
+    session.setSetup({ gridFamily: "hexRows", hexEven: false });
+    clones = 0;
+    const first = session.fit;
+    for (let i = 0; i < 6; i++) assert.equal(session.fit, first, "a read with nothing changed answers the same fit");
+    assert.equal(session.hexProbe.refW, t.probe.refW, "the probe is the chosen family's");
+    assert.deepEqual(session.hexProbe.basis, t.probe.basis, "with its lattice basis");
+    assert.equal(clones, 2, "the fit asked the scene for its two probes once, however often it was read");
+    assert.equal(first.ok, true);
+    assert.equal(first.used, 2);
+    assert.deepEqual(first.warnings, [], "the scale is canvas per image, so the stretched box is one hex");
+    assert.ok(first.rmsPct < 0.001, `the exact boxes fit tight, got ${first.rmsPct}`);
+    assert.equal(first.centre != null, true, "a hex fit carries the fitted centre");
+
+    session.samples.squares.push(...boxesAt(t, IMAGES.stretched, [[2, 1]]));
+    session.onSamplesChanged();
+    const second = session.fit;
+    assert.notEqual(second, first, "a sample change recomputes the fit");
+    assert.equal(second.used, 3);
+    assert.equal(session.fit, second);
+    session.setSetup({ gridFamily: "hexCols" });
+    assert.notEqual(session.fit, second, "a family change recomputes it");
+    assert.equal(session.hexProbe.refW, HEX_TYPES_UNDER_TEST[2].probe.refW, "and the probe");
+    session.setSetup({ gridFamily: "hexRows" });
+    const third = session.fit;
+    session.wipe();
+    assert.equal(session.fit, null, "a hex family with nothing sampled has no fit, baked or not");
+    session.samples.squares.push(...boxesAt(t, IMAGES.stretched, [[0, 0], [1, 0], [2, 1]]));
+    session.onSamplesChanged();
+    assert.notEqual(session.fit, third, "a wipe and a new sample set recompute it");
+
+    // Corners are refused on a hex family and the toolbar is put back at rest.
+    const warned = [];
+    const activated = [];
+    globalThis.game = { i18n: { format: (key, data) => `${key} ${JSON.stringify(data ?? {})}`, localize: (key) => key } };
+    globalThis.ui = {
+      notifications: { warn: (text) => warned.push(text) },
+      controls: { control: { name: "acksBattlemap" }, activate: (arg) => activated.push(arg) },
+    };
+    session.overlay.arm = () => {};
+    session.gridFamily = "hexRows";
+    session.mode = null;
+    session.arm("corners");
+    assert.equal(session.mode, null, "corners do not arm on a hex family");
+    assert.equal(warned.length, 1, "and say why");
+    assert.ok(warned[0].includes("warn.cornersHex") && warned[0].includes("ACKS-BATTLEMAP.mode.square"), "naming the box tool by its toolbar name");
+    assert.deepEqual(activated, [{ tool: "off" }], "the toolbar goes back to rest");
+    session.arm("square");
+    assert.equal(session.mode, "square", "the box tool still arms");
+    assert.equal(warned.length, 1);
+    session.gridFamily = "square";
+    session.arm("corners");
+    assert.equal(session.mode, "corners", "corners arm on the square family");
+    session.setSetup({ gridFamily: "hexCols" });
+    assert.equal(session.mode, null, "switching to a hex family while corners is armed refuses it too");
+    assert.equal(warned.length, 2);
+    assert.equal(activated.length, 2);
+  } finally {
+    delete session.overlay.arm;
+    session.mode = null;
+    session.samples = { squares: [], corners: [], scale: null };
+    session.gridFamily = "square";
+    session.allowSkew = false;
+    session.independentXY = false;
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
 }
 
 // The failures.

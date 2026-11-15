@@ -5,8 +5,10 @@
  * plain data; synthetic figures only, nothing read off a page.
  */
 import assert from "node:assert/strict";
-import { planSetup, resolveCellWorth } from "../scripts/battlemap/setup-plan.mjs";
-import { GRID_TYPE } from "../scripts/battlemap/constants.mjs";
+import { expeditionScaleOf, planSetup, resolveCellWorth } from "../scripts/battlemap/setup-plan.mjs";
+import { solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "../scripts/battlemap/apply.mjs";
+import { DISTANCE_UNITS } from "../scripts/lib/distance-units.mjs";
+import { FLAG_BATTLEMAP, GRID_TYPE, MODULE_ID } from "../scripts/battlemap/constants.mjs";
 import { fitHexLattice } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 
@@ -656,10 +658,270 @@ test("cell worth: a scene with no usable distance resolves to null", () => {
 });
 
 /* -------------------------------------------- */
+/*  The expedition-scale helper                 */
+/* -------------------------------------------- */
+
+test("expedition scale: six miles leaves auto-sizing off, five feet turns it on", () => {
+  const scene = { distance: 5, units: "ft" };
+  assert.equal(expeditionScaleOf({ distance: 6, units: "mi", scene }), true);
+  assert.equal(expeditionScaleOf({ distance: 5, units: "ft", scene }), false);
+  assert.equal(plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, expeditionScale: expeditionScaleOf({ distance: 6, units: "mi", scene }) }).autoScale, false);
+  assert.equal(plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, expeditionScale: expeditionScaleOf({ distance: 5, units: "ft", scene }) }).autoScale, true);
+});
+
+test("expedition scale: a kept unit reads the scene's own, so six in a scene already in miles is off", () => {
+  assert.equal(expeditionScaleOf({ distance: 6, units: null, scene: { distance: 1, units: "miles" } }), true);
+  assert.equal(expeditionScaleOf({ distance: 6, units: "", scene: { distance: 1, units: "Mi." } }), true);
+  assert.equal(expeditionScaleOf({ distance: 6, units: null, scene: { distance: 6, units: "ft" } }), false, "six feet in a scene kept in feet is a delve");
+});
+
+test("expedition scale: the unit written decides, not the scene's old one", () => {
+  const inMiles = { distance: 6, units: "mi" };
+  assert.equal(expeditionScaleOf({ distance: 6, units: "ft", scene: inMiles }), false, "a unit chosen as feet overrides the scene's miles");
+  assert.equal(expeditionScaleOf({ distance: 1, units: "mi", scene: { distance: 5, units: "ft" } }), true, "exactly a mile counts");
+  assert.equal(expeditionScaleOf({ distance: 5000, units: "ft", scene: inMiles }), false, "just under a mile does not");
+  assert.equal(expeditionScaleOf({ distance: null, units: "mi", scene: { distance: 6, units: "ft" } }), true, "no solution distance falls back to the scene's");
+  assert.equal(expeditionScaleOf({}), false);
+});
+
+/* -------------------------------------------- */
+/*  Solve and write                             */
+/* -------------------------------------------- */
+
+// The solve answers the planner's `solution` and the scene's `update` from one
+// set of values, and the writer writes that update. A scene stand-in whose
+// clone reports core's hex grid and a zero-shift padded origin, and whose
+// `update` applies what it is given.
+
+const savedGlobals = { foundry: globalThis.foundry, game: globalThis.game, ui: globalThis.ui };
+const said = { confirmed: 0, info: [], error: [] };
+globalThis.game = { i18n: { format: (key, data) => ({ key, data }), localize: (key) => key } };
+globalThis.ui = { notifications: { info: (m) => said.info.push(m), error: (m) => said.error.push(m), warn: () => {} } };
+globalThis.foundry = {
+  canvas: { getTexture: () => ({ width: 4000, height: 3000 }) },
+  applications: { api: { DialogV2: { confirm: async () => { said.confirmed++; return said.answer ?? true; } } } },
+};
+
+/**
+ * Core's `getCenterPoint` also takes a point and answers the nearest hex
+ * centre; the stand-in grid answers offsets only, so this adds the snap by
+ * scanning a window of offsets for the nearest centre.
+ */
+const snapping = (grid) => ({
+  ...grid,
+  getCenterPoint(at) {
+    if (Number.isFinite(at?.i)) return grid.getCenterPoint(at);
+    let best = null;
+    for (let i = -3; i < 70; i++) {
+      for (let j = -3; j < 70; j++) {
+        const c = grid.getCenterPoint({ i, j });
+        const d = Math.hypot(c.x - at.x, c.y - at.y);
+        if (!best || d < best.d) best = { d, c };
+      }
+    }
+    return best.c;
+  },
+});
+
+function solveScene({ gridType = GRID_TYPE.GRIDLESS, autoScale = false } = {}) {
+  const scene = {
+    grid: { type: gridType, size: 100, distance: 5, units: "ft" },
+    background: { src: "map.webp" },
+    flags: { [MODULE_ID]: { [FLAG_BATTLEMAP]: { autoScale } } },
+    updates: [],
+    clone(data) {
+      const type = data["grid.type"] ?? gridType;
+      const size = data["grid.size"] ?? 100;
+      const grid = type >= GRID_TYPE.HEXODDR
+        ? { type, ...coreHexGrid({ columns: type === GRID_TYPE.HEXODDQ || type === GRID_TYPE.HEXEVENQ, even: type === GRID_TYPE.HEXEVENR || type === GRID_TYPE.HEXEVENQ, size }) }
+        : { type, size };
+      return { grid: type >= GRID_TYPE.HEXODDR ? snapping(grid) : grid, getDimensions: () => ({ sceneX: 40, sceneY: 60 }) };
+    },
+    async update(patch) {
+      scene.updates.push(patch);
+      for (const [key, value] of Object.entries(patch)) {
+        if (key.startsWith("grid.")) scene.grid[key.slice(5)] = value;
+        if (key.startsWith("flags.")) scene.flags = { [MODULE_ID]: { [FLAG_BATTLEMAP]: value } };
+      }
+    },
+  };
+  return scene;
+}
+
+/** Every field the solve names, read off the update payload the way the scene would take it. */
+const payloadOf = (update) => ({
+  gridType: update["grid.type"], gridSize: update["grid.size"], distance: update["grid.distance"],
+  unitsAbbr: update["grid.units"], width: update.width, height: update.height, shiftX: update.shiftX, shiftY: update.shiftY,
+});
+
+function assertSolveAgrees(solved, { units }) {
+  assert.equal(solved.ok, true, `the solve refused: ${solved.reason}`);
+  const { solution, update } = solved;
+  const p = payloadOf(update);
+  assert.equal(p.gridType, solution.gridType, "grid type");
+  assert.equal(p.gridSize, solution.gridSize, "grid size");
+  assert.equal(p.distance, solution.distance, "distance");
+  assert.equal(p.unitsAbbr, DISTANCE_UNITS[solution.units].abbr, "units");
+  assert.equal(solution.units, units, "the solution carries the chosen unit key");
+  for (const f of ["width", "height", "shiftX", "shiftY"]) assert.equal(p[f], solution[f], f);
+  assert.deepEqual(Object.keys(update).sort(), ["grid.distance", "grid.size", "grid.type", "grid.units", "height", "shiftX", "shiftY", "width"],
+    "the payload writes exactly the fields the solution names");
+  // And the planner reads the same numbers the scene would be given.
+  const rows = planSetup({ family: "square", samples: { boxes: 1 }, fit: SQUARE_FIT, cellWorth: solution.distance, scene: GRIDLESS_SCENE, solution }).rows;
+  const image = rows.find((r) => r.id === "image");
+  assert.deepEqual([image.after.width, image.after.height, image.after.shiftX, image.after.shiftY], [update.width, update.height, update.shiftX, update.shiftY], "the image row");
+  assert.equal(rows.find((r) => r.id === "grid").after.size, update["grid.size"], "the grid row");
+  assert.equal(rows.find((r) => r.id === "cellWorth").after.distance, update["grid.distance"], "the worth row");
+}
+
+test("solve, hex: the update payload equals the solution the rows are built from", () => {
+  const fit = fitReal(ROWS, LARGE, [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)]);
+  assert.equal(fit.ok, true);
+  const solved = solveHexCalibration(solveScene(), fit, { gridSize: 100.4, outputFeet: 6, family: "hexRows", hexEven: false, units: "mi", mapSystem: null });
+  assertSolveAgrees(solved, { units: "mi" });
+  assert.equal(solved.solution.gridSize, 100, "the size is rounded once, for both");
+  assert.equal(solved.solution.gridType, GRID_TYPE.HEXODDR);
+  const even = solveHexCalibration(solveScene(), fit, { gridSize: 100, outputFeet: 6, family: "hexRows", hexEven: true, units: "mi" });
+  assert.equal(even.solution.gridType, GRID_TYPE.HEXEVENR, "the parity picks the type for both");
+  assert.equal(even.update["grid.type"], GRID_TYPE.HEXEVENR);
+});
+
+test("solve, hex: the fitted centre is what the shift lands on, not a box's own", () => {
+  const boxes = [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)];
+  const fit = fitReal(ROWS, LARGE, boxes);
+  const a = solveHexCalibration(solveScene(), fit, { gridSize: 100, outputFeet: 6, family: "hexRows", units: "mi" });
+  const b = solveHexCalibration(solveScene(), { ...fit, centre: { x: fit.centre.x + 20, y: fit.centre.y } }, { gridSize: 100, outputFeet: 6, family: "hexRows", units: "mi" });
+  assert.notEqual(a.solution.shiftX, b.solution.shiftX, "a fit centred elsewhere shifts the image elsewhere");
+});
+
+test("solve, square: the update payload equals the solution the rows are built from", () => {
+  const solved = solveGridCalibration(solveScene(), SQUARE_FIT, { gridSize: 100.4, outputFeet: 25, mapCellFeet: 25, units: "ft", mapSystem: null });
+  assertSolveAgrees(solved, { units: "ft" });
+  assert.equal(solved.solution.gridType, GRID_TYPE.SQUARE);
+  assert.equal(solved.solution.gridSize, 100);
+});
+
+test("solve: a refusal answers a reason and speaks to no one", () => {
+  const before = { info: said.info.length, error: said.error.length, confirmed: said.confirmed };
+  assert.deepEqual(solveGridCalibration(solveScene({ gridType: GRID_TYPE.HEXODDR }), SQUARE_FIT, { gridSize: 100, outputFeet: 5, mapCellFeet: 5 }), { ok: false, reason: "notSquareGrid" });
+  const noImage = solveScene();
+  const real = globalThis.foundry.canvas.getTexture;
+  globalThis.foundry.canvas.getTexture = () => null;
+  assert.deepEqual(solveGridCalibration(noImage, SQUARE_FIT, { gridSize: 100, outputFeet: 5, mapCellFeet: 5 }), { ok: false, reason: "noBackground" });
+  globalThis.foundry.canvas.getTexture = real;
+  assert.deepEqual(solveGridCalibration(solveScene(), SQUARE_FIT, { gridSize: 100, outputFeet: 5, mapCellFeet: null }), { ok: false, reason: "badSolution" });
+  assert.deepEqual(solveHexCalibration(solveScene(), { ok: true, sizeX: 30, sizeY: 40 }, { gridSize: 100, outputFeet: 6, family: "hexRows" }), { ok: false, reason: "badSolution" }, "a hex fit with no centre");
+  assert.deepEqual(solveScaleOnly({ size: 0, distance: 3 }), { ok: false, reason: "badSolution" });
+  assert.deepEqual({ info: said.info.length, error: said.error.length, confirmed: said.confirmed }, before, "no notification and no dialog");
+  assert.equal(noImage.updates.length, 0, "and no update");
+});
+
+test("solve, scale-only: the solution carries no geometry and the update touches none", () => {
+  const solved = solveScaleOnly({ size: 120, distance: 2.5, units: "mi", mapSystem: "journey" });
+  assert.deepEqual(solved.solution, { gridSize: 120, distance: 2.5, units: "mi", mapSystem: "journey" });
+  assert.deepEqual(solved.update, { "grid.size": 120, "grid.distance": 2.5, "grid.units": "mi" });
+});
+
+/** Solve, plan and write a hex apply over a scene, the way the panel does. */
+async function applyHex({ units, outputFeet, scene }) {
+  const fit = fitReal(ROWS, LARGE, [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)]);
+  const solved = solveHexCalibration(scene, fit, { gridSize: 100, outputFeet, family: "hexRows", units, mapSystem: null });
+  const p = planSetup({
+    family: "hexRows", samples: { boxes: 3 }, fit, cellWorth: outputFeet,
+    scene: { gridType: scene.grid.type, gridSize: scene.grid.size, distance: scene.grid.distance, units: scene.grid.units, width: 4000, height: 3000, shiftX: 0, shiftY: 0, autoScale: scene.flags[MODULE_ID][FLAG_BATTLEMAP].autoScale, mapSystem: null, hasBackground: true },
+    solution: solved.solution,
+    expeditionScale: expeditionScaleOf({ distance: solved.solution.distance, units, scene: scene.grid }),
+  });
+  const applied = await writeSetup(scene, solved, { family: "hexRows", autoScale: p.autoScale });
+  return { applied, plan: p, solved };
+}
+
+await (async () => {
+  const run = async (name, fn) => {
+    try {
+      await fn();
+      results.push({ name, ok: true });
+      console.log(`  ok   ${name}`);
+    } catch (err) {
+      results.push({ name, ok: false });
+      console.log(`  FAIL ${name}\n${err.stack}`);
+    }
+  };
+  const record = (scene) => scene.updates.at(-1)[`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`];
+
+  await run("write: a mile-scale apply writes auto-sizing off even over a scene that had it on", async () => {
+    const scene = solveScene({ autoScale: true });
+    const { applied, plan: p } = await applyHex({ units: "mi", outputFeet: 6, scene });
+    assert.equal(applied, true);
+    assert.equal(p.autoScale, false);
+    assert.deepEqual(record(scene), { calibrated: true, distance: 6, autoScale: false, mapSystem: null });
+  });
+
+  await run("write: a foot-scale apply writes auto-sizing on", async () => {
+    const scene = solveScene({ autoScale: false });
+    const { applied } = await applyHex({ units: "ft", outputFeet: 5, scene });
+    assert.equal(applied, true);
+    assert.equal(record(scene).autoScale, true);
+  });
+
+  await run("write: the update sent is the solve's update plus the flag record, and nothing else", async () => {
+    const scene = solveScene();
+    const { solved } = await applyHex({ units: "mi", outputFeet: 6, scene });
+    const { [`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`]: flag, ...rest } = scene.updates.at(-1);
+    assert.deepEqual(rest, solved.update);
+    assert.deepEqual(Object.keys(flag).sort(), ["autoScale", "calibrated", "distance", "mapSystem"]);
+  });
+
+  await run("write: the done notice names the family and the unit, per family", async () => {
+    const hex = solveScene();
+    await applyHex({ units: "mi", outputFeet: 6, scene: hex });
+    assert.deepEqual(said.info.at(-1), { key: "ACKS-BATTLEMAP.apply.doneHex", data: { size: 100, distance: 6, units: "mi" } });
+
+    const square = solveScene();
+    const sq = solveGridCalibration(square, SQUARE_FIT, { gridSize: 100, outputFeet: 5, mapCellFeet: 5, units: "ft" });
+    assert.equal(await writeSetup(square, sq, { family: "square", autoScale: true }), true);
+    assert.deepEqual(said.info.at(-1), { key: "ACKS-BATTLEMAP.apply.done", data: { size: 100, distance: 5, units: "ft" } });
+
+    const ruler = solveScene();
+    const sc = solveScaleOnly({ size: 120, distance: 2, units: "mi" });
+    assert.equal(await writeSetup(ruler, sc, { family: "scale", autoScale: false }), true);
+    assert.deepEqual(said.info.at(-1), { key: "ACKS-BATTLEMAP.apply.doneScale", data: { size: 120, distance: 2, units: "mi" } });
+  });
+
+  await run("write: a kept unit names the scene's own, and a declined confirmation writes nothing", async () => {
+    const scene = solveScene();
+    scene.grid.units = "miles";
+    await applyHex({ units: null, outputFeet: 6, scene });
+    assert.equal(said.info.at(-1).data.units, "miles");
+    const declined = solveScene();
+    said.answer = false;
+    const { applied } = await applyHex({ units: "mi", outputFeet: 6, scene: declined });
+    said.answer = undefined;
+    assert.equal(applied, false);
+    assert.equal(declined.updates.length, 0);
+  });
+
+  await run("write: a scene that does not take the update is reported and not announced", async () => {
+    const scene = solveScene();
+    scene.update = async () => {};
+    const before = said.info.length;
+    const { applied } = await applyHex({ units: "mi", outputFeet: 6, scene });
+    assert.equal(applied, false);
+    assert.equal(said.info.length, before);
+    assert.equal(said.error.at(-1).key, "ACKS-BATTLEMAP.warn.applyRejected");
+  });
+})();
+
+for (const [key, value] of Object.entries(savedGlobals)) {
+  if (value === undefined) delete globalThis[key];
+  else globalThis[key] = value;
+}
+
+/* -------------------------------------------- */
 
 const failed = results.filter((r) => !r.ok);
 if (failed.length) {
   console.log(`test-battlemap-setup-plan: FAILED ${failed.length} of ${results.length} (${failed.map((r) => r.name).join("; ")})`);
   process.exit(1);
 }
-console.log(`test-battlemap-setup-plan: OK (${results.length} tests: needs for square, both hex families and scale-only, every family's blank worth, rows for a square, hex and scale-only solve, unchanged fields, the already-matching scene, the auto-sizing decision, the cell worth, the warnings a fit carries, and real \`fitHexLattice\` answers fed to the planner)`);
+console.log(`test-battlemap-setup-plan: OK (${results.length} tests: needs for square, both hex families and scale-only, every family's blank worth, rows for a square, hex and scale-only solve, unchanged fields, the already-matching scene, the auto-sizing decision, the cell worth, the warnings a fit carries, real \`fitHexLattice\` answers fed to the planner, the expedition-scale helper, and the solve and the write of each family)`);

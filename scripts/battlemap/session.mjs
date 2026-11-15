@@ -10,9 +10,14 @@
  */
 
 import { CaptureOverlay, runFit } from "./capture.mjs";
-import { MODULE_ID, CONTROL_GROUP, TOOL_OFF, GRID_FAMILIES, HEX_TYPES } from "./constants.mjs";
-import { familyOfScene, sceneSetup } from "./scene-setup.mjs";
+import { canvasPerImage, fitHexLattice } from "./calibrate-logic.mjs";
+import { MODULE_ID, LANG_PREFIX, CONTROL_GROUP, TOOL_OFF, GRID_FAMILIES, HEX_TYPES } from "./constants.mjs";
+import { backgroundTexture } from "./scene-image.mjs";
+import { familyOfScene, hexProbe, sceneSetup } from "./scene-setup.mjs";
 import { unitKey } from "../lib/distance-units.mjs";
+import { makeLoc } from "../lib/util.mjs";
+
+const loc = makeLoc(LANG_PREFIX);
 
 const emptySamples = () => ({ squares: [], corners: [], scale: null });
 
@@ -51,15 +56,22 @@ class CalibrationSession {
     this.listeners = new Set();
   }
 
+  /** The fit last computed and the samples and choices it answered; see `fit`. */
+  #fitCache = null;
+
+  /** The two hex probes last asked of the scene and the choice they answered; see `hexProbe`. */
+  #probeCache = null;
+
   /**
-   * A hex's bounding box is taller than it is wide (or wider than tall), so a
-   * hex family fits the two axes SEPARATELY whatever the square-grid
-   * checkbox says — pooling them would average a hex's two edges into one
-   * number that describes neither.
+   * How the SQUARE family's fit reads its samples. "Allow skew" and
+   * "Independent X / Y" are that family's controls and steer only its fit: on
+   * any other family they are hidden, so a value ticked earlier is ignored. A
+   * hex family has no pooled axis (its box is wider than tall or the reverse)
+   * and the scale-only family reads one cell size.
    */
   get fitMode() {
+    if (this.gridFamily !== "square") return HEX_TYPES[this.gridFamily] ? "rect" : "square";
     if (this.allowSkew) return "affine";
-    if (HEX_TYPES[this.gridFamily]) return "rect";
     return this.independentXY ? "rect" : "square";
   }
 
@@ -68,11 +80,68 @@ class CalibrationSession {
     return !!HEX_TYPES[this.gridFamily];
   }
 
-  /** Live samples win; a fresh bake stands in until they arrive. */
+  /**
+   * One hex's probe for the chosen family — `{refW, refH, refSize, basis,
+   * vertices}` from `hexProbe` — or null on a family that writes no hexes. Asked
+   * of a scene clone once per family, parity and scene, so the fit and the
+   * surfaces that read the lattice (the overlay's preview) share one answer.
+   */
+  get hexProbe() {
+    return this.#probes()?.own ?? null;
+  }
+
+  /** Both hex families' probes (the chosen one and the other, same parity), cached. */
+  #probes() {
+    if (!this.isHexFamily) return null;
+    const scene = canvas?.scene ?? null;
+    const key = `${scene?.id ?? ""}|${this.gridFamily}|${this.hexEven}`;
+    if (this.#probeCache?.key !== key) {
+      const other = Object.keys(HEX_TYPES).find((f) => f !== this.gridFamily);
+      this.#probeCache = {
+        key,
+        own: hexProbe(scene, this.gridFamily, this.hexEven),
+        other: hexProbe(scene, other, this.hexEven),
+      };
+    }
+    return this.#probeCache;
+  }
+
+  /** Drop the cached fit and probes: the next read recomputes them. */
+  #invalidate() {
+    this.#fitCache = null;
+    this.#probeCache = null;
+  }
+
+  /**
+   * Live samples win; a fresh bake stands in until they arrive. A hex family's
+   * fit is the lattice fit over its boxes (corners are not read on it); the
+   * square and scale-only families fit as a grid. Cached, since the panel and
+   * the overlay read it many times per render and a hex fit asks the scene for
+   * two probes: it is recomputed only when the samples, the family or parity,
+   * the scene or its image scale differ from the ones it answered, or after an
+   * explicit invalidation (a sample change, a bake, a wipe, the canvas
+   * becoming ready).
+   */
   get fit() {
     const s = this.samples;
-    if (s.squares.length || s.corners.length) return runFit(s, this.fitMode);
-    return this.bakedFit;
+    const hex = this.isHexFamily;
+    // A bake leaves a square fit, which a hex family cannot read.
+    if (!(s.squares.length || s.corners.length)) return hex ? null : this.bakedFit;
+    const scene = canvas?.scene ?? null;
+    // Canvas px per image px; the hex fit judges a box's shape as drawn.
+    const scale = hex ? canvasPerImage({ texture: scene ? backgroundTexture(scene) : null, dimensions: scene?.dimensions }) : null;
+    const key = JSON.stringify([scene?.id ?? null, this.gridFamily, this.hexEven, this.fitMode, s.squares, s.corners, scale]);
+    if (this.#fitCache?.key !== key) {
+      let fit;
+      if (hex) {
+        const probes = this.#probes();
+        fit = fitHexLattice({ boxes: s.squares, probe: probes.own, otherProbe: probes.other, scale });
+      } else {
+        fit = runFit(s, this.fitMode);
+      }
+      this.#fitCache = { key, fit };
+    }
+    return this.#fitCache.fit;
   }
 
   get hasSamples() {
@@ -88,9 +157,15 @@ class CalibrationSession {
    * at once — the toolbar's `onChange` re-fires on re-entry, and the panel's
    * buttons mirror it — and a toggle would turn either into a silent disarm.
    *
-   * Pass null to disarm.
+   * Pass null to disarm. Corners are refused on a hex family — a hex's
+   * vertices are not points of a rectangular lattice, and the hex fit reads
+   * boxes — with a notice naming the box tool and the toolbar back at rest.
    */
   arm(mode) {
+    if (mode === "corners" && this.isHexFamily) {
+      this.#refuseCorners();
+      return this.mode;
+    }
     this.mode = mode ?? null;
     this.overlay.arm(this.mode);
     this.notify();
@@ -119,8 +194,15 @@ class CalibrationSession {
     if (controls?.control?.name === CONTROL_GROUP) controls.activate({ tool: TOOL_OFF });
   }
 
+  /** Say why corners are not offered on a hex family, then put the toolbar at rest. */
+  #refuseCorners() {
+    globalThis.ui?.notifications?.warn(loc("warn.cornersHex", { tool: loc("mode.square") }));
+    this.requestDisarm();
+  }
+
   /** The overlay's callback after it mutates `samples`. */
   onSamplesChanged() {
+    this.#invalidate();
     this.notify();
   }
 
@@ -132,22 +214,30 @@ class CalibrationSession {
     const box = this.samples.squares[Number(index)];
     if (!box) return;
     box.cells = cells > 0 ? cells : 1;
+    this.#invalidate();
     this.overlay.redraw(this.fit);
     this.notify();
   }
 
-  /** Set one of the setup choices and re-render every surface over them. */
+  /**
+   * Set one of the setup choices and re-render every surface over them. A
+   * switch to a hex family while corners is armed refuses corners as arming
+   * them would.
+   */
   setSetup({ gridFamily, hexEven, units, mapSystem } = {}) {
     if (gridFamily !== undefined && GRID_FAMILIES.includes(gridFamily)) this.gridFamily = gridFamily;
     if (hexEven !== undefined) this.hexEven = !!hexEven;
     if (units !== undefined) this.units = units || null;
     if (mapSystem !== undefined) this.mapSystem = mapSystem || null;
+    this.#invalidate();
+    if (this.mode === "corners" && this.isHexFamily) this.#refuseCorners();
     this.notify();
   }
 
   deleteSample(kind, index) {
     if (kind === "scale") this.samples.scale = null;
     else this.samples[kind]?.splice(Number(index), 1);
+    this.#invalidate();
     this.overlay.redraw(this.fit);
     this.notify();
   }
@@ -155,6 +245,7 @@ class CalibrationSession {
   wipe() {
     this.samples = emptySamples();
     this.bakedFit = null;
+    this.#invalidate();
     this.overlay.redraw(null);
     this.notify();
   }
@@ -169,6 +260,7 @@ class CalibrationSession {
     this.bakedFit = null;
     this.mode = null;
     this.opts = emptyOpts();
+    this.#invalidate();
     this.overlay.destroy();
   }
 
@@ -184,6 +276,7 @@ class CalibrationSession {
     this.hexEven = hex ? scene.grid.type === hex.even : false;
     this.units = unitKey(scene?.grid?.units);
     this.mapSystem = sceneSetup(scene).mapSystem;
+    this.#invalidate();
   }
 
   /**
@@ -198,6 +291,9 @@ class CalibrationSession {
       this.reset();
       this.adoptScene();
     }
+    // A same-scene redraw can change the image (a bake repoints it), and the
+    // hex fit reads the image's scale.
+    this.#invalidate();
     this.notify();
   }
 

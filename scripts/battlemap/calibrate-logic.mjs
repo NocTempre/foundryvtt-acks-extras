@@ -991,3 +991,22 @@ export function unitsPerCentreSpacing({ dx, dy, value, k, basis }) {
   const cells = Math.hypot(dx / k.x, dy / k.y) / step;
   return cells > 0 ? value / cells : null;
 }
+
+/**
+ * Canvas px per background-image px, per axis: the `scale` the hex fit takes.
+ * It is the INVERSE of what the capture overlay calls its image scale (image px
+ * per canvas px); the fit judges a box's shape as it is drawn on screen, so a
+ * square texture stretched over a 4:3 scene must come in as 4:3, not 3:4.
+ * Identity where either size is unusable, so a missing texture never throws.
+ *
+ * @param {object} input
+ * @param {{width:number,height:number}|null} input.texture  The background texture, image px.
+ * @param {{sceneWidth:number,sceneHeight:number}|null} input.dimensions  The scene's
+ *   dimensions (`scene.dimensions`), canvas px.
+ * @returns {{x:number,y:number}}
+ */
+export function canvasPerImage({ texture = null, dimensions = null } = {}) {
+  const x = dimensions?.sceneWidth / texture?.width;
+  const y = dimensions?.sceneHeight / texture?.height;
+  return x > 0 && y > 0 && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : { x: 1, y: 1 };
+}

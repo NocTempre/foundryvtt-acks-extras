@@ -4,13 +4,23 @@
  * scale into one Scene update, and (for skewed scans) bake a corrected
  * background image.
  *
- * Three applies, one per grid family — a square grid fitted to drawn boxes, a
- * hex grid pitched to one drawn hex, and a scale-only write that touches no
- * geometry at all. They write grid.size / grid.distance / grid.units / shiftX /
- * shiftY / width / height DIRECTLY on the Scene — no flags mirror them. That is
- * the same field set core's own GridConfig writes; the module's flag records
- * only what core has no field for (the calibration mark, the autoScale gate,
- * and the travel system declared here).
+ * Three families, one per grid kind — a square grid fitted to drawn boxes, a
+ * hex grid fitted to the boxes drawn around single hexes, and a scale-only
+ * write that touches no geometry at all. Each is SOLVED apart from being
+ * WRITTEN: a solve is side-effect free (no notification, no dialog, no update)
+ * and answers `{ ok: true, solution, update }` or `{ ok: false, reason }`, so
+ * the panel's rows and the write read one answer, and a refusal is a `reason`
+ * the panel turns into a line, never a notification. `solution` is the plain-data
+ * shape the planner takes (`setup-plan.mjs`); `update` is the exact scene
+ * payload, and the two are built from the same variables. `writeSetup` is the
+ * one writer: it confirms, writes `update` with the module's flag record, reads
+ * the scene back and posts the done notice.
+ *
+ * They write grid.size / grid.distance / grid.units / shiftX / shiftY / width /
+ * height DIRECTLY on the Scene — no flags mirror them. That is the same field
+ * set core's own GridConfig writes; the module's flag records only what core
+ * has no field for (the calibration mark, the autoScale gate, and the travel
+ * system declared here).
  */
 
 import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CALIBRATABLE_GRIDS, GRID_TYPE, gridTypeFor } from "./constants.mjs";
@@ -46,9 +56,17 @@ const wroteScale = (scene, { size, distance }) =>
 /** The unit string the scene will actually be read in after this apply. */
 const unitsWritten = (scene, units) => DISTANCE_UNITS[units]?.abbr ?? scene.grid.units ?? "";
 
+/** The lang key of each family's confirmation body and done notice. */
+const FAMILY_TEXT = Object.freeze({
+  square: { confirm: "apply.confirmBody", done: "apply.done" },
+  hexRows: { confirm: "apply.confirmHex", done: "apply.doneHex" },
+  hexCols: { confirm: "apply.confirmHex", done: "apply.doneHex" },
+  scale: { confirm: "apply.confirmScale", done: "apply.doneScale" },
+});
+
 /**
  * The one confirmation every apply asks. Each states its own body — a square,
- * a hex and a bare ruler are three different promises — and the moved-placeable
+ * a hex and a bare ruler are three different promises — and the placeables
  * note appears only when the scene's own dimensions are changing.
  */
 function confirmApply(body, { shifts }) {
@@ -61,7 +79,7 @@ function confirmApply(body, { shifts }) {
 }
 
 /**
- * Apply a SQUARE calibration: the background is rescaled so a drawn map box
+ * Solve a SQUARE calibration: the background is rescaled so a drawn map box
  * spans exactly `mapCellFeet / outputFeet` Foundry squares of `gridSize` px,
  * the shift is solved so grid lines land on the drawn lattice, and
  * grid.distance becomes the output scale.
@@ -74,20 +92,14 @@ function confirmApply(body, { shifts }) {
  * @param {number} choice.mapCellFeet  What one DRAWN box is worth.
  * @param {string} [choice.units]  A `DISTANCE_UNITS` key; absent keeps the scene's.
  * @param {string|null} [choice.mapSystem]  The travel system declared here.
- * @returns {Promise<boolean>} whether the update was confirmed and written.
+ * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet, units, mapSystem = null }) {
+export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet, units, mapSystem = null }) {
   // GRIDLESS is accepted and switched to SQUARE; a hex scene is refused this
   // apply — the hex family calibrates it instead.
-  if (!CALIBRATABLE_GRIDS.has(scene.grid.type)) {
-    ui.notifications.warn(loc("warn.notSquareGrid"));
-    return false;
-  }
+  if (!CALIBRATABLE_GRIDS.has(scene.grid.type)) return { ok: false, reason: "notSquareGrid" };
   const tex = backgroundTexture(scene);
-  if (!tex) {
-    ui.notifications.warn(loc("warn.noBackground"));
-    return false;
-  }
+  if (!tex) return { ok: false, reason: "noBackground" };
   const G = Math.round(gridSize);
   const squaresPerBox = mapCellFeet / outputFeet;
   const fx = (G * squaresPerBox) / fit.sizeX;
@@ -103,143 +115,132 @@ export async function applyGridCalibration(scene, fit, { gridSize, outputFeet, m
   const shiftY = solveShift({ origin: dims.sceneY, phase: fit.phaseY, factor: fy, gridSize: G });
   // Never hand Foundry a non-finite field: schema validation drops the whole
   // update without throwing, which reads as a successful no-op.
-  if (shiftX === null || shiftY === null || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0)) {
-    ui.notifications.error(loc("warn.badSolution"));
-    return false;
+  if (shiftX === null || shiftY === null || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0) || !(mapCellFeet > 0)) {
+    return { ok: false, reason: "badSolution" };
   }
-
-  const body = loc("apply.confirmBody", { size: G, distance: outputFeet, units: unitsWritten(scene, units) });
-  if (!(await confirmApply(body, { shifts: true }))) return false;
-
-  await scene.update({
-    width,
-    height,
-    shiftX,
-    shiftY,
-    "grid.size": G,
-    "grid.type": GRID_TYPE.SQUARE,
-    "grid.distance": outputFeet,
-    ...unitPatch(units),
-    ...setupPatch({ calibrated: true, distance: outputFeet, autoScale: true, mapSystem }),
-  });
-
-  if (!wroteScale(scene, { size: G, distance: outputFeet })) {
-    ui.notifications.error(loc("warn.applyRejected"));
-    return false;
-  }
-  ui.notifications.info(loc("apply.done", { size: G, distance: outputFeet }));
-  return true;
+  return geometrySolve({ type: GRID_TYPE.SQUARE, G, distance: outputFeet, units, mapSystem, width, height, shiftX, shiftY });
 }
 
 /**
- * Apply a HEX calibration: the background is rescaled so one drawn hex is one
- * Foundry hex of `gridSize` px, and the scene is shifted so that hex's centre
- * lands on a Foundry hex centre. A hex's bounding box and centre are asked of
- * a scene clone carrying the target grid, never rederived here.
+ * Solve a HEX calibration: the background is rescaled so one drawn hex is one
+ * Foundry hex of `gridSize` px, and the scene is shifted so the fitted hex
+ * centre lands on a Foundry hex centre. A hex's bounding box and centre are
+ * asked of a scene clone carrying the target grid, never rederived here.
  *
  * @param {Scene} scene
- * @param {object} fit  Rect-mode fit (image px) of one hex's bounding box.
+ * @param {object} fit  `fitHexLattice`'s answer (image px): `sizeX`/`sizeY` one
+ *   hex's bounding box and `centre` the fitted hex centre.
  * @param {object} choice
  * @param {number} choice.gridSize  Canvas px for the Foundry `grid.size`.
  * @param {number} choice.outputFeet  What one hex is worth.
- * @param {{x:number,y:number}} choice.hexCentre  A drawn hex's centre, image px.
  * @param {string} choice.family  `hexRows` (pointy-topped) or `hexCols` (flat).
  * @param {boolean} [choice.hexEven]  The even-offset variant of that family.
- * @returns {Promise<boolean>}
+ * @param {object|null} [choice.probe]  `hexProbe`'s answer for the family, where
+ *   the caller already holds it; asked of the scene otherwise.
+ * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export async function applyHexCalibration(scene, fit, { gridSize, outputFeet, hexCentre, family, hexEven = false, units, mapSystem = null }) {
+export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, hexEven = false, units, mapSystem = null, probe = undefined }) {
   const type = gridTypeFor(family, hexEven);
   const tex = backgroundTexture(scene);
-  if (!tex) {
-    ui.notifications.warn(loc("warn.noBackground"));
-    return false;
-  }
-  if (type === null || !hexCentre) {
-    ui.notifications.error(loc("warn.badSolution"));
-    return false;
-  }
+  if (!tex) return { ok: false, reason: "noBackground" };
+  const hexCentre = fit?.centre;
+  if (type === null || !Number.isFinite(hexCentre?.x) || !Number.isFinite(hexCentre?.y)) return { ok: false, reason: "badSolution" };
   const G = Math.round(gridSize);
 
   // Measured, not derived: a hex's bounding box is not square.
-  const probe = hexProbe(scene, family, hexEven);
-  const hexW = probe ? (probe.refW / probe.refSize) * G : 0;
-  const hexH = probe ? (probe.refH / probe.refSize) * G : 0;
-  if (!(hexW > 0) || !(hexH > 0) || !(fit.sizeX > 0) || !(fit.sizeY > 0)) {
-    ui.notifications.error(loc("warn.badSolution"));
-    return false;
-  }
+  const ref = probe === undefined ? hexProbe(scene, family, hexEven) : probe;
+  const hexW = ref ? (ref.refW / ref.refSize) * G : 0;
+  const hexH = ref ? (ref.refH / ref.refSize) * G : 0;
+  if (!(hexW > 0) || !(hexH > 0) || !(fit.sizeX > 0) || !(fit.sizeY > 0)) return { ok: false, reason: "badSolution" };
   const fx = hexW / fit.sizeX;
   const fy = hexH / fit.sizeY;
   const width = Math.round(tex.width * fx);
   const height = Math.round(tex.height * fy);
 
-  // The drawn centre, rescaled into the picture and offset by the clone's
+  // The fitted centre, rescaled into the picture and offset by the clone's
   // padded origin; `hexAlignment` owns the lattice question.
   const shift = hexAlignment(scene, {
     width, height, gridSize: G, type,
     point: (dims) => ({ x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy }),
   });
-  if (!shift || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0)) {
-    ui.notifications.error(loc("warn.badSolution"));
-    return false;
-  }
-  const { shiftX, shiftY } = shift;
-
-  const body = loc("apply.confirmHex", { size: G, distance: outputFeet, units: unitsWritten(scene, units) });
-  if (!(await confirmApply(body, { shifts: true }))) return false;
-
-  await scene.update({
-    width,
-    height,
-    shiftX,
-    shiftY,
-    "grid.size": G,
-    "grid.type": type,
-    "grid.distance": outputFeet,
-    ...unitPatch(units),
-    ...setupPatch({ calibrated: true, distance: outputFeet, autoScale: true, mapSystem }),
-  });
-
-  if (!wroteScale(scene, { size: G, distance: outputFeet }) || scene.grid.type !== type) {
-    ui.notifications.error(loc("warn.applyRejected"));
-    return false;
-  }
-  ui.notifications.info(loc("apply.done", { size: G, distance: outputFeet }));
-  return true;
+  if (!shift || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0)) return { ok: false, reason: "badSolution" };
+  return geometrySolve({ type, G, distance: outputFeet, units, mapSystem, width, height, shiftX: shift.shiftX, shiftY: shift.shiftY });
 }
 
 /**
- * Apply a SCALE ONLY calibration: what the map's distances are worth, and
+ * The solve of a geometry family, in both shapes at once: the plain-data
+ * `solution` the planner reads and the scene `update` the writer sends, built
+ * from the same values so they cannot disagree.
+ */
+function geometrySolve({ type, G, distance, units, mapSystem, width, height, shiftX, shiftY }) {
+  return {
+    ok: true,
+    solution: { gridType: type, gridSize: G, distance, units: units ?? null, width, height, shiftX, shiftY, mapSystem },
+    update: {
+      width,
+      height,
+      shiftX,
+      shiftY,
+      "grid.size": G,
+      "grid.type": type,
+      "grid.distance": distance,
+      ...unitPatch(units),
+    },
+  };
+}
+
+/**
+ * Solve a SCALE ONLY calibration: what the map's distances are worth, and
  * nothing else. The image is not rescaled, the scene is not shifted, and the
  * grid type is left exactly as it was — a gridless map stays gridless.
  * `size` and `distance` are one ratio; the caller has already solved which
- * pair of them to write (`scaleOnlyGrid`).
+ * pair of them to write (`scaleOnlyGrid`). The solution carries no type, width,
+ * height or shift: an absent field is unchanged.
+ *
+ * @param {object} choice  `{ size, distance, units, mapSystem }`.
+ * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
+ */
+export function solveScaleOnly({ size, distance, units, mapSystem = null }) {
+  const G = Math.round(size);
+  if (!(G > 0) || !(distance > 0) || !Number.isFinite(distance)) return { ok: false, reason: "badSolution" };
+  return {
+    ok: true,
+    solution: { gridSize: G, distance, units: units ?? null, mapSystem },
+    update: { "grid.size": G, "grid.distance": distance, ...unitPatch(units) },
+  };
+}
+
+/**
+ * The one writer: confirm a solved answer, write its `update` with the module's
+ * flag record, read the scene back, and say what was applied. `autoScale` is
+ * the planner's answer (`plan.autoScale`), written as given — never carried over
+ * from the scene's own flag, so a mile-scale apply leaves token auto-sizing off
+ * where it was on.
  *
  * @param {Scene} scene
- * @param {object} choice  `{ size, distance, units, mapSystem }`.
- * @returns {Promise<boolean>}
+ * @param {{solution: object, update: object}} solved  A solve's answer.
+ * @param {object} choice
+ * @param {"square"|"hexRows"|"hexCols"|"scale"} choice.family
+ * @param {boolean} choice.autoScale  Whether tokens placed here are auto-sized.
+ * @returns {Promise<boolean>} whether the update was confirmed, written and read back.
  */
-export async function applyScaleOnly(scene, { size, distance, units, mapSystem = null }) {
-  const G = Math.round(size);
-  if (!(G > 0) || !(distance > 0) || !Number.isFinite(distance)) {
-    ui.notifications.error(loc("warn.badSolution"));
-    return false;
-  }
-  const body = loc("apply.confirmScale", { size: G, distance: Number(distance.toFixed(3)), units: unitsWritten(scene, units) });
-  if (!(await confirmApply(body, { shifts: false }))) return false;
+export async function writeSetup(scene, { solution, update }, { family, autoScale }) {
+  const text = FAMILY_TEXT[family];
+  const units = unitsWritten(scene, solution.units);
+  const figures = { size: solution.gridSize, distance: Number(solution.distance.toFixed(3)), units };
+  if (!(await confirmApply(loc(text.confirm, figures), { shifts: family !== "scale" }))) return false;
 
   await scene.update({
-    "grid.size": G,
-    "grid.distance": distance,
-    ...unitPatch(units),
-    ...setupPatch({ calibrated: true, distance, autoScale: true, mapSystem }),
+    ...update,
+    ...setupPatch({ calibrated: true, distance: solution.distance, autoScale: !!autoScale, mapSystem: solution.mapSystem ?? null }),
   });
 
-  if (!wroteScale(scene, { size: G, distance })) {
+  const typeKept = solution.gridType == null || scene.grid.type === solution.gridType;
+  if (!wroteScale(scene, { size: solution.gridSize, distance: solution.distance }) || !typeKept) {
     ui.notifications.error(loc("warn.applyRejected"));
     return false;
   }
-  ui.notifications.info(loc("apply.doneScale", { size: G, distance }));
+  ui.notifications.info(loc(text.done, figures));
   return true;
 }
 
