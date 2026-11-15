@@ -383,9 +383,21 @@ Before any agent writes under `scripts/lib/`, the session lists the running
 sessions, reads their latest turns and `main`'s dirty paths, and says in one
 line what it found. A world relaunch asks who is seated first.
 
-Every slice: an offline suite on invented spells, then a walk from content
-imported from the seat's own PDF. Commits go through `acks-commit`; nothing
-is pushed without the owner's word.
+**The work is on a topic branch** (owner, 2026-11-15: "When ready, start
+this work as a new branch"): `topic/spell-effects`, in the sibling worktree
+`foundryvtt-acks-extras.spell-effects`, opened with `acks-branch`. One
+session writes there at a time and commits by hand; the pre-commit IP
+quarantine still runs. The worktree has no Foundry junction, so a slice's
+live walk cannot run from it. A session builds its slices to an offline
+green on the branch, lands the branch with `branch.mjs land`, walks live on
+`main`, and commits what the walk finds on `main` with `acks-commit`
+(`.claude/rules/shared-tree.md`, "Topic and parked branches"). The next
+session rebases by landing, or reopens the branch if the last one closed it.
+A slice is not reported built until its walk has run on `main`. Nothing is
+pushed without the owner's word, and a topic branch is never pushed.
+
+Every slice: an offline suite on invented spells on the branch, then, after
+the landing, a walk from content imported from the seat's own PDF.
 
 **Session 1a: the channel and the vertical engine.**
 
@@ -488,8 +500,10 @@ defenses (lib). Rituals come with research (ROADMAP part 5).
 > yourself. Settle the plan's "Not verified" list before the code that leans
 > on each item. The level 1 matrix is on the rules shelf beside the magic
 > extract (`L1-EFFECTS.md`); it is LOCAL-ONLY. Proceed on the owner
-> questions' recommended answers. Commit each finished slice with
-> `acks-commit`; push nothing. Finish by appending a "Results, 1a" section to
+> questions' recommended answers. You work in the worktree
+> `C:\Proj\foundryvtt-acks-extras.spell-effects` on `topic/spell-effects`,
+> as the plan's branch paragraph says: commit each finished slice there by
+> hand, land it, walk on `main`; push nothing. Finish by appending a "Results, 1a" section to
 > the plan (what was built, walked and not walked, by sha), writing the
 > session 1b start prompt under it, and reporting to the owner. You start no session;
 > put the next one up as a card.
