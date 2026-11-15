@@ -28,7 +28,9 @@ questions, ruled"): 2 and 4a before 1b.
   them) and the spellbook migration to references, the Magic tab redesign,
   settings and macros. A printed spell executes the effect rows the
   register authors for it; a points or gnosis caster keeps the pool
-  strip until its engine lands.
+  strip until its engine lands. The cast of a spell that is not a
+  summoning spell is planned level by level in
+  [wip/20261115-spell-effects-plan.md](wip/20261115-spell-effects-plan.md).
 - **4a — Magic items: JJ.** The `magicItem` flag, its fieldset and tab, the
   use flow; `kind.magicItem` for JJ ch. 4; the classic and heroic generation
   tables; traits; the markets bridge.
