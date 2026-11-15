@@ -190,7 +190,7 @@ Hooks.once("init", () => {
      * Template packages: a class's printed templates materialized as
      * repairable bundle documents plus the generated 3d6 RollTable, on the
      * class's own shelf. `materializeTemplates(classItem, {stamp, folder,
-     * tableFolder, pack, tablePack})` is the seam the importer calls after
+     * sharedFolder, tableFolder, pack, tablePack})` is the seam the importer calls after
      * creating or updating a class document.
      */
     templates: {

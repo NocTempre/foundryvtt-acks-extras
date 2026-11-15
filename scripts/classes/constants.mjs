@@ -30,9 +30,10 @@ export const FLAG_CLASSES = "classes";
 
 /**
  * Item flag key under `flags["acks-extras"]` naming what a document is a PART
- * of: `{classUuid, classKey, kind: "bundle"|"gear"|"ability"|"spell"|"table",
- * band?}`. Written by template-packages.mjs, and read anywhere a
- * lookup must tell a class's own copy of something from the thing itself.
+ * of. A bundle or table carries `{classUuid, classKey, kind: "bundle"|"table",
+ * band?}`; a shared skin or copy carries `{kind: "gear"|"ability"|"spell",
+ * key}` and no class. Written by template-packages.mjs, and read anywhere a
+ * lookup must tell a minted part from the thing it was made from.
  */
 export const FLAG_TEMPLATE_PART = "templatePart";
 

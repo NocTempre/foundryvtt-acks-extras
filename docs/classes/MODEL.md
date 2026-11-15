@@ -91,7 +91,7 @@ authority for the bands.
 Ownership, one fact each: the class row keeps the printed band/name/coin/enc;
 the bundle's `itemList` owns WHAT the package contains; each linked item
 owns what one piece of it IS. `materializeTemplates(classItem, {stamp,
-folder, tableFolder, pack, tablePack})` builds all of it from the class
+folder, sharedFolder, tableFolder, pack, tablePack})` builds all of it from the class
 document alone (no book needed).
 
 **Resolution reads the world first, then the compendia** — `findSource` (a
@@ -100,18 +100,27 @@ ref via the importer's stamp in the pack index, then exact name) and
 word-boundary containment at 4–5 characters, plain containment at 6+ — re-run
 over the index). The importer can be configured to import into a pack, and a
 package that reads only `game.items` materializes empty in such a world. A
-pack document is **copied into the world**, never linked: a locked pack
-document is what a Judge cannot repair.
+document in a compendium outside the library is **copied**, never linked (a
+locked pack document is what a Judge cannot repair); one on the library's own
+shelves or in the sidebar is linked.
 
-So: gear becomes an already-skinned copy deduped per class by descriptor,
-else the equipment root's strict name classification; gear nothing can
+So: gear that names its base plainly (`isPlainBase`: the base's name or its
+plural, no skin name, no price but the base's) is LINKED — the base itself,
+with the quantity on the bundle row. Any other gear becomes an already-skinned
+copy, a SHARED part: `planKitEntry` looks its key up (`sharedPartKey`: the
+base's ref, the skin name, the printed price) among the parts already minted
+and mints one only when none answers, so every class printing the same
+descriptor links the same document. With no base the copy is built from the
+equipment root's strict name classification; gear nothing can
 type stays on the row and is reported unresolved; a plain proficiency the WORLD defines is linked (one
 shared document), one only a pack defines is copied, one with a printed
 selection becomes a specialized copy stamped `grantedFrom` so `ownsRef` still
-dedupes it, and one **nothing defines yet stays on the class row** and is
+dedupes it (shared by the definition and the selection), and one **nothing
+defines yet stays on the class row** and is
 reported unresolved — it is not minted (DECISIONS 2026-08-24). A row that is
 an OFFER rather than a grant also stays on the row and becomes a marker on the
-character instead; see *Open picks*. Spells resolve the same way.
+character instead; see *Open picks*. Spells resolve the same way, a copy of a
+spell only a foreign compendium holds being shared by its definition.
 A spell a row still names in print — one no document answered for when the
 bundle was built — gets its second chance on every pass (`relinkSpells`): each
 named, non-offer entry with no uuid is planned again; what resolves is written
@@ -121,17 +130,17 @@ takes the uuid so the represented pass strips it; an edited bundle is skipped
 and reported. Gear bases exclude every part this feature minted, so a skin
 never becomes the base of a second skin.
 
-**A package never consumes the imports.** Gear is a COPY skinned from its
-base, a world proficiency is LINKED, and every deletion — `detachTemplate
-Packages`' optional cleanup — is gated on this
-module's own `templatePart` stamp. The imported Sword a template names, and
-the shared Adventuring proficiency it links, carry no such stamp and are
-never touched: the item library is a source, not a package's private
-contents.
+**A package never consumes the imports.** A plain gear entry's base and a
+world proficiency are LINKED, a skin is a COPY made from its base, and every
+deletion — `detachTemplatePackages`' optional cleanup — is gated on a class's
+own identity in this module's `templatePart` stamp. The imported Sword a
+template names, and the shared Adventuring proficiency it links, carry no such
+stamp and are never touched, and neither is a shared skin, which names no
+class: the item library is a source, not a package's private contents.
 
 **One owner, evidence-based.** `stripRepresented` removes from the row every
 entry the bundle demonstrably carries (by ref, or by name for a name-only
-cell) and nothing else, so the two lists are disjoint and neither the sheet
+cell, or for gear a plain name of a linked base) and nothing else, so the two lists are disjoint and neither the sheet
 nor a grant can double them — while a package that could not carry something
 leaves it printed on the row, still applying the old way. That is what makes
 single ownership safe: a partial package can never silently shorten a
@@ -145,22 +154,28 @@ fall back to the row's emptied arrays. The class assignment window awaits
 redraw cannot wait, starts it the first time it meets a package and draws again
 once.
 A package lands beside its class. A class on one of the library's shelves —
-the importer's world packs — writes its bundles, skins and copies to that
-line's Item shelf under `Class Templates / <Class>` and its 3d6 table to the
-line's RollTable shelf under `Class Templates`; a class in the sidebar, a
-Judge's own, keeps its parts in the sidebar under the same path, where Remove
-Imports (which deletes the library's packs whole) cannot reach them. The
-shelves are opened through `lib/library-target.mjs`; the importer passes its
-own cookbook folders and packs. Parts are read across the whole library, so a
-part in the sidebar and a part on a pack shelf both stay linked where they
-are. `findSource` answers `linkable` — a sidebar
+the importer's world packs — writes its bundles to that line's Item shelf under
+`Class Templates / <Class>` and its 3d6 table to the line's RollTable shelf
+under `Class Templates`; a class in the sidebar, a Judge's own, keeps its
+parts in the sidebar under the same path, where Remove Imports (which deletes
+the library's packs whole) cannot reach them. The shared skins and copies are
+minted on that same side, in `Class Templates / Shared`, and are reused by
+every class on the side: a shelf's parts by any shelf's class, whatever its
+line, the sidebar's by sidebar classes. The shelves are opened through
+`lib/library-target.mjs`; the importer passes its own cookbook folders
+(`folder`, `sharedFolder`, `tableFolder`) and packs. Parts are read across the
+whole library, so a part in the sidebar and a part on a pack shelf both stay
+linked where they are. `findSource` answers `linkable` — a sidebar
 document or one on a library shelf may be pointed at; a definition in any
 other compendium is copied onto the class's shelf.
 
 Identity lives on the created documents (`flags["acks-extras"].templatePart`),
 never only on the row — an importer Update pass replaces the whole `system`,
 so the row's `bundle` uuid is a cache the materializer re-derives from that
-flag, then re-strips the freshly rewritten arrays (`stripRepresented`).
+flag, then re-strips the freshly rewritten arrays (`stripRepresented`). A
+bundle and a table carry the class (`{classUuid, classKey, kind, band?}`); a
+shared part carries only what it is (`{kind, key}`), so no class's detach
+reaches it and no list of classes is kept beside the bundles' own `itemList`.
 Every created document carries an `asImported` snapshot; a pass that would
 replace one compares live against snapshot first and skips-and-reports an
 edited document, so a repair survives re-import. The importer calls the
@@ -863,7 +878,7 @@ box is a path under a field that submits.
 
 [chargen.mjs](../../scripts/classes/chargen.mjs) applies what was chosen:
 the class at level 1, then the template bundle — proficiencies as owned
-abilities, equipment as skins over base items, coin, the spellbook's spells —
+abilities, equipment (a plain base, or a skin over one), coin, the spellbook's spells —
 then Adventuring (free with every class, RR Ch. 3 §III.4) and the class's own
 first-level awards (fixed grants counted against what the template carried, the
 Nth 1st-level rung printing a ref owing the Nth copy, plus the chosen picks).

@@ -195,8 +195,9 @@ first), one connected book, and the **Player** seat for the ownership half.
    *Observable:* the pack opens and its documents are readable, from ONE
    setting. No per-folder dialog was involved.
 6. Build class template packages, then open a class.
-   *Observable:* bundles and gear are on the line's Item shelf ("ACKS
-   Cookbook — Item") under `Class Templates / <Class>`, the class's 3d6 table
+   *Observable:* bundles are on the line's Item shelf ("ACKS Cookbook —
+   Item") under `Class Templates / <Class>`, the skins and copies every class
+   shares under `Class Templates / Shared`, the class's 3d6 table
    on its RollTable shelf under `Class Templates`, the sidebar gains nothing,
    and the class sheet lists them. This is the acks-extras library reader
    working: a blank list here means it is reading `game.items` somewhere.

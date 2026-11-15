@@ -1900,8 +1900,9 @@ export async function importClasses({ only = null } = {}) {
  * class's own shelf, and the class gains a generated RollTable linking them.
  * The classes feature owns the shape (`materializeTemplates`); this side only
  * names the shelves and the folders on them, so a package lands beside the
- * library it was built from, filed `Class Templates / <Class>`. Idempotent; a
- * no-op for a document that carries no template rows.
+ * library it was built from: its bundles filed `Class Templates / <Class>`, the
+ * skins and copies it shares with other classes `Class Templates / Shared`.
+ * Idempotent; a no-op for a document that carries no template rows.
  */
 async function materializeClassTemplates(docs, { create = true } = {}) {
   const totals = { created: 0, relinked: 0, skippedEdited: 0, unresolved: 0 };
@@ -1913,8 +1914,9 @@ async function materializeClassTemplates(docs, { create = true } = {}) {
     const tablePack = await packFor("RollTable", line);
     // A relink-only pass creates no folders — it has nothing to file.
     const folder = create ? ((await ensureFolderPath("Item", ["Class Templates", doc.name], line))?.id ?? null) : null;
+    const sharedFolder = create ? ((await ensureFolderPath("Item", ["Class Templates", "Shared"], line))?.id ?? null) : null;
     const tableFolder = create ? ((await ensureFolderPath("RollTable", ["Class Templates"], line))?.id ?? null) : null;
-    const report = await materializeTemplates(doc, { folder, tableFolder, pack, tablePack, create });
+    const report = await materializeTemplates(doc, { folder, sharedFolder, tableFolder, pack, tablePack, create });
     for (const key of Object.keys(totals)) totals[key] += report?.[key]?.length ?? 0;
     touched++;
   }

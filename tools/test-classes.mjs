@@ -1239,8 +1239,17 @@ await atest("a tradition's list narrows the spell offer and its grid caps it by 
 
 /* ---------------------- template packages ------------------------- */
 
-const { bestBaseMatch, parseEmbellishment, applyShortfall, templateItemName, stripRepresented } =
-  await import("../scripts/classes/template-packages.mjs");
+const {
+  bestBaseMatch,
+  parseEmbellishment,
+  applyShortfall,
+  templateItemName,
+  stripRepresented,
+  plainNameMatch,
+  isPlainBase,
+  sharedPartKey,
+  planKitEntry,
+} = await import("../scripts/classes/template-packages.mjs");
 
 const { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, templateSelection, templateOptionKey } =
   await import("../scripts/classes/paths.mjs");
@@ -1497,6 +1506,75 @@ test("a package never consumes the imports it points at", () => {
   assert.match(src, /libraryItems\(\)\.filter\(mine\)/, "and never by a bare type or name scan");
   // Gear is SKINNED FROM a base by copying it — the base is read, never moved.
   assert.match(src, /const data = base\.toObject\(\)/, "a base item is copied, not consumed");
+});
+
+test("a plain entry names its base and nothing else", () => {
+  const torch = { name: "Torch", uuid: "Item.torch", system: { cost: 1 } };
+  assert.equal(plainNameMatch("Torch", "torch"), true, "exact, folded");
+  assert.equal(plainNameMatch("Torches", "Torch"), true, "the base's plural");
+  assert.equal(plainNameMatch("Kitshare flasks", "Kitshare flask"), true);
+  assert.equal(plainNameMatch("Torch, oiled", "Torch"), false, "an embellished name is a skin");
+  assert.equal(plainNameMatch("Waterskin", "Waterskin/Wineskin"), false, "a slash variant is not plain");
+  assert.equal(plainNameMatch("", ""), false);
+  assert.equal(isPlainBase({ name: "torches", qty: 1 }, torch), true);
+  assert.equal(isPlainBase({ name: "6 torches", qty: 6 }, torch), true, "the count lives on the quantity");
+  assert.equal(isPlainBase({ name: "torch", qty: 1, skinName: "Torch" }, torch), false, "a skin name is a skin");
+  assert.equal(isPlainBase({ name: "mossy torch", qty: 1 }, torch), false);
+  assert.equal(isPlainBase({ name: "torch", qty: 1, cost: 5 }, torch), false, "a price the base does not carry");
+  assert.equal(isPlainBase({ name: "torch", qty: 1, cost: 1 }, torch), true, "the base's own price is no skin");
+});
+
+test("a shared part's key names what it is and no class", () => {
+  const base = { name: "Kitshare tunic", uuid: "Item.tunicBase" };
+  const entry = { name: "mossy kitshare tunic", qty: 1 };
+  const key = sharedPartKey({ kind: "gear", entry, base });
+  assert.equal(key, sharedPartKey({ kind: "gear", entry: { ...entry, qty: 3 }, base }), "the quantity is not part of the key");
+  assert.notEqual(key, sharedPartKey({ kind: "gear", entry: { name: "frayed kitshare tunic", qty: 1 }, base }), "another descriptor");
+  assert.notEqual(key, sharedPartKey({ kind: "gear", entry: { ...entry, cost: 4 }, base }), "another printed price");
+  assert.notEqual(key, sharedPartKey({ kind: "gear", entry, base: { ...base, uuid: "Item.other" } }), "another base");
+  const stamped = { ...base, flags: { "acks-extras": { cookbook: { id: "def.kitshare.tunic" } } } };
+  assert.match(sharedPartKey({ kind: "gear", entry, base: stamped }), /^gear\|def\.kitshare\.tunic\|/, "the importer's ref outranks the uuid");
+  assert.match(sharedPartKey({ kind: "gear", entry, rootType: "item" }), /^gear\|root:item\|/, "no base: the root's type");
+  const source = { uuid: "Item.prof" };
+  assert.notEqual(
+    sharedPartKey({ kind: "ability", source, selection: "Alpha" }),
+    sharedPartKey({ kind: "ability", source, selection: "Beta" }),
+  );
+  assert.equal(sharedPartKey({ kind: "spell", source }), sharedPartKey({ kind: "spell", source }));
+});
+
+test("a kit entry links its plain base, reuses a shared part, or mints", () => {
+  const base = { name: "Kitshare flask", uuid: "Item.flask", system: {} };
+  const plain = { name: "kitshare flasks", qty: 3 };
+  assert.deepEqual(planKitEntry({ entry: plain, base, linkable: true, key: "k" }), { action: "link", doc: base });
+  const skin = { name: "mossy kitshare flask", qty: 1 };
+  const existing = new Map([["k", "Item.skin"]]);
+  assert.deepEqual(planKitEntry({ entry: skin, base, linkable: true, existing, key: "k" }), {
+    action: "reuse",
+    uuid: "Item.skin",
+    key: "k",
+  });
+  assert.deepEqual(planKitEntry({ entry: skin, base, linkable: true, existing, key: "other" }), { action: "mint", key: "other" });
+  // A base a pack outside the library holds cannot be linked: the plain entry is a shared part instead.
+  assert.equal(planKitEntry({ entry: plain, base, linkable: false, key: "k" }).action, "mint");
+  assert.equal(planKitEntry({ entry: plain, base: null, key: "k" }).action, "mint");
+});
+
+test("a plain entry is represented by a linked base no part stamp marks", () => {
+  const prior = globalThis.fromUuidSync;
+  const docs = { "Item.torch": { name: "Torch", flags: {} }, "Item.skin": { name: "Torch", flags: { "acks-extras": { templatePart: { kind: "gear", key: "k" } } } } };
+  globalThis.fromUuidSync = (uuid) => docs[uuid] ?? null;
+  try {
+    const bundle = { system: { itemList: [{ type: "item", name: "Torch", uuid: "Item.torch" }] } };
+    const row = { abilities: [], items: [{ name: "6 torches", qty: 6 }, { name: "mossy torch", qty: 1 }], spells: [] };
+    assert.equal(stripRepresented(row, bundle), true);
+    assert.deepEqual(row.items.map((i) => i.name), ["mossy torch"], "Torches is the linked Torch; the embellished entry stays printed");
+    // A part's plain name is not evidence: it is some skin of that name, not the base.
+    const viaPart = { abilities: [], items: [{ name: "torches", qty: 2 }], spells: [] };
+    assert.equal(stripRepresented(viaPart, { system: { itemList: [{ type: "item", name: "Torch", uuid: "Item.skin" }] } }), false);
+  } finally {
+    globalThis.fromUuidSync = prior;
+  }
 });
 
 test("a template's package and its leftovers are both applied, once each", () => {
@@ -3046,5 +3124,87 @@ await atest("a class with no bands of its own takes its throws from the chassis 
     else globalThis.fromUuid = priorAsync;
   }
 }
+
+await atest("two classes printing one kit link one shared library: the plain base itself, one minted skin", async () => {
+  const { materializeTemplates } = await import("../scripts/classes/template-packages.mjs");
+  const saved = { game: globalThis.game, foundry: globalThis.foundry, fromUuid: globalThis.fromUuid, fromUuidSync: globalThis.fromUuidSync, Item: globalThis.Item, RollTable: globalThis.RollTable };
+  const merge = (a, b) => {
+    for (const [k, v] of Object.entries(b ?? {})) {
+      a[k] = v && typeof v === "object" && !Array.isArray(v) ? merge(a[k] && typeof a[k] === "object" ? a[k] : {}, v) : v;
+    }
+    return a;
+  };
+  const world = [];
+  const make = (data, uuid) => {
+    const doc = { ...structuredClone(data), id: uuid.split(".")[1], uuid, pack: null, toObject: () => structuredClone({ name: doc.name, type: doc.type, system: doc.system, flags: doc.flags, img: doc.img }) };
+    world.push(doc);
+    return doc;
+  };
+  let serial = 0;
+  const flaskBase = make({ name: "Kitshare flask", type: "item", system: { cost: 2 }, flags: {} }, "Item.flaskBase");
+  make({ name: "Kitshare tunic", type: "item", system: { cost: 5 }, flags: {} }, "Item.tunicBase");
+  const rows = (items) => [{ name: "Kit", annotation: "", rollMin: 3, rollMax: 18, bundle: "", abilities: [], items, spells: [] }];
+  const klass = (name, key, items) => ({
+    uuid: `Item.${key}`,
+    name,
+    pack: null,
+    system: { key, templates: rows(items), templateTable: "" },
+    update: async function (patch) {
+      this.system.templates = patch["system.templates"];
+      this.system.templateTable = patch["system.templateTable"];
+    },
+  });
+  const classA = klass("Kitshare Class A", "kitsharea", [{ name: "kitshare flask", qty: 1 }, { name: "mossy kitshare tunic", qty: 1 }]);
+  const classB = klass("Kitshare Class B", "kitshareb", [{ name: "3 kitshare flasks", qty: 3 }, { name: "mossy kitshare tunic", qty: 1 }]);
+  globalThis.game = { user: { isGM: true }, items: world };
+  globalThis.foundry = {
+    ...saved.foundry,
+    utils: { ...saved.foundry.utils, mergeObject: (a, b) => merge(a, b) },
+  };
+  globalThis.fromUuidSync = (uuid) => world.find((d) => d.uuid === uuid) ?? null;
+  globalThis.fromUuid = async (uuid) => globalThis.fromUuidSync(uuid);
+  const written = [];
+  globalThis.Item = {
+    implementation: {
+      create: async (data) => {
+        const doc = make(data, `Item.made${++serial}`);
+        written.push(doc);
+        return doc;
+      },
+      createDocuments: async (list) => Promise.all(list.map((data) => globalThis.Item.implementation.create(data))),
+    },
+  };
+  globalThis.RollTable = { implementation: { create: async () => ({ uuid: "RollTable.t" }) } };
+  const opts = (key) => ({ folder: `F.${key}`, sharedFolder: "F.shared", tableFolder: "F.tables" });
+  const skins = () => world.filter((d) => d.flags?.["acks-extras"]?.templatePart?.kind === "gear");
+  const bundleOf = (cls) => fromUuidSyncOf(cls.system.templates[0].bundle);
+  const fromUuidSyncOf = (uuid) => globalThis.fromUuidSync(uuid);
+  try {
+    const first = await materializeTemplates(classA, opts("A"));
+    const second = await materializeTemplates(classB, opts("B"));
+    assert.equal(skins().length, 1, "one skin for two classes");
+    const [skin] = skins();
+    assert.equal(skin.name, "Mossy kitshare tunic");
+    assert.equal(skin.folder, "F.shared", "a shared part is filed in the shared folder");
+    assert.deepEqual(Object.keys(skin.flags["acks-extras"].templatePart).sort(), ["key", "kind"], "no class identity on a shared part");
+    assert.ok(first.created.includes("Mossy kitshare tunic"));
+    assert.ok(!second.created.includes("Mossy kitshare tunic"), "the second class mints nothing it can link");
+    const [flaskA, tunicA] = bundleOf(classA).system.itemList;
+    const [flaskB, tunicB] = bundleOf(classB).system.itemList;
+    assert.equal(flaskA.uuid, flaskBase.uuid, "a plain entry links the base itself");
+    assert.equal(flaskB.uuid, flaskBase.uuid, "a plural entry too");
+    assert.equal(flaskB.quantity, 3, "the count rides the bundle row");
+    assert.equal(tunicA.uuid, skin.uuid);
+    assert.equal(tunicB.uuid, skin.uuid, "both bundles link the one skin");
+    assert.equal(bundleOf(classA).folder, "F.A", "a bundle is filed with its class");
+    assert.equal(classA.system.templates[0].items.length + classB.system.templates[0].items.length, 0, "what the bundles carry leaves the rows");
+    const again = await materializeTemplates(classA, opts("A"));
+    assert.deepEqual(again.created, [], "a second pass makes nothing");
+    assert.equal(world.filter((d) => d.name === "Kitshare flask").length, 1, "the base is never copied");
+  } finally {
+    Object.assign(globalThis, { game: saved.game, foundry: saved.foundry, fromUuid: saved.fromUuid, fromUuidSync: saved.fromUuidSync, Item: saved.Item, RollTable: saved.RollTable });
+    for (const key of ["fromUuid", "Item", "RollTable"]) if (saved[key] === undefined) delete globalThis[key];
+  }
+});
 
 console.log(`test-classes: ${passed} assertion groups passed.`);

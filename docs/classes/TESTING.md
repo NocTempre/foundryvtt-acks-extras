@@ -200,27 +200,61 @@ gear the world does not hold. A disposable character.
    *Observable:* one bundle Item per row; `system.templates[i].bundle`
    filled; a `<Class> Templates` RollTable, formula 3d6, ranges matching the
    bands; the materialized entries GONE from the row arrays; every created
-   document beside its class — this sidebar fixture's in the sidebar under
-   `Class Templates / <Class>`.
+   document beside its class — this sidebar fixture's bundles in the sidebar
+   under `Class Templates / <Class>`, its shared skins and copies under
+   `Class Templates / Shared`.
 1a. **Open the bundle's Contents tab.** *Observable:* the proficiencies are
    listed under Abilities and the eye icon opens each as its own editable
    item. An empty Abilities group is the cold-library failure below.
 1b. **Where a definition lives.** Proficiencies and bases resolve out of the
    pack INDEX when the library is cold. A definition on a library shelf is
-   LINKED (the bundle row carries the import's own uuid); a base is COPIED
-   onto the class's shelf, because a skin is a copy by nature; a definition
-   in a foreign compendium is copied too. *Observable:* the bundle's abilities
+   LINKED (the bundle row carries the import's own uuid), and so is a base an
+   entry names plainly; a base under a printed descriptor or price is skinned
+   into a shared copy on the class's side (step 1d); a definition in a foreign
+   compendium is copied. *Observable:* the bundle's abilities
    open as editable documents wherever they sit; nothing is left on the row
    except what genuinely resolved nowhere. A name nothing defines stays on
    the class row, printed, and is named in `report.unresolved`; re-run
    materialize after importing the real definition and it is picked up.
 1c. **A class on a shelf.** Repeat step 1 on a class the importer put in
    "ACKS Cookbook — Item" (one holding template rows).
-   *Observable:* its bundles, skins and copies are in that pack under
-   `Class Templates / <Class>`, its table in "ACKS Cookbook — RollTable" under
-   `Class Templates`, and the sidebar gains nothing; a lined book's class
-   (Dolmenwood, By This Axe) lands on its own line's packs. Delete the
-   package documents by id afterwards — they are the run's fixtures too.
+   *Observable:* its bundles are in that pack under `Class Templates / <Class>`,
+   its skins and copies under `Class Templates / Shared`, its table in "ACKS
+   Cookbook — RollTable" under `Class Templates`, and the sidebar gains
+   nothing; a lined book's class (Dolmenwood, By This Axe) lands on its own
+   line's packs. Delete the package documents by id afterwards — they are the
+   run's fixtures too.
+1d. **A kit two classes share.** Fixtures, kept, found by `flags.world.fixture`
+   (`api.fixture(marker, kind, data)`), all in the sidebar so Remove Imports is
+   not in play: `classes/kit-share-flask` and `classes/kit-share-tunic`, two
+   invented `item`s named "Kitshare flask" and "Kitshare tunic" with no
+   importer stamp; `classes/kit-share-a` and `classes/kit-share-b`, two
+   `class` Items each with one template row printing "kitshare flask" and
+   "mossy kitshare tunic" (B may print "3 kitshare flasks"). Materializing
+   empties a row's `items` and detaching clears only its `bundle`, so a kept
+   class is not reusable as left: the walk starts by asserting each class's row
+   prints its two entries and its `bundle` is empty, and where it does not,
+   writes `system.templates` back to that shape.
+   a. `materializeTemplates(A)`, then `materializeTemplates(B)`.
+   *Observable:* both bundles' `itemList` carry the flask base's own uuid, with
+   the quantity the row printed; exactly one Item carries a `templatePart.key`
+   naming the tunic, named "Mossy kitshare tunic", filed in
+   `Class Templates / Shared`, with no `classUuid` or `classKey` on the flag;
+   both bundles link that one uuid; B's report `created` names its bundle and
+   no skin.
+   b. Run both again.
+   *Observable:* `created: []` on both, and still one tunic skin.
+   c. `detachTemplatePackages(A, {deleteDocuments: true})`.
+   *Observable:* A's bundle and table are gone and the tunic skin and the
+   flask base are not; B's package still expands the tunic.
+   d. Apply B's template to a disposable character.
+   *Observable:* the tunic and the flask arrive once each (the flask at B's
+   quantity) and nothing is reported missing.
+   Teardown: `report.created` holds names, not ids, so each id is read where
+   it lives and passed to `api.track` the moment it is read: the class's
+   `system.templates[0].bundle`, its `system.templateTable`, and the tunic
+   row's `uuid` in the bundle's `itemList`. Then `api.sweepTracked()`; the four
+   marked fixtures stay.
 2. Open the first row's bundle → its staff item.
    *Observable:* `type === "weapon"` (the reported bug — assert the type, not
    that the code ran), name is the printed descriptor, `flags["acks-extras"]
@@ -286,14 +320,14 @@ looks fine until someone tries to swing it.
 | Printed descriptor | Entry `ref` | Expect |
 |---|---|---|
 | `polished sword` | `def.weapon.sword` | `weapon`, base `Sword` |
-| `Torches` ×6 | `def.equip.torch` | `item` (a carried stack), base `Torch` |
+| `Torches` ×6 | `def.equip.torch` | the base `Torch` itself, linked: no skin is made, and the bundle row carries quantity 6 |
 | `war hammer carved with clan emblem` | `def.weapon.warhammer` | `weapon`, base `Warhammer` — NOT the carpentry `Hammer (small)` |
 | `Feathered darts` ×5 | *(none)* | `weapon`, base `Dart` — resolved by name, plural |
 | `Weighted net` | *(none)* | no document; kept printed on the row, named in `report.unresolved` |
 
-*Also observable on every one of them:* `flags["acks-extras"]` is present. A
-skin that keeps the base's importer stamp answers ref lookups meant for the
-base.
+*Also observable on every skin among them:* `flags["acks-extras"]` is present
+and the base's importer stamp is not. A skin that keeps the base's importer
+stamp answers ref lookups meant for the base.
 
 9. **The importer half, without a book connected.** `parseEquipment` is
    exported, so the split can be driven directly:
@@ -459,10 +493,11 @@ walk reads the library's documents by cookbook id.
 ## Teardown
 
 Delete the character, the class item and the race item; for template
-packages also the bundles, gear, specialized copies and the RollTable (all
-carry `flags["acks-extras"].templatePart`), and the fixture `Staff` weapon.
-Confirm no `acks-extras.class` or `acks-extras.race` items named for the
-fixture remain and the template folders are empty.
+packages also the bundles, shared skins and specialized copies and the
+RollTable (all carry `flags["acks-extras"].templatePart`; a shared part's has a
+`key` and no class), and the fixture `Staff` weapon. Confirm no
+`acks-extras.class` or `acks-extras.race` items named for the fixture remain
+and the template folders are empty.
 
 ## The SYSTEM sheet's Notes tab: the prose shows whole
 

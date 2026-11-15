@@ -82,6 +82,7 @@
   "ACKS-CLASSES.sheet.templates.package.leftovers": "Also granted — the package could not carry these entries, so they apply from the lists below.",
   "ACKS-CLASSES.sheet.templates.package.dropHint": "No package bound — the entries below apply as printed. Build packages, or drop a bundle item on this row.",
   "ACKS-CLASSES.templates.folder": "Class Templates",
+  "ACKS-CLASSES.templates.sharedFolder": "Shared",
   "ACKS-CLASSES.templates.bundleName": "{class} — {template}",
   "ACKS-CLASSES.templates.tableName": "{class} Templates",
   "ACKS-CLASSES.sheet.ownTables": "Own tables (Progression tab)",

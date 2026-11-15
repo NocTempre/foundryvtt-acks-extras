@@ -190,10 +190,12 @@ export function findByRef(ref) {
 }
 
 /**
- * The stamp naming what a document is a part of (a class's skinned gear,
- * specialized proficiency or copied spell), or null for anything else. It
- * separates the library's definitions from the copies minted from them; every
- * read that wants definitions, a pick list included, makes that separation.
+ * The stamp naming what a document is a part of, or null for anything else: a
+ * class's bundle or table (`{classUuid, classKey, kind, band?}`), or a kit part
+ * shared by every class that prints it, a skinned gear item, specialized
+ * proficiency or copied spell (`{kind, key}`, no class). It separates the
+ * library's definitions from the copies minted from them; every read that
+ * wants definitions, a pick list included, makes that separation.
  */
 export const templatePartOf = (doc) => doc?.flags?.[MODULE_ID]?.[FLAG_TEMPLATE_PART] ?? null;
 

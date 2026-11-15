@@ -6,33 +6,40 @@
  *
  * Each template row on a class may bind a core `bundle` Item holding uuid links
  * to real documents: the abilities it grants (shared links, or specialized
- * copies), its gear as already-skinned items (the printed descriptor over the
- * base's mechanics), and its spells. A 3d6 RollTable per class links the
- * bundles as a generated view; nothing in code reads it.
+ * copies), its gear, and its spells. Gear that names its base plainly links the
+ * base itself; gear that adds a printed descriptor or price links a skin (the
+ * descriptor over the base's mechanics) that is minted once and shared by every
+ * class printing it. A 3d6 RollTable per class links the bundles as a
+ * generated view; nothing in code reads it.
  *
  * A package lands beside its class: a class held on one of the library's
- * shelves writes its parts to that line's Item and RollTable shelves, filed
- * `Class Templates / <Class>`; a class in the sidebar keeps its parts in the
- * sidebar, out of Remove Imports' reach. See docs/classes/DECISIONS.md,
- * "a package lands beside its class".
+ * shelves writes its bundles and table to that line's Item and RollTable
+ * shelves, filed `Class Templates / <Class>` (the table under `Class
+ * Templates`); a class in the sidebar keeps them in the sidebar, out of Remove
+ * Imports' reach. The shared skins and copies are minted on the same side,
+ * under `Class Templates / Shared`, and reused by any class on that side. See
+ * docs/classes/DECISIONS.md, "a package lands beside its class" and "a kit
+ * links one shared library, and a skin is minted once".
  *
  * Ownership: the class row keeps the printed band, name, annotation, caste,
  * coin and encumbrance note; the bundle owns what the package contains; each
  * linked item owns what one piece of gear is. A materialized entry is removed
  * from the row's arrays; printed cells that resolved to nothing stay on the row.
  *
- * Identity lives on the bundle (`flags["acks-extras"].templatePart`), not on
- * the row: an importer Update pass replaces the whole `system` object, so the
- * row's `bundle` uuid is a cache re-derived from that flag. Documents this
- * file creates carry an `asImported` snapshot; a pass that would replace one
- * compares the live document against it first, and an edited document is
- * skipped and reported.
+ * Identity of a bundle and a table lives on the document
+ * (`flags["acks-extras"].templatePart`: `{classUuid, classKey, kind, band?}`),
+ * not on the row: an importer Update pass replaces the whole `system` object,
+ * so the row's `bundle` uuid is a cache re-derived from that flag. A shared
+ * skin or copy carries `{kind, key}` instead, where the key (`sharedPartKey`)
+ * names what it is and no class. Documents this file creates carry an
+ * `asImported` snapshot; a pass that would replace one compares the live
+ * document against it first, and an edited document is skipped and reported.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants } from "../lib/vocab.mjs";
-import { libraryItems, libraryDocs, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
+import { libraryItems, libraryDocs, libraryPacks, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
 import { ensureLibraryPack, ensureFolderIn } from "../lib/library-target.mjs";
 import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
@@ -156,6 +163,69 @@ export function templateItemName(entry) {
     (c) => c.toUpperCase(),
   );
   return entry.skinName || printed;
+}
+
+/**
+ * Does a printed name say nothing but its base's name? The folded names are
+ * equal, or the printed one is the base's plural (`s` / `es`). Compared whole:
+ * a slash or comma variant of the base's name is not plain, since the folded
+ * forms differ.
+ */
+export function plainNameMatch(entryName, baseName) {
+  const printed = fold(entryName);
+  const base = fold(baseName);
+  return !!printed && !!base && (printed === base || printed === `${base}s` || printed === `${base}es`);
+}
+
+/**
+ * Is a template entry just its base: named plainly, with no skin name of its
+ * own and no price other than the base's? Such an entry links the base itself
+ * (the quantity rides the bundle row); anything else is a skin.
+ */
+export function isPlainBase(entry, base) {
+  if (!entry || !base || entry.skinName) return false;
+  if (!plainNameMatch(templateItemName(entry), base.name)) return false;
+  return !(entry.cost > 0) || Number(entry.cost) === Number(base.system?.cost);
+}
+
+/**
+ * The key naming one shared kit part, stored on the part's flag and looked up
+ * across the library so no class mints a second copy.
+ *
+ * Gear: where it came from (the base's own ref, else `root:<type>` for an item
+ * built from the equipment root's classification), its skin name and the
+ * printed price. An ability copy: the definition and the printed selection. A
+ * spell copy: the definition it was copied from.
+ * @param {object} parts
+ * @param {"gear"|"ability"|"spell"} parts.kind
+ * @param {object} [parts.entry] the template entry (gear)
+ * @param {object} [parts.base] the gear's base document, when there is one
+ * @param {string} [parts.rootType] the item type, for gear with no base
+ * @param {object} [parts.source] the definition an ability or spell copies
+ * @param {string} [parts.selection] the printed selection of an ability copy
+ */
+export function sharedPartKey({ kind, entry = null, base = null, rootType = "", source = null, selection = "" }) {
+  if (kind === "gear") {
+    const origin = base ? refOf(base) : `root:${rootType}`;
+    return ["gear", origin, fold(templateItemName(entry)), entry?.cost > 0 ? String(entry.cost) : ""].join("|");
+  }
+  if (kind === "ability") return ["ability", refOf(source), fold(selection)].join("|");
+  if (kind === "spell") return ["spell", refOf(source)].join("|");
+  return "";
+}
+
+/**
+ * What one kit entry becomes: `link` (a plain entry whose base the library
+ * holds: the base itself), `reuse` (a shared part already minted under this
+ * key, found in the `existing` key-to-uuid map), or `mint` (nothing answers,
+ * so the caller creates the part under this key).
+ * @returns {{action: "link", doc: object}|{action: "reuse", uuid: string, key: string}|{action: "mint", key: string}}
+ */
+export function planKitEntry({ entry, base = null, linkable = false, existing = null, key = "" }) {
+  if (base && linkable && isPlainBase(entry, base)) return { action: "link", doc: base };
+  const uuid = key ? existing?.get(key) : null;
+  if (uuid) return { action: "reuse", uuid, key };
+  return { action: "mint", key };
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,11 +363,14 @@ export async function resolveBaseDoc(entry) {
  * the world or the compendia (a copy inheriting its type and mechanics),
  * else the equipment root's strict name classification (a typed item built
  * from its stats), else a bare named `item`.
+ *
+ * `options.base` is a base the caller already resolved (null: none answers);
+ * left out, it is resolved here.
  * @returns {Promise<{data: object, resolution: "base"|"root"|"bare"}>}
  */
-export async function buildGearData(entry) {
+export async function buildGearData(entry, { base: given } = {}) {
   const skinName = templateItemName(entry);
-  const base = await resolveBaseDoc(entry);
+  const base = given !== undefined ? given : await resolveBaseDoc(entry);
   if (base) {
     const data = base.toObject();
     delete data._id;
@@ -492,7 +565,8 @@ const listRow = (doc, quantity = 1) => ({
  * represents — matched the way the materializer placed them: an ability by
  * its ref (the linked document's own ref, or the `grantedFrom` a specialized
  * copy carries) or by name, gear by the skinned name or the
- * descriptor on its skin flag, a spell by uuid or folded name.
+ * descriptor on its skin flag, or (a linked document no part stamp marks) the
+ * plain name of the linked base, a spell by uuid or folded name.
  *
  * Removal is per-entry and evidence-based: an entry the bundle does not carry
  * stays on the row. Returns whether anything was stripped. Mutates `row`.
@@ -511,12 +585,16 @@ export function stripRepresented(row, bundle) {
     });
   });
   row.items = (row.items ?? []).filter((entry) => {
-    const key = fold(templateItemName(entry));
+    const printed = templateItemName(entry);
+    const key = fold(printed);
     return !list.some(
       ({ row: r, doc }) =>
         r.type !== ITEM_TYPE.ability &&
         r.type !== ITEM_TYPE.spell &&
-        (fold(r.name) === key || (entry.name && fold(doc?.flags?.[MODULE_ID]?.skin?.descriptor ?? "") === fold(entry.name))),
+        (fold(r.name) === key ||
+          (entry.name && fold(doc?.flags?.[MODULE_ID]?.skin?.descriptor ?? "") === fold(entry.name)) ||
+          // A plain entry links its base itself, which carries no skin and no part stamp.
+          (!partOf(doc) && plainNameMatch(printed, r.name))),
     );
   });
   row.spells = (row.spells ?? []).filter((entry) => {
@@ -535,9 +613,11 @@ export function stripRepresented(row, bundle) {
  * table's are cleared, so the class applies from its own printed entries
  * again. The documents stay on their shelf unless `deleteDocuments`.
  *
- * `deleteDocuments` removes only documents carrying this module's own
- * `templatePart` stamp (the bundles, skins and copies it minted); an import a
- * package links or was skinned from is never touched.
+ * `deleteDocuments` removes only documents carrying this class's identity in
+ * this module's own `templatePart` stamp (its bundles and table, and the
+ * class-stamped skins and copies an earlier build minted); an import a package
+ * links or was skinned from is never touched, and neither is a shared skin or
+ * copy, which belongs to no one class.
  */
 export async function detachTemplatePackages(classItem, { deleteDocuments = false } = {}) {
   const removed = [];
@@ -601,27 +681,56 @@ async function shelvesFor(classItem, { pack = null, tablePack = null } = {}) {
 /** The root every package folder hangs from, in the reader's language. */
 const templatesRootName = () => game.i18n?.localize?.(`${LANG_PREFIX}.templates.folder`) ?? "Class Templates";
 
+/** The folder shared kit parts are minted in, in the reader's language. */
+const sharedFolderName = () => game.i18n?.localize?.(`${LANG_PREFIX}.templates.sharedFolder`) ?? "Shared";
+
 /**
  * Where packages land when no caller supplies a folder (the sheet's own
- * build): `Class Templates / <Class>` on the shelf the parts are written to,
+ * build): `Class Templates / <leaf>` — the class's name for its bundles, the
+ * shared folder's for shared parts — on the shelf the parts are written to,
  * inside the pack when there is one, else in the sidebar. The importer passes
- * its own cookbook folder and never reaches this.
+ * its own cookbook folders and never reaches this.
  */
-async function defaultFolder(classItem, packId = null) {
+async function defaultFolder(leafName, packId = null) {
   const rootName = templatesRootName();
   const pack = packId ? game.packs?.get(packId) : null;
-  if (pack) return (await ensureFolderIn(pack, "Item", [rootName, classItem.name]).catch(() => null))?.id ?? null;
+  if (pack) return (await ensureFolderIn(pack, "Item", [rootName, leafName]).catch(() => null))?.id ?? null;
   const isItemFolder = (f, name, parent) => f.type === "Item" && f.name === name && (f.folder?.id ?? null) === parent;
   const root =
     game.folders?.find((f) => isItemFolder(f, rootName, null)) ??
     (await Folder.implementation.create({ name: rootName, type: "Item" }).catch(() => null));
   const parent = root?.id ?? null;
-  const existing = game.folders?.find((f) => isItemFolder(f, classItem.name, parent));
+  const existing = game.folders?.find((f) => isItemFolder(f, leafName, parent));
   if (existing) return existing.id;
-  const made = await Folder.implementation
-    .create({ name: classItem.name, type: "Item", folder: parent })
-    .catch(() => null);
+  const made = await Folder.implementation.create({ name: leafName, type: "Item", folder: parent }).catch(() => null);
   return made?.id ?? null;
+}
+
+/**
+ * The shared kit parts already minted on one side of Remove Imports, as a
+ * key-to-uuid map: the library's shelves (`onShelf`, every line) or the
+ * sidebar. A shelf not yet loaded answers `libraryItems` with less than it
+ * holds, so the shelves' indexes are read too. Only a part carrying a `key`
+ * is admitted; a part an earlier build stamped with a class is never shared.
+ */
+async function sharedPartKeys(onShelf) {
+  const keys = new Map();
+  const note = (part, uuid) => {
+    if (part?.key && !keys.has(part.key)) keys.set(part.key, uuid);
+  };
+  for (const doc of libraryItems()) {
+    const part = partOf(doc);
+    if (!part?.key) continue;
+    if (doc.pack ? onShelf && isLibraryPack(doc.pack) : !onShelf) note(part, doc.uuid);
+  }
+  if (onShelf) {
+    for (const pack of libraryPacks("Item")) {
+      for (const row of (await packIndex(pack)) ?? []) {
+        note(partOf(row), row.uuid ?? `Compendium.${pack.collection}.Item.${row._id}`);
+      }
+    }
+  }
+  return keys;
 }
 
 /** The table's folder when no caller supplies one: the `Class Templates` root
@@ -647,16 +756,22 @@ function stampPart(data, part, stamp) {
  * class DOCUMENT alone, so it runs with no book connected.
  *
  * A row whose bundle already resolves is left alone; a row with none gets
- * one. Gear is deduped per class by descriptor, so all bands share one
- * document. The RollTable is rebuilt every run. Materialized entries are
- * removed from the row arrays; what stays on a row is what resolved to nothing.
+ * one. Each gear entry, specialized ability and foreign-compendium spell
+ * resolves through `planKitEntry`: a plain gear entry links its base, anything
+ * else is a shared part found by its key anywhere on the class's side of
+ * Remove Imports (shelf with shelf, sidebar with sidebar) or minted once, so
+ * no two classes hold a copy of the same thing. The RollTable is rebuilt every
+ * run. Materialized entries are removed from the row arrays; what stays on a
+ * row is what resolved to nothing.
  *
  * @param {object} [options]
  * @param {object} [options.stamp] opaque flags merged onto every created
  *   document (the importer's claim); this module never invents another
  *   module's flag itself
- * @param {string} [options.folder] folder id for bundles and gear — inside
- *   `pack` when one is given
+ * @param {string} [options.folder] folder id for the bundles — inside `pack`
+ *   when one is given
+ * @param {string} [options.sharedFolder] folder id for the shared parts this
+ *   run mints; omitted, `Class Templates / Shared` on the same shelf
  * @param {string} [options.tableFolder] folder id for the RollTable
  * @param {string} [options.pack] collection id of the Item shelf the parts
  *   are written to; omitted, the class's own shelf (`shelvesFor`)
@@ -669,7 +784,7 @@ function stampPart(data, part, stamp) {
  */
 export async function materializeTemplates(
   classItem,
-  { stamp = null, folder = null, tableFolder = null, pack = null, tablePack = null, create = true } = {},
+  { stamp = null, folder = null, sharedFolder = null, tableFolder = null, pack = null, tablePack = null, create = true } = {},
 ) {
   const report = { created: [], relinked: [], skippedEdited: [], unresolved: [], unidentified: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
@@ -683,34 +798,59 @@ export async function materializeTemplates(
   };
   const shelves = await shelvesFor(classItem, { pack, tablePack });
   const itemOpts = shelves.items ? { pack: shelves.items } : {};
-  // Read across the whole library, never one collection: the parts sit in the
-  // sidebar or on a pack shelf.
-  const ownGear = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "gear");
-  const ownAbilities = () => libraryItems().filter((i) => isMine(i) && partOf(i).kind === "ability");
-  const shelf = folder ?? (await defaultFolder(classItem, shelves.items));
+  const shelf = folder ?? (await defaultFolder(classItem.name, shelves.items));
+
+  // Shared parts are read on the side they are written to: a part on a shelf
+  // survives a class on a shelf, a sidebar part a sidebar class, and Remove
+  // Imports takes only the shelves. Built on first need, kept current by
+  // `writeRow`.
+  let sharedKeys = null;
+  const heldKeys = async () => (sharedKeys ??= await sharedPartKeys(!!shelves.items));
+  let sharedShelf;
+  const sharedHome = async () =>
+    sharedShelf === undefined
+      ? (sharedShelf = sharedFolder ?? (await defaultFolder(sharedFolderName(), shelves.items)))
+      : sharedShelf;
 
   /**
-   * The gear document for one descriptor, created on first need.
+   * The outcome of `planKitEntry` as a plan: a `reuse` becomes the document its
+   * uuid names, and a uuid that no longer resolves is dropped and falls to a
+   * mint.
+   */
+  const settle = async (outcome) => {
+    if (outcome.action === "link") return { doc: outcome.doc };
+    if (outcome.action === "reuse") {
+      const doc = await fromUuid(outcome.uuid).catch(() => null);
+      if (doc) return { doc };
+      (await heldKeys()).delete(outcome.key);
+    }
+    return { key: outcome.key };
+  };
+
+  /**
+   * The gear document for one entry: its base when the entry names it plainly,
+   * else the shared skin carrying its descriptor, minted on first need.
    *
-   * A descriptor nothing can answer for yields no document; the caller keeps
-   * such an entry on the row, printed.
+   * An entry nothing can answer for yields no document; the caller keeps it on
+   * the row, printed.
    */
   const planGear = async (entry) => {
-    const nameKey = fold(templateItemName(entry));
-    const existing = ownGear().find((g) => fold(g.name) === nameKey);
-    if (existing) return { doc: existing };
-    const { data, resolution } = await buildGearData(entry);
+    const base = await resolveBaseDoc(entry);
+    const linkable = !!base && (!base.pack || isLibraryPack(base.pack));
+    const { data, resolution } = await buildGearData(entry, { base });
     if (resolution === "bare") {
       report.unresolved.push(entry.name);
       return {};
     }
+    const key = sharedPartKey({ kind: "gear", entry, base, rootType: data.type });
+    const plan = await settle(planKitEntry({ entry, base, linkable, existing: await heldKeys(), key }));
+    if (plan.doc) return plan;
     // A weapon that resolved to a document but not to a weapon-table row is
     // reported here, where the descriptor and the base are both in hand.
     if (isUnidentifiedWeapon(data)) report.unidentified.push(templateItemName(entry));
     foundry.utils.setProperty(data, "system.quantity.value", 1);
-    stampPart(data, { ...identity, kind: "gear" }, stamp);
-    if (shelf) data.folder = shelf;
-    return { data, nameKey };
+    stampPart(data, { kind: "gear", key }, stamp);
+    return { data, key };
   };
 
   /**
@@ -736,13 +876,11 @@ export async function materializeTemplates(
       return {};
     }
     if (!entry.selection) return { doc: source };
-    const data = buildProfData(entry, source);
-    const nameKey = fold(data.name);
-    const existing = ownAbilities().find((a) => fold(a.name) === nameKey);
-    if (existing) return { doc: existing };
-    stampPart(data, { ...identity, kind: "ability" }, stamp);
-    if (shelf) data.folder = shelf;
-    return { data, nameKey };
+    const key = sharedPartKey({ kind: "ability", source, selection: entry.selection });
+    const plan = await settle(planKitEntry({ entry, existing: await heldKeys(), key }));
+    if (plan.doc) return plan;
+    const data = stampPart(buildProfData(entry, source), { kind: "ability", key }, stamp);
+    return { data, key };
   };
 
   /** The spell for one spellbook entry: linked when the library holds it,
@@ -762,11 +900,13 @@ export async function materializeTemplates(
     const { doc: source, linkable } = await findSource({ name: entry.name, types: [ITEM_TYPE.spell] });
     if (!source) return {};
     if (linkable) return { doc: source };
-    const existing = libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
-    if (existing) return { doc: existing };
-    const data = stampPart(copyOf(source), { ...identity, kind: "spell" }, stamp);
-    if (shelf) data.folder = shelf;
-    return { data, nameKey: fold(source.name) };
+    const key = sharedPartKey({ kind: "spell", source });
+    const plan = await settle(planKitEntry({ entry, existing: await heldKeys(), key }));
+    if (plan.doc) return plan;
+    // A copy an earlier build made carries no key; the name still finds it.
+    const legacy = libraryItems().find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === fold(source.name));
+    if (legacy) return { doc: legacy };
+    return { data: stampPart(copyOf(source), { kind: "spell", key }, stamp), key };
   };
 
   /**
@@ -774,24 +914,29 @@ export async function materializeTemplates(
    * document back. A batch that fails is written singly. See
    * docs/classes/DECISIONS.md, "a template row resolves everything, then writes once".
    *
-   * Plans are deduplicated by name key first: two entries on one row can name
-   * the same thing, and deferred writes mean neither sees the other's document.
+   * Plans are deduplicated by shared-part key first: two entries on one row can
+   * name the same thing, and deferred writes mean neither sees the other's
+   * document. Every plan with data is a shared part, filed in the shared
+   * folder, and each document made joins the key map, so the next row and the
+   * next class find it.
    */
   const writeRow = async (plans) => {
     const pending = [];
     const byKey = new Map();
     for (const plan of plans) {
       if (!plan.data) continue;
-      const seen = plan.nameKey ? byKey.get(plan.nameKey) : null;
+      const seen = plan.key ? byKey.get(plan.key) : null;
       if (seen) {
         plan.shareWith = seen;
         continue;
       }
       plan.at = pending.length;
       pending.push(plan.data);
-      if (plan.nameKey) byKey.set(plan.nameKey, plan);
+      if (plan.key) byKey.set(plan.key, plan);
     }
     if (!pending.length) return;
+    const home = await sharedHome();
+    if (home) for (const data of pending) data.folder = home;
     const made = await Item.implementation.createDocuments(pending, itemOpts).catch((err) => {
       console.warn(`${MODULE_ID} | template row: batched create failed, writing singly`, err);
       return null;
@@ -799,7 +944,9 @@ export async function materializeTemplates(
     for (const plan of plans) {
       if (plan.at == null) continue;
       plan.doc = made ? made[plan.at] : await Item.implementation.create(plan.data, itemOpts).catch(() => null);
-      if (plan.doc) report.created.push(plan.doc.name);
+      if (!plan.doc) continue;
+      report.created.push(plan.doc.name);
+      sharedKeys?.set(plan.key, plan.doc.uuid);
     }
     for (const plan of plans) if (plan.shareWith) plan.doc = plan.shareWith.doc;
   };
