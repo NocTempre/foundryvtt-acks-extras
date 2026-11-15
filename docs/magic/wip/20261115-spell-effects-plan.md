@@ -38,6 +38,16 @@ the agent's report restates each with one example before building on it.
    probably offers the most clues on mapping the design space"
 4. "for example I forgot resist rolls with their types as another major thing
    to track, and stacking rules"
+5. "When ready, start this work as a new branch"
+6. "1 stops, 2 spells track separate, effects don't stack but can overlap, 3 on
+   cast if target
+   Don't forget to track interaction with spells per day and abilities that
+   buff certain spells"
+7. "Yes to damage types/resistances/immunities interactions" (the answer to
+   owner question 4)
+
+Messages 6 and 7 reached session 1a through the planning session on
+2026-11-15, after it had started; their readings are under "Owner rulings".
 
 The readings the plan proceeds on (the planning session's, tested against
 source by the architect):
@@ -165,8 +175,7 @@ counter-argument are kept so a later session can reopen one with evidence.
    category, {situational})`, promoted from `rollPartySave`. *Rejected:*
    core's `rollSave` per target (a dialog and a card per call).
 9. **Damage uses the weapon pipeline with "magic" as an attack type.** No
-   damage resolver is built, and no defense arithmetic: a lib ROADMAP row
-   covers damage against defenses for weapons and magic alike. An
+   damage resolver is built. An
    `attackTypes` contributor answers `["magic"]` for a carrier flagged as a
    spell's, and the modifier wrappers drop core's melee and missile rows for
    it. The carrier is a transient, unsaved core weapon item parented to the
@@ -175,20 +184,43 @@ counter-argument are kept so a later session can reopen one with evidence.
    core's card and core's Apply; a row's `delivery` lets the throw take that
    delivery's rows while the damage stays magic. A row with no throw has no
    core entry point: lib's `magicDamageSpec(actor, carrier)` asks the same
-   `getDamageModifiers("magic")` question, the cast card rolls it, and Apply
-   goes through `adjustHp` with the save's multiplier. Core has no label for
-   the type; lib supplies one at runtime. *Rejected:* "magic" as a damage
-   type (it would erase the printed type); core's chat apply in the module's
-   card (GM-only, cannot heal). *Counter (medium):* the no-throw path is the
-   same roller in modifiers and typing only, not in code.
+   `getDamageModifiers("magic")` question and the cast rolls it. Core has no
+   label for the type; lib supplies one at runtime. *Rejected:* "magic" as a
+   damage type (it would erase the printed type); core's chat apply in the
+   module's card (GM-only, cannot heal). *Counter (medium):* the no-throw
+   path is the same roller in modifiers and typing only, not in code.
+
+   **Applying (owner rulings 3 and 4).** Where the seat had tokens targeted
+   when it cast, damage, healing and conditions apply at the cast, after each
+   target's resist roll; with nothing targeted the card posts its rolls and
+   an Apply press does the same work later. One lib path takes a rolled
+   amount to a target: the save's fraction, rounded as the RR's rounding rule
+   prints (to the nearest whole, a half to the even number; core's
+   `applyDamage` and lib's `planHpChange` round every half up), then the
+   target's defenses (the seam session 1b fills: immunities, resistances,
+   susceptibilities, built once for weapons and magic), then `adjustHp`. A
+   target the seat does not own is written by the GM's client after it
+   checks the request against the caster's spell item (the summon relay's
+   precedent); with no GM connected that target falls back to the press. The
+   card shows what was applied to whom, and the Judge has an undo
+   (`lib/hp.mjs` `restoreHp` for hit points, the record's deletion for a
+   condition).
 10. **A recipient's record is the effect's lifetime; the flag stays.** A
     condition is `statuses: [key]` on the recipient's cast record, so ending
     the record ends the condition and no effect is stranded. A modifier row
     is classified by `modifierDisposition`: a standing one becomes a change
     on the record at a `MODIFIER_PATHS` path, any other is listed on the card
-    and the record. Stacking: a condition is held or not (RR Appendix B); a
-    printed non-stacking clause is authored as `notStacksWith` / `provides`
-    and resolved by `resolveStacking`. The duration is `castDuration` with
+    and the record. Stacking (owner ruling 2): every cast keeps its own
+    record, the same spell twice or two spells granting the same kind of
+    effect, and their effects do not add; they overlap. A condition is held
+    or not (RR Appendix B: each instance keeps its own duration and the
+    condition does not get worse), so it stands while any record holding it
+    stands. A figure from two spell records applies once, the larger, through
+    `resolveStacking` with non-stacking as the default between spell records;
+    when one record ends the other's figure still applies until its own end.
+    A printed clause that two things DO add wins, authored as `stacksWith`; a
+    printed non-stacking clause against a source that is not a spell record
+    (a masterwork weapon) is authored as `notStacksWith` / `provides`. The duration is `castDuration` with
     the resolved level, stored in the flag, with core's `duration` unset on a
     record that carries statuses or changes, because core counts an
     unconvertible rounds duration as already run. Ruling #11 is settled for
@@ -239,7 +271,8 @@ counter-argument are kept so a later session can reopen one with evidence.
     state: it ends at the caster's turn and is lost to both. The cast joins
     it. Opened in a started fight before the caster's turn, the cast dialog
     declares: `casting` goes on the caster with the spell named on a pending
-    record, and nothing is spent. Opened on the caster's turn it resolves
+    record, and nothing is spent (superseded in part by ruling 23: the
+    declaration spends at its confirm). Opened on the caster's turn it resolves
     and lifts `casting`. Where the declaration was lost the dialog says so;
     a player is blocked and a Judge warned. Outside a fight a cast resolves
     at once. A casting time longer than an action is shown and tracked only,
@@ -254,27 +287,201 @@ counter-argument are kept so a later session can reopen one with evidence.
     Overview gains `target.hdCap` and `save.exemptBelowHd`. The Mechanics
     list marks `origin` and `unread`.
 
-## Owner questions
+## Owner rulings
 
-Each phase proceeds on the recommendation until the owner answers; none
-idles a slice.
+The plan's four owner questions are answered (owner's words 6 and 7). Each
+reading is restated with one example, as CLAUDE.md asks of a ruling before
+anything is built on it.
 
-1. When a recipient's record (a condition, a buff) runs out, does it stop
-   applying by itself, with a card offering removal, or wait for a press as a
-   summon does? *Recommended:* stop by itself.
-2. When the same spell lands twice on one recipient and the book prints
-   nothing, do both records land with a standing bonus counted once and the
-   card saying so, or do both add? *Recommended:* count once.
-3. Do damage, healing and conditions apply on a press (one "Apply all" for
-   the Judge), or at cast? *Recommended:* a press.
-4. Nothing in the system or this module changes a damage amount by the
-   target's immunities, resistances or susceptibilities today, for a weapon
-   or a spell: the type is shown and the full amount applies. Should the
-   level 1 rollout build that, once, in lib, for weapons and magic alike,
-   reading the defenses the monster import already writes, or leave the type
-   as display until a later phase? *Recommended:* build it in session 1b,
-   since "correct amount and type" is not met without it. Session 1a is the
-   same either way.
+1. **"1 stops."** A recipient's record that runs out stops applying by itself;
+   no card offers its removal and no press is waited for. *Example:* a
+   condition granted for a number of turns is gone from the token when the
+   world clock passes the record's end, with nobody pressing anything. This
+   is the recommendation; ruling 10 and the expiry sweep build it.
+2. **"2 spells track separate, effects don't stack but can overlap."** Every
+   cast keeps its own record, whether the same spell lands twice or two
+   spells grant the same kind of effect; their effects never add, and they
+   overlap in time. *Example:* two casts of `def.spell.sharpness` on one
+   weapon leave two records and one figure on its throw; when the first
+   record ends the figure stays until the second ends. Non-stacking is the
+   default between spell records, wider than the recommendation (which
+   covered only the same spell twice); a printed clause that two things do
+   add wins, authored as `stacksWith`. Ruling 10's stacking paragraph is
+   this.
+3. **"3 on cast if target."** Where the seat had tokens targeted when it
+   cast, damage, healing and conditions apply at the cast, after the resist
+   roll, with no press; a cast with nothing targeted posts its rolls and
+   leaves application to a press. *Example:* a Player casts a damaging spell
+   at two targeted monsters it does not own; each saves or fails, and the
+   GM's client writes each amount once it has checked the request against
+   the caster's spell item; with no GM connected the card offers the press
+   instead. This reverses the recommendation; ruling 9's "Applying" is this.
+   Seat rights settle the reading without a further question: a seat cannot
+   write an actor it does not own, so the relay is forced, and the fallback
+   is the press.
+4. **"Yes to damage types/resistances/immunities interactions."** Damage
+   against a target's immunities, resistances and susceptibilities is built
+   in this rollout, once, in lib, for weapons and magic alike, reading the
+   defenses the monster import already writes (`defensesField()` under the
+   `extras.defenses` flag). *Example:* a monster whose import marks it
+   immune to the type a spell's row carries takes none of that row's damage,
+   and the card's tooltip names the defense. It is built in session 1b's S3,
+   which opens with an `architect` ruling on where the fractions are
+   imported from (they are printed values: none ships) and the one place an
+   amount is reduced; session 1a leaves the seam between the roll and
+   `adjustHp` (ruling 9, "Applying").
+
+Two buckets the owner added in message 6:
+
+17. **Spells per day: capacity and spend.** Verified in source on
+    2026-11-15: core's `_useSpell` increments the spell item's `system.cast`
+    and posts its card, and the character sheet counts a level's used slots
+    as the sum of `system.cast` over that level's spells against
+    `system.spells.<level>.max`, reset on rest; core never refuses a cast. The
+    class document is this module's capacity: `scripts/classes/casting.mjs`
+    `poolState` reads a vancian tradition's slot row at the caster's level
+    (`slotRowAt`) or a points tradition's pool (`poolValueAt`), the actor
+    stores only what is spent under `flags.acks-extras.classes.pools`
+    (`adjustPool`), and `restPools` clears it. A cast checks the capacity of
+    the tradition matching the spell's list source at the spell's level on
+    that list before its dialog confirms: with none left a player is blocked
+    and a Judge warned (the repo's automation rule). The spend happens once,
+    at confirm, through the seam's `spend()` and the tradition's pool
+    together, so a cancelled dialog spends nothing. A declaration lost to
+    damage or a failed save spends the spell (RR ch. 5, the casting rules). The reversed
+    form spends as its spell. A spell on two lists spends from the tradition
+    whose source cast it. A monster's printed repertoire is counted by core's
+    `system.cast` alone until the repertoire work. S2 builds the check and
+    the spend at confirm; slot caps beyond the class grid wait for the
+    repertoire work.
+18. **Caster abilities that buff certain spells.** The vocabulary carries the
+    rows (`spellcastingMod` and `spellLike` in `EFFECT_TYPES`,
+    `casterLevelDelta` and `school` on `effectField()`, `casterLevel` in
+    `MODIFIER_TARGETS`) and nothing reads them. At cast the caster's ability
+    rows are gathered and matched to the spell by what each narrows on
+    (spell type, school or element word, list source, a named spell), and
+    each match changes the bucket it names: the caster level a figure scales
+    with, a target's resist roll, the damage, the range or duration, the
+    capacity. Each applied one is named in the figure's tooltip. The size of
+    each bonus is printed and arrives by import. A `scout` inventories which
+    imported proficiencies and class powers carry such rows and what they
+    narrow on before an `architect` rules the matching; where it lands (S2
+    with ruling 6, or S3) is in "Results, 1a".
+
+## S2 rulings (session 1a's architect, 2026-11-15)
+
+Ruled after owner messages 6 and 7 and the session's runtime probes ("Not
+verified", settled in "Results, 1a"). Each keeps its rejected alternative and
+counter, as above.
+
+19. **Sharpness names its weapon; a lib roll-mods flag carries a buff to the
+    weapon's rolls.** The recipient's record names the weapon as
+    `spellEffect.item {id, name}`, picked in the dialog from the targeted
+    token's actor's weapon items; ammunition and several small weapons are
+    outside S2 (ammunition is not a weapon item). "Already magic" is lib's
+    `isMagical(item)`, never `system.bonus` (masterwork writes there too).
+    Lib registers gate kinds `weaponMundane` and `weaponMagical`, read off the
+    item alone, so a second cast never makes a weapon count as magic. The row
+    pair: the mundane row carries `notStacksWith: ["kw:masterwork"]`. Lib
+    defines a roll-mods flag any effect may carry (`on`, `itemId`, `value`,
+    `gate`, `stacksWith`, `notStacksWith`); magic writes it with figures
+    resolved at cast from the row, a blank figure writing none. Lib's attack
+    seam contributor reads the attacker's effects for `itemId` equal to the
+    weapon's, adds what a new `registerItemBonusSource` reports for the item
+    (equipment registers masterwork, `provides: kw:masterwork`), and runs
+    `resolveStacking`; every spell-record part carries one shared capability,
+    so two spell records never add (owner ruling 2). Where masterwork loses,
+    a labelled negative row takes its figure back out of core's rows; where
+    the spell loses, the card says so. *Rejected:* the record on the weapon
+    item (follows a trade, but supersedes ruling 10 on nothing probed); a
+    magic-owned contributor importing equipment (lib imports no feature).
+    *Counter (medium):* a traded weapon leaves its buff on the old holder.
+20. **A record holds at most one status, and a record holding a status holds
+    no changes.** Core 14.370's `toggleStatusEffect` off deletes every effect
+    whose only status is the one toggled, changes and all, and never one
+    holding two. A condition rides a status-only record; the cast's modifiers
+    ride a separate status-free record under the same `castId`. The HUD
+    toggle then ends the condition and leaves the buff. Expiry, undo and End
+    delete one record by id, never by toggle. *Rejected:* one combined record.
+    *Counter (low):* a modifier belonging to a condition is the catalogue's
+    `mods`, which leave with the status anyway.
+21. **Rounding.** The printed rounding (RR Introduction) is procedure and
+    ships: `hp-logic.mjs` gains pure `roundHalfEven` and
+    `amountAfter(rolled, {fraction, stages})`, which applies the save
+    fraction, then the defenses stage (a pass-through until S3), then rounds
+    once; `adjustHp` gets the result with multiplier 1, and the card shows
+    rolled and applied. `planHpChange` keeps core's round-up (its contract is
+    what core would write); core's chat Apply and the HP tool are untouched
+    in S2. *Counter (medium):* two rounding rules coexist until S3.
+22. **Where the print is silent, the module does what the owner answers;
+    until then, the defaults below.** Area damage: one roll per row per cast,
+    each target saving against it (`rollAmounts`' `perTarget` makes the other
+    answer free). A row with no throw has no damage floor (the printed floor
+    is an attack's); a row with a throw keeps core's. A spell's throw takes
+    core's criticals under the Judge's setting. All three go to the owner.
+23. **Declaration** (supersedes ruling 15's "nothing is spent" on new
+    evidence: RR ch. 5 counts a disrupted declared spell as cast, and the
+    seam's `spend` stops working once `cast` settles, so nothing can spend at
+    the moment of loss). A fight has begun when `combat.started` or core's
+    `acks.initDone` flag is set; it is the caster's turn when
+    `combat.combatant` is the caster's and its initiative is rolled. At any
+    other moment in a fight the dialog declares: at confirm it checks
+    capacity and spends once, then writes a status-only `casting` record, a
+    status-free pending record naming the spell, and core's combatant flag
+    `acks.prepareSpell` (the tracker's own Casting toggle). Lib exports its
+    loss path with a hook carrying `(actor, ids, cause)`; magic stamps the
+    pending record `lost`. On the caster's turn an unstamped pending record
+    resolves with no second check or spend; a stamped one is reported lost;
+    with none a Player is blocked and a Judge warned, and a hand-set
+    `prepareSpell` counts as a declaration. The module clears `prepareSpell`
+    at resolution or loss. *Counter (medium):* a misclicked declaration is
+    spent; the Judge lowers core's count by hand.
+24. **Concentration** (ruling 11). `concentrating` and
+    `concentratingStationary` gain `lost: HURT_OR_FAILED` (not `moved`, which
+    means moved out of turn). Automated: damage, a failed save, the caster's
+    next cast through the module. Left to the Judge, with a ROADMAP row:
+    attacking, other actions, movement (`POST_ATTACK_HOOK` is the route for
+    attacks). Whether concentration's end also ends the recipients' records
+    goes to the owner; default no (the end card tells, a press removes).
+25. **Capacity and the relay** (ruling 17). `castCapacity(actor, spell)` is
+    pure: ruling 6's tradition, for a vancian one `slotRowAt` minus the spent
+    pool; else core's `system.spells.<lvl>.max` minus the level's summed
+    `system.cast`; else unknown and no verdict. Checked once, at the confirm
+    that spends; the spend is `spend()` plus `adjustPool` for a vancian
+    tradition (a points pool is shown, not spent: its cost is printed, S3).
+    The relay is a magic handler on `sockets.mjs` (`executeAsGM`); the
+    caster's record is written first, and the GM's client checks the
+    requester owns the caster, the spell item and a caster record with this
+    `castId` exist, the row exists in the spell's or its twin's rows, the
+    amount fits the row (`magicDamageSpec` recomputed there), and the
+    castId/target/row was not already applied; it rebuilds the record from
+    the row, not the request, and runs the loss path for a failed save.
+    Undo is the Judge's: the message keeps target uuids and before-values.
+    Core's attack card for a spell carrier is stamped while in flight and
+    loses its apply-damage button, so nothing applies twice.
+    *Counter (medium):* a range check does not prove a player's roll honest.
+26. **Caster abilities go to S3** (ruling 18). No S2 row scales with level
+    and every S2 range and duration is fixed. S2's caster level returns
+    `{value, parts}` and `saveThrow` takes labelled parts, so S3 adds ability
+    rows without reshaping. The register carries no authored
+    `spellcastingMod` or `spellLike` row today; only the prose scan writes
+    them (a spell name with frequency, or a caster-level delta with no
+    school), so S3 authors before it reads.
+27. **S2 splits in two**, each lib first, then magic. *S2a:* lib — the magic
+    type and `isSpellCarrier` in `patches/attack-throw.mjs` (equipment's
+    `attack-mods.mjs` / `roll-wrap.mjs` stand down for a carrier), `saves.mjs`,
+    `hp-logic.mjs` rounding, the loss export with its hook; magic —
+    `cast-spell.mjs`, `apps/cast-dialog.mjs`, `templates/magic/cast-card.hbs`,
+    `cast-capacity.mjs`, the relay, `spell-effect.mjs` (one status per
+    record, roll-mods, `item`), `cast-expiry.mjs` (the flag's duration, every
+    actor and unlinked token, recipients deleted by id), the row editor's
+    fields, `docs/magic/TESTING.md`; live: the desiccate, cureLightInjury and
+    frightenHumanoid observables, a monster's attack still core's, the Player
+    relay, the refusal with no slot. *S2b:* lib — the concentration rows,
+    the roll-mods contributor, `registerItemBonusSource`, the two gates;
+    magic — declaration, held records and the end card, the weapon pick,
+    equipment's masterwork registration; live: holyCircle, a lost
+    declaration, sharpness cast twice on a masterwork weapon.
 
 ## Data shapes
 
@@ -295,7 +502,7 @@ total, target, success}` on a recipient's, `reversed`, `casterLevel`.
 Cast card data: `{castId, spellUuid, caster, mode, casterLevel {value,
 source}, rows: [{index, kind, types, extraordinary, roll {total, formula,
 cite}}], targets: [{uuid, resist, perRow: [{amount, multiplier,
-applied}]}]}`.
+applied, undo}]}], pending}`.
 
 ## Bucket map
 
@@ -312,9 +519,12 @@ applied}]}]}`.
 | Casting time | `castingTime`, lib's `casting` condition | declared, lost to damage or a failed save, resolved on the caster's turn | rituals later |
 | Saving throw | `save`, `saveEffect` | typed resist in the card | `save.kind` new |
 | Save modifiers | `save.modifier` | per-row toggle | none |
-| Stacking | statuses, `notStacksWith`, `provides` | held-or-not; card notice | owner question 2 |
+| Stacking | statuses, `stacksWith`, `notStacksWith`, `provides` | records separate; a condition held or not; a figure applied once, the larger, non-stacking the default between spell records | none (owner ruling 2) |
 | Source | `lists[].source` | tradition to caster level | 1b factors |
 | Level | `lists[].level` | core's spend | slot caps later |
+| Spells per day | the class tradition's slots or pool, core's `system.cast` | checked before confirm, spent at confirm (ruling 17) | repertoire caps later |
+| Caster abilities | `spellcastingMod`, `spellLike`, `casterLevelDelta`, `school` | matched at cast, named in tooltips (ruling 18) | inventory, then a ruling |
+| Damage against defenses | `extras.defenses` | the seam between roll and `adjustHp` | built in 1b (owner ruling 4) |
 | Reversal | `reversible`, `reversed` | dialog mode | none |
 | Choice at cast | `pick` | dialog | none |
 | Triggered start, beholding and earshot, the perpetual cap, dispelling, targeting the dead, signatures | none or tracked | none | later phases |
@@ -326,22 +536,27 @@ applied}]}]}`.
 2. `rowsOf(spell)`: own rows, else the twin's.
 3. Caster level by ruling 6.
 4. Dialog: mode, picks, level if needed, the target list, the range verdict,
-   a concentration warning. Cancel spends nothing.
-5. `spend()`.
+   a concentration warning, the capacity verdict (ruling 17). Cancel spends
+   nothing.
+5. `spend()` and the tradition's pool, once.
 6. Resist rolls per target: HD gate, then `saveThrow`, or `makeAttackThrow`
    with magic for a row with a delivery; the result is kept.
 7. Rolls for rows with no throw (`magicDamageSpec`), and heals.
-8. The cast card (`lib/roll-card.mjs`): a row per target, Apply for GMs and
-   the target's owners, a tooltip on every figure.
-9. The caster's record: `spellEffectData`, role caster, the flag duration,
+8. Application, where the seat had tokens targeted (owner ruling 3): each
+   amount through the save's fraction, the printed rounding and the
+   defenses seam to `adjustHp`, and each recipient's record; a target the
+   seat does not own goes to the GM's client, checked against the caster's
+   spell item, and falls back to a press with no GM connected.
+9. The cast card (`lib/roll-card.mjs`): a row per target with what was
+   applied, an undo for the Judge, Apply for what is still pending (nothing
+   targeted, no GM), a tooltip on every figure.
+10. The caster's record: `spellEffectData`, role caster, the flag duration,
    `held`, the recipient list.
-10. Apply, on a press: `adjustHp` (damage by its multiplier, or a heal) and
-    the recipient's record. Where the presser does not own the target, the
-    GM's client applies after checking the request against the caster's
-    spell item (the summon relay's precedent).
-11. Expiry: the GM window's sweep covers every actor and unlinked token
+11. Apply, on a press, for what step 8 left pending: the same path, the
+    same relay.
+12. Expiry: the GM window's sweep covers every actor and unlinked token
     actor's caster records and fans out by `castId`.
-12. Concentration lost: lib's loss path, the end card, the End press.
+13. Concentration lost: lib's loss path, the end card, the End press.
 
 ## Not verified, to prove before it is built on
 
@@ -419,27 +634,32 @@ the landing, a walk from content imported from the seat's own PDF.
   `apps/cast-dialog.mjs`, `templates/magic/cast-card.hbs`, changes to
   `spell-effect.mjs`, `cast-duration.mjs`, `cast-expiry.mjs`, the row
   editor's fields for these four kinds, and the TESTING recipe with its
-  walk. *Accept, live:* `def.spell.desiccate` at several targets posts a
-  typed save per target and applies the halved amount with its type shown;
+  walk. *Accept, live:* `def.spell.desiccate` at several targeted tokens posts a
+  typed save per target and applies at the cast the amount each save leaves,
+  a half rounded as printed, with its type shown, and the Judge's undo
+  restores it; cast with nothing targeted it posts the rolls and an Apply;
   the reversed `def.spell.cureLightInjury` throws through core's card as
   magic with no melee modifier on the damage; `def.spell.frightenHumanoid`
   cast twice on one target leaves one condition and two records, and the
   condition stays when the first ends; `def.spell.holyCircle` loses
   concentration on damage and raises the end card; `def.spell.sharpness` on
   a recipient's weapon puts its figure on that weapon's attack throw and
-  damage with a tooltip naming the spell, the figure is gone when the record
-  ends, and beside the source its printed clause names the two resolve
-  through `resolveStacking`; in a started fight a caster declared and then
+  damage with a tooltip naming the spell; cast twice on that weapon it leaves
+  two records and one figure, which stays when the first record ends and is
+  gone when the second does; beside the masterwork source its printed
+  clause names the two resolve through `resolveStacking`; in a started fight a caster declared and then
   hurt before their turn has lost the declaration, and a Player seat's cast
   is refused; a core monster's attack item still posts core's card; a Player
-  seat casts its own spell and cannot apply to an actor it does not own.
+  seat casts its own spell at a targeted actor it does not own and the GM's
+  client applies it, and with no slot left on its tradition the Player's
+  cast is refused while the Judge's is warned.
 - *Exit point.* S1 and the "Not verified" items come first. If they fill
   the session, it stops there, writes S2's start prompt under its results
   and puts S2 up as the next card.
 
 **Session 1b: widening.** *S3* (`implementer`): recurring rows and their
 prompts, several instances per cast, picks, HD gates, range checks, the rest
-of the row editor, and, on owner question 4's answer, damage against
+of the row editor, and (owner ruling 4) damage against
 defenses in lib (an `architect` ruling first: where the fractions are
 imported from, and the one place an amount is reduced). Rows: `def.spell.blindingFlash`, `def.spell.thunderclap`,
 `def.spell.fanOfFlames`, `def.spell.earthsExcrescence`,
@@ -459,8 +679,9 @@ S5 opens with an `architect` ruling on the readers ruling 10 lists: the
 abilities roller and influence reading a cast record, an armour class set
 by the kind of attack, a save changed under a condition. *Accept, each
 row:* the figure reaches the roll it changes, with a tooltip naming the
-spell; it is gone when the record ends; a second source of the same kind
-resolves through `resolveStacking`.
+spell; it is gone when the record ends; a second spell record of the same
+kind leaves one figure, the larger, which stays until the last record ends
+(owner ruling 2).
 
 **Session 1d: tracked kinds and the close.** *S6:*
 `def.spell.angelicChoir`, `def.spell.auditoryIllusion`,
