@@ -1,1 +1,0 @@
-- **A book's region place is made only when something stands in it.** Importing a book's points of interest makes its region place for its overview, a site of its own, a place that has no parent yet, or its region map; a book whose every site joins a place another book already placed makes none.

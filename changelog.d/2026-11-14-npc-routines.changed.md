@@ -1,1 +1,0 @@
-- **Importer, adventure creatures:** an adventure or Lairs & Encounters creature whose stat line prints hit dice and no hit points now takes hit points from its dice on import, and a scenario creature gets one weapon for each attack routine its line prints.

@@ -1,1 +1,0 @@
-Hire as Group (location sheet → Mercenaries tab) reads the morale modifier of a marshal or master mariner officer from your own book, and it is editable under Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables. Where the table is not imported the unit stores no modifier, its morale counts none for the officer, and the hire warns that it is not imported.

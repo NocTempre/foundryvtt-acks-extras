@@ -1,1 +1,0 @@
-A class's starting package no longer previews as empty while the importer's shelf is still loading. The package box on the class picker window (opened from a character sheet, or by dropping a class on it) and on the character generation page loads the package's bundle before it lists its contents and before it keeps the package's own abilities off the proficiency pick list.

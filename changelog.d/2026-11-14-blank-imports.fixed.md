@@ -1,1 +1,0 @@
-- **Sheets, cards and dialogs, figures read from your books:** a field whose figure has not been imported is left blank; where the module cites the page that prints it, hovering the field names that page.

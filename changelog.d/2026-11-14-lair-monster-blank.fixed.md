@@ -1,1 +1,0 @@
-- **A lair whose monster is not in the world:** the Monster row is blank until the monster is imported. Actors sidebar → open a place that is a lair → **Lair** (the Judge's seat only).

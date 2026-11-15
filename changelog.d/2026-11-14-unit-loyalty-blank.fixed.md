@@ -1,1 +1,0 @@
-A group's unit Loyalty starts blank instead of a stored 0. On a group's sheet, in the Unit section, the Loyalty field (a mercenary unit's) is empty until a figure is typed, and its tooltip carries the page that prints the loyalty figures. A unit hired before this change keeps the 0 it stored.

@@ -1,1 +1,0 @@
-- **Organisations claim their quarters in either import order.** Importing a book's organisations after its settlement map hands each organisation the quarters of that map it controls, the same as importing the map after the organisations; importing either again changes nothing.

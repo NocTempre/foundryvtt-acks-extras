@@ -1,1 +1,0 @@
-The Insist button on a refused-obedience chat card says whose figure its tooltip names. Where the Judge has set the insistence penalty in the Ruledata Browser (Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables → Open Ruledata Browser), the tooltip says the Judge set it, instead of claiming it was read from the book at import.

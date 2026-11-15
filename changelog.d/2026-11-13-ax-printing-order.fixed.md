@@ -1,1 +1,0 @@
-Where two of the 2018 adventures (AX2 to AX6) print the same place, market demand or item, the import keeps the later adventure's printing (Settings tab → Game Settings → ACKS II — Extras → Manage imports). A good a sideways market grid leaves unmapped is reported by its printed label.

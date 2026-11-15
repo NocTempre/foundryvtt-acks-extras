@@ -1,1 +1,0 @@
-AX1's notice board on p.15 imports as a page of the Notes journal (Journal sidebar → Notes), and one AX3 region site whose text turns a page mid-sentence reads as one paragraph (Journal sidebar → the AX3 region place). A book already imported takes this on Repair in place or a re-import (Settings tab → Game Settings → ACKS II — Extras → Manage imports).

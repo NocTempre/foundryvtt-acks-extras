@@ -1,1 +1,0 @@
-A lost party's weather is rolled for the hex it is really in. The day change and the Wilderness tab's **Roll the sky** button read the climate, season and ground of the Judge's true position (the shadow token's hex) instead of the hex the party believes it stands in, so a Country card showing the believed climate can sit beside a sky rolled for the true one.
