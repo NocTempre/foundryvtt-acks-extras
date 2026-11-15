@@ -20,8 +20,7 @@
  * | `background` | `backgroundImage` | a geometry apply over a scene with no background image |
  * | `gridSample` | `boxTool` | square: no fit; hint `barAlone` (a bar needs a fit) or the fit's own reason |
  * | `hexBox` | `boxTool` | hex: no box at all; hint `barAlone` when a bar is the only sample |
- * | `oneHexBox` | `boxTool` | hex: boxes exist and none is one hex of this family's shape |
- * | `otherFamilyBox` | `familySelect` | hex: every box is shaped like the other hex family |
+ * | `oneHexBox` | `boxTool` | hex: boxes exist and the fit found none that is one hex |
  * | `hexProbe` | `familySelect` | hex: the scene could not be asked for one hex |
  * | `measurement` | `scaleBarTool` | scale only: neither a bar nor a fit |
  * | `barValue` | `barValueField` | scale only: a bar with no printed length |
@@ -34,23 +33,34 @@
  * ## Unused
  *
  * Samples the chosen family leaves out, `{ id, count }`: `corners` on a hex
- * family, `otherFamilyBoxes` and `multiHexBoxes` beside a usable hex fit, and
- * `scaleBarWithoutValue` when a bar adds nothing.
+ * family, `multiHexBoxes` (boxes the fit rejected as not one hex) and
+ * `unreachableBoxes` (boxes too far from the others to place) beside a usable
+ * hex fit, and `scaleBarWithoutValue` when a bar adds nothing. A failed hex fit
+ * lists no boxes: its need already says they are all unusable.
  *
  * ## Warnings
  *
- * A Judge gets warnings, never blocks. A loose fit is
- * `{ id: "looseFit", worst, rmsPct }`, where `worst` is the index of the box
- * that sits furthest off (null for a square fit, which scores no single box).
- * It never disables Apply.
+ * A Judge gets warnings, never blocks; none disables Apply, and the Judge's
+ * family and boxes are always kept.
+ *
+ * | id | action | fields | when |
+ * |---|---|---|---|
+ * | `familyMismatch` | `familySelect` | `basis` | hex: the fit reads the boxes as the other hex family |
+ * | `familyAmbiguous` | `familySelect` | `basis` | hex: the fit cannot tell the two families apart |
+ * | `unreachable` | `boxTool` | `count` | hex: boxes too far to place; a box drawn between them closes the gap |
+ * | `looseFit` | none | `worst`, `rmsPct` | the fit's confidence is `"loose"` |
+ *
+ * `basis` is the fit's own: `"lattice"` (the boxes' spread decided it) or
+ * `"shape"` (their proportions did). `worst` is the index of the box that sits
+ * furthest off, null where the fit names none (a square fit scores no single
+ * box; a hex fit names one only from three used boxes).
  *
  * ## Rows
  *
  * `{ id, before, after, ... }`, one per change, omitted where before equals
  * after. `grid` (`{type,size}`, with `unit: "px"`), `cellWorth`
  * (`{distance,units}`), `image` (`{width,height,shiftX,shiftY}` plus `rescale`
- * `{x,y}` and `moves: true`, since placeables ride with the image),
- * `tokenSizing` (a boolean, with `because: "expeditionScale"` when the answer
+ * `{x,y}`), `tokenSizing` (a boolean, with `because: "expeditionScale"` when the answer
  * is off for that reason), and `travelSystem` (a mode id or null for none
  * declared). A solution field that is absent or null is unchanged, except the
  * travel system, where null is the declaration of none.
@@ -113,18 +123,14 @@ function squareGaps({ fit, samples }) {
 
 /**
  * The sample gaps of a hex fit. A hex fit's own failure reason picks the gap;
- * a box the fit rejects for its shape sends the Judge to the family choice,
- * since the box is more often right than the family.
+ * the fit never rejects a box for the family, so a rejected set is always a
+ * box to redraw.
  */
 function hexGaps({ fit, samples }) {
   if (fit?.ok) return [];
   const reason = fit?.reason ?? "noBoxes";
   if (reason === "noProbe") return [need("hexProbe", "familySelect")];
-  if (reason === "noOneHex") {
-    const boxes = fit?.boxes ?? [];
-    const allOther = boxes.length > 0 && boxes.every((b) => b.otherFamily);
-    return [allOther ? need("otherFamilyBox", "familySelect") : need("oneHexBox", "boxTool")];
-  }
+  if (reason === "noOneHex") return [need("oneHexBox", "boxTool")];
   const barAlone = !!samples.bar && !samples.boxes;
   return [need("hexBox", "boxTool", barAlone ? "barAlone" : undefined)];
 }
@@ -151,16 +157,36 @@ function unusedSamples({ family, fit, samples, cellWorth, hex }) {
   if (hex && samples.corners > 0) unused.push({ id: "corners", count: samples.corners });
   if (hex && fit?.ok) {
     const boxes = fit.boxes ?? [];
-    const other = boxes.filter((b) => b.otherFamily).length;
-    const multi = boxes.filter((b) => b.notOneHex && !b.otherFamily).length;
-    if (other) unused.push({ id: "otherFamilyBoxes", count: other });
+    const multi = boxes.filter((b) => b.notOneHex).length;
+    const far = boxes.filter((b) => b.unreachable).length;
     if (multi) unused.push({ id: "multiHexBoxes", count: multi });
+    if (far) unused.push({ id: "unreachableBoxes", count: far });
   }
   // A bar with no length answers nothing; it is named only where no need
   // already points at it.
   const worthKnown = cellWorth > 0 && (family !== "scale" || fit?.ok);
   if (samples.bar && !samples.barValue && worthKnown) unused.push({ id: "scaleBarWithoutValue", count: 1 });
   return unused;
+}
+
+const FAMILY_VERDICTS = new Set(["familyMismatch", "familyAmbiguous"]);
+
+/**
+ * The warnings a usable fit carries. A hex fit's family verdicts pass through
+ * with the family select as their action; boxes it could not place become one
+ * `unreachable` warning; a loose confidence adds `looseFit`.
+ */
+function fitWarnings({ fit, hex }) {
+  const warnings = [];
+  if (hex) {
+    for (const w of fit.warnings ?? []) {
+      if (FAMILY_VERDICTS.has(w?.id)) warnings.push({ id: w.id, action: "familySelect", basis: w.basis ?? null });
+    }
+    const far = (fit.boxes ?? []).filter((b) => b.unreachable).length;
+    if (far) warnings.push({ id: "unreachable", count: far, action: "boxTool" });
+  }
+  if (fit.confidence === "loose") warnings.push({ id: "looseFit", worst: fit.worst ?? null, rmsPct: fit.rmsPct ?? null });
+  return warnings;
 }
 
 /** The before/after rows of what the apply would write over the scene. */
@@ -193,7 +219,6 @@ function planRows({ scene, solution, autoScale, expeditionScale }) {
       before: imageBefore,
       after: imageAfter,
       rescale: { x: ratio(imageAfter.width, imageBefore.width), y: ratio(imageAfter.height, imageBefore.height) },
-      moves: true,
     });
   }
 
@@ -221,10 +246,9 @@ function planRows({ scene, solution, autoScale, expeditionScale }) {
  *   Counts of dragged boxes and clicked corners, whether a scale bar is drawn,
  *   and whether its printed length is entered.
  * @param {object|null} [input.fit]  A square fit (`fitGrid`'s `{ok, reason, confidence, ...}`)
- *   on a square or scale family, or a hex fit (`{ok, boxes:[{index, notOneHex, otherFamily}],
- *   worst, rmsPct, confidence}` / `{ok:false, reason, boxes?}`) on a hex family. Null when none
- *   was run. A `noOneHex` failure tells "only other-family boxes" (`otherFamilyBox`) from "only
- *   multi-hex boxes" (`oneHexBox`) by the `boxes` it carries; without them it reads as `oneHexBox`.
+ *   on a square or scale family, or a hex fit (`{ok, boxes:[{index, notOneHex, unreachable}],
+ *   warnings:[{id, basis}], worst, rmsPct, confidence}` / `{ok:false, reason, boxes?}`) on a hex
+ *   family, as `fitHexLattice` answers it. Null when none was run.
  * @param {number|null} [input.cellWorth]  What one map cell is worth, already resolved
  *   (`resolveCellWorth`); null or blank is a need.
  * @param {object} [input.scene]  The scene as it is: `{gridType, gridSize, distance, units,
@@ -256,10 +280,7 @@ export function planSetup({ family, samples = {}, fit = null, cellWorth = null, 
   needs.push(...worthGaps({ family, fit, samples: sample, cellWorth }));
   if (!needs.length && !solution) needs.push(need("unsolved", null));
 
-  const warnings = [];
-  if (fit?.ok && fit.confidence === "loose") {
-    warnings.push({ id: "looseFit", worst: fit.worst ?? null, rmsPct: fit.rmsPct ?? null });
-  }
+  const warnings = fit?.ok ? fitWarnings({ fit, hex }) : [];
 
   const autoScale = !expeditionScale;
   const rows = planRows({ scene, solution, autoScale, expeditionScale });
