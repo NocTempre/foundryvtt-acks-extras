@@ -384,7 +384,9 @@ stretch is exactly the ratio between the families; the bar's worth through
 with `expeditionScale` computed by the caller through `isExpeditionScale` from
 the solution's distance and unit and pinned by a test (six miles leaves
 auto-sizing off, five feet turns it on); a loose-fit line that reads without a
-box name when `worst` is null; and no wording that says placed tokens, tiles
+box name when `worst` is null; the unreachable count and the family warnings
+shown on the worst-box line's slot in `assistant-body.hbs`, so a box left
+out never vanishes without a word before Phase 3's needs list; and no wording that says placed tokens, tiles
 or walls move with the image, which they do not (no apply passes
 `autoReposition`; `20261115-map-ui-audit.md` §3 finding 1 on `main`). The
 walk adds Phase 1's items: the live probe against the test mock, a token's
@@ -510,8 +512,9 @@ their notes. T-0590 and T-0591 are §8's two rows, left `new`.
   aspect gate rejects about a quarter of honest 31 px boxes, and with each
   axis free the centres of pointy rows and flat columns are one point set.
   Q4, the 1% small-hex bound: fair for that noise model, but the fit dropped
-  the edges where the span is short. Q5, the planner: weak, nine of 21
-  mutants survived, and `moves: true` was a constant asserted as behaviour.
+  the edges where the span is short. Q5, the planner: weak; the review lists
+  nine surviving mutants of the 21 it ran, and `moves: true` was a constant
+  asserted as behaviour.
   Reproduced on 793fddfe from the reviewer's probes: the walk's five boxes
   on the small hex under ±3 px of position noise read the size p95 35.8%,
   max 44.1% wrong (rows), and the anchor 0.2 hex off reads it 44.8% wrong.
@@ -564,7 +567,24 @@ their notes. T-0590 and T-0591 are §8's two rows, left `new`.
   A2's implementer ran its own table on 4546de08 (11 killed, the
   reassignment pass surviving), and the table above is independent of it.
 
+#### Where these results overrule §2 and §4
+
+- §4 item 1's per-box `otherFamily` flag does not exist. The family is a
+  fit-level warning, and the Judge's family and boxes stand.
+- §4 item 2's hint that "boxes far apart refine the size" is wrong at the
+  reporter's hex size. At 30.7 px a box 25 hexes out is unreachable even
+  when drawn exactly, until boxes step out to it (a rung at 16 reaches 25).
+  The hint the panel gives is to add boxes between.
+- One box alone (§2's attempt 3) now reads fair, never tight, and on the
+  small hex it usually carries `familyAmbiguous`. §2's "0.0% tight" was
+  today's fit.
+- Where §4 and these results disagree, these results stand.
+
 #### Not settled (found, recorded, not fixed)
+
+Registered as T-0592 (the lone block), T-0593 (the far box one hex short),
+T-0594 (the stretched canvas with no spread) and T-0595 (the respelled unit),
+source `derived:T-0578`, status `new`.
 
 - A lone real 2×2 hex block is taken as one hex 3.75 times too large, with
   only a shape-based `familyMismatch` warning. One box alone cannot show its
