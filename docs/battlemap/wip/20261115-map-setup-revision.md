@@ -203,6 +203,13 @@ Answered 2026-11-15 (§1 has the words):
   beside this file; Phase 3 builds what it finds (slice J).
 - **Q5:** the release kind does not matter yet; the work is developed on a
   branch (§7).
+- **Q1's follow-up, 2026-11-15.** Asked "Keep auto-sizing off on a
+  mile-scale apply even where the scene had it on?", the owner answered: "Yes,
+  write it off". A scene with auto-sizing on that is applied at a mile or more
+  a cell has it written off, and the token-sizing row reads before on, after
+  off, because of the scale. `planSetup` already answers so and its suite pins
+  it (the `wasOn` case); the panel passes the scale test from
+  `isExpeditionScale` and never keeps the scene's own on.
 
 The questions as they were asked, each default first:
 

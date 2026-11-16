@@ -144,10 +144,10 @@ Two buttons at the foot of the panel, in either order, as often as you like:
 
 - The apply button's label follows the map's kind. **Apply grid to scene**
   rescales and shifts the background so Foundry's grid sits exactly on the
-  map's, and sets the scene's distance-per-square. Foundry repositions
-  anything already placed proportionally — the confirmation dialog reminds
-  you. On a hex map the button says **Apply hex grid to scene**, and lands the
-  hex you drew a box around on a real one. In the scale-only mode it says
+  map's, and sets the scene's distance-per-square. Tokens, tiles and walls
+  already placed stay where they are while the map moves under them — the
+  confirmation dialog says so. On a hex map the button says **Apply hex grid
+  to scene**, and lands the hexes you drew boxes around on real ones. In the scale-only mode it says
   **Apply scale to scene** and writes nothing but what the map's distances are
   worth: nothing is rescaled and nothing moves.
 - **Rescale tokens on scene** resizes every token to its real footprint at

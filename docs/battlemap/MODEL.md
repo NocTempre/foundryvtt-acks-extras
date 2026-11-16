@@ -215,7 +215,7 @@ nothing rewrites it.
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
 | `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
 | `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
-| `apply.mjs` | Scene writes, one per family: `applyGridCalibration` (square), `applyHexCalibration` (hex), `applyScaleOnly` (no geometry), each one `scene.update`; plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
+| `apply.mjs` | Scene writes. One side-effect-free solve per family, `solveGridCalibration` (square), `solveHexCalibration` (hex) and `solveScaleOnly` (no geometry), each answering the solution and its exact update; `writeSetup`, the one writer (confirm, one `scene.update`, read back, done notice); plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
 | `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`, and the derived `derivedValueAt` / `derivedHexes`), `paintLayerChanged`, the writer `paintHexAt`, and the palette window with its layer pills. |
 | `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, a derived territory, the drawn lines and the scene default, and which of them answered each key. |
@@ -326,7 +326,7 @@ nothing rewrites it.
   way, and no second copy of the lattice question exists.
 - **Scale only writes no geometry at all.** `grid.size` and `grid.distance` are
   one ratio — so many px are worth so much distance — and a map with no drawn
-  grid offers exactly one measurement, its scale bar. `applyScaleOnly` writes
+  grid offers exactly one measurement, its scale bar. The scale-only apply (`solveScaleOnly`, written by `writeSetup`) writes
   that ratio and the units, leaves the type, the dimensions and the shift
   untouched, and so leaves a gridless map gridless. Foundry bounds `grid.size`
   to whole pixels within a range: inside it the asked-for distance is kept and
