@@ -168,3 +168,46 @@ its own`: the identity ruling and the rejected options above.
 ## Results
 
 (Phase sessions append here.)
+
+### 2026-11-16 — phase session (orchestrator on topic/summons-formation)
+
+**Slice 1, readers and dismiss** — implementer; landed bc9fa973. Lib
+`summonOfData`, `heldSummonsOf`, `castSummons` → `{tokens, held}`,
+`dismissSummons({entries, held})`; the relay routes held records and
+deployed-member tokens through roster `release`, so lib never deletes a
+member's token (the resurrection fix). Every v2 call is optional, so main
+without a provider behaved as before. Offline: test-summons 50, test-magic 81,
+test-lib 247, test-character-sheet 66, validate OK; three mutations went red.
+
+**Slice 2, identity** — scout enumerated, implementer applied; landed
+2b744904 (rebased over 079cb885, one import conflict in `sheet.mjs`, and over
+c1057d38, both scenario blocks appended in `test-formation-flows.mjs`, kept
+main's first). Minted `actorId` + `baseActorId`; `addSummonMembers`; the
+roster provider v2 (`summonedBy`/`summon` rows, `memberOfToken`, `release`);
+the member `game.actors.get` sites through `getMemberActor`; a summon's
+deployed token deleted by hand ends its membership; `summonsOnScene` lists
+held entries; the sheet's Dismiss paths pass `entries` (the cast-cell
+requirement — its session ruled it into this slice, since cast-cell had
+landed with nothing pending). Orchestrator added: a summon token joins only
+its own summoner's party (`warn.summonerAbsent`). The recipe section
+"Summons in the party" landed with it. Offline: test-formation-flows all
+scenarios (6 summon scenarios), test-character-sheet 82, test-summons 50,
+validate OK; five mutations went red (the release-ordering one fired on the
+count, not the ordering assertion).
+
+**Walks after slices 1–2, on main 2b744904** (`tools/live/run.mjs`, GM +
+Player seats): character-sheet-summons passed 52/0, formation-membership
+passed 38/0. magic-cast-summon errored twice (15/0, then 14/1) at "every click
+point lies on the bare canvas": the Player seat's view had panned off the
+scene (pointer at −618/−463, then −1718/−990) before the first placement
+click, so the walk never reached slice code. It lacks the pointer-centring
+step the character-sheet walk's drive mechanics record; a finding for that
+walk's owner, not walked here. The new section's steps 1–9 need joining
+(slice 4) and are not reachable yet; step 10 is held for the full walk after
+slice 4.
+
+**Slice 3, peers** — topic/cast-cell: done inside slice 2 (above).
+topic/spell-effects: handed its three `cast-expiry.mjs` points (castSummons,
+standing counts held, the card's Dismiss passes both) on 2026-11-16; its S2a
+session scheduled them into its magic half. Slice 4 does not land until they
+are on main.
