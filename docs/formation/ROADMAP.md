@@ -22,7 +22,7 @@ Legend: 🟡 partial or assisted · 🔧 needs development
 | Earshot and noise | 🟡 | Left to the Judge's adjudication; nothing automates it. |
 | Wandering monsters: number appearing and reaction adjusted by the dungeon and monster level difference | 🟡 | The Encounter Zone carries the dungeon level, a table carries a monster level (`encounter-scaling.mjs` `LEVEL_FLAG`), and a Judge-only card states the multiplier and rolls the reaction (MODEL "Turn tick"). Nothing scales unless both levels are set. Not built: the importer half, the by-level tables and the dungeon-level matrix of the Judges Journal registered so the materializer stamps each level table with `LEVEL_FLAG` and a matrix shifts with no typing. The rate itself is in §6a. |
 | Surprise in the encounter procedure | 🔧 | The party's surprise roll against the monster, with light-source penalties and the noise interaction. The proficiency bonuses that modify it are read; the procedure they modify is not automated (core's Surprise Matrix stands, and detection states guide it). The reaction half belongs to the influence feature. |
-| Spelunking, squeezing, swimming, jumping | 🟡 | Each is its own derivation published on `api.formation` (`obstacles`, `swimming`, `jumping`) and tested. None has a UI surface: nothing in the party sheet asks the party to cross anything. One surface for all three is the next piece of work. |
+| Spelunking, squeezing, swimming, jumping | 🔧 | Obstacles, swimming and jumping are derivations published on `api.formation` (`obstacles`, `swimming`, `jumping`), each with a committed suite. Squeezing has no code. None has a UI surface: nothing in the party sheet asks the party to cross anything. The procedure the derivations leave out, and the Spelunking grid rows they do not read, are open in the wip plan's §4 until each lands (`wip/20261116-dungeon-closeout-plan.md`). |
 | Sequence of play, steps 2 to 4 | 🟡 | Stationary actions, traps and deliberate encounters are Judge-driven with helpers. |
 | Strenuous ancillary activity per delve hour (RR p. 21) | 🟡 | The wilderness day board carries an ancillary budget; the delve does not model it. |
 
@@ -43,7 +43,7 @@ Still unbuilt, in likely order:
    client, so a player who declares an attempt has the Judge answer for them.
    Fixing it means a second socket round-trip back to the declaring user, held
    open while the Judge's client waits.
-3. **Obstacles, swimming and jumping have no surface** (§1).
+3. **Obstacles, squeezing, swimming and jumping have no surface** (§1).
 7. **Wilderness mode: per-kind road refinement.** The road table is read from
    the Rulebook; the Judges Journal's per-kind road refinement does not
    replace it yet. An importer recipe and a binding read are owed.
@@ -123,25 +123,25 @@ read a table no world can supply.
 
 | Step | Where | Work |
 |---|---|---|
-| 1 | importer | An RR ch. 6 recipe: the door grid through `assists.grids` with `ac` / `shp` columns (as the sea table on p. 319 already does), the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch. 6 has no register file yet, so the page range is new; the extraction shape is not. |
-| 2 | formation | `doors.mjs` reads a `doors` document via `getDoc` / `expectTables`, as `classes/hitpoints.mjs` does. `bashPlan` keeps its shape; only the magnitudes are passed in. |
+| 1 | importer | An RR ch. 6 recipe in `TABLE_RECIPES.formation`, bound by `formation-binding.mjs`: the door grid with `ac` / `shp` columns, the batter-down turns per construction, and the bash modifiers as `from: {pattern}` reads out of the section's prose. Ch. 6 has no register file yet, so the page range is new; the extraction shape is not. |
+| 2 | formation | `doors.mjs` reads its figures through `formationValue`, as `obstacles.mjs` and `swimming.mjs` do. `bashPlan` keeps its shape; only the magnitudes are passed in. |
 
 Without an imported table, bash and batter refuse and say so, while every
 structural door gesture (open, close, lock, spike, unspike, evil doors) keeps
 working. There is no identity value for a missing throw target, and falling
-back on a remembered target would reinstate the value the ruling removes. This
-file and `doors.mjs`'s module docstring state the magnitudes in prose; they are
-cleared in the same pass.
+back on a remembered target would reinstate the value the ruling removes. The
+spike comments in `doors.mjs` (`bashPlan`'s, and `spikeDoor`'s docstring) state the spike magnitudes in prose; they are cleared in the same pass.
 
 ## 6a. What else in formation still holds printed values
 
-Each needs its own ruling, and no gate can make it: the structure/content line
-is a reviewer's call by design (`.claude/rules/ip-doctrine.md`). Roughly worst
-first:
+A printed value here is imported or dropped under the trap-figures entry in
+DECISIONS; a row that names a ruling still open says so. The structure/content
+line is a reviewer's call by design (`.claude/rules/ip-doctrine.md`). Roughly
+worst first:
 
 | Where | What | Note |
 |---|---|---|
-| `party-rolls.mjs` resolver | the methodical-use bonuses, the proficiency bonus magnitudes, a substituted throw target | The worst by doctrine: each is a magnitude the book attaches to a NAMED proficiency a reader picked, so each already has an owner, the character's own imported ability. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read, not a subsystem. |
+| `party-rolls.mjs` resolver | the Strength factor, read from `doors.mjs` (`BASH_STR_FACTOR`) | The one literal the resolver still reads. `ability-bridge.mjs` already resolves imported ability terms; what is missing is a granted-modifier read for the Swimming, Acrobatics, Cat Burglary and Contortionism terms, not a subsystem. |
 | `trap-rules.mjs` `CRUDE` | the crude-trap modifiers (find, remove, attack, save) | Printed in the Judges Journal's trap chapter and no recipe reads them yet. The reaches, the trigger die and band, the botch bands, the methodical bonus and the pit's dice are imported (DECISIONS 2026-11-13). |
 | `formation-model.mjs`, `formation-view.mjs`, `deployment.mjs` | the combat-speed ratio | The exploration-speed bands are read off the system's own movement calculation (`lib/capacity.mjs` `explorationSpeedBearing`), and the blinded share is imported (`blindedSpeedShare`); the combat ratio is not. |
 | `travel.mjs` `rollLandNavigation`, `navigation-card.mjs` | the natural result on which a navigation throw fails whatever the bonus | `navigationProse` reads only the competence bonuses; the failure band needs a window on the same page and a binding read. |
@@ -150,8 +150,8 @@ first:
 | `deployment.mjs` leash, `lang` `app.leashed` | how far a detached member may range ahead of the party | No printed rule found for it (RR ch. 6); a house limit, so removal is a behaviour ruling. The `detachHint` string does not state it, but MODEL and the guide do. |
 | `encounter-zone.mjs`, `district-zone.mjs` | the schema's `max` on the encounter target and throw-count fields | The die the target is thrown on, written into a field bound. The delve die is imported; the bound needs the same reading. |
 | `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price in the fallback item's data. |
-| `obstacles.mjs` `OBSTACLES` | each obstacle's vulnerability and movement type (`vertical`, `descendOnly`) | Cells of the Spelunking grid whose failed- and botched-throw rows import (`spelunkingOutcomes`). The next row of that recipe; `tools/test-obstacles.mjs` asserts the vulnerabilities and moves with them. |
-| `encounter-scaling.mjs` | the number-appearing rate per level step and the reaction step | Pass them in, as `jumping.mjs` takes its figures. |
+| `swimming.mjs` `WATER`, `waterModifier` | the water penalties: the sizes are read by key, but the binding that fills them pairs the page's conditions with the sizes by position | `WATER_KEYS` (`formation-binding.mjs`) names two conditions, and the page's third has no key; a lang label merges two conditions (`swimming.water.rough`). Swimming and Drowning, RR p. 271. |
+| `encounter-scaling.mjs` | the number-appearing rate per level step | Pass them in, as `jumping.mjs` takes its figures. |
 
 Ruled STRUCTURAL and not to be stripped: see DECISIONS, "Three printed figures
 leave the module; the rest are inventoried" (2026-09-02).
@@ -180,8 +180,10 @@ leave the module; the rest are inventoried" (2026-09-02).
   exists to prevent.
 - **The party's position is its centre, not its corner.** `clock.lastPosition`,
   the trap check's `from`/`to`, the halt's back-out and the scouts' leash all
-  pass the party token's top-left corner around, so any change to the token's
-  size moves the coordinate everything measures from. `syncPartyTokenSize`
+  pass the party token's top-left corner around, so a change to the token's
+  size moves the coordinate everything measures from. The module holds the
+  token to one cell unless its footprint is locked or a Judge's resize stands
+  (`scene-sync.mjs` `partySizeTarget`). `syncPartyTokenSize`
   re-baselines the clock after each resize; a centre-based position would make
   that unnecessary and would stop a frontage edit from reading as a step. It is
   a change to the trap geometry, not to the clock: `trap-zone.mjs` converts
@@ -197,10 +199,8 @@ leave the module; the rest are inventoried" (2026-09-02).
 ## Scoped effects for ability matching
 
 The ability bridge does not yet wrap the lib's `scopeApplies` or
-`nonStackingGroups`. `scopeApplies` answers when a modifier applies, and this
-feature cannot use it until it consumes cookbook `effects` instead of its own
-hardcoded bonuses, because until then no scoped effect reaches the pipeline
-for it to gate. When it does, `undetermined` is not `false`: an unsettled scope
+`nonStackingGroups` (`ability-bridge.mjs`). `scopeApplies` answers when a
+modifier applies. When the bridge wraps it, `undetermined` is not `false`: an unsettled scope
 surfaces as a manual toggle rather than silently dropping the bonus.
 `nonStackingGroups` stays unnecessary while every capability here is consumed
 as a boolean.
