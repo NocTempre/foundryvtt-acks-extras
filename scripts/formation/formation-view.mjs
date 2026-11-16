@@ -18,6 +18,7 @@ import {
   effectiveSpeed,
   getPartyActor,
   explorationSpeedOf,
+  formationHasLight,
   getFrontage,
   getMapperActor,
   getMemberActor,
@@ -504,8 +505,8 @@ export function buildWarnings(formation, speed) {
   const inDark = journeying ? journeyIsNight(formation) : isPartyInDark(formation);
   // By daylight a journey needs no lantern: its light warnings are the night's.
   const lightMatters = !journeying || inDark;
-  // A closed lantern sheds no light at all.
-  const anyLitLight = formation.lights.some((l) => l.lit && !l.shielded);
+  // A closed lantern sheds no light at all; a member's magic light does.
+  const anyLitLight = formationHasLight(formation);
   if (formation.members.length && !mapperMembers(formation).length) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.noMapper"));
   } else if (mapperMembers(formation).length) {

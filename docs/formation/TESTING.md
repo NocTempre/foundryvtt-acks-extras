@@ -4223,6 +4223,13 @@ member is inside the party token, not deployed.
     shape on the member's actor directly. *Observable:* the same row, now
     labelled with the effect's name, and the same point; an effect on the actor
     shines whatever the pack holds, and its shutter works the same.
+13. **The dark and the pace.** With the light shining and a reach typed, set
+    the scene's darkness to 1 and give the member the Mapper role; no flame is
+    lit and no member sees in the dark. *Observable:* `isPartyInDark` false,
+    `partySpeed` above `partySpeed(record, {dark: true})`, the party sheet shows no Darkness and no "No light" warning,
+    and the mapping verdict reads `litBy` `light`. Shutter it: `isPartyInDark`
+    true, the slowed pace and both warnings return. Put the darkness and the
+    role back.
 
 Teardown: leave the effect open (Open, so the flag is cleared), the item out of
 the pack, and `api.sweepTracked()`; quote what it removed. The effect each Add

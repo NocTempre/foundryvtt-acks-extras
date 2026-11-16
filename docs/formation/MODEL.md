@@ -750,6 +750,15 @@ and a Shutter or Open button shown only to a seat that owns the effect
 flag with no relay, and every control names the item, never the effect. A
 member's sheet redraws on an item's change as well as an effect's, so a seat
 that is not the primary GM sees a light stow or return.
+
+Whether the party carries light at all (`formationHasLight`) reads both kinds:
+a lit, unshuttered flame on the record, or a member whose shining magic lights
+have a reach (`effectLight` above zero). It decides `isPartyInDark`, and so the
+dark pace, the roster's blinded marks, the strip's darkness and no-light
+warnings and the encounter card's signature. A flame counts whether or not its
+reach is imported; a magic light with no reach typed does not, so an Add
+effect left blank lifts no darkness. A dim-only magic light lifts the dark
+for the pace but lights no mapper, whose verdict reads bright reach only.
 `carriedLightPoints(scene)`, published on the formation namespace, is the same
 set at rest, read from the stored record, position and trail, for the Night
 Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is

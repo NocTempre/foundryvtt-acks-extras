@@ -24,6 +24,7 @@ import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
 import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { canSeeInDark } from "../lib/senses.mjs";
+import { effectLight } from "../lib/light.mjs";
 import { speedMath } from "../lib/conditions.mjs";
 import { carriesItem, findCarried } from "../lib/item-model.mjs";
 import { capacityStone, explorationSpeedBearing } from "../lib/capacity.mjs";
@@ -894,9 +895,18 @@ export function derivedMovementMode(formation) {
   return carried.some((c) => c.type === VEHICLE_TYPE && !afloat(c)) ? "vehicle" : "mounted";
 }
 
-/** Any lit, unshuttered light source? */
+/**
+ * Does the party carry any light: a lit, unshuttered flame on its record, or a
+ * member whose effects shed a magic light with a reach (`effectLight`)? A
+ * magic light whose reach no one has typed sheds nothing, so it does not count.
+ */
 export function formationHasLight(formation) {
-  return formation.lights.some((l) => l.lit && !l.shielded);
+  if ((formation.lights ?? []).some((l) => l.lit && !l.shielded)) return true;
+  return (formation.members ?? []).some((m) => {
+    if (!m?.actorId || m.blank) return false;
+    const { bright, dim } = effectLight(getMemberActor(m));
+    return bright > 0 || dim > 0;
+  });
 }
 
 /**

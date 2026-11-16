@@ -297,6 +297,21 @@ await test("a bearer's magic light lights the mapper within its reach; shuttered
   assert.equal(verdictOf(make(true)).lit, false);
 });
 
+await test("a member's magic light lifts the party's darkness as a flame does; shuttered or with no reach typed, it does not", () => {
+  const scene = sceneOf("s.magicdark", { darkness: 0.9 });
+  const party = (effects) => {
+    actorOf("glow3", { name: "Glowbearer", effects });
+    return partyOn(scene, [{ actorId: actorOf("walker", { name: "Walker" }).id, roles: [] }, { actorId: "glow3", roles: [] }]);
+  };
+  assert.equal(model.formationHasLight(party([])), false);
+  assert.equal(model.isPartyInDark(party([])), true, "no light at all is dark");
+  assert.equal(model.formationHasLight(party([magicOn(false)])), true);
+  assert.equal(model.isPartyInDark(party([magicOn(false)])), false, "the magic light is light");
+  assert.equal(model.isPartyInDark(party([magicOn(true)])), true, "a shuttered one is not");
+  const unsized = { ...magicOn(false), changes: [{ key: light.MAGIC_LIGHT_CHANGE_KEYS.bright, value: "" }] };
+  assert.equal(model.isPartyInDark(party([unsized])), true, "one with no reach typed sheds nothing");
+});
+
 await test("a mapper who is dead, down, left behind, or standing on another scene does not work", () => {
   const scene = sceneOf("s.work");
   assert.equal(verdictOf(withTorchAt(1, scene, { dead: true })).working, false, "dead");
