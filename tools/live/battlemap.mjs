@@ -1382,6 +1382,10 @@ const P = {
    */
   hexEnter: async ({ sceneId }) => {
     const H = globalThis.__rb;
+    // The group remembers its last tool (T-0633), so an earlier part's brush would answer the entry below: rest it
+    // on off first, the shape a Judge arriving fresh has. Entering it opens the window, which is closed next.
+    ui.controls.activate({ control: "acksBattlemap", tool: "off" });
+    await H.sleep(500);
     const old = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
     if (old) { try { await old.close({ animate: false }); } catch (_e) { /* closed */ } }
     try { H.m.session.session.disarm(); } catch (_e) { /* fine */ }
