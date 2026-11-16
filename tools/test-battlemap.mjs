@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { boxCells, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
+import { hexPreviewOutlines, HEX_PREVIEW_MAX } from "../scripts/battlemap/capture.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
@@ -2583,4 +2584,169 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.doesNotThrow(() => dispose(), "and its spent handle removes nothing");
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides)");
+/* -------------------------------------------- */
+/*  Hex preview — the fitted lattice's outlines  */
+/* -------------------------------------------- */
+
+// `hexPreviewOutlines` is the geometry under the canvas preview: pure, so it is
+// walked here on the four hex types and on both images. The shape of a hex is
+// the probe's, scaled per axis by the fit's `k`; where the image is stretched
+// the two axes differ, so a swapped or averaged `k` is a different, wrong hex.
+{
+  const FOUR_CELLS = [[0, 0], [1, 0], [2, 1], [3, 0], [0, 2]];
+  const RECTS = { large: { x: 0, y: 0, w: 6000, h: 6000 }, stretched: { x: 0, y: 0, w: 900, h: 900 } };
+  const centroid = (poly) => ({ x: poly.reduce((a, p) => a + p.x, 0) / poly.length, y: poly.reduce((a, p) => a + p.y, 0) / poly.length });
+  const byCentre = (polys, pt) => polys.find((poly) => { const c = centroid(poly); return Math.hypot(c.x - pt.x, c.y - pt.y) < 1e-6; });
+  const nodeCentre = (fit, { i, j }) => ({ x: fit.centre.x + i * fit.spacing.u.x + j * fit.spacing.v.x, y: fit.centre.y + i * fit.spacing.u.y + j * fit.spacing.v.y });
+  const strictlyInside = (p, poly) => {
+    const sides = poly.map((a, n) => { const b = poly[(n + 1) % poly.length]; return Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)); });
+    return sides.every((s) => s !== 0 && s === sides[0]);
+  };
+  const sharedCorners = (a, b) => a.filter((p) => b.some((q) => Math.hypot(p.x - q.x, p.y - q.y) < 1e-6)).length;
+  // Every placed box's hex, with its two lattice neighbours, is drawn and the
+  // pair shares an edge (two corners).
+  const edgesShared = (fit, polys) => fit.boxes.every(({ cell }) => {
+    const c = nodeCentre(fit, cell);
+    return [fit.spacing.u, fit.spacing.v].every((step) => {
+      const a = byCentre(polys, c);
+      const b = byCentre(polys, { x: c.x + step.x, y: c.y + step.y });
+      return !!a && !!b && sharedCorners(a, b) >= 2;
+    });
+  });
+  const boxCentre = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries(IMAGES)) {
+      const where = `${t.name}, ${imageName}`;
+      const boxes = boxesAt(t, image, FOUR_CELLS);
+      const fit = fitFor(t, image, boxes);
+      assert.equal(fit.ok, true, where);
+      assert.ok(fit.boxes.every((b) => b.cell), `${where}: every box is placed`);
+      const outlines = (over = {}) => hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: RECTS[imageName], max: 100000, ...over });
+      const polys = outlines();
+      assert.ok(polys.length > 20, `${where}: the rect holds a field of hexes (${polys.length})`);
+      assert.ok(polys.every((poly) => poly.length === t.probe.vertices.length), `${where}: a polygon has the probe's corners`);
+      // Each drawn box sits inside the hex of its node, centred on it.
+      boxes.forEach((box, n) => {
+        const node = byCentre(polys, nodeCentre(fit, fit.boxes[n].cell));
+        assert.ok(node, `${where}: box ${n}'s node is drawn`);
+        assert.ok(strictlyInside(boxCentre(box), node), `${where}: box ${n}'s centre is inside its hex`);
+        near(centroid(node).x, boxCentre(box).x, 1e-6, `${where}: box ${n} x`);
+        near(centroid(node).y, boxCentre(box).y, 1e-6, `${where}: box ${n} y`);
+      });
+      assert.equal(edgesShared(fit, polys), true, `${where}: neighbours along u and v share an edge`);
+
+      if (imageName === "stretched") {
+        const { x: kx, y: ky } = fit.k;
+        assert.ok(Math.abs(kx - ky) > 0.05, `${where}: the image's axes differ, so a wrong k can show`);
+        const m = (kx + ky) / 2;
+        for (const [wrong, k] of [["swapped", { x: ky, y: kx }], ["averaged", { x: m, y: m }]]) {
+          const bad = hexPreviewOutlines({ fit: { ...fit, k }, vertices: t.probe.vertices, rect: RECTS[imageName], max: 100000 });
+          assert.equal(edgesShared(fit, bad), false, `${where}: a ${wrong} k breaks the shared edge`);
+        }
+      }
+    }
+  }
+
+  // The cap: a rect holding thousands of nodes returns exactly `max`, the ones
+  // nearest the focus, and the drawn box's own hex is among them. The box sits
+  // far from the rect's scan start, so the first `max` in scan order fail it.
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    const where = `${t.name}, capped`;
+    const box = hexBox(t, IMAGES.stretched, 40, 30);
+    const fit = fitFor(t, IMAGES.stretched, [box]);
+    assert.equal(fit.ok, true, where);
+    const rect = RECTS.large;
+    const focus = boxCentre(box);
+    const capped = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect, focus: [focus], max: 200 });
+    assert.equal(capped.length, 200, `${where}: exactly max`);
+    assert.ok(byCentre(capped, nodeCentre(fit, fit.boxes[0].cell)), `${where}: the drawn box's node is drawn`);
+    // Brute force: the nearest `cap` nodes of the whole lattice that touch the rect.
+    const rx = Math.max(...t.probe.vertices.map((p) => Math.abs(p.x * fit.k.x)));
+    const ry = Math.max(...t.probe.vertices.map((p) => Math.abs(p.y * fit.k.y)));
+    const nearestTo = (at, cap, label) => {
+      const all = [];
+      for (let i = -600; i <= 600; i++) {
+        for (let j = -600; j <= 600; j++) {
+          const c = nodeCentre(fit, { i, j });
+          if (c.x < rect.x - rx || c.x > rect.x + rect.w + rx || c.y < rect.y - ry || c.y > rect.y + rect.h + ry) continue;
+          all.push(Math.hypot(c.x - at.x, c.y - at.y));
+        }
+      }
+      assert.ok(all.length > 5 * cap, `${label}: the rect holds far more than the cap (${all.length})`);
+      all.sort((a, b) => a - b);
+      const out = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect, focus: [at], max: cap });
+      assert.equal(out.length, cap, `${label}: exactly max`);
+      const got = out.map((poly) => { const c = centroid(poly); return Math.hypot(c.x - at.x, c.y - at.y); }).sort((a, b) => a - b);
+      got.forEach((d, n) => near(d, all[n], 1e-6, `${label}: the ${n}th nearest`));
+    };
+    nearestTo(focus, 200, `${where}, mid-rect`);
+    // A focus at the rect's corner leaves a quarter of any ball outside it, so
+    // the search must widen to find `max` and still return the nearest.
+    nearestTo({ x: 5, y: 5 }, 400, `${where}, corner`);
+    nearestTo({ x: 3, y: 5990 }, 400, `${where}, other corner`);
+
+    // Fewer nodes than the cap: all of them, and exactly those that touch the rect.
+    const small = { x: 200, y: 100, w: 300, h: 300 };
+    let touching = 0;
+    for (let i = -600; i <= 600; i++) {
+      for (let j = -600; j <= 600; j++) {
+        const c = nodeCentre(fit, { i, j });
+        if (c.x >= small.x - rx && c.x <= small.x + small.w + rx && c.y >= small.y - ry && c.y <= small.y + small.h + ry) touching++;
+      }
+    }
+    assert.ok(touching > 5 && touching < 100000, where);
+    assert.equal(hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: small, max: 100000 }).length, touching, `${where}: a small rect gets every hex that touches it`);
+    assert.equal(hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: small, max: touching - 3 }).length, touching - 3, `${where}: and the cap trims it`);
+    // The default cap is the named constant.
+    assert.ok(Number.isInteger(HEX_PREVIEW_MAX) && HEX_PREVIEW_MAX >= 100, "the named cap");
+    const huge = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: { x: 0, y: 0, w: 30000, h: 30000 } });
+    assert.equal(huge.length, HEX_PREVIEW_MAX, `${where}: the default cap`);
+    // With no focus the hexes nearest the fitted centre are drawn.
+    const nearest = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect, max: 1 });
+    near(centroid(nearest[0]).x, fit.centre.x, 1e-6, `${where}: no focus draws near the fitted centre (x)`);
+    near(centroid(nearest[0]).y, fit.centre.y, 1e-6, `${where}: no focus draws near the fitted centre (y)`);
+  }
+
+  // Boxes far apart: the focus is every box, so the cap keeps both hexes, and a
+  // focus on one box alone does not reach the other.
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    const where = `${t.name}, two boxes`;
+    const near0 = hexBox(t, IMAGES.large, 0, 0);
+    const far = hexBox(t, IMAGES.large, 25, 0);
+    const fit = fitFor(t, IMAGES.large, [near0, far]);
+    assert.equal(fit.ok, true, where);
+    const both = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: RECTS.large, focus: [near0, far].map(boxCentre), max: 2 });
+    assert.equal(both.length, 2, where);
+    assert.ok(byCentre(both, boxCentre(near0)) && byCentre(both, boxCentre(far)), `${where}: both boxes' hexes are drawn`);
+    const alone = hexPreviewOutlines({ fit, vertices: t.probe.vertices, rect: RECTS.large, focus: [boxCentre(near0)], max: 2 });
+    assert.equal(byCentre(alone, boxCentre(far)), undefined, `${where}: a focus on one box leaves the far one out`);
+  }
+
+  // Nothing is drawn without a fit or without corners, and a good call is not empty.
+  {
+    const t = HEX_TYPES_UNDER_TEST[0];
+    const fit = fitFor(t, IMAGES.large, boxesAt(t, IMAGES.large, FOUR_CELLS));
+    const good = { fit, vertices: t.probe.vertices, rect: RECTS.large };
+    assert.ok(hexPreviewOutlines(good).length > 0, "control: the good call draws");
+    const line = { x: fit.spacing.u.x * 2, y: fit.spacing.u.y * 2 };
+    const nothing = {
+      "no input": undefined,
+      "no fit": { ...good, fit: null },
+      "a failed fit": { ...good, fit: { ok: false, reason: "noBoxes", samples: 0 } },
+      "a fit with no lattice": { ...good, fit: { ok: true, sizeX: 100, sizeY: 100 } },
+      "no vertices": { ...good, vertices: undefined },
+      "empty vertices": { ...good, vertices: [] },
+      "two vertices": { ...good, vertices: t.probe.vertices.slice(0, 2) },
+      "a vertex that is no point": { ...good, vertices: [...t.probe.vertices.slice(1), { x: NaN, y: 0 }] },
+      "a spacing that is no number": { ...good, fit: { ...fit, spacing: { ...fit.spacing, v: { x: NaN, y: 1 } } } },
+      "a lattice of one line": { ...good, fit: { ...fit, spacing: { u: fit.spacing.u, v: line } } },
+      "an empty rect": { ...good, rect: { x: 0, y: 0, w: 0, h: 100 } },
+      "no rect": { ...good, rect: null },
+      "a cap of zero": { ...good, max: 0 },
+    };
+    for (const [what, input] of Object.entries(nothing)) assert.deepEqual(hexPreviewOutlines(input), [], `nothing for ${what}`);
+  }
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap)");

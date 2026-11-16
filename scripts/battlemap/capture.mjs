@@ -50,10 +50,115 @@ export function canvasToImage(pt) {
   return { x: (pt.x - ox) * sx, y: (pt.y - oy) * sy };
 }
 
-/** Maps a background-image pixel point back to the canvas. */
-export function imageToCanvas(pt) {
-  const { sx, sy, ox, oy } = imageScale();
+/**
+ * Maps a background-image pixel point back to the canvas. A caller converting
+ * many points reads `imageScale()` once and passes it as `scale`.
+ */
+export function imageToCanvas(pt, scale = imageScale()) {
+  const { sx, sy, ox, oy } = scale;
   return { x: pt.x / sx + ox, y: pt.y / sy + oy };
+}
+
+/**
+ * The most hexes the preview draws. A small hex over a large scene is tens of
+ * thousands of outlines, which stalls a canvas redrawn on every drag; the
+ * preview shows this many, nearest the boxes the Judge drew, and the fit is
+ * unaffected.
+ */
+export const HEX_PREVIEW_MAX = 3000;
+
+/** A lattice whose steps are closer to parallel than this (sine of the angle between them) has no preview. */
+const MIN_LATTICE_SINE = 0.05;
+
+/**
+ * The outlines of the fitted hex lattice, as polygons of image-px points.
+ *
+ * Pure geometry, no canvas: the hex at lattice node `(i, j)` is centred at
+ * `fit.centre + i·spacing.u + j·spacing.v` and its corners are the probe's
+ * `vertices` (offsets from a hex's centre, in probe px) scaled per axis by
+ * `fit.k`, so no hex shape is written here. Every node whose hex can touch
+ * `rect` is a candidate; at most `max` are returned, the ones nearest a focus
+ * point, and the search grows outward from the foci, so its cost follows
+ * `max` and not the size of `rect`.
+ *
+ * @param {object} input
+ * @param {object} input.fit  `fitHexLattice`'s answer; anything not `ok` yields no outlines.
+ * @param {Array<{x:number,y:number}>} input.vertices  The probe's corner offsets.
+ * @param {{x:number,y:number,w:number,h:number}} input.rect  Image px to cover.
+ * @param {Array<{x:number,y:number}>} [input.focus]  Image-px points to stay near
+ *   (every drawn box's centre, including one left out of the fit); the fitted
+ *   centre when absent or empty.
+ * @param {number} [input.max]  Cap on the polygons returned.
+ * @returns {Array<Array<{x:number,y:number}>>} One polygon per hex, nearest first.
+ */
+export function hexPreviewOutlines({ fit, vertices, rect, focus = null, max = HEX_PREVIEW_MAX } = {}) {
+  const finite = (...n) => n.every(Number.isFinite);
+  if (!fit?.ok) return [];
+  const { centre, k, spacing } = fit;
+  const u = spacing?.u;
+  const v = spacing?.v;
+  if (!centre || !k || !u || !v || !finite(centre.x, centre.y, k.x, k.y, u.x, u.y, v.x, v.y)) return [];
+  if (!Array.isArray(vertices) || vertices.length < 3 || !vertices.every((p) => p && finite(p.x, p.y))) return [];
+  if (!rect || !finite(rect.x, rect.y, rect.w, rect.h) || rect.w <= 0 || rect.h <= 0) return [];
+  const cap = Math.floor(max);
+  if (!(cap >= 1)) return [];
+  const lu = Math.hypot(u.x, u.y);
+  const lv = Math.hypot(v.x, v.y);
+  const det = u.x * v.y - u.y * v.x;
+  if (!(Math.abs(det) >= MIN_LATTICE_SINE * lu * lv)) return [];
+  const area = Math.abs(det);
+
+  const offsets = vertices.map((p) => ({ x: p.x * k.x, y: p.y * k.y }));
+  const rx = Math.max(...offsets.map((o) => Math.abs(o.x)));
+  const ry = Math.max(...offsets.map((o) => Math.abs(o.y)));
+  const box = { x0: rect.x - rx, y0: rect.y - ry, x1: rect.x + rect.w + rx, y1: rect.y + rect.h + ry };
+  const foci = (focus ?? []).filter((p) => p && finite(p.x, p.y));
+  if (!foci.length) foci.push(centre);
+
+  const toNode = (p) => {
+    const dx = p.x - centre.x;
+    const dy = p.y - centre.y;
+    return { i: (dx * v.y - dy * v.x) / det, j: (dy * u.x - dx * u.y) / det };
+  };
+  const corners = [[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]].map(([x, y]) => toNode({ x, y }));
+  const iLo = Math.floor(Math.min(...corners.map((c) => c.i)));
+  const iHi = Math.ceil(Math.max(...corners.map((c) => c.i)));
+  const jLo = Math.floor(Math.min(...corners.map((c) => c.j)));
+  const jHi = Math.ceil(Math.max(...corners.map((c) => c.j)));
+  // Past this radius every candidate is inside the ball.
+  const reach = Math.max(...foci.flatMap((f) => [[box.x0, box.y0], [box.x1, box.y0], [box.x0, box.y1], [box.x1, box.y1]].map(([x, y]) => Math.hypot(x - f.x, y - f.y)))) + 1;
+  const fociNodes = foci.map((f) => ({ f, n: toNode(f) }));
+
+  // Grow a ball around the foci until it holds `cap` candidates inside the
+  // box: every candidate within the radius is found, so the nearest `cap` of
+  // them are exactly the nearest `cap` overall.
+  let rho = Math.min(Math.sqrt(cap * area), reach);
+  let found;
+  for (;;) {
+    found = new Map();
+    const di = (rho * lv) / area + 1;
+    const dj = (rho * lu) / area + 1;
+    for (const { f, n } of fociNodes) {
+      for (let i = Math.max(iLo, Math.ceil(n.i - di)); i <= Math.min(iHi, Math.floor(n.i + di)); i++) {
+        for (let j = Math.max(jLo, Math.ceil(n.j - dj)); j <= Math.min(jHi, Math.floor(n.j + dj)); j++) {
+          const key = `${i},${j}`;
+          if (found.has(key)) continue;
+          const x = centre.x + i * u.x + j * v.x;
+          const y = centre.y + i * u.y + j * v.y;
+          if (x < box.x0 || x > box.x1 || y < box.y0 || y > box.y1) continue;
+          let d = Math.hypot(x - f.x, y - f.y);
+          for (const o of foci) d = Math.min(d, Math.hypot(x - o.x, y - o.y));
+          if (d <= rho) found.set(key, { i, j, x, y, d });
+        }
+      }
+    }
+    if (found.size >= cap || rho >= reach) break;
+    rho = Math.min(rho * 2, reach);
+  }
+  return [...found.values()]
+    .sort((a, b) => a.d - b.d || a.i - b.i || a.j - b.j)
+    .slice(0, cap)
+    .map((n) => offsets.map((o) => ({ x: n.x + o.x, y: n.y + o.y })));
 }
 
 /** The screen-covering pointer catcher that records and draws calibration samples. */
@@ -325,8 +430,9 @@ export class CaptureOverlay {
     this.previewLines.clear();
     this.previewMesh.visible = false;
     if (!fit?.ok) return;
-    // Only a square fit has lines to promise — a hex family measures one
-    // cell and lets Foundry pack the rest; scale-only draws no grid at all.
+    if (this.host.isHexFamily) return this.drawHexPreview(fit);
+    // Only a square fit and a hex family's lattice have lines to promise;
+    // scale-only draws no grid at all.
     if (this.host.gridFamily && this.host.gridFamily !== "square") return;
     const dims = canvas.scene.dimensions;
     const { sx, sy } = imageScale();
@@ -357,6 +463,28 @@ export class CaptureOverlay {
     const v = fit.v ? { x: fit.v.x / sx, y: fit.v.y / sy } : { x: 0, y: cellY };
     const O = imageToCanvas({ x: fit.phaseX, y: fit.phaseY });
     drawLattice(this.previewLines, O, u, v, dims, 1.5 / (canvas.stage.scale.x || 1));
+  }
+
+  /**
+   * The hex family's preview: the fitted lattice's outlines over the scene's
+   * image, from the probe's corners (`hexPreviewOutlines`), capped at
+   * `HEX_PREVIEW_MAX` and kept near the boxes drawn.
+   */
+  drawHexPreview(fit) {
+    const dims = canvas.scene?.dimensions;
+    const vertices = this.host.hexProbe?.vertices;
+    if (!dims || !vertices) return;
+    const scale = imageScale();
+    const rect = { x: 0, y: 0, w: dims.sceneWidth * scale.sx, h: dims.sceneHeight * scale.sy };
+    const focus = this.host.samples.squares.map((r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 }));
+    const g = this.previewLines;
+    g.lineStyle(1.5 / (canvas.stage.scale.x || 1), COLOR_PREVIEW, 0.9);
+    for (const outline of hexPreviewOutlines({ fit, vertices, rect, focus })) {
+      const pts = outline.map((p) => imageToCanvas(p, scale));
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let n = 1; n < pts.length; n++) g.lineTo(pts[n].x, pts[n].y);
+      g.lineTo(pts[0].x, pts[0].y);
+    }
   }
 }
 
