@@ -207,13 +207,14 @@ class CalibrationSession {
   }
 
   /**
-   * How many drawn cells a box spans. Stored on the sample, so the fit and
-   * the row that states it cannot disagree.
+   * How many drawn cells a box spans along one axis ("x" across, "y" down).
+   * Stored on the sample, so the fit and the row that states it cannot
+   * disagree. The other axis keeps its count.
    */
-  setBoxCells(index, cells) {
+  setBoxSpan(index, axis, cells) {
     const box = this.samples.squares[Number(index)];
     if (!box) return;
-    box.cells = cells > 0 ? cells : 1;
+    box[axis === "x" ? "across" : "down"] = cells > 0 ? cells : 1;
     this.#invalidate();
     this.overlay.redraw(this.fit);
     this.notify();

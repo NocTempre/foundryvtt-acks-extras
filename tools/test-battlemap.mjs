@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { boxCells, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
+import { boxSpan, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 import { hexPreviewOutlines, HEX_PREVIEW_MAX } from "../scripts/battlemap/capture.mjs";
 import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
@@ -157,14 +157,56 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   // across a run is both easier to aim and a better measurement than pinching
   // one cell, and it is only better if the count is believed.
   const s = 64;
-  const fit = fitGrid({ squares: [{ x: 10, y: 20, w: 3 * s, h: 3 * s, cells: 3 }], corners: [] });
+  const fit = fitGrid({ squares: [{ x: 10, y: 20, w: 3 * s, h: 3 * s, across: 3, down: 3 }], corners: [] });
   assert.equal(fit.ok, true);
   near(fit.sizeX, s, 1e-6, "three-cell box");
   // An absent or nonsense count is one cell, never zero: a divide by it would
   // hand the apply an infinity that Foundry drops in silence.
-  assert.equal(boxCells({}), 1);
-  assert.equal(boxCells({ cells: 0 }), 1);
-  assert.equal(boxCells({ cells: -2 }), 1);
+  for (const axis of ["x", "y"]) {
+    assert.equal(boxSpan({}, axis), 1);
+    assert.equal(boxSpan(undefined, axis), 1);
+  }
+  assert.equal(boxSpan({ across: 0, down: 0 }, "x"), 1);
+  assert.equal(boxSpan({ across: 0, down: 0 }, "y"), 1);
+  assert.equal(boxSpan({ across: -2, down: -2 }, "x"), 1);
+  assert.equal(boxSpan({ across: -2, down: -2 }, "y"), 1);
+  // The two axes carry their own counts.
+  assert.equal(boxSpan({ across: 3 }, "x"), 3);
+  assert.equal(boxSpan({ across: 3 }, "y"), 1);
+  assert.equal(boxSpan({ down: 4 }, "y"), 4);
+  assert.equal(boxSpan({ down: 4 }, "x"), 1);
+}
+
+{
+  // A strip three cells across and one down reads one cell from each axis of
+  // itself: width / 3 and height / 1. With one count for both axes the same
+  // strip read a third of a cell tall.
+  const s = 64;
+  // On the strips' lattice: 10 + 6 cells, 20 + 4 cells.
+  const single = { x: 10 + 6 * s, y: 20 + 4 * s, w: s, h: s };
+  for (const mode of ["square", "rect"]) {
+    const across = fitGrid({ squares: [{ x: 10, y: 20, w: 3 * s, h: s, across: 3 }, single], corners: [], mode });
+    assert.equal(across.ok, true, `${mode}: 3x1 strip fits`);
+    near(across.sizeX, s, 1e-6, `${mode}: 3x1 strip, X`);
+    near(across.sizeY, s, 1e-6, `${mode}: 3x1 strip, Y`);
+    assert.equal(across.confidence, "tight", `${mode}: 3x1 strip reads tight`);
+
+    const down = fitGrid({ squares: [{ x: 10, y: 20, w: s, h: 3 * s, down: 3 }, single], corners: [], mode });
+    assert.equal(down.ok, true, `${mode}: 1x3 strip fits`);
+    near(down.sizeX, s, 1e-6, `${mode}: 1x3 strip, X`);
+    near(down.sizeY, s, 1e-6, `${mode}: 1x3 strip, Y`);
+    assert.equal(down.confidence, "tight", `${mode}: 1x3 strip reads tight`);
+
+    const block = fitGrid({ squares: [{ x: 10, y: 20, w: 2 * s, h: 2 * s, across: 2, down: 2 }], corners: [], mode });
+    assert.equal(block.ok, true, `${mode}: 2x2 block fits`);
+    near(block.sizeX, s, 1e-6, `${mode}: 2x2 block, X`);
+    near(block.sizeY, s, 1e-6, `${mode}: 2x2 block, Y`);
+    assert.equal(block.confidence, "tight", `${mode}: 2x2 block reads tight`);
+  }
+  // Each axis divides by its own count even where the cells are not square.
+  const wide = fitGrid({ squares: [{ x: 10, y: 20, w: 3 * 80, h: 2 * 50, across: 3, down: 2 }], corners: [], mode: "rect" });
+  near(wide.sizeX, 80, 1e-6, "rect: 3x2 box, X");
+  near(wide.sizeY, 50, 1e-6, "rect: 3x2 box, Y");
 }
 
 /* -------------------------------------------- */

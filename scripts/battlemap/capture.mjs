@@ -282,8 +282,10 @@ export class CaptureOverlay {
         y: Math.min(a.y, b.y),
         w: Math.abs(b.x - a.x),
         h: Math.abs(b.y - a.y),
-        // How many drawn cells the box spans, editable on its panel row.
-        cells: 1,
+        // How many drawn cells the box spans in each direction, editable on
+        // its panel row.
+        across: 1,
+        down: 1,
       });
     } else if (this.mode === "scale") {
       const a = canvasToImage(start);

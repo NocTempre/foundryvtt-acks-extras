@@ -49,8 +49,15 @@ function circularPhase(offsets, s) {
   return mod((s / (2 * Math.PI)) * Math.atan2(sin, cos), s);
 }
 
-/** How many map cells a drawn box spans — its own `cells` count, or one. */
-export const boxCells = (r) => (r?.cells > 0 ? r.cells : 1);
+/**
+ * How many map cells a drawn box spans along one axis: its `across` count for
+ * "x" and its `down` count for "y". A missing, zero or negative count is one,
+ * never zero, since a divide by it would hand the fit an infinity.
+ */
+export const boxSpan = (r, axis) => {
+  const n = axis === "x" ? r?.across : r?.down;
+  return n > 0 ? n : 1;
+};
 
 /** Per-axis observations: cell-span deltas and grid-line phase offsets. */
 function axisObservations(squares, corners, axis) {
@@ -59,7 +66,7 @@ function axisObservations(squares, corners, axis) {
   const deltas = [];
   const phases = [];
   for (const r of squares) {
-    deltas.push(side(r) / boxCells(r));
+    deltas.push(side(r) / boxSpan(r, axis));
     phases.push(pos(r), pos(r) + side(r));
   }
   for (let i = 0; i < corners.length; i++) {
@@ -142,9 +149,9 @@ const confidence = (rmsPct) => (rmsPct < RMS_TIGHT ? "tight" : rmsPct < RMS_FAIR
  * Fit the map's drawn grid from GM samples.
  *
  * @param {object} input
- * @param {Array<{x:number,y:number,w:number,h:number,cells?:number}>} input.squares
- *   Dragged rects (normalized, w/h > 0), image px. Each spans `cells` drawn
- *   cells per axis, defaulting to one.
+ * @param {Array<{x:number,y:number,w:number,h:number,across?:number,down?:number}>} input.squares
+ *   Dragged rects (normalized, w/h > 0), image px. Each spans `across` drawn
+ *   cells in x and `down` in y, each defaulting to one.
  * @param {Array<{x:number,y:number}>} input.corners  Clicked grid intersections.
  * @param {"square"|"rect"|"affine"} [input.mode]
  * @param {number} [input.minSize] / [input.maxSize]  Cell-size bounds in px.
@@ -175,15 +182,15 @@ export function fitGrid({ squares = [], corners = [], mode = "square", minSize =
   if (mode === "square") {
     const pooled = fitAxis(
       { deltas: [...ox.deltas, ...oy.deltas], phases: [] },
-      [...squares.map((r) => r.w / boxCells(r)), ...squares.map((r) => r.h / boxCells(r))]
+      [...squares.map((r) => r.w / boxSpan(r, "x")), ...squares.map((r) => r.h / boxSpan(r, "y"))]
     );
     if (!pooled) return { ...base, ok: false, reason: "noSeed" };
     sizeX = sizeY = pooled.size;
     phaseX = circularPhase(ox.phases, sizeX);
     phaseY = circularPhase(oy.phases, sizeY);
   } else {
-    const fx = fitAxis(ox, squares.map((r) => r.w / boxCells(r)));
-    const fy = fitAxis(oy, squares.map((r) => r.h / boxCells(r)));
+    const fx = fitAxis(ox, squares.map((r) => r.w / boxSpan(r, "x")));
+    const fy = fitAxis(oy, squares.map((r) => r.h / boxSpan(r, "y")));
     if (!fx || !fy) return { ...base, ok: false, reason: "noSeed" };
     ({ size: sizeX, phase: phaseX } = fx);
     ({ size: sizeY, phase: phaseY } = fy);

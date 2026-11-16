@@ -190,7 +190,7 @@ const hexBox = (family, i, j, { kx = 1.5, ky = kx, ox = 217.3, oy = 91.1, grow =
   const h = probe.refH * ky;
   return { x: ox + c.x * kx - w / 2 + grow, y: oy + c.y * ky - h / 2, w, h };
 };
-const squareBox = (i, j, side = 60) => ({ x: 100 + j * side, y: 80 + i * side, w: side, h: side, cells: 1 });
+const squareBox = (i, j, side = 60) => ({ x: 100 + j * side, y: 80 + i * side, w: side, h: side, across: 1, down: 1 });
 const rowBoxes = (opts) => [hexBox("hexRows", 0, 0, opts), hexBox("hexRows", 0, 1, opts), hexBox("hexRows", 1, 1, opts)];
 
 const app = new App();
@@ -561,21 +561,44 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const render = template.compile(read("templates/battlemap/assistant-body.hbs"));
   const shows = async (family, scene) => {
     setup({ family, scene, samples: { squares: family.startsWith("hex") ? rowBoxes() : [squareBox(0, 0, 180)] }, opts: { mapCellFeet: 7 }, units: "ft" });
-    return /name="boxCells\.0"/.test(render(await ctx()));
+    const html = render(await ctx());
+    return { across: /name="boxCells\.0\.x"/.test(html), down: /name="boxCells\.0\.y"/.test(html), html };
   };
-  assert.equal(await shows("square", makeScene({ type: 1 })), true, "square shows the spans box");
-  assert.equal(await shows("scale", makeScene({ type: 0 })), true, "scale-only shows it: its fit divides by the count too");
-  assert.equal(await shows("hexRows", makeScene()), false, "a hex fit reads each box as one hex");
-  assert.equal(await shows("hexCols", makeScene()), false);
+  for (const [family, scene, what] of [
+    ["square", makeScene({ type: 1 }), "square"],
+    ["scale", makeScene({ type: 0 }), "scale-only: its fit divides by the counts too"],
+  ]) {
+    const { across, down, html } = await shows(family, scene);
+    assert.equal(across, true, `${what} shows the across box`);
+    assert.equal(down, true, `${what} shows the down box`);
+    assert.match(html, /aria-label="ACKS-BATTLEMAP\.samples\.acrossAria"/, `${what}: the across box names itself`);
+    assert.match(html, /aria-label="ACKS-BATTLEMAP\.samples\.downAria"/, `${what}: the down box names itself`);
+  }
+  for (const family of ["hexRows", "hexCols"]) {
+    const { across, down } = await shows(family, makeScene());
+    assert.equal(across || down, false, "a hex fit reads each box as one hex");
+  }
 
-  // The count is what the scale-only ratio divides by, and a submit carries it.
+  // The counts are what the scale-only ratio divides by, and a submit carries
+  // each one apart from the other.
   const scene = makeScene({ type: 0 });
   setup({ family: "scale", scene, samples: { squares: [squareBox(0, 0, 180)] }, opts: { mapCellFeet: 7 }, units: "ft" });
   const one = (await ctx()).pxPerUnit;
-  await submit.call(app, null, null, { object: { "boxCells.0": "3" } });
-  assert.equal(session.samples.squares[0].cells, 3, "a count submitted on scale-only lands");
+  await submit.call(app, null, null, { object: { "boxCells.0.x": "3" } });
+  assert.equal(session.samples.squares[0].across, 3, "an across count submitted on scale-only lands");
+  assert.equal(session.samples.squares[0].down, 1, "and leaves the down count alone");
   const three = (await ctx()).pxPerUnit;
-  near(one / three, 3, 0.01, "three cells in the box is a third of the pixels per unit");
+  assert.ok(three !== one, "the across count moves the ratio");
+  await submit.call(app, null, null, { object: { "boxCells.0.y": "2" } });
+  assert.equal(session.samples.squares[0].across, 3, "a down count leaves the across count alone");
+  assert.equal(session.samples.squares[0].down, 2, "a down count submitted lands");
+  await submit.call(app, null, null, { object: { "boxCells.0.x": "3", "boxCells.0.y": "3" } });
+  const both = (await ctx()).pxPerUnit;
+  near(one / both, 3, 0.01, "three cells each way is a third of the pixels per unit");
+  // A hex panel renders neither input, so its submit posts no group at all.
+  await submit.call(app, null, null, { object: { mapCellFeet: "7" } });
+  assert.equal(session.samples.squares[0].across, 3, "a submit without the group leaves the counts");
+  assert.equal(session.samples.squares[0].down, 3);
 }
 
 /* -------------------------------------------- */
@@ -821,15 +844,16 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const scene = makeScene({ type: 1 });
   setup({ family: "square", scene, samples: { squares: [squareBox(0, 0, 180)] } });
   const seen = [];
-  const stop = session.subscribe(() => seen.push({ worth: session.opts.mapCellFeet, out: session.opts.outputFeet, cells: session.samples.squares[0].cells }));
-  await submit.call(app, null, null, { object: { mapCellFeet: "8", outputFeet: "4", "boxCells.0": "3" } });
+  const stop = session.subscribe(() => seen.push({ worth: session.opts.mapCellFeet, out: session.opts.outputFeet, across: session.samples.squares[0].across, down: session.samples.squares[0].down }));
+  await submit.call(app, null, null, { object: { mapCellFeet: "8", outputFeet: "4", "boxCells.0.x": "3", "boxCells.0.y": "2" } });
   stop();
   assert.ok(seen.length >= 1);
   for (const s of seen) {
     assert.equal(s.worth, 8, "no notification fires before the typed worth is stored");
     assert.equal(s.out, 4, "nor before the output");
   }
-  assert.equal(seen.at(-1).cells, 3, "the last notification carries the new counts");
+  assert.equal(seen.at(-1).across, 3, "the last notification carries the new across count");
+  assert.equal(seen.at(-1).down, 2, "and the new down count");
 }
 
 {

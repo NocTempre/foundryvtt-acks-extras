@@ -113,8 +113,12 @@
           {{! A hex fit reads every box as one hex; every other family divides a box by its count. }}
           {{#unless @root.isHex}}
           <label class="acks-extras-battlemap-spans">
-            <span>{{localize "ACKS-BATTLEMAP.samples.spans"}}</span>
-            <input type="number" name="boxCells.{{index}}" min="1" step="1" value="{{cells}}">
+            <span>{{localize "ACKS-BATTLEMAP.samples.across"}}</span>
+            <input class="acks-extras-battlemap-count" type="number" name="boxCells.{{index}}.x" min="1" step="1" value="{{across}}" aria-label="{{localize 'ACKS-BATTLEMAP.samples.acrossAria' n=number}}">
+          </label>
+          <label class="acks-extras-battlemap-spans">
+            <span>{{localize "ACKS-BATTLEMAP.samples.down"}}</span>
+            <input class="acks-extras-battlemap-count" type="number" name="boxCells.{{index}}.y" min="1" step="1" value="{{down}}" aria-label="{{localize 'ACKS-BATTLEMAP.samples.downAria' n=number}}">
           </label>
           {{/unless}}
           <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>

@@ -187,6 +187,11 @@
   text-transform: none;
 }
 
+/* A box row carries two counts, so each is narrower than the one reading box. */
+.acks-extras-battlemap-spans input.acks-extras-battlemap-count {
+  width: 3.5rem;
+}
+
 /* A sample row's own text yields to its value box rather than pushing it off
    the end of a narrow window. */
 .acks-extras-battlemap-samples li > span:first-child {

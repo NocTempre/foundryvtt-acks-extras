@@ -14,7 +14,7 @@
 import { MODULE_ID, LANG_PREFIX, GRID_FAMILIES, GRID_TYPE, TRAVEL_MODES } from "./constants.mjs";
 import { imageToCanvas } from "./capture.mjs";
 import { session } from "./session.mjs";
-import { FAIR_PX, boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, unitsPerCentreSpacing } from "./calibrate-logic.mjs";
+import { FAIR_PX, boxSpan,feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, unitsPerCentreSpacing } from "./calibrate-logic.mjs";
 import { bakeCorrectedBackground, solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "./apply.mjs";
 import { expeditionScaleOf, planSetup, resolveCellWorth } from "./setup-plan.mjs";
 import { sceneCountry, sceneSetup, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
@@ -400,10 +400,12 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       allowSkew: this.allowSkew,
       opts: this.opts,
       // Each sample carries the box that says what it REPRESENTS — how many
-      // cells a drag spans, what a scale bar reads.
+      // cells a drag spans across and down, what a scale bar reads.
       boxRows: this.samples.squares.map((r, i) => ({
         index: i,
-        cells: boxCells(r),
+        number: i + 1,
+        across: boxSpan(r, "x"),
+        down: boxSpan(r, "y"),
         label: loc("samples.square", { n: i + 1, w: Math.round(r.w), h: Math.round(r.h) }),
       })),
       cornerRows: this.samples.corners.map((c, i) => ({
@@ -797,7 +799,13 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       if (present(slot)) session.opts[slot] = num(d[slot]);
     }
     session.setSetup({ gridFamily: d.gridFamily, hexEven: d.hexEven, units: d.units, mapSystem: d.mapSystem });
-    for (const [index, cells] of Object.entries(d.boxCells ?? {})) session.setBoxCells(index, Number(cells));
+    // A box's two counts post as `boxCells.<index>.x` and `.y`; one the
+    // panel did not render is absent, and its count stays.
+    for (const [index, counts] of Object.entries(d.boxCells ?? {})) {
+      for (const axis of ["x", "y"]) {
+        if (Object.hasOwn(counts ?? {}, axis)) session.setBoxSpan(index, axis, Number(counts[axis]));
+      }
+    }
     // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
     // so it lands the moment it is chosen.
     BattlemapAssistant.#writeSystem(d.mapSystem || null);
