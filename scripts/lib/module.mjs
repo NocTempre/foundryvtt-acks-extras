@@ -26,7 +26,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
-import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK } from "./constants.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
@@ -83,9 +83,15 @@ import {
   installAttackThrowPatch,
   addAttackContributor,
   attackInFlight,
+  carrierOf,
+  isSpellCarrier,
+  magicDamageSpec,
+  spellCarrier,
+  MAGIC_ATTACK_TYPE,
   PRE_ATTACK_HOOK,
   POST_ATTACK_HOOK,
 } from "./patches/attack-throw.mjs";
+import * as saves from "./saves.mjs";
 import { drawQuietly } from "./roll-audience.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
@@ -107,7 +113,7 @@ import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
 import * as conditions from "./conditions.mjs";
 import {
-  STATUS_PALETTE_SETTING, installConditionRolls, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
+  STATUS_PALETTE_SETTING, installConditionRolls, loseStates, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
@@ -147,7 +153,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 50,
+  apiVersion: 51,
   vocab,
   fields,
   /**
@@ -384,9 +390,38 @@ const localImpl = Object.freeze({
    * `addContributor` registers an object answering the throw's questions
    * (`attack`, `damage`, `attackTypes`, `damageModes`, `damageFormula`) with
    * the attack's context in hand; `inFlight(actor)` is that context, or null
-   * outside an attack.
+   * outside an attack. A spell's damage is a fourth kind of attack,
+   * `MAGIC_ATTACK_TYPE`, made with a carrier: `spellCarrier(actor, row,
+   * cast)` builds one, `isSpellCarrier` and `carrierOf` read it by identity,
+   * and `magicDamageSpec` is the damage it would roll with no throw. A
+   * contributor is asked for a carrier's attack or damage only where its
+   * `carriers` list names that question.
    */
-  attack: { PRE_ATTACK_HOOK, POST_ATTACK_HOOK, addContributor: addAttackContributor, inFlight: attackInFlight },
+  attack: {
+    PRE_ATTACK_HOOK,
+    POST_ATTACK_HOOK,
+    MAGIC_ATTACK_TYPE,
+    addContributor: addAttackContributor,
+    inFlight: attackInFlight,
+    spellCarrier,
+    isSpellCarrier,
+    carrierOf,
+    magicDamageSpec,
+  },
+  /**
+   * A saving throw as named parts (saves.mjs): `saveSpec` composes the
+   * formula, the target and the parts a throw is made from, with no roll;
+   * `saveThrow` rolls it. Neither takes a state off the creature; a failed
+   * save's loss is `loseStates`.
+   */
+  saves: { saveSpec: saves.saveSpec, saveThrow: saves.saveThrow },
+  /**
+   * Take off an actor the states a `cause` (`damage`, `save`, `moved`)
+   * costs it; `STATES_LOST_HOOK` fires with `(actor, ids, cause)` when any
+   * were lost.
+   */
+  loseStates,
+  STATES_LOST_HOOK,
   /**
    * The cast seam (patches/spell-use.mjs) over the system's `Item#_useSpell`.
    * `addClaimant({key, claims, cast})` registers a feature that takes a cast

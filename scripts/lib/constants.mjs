@@ -64,3 +64,10 @@ const NAMESPACE = "acksExtras";
 export const TEMPLATE_HOOKS = Object.freeze({
   RESOLVED: `${NAMESPACE}.templateResolved`,
 });
+
+/**
+ * Fired with `(actor, ids, cause)` after states were taken off an actor because
+ * of what it suffered: `ids` are the status ids lost, `cause` what cost them
+ * (`damage`, `save` or `moved`). It does not fire when nothing was lost.
+ */
+export const STATES_LOST_HOOK = `${NAMESPACE}.statesLost`;

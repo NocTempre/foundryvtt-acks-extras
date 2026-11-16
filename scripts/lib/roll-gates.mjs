@@ -55,6 +55,8 @@ export function rollGateRows(ctx, attackType) {
 
 /** The attack seam's contributor. */
 const rollGateContributor = {
+  // A spell carrier's attack throw reads the attacker's gates; its damage has none.
+  carriers: ["attack"],
   attack(ctx, attackType, modifiers) {
     const rows = rollGateRows(ctx, attackType);
     return rows.length ? [...modifiers, ...rows] : modifiers;

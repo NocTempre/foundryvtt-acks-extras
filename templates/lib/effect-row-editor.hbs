@@ -66,7 +66,7 @@
         {{/if}}
       </fieldset>
     {{else if (eq f.kind "readonly")}}
-      <div class="form-group">
+      <div class="form-group"{{#if f.tip}} data-tooltip-text="{{f.tip}}"{{/if}}>
         {{!-- label-ok: read-only text, not a control a label can name --}}
         <label>{{f.label}}</label>
         <div class="form-fields">

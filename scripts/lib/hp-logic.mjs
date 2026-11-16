@@ -69,6 +69,51 @@ export function planHpChange(hp, { mode = HP_MODE.damage, amount = 0, multiplier
 }
 
 /**
+ * A number rounded to the nearest whole, a half to the even whole (`2.5` is 2,
+ * `3.5` is 4, `-2.5` is -2). `planHpChange` rounds up as core does; this is
+ * the rounding an amount a spell applies takes.
+ */
+export function roundHalfEven(x) {
+  const n = Number(x);
+  if (!Number.isFinite(n)) return n;
+  const floor = Math.floor(n);
+  const rest = n - floor;
+  if (rest < 0.5) return floor;
+  if (rest > 0.5) return floor + 1;
+  return Math.abs(floor) % 2 === 0 ? floor : floor + 1;
+}
+
+/**
+ * The amount a creature takes from a rolled amount: the save's `fraction`
+ * first, then each of `stages` in order, then ONE rounding at the end. A stage
+ * is a function of the amount so far, or `{key?, label?, factor}`. No floor is
+ * applied: the amount may come out zero.
+ *
+ * @param {number} rolled  the dice's total
+ * @param {{fraction?: number, stages?: Array<Function|{key?: string, label?: string, factor: number}>}} [how]
+ * @returns {{rolled: number, applied: number|null, steps: Array<{key: string, label?: string, before: number, after: number}>}}
+ *   `steps` lists each stage that changed the amount, then the rounding when it moved it; `applied` is null for a rolled amount that is no number
+ */
+export function amountAfter(rolled, { fraction = 1, stages = [] } = {}) {
+  const start = Number(rolled);
+  if (!Number.isFinite(start)) return { rolled, applied: null, steps: [] };
+  const steps = [];
+  let amount = start;
+  const apply = (key, next, label) => {
+    if (next !== amount) steps.push({ key, ...(label ? { label } : {}), before: amount, after: next });
+    amount = next;
+  };
+  const factor = Number(fraction);
+  if (Number.isFinite(factor)) apply("fraction", amount * factor);
+  for (const [i, stage] of stages.entries()) {
+    const next = typeof stage === "function" ? Number(stage(amount)) : amount * Number(stage?.factor);
+    if (Number.isFinite(next)) apply(stage?.key ?? `stage${i}`, next, stage?.label);
+  }
+  apply("round", roundHalfEven(amount));
+  return { rolled: start, applied: amount, steps };
+}
+
+/**
  * Why this actor's hit points are not adjusted here, or null when they are.
  * A group holds a representative body rather than the stack's own, a template
  * is a generator, and a vehicle's hit points are kept on a field of its own.

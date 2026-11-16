@@ -547,7 +547,8 @@ await (async () => {
 /* --- a saving throw as the system rolls it ------------------------------------- */
 
 await (async () => {
-  const { installConditionRolls } = await import("../scripts/lib/status-effects.mjs");
+  const { installConditionRolls, loseStates } = await import("../scripts/lib/status-effects.mjs");
+  const { STATES_LOST_HOOK } = await import("../scripts/lib/constants.mjs");
   // The released system's actor: Blast is stored, and rolled, as `breath`.
   class SystemActor {
     constructor(statuses, { uuid = "Actor.saver", die = null } = {}) {
@@ -584,7 +585,7 @@ await (async () => {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   const was = { CONFIG: globalThis.CONFIG, Hooks: globalThis.Hooks, ui: globalThis.ui, game: globalThis.game };
   globalThis.CONFIG = { Actor: { documentClass: SystemActor } };
-  globalThis.Hooks = { on: (name, fn) => void (hooks[name] ??= []).push(fn) };
+  globalThis.Hooks = { on: (name, fn) => void (hooks[name] ??= []).push(fn), callAll: (name, ...args) => fire(name, ...args) };
   globalThis.ui = { notifications: { info: (m) => said.push(m), warn: (m) => said.push(m) } };
   globalThis.game = {
     i18n: { localize: (k) => k, format: (k, data) => `${k} ${JSON.stringify(data ?? {})}` },
@@ -627,6 +628,22 @@ await (async () => {
     assert.deepEqual(stored.lifted, [], "a throw cover does not reach is read against its stored number");
     passed++;
     console.log("ok   a failed saving throw costs a spell and a readied action, and a made one does not");
+
+    // The loss path is exported: it answers what it took off and tells a listener, and only when something was lost.
+    const told = [];
+    globalThis.Hooks.on(STATES_LOST_HOOK, (...args) => told.push(args));
+    const caster = new SystemActor(held());
+    assert.deepEqual(await loseStates(caster, "save"), ["readied", "casting"], "the ids taken off come back");
+    assert.deepEqual(caster.lifted, ["readied", "casting"]);
+    assert.equal(told.length, 1, "one announcement");
+    assert.equal(told[0][0], caster);
+    assert.deepEqual(told[0].slice(1), [["readied", "casting"], "save"], "the ids and the cause");
+    const bare = new SystemActor(["covered"]);
+    assert.deepEqual(await loseStates(bare, "save"), [], "nothing to lose answers an empty list");
+    assert.deepEqual(await loseStates(null, "damage"), [], "no actor, nothing lost");
+    assert.equal(told.length, 1, "and announces nothing");
+    passed++;
+    console.log("ok   loseStates takes the lost states off, answers their ids and fires the hook only when something was lost");
 
     // Damage: the pre-update marks an update that lowers hit points, and the update's own client lifts.
     const hurt = new SystemActor(held());

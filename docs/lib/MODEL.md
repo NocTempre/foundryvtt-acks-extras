@@ -1780,6 +1780,16 @@ component's own header pairs the two: `.acks-ui :is(h1,h2,h3,h4)` (base.css)
 paints headings the spot colour at (0,2,0) and out-specifies `.acks-chat-title`
 (0,1,0), which puts burgundy lettering on the burgundy banner.
 
+A row may also carry `tooltipText` (the total's hover text assembled at render,
+written as text, and preferred to `tooltip`) and `actions`, buttons in a
+trailing column that appears only where some row has one. A section may carry
+`titleTooltip` and the card `noteTooltip` and `buttons`, a footer under the
+tables classed `acks-extras-roll-actions`. A button is `{action, label, icon?,
+data?, tooltip?, disabled?}`; the caller binds its press. None of it is the
+system's `.card-buttons` group, which the system's chat handler binds, so a
+press on this card never reaches that handler. A card naming none of these
+renders exactly as before.
+
 ## The consolidated surprise card
 
 `scripts/lib/patches/surprise-card.mjs` replaces the Surprise Matrix's output —
@@ -2032,6 +2042,71 @@ does not name, a monster's attack item included, the system's own. A claimant
 that throws is logged and never costs the table a cast. What a caller can await,
 and until when `spend` is valid, are in the file's header. Ruling: DECISIONS,
 "One owner of the cast seam: lib".
+
+## A spell's damage on the attack seam
+
+A spell's damage runs the system's weapon pipeline as a fourth kind of attack,
+`MAGIC_ATTACK_TYPE` ("magic"), so the throw, the dialog and the card are the
+system's. The seam in `patches/attack-throw.mjs` makes that possible without a
+second wrapper of any core method.
+
+**The carrier.** `spellCarrier(actor, row, cast)` builds an unsaved weapon
+parented to the caster and records it in a private `WeakMap`.
+`isSpellCarrier(item)` is membership and `carrierOf(item)` what it was made
+for (`castId`, `rowKey`, `spellUuid`, `delivery`, the row). Its melee or
+missile flag is the row's delivery, and its base damage is the row's own
+formula, damage types (`varies` is the system's `variesByWeapon`, an unknown key
+is dropped) and extraordinary mark (`carrierData`). Identity and not a flag,
+because a flag survives a copy and a drag.
+
+**What the wrappers answer for a carrier.** The weapon's attack types are
+`["magic"]`, its modes and its formula the system's own answers, and no
+contributor is asked. The attack throw's base is the system's answer for the
+delivery kind, asked of the contributors that opted in with the delivery kind
+as `attackType` while `ctx.type` stays "magic", so the card reads magic. The
+damage base is empty: only the rows a caller passed (`acksLib.damageTerms`) and
+the contributors that opted in for `"damage"`. A contributor opts in with
+`carriers: ["attack"|"damage"]`; one that declares none is never asked about a
+carrier. The conditions and the roll gates opt in for the attack, equipment
+declares nothing, so a spell's throw takes conditions and light and a weapon's
+own bonuses stay on weapons. A module-owned creature model (`animal`, `group`,
+`template`) answers `attackThrowModifiersFor` with its own base for "magic".
+
+**Damage with no throw.** `magicDamageSpec(actor, carrier, {terms})` holds an
+attack context with no target around the two modifier questions the system's
+builder asks and returns the roll in the builder's shape (`{formula, data,
+modifiers, types, extraordinary}`), or null when the carrier has no formula.
+`modifiedFormula` composes the formula as the system's own modified formula does:
+signed values, a zero left out.
+
+**The card a cast owns.** While a carrier's attack is in flight the seam holds
+`{castId, rowKey, spellUuid}` by the attacker's uuid. A `preCreateChatMessage`
+listener (`carrierCardMatch`) takes the attack card of that speaker, removes its
+apply-damage button and the group it empties (`stripApplyDamage`) and stamps
+`flags["acks-extras"].magicAttack`, because the system's handler would write
+raw hit points outside the one amount path.
+
+**The label.** The system has no label for the kind; at ready the seam copies
+`ACKS-LIB.attack.type.magic` into the translations at the system's own key,
+unless the system has one. Ruling: DECISIONS, "A spell's damage is a fourth
+attack type on a carrier".
+
+## Saving throws as parts
+
+`saves.mjs` composes a saving throw as named parts and makes it. `saveSpec(actor,
+save, {magical, conditions, situational, parts, values})` is pure: the stored
+target, the roll's parts (a character's own modifier and Wisdom modifier when the
+throw is against magic, a situational figure, the caller's parts), and the
+creature's conditions through `rollMath("save", …)`, which lower the target as the
+conditions' own wrapper does. A part is `{key, label, value, side}`; a target
+part's value is the figure that lowers the number to roll. Numbers on the roll
+sum into one signed term (`1d20 + 3`), a part that is not a number is appended,
+a zero part is not listed. Rows bound to a circumstance come back `pending` and
+a figure nobody imported `unpriced`, and neither moves the target. `saveThrow`
+rolls it (a Foundry `Roll`, or an injected roll) and succeeds at the target or
+above; with no stored target nothing is rolled. It never runs the loss path: the
+caller that applies a failed save calls `loseStates`. The party's save
+(`formation/turn-engine.mjs`) calls it with `conditions: false`.
 
 ## The weapon seam
 
@@ -2427,6 +2502,13 @@ client is told what was lost and to what:
   is not one. The hook says neither who moved the token nor why, so a move
   made out of turn and one forced on the creature are the same event.
 
+All three end in `loseStates(actor, cause)` (`status-effects.mjs`), which takes
+the states `cause` costs off the creature, tells the table, answers the ids it
+took and fires `STATES_LOST_HOOK` (`acksExtras.statesLost`) with `(actor, ids,
+cause)` only when something was lost. A feature that rolls a saving throw of
+its own (`saves.mjs`, "Saving throws as parts") calls it for a failed one; the
+throw does not.
+
 **Earlier ids.** An effect carrying one of Foundry's generic status ids, or
 this module's earlier Hiding id, is found by the repair tool's `lib.statusIds`
 check and renamed to the condition it stood for.
@@ -2736,6 +2818,13 @@ rolled once for everyone or once for each row. Each row has a multiplier (×0,
 amount is a whole number. **Stop at 0** holds damage at 0 and never raises a
 value that is already below it. The **After** column previews each row with
 `planHpChange` whenever the amount is a whole number.
+
+**A spell's amount rounds differently.** `planHpChange` rounds up, as core does,
+and stays the preview of what core writes. The amount a cast applies is
+`amountAfter(rolled, {fraction, stages})`: the save's fraction, then each
+defenses stage in order, then one rounding of the half to the even whole
+(`roundHalfEven`), with no floor, and the steps it took returned for the card
+to show.
 
 **Core does the arithmetic.** Damage and healing are written by core's
 `applyDamage`, so the stored value is exactly what core stores. Core rounds

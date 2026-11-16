@@ -5905,6 +5905,66 @@ await scenario("turn plan: one spend a turn, one card for the searchers, a playe
   await model.disband(model.getFormation(id));
   await drain();
 });
+await scenario("a party save rolls each member's own formula against the stored target, through the shared save throw, with the conditions left out", async () => {
+  const save = (target) => ({ blast: { value: target } });
+  const roster = {
+    hero: { type: "character", name: "Hero", save: { mod: 2 }, wis: 1, saves: save(14), total: 14, statuses: ["hungry"] },
+    brute: { type: "character", name: "Brute", save: { mod: -1 }, wis: -2, saves: save(12), total: 10 },
+    plain: { type: "character", name: "Plain", save: { mod: 0 }, wis: 0, saves: save(10), total: 10 },
+    beast: { type: "monster", name: "Beast", saves: save(15), total: 13 },
+    downed: { type: "character", name: "Downed", save: { mod: 4 }, wis: 4, saves: save(9), total: 20, hp: 0 },
+    blank: { type: "character", name: "Blank", save: { mod: 4 }, wis: 4, saves: {}, total: 20 },
+  };
+  const formation = { name: "Test Company", members: [] };
+  for (const [id, r] of Object.entries(roster)) {
+    const actor = {
+      id: `save-${id}`,
+      name: r.name,
+      type: r.type,
+      statuses: new Set(r.statuses ?? []),
+      system: { hp: { value: r.hp ?? 5, max: 10 }, saves: r.saves, ...(r.type === "character" ? { save: r.save, scores: { wis: { mod: r.wis } } } : {}) },
+    };
+    game.actors.set(actor.id, actor);
+    formation.members.push({ actorId: actor.id });
+  }
+  const totals = Object.values(roster).filter((r) => r.hp === undefined && Object.keys(r.saves).length).map((r) => r.total);
+  const formulas = [];
+  const priorRoll = globalThis.Roll;
+  globalThis.Roll = class {
+    constructor(formula) {
+      this.formula = formula;
+    }
+    async evaluate() {
+      this.total = totals[formulas.length];
+      formulas.push(this.formula);
+      return this;
+    }
+  };
+  const before = chat.length;
+  try {
+    await engine.rollPartySave(formation, "blast", { magical: true });
+    assert.deepEqual(formulas, ["1d20 + 3", "1d20 - 3", "1d20", "1d20"], "a character's modifier and Wisdom against magic, a monster's none; the down and the targetless do not roll");
+    const card = String(chat.at(before).content);
+    for (const target of ["14+", "12+", "10+", "15+"]) assert.ok(card.includes(`>${target}<`), `the stored target ${target} is the card's, the conditions' figure left out`);
+    assert.equal((card.match(/class="is-success"/g) ?? []).length, 2, "a total at or above its target succeeds");
+    assert.equal((card.match(/class="is-failure"/g) ?? []).length, 2);
+    assert.equal(chat.at(before).rolls.length, 4, "the card carries every roll");
+    assert.ok(card.includes("ACKS-FORMATION.chat.saveMagical"));
+
+    formulas.length = 0;
+    await engine.rollPartySave(formation, "blast", { magical: false });
+    assert.deepEqual(formulas, ["1d20", "1d20", "1d20", "1d20"], "against the mundane, no modifier is added");
+    assert.ok(String(chat.at(-1).content).includes("ACKS-FORMATION.chat.saveMundane"));
+
+    const quiet = chat.length;
+    await engine.rollPartySave({ name: "Empty", members: [formation.members.at(-1)] }, "blast");
+    assert.equal(chat.length, quiet, "a party with nobody to roll posts nothing");
+  } finally {
+    globalThis.Roll = priorRoll;
+    for (const id of Object.keys(roster)) game.actors.delete(`save-${id}`);
+  }
+});
+
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

@@ -1333,6 +1333,45 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.deepEqual(mergeRowEdit(set, { note: "x" }).gate, set.gate, "an edit that does not name the level leaves the gate");
   });
 
+  t("a spell row's cast fields are edited per kind, each with a label and a tooltip in the lang file", async () => {
+    const { readFileSync } = await import("node:fs");
+    const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+    const kinds = {
+      damage: ["saveEffect", "delivery", "extraordinary", "recur", "pick", "reversed"],
+      heal: ["saveEffect", "pick", "reversed"],
+      conditionGrant: ["saveEffect", "lasts", "recur", "reversed"],
+      conditionRemove: ["pick"],
+      modifier: ["notStacksWith"],
+    };
+    for (const [kind, names] of Object.entries(kinds)) {
+      for (const name of names) {
+        assert.ok(fieldsForType(kind).includes(name), `${kind} edits ${name}`);
+        assert.ok(lang[`ACKS-LIB.effectEditor.field.${name}`], `a label for ${name}`);
+        assert.ok(lang[`ACKS-LIB.effectEditor.tip.${name}`], `a tooltip for ${name}`);
+      }
+    }
+    for (const word of ["Yes", "No"]) assert.ok(Object.values(lang).includes(word));
+    assert.ok(lang["ACKS-LIB.effectEditor.field.key"] && lang["ACKS-LIB.effectEditor.tip.key"], "the read-only key has its words");
+    assert.ok(!fieldsForType("damage").includes("key"), "the key is shown from the row, not offered as a kind's field");
+  });
+
+  t("the extraordinary select is three-state: unset stores null, yes and no store the booleans, and a form without it leaves it", () => {
+    const row = { type: "damage", key: "scorch", extraordinary: null };
+    assert.equal(mergeRowEdit(row, { extraordinary: "true" }).extraordinary, true);
+    assert.equal(mergeRowEdit(row, { extraordinary: "false" }).extraordinary, false, "a no is a value, not an unset");
+    assert.equal(mergeRowEdit({ ...row, extraordinary: true }, { extraordinary: "" }).extraordinary, null, "unset returns to null");
+    assert.equal(mergeRowEdit({ ...row, extraordinary: false }, { note: "x" }).extraordinary, false, "a form that does not carry it leaves it");
+    assert.equal(mergeRowEdit(row, { extraordinary: true }).extraordinary, true, "a real boolean passes");
+  });
+
+  t("a row's key is never an edit, and an edit still hands a register row to the Judge", () => {
+    const row = { type: "damage", key: "scorch", origin: "register", pick: "a" };
+    const next = mergeRowEdit(row, { key: "other", pick: "b", reversed: true, saveEffect: "half" });
+    assert.equal(next.key, "scorch", "a key in the form changes nothing");
+    assert.deepEqual([next.pick, next.reversed, next.saveEffect, next.origin], ["b", true, "half", ""]);
+    assert.equal("key" in mergeRowEdit({ type: "damage" }, { pick: "a" }), false, "a row with no key gains none");
+  });
+
   t("a light level never replaces a gate of another kind, and the armour limit fields are unchanged", () => {
     const status = { type: "modifier", gate: { kind: "status", status: "poisoned" } };
     assert.deepEqual(mergeRowEdit(status, { gate: { light: "daylight" } }).gate, status.gate, "a status gate stays as stored");
@@ -1341,6 +1380,14 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.deepEqual(mergeRowEdit(limit, { gate: { armourMax: "medium", noShield: true } }).gate, { kind: "armourCeiling", armourMax: "medium", noShield: true }, "an armour edit merges as before");
     assert.deepEqual(mergeRowEdit({ type: "limitation" }, { gate: { armourMax: "light" } }).gate, { armourMax: "light", kind: "armourCeiling" }, "a first armour field takes the armour kind");
     assert.deepEqual(mergeRowEdit(limit, { gate: { light: "dim" } }).gate, limit.gate, "a stray light value cannot touch an armour gate");
+  });
+
+  t("an ability's row is offered none of a cast's fields", () => {
+    for (const type of ["modifier", "conditionGrant", "conditionRemove", "damage"]) {
+      const fields = fieldsForType(type, "ability");
+      for (const name of ["saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed"]) assert.ok(!fields.includes(name), `${type} offers ${name} to an ability`);
+    }
+    assert.ok(fieldsForType("conditionGrant", "spell").includes("saveEffect"));
   });
 
   t("only a modifier row edits a light level", () => {

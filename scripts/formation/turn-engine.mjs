@@ -3,6 +3,7 @@ import { announceChange, makeLoc, gmIds } from "../lib/util.mjs";
 import { announceShift, shiftSources } from "./encounter-scaling.mjs";
 import { mayAdvanceWorldTime } from "../lib/world-time.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
+import { saveThrow } from "../lib/saves.mjs";
 import { drawForJudges, postToJudges } from "../lib/roll-audience.mjs";
 import { findEncounterZone } from "./encounter-zone.mjs";
 import {
@@ -28,7 +29,6 @@ import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } f
 import { lightFigures, prepareToLight } from "../lib/light.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { equipForLight } from "./judge-override.mjs";
-import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /**
  * The dungeon-turn engine: marking off the turn, the periodic wandering monster
@@ -898,14 +898,11 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
     const target = actor?.system?.saves?.[save]?.value;
     if (typeof target !== "number") continue;
     if (isDown(actor, member)) continue; // the down do not roll
-    let bonus = 0;
-    if (magical && actor.type === ACTOR_TYPE.character) {
-      bonus += Number(actor.system.save?.mod ?? 0) + Number(actor.system.scores?.wis?.mod ?? 0);
-    }
-    const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
-    const roll = await new Roll(formula).evaluate();
-    rolls.push(roll);
-    rows.push({ name: actor.name, total: roll.total, target, success: roll.total >= target });
+    // The party's save reads the stored target and the roll bonuses only; the conditions are not applied here.
+    const made = await saveThrow(actor, save, { magical, conditions: false });
+    if (!made.roll) continue;
+    rolls.push(made.roll);
+    rows.push({ name: actor.name, total: made.total, target: made.target, success: made.success });
   }
   if (!rows.length) return;
 

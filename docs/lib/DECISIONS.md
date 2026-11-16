@@ -293,3 +293,52 @@ to overrule).
 in the new place. The v4.9.0 compendium-folder screenshot in
 `docs/guides/appearance.md` shows the old colour.
 
+
+## 2026-11-16 — A spell's damage is a fourth attack type on a carrier
+
+**Ruled.** The owner: "Damage should just use "magic" as a weapon roller type.
+Don't forget core design principles of this project". A spell's damage runs the
+system's attack pipeline as the kind `magic`, through a CARRIER: an unsaved
+weapon parented to the caster, recorded in a private `WeakMap` and known by
+identity (`isSpellCarrier`), never by a flag. Four rulings of the spell-effects
+plan (36 to 38 and 40) live here, and docs/lib/MODEL.md, "A spell's damage on the
+attack seam", states the mechanics once.
+
+- **Identity.** A flag survives a copy and a drag, and a real weapon that
+  answered as a carrier would lose the rows its own features add. *Rejected:* a
+  flag on the item. *Counter (medium):* a core clone between the dialog and the
+  builder would miss the identity; it fails loud, since the card then reads its
+  delivery, and the first live walk proves it.
+- **Contributors opt in.** A contributor declares `carriers` for the questions it
+  answers for a carrier's attack or damage, and `ask` skips one that has not. The
+  conditions and the roll gates opt in for the attack, equipment declares nothing
+  and is never asked, so the equipment feature's files stay untouched. The attack
+  base is the system's answer for the delivery kind, asked of the contributors
+  with that kind while `ctx.type` stays `magic`; the damage base is empty. This
+  supersedes the "equipment stands down" mechanism of the plan's ruling 27 and
+  keeps its intent. *Rejected:* passing the delivery as the attack type (the card
+  would read the delivery). *Counter (medium):* a missile delivery loses core's
+  range band, which no row asks for yet.
+- **The card a cast owns.** The cast applies a throw's damage through its own
+  amount path, so the system's apply-damage button, which writes raw hit points
+  outside that path, is removed from the attack card of a carrier attack in flight
+  before the message is stored (`preCreateChatMessage`, matched by the speaker's
+  actor and the card's markup), and the message is stamped
+  `flags["acks-extras"].magicAttack`. This adds one hook and no wrapper of a core
+  method; `makeAttackThrow`'s one owner stays this seam. *Counter (medium):* a seat
+  that reloads mid-throw leaves the entry pending.
+- **The label.** The system has no label for the kind, so the seam copies its own
+  `ACKS-LIB.attack.type.magic` into the translations at the system's key unless the
+  system has one. *Counter (low):* a future system key, which the guard keeps.
+
+**Saves.** `saves.mjs` splits a saving throw into a pure spec and a throw, and the
+throw never runs the loss path: a failed save's loss is the applier's, through the
+exported `loseStates`, which fires `STATES_LOST_HOOK`, so one place decides who is
+asked to write it. The party's save adopts it with the conditions left out, as
+before. *Finding:* the party's save skips conditions that a creature's own save
+applies. *Counter (low):* the party's card and a creature's card now differ by a
+flag.
+
+**Cost.** A module-owned creature model answers `attackThrowModifiersFor` with its
+own base for `magic`, since it never reaches the wrapper that asks for the delivery
+kind; no spell is cast by one yet.

@@ -13,7 +13,9 @@ import {
   keepsOwnHitPoints,
   ownHitPointsPatch,
   planHpChange,
+  amountAfter,
   recreatedHitPointsPatch,
+  roundHalfEven,
   tokenHasStatus,
   tokenHitPoints,
 } from "../scripts/lib/hp-logic.mjs";
@@ -386,6 +388,45 @@ t("undo sets each written target back, and a deleted actor fails without stoppin
   assert.equal(hero.system.hp.value, 10);
   assert.deepEqual(writes, [["update", "Actor.a1", { "system.hp.value": 10 }]]);
   assert.deepEqual(restored.map((r) => [r.before, r.after]), [[6, 10]]);
+});
+
+t("roundHalfEven takes a half to the even whole, in both directions and below zero", () => {
+  for (const [x, whole] of [[0.5, 0], [1.5, 2], [2.5, 2], [3.5, 4], [4.5, 4], [-0.5, 0], [-1.5, -2], [-2.5, -2], [2.4, 2], [2.6, 3], [-2.4, -2], [-2.6, -3], [7, 7], [0, 0]]) {
+    assert.equal(roundHalfEven(x), whole, String(x));
+  }
+  assert.ok(Number.isNaN(roundHalfEven(NaN)), "no number stays none");
+  assert.equal(roundHalfEven("2.5"), 2, "a figure as text is read");
+});
+
+t("amountAfter applies the save's fraction, then the stages, then rounds once, and never floors", () => {
+  const half = (rolled) => amountAfter(rolled, { fraction: 0.5 });
+  assert.equal(half(5).applied, 2, "an odd amount's half rounds to the even whole below");
+  assert.equal(half(7).applied, 4, "and to the even whole above");
+  assert.equal(half(6).applied, 3, "an even amount halves exactly");
+  assert.equal(half(1).applied, 0, "no floor holds the amount at one");
+  assert.deepEqual(amountAfter(9, {}), { rolled: 9, applied: 9, steps: [] }, "the whole amount changes nothing");
+  assert.deepEqual(half(5), { rolled: 5, applied: 2, steps: [{ key: "fraction", before: 5, after: 2.5 }, { key: "round", before: 2.5, after: 2 }] });
+  // 3 halved is 1.5, then a stage of 3 makes 4.5: one rounding at the end gives 4, where rounding the half first would give 6.
+  const staged = amountAfter(3, { fraction: 0.5, stages: [{ key: "defense", label: "Defense", factor: 3 }] });
+  assert.equal(staged.applied, 4, "the stage comes before the rounding");
+  assert.deepEqual(staged.steps, [
+    { key: "fraction", before: 3, after: 1.5 },
+    { key: "defense", label: "Defense", before: 1.5, after: 4.5 },
+    { key: "round", before: 4.5, after: 4 },
+  ]);
+  assert.equal(amountAfter(9, { fraction: 0.5, stages: [{ factor: 0.5 }] }).applied, 2, "9 / 2 / 2 is 2.25");
+  assert.equal(amountAfter(5, { stages: [(x) => x - 6] }).applied, -1, "a stage as a function, and no floor at zero");
+  assert.deepEqual(amountAfter(4, { stages: [{ key: "none", factor: 1 }] }).steps, [], "a stage that changes nothing is not a step");
+  assert.deepEqual(amountAfter(4, { fraction: 0, stages: [{ factor: 5 }] }), { rolled: 4, applied: 0, steps: [{ key: "fraction", before: 4, after: 0 }] }, "a fraction of none leaves none");
+  assert.equal(amountAfter("8", { fraction: 0.25 }).applied, 2, "a rolled total as text is read");
+  assert.deepEqual(amountAfter("x"), { rolled: "x", applied: null, steps: [] }, "no number rolled, none applied");
+  assert.equal(amountAfter(5, { fraction: "n/a" }).applied, 5, "a fraction that is no number is not applied");
+});
+
+t("planHpChange keeps core's round-up: the two rounding rules are different, and the plan is what core writes", () => {
+  const hp = { value: 20, max: 30 };
+  assert.equal(planHpChange(hp, { amount: 5, multiplier: 0.5 }).after, coreApplyDamage(hp, 5, 0.5), "a half rounds up, as core's does");
+  assert.equal(20 - amountAfter(5, { fraction: 0.5 }).applied, 18, "while a spell's amount rounds the half to the even whole");
 });
 
 for (const [name, fn] of tests) {

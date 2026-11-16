@@ -24,6 +24,13 @@
  * A summon row's creature field takes a dropped Actor, from the sidebar or a
  * compendium, as its uuid, and says under it which creature the ref names.
  * A companion row's `ref` is the importer's entry id and takes no drop.
+ *
+ * A spell row's cast behaviour is edited here too: what a passed save does
+ * (`saveEffect`), the attack throw it waits on (`delivery`), whether it lasts
+ * or repeats, the choice group it belongs to (`pick`) and the reversed form
+ * (`reversed`). `extraordinary` is nullable, since a capture that read none is
+ * not a "no": its select offers unset, yes and no, and unset stores null. A
+ * row's `key` is shown and never edited.
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import * as V from "../vocab.mjs";
@@ -100,6 +107,15 @@ const FIELD_SPECS = {
   vsAlignmentMode: { kind: "select", choices: () => V.choicesOf(V.SCOPE_ALIGNMENT_MODES) },
   vsEnemy: { kind: "boolean" },
   anyOf: { kind: "readonly" },
+  key: { kind: "readonly" },
+  saveEffect: { kind: "select", choices: () => vocabChoices("saveEffect") },
+  delivery: { kind: "select", choices: () => vocabChoices("effectDelivery") },
+  extraordinary: { kind: "select", choices: () => ({ true: loc("field.extraordinaryYes"), false: loc("field.extraordinaryNo") }) },
+  lasts: { kind: "select", choices: () => vocabChoices("effectLasts") },
+  recur: { kind: "select", choices: () => vocabChoices("effectRecur") },
+  pick: { kind: "text" },
+  reversed: { kind: "boolean" },
+  notStacksWith: { kind: "list" },
   // A limitation's armour limit, written on the row's `gate`: the rung the worn
   // suit may not exceed and whether a shield breaks it. Setting either marks
   // the row an `armourCeiling` limit (`GATE_KIND`).
@@ -121,7 +137,7 @@ const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMod
 
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
-  modifier: ["appliesTo", "target", "mode", "value", "forWhat", ...SCOPE_FIELDS, "gate.light"],
+  modifier: ["appliesTo", "target", "mode", "value", "forWhat", "notStacksWith", ...SCOPE_FIELDS, "gate.light"],
   ward: ["appliesTo", "value", "range", ...SCOPE_FIELDS],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
@@ -143,22 +159,29 @@ const TYPE_FIELDS = {
   spellLike: ["spell", "frequency", "castingTime"],
   spellcastingMod: ["school", "casterLevelDelta"],
   resource: ["resource", "action", "amount"],
-  conditionGrant: ["appliesTo", "conditions"],
-  conditionRemove: ["appliesTo", "conditions"],
+  conditionGrant: ["appliesTo", "conditions", "saveEffect", "lasts", "recur", "reversed"],
+  conditionRemove: ["appliesTo", "conditions", "pick"],
   economic: ["amount", "unit", "period"],
   capability: ["frequency", "restriction"],
-  damage: ["appliesTo", "roll", "damage", "value"],
-  heal: ["appliesTo", "healKind", "roll", "value"],
+  damage: ["appliesTo", "roll", "damage", "value", "saveEffect", "delivery", "extraordinary", "recur", "pick", "reversed"],
+  heal: ["appliesTo", "healKind", "roll", "value", "saveEffect", "pick", "reversed"],
   summon: ["summonFormat", "ref", "amount", "value", "control"],
   control: ["appliesTo", "control"],
 };
 const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 const TAIL_FIELDS = ["condition", "note"];
 const SET_FIELDS = new Set(["damage", "effects", "conditions"]);
-const LIST_FIELDS = new Set(["refs", "vsKinds"]);
+const LIST_FIELDS = new Set(["refs", "vsKinds", "notStacksWith"]);
 
-/** The fields a row of this type edits. */
-export const fieldsForType = (type) => [...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...TAIL_FIELDS];
+/** The fields whose control carries a tooltip saying what the field does; each reads `tip.<name>`. */
+const TIPPED_FIELDS = new Set(["key", "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed", "notStacksWith"]);
+
+/** The fields only a spell's row edits: what a cast does with the row, which no ability row has. */
+const SPELL_ONLY_FIELDS = new Set(["saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed"]);
+
+/** The fields a row of this type edits in a store of this domain; outside a spell the cast's fields are left out. */
+export const fieldsForType = (type, domain = "spell") =>
+  [...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name));
 
 /**
  * The row an edit makes: the window's fields laid over the stored row, so a
@@ -173,6 +196,9 @@ export function mergeRowEdit(current, form) {
   const next = { ...current, ...form };
   if (current.origin) next.origin = "";
   if (current.anyOf !== undefined) next.anyOf = current.anyOf;
+  // The row's key names it for a repair and is never an edit; an unset mark is null, not a "no".
+  if (current.key !== undefined) next.key = current.key;
+  if ("extraordinary" in form) next.extraordinary = form.extraordinary === true || form.extraordinary === "true" ? true : form.extraordinary === false || form.extraordinary === "false" ? false : null;
   if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
   // A frequency picked here is the Judge's own: the phrase the importer read
   // for the previous one no longer describes it.
@@ -284,17 +310,18 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     // select would fall to its first option and the next change rewrite it.
     if (row.type && !context.types[row.type]) context.types[row.type] = V.EFFECT_TYPES[row.type]?.label ?? row.type;
     context.none = loc("none");
-    context.fields = fieldsForType(row.type).filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
+    const names = [...(row.key ? ["key"] : []), ...fieldsForType(row.type, domain)];
+    context.fields = names.filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
       const field = { name, kind: spec.kind, label: loc(`field.${name}`) };
       if (spec.kind === "readonly") {
-        field.text = anyOfText(value, loc);
+        field.text = name === "anyOf" ? anyOfText(value, loc) : String(value ?? "");
       } else if (spec.kind === "boolean") {
         field.checked = value === true;
       } else if (spec.kind === "select") {
         field.choices = spec.choices(domain);
-        field.value = value ?? "";
+        field.value = typeof value === "boolean" ? String(value) : (value ?? "");
       } else if (spec.kind === "set") {
         const have = new Set([...(value ?? [])]);
         field.options = Object.entries(spec.choices()).map(([key, label]) => ({ key, label, checked: have.has(key) }));
@@ -317,6 +344,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         if (spec.list) field.list = Object.entries(spec.list()).map(([key, label]) => ({ key, label }));
       }
+      if (TIPPED_FIELDS.has(name)) field.tip = loc(`tip.${name}`);
       if (name === "gate.light") {
         field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;
         field.tip = loc(field.disabled ? "lightLocked" : "lightTip");

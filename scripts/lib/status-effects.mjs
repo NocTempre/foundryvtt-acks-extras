@@ -17,7 +17,7 @@
  * shift of that field held only across the synchronous read, then put back:
  * the roll sees it and no document ever stores it.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK } from "./constants.mjs";
 import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
@@ -376,6 +376,8 @@ function conditionsOf(ctx, attackType) {
  * damage roll.
  */
 const conditionContributor = {
+  // A spell's carrier is asked for its attack throw only; its damage is the spell's own.
+  carriers: ["attack"],
   attack(ctx, attackType, modifiers) {
     const math = conditionsOf(ctx, attackType);
     if (!math) return modifiers;
@@ -676,22 +678,32 @@ function onInitiativeRolled(combat) {
 const HP_FELL = "hpFell";
 
 /**
- * Take off an actor the states `cause` costs it, and say so. Run by the client
- * that made the change, which is one client and holds the rights the change
- * itself needed.
+ * Take off an actor the states `cause` costs it, say so, and fire
+ * `STATES_LOST_HOOK` with `(actor, ids, cause)` when anything was lost. Run by
+ * the client that made the change, which is one client and holds the rights
+ * the change itself needed. `cause` is a `lostTo` cause: `damage`, `save` or
+ * `moved`.
+ *
+ * @returns {Promise<string[]>} the status ids taken off
  */
-async function loseTo(actor, cause) {
+export async function loseStates(actor, cause) {
   const ids = lostTo(actor?.statuses, cause);
-  if (!ids.length) return;
+  if (!ids.length) return [];
   await lift(actor, ids);
   ui.notifications?.info(loc("notice.lost", { name: actor.name, conditions: list(ids), cause: loc(`lost.${cause}`) }));
+  try {
+    Hooks.callAll(STATES_LOST_HOOK, actor, ids, cause);
+  } catch (err) {
+    console.error(`${MODULE_ID} | a states-lost listener failed`, err);
+  }
+  return ids;
 }
 
 /** After a saving throw resolves: one that came up under its number costs what a failed save costs. */
 async function loseOnFailedSave(actor, rolled, target) {
   try {
     const roll = await rolled;
-    if (numOrNull(roll?.total) != null && roll.total < target) await loseTo(actor, "save");
+    if (numOrNull(roll?.total) != null && roll.total < target) await loseStates(actor, "save");
   } catch (err) {
     console.error(`${MODULE_ID} | could not read a saving throw's result for ${actor?.name}`, err);
   }
@@ -715,7 +727,7 @@ function registerLosses() {
   Hooks.on("preUpdateActorDelta", (delta, changed, options) => notePriorHp(delta?.syntheticActor, changed, options));
   Hooks.on("updateActor", (actor, _changed, options, userId) => {
     if (userId !== game.user?.id || !options?.[MODULE_ID]?.[HP_FELL]) return;
-    void loseTo(actor, "damage");
+    void loseStates(actor, "damage");
   });
   // A token that moves while another combatant acts was moved, or spent what it held.
   // Before a round's initiative is rolled nobody acts, and a move there costs nothing.
@@ -727,7 +739,7 @@ function registerLosses() {
     if (acting?.initiative == null) return;
     const own = combat.combatants.find((c) => c.tokenId === token.id && c.sceneId === token.parent?.id);
     if (!own || acting === own) return;
-    void loseTo(token.actor, "moved");
+    void loseStates(token.actor, "moved");
   });
 }
 

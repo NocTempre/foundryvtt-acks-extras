@@ -656,6 +656,23 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   font-style: italic;
 }
 
+/* A press on the card, in a row's own column or in the footer under the
+   tables. The system's chat handler binds only `.card-buttons`, so these are
+   the caller's to bind. */
+.acks-extras-roll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  margin-block-start: var(--acks-sp-2);
+}
+
+.acks-extras-roll-action {
+  width: auto;
+  font-size: var(--acks-fs-fine);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 /* Number and verdict columns hold their own line; Name takes the slack.
    Without this the header wraps mid-word ("Tot / al") at chat width. */
 .acks-extras-roll-card .acks-table th:not(:first-child),

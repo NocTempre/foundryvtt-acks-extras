@@ -1,4 +1,4 @@
-# lib API (apiVersion 50)
+# lib API (apiVersion 51)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 50,
+  apiVersion: 51,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -64,6 +64,7 @@ acksExtras.lib = {
   // 35: tables.bandDie — a one-die table's die, read off its own bands
   summons,             // lib/summons.mjs — a character's summoned creatures (below); 36
   spellUse,            // lib/patches/spell-use.mjs — the cast seam (below); 36
+  // 51: attack.{MAGIC_ATTACK_TYPE, spellCarrier, isSpellCarrier, carrierOf, magicDamageSpec}, saves, loseStates, STATES_LOST_HOOK (below)
 }
 ```
 
@@ -936,6 +937,39 @@ logged and spends nothing unless `spend` already ran. The system's `use()` does
 not await `_useSpell`; a feature that must wait for a cast calls
 `item._useSpell(options)`. The registry and the wrapper are
 `scripts/lib/patches/spell-use.mjs`.
+
+## `attack`, `saves` and `loseStates` — a spell on the weapon pipeline (apiVersion 51)
+
+The model is docs/lib/MODEL.md, "A spell's damage on the attack seam" and
+"Saving throws as parts"; the ruling is DECISIONS, "A spell's damage is a fourth
+attack type on a carrier".
+
+```
+acksExtras.lib.attack = {
+  PRE_ATTACK_HOOK, POST_ATTACK_HOOK, addContributor, inFlight,   // as before
+  MAGIC_ATTACK_TYPE,                       // "magic"
+  spellCarrier(actor, row, cast) → Item,   // cast: {spell, castId, rowKey, delivery}; unsaved, parented to actor
+  isSpellCarrier(item) → boolean,          // identity, never a flag
+  carrierOf(item) → {castId, rowKey, spellUuid, delivery, row} | null,
+  magicDamageSpec(actor, carrier, {terms}) → Promise<{formula, data, modifiers, types, extraordinary} | null>
+}
+acksExtras.lib.saves = {
+  saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values})
+    → {save, kind, formula, baseTarget, target, parts: [{key, label, value, side}], pending, unpriced},
+  saveThrow(actor, save, {…saveSpec options, roll}) → Promise<{…spec, roll, total, success}>
+}
+acksExtras.lib.loseStates(actor, cause) → Promise<string[]>   // cause: "damage" | "save" | "moved"
+acksExtras.lib.STATES_LOST_HOOK                                // "acksExtras.statesLost", called with (actor, ids, cause)
+```
+
+A contributor passed to `addContributor` may declare `carriers: ["attack" |
+"damage"]`: the questions it answers for a spell carrier's attack. Without it a
+contributor is never asked about a carrier. For a carrier's attack the contributor
+receives the delivery kind (`melee` or `missile`) as `attackType` and sees
+`ctx.type` as `"magic"`. A `saveSpec` target part's `value` is the figure that
+lowers the number to roll, so a positive value helps the roller on either side.
+`saveThrow` rolls nothing and answers `roll`, `total` and `success` null for a
+creature with no stored target, and never calls `loseStates`.
 
 ## Turn activities (`scripts/lib/turn-activities.mjs`)
 
