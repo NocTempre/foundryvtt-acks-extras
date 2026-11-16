@@ -210,3 +210,34 @@ widths to half cells) was refuted: core stores 0.25 as 0.25.
 
 **Cost.** The footer grows with the rows; it scrolls within its own bound so
 the button stays on screen.
+
+## 2026-11-15 — A token not drawn to the scene's scale is marked
+
+**Ruled** (owner, answering whether a mile-scale apply leaves token
+auto-sizing off): "Yes, and Anything that is outside scale should get a border
+(maybe a looking glass effect?) to clarify that it is not to scale." Asked to
+build it with three defaults (players see it; the party token never gets it;
+each seat can turn it off): "Keep defaults".
+
+**Decision.** A token whose stored size differs from its footprint at the
+scene's cell, by more than half the quantum the sizer rounds to on either axis,
+carries a magnifying-glass rim drawn as a child of its own container, solid and
+in none of the disposition colours. It is judged against the unrounded
+footprint, never the sizer's answer, so the floor that keeps a man grabbable
+does not call him right. The party token, a marker's token and a scene with no
+usable distance are never judged; with nothing imported there is no footprint
+and no mark. Every seat sees it, a client setting turns it off per seat, and
+nothing is written to any document. Hovering reads the direction and the drawn
+size; the Judge and the token's owner also read the footprint in feet and where
+it comes from.
+
+**Rejected.**
+- *Core's dynamic token ring.* Turning it on writes to the token.
+- *A true magnifying filter.* A filter pass per token per frame.
+- *Recolouring core's border.* It shows only on hover or selection.
+- *Comparing against the sizer's answer.* Its floor hides the owner's example.
+- *A stand-in footprint where nothing is imported.* A figure in source.
+
+**Cost.** On a map whose cell is several times the imported square, every
+auto-sized small token carries the mark, since the floor draws it larger than
+it is. Canvas text does not follow the type-size setting.
