@@ -289,3 +289,13 @@ append-only, keep them; they are marked superseded in part.
 **Rejected.** Keeping the lowest face as the band when none is imported: a printed figure standing in for a missing one. Reading the band once for both grids: each grid prints its own label, so each column takes its own grid's.
 
 **Cost.** A world must re-run the Rules tables import before the obstacle card carries a helplessness or a botch band. `OBSTACLES` loses `vulnerable`, so `api.formation.obstacles` reads it through `obstacleVulnerable` and `botchBand`, and formation `apiVersion` is 27.
+
+## 2026-11-16 — A summon is a member under a key of its own
+
+**Asked.** The owner ruled that a summoning cast's creatures are "Real members" of their summoner's party (character-sheet DECISIONS, "2026-11-16 — A summon marches in its summoner's party"). Every creature of one world copy is an unlinked token of that copy, so they share an actor id, and `addMember`, the stored deployments and the fallback token search all key a member by that id: a second wolf was refused, two wolves' deployments overwrote each other, and the search could stash another caster's creature.
+
+**Ruled.** A summon member takes an `actorId` minted for it, and `baseActorId` names the world copy; the readers of a member's actor read `baseActorId ?? actorId`, so no existing member migrates. Only a token carrying a cast record joins, and only into the party its summoner marches in. Lib reaches held summons only through the `party-roster` service (v2: `summonedBy`/`summon` rows, `memberOfToken`, `release`), and `release` removes the record before it deletes a live token, so a recall has nothing to restore.
+
+**Rejected.** A shared `actorId` with a side key: about 230 comparisons in 39 files, and a miss acts on the wrong wolf. A lib group stack per cast: a sidebar actor per cast, and a dismissed deployed body folds back in. A world actor per summon: rejected 2026-11-10. Gathering inside `recallMembers`: it races `removeMembers`. A member identity for every unlinked token: it changes existing parties, and is a ROADMAP row.
+
+**Cost.** About twenty member reads go through `getMemberActor`; one missed reads as "actor gone", which is already handled. A join racing another session's whole-`members` write from a stale copy is narrowed by the per-party queue, not closed.

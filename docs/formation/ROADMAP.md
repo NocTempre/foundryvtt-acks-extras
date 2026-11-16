@@ -63,6 +63,13 @@ Still unbuilt, in likely order:
    `scripts/lib/money.mjs`. Whether the split is equal or by share is a ruling
    this file does not take.
 
+13. **A member identity of its own for every unlinked member.** Only a
+   summon member takes a minted `actorId` (DECISIONS, 2026-11-16). Two
+   unlinked tokens of one world actor added by hand still collide on that
+   actor's id: the second is refused. Giving every unlinked member a minted id
+   changes the records of parties that already exist, so it waits for a
+   migration plan.
+
 ## 4. Land travel: not built
 
 | Rule | State | Note |

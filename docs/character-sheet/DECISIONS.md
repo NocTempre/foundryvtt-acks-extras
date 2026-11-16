@@ -11,7 +11,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-03 — [Where the fold and the pins live (2026-09-03)](DECISIONS-through-v11.14.5.md#where-the-fold-and-the-pins-live-2026-09-03)
 - 2026-09-03 — [The training list keeps the lib vocabulary (2026-09-03)](DECISIONS-through-v11.14.5.md#the-training-list-keeps-the-lib-vocabulary-2026-09-03)
 - 2026-09-03 — [Rolls the system has no method for (2026-09-03)](DECISIONS-through-v11.14.5.md#rolls-the-system-has-no-method-for-2026-09-03)
-- 2026-09-03 — [The last right-rail cell is the character's own party (2026-09-03)](DECISIONS-through-v11.14.5.md#the-last-right-rail-cell-is-the-characters-own-party-2026-09-03) — superseded in part by "2026-11-16 — Casters get a second right-rail column"
+- 2026-09-03 — [The last right-rail cell is the character's own party (2026-09-03)](DECISIONS-through-v11.14.5.md#the-last-right-rail-cell-is-the-characters-own-party-2026-09-03) — superseded in part by "2026-11-16 — Casters get a second right-rail column"; "2026-11-16 — A summon marches in its summoner's party"
 - 2026-09-03 — [Conditions ride on the save that clears them (2026-09-03)](DECISIONS-through-v11.14.5.md#conditions-ride-on-the-save-that-clears-them-2026-09-03)
 - 2026-09-04 — [Training is edited once, on Stats, at the weapon (2026-09-04)](DECISIONS-through-v11.14.5.md#training-is-edited-once-on-stats-at-the-weapon-2026-09-04)
 - 2026-09-04 — [The XP bar is a reading, and a press on it drags the window (2026-09-04)](DECISIONS-through-v11.14.5.md#the-xp-bar-is-a-reading-and-a-press-on-it-drags-the-window-2026-09-04)
@@ -38,9 +38,9 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-21 — [Fate points answer to the system's Heroic Fate setting](DECISIONS-through-v11.14.5.md#2026-10-21--fate-points-answer-to-the-systems-heroic-fate-setting)
 - 2026-10-22 — [Morale is the Judge's characters', hired or not](DECISIONS-through-v11.14.5.md#2026-10-22--morale-is-the-judges-characters-hired-or-not)
 - 2026-11-03 — [The Stats tab sets the roll modifiers apart from the targets](DECISIONS-through-v11.14.5.md#2026-11-03--the-stats-tab-sets-the-roll-modifiers-apart-from-the-targets)
-- 2026-11-10 — [A summon is an unlinked token of a GM-made copy](DECISIONS-through-v11.14.5.md#2026-11-10--a-summon-is-an-unlinked-token-of-a-gm-made-copy) — superseded in part by "2026-11-11 — A summoning is tied to its spell"
+- 2026-11-10 — [A summon is an unlinked token of a GM-made copy](DECISIONS-through-v11.14.5.md#2026-11-10--a-summon-is-an-unlinked-token-of-a-gm-made-copy) — superseded in part by "2026-11-11 — A summoning is tied to its spell"; "2026-11-16 — A summon marches in its summoner's party"
 - 2026-11-11 — [A summoning is tied to its spell](DECISIONS-through-v11.14.5.md#2026-11-11--a-summoning-is-tied-to-its-spell)
-- 2026-11-11 — [The party cell's summoning rows are one per spell](DECISIONS-through-v11.14.5.md#2026-11-11--the-party-cells-summoning-rows-are-one-per-spell) — superseded in part by "2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts"; "2026-11-11 — The party check resolves through the abilities"; "2026-11-16 — Casters get a second right-rail column"
+- 2026-11-11 — [The party cell's summoning rows are one per spell](DECISIONS-through-v11.14.5.md#2026-11-11--the-party-cells-summoning-rows-are-one-per-spell) — superseded in part by "2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts"; "2026-11-11 — The party check resolves through the abilities"; "2026-11-16 — Casters get a second right-rail column"; "2026-11-16 — A summon marches in its summoner's party"
 
 ## 2026-11-16 — Casters get a second right-rail column
 
@@ -61,3 +61,13 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 **Supersedes in part**, within seven days of the ruling it changes ("The party cell's summoning rows are one per spell", 2026-11-11), on this evidence: a character marching in a formation whose party token is on the scene has its party cell routed to the formation sheet, so the rows that ruling put in the party menu cannot be reached. That was not known then.
 
 **Cost.** A summon standing on the scene gives its summoner the column too, so *Dismiss* and *Release* stay reachable from a sheet with no spell. A character with no spell, no cast record and no summon standing cannot be given a bare *Summon…* from its own sheet; a Judge summons for it from a caster's, or gives it a spell.
+
+## 2026-11-16 — A summon marches in its summoner's party
+
+**Asked.** The owner, 2026-11-16: "Minor UI bug, summons and party formation conflict on the sheet. I propose a new button for casting that includes summons management. Then you can see them in you henchmen management when not in a party as currently, but when in a party they get added to the full formation." Asked whether summons become real formation members (stashed into the party token, marching in the order, deploying with it) or are shown and counted while staying on the map: "Real members". Asked whether a summon at 0 hp inside the party is a casualty or not a person: "Not a person, removed/destroyed."
+
+**Ruled.** A creature a summoning cast made joins its summoner's formation while the summoner rides inside a party token on the creature's scene: at the cast, at the summoner's joining and at a deployed summoner's recall. It leaves with the summoner. It ends when its token or its member record goes, and at 0 hit points, stashed or deployed, as a dismissal ends it; it is never a person, a casualty or a load. Dismissal and a cast's end reach it in either state, and the party cell, the cast menu and the Magic tab count it as standing on its party's scene. A creature bound by hand has no cast record and is never gathered as a summon. How it is built is formation MODEL, "A summon is a member under an id of its own", and its identity ruling is formation DECISIONS of the same date.
+
+**Supersedes in part**, within seven days of two of the rulings it changes ("A summon is an unlinked token of a GM-made copy", 2026-11-10: "goes when its token goes"; "The party cell's summoning rows are one per spell", 2026-11-11: what standing on the scene means), on this evidence: the owner's ruling above, which neither had. It also qualifies the 2026-09-03 right-rail ruling's premise that "a formation's members are people in a marching order, not a summoner's creatures"; that ruling's rejection of the asterisk count stands.
+
+**Cost.** A Player acts on a summon held in a party only through *Dismiss* and its summoner's membership: its row on the party sheet takes no action. A cast's `tokenUuids` names tokens deleted once the creatures join, so a reader of that list finds them gone.
