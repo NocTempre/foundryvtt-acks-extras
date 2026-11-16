@@ -1396,9 +1396,14 @@ pruned at world load. If one survives, its actor still exists somewhere.
 **The party crosses a wilderness map and nothing is rolled.** No miles, no
 encounter card, no navigation card: the party is still in Delve, which counts
 turns and bills nothing on a map whose cells are a mile or more across (you
-are told so once, in a whisper). Pick **Journey** in the selector beside the
-party's name, or declare the map a wilderness map with the icon on its card
-in the scene navigation bar (click it to pick; see
+are told so once, in a whisper). A map counts as a mile or more across by its
+grid units: on a hex map gridded by hand and left in feet, Foundry's default,
+the cell's distance is read in feet, and nothing switches. Write its units as miles in
+**Scene configuration → Grid tab** (the party standing on it switches at
+once), or set the map up through the Battlemap scene control's **Map setup
+panel**, whose Apply writes them. Otherwise pick **Journey** in the selector
+beside the party's name, or declare the map a wilderness map with the icon on
+its card in the scene navigation bar (click it to pick; see
 [What kind of map is this?](battlemap.md#what-kind-of-map-is-this)). The
 encounter card prints
 the party's evasion target but does not roll it; surprise, and whether the
