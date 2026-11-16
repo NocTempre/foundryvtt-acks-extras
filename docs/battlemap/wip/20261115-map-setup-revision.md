@@ -1077,6 +1077,28 @@ active user). Fixture `battlemap/reposition-probe`. After that, the kept
   - The region's key was 29:33 over hex 33:38 before. After, it was 29:34
     over hex 29:34, its shape 51 px wide, and `layerValueAt` read
     `barrensRocky` where it had read null.
+- **Every layer and an emptied region (K4)**, on a clone of the probe
+  (`battlemap/reposition-probe@j3`).
+  - Painted through `paintHexAt`: two neighbouring terrain cells of
+    different values, one territory cell and one domain cell.
+  - Then `grid.size` went 51 → 102 under `autoReposition`, and
+    `rekeyPaintedHexes` ran, as the apply runs it.
+  - It answered 5. Each terrain, territory and domain region's key equalled
+    the hex under its shape, for example 18:8 → 9:4. The terrain cell that
+    merged into its neighbour's hex lost it, and its region was deleted.
+  - This drove the glue directly, not through the panel; no offline suite
+    covers the glue.
+- **A square apply (K4)**, on the same clone set to square at 50 px, through
+  the panel's real Apply and the dialog's Yes.
+  - Four 30 × 30 boxes gave grid size 44. The dialog carried the placeables
+    sentence.
+  - Wall fractions moved from (.33166, .52811)–(.63121, .52811) to
+    (.33182, .52784)–(.63125, .52784).
+  - The token's centre moved from (.44155, .43173) to (.44148, .42727). It
+    moves by its top-left corner while its pixel size changes with the cell,
+    as the audit inferred.
+  - The notice read "Square grid applied: 44 px squares, 6 mi per square."
+    That is the old shape, Phase 4's item.
 - **The travel row and the rows' tooltip (T-0611, T-0613).**
   - The rows read "6 ft a cell → 6 mi a cell" and "Leave to the party →
     Wilderness".
@@ -1086,7 +1108,9 @@ active user). Fixture `battlemap/reposition-probe`. After that, the kept
   leave the 76.8 × 82.8 block out, and the cell reads 30.7 × 47.3. The cell's
   tooltip read "One hex's bounding box, 30.7 × 47.3 image px, fitted over 1
   of 2 box(es)." The block's row said "read as one hex. Left out: larger than
-  one hex.", which contradicts itself; the walk's fix rewords it.
+  one hex.", which contradicts itself. After the walk's fix, the panel's
+  composed row reads "76.8 × 82.8 image px as dragged, meant to surround one
+  hex. Left out: larger than one hex."
 - **The size chips (step 8, T-0614)**, on `formation/combat-scene` (square,
   5 ft, monsters imported).
   - There are six chips: Small and Man-Sized 5 × 5, Large 10 × 5, Huge
@@ -1104,23 +1128,29 @@ active user). Fixture `battlemap/reposition-probe`. After that, the kept
     footprint square is not imported (MM ch. 1)." Both tokens stayed 1 × 1.
   - The layer was re-registered from the copy taken first, and read back
     present.
-- **Bake on an upright fit (T-0618).**
-  - `bakeCorrectedBackground` ran on the probe with a 30 × 36 fit that has no
-    `u`. It rendered 1200 × 1200 into 1440 × 1200 and handed back a square
-    36 fit, through the real PIXI render and extract.
-  - `FilePicker.upload` was replaced in the page for the call, so no file
+- **Bake on an upright fit (T-0618), through the button.**
+  - On the probe, the session was set to the square family with Independent
+    X / Y and four 30 × 36 boxes. The fit read `rect`, 30 × 36, with no `u`,
+    and "Bake corrected image" rendered, enabled, with its `aria-label`.
+  - A real click rendered 1200 × 1200 into 1440 × 1200 through PIXI's render
+    and extract. The samples were wiped, and `session.bakedFit` read square
+    36 × 36.
+  - `FilePicker.upload` was replaced in the page for the press, so no file
     was written. It returned the original path, so the background stayed.
-  - A call with no fit warned "There is no fit to correct yet…". On the hex
-    probe the button is not offered (`canBake` false), by design.
+  - A direct call with no fit warned "There is no fit to correct yet…". On
+    the hex family the button is not offered (`canBake` false), by design.
 - **`ui-layout` eye checks.** All five of the window's classes are present
   and the drag corner is there.
   - At 420, 320 and 260 px wide (700 tall) and at 420 × 320, nothing passed
     the frame's right edge. The footer stayed visible and outside the
     scroller, and the body scrolled.
-  - At a 20 px knob, on a fresh window at 320 × 500: the selects, inputs,
-    body and title (22.2 px) rode the knob. The footer was pinned and the
-    body scrolled. The Apply button stayed 14 px; fixed on the walk, and
-    read again after a real reload at 20 px raised and 14 px default.
+  - At a 20 px knob, on a fresh window at 320 × 500: the selects, inputs and
+    body rode the knob, and the title read 22.2 px (15.54 px at default). The
+    footer was pinned and the body scrolled.
+  - The Apply button stayed 14 px. It was fixed on the walk, and read again
+    after a real reload: 20 px raised, 14 px at default.
+  - The header's two icon buttons are core's and stay 14 px. They hold
+    glyphs, not type.
 - **The hover pass.** A real `pointerenter` on the caption opened core's
   tooltip with "MM p.11". The figures left bare are the map-cell and output
   chips (5, 10, 50, 100), T-0623's.
@@ -1134,7 +1164,9 @@ Fixture ledger:
   `battlemap/reposition-probe`, cloned from `battlemap/hex-setup-feedback`.
   It holds one wall, one token of `battlemap/plain-character` and one
   painted terrain region. It is left applied: hex rows, grid size 51, 6 mi.
-- Nothing else was built, and nothing was swept.
+- Built and swept: the clone `Scene.IPZxlstAUocB8opp`
+  (`battlemap/reposition-probe@j3`), with the regions painted on it. Removed
+  `[Scene.IPZxlstAUocB8opp]`; could not find `[]`; refused `[]`.
 - `formation/combat-scene` was only read, and rescaled to no change.
 
 #### Checked offline only
@@ -1150,14 +1182,22 @@ Fixture ledger:
   on a kept fixture. Covered by `test-battlemap-panel`.
 - Step 16, a declared system left alone by Apply: `test-battlemap-setup-plan`
   and the panel suite.
+- The scale-only apply asks for `autoReposition` only when `grid.size`
+  changes: `test-battlemap-panel`'s `writeOptions` assertions.
+- `rekeyPaintedCells`, the pure re-key (merges, emptying, ties, ragged
+  regions): `test-battlemap`.
 
 #### Not checked
 
 - A real Bake upload. It writes a file into the fixtures' folder that
   Foundry cannot delete, so it was replaced in the page as above.
+- The both-missing rescale wording on a live monster token. No world monster
+  carries a size category, and the wording is checked offline.
+- A scale-only apply live.
 - A player seat. Phase 3 joined one and found no Battlemap group, and J
   adds no player-facing surface. Not re-joined.
-- Step 10's stretched scene and step 11's skewed scene: no kept fixture
-  holds either image.
+- An apply on a stretched image (step 10) or a skewed one (step 11). The
+  fixtures folder holds neither image, and making one means an upload
+  Foundry cannot delete. The Bake press above covers step 10's Bake.
 - The `init`, `setup` and `ready` console: no recorder was attached before
   load.
