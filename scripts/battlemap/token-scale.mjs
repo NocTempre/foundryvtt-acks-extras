@@ -11,7 +11,7 @@ import { sceneSetup } from "./scene-setup.mjs";
 import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
-import { sizeSquareFeet } from "../monsters/sizes.mjs";
+import { sizeSquareFeet, sizeSquares } from "../monsters/sizes.mjs";
 import { FLAG_FORMATION_ID, PARTY_TYPE } from "../formation/constants.mjs";
 import { unset } from "../lib/util.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
@@ -71,15 +71,16 @@ export function footprintOf(tokenDoc, scene = tokenDoc?.parent) {
 /**
  * Whether a token is ours to size, and the size it takes. Not ours: whatever
  * `footprintOf` does not judge, and locked tokens. Ours with no size: the
- * footprint is not imported, so it keeps the size it has.
- * @returns {{ours: boolean, size: {width:number, height:number}|null}}
+ * footprint is not imported, so it keeps the size it has. `sizeKey` is the
+ * token's size category, which the report of what a kept token lacks reads.
+ * @returns {{ours: boolean, size: {width:number, height:number}|null, sizeKey: string|null}}
  */
 function resolveSize(tokenDoc, scene) {
-  const notOurs = { ours: false, size: null };
+  const notOurs = { ours: false, size: null, sizeKey: null };
   if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) return notOurs;
-  const { judged, feet, feetPerCell } = footprintOf(tokenDoc, scene);
+  const { judged, feet, feetPerCell, sizeKey } = footprintOf(tokenDoc, scene);
   if (!judged) return notOurs;
-  return { ours: true, size: feet ? { width: tokenSpan(feet.w, feetPerCell), height: tokenSpan(feet.h, feetPerCell) } : null };
+  return { ours: true, size: feet ? { width: tokenSpan(feet.w, feetPerCell), height: tokenSpan(feet.h, feetPerCell) } : null, sizeKey };
 }
 
 /**
@@ -99,12 +100,28 @@ export function sizeForToken(tokenDoc, scene = tokenDoc?.parent) {
  * size they have.
  */
 export function unsizedTokenCount(scene) {
-  let count = 0;
+  return unsizedTokenReport(scene).count;
+}
+
+/**
+ * The tokens `unsizedTokenCount` counts, and which import each is waiting on:
+ * `square` where the footprint square is not imported (every token that is ours
+ * and has no override lacks it), `frontage` where a kept token's size category
+ * has no frontage cell. Both can hold at once, and neither does when no token
+ * is kept.
+ * @returns {{count: number, square: boolean, frontage: boolean}}
+ */
+export function unsizedTokenReport(scene) {
+  const report = { count: 0, square: false, frontage: false };
+  const squareImported = sizeSquareFeet() > 0;
   for (const token of scene?.tokens ?? []) {
-    const { ours, size } = resolveSize(token, scene);
-    if (ours && !size) count++;
+    const { ours, size, sizeKey } = resolveSize(token, scene);
+    if (!ours || size) continue;
+    report.count++;
+    if (!squareImported) report.square = true;
+    if (sizeKey && !sizeSquares(sizeKey)) report.frontage = true;
   }
-  return count;
+  return report;
 }
 
 /**

@@ -18,7 +18,7 @@ import { FAIR_PX, boxSpan,feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSug
 import { bakeCorrectedBackground, solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "./apply.mjs";
 import { expeditionScaleOf, planSetup, resolveCellWorth } from "./setup-plan.mjs";
 import { sceneCountry, sceneSetup, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
-import { autoScaleEnabled, rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints, unsizedTokenCount } from "./token-scale.mjs";
+import { autoScaleEnabled, rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints, unsizedTokenReport } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS, isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
@@ -756,8 +756,21 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     return parts.join(" · ");
   }
 
+  /**
+   * The title names the scene on the canvas, the one the setup draws on.
+   * Without a scene the title is the plain one.
+   */
+  get title() {
+    const name = canvas?.scene?.name;
+    return name ? loc("titleScene", { scene: name }) : loc("title");
+  }
+
   async _onRender(context, options) {
     await super._onRender(context, options);
+    // The frame keeps the title it was built with, so a scene change that
+    // re-renders the window rewrites the heading itself.
+    const heading = this.window?.title;
+    if (heading?.nodeType === 1) heading.textContent = this.title;
     // The panel follows the session, not the other way round. Held only
     // while the window is open — a listener over a closed window would
     // re-open it on the next toolbar press.
@@ -877,9 +890,17 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     if (applied) this.render();
   }
 
+  /**
+   * Bakes wherever the button is offered: a skewed fit carries its basis
+   * vectors and an upright one its two axis sizes, and the bake reads either.
+   * A press that cannot proceed says why in a notice.
+   */
   static async #onBake() {
     const fit = this.fit;
-    if (!fit?.ok || !fit.u || !canvas?.scene) return;
+    if (!canvas?.scene) {
+      ui.notifications.warn(loc("bake.noScene"));
+      return;
+    }
     const result = await bakeCorrectedBackground(canvas.scene, fit);
     if (!result) return;
     // The samples described the crooked image and mean nothing against the
@@ -890,15 +911,22 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   }
 
   /**
-   * The whole-scene resize. The notice names what it left alone: the tokens
-   * whose footprint is not imported keep the size they have.
+   * The whole-scene resize. The tokens whose footprint is not imported keep the
+   * size they have, and the notice is then a warning that names which import is
+   * missing, the square, a size category's frontage, or both. A Judge is told,
+   * never blocked.
    */
   static async #onRescaleTokens() {
     const scene = canvas?.scene;
     if (!scene) return;
     const count = await rescaleSceneTokens(scene);
-    const kept = unsizedTokenCount(scene);
-    ui.notifications.info(kept > 0 ? loc("tokens.rescaledKept", { count, kept }) : loc("tokens.rescaled", { count }));
+    const { count: kept, square, frontage } = unsizedTokenReport(scene);
+    if (!(kept > 0)) {
+      ui.notifications.info(loc("tokens.rescaled", { count }));
+      return;
+    }
+    const missing = loc(square && frontage ? "tokens.missingBoth" : square ? "tokens.missingSquare" : "tokens.missingFrontage");
+    ui.notifications.warn(loc("tokens.rescaledKept", { count, kept, missing }));
   }
 
   /**
@@ -963,10 +991,22 @@ function cellOnCanvas(fit) {
  */
 let assistant = null;
 
-/** Bring the panel up, creating it the first time. */
-export function openAssistant() {
+/**
+ * Bring the panel up, creating it the first time. The setup draws on the
+ * canvas, so it can only set up the scene being viewed: with no `scene`, or the
+ * viewed one, the panel opens at once and the app is returned (null for a
+ * non-GM). Given another scene, that scene is viewed first and the answer is a
+ * Promise of the app, so the window never opens on the wrong scene.
+ * @param {Scene|null} [scene]
+ * @returns {BattlemapAssistant|null|Promise<BattlemapAssistant>}
+ */
+export function openAssistant(scene = null) {
   if (!game.user.isGM) return null;
-  assistant ??= new BattlemapAssistant();
-  assistant.render({ force: true });
-  return assistant;
+  const open = () => {
+    assistant ??= new BattlemapAssistant();
+    assistant.render({ force: true });
+    return assistant;
+  };
+  if (scene && scene.id !== canvas?.scene?.id) return Promise.resolve(scene.view()).then(open);
+  return open();
 }

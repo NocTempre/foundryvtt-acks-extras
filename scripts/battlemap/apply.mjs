@@ -261,10 +261,14 @@ export async function writeSetup(scene, { solution, update }, { family, autoScal
  * @param {Scene} scene
  * @param {object} fit  Any fit; `u`/`v` when affine, else the axis sizes.
  * @returns {Promise<{fit: object, path: string}|null>} the corrected image's
- *   exact square fit (image px of the NEW file), or null on refusal.
+ *   exact square fit (image px of the NEW file), or null on refusal. Every
+ *   refusal raises a notice that says why.
  */
 export async function bakeCorrectedBackground(scene, fit) {
-  if (!fit?.ok) return null;
+  if (!fit?.ok) {
+    ui.notifications.warn(loc("bake.noFit"));
+    return null;
+  }
   if (!game.user.can("FILES_UPLOAD")) {
     ui.notifications.warn(loc("warn.noUpload"));
     return null;
@@ -280,7 +284,10 @@ export async function bakeCorrectedBackground(scene, fit) {
   const u = fit.u ?? { x: fit.sizeX, y: 0 };
   const v = fit.v ?? { x: 0, y: fit.sizeY };
   const det = u.x * v.y - u.y * v.x;
-  if (Math.abs(det) < 1e-9) return null;
+  if (!(Math.abs(det) >= 1e-9)) {
+    ui.notifications.warn(loc("bake.degenerate"));
+    return null;
+  }
   // The larger edge is the target, so only the short axis stretches.
   const s = Math.max(Math.hypot(u.x, u.y), Math.hypot(v.x, v.y));
   const a = (s * v.y) / det;

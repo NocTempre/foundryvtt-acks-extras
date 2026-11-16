@@ -63,9 +63,16 @@ const clones = { count: 0, broken: false };
  * target grid, and writes that land like core's (a field it will not take is
  * dropped). `afterWrite` stands in for the `updateScene` hook module.mjs wires.
  */
-function makeScene({ id = "S1", type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false, placed = {} } = {}) {
+function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false, placed = {} } = {}) {
   const scene = {
     id,
+    name,
+    /** Viewing a scene puts it on the canvas, as core's does. */
+    async view() {
+      scene.viewed++;
+      canvas.scene = scene;
+    },
+    viewed: 0,
     width: 4000,
     height: 3000,
     shiftX: 0,
@@ -96,7 +103,8 @@ function makeScene({ id = "S1", type = 0, size = 100, distance = 9, units = "ft"
       scene.writes.push(patch);
       for (const [k, v] of Object.entries(patch)) {
         if (k === "grid.type" && rejectType) continue;
-        if (k.startsWith("grid.")) scene.grid[k.slice(5)] = v;
+        if (k === "background.src") scene.background.src = v;
+        else if (k.startsWith("grid.")) scene.grid[k.slice(5)] = v;
         else if (k === `flags.${MODULE_ID}.${FLAG}`) scene.flags[MODULE_ID][FLAG] = { ...v };
         else scene[k] = v;
       }
@@ -777,20 +785,212 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
-  // The rescale notice names what it left alone.
+  // The rescale notice is a warning when it left a token alone, and names which
+  // import that token is waiting on; with nothing kept it is the plain count.
+  const { PRIORITY, registerTable, resetTables } = await import(root("scripts/lib/tables.mjs").href);
+  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE } = await import(root("scripts/monsters/sizes.mjs").href);
+  const importSizes = ({ frontage = null, square = null } = {}) => {
+    resetTables();
+    const tables = {};
+    if (frontage) tables[SIZE_TABLE] = { [SIZE_ROW]: frontage };
+    if (square) tables[SQUARE_TABLE] = { [SIZE_ROW]: { feet: square } };
+    if (Object.keys(tables).length) registerTable({ id: SIZE_DOC, tables }, { priority: PRIORITY.WORLD });
+  };
   const scene = makeScene({ units: "ft", distance: 5 });
   setup({ family: "hexRows", scene, units: "ft" });
-  const token = { id: "t1", width: 1, height: 1, getFlag: () => undefined, actor: { documentName: "Actor", type: "monster", getFlag: () => undefined } };
+  const tokenOf = (id, sizeKey = null) => {
+    const extras = sizeKey ? { size: sizeKey } : undefined;
+    return { id, width: 1, height: 1, getFlag: (_ns, key) => (key === "extras" ? extras : undefined), actor: { documentName: "Actor", type: "monster", getFlag: (_ns, key) => (key === "extras" ? extras : undefined) } };
+  };
   scene.updateEmbeddedDocuments = async () => {};
   const rescale = App.DEFAULT_OPTIONS.actions.rescaleTokens;
+  const lastNote = () => {
+    const [level, text] = notes.at(-1);
+    return { level, key: keyOf(text), data: text.includes("{") ? JSON.parse(text.slice(text.indexOf("{"))) : null };
+  };
 
+  resetTables();
   scene.tokens = [];
   await rescale.call(app);
-  assert.equal(keyOf(notes.at(-1)[1]), "tokens.rescaled", "nothing left alone: the plain count");
-  scene.tokens = [token];
+  assert.deepEqual([lastNote().level, lastNote().key], ["info", "tokens.rescaled"], "nothing left alone: the plain count");
+
+  // Nothing imported: every token that is ours is kept, and the warning names both.
+  scene.tokens = [tokenOf("t1", "large"), tokenOf("t2")];
   await rescale.call(app);
-  assert.equal(keyOf(notes.at(-1)[1]), "tokens.rescaledKept", "a token with no imported footprint is reported");
-  assert.deepEqual(JSON.parse(notes.at(-1)[1].slice(notes.at(-1)[1].indexOf("{"))), { count: 0, kept: 1 });
+  let note = lastNote();
+  assert.deepEqual([note.level, note.key], ["warn", "tokens.rescaledKept"], "a token with no imported footprint is a warning, not an info");
+  assert.equal(note.data.count, 0, "nothing was resized");
+  assert.equal(note.data.kept, 2, "both tokens kept their size");
+  assert.equal(keyOf(note.data.missing), "tokens.missingBoth", "neither the square nor the frontage is imported, and the warning says both");
+
+  // The square alone: a token with no category is sized, a categorised one is kept for want of a frontage.
+  importSizes({ square: 4 });
+  await rescale.call(app);
+  note = lastNote();
+  assert.deepEqual([note.level, note.key], ["warn", "tokens.rescaledKept"]);
+  assert.equal(note.data.count, 1, "the token with no category took the square's size");
+  assert.equal(note.data.kept, 1);
+  assert.equal(keyOf(note.data.missing), "tokens.missingFrontage", "the square is imported, so the frontage is what is named");
+
+  // The frontage alone: no token has a footprint without the square.
+  importSizes({ frontage: { large: "2 x 2" } });
+  await rescale.call(app);
+  note = lastNote();
+  assert.equal(note.level, "warn");
+  assert.equal(note.data.kept, 2);
+  assert.equal(keyOf(note.data.missing), "tokens.missingSquare", "the frontage is imported, so the square is what is named");
+
+  // Both imported: every token is sized, and the notice is the plain count.
+  importSizes({ frontage: { large: "2 x 2" }, square: 4 });
+  scene.tokens = [tokenOf("t1", "large"), tokenOf("t2")];
+  await rescale.call(app);
+  note = lastNote();
+  assert.deepEqual([note.level, note.key], ["info", "tokens.rescaled"], "all imported: an info with no kept clause");
+  assert.equal(note.data.count, 2);
+  resetTables();
+}
+
+{
+  // Bake. An upright fit whose X and Y differ is offered Bake, and the press
+  // reaches the bake: it writes a corrected image and points the scene at it.
+  const scene = makeScene({ type: 1 });
+  setup({ family: "square", scene });
+  session.independentXY = true;
+  session.samples = { squares: [{ x: 100, y: 80, w: 60, h: 90, across: 1, down: 1 }, { x: 160, y: 80, w: 60, h: 90, across: 1, down: 1 }, { x: 100, y: 170, w: 60, h: 90, across: 1, down: 1 }], corners: [], scale: null };
+  const fit = session.fit;
+  assert.ok(fit?.ok, "the boxes fit");
+  assert.ok(!fit.u, "an upright fit carries no basis vectors");
+  assert.ok(Math.abs(fit.sizeX - fit.sizeY) / Math.max(fit.sizeX, fit.sizeY) > 0.05, "and its axes differ");
+  const c = await ctx();
+  assert.equal(c.canBake, true, "Bake is offered for an upright fit whose cells are not square");
+
+  // The stand-ins the bake draws through: a renderer, a file upload, the scene write.
+  const prior = { PIXI: globalThis.PIXI, user: game.user, app: canvas.app, apps: foundry.applications.apps };
+  const matrices = [];
+  class Container {
+    transform = { setFromMatrix: (m) => matrices.push(m) };
+    addChild() {}
+    destroy() {}
+  }
+  globalThis.PIXI = {
+    Sprite: class {},
+    Texture: class {},
+    Container,
+    Matrix: class { constructor(...v) { this.v = v; } },
+    RenderTexture: { create: () => ({ destroy() {} }) },
+  };
+  game.user = { isGM: true, can: () => true };
+  canvas.app = { renderer: { render() {}, extract: { base64: async () => "data:image/webp;base64,AAAA" } } };
+  const uploads = [];
+  foundry.applications.apps = { FilePicker: { upload: async (...args) => (uploads.push(args), { path: "uploads/map-aligned.webp" }) } };
+  try {
+    notes.length = 0;
+    session.bakedFit = null;
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.equal(uploads.length, 1, "the press reached the bake and uploaded the corrected image");
+    assert.equal(scene.background.src, "uploads/map-aligned.webp", "the scene is pointed at the corrected image");
+    assert.equal(matrices.length, 1);
+    const [a, b, cc, d] = matrices[0].v;
+    near(a * fit.sizeX, d * fit.sizeY, 1e-6, "each axis is stretched to the same cell edge");
+    near(b, 0, 1e-9, "no shear on the first axis");
+    near(cc, 0, 1e-9, "no shear on the second");
+    assert.equal(notes.at(-1)[0], "info");
+    assert.equal(keyOf(notes.at(-1)[1]), "bake.done");
+    assert.ok(session.bakedFit?.ok && session.bakedFit.sizeX === session.bakedFit.sizeY, "the retained fit is the square one");
+
+    // A press that cannot proceed says why; it never returns silently.
+    notes.length = 0;
+    uploads.length = 0;
+    game.user = { isGM: true, can: () => false };
+    scene.background.src = "map.webp";
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.deepEqual(notes.map(([level, text]) => [level, keyOf(text)]), [["warn", "warn.noUpload"]], "no upload permission: a warning that says so");
+    assert.equal(uploads.length, 0);
+
+    game.user = { isGM: true, can: () => true };
+    notes.length = 0;
+    scene.background.src = null;
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.deepEqual(notes.map(([level, text]) => [level, keyOf(text)]), [["warn", "warn.noBackground"]], "no background image: a warning that says so");
+
+    scene.background.src = "map.webp";
+    session.bakedFit = { ...session.bakedFit, sizeX: 0, sizeY: 0 };
+    session.samples = { squares: [], corners: [], scale: null };
+    notes.length = 0;
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.deepEqual(notes.map(([level, text]) => [level, keyOf(text)]), [["warn", "bake.degenerate"]], "a fit with no cell shape: a warning that says so");
+
+    session.bakedFit = null;
+    notes.length = 0;
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.deepEqual(notes.map(([level, text]) => [level, keyOf(text)]), [["warn", "bake.noFit"]], "no fit at all: a warning that says so");
+
+    canvas.scene = null;
+    notes.length = 0;
+    await App.DEFAULT_OPTIONS.actions.bake.call(app);
+    assert.deepEqual(notes.map(([level, text]) => [level, keyOf(text)]), [["warn", "bake.noScene"]], "no scene: a warning that says so");
+  } finally {
+    globalThis.PIXI = prior.PIXI;
+    game.user = prior.user;
+    canvas.app = prior.app;
+    foundry.applications.apps = prior.apps;
+    session.independentXY = false;
+  }
+}
+
+{
+  // The window names its scene and follows a scene change.
+  const first = makeScene({ id: "S1", name: "Alpha" });
+  const second = makeScene({ id: "S2", name: "Beta" });
+  setup({ family: "square", scene: first });
+  assert.equal(keyOf(app.title), "titleScene", "the title carries the scene");
+  assert.deepEqual(JSON.parse(app.title.slice(app.title.indexOf("{"))), { scene: "Alpha" }, "and names it");
+  const heading = { nodeType: 1, textContent: "" };
+  app.window = { title: heading };
+  await app._onRender({}, {});
+  assert.equal(JSON.parse(heading.textContent.slice(heading.textContent.indexOf("{"))).scene, "Alpha", "the heading shows it");
+  canvas.scene = second;
+  await app._onRender({}, {});
+  assert.equal(JSON.parse(heading.textContent.slice(heading.textContent.indexOf("{"))).scene, "Beta", "a render after a scene change rewrites the heading");
+  canvas.scene = null;
+  assert.equal(keyOf(app.title), "title", "with no scene it is the plain title");
+  app.window = undefined;
+
+  // openAssistant: the viewed scene opens at once; another is viewed first, then opened.
+  const { openAssistant } = await import(root("scripts/battlemap/assistant-app.mjs").href);
+  canvas.scene = first;
+  const order = [];
+  const render = App.prototype.render;
+  App.prototype.render = function (...args) {
+    order.push(`render:${canvas.scene?.id}`);
+    return render.apply(this, args);
+  };
+  try {
+    const shown = openAssistant();
+    assert.ok(!(shown instanceof Promise) && shown, "no scene: synchronous, the app comes back");
+    assert.equal(openAssistant(first), shown, "the viewed scene: synchronous too");
+    assert.deepEqual(order, ["render:S1", "render:S1"]);
+    assert.equal(first.viewed, 0, "the viewed scene is not viewed again");
+
+    order.length = 0;
+    const view = second.view;
+    second.view = async () => {
+      order.push("view");
+      await view();
+    };
+    const pending = openAssistant(second);
+    assert.ok(pending instanceof Promise, "another scene: a Promise of the app");
+    assert.deepEqual(order, ["view"], "nothing renders before the scene is viewed");
+    assert.equal(await pending, shown);
+    assert.deepEqual(order, ["view", "render:S2"], "the scene is viewed first, then the panel opens on it");
+
+    game.user.isGM = false;
+    assert.equal(openAssistant(second), null, "a non-GM gets nothing");
+  } finally {
+    game.user.isGM = true;
+    App.prototype.render = render;
+  }
+  canvas.scene = null;
 }
 
 /* -------------------------------------------- */
