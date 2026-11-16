@@ -425,7 +425,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     const honest = hexBox(family, 8, 8);
     setup({ family, scene: makeScene(), samples: { squares: [block(family, cells), honest] }, opts: { mapCellFeet: 3 }, units: "ft" });
     let after = await ctx();
-    assert.deepEqual(after.warnLines.map(keyOf).filter((k) => k.startsWith("warn.familyMismatch")), ["warn.familyMismatchLoneSplit"], `${family}: block first, then a one-hex box`);
+    assert.deepEqual(after.warnLines.map(keyOf).filter((k) => k.startsWith("warn.familyMismatch")), [], `${family}: block first, then a one-hex box`);
     assert.ok(after.unusedLines.map(keyOf).includes("unused.multiHexBoxes"), "the box that was left out is named");
     assert.equal(after.canApply, true);
     setup({ family, scene: makeScene(), samples: { squares: [honest, block(family, cells)] }, opts: { mapCellFeet: 3 }, units: "ft" });

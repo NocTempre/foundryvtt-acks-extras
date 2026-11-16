@@ -1218,8 +1218,9 @@ const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * 
       }
     }
   }
-  // A lone block among two boxes the other size is not the consensus: the
-  // earlier box stands.
+  // Two groups of one tie in size. Where one is smaller on both axes by more
+  // than the spread it is the consensus, in whichever order they were drawn;
+  // the earlier stands only where neither is clearly smaller.
   const t = HEX_TYPES_UNDER_TEST[0];
   const first = hexBox(t, IMAGES.large, 0, 0);
   const lone = fitHexLattice({ boxes: [first, { ...first, x: first.x + 600, w: 3 * first.w, h: 3 * first.h }], probe: t.probe });
@@ -1228,6 +1229,58 @@ const relErr = (t, image, fit) => Math.max(Math.abs(fit.sizeX / (t.probe.refW * 
   assert.ok(HEX_SHAPE_LEAN > 0 && HEX_SHAPE_LEAN < 0.15, "the shape lean stays under half-way to the other family");
   assert.ok(HEX_SIZE_SPREAD > 0);
   assert.deepEqual([HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX], [3, 3.5, 2, 2.5, 6], "the figures every band is derived from");
+}
+
+// A box drawn around several hexes ties in size with an honest one-hex box,
+// and the honest box is the consensus whichever was drawn first: the hex comes
+// out at the honest size and the block is the box left out. Two honest boxes
+// against two blocks give the same answer in every draw order.
+{
+  const around = (t, image, cells) => {
+    const rects = boxesAt(t, image, cells);
+    const x = Math.min(...rects.map((r) => r.x));
+    const y = Math.min(...rects.map((r) => r.y));
+    return { x, y, w: Math.max(...rects.map((r) => r.x + r.w)) - x, h: Math.max(...rects.map((r) => r.y + r.h)) - y };
+  };
+  const SHAPES = {
+    "adjacent pair along i": (i, j) => [[i, j], [i + 1, j]],
+    "adjacent pair along j": (i, j) => [[i, j], [i, j + 1]],
+    "2x2 block": (i, j) => [[i, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]],
+    triangle: (i, j) => [[i, j], [i + 1, j], [i, j + 1]],
+  };
+  const permutations = (xs) => (xs.length < 2 ? [xs] : xs.flatMap((x, n) => permutations([...xs.slice(0, n), ...xs.slice(n + 1)]).map((rest) => [x, ...rest])));
+  const SMALL = { k: { x: 30.7 / ROWS_PROBE.refW, y: 30.7 / ROWS_PROBE.refW }, scale: { x: 1, y: 1 } };
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [imageName, image] of Object.entries({ ...IMAGES, small: SMALL })) {
+      for (const [shape, cellsAt] of Object.entries(SHAPES)) {
+        const where = `${t.name}, ${imageName}, ${shape}`;
+        const honest = hexBox(t, image, 8, 8);
+        const block = around(t, image, cellsAt(0, 0));
+        const lastFirst = fitFor(t, image, [block, honest]);
+        assert.equal(lastFirst.ok, true, where);
+        assert.equal(lastFirst.used, 1, `${where}: the honest box alone is used`);
+        assert.equal(lastFirst.boxes[0].notOneHex, true, `${where}: the block drawn first is left out`);
+        assert.equal(lastFirst.boxes[1].notOneHex, false, `${where}: the honest box is not flagged`);
+        near(lastFirst.sizeX, honest.w, 1e-6, `${where}: the hex is the honest width`);
+        near(lastFirst.sizeY, honest.h, 1e-6, `${where}: the hex is the honest height`);
+        const firstFirst = fitFor(t, image, [honest, block]);
+        assert.equal(firstFirst.boxes[1].notOneHex, true, `${where}: the block drawn second is left out`);
+        near(firstFirst.sizeX, honest.w, 1e-6, `${where}: either order gives the honest width`);
+
+        const honestPair = [hexBox(t, image, 8, 8), hexBox(t, image, 9, 8)];
+        const blocks = [around(t, image, cellsAt(0, 0)), around(t, image, cellsAt(4, 0))];
+        const labelled = [...honestPair.map((b) => ({ b, honest: true })), ...blocks.map((b) => ({ b, honest: false }))];
+        for (const order of permutations(labelled)) {
+          const fit = fitFor(t, image, order.map((o) => o.b));
+          const drawn = order.map((o) => (o.honest ? "H" : "B")).join("");
+          assert.equal(fit.ok, true, `${where}, ${drawn}`);
+          assert.equal(fit.used, 2, `${where}, ${drawn}: the two honest boxes are used`);
+          order.forEach((o, n) => assert.equal(fit.boxes[n].notOneHex, !o.honest, `${where}, ${drawn}: box ${n}`));
+          near(fit.sizeX, honest.w, 1e-6, `${where}, ${drawn}: the hex is the honest width`);
+        }
+      }
+    }
+  }
 }
 
 // A box of the other family's shape is not left out by its shape: where the

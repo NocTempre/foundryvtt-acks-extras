@@ -728,13 +728,21 @@ function solveHexLattice({ boxes, probe, scale, otherProbe }) {
     candidates.push({ index, aspect, k: { x: b.w / ref.x, y: b.h / ref.y } });
   });
 
-  // Size consensus: the largest group of boxes that agree, earliest on a tie.
+  // Size consensus: the largest group of boxes that agree. Two equal groups
+  // that share no box are told apart by size: a box around several hexes is
+  // larger on both axes than any one hex drawn loosely, so the group smaller
+  // on both axes by more than the spread wins; otherwise the earlier group
+  // stands.
   const spread = Math.log(1 + HEX_SIZE_SPREAD);
   const agrees = (a, b) => Math.abs(Math.log(a.k.x / b.k.x)) <= spread && Math.abs(Math.log(a.k.y / b.k.y)) <= spread;
+  const logK = (g, axis) => mean(g.map((o) => Math.log(o.k[axis])));
+  const apart = (a, b) => !a.some((o) => b.includes(o));
+  const clearlySmaller = (g, than) => ["x", "y"].every((axis) => logK(than, axis) - logK(g, axis) > spread);
   let cluster = [];
   for (const c of candidates) {
     const group = candidates.filter((o) => agrees(o, c));
-    if (group.length > cluster.length) cluster = group;
+    const smallerApart = group.length === cluster.length && apart(group, cluster) && clearlySmaller(group, cluster);
+    if (group.length > cluster.length || smallerApart) cluster = group;
   }
   if (!cluster.length) return { ok: false, info };
   const inCluster = new Set(cluster.map((c) => c.index));
