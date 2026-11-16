@@ -17,7 +17,7 @@
 import { MODULE_ID, FLAG_SPELL, LANG_PREFIX, SPELL_TYPE } from "./constants.mjs";
 import SpellExtras from "./spell-extras.mjs";
 import { describeSpellEffect } from "./describe.mjs";
-import { displayRange, displayDuration, coreFieldsFrom } from "./spell-logic.mjs";
+import { displayRange, displayDuration, coreFieldsFrom, retiredWith } from "./spell-logic.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
 import { summonRefName } from "../lib/summons-logic.mjs";
@@ -41,7 +41,9 @@ const loc = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.${key}`, data);
  * The effect-row store over one spell item — what the shared editor reads
  * and writes. Rows are written through the whole flag's normalisation, so a
  * row the editor hands back is cleaned exactly as a sheet submit would clean
- * it.
+ * it. A write that names the row a delete took out (`removed`) retires its key
+ * in the same update when it is a register's (`retiredWith`), so a repair does
+ * not write the row back.
  */
 export function spellEffectStore(item) {
   return {
@@ -49,11 +51,12 @@ export function spellEffectStore(item) {
     label: item.name,
     domain: "spell",
     read: () => SpellExtras.fromItem(item).toObject().effects,
-    write: async (rows) => {
+    write: async (rows, { removed } = {}) => {
       const data = SpellExtras.fromItem(item).toObject();
       data.effects = rows;
+      data.retired = retiredWith(data.retired, removed);
       const clean = SpellExtras.normalize(data);
-      await item.update({ [`${FLAG_PATH}.effects`]: clean.effects });
+      await item.update({ [`${FLAG_PATH}.effects`]: clean.effects, [`${FLAG_PATH}.retired`]: clean.retired });
       return clean.effects;
     },
   };

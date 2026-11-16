@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { materializeEffects } from "../../scripts/importer/executor.mjs";
 import { bindSpell } from "../../scripts/importer/cookbook/variations.mjs";
-import { REPAIR, mergeRowsByOrigin, refreshPlan } from "../../scripts/importer/refresh.mjs";
+import { REPAIR, decidedPolicy, mergeRowsByOrigin, refreshPlan } from "../../scripts/importer/refresh.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { spellRecipeProblems } from "./spell-recipe-rules.mjs";
 
@@ -31,6 +31,7 @@ const PROSE = paras(
 );
 const DICE = "\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?";
 const ROW = {
+  key: "scorch",
   type: "damage",
   appliesTo: "area",
   saveEffect: "half",
@@ -146,6 +147,7 @@ t("bindSpell writes the recipe's rows stamped as the register's, and merges the 
   const spell = built.flags[MODULE_ID].spell;
   assert.equal(spell.effects.length, 1);
   assert.equal(spell.effects[0].origin, "register");
+  assert.equal(spell.effects[0].key, "scorch", "the authored key rides into the row");
   assert.equal(spell.effects[0].roll, "2d8+3");
   assert.equal(spell.save.category, "death");
   assert.equal(spell.save.kind, "save");
@@ -169,24 +171,103 @@ t("a spell whose recipe dropped every row still binds with no rows", () => {
 });
 
 /* -------------------------------------------- */
-/*  repair by origin                             */
+/*  repair by origin and key                     */
 /* -------------------------------------------- */
 
 const register = (roll) => ({ type: "damage", roll, origin: "register" });
+const reg = (key, roll) => ({ key, type: "damage", roll, origin: "register" });
 const judge = { type: "heal", roll: "1d4", origin: "" };
-const edited = { type: "damage", roll: "9d9", origin: "" };
-const stored = (rows) => ({ type: "spell", system: {}, flags: { [MODULE_ID]: { spell: { effects: rows } } } });
-const freshBuild = (rows) => ({ type: "spell", system: {}, flags: { [MODULE_ID]: { spell: rows ? { effects: rows } : {} } } });
+const edited0 = { type: "damage", roll: "9d9", origin: "" };
+const own = { key: "_abcd1234", type: "damage", roll: "7d7", origin: "" };
+const edited = (key, roll = "9d9") => ({ key, type: "damage", roll, origin: "" });
+const stored = (rows, { retired, spell = {}, read } = {}) => ({
+  type: "spell",
+  system: {},
+  flags: { [MODULE_ID]: { spell: { ...spell, effects: rows, ...(retired ? { retired } : {}) }, ...(read ? { cookbook: { read: { spell: read } } } : {}) } },
+});
+const freshBuild = (rows, { spell = {}, read } = {}) => ({
+  type: "spell",
+  system: {},
+  flags: { [MODULE_ID]: { spell: { ...spell, ...(rows ? { effects: rows } : {}) }, ...(read ? { cookbook: { read: { spell: read } } } : {}) } },
+});
 const rowsAfter = (plan) => plan.update.flags[MODULE_ID].spell.effects;
 
 t("a repair replaces the register's rows from the fresh bind and keeps a Judge's, in order", () => {
-  const plan = refreshPlan(stored([judge, register("1d1"), edited]), freshBuild([register("2d2"), register("3d3")]), REPAIR.spell);
-  assert.deepEqual(rowsAfter(plan), [judge, register("2d2"), register("3d3"), edited]);
+  const plan = refreshPlan(stored([judge, register("1d1"), edited0]), freshBuild([register("2d2"), register("3d3")]), REPAIR.spell);
+  assert.deepEqual(rowsAfter(plan), [judge, register("2d2"), register("3d3"), edited0]);
 });
 
-t("a register row a Judge edited has lost its stamp, so a repair keeps it and the fresh row joins it", () => {
-  const plan = refreshPlan(stored([edited]), freshBuild([register("2d2")]), REPAIR.spell);
-  assert.deepEqual(rowsAfter(plan), [register("2d2"), edited]);
+t("a stamped row with no key is replaced, and so is one whose key the build no longer has", () => {
+  const { rows, kept } = mergeRowsByOrigin([register("1d1"), judge, reg("gone", "5d5")], [reg("a", "2d2"), reg("b", "3d3")]);
+  assert.deepEqual(rows, [reg("a", "2d2"), reg("b", "3d3"), judge]);
+  assert.deepEqual(kept, []);
+});
+
+t("a stamped row is replaced by the fresh row of its key, in its own place", () => {
+  const { rows } = mergeRowsByOrigin([judge, reg("b", "1d1"), own, reg("a", "1d1")], [reg("a", "2d2"), reg("b", "3d3")]);
+  assert.deepEqual(rows, [judge, reg("b", "3d3"), own, reg("a", "2d2")]);
+});
+
+t("a register row the fresh build gained goes in at the first stamped row's place", () => {
+  const { rows } = mergeRowsByOrigin([judge, reg("a", "1d1")], [reg("a", "2d2"), reg("c", "4d4")]);
+  assert.deepEqual(rows, [judge, reg("c", "4d4"), reg("a", "2d2")]);
+});
+
+t("an edited register row stands in for the fresh one, which is not added, and is held when it no longer covers it", () => {
+  const mine = edited("a");
+  const { rows, kept } = mergeRowsByOrigin([judge, mine], [reg("a", "2d2")]);
+  assert.deepEqual(rows, [judge, mine], "no fourth row beside the Judge's");
+  assert.deepEqual(kept, [{ key: "a", current: mine, page: reg("a", "2d2") }]);
+  const plan = refreshPlan(stored([judge, mine]), freshBuild([reg("a", "2d2")]), REPAIR.spell);
+  assert.deepEqual(rowsAfter(plan), [judge, mine]);
+  assert.deepEqual(plan.keptRows, [{ key: "a", current: mine, page: reg("a", "2d2"), path: "spell.effects" }]);
+});
+
+t("a decision that takes the held row puts the fresh row in its place, and no other row moves", () => {
+  const { rows, kept } = mergeRowsByOrigin([judge, edited("a"), own], [reg("a", "2d2")], { take: new Set(["a"]) });
+  assert.deepEqual(rows, [judge, reg("a", "2d2"), own]);
+  assert.deepEqual(kept, []);
+});
+
+t("a Judge's row that still covers the fresh row raises nothing, whatever it adds or clears beside it", () => {
+  const fresh = { ...reg("a", "2d2"), damage: ["alpha"], unread: ["extraordinary"] };
+  const mine = { ...edited("a", "2d2"), damage: ["alpha"], note: "mine", condition: "when angry", extraordinary: true };
+  const { rows, kept } = mergeRowsByOrigin([mine], [fresh]);
+  assert.deepEqual(rows, [mine]);
+  assert.deepEqual(kept, []);
+});
+
+t("a retired key is skipped and held, and a decision that takes it writes the row and clears the key", () => {
+  const kept = mergeRowsByOrigin([judge], [reg("a", "2d2"), reg("b", "3d3")], { retired: ["a"] });
+  assert.deepEqual(kept.rows, [reg("b", "3d3"), judge]);
+  assert.deepEqual(kept.retired, ["a"]);
+  assert.deepEqual(kept.kept, [{ key: "a", page: reg("a", "2d2"), retired: true }]);
+  const taken = mergeRowsByOrigin([judge], [reg("a", "2d2"), reg("b", "3d3")], { retired: ["a"], take: new Set(["a"]) });
+  assert.deepEqual(taken.rows, [reg("a", "2d2"), reg("b", "3d3"), judge]);
+  assert.deepEqual(taken.retired, []);
+  assert.deepEqual(taken.kept, []);
+  const plan = refreshPlan(stored([judge], { retired: ["a"] }), freshBuild([reg("a", "2d2")]), REPAIR.spell);
+  assert.deepEqual(rowsAfter(plan), [judge], "the repair writes no row for a retired key");
+  assert.deepEqual(plan.keptRows.map((r) => [r.key, r.retired]), [["a", true]]);
+  assert.ok(!("retired" in plan.update.flags[MODULE_ID].spell), "and leaves the retired list as it stands");
+  const restored = refreshPlan(stored([judge], { retired: ["a"] }), freshBuild([reg("a", "2d2")]), { ...REPAIR.spell, takeRows: new Set(["a"]) });
+  assert.deepEqual(rowsAfter(restored), [reg("a", "2d2"), judge]);
+  assert.deepEqual(restored.update.flags[MODULE_ID].spell.retired, []);
+});
+
+t("a Judge's own row, keyed with an underscore, stays through every repair, a forced one included", () => {
+  const unforced = mergeRowsByOrigin([own, reg("a", "1d1")], [reg("a", "2d2")]);
+  assert.deepEqual(unforced.rows, [own, reg("a", "2d2")]);
+  const forced = mergeRowsByOrigin([own, edited("a")], [reg("a", "2d2")], { force: true });
+  assert.deepEqual(forced.rows, [own, reg("a", "2d2")], "force puts the page over an edited register row");
+  assert.deepEqual(forced.kept, []);
+});
+
+t("a forced repair writes a retired row back and clears the key", () => {
+  const plan = refreshPlan(stored([judge], { retired: ["a"] }), freshBuild([reg("a", "2d2")]), { ...REPAIR.spell, force: true });
+  assert.deepEqual(rowsAfter(plan), [reg("a", "2d2"), judge]);
+  assert.deepEqual(plan.update.flags[MODULE_ID].spell.retired, []);
+  assert.deepEqual(plan.keptRows, []);
 });
 
 t("a repair whose build carries no rows removes the register's and keeps the Judge's", () => {
@@ -200,8 +281,103 @@ t("a repair with nothing stored and nothing built writes no rows", () => {
 });
 
 t("mergeRowsByOrigin tolerates a missing side", () => {
-  assert.deepEqual(mergeRowsByOrigin(undefined, [register("1d1")]), [register("1d1")]);
-  assert.deepEqual(mergeRowsByOrigin([judge], undefined), [judge]);
+  assert.deepEqual(mergeRowsByOrigin(undefined, [register("1d1")]).rows, [register("1d1")]);
+  assert.deepEqual(mergeRowsByOrigin([judge], undefined).rows, [judge]);
+});
+
+/* -------------------------------------------- */
+/*  the values leaves                            */
+/* -------------------------------------------- */
+
+const READ = { "save%2Ecategory": "alpha", "target%2Earea%2Esize%2Eflat": 15, "target%2Efilters": ["living"] };
+const spellOf = (category) => ({ save: { category, effect: "half" }, target: { area: { size: { kind: "flat", flat: 15 } }, filters: ["living"] } });
+const leafPlan = (have, { stamp = READ, page = "beta", policy = REPAIR.spell } = {}) =>
+  refreshPlan(stored([], { spell: spellOf(have), ...(stamp ? { read: stamp } : {}) }), freshBuild([], { spell: spellOf(page), read: { ...READ, "save%2Ecategory": page } }), policy);
+const writtenCategory = (plan) => plan.update.flags[MODULE_ID].spell.save?.category;
+const stampedCategory = (plan) => plan.update.flags[MODULE_ID].cookbook.read.spell["save%2Ecategory"];
+
+t("a leaf still as the import wrote it takes the page's new figure, and the stamp follows", () => {
+  const plan = leafPlan("alpha");
+  assert.equal(writtenCategory(plan), "beta");
+  assert.equal(stampedCategory(plan), "beta");
+  assert.deepEqual(plan.keptLeaves, []);
+});
+
+t("a leaf that already holds the page's figure raises nothing", () => {
+  const plan = leafPlan("beta");
+  assert.equal(writtenCategory(plan), "beta");
+  assert.deepEqual(plan.keptLeaves, []);
+});
+
+t("a leaf that differs from both the stamp and the page is held, and the stamp keeps what the import wrote", () => {
+  const plan = leafPlan("gamma");
+  assert.equal(writtenCategory(plan), undefined, "the Judge's figure is not written over");
+  assert.equal(plan.update.flags[MODULE_ID].spell.save.effect, "half", "its neighbours still are");
+  assert.equal(stampedCategory(plan), "alpha", "the next repair finds the difference again");
+  assert.deepEqual(plan.keptLeaves, [{ path: "spell", leaf: "save.category", current: "gamma", page: "beta" }]);
+  assert.equal(leafPlan("gamma", { stamp: plan.update.flags[MODULE_ID].cookbook.read.spell }).keptLeaves.length, 1, "and holds it again");
+});
+
+t("a decision that takes the held leaf writes the page's figure and stamps it", () => {
+  const plan = leafPlan("gamma", { policy: { ...REPAIR.spell, takeLeaves: new Set(["save.category"]) } });
+  assert.equal(writtenCategory(plan), "beta");
+  assert.equal(stampedCategory(plan), "beta");
+  assert.deepEqual(plan.keptLeaves, []);
+});
+
+t("a leaf in a spell imported before the stamp existed takes the page", () => {
+  const plan = leafPlan("gamma", { stamp: null });
+  assert.equal(writtenCategory(plan), "beta");
+  assert.deepEqual(plan.keptLeaves, []);
+});
+
+t("a forced repair writes the page's figure over a leaf a Judge changed", () => {
+  const plan = leafPlan("gamma", { policy: { ...REPAIR.spell, force: true } });
+  assert.equal(writtenCategory(plan), "beta");
+  assert.deepEqual(plan.keptLeaves, []);
+});
+
+t("a leaf nested several levels deep, and an array leaf, are held by their dotted path", () => {
+  const mine = spellOf("alpha");
+  mine.target.area.size.flat = 30;
+  mine.target.filters = ["dead"];
+  const plan = refreshPlan(stored([], { spell: mine, read: READ }), freshBuild([], { spell: { ...spellOf("alpha"), target: { area: { size: { kind: "flat", flat: 20 } }, filters: ["living", "dead"] } }, read: { ...READ, "target%2Earea%2Esize%2Eflat": 20, "target%2Efilters": ["living", "dead"] } }), REPAIR.spell);
+  assert.deepEqual(plan.keptLeaves.map((l) => l.leaf), ["target.area.size.flat", "target.filters"]);
+  assert.equal(plan.update.flags[MODULE_ID].spell.target.area.size.flat, undefined);
+  assert.equal(plan.update.flags[MODULE_ID].spell.target.filters, undefined);
+});
+
+t("bindSpell stamps the leaves its values fragments wrote, a nested one and an array one each as a leaf of its own", () => {
+  const specs = [{ ...ROW, onMiss: "blank" }];
+  const values = [{ ...VALUES, onMiss: "blank" }];
+  const built = bindSpell(entryFor(specs, values), nodeFor(specs, values), "def.spell.glimmerfrost");
+  const read = built.flags[MODULE_ID].cookbook.read.spell;
+  assert.equal(read["save%2Ecategory"], "death");
+  assert.equal(read["target%2Earea%2Esize%2Eflat"], 15);
+  assert.equal(read["target%2Earea%2Esize%2Ekind"], "flat");
+  assert.deepEqual(read["target%2Efilters"], ["living"]);
+  assert.equal(read["target%2Earea%2Eshape"], "cone", "a structure leaf the recipe states is recorded too");
+  assert.ok(!Object.keys(read).some((k) => k.includes("unread")));
+  const plain = bindSpell(entryFor([{ ...ROW, onMiss: "blank" }], null), nodeFor([{ ...ROW, onMiss: "blank" }], null), "def.spell.glimmerfrost");
+  assert.ok(!("read" in plain.flags[MODULE_ID].cookbook), "a spell with no values recipe records no leaves");
+});
+
+t("a merged repair lists a held row and a held leaf as edits, and a decision that takes them writes both", () => {
+  const source = { name: "Glimmerfrost", ...stored([edited("a")], { spell: spellOf("gamma"), read: READ }) };
+  const built = freshBuild([reg("a", "2d2")], { spell: spellOf("beta"), read: { ...READ, "save%2Ecategory": "beta" } });
+  const kept = decidedPolicy(source, built, REPAIR.spell, { uuid: "Item.x" });
+  assert.deepEqual(kept.edits.map((e) => e.path), [`flags.${MODULE_ID}.spell.effects[a]`, `flags.${MODULE_ID}.spell.save.category`]);
+  assert.match(kept.edits[0].current, /^Damage: .*9d9/, "a row reads as its one-line description");
+  assert.match(kept.edits[0].page, /2d2/);
+  assert.equal(kept.edits[1].current, "gamma");
+  assert.equal(writtenCategory(refreshPlan(source, built, kept.policy)), undefined);
+  const taken = decidedPolicy(source, built, REPAIR.spell, { uuid: "Item.x", decision: "take" });
+  assert.deepEqual(taken.edits, []);
+  const plan = refreshPlan(source, built, taken.policy);
+  assert.deepEqual(rowsAfter(plan), [reg("a", "2d2")]);
+  assert.equal(writtenCategory(plan), "beta");
+  const one = decidedPolicy(source, built, REPAIR.spell, { uuid: "Item.x", decision: { take: new Set([kept.edits[0].key]) } });
+  assert.deepEqual(one.edits.map((e) => e.path), [`flags.${MODULE_ID}.spell.save.category`], "each edit is decided by its own key");
 });
 
 /* -------------------------------------------- */
@@ -232,8 +408,19 @@ t("the recipe rules accept a well-formed spell recipe and refuse a printed figur
   has("values[0].save.category");
   has("values[0].target.hdCap");
   has("values[1].from[0].into");
-  assert.deepEqual(spellRecipeProblems({ effects: [{ type: "modifier", target: "damage", gate: { kind: "weaponMundane" }, notStacksWith: ["kw:x"] }] }), []);
-  assert.ok(spellRecipeProblems({ effects: [{ type: "modifier", target: "damage", gate: { kind: "nowhere" } }] }).some((p) => p.includes("gate.kind")));
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "k", type: "modifier", target: "damage", gate: { kind: "weaponMundane" }, notStacksWith: ["kw:x"] }] }), []);
+  assert.ok(spellRecipeProblems({ effects: [{ key: "k", type: "modifier", target: "damage", gate: { kind: "nowhere" } }] }).some((p) => p.includes("gate.kind")));
+});
+
+t("the recipe rules require a key on every row, in the module's pattern, once per entry, a reversed twin's included", () => {
+  const rows = (...keys) => keys.map((key) => ({ ...(key === undefined ? {} : { key }), type: "heal" }));
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  has(spellRecipeProblems({ effects: rows(undefined) }), "effects[0] carries no key");
+  has(spellRecipeProblems({ effects: rows("mend", "mend") }), 'effects[1].key "mend" repeats effects[0]');
+  assert.deepEqual(spellRecipeProblems({ effects: [...rows("mend"), { ...rows("mendReversed")[0], reversed: true }] }), [], "a reversed twin with a key of its own is well formed");
+  for (const bad of ["Mend", "1mend", "_abcd1234", "mend-it", "mend it", ""]) has(spellRecipeProblems({ effects: rows(bad) }), "is not a key");
+  has(spellRecipeProblems({ effects: [{ type: "heal", key: 5 }] }), "is not a key");
+  assert.deepEqual(spellRecipeProblems({ effects: rows("a", "b2", "cD3") }), []);
 });
 
 t("a row's scope rides through materialize and bind untouched, a nested anyOf included", () => {
@@ -289,7 +476,7 @@ t("the recipe rules refuse an area size with no measure, a pattern that never na
 });
 
 t("the recipe rules check an anyOf branch: its keys, its values, a clause, and never a sign", () => {
-  const row = (anyOf) => spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", anyOf }] });
+  const row = (anyOf) => spellRecipeProblems({ effects: [{ key: "k", type: "modifier", target: "ac", anyOf }] });
   const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
   assert.deepEqual(row([{ vsEnemy: true }, { vsKinds: ["alpha"], vsAlignment: "lawful" }]), []);
   has(row([]), "non-empty list");
@@ -306,7 +493,7 @@ t("the recipe rules check an anyOf branch: its keys, its values, a clause, and n
   has(row([{ vsAlignmentOf: "target" }]), "is not an alignment reference");
   has(row([{ vsKinds: "alpha" }]), "list of kind tokens");
   has(spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", vsAlignmentOf: "elsewhere" }] }), "is not an alignment reference");
-  assert.deepEqual(spellRecipeProblems({ effects: [{ type: "modifier", target: "ac", vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" }] }), [], "a row's own scope keys are structure");
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "k", type: "modifier", target: "ac", vsEnemy: true, vsAlignmentOf: "source", vsAlignmentMode: "except" }] }), [], "a row's own scope keys are structure");
 });
 
 

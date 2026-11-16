@@ -5,6 +5,7 @@
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { bookText, entryText } from "../prose.mjs";
 import { REPAIR, repairWrite, countRepair } from "../refresh.mjs";
+import { readLeaves } from "../held-edits.mjs";
 import { BOOKS } from "../books.mjs";
 import { executeEntry } from "../executor.mjs";
 import { VARIATION_ITEM_TYPE } from "../../equipment/constants.mjs";
@@ -385,7 +386,8 @@ function mergeInto(into, from) {
  * written to `effects`, each stamped `origin: "register"` so a repair can tell
  * them from a Judge's. Its `values` are fragments of the primitive, deep-merged
  * in order over the stat block's: objects merge, anything else replaces, and a
- * fragment's `unread` list stays behind (the primitive has no such field).
+ * fragment's `unread` list stays behind (the primitive has no such field). The
+ * leaves they wrote are recorded in `cookbook.read.spell` (`readLeaves`).
  * The test is the entry's recipe, never the node's rows: `executeEntry` runs
  * `effectScan` over every spell's prose, and those guesses never reach a spell.
  */
@@ -402,8 +404,14 @@ export function bindSpell(entry, node, id) {
     reversedName: marker ? reversedNameFrom(paras.join(" ")) : "",
     cite,
   };
+  // The leaves the values fragments wrote are recorded in the stamp
+  // (`cookbook.read.spell`), so a repair can tell a leaf a Judge edited from one
+  // still as the import wrote it.
+  let read = {};
   if (entry.fields?.values?.specs?.length) {
-    for (const { unread, ...fragment } of node?.fields?.values ?? []) mergeInto(extras, fragment);
+    const fragments = (node?.fields?.values ?? []).map(({ unread, ...fragment }) => fragment);
+    for (const fragment of fragments) mergeInto(extras, fragment);
+    read = readLeaves(fragments);
   }
   if (entry.fields?.effects?.specs?.length) {
     extras.effects = (node?.fields?.effects ?? []).map((row) => ({ ...row, origin: REGISTER_ORIGIN }));
@@ -413,7 +421,12 @@ export function bindSpell(entry, node, id) {
     type: SPELL_TYPE,
     ...(entry.icon ? { img: entry.icon } : {}),
     // The stamp Remove ALL Imports finds documents by.
-    flags: { [MODULE_ID]: { cookbook: { id, cite, ...bookStamp(entry.book) }, [FLAG_SPELL]: extras } },
+    flags: {
+      [MODULE_ID]: {
+        cookbook: { id, cite, ...bookStamp(entry.book), ...(Object.keys(read).length ? { read: { spell: read } } : {}) },
+        [FLAG_SPELL]: extras,
+      },
+    },
     system: {
       ...coreFieldsFrom(extras),
       description: bookText(paras, cite, { id, book: entry.book, page: entry.pages?.[0] }),

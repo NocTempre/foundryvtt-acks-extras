@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as V from "../scripts/lib/vocab.mjs";
-import { MAGIC_VOCAB, SPELL_LIKE_FREQ, printedFrequencyText, vocabChoices, vocabLabel } from "../scripts/lib/magic-vocab.mjs";
+import { MAGIC_VOCAB, REGISTER_KEY, SPELL_LIKE_FREQ, printedFrequencyText, vocabChoices, vocabLabel } from "../scripts/lib/magic-vocab.mjs";
 import { USAGE } from "../scripts/monsters/config.mjs";
 import { effectScan, frequencyOf, frequencyTextOf, frequencyFieldsOf, FREQ } from "../scripts/importer/executor.mjs";
 import { splitSpellNames, titleIndex, scanMonsterSpells, castsAsClass, castSourceOf, levelUnder } from "../scripts/magic/spell-names.mjs";
@@ -28,6 +28,7 @@ import {
   spellFromStat,
   reversedNameFrom,
   headingCase,
+  retiredWith,
 } from "../scripts/magic/spell-logic.mjs";
 import { describeSpellEffect } from "../scripts/magic/describe.mjs";
 import { areaExtent } from "../scripts/magic/cast-area.mjs";
@@ -1294,9 +1295,9 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
   // The row editor declares a window class at load, so it needs the two application bases.
   const priorFoundry = globalThis.foundry;
   const priorGame = globalThis.game;
-  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: {} };
+  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class { render() {} } } }, utils: {} };
   globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
-  const { mergeRowEdit, anyOfText, fieldsForType } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+  const { mergeRowEdit, anyOfText, fieldsForType, effectRowActions } = await import("../scripts/lib/apps/effect-row-editor.mjs");
   globalThis.foundry = priorFoundry;
   globalThis.game = priorGame;
 
@@ -1364,7 +1365,70 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.equal(anyOfText([{ vsAlignment: "lawful", vsAlignmentMode: "except" }], say), 'scope.alignmentExcept{"alignment":"Lawful"}');
     assert.equal(anyOfText(undefined, say), "");
   });
+
+  // The sheet actions run against a fake store, with the globals they read held for the call.
+  const fakeStore = (rows, domain = "spell") => {
+    const writes = [];
+    return { key: "fake", label: "Fake", domain, read: () => structuredClone(rows), write: async (next, options) => (writes.push({ next, options }), next), writes };
+  };
+  const drive = async (fn, { confirm = true } = {}) => {
+    const prior = { foundry: globalThis.foundry, game: globalThis.game };
+    globalThis.foundry = { utils: { randomID: (length) => "r".repeat(length), escapeHTML: (text) => text }, applications: { instances: new Map(), api: { DialogV2: { confirm: async () => confirm } } } };
+    globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
+    try {
+      return await fn();
+    } finally {
+      globalThis.foundry = prior.foundry;
+      globalThis.game = prior.game;
+    }
+  };
+  const ta = async (name, fn) => {
+    await fn();
+    n++;
+    console.log(`ok - ${name}`);
+  };
+  const at = (index) => ({ dataset: { index: String(index) } });
+
+  await ta("a row a Judge adds to a spell is keyed with an underscore and a random id, which no register key matches", async () => {
+    const store = fakeStore([{ key: "heal", type: "heal" }]);
+    await drive(() => effectRowActions(() => store).effectAdd.call({ document: {} }));
+    assert.equal(store.writes.length, 1);
+    assert.deepEqual(store.writes[0].next, [{ key: "heal", type: "heal" }, { key: "_rrrrrrrr", type: "damage" }]);
+    assert.equal(store.writes[0].options, undefined, "an add retires nothing");
+    assert.ok(!REGISTER_KEY.test(store.writes[0].next[1].key));
+  });
+
+  await ta("a row added to another kind of list carries no key", async () => {
+    const store = fakeStore([], "ability");
+    await drive(() => effectRowActions(() => store).effectAdd.call({ document: {} }));
+    assert.deepEqual(store.writes[0].next, [{ type: "modifier" }]);
+  });
+
+  await ta("a delete tells the store which row it took out, once it is confirmed", async () => {
+    const rows = [{ key: "heal", type: "heal" }, { key: "wound", type: "damage" }];
+    const store = fakeStore(rows);
+    await drive(() => effectRowActions(() => store).effectDelete.call({ document: {} }, null, at(0)));
+    assert.deepEqual(store.writes, [{ next: [rows[1]], options: { removed: rows[0] } }]);
+    const declined = fakeStore(rows);
+    await drive(() => effectRowActions(() => declined).effectDelete.call({ document: {} }, null, at(0)), { confirm: false });
+    assert.deepEqual(declined.writes, [], "a cancelled delete writes nothing");
+  });
+
+  await ta("a move writes the rows and names no removed row", async () => {
+    const store = fakeStore([{ key: "a" }, { key: "b" }]);
+    await drive(() => effectRowActions(() => store).effectMoveDown.call({ document: {} }, null, at(0)));
+    assert.deepEqual(store.writes, [{ next: [{ key: "b" }, { key: "a" }], options: undefined }]);
+  });
 }
+
+t("a delete retires a register row's key and nothing else", () => {
+  assert.deepEqual(retiredWith([], { key: "heal" }), ["heal"]);
+  assert.deepEqual(retiredWith(["wound"], { key: "heal" }), ["wound", "heal"]);
+  assert.deepEqual(retiredWith(["heal"], { key: "heal" }), ["heal"], "a key already listed is listed once");
+  assert.deepEqual(retiredWith(["wound"], { key: "_abcd1234" }), ["wound"], "a Judge's own row leaves no trace");
+  assert.deepEqual(retiredWith(["wound"], { type: "damage" }), ["wound"], "a keyless row leaves none either");
+  assert.deepEqual(retiredWith(undefined, undefined), []);
+});
 
 
 console.log(`\n${n} magic tests passed`);

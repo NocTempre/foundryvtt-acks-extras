@@ -423,13 +423,16 @@ export async function closeEffectEditors(store) {
 /**
  * The sheet actions over one store of effect rows, mixed into a sheet's
  * `DEFAULT_OPTIONS.actions`. `storeOf(document)` returns the store for the
- * sheet's document; the template's controls carry `data-index`.
+ * sheet's document; the template's controls carry `data-index`. A store's
+ * `write(rows, {removed})` is told the row a delete took out, so a store that
+ * keeps a register's rows can retire it.
  */
 export function effectRowActions(storeOf) {
   async function effectAdd() {
     const store = storeOf(this.document);
     const rows = store.read();
-    rows.push({ type: store.domain === "spell" ? "damage" : "modifier" });
+    // A spell row carries a key a repair matches by; a Judge's starts with `_`, which no register key does.
+    rows.push(store.domain === "spell" ? { key: `_${foundry.utils.randomID(8)}`, type: "damage" } : { type: "modifier" });
     const written = (await store.write(rows)) ?? rows;
     openEffectEditor(store, written.length - 1);
   }
@@ -450,8 +453,8 @@ export function effectRowActions(storeOf) {
     });
     if (!ok) return;
     await closeEffectEditors(store);
-    rows.splice(index, 1);
-    await store.write(rows);
+    const [removed] = rows.splice(index, 1);
+    await store.write(rows, { removed });
   }
   async function move(document, index, delta) {
     const store = storeOf(document);

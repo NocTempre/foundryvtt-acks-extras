@@ -1892,7 +1892,7 @@ type mark carries `extraordinary` as the glyph's fill colour, which the text
 op does not read, so a spell damage row's mark is `unread` on every real
 import until a glyph-colour read is built.
 
-## 2026-11-15 — A repair tells a spell's rows apart by `origin`
+## 2026-11-15 — A repair tells a spell's rows apart by `origin` — SUPERSEDED IN PART 2026-11-16
 
 Ruling 3 of the same plan. `REPAIR.spell` kept `spell.effects` whole, which
 could not tell a row the register wrote from a row a Judge made, so a spell
@@ -1936,3 +1936,51 @@ executor stamps the origin on the node).
 *Cost:* `cookbook/mm.json` grows by the two entries' recipes and the second
 entry's continuation; a world refreshes them only by a fresh import.
 
+## 2026-11-16 — A repair holds a spell's edited and deleted rows, and its edited `values`
+
+Supersedes the cost line of 2026-11-15, "A repair tells a spell's rows apart by
+`origin`", and the spell-rows part of the spell-effects plan's ruling 3. The
+owner's words are the plan's: "Spells want their proper effects, damage/effects
+should apply with correct amount and type", and "automation with transparency
+is the design principle".
+
+**New evidence.** Session 1a walked the repair live: an edited register row plus
+a repair left two register rows beside each other, four in all on one spell; a deleted register row came back; and a `values` leaf a Judge had
+typed was overwritten. The first ruling accepted the doubled row as a cost
+while a row was only a listing. The cast slices make rows executable, so a doubled
+damage row applies twice and a deleted one returns to hit a target the Judge
+removed it for.
+
+**Ruled:** every register effects spec carries an authored `key`
+(`/^[a-z][A-Za-z0-9]*$/`, unique per entry, a reversed twin's distinct), the
+lint requires it, and a row a Judge adds is keyed `_` plus a random id.
+
+- *An edited row.* A stored row with no `origin` whose key is a fresh register
+  key stands in for the fresh row, which is not added. Where it no longer
+  covers it the repair lists a held edit, default keep; taking it puts the
+  fresh row in its place.
+- *A deleted row.* The row editor's delete passes the removed row to the spell
+  store, which adds a register key to `SpellExtras.retired` in the same
+  update. A repair skips a retired key and lists a held edit; taking it writes
+  the row and clears the key.
+- *`values`.* `bindSpell` records each leaf its fragments wrote in
+  `cookbook.read.spell`; a stored leaf equal to the stamp takes the page, one
+  differing from both stamp and page is a held edit, one with no stamp takes
+  the page.
+- *Forced.* `force` makes the page win everywhere except on a `_` row.
+
+The held edits go through `decidedPolicy` and the merged repair's choice
+dialog, as the prose guard's do; a row reads as its one-line description on
+both sides.
+
+**Rejected:** a `supersedes` field on the row (the register would name rows it
+no longer writes); a key minted at compile from the row's position (reordering
+the recipe would rename every row in every world); standing in silently (an
+edit the page has since moved past would never be offered).
+
+*Cost:* every repair lists each edit that still differs, until the Judge takes
+it or the edit is undone. A world imported before this has stamped rows with no
+key: its first repair replaces them from the build, and an edited row of that
+age, having no key, stays and is joined by the fresh row once. A Judge's edit
+to a stat-block field outside `values` (range, duration) is still overwritten:
+only `values` leaves carry a stamp.

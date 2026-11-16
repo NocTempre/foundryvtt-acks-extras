@@ -62,6 +62,49 @@ export function coversFigure(stored, page) {
 }
 
 /**
+ * Whether two stored values are the same figure, whatever the order their
+ * object keys were written in.
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {boolean}
+ */
+export const sameValue = (a, b) => stableJson(a) === stableJson(b);
+
+/**
+ * The key a leaf's path takes in a read stamp. A dot in a key would nest when a
+ * document update expands it, so each is written `%2E` (and a `%` as `%25`),
+ * the way a block digest's key is (`sumKey`).
+ * @param {string} path a dotted leaf path
+ * @returns {string}
+ */
+export const readKey = (path) => String(path).replace(/%/g, "%25").replace(/\./g, "%2E");
+
+/** The dotted path a read stamp's key names (`readKey` undone). */
+export const readPath = (key) => String(key).replace(/%2E/g, ".").replace(/%25/g, "%");
+
+/**
+ * The leaves of a fragment a build merged into a document: every value that is
+ * not a plain object (an array is one leaf), at its dotted path, in the shape a
+ * read stamp keeps them (`readKey`). A fragment's `unread` list is no leaf.
+ * Later fragments win, as they do in the merge.
+ * @param {object[]} fragments
+ * @returns {Object<string, unknown>}
+ */
+export function readLeaves(fragments) {
+  const out = {};
+  const walk = (node, prefix) => {
+    for (const [key, value] of Object.entries(node ?? {})) {
+      if (!prefix && key === "unread") continue;
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (value && typeof value === "object" && !Array.isArray(value)) walk(value, path);
+      else out[readKey(path)] = structuredClone(value);
+    }
+  };
+  for (const fragment of fragments ?? []) walk(fragment, "");
+  return out;
+}
+
+/**
  * What a repair may do with a pregenerated character it left on its first
  * pass: `restore` keeps the character in hand under a new id, as a document of
  * its own, and imports the book's again under the cookbook id; `rewrite`

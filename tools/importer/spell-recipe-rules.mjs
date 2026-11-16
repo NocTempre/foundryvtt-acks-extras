@@ -22,11 +22,11 @@ import {
   AREA_SHAPES, CONDITION_KEYS, EFFECT_DELIVERIES, EFFECT_LASTS, EFFECT_RECURRENCES, EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
   SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope,
 } from "../../scripts/lib/vocab.mjs";
-import { AREA_MEASURES, DISTANCE_UNITS } from "../../scripts/lib/magic-vocab.mjs";
+import { AREA_MEASURES, DISTANCE_UNITS, REGISTER_KEY } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
-  "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "pick", "reversed",
+  "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "pick", "reversed",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate",
 ]);
@@ -131,12 +131,17 @@ function areaLocatorProblems(area, from, label, out) {
  */
 export function spellRecipeProblems({ effects, values } = {}) {
   const out = [];
+  const seen = new Map();
   for (const [i, spec] of (effects ?? []).entries()) {
     const label = `effects[${i}]`;
     if (!spec || typeof spec !== "object") {
       out.push(`${label} is not an object`);
       continue;
     }
+    if (spec.key === undefined) out.push(`${label} carries no key; a repair tells the row apart by it`);
+    else if (typeof spec.key !== "string" || !REGISTER_KEY.test(spec.key)) out.push(`${label}.key "${spec.key}" is not a key (a lowercase letter, then letters and digits)`);
+    else if (seen.has(spec.key)) out.push(`${label}.key "${spec.key}" repeats effects[${seen.get(spec.key)}]; a reversed twin takes a key of its own`);
+    else seen.set(spec.key, i);
     const { from, conditionFrom, noteFrom, ...structure } = spec;
     for (const key of Object.keys(spec)) if (!ROW_KEYS.has(key)) out.push(`${label} carries "${key}", which a spell row recipe does not (located fields ride in \`from\`; \`origin\` and \`unread\` are the importer's)`);
     if (spec.onMiss !== undefined && spec.onMiss !== "blank") out.push(`${label}.onMiss is "blank" or absent`);

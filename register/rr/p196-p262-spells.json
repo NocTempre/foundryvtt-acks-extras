@@ -1694,6 +1694,7 @@
     },
     "effects": [
       {
+        "key": "heal",
         "type": "heal",
         "appliesTo": "recipient",
         "healKind": "hitPoints",
@@ -1708,6 +1709,7 @@
         ]
       },
       {
+        "key": "cure",
         "type": "conditionRemove",
         "appliesTo": "recipient",
         "conditions": [
@@ -1717,6 +1719,7 @@
         "lasts": "instant"
       },
       {
+        "key": "wound",
         "type": "damage",
         "appliesTo": "recipient",
         "reversed": true,
@@ -2041,6 +2044,7 @@
     },
     "effects": [
       {
+        "key": "damage",
         "type": "damage",
         "appliesTo": "area",
         "saveEffect": "half",
@@ -2063,6 +2067,7 @@
         ]
       },
       {
+        "key": "afflict",
         "type": "conditionGrant",
         "appliesTo": "area",
         "conditions": [
@@ -3094,6 +3099,7 @@
     },
     "effects": [
       {
+        "key": "fear",
         "type": "conditionGrant",
         "appliesTo": "target",
         "conditions": [
@@ -3480,6 +3486,7 @@
     },
     "effects": [
       {
+        "key": "ward",
         "type": "ward",
         "appliesTo": "area",
         "vsKinds": [
@@ -3488,6 +3495,7 @@
         "lasts": "duration"
       },
       {
+        "key": "wardAc",
         "type": "modifier",
         "target": "ac",
         "mode": "add",
@@ -3515,6 +3523,7 @@
         ]
       },
       {
+        "key": "wardSave",
         "type": "modifier",
         "target": "save",
         "mode": "add",
@@ -3542,6 +3551,7 @@
         ]
       },
       {
+        "key": "wardReversed",
         "type": "ward",
         "appliesTo": "area",
         "vsKinds": [
@@ -3551,6 +3561,7 @@
         "reversed": true
       },
       {
+        "key": "wardAcReversed",
         "type": "modifier",
         "target": "ac",
         "mode": "add",
@@ -3578,6 +3589,7 @@
         ]
       },
       {
+        "key": "wardSaveReversed",
         "type": "modifier",
         "target": "save",
         "mode": "add",
@@ -5451,6 +5463,7 @@
     },
     "effects": [
       {
+        "key": "attack",
         "type": "modifier",
         "target": "attackThrow",
         "mode": "add",
@@ -5470,6 +5483,7 @@
         ]
       },
       {
+        "key": "damageMundane",
         "type": "modifier",
         "target": "damage",
         "mode": "add",
@@ -5489,6 +5503,7 @@
         ]
       },
       {
+        "key": "damageMagical",
         "type": "modifier",
         "target": "damage",
         "mode": "add",

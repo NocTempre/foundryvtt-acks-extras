@@ -238,6 +238,12 @@ export const EFFECT_RECURRENCES = Object.freeze({
  */
 export const REGISTER_ORIGIN = "register";
 
+/**
+ * The shape of a register row's authored `key` (a module word). A row a Judge
+ * adds is keyed `_` plus a random id, so it never matches.
+ */
+export const REGISTER_KEY = /^[a-z][A-Za-z0-9]*$/;
+
 /** What a `heal` effect restores — the heal executor's branch. */
 export const HEAL_KINDS = Object.freeze({
   hitPoints: { label: "Hit points" },

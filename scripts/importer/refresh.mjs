@@ -10,13 +10,15 @@
  * `refreshPlan` decides all of that and is Foundry-free, so the harness can
  * assert it; `refreshImported` performs it. `REPAIR` says, per kind, which of a
  * build's fields the document keeps anyway. A forced repair (`repairTally({force:
- * true})`, `policyFor`) lifts the hand-written prose guard and nothing else.
+ * true})`, `policyFor`) lifts the hand-written prose guard and a spell's held rows
+ * and leaves (a Judge's own `_` rows stay), and nothing else.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
-import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
+import { coversFigure, decides, heldEdit, readPath, sameValue } from "./held-edits.mjs";
+import { describeSpellEffect } from "../magic/describe.mjs";
 
 /** The value at a dotted path, or undefined. */
 const getPath = (node, path) =>
@@ -154,11 +156,13 @@ export function withBlockSums(data) {
  *   document's own.
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
- * - `mergeByOrigin` — paths under the module's flags that hold rows with an
- *   `origin`: the rows the build wrote (stamped `origin: "register"`) replace
- *   the stored ones that carry the stamp, in the place of the first, and every
- *   other stored row stays where it is. A row a Judge made or edited has no
- *   stamp (the row editor clears it), so a repair never touches it.
+ * - `mergeByOrigin` — `{rows, retired}` paths under the module's flags (a bare
+ *   path is `rows` alone): rows with an `origin` and a `key`, and the keys a
+ *   Judge deleted. `mergeRowsByOrigin` says how the build's rows meet the
+ *   stored ones.
+ * - `readStamped` — `{path, stamp}`: a node under the module's flags whose
+ *   leaves the build wrote and recorded in the cookbook stamp at `stamp`
+ *   (`read.spell`). A leaf a Judge changed since is held, not written over.
  */
 export const REPAIR = Object.freeze({
   trap: { keep: ["level"], prose: ["description"] },
@@ -198,12 +202,14 @@ export const REPAIR = Object.freeze({
   },
   // A spell's cast counter, memorized mark and favourite star are play's;
   // the primitive is rewritten from the page, except the effect rows a Judge
-  // made or edited, which stay beside the register's.
+  // made, edited or deleted and the `values` leaves a Judge changed, which are
+  // held for the Judge's say.
   spell: {
     keep: ["cast", "memorized", "favorite"],
     prose: ["description"],
     flags: ["spell"],
-    mergeByOrigin: ["spell.effects"],
+    mergeByOrigin: [{ rows: "spell.effects", retired: "spell.retired" }],
+    readStamped: [{ path: "spell", stamp: "read.spell" }],
   },
   // The rows a printed table builds: its figures, its page reference and the
   // structured modes the module reads are rewritten; what is worn, carried or
@@ -275,18 +281,25 @@ export function unstampedTwins(have = [], built = []) {
  *   fields the build does not produce, the play state in `keep`, and the
  *   embedded documents a Judge made.
  * @returns {{refused?: "type", update: object, retract: string[],
- *   replace: Object<string, {remove: string[], add: object[]}>, keptProse: string[]}}
+ *   replace: Object<string, {remove: string[], add: object[]}>, keptProse: string[],
+ *   keptRows: object[], keptLeaves: object[]}}
  *   `update` is a document update; `retract` the `system` paths to reset to
  *   their initial value; `replace` the embedded documents to delete and create
- *   per collection; `keptProse` the prose paths left as a Judge wrote them.
+ *   per collection; `keptProse` the prose paths left as a Judge wrote them;
+ *   `keptRows` the register rows a Judge took over or deleted
+ *   (`mergeRowsByOrigin`'s `kept`, each with its `path`) and `keptLeaves` the
+ *   `values` leaves a Judge changed (`{path, leaf, current, page}`), each left
+ *   as it stands unless `policy.takeRows` / `policy.takeLeaves` names it.
  *   `refused` when the build is another document type, which no update can
  *   change.
  */
 export function refreshPlan(source, built, policy = {}) {
-  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [], mergeByOrigin = [] } = policy;
+  const { keep = [], prose = [], proseFlags = [], retract = [], flags = [], top = [], minted = [], mergeByOrigin = [], readStamped = [] } = policy;
   const keptProse = [];
+  const keptRows = [];
+  const keptLeaves = [];
   if (built?.type && source?.type && built.type !== source.type) {
-    return { refused: "type", update: {}, retract: [], replace: {}, keptProse };
+    return { refused: "type", update: {}, retract: [], replace: {}, keptProse, keptRows, keptLeaves };
   }
   const stored = source?.system ?? {};
   const system = structuredClone(built?.system ?? {});
@@ -331,7 +344,7 @@ export function refreshPlan(source, built, policy = {}) {
   // document answers for (`id`, `merged`), under which printed name
   // (`printed`), and from which book (`book`) stay the library's record.
   const mine = built?.flags?.[MODULE_ID] ?? {};
-  const stamp = { ...(mine.cookbook ?? {}) };
+  const stamp = structuredClone(mine.cookbook ?? {});
   for (const key of ["id", "merged", "printed", "book"]) delete stamp[key];
   const flagUpdate = {};
   if (Object.keys(stamp).length) flagUpdate.cookbook = stamp;
@@ -342,12 +355,36 @@ export function refreshPlan(source, built, policy = {}) {
     dropPath(flagUpdate, path.split("."));
     keptProse.push(`flags.${path}`);
   }
-  for (const path of mergeByOrigin) {
+  const heldFlags = source?.flags?.[MODULE_ID];
+  for (const entry of mergeByOrigin) {
+    const { rows: path, retired: retiredPath } = typeof entry === "string" ? { rows: entry } : entry;
     const fresh = getPath(flagUpdate, path);
-    const stored = getPath(source?.flags?.[MODULE_ID], path);
-    const merged = mergeRowsByOrigin(stored, fresh);
-    if (!merged.length && !(Array.isArray(stored) && stored.length)) continue; // nothing stored, nothing built
-    setPath(flagUpdate, path.split("."), structuredClone(merged));
+    const have = getPath(heldFlags, path);
+    const retiredHave = retiredPath ? getPath(heldFlags, retiredPath) : undefined;
+    const merged = mergeRowsByOrigin(have, fresh, { retired: retiredHave, take: policy.takeRows, force: policy.force });
+    keptRows.push(...merged.kept.map((held) => ({ ...held, path })));
+    if (retiredPath && !sameValue(merged.retired, retiredHave ?? [])) setPath(flagUpdate, retiredPath.split("."), merged.retired);
+    if (!merged.rows.length && !(Array.isArray(have) && have.length)) continue; // nothing stored, nothing built
+    setPath(flagUpdate, path.split("."), structuredClone(merged.rows));
+  }
+  // A leaf the build wrote and a Judge changed since is not written over. The
+  // stamp keeps what the build last wrote for it, so the next repair finds the
+  // difference again.
+  for (const { path, stamp: stampPath } of readStamped) {
+    const page = getPath(flagUpdate, path);
+    const now = getPath(flagUpdate.cookbook, stampPath);
+    if (!page || !now) continue;
+    const node = getPath(heldFlags, path);
+    const was = getPath(heldFlags?.cookbook, stampPath);
+    for (const key of Object.keys(now)) {
+      const leaf = readPath(key);
+      const have = getPath(node, leaf);
+      if (policy.force || policy.takeLeaves?.has?.(leaf) || have === undefined || sameValue(have, now[key])) continue;
+      if (!was || !Object.hasOwn(was, key) || sameValue(have, was[key])) continue; // unstamped, or still as the import wrote it
+      keptLeaves.push({ path, leaf, current: have, page: now[key] });
+      dropPath(page, leaf.split("."));
+      now[key] = was[key];
+    }
   }
   // What the write carries is what the stamp records: a field kept above was
   // dropped from the payload and keeps the sum of what the import last wrote.
@@ -379,29 +416,76 @@ export function refreshPlan(source, built, policy = {}) {
       add: (built?.[collection] ?? []).filter((d) => !standsIn(d)).map(asMinted),
     };
   }
-  return { update, retract: retracted, replace, keptProse };
+  return { update, retract: retracted, replace, keptProse, keptRows, keptLeaves };
 }
 
+/** A row without the fields that say who wrote it, for comparing a Judge's row with the register's. */
+const withoutMarks = ({ origin, unread, key, ...rest } = {}) => rest;
+
 /**
- * Stored rows merged with a fresh build's by `origin`: the stored rows that
- * carry the register's stamp give way to the build's rows (all of them, at the
- * place of the first stamped row, or first when none is stored), and every
- * other stored row is kept in its order.
+ * Stored rows merged with a fresh build's. A fresh row is a register row: it
+ * has a `key` and `origin: "register"`. Each stored row is one of four things.
+ *
+ * - A stamped row (`origin: "register"`) gives way to the fresh row of its key,
+ *   in its place; one with no key, or a key the build no longer has, is
+ *   dropped.
+ * - An edited register row (no `origin`, a key the build has) stands in for
+ *   the fresh row, which is not added. Where it no longer covers the fresh
+ *   one (`coversFigure`, the marks aside) it is held: listed in `kept`, left
+ *   as it is. A key in `take` (or `force`) puts the fresh row in its place.
+ * - Any other row (a Judge's own, keyed `_...`, or keyless) stays where it is.
+ * - A key in `retired` is a register row a Judge deleted: the fresh row is
+ *   skipped and listed in `kept` (`retired: true`, no `current`). A key in
+ *   `take` (or `force`) writes it and clears it from `retired`.
+ *
+ * Fresh rows no stored row answers for go in a block at the place of the first
+ * stamped row, or first when none is stored.
+ *
+ * @param {object[]|undefined} stored the document's rows
+ * @param {object[]|undefined} fresh the build's rows
+ * @param {{retired?: string[], take?: Set<string>, force?: boolean}} [options]
+ * @returns {{rows: object[], retired: string[], kept: {key: string, current?: object, page: object, retired?: true}[]}}
  */
-export function mergeRowsByOrigin(stored, fresh) {
+export function mergeRowsByOrigin(stored, fresh, { retired = [], take = new Set(), force = false } = {}) {
   const have = Array.isArray(stored) ? stored : [];
   const built = Array.isArray(fresh) ? fresh : [];
+  const gone = new Set(retired ?? []);
+  const taken = (key) => force || !!take?.has?.(key);
+  const keyOf = (row) => (typeof row?.key === "string" ? row.key : "");
+  const twins = new Map(built.filter((row) => keyOf(row)).map((row) => [keyOf(row), row]));
+  const kept = [];
+  const placed = new Set();
   const out = [];
-  let placed = false;
+  let slot = -1;
   for (const row of have) {
-    if (row?.origin !== REGISTER_ORIGIN) {
+    const key = keyOf(row);
+    const twin = key.startsWith("_") ? undefined : twins.get(key);
+    if (row?.origin === REGISTER_ORIGIN) {
+      if (slot < 0) slot = out.length;
+      if (twin && !placed.has(key)) {
+        out.push(twin);
+        placed.add(key);
+      }
+    } else if (twin && !placed.has(key)) {
+      placed.add(key);
+      if (taken(key)) out.push(twin);
+      else {
+        if (!coversFigure(withoutMarks(row), withoutMarks(twin))) kept.push({ key, current: row, page: twin });
+        out.push(row);
+      }
+    } else {
       out.push(row);
-    } else if (!placed) {
-      out.push(...built);
-      placed = true;
     }
   }
-  return placed ? out : [...built, ...out];
+  const block = [];
+  for (const row of built) {
+    const key = keyOf(row);
+    if (key && placed.has(key)) continue;
+    if (key && gone.has(key) && !taken(key)) kept.push({ key, page: row, retired: true });
+    else block.push(row);
+  }
+  out.splice(Math.max(slot, 0), 0, ...block);
+  return { rows: out, retired: [...gone].filter((key) => !(twins.has(key) && taken(key))), kept };
 }
 
 /** The Foundry document class name for an embedded collection. */
@@ -484,8 +568,11 @@ export const policyFor = (policy, tally) => (tally?.force ? { ...policy, force: 
  * The policy a write runs under once a caller's decision has met the Judge's
  * edits: every prose field the unforced plan would keep as hand-written is an
  * edit (`heldEdit`), and stays guarded unless `decision` takes it (`decides`;
- * none keeps). The prose guard is the edit a whole-build write can detect: the
- * other figures it writes carry no read stamp to compare with.
+ * none keeps). Besides the prose guard, a spell's register row a Judge took
+ * over or deleted (`keptRows`) and a `values` leaf a Judge changed
+ * (`keptLeaves`) are edits, and a decision that takes one lets the write
+ * through (`takeRows`, `takeLeaves`). The other figures a whole-build write
+ * puts down carry no read stamp to compare with.
  *
  * @param {object} source the document's stored data (`toObject()`)
  * @param {object} built a fresh build of its entry
@@ -498,7 +585,8 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
   const unforced = { ...policy, force: false };
   const taken = new Set();
   const edits = [];
-  for (const path of refreshPlan(source, built, unforced).keptProse) {
+  const plan = refreshPlan(source, built, unforced);
+  for (const path of plan.keptProse) {
     const flag = path.startsWith("flags.");
     const rest = flag ? path.slice("flags.".length) : path;
     const [stored, page] = flag
@@ -511,11 +599,36 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
     if (decides(decision, edit.key) === "take") taken.add(path);
     else edits.push(edit);
   }
+  // A register row a Judge took over or deleted, and a `values` leaf a Judge
+  // changed, are edits the write holds too; a row reads as its one-line
+  // description on both sides.
+  const takeRows = new Set();
+  const takeLeaves = new Set();
+  const describe = (row) => {
+    if (!row) return undefined;
+    const { kind, text } = describeSpellEffect(row);
+    return `${kind}: ${text}`;
+  };
+  for (const { path, key, current, page, retired } of plan.keptRows) {
+    const edit = heldEdit({
+      uuid, name: source?.name ?? "", path: `flags.${MODULE_ID}.${path}[${key}]`,
+      current: retired ? undefined : describe(current), page: describe(page), cite,
+    });
+    if (decides(decision, edit.key) === "take") takeRows.add(key);
+    else edits.push(edit);
+  }
+  for (const { path, leaf, current, page } of plan.keptLeaves) {
+    const edit = heldEdit({ uuid, name: source?.name ?? "", path: `flags.${MODULE_ID}.${path}.${leaf}`, current, page, cite });
+    if (decides(decision, edit.key) === "take") takeLeaves.add(leaf);
+    else edits.push(edit);
+  }
   return {
     policy: {
       ...unforced,
       prose: (policy.prose ?? []).filter((p) => !taken.has(p)),
       proseFlags: (policy.proseFlags ?? []).filter((p) => !taken.has(`flags.${p}`)),
+      takeRows,
+      takeLeaves,
     },
     edits,
   };

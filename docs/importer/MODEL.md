@@ -252,9 +252,10 @@ it or has nothing to write from:
   damage, a stack's quantity and equipped state, a spell's cast count): play
   state, or settled by `annotateItem` after creation;
 - a field the build does not produce: an array row's unbuilt fields
-  (`keepUnrenderedFields`), the spell effect rows a Judge made or edited, kept
-  beside the register's (`mergeByOrigin`), a class level's experience or title the build could
-  not read (`fillUnread`);
+  (`keepUnrenderedFields`), the spell effect rows a Judge made, edited or
+  deleted and the `values` leaves a Judge changed (`mergeByOrigin`,
+  `readStamped`; "Spell recipes" below), a class level's experience or title
+  the build could not read (`fillUnread`);
 - a document with nothing to be written from: its book is not open on this
   seat, its page no longer matches, a monster entry that claims no stats, a
   build of another document type, a write Foundry rejects;
@@ -1112,9 +1113,42 @@ word the page prints the size in) and `unit`, and the lint holds the size to
 it: a located `target.area.size` needs a `measure`, its pattern names the
 measure's word so the locator proves the page prints that measure, a `length`
 needs a located `target.area.width`, and a width belongs to a `length`.
-`REPAIR.spell` replaces the stamped rows and keeps the others
-([DECISIONS.md](DECISIONS.md), 2026-11-15, "A repair tells a spell's rows
-apart by `origin`").
+Every `effects` spec carries a `key` the lint requires (`/^[a-z][A-Za-z0-9]*$/`,
+a module word naming the row's role, unique within the entry, a reversed twin's
+distinct), and the written row keeps it. A row a Judge adds is keyed `_` plus a
+random id, which no spec's key can equal.
+
+*The repair of a spell's rows* (`REPAIR.spell`; `mergeRowsByOrigin`, which
+takes the stored rows, the build's, the spell's `retired` keys, the keys a
+decision takes and `force`). A stored row is one of four things. A **stamped**
+row (`origin: "register"`) gives way to the build's row of its key in its own
+place; one with no key, or a key the build no longer has, is dropped. A
+**stand-in** (no `origin`, a key the build has: a register row a Judge edited,
+since the row editor clears `origin`) stays and the build's row is not added;
+where it no longer covers the build's row (`coversFigure`, with `origin`,
+`unread` and `key` left out) the repair holds it as an edit, and a decision
+that takes it puts the build's row in its place. **Any other** row (a Judge's
+own `_` row, a keyless one) stays untouched. A **retired** key
+(`SpellExtras.retired`, which the row editor's delete adds a register key to)
+is skipped, held as an edit, and written back with its key cleared when a
+decision takes it. Build rows no stored row answers for go in at the first
+stamped row's place, or first. `force` makes the page win everywhere but on a
+`_` row.
+
+*The leaves `values` wrote.* `bindSpell` records every leaf the `values`
+fragments wrote (a dotted path, `.` written `%2E` so the key never nests; an
+array is one leaf) in `cookbook.read.spell`. A repair compares each stored leaf
+with the stamp and the page: equal to the page or to the stamp, it takes the
+page and stamps it; differing from both, it is held as an edit, left as it
+stands with the stamp unchanged; no stamp (a spell imported before it existed),
+it takes the page. A decision that takes the edit writes it. `refreshPlan`
+returns the held rows and leaves (`keptRows`, `keptLeaves`) and `decidedPolicy`
+lists each as an edit for the merged repair's choice dialog: a row reads as its
+one-line description (`describeSpellEffect`) on both sides, a retired row has
+no current side, a leaf shows the figures. Stat-block fields outside `values`
+(range, duration) carry no stamp and are overwritten
+([DECISIONS.md](DECISIONS.md), 2026-11-16, "A repair holds a spell's edited
+and deleted rows, and its edited `values`").
 
 **A borrowed throw.** A roll spec whose `target` has a locator proving the page
 prints the borrowing and a `progression` object (`{as, table, fraction?,

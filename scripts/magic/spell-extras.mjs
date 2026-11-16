@@ -122,6 +122,8 @@ export default class SpellExtras extends foundry.abstract.DataModel {
       ritual: bool(),
       // The executable rows — the lib effect vocabulary, spell kinds included.
       effects: effectsField(),
+      // Keys of register rows a Judge deleted; a repair does not write them back.
+      retired: strList(),
       notableUse: str(),
       cite: str(), // book and page — a reference ships; the sentence beside it never does
       // Set while the rows below are a machine draft not yet read against the page.

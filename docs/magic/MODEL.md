@@ -86,10 +86,12 @@ the effect rows, each `origin: "register"`, and the figures and captured
 words its locators read into `target` and `save`; a row with none writes no
 effect rows. A missed capture leaves its field blank and the row's `unread`
 names it. `REPAIR.spell` (`refresh.mjs`) keeps `cast`, `memorized`,
-`favorite` and a description the Judge wrote across a repair, replaces the
-rows stamped `origin: "register"` from the fresh bind and keeps every other
-row; the row editor clears `origin` on any edit, which makes the row the
-Judge's. A damage-type mark in the prose lands as its word through the
+`favorite` and a description the Judge wrote across a repair, and holds the
+rows and `values` leaves a Judge changed (docs/importer/MODEL.md, "Spell
+recipes"). Each row carries a `key` (`effectField`), which is how a repair
+matches a stored row to the register's; the row editor's add mints a Judge's
+own, its edit clears `origin`, and its delete adds a register key to
+`SpellExtras.retired`, so a repair does not write the row back. A damage-type mark in the prose lands as its word through the
 shipped `damageGlyph` table (executor `glyphWords`); the mark's colour does
 not, so the extraordinary mark of a damage row is not read from text.
 

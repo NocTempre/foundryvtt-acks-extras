@@ -347,6 +347,11 @@ export function effectField() {
     // form's rows; `max` is a ceiling (reserved). `origin` is "register" on a
     // row the importer wrote, and cleared when a Judge edits it, which is how
     // a repair tells the two apart. `unread` lists the fields a capture missed.
+    // `key` names the row for the life of the spell: the register authors one
+    // on each row it writes (a module word, unique within the spell), and a row
+    // a Judge adds gets `_` and a random id, which no register key can equal. A
+    // repair matches a stored row to the register's by it.
+    key: str(),
     saveEffect: choice(SAVE_EFFECTS),
     delivery: choice(EFFECT_DELIVERIES),
     extraordinary: new (F().BooleanField)({ required: false, nullable: true, initial: null }),

@@ -14,7 +14,21 @@
  * the parser at import or through the sheet by hand.
  */
 
-import { SPELL_TYPES } from "../lib/magic-vocab.mjs";
+import { SPELL_TYPES, REGISTER_KEY } from "../lib/magic-vocab.mjs";
+
+/**
+ * A spell's retired keys once a row is deleted from it: the list, with the
+ * deleted row's key added when it is a register's (`REGISTER_KEY`). A Judge's
+ * own row (`_...`), a keyless one and a key already listed change nothing.
+ * @param {string[]|undefined} retired the keys listed now
+ * @param {{key?: unknown}|undefined} removed the row a delete took out
+ * @returns {string[]}
+ */
+export function retiredWith(retired, removed) {
+  const have = Array.isArray(retired) ? retired : [];
+  const key = removed?.key;
+  return typeof key === "string" && REGISTER_KEY.test(key) && !have.includes(key) ? [...have, key] : have;
+}
 
 const DIST =String.raw`(?<n>\d[\d,]*(?:\.\d+)?)\s*(?<u>'|ft\.?|feet|foot|miles?|mi\.?)`;
 const PER_LEVEL = String.raw`\s*(?:/|per)\s*(?:caster\s+)?level`;
