@@ -125,6 +125,14 @@ eq("an outcome cell keeps its words, its first letter raised, and says whether t
 eq("a fall named anywhere in the words ends the attempt", parseOutcomeCell("Slip and fall, unless roped").falls, true);
 eq("a word that only contains the letters is no fall", parseOutcomeCell("Fallow ground, wait").falls, false);
 eq("an empty cell is no outcome", parseOutcomeCell(" "), null);
+eq("a cell that names the pace the climber still moves at advances",
+  parseOutcomeCell("Inches along at a snail's pace").advances, true);
+eq("a cell that names a speed advances, however the seam welds", parseOutcomeCell("Shuffle @ Half Speed").advances, true);
+eq("a cell that negates progress does not advance", parseOutcomeCell("Makes no progress this round").advances, false);
+eq("a welded figure after the negated noun still reads", parseOutcomeCell("No progress1 turn").advances, false);
+eq("a negation beats a rate named beside it", parseOutcomeCell("No progress, not even at a crawl's pace").advances, false);
+eq("words that decide neither way leave the key off, never a guess", "advances" in parseOutcomeCell("Wait a moment"), false);
+eq("a fall cell that says neither leaves it off too", "advances" in parseOutcomeCell("Fall unless roped"), false);
 const OUTCOME_GRID = {
   failFirst: { first: "fall down", second: "wait", third: "fall far" },
   botchFirst: { first: "wait", second: "slide", third: "fall down" },
@@ -138,6 +146,16 @@ eq("each obstacle takes its column's failed and botched cells", outcomes.easyCli
 eq("a column's empty cell leaves that outcome out and keeps the other", outcomes.precariousLedge,
   { fail: { text: "Wait", falls: false } });
 eq("all six obstacles are read", Object.keys(outcomes), SPELUNKING_COLUMNS.flat());
+eq("the assembled outcome keeps `advances` where its cell decided it",
+  assembleSpelunkingOutcomes({
+    failFirst: { first: "no progress", second: "inch along at a crawl's pace", third: "wait" },
+    botchFirst: { first: "", second: "", third: "" },
+  }),
+  {
+    easyClimb: { fail: { text: "No progress", falls: false, advances: false } },
+    sheerClimb: { fail: { text: "Inch along at a crawl's pace", falls: false, advances: true } },
+    rappel: { fail: { text: "Wait", falls: false } },
+  });
 eq("a row that did not read costs only its own outcomes",
   Object.keys(assembleSpelunkingOutcomes({ ...OUTCOME_GRID, failSecond: { __missing: true }, botchSecond: { __missing: true } })),
   SPELUNKING_COLUMNS[0]);

@@ -7406,6 +7406,7 @@
   "ACKS-FORMATION.obstacles.flavor": "{obstacle} — {feet}'",
   "ACKS-FORMATION.obstacles.outcome.progress": "across",
   "ACKS-FORMATION.obstacles.outcome.missed": "missed",
+  "ACKS-FORMATION.obstacles.covered": "{covered} of {stretches} stretches covered",
   "ACKS-FORMATION.obstacles.reason.notPermitted": "cannot attempt this obstacle",
   "ACKS-FORMATION.obstacles.reason.needsClassThrow": "is proficient, but has no climbing throw recorded",
   "ACKS-FORMATION.obstacles.reason.unknown": "unknown obstacle",

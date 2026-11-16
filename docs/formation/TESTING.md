@@ -4395,8 +4395,9 @@ step 6).
 3. **An obstacle attempt throws what the table says.** Run
    `acksExtras.formation.obstacles.attemptObstacle([{actor}], {kind: "easyClimb", feet})`
    with the climber, for a length of two stretches, then `kind: "sheerClimb"`.
-   *Observable:* a Judge-whispered card, one throw per stretch against the
-   imported target for the first, and the climber listed as unable to attempt
+   *Observable:* a Judge-whispered card, up to one throw per stretch against the
+   imported target for the first (a miss that covers no ground stops it, step 2
+   of the next section), and the climber listed as unable to attempt
    the second when the table says none may try. Nothing reaches a player seat.
 4. **Absent stays blank.** In the Ruledata Browser, give `formation` an
    override that blanks `spelunking` (as step 5 of the delve's wandering
@@ -4441,7 +4442,8 @@ Pinned offline: `tools/test-jumping.mjs`, `tools/test-obstacles.mjs`,
 
 What a failed and a botched throw cost at each obstacle is the `formation`
 document's `spelunkingOutcomes` table (RR p. 268), per obstacle `fail` and
-`botch`, each `{text, falls}`. Compare with
+`botch`, each `{text, falls}` and, where the cell decides it, `advances`.
+Compare with
 `o = acksExtras.lib.tables.getDoc("formation").tables.spelunkingOutcomes`;
 no outcome's words enter the report, only counts.
 
@@ -4452,7 +4454,8 @@ miss and a natural 1.
 
 1. **The import reads them.** Run Rules tables with the Revised Rulebook open.
    *Observable:* `o` holds six obstacles, each with `fail` and `botch` carrying
-   non-empty `text` and a boolean `falls`; the Ruledata Browser lists the raw
+   non-empty `text` and a boolean `falls`, and `advances` a boolean or absent
+   per cell, never any other type; the Ruledata Browser lists the raw
    `spelunkingOutcomeGrid` beside it; `t.citeOf("formation",
    "spelunkingOutcomes")` (`<cite>` below) names the page. Count the cells
    agreeing with the page, book open, and report the count.
@@ -4460,8 +4463,13 @@ miss and a natural 1.
    classThrow: 20}], {kind: "easyClimb", feet})` for two stretches, rigged to
    miss: then rigged to a natural 1.
    *Observable:* the miss prints `o.easyClimb.fail.text` and throws the second
-   stretch only when `o.easyClimb.fail.falls` is false; the natural 1 prints
-   `o.easyClimb.botch.text` and, `falls` true, throws no further stretch.
+   stretch only when `o.easyClimb.fail.advances` is true and
+   `o.easyClimb.fail.falls` is false; with `advances` false or absent it stops
+   after one throw, the member's row has `across: false`, `covered: 0`, and the
+   card says how many stretches were covered. Where it advances, the
+   attempts' `step` reads `covered`, then `across`. The natural 1 prints
+   `o.easyClimb.botch.text` and, `falls` true, throws no further stretch (`step`
+   `fell`).
    Hovering the outcome shows `Imported (<cite>)`.
 3. **Not imported.** In the Ruledata Browser give `formation` an override that
    blanks `spelunkingOutcomes`, and repeat the rigged miss.

@@ -360,15 +360,27 @@ export function assembleSpelunking(grid = {}) {
 
 /**
  * One failed- or botched-throw cell as the obstacle procedure reads it: the
- * cell's words, kept whole for the card to print, and `falls`, whether they
- * name a fall (which ends that climber's attempt). A cell with no words is
- * null, so its obstacle is left out.
- * @returns {{text: string, falls: boolean}|null}
+ * cell's words, kept whole for the card to print, `falls`, whether they name a
+ * fall (which ends that climber's attempt), and `advances`, whether the
+ * outcome still covers ground.
+ *
+ * `advances` has three states and the key is present only in the first two.
+ * A negated progress noun reads false. Checked first, so a cell that negates
+ * progress and also names a rate stays false. A cell that names the rate the
+ * climber moves at (a speed or a pace) reads true. Any other wording decides
+ * nothing and leaves the key off: the procedure treats an undecided outcome as
+ * one that does not advance. A cell with no words is null, so its obstacle is
+ * left out.
+ * @returns {{text: string, falls: boolean, advances?: boolean}|null}
  */
 export function parseOutcomeCell(cell) {
   const text = String(cell ?? "").replace(/\s+/g, " ").trim();
   if (!text) return null;
-  return { text: text[0].toUpperCase() + text.slice(1), falls: /\bfall(?:s|ing)?\b/i.test(text) };
+  const out = { text: text[0].toUpperCase() + text.slice(1), falls: /\bfall(?:s|ing)?\b/i.test(text) };
+  // Seams are `\s*` and the noun's end is a letter test: extraction welds a figure onto the word after it.
+  if (/\b(?:no|without)\s*progress(?![a-z])|\b(?:not|cannot|can't)\s*(?:progress|advance)(?![a-z])/i.test(text)) out.advances = false;
+  else if (/\b(?:speed|pace)\b/i.test(text)) out.advances = true;
+  return out;
 }
 
 /**

@@ -9,7 +9,7 @@ import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { SPELUNKING_COLUMNS } from "../scripts/importer/formation-binding.mjs";
 import {
   OBSTACLES, OBSTACLE_KEYS, OUTCOMES_TABLE, adventuringTarget, stretchFeet, throwsFor, obstaclePlan, readThrow,
-  attemptObstacle, obstacleOutcome, outcomeProvenance,
+  obstacleStep, attemptObstacle, obstacleOutcome, outcomeProvenance,
 } from "../scripts/formation/obstacles.mjs";
 
 let passed = 0;
@@ -25,9 +25,12 @@ const SPELUNKING = {
   },
 };
 
-/** The registered `spelunkingOutcomes` table, with invented words. */
+/**
+ * The registered `spelunkingOutcomes` table, with invented words. The easy
+ * climb's failed throw still covers ground; the sheer face's does not say so.
+ */
 const OUTCOMES = {
-  easyClimb: { fail: { text: "Waits a moment", falls: false }, botch: { text: "Slips a little", falls: false } },
+  easyClimb: { fail: { text: "Inch along", falls: false, advances: true }, botch: { text: "Slips a little", falls: false } },
   sheerClimb: { fail: { text: "Holds on", falls: false }, botch: { text: "Plummets", falls: true } },
 };
 
@@ -117,7 +120,7 @@ ok("a failed throw and a natural 1 each read their own imported row", () => {
   load();
   const at = (kind, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 10 }), natural, total });
   assert.deepEqual(at("easyClimb", 5, 5).outcome, OUTCOMES.easyClimb.fail);
-  assert.equal(at("easyClimb", 5, 5).ends, false, "an outcome that names no fall leaves the next stretch to throw");
+  assert.equal(at("easyClimb", 5, 5).ends, false, "an outcome that names no fall does not end it by itself");
   assert.deepEqual(at("easyClimb", 1, 1).outcome, OUTCOMES.easyClimb.botch);
   assert.equal(at("easyClimb", 1, 1).botch, true);
   assert.equal(at("easyClimb", 1, 1).ends, false, "a natural 1 whose row names no fall does not end it either");
@@ -181,6 +184,60 @@ ok("a Judge's override with no words reads as not imported, and `falls` must be 
   resetTables();
 });
 
+ok("`advances` is read only as a boolean, and left off otherwise", () => {
+  load(SPELUNKING, {
+    easyClimb: { fail: { text: "Inch along", advances: true }, botch: { text: "Stay put", advances: false } },
+    sheerClimb: { fail: { text: "Wait a moment", advances: "yes" }, botch: { text: "Wait a moment", advances: 1 } },
+  });
+  assert.deepEqual(obstacleOutcome("easyClimb", "fail"), { text: "Inch along", falls: false, advances: true });
+  assert.deepEqual(obstacleOutcome("easyClimb", "botch"), { text: "Stay put", falls: false, advances: false });
+  assert.equal("advances" in obstacleOutcome("sheerClimb", "fail"), false);
+  assert.equal("advances" in obstacleOutcome("sheerClimb", "botch"), false);
+  resetTables();
+});
+
+// ---- where a throw leaves a member ------------------------------------------
+const made = { ok: true, success: true, outcome: "progress" };
+const missed = (outcome) => ({ ok: true, success: false, outcome });
+const WAIT = { text: "Wait a moment", falls: false };
+const INCH = { text: "Inch along", falls: false, advances: true };
+const STOP = { text: "Stay put", falls: false, advances: false };
+const SLIP = { text: "Slip and fall", falls: true };
+
+ok("a made stretch is covered, and the last one is across", () => {
+  assert.deepEqual(obstacleStep({ covered: 0, stretches: 3, read: made }), { step: "covered", covered: 1 });
+  assert.deepEqual(obstacleStep({ covered: 1, stretches: 3, read: made }), { step: "covered", covered: 2 });
+  assert.deepEqual(obstacleStep({ covered: 2, stretches: 3, read: made }), { step: "across", covered: 3 });
+  assert.deepEqual(obstacleStep({ stretches: 1, read: made }), { step: "across", covered: 1 }, "covered defaults to none");
+});
+
+ok("a miss whose outcome advances covers the stretch like a make", () => {
+  assert.deepEqual(obstacleStep({ covered: 0, stretches: 2, read: missed(INCH) }), { step: "covered", covered: 1 });
+  assert.deepEqual(obstacleStep({ covered: 1, stretches: 2, read: missed(INCH) }), { step: "across", covered: 2 });
+});
+
+ok("a miss that does not advance stalls, with no stretch gained", () => {
+  assert.deepEqual(obstacleStep({ covered: 1, stretches: 3, read: missed(STOP) }), { step: "stalled", covered: 1 });
+});
+
+ok("a miss whose outcome has no `advances`, or none imported, stalls", () => {
+  assert.deepEqual(obstacleStep({ covered: 0, stretches: 2, read: missed(WAIT) }), { step: "stalled", covered: 0 });
+  assert.deepEqual(obstacleStep({ covered: 0, stretches: 2, read: missed(null) }), { step: "stalled", covered: 0 });
+  assert.equal(obstacleStep({ covered: 0, stretches: 2, read: missed({ ...WAIT, advances: "true" }) }).step, "stalled",
+    "only the boolean counts");
+});
+
+ok("a fall ends the attempt whatever `advances` says, and gains no stretch", () => {
+  assert.deepEqual(obstacleStep({ covered: 1, stretches: 3, read: missed(SLIP) }), { step: "fell", covered: 1 });
+  assert.equal(obstacleStep({ covered: 0, stretches: 2, read: missed({ ...SLIP, advances: true }) }).step, "fell");
+});
+
+ok("a plan with nothing to throw against, or a bad count, stalls rather than gaining ground", () => {
+  assert.deepEqual(obstacleStep({ covered: 0, stretches: 2, read: { ok: false, outcome: null } }), { step: "stalled", covered: 0 });
+  assert.deepEqual(obstacleStep({ stretches: 2 }), { step: "stalled", covered: 0 });
+  assert.deepEqual(obstacleStep({ covered: -3, stretches: 2, read: made }), { step: "covered", covered: 1 });
+});
+
 ok("the outcome's tooltip names the imported page, the override, or is empty", () => {
   registerTable({ id: FORMATION_DOC, source: "invented", cites: { [OUTCOMES_TABLE]: "XX p. 9" }, tables: { [OUTCOMES_TABLE]: OUTCOMES } },
     { priority: PRIORITY.WORLD, source: "test" });
@@ -236,12 +293,78 @@ await okAsync("with the stretch imported each member throws once per stretch and
   const world = mockWorld([4, 2, 15, 15]);
   const results = await attemptObstacle([{ actor: { name: "Ayla" } }, { actor: { name: "Brun" } }],
     { kind: "easyClimb", feet: 80 });
-  // Two stretches each. Ayla's 4 and 2 miss the target of 6, which costs a
-  // round on an easy climb and not the climb; Brun's two 15s make it.
+  // Two stretches each. Ayla's 4 and 2 miss the target of 6, and the easy
+  // climb's outcome still covers ground, so both stretches are thrown; Brun's
+  // two 15s make it.
   assert.deepEqual(world.rolled, ["1d20", "1d20", "1d20", "1d20"]);
   assert.equal(results[0].attempts.length, 2);
   assert.equal(results[0].attempts.every((a) => a.success === false), true);
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["covered", "across"]);
+  assert.equal(results[0].across, true);
+  assert.equal(results[0].covered, 2);
   assert.equal(results[1].attempts.every((a) => a.success === true), true);
+  assert.deepEqual(results[1].attempts.map((a) => a.step), ["covered", "across"]);
+  resetTables();
+});
+
+await okAsync("a miss that does not advance stalls the member: the next stretch is not thrown, and a make never comes", async () => {
+  load();
+  const world = mockWorld([5, 15]);
+  const results = await attemptObstacle([{ actor: { name: "Ayla" }, proficient: true, classThrow: 9 }],
+    { kind: "sheerClimb", feet: 80 });
+  assert.equal(world.rolled.length, 1, "the sheer face's miss says nothing of ground covered");
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["stalled"]);
+  assert.equal(results[0].covered, 0);
+  assert.equal(results[0].across, false);
+  assert.match(world.posted[0].content, /obstacles\.covered\{"covered":0,"stretches":2\}/, "the card says how far the member got");
+  resetTables();
+});
+
+await okAsync("a miss whose outcome has no `advances` key ends the attempt", async () => {
+  load(SPELUNKING, { crawl: { fail: { text: "Wait a moment", falls: false } } });
+  const world = mockWorld([2, 15]);
+  const results = await attemptObstacle([{ actor: { name: "Ayla" } }], { kind: "crawl", feet: 80 });
+  assert.equal(world.rolled.length, 1);
+  assert.equal(results[0].attempts[0].step, "stalled");
+  assert.equal(results[0].across, false);
+  resetTables();
+});
+
+await okAsync("a stretch made before a stall stays covered, and a miss that advances covers its own", async () => {
+  load();
+  let world = mockWorld([15, 5, 15]);
+  let results = await attemptObstacle([{ actor: { name: "Ayla" }, proficient: true, classThrow: 9 }],
+    { kind: "sheerClimb", feet: 120 });
+  assert.equal(world.rolled.length, 2, "made, then missed with nothing gained: stalled before the third");
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["covered", "stalled"]);
+  assert.equal(results[0].covered, 1);
+  world = mockWorld([4, 15]);
+  results = await attemptObstacle([{ actor: { name: "Brun" } }], { kind: "easyClimb", feet: 80 });
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["covered", "across"], "a miss that advances, then a make");
+  assert.equal(results[0].covered, 2);
+  resetTables();
+});
+
+await okAsync("a fall ends the attempt as fell, with the stretch uncovered", async () => {
+  load();
+  const world = mockWorld([15, 1, 15]);
+  const results = await attemptObstacle([{ actor: { name: "Ayla" }, proficient: true, classThrow: 9 }],
+    { kind: "sheerClimb", feet: 120 });
+  assert.equal(world.rolled.length, 2);
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["covered", "fell"]);
+  assert.equal(results[0].covered, 1);
+  assert.equal(results[0].across, false);
+  resetTables();
+});
+
+await okAsync("a one-stretch face made is across, and its card carries no count", async () => {
+  load();
+  const world = mockWorld([15]);
+  const results = await attemptObstacle([{ actor: { name: "Ayla" }, proficient: true, classThrow: 9 }],
+    { kind: "sheerClimb", feet: 40 });
+  assert.deepEqual(results[0].attempts.map((a) => a.step), ["across"]);
+  assert.equal(results[0].across, true);
+  assert.doesNotMatch(world.posted[0].content, /obstacles\.covered/);
   resetTables();
 });
 

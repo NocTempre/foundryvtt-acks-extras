@@ -9,16 +9,17 @@
  *    from the `spelunking` registered table (`adventuringTarget`);
  *  - **what does a failed throw cost?** and **what does a natural 1 cost?**
  *    Read from the `spelunkingOutcomes` registered table (`obstacleOutcome`):
- *    the row's words, which the card prints, and whether they name a fall. A
- *    fall ends that climber's attempt; any other outcome leaves the next
- *    stretch to throw;
+ *    the row's words, which the card prints, whether they name a fall, and
+ *    whether the outcome still covers ground (`advances`). A fall ends that
+ *    climber's attempt, and so does a miss that does not advance: the stretch
+ *    is not covered and nothing here throws it again (`obstacleStep`);
  *  - **is the climber helpless while doing it?** (`vulnerable`).
  *
  * One throw per stretch of the obstacle, the stretch being the imported figure
  * (`stretchFeet`). Nothing here knows a distance, a target or an outcome: with
  * the table not imported an ordinary adventurer's attempt is reported as
  * unknown, never rolled against a guess, and a missed throw whose outcome is
- * not imported ends that climber's attempt.
+ * not imported, or imported with no `advances`, ends that climber's attempt.
  *
  * `assisted` is one flag the caller sets. Where it is true, `obstaclePlan`
  * plans a sheer climb as the easy climb, for the target and for the outcomes
@@ -51,18 +52,24 @@ export const OBSTACLES = Object.freeze({
 
 /**
  * What a missed throw costs at this obstacle: `which` is `"fail"` for a failed
- * throw and `"botch"` for a natural 1. Answers `{text, falls}` — the words the
- * card prints and whether they end the attempt — or null until the table holds
- * that outcome. A Judge's override with no words reads as not imported.
+ * throw and `"botch"` for a natural 1. Answers `{text, falls, advances?}` — the
+ * words the card prints, whether they end the attempt, and whether the outcome
+ * still covers ground — or null until the table holds that outcome. A Judge's
+ * override with no words reads as not imported. `advances` is present only
+ * where the table says it with a boolean; absent, `obstacleStep` reads the
+ * outcome as one that does not advance.
  *
  * @param {string} kind a key of OBSTACLES
  * @param {"fail"|"botch"} which
- * @returns {{text: string, falls: boolean}|null}
+ * @returns {{text: string, falls: boolean, advances?: boolean}|null}
  */
 export function obstacleOutcome(kind, which) {
   const cell = formationValue(OUTCOMES_TABLE)?.[kind]?.[which];
   const text = typeof cell?.text === "string" ? cell.text.trim() : "";
-  return text ? { text, falls: cell.falls === true } : null;
+  if (!text) return null;
+  const out = { text, falls: cell.falls === true };
+  if (typeof cell.advances === "boolean") out.advances = cell.advances;
+  return out;
 }
 
 /**
@@ -144,7 +151,8 @@ export function obstaclePlan({ kind, proficient = false, classThrow = null, assi
  * Read one throw's result against a plan, testable without dice. A miss
  * answers the imported outcome (`obstacleOutcome`, null while not imported)
  * and `ends`: whether the climber's attempt stops here, which it does on a
- * fall and on an outcome nobody imported.
+ * fall and on an outcome nobody imported. Whether a miss that names no fall
+ * still covers ground is not in `ends`; `obstacleStep` answers it.
  *
  * The natural result is read before the target: a throw on the lowest face is a
  * miss whatever the total reaches, and reads the botch row.
@@ -167,9 +175,39 @@ export function readThrow({ plan, natural, total }) {
 }
 
 /**
+ * Where one throw leaves a member on the obstacle. Pure: it counts stretches
+ * and reads the throw, and knows no distance and no table.
+ *
+ * - `fell`: the miss names a fall; the stretch is not covered.
+ * - `covered`: a stretch is made (a make, or a miss whose outcome says it
+ *   `advances`) with more to go.
+ * - `across`: the stretch made was the last.
+ * - `stalled`: a miss that does not advance, or whose outcome is not imported,
+ *   or has no `advances`; the stretch is not covered and the attempt ends
+ *   without a throw again.
+ *
+ * @param {object} o
+ * @param {number} [o.covered] stretches covered before this throw
+ * @param {number} o.stretches stretches the obstacle takes
+ * @param {object} o.read a `readThrow` result
+ * @returns {{step: "covered"|"across"|"fell"|"stalled", covered: number}}
+ */
+export function obstacleStep({ covered = 0, stretches, read } = {}) {
+  const so = Math.max(0, Number(covered) || 0);
+  if (!read?.ok) return { step: "stalled", covered: so };
+  if (!read.success) {
+    if (read.outcome?.falls === true) return { step: "fell", covered: so };
+    if (read.outcome?.advances !== true) return { step: "stalled", covered: so };
+  }
+  const now = so + 1;
+  return { step: now >= stretches ? "across" : "covered", covered: now };
+}
+
+/**
  * Send a party at an obstacle, one member at a time, and report what happened
  * to each. Members who may not attempt it at all are listed as such rather
- * than rolled for.
+ * than rolled for. A member's row carries `covered`, the stretches made, and
+ * `across`, whether the last was; each attempt carries its `step`.
  *
  * The length is the obstacle's, in feet; left out it is one stretch of the
  * imported table. With the stretch not imported no throw count can be made, so
@@ -189,16 +227,22 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
       results.push({ name: m.actor?.name, plan, blocked: true });
       continue;
     }
-    // Every stretch is its own throw, and the first fall ends the climb.
+    // Every stretch is its own throw. A fall ends the climb, and so does a miss
+    // that covers no ground: that stretch is not thrown again.
     const attempts = [];
+    let covered = 0;
+    let across = false;
     for (let i = 0; i < throws; i++) {
       const roll = await new Roll("1d20").evaluate();
       const natural = roll.dice[0]?.results?.[0]?.result ?? roll.total;
       const read = readThrow({ plan, natural, total: roll.total });
-      attempts.push({ ...read, natural, total: roll.total, roll });
-      if (read.ends) break;
+      const stepped = obstacleStep({ covered, stretches: throws, read });
+      covered = stepped.covered;
+      across = stepped.step === "across";
+      attempts.push({ ...read, step: stepped.step, natural, total: roll.total, roll });
+      if (stepped.step === "fell" || stepped.step === "stalled" || across) break;
     }
-    results.push({ name: m.actor?.name, plan, attempts, blocked: false });
+    results.push({ name: m.actor?.name, plan, attempts, covered, across, blocked: false });
   }
 
   await postToJudges({
@@ -222,8 +266,12 @@ export async function attemptObstacle(members, { kind, assisted = false, feet = 
         ? game.i18n.localize(`${LANG_PREFIX}.outcome.progress`)
         : `<span data-tooltip-text="${foundry.utils.escapeHTML(outcomeProvenance(last.outcome))}">`
           + `${foundry.utils.escapeHTML(last.outcome?.text ?? game.i18n.localize(`${LANG_PREFIX}.outcome.missed`))}</span>`;
+      // A face of several stretches says how far a member who is not across got.
+      const reach = throws > 1 && !r.across
+        ? ` <span>${game.i18n.format(`${LANG_PREFIX}.covered`, { covered: r.covered, stretches: throws })}</span>`
+        : "";
       return `<li><strong>${r.name}</strong> — ${said}` +
-        ` <span>(${r.attempts.map((a) => a.total).join(", ")})</span></li>`;
+        ` <span>(${r.attempts.map((a) => a.total).join(", ")})</span>${reach}</li>`;
     }).join("")}</ul>`,
     rolls: results.flatMap((r) => (r.attempts ?? []).map((a) => a.roll)),
   });
