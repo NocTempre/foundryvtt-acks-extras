@@ -69,6 +69,13 @@ Still unbuilt, in likely order:
    actor's id: the second is refused. Giving every unlinked member a minted id
    changes the records of parties that already exist, so it waits for a
    migration plan.
+14. **A summon is gathered by every connected GM client.** `gatherSummons`
+   (`scripts/formation/membership.mjs`) runs where `game.user.isGM`, and its
+   claim set and queue are per client, so two GM seats connected at once may
+   both stash the same placed creature. Not seen live; a gate on the active
+   GM (`game.users.activeGM`) closes it. In the same path, `recallMembers`
+   re-stashes a summon at 0 hit points when the synthetic actor's
+   `updateActor` never fired; nothing ends it there.
 
 ## 4. Land travel: not built
 
