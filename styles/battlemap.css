@@ -410,6 +410,7 @@
   color: var(--acks-on-burgundy);
   border-color: var(--acks-spot);
   font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-body);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }

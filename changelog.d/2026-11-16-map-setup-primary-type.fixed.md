@@ -1,0 +1,1 @@
+- **Scene controls → Battlemap → Map setup:** the Apply button at the foot of the window now grows with the type size a player sets, like the rest of the window; it stayed at its default size before.

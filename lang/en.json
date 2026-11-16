@@ -7146,7 +7146,7 @@
   "ACKS-BATTLEMAP.samples.tipUsedHex": "{used} of the {boxes} box(es) are in the fit.",
   "ACKS-BATTLEMAP.samples.tipUsedAll": "All {boxes} box(es) are in the fit.",
   "ACKS-BATTLEMAP.samples.tipLeftHex": "Left out: {unreachable} out of reach of the others, {wide} larger than one hex.",
-  "ACKS-BATTLEMAP.samples.boxTipHex": "{w} × {h} image px as dragged, read as one hex.",
+  "ACKS-BATTLEMAP.samples.boxTipHex": "{w} × {h} image px as dragged, meant to surround one hex.",
   "ACKS-BATTLEMAP.samples.boxTipCell": "{w} × {h} image px as dragged; {across} across and {down} down make one cell {cw} × {ch} px.",
   "ACKS-BATTLEMAP.samples.boxUsed": "In the fit.",
   "ACKS-BATTLEMAP.samples.boxOutOfReach": "Left out: out of reach of the other boxes.",
