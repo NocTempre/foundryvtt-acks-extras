@@ -419,9 +419,11 @@ from the code, and the owner's report is of what is on screen.
   the needs list, the cell-and-units row, the "saved as you choose" heading,
   the footer's rows, labels and tooltips.
 - **Slice E** (`implementer`, after D, same files): the token section of
-  proposal 9. If Phase 2 confirmed the half-cell finding, its fix is a slice
-  of its own in `footprint.mjs` and `token-scale.mjs` with their tests, and
-  it takes the quarter-square entry of §6 with it.
+  proposal 9. Phase 2 refuted the half-cell cause: core 14 stores a quarter
+  width. So T-0583's "1 rescaled every press" is diagnosed again first
+  (`architect`, read-only) before any fix in `footprint.mjs` or
+  `token-scale.mjs`. The lead: an immediate read after `await update`
+  returned the old width live.
 - **Slice G** (`implementer`, after E, only on a yes to §5 Q2).
 - **Slice I** (`implementer`): the not-to-scale mark, to the design in
   `20261115-map-ui-audit.md`.
@@ -436,11 +438,20 @@ Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md`,
 and `docs/battlemap/wip/20261115-map-ui-audit.md`, including the earlier
 phases' results and the owner's answers in §5, and run its Phase 3 as that
 phase's orchestrator: the surface walk on `main`, then open
-`topic/map-setup-panel` with the `acks-branch` skill and build slices D, E,
-(G where §5 says so,) I and J in its worktree, one fresh `implementer` each,
-committed by hand there; land and close the branch; then the walk on `main`,
-including `.claude/rules/ui-layout.md`'s eye checks and
-`.claude/rules/ui-tooltips.md`'s hover pass. Append 'Results — Phase 3',
+`topic/map-setup-panel` from `main` at f06cbec0 or later with the
+`acks-branch` skill and build slices D, E, (G where §5 says so,) I and J in
+its worktree, one fresh `implementer` each, committed by hand there; land and
+close the branch; then the walk on `main`, including
+`.claude/rules/ui-layout.md`'s eye checks and
+`.claude/rules/ui-tooltips.md`'s hover pass. `topic/map-setup` is closed.
+Phase 2's 'Found on the walk' list goes into slices D, E and J's briefs. D's
+footer rows name the auto-sizing write; D's needs list also covers a lone box
+around several hexes reading fair with Apply on (T-0592). E starts from
+T-0583's re-diagnosis, not a footprint quantum. T-0584 (Journey) worked
+live on a mile scene: dispose it as `false-report` or `docs-only`, asking the
+owner once whether a guide line would have prevented it. The hex walk uses
+the kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`
+(`docs/battlemap/TESTING.md` steps 14 and 14a). Append 'Results — Phase 3',
 correct Phase 4's start prompt, put Phase 4 up as a proposal card, and report
 to the owner, opening with the card."
 
@@ -615,3 +626,122 @@ source `derived:T-0578`, status `new`.
 The probes, the two rulings, the diffs, the mutation tables and every log
 quoted above are kept outside the repo in the session family's shared notes
 folder, `%APPDATA%\Claude\side-session-notes\local_6a0ea1de-306e-410c-893c-53ad4db2e8f3\phase1-evidence\`.
+
+### Results — Phase 2
+
+Run 2026-11-15. Slices C and F, and C2 (what an `architect` review of C
+found), were committed by hand in `topic/map-setup`'s worktree. The branch
+was landed on `main` with `acks-branch` (rebased, gated, fast-forwarded from
+78fc4bf1) and closed after the walk. The walk's fixes were committed on
+`main` with `acks-commit`. Nothing is pushed.
+
+| Commit on `main` | Slice | What |
+|---|---|---|
+| ec5b05c4 | C | the lattice fit behind the hex family, corners refused, no spans on hex, the blank cell worth, the solve split from the write, the done notice, the affine leak closed, auto-sizing off at a mile or more |
+| 33005dd6 | F | the hex preview (`hexPreviewOutlines`, capped at `HEX_PREVIEW_MAX` 3000) |
+| 78893b8d | docs | DECISIONS entry, In force rows qualified, §5's "Yes, write it off" |
+| 8f5e9b32 | C2 | `tools/test-battlemap-panel.mjs` runs the real panel; spans back on scale-only; the shown solve follows a flag-only scene update |
+| f06cbec0 | walk | the Even offset hint and guide line, "1 box", the placeholder rounded, `TESTING.md` steps 14, 14a and 15 |
+
+C's commit message names T-0579, T-0581 and T-0582. C fixes them only in
+part; their remainder belongs to slices G, D and E (below).
+
+**Ledger.** `fixed-unreleased`, sha in the notes: T-0576, T-0577, T-0578,
+T-0580, T-0585, T-0586, T-0587, T-0588 and T-0589. Still `claimed`, re-claimed
+`2026-11-15 map-setup Phase 3`, with this walk's evidence in the notes:
+T-0579, T-0581, T-0582, T-0583 and T-0584. T-0592 stays `new`, confirmed
+live.
+
+#### Exercised live
+
+GM seat, the pane at 1366×768, on `battlemap/hex-setup-feedback` (rows, a
+square image stretched over a 4:3 scene) and `battlemap/hex-cols-setup`
+(columns, built this walk). Both carry generated maps with drawn hexes; the
+§2 parchment has none, so a fit there proves nothing.
+
+- **The reporter's three attempts, in order, with real drags.** A bar alone:
+  Apply disabled, and the line under it says a bar does not place hexes and
+  names "Draw box". "Pick corners": refused with a notice naming "Draw box".
+  Boxes: three over two rows read tight at 0.75 px, five over four rows at
+  0.70 px. Hex columns: five boxes, tight at 1.0 px (80.1 × 69.1 against the
+  true 80 × 69.28).
+- **The live probe against the test mock.** `hexProbe` from the scene's clone
+  for types 2–5 against `coreHexGrid`: 18 numbers per type (`refW`, `refH`,
+  `basis`, six vertices), largest difference 2.8e-14.
+- **A hex apply, confirmed through the dialog's real Yes.** At 6 mi:
+  `grid.type` 2, size 51. The token at 780,623 and the wall
+  [700,500,900,500] were unmoved, as the confirmation now says. The notice
+  read "Hex grid applied: 51 px hexes, 6 mi per hex." The flag read
+  `autoScale: false`. Every drawn hex centre (1254) mapped through the
+  background sprite lies in its own Foundry hex. The farthest, 32 rows from
+  the boxes, is 4.5 px from its grid centre, the residue of the scene's
+  integer size. Columns: type 4, size 69, 442 hexes, max 2.5 px, rms 1.35.
+- **Both parities from one box.** Type 2, then type 3: the box's hex is 1.65
+  and 1.49 px from a grid centre. The flip moves the background half a hex
+  and renumbers the hexes. §3's inference holds, and T-0589 is fixed in
+  f06cbec0.
+- **The mile-scale drop.** A one-cell character dropped through core's
+  `_onDropActorData` after the 6 mi apply stays 1 × 1.
+- **Journey.** A party actor dropped on the applied scene took Wilderness,
+  with the notice naming the scale as the reason. With the party already on
+  the scene, units `ft` → delve → `mi` switched it back, with the same
+  notice. A scene at `ft` infers nothing, by design. T-0584 is not a gap on
+  a mile scene.
+- **`TokenDocument.schema.fields.width`** is a `NumberField`, positive,
+  `integer: false`, with no step. On the hex scene a write of 0.25, 0.75 or
+  0.3 reads back exactly once the update has settled (`animate: false`, then
+  a wait). An immediate read after `await update` returned the old width.
+  Core's 0.5 rounding is in `getSnappedPosition`, not the schema. §3's
+  half-cell cause is refuted (T-0583).
+- **A lone box around a 2×2 block** reads fair, as one hex 2.5 times too
+  large (75.8 × 81.5), with only the other-family warning. Apply is enabled,
+  and the bar then converts to 14.82 mi a hex. T-0592, confirmed.
+- **The preview** draws on both scenes' drawn hexes.
+- **Console.** After a real `location.reload()`, the pane's console buffer
+  holds this load from core's "Initializing Foundry Virtual Tabletop Game",
+  then `acks-extras | Initializing` (init) and the ruledata provider's ready
+  line. It has no error-level entry. The buffer is the pane's CDP capture,
+  attached across the reload, not the capture driver.
+- **The walk's fixes**, re-read live after a reload: the new hint text, "1
+  box · scale bar", and the placeholder 3.93 where it printed the raw
+  quotient.
+
+Fixture ledger: built `Scene.O9jMQk3EOUPYTE5S`, marker
+`battlemap/hex-cols-setup`, kept. Built and swept: two tokens on
+`CBskaS5AQcGHmjYf`, removed `[…Token.8V9pgg4nvD7TFSSI, …Token.xJd8qvOgyDHtw9OZ]`,
+could not find `[]`, refused `[]`. The kept formation `formation/cadence-party`
+is left in `journey`.
+
+#### Checked offline only
+
+- `npm test` "230 committed suite(s)" and `npm run validate` OK, on C2's tree
+  and again on the landing's tip under the lease. f06cbec0's gate in a clone:
+  build:packs 2 s, test 169 s, validate 698 s, green.
+- The review's 26 mutants on C's tree: 22 survived. On C2's tree, with the
+  panel suite: 24 killed. S6 (parity) and P1 (a unit key equal to its
+  abbreviation) are equivalent.
+- T-0585 (the affine leak) and T-0587 (the bar through centre spacing) are
+  pinned by tests. The bar read 6.02 mi a hex live, but no bar was laid
+  across the long axis.
+
+#### Not checked
+
+- A player seat. Tiles across an apply (the fixture has none).
+- The preview following a family or parity switch, and its cost at its cap.
+  The largest scene walked held about 1300 hexes.
+- `ui-layout`'s eye checks and the hover pass: Phase 3's walk.
+
+#### Found on the walk, for Phase 3
+
+- The confirmation does not name the auto-sizing write a mile-scale apply
+  makes; the footer's rows (slice D) should.
+- The confirmation's placeables sentence shows on a scene with nothing
+  placed. "Hexes 69 px across" on columns is flat to flat.
+- After a 6 mi apply the token chips read 15840' to 190080' (T-0582,
+  slice E).
+- The delete-sample × has a `data-tooltip` and no accessible name: `find`
+  by its label returns nothing. The panel's selects are named by their value,
+  not their label (slice J).
+- The body loses its scroll on every delete (the audit's finding 2).
+- Each apply drops the Battlemap control group (known, `TESTING.md`), so
+  "Draw box" must be re-armed for the next box.
