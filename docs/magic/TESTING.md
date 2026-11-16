@@ -318,3 +318,89 @@ The walk removes the rows it added, found by their own marks
 edited once more; its last checks are that none of its rows remains and the
 register rows number as before. A row anyone else added stays, and the three
 scope fixtures are kept.
+
+## Casting a spell (the cast engine)
+
+Walked by `tools/live/magic-cast-spell.mjs` on the GM and Player seats. The
+spells are the seat's own import from the RR by cookbook id (the three recipe
+spells of "Spell effect rows"); the walk's assertions are relations between
+what the card shows and what the world holds, never a printed figure.
+
+### Fixtures
+
+Found by marker, built by `api.fixture` when nothing carries it, and kept.
+
+| Marker | What it is |
+|---|---|
+| `magic/cast-scene` | A gridded field, no vision, global light. |
+| `magic/cast-class` | An `acks-extras.class` item with one vancian tradition, two first-level slots. |
+| `magic/cast-caster` | A character the Player owns outright, bound to the class by `flags.acks-extras.classes.uuid`, level 1, `system.spells.enabled`. |
+| `magic/cast-spell-damage`, `-cure`, `-fright` | Copies of the three imported spells on the caster, as the walk reshapes them at its start: first-level list, a flat roll and a "half" save on the damage copy, a two-minute duration and a "negates" save on the condition copy. |
+| `magic/cast-target-a`, `-b`, `-c` | Monsters nobody but the GM owns, each reset to 20 hit points and equal saves. |
+| `magic/cast-monster`, `magic/cast-monster-weapon` | A monster with one melee weapon. |
+
+The run's own tokens, cards and records are tracked by uuid and swept alone.
+The walk moves the world clock forward by a few minutes and restores the dice
+it rigged.
+
+### Steps
+
+1. The boot recorder, attached before the reload on both seats, sees `init`,
+   `setup` and `ready` with no cast registration error. *Observable:* the
+   recorder ran before Foundry's scripts and holds no such error.
+2. Cast the damage spell at three targeted tokens with the dice rigged so one
+   save passes and one fails. *Observable:* one card, one rolled amount
+   shared by every entry, each applied amount equal to the rolled amount
+   through that entry's save fraction and one half-to-even rounding, each
+   target's hit points fallen by exactly its applied amount, the damage type
+   and a tooltip on every figure, and the cast count and the tradition's
+   slot each up by one. Press Undo on each entry: hit points restored.
+3. The same cast with nothing targeted. *Observable:* the card posts the
+   roll with no target and nothing applied; with two tokens then targeted,
+   the footer Apply takes them, rolls their saves and applies; the third
+   token is untouched.
+4. The cure spell's reversed form with one target. *Observable:* the
+   system's own attack card is posted for the cast, carries our
+   `magicAttack` mark and has no apply button; the cast's entry applied the
+   amount that card's damage roll made. Cast at nothing, the card carries a
+   Throw press.
+5. The cure spell's plain form on a wounded token. *Observable:* hit points
+   raised by the applied amount, capped at the maximum.
+6. The condition spell twice on one token, thirty seconds apart.
+   *Observable:* two records, each with one status and no changes, flag-timed
+   (core's `duration` unset), and one condition standing. Advance
+   `game.time` past the first record's end: one record left, the condition
+   stays. Past the second's: both gone, the condition off.
+7. A monster's weapon used through its own item. *Observable:* core's attack
+   card, no cast dialog, no cast card, no `magicAttack` mark.
+8. The Player seat casts the damage spell at a token it does not own.
+   *Observable:* the entry is applied by the GM client, the token's hit
+   points move on the GM's view, and the Player's `isOwner` on it is false.
+9. Spend both slots. *Observable:* the Player's dialog shows the verdict as a
+   block and disables Cast; cancelling it spends nothing and posts nothing;
+   the GM's dialog shows the same verdict as a warning and leaves Cast on.
+10. Neither seat recorded a console error after its load.
+
+### Drive mechanics
+
+- A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2
+  and is found by `.acks-extras-cast-dialog`. Its Cast button is
+  `button[data-action="cast"]`, and the form's `[data-cast-mode]` select
+  picks the form, with a bubbling `change` after the value is set.
+- Rig the dice with `CONFIG.Dice.randomUniform` (reads from the top: 0.025
+  throws a 20, 0.975 a 1) and restore it in `finally`.
+- Targets are set with `token.object.setTarget(true, {user, releaseOthers:
+  false, groupSelection: true})` on the viewed scene.
+- A card button is pressed by its `data-action` (and `data-target`,
+  `data-row`) inside `[data-message-id]` with the chat tab up; the entry
+  settles when none is `pending` or `applying`.
+- The walk's seats do not own the targets, so every apply from a Player
+  goes through the GM client's relay: wait for the entry rather than the
+  hit points.
+
+### Teardown
+
+The walk lists the cards speaking as its fixtures since it began and the
+caster's own records, tracks them with its tokens, and `sweepTracked` deletes
+exactly that list. It resets the caster's spent slots, restores the dice and
+clears each seat's targets. The fixtures stay.

@@ -238,20 +238,93 @@ says and to nothing a player can not edit on their own item.
 
 **A cast's end** (`cast-expiry.mjs`, registered at `init`). On each forward
 step of the world clock, read on the one GM window lib's `onWorldTimeAdvanced`
-fires on, every `character` actor's caster records are checked against their
-end: the record's `start.time` plus its stored duration, a calendar unit
+fires on, the cast records of every world actor and every unlinked token's actor
+(lib's `worldActors`) are checked against their end: the record's `start.time` plus its stored duration, a calendar unit
 converted by the world's calendar the way core converts one, `rounds` at
 `ROUND_SECONDS` (`TURN_SECONDS` over `ROUNDS_PER_TURN`). A record with no
 duration, or one in a unit the clock cannot count, never ends here. Core's own
-`duration.expired` is not read (DECISIONS, 2026-11-11). A record past its end
+`duration.expired` is not read (DECISIONS, 2026-11-11). A record the cast
+engine timed itself carries its `duration` and `startTime` in the flag and is
+read from there first; it is not announced but deleted by id when its end
+passes, so the status it held ends with it and a second record of the same cast
+keeps its own end (`endAction`: announce, delete or nothing). A record past its end
 is stamped `ended` (the world time, in the `spellEffect` flag; `spellEffectOf`
 reads it back) and only then, where its cast still has creatures standing on
 any scene, one card is whispered to every GM and every other owner of the
 caster: the spell, the caster, the count, and a Dismiss button that runs lib's
-`promptDismiss` on that cast's tokens (`castTokens`, matched by the summons'
-`castId`). The card tells; the creatures stay until someone presses it. A
+`promptDismiss` on that cast's tokens and the summons held in a party token
+(`castSummons`, matched by the summons' `castId`); the count the card states
+includes the held. The card tells; the creatures stay until someone presses it. A
 recipient's record is never announced, since it carries the same cast. Combat
 does not move this system's clock, so a combat's rounds do not age a record.
 
-Nothing prices yet, and a cast of any other spell is still the system's own;
-those are in [ROADMAP.md](ROADMAP.md).
+**Casting a spell** (`cast-spell.mjs`, registered at `init` after the
+summoning's). A second claimant (key `acks-extras.magic.castSpell`) takes the
+cast of a flagged spell item on an actor this seat owns when the spell is no
+summoning and has effect rows of its own or of its library twin's
+(`cast-rows.mjs` `rowsOf`, the copy's rows winning); it declines a rowless
+spell, an actor the seat does not own and any item that is no spell, so a
+monster's attack item stays the system's. The cast runs in this order, and a
+cancel at any point before the spend costs nothing:
+
+1. *The dialog* (`apps/cast-dialog.mjs`, template `cast-dialog.hbs`): the form of
+   a reversible spell, the pick of each choice group, the caster level where
+   nothing resolved one (marked as set by hand in its tooltip), a situational
+   save modifier, the card's visibility, the seat's targets and each verdict.
+   A verdict that blocks a Player disables Cast for that form.
+2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
+   slot at the spell's level, several targets for a row with a throw, a
+   condition that forbids casting. They are checked again after the dialog and
+   before anything is spent.
+3. *The spend*, once: the seam's `spend()`, and `adjustPool` for a vancian
+   tradition (`cast-capacity.mjs`: the tradition whose key or label a list of the
+   spell names, its slot at the spell's level less what the actor spent; a
+   points tradition is shown and not spent; with no tradition, core's
+   `system.spells` count less the summed `cast`; else unknown and no verdict).
+4. *The caster level* (`cast-level.mjs`): the typed figure, else the matching
+   tradition's caster-level ladder at the class level (the class level where the
+   ladder is blank), else a monster's spellcasting level; never defaulted. It is
+   asked for only where the duration or a row scales with it.
+5. *The rows*: the mode's rows less the unpicked members of each choice group.
+   A damage row with no throw and a heal row are rolled once for the cast; a
+   damage row is asked through lib's `magicDamageSpec`, so the caster's
+   modifiers that opted in apply and no melee row does. A damage row with a
+   `delivery` is thrown through the system's own pipeline as the `magic` attack
+   type on a carrier (lib MODEL, "A spell's damage on the attack seam"), at the
+   seat's one target; a hit's `damageTotal` is the amount. Any other row kind is
+   a line on the card from `describeSpellEffect`.
+6. *The resists*: where the spell saves (`save.kind` blank or `save`, a category
+   other than none), each target rolls lib's `saveThrow` once for the cast, with
+   the situational figure, the roll kept as labelled parts. A row's `saveEffect`
+   wins over the spell's. A passed save leaves nothing (negates) or half (half);
+   any other effect is left to the Judge (`saveFractionOf`).
+7. *The card* (`cast-card.mjs`): lib's roll card, one section per rolled row, one
+   row per target, one entry per target and row in `flags["acks-extras"].castCard`,
+   rewritten per seat by a `renderChatMessageHTML` hook. The caster's own record
+   is written first, and only for a cast whose duration is timed and which has a
+   row that lasts.
+8. *The application* (`cast-apply.mjs`), where the seat had targets, for each
+   target on the right client. The amount is the roll through the save's fraction
+   and then `amountAfter`'s one rounding, to `adjustHp` with multiplier 1; a
+   condition row writes a status-only record per condition (at most one status
+   to a record, never with changes), timed by the row's `lasts` from the card's
+   duration; a failed save runs `loseStates` first, so the cast's own grant is
+   not what is lifted. Two casts of one condition leave two records and one
+   condition, which stays while either record stands.
+
+*The relay.* A seat writes the targets it owns and sends any other to the GM's
+client through `magicCastApply` on lib's socket transport. The handler
+authorizes against `requestUserId`: the message's author is the requester and
+owns the caster, the card's spell is an item of the caster, each row is in the
+spell's rows for the card's mode and picks, each amount is within the bounds of
+the row's own roll as recomputed there (a thrown row keeps the system's floor of
+one and doubles its dice on a critical), the target's save is recomputed and its
+total lies within its formula, and the entry is neither written nor in flight.
+The record is built from the spell's row. With no GM connected the entry stays
+pending and the card's Apply stays. A card cast with nothing targeted posts the
+rolls and an Apply that takes the presser's targets; a thrown row waits on a
+Throw press. Apply and Throw are for a GM and the user who cast; Undo is the
+GM's: the hit points return to what they were and the records are deleted by
+id.
+
+What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.

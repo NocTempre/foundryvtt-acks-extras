@@ -38,10 +38,18 @@ export function newCastId({ randomID } = {}) {
  * Active Effect creation data for one record of a cast.
  *
  * `duration` is the `{ value, units }` fragment `castDuration` returns; a
- * `{ none }` or an absent one leaves the effect's duration at Foundry's
- * default, so the record stays until its owner removes it. `changes` and
- * `transfer` pass through untouched; a record that is only a mark carries no
- * change and does not transfer from an item.
+ * `{ none }` or an absent one leaves the record without a duration, so it
+ * stays until its owner removes it. `changes` and `transfer` pass through
+ * untouched; a record that is only a mark carries no change and does not
+ * transfer from an item.
+ *
+ * A record that carries a status or changes, or that is given a `startTime`,
+ * is timed by this module's own clock: its `duration` and `startTime` ride in
+ * the flag and core's `duration` stays unset, because core counts a rounds
+ * duration it cannot convert as already run. A condition rides a record of its
+ * own, at most one status and never with changes, so removing that record by id
+ * ends that condition alone (`toggleStatusEffect` off deletes whole records
+ * that hold only the toggled status, changes included).
  *
  * @param {object} cast
  * @param {{uuid: string, name: string, img: string}} cast.spell
@@ -52,10 +60,35 @@ export function newCastId({ randomID } = {}) {
  * @param {object[]} [cast.changes]
  * @param {boolean} [cast.transfer]
  * @param {string} [cast.name]  Defaults to the spell's name.
+ * @param {string[]} [cast.statuses]  At most one status id; never with `changes`.
+ * @param {string} [cast.rowKey]  The spell row this record came from.
+ * @param {object} [cast.resist]  `{kind, category, total, target, success}` of the recipient's saving throw.
+ * @param {string} [cast.sourceAlignment]  The caster's alignment key, read by a row scoped to it.
+ * @param {number} [cast.startTime]  World time the record began; makes it flag-timed.
  * @returns {object}
  */
-export function spellEffectData({ spell, caster, castId, role, duration, changes = [], transfer = false, name }) {
+export function spellEffectData({
+  spell,
+  caster,
+  castId,
+  role,
+  duration,
+  changes = [],
+  transfer = false,
+  name,
+  statuses = [],
+  rowKey,
+  resist,
+  sourceAlignment,
+  startTime,
+}) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
+  if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
+  if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds no changes");
+  const mark = { spellUuid: spell.uuid, castId, casterUuid: caster.uuid, role };
+  if (rowKey) mark.rowKey = String(rowKey);
+  if (resist) mark.resist = resist;
+  if (sourceAlignment) mark.sourceAlignment = String(sourceAlignment);
   const data = {
     name: name ?? spell.name,
     img: spell.img,
@@ -63,20 +96,20 @@ export function spellEffectData({ spell, caster, castId, role, duration, changes
     transfer,
     disabled: false,
     changes,
-    flags: {
-      [MODULE_ID]: {
-        [FLAG_SPELL_EFFECT]: { spellUuid: spell.uuid, castId, casterUuid: caster.uuid, role },
-      },
-    },
+    flags: { [MODULE_ID]: { [FLAG_SPELL_EFFECT]: mark } },
   };
-  if (duration && !duration.none && Number.isFinite(duration.value) && duration.units) {
-    data.duration = { value: duration.value, units: duration.units };
-  }
+  if (statuses.length) data.statuses = [...statuses];
+  const timed = duration && !duration.none && Number.isFinite(duration.value) && duration.units;
+  const flagTimed = statuses.length > 0 || changes.length > 0 || Number.isFinite(startTime);
+  if (Number.isFinite(startTime)) mark.startTime = startTime;
+  if (timed && flagTimed) mark.duration = { value: duration.value, units: duration.units };
+  else if (timed) data.duration = { value: duration.value, units: duration.units };
   return data;
 }
 
 /**
- * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }`,
+ * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }` and
+ * whichever of `rowKey`, `resist`, `sourceAlignment`, `startTime` and `duration` it was written with,
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
  * was stamped at (`cast-expiry.mjs`).
@@ -93,5 +126,12 @@ export function spellEffectOf(effect) {
     role: raw.role,
   };
   if (raw.ended != null && Number.isFinite(Number(raw.ended))) record.ended = Number(raw.ended);
+  if (raw.rowKey) record.rowKey = String(raw.rowKey);
+  if (raw.resist && typeof raw.resist === "object") record.resist = raw.resist;
+  if (raw.sourceAlignment) record.sourceAlignment = String(raw.sourceAlignment);
+  if (raw.startTime != null && Number.isFinite(Number(raw.startTime))) record.startTime = Number(raw.startTime);
+  if (raw.duration && typeof raw.duration === "object" && Number.isFinite(Number(raw.duration.value)) && raw.duration.units) {
+    record.duration = { value: Number(raw.duration.value), units: String(raw.duration.units) };
+  }
   return record;
 }

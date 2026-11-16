@@ -27,6 +27,7 @@ import {
   fillGeneratedRepertoire,
 } from "./repertoire.mjs";
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
+import { registerCastSpell } from "./cast-spell.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
@@ -97,6 +98,7 @@ Hooks.once("init", () => {
     foundry.applications.handlebars.loadTemplates([
       `modules/${MODULE_ID}/templates/magic/tab-overview.hbs`,
       `modules/${MODULE_ID}/templates/magic/tab-mechanics.hbs`,
+      `modules/${MODULE_ID}/templates/magic/cast-dialog.hbs`,
       LEVEL_VALUE_PARTIAL,
       `modules/${MODULE_ID}/templates/lib/effect-row-editor.hbs`,
     ]);
@@ -109,6 +111,13 @@ Hooks.once("init", () => {
     registerCastSummon();
   } catch (err) {
     console.error(`${MODULE_ID} | the summoning cast could not register`, err);
+  }
+  // A spell with effect rows is cast through a dialog, a card and an applier;
+  // its claimant is registered after the summoning's, so a summoning stays there.
+  try {
+    registerCastSpell();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the spell cast could not register`, err);
   }
   // A summoning's cast that runs out on the world clock tells its caster's
   // owners and the GMs, with a Dismiss for what it left standing.

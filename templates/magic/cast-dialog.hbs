@@ -1,0 +1,71 @@
+<div class="acks-extras-cast-dialog">
+  {{#if hasModes}}
+  <div class="form-group">
+    <label>
+      <span>{{localize "ACKS-MAGIC.cast.dialog.modeLabel"}}</span>
+      <select name="mode" data-cast-mode>
+        {{#each modes}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </div>
+  {{/if}}
+
+  {{#each groups}}
+  <fieldset class="acks-extras-cast-group" data-cast-for="{{mode}}">
+    <legend>{{localize "ACKS-MAGIC.cast.dialog.pick"}}</legend>
+    <label>
+      <span>{{label}}</span>
+      <select data-pick="{{id}}" data-pick-mode="{{mode}}">
+        {{#each options}}<option value="{{key}}">{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </fieldset>
+  {{/each}}
+
+  {{#if level.show}}
+  <div class="form-group">
+    <label>
+      <span>{{localize "ACKS-MAGIC.cast.dialog.level"}}</span>
+      <input type="number" name="casterLevel" min="1" step="1" value="" data-tooltip-text="{{level.tip}}">
+    </label>
+    <p class="hint">{{localize "ACKS-MAGIC.cast.dialog.levelHint"}}</p>
+  </div>
+  {{else if level.value}}
+  <p class="hint" data-tooltip-text="{{level.tip}}">{{level.line}}</p>
+  {{/if}}
+
+  {{#if saves}}
+  <div class="form-group">
+    <label>
+      <span>{{localize "ACKS-MAGIC.cast.dialog.situational"}}</span>
+      <input type="number" name="situational" step="1" placeholder="0" data-tooltip-text="{{situationalTip}}">
+    </label>
+  </div>
+  {{/if}}
+
+  <div class="form-group">
+    <label>
+      <span>{{localize "ACKS-MAGIC.cast.dialog.visibility"}}</span>
+      <select name="visibility">
+        {{#each visibility}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </div>
+
+  {{#if capacity.line}}<p class="hint" data-tooltip-text="{{capacity.tip}}">{{capacity.line}}</p>{{/if}}
+
+  <section class="acks-extras-cast-targets">
+    <h4>{{localize "ACKS-MAGIC.cast.dialog.targets"}}</h4>
+    {{#if targets.length}}
+    <ul>{{#each targets}}<li>{{name}}</li>{{/each}}</ul>
+    {{else}}
+    <p class="hint">{{localize "ACKS-MAGIC.cast.dialog.noTargets"}}</p>
+    {{/if}}
+  </section>
+
+  {{#each verdicts}}
+  <ul class="acks-extras-cast-verdicts notes" data-cast-for="{{mode}}">
+    {{#each items}}<li data-severity="{{severity}}">{{text}}</li>{{/each}}
+  </ul>
+  {{/each}}
+</div>

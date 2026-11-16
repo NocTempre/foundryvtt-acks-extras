@@ -17,6 +17,11 @@
  * the clock, a reload or a second GM window finds it closed; a record whose
  * creatures were all dismissed already is stamped and posts nothing.
  *
+ * A record the engine timed itself (`spell-effect.mjs`: its duration and start
+ * ride in the flag) is not announced: when the clock reaches its end the record
+ * is deleted by id, whichever actor or unlinked token carries it, so a status
+ * it held ends with it and a second record of the same cast keeps its own.
+ *
  * See docs/magic/DECISIONS.md, "A cast's end is told on a card, read from the
  * module's own clock math".
  */
@@ -25,6 +30,8 @@ import { spellEffectOf } from "./spell-effect.mjs";
 import { TURN_SECONDS, ROUNDS_PER_TURN } from "../lib/constants.mjs";
 import { summonerOf, summonRecordOf, summonOwnership } from "../lib/summons-logic.mjs";
 import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
+import { castSummons } from "../lib/summons.mjs";
+import { worldActors } from "../lib/repair.mjs";
 import { docOf, escape as esc } from "../lib/util.mjs";
 
 /** Seconds in one combat round on the world clock: a dungeon turn's seconds over its rounds, both structural. */
@@ -39,16 +46,20 @@ const DISMISS_ATTR = "data-acks-extras-cast-dismiss";
 /**
  * The world time a cast record's duration ends at, or null when the clock
  * cannot reach it: no start, no finite duration, or a unit `secondsOf` does not
- * answer for. Reads the stored duration, never core's prepared one.
+ * answer for. A record the engine timed carries its own duration and start in
+ * its flag, and those are read first; any other reads core's stored duration,
+ * never its prepared one.
  * @param {object} effect  the record, an Active Effect document or its plain data
  * @param {(value: number, units: string) => number|null} secondsOf  a calendar
  *   duration in seconds, by the world's calendar
  * @returns {number|null}
  */
 export function castRecordEnd(effect, secondsOf) {
-  const time = (effect?._source?.start ?? effect?.start)?.time;
+  const mark = effect?.flags?.[MODULE_ID]?.[FLAG_SPELL_EFFECT];
+  const own = mark?.duration && mark?.startTime != null;
+  const time = own ? mark.startTime : (effect?._source?.start ?? effect?.start)?.time;
   const start = Number(time);
-  const { value, units } = effect?._source?.duration ?? effect?.duration ?? {};
+  const { value, units } = own ? mark.duration : (effect?._source?.duration ?? effect?.duration ?? {});
   const n = Number(value);
   if (time == null || time === "" || !Number.isFinite(start) || value == null || !Number.isFinite(n) || !units) return null;
   const seconds = units === "rounds" ? n * ROUND_SECONDS : units === "turns" ? null : secondsOf?.(n, units);
@@ -67,6 +78,24 @@ export function castEnded(effect, { worldTime, secondsOf }) {
   if (record?.role !== "caster" || record.ended != null) return false;
   const end = castRecordEnd(effect, secondsOf);
   return end != null && Number(worldTime) >= end;
+}
+
+/**
+ * What the clock does to a record whose cast has run out: `announce` for a
+ * caster's record that core times (a summoning's, told on a card), `delete` for
+ * a record the engine timed itself, and null for a record still running, one
+ * already stamped and one no cast made.
+ * @param {object} effect
+ * @param {{worldTime: number, secondsOf: Function}} o
+ * @returns {"announce"|"delete"|null}
+ */
+export function endAction(effect, { worldTime, secondsOf }) {
+  const record = spellEffectOf(effect);
+  if (!record || record.ended != null) return null;
+  const end = castRecordEnd(effect, secondsOf);
+  if (end == null || !(Number(worldTime) >= end)) return null;
+  if (record.duration && record.startTime != null) return "delete";
+  return record.role === "caster" ? "announce" : null;
 }
 
 /**
@@ -107,8 +136,9 @@ const announcing = new Set();
  * @param {object} deps
  * @param {number} deps.worldTime
  * @param {(effect: object, worldTime: number) => Promise<unknown>} deps.stamp
- * @param {(record: object) => object[]} deps.standing  the cast's tokens
- * @param {(o: {effect: object, record: object, tokens: object[]}) => Promise<unknown>} deps.post
+ * @param {(record: object) => object[]|{tokens: object[], held?: object[]}} deps.standing  what the cast
+ *   left standing: its tokens, or its tokens and its held summons (those riding in a party token)
+ * @param {(o: {effect: object, record: object, tokens: object[], held: object[]}) => Promise<unknown>} deps.post
  * @returns {Promise<{posted: boolean, reason?: string, n?: number}>}
  */
 export async function announceEndedCast(effect, { worldTime, stamp, standing, post }) {
@@ -119,29 +149,37 @@ export async function announceEndedCast(effect, { worldTime, stamp, standing, po
   announcing.add(key);
   try {
     await stamp(effect, worldTime);
-    const tokens = standing(record);
-    if (!tokens.length) return { posted: false, reason: "noneStanding" };
-    await post({ effect, record, tokens });
-    return { posted: true, n: tokens.length };
+    const found = standing(record);
+    const tokens = Array.isArray(found) ? found : (found?.tokens ?? []);
+    const held = Array.isArray(found) ? [] : (found?.held ?? []);
+    const n = tokens.length + held.length;
+    if (!n) return { posted: false, reason: "noneStanding" };
+    await post({ effect, record, tokens, held });
+    return { posted: true, n };
   } finally {
     announcing.delete(key);
   }
 }
 
 /**
- * Announce every record of the given actors whose cast has run out. A record
- * that fails is logged and the rest go on.
+ * Settle every record of the given actors whose cast has run out: announce a
+ * caster's core-timed record, delete an engine-timed one by id through
+ * `deps.remove`. A record that fails is logged and the rest go on.
  * @param {Iterable<object>} actors
- * @param {object} deps  `announceEndedCast`'s, with `secondsOf`
- * @returns {Promise<{posted: boolean, reason?: string, n?: number}[]>}
+ * @param {object} deps  `announceEndedCast`'s, with `secondsOf` and `remove(effect)`
+ * @returns {Promise<Array<{posted: boolean, reason?: string, n?: number}|{deleted: true, uuid: string}>>}
  */
 export async function sweepEndedCasts(actors, deps) {
   const out = [];
   for (const actor of actors ?? []) {
     for (const effect of actor?.effects ?? []) {
-      if (!castEnded(effect, deps)) continue;
+      const action = endAction(effect, deps);
+      if (!action) continue;
       try {
-        out.push(await announceEndedCast(effect, deps));
+        if (action === "delete") {
+          await deps.remove?.(effect);
+          out.push({ deleted: true, uuid: effect.uuid });
+        } else out.push(await announceEndedCast(effect, deps));
       } catch (err) {
         console.error(`${MODULE_ID} | a cast's end could not be announced`, err);
       }
@@ -180,13 +218,13 @@ function calendarSeconds(value, units) {
 const stampEnded = (effect, worldTime) => effect.update({ [`flags.${MODULE_ID}.${FLAG_SPELL_EFFECT}.ended`]: worldTime });
 
 /** The whispered card: the spell, the count still standing, and Dismiss. */
-async function postEnded({ effect, record, tokens }) {
+async function postEnded({ effect, record, tokens, held = [] }) {
   const caster = effect.parent;
   // A spell since deleted reads by the name its record was made with.
   const spellName = docOf(record.spellUuid)?.name ?? effect.name;
   const isGM = (id) => !!game.users.get(id)?.isGM;
   const content =
-    `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length }))}</p>` +
+    `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length + held.length }))}</p>` +
     `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`;
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: caster }),
@@ -196,12 +234,19 @@ async function postEnded({ effect, record, tokens }) {
   });
 }
 
+/** A record deleted by its id, from the actor or unlinked token that carries it. */
+const removeRecord = (effect) => effect.parent?.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+
+/** What one cast of this caster left standing: its scene tokens and its held summons. */
+const standingOf = (caster, castId) => (caster ? castSummons(caster, castId, { scenes: game.scenes }) : { tokens: [], held: [] });
+
 /** The live dependencies of a sweep. */
 const liveDeps = (worldTime) => ({
   worldTime,
   secondsOf: calendarSeconds,
   stamp: stampEnded,
-  standing: (record) => castTokens(game.scenes, record.casterUuid, record.castId),
+  remove: removeRecord,
+  standing: (record) => standingOf(fromUuidSync(record.casterUuid), record.castId),
   post: postEnded,
 });
 
@@ -215,7 +260,7 @@ function bindCard(message, html) {
       const caster = fromUuidSync(flag.casterUuid);
       if (!caster) return;
       const { promptDismiss } = await import("../lib/summons.mjs");
-      await promptDismiss(caster, { tokens: castTokens(game.scenes, caster.uuid, flag.castId) });
+      await promptDismiss(caster, { ...standingOf(caster, flag.castId), castId: flag.castId });
     });
   }
 }
@@ -227,8 +272,7 @@ export function registerCastExpiry() {
   if (registered) return;
   registered = true;
   onWorldTimeAdvanced((worldTime) => {
-    const casters = game.actors.filter((a) => a.type === "character");
-    sweepEndedCasts(casters, liveDeps(worldTime)).catch((err) => console.error(`${MODULE_ID} | the cast-end sweep failed`, err));
+    sweepEndedCasts(worldActors(), liveDeps(worldTime)).catch((err) => console.error(`${MODULE_ID} | the cast-end sweep failed`, err));
   });
   Hooks.on("renderChatMessageHTML", bindCard);
 }
