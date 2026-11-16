@@ -592,6 +592,147 @@ general convention.
     `modifierDisposition` answers unsupported for an area or recipient
     subject before it tests any scope, against ruling 10's classification.
 
+## S2a rulings (the S2a session's architect, 2026-11-16)
+
+Ruled on the questions the plan left open for S2a, against source in the
+worktree and core's `src/`. Each keeps its rejected alternative and counter.
+Tests use invented spells only.
+
+35. **A register row carries a `key`; a repair skips a row the Judge took
+    over and asks about it.** Every register effects spec carries an authored
+    `key` (`/^[a-z][A-Za-z0-9]*$/`, unique per entry, reversed twins
+    distinct); `effectField` gains `key`, the lint requires it, and a Judge's
+    added row gets `"_" + randomID(8)`, which can never match. *An edited
+    row:* a stored row with no `origin` whose key is a fresh register key
+    stands in for it; the fresh row is not added; where the Judge's row no
+    longer covers the fresh one (`coversFigure` minus `origin`, `unread`,
+    `key`) the repair lists a held edit, default keep, "take" puts the fresh
+    row in its place. *A deleted row:* `SpellExtras.retired: string[]`; the
+    row editor's delete passes `{removed}` to the store, which retires a
+    register key; a repair skips a retired key and lists a held edit, "take"
+    restores it. *`values`:* `bindSpell` stamps `cookbook.read.spell` (leaf
+    path → value written); a leaf equal to the stamp takes the page, one
+    differing from both is a held edit, an unstamped one takes the page.
+    `force` makes the page win everywhere but on a `_` row. Supersedes the
+    cost line of importer DECISIONS 2026-11-15 ("A repair tells a spell's
+    rows apart by `origin`") and ruling 3 in part, on new evidence: 1a saw
+    four rows after an edit and a repair, a deleted row return and `values`
+    overwritten, and S2a makes rows executable, so a doubled damage row would
+    apply twice. Built as slice **S1c**, before the lib half. *Rejected:* a
+    `supersedes` field; a compile-minted positional key; a silent stand-in.
+    *Counter (medium):* every repair re-lists each edit that still differs.
+36. **The carrier is lib's and is known by identity, never by a flag.**
+    `spellCarrier(actor, row, cast)` builds an unsaved weapon parented to the
+    caster and records it in a private `WeakMap`; `isSpellCarrier(item)` is
+    membership, `carrierOf(item)` the info. Its base damage is the row's
+    `{formula, types, extraordinary}` (`varies` → core's `variesByWeapon`,
+    unknown types dropped, the formula always written). Supersedes in part
+    ruling 9's "a carrier flagged as a spell's": a flag survives copy and
+    drag, and a real weapon answering as a carrier would lose equipment's
+    rows. *Counter (medium):* a core clone between dialog and builder would
+    miss the identity; loud (the card reads its delivery), and the first walk
+    proves it.
+37. **The type is "magic"; the throw asks the delivery's question;
+    contributors opt in per question.** A contributor declares `carriers?:
+    ["attack"|"damage"]`; for a carrier's attack `ask()` skips one that has
+    not opted in. The conditions and roll-gates contributors declare
+    `["attack"]`; equipment declares nothing and is never asked, so
+    `equipment/attack-mods.mjs` and `roll-wrap.mjs` stay untouched. For a
+    carrier the weapon wrappers answer `["magic"]`, wrapped's modes and
+    wrapped's formula. The attack base is `wrapped(delivery)` and
+    contributors are asked with the delivery while `ctx.type` stays "magic";
+    the damage base is `[]` plus `damageTerms`. Supersedes ruling 27's
+    "equipment stands down" mechanism; the intent stands. *Rejected:* passing
+    the delivery type and swapping only the damage (the card would read the
+    delivery). *Counter (medium):* a missile delivery loses core's range
+    band; no S2a row has one, S3 rules it.
+38. **Core's label for the type is written at ready**: lib's
+    `ACKS-LIB.attack.type.magic`, copied into `game.i18n.translations` at
+    core's key unless the system already has one. *Counter (low):* none
+    beyond a future system key, which the guard keeps.
+39. **A no-throw row's damage asks the same question inside a context lib
+    holds.** `magicDamageSpec(actor, carrier, {terms})` holds an attack
+    context with no target around the two synchronous modifier calls and
+    returns core's roll-spec shape (or null for no formula), composed by
+    `modifiedFormula`, a mirror of core's, pinned by a test. No floor (29).
+40. **The cast applies a throw's damage itself; core's card loses its Apply
+    before it is stored.** The cast awaits `makeAttackThrow`; on a hit
+    `damageTotal` goes to the one amount path. A lib `preCreateChatMessage`
+    hook matches a carrier attack in flight by speaker and strips the
+    apply-damage button from the stored content, stamping
+    `flags.acks-extras.magicAttack`. Ruling 25 stands over ruling 9's "core's
+    Apply": core's handler writes raw hit points outside `amountAfter`, the
+    defenses stage and the relay. *Counter (medium):* a seat that reloads
+    mid-throw leaves the entry "throw pending".
+41. **A throw row takes one target and is never thrown at nothing.** Several
+    targets: a Player is blocked before the spend, a Judge warned that the
+    first is used. None: the card carries a Throw press. A cancelled core
+    dialog after the spend leaves the entry pending with Throw. A no-throw
+    cast with nothing targeted rolls once and posts; Apply takes the
+    presser's targets then. Throw and Apply: the caster's owners and GMs;
+    Undo: GMs.
+42. **`lib/saves.mjs`: the spec is pure, the throw rolls it, the loss is the
+    applier's.** `saveSpec(actor, save, {magical, conditions, situational,
+    parts, values})` composes core's `rollSave` parts on the roll side and
+    lib's `rollMath("save", …)` on the target side, labelled, with
+    circumstance-bound rows `pending` for the Judge; `saveThrow` rolls it
+    (`total >= target`). `saveThrow` never runs the loss path; the applier or
+    the relay calls `loseStates`. Formation's `rollPartySave` calls it with
+    `conditions: false`, unchanged. *Finding:* party saves skip conditions
+    that a creature's own save applies.
+43. **The cast card is `lib/roll-card.mjs`, extended; no `cast-card.hbs`.**
+    Supersedes ruling 27's file name: lib DECISIONS 2026-08-11 ("One renderer
+    for every card where several people roll") is in force. Optional row
+    `tooltipText` and `actions`, section `titleTooltip`, card `noteTooltip`
+    and `buttons` (never `.card-buttons`, which core binds); output
+    byte-identical when none is given. The message flag
+    `flags.acks-extras.castCard` holds the model, entries keyed
+    `<tKey>_<rowKey>`, written by dotted per-entry updates; a magic render
+    hook rebuilds the body per seat. *Counter (low):* core's spell card from
+    `spend()` posts beside it.
+44. **A caster record is written only for a timed or held cast; the relay's
+    anchor is the cast card.** An instantaneous cast writes none (it would
+    never end). Supersedes in part rulings 10 and 25 and cast-flow step 10.
+45. **The relay is `magicCastApply`, idempotent through the message.**
+    Payload `{messageId, targetKey, resist, entries: [{rowKey, rolled,
+    critical}]}`; the GM's client checks the message's author is the
+    requester and its `castId`, the requester owns the caster and the spell
+    is the caster's, each row is in the spell's rows for the mode, `rolled`
+    within `damageBounds`, the recomputed save target and success, and the
+    entry not already written or in flight; it computes `amountAfter`, runs
+    `adjustHp`, builds the record from the row and calls `loseStates` on a
+    failed save. With no GM the entry stays pending with Apply. Undo (GM):
+    `restoreHp` and the record deleted by id. *Counter (medium):* a player's
+    save total is unchecked beyond the bounds and the target.
+46. **Records and expiry.** `spellEffectData` gains `statuses` (at most one,
+    never with changes), `rowKey`, `resist`, `sourceAlignment`, and flag
+    `duration` and `startTime`; core's `duration` stays unset on a record
+    with statuses or changes. A condition record is timed only where its row
+    `lasts` a duration. `castRecordEnd` reads the flag first; the sweep runs
+    over every world actor and unlinked token, deleting a flag-timed record
+    by id and keeping the summon caster record's stamp and card.
+47. **Capacity, caster level and verdicts are pure over lib's readers.**
+    `castCapacity` reads `classes/casting.mjs` `poolState` for the tradition
+    matching the spell's list, else core's `system.spells` minus summed
+    `cast`, else unknown; the spend is `spend()` plus `adjustPool` for a
+    vancian one. `casterLevel` follows ruling 6 with `{value, source,
+    parts}`. `castVerdicts` blocks a Player and warns a Judge on no slot,
+    several targets for a throw row, and a condition that forbids casting.
+    The row editor's ruling 16 fields are lib-half work (the file is lib's),
+    with `pick` on conditionRemove and `key` read-only.
+
+S2a is then three slices: **S1c** (ruling 35), the **lib half** (36 to 43,
+the row editor, `rollPartySave`), the **magic half** (`cast-rows`,
+`cast-level`, `cast-capacity`, `cast-plan`, `cast-card`, `cast-apply`,
+`cast-spell`, `apps/cast-dialog` with its template, `spell-effect`,
+`cast-expiry`, TESTING). Not verified, to prove live: the label write
+reaching core's dialog and card, the `preCreateChatMessage` strip storing
+the stripped content, the carrier's identity surviving core's dialog, a GM
+updating a player-authored message's flags, the sweep deleting on an
+unlinked token. Rules left at their defaults (not asked of the conditions'
+damage rows, no range band, core's direction modifiers offered, the mounted
+rider save firing on a delivery throw) go to the owner with S2a's results.
+
 ## Data shapes
 
 Effect row (`lib/fields.mjs` `effectField`), new keys: `saveEffect`
