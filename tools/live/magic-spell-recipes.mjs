@@ -113,6 +113,16 @@ try {
     ally: await gm.fixture("magic/scope-ally-caster", "Actor", { name: "Scope Ally", type: "character", system: { details: { alignment: "Lawful" } }, prototypeToken: { disposition: 1 } }),
     neutral: await gm.fixture("magic/scope-neutral-token", "Actor", { name: "Scope Neutral", type: "monster", system: { details: { alignment: "Neutral" } }, prototypeToken: { disposition: 0 } }),
   };
+  // A kept fixture carries whatever it was left with, and a monster is created
+  // hostile whatever its data says: bring each to the shape the step reads.
+  await gm.eval(`(async () => {
+    const shape = { ${JSON.stringify(fx.undead.uuid)}: -1, ${JSON.stringify(fx.ally.uuid)}: 1, ${JSON.stringify(fx.neutral.uuid)}: 0 };
+    for (const [uuid, disposition] of Object.entries(shape)) {
+      const a = await fromUuid(uuid);
+      if (a.prototypeToken.disposition !== disposition) await a.update({ "prototypeToken.disposition": disposition });
+    }
+    return true;
+  })()`);
   const r6 = await gm.eval(`(async () => { ${LIB}
     const V = await import("/modules/acks-extras/scripts/lib/vocab.mjs");
     const A = await import("/modules/acks-extras/scripts/lib/actor-read.mjs");
@@ -203,7 +213,11 @@ try {
     const before = ${rowsOf(H)};
     const index = before.findIndex(r => r.type === "modifier" && Array.isArray(r.anyOf) && r.anyOf.length);
     if (index < 0) return { row: false };
-    const scopeBefore = JSON.stringify(before[index].anyOf);
+    // A submit writes each branch through the schema, filling the fields a
+    // branch left unset with their initial values ("", [], false, "gate"),
+    // which scopeApplies reads the same as unset.
+    const norm = (a) => JSON.stringify((a ?? []).map(b => Object.fromEntries(Object.entries(b).filter(([k, v]) => !(v === "" || v === false || v == null || (Array.isArray(v) && !v.length) || (k === "vsAlignmentMode" && v === "gate"))).sort())));
+    const scopeBefore = norm(before[index].anyOf);
     const sheet = doc.sheet; await sheet.render({ force: true, tab: "mechanics" });
     for (let i = 0; i < 40 && !sheet.rendered; i++) await new Promise(r => setTimeout(r, 100));
     sheet.changeTab?.("mechanics", "primary");
@@ -220,7 +234,7 @@ try {
     for (let i = 0; i < 30 && (${rowsOf(H)})[index]?.origin === "register"; i++) await new Promise(r => setTimeout(r, 100));
     const edited = (${rowsOf(H)})[index];
     await ed.close(); await sheet.close();
-    return { row: true, button: true, editor: true, field: true, shown, kept: JSON.stringify(edited?.anyOf) === scopeBefore, cleared: !edited?.origin };
+    return { row: true, button: true, editor: true, field: true, shown, kept: norm(edited?.anyOf) === scopeBefore, cleared: !edited?.origin };
   })()`);
   check("the editor opened on a scoped bonus row and took a change", r7.row && r7.button && r7.editor && r7.field, r7);
   check("the anyOf reads back as stored and the row's origin is cleared", r7.kept && r7.cleared, { kept: r7.kept, cleared: r7.cleared });

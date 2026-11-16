@@ -907,11 +907,68 @@ again green.
 - Holy circle's bonus rows are scoped by the caster's own alignment, which
   no fixed `vsAlignment` key expresses; the rows ship unscoped.
 
-**Owner questions open** (defaults in rulings 22 and 24, built on unless
-answered): is an area spell's damage one roll for every target, or one per
+**Owner questions** (asked here, answered by message 8, read as rulings 28
+to 31): is an area spell's damage one roll for every target, or one per
 target; does save-halved damage with no throw have a floor; do spell attack
 throws use core's criticals; does the end of concentration also end the
-recipients' records (default no)?
+recipients' records? Message 8 also answered the area-size and alignment
+findings above (rulings 32 and 33), and session 1a built them as S1b.
+
+### Results, S1b (2026-11-15)
+
+**Built.** `92dce2ae` (docs: message 8, rulings 28 to 34) on `main`, and
+`603b8ea3` (S1b: the caster-relative, disjunctive and enemy scopes, the lib
+alignment, kinds and enemy readers, the area measure, holy circle's scoped
+rows and twins, the walk's steps 5 to 7), written on `topic/spell-effects`
+and landed above `a0995bb4`. The walk's two check fixes and the recipe's
+drive mechanics are committed on `main` beside this section. Nothing is
+pushed; the topic stays open for S2a.
+
+**Exercised live** (GM seat, `main`'s junction, after the landing):
+
+- The GM client reloaded under a recorder registered before the document
+  loaded: no error and no warning through `ready` and the RR's opening.
+- `node tools/live/run.mjs magic-spell-recipes`: "passed (31 pass, 0 fail,
+  exit 0)". Beside 1a's 21 observables: holy circle's two wards scoped to one
+  kind token, one reversed; its four bonus rows carry an `anyOf` of two
+  branches and no `condition`, two reversed; desiccate's measure a diameter
+  and holy circle's a radius; the Overview's extent reads a figure and its
+  tooltip names its parts; `scopeApplies` on the three kept fixtures answers
+  applies for the chaotic undead, fails for the ally and undetermined for the
+  neutral token; a row-editor submit keeps the `anyOf` and clears `origin`,
+  and the editor shows it. Fixtures, reused by marker:
+  `magic/scope-chaotic-undead`, `magic/scope-ally-caster`,
+  `magic/scope-neutral-token` (built by the run before, kept).
+- The first run failed three checks, all the walk's own: a monster is created
+  hostile whatever its data names (the step now sets the disposition it
+  reads), and a submit fills an `anyOf` branch's unset fields with their
+  initial values, which `scopeApplies` reads as unset (the step now compares
+  with them dropped). No runtime change followed.
+
+**Offline only:** test-lib 240, test-magic 78, test-spell-recipes 20 (229
+suites); register lint (2525 entries); validate green; the cookbook at 2416
+entries; a mutation of the branch rule caught by test-lib; the local rules
+test reads holy circle's radius and rows and desiccate's size.
+
+**Not checked:** the Player seat; the scopes evaluated against an attacker in
+a roll (S2b); the Overview submit path on a spell with an `anyOf` row beyond
+the row editor's.
+
+**Findings:**
+
+- `influence/ability-effects.mjs` copies three scope keys from an ability
+  row, so a row with `anyOf`, `vsAlignmentOf` or `vsEnemy` reaches
+  `scopeApplies` unscoped there. No imported row carries one today; the
+  session that first authors such an ability row fixes it.
+- `classifyAlignment` now reads "None" and a two-letter abbreviation as no
+  alignment, where the first-letter reader called them one (lib DECISIONS,
+  2026-11-15).
+- `modifierDisposition` answers unsupported for an area or recipient subject
+  before it tests any scope (ruling 34's finding, for S2b).
+
+**Owner question:** the reverse's second branch names incarnations of the
+lawful alignment, the print's one example. Do lawful undead count too
+(default no, as shipped)?
 
 ### Start prompt, session S2a
 
@@ -919,19 +976,22 @@ recipients' records (default no)?
 > `C:\Proj\foundryvtt-acks-extras`: the vertical cast engine's first half,
 > lib then magic, for `def.spell.desiccate`, `def.spell.cureLightInjury`
 > and `def.spell.frightenHumanoid`, with the files and live acceptance
-> ruling 27 gives S2a. Read the plan whole first (its owner rulings 1 to 4,
-> rulings 17 to 27 and "Results, 1a"), then `docs/magic/MODEL.md`,
+> ruling 27 gives S2a, as rulings 28 to 31 amend them. Read the plan whole
+> first (its owner rulings 1 to 4, rulings 17 to 34, "Results, 1a" and
+> "Results, S1b"), then `docs/magic/MODEL.md`,
 > `docs/lib` where the plan names a seam, `.claude/rules/ip-doctrine.md` and
 > `.claude/rules/live-testing.md`. You are the orchestrator: one
 > `implementer` for the lib half and a fresh one for the magic half, each
 > brief quoting the owner's words from the plan and each report restating
 > them with one example; an `architect` for any design question the plan
-> does not answer, the area-size unit of "Results, 1a" first. Review each
+> does not answer, first among them whether a repair skips a register row
+> the Judge has taken over ("Results, 1a"). Review each
 > change against the IP doctrine yourself: committed tests use invented
 > spells. Before an agent writes under `scripts/lib/`, list the running
 > sessions and `main`'s dirty paths. You work in the worktree
 > `C:\Proj\foundryvtt-acks-extras.spell-effects` on `topic/spell-effects`:
-> `git rebase main` there first, commit by hand, land with
+> `node .claude/skills/acks-branch/branch.mjs sync spell-effects` there
+> first, commit by hand, land with
 > `branch.mjs land spell-effects`, walk on `main` yourself through
 > `tools/live` (never the `live-tester` agent), and check who is seated
 > before a world relaunch. Push nothing. Finish by appending "Results, S2a"

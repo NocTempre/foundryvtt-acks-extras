@@ -287,13 +287,19 @@ monster actor with no type and a neutral token).
   `byCookbookId("Item", id, {original: true})`; the module's own URL gives
   the loaded instance.
 - A sheet submit writes every row whole through the schema, so a field the
-  row left unset reads back as `""` or `[]`, never as missing.
+  row left unset reads back as `""` or `[]`, never as missing. An `anyOf`
+  branch is filled the same way (`""`, `[]`, `false`, mode `gate`), which
+  `scopeApplies` reads as unset: step 7 compares branches with those dropped.
 - The row editor is a form with `submitOnChange`: set a field's value and
   dispatch a bubbling `change` on it. Its first text field is `condition`.
+- A monster actor is created hostile whatever disposition its data names, so
+  step 6 sets each fixture's prototype token disposition before it reads
+  them; `areEnemies` takes the prototype tokens.
 
 ### Teardown
 
-The walk removes the two rows it added, found by their own marks
-(`walk-hand-row`, `walk-edit`), and repairs the spell once more; its last
-check is that none of its rows remains and the register rows number as
-before. A row anyone else added stays.
+The walk removes the rows it added, found by their own marks
+(`walk-hand-row`, `walk-edit`, `walk-edit-scope`), and repairs each spell it
+edited once more; its last checks are that none of its rows remains and the
+register rows number as before. A row anyone else added stays, and the three
+scope fixtures are kept.
