@@ -42,6 +42,29 @@ export function footprintFeet({ override = null, sizeKey = null, feetPerSquare =
   return squares ? { w: squares.w * feetPerSquare, h: squares.h * feetPerSquare } : null;
 }
 
+/**
+ * The size-category chips a scene can offer: one per category whose footprint
+ * the world's import answers, in the order `keys` gives. A category with no
+ * imported frontage, or any category while no square is imported, is left out,
+ * so nothing imported offers none.
+ * @param {object} input
+ * @param {string[]} [input.keys]  The size-category keys, in display order.
+ * @param {number|null} [input.feetPerSquare]  The imported square's worth in feet.
+ * @param {number} [input.feetPerCell]  What one cell of the scene is worth in feet.
+ * @returns {{key:string, feet:{w:number,h:number}, span:{w:number,h:number}}[]}
+ *   `feet` is what a press stamps; `span` the size it draws at in this scene's
+ *   cells, by the sizer's own rounding (`tokenSpan`).
+ */
+export function sizeChips({ keys = [], feetPerSquare = null, feetPerCell = 0 } = {}) {
+  const chips = [];
+  for (const key of keys) {
+    const feet = footprintFeet({ sizeKey: key, feetPerSquare });
+    if (!feet) continue;
+    chips.push({ key, feet, span: { w: tokenSpan(feet.w, feetPerCell), h: tokenSpan(feet.h, feetPerCell) } });
+  }
+  return chips;
+}
+
 /** Fit a length in feet into grid squares of `distance` feet each. */
 export function tokenSpan(feet, distance, { step = SPAN_STEP, min = SPAN_MIN } = {}) {
   if (!(feet > 0) || !(distance > 0)) return min;

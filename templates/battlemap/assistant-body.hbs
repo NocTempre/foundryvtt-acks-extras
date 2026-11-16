@@ -59,7 +59,7 @@
           </div>
         {{/if}}
         {{#if barFeet}}
-          <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
+          <div class="acks-extras-battlemap-sub" data-tooltip-text="{{fromBarTip}}">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
         {{/if}}
       </div>
     {{/if}}
@@ -71,18 +71,18 @@
   <div class="acks-extras-battlemap-card">
     {{#if fitOk}}
       <div class="acks-extras-battlemap-cardhead">
-        <span class="acks-extras-battlemap-cell">{{cellLabel}}</span>
+        <span class="acks-extras-battlemap-cell" data-tooltip-text="{{cellTip}}">{{cellLabel}}</span>
         <span class="acks-extras-battlemap-unit">{{cellUnitLabel}}</span>
       </div>
       <div class="acks-extras-battlemap-meter">
         <div class="acks-extras-battlemap-meterbar" style="width: {{residualBar}}%"></div>
       </div>
-      <div class="acks-extras-battlemap-sub" {{#if hexFit}}data-tooltip="{{localize 'ACKS-BATTLEMAP.fit.pxOffTip'}}"{{/if}}>{{#if residualText}}{{residualText}} · {{/if}}{{confidenceLabel}}</div>
-      {{#if sampleSummary}}<div class="acks-extras-battlemap-sub">{{sampleSummary}}</div>{{/if}}
-      {{#if fitAffine}}<div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.fit.affine"}} {{fitAffine.skew}}° / {{fitAffine.rotation}}°</div>{{/if}}
+      <div class="acks-extras-battlemap-sub" data-tooltip-text="{{residualTip}}">{{#if residualText}}{{residualText}} · {{/if}}{{confidenceLabel}}</div>
+      {{#if sampleSummary}}<div class="acks-extras-battlemap-sub" data-tooltip-text="{{sampleTip}}">{{sampleSummary}}</div>{{/if}}
+      {{#if fitAffine}}<div class="acks-extras-battlemap-sub" data-tooltip-text="{{affineTip}}">{{localize "ACKS-BATTLEMAP.fit.affine"}} {{fitAffine.skew}}° / {{fitAffine.rotation}}°</div>{{/if}}
     {{/if}}
     {{#if pxPerUnit}}
-      <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.perUnit" px=pxPerUnit units=unitLabel}}</div>
+      <div class="acks-extras-battlemap-sub" data-tooltip-text="{{perUnitTip}}">{{localize "ACKS-BATTLEMAP.scale.perUnit" px=pxPerUnit units=unitLabel}}</div>
     {{/if}}
   </div>
   {{/if}}
@@ -92,6 +92,7 @@
       one line per gap and each naming the one control that closes it; then what
       the family leaves out, then the fit's own warnings (the worst-box slot).
       Labels are resolved in the context. }}
+  {{#if appliedLine}}<p class="acks-extras-battlemap-sub" data-tooltip-text="{{appliedTip}}"><i class="fa-solid fa-circle-check"></i> {{appliedLine}}</p>{{/if}}
   {{#if matchesLine}}<p class="acks-extras-battlemap-sub"><i class="fa-solid fa-circle-check"></i> {{matchesLine}}</p>{{/if}}
   {{#each needLines}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-circle-info"></i> {{this}}</p>
@@ -109,7 +110,7 @@
     <ul class="acks-extras-battlemap-samples">
       {{#each boxRows}}
         <li>
-          <span>{{label}}</span>
+          <span data-tooltip-text="{{tip}}">{{label}}</span>
           {{! A hex fit reads every box as one hex; every other family divides a box by its count. }}
           {{#unless @root.isHex}}
           <label class="acks-extras-battlemap-spans">
@@ -227,7 +228,7 @@
   {{#if canBake}}
     <div class="acks-extras-battlemap-note">
       <div>{{localize "ACKS-BATTLEMAP.apply.bakeWhy"}}</div>
-      <button type="button" data-action="bake">
+      <button type="button" data-action="bake" aria-label="{{bakeAria}}" data-tooltip-text="{{bakeTip}}">
         <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "ACKS-BATTLEMAP.apply.bake"}}
       </button>
     </div>
@@ -272,9 +273,11 @@
   {{else}}
     <p class="acks-extras-battlemap-hint">{{tokensIntro}}</p>
 
+    {{! One chip per size category the import answers; with nothing imported the caption stands alone. }}
+    <div class="acks-extras-battlemap-sub" data-tooltip-text="{{sizesTip}}">{{localize "ACKS-BATTLEMAP.tokens.sizes"}}</div>
     <div class="acks-extras-battlemap-chips">
-      {{#each hotbar}}
-        <button type="button" data-action="sizeChip" data-feet="{{value}}" aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{label}}</button>
+      {{#each sizeChips}}
+        <button type="button" data-action="sizeChip" data-key="{{key}}" data-w="{{w}}" data-h="{{h}}" aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{label}}</button>
       {{/each}}
       <button type="button" data-action="resetFootprints" aria-label="{{resetAria}}" data-tooltip-text="{{resetTip}}"><i class="fa-solid fa-rotate-left"></i></button>
     </div>

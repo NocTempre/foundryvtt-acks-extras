@@ -21,6 +21,10 @@ import { sceneCountry, sceneSetup, systemCalledFor, writeSceneSetup, writeSceneS
 import { sceneHasDistrict } from "../formation/district-find.mjs";
 import { autoScaleEnabled, rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints, unsizedTokenReport } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
+import { sizeChips } from "./footprint.mjs";
+import { sourceLine } from "./scale-mark.mjs";
+import { SIZES } from "../monsters/config.mjs";
+import { sizeCite, sizeSquareFeet } from "../monsters/sizes.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS, isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
@@ -30,34 +34,45 @@ const loc = makeLoc(LANG_PREFIX);
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/** The size hotbar's steps: a half and small multiples of the scene's own cell. */
-const HOTBAR_STEPS = [0.5, 1, 2, 3, 4, 6];
-
 /** The square-size ladder's steps: multiples of the scene's grid distance. */
 const SQUARE_STEPS = [1, 2, 10, 20];
 
 /** A figure shown to a reader: two places at most, never a float's tail. */
 const figure = (n) => Number(Number(n).toFixed(2));
 
+/** An image-pixel figure as the card and the box rows both show it: one decimal. */
+const px1 = (n) => Number(n).toFixed(1);
+
 /**
- * The size hotbar's chips for a scene: steps of what one of its cells is
- * worth, in feet. `value` is the footprint a press stamps; `label` carries its
- * unit; `tip` names the parts (step, the scene's own cell and its unit, the
- * footprint), and `aria` is the label with the tip. A scene with no usable
- * distance offers none. Nothing read off a page belongs in a chip.
+ * The size chips for a scene: one per size category the world's import answers
+ * (`sizeChips`), none at all where nothing is imported. `w` and `h` are the
+ * footprint a press stamps, in feet; `label` is the category's name; `tip`
+ * names the parts (the imported frontage and square, with the page they were
+ * read from, and the size it draws at in this scene's cells), and `aria` is the
+ * label with the tip. A scene with no usable distance offers none.
  */
-const hotbarChips = (scene) => {
-  const cell = sceneFeetPerCell(scene);
-  if (!(cell > 0)) return [];
-  const distance = figure(scene.grid.distance);
-  const units = scene.grid.units || DISTANCE_UNITS.ft.abbr;
-  return HOTBAR_STEPS.map((step) => {
-    const feet = cell * step;
-    const label = loc("tokens.chip", { feet: figure(feet) });
-    const tip = loc("tokens.chipTip", { step, distance, units, feet: figure(feet) });
-    return { value: feet, label, tip, aria: loc("apply.aria", { label, tip }) };
+const sizeChipViews = (scene) => {
+  const feetPerCell = sceneFeetPerCell(scene);
+  if (!(feetPerCell > 0)) return [];
+  return sizeChips({ keys: Object.keys(SIZES), feetPerSquare: sizeSquareFeet(), feetPerCell }).map(({ key, feet, span }) => {
+    const label = game.i18n.localize(SIZES[key].label);
+    const tip = loc("tokens.sizeChipTip", {
+      source: sourceLine({ source: "size", sizeKey: key }),
+      fw: figure(feet.w),
+      fh: figure(feet.h),
+      w: figure(span.w),
+      h: figure(span.h),
+    });
+    return { key, w: feet.w, h: feet.h, label, tip, aria: loc("apply.aria", { label, tip }) };
   });
 };
+
+/**
+ * The tooltip of the "Size categories" caption: the page the frontage table was
+ * read from, else the reference the module ships for the size table. Never a
+ * figure, and never a word about a table that was not imported.
+ */
+const sizesCaptionTip = () => sizeCite() ?? loc("tokens.sizesCite");
 
 /**
  * The square-size ladder offered as chips under BOTH scale fields: the same
@@ -358,6 +373,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const worstLine = this.#warningLines(plan);
     const applyLabel = loc(`apply.${this.isScaleOnly ? "scale" : this.isHex ? "hex" : "grid"}`);
     const applyTip = this.isScaleOnly ? loc("apply.tipScale") : loc("apply.tip");
+    const bakeTip = loc("apply.bakeTip");
     const rescaleTip = loc("apply.tokensTip");
     const resetTip = loc("tokens.resetTip");
     const customTip = loc("tokens.customTip");
@@ -389,6 +405,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // Apply is also off where the scene already matches what it would write;
       // the line states the setup the scene holds, read from the scene itself.
       matchesLine: plan.matches ? this.#matchesLine(scene) : null,
+      // A scene the module already applied, opened with nothing drawn, says what
+      // it is rather than reading as a fresh map; the matches row speaks once
+      // samples exist.
+      appliedLine: this.#appliedLine(scene),
+      appliedTip: loc("setup.appliedTip"),
       // A map cell's worth has a field on every family but scale-only, where
       // one is asked for only when a drawn grid is to measure it.
       showMapCell: !this.isScaleOnly || !!fit?.ok,
@@ -407,7 +428,8 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
         number: i + 1,
         across: boxSpan(r, "x"),
         down: boxSpan(r, "y"),
-        label: loc("samples.square", { n: i + 1, w: Math.round(r.w), h: Math.round(r.h) }),
+        label: loc("samples.square", { n: i + 1, w: px1(r.w), h: px1(r.h) }),
+        tip: this.#boxTip(r, i, fit),
       })),
       cornerRows: this.samples.corners.map((c, i) => ({
         index: i,
@@ -419,9 +441,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       fit,
       fitOk: !!fit?.ok,
       fitAffine: fit?.ok && fit.u ? { skew: fit.skewDeg.toFixed(2), rotation: fit.rotationDeg.toFixed(2) } : null,
+      affineTip: loc("fit.affineTip"),
       dropBack,
       rawFeet: rawFeet ? Number(rawFeet.toFixed(2)) : null,
       barFeet: barFeet ? Number(barFeet.toFixed(2)) : null,
+      fromBarTip: barFeet ? this.#fromBarTip(barFeet, unitLabel) : null,
       mapChips: this.#mapChips(rawFeet),
       mapCellFeet: this.mapCellFeet > 0 ? Number(this.mapCellFeet.toFixed(2)) : this.mapCellFeet,
       outputChips: this.#outputChips(),
@@ -431,6 +455,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       gridSizePx: this.isScaleOnly ? (scale?.size ?? null) : this.gridSizePx,
       // The scale-only readout: the ratio being written, stated both ways.
       pxPerUnit: pxPerUnit ? Number(pxPerUnit.toFixed(3)) : null,
+      perUnitTip: pxPerUnit ? this.#perUnitTip(fit, unitLabel) : null,
       scaleDistance: scale ? Number(scale.distance.toFixed(3)) : null,
       scaleClamped: !!scale?.clamped,
       scalePinned: !!scale?.pinned,
@@ -439,8 +464,10 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // lines above say why whenever it is off.
       canApply: plan.canApply,
       applyLabel,
-      // The button and the whole-scene resize each say what a press writes: a
-      // name for assistive technology and a tooltip for the pointer.
+      // The buttons each say what a press writes: a name for assistive
+      // technology and a tooltip for the pointer.
+      bakeTip,
+      bakeAria: loc("apply.aria", { label: loc("apply.bake"), tip: bakeTip }),
       applyTip,
       applyAria: loc("apply.aria", { label: applyLabel, tip: applyTip }),
       rescaleTip,
@@ -470,18 +497,21 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       tokensUnsized: unsized,
       tokensUnsizedLine: unsized ? loc("tokens.unsized") : null,
       tokensIntro: unsized ? null : loc("tokens.intro"),
-      hotbar: unsized ? [] : hotbarChips(scene),
+      sizeChips: unsized ? [] : sizeChipViews(scene),
+      sizesTip: unsized ? null : sizesCaptionTip(),
       resetAria: loc("apply.aria", { label: loc("tokens.resetLabel"), tip: resetTip }),
       resetTip,
       customAria: loc("apply.aria", { label: loc("tokens.customLabel"), tip: customTip }),
       customTip,
       tokensAutoLine: unsized ? null : autoScaleEnabled(scene) ? loc("tokens.autoOn", { path: loc("tokens.autoPath") }) : loc("tokens.autoOff", { path: loc("tokens.autoPath") }),
       // The card: the fit read at a glance while the eye is on the map.
-      cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? fit.sizeX.toFixed(1) : `${fit.sizeX.toFixed(1)} × ${fit.sizeY.toFixed(1)}`) : null,
+      cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? px1(fit.sizeX) : `${px1(fit.sizeX)} × ${px1(fit.sizeY)}`) : null,
+      cellTip: fit?.ok ? this.#cellTip(fit) : null,
       // The band is decided on the fit's own residual: a hex fit's is the
       // boxes' edges in image px, a square fit's the share of a cell. With one
       // hex box a hex fit has no residual and shows its confidence alone.
       residualText: fit?.ok ? this.#residualText(fit) : null,
+      residualTip: loc(this.isHex ? "fit.pxOffTip" : "fit.rmsTip"),
       // Full bar at the loose threshold, so the eye reads "how close to bad".
       residualBar: fit?.ok ? this.#residualBar(fit) : 0,
       hexFit,
@@ -490,6 +520,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // it say what is missing, once.
       showCard: !!fit?.ok || !!pxPerUnit,
       sampleSummary: this.#sampleSummary(),
+      sampleTip: this.#sampleTip(fit, plan),
     };
   }
 
@@ -559,13 +590,112 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
    * kind, grid size in px and what a cell is worth, each read off the scene.
    */
   #matchesLine(scene) {
+    return this.#gridLine(scene, "apply.matches");
+  }
+
+  /**
+   * What a scene the module already applied is, said before anything is drawn:
+   * the same figures as the matches line, or null where the scene was never
+   * applied or a sample is on the map.
+   */
+  #appliedLine(scene) {
+    const s = this.samples;
+    if (!scene || !sceneSetup(scene).calibrated || s.squares.length || s.corners.length || s.scale) return null;
+    return this.#gridLine(scene, "setup.applied");
+  }
+
+  /** A lang line over the scene's grid kind, grid size in px and cell worth, each read off the scene. */
+  #gridLine(scene, key) {
     const grid = scene?.grid;
-    return loc("apply.matches", {
+    return loc(key, {
       grid: loc(`rows.type.${grid?.type ?? GRID_TYPE.GRIDLESS}`),
       size: Math.round(grid?.size ?? 0),
       distance: Number((grid?.distance ?? 0).toFixed(3)),
       units: grid?.units ?? "",
     });
+  }
+
+  /**
+   * The cell figure's tooltip: whether it is one cell or one hex's box, in image
+   * px as the card shows it, what it was fitted over (a retained fit after a
+   * bake has no samples), and the residual left over.
+   */
+  #cellTip(fit) {
+    const w = px1(fit.sizeX);
+    const h = px1(fit.sizeY);
+    const boxes = this.samples.squares.length;
+    const corners = this.samples.corners.length;
+    let base;
+    if (!boxes && !corners) base = loc("fit.cellTipBaked", { w, h });
+    else if (this.isHex) base = loc("fit.cellTipHex", { w, h, used: fit.used ?? boxes, boxes });
+    else base = loc("fit.cellTipCell", { w, h, boxes, corners });
+    const residual = this.#residualText(fit);
+    return residual ? `${base} ${loc("fit.residualPart", { residual })}` : base;
+  }
+
+  /**
+   * A box row's tooltip: its size in image px as dragged, the counts that divide
+   * it into cells (a hex fit reads a box as one hex), and whether the fit used
+   * it or left it out and the fit's own reason.
+   */
+  #boxTip(r, index, fit) {
+    const w = px1(r.w);
+    const h = px1(r.h);
+    const parts = [];
+    if (this.isHex) {
+      parts.push(loc("samples.boxTipHex", { w, h }));
+    } else {
+      const across = boxSpan(r, "x");
+      const down = boxSpan(r, "y");
+      parts.push(loc("samples.boxTipCell", { w, h, across, down, cw: px1(r.w / across), ch: px1(r.h / down) }));
+    }
+    const info = this.isHex ? fit?.boxes?.find((b) => b.index === index) : null;
+    if (info) parts.push(loc(info.unreachable ? "samples.boxOutOfReach" : info.notOneHex ? "samples.boxWide" : "samples.boxUsed"));
+    else if (fit?.ok) parts.push(loc("samples.boxUsed"));
+    return parts.join(" ");
+  }
+
+  /**
+   * The sample summary's tooltip: the counts drawn, how many boxes the fit used
+   * and the reasons it left any out, then what the family leaves out. Null with
+   * nothing drawn.
+   */
+  #sampleTip(fit, plan) {
+    const s = this.samples;
+    const boxes = s.squares.length;
+    const corners = s.corners.length;
+    const bars = s.scale ? 1 : 0;
+    if (!(boxes || corners || bars)) return null;
+    const parts = [loc("samples.tipCounts", { boxes, corners, bars })];
+    if (boxes && fit?.ok) {
+      if (this.isHex) {
+        parts.push(loc("samples.tipUsedHex", { used: fit.used, boxes }));
+        const info = fit.boxes ?? [];
+        const unreachable = info.filter((b) => b.unreachable).length;
+        const wide = info.filter((b) => b.notOneHex && !b.unreachable).length;
+        if (unreachable || wide) parts.push(loc("samples.tipLeftHex", { unreachable, wide }));
+      } else {
+        parts.push(loc("samples.tipUsedAll", { boxes }));
+      }
+    }
+    parts.push(...this.#unusedLines(plan));
+    return parts.join(" ");
+  }
+
+  /** The measured px per unit's tooltip: the bar's length and what it reads, or the fitted cell and its worth. */
+  #perUnitTip(fit, units) {
+    const bar = this.samples.scale;
+    if (this.barPxPerUnit > 0) {
+      const d = canvasDelta(bar.x2 - bar.x1, bar.y2 - bar.y1);
+      return loc("scale.perUnitTipBar", { px: px1(Math.hypot(d.x, d.y)), value: this.opts.scaleValue, units });
+    }
+    return loc("scale.perUnitTipFit", { px: px1(fit?.ok ? cellOnCanvas(fit) : 0), worth: figure(this.mapCellFeet), units });
+  }
+
+  /** The scale bar's reading of one cell: what it reads, the steps it spans and the quotient. */
+  #fromBarTip(barFeet, units) {
+    const value = this.opts.scaleValue;
+    return loc(this.isHex ? "scale.fromBarTipHex" : "scale.fromBarTipCell", { value, units, steps: figure(value / barFeet), worth: figure(barFeet) });
   }
 
   /**
@@ -941,14 +1071,19 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
    * Stamp a footprint on the selected tokens, or say that nothing is selected.
    * The size chips, the custom size and the reset all act on the selection.
    */
-  static async #stampSelected(feet) {
-    const count = await applyFootprintToSelected({ w: feet, h: feet });
-    if (count > 0) ui.notifications.info(loc("tokens.applied", { count, feet: figure(feet) }));
-    else ui.notifications.warn(loc("tokens.noneSelected"));
+  static async #stampSelected({ w, h }, name = null) {
+    const count = await applyFootprintToSelected({ w, h });
+    if (count > 0) {
+      const size = name ? loc("tokens.sizeNamed", { name, w: figure(w), h: figure(h) }) : loc("tokens.sizeFeet", { w: figure(w), h: figure(h) });
+      ui.notifications.info(loc("tokens.applied", { count, size }));
+    } else ui.notifications.warn(loc("tokens.noneSelected"));
   }
 
+  /** A size-category chip stamps the footprint it was drawn with, both sides, and names its category in the notice. */
   static async #onSizeChip(_event, target) {
-    await BattlemapAssistant.#stampSelected(Number(target.dataset.feet));
+    const { key, w, h } = target.dataset;
+    const name = SIZES[key] ? game.i18n.localize(SIZES[key].label) : null;
+    await BattlemapAssistant.#stampSelected({ w: Number(w), h: Number(h) }, name);
   }
 
   /**
@@ -963,7 +1098,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       return;
     }
     this.opts.customFeet = typed;
-    await BattlemapAssistant.#stampSelected(typed);
+    await BattlemapAssistant.#stampSelected({ w: typed, h: typed });
   }
 
   static async #onResetFootprints() {

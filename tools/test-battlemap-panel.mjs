@@ -721,6 +721,122 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 /* -------------------------------------------- */
+/*  The card's figures say where they came from */
+/* -------------------------------------------- */
+
+{
+  const template = Handlebars.create();
+  template.registerHelper("localize", (key) => key);
+  template.registerHelper("checked", (value) => (value ? "checked" : ""));
+  const body = template.compile(read("templates/battlemap/assistant-body.hbs"));
+  /** The first figure object of a line that carries several. */
+  const first = (line) => JSON.parse(String(line).slice(String(line).indexOf("{"), String(line).indexOf("}") + 1));
+  const figures = (line) => JSON.parse(String(line).slice(String(line).indexOf("{")));
+  const carries = (html, key) => new RegExp(`data-tooltip-text="${key.replace(/\./g, "\\.")}`).test(html);
+  const lang = JSON.parse(read("lang/en.json"));
+
+  // A hex fit over three boxes and a scale bar: every figure on the card has a tooltip of its parts.
+  const boxes = rowBoxes();
+  setup({ family: "hexRows", scene: makeScene(), samples: { squares: boxes, scale: { x1: 100, y1: 900, x2: 700, y2: 900 } }, opts: { mapCellFeet: 3, scaleValue: 7 }, units: "ft" });
+  const c = await ctx();
+  const html = body(c);
+  assert.ok(/acks-extras-battlemap-cell"[^>]*data-tooltip-text="fit\.cellTipHex/.test(html), "the cell figure carries its tooltip");
+  const cell = first(c.cellTip);
+  assert.deepEqual([cell.used, cell.boxes], [3, 3], "the cell is the fit over the boxes it used, of the boxes drawn");
+  assert.ok(c.cellLabel.includes(cell.w), "in the same one-decimal image px the card shows");
+  assert.ok(c.cellTip.includes("fit.residualPart"), "with the residual left over");
+  assert.ok(carries(html, "fit.pxOffTip") && c.residualTip.startsWith("fit.pxOffTip"), "the residual's tooltip");
+  assert.ok(carries(html, "samples.tipCounts") && keyOf(c.sampleTip) === "samples.tipCounts", "the box count carries its tooltip");
+  assert.deepEqual(first(c.sampleTip), { boxes: 3, corners: 0, bars: 1 }, "which counts what was drawn");
+  assert.ok(c.sampleTip.includes("samples.tipUsedHex"), "and says how many boxes the fit used");
+  assert.ok(carries(html, "scale.perUnitTipBar") && first(c.perUnitTip).value === 7, "a bar's px per unit names the bar's length and what it reads");
+  assert.ok(carries(html, "scale.fromBarTipHex"), "so does the bar's reading of one cell");
+  assert.deepEqual([first(c.fromBarTip).value, first(c.fromBarTip).worth], [7, c.barFeet], "the value it read and the cell it came to");
+
+  // Each box row: its px with one rounding, and what the fit did with it.
+  assert.equal(c.boxRows.length, 3);
+  c.boxRows.forEach((r, i) => {
+    const said = figures(r.label);
+    assert.equal(said.w, boxes[i].w.toFixed(1), "a box row rounds to the one decimal the card shows");
+    assert.equal(said.h, boxes[i].h.toFixed(1));
+    assert.ok(/^\d+\.\d$/.test(said.w), "one decimal, always");
+    assert.ok(keyOf(r.tip) === "samples.boxTipHex" && r.tip.includes("samples.boxUsed"), "the row's tooltip says it was read as one hex and used");
+  });
+  assert.equal((html.match(/data-tooltip-text="samples\.boxTipHex/g) ?? []).length, 3, "every row carries it");
+
+  // A box the fit left out says why, from the fit's own flags.
+  const unreachable = { ...c, boxRows: [{ ...c.boxRows[0], tip: "x" }] };
+  assert.ok(body(unreachable).includes('data-tooltip-text="x"'), "the row's text is what the template shows");
+  const wide = [...boxes, { ...boxes[0], w: boxes[0].w * 3, h: boxes[0].h * 3 }];
+  setup({ family: "hexRows", scene: makeScene(), samples: { squares: wide }, opts: { mapCellFeet: 3 }, units: "ft" });
+  const out = await ctx();
+  assert.ok(out.boxRows.some((r) => r.tip.includes("samples.boxWide") || r.tip.includes("samples.boxOutOfReach")), "a box left out of the hex fit names its reason");
+  assert.ok(out.boxRows.some((r) => r.tip.includes("samples.boxUsed")), "and a box used says so");
+
+  // A square family: boxes divided by their counts, the residual a share of a cell, no hex wording.
+  const cellScene = makeScene({ type: 1 });
+  setup({ family: "square", scene: cellScene, samples: { squares: [squareBox(0, 0, 60), { ...squareBox(0, 2, 120), h: 60, across: 2 }] }, opts: { mapCellFeet: 5 }, units: "ft" });
+  const sq = await ctx();
+  assert.equal(keyOf(sq.cellTip), "fit.cellTipCell");
+  assert.deepEqual([first(sq.cellTip).boxes, first(sq.cellTip).corners], [2, 0]);
+  assert.ok(body(sq).includes('data-tooltip-text="fit.rmsTip'), "a square fit's residual has its own tooltip");
+  assert.ok(sq.residualTip.startsWith("fit.rmsTip"));
+  const second = first(sq.boxRows[1].tip);
+  assert.deepEqual([second.w, second.h, second.across, second.down, second.cw, second.ch], ["120.0", "60.0", 2, 1, "60.0", "60.0"], "a box's tooltip: its px, its counts and the cell they make");
+  assert.ok(sq.boxRows[1].tip.includes("samples.boxUsed"));
+
+  // After a bake the samples are gone and the fit is the corrected image's own.
+  session.samples = { squares: [], corners: [], scale: null };
+  session.bakedFit = { ok: true, mode: "square", sizeX: 80, sizeY: 80, rmsPct: 0, rmsPx: 0, confidence: "tight", skewDeg: 0, rotationDeg: 0 };
+  session.notify?.();
+  const baked = await ctx();
+  assert.equal(keyOf(baked.cellTip), "fit.cellTipBaked", "no boxes drawn: it does not claim a fit over any");
+
+  // The skew and rotation, and the Bake button, as the template draws them.
+  const shown = body({ ...c, fitAffine: { skew: "0.50", rotation: "0.10" }, canBake: true });
+  assert.ok(carries(shown, "fit.affineTip") && c.affineTip.startsWith("fit.affineTip"), "skew and rotation carry a tooltip");
+  assert.ok(/data-action="bake"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.bakeTip/.test(shown), "Bake is named and says what it writes");
+  assert.ok(c.bakeAria.startsWith("apply.aria") && c.bakeTip.startsWith("apply.bakeTip"));
+
+  for (const key of ["fit.cellTipHex", "fit.cellTipCell", "fit.cellTipBaked", "fit.residualPart", "fit.rmsTip", "fit.affineTip", "samples.tipCounts", "samples.tipUsedHex", "samples.tipUsedAll", "samples.tipLeftHex", "samples.boxTipHex", "samples.boxTipCell", "samples.boxUsed", "samples.boxOutOfReach", "samples.boxWide", "scale.perUnitTipBar", "scale.perUnitTipFit", "scale.fromBarTipHex", "scale.fromBarTipCell", "apply.bakeTip", "setup.applied", "setup.appliedTip", "tokens.sizes", "tokens.sizesCite", "tokens.sizeChipTip", "tokens.sizeFeet", "tokens.sizeNamed"]) {
+    assert.ok(typeof lang[`${LANG_PREFIX}.${key}`] === "string", `${key} is shipped`);
+  }
+}
+
+/* -------------------------------------------- */
+/*  A reopened scene says what it already is    */
+/* -------------------------------------------- */
+
+{
+  const template = Handlebars.create();
+  template.registerHelper("localize", (key) => key);
+  template.registerHelper("checked", (value) => (value ? "checked" : ""));
+  const body = template.compile(read("templates/battlemap/assistant-body.hbs"));
+
+  // An applied hex scene, opened with nothing drawn: the line reads the scene's own figures, above the needs.
+  const applied = makeScene({ type: 2, size: 88, distance: 9, units: "ft", flag: { calibrated: true, distance: 9 } });
+  setup({ family: "hexRows", scene: applied, units: "ft" });
+  const c = await ctx();
+  assert.equal(keyOf(c.appliedLine), "setup.applied");
+  assert.deepEqual(JSON.parse(c.appliedLine.slice(c.appliedLine.indexOf("{"))), { grid: "rows.type.2{}", size: 88, distance: 9, units: "ft" }, "the grid, its px and the cell's worth, from the scene");
+  assert.ok(c.appliedTip.startsWith("setup.appliedTip"), "its tooltip names where it is read from");
+  assert.ok(JSON.parse(read("lang/en.json"))[`${LANG_PREFIX}.setup.appliedTip`].includes("Scene configuration → Grid"), "Scene configuration → Grid");
+  const html = body(c);
+  assert.ok(html.includes("setup.applied") && html.indexOf("setup.applied{") < html.indexOf("needs.hexBox"), "the line sits above the needs list");
+  assert.ok(/data-tooltip-text="setup\.appliedTip/.test(html));
+
+  // It goes once a sample is drawn, and a scene the module never applied has none.
+  setup({ family: "hexRows", scene: applied, samples: { squares: rowBoxes() }, units: "ft" });
+  assert.equal((await ctx()).appliedLine, null, "samples exist: the fit and the matches row speak");
+  setup({ family: "hexRows", scene: makeScene(), units: "ft" });
+  const fresh = await ctx();
+  assert.equal(fresh.appliedLine, null, "a fresh gridless scene reads as a fresh map");
+  assert.ok(!body(fresh).includes("setup.applied"));
+  setup({ family: "hexRows", scene: makeScene({ type: 2, size: 88 }), units: "ft" });
+  assert.equal((await ctx()).appliedLine, null, "a grid the module did not apply is not 'already set up'");
+}
+
+/* -------------------------------------------- */
 /*  The Token sizes section                     */
 /* -------------------------------------------- */
 
@@ -749,22 +865,34 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     assert.ok(!section.includes("tokens.auto") && !section.includes("tokens.intro"), "and nothing else is said");
   }
 
-  // Below it: what the chips do, chips in feet, the resize, the auto-size line.
+  // Below it: what the chips do, the size categories, the resize, the auto-size line.
+  const { PRIORITY, registerTable, resetTables } = await import(root("scripts/lib/tables.mjs").href);
+  const { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE } = await import(root("scripts/monsters/sizes.mjs").href);
+  const { tokenSpan } = await import(root("scripts/battlemap/footprint.mjs").href);
+  /** An import in invented figures: a 7 ft square; small is one square, large 3 × 2, gigantic has no frontage; the rest are absent. */
+  const importSizes = ({ priority = PRIORITY.WORLD, pages = "XX 1" } = {}) => {
+    resetTables();
+    registerTable(
+      {
+        id: SIZE_DOC,
+        ...(pages ? { source: { pages } } : {}),
+        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", gigantic: "n/a" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 7 } } },
+      },
+      { priority },
+    );
+  };
   const scene = makeScene({ units: "yd", distance: 3, flag: { autoScale: false } });
+  resetTables();
   const { c, section } = await sectionOf(scene);
   assert.equal(c.tokensUnsized, false);
   assert.ok(section.includes("tokens.intro"), "the section says what the chips do");
-  assert.equal(c.hotbar.length, 6);
-  assert.deepEqual(c.hotbar.map((h) => h.value), [4.5, 9, 18, 27, 36, 54], "the chips are steps of the scene's own cell, in feet");
-  for (const chip of c.hotbar) {
-    assert.ok(chip.label.startsWith("tokens.chip"), "the label carries the unit through its own key");
-    const tip = figures(chip.tip);
-    assert.equal(tip.feet, figures(chip.label).feet, "the tooltip names the footprint the chip stamps");
-    assert.deepEqual([tip.distance, tip.units], [3, "yd"], "and the scene's own cell and unit");
-    assert.ok(chip.aria.startsWith("apply.aria"), "the chip is named for assistive technology too");
-  }
-  assert.deepEqual(c.hotbar.map((h) => figures(h.tip).step), [0.5, 1, 2, 3, 4, 6]);
-  assert.equal((section.match(/data-action="sizeChip"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="tokens\.chipTip/g) ?? []).length, 6, "every chip carries its aria-label and tooltip");
+  // Nothing imported: no chip at all (the old ladder drew six steps of the cell here), and the caption stays with the page reference alone.
+  assert.deepEqual(c.sizeChips, [], "no import, no size chips");
+  assert.ok(!section.includes('data-action="sizeChip"'), "and none in the markup");
+  assert.ok(section.includes("tokens.sizes"), "the caption stays");
+  assert.ok(c.sizesTip.startsWith("tokens.sizesCite") && !/\d/.test(c.sizesTip), "its tooltip is the shipped page reference, no number and no words about a gap");
+  assert.ok(/data-tooltip-text="tokens\.sizesCite/.test(section), "carried on the caption");
+  assert.ok(!read("scripts/battlemap/assistant-app.mjs").includes("HOTBAR_STEPS"), "the cell-multiple ladder is gone");
   assert.ok(/data-action="resetFootprints"[^>]*aria-label="apply\.aria[^"]*tokens\.resetLabel/.test(section), "the reset glyph has a name");
   assert.ok(/data-action="applyCustomSize"[^>]*aria-label="apply\.aria[^"]*tokens\.customLabel/.test(section), "so has the custom size's");
   assert.ok(!/data-action="applyCustomSize"[^>]*disabled/.test(section), "the custom size is never disabled by a stale value");
@@ -776,6 +904,53 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.ok(JSON.parse(read("lang/en.json"))[`${LANG_PREFIX}.tokens.autoPath`].includes("Scene configuration → Basics tab → Battlemap → Auto-size tokens"));
   scene.flags[MODULE_ID][FLAG] = { autoScale: true };
   assert.ok((await sectionOf(scene)).c.tokensAutoLine.startsWith("tokens.autoOn"), "and one that is, says so");
+
+  // Imported: one chip per category the world holds a frontage for, on a 100 ft cell.
+  importSizes();
+  const hundred = makeScene({ units: "ft", distance: 100 });
+  const got = await sectionOf(hundred);
+  assert.deepEqual(got.c.sizeChips.map((chip) => chip.key), ["small", "large"], "a category with no frontage, or none imported, has no chip");
+  const large = got.c.sizeChips.find((chip) => chip.key === "large");
+  assert.deepEqual([large.w, large.h], [21, 14], "the large chip is its frontage times the square, in feet");
+  assert.equal(large.label, "Large", "labelled by the category's name");
+  const tip = figures(large.tip);
+  assert.ok(tip.source.includes('"size":"Large","w":"3","h":"2","feet":"7"'), "the tooltip carries the mark's own source line: the frontage and the square");
+  assert.ok(tip.source.includes("XX 1"), "and the page the import was read from");
+  assert.deepEqual([tip.fw, tip.fh], [21, 14], "the footprint it stamps");
+  assert.deepEqual([tip.w, tip.h], [tokenSpan(21, 100), tokenSpan(14, 100)], "and the size it draws at, in cells, from the sizer's own rounding");
+  assert.equal(tip.w, 0.25, "which on a 100 ft cell is the floor");
+  assert.ok(large.aria.startsWith("apply.aria"), "named for assistive technology too");
+  assert.equal((got.section.match(/data-action="sizeChip"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="tokens\.sizeChipTip/g) ?? []).length, 2, "every chip carries its aria-label and tooltip");
+  assert.ok(got.c.sizesTip.includes("XX 1") || got.c.sizesTip.startsWith("tokens.sizesCite"), "the caption points at the page");
+
+  // A press stamps the chip's own width and height, read off the markup it was drawn from.
+  const pressed = [...got.section.matchAll(/data-action="sizeChip" data-key="([^"]*)" data-w="([^"]*)" data-h="([^"]*)"/g)].find((m) => m[1] === "large");
+  assert.deepEqual([pressed?.[2], pressed?.[3]], ["21", "14"], "the markup carries the footprint's two sides");
+  const written = [];
+  setup({ family: "hexRows", scene: hundred, units: "ft" });
+  globalThis.canvas.tokens = { controlled: [{ document: { id: "t1", parent: hundred, getFlag: () => undefined, update: async (data) => written.push(data) } }] };
+  notes.length = 0;
+  await App.DEFAULT_OPTIONS.actions.sizeChip.call(app, null, { dataset: { key: pressed[1], w: pressed[2], h: pressed[3] } });
+  delete globalThis.canvas.tokens;
+  assert.deepEqual(written[0][`flags.${MODULE_ID}.footprint`], { w: 21, h: 14 }, "a press stamps the footprint, both sides");
+  assert.equal(written[0].width, tokenSpan(21, 100), "and sizes the token by the sizer");
+  const said = figures(notes.at(-1)[1]);
+  assert.deepEqual([notes.at(-1)[0], keyOf(notes.at(-1)[1])], ["info", "tokens.applied"]);
+  assert.ok(said.size.includes("Large") && said.size.includes('"w":21,"h":14'), "the notice names the category and its sides");
+
+  // A value the override layer holds reads with no page, and nothing throws.
+  importSizes({ priority: PRIORITY.OVERRIDE, pages: null });
+  const over = await sectionOf(hundred);
+  assert.deepEqual(over.c.sizeChips.map((chip) => chip.key), ["small", "large"], "the override layer's figures draw chips");
+  for (const chip of over.c.sizeChips) assert.ok(!figures(chip.tip).source.includes("scaleMark.cite"), "and cite no page");
+  assert.ok(over.c.sizesTip.startsWith("tokens.sizesCite"), "the caption falls back to the shipped reference");
+
+  // A mile or more a cell: the line, and no chip, whatever is imported.
+  importSizes();
+  const mile = await sectionOf(makeScene({ units: "mi", distance: 1 }));
+  assert.deepEqual(mile.c.sizeChips, [], "none at a journey's scale");
+  assert.ok(!mile.section.includes('data-action="sizeChip"'));
+  resetTables();
 }
 
 {
@@ -789,7 +964,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     await App.DEFAULT_OPTIONS.actions[action].call(app, null, ...args);
     return notes.map(([level, text]) => [level, keyOf(text)]);
   };
-  const chip = { dataset: { feet: "7.5" } };
+  const chip = { dataset: { key: "large", w: "7.5", h: "5" } };
   const none = [["warn", "tokens.noneSelected"]];
 
   globalThis.canvas.tokens = { controlled: [] };

@@ -218,16 +218,22 @@ const fmt = (n) => String(Number(Number(n).toFixed(2)));
 
 /**
  * The page reference of the figures behind a footprint, where the world holds
- * one: the frontage's and the square's, once each.
+ * one: the frontage's and the square's, once each. Empty where the world holds
+ * none, so a value set by hand reads without a page.
  */
-function citeText(sizeKey) {
+export function citeText(sizeKey) {
   const cites = [sizeKey ? sizeCite() : null, citeOf(SIZE_DOC, SQUARE_TABLE)].filter(Boolean);
   const unique = [...new Set(cites)];
   return unique.length ? ` ${game.i18n.format(KEYS.cite, { cite: unique.join(", ") })}` : "";
 }
 
-/** The line saying where the footprint comes from. */
-function sourceLine(fp) {
+/**
+ * The line saying where a footprint comes from, shared by the hover readout and
+ * the setup panel's size chips.
+ * @param {{source: string|null, sizeKey: string|null}} fp  A `footprintOf`
+ *   answer, or the same two fields for a size category alone.
+ */
+export function sourceLine(fp) {
   const { source, sizeKey } = fp;
   if (source === "token") return game.i18n.localize(KEYS.sourceToken);
   if (source === "actor") return game.i18n.localize(KEYS.sourceActor);

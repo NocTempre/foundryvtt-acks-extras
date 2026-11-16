@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { boxSpan, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 import { hexPreviewOutlines, HEX_PREVIEW_MAX, CaptureOverlay, isEditableTarget } from "../scripts/battlemap/capture.mjs";
-import { footprintFeet, tokenSpan, scaleMismatch, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
+import { footprintFeet, sizeChips, tokenSpan, scaleMismatch, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
 import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE, sizeSquares, sizeSquareFeet, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
@@ -902,7 +902,7 @@ for (const [key, entry] of Object.entries(SIZES)) {
     assert.ok(body.includes(`{{#each ${slot}}}`), `the panel renders ${slot}`);
   }
   // Apply is also off where the scene already matches; that says so too.
-  assert.ok(body.includes("{{#if matchesLine}}") && app.includes("plan.matches ? this.#matchesLine(scene)") && app.includes('loc("apply.matches"'), "a matching scene's disabled Apply is explained");
+  assert.ok(body.includes("{{#if matchesLine}}") && app.includes("plan.matches ? this.#matchesLine(scene)") && app.includes('this.#gridLine(scene, "apply.matches")'), "a matching scene's disabled Apply is explained");
   assert.ok("ACKS-BATTLEMAP.apply.matches" in lang);
   assert.ok(body.indexOf("{{#if matchesLine}}") < body.indexOf("{{#each needLines}}"), "the scene's own setup is the first thing the needs area says");
 
@@ -3308,4 +3308,50 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     "the scene config button opens the assistant on its own scene");
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene)");
+/* -------------------------------------------- */
+/*  The size chips                              */
+/* -------------------------------------------- */
+
+{
+  // Invented figures: a 7 ft square; small is one square, large 3 × 2, huge is
+  // a fraction of one; gigantic prints no frontage and the rest are absent.
+  const keys = Object.keys(SIZES);
+  const imported = (priority = PRIORITY.WORLD, pages = "XX 1") => {
+    resetTables();
+    registerTable(
+      {
+        id: SIZE_DOC,
+        ...(pages ? { source: { pages } } : {}),
+        tables: { [SIZE_TABLE]: { [SIZE_ROW]: { small: "1 sq", large: "3 × 2", huge: "1/2 sq", gigantic: "n/a" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 7 } } },
+      },
+      { priority },
+    );
+  };
+
+  // Nothing imported: no chip (the cell-multiple ladder this replaced drew six on every scene).
+  resetTables();
+  assert.deepEqual(sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 }), [], "no import, no chips");
+  assert.deepEqual(sizeChips({ keys, feetPerSquare: 7, feetPerCell: 100 }), [], "a square with no frontage imported offers none");
+
+  imported();
+  const chips = sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 });
+  assert.deepEqual(chips.map((c) => c.key), ["small", "large", "huge"], "in the category order, and only those the import answers: gigantic has no frontage");
+  const large = chips.find((c) => c.key === "large");
+  assert.deepEqual(large.feet, { w: 21, h: 14 }, "frontage times the square: 3 × 2 squares of 7 ft");
+  assert.deepEqual(large.span, { w: tokenSpan(21, 100), h: tokenSpan(14, 100) }, "drawn by the sizer's own rounding");
+  assert.deepEqual(large.span, { w: SPAN_MIN, h: SPAN_MIN }, "which on a 100 ft cell is the floor");
+  assert.deepEqual(chips.find((c) => c.key === "small").feet, { w: 7, h: 7 });
+  assert.deepEqual(chips.find((c) => c.key === "huge").feet, { w: 7, h: 7 }, "a fraction of a square is held to one");
+  assert.deepEqual(sizeChips({ keys, feetPerSquare: 7, feetPerCell: 5 }).find((c) => c.key === "large").span, { w: 4.25, h: 2.75 }, "and on a 5 ft cell, quarter-cell steps");
+  assert.deepEqual(sizeChips({ keys: ["large"], feetPerSquare: 7, feetPerCell: 0 })[0].span, { w: SPAN_MIN, h: SPAN_MIN }, "a cell with no worth draws at the floor and does not throw");
+  assert.deepEqual(sizeChips({ keys, feetPerSquare: null, feetPerCell: 100 }), [], "the frontage without the square offers none");
+  assert.deepEqual(sizeChips(), [], "no arguments, no chips");
+
+  // The same figures held by the override layer alone: chips, and no page to cite.
+  imported(PRIORITY.OVERRIDE, null);
+  assert.equal(sizeCite(), null, "a hand-set value cites no page");
+  assert.deepEqual(sizeChips({ keys, feetPerSquare: sizeSquareFeet(), feetPerCell: 100 }).find((c) => c.key === "large").feet, { w: 21, h: 14 });
+  resetTables();
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");
