@@ -4616,18 +4616,22 @@ spells"). A mock cannot prove that a real stash and restore keeps a creature's
 finished before the GM stashes, or that the party cell, the cast menu and the
 cast's end card reach a creature that is no token on the scene.
 
+`tools/live/formation-summons.mjs` walks it on the GM and Player seats.
+
 **Fixtures** (kept; found by marker with `api.fixture`): the character-sheet
-recipe's `summons/*` ("Summons from a Player seat") — `summons/summoner`,
-`summons/spell-named`, `summons/spike-source`, `summons/scene` — and four of
-this section's own:
-- `summons/party` — an `acks-extras.party` actor whose formation holds
-  `summons/summoner` as a member, delving.
+recipe's `summons/spike-source`, `summons/stranger` and `summons/scene`
+("Summons from a Player seat"), and six of this section's own. Its summoners
+are not that recipe's `summons/summoner`: a summoner kept in a party has every
+creature it places on the scene gathered, which would empty that walk's field.
+- `summons/summoner-a` and `summons/summoner-b` — `character`s the Player
+  seat owns, spells enabled, both members of `summons/party`.
+- `summons/spell-named-a` and `summons/spell-named-b` — a summoning spell on
+  each, naming `summons/spike-source`.
+- `summons/party` — an `acks-extras.party` actor whose formation holds both
+  summoners, delving.
 - `summons/party-token` — that party's token on `summons/scene`, the
-  summoner stashed inside it.
-- `summons/summoner-b` — a second `character` the Player seat owns, a member of
-  the same party, spells enabled.
-- `summons/spell-named-b` — a summoning spell on `summons/summoner-b` naming
-  the same creature as `summons/spell-named`.
+  summoners stashed inside it. Step 9's disband deletes both; the walk builds
+  them again and marks the new ones.
 
 At the start the party holds the two summoners and no summon members; a
 summon member a past run left is dismissed through the cast menu before the
