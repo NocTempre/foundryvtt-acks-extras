@@ -214,19 +214,27 @@ else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
 
-### Contract `party-roster` v1
+### Contract `party-roster` v2
 
-Provider: formation (`scripts/formation/party-roster.mjs`). Consumer: the
-hit-point tool (`lib/hp.mjs`), which works on a whole party at once. Shape:
+Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
+hit-point tool (`lib/hp.mjs`), which works on a whole party at once, and the
+summons (`lib/summons.mjs`), which reach a summon riding in a party token.
+Shape:
 
 ```
 {
   list() → [{id, name}],                    // every party in the world
   partyOf(tokenDoc) → id | null,            // the party whose token this is
-  members(id) → [{actorId, actor, name, document, stashed, unlinked, hp}],
-  adjustStashedHp(partyId, actorId, next) → Promise<{before, after, max} | null>
+  members(id) → [{actorId, actor, name, document, stashed, unlinked, hp, summonedBy, summon}],
+  adjustStashedHp(partyId, actorId, next) → Promise<{before, after, max} | null>,
+  memberOfToken(tokenDoc) → {partyId, actorId} | null,
+  release(partyId, ids) → Promise<{released: number}>
 }
 ```
+
+`summonedBy`, `summon`, `memberOfToken` and `release` are optional to a
+consumer: each is read with an optional call, and with one absent the consumer
+does what it does with no party in play.
 
 A member row:
 
@@ -238,12 +246,30 @@ A member row:
 - `hp` is `{value, max}` from the member's own token, on the map or inside the
   party token, when the member is unlinked, and from the world actor otherwise.
   It is null when no value is known.
+- `summonedBy` is the summoner's actor uuid and `summon` the cast record
+  (`{sourceUuid, name, castId, at, spellId?, spellName?}`), both read off the
+  member's own token data by `summonOfData` (`lib/summons-logic.mjs`), so a
+  stashed member and a deployed one read alike. Both are null for a member that
+  is no summon, and `summon` is null where the record carries no `castId`.
 
 `adjustStashedHp` writes only a member whose `document` is null. `next(hp)` is
 handed the value found inside formation's save lock and returns the new value,
 or null to write nothing. It returns null for a player, for a member who is
 linked or on the map, and when `next` declines. With no provider, a party token
 is an ordinary token to the tool, and there are no party rows.
+
+`memberOfToken(tokenDoc)` names the member a live scene token is, by the id
+that member's row carries as `actorId`, or null for a token that is no
+member's.
+
+`release(partyId, ids)` ends the named members' membership, `ids` being row
+`actorId`s, whether each is stashed or deployed at the time it runs. It removes
+the member records first, then deletes the live tokens of the ones deployed, in
+that order: a recall of the party then has no record to restore a deleted
+creature from, and a token's deletion never finds a record left behind. It
+runs on the GM's client only. It answers `released`, the count of members it
+removed, and skips an id no member carries. It does not ask whether a member is
+a summon: the caller has already authorized the dismissal.
 
 ### Contract `morale-roll` v1
 
@@ -806,7 +832,7 @@ acksExtras.lib.summons = {
   summonsOf(summoner, {scene}?),           // → the TokenDocuments on the scene (default: the canvas's) whose creature names it
   placeSummons(summoner, {sourceUuid, count?, spellId?, preConfirm?}),
                                            // → Promise<{ok, reason?, castId?, tokenUuids?}>
-  dismissSummons(summoner, {tokens?, castId?, confirm?}),
+  dismissSummons(summoner, {tokens?, entries?, held?, scene?, castId?, confirm?}),
                                            // → Promise<{ok, reason?, deleted?, refused?}>
   pickSummon(summoner, {spell?, options?, resolveRef?}),
                                            // → Promise<{sourceUuid, count, spellId}|null>
@@ -815,12 +841,27 @@ acksExtras.lib.summons = {
 }
 ```
 
+A summon may ride in its summoner's party token, where it is a member record
+and no scene token. Lib reads and ends it through the `party-roster` contract
+(above) and imports no feature; with the contract's v2 members absent, a summon
+is only the scene token it is.
+
 `placeSummons` runs on the summoner's owner's seat: core's click-to-place
 (`canvas.tokens.placeTokens`, `create: false`), then a relay to the GM's client
 that makes the tokens. `preConfirm` is core's placement hook; returning false
 refuses a click. `dismissSummons` asks the seat first (`confirm: false` only
-when the caller already has); it removes only tokens the module's own
-summoning made for that summoner. `reason` is one of `noUser`, `notSummoner`,
+when the caller already has); it removes only summons the module's own
+summoning made for that summoner. It takes the union of `tokens`, the tokens
+`entries` name (`{tokenId, sceneId?}`, read on `sceneId`, else on `scene`,
+default the canvas's) and the held summons `held` and `entries` name (`held` is
+`{partyId, actorId}`, an entry's `held` that, or null); with none of the three
+it takes the summoner's tokens on the scene and every summon of theirs riding
+in a party token. `castId` filters both halves. The GM's client re-reads each
+held summon from the roster rather than the request. A deployed member's token
+and a held summon are removed through the roster's `release`, and any other
+token from its scene; with `release` absent, a held summon is refused and
+counted in `refused`, and a token is deleted from its scene. `deleted` counts
+every one removed. `reason` is one of `noUser`, `notSummoner`,
 `notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `spellRequired`,
 `badScene`, `badPositions`, `noCopy`, `badOp`, `noCanvas`, `paused`,
 `placement`, `none`, `cancelled`, `declined`, `noGm`, or a reason id a
@@ -855,8 +896,17 @@ reads as an id: the ref goes on untouched as the answer's `sourceUuid`, labelled
 by the row's `name` or "Creature N". With no offerable row it offers the shelves
 the seat can open. It asks and places nothing; pass the answer to
 `placeSummons`, whose `sourceUuid` may then be a uuid or a cookbook id for a
-request that names a spell. The Foundry-free
-checks (`checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
+request that names a spell.
+
+`heldSummonsOf(summoner)` lists the summons of a character stashed in a party
+token, `{partyId, actorId, name, img, record}` each; a summon deployed with its
+party is a scene token and appears in `summonsOf` only. `castSummons(caster,
+castId, {scenes?})` answers `{tokens, held}` for one cast: its scene tokens (on
+`scenes`, default every scene of the world) and its held summons. Both answer
+empty with no provider. They are exported from `scripts/lib/summons.mjs` and
+imported directly. The Foundry-free
+checks (`summonOfData(tokenData)`, `{summonedBy, summon}` read off a token's
+plain data, `checkPlaceRequest`, `checkDismissRequest`, `groupByCast`,
 `groupBySpell`, `bareSummonAllowed`, `summonOwnership`, and `summonRefName`,
 the name of the creature a row's ref names, or null) are in
 `scripts/lib/summons-logic.mjs`, imported directly.

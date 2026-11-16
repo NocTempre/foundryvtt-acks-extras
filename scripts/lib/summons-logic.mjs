@@ -130,6 +130,27 @@ export function summonRecordOf(actor) {
 }
 
 /**
+ * The summoner and the record a summoned token's plain data carries, the same
+ * two facts `summonerOf` and `summonRecordOf` read off a live actor. A stash a
+ * party keeps for a summon is token data (`toObject()`), so the reader has no
+ * actor to ask: the flags of an unlinked token live in its `delta`. A linked
+ * token, a token that matches its actor (`delta: null`) and anything that is
+ * not an object read as neither, and a record with no `castId` is no record,
+ * as in `summonRecordOf`.
+ * @param {object|null} tokenData  a token's plain data
+ * @returns {{summonedBy: string|null, summon: object|null}}
+ */
+export function summonOfData(tokenData) {
+  const flags = tokenData && typeof tokenData === "object" && !tokenData.actorLink ? tokenData.delta?.flags?.[MODULE_ID] : null;
+  const by = flags?.[SUMMON_FLAG];
+  const record = flags?.[SUMMON_RECORD_FLAG];
+  return {
+    summonedBy: typeof by === "string" && by ? by : null,
+    summon: record && typeof record === "object" && record.castId ? record : null,
+  };
+}
+
+/**
  * The flags a summoned token's delta carries: the summoner and the record.
  * @param {string} summonerUuid
  * @param {{sourceUuid: string, name?: string, spellId?: string, spellName?: string, castId: string, at: number}} record
@@ -283,26 +304,41 @@ export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scen
 }
 
 /**
+ * Does a summon named by its two facts belong to this summoner by the module's
+ * own summoning? The one test both a token and a held member are held to.
+ */
+const madeFor = (summoner, summonedBy, record) => !!summonedBy && summonedBy === summoner.uuid && !!record;
+
+/**
  * Authorize a request to dismiss summons: the sender must own the summoner,
- * and only a token the module's own summoning made for THIS summoner goes. A
+ * and only a summon the module's own summoning made for THIS summoner goes. A
  * token bound by hand, or summoned by someone else, is refused and left alone.
+ * A summon riding in a party token is named by its roster row (`held`:
+ * `{partyId, actorId, summonedBy, summon}`, read from the `party-roster`
+ * service, never from the request) and is held to the same test.
  * @param {object} req
  * @param {object} req.user
  * @param {object} req.summoner
- * @param {object[]} req.tokens  the token documents named
- * @returns {{ok: false, reason: string}|{ok: true, tokens: object[], refused: number}}
+ * @param {object[]} [req.tokens]  the token documents named
+ * @param {object[]} [req.held]  the roster rows of the held summons named
+ * @returns {{ok: false, reason: string}|{ok: true, tokens: object[], held: object[], refused: number}}
  */
-export function checkDismissRequest({ user, summoner, tokens } = {}) {
+export function checkDismissRequest({ user, summoner, tokens, held } = {}) {
   if (!user) return { ok: false, reason: "noUser" };
   if (summoner?.type !== SUMMONER_TYPE) return { ok: false, reason: "notSummoner" };
   if (!owns(user, summoner)) return { ok: false, reason: "notOwner" };
   const mine = [];
+  const mineHeld = [];
   let refused = 0;
   for (const t of tokens ?? []) {
-    if (t && summonerOf(t.actor) === summoner.uuid && summonRecordOf(t.actor)) mine.push(t);
+    if (t && madeFor(summoner, summonerOf(t.actor), summonRecordOf(t.actor))) mine.push(t);
     else refused++;
   }
-  return { ok: true, tokens: mine, refused };
+  for (const row of held ?? []) {
+    if (row && madeFor(summoner, row.summonedBy, row.summon?.castId ? row.summon : null)) mineHeld.push(row);
+    else refused++;
+  }
+  return { ok: true, tokens: mine, held: mineHeld, refused };
 }
 
 /**

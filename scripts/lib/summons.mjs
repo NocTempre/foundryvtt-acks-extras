@@ -15,6 +15,14 @@
  * same way: the seat confirms, the GM deletes the tokens the module made for
  * that summoner and no others. The world copy stays.
  *
+ * A summon may also ride in its summoner's party token. It is then no scene
+ * token but a member record the `party-roster` service (docs/lib/API.md) hands
+ * over, and lib reaches it through that service alone, with every call
+ * optional: where the provider lacks a method, a summon is the scene token it
+ * always was. A deployed party member's token is deleted through the
+ * service's `release`, which drops the member record first, so a recall has
+ * nothing to restore it from.
+ *
  * A summoning is tied to the spell that calls it: a request names the
  * summoner's spell item, and only a seat `bareSummonAllowed` answers true for
  * may name none. Feature rules over a spell's creature and count arrive as
@@ -25,6 +33,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
+import * as services from "./services.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
 import {
   SUMMON_COPY_FLAG,
@@ -49,6 +58,9 @@ import {
 export { summonerOf, registerSummonPolicy, registerSummonNaming };
 
 const libLoc = makeLoc(LANG_PREFIX);
+
+/** The `party-roster` service, or null where no feature provides one. */
+const roster = () => services.get("party-roster");
 
 /** A string of this file's lang group, under the lib root. */
 const loc = (key, data) => libLoc(`summons.${key}`, data);
@@ -81,6 +93,56 @@ const sceneNow = () => canvas?.scene ?? game.scenes?.active ?? null;
 export function summonsOf(summoner, { scene = sceneNow() } = {}) {
   if (!summoner?.uuid) return [];
   return [...(scene?.tokens ?? [])].filter((t) => summonerOf(t.actor) === summoner.uuid);
+}
+
+/**
+ * @typedef {object} HeldSummon
+ * A summon riding in its summoner's party token, as its roster row names it.
+ * @property {string} partyId  the party holding it
+ * @property {string} actorId  the member's id in that party (the roster row's `actorId`)
+ * @property {string} name
+ * @property {string|null} img
+ * @property {object} record  the cast record (`summonRecordOf`'s shape)
+ */
+
+/**
+ * The summons of this character riding stashed in a party token, across every
+ * party the `party-roster` service lists. A summon deployed with its party is
+ * a scene token and is read by `summonsOf`, never listed here, so no summon is
+ * counted twice. Empty where there is no provider or the provider's rows carry
+ * no summon fields.
+ * @param {Actor} summoner
+ * @returns {HeldSummon[]}
+ */
+export function heldSummonsOf(summoner) {
+  const service = roster();
+  if (!summoner?.uuid || typeof service?.list !== "function" || typeof service.members !== "function") return [];
+  const out = [];
+  for (const party of service.list() ?? []) {
+    for (const row of service.members(party.id) ?? []) {
+      if (!row?.stashed || row.summonedBy !== summoner.uuid || !row.summon?.castId) continue;
+      out.push({ partyId: party.id, actorId: row.actorId, name: String(row.name ?? ""), img: row.actor?.img ?? null, record: row.summon });
+    }
+  }
+  return out;
+}
+
+/**
+ * What one cast of this character left standing: its scene tokens (deployed
+ * party members among them) and the summons riding stashed in a party token.
+ * @param {Actor} caster
+ * @param {string} castId
+ * @param {{scenes?: Iterable<Scene>}} [o]  the scenes to read; omitted, every scene of the world
+ * @returns {{tokens: TokenDocument[], held: HeldSummon[]}}
+ */
+export function castSummons(caster, castId, { scenes = game.scenes } = {}) {
+  const tokens = [];
+  if (caster?.uuid && castId) {
+    for (const scene of scenes ?? []) {
+      for (const t of scene?.tokens ?? []) if (summonerOf(t.actor) === caster.uuid && summonRecordOf(t.actor)?.castId === castId) tokens.push(t);
+    }
+  }
+  return { tokens, held: heldSummonsOf(caster).filter((h) => h.record.castId === castId) };
 }
 
 /**
@@ -214,17 +276,59 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
   return { ok: true, castId: cast, tokenUuids };
 }
 
-/** Dismiss summons: authorize, then delete the tokens the module made for this summoner. */
-async function dismissOp({ summonerUuid, tokenUuids, user }) {
+/**
+ * The roster rows a request's held summons name, read from the `party-roster`
+ * service and never from the request: an id the service does not answer for
+ * comes back with no summon, which the dismissal check refuses.
+ * @param {{partyId: string, actorId: string}[]} held
+ * @returns {{partyId: string, actorId: string, summonedBy: string|null, summon: object|null}[]}
+ */
+function heldRows(held) {
+  const service = roster();
+  const byParty = new Map();
+  const seen = new Set();
+  const out = [];
+  for (const h of held ?? []) {
+    const key = `${h?.partyId}|${h?.actorId}`;
+    if (!h?.partyId || !h?.actorId || seen.has(key)) continue;
+    seen.add(key);
+    if (!byParty.has(h.partyId)) byParty.set(h.partyId, typeof service?.members === "function" ? (service.members(h.partyId) ?? []) : []);
+    const row = byParty.get(h.partyId).find((r) => r?.actorId === h.actorId);
+    out.push({ partyId: h.partyId, actorId: h.actorId, summonedBy: row?.summonedBy ?? null, summon: row?.summon ?? null });
+  }
+  return out;
+}
+
+/**
+ * Dismiss summons: authorize, then remove what the module made for this
+ * summoner. A deployed party member's token and a held summon go through the
+ * roster's `release`; any other token is deleted from its scene. Where the
+ * provider has no `release`, a held summon is refused and a token is deleted
+ * as it always was.
+ */
+async function dismissOp({ summonerUuid, tokenUuids, held, user }) {
   const summoner = await fromUuid(summonerUuid);
   const tokens = [...new Set(tokenUuids ?? [])].slice(0, MAX_DISMISS).map(docOf).filter((t) => t?.documentName === "Token");
-  const verdict = checkDismissRequest({ user, summoner, tokens });
+  const rows = heldRows(Array.isArray(held) ? held.slice(0, Math.max(0, MAX_DISMISS - tokens.length)) : []);
+  const verdict = checkDismissRequest({ user, summoner, tokens, held: rows });
   if (!verdict.ok) return refused(verdict.reason);
+  const service = roster();
+  const canRelease = typeof service?.release === "function";
+  const releases = new Map();
+  const queue = (partyId, actorId) => releases.set(partyId, [...new Set([...(releases.get(partyId) ?? []), actorId])]);
+  let refusedCount = verdict.refused;
   const byScene = new Map();
-  for (const t of verdict.tokens) byScene.set(t.parent, [...(byScene.get(t.parent) ?? []), t.id]);
+  for (const t of verdict.tokens) {
+    const member = canRelease ? service.memberOfToken?.(t) : null;
+    if (member?.partyId && member.actorId) queue(member.partyId, member.actorId);
+    else byScene.set(t.parent, [...(byScene.get(t.parent) ?? []), t.id]);
+  }
+  if (canRelease) for (const row of verdict.held) queue(row.partyId, row.actorId);
+  else refusedCount += verdict.held.length;
   let deleted = 0;
   for (const [scene, ids] of byScene) deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
-  return { ok: true, deleted, refused: verdict.refused };
+  for (const [partyId, ids] of releases) deleted += Number((await service.release(partyId, ids))?.released) || 0;
+  return { ok: true, deleted, refused: refusedCount };
 }
 
 /**
@@ -235,6 +339,7 @@ async function dismissOp({ summonerUuid, tokenUuids, user }) {
  * @param {object} payload
  * @param {"place"|"dismiss"} payload.op
  * @param {string} payload.summonerUuid
+ * @param {{partyId: string, actorId: string}[]} [payload.held]  a dismissal's held summons, named by party and member id
  * @returns {Promise<{ok: boolean, reason?: string, castId?: string, tokenUuids?: string[], deleted?: number, refused?: number}>}
  */
 export async function summonRelay({ op, requestUserId = null, ...rest } = {}) {
@@ -325,32 +430,68 @@ export async function placeSummons(summoner, { sourceUuid, count = 1, spellId = 
 }
 
 /**
+ * The token one dismissal entry names: its `tokenUuid` when it carries one,
+ * else its `tokenId` on the entry's `sceneId`, else on the given scene.
+ */
+function entryToken(entry, scene) {
+  if (entry?.tokenUuid) return docOf(entry.tokenUuid);
+  if (!entry?.tokenId) return null;
+  return (entry.sceneId ? game.scenes?.get(entry.sceneId) : scene)?.tokens?.get(entry.tokenId) ?? null;
+}
+
+/**
  * Dismiss summons the module made: the requesting seat confirms, and the GM's
- * client deletes the tokens. A creature bound to the summoner by hand is not
- * dismissed here. The world copy stays.
+ * client removes them. A creature bound to the summoner by hand is not
+ * dismissed here. The world copy stays. What is dismissed is the union of
+ * `tokens`, the tokens `entries` name, and the held summons `held` and
+ * `entries` name; with none of the three given it is the summoner's tokens on
+ * the scene and every summon of theirs riding in a party token.
  * @param {Actor} summoner
  * @param {object} [o]
- * @param {TokenDocument[]} [o.tokens]  the tokens to dismiss; omitted, the summoner's on the scene
+ * @param {TokenDocument[]} [o.tokens]  the tokens to dismiss
+ * @param {{tokenId?: string|null, tokenUuid?: string, sceneId?: string, held?: {partyId: string, actorId: string}|null}[]} [o.entries]
+ *   one summon each: a scene token by `tokenId` (on `sceneId`, else on `scene`), a held summon by `held`
+ * @param {{partyId: string, actorId: string}[]} [o.held]  held summons (`heldSummonsOf`, `castSummons`)
+ * @param {Scene} [o.scene]  where an entry's bare `tokenId` is read; omitted, the scene on the canvas
  * @param {string} [o.castId]  restrict to one cast
  * @param {boolean} [o.confirm=true]  ask first; the prompt is kept unless a caller has already asked
  * @returns {Promise<{ok: boolean, reason?: string, deleted?: number, refused?: number}>}
  */
-export async function dismissSummons(summoner, { tokens, castId = "", confirm = true } = {}) {
-  let chosen = tokens ?? summonsOf(summoner);
-  if (castId) chosen = chosen.filter((t) => summonRecordOf(t.actor)?.castId === castId);
-  const verdict = checkDismissRequest({ user: game.user, summoner, tokens: chosen });
+export async function dismissSummons(summoner, { tokens, entries, held, scene = sceneNow(), castId = "", confirm = true } = {}) {
+  const named = !!(tokens || entries || held);
+  let chosen = [...(tokens ?? [])];
+  let chosenHeld = [...(held ?? [])];
+  for (const entry of entries ?? []) {
+    const token = entryToken(entry, scene);
+    if (token) chosen.push(token);
+    if (entry?.held) chosenHeld.push(entry.held);
+  }
+  if (!named) {
+    chosen = summonsOf(summoner, { scene });
+    chosenHeld = heldSummonsOf(summoner);
+  }
+  chosen = [...new Set(chosen)];
+  let rows = heldRows(chosenHeld);
+  if (castId) {
+    chosen = chosen.filter((t) => summonRecordOf(t.actor)?.castId === castId);
+    rows = rows.filter((r) => r.summon?.castId === castId);
+  }
+  const verdict = checkDismissRequest({ user: game.user, summoner, tokens: chosen, held: rows });
   if (!verdict.ok) return refused(verdict.reason);
-  if (!verdict.tokens.length) return refused("none");
+  const total = verdict.tokens.length + verdict.held.length;
+  if (!total) return refused("none");
   if (confirm) {
     const yes = await foundry.applications.api.DialogV2.confirm({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
       window: { title: loc("dismissTitle") },
-      content: `<p>${foundry.utils.escapeHTML(loc("dismissConfirm", { n: verdict.tokens.length, name: summoner.name }))}</p>`,
+      content: `<p>${foundry.utils.escapeHTML(loc("dismissConfirm", { n: total, name: summoner.name }))}</p>`,
       rejectClose: false,
     });
     if (yes !== true) return refused("declined");
   }
-  return send({ op: "dismiss", summonerUuid: summoner.uuid, tokenUuids: verdict.tokens.map((t) => t.uuid) });
+  const payload = { op: "dismiss", summonerUuid: summoner.uuid, tokenUuids: verdict.tokens.map((t) => t.uuid) };
+  if (verdict.held.length) payload.held = verdict.held.map(({ partyId, actorId }) => ({ partyId, actorId }));
+  return send(payload);
 }
 
 /** Say why a request was refused, in the seat's own words. */

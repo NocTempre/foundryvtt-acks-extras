@@ -177,8 +177,10 @@ const reset = () => {
   world.folders.clear();
   registry.clear();
   world.scenes.clear();
+  services.resetServices();
 };
 
+const services = await import("../scripts/lib/services.mjs");
 const { summonRelay } = await import("../scripts/lib/summons.mjs");
 const logic = await import("../scripts/lib/summons-logic.mjs");
 
@@ -393,6 +395,230 @@ await t("a dismissal names stale or foreign uuids without throwing", async () =>
   const { summoner } = setup();
   const out = await summonRelay({ op: "dismiss", summonerUuid: summoner.uuid, tokenUuids: ["Scene.s1.Token.gone", "Actor.sum", null], requestUserId: p1.id });
   assert.deepEqual(out, { ok: true, deleted: 0, refused: 0 });
+});
+
+/* -------------------------------------------- */
+/*  Summons riding in a party token             */
+/* -------------------------------------------- */
+
+const { registerSummons, heldSummonsOf, castSummons, dismissSummons } = await import("../scripts/lib/summons.mjs");
+
+/**
+ * A party-roster provider with the v2 methods, over `parties` (id → members).
+ * A member is `{actorId, name, summonedBy, summon, token}`: `token` is its
+ * live deployed token, absent while it is stashed. `events` logs what lib
+ * asked of it; `recall()` is the provider's own restore, which brings back
+ * only the members that still have a record.
+ */
+function fakeProvider(parties, { release = true, memberOfToken = true } = {}) {
+  const events = [];
+  const restored = [];
+  const rowOf = (m) => ({ actorId: m.actorId, actor: { img: `img/${m.actorId}` }, name: m.name, document: null, stashed: !m.token, unlinked: true, hp: null, summonedBy: m.summonedBy ?? null, summon: m.summon ?? null });
+  const impl = {
+    list: () => [...parties.keys()].map((id) => ({ id, name: id })),
+    members: (id) => (parties.get(id) ?? []).map(rowOf),
+  };
+  if (memberOfToken) {
+    impl.memberOfToken = (tok) => {
+      for (const [partyId, members] of parties) {
+        const m = members.find((x) => x.token === tok);
+        if (m) return { partyId, actorId: m.actorId };
+      }
+      return null;
+    };
+  }
+  if (release) {
+    impl.release = async (partyId, ids) => {
+      events.push(["release", partyId, [...ids]]);
+      const members = parties.get(partyId) ?? [];
+      let released = 0;
+      for (const id of ids) {
+        const i = members.findIndex((m) => m.actorId === id);
+        if (i < 0) continue;
+        const [m] = members.splice(i, 1);
+        released++;
+        if (m.token) await m.token.parent.deleteEmbeddedDocuments("Token", [m.token.id]);
+      }
+      return { released };
+    };
+  }
+  const recall = () => {
+    for (const members of parties.values()) for (const m of members) restored.push(m.actorId);
+  };
+  return { impl, events, restored, recall };
+}
+
+/** A summon of `summonerUuid` stashed in a party token, or deployed as a token on `scene`. */
+const member = (actorId, summonerUuid, castId, scene = null) => {
+  const m = { actorId, name: `Wolf ${actorId}`, summonedBy: summonerUuid, summon: { castId, sourceUuid: "x", at: 1 } };
+  if (scene) m.token = summoned(scene, summonerUuid, m.summon);
+  return m;
+};
+
+const dismissAs = (summoner, over = {}) => summonRelay({ op: "dismiss", summonerUuid: summoner.uuid, requestUserId: p1.id, ...over });
+
+await t("summonOfData reads the summoner and the record off a stash's delta and nothing else", () => {
+  const delta = { flags: { [M]: { [logic.SUMMON_FLAG]: "Actor.s", [logic.SUMMON_RECORD_FLAG]: { castId: "c1", sourceUuid: "u", at: 3 } } } };
+  assert.deepEqual(logic.summonOfData({ delta }), { summonedBy: "Actor.s", summon: { castId: "c1", sourceUuid: "u", at: 3 } });
+  assert.deepEqual(logic.summonOfData({ delta, actorLink: true }), { summonedBy: null, summon: null }, "a linked token's flags are its actor's");
+  assert.deepEqual(logic.summonOfData({ delta: null }), { summonedBy: null, summon: null }, "a token that matches its actor has no delta");
+  assert.deepEqual(logic.summonOfData(null), { summonedBy: null, summon: null });
+  assert.deepEqual(logic.summonOfData({ delta: { flags: { [M]: { [logic.SUMMON_FLAG]: "Actor.s", [logic.SUMMON_RECORD_FLAG]: { nope: 1 } } } } }), { summonedBy: "Actor.s", summon: null }, "a record with no cast id is none");
+  assert.deepEqual(logic.summonOfData({ delta: { flags: { other: { [logic.SUMMON_FLAG]: "Actor.s" } } } }), { summonedBy: null, summon: null }, "only this module's scope");
+});
+
+await t("heldSummonsOf lists a summoner's stashed summons and neither a deployed one nor another caster's", () => {
+  const { summoner, scene } = setup();
+  const parties = new Map([["pty", [member("m1", summoner.uuid, "c1"), member("m2", summoner.uuid, "c1", scene), member("m3", "Actor.other", "c1"), { actorId: "m4", name: "Plain" }]]]);
+  services.register("party-roster", fakeProvider(parties).impl);
+  const held = heldSummonsOf(summoner);
+  assert.deepEqual(held.map((h) => [h.partyId, h.actorId, h.name, h.img, h.record.castId]), [["pty", "m1", "Wolf m1", "img/m1", "c1"]]);
+});
+
+await t("with no provider, or a provider with no summon fields, nothing is held", () => {
+  const { summoner } = setup();
+  assert.deepEqual(heldSummonsOf(summoner), []);
+  services.register("party-roster", { list: () => [{ id: "pty" }], members: () => [{ actorId: "m1", stashed: true, name: "v1 row" }] });
+  assert.deepEqual(heldSummonsOf(summoner), []);
+  services.register("party-roster", {});
+  assert.deepEqual(heldSummonsOf(summoner), []);
+});
+
+await t("castSummons splits one cast's scene tokens from its held summons and takes no other cast", () => {
+  const { summoner, scene } = setup();
+  const other = makeScene("s2", { active: false });
+  const a1 = summoned(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
+  const a2 = summoned(other, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
+  summoned(scene, summoner.uuid, { castId: "cB", sourceUuid: "x", at: 1 });
+  summoned(scene, "Actor.other", { castId: "cA", sourceUuid: "x", at: 1 });
+  const parties = new Map([["pty", [member("h1", summoner.uuid, "cA"), member("h2", summoner.uuid, "cB"), member("h3", "Actor.other", "cA")]]]);
+  services.register("party-roster", fakeProvider(parties).impl);
+  const out = castSummons(summoner, "cA", { scenes: [scene, other] });
+  assert.deepEqual(out.tokens.map((x) => x.id).sort(), [a1.id, a2.id].sort());
+  assert.deepEqual(out.held.map((h) => h.actorId), ["h1"]);
+  const none = castSummons(summoner, "cZ", { scenes: [scene, other] });
+  assert.deepEqual([none.tokens.length, none.held.length], [0, 0]);
+});
+
+await t("castSummons with no provider is the scene tokens alone", () => {
+  const { summoner, scene } = setup();
+  const a1 = summoned(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
+  const out = castSummons(summoner, "cA", { scenes: [scene] });
+  assert.deepEqual([out.tokens.map((x) => x.id), out.held], [[a1.id], []]);
+});
+
+await t("one dismissal takes a held summon, a deployed member and a plain token, each by its own road", async () => {
+  const { summoner, scene } = setup();
+  const plain = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1 });
+  const parties = new Map([["pty", [member("h1", summoner.uuid, "c1"), member("d1", summoner.uuid, "c1", scene)]]]);
+  const fake = fakeProvider(parties);
+  services.register("party-roster", fake.impl);
+  const dep = parties.get("pty")[1].token;
+  const out = await dismissAs(summoner, { tokenUuids: [plain.uuid, dep.uuid], held: [{ partyId: "pty", actorId: "h1" }] });
+  assert.deepEqual(out, { ok: true, deleted: 3, refused: 0 });
+  assert.deepEqual(calls.tokenDelete, [plain.id, dep.id], "the plain token by the scene, the deployed one by release");
+  assert.deepEqual(fake.events, [["release", "pty", ["d1", "h1"]]]);
+  assert.equal(parties.get("pty").length, 0, "both records are gone");
+  fake.recall();
+  assert.deepEqual(fake.restored, [], "a recall has nothing left to restore");
+});
+
+await t("a deployed member's token is never deleted by lib itself, so its record cannot outlive it", async () => {
+  const { summoner, scene } = setup();
+  const parties = new Map([["pty", [member("d1", summoner.uuid, "c1", scene)]]]);
+  const fake = fakeProvider(parties);
+  services.register("party-roster", fake.impl);
+  const dep = parties.get("pty")[0].token;
+  const direct = [];
+  const real = scene.deleteEmbeddedDocuments;
+  scene.deleteEmbeddedDocuments = async (type, ids) => (direct.push([...ids]), real(type, ids));
+  await dismissAs(summoner, { tokenUuids: [dep.uuid] });
+  assert.deepEqual(fake.events.map((e) => e[0]), ["release"]);
+  assert.deepEqual(direct, [[dep.id]], "the one delete is the provider's, made after it dropped the record");
+  assert.equal(parties.get("pty").length, 0);
+});
+
+await t("one caster's dismissal leaves another's held and deployed summons of the same creature", async () => {
+  const { summoner: a, scene } = setup();
+  const b = makeSummoner("sumB", [p2.id], [SPELL]);
+  const parties = new Map([
+    ["pty", [member("aHeld", a.uuid, "cA"), member("aDep", a.uuid, "cA", scene), member("bHeld", b.uuid, "cB"), member("bDep", b.uuid, "cB", scene)]],
+  ]);
+  const fake = fakeProvider(parties);
+  services.register("party-roster", fake.impl);
+  const [, aDep, , bDep] = parties.get("pty").map((m) => m.token);
+  // A names B's held and deployed ones beside its own: only A's go.
+  const out = await dismissAs(a, {
+    tokenUuids: [aDep.uuid, bDep.uuid],
+    held: [{ partyId: "pty", actorId: "aHeld" }, { partyId: "pty", actorId: "bHeld" }, { partyId: "pty", actorId: "bDep" }],
+  });
+  assert.deepEqual(out, { ok: true, deleted: 2, refused: 3 });
+  assert.deepEqual(fake.events, [["release", "pty", ["aDep", "aHeld"]]]);
+  assert.deepEqual(parties.get("pty").map((m) => m.actorId), ["bHeld", "bDep"]);
+  assert.equal(bDep.parent.tokens.has(bDep.id), true, "B's deployed token stands");
+});
+
+await t("a held summon named by a seat that does not own the summoner, or the provider does not know, is not released", async () => {
+  const { summoner } = setup();
+  const parties = new Map([["pty", [member("h1", summoner.uuid, "c1")]]]);
+  const fake = fakeProvider(parties);
+  services.register("party-roster", fake.impl);
+  assert.deepEqual(await dismissAs(summoner, { requestUserId: stranger.id, held: [{ partyId: "pty", actorId: "h1" }] }), { ok: false, reason: "notOwner" });
+  const out = await dismissAs(summoner, { held: [{ partyId: "nope", actorId: "h1" }, { partyId: "pty", actorId: "ghost" }, { partyId: "pty" }, null] });
+  assert.deepEqual(out, { ok: true, deleted: 0, refused: 2 });
+  assert.deepEqual(fake.events, []);
+  assert.equal(parties.get("pty").length, 1);
+});
+
+await t("with no provider a dismissal is today's: tokens deleted, a held name refused", async () => {
+  const { summoner, scene } = setup();
+  const mine = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1 });
+  const out = await dismissAs(summoner, { tokenUuids: [mine.uuid], held: [{ partyId: "pty", actorId: "h1" }] });
+  assert.deepEqual(out, { ok: true, deleted: 1, refused: 1 });
+  assert.deepEqual(calls.tokenDelete, [mine.id]);
+});
+
+await t("a provider with no release or memberOfToken leaves a deployed token to the scene and refuses the held", async () => {
+  const { summoner, scene } = setup();
+  const parties = new Map([["pty", [member("h1", summoner.uuid, "c1"), member("d1", summoner.uuid, "c1", scene)]]]);
+  const fake = fakeProvider(parties, { release: false, memberOfToken: false });
+  services.register("party-roster", fake.impl);
+  const dep = parties.get("pty")[1].token;
+  const out = await dismissAs(summoner, { tokenUuids: [dep.uuid], held: [{ partyId: "pty", actorId: "h1" }] });
+  assert.deepEqual(out, { ok: true, deleted: 1, refused: 1 });
+  assert.deepEqual(calls.tokenDelete, [dep.id]);
+  const noRelease = fakeProvider(parties, { release: false });
+  services.register("party-roster", noRelease.impl);
+  const again = await dismissAs(summoner, { held: [{ partyId: "pty", actorId: "h1" }] });
+  assert.deepEqual(again, { ok: true, deleted: 0, refused: 1 });
+});
+
+await t("the seat's dismissSummons takes entries of tokens and held summons, and its castId filter spans both", async () => {
+  const { summoner, scene } = setup();
+  globalThis.canvas = { scene };
+  game.user = gm;
+  await registerSummons();
+  const plain = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1 });
+  const otherCast = summoned(scene, summoner.uuid, { castId: "c2", sourceUuid: "x", at: 1 });
+  const parties = new Map([["pty", [member("h1", summoner.uuid, "c1"), member("h2", summoner.uuid, "c2"), member("d1", summoner.uuid, "c1", scene)]]]);
+  const fake = fakeProvider(parties);
+  services.register("party-roster", fake.impl);
+  const dep = parties.get("pty")[2].token;
+  const entries = [
+    { tokenId: plain.id, held: null },
+    { tokenId: otherCast.id, held: null },
+    { tokenId: dep.id, held: null },
+    { tokenId: null, held: { partyId: "pty", actorId: "h1" } },
+    { tokenId: null, held: { partyId: "pty", actorId: "h2" } },
+  ];
+  const out = await dismissSummons(summoner, { entries, castId: "c1", confirm: false });
+  assert.deepEqual(out, { ok: true, deleted: 3, refused: 0 });
+  assert.deepEqual(parties.get("pty").map((m) => m.actorId), ["h2"]);
+  assert.equal(scene.tokens.has(otherCast.id), true, "another cast stays");
+  assert.deepEqual(await dismissSummons(summoner, { entries: [], confirm: false }), { ok: false, reason: "none" });
+  const rest = await dismissSummons(summoner, { confirm: false });
+  assert.deepEqual(rest, { ok: true, deleted: 2, refused: 0 }, "with nothing named: the scene's tokens and every held one");
+  delete globalThis.canvas;
 });
 
 /* -------------------------------------------- */

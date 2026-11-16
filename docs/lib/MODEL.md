@@ -2584,14 +2584,42 @@ alphanumeric string, and the time is the GM's clock.
   so each is numbered against the ones before it; the system's own token
   `_preCreate` rolls each unlinked monster token's hit points when its
   auto-roll setting is on.
-- `dismiss`: the sender owns the summoner; each named token is deleted only
-  if its actor names this summoner AND carries the module's record. A token
-  bound by hand, or summoned by another character, is counted as refused and
-  left.
+- `dismiss`: the sender owns the summoner; each named summon is removed only
+  if it names this summoner AND carries the module's record: a token by its
+  actor's flags, a held summon (below) by its roster row. A creature bound by
+  hand, or summoned by another character, is counted as refused and left.
+  A held summon arrives as `{partyId, actorId}` and is judged on the row the
+  `party-roster` service answers for it, never on what the request says of it.
 
 **Dismissing** confirms on the requesting seat first (`DialogV2.confirm`,
 proceeding only on `=== true`, since a closed dialog resolves null), then
 relays. The world copy stays in the GM's folder.
+
+**A summon in a party.** A summon can ride in its summoner's party token as a
+member record, with no token on any scene. Lib knows it through the
+`party-roster` contract alone (API.md) and imports no feature; every call on it
+is optional, so with no provider, or a provider without the summon fields, a
+summon is the scene token it always was and nothing here runs.
+
+- *Reading.* `summonOfData` (`summons-logic.mjs`) reads the summoner and the
+  record off plain token data, the form a stash holds, from the token's
+  `delta`; it is the roster provider's reader for a member row. `heldSummonsOf`
+  lists the summoner's summons whose member is stashed. A deployed member is a
+  scene token, so `summonsOf` lists it and `heldSummonsOf` does not: no summon
+  is counted twice. `castSummons` is one cast's tokens across the world's
+  scenes beside its held summons.
+- *Dismissing.* The relay sorts what it has authorized. A token the roster
+  names a member (`memberOfToken`) and a held summon both go to `release`,
+  one call for each party; every other token is deleted from its scene as
+  before. `release` drops the member record before it deletes a deployed
+  member's token, which is the whole defence against a recall restoring a
+  dismissed creature from its pre-deploy stash: lib never deletes a member's
+  token itself. With `release` absent a held summon is refused, and a token
+  goes by its scene.
+- *Authority.* The seat and the GM's client each read the held summon's row
+  from the roster; the GM's reading decides. Two casters of the same creature
+  never reach each other's: a row names its summoner, and the check is the
+  token check's.
 
 **Which packs a Player seat can open** is decided by pack ownership, not by
 this module: a pack declares `ownership` by role, defaulting to OBSERVER for
