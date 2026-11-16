@@ -635,7 +635,8 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal((footer.match(/data-tooltip-text="rows\.tip/g) ?? []).length, solvable.footRows.length, "every row's figure carries its tooltip");
   assert.ok(footer.includes("rows.imageStays"), "the image row says, on screen, that placed things stay put");
   assert.ok(/data-action="applyGrid"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tip/.test(footer), "Apply is named and says what it writes");
-  assert.ok(/data-action="rescaleTokens"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tokensTip/.test(footer), "so is the resize");
+  assert.ok(!footer.includes('data-action="rescaleTokens"'), "the whole-scene resize is in the Token sizes section, not the footer");
+  assert.ok(/data-action="rescaleTokens"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tokensTip/.test(html), "where it is named and says what it resizes");
   assert.ok(!/\stitle=/.test(footer) && !/\stitle=/.test(html), "no title attribute: tooltips go through core's manager");
   setup({ family: "scale", scene: makeScene(), units: "ft" });
   assert.ok((await ctx()).applyTip.startsWith("apply.tipScale"), "scale-only does not claim the image is written");
@@ -645,6 +646,128 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const empty = await ctx();
   assert.deepEqual(empty.footRows, []);
   assert.ok(!foot(empty).includes("acks-extras-battlemap-rows"), "nothing extra shows");
+}
+
+/* -------------------------------------------- */
+/*  The Token sizes section                     */
+/* -------------------------------------------- */
+
+{
+  const template = Handlebars.create();
+  template.registerHelper("localize", (key) => key);
+  template.registerHelper("checked", (value) => (value ? "checked" : ""));
+  const body = template.compile(read("templates/battlemap/assistant-body.hbs"));
+  /** The section as drawn: everything after its heading. */
+  const sectionOf = async (scene) => {
+    setup({ family: "hexRows", scene, units: "ft" });
+    const c = await ctx();
+    const html = body(c);
+    return { c, section: html.slice(html.indexOf("ACKS-BATTLEMAP.tokens.title")) };
+  };
+  const figures = (line) => JSON.parse(String(line).slice(String(line).indexOf("{")));
+  const CONTROLS = [/data-action="sizeChip"/, /data-action="resetFootprints"/, /data-action="applyCustomSize"/, /data-action="rescaleTokens"/, /name="customFeet"/];
+
+  // A cell of a mile or more: one line, and none of the controls.
+  for (const [units, distance] of [["mi", 1], ["mi", 6], ["yd", 1760], ["km", 2]]) {
+    const { c, section } = await sectionOf(makeScene({ units, distance }));
+    assert.equal(c.tokensUnsized, true, `${distance} ${units} a cell is an expedition scale`);
+    assert.ok(section.includes("tokens.unsized"), "the line says tokens here are not sized to footprints");
+    for (const control of CONTROLS) assert.ok(!control.test(section), `${distance} ${units}: no ${control} below the line`);
+    assert.ok(!/<button|<input/.test(section), "nothing to press or type in");
+    assert.ok(!section.includes("tokens.auto") && !section.includes("tokens.intro"), "and nothing else is said");
+  }
+
+  // Below it: what the chips do, chips in feet, the resize, the auto-size line.
+  const scene = makeScene({ units: "yd", distance: 3, flag: { autoScale: false } });
+  const { c, section } = await sectionOf(scene);
+  assert.equal(c.tokensUnsized, false);
+  assert.ok(section.includes("tokens.intro"), "the section says what the chips do");
+  assert.equal(c.hotbar.length, 6);
+  assert.deepEqual(c.hotbar.map((h) => h.value), [4.5, 9, 18, 27, 36, 54], "the chips are steps of the scene's own cell, in feet");
+  for (const chip of c.hotbar) {
+    assert.ok(chip.label.startsWith("tokens.chip"), "the label carries the unit through its own key");
+    const tip = figures(chip.tip);
+    assert.equal(tip.feet, figures(chip.label).feet, "the tooltip names the footprint the chip stamps");
+    assert.deepEqual([tip.distance, tip.units], [3, "yd"], "and the scene's own cell and unit");
+    assert.ok(chip.aria.startsWith("apply.aria"), "the chip is named for assistive technology too");
+  }
+  assert.deepEqual(c.hotbar.map((h) => figures(h.tip).step), [0.5, 1, 2, 3, 4, 6]);
+  assert.equal((section.match(/data-action="sizeChip"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="tokens\.chipTip/g) ?? []).length, 6, "every chip carries its aria-label and tooltip");
+  assert.ok(/data-action="resetFootprints"[^>]*aria-label="apply\.aria[^"]*tokens\.resetLabel/.test(section), "the reset glyph has a name");
+  assert.ok(/data-action="applyCustomSize"[^>]*aria-label="apply\.aria[^"]*tokens\.customLabel/.test(section), "so has the custom size's");
+  assert.ok(!/data-action="applyCustomSize"[^>]*disabled/.test(section), "the custom size is never disabled by a stale value");
+  assert.ok(/data-action="rescaleTokens"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tokensTip/.test(section), "the whole-scene resize sits in the section with its tooltip");
+  assert.ok(!/\stitle=/.test(section), "no title attribute");
+  assert.ok(c.tokensAutoLine.startsWith("tokens.autoOff"), "a scene that is not auto-sized says so");
+  assert.ok(section.includes("tokens.autoOff"));
+  assert.equal(keyOf(figures(c.tokensAutoLine).path), "tokens.autoPath", "and where it is changed");
+  assert.ok(JSON.parse(read("lang/en.json"))[`${LANG_PREFIX}.tokens.autoPath`].includes("Scene configuration → Basics tab → Battlemap → Auto-size tokens"));
+  scene.flags[MODULE_ID][FLAG] = { autoScale: true };
+  assert.ok((await sectionOf(scene)).c.tokensAutoLine.startsWith("tokens.autoOn"), "and one that is, says so");
+}
+
+{
+  // The controls act on the selection: with none, a notice says so and nothing is written.
+  const scene = makeScene({ units: "ft", distance: 5 });
+  setup({ family: "hexRows", scene, units: "ft" });
+  const written = [];
+  const placed = (id) => ({ document: { id, parent: scene, getFlag: () => undefined, update: async (data) => written.push({ id, data }) } });
+  const run = async (action, ...args) => {
+    notes.length = 0;
+    await App.DEFAULT_OPTIONS.actions[action].call(app, null, ...args);
+    return notes.map(([level, text]) => [level, keyOf(text)]);
+  };
+  const chip = { dataset: { feet: "7.5" } };
+  const none = [["warn", "tokens.noneSelected"]];
+
+  globalThis.canvas.tokens = { controlled: [] };
+  assert.deepEqual(await run("sizeChip", chip), none, "a chip with nothing selected says so, not '0 token(s)'");
+  assert.deepEqual(await run("resetFootprints"), none, "so does the reset");
+  assert.deepEqual(await run("applyCustomSize"), [["warn", "tokens.customNeeded"]], "a custom size with no value asks for one");
+  app.element = { querySelector: () => ({ value: "12" }) };
+  assert.deepEqual(await run("applyCustomSize"), none, "and with a value but no selection, says nothing is selected");
+  assert.equal(written.length, 0, "nothing is written");
+
+  // The field's own change takes the slot and re-renders nothing: a render would
+  // replace the ✓ between the pointer going down on it and coming up.
+  const before = app.renders;
+  await submit.call(app, { target: { name: "customFeet" } }, null, { object: { customFeet: "12" } });
+  assert.equal(session.opts.customFeet, 12, "the change lands in the session");
+  assert.equal(app.renders, before, "and the panel is not re-rendered under the pointer");
+  await submit.call(app, { target: { name: "mapCellFeet" } }, null, { object: { customFeet: "7", mapCellFeet: "3" } });
+  assert.ok(app.renders > before, "any other field's change still renders");
+
+  // The field is read at the press: the session never saw this value, and the stale slot is not the answer.
+  session.opts.customFeet = null;
+  globalThis.canvas.tokens = { controlled: [placed("t1")] };
+  const result = await run("applyCustomSize");
+  assert.deepEqual(result, [["info", "tokens.applied"]], "a value typed and clicked at once is applied");
+  assert.equal(written[0].data[`flags.${MODULE_ID}.footprint`].w, 12, "the typed figure is the footprint");
+  assert.equal(session.opts.customFeet, 12, "and the session holds it");
+  app.element = { querySelector: () => ({ value: "" }) };
+  session.opts.customFeet = 9;
+  written.length = 0;
+  assert.deepEqual(await run("applyCustomSize"), [["warn", "tokens.customNeeded"]], "an emptied field is not rescued by an older value");
+  assert.equal(written.length, 0);
+  app.element = undefined;
+  delete globalThis.canvas.tokens;
+}
+
+{
+  // The rescale notice names what it left alone.
+  const scene = makeScene({ units: "ft", distance: 5 });
+  setup({ family: "hexRows", scene, units: "ft" });
+  const token = { id: "t1", width: 1, height: 1, getFlag: () => undefined, actor: { documentName: "Actor", type: "monster", getFlag: () => undefined } };
+  scene.updateEmbeddedDocuments = async () => {};
+  const rescale = App.DEFAULT_OPTIONS.actions.rescaleTokens;
+
+  scene.tokens = [];
+  await rescale.call(app);
+  assert.equal(keyOf(notes.at(-1)[1]), "tokens.rescaled", "nothing left alone: the plain count");
+  scene.tokens = [token];
+  await rescale.call(app);
+  assert.equal(keyOf(notes.at(-1)[1]), "tokens.rescaledKept", "a token with no imported footprint is reported");
+  assert.deepEqual(JSON.parse(notes.at(-1)[1].slice(notes.at(-1)[1].indexOf("{"))), { count: 0, kept: 1 });
 }
 
 /* -------------------------------------------- */

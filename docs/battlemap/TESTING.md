@@ -69,12 +69,14 @@ by hand.
   axis, median gap — and drag on those boundaries; the plate then reads 0.0%
   tight instead of advertising the feature with a red "samples disagree"
   warning.
-- **A document's prepared field can read stale after a scripted update while
-  `_source` is already correct.** `token.width` returning the old value with
-  `token._source.width` holding the new one is the client not having
-  re-initialized, not a rejected write — call `reset()`, re-fetch with
-  `fromUuid`, or read the placeable (`tok.w / grid.size`). Do not diagnose a
-  blocked write from the prepared value alone.
+- **A token's prepared `width`/`height` is core's animated value, and
+  `_source` is the stored one.** Core's token animation merges its frames into
+  the document and runs frame 0 synchronously, so right after an update the
+  prepared width is the tween's start; it stays there while the ticker is
+  frozen (a backgrounded pane) and settles once frames run. A read of
+  `token.width` straight after a scripted update is therefore not evidence of
+  a rejected write. Read `token._source.width`/`height`. On a hex grid
+  `tok.w / grid.size` is not the stored size either.
 - **A scripted `pointerdown` on the canvas needs a hover-in first.** PIXI's
   federated event system drops a bare synthetic `pointerdown` unless a
   `pointerover` + `pointermove` at the same point preceded it — real input

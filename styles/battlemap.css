@@ -338,7 +338,7 @@
 
 /* What Apply rewrites. The list takes its own scroll past a bound in the
    window's own unit, so a long list or a raised type size never pushes the
-   buttons below the frame. */
+   button below the frame. */
 .acks-extras-battlemap-rowshead {
   font-family: var(--acks-font-display);
   font-size: var(--acks-fs-label);

@@ -261,21 +261,37 @@
 
   <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.tokens.title"}}</span></div>
 
-  <div class="acks-extras-battlemap-chips">
-    {{#each hotbar}}
-      <button type="button" data-action="sizeChip" data-feet="{{value}}">{{label}}</button>
-    {{/each}}
-    <button type="button" data-action="resetFootprints" data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.reset'}}"><i class="fa-solid fa-rotate-left"></i></button>
-  </div>
+  {{! A cell of a mile or more is a journey's scale: nothing here applies, and
+      none of the controls is drawn. }}
+  {{#if tokensUnsized}}
+    <p class="acks-extras-battlemap-hint">{{tokensUnsizedLine}}</p>
+  {{else}}
+    <p class="acks-extras-battlemap-hint">{{tokensIntro}}</p>
 
-  <div class="acks-extras-battlemap-row">
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</span>
-      <input type="number" name="customFeet" min="0" step="any" value="{{opts.customFeet}}">
-    </label>
-    <button type="button" data-action="applyCustomSize" {{#unless opts.customFeet}}disabled{{/unless}} data-tooltip="{{localize 'ACKS-BATTLEMAP.tokens.custom'}}">
-      <i class="fa-solid fa-check"></i>
-    </button>
-  </div>
+    <div class="acks-extras-battlemap-chips">
+      {{#each hotbar}}
+        <button type="button" data-action="sizeChip" data-feet="{{value}}" aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{label}}</button>
+      {{/each}}
+      <button type="button" data-action="resetFootprints" aria-label="{{resetAria}}" data-tooltip-text="{{resetTip}}"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="acks-extras-battlemap-row">
+      <label class="acks-extras-battlemap-field">
+        <span>{{localize "ACKS-BATTLEMAP.tokens.custom"}}</span>
+        <input type="number" name="customFeet" min="0" step="any" value="{{opts.customFeet}}">
+      </label>
+      <button type="button" data-action="applyCustomSize" aria-label="{{customAria}}" data-tooltip-text="{{customTip}}">
+        <i class="fa-solid fa-check"></i>
+      </button>
+    </div>
+
+    <div class="acks-extras-battlemap-chips">
+      <button type="button" data-action="rescaleTokens" aria-label="{{rescaleAria}}" data-tooltip-text="{{rescaleTip}}">
+        <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}
+      </button>
+    </div>
+
+    <p class="acks-extras-battlemap-hint">{{tokensAutoLine}}</p>
+  {{/if}}
 
 </section>

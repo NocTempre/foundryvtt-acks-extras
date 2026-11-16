@@ -18,10 +18,10 @@ import { FAIR_PX, boxCells, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundS
 import { bakeCorrectedBackground, solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "./apply.mjs";
 import { expeditionScaleOf, planSetup, resolveCellWorth } from "./setup-plan.mjs";
 import { sceneCountry, sceneSetup, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
-import { rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints } from "./token-scale.mjs";
+import { autoScaleEnabled, rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints, unsizedTokenCount } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
-import { DISTANCE_UNITS, sceneFeetPerCell } from "../lib/distance-units.mjs";
+import { DISTANCE_UNITS, isExpeditionScale, sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
 import { makeLoc } from "../lib/util.mjs";
 
@@ -35,14 +35,27 @@ const HOTBAR_STEPS = [0.5, 1, 2, 3, 4, 6];
 /** The square-size ladder's steps: multiples of the scene's grid distance. */
 const SQUARE_STEPS = [1, 2, 10, 20];
 
+/** A figure shown to a reader: two places at most, never a float's tail. */
+const figure = (n) => Number(Number(n).toFixed(2));
+
 /**
- * The size hotbar's chips, in feet, for a scene: steps of what one of its
- * cells is worth. A scene with no usable distance offers none. Nothing read
- * off a page belongs in a chip.
+ * The size hotbar's chips for a scene: steps of what one of its cells is
+ * worth, in feet. `value` is the footprint a press stamps; `label` carries its
+ * unit; `tip` names the parts (step, the scene's own cell and its unit, the
+ * footprint), and `aria` is the label with the tip. A scene with no usable
+ * distance offers none. Nothing read off a page belongs in a chip.
  */
-const hotbarFeet = (scene) => {
+const hotbarChips = (scene) => {
   const cell = sceneFeetPerCell(scene);
-  return cell > 0 ? HOTBAR_STEPS.map((step) => cell * step) : [];
+  if (!(cell > 0)) return [];
+  const distance = figure(scene.grid.distance);
+  const units = scene.grid.units || DISTANCE_UNITS.ft.abbr;
+  return HOTBAR_STEPS.map((step) => {
+    const feet = cell * step;
+    const label = loc("tokens.chip", { feet: figure(feet) });
+    const tip = loc("tokens.chipTip", { step, distance, units, feet: figure(feet) });
+    return { value: feet, label, tip, aria: loc("apply.aria", { label, tip }) };
+  });
 };
 
 /**
@@ -345,6 +358,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const applyLabel = loc(`apply.${this.isScaleOnly ? "scale" : this.isHex ? "hex" : "grid"}`);
     const applyTip = this.isScaleOnly ? loc("apply.tipScale") : loc("apply.tip");
     const rescaleTip = loc("apply.tokensTip");
+    const resetTip = loc("tokens.resetTip");
+    const customTip = loc("tokens.customTip");
+    const unsized = isExpeditionScale(scene);
 
     return {
       scene,
@@ -446,7 +462,17 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // promising a square one is the footer describing a different button.
       willAddGridLabel: loc(this.isHex ? "apply.willAddGridHex" : "apply.willAddGrid"),
       keepsGridless: gridless && this.isScaleOnly,
-      hotbar: hotbarFeet(scene).map((v) => ({ value: v, label: `${v}'` })),
+      // The Token sizes section. At a mile or more a cell it is one line and
+      // nothing else, so none of the controls' text is built there.
+      tokensUnsized: unsized,
+      tokensUnsizedLine: unsized ? loc("tokens.unsized") : null,
+      tokensIntro: unsized ? null : loc("tokens.intro"),
+      hotbar: unsized ? [] : hotbarChips(scene),
+      resetAria: loc("apply.aria", { label: loc("tokens.resetLabel"), tip: resetTip }),
+      resetTip,
+      customAria: loc("apply.aria", { label: loc("tokens.customLabel"), tip: customTip }),
+      customTip,
+      tokensAutoLine: unsized ? null : autoScaleEnabled(scene) ? loc("tokens.autoOn", { path: loc("tokens.autoPath") }) : loc("tokens.autoOff", { path: loc("tokens.autoPath") }),
       // The card: the fit read at a glance while the eye is on the map.
       cellLabel: fit?.ok ? (Math.abs(fit.sizeX - fit.sizeY) < 0.05 ? fit.sizeX.toFixed(1) : `${fit.sizeX.toFixed(1)} × ${fit.sizeY.toFixed(1)}`) : null,
       // The band is decided on the fit's own residual: a hex fit's is the
@@ -748,13 +774,21 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   /*  Handlers                                    */
   /* -------------------------------------------- */
 
-  static #submit(_event, _form, formData) {
+  static #submit(event, _form, formData) {
     const d = foundry.utils.expandObject(formData.object);
     const num = (v) => (Number(v) > 0 ? Number(v) : null);
     // A field the current family does not SHOW posts nothing, and an absent
     // field is not an emptied one: assigning over it would wipe the hex value
     // a GM typed the moment they glanced at another family and came back.
     const present = (key) => Object.hasOwn(d, key);
+    // The custom size is read by its own button at the press, and nothing drawn
+    // depends on it. A change that re-rendered the panel would replace the
+    // button between the pointer going down on it (which blurs the field and
+    // fires this change) and coming up, and the click would never be sent.
+    if (event?.target?.name === "customFeet" && present("customFeet")) {
+      session.opts.customFeet = num(d.customFeet);
+      return;
+    }
     if (present("independentXY")) session.independentXY = !!d.independentXY;
     if (present("allowSkew")) session.allowSkew = !!d.allowSkew;
     // Every slot is taken before the first notification: a listener that
@@ -847,28 +881,51 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     session.notify();
   }
 
+  /**
+   * The whole-scene resize. The notice names what it left alone: the tokens
+   * whose footprint is not imported keep the size they have.
+   */
   static async #onRescaleTokens() {
-    if (!canvas?.scene) return;
-    const count = await rescaleSceneTokens(canvas.scene);
-    ui.notifications.info(loc("tokens.rescaled", { count }));
+    const scene = canvas?.scene;
+    if (!scene) return;
+    const count = await rescaleSceneTokens(scene);
+    const kept = unsizedTokenCount(scene);
+    ui.notifications.info(kept > 0 ? loc("tokens.rescaledKept", { count, kept }) : loc("tokens.rescaled", { count }));
+  }
+
+  /**
+   * Stamp a footprint on the selected tokens, or say that nothing is selected.
+   * The size chips, the custom size and the reset all act on the selection.
+   */
+  static async #stampSelected(feet) {
+    const count = await applyFootprintToSelected({ w: feet, h: feet });
+    if (count > 0) ui.notifications.info(loc("tokens.applied", { count, feet: figure(feet) }));
+    else ui.notifications.warn(loc("tokens.noneSelected"));
   }
 
   static async #onSizeChip(_event, target) {
-    const feet = Number(target.dataset.feet);
-    const count = await applyFootprintToSelected({ w: feet, h: feet });
-    ui.notifications.info(loc("tokens.applied", { count, feet }));
+    await BattlemapAssistant.#stampSelected(Number(target.dataset.feet));
   }
 
+  /**
+   * Reads the field as it stands at the press: a value typed and clicked at
+   * once has not reached the session, and the field is what the Judge sees.
+   */
   static async #onApplyCustomSize() {
-    const feet = this.opts.customFeet;
-    if (!(feet > 0)) return;
-    const count = await applyFootprintToSelected({ w: feet, h: feet });
-    ui.notifications.info(loc("tokens.applied", { count, feet }));
+    const field = this.element?.querySelector?.('input[name="customFeet"]');
+    const typed = Number(field ? field.value : this.opts.customFeet);
+    if (!(typed > 0)) {
+      ui.notifications.warn(loc("tokens.customNeeded"));
+      return;
+    }
+    this.opts.customFeet = typed;
+    await BattlemapAssistant.#stampSelected(typed);
   }
 
   static async #onResetFootprints() {
     const count = await resetSelectedFootprints();
-    ui.notifications.info(loc("tokens.resetDone", { count }));
+    if (count > 0) ui.notifications.info(loc("tokens.resetDone", { count }));
+    else ui.notifications.warn(loc("tokens.noneSelected"));
   }
 }
 

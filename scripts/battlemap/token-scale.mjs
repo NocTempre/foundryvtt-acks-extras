@@ -74,8 +74,18 @@ export function unsizedTokenCount(scene) {
   return count;
 }
 
-const changed = (tokenDoc, size) =>
-  Math.abs(tokenDoc.width - size.width) > EPSILON || Math.abs(tokenDoc.height - size.height) > EPSILON;
+/**
+ * Whether the size a token STORES differs from `size`. The prepared
+ * `width`/`height` are core's animated values: a token animation merges its
+ * frames into the document, and its first frame runs synchronously, so right
+ * after an update (or with the ticker frozen) the prepared width is the tween's
+ * start and not what was written. `_source` is the stored size, and is what
+ * `updateSource` writes inside `preCreateToken`.
+ */
+const changed = (tokenDoc, size) => {
+  const stored = tokenDoc._source ?? tokenDoc;
+  return Math.abs(stored.width - size.width) > EPSILON || Math.abs(stored.height - size.height) > EPSILON;
+};
 
 /**
  * Resize every token on the scene to its footprint at the scene's scale.

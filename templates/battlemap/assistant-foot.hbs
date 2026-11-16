@@ -4,8 +4,8 @@
 <footer class="acks-extras-battlemap-foot">
   {{! What Apply rewrites, one row per change; nothing here until something is
       solvable. Each figure's tooltip names both ends and where the new one
-      comes from, and the rows scroll inside their own box so the buttons
-      stay on screen. }}
+      comes from, and the rows scroll inside their own box so the button
+      stays on screen. }}
   {{#if footRows.length}}
     <div class="acks-extras-battlemap-rowshead">{{rowsHeading}}</div>
     <ul class="acks-extras-battlemap-rows" aria-label="{{rowsHeading}}">
@@ -26,8 +26,5 @@
   {{/if}}
   <button type="button" data-action="applyGrid" class="acks-extras-battlemap-primary" aria-label="{{applyAria}}" data-tooltip-text="{{applyTip}}" {{#unless canApply}}disabled{{/unless}}>
     <i class="fa-solid fa-border-all"></i> {{applyLabel}}
-  </button>
-  <button type="button" data-action="rescaleTokens" aria-label="{{rescaleAria}}" data-tooltip-text="{{rescaleTip}}">
-    <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}
   </button>
 </footer>

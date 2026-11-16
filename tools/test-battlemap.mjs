@@ -344,7 +344,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   // The tokens the scene would resize and the ones its table cannot: a token
   // with a category the table lacks keeps its size and is counted; a token
   // with no category, a locked one and a marker are not.
-  const { sizeForToken, unsizedTokenCount } = await import("../scripts/battlemap/token-scale.mjs");
+  const { sizeForToken, unsizedTokenCount, rescaleSceneTokens, resetSelectedFootprints, installTokenAutoScale } = await import("../scripts/battlemap/token-scale.mjs");
   const scene = { grid: { distance: SQUARE, units: "ft" } };
   const tokenOf = (sizeKey, { locked = false, type = "monster" } = {}) => ({
     getFlag: (_ns, key) => (key === "footprintLock" ? locked || undefined : key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : undefined),
@@ -368,6 +368,59 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   resetTables();
   assert.equal(unsizedTokenCount(scene), 4, "with nothing imported, every token that is ours is unsized");
   assert.equal(unsizedTokenCount(null), 0);
+
+  // A write is counted against what a token STORES. Core's token animation
+  // merges its frames into the document, so the prepared width is the tween's
+  // start right after an update (and stays there while the ticker is frozen):
+  // it can read the old size while `_source` already holds the new one, and the
+  // reverse. The square alone is imported, so every token here is one square
+  // and a cell worth two squares makes the target half a cell.
+  resetTables();
+  registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQUARE } } } }, { priority: PRIORITY.WORLD });
+  const half = { grid: { distance: SQUARE * 2, units: "ft" }, getFlag: () => ({ autoScale: true }) };
+  const written = [];
+  const stored = (id, prepared, source, extra = {}) => ({
+    ...tokenOf(null),
+    id,
+    parent: half,
+    width: prepared,
+    height: prepared,
+    ...(source === null ? {} : { _source: { width: source, height: source } }),
+    update: async (data) => written.push({ id, data }),
+    updateSource: (data) => written.push({ id, source: data }),
+    ...extra,
+  });
+  const staleAtOne = stored("stale", 1, 0.5); // the document reads 1, the stored size is already right
+  const staleAtHalf = stored("fresh", 0.5, 1); // the document reads right, the stored size is not
+  const plain = stored("plain", 1, null); // no `_source`: the document is read as it stands
+  assert.deepEqual(sizeForToken(staleAtOne, half), { width: 0.5, height: 0.5 }, "the target is half a cell");
+
+  const resized = [];
+  half.tokens = [staleAtOne, staleAtHalf, plain];
+  half.updateEmbeddedDocuments = async (_name, updates) => resized.push(...updates);
+  assert.equal(await rescaleSceneTokens(half), 2, "a token whose stored size is right is not counted");
+  assert.deepEqual(resized.map((u) => u._id), ["fresh", "plain"], "and the one whose prepared width looked right is written");
+
+  const savedGlobals = { canvas: globalThis.canvas, foundry: globalThis.foundry, game: globalThis.game, Hooks: globalThis.Hooks };
+  try {
+    globalThis.foundry = { data: { operators: { ForcedDeletion: class {} } } };
+    globalThis.canvas = { tokens: { controlled: [staleAtOne, staleAtHalf, plain].map((t) => ({ document: t })) } };
+    written.length = 0;
+    assert.equal(await resetSelectedFootprints(), 3, "reset reports the tokens it handled");
+    const sizeWrites = written.filter((w) => w.data && "width" in w.data).map((w) => w.id);
+    assert.deepEqual(sizeWrites, ["fresh", "plain"], "reset writes a size only where the stored one differs");
+
+    const hooks = {};
+    globalThis.Hooks = { on: (name, fn) => (hooks[name] = fn) };
+    globalThis.game = { userId: "u1" };
+    installTokenAutoScale();
+    written.length = 0;
+    for (const doc of [staleAtOne, staleAtHalf]) hooks.preCreateToken(doc, {}, {}, "u1");
+    assert.deepEqual(written.map((w) => w.id), ["fresh"], "preCreateToken writes a size only where `_source` differs");
+  } finally {
+    Object.assign(globalThis, savedGlobals);
+    for (const key of Object.keys(savedGlobals)) if (savedGlobals[key] === undefined) delete globalThis[key];
+  }
   resetTables();
 }
 
