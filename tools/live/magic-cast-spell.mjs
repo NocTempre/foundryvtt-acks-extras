@@ -166,9 +166,9 @@ const P = {
   },
   /** Target exactly these tokens, in this order, as the seat's user. */
   target: async ({ sceneId, tokenIds }) => {
-    const scene = game.scenes.get(sceneId);
-    game.user.updateTokenTargets([]);
-    for (const id of tokenIds) scene.tokens.get(id)?.object?.setTarget(true, { user: game.user, releaseOthers: false, groupSelection: true });
+    // Core 14 targets through the token layer; the scene must be the one in view.
+    if (canvas.scene?.id !== sceneId) return -1;
+    canvas.tokens.setTargets(tokenIds, { mode: "replace" });
     await new Promise((r) => setTimeout(r, 300));
     return [...game.user.targets].length;
   },
@@ -420,7 +420,12 @@ try {
   check("1: the damage was rolled once, every entry carries the same rolled amount", new Set(dmgEntries.map((e) => e.rolled)).size === 1);
   check("1: each applied amount is the rolled amount through its save's fraction and one half-to-even rounding", dmgEntries.every((e) => e.applied === halfEven(e.rolled * e.fraction)), dmgEntries.map((e) => [e.saved, e.fraction]));
   check("1: a passed save took half and a failed save the whole; both happened", dmgEntries.some((e) => e.saved === true && e.fraction === 0.5) && dmgEntries.some((e) => e.saved === false && e.fraction === 1), dmgEntries.map((e) => e.saved));
-  check("1: the odd halved amount went to the even whole, not up", dmgEntries.filter((e) => e.saved === true).every((e) => e.rolled % 2 === 1 && e.applied === halfEven(e.rolled / 2) && e.applied !== Math.round(e.rolled / 2 + 0.0001) || e.rolled % 2 === 0));
+  // Half to even and half up part only where the halved amount ends in .5 on an
+  // even whole: a roll one more than a multiple of four. Say whether this cast was one.
+  const savedEntries = dmgEntries.filter((e) => e.saved === true);
+  const decisive = savedEntries.filter((e) => e.rolled % 4 === 1);
+  console.log(`rounding decisive: ${decisive.length > 0} (rolled mod 4: ${[...new Set(dmgEntries.map((e) => e.rolled % 4))].join(",")})`);
+  check("1: a halved amount ending in .5 went to the even whole, not up", savedEntries.every((e) => e.applied === halfEven(e.rolled / 2)) && decisive.every((e) => e.applied === (e.rolled - 1) / 2), { decisive: decisive.length });
   const hp1 = await run(gm, P.hp, { sceneId, tokenIds });
   const byTarget = Object.keys(c1.model?.targets ?? {}).map((tk, i) => ({ drop: hp0[i] - hp1[i], applied: c1.model.entries[`${tk}_${damageKey}`]?.applied }));
   check("1: each target's hit points fell by the amount applied", byTarget.length === 3 && byTarget.every((b) => b.drop === b.applied), byTarget);
@@ -429,7 +434,10 @@ try {
   await track(`ChatMessage.${c1.messageId}`, "ChatMessage");
   const seen1 = await run(gm, P.seen, { messageId: c1.messageId });
   check("1: every figure on the card carries a tooltip, and no button is the system's own", seen1.found && seen1.figures > 0 && seen1.untipped === 0 && !seen1.cardButtons, { figures: seen1.figures, untipped: seen1.untipped });
-  check("1: the Judge's card offers Undo on each applied entry", seen1.actions.filter((a) => a === "magicCastUndo").length === dmgEntries.filter((e) => e.applied > 0).length, seen1.actions);
+  // Every applied entry that wrote something offers Undo: hit points moved, or a
+  // record made (a condition row's). One a passed save negated wrote nothing.
+  const appliedEntries = Object.values(c1.model?.entries ?? {}).filter((e) => e?.state === "applied" && (e.applied > 0 || e.recordIds?.length)).length;
+  check("1: the Judge's card offers Undo on each applied entry", appliedEntries > 0 && seen1.actions.filter((a) => a === "magicCastUndo").length === appliedEntries, { undo: seen1.actions.filter((a) => a === "magicCastUndo").length, applied: appliedEntries });
   let model = c1.model;
   const undone = [];
   for (const [tk, e] of Object.entries(model.entries)) if (e.applied > 0) undone.push(await run(gm, P.press, { messageId: c1.messageId, action: "magicCastUndo", target: tk.split("_")[0], row: damageKey }));
@@ -567,8 +575,8 @@ try {
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     try { if (seat) note(`rig and recorders restored (${label})`, await run(seat, P.restore)); } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }
-  try { if (gm) await gm.eval(`game.user.updateTokenTargets([]); 0`); } catch {}
-  try { if (player) await player.eval(`game.user.updateTokenTargets([]); 0`); } catch {}
+  try { if (gm) await gm.eval(`canvas.tokens?.setTargets([]); 0`); } catch {}
+  try { if (player) await player.eval(`canvas.tokens?.setTargets([]); 0`); } catch {}
   // The run's own leavings: cards speaking as its fixtures since it began, and its caster record, listed by id and then swept.
   try {
     if (gm) {

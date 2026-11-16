@@ -1139,3 +1139,139 @@ lawful alignment, the print's one example. Do lawful undead count too
 > to the plan (by sha, sorted exercised live / offline only / not checked),
 > writing the S2b start prompt under it, and reporting to the owner. You
 > start no session; put the next one up as a card.
+
+### Results, S2a (2026-11-16)
+
+S2a is built and walked on `main`. The architect's rulings 35 to 47 (above)
+split it into three slices, each built on `topic/spell-effects` by its own
+`implementer` and landed; the topic stays open for S2b. Nothing is pushed.
+
+**Built.** `c626bb8b` (docs: rulings 35 to 47); `21a4c248` (S1c, ruling 35:
+register row keys, a repair that holds a Judge's edited or deleted row and
+edited `values` leaf); `c1057d38` (lib half: the carrier and the "magic"
+type, the contributor opt-in, `magicDamageSpec`, the card strip and label,
+`lib/saves.mjs`, `amountAfter`, `loseStates`, the roll card's actions, the
+row editor's cast fields, gated to a spell's rows); `5f166d35` (walk find,
+on `main`: a returning register row takes its recipe place, and the recipe
+walk checks S1c live); `f6c4ad98` (magic half: the claimant, dialog, cast
+card, relay, capacity, records, expiry over unlinked tokens, the
+`castSummons` adoption the summons-in-formation session asked for, the
+"Casting a spell" recipe and walk `magic-cast-spell`). The walk's own fixes
+and this section are committed on `main` beside it.
+
+**Exercised live** (GM and Player seats, `main`'s junction, nobody else
+seated):
+
+- A probe before the magic half: `ACKS.throw.attackType.magic` localizes; a
+  carrier passed to core's `makeAttackThrow` keeps its identity through
+  core's builder, the stored card carries no apply button and the
+  `magicAttack` stamp, no Strength row, and the carrier is never saved.
+- `magic-cast-spell`: "passed (44 pass, 0 fail, exit 0)". Both seats
+  reloaded under a recorder attached before Foundry's scripts: no error from
+  the load through the walk. Desiccate at three targeted tokens: one damage
+  roll, each target's save, each applied amount the roll through its save's
+  fraction and one half-to-even rounding, decisive this run (two saved
+  entries rolled one more than a multiple of four and went down), hit points
+  down by exactly that, the type on the card, one spend of the cast count
+  and the tradition's slot, a tooltip on every figure, no system button,
+  Undo on each entry that wrote something, Undo restoring every target. Cast
+  with nothing targeted: the roll posts, nothing moves, Apply takes the
+  presser's two targets and leaves the third. The reversed cure: the form
+  offered, core's attack card posted as magic with no apply button and the
+  cast's mark, the hit's damage applied through the amount path; thrown at
+  nothing, a Throw press. The plain cure heals through `adjustHp`.
+  Frighten twice on one target: two status-only records, flag-timed with
+  core's duration unset, one condition; the clock ends the first and the
+  condition stays, the second's end takes it off. A monster's attack item
+  posts core's card with no cast dialog. The Player casts at a GM-owned
+  token and the GM's client applies. No slot left: the Player's Cast is off
+  with the verdict shown and a cancel spends nothing; the Judge's dialog
+  warns and leaves Cast on. Fixtures kept, by marker: `magic/cast-scene`,
+  `magic/cast-class`, `magic/cast-caster`, `magic/cast-spell-damage`,
+  `magic/cast-spell-cure`, `magic/cast-spell-fright`,
+  `magic/cast-target-a`, `-b`, `-c`, `magic/cast-monster`,
+  `magic/cast-monster-weapon`; the run's cards and tokens swept by id, none
+  missing, none refused.
+- `magic-spell-recipes`: "passed (36 pass, 0 fail, exit 0)", with S1c's
+  checks: an edited row keeps its key and stands in, no fresh row beside it,
+  a covering edit held as nothing; a register row deleted from the Mechanics
+  tab is retired and a repair keeps it away and lists it held.
+- Regressions on the seams the lib half touched: `equipment-ability-training`
+  passed (16), `typed-modifiers` passed (76, on a rerun: its first start
+  never got a browser), `formation-day` passed (185, the party save among
+  its steps).
+
+**Walk finds, fixed on `main`:** the merge put a returning register row at
+the first stamped row's place (holy circle came back out of order, and a
+repair keeps a stamped row where it stands); a repair lists held edits only
+with a `decision` in its tally; core 14 targets through
+`canvas.tokens.setTargets`; the Undo check counted damage entries only, and
+the rounding check could pass on a roll where the two roundings agree.
+
+**Offline only:** `npm test` 235 suites, validate green, test-magic-cast 34
+and test-spell-carrier 17 and test-saves 10 and test-roll-card 8 on invented
+spells; the relay's refusals (author, owner, spell, target, resist, row,
+already applied, amount out of bounds) and the in-flight claim; the summon
+expiry with a non-empty `held`; ability rows offered no cast field.
+
+**Not checked:** a Player's cast with no GM connected (the entry pending
+with Apply); a missile delivery and its range band (no S2a row has one); a
+points pool's spend (shown, not spent); a summon held in a party at expiry
+(`held` is empty until the summons-in-formation provider ships); a
+two-handed or several-weapon carrier; Dice So Nice under rigged dice; the
+guide and a release shot (S7 closes them).
+
+**Defaults proceeded on, for the owner:**
+
+1. Lawful undead do not count for holy circle's reverse (as shipped in S1b).
+2. A cast card's Throw and Apply are pressed by the caster's owners and GMs,
+   Undo by GMs alone (ruling 41).
+3. A save whose effect is partial or special is left to the Judge: no
+   fraction, the entry marked for the Judge.
+4. A spell's damage is not asked of the conditions' damage rows; a missile
+   delivery takes no range band; core's direction modifiers are offered on
+   a touch throw; the mounted rider's save fires on a delivery throw like
+   any attack (ruling 37's counter and the architect's rules list).
+
+**Findings:** a party's save skips the conditions a creature's own save
+applies (formation's behaviour, kept unchanged); a Judge's edit to a
+stat-block field outside `values` (range, duration) is still overwritten by
+a repair; a cast posts two cards, core's spell card from `spend()` and the
+cast card.
+
+### Start prompt, session S2b
+
+> Run slice S2b of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`: the vertical cast engine's second half,
+> lib then magic, for `def.spell.holyCircle` and `def.spell.sharpness`, with
+> the files and live acceptance ruling 27 gives S2b as rulings 31 and 35 to
+> 47 amend them: lib — the concentration rows' `lost`, the roll-mods flag and
+> its contributor (ruling 19), `registerItemBonusSource`, the gates
+> `weaponMundane` and `weaponMagical`, and ruling 34's finding that
+> `modifierDisposition` answers unsupported for an area or recipient subject
+> before it tests a scope; magic — the declaration (ruling 23, on lib's
+> `STATES_LOST_HOOK`), held records and concentration's end ending that
+> cast's recipient records with one card and a Judge's Restore (ruling 31),
+> the weapon pick, equipment's masterwork registration; the scopes
+> evaluated against an attacker at the roll. Read the plan whole first (owner
+> rulings 1 to 4, rulings 17 to 47, the Results sections), then
+> `docs/magic/MODEL.md` "Casting a spell", `docs/lib` where the plan names a
+> seam, `.claude/rules/ip-doctrine.md` and `.claude/rules/live-testing.md`.
+> You are the orchestrator: one `implementer` for the lib half and a fresh
+> one for the magic half, each brief quoting the owner's words from the plan
+> and each report restating them with one example; an `architect` for any
+> design question the plan does not answer. Review each change against the
+> IP doctrine yourself: committed tests use invented spells. Before an agent
+> writes under `scripts/lib/`, list the running sessions and `main`'s dirty
+> paths. You work in the worktree
+> `C:\Proj\foundryvtt-acks-extras.spell-effects` on `topic/spell-effects`:
+> `node .claude/skills/acks-branch/branch.mjs sync spell-effects` there
+> first, commit by hand, land with `branch.mjs land spell-effects`, walk on
+> `main` yourself through `tools/live` (never the `live-tester` agent):
+> extend `magic-cast-spell` (its fixtures are kept by marker) and rerun it
+> and `magic-spell-recipes`, and check who is seated before a world
+> relaunch. Push nothing. Finish by appending "Results, S2b" to the plan (by
+> sha, sorted exercised live / offline only / not checked, with the defaults
+> you proceeded on), writing the session 1b start prompt under it,
+> committing that on `main` with `acks-commit`, and reporting. You start no
+> session; the managing session starts the next one from your prompt.
