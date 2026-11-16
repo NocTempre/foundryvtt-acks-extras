@@ -56,6 +56,19 @@ export const judgeLine = (line = null) => (line ? `${line} — ${JUDGE_SHELF}` :
 export const isJudgeLine = (line) => line === JUDGE_SHELF || String(line ?? "").endsWith(` — ${JUDGE_SHELF}`);
 
 /**
+ * The series a line belongs to, its Judge's segment taken off: `judgeLine`
+ * read backwards. Null for the ACKS library, Judge's shelf or not.
+ */
+export const seriesOfLine = (line) => {
+  if (!line || line === JUDGE_SHELF) return null;
+  const suffix = ` — ${JUDGE_SHELF}`;
+  return line.endsWith(suffix) ? line.slice(0, -suffix.length) : line;
+};
+
+/** The sidebar folder a Judge's shelf sits in, under its series' folder. */
+export const JUDGE_FOLDER = JUDGE_SHELF;
+
+/**
  * What a Judge's shelf is created with, and what a library restore puts back:
  * no player seat, trusted or not, is shown the pack or can open a document in
  * it. The server answers a read of it from any seat (docs/lib/MODEL.md, "The

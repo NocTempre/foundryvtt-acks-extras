@@ -69,8 +69,11 @@ let declared = null;
 const folders = [];
 folders.get = (id) => folders.find((f) => f.id === id);
 globalThis.Folder = {
-  create: async ({ name, type, folder }) => {
-    const made = { id: `folder${folders.length + 1}`, name, type, folder: folders.get(folder) ?? null };
+  create: async ({ name, type, folder, color = null, sorting = "m" }) => {
+    const made = {
+      id: `folder${folders.length + 1}`, name, type, folder: folders.get(folder) ?? null, color, sorting,
+      async update(change) { Object.assign(this, change); return this; },
+    };
     folders.push(made);
     return made;
   },
@@ -174,6 +177,26 @@ const beside = await ensureLibraryPack("Item", judgeLine("Small Delves"));
 const filed = settings.compendiumConfiguration[beside.collection];
 check("it joins its line's folder", filed.folder, settings.compendiumConfiguration[lined.collection].folder);
 check("and filing it keeps it closed", filed.ownership, { ...JUDGE_SHELF_OWNERSHIP });
+
+/* ---------------- a Judge's shelf sits in a Judge folder inside its series' ---------------- */
+
+const pathOf = (collection) => {
+  const names = [];
+  for (let f = folders.get(settings.compendiumConfiguration[collection].folder); f; f = f.folder) names.unshift(f.name);
+  return names;
+};
+check("a series' Judge shelf files under the series, then Judge", pathOf(lined.collection), ["Extras", "From your books", "Small Delves", "Judge"]);
+check("the library's Judge shelf files under Judge alone", pathOf(judges.collection), ["Extras", "From your books", "Judge"]);
+check("the shared shelf files in From your books", pathOf(shared.collection), ["Extras", "From your books"]);
+
+/* ---------------- a restore re-colours this module's own tree ---------------- */
+
+declared = { packFolders: [{ name: "Extras", color: "#8a6d13", sorting: "m" }] };
+const books = folders.find((f) => f.name === "From your books");
+await books.update({ color: "#123456", sorting: "m" });
+await restore();
+check("a restore puts back an open folder's colour and sorting", [books.color, books.sorting], ["#8a6d13", "a"]);
+check("and gives a Judge folder its own", folders.filter((f) => f.name === "Judge").map((f) => f.color), ["#636466", "#636466"]);
 
 /* ---------------- the registry, held to the data ---------------- */
 

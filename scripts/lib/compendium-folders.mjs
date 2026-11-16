@@ -9,7 +9,7 @@
  * neither states a folder name belonging to the other.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { importedPacks, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs";
+import { importedPacks, isJudgeLine, JUDGE_FOLDER, JUDGE_SHELF_OWNERSHIP, seriesOfLine } from "./library.mjs";
 
 /**
  * The sub-folder the importer's world packs are shelved under, inside this
@@ -21,6 +21,14 @@ import { importedPacks, isJudgeLine, JUDGE_SHELF_OWNERSHIP } from "./library.mjs
  * and leave the library split across both.
  */
 const IMPORT_FOLDER = "From your books";
+
+/**
+ * The colour of a Judge's shelf folder: the design system's `--acks-ink-soft`,
+ * so a GM-only shelf reads apart from the open ones (which take the root's
+ * colour) and from the system's burgundy books. A literal because a folder's
+ * colour is stored world data, not a style a theme can re-point.
+ */
+const JUDGE_FOLDER_COLOR = "#636466";
 
 /* -------------------------------------------- */
 /*  Reading the declarations                     */
@@ -74,16 +82,21 @@ function walkDeclared(packageId, nodes, prefix, targets) {
 
 /**
  * Where an imported pack belongs: this module's own declared folder, then "From
- * your books", then — only for a pack holding another game's line — a folder
- * named after that line. The ACKS library gets no line folder; it is the
- * default shelf. See docs/lib/MODEL.md, "The compendium sidebar".
+ * your books", then — only for a pack of another series — that series' folder,
+ * and last, for a Judge's shelf, a "Judge" folder inside whichever of those it
+ * reached. The ACKS library gets no series folder; it is the default shelf.
+ * Open folders take the root's colour, a Judge's folder its own. See
+ * docs/lib/MODEL.md, "The compendium sidebar".
  */
 function importPath(line, root) {
-  const path = [
-    { name: root.name, color: root.color ? String(root.color) : null, sorting: root.sorting ?? "m" },
-    { name: IMPORT_FOLDER, color: null, sorting: "a" },
+  const color = root.color ? String(root.color) : null;
+  const series = seriesOfLine(line);
+  return [
+    { name: root.name, color, sorting: root.sorting ?? "m" },
+    { name: IMPORT_FOLDER, color, sorting: "a" },
+    ...(series ? [{ name: series, color, sorting: "a" }] : []),
+    ...(isJudgeLine(line) ? [{ name: JUDGE_FOLDER, color: JUDGE_FOLDER_COLOR, sorting: "a" }] : []),
   ];
-  return line ? [...path, { name: line, color: null, sorting: "a" }] : path;
 }
 
 /**
@@ -114,10 +127,15 @@ function plan() {
  * matches: two packages declaring "Equipment" under different books get a
  * folder each, and two declaring it under the same book share one.
  */
-async function ensureFolder(name, parentId, { color = null, sorting = "m" } = {}) {
+async function ensureFolder(name, parentId, { color = null, sorting = "m" } = {}, reconcile = false) {
   const found = game.folders?.find(
     (f) => f.type === "Compendium" && f.name === name && (f.folder?.id ?? null) === parentId,
   );
+  if (found && reconcile) {
+    // Core hands a folder's colour back as a Color, which stringifies to its hex.
+    const now = { color: found.color ? String(found.color) : null, sorting: found.sorting };
+    if (now.color !== color || now.sorting !== sorting) await found.update({ color, sorting }).catch(() => null);
+  }
   if (found) return found;
   return Folder.create({ name, type: "Compendium", folder: parentId, color, sorting }).catch((err) => {
     console.error(`${MODULE_ID} | could not create the "${name}" compendium folder`, err);
@@ -125,11 +143,15 @@ async function ensureFolder(name, parentId, { color = null, sorting = "m" } = {}
   });
 }
 
-/** Build a planned path, creating only what is missing. Answers the leaf id. */
-async function materialize(path) {
+/**
+ * Build a planned path, creating only what is missing. Answers the leaf id.
+ * With `reconcile`, a folder already standing takes the colour and sorting the
+ * path plans for it.
+ */
+async function materialize(path, reconcile = false) {
   let parent = null;
   for (const spec of path) {
-    const folder = await ensureFolder(spec.name, parent, spec);
+    const folder = await ensureFolder(spec.name, parent, spec, reconcile);
     if (!folder) return null;
     parent = folder.id;
   }
@@ -172,6 +194,9 @@ async function filePacks(targets, { reset }) {
   let folders = 0;
   const countFolders = () => game.folders.filter((f) => f.type === "Compendium").length;
   const judges = new Set(importedPacks().filter(({ line }) => isJudgeLine(line)).map(({ pack }) => pack.collection));
+  // A restore re-colours only this module's own tree; the system's folders
+  // keep whatever the world gave them.
+  const ownRoot = declaredRoot()?.name ?? null;
   for (const [collection, path] of targets) {
     const entry = given(config[collection]);
     if (!needsWrite(entry, reset)) continue;
@@ -180,7 +205,7 @@ async function filePacks(targets, { reset }) {
     const key = JSON.stringify(path.map((p) => p.name));
     if (!built.has(key)) {
       const before = countFolders();
-      built.set(key, await materialize(path));
+      built.set(key, await materialize(path, reset && path[0]?.name === ownRoot));
       folders += countFolders() - before;
     }
     const folderId = built.get(key);

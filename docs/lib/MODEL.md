@@ -164,9 +164,14 @@ Planning is separate from building: a folder is created only where a pack is
 actually being written to it. That is what stops the gentle pass from growing a
 second empty copy of the tree at every load, and it is also how a per-line
 import shelf works — the importer's world packs are filed under this module's
-folder in `From your books`, and a line's own folder (`Dolmenwood`, `Quick
-Delve`) is made by the first pack that needs it. The ACKS library carries no
-line in its label and gets none in the sidebar; it is the default shelf. The
+folder in `From your books`, and a series' own folder (`The OSR Catgirl`) is
+made by the first pack that needs it. A Judge's shelf sits one level further
+in, in a `Judge` folder inside its series' folder, or inside `From your books`
+itself for the ACKS library's. The ACKS library carries no series in its label
+and gets no series folder; it is the default shelf. The open folders take the
+colour of this module's declared root and a `Judge` folder a grey of its own,
+so the GM-only shelves read apart; a restore puts both back on folders a world
+has re-coloured, inside this module's tree only. The
 importer calls `fileImportedPack` from `packFor` at the moment it mints a pack,
 so a new shelf and its pack appear together.
 

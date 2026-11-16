@@ -265,3 +265,31 @@ token to read (the throw is never penalized on a guess).
 *Cost:* lib `apiVersion` stays 50 (none of these is on the API surface).
 `attackInFlight(actor).token` is new; column points carry `daylight` and `dim`.
 
+## 2026-11-16 — The module's compendium tree is gold, and a Judge's shelf nests in its series
+
+**Asked by the owner:** "cleanup/reorganize the module compendium folder
+structure/colors". The colours and the nesting below were chosen in the
+session, not specified.
+
+**Ruled.** This module's declared folders take `#8a6d13` (the design system's
+`--acks-gold-deep`) where they took `#822638`, the colour the system gives its
+own `ACKS Rulebook` and `Judges Journal` folders, so the module's tree read as
+one more system book. The importer's open folders (`From your books`, a
+series') take the root's colour, which they lacked. A Judge's shelf moves from
+a `<series> — Judge` folder beside its series' to a `Judge` folder inside it,
+grey (`--acks-ink-soft`), so a GM sees at a glance which shelves no player is
+shown. `restoreCompendiumLibrary` re-colours and re-sorts folders already
+standing in this module's tree; the `ready` pass still only fills empty slots,
+and neither touches the system's folders.
+
+**Rejected:** renaming any folder (folders match by name, so a rename mints a
+second tree in every world and breaks the guides' paths); re-colouring on the
+`ready` pass (it honours a Judge's arrangement by contract); a migration
+(existing worlds take the layout from the restore macro, which already exists
+to overrule).
+
+*Cost:* until a Judge runs the restore, an existing world keeps its old
+`<series> — Judge` folders and colours, while a shelf minted afterwards files
+in the new place. The v4.9.0 compendium-folder screenshot in
+`docs/guides/appearance.md` shows the old colour.
+

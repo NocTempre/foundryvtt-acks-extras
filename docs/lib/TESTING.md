@@ -296,7 +296,11 @@ Observables, all readable off `game.folders` and the setting:
   observable that matters**; a pass that leaves them empty has done the old
   wrong thing.
 - this module's packs and every `ACKS Cookbook — …` world pack sit under
-  `ACKS II — Extras`, imports in `From your books` with a sub-folder per line.
+  `ACKS II — Extras`, imports in `From your books` with a sub-folder per
+  series and each Judge's shelf in a `Judge` folder inside its series' (or
+  directly inside `From your books` for the ACKS library's). Every folder of
+  this module's tree reads `#8a6d13` but the `Judge` ones, `#636466`; read
+  `String(folder.color)`.
 - the stale `ACKS II` folder is GONE, and so is the dead configuration entry
   that named it. If the folder survives, look for a config entry whose pack no
   longer exists — that is what used to pin it open.
