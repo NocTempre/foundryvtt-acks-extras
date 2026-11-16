@@ -254,7 +254,8 @@ penalty apart, so nothing counts twice; the typed-modifiers header's
 "characters only" now names standing modifiers only. The size arrives from the
 page through the importer, or the Judge types it in the row editor; a blank
 row adds nothing. A magic light's daylight radius counts as daylight for a
-penalty printed "in sunlight" (the session's call, owner may overrule).
+penalty printed "in sunlight"; the owner confirmed it the same day: "Yes, keep
+it".
 
 **Rejected.** A monster-only field with its own contributor (the character
 sources would need a second schema); a scope field (scope context describes the
