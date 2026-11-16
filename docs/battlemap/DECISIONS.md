@@ -38,7 +38,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-25 — [A layer can derive the territory](DECISIONS-through-v11.14.5.md#2026-10-25--a-layer-can-derive-the-territory)
 - 2026-10-28 — [The map's declaration is on its navigation card](DECISIONS-through-v11.14.5.md#2026-10-28--the-maps-declaration-is-on-its-navigation-card)
 
-## 2026-11-13 — The footprint's square is the book's; the assistant's ladders are the scene's — SUPERSEDED IN PART 2026-11-15
+## 2026-11-13 — The footprint's square is the book's; the assistant's ladders are the scene's — SUPERSEDED IN PART 2026-11-15, 2026-11-16
 
 **Ruled** (owner): "Fix backed values to imports and also expose somewhere as
 editable (this is a global rule applying here, fix whenever caught)"; and, on
@@ -78,7 +78,7 @@ the trap figures' open question, "Values: import or drop".
 - The two ladders are in different units (feet and the scene's own), as the
   fields they sit under already were.
 
-## 2026-11-15 — A hex map is set up from its boxes, and Apply says what it rewrites
+## 2026-11-15 — A hex map is set up from its boxes, and Apply says what it rewrites — SUPERSEDED IN PART 2026-11-16
 
 **Ruled** (owner, forwarding a field report "an example of some of the
 feedback I've received and agree with"): "Battlemap setup for hex maps is very
@@ -241,3 +241,98 @@ it comes from.
 **Cost.** On a map whose cell is several times the imported square, every
 auto-sized small token carries the mark, since the floor draws it larger than
 it is. Canvas text does not follow the type-size setting.
+
+## 2026-11-16 — Apply moves what is placed with the map
+
+**Ruled** (owner, asked whether Apply should move placed walls, tiles, notes,
+drawings, regions and tokens with the map, after a live probe, or keep them in
+place): "Move them, build now (Recommended)".
+
+**Decision.** A square or hex apply, and a scale-only apply that changes the
+grid size, is written with core's `autoReposition`, so everything placed keeps
+its place on the image while the image is rescaled and shifted under the new
+grid. A painted cell's polygon moves with it; its cell key, and its shape, are
+then taken again from the hex the cell's centre now lies in, since a key names
+a cell of the grid and the grid moved against the image.
+
+**New evidence** for superseding in part the 2026-11-15 entry, under seven
+days old (its Cost bullet that placed things do not move): the release before
+it said they do ("Changing scene dimensions repositions placed tokens, tiles,
+and walls proportionally", `apply.confirmShift` in v2026.11.14), and a live
+probe on core 14 the same day the owner ruled read what core's option does. On
+a hex scene sent an apply-shaped update with it, a wall's ends stayed within
+0.0003 of their fraction of the scene's rectangle, a painted cell's polygon not
+at all, the grid size written was kept, and no per-document update hook fired.
+With the grid changed against the image, the painted cell's polygon stayed on
+its feature while its key named a different hex, and the map read no terrain
+there; nobody had read how a painted cell is stored when the earlier entry was
+written.
+
+**Rejected.**
+- *Keeping placed things in place.* Walls, roads and water drift off the
+  features they trace, and every painted cell answers for another hex.
+- *Moving the module's own placeables by hand.* Core's option already moves
+  every embedded kind in the same update.
+
+**Cost.** One apply rewrites every placed thing on the scene, and the re-key
+is a second write after it. A token moves by its corner and keeps its size in
+cells, so where the cell's pixel size does not change in the image's own
+proportion its centre lands a fraction of a pixel off.
+
+## 2026-11-16 — The size chips are the imported size categories
+
+**Ruled** (owner, 2026-11-14, standing): a value nothing imported stays blank,
+with the page reference as its tooltip, and no figure in source stands in.
+
+**Decision.** The token section's chips are one per size category whose
+frontage and the square are both imported; a chip stamps that category's
+footprint and its tooltip says where the figure comes from and how many cells
+it draws at here. With nothing imported there are no chips, and the caption's
+tooltip is the page reference.
+
+**New evidence** for superseding in part the 2026-11-13 entry (its sentence
+that the size hotbar is steps of the scene's cell, and its rejection of chips
+from the size categories): at a cell of a hundred feet the steps offered 50 to
+600 ft, so the 50 ft chip gave a man a 50 ft footprint; at six miles they read
+15840' to 190080'. Frontage times the imported square is a distance in feet,
+which `footprintFeet` already computes, so the rejection's ground is gone, and
+showing nothing without an import is what the 2026-11-14 ruling requires.
+
+**Rejected.** *Steps of the scene's cell.* They are sizes no creature has.
+
+**Cost.** At a large cell every chip draws at the quarter-cell floor, so the
+chips stamp different footprints that look alike on the map; the not-to-scale
+mark says which.
+
+## 2026-11-16 — The window is called Map setup
+
+**Ruled** (owner, asked whether to rename the window "Map setup" everywhere:
+the title, the toolbar tool and the Scene configuration button as "Map
+setup…"): "Map setup (Recommended)".
+
+**Decision.** The window's title (with the scene it sets up), the Battlemap
+group's tool and the Scene configuration button say Map setup; the window's
+own first heading names the section it heads.
+
+**Rejected.** *Keeping seven names.* A Judge told to open one cannot find it
+under another.
+
+**Cost.** The guide, MODEL and the plates named the old words until Phase 4 of
+the map setup revision rewrites them.
+
+## 2026-11-16 — The travel-system row says what a party will take
+
+**Decision.** Apply no longer writes the declared travel system: the select
+writes it as it changes, and the apply's flag record is written key by key so
+it never overwrites one. The footer's travel-system row shows the system the
+scene's scale will call for once applied, where none is declared, which is what
+a party placed there adopts.
+
+**Evidence.** The row compared the declared system before and after an apply,
+and the select had already written it, so the two differed for one render at
+most (ledger T-0611).
+
+**Rejected.** *Removing the row.* A foot-scale scene applied at six miles
+switches its party to journey without a word on the panel.
+
+**Cost.** None found.

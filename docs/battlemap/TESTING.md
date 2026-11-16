@@ -32,6 +32,12 @@ by hand.
   flat-topped one. Build each from a hex image of your own, gridless, units
   `ft`; the machine's copies and their geometry are listed under "Staged files"
   in `TEST_ENVIRONMENT.md`.
+- A kept scene for the apply that moves placed things,
+  `battlemap/reposition-probe`: a copy of `battlemap/hex-setup-feedback`'s
+  scene data with nothing embedded, then one wall across the middle, one token
+  of `battlemap/plain-character` on a hex centre, and one terrain hex painted
+  with the Country brush. A step asserts its grid at its start; it is left at
+  whatever grid the last walk applied.
 
 ## Drive mechanics (non-obvious)
 
@@ -153,7 +159,14 @@ by hand.
    the panel away the moment the apply lands. Press the frame's close control:
    it goes, and re-entering brings it back with the samples intact. The
    scene-config Basics tab separately shows the "Battlemap" row with its
-   Calibrate button and autoScale checkbox.
+   "Map setup…" button and autoScale checkbox. The window's title reads "Map
+   setup: <scene name>", and the toolbar tool's tooltip reads "Map setup".
+1a. **The door from another scene's configuration.** View scene A; open
+   Scene configuration for scene B (Scenes sidebar → right-click B →
+   Configure) and press "Map setup…".
+   *Observable:* the canvas views B, and the window opens titled with B's
+   name; pressed from A's own configuration it opens on A without a scene
+   change.
 2. Arm "Draw box", drag two boxes over two different drawn cells; arm "Pick
    corners", click three grid intersections several cells apart.
    *Observable:* red rects and blue numbered dots on the canvas; the fit
@@ -166,7 +179,9 @@ by hand.
 4. Eraser: arm it and click one sample; then press Wipe.
    *Observable:* the clicked sample vanishes (list and canvas); Wipe empties
    both. While a mode is armed, **Escape disarms** and **Ctrl+Z removes the
-   newest sample**; a RIGHT-button press changes nothing — drag with it and the
+   newest sample**, but typed into a text field (the window's own inputs, the
+   chat box) Ctrl+Z undoes the typing and removes no sample and Escape leaves
+   the mode armed; a RIGHT-button press changes nothing — drag with it and the
    canvas pans with every sample intact. (Scripted: `overlay.onPointerDown({
    button: 2, getLocalPosition: () => ({x: 0, y: 0}) })` must leave
    `samples.squares.length` unchanged.)
@@ -191,8 +206,10 @@ by hand.
    again and press "Rescale tokens on scene" with the Large monster's token and
    the character token present.
    *Observable:* neither token is written (`width`/`height` unchanged;
-   `sizeSquareFeet()` is null) and no second notification appears; only the
-   "rescaled" one does. Restore by importing the rules
+   `sizeSquareFeet()` is null), and the one notification is a warning that
+   names what is not imported: the footprint square, and with the frontage
+   off as well, both. The Token sizes section shows no size chips, and the
+   "Size categories" caption's tooltip is the page reference alone. Restore by importing the rules
    tables again (Settings tab → Game Settings → ACKS II — Extras → Manage
    imports → Rules tables).
 6b. **A Judge's override.** In the Ruledata Browser, override the `sizeFrontage`
@@ -205,18 +222,21 @@ by hand.
    *Observable:* the character token resizes to one imported square at the
    scene's scale; the party token is UNTOUCHED by this path.
 7a. **An override needs no square.** With the world layer off the registry as
-   in 6a, select the character token, stamp the Token sizes chip at one cell (step 1, tooltip beginning `1 ×`), then press
+   in 6a, select the character token, stamp a footprint through the custom size field and its ✓, then press
    "Rescale tokens on scene".
    *Observable:* the stamped token carries `flags.acks-extras.footprint` and
    keeps the stamped size and is not counted among the tokens that kept theirs.
 8. Open the assistant on two scenes of different `grid.distance` (Scene config
    → Grid), no scale bar measured.
-   *Observable:* `app._prepareContext({})` returns the `hotbar` key (the Token sizes chips, each `{value, label, tip, aria}`) as ½, 1, 2, 3,
-   4 and 6 times the scene's feet per cell, the two square-size chip rows as
-   1, 2, 10 and 20 times its `grid.distance`, and an empty map-cell field's
+   *Observable:* `app._prepareContext({})` returns `sizeChips`, one per size
+   category whose frontage and the square are imported, each labelled with the
+   category and stamping its footprint (frontage times the square, in feet);
+   its tooltip names the source, the page and the cells it draws at here, the
+   same on both scenes. The two square-size chip rows read 1, 2, 10 and 20
+   times its `grid.distance`, and an empty map-cell field's
    placeholder is the `grid.distance`; each scene shows its own. Select two
-   tokens and click the one-cell chip in Token sizes, then the reset arrow beside the chips: both resize and
-   carry `flags.acks-extras.footprint = {w, h}` at that chip's feet; reset
+   tokens and click the Large chip in Token sizes, then the reset arrow beside the chips: both resize and
+   carry `flags.acks-extras.footprint = {w, h}` at that category's feet; reset
    clears the flag and re-derives (monster back to its category, character to
    one square).
 9. Coarse-map output: confirm the box value as 100, set output square 5.
@@ -227,7 +247,10 @@ by hand.
 10. On the stretched scene: enable "Independent X / Y", sample boxes and
     corners.
     *Observable:* the fit panel shows two cell sizes; after apply, cells land
-    square (the background scales anisotropically).
+    square (the background scales anisotropically). Before applying, "Bake
+    corrected image" is offered for this upright fit; pressing it bakes as in
+    step 11, and a press that cannot (no background, no upload permission)
+    raises a warning saying why.
 11. On the skewed scene: enable "Allow skew", click ≥5 corners.
     *Observable:* the fit reports skew/rotation degrees and the preview
     lattice lies on the skewed lines; "Bake corrected image" appears. Press
@@ -260,9 +283,12 @@ by hand.
     offered. The label reads "One drawn hex is"; with the unit changed and no
     bar it is blank and Apply waits for it. Before the apply, note one token's
     and one wall's position. Type the hex's worth (6) and apply.
-    *Observable:* the confirmation says placed tokens, tiles and walls stay
-    where they are, and they do (same `x`/`y` and `c`). The notice reads "Hex
-    grid applied: 51 px hexes, 6 mi per hex.", and `grid.type` is 2. Every
+    *Observable:* the confirmation says placed things move with the map, and
+    the token and the wall keep their fraction of the scene's rectangle
+    (step 14b reads it). The notice reads "Hex grid applied: grid size 51 px,
+    6 mi per hex.", and `grid.type` is 2. With the scale changed from feet and
+    no system declared, the footer's rows include the travel system, none →
+    journey. Every
     drawn hex centre maps into its own Foundry hex: map each through the
     background sprite and compare with `canvas.grid.getCenterPoint(
     canvas.grid.getOffset(p))`. The farthest is within a few px (4.5 over
@@ -274,7 +300,32 @@ by hand.
     moves, by half a hex, and with it the hex numbering.
     Draw one lone box around a 2×2 block instead. *Observable today:* it is
     taken as one hex and reads fair, with only the other-family warning
-    (ledger T-0592, open).
+    (ledger T-0592, open). Then draw a box tight around one hex AFTER it.
+    *Observable:* the hex size is the one-hex box's, the block is the box
+    left out ("larger than one hex"), and the same holds in the other order.
+    Reopen the window on the applied scene with every sample erased.
+    *Observable:* a line above the needs list says what the scene already is
+    (hex rows, its grid size in px, its worth with the unit), its tooltip
+    naming Scene configuration → Grid; it goes once a box is drawn. Hover the
+    card's cell figure, the box count and a box row: each tooltip names its
+    parts, and a box row's size has the card's one decimal.
+14b. **Placed things move with the map.** On `battlemap/reposition-probe`
+    (assert its grid first; it holds a wall, a token of
+    `battlemap/plain-character` and one painted hex), read each one's place as
+    a fraction of the scene's rectangle (`canvas.dimensions.sceneX/Y/Width/
+    Height`), the painted region's `flags.acks-extras.terrainHexes` and the
+    hex under its centroid (`canvas.grid.getOffset`). Draw boxes and apply the
+    hex grid at a different hex size.
+    *Observable:* the wall's ends and the region's polygon keep their fraction
+    (within a pixel), the token's centre lies on a hex centre, the region's key
+    is the hex now under its centroid with a shape that hex's size, and the map
+    reads that terrain there (`layerValueAt`). `grid.size` reads back as
+    applied.
+14c. **A unit edited in Scene configuration.** With the window open on a
+    scene, change Scene configuration → Grid → Distance Units, then the grid
+    type between the two hex parities.
+    *Observable:* the window's units select and family follow each edit, and
+    the footer's rows do not list a unit change back.
 14a. **Hex columns.** On `battlemap/hex-cols-setup`, choose "Hex grid —
     columns (flat top)", miles, and drag five boxes across five columns.
     *Observable:* tight (1.0 px on a 40 px side). After the apply, `grid.type`
@@ -298,6 +349,8 @@ by hand.
     `settlement`, its clock pauses, and a notification names the switch. Change
     the select to Wilderness with the party still there: it follows. Set it
     back to "Leave to the party": a formation already in a mode keeps it.
+    Apply the grid with Settlement declared: the declared system is not
+    rewritten, and no travel-system row is listed.
 17. The party token on the calibrated scene: see `docs/formation/TESTING.md`,
     "The column and its lights" (steps 1, 8 and 9). It is one cell at every
     scale in the `order` shape, and "Rescale tokens" leaves it alone.
