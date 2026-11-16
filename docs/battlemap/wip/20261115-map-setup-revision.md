@@ -455,6 +455,36 @@ the kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`
 correct Phase 4's start prompt, put Phase 4 up as a proposal card, and report
 to the owner, opening with the card."
 
+### Phase 3J — the audit's findings (split from Phase 3)
+
+Phase 3 built D, E, G and I and walked them. J was split off, for the reasons
+in 'Results — Phase 3'. It is written in the still-open
+`topic/map-setup-panel` worktree, which is synced with `main` first.
+
+Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md`
+(with 'Results — Phase 3') and `docs/battlemap/wip/20261115-map-ui-audit.md`,
+and run Phase 3J as its orchestrator.
+- Before any edit, sync `topic/map-setup-panel` with `acks-branch sync
+  map-setup-panel` in `C:\Proj\foundryvtt-acks-extras.map-setup-panel`.
+  `main` holds c7b403da's footer and footprint fixes.
+- Defects first, from the audit's J list: 3, 4's remainder, 5, 6 and 17.
+  Then the ledger rows T-0608 to T-0615, which Phase 3 registered for this
+  batch. Each slice is one fresh `implementer`, never two on one file, and
+  is committed by hand in the worktree once `npm test` and
+  `npm run validate` pass.
+- Finding 1 (auto-repositioning) contradicts step 14's 'stay where they
+  are'. Put it to `architect`, and to the owner if it reverses a ruling,
+  before anyone builds it.
+- Finding 31's name ('Map setup') is a proposal. Ask the owner once before
+  renaming.
+- Land and close the branch. Walk J on `main` per
+  `.claude/rules/live-testing.md` and `docs/battlemap/TESTING.md`, with
+  `ui-layout.md`'s eye checks and `ui-tooltips.md`'s hover pass. Commit the
+  walk's fixes with `acks-commit`.
+- Append 'Results — Phase 3J', sorted into exercised live, offline only and
+  not checked. Put Phase 4 up as a proposal card and report to the owner,
+  opening with the card."
+
 ### Phase 4 — the recipe, the guide, the plates, and the close
 
 - `tools/live/battlemap.mjs` gains a part that walks the hex setup
@@ -469,10 +499,20 @@ to the owner, opening with the card."
 - The owner is asked the release kind if §5 Q5 is still open.
 
 Start prompt: "Read `docs/battlemap/wip/20261115-map-setup-revision.md` with
-all its results and run its Phase 4 as that phase's orchestrator. Finish by
-moving what this file still holds into `MODEL.md`, `DECISIONS.md`,
-`TESTING.md` and the guide, deleting the file, and reporting to the owner
-with the release question."
+all its results (Phase 3J's included) and
+`docs/battlemap/wip/20261115-map-ui-audit.md`, and run its Phase 4 as that
+phase's orchestrator, once Phase 3J has landed and closed
+`topic/map-setup-panel`.
+- The guide's Token sizes section and Applying intro, and MODEL's token rows,
+  were brought to slice E in Phase 3. Re-read them against the code rather
+  than rewriting them.
+- The plates must show the mark (slice I) and the footer's rows (slice D).
+  Shoot them from a scene set up through the panel, with the pane on screen.
+  A hidden pane freezes core's ticker and its shots.
+- Move what this file and the audit file still hold into `MODEL.md`,
+  `DECISIONS.md`, `TESTING.md`, `ROADMAP.md` and the guide. Delete both
+  files.
+- Report to the owner with the release question."
 
 ## 8. Registered, not in scope
 
@@ -745,3 +785,178 @@ is left in `journey`.
 - The body loses its scroll on every delete (the audit's finding 2).
 - Each apply drops the Battlemap control group (known, `TESTING.md`), so
   "Draw box" must be re-armed for the next box.
+
+### Results — Phase 3
+
+Run 2026-11-15 and 2026-11-16. The surface walk ran on `main` first, and what
+it saw went into the audit file (8abf3108, findings 32 to 37). Slices D, E, G
+and I were built in `topic/map-setup-panel`'s worktree, one fresh
+`implementer` each, and committed there by hand once `npm test` and
+`npm run validate` passed. T-0583 was diagnosed again by `architect` before E
+was briefed. The branch was landed with `acks-branch`: rebased, gated green on
+ede09328 under the lease, then `main` fast-forwarded from 03abcc78. It stays
+open for J (below). The walk's fixes were committed on `main` with
+`acks-commit`. Nothing is pushed.
+
+| Commit on `main` | Slice | What |
+|---|---|---|
+| 8abf3108 | surface walk | the audit takes what the screen showed: 32 (a hex scene cannot be set up as square), 33 (three windows on one spot), 34 (the country block splits the setup), 35 (a reopened applied scene reads as fresh), 36 (31×47 px against 30.7 × 47.3), 37 (whole-cell chips at a mile-scale cell); the proposed window name "Map setup"; T-0599 to T-0607 for its later batch |
+| 29c02bb7 | D | the needs list, the cell-and-units row, "saved as you choose", the footer's rows naming what Apply rewrites (the auto-sizing write included), the dialog repeating them, a lone box reading as the other family (`familyMismatchLone`), and the way out of a hex scene for a square fit |
+| aad8121f | E | the token section in feet, the rescale moved into it, one line at a mile or more a cell, and the rescale comparing `_source` and counting real writes |
+| 221fd613 | G | a box counts across and down (owner: "Two numbers (recommended): “3 across, 1 down”. Any box shape works.") |
+| 69809285 | docs | DECISIONS: the two box counts; the panel's surface and the token section |
+| bbf0deaa | I | the not-to-scale mark: a looking-glass rim and handle (owner: "Anything that is outside scale should get a border (maybe a looking glass effect?)"), a hover readout, a client setting to turn it off |
+| ede09328 | docs | DECISIONS: the mark |
+| c7b403da | walk | the footer capped at `max(45%, 9em)` so a short window at a raised type size keeps its body; a party actor's token is never judged by footprint (its shadow had a mark) |
+
+D's commit message cites T-0579 where it means T-0581 (and T-0592 in part).
+It was not amended: that is a history rewrite, and those wait for the owner.
+
+**T-0583's diagnosis.** `architect`, then a live probe. `changed` read the
+prepared width, which core's token animation merges into the document frame
+by frame; frame 0 runs synchronously. The count was attempts, and a no-op
+size write is not dropped, because movement forces `diff: false`. Live, with
+the pane's ticker frozen: a settled 0.5 token rescaled twice gave 0, 0. Set to
+1 × 1, three rescales gave 1, 1, 1, with `_source` 0.5 and the prepared width
+1. After 90 driven frames the prepared width was 0.5, and a rescale gave 0.
+So the reported "1 every press" was a walk artifact sitting on a real compare
+bug. E fixes the compare. "Created at half a cell" was not confirmed and
+nothing is built on it.
+
+**Slice J is not built in this session.** The audit's in-scope findings
+are 1, 3–6, 17 and the rest of its J1 list. They touch the same panel files
+as D, E and I, one `implementer` per file group, and finding 1
+(auto-repositioning) needs a ruling first: its acceptance contradicts step 14
+("Tokens, tiles and walls stay where they are"). E absorbed J1's findings 4,
+11's ↺ and ✓, 13 and 15. J runs as its own session in the open worktree
+(start prompt below). Phase 4 follows it.
+
+**Ledger.** Marked `fixed-unreleased`, with shas and walk evidence in the
+notes: T-0579 (G), T-0581 (D), T-0582 (E), T-0583 (E), and T-0592 in part
+(D: the line names the cause and the cure; one box alone still cannot tell a
+block from a hex). T-0616 (the shadow's mark) is registered fixed in
+c7b403da. T-0584 stays `claimed`, waiting on the owner's answer (below).
+
+New rows for the J batch:
+- T-0608: an anchor tie keeps a multi-hex box drawn before an honest one.
+- T-0609: audit 35's part left (a bare reopen shows nothing of the applied
+  grid).
+- T-0610: the `familyAmbiguous` wording with two boxes in one row.
+- T-0611: the travel-system row is all but unreachable.
+- T-0612: the done notice's "px hexes".
+- T-0613: "Now No grid" capitalised mid-sentence.
+- T-0614: audit 37, not built.
+- T-0615: three figures without a tooltip.
+
+**T-0584 (Journey).** Phase 2's walk showed a party dropped on a mile scene
+takes Journey with a notice. A scene at `ft` infers nothing, by design. It
+is not a code gap. Whether it is `false-report` or `docs-only` turns on one
+question to the owner: would a guide line (journey mode is taken
+automatically once a scene's cell is a mile or more) have prevented the
+report?
+
+#### Exercised live
+
+The GM seat, in the pane at 1366 × 768. The pane was hidden for part of the
+walk, so core's ticker was frozen. Where a check reads render state, the
+ticker was stepped by hand: `canvas.app.ticker.update` for 90 to 120 frames.
+Kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`.
+
+- **Step 14, the hex apply, through the dialog's real Yes.** Five boxes at
+  6 mi gave rows of type 2, size 41.
+  - The dialog listed Grid, Cell worth, Image and "Token sizing: on → off,
+    written off because a cell is a mile or more". It also gave the
+    placeables sentence.
+  - The token at 780,623 and the wall [700,500,900,500] were unmoved.
+  - The notice read "Hex grid applied: 41 px hexes, 6 mi per hex." The flag
+    read `autoScale: false`.
+  - 560 drawn hex centres, mapped through the background sprite, fell in 560
+    distinct Foundry hexes. The worst was 5.6 px from its grid centre, on a
+    41 px hex.
+- **Step 14a.** `hex-cols-setup` was brought back to gridless `ft` at
+  1600 × 1200 first. Five boxes over five columns read 0.6 px off, tight.
+  - The cell worth was typed into the form's own field. The rows then read
+    Grid, Cell worth and Image.
+  - The dialog left out the placeables sentence: the scene holds none.
+  - The apply gave type 4, size 69, `autoScale: false`. 429 centres fell in
+    distinct hexes, the worst 1.5 px out.
+- **The lone block (T-0592).** On rows, one box at four shapes gave the
+  `familyMismatchLone` line with Apply enabled: 76.8 × 82.8, 92.1 × 82.8,
+  76.8 × 70.9 and 33.8 × 33.1.
+- **Step 15.** A plain character, `battlemap/plain-character`, was created
+  through `preCreateToken` on the applied 6 mi scene. With auto-sizing off it
+  kept 1 × 1. With it on it took 0.25. Both copies carried the mark, and both
+  were swept.
+- **Slice G through the panel's own input.** A 150 × 50 box set to 3 across
+  read a 50 px cell. Scale-only, empty, asked for the scale bar. With a
+  90 × 30 strip at 3 across it read a 30 px cell, with Apply on.
+- **Finding 32's way out.** The square family on the hex scene names Scene
+  configuration → Grid → Gridless.
+- **The mark (slice I).**
+  - On the 6 mi hex after the apply, a one-cell character carries it.
+  - The readout gives the GM four lines: "Drawn larger than its footprint /
+    Drawn at 6 × 6 mi / Footprint 5 × 5 ft / One square of 5 ft (MM p.11)".
+    The 5 ft comes from the world's import.
+  - It stayed through a move and a resize to 2 × 2, and after a resize back.
+  - The client setting turns it off and back on.
+  - It came back after leaving the scene for `formation/combat-scene` (square
+    5 ft: neither the party nor a one-cell character is marked),
+    `formation/steps-march` and `formation/day-journey-hex`, and returning.
+  - On `day-journey-hex`, the formation's shadow token (`shadowFor`, no
+    formation flag) carried a mark. That gap predates I (`resolveSize` had
+    it), and c7b403da fixes it. After a reload the shadow has none.
+- **The footer at a raised type size** (D, fixed on the walk). At 20 px type
+  in a 480 px window the footer took 375 px and left the body 67. With
+  c7b403da, at 14 px the body is 177, 243 and 455 px in 360, 480 and 760 px
+  windows. At 20 px it is 142, 243 and 397. The Apply button is inside the
+  frame in all six.
+- **`ui-layout` eye checks.** At 420, 320 and 260 px wide: no element past
+  the frame's right edge, and the body and footer `scrollWidth` equal their
+  `clientWidth`. The floor is `min-width: 200px`.
+- **The hover pass.** The fit residual, the image row and Apply carry
+  tooltips. The cell figure, the box count and the box rows do not (T-0615).
+- **A player seat, by a real join** in the capture driver's own browser, as
+  Player. `openAssistant()` answers null. The scene controls offer regions,
+  tokens and notes, with no Battlemap group. The cadence member's token is
+  not visible to that seat, so its mark, a child of the token, is not either.
+  The readout, forced by a `hoverToken` call, gives a non-owner two lines.
+- **Console.** At the end of the walk the pane's buffer held no error-level
+  entry. It had already dropped 2642 earlier lines, so it says nothing of
+  `init`, `setup` or `ready` on this load.
+
+Fixture ledger:
+- Built and kept: `Actor.97FrYzGyW6eb2Iea`, marker
+  `battlemap/plain-character`.
+- Built and swept: two tokens on `CBskaS5AQcGHmjYf`. Removed
+  `[…Token.ELs1EsE2B5W7imec, …Token.PpUV3jit3WNSmcjD]`; could not find `[]`;
+  refused `[]`.
+- Both kept scenes were brought to their recipe's starting shape (gridless
+  `ft`, flag cleared) and applied again. They are left applied at 6 mi.
+- The cadence member is back at 780,623, 1 × 1.
+
+#### Checked offline only
+
+- Each slice's `npm test` and `npm run validate` green in the worktree before
+  its commit. D's run: "231 committed suite(s)".
+- The landing's gate, green on ede09328 under the lease.
+- c7b403da's gate in a clone: build:packs 2 s, test 169 s, validate 668 s,
+  green.
+- `test-battlemap` covers the footprint a token is judged by (now with the
+  shadow case), the not-to-scale predicate, and the mark's listener, key and
+  readout.
+
+#### Not checked
+
+- Both parities from one box, and the travel-system row (T-0611).
+- Step 15's party drop. Phase 2 walked it, and D, E, G and I do not touch it.
+  Dropping a party here would move a kept formation's party.
+- The mark's look on screen. The pane was hidden, so no shot was taken. Its
+  draw order: it sits at child index 1, behind core's first child, not 0.
+- The footer and token section at an expedition scale (`travelSystem`).
+
+#### Docs refreshed
+
+The docs are brought to E's token section: the guide's Applying intro and
+"Token sizes" section, MODEL's `token-scale.mjs` and `assistant-app.mjs`
+rows and its chip and trigger lines, and TESTING steps 7a and 8. DECISIONS is
+dated history and keeps "size hotbar". Phase 4 still owns the plates.

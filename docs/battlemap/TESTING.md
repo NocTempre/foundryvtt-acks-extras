@@ -204,17 +204,17 @@ by hand.
    *Observable:* the character token resizes to one imported square at the
    scene's scale; the party token is UNTOUCHED by this path.
 7a. **An override needs no square.** With the world layer off the registry as
-   in 6a, select the character token, stamp the hotbar's 1× chip, then press
+   in 6a, select the character token, stamp the Token sizes chip at one cell (step 1, tooltip beginning `1 ×`), then press
    "Rescale tokens on scene".
    *Observable:* the stamped token carries `flags.acks-extras.footprint` and
    keeps the stamped size and is not counted among the tokens that kept theirs.
 8. Open the assistant on two scenes of different `grid.distance` (Scene config
    → Grid), no scale bar measured.
-   *Observable:* `app._prepareContext({})` returns `hotbar` chips as ½, 1, 2, 3,
+   *Observable:* `app._prepareContext({})` returns the `hotbar` key (the Token sizes chips, each `{value, label, tip, aria}`) as ½, 1, 2, 3,
    4 and 6 times the scene's feet per cell, the two square-size chip rows as
    1, 2, 10 and 20 times its `grid.distance`, and an empty map-cell field's
    placeholder is the `grid.distance`; each scene shows its own. Select two
-   tokens and click the 1× hotbar chip, then "Reset selected": both resize and
+   tokens and click the one-cell chip in Token sizes, then the reset arrow beside the chips: both resize and
    carry `flags.acks-extras.footprint = {w, h}` at that chip's feet; reset
    clears the flag and re-derives (monster back to its category, character to
    one square).

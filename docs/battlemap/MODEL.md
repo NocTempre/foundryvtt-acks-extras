@@ -210,11 +210,11 @@ nothing rewrites it.
 |---|---|
 | `calibrate-logic.mjs` | Pure solver: 1D-per-axis grid fit (square/rect modes), 2D lattice fit with basis reduction (affine mode), scale-bar conversion, nice-number suggestions, output-square conversion, the scale-only (size, distance) pair, and hex size from a measured reference box. No Foundry. |
 | `footprint.mjs` | Pure footprint resolution (override → imported size-category frontage → one square for a token with no category) and feet→squares quantization. No Foundry. |
-| `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the selection hotbar's stamp/reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
+| `token-scale.mjs` | The ONE writer of width/height for generic tokens: scene-wide rescale, the Token sizes section's selection stamp and reset, and `preCreateToken` auto-sizing gated on the scene's `autoScale` flag. |
 | `scene-image.mjs` | The one place that knows where a scene's background lives: reads it off the active Level, writes it through that Level's own update. Every background read and write in the feature goes through here. |
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines otherwise), eraser and undo. |
 | `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
-| `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the token-size hotbar, and a pinned footer carrying the two apply actions. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
+| `assistant-app.mjs` | The window, a VIEW over the session: the setup section, the fit card, scale decisions, the Token sizes section (its chips and the whole-scene rescale), and a pinned footer carrying the Apply action and the rows it rewrites. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
 | `apply.mjs` | Scene writes. One side-effect-free solve per family, `solveGridCalibration` (square), `solveHexCalibration` (hex) and `solveScaleOnly` (no geometry), each answering the solution and its exact update; `writeSetup`, the one writer (confirm, one `scene.update`, read back, done notice); plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, measured off a clone rather than restated. |
 | `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`, and the derived `derivedValueAt` / `derivedHexes`), `paintLayerChanged`, the writer `paintHexAt`, and the palette window with its layer pills. |
@@ -266,7 +266,7 @@ nothing rewrites it.
   offered as chips rather than applied over the top (DECISIONS).
 - **The plain ladders are the scene's.** With no bar measured, the square
   chips under both fields are steps of the scene's `grid.distance`, the
-  size hotbar's chips are steps of `sceneFeetPerCell(scene)`, and an unentered
+  Token sizes chips are steps of `sceneFeetPerCell(scene)`, and an unentered
   map cell is worth the scene's `grid.distance`, all read at render. A scene
   with no usable distance offers no chips and no default.
 - **Arming is a mode, and the group has a resting state.** Each capture mode
@@ -361,7 +361,7 @@ the party token's included. No surface sets it; it is written by script.
 Spans quantize to quarter squares with a quarter-square floor (DECISIONS).
 
 Auto-sizing triggers: the assistant's "Rescale tokens" button (whole scene),
-the hotbar (selected tokens, stamps the override flag), and `preCreateToken`
+the Token sizes chips (selected tokens, stamp the override flag), and `preCreateToken`
 on scenes whose `autoScale` flag is on — which the apply action sets and the
 scene-config row toggles. Formation redeploys create tokens and therefore
 flow through the same hook.

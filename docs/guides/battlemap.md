@@ -141,7 +141,9 @@ map the size it is now.
 
 ## Applying
 
-Two buttons at the foot of the panel, in either order, as often as you like:
+Two buttons, in either order, as often as you like: the apply button at the
+foot of the panel, under the rows saying what it rewrites, and the rescale in
+the Token sizes section:
 
 - The apply button's label follows the map's kind. **Apply grid to scene**
   rescales and shifts the background so Foundry's grid sits exactly on the
@@ -151,8 +153,7 @@ Two buttons at the foot of the panel, in either order, as often as you like:
   to scene**, and lands the hexes you drew boxes around on real ones. In the scale-only mode it says
   **Apply scale to scene** and writes nothing but what the map's distances are
   worth: nothing is rescaled and nothing moves.
-- **Rescale tokens on scene** resizes every token to its real footprint at
-  the scene's scale: a monster by its size category, anything else one
+- **Rescale tokens on scene**, below the Token sizes chips, resizes every token to its real footprint at the scene's scale: a monster by its size category, anything else one
   footprint square. A formation's party token is left to the formation rules,
   which size it by its frontage. The footprint square and each size
   category's frontage come from the Monster Size table of the Monstrous Manual
@@ -170,17 +171,24 @@ grid lands at the smallest size a token takes, a quarter square. Turn this off
 with the **Auto-size tokens** checkbox in **Scene Configuration → Basics tab →
 Battlemap**.
 
-## The size hotbar
+## Token sizes
 
-**Token sizes**, at the foot of the panel's body, stamps a footprint on the
-tokens you select. Selecting tokens means the ordinary **Token** controls, so
-switch back to them when you want to — the panel stays open where you left it.
-Select tokens and click a chip — steps of the scene's own square from half of
-one upward, so 2½', 5', 10' and up on a 5' scene — or type a **Custom size
-(feet)** and press the tick beside it, to stamp that footprint on them. The
-arrow button beside the chips, **Reset selected to default**, removes the
-stamp and re-derives from the creature's size. A stamped footprint sticks to
-the token and survives rescales.
+The **Token sizes** section sits at the foot of the panel's body and sets the
+footprint of the tokens you select, in feet. Selecting tokens means the
+ordinary **Token** controls, so switch back to them when you want to — the
+panel stays open where you left it. Each chip is labelled in feet and is a
+step of the scene's own square: half a cell, then one, two, three, four and
+six cells. On a 5 ft scene the chips read 2.5 ft, 5 ft, 10 ft, 15 ft, 20 ft and
+30 ft. Select tokens and click a chip to stamp that footprint on them, or type
+a **Custom size (feet)** and press the tick beside it. The arrow button after
+the chips resets the selected tokens' footprint, removing the stamp and
+re-deriving from the creature's size. A stamped footprint sticks to the token
+and survives rescales.
+
+A line under the controls says whether tokens placed on the scene are
+auto-sized; the setting is described under Applying. At a mile or more a cell
+the section is one line saying tokens there are not sized to footprints, and
+none of its controls is drawn.
 
 ## Painting the country
 
