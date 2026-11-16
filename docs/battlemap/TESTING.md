@@ -32,6 +32,13 @@ part is blocked without it.
   a map a user could hold, with a bar to drag (this machine's copy is under
   "Staged files" in `TEST_ENVIRONMENT.md`). Set the background through the
   Level (below), not in `Scene.create`.
+- The scene the guide's hex plates are shot from, `battlemap/plate-hex`: the
+  hex-rows map of `battlemap/hex-setup-feedback`'s kind on a gridless scene,
+  set up through the window (five one-hex boxes, miles, 6 a hex), applied
+  through its button, and holding one token of `battlemap/plain-character`
+  for the not-to-scale mark. A plate run rebuilds it, since setup is what the
+  first plate frames; `battlemap/scale-bar-map` serves the scale-only plate
+  the same way.
 - Two kept scenes for the hex path, each carrying a map with DRAWN hexes: the
   fit scores boxes against the hexes they surround, so a flat texture proves
   nothing there. `battlemap/hex-setup-feedback` holds a pointy-topped map, a
@@ -627,7 +634,7 @@ from-selection tool) and `acksExtras.battlemap.country` (`countryAt`,
 point is `scene.grid.getCenterPoint(offset)`. A water line for the reading
 steps can be `scene.createEmbeddedDocuments("Wall", [{c, ...waterWallData({kind})}])`,
 tracked by the id it returns — but one line must be DRAWN with the preset,
-because the preset is what step 4 proves. The Battlemap window's three country
+because the preset is what step 4 proves. The Map setup window's three country
 selects are driven as its other selects are: set `.value` and dispatch a
 bubbling `change`.
 
@@ -665,7 +672,7 @@ bubbling `change`.
    restrictions do not change, and a warning says the party cannot cross it.
    Untick the river line's boat tick, select that line and press the tool
    again: `updated` 1 and `navigable` still false.
-6. In the Battlemap window, set the scene's Ground here, Territory and Climate.
+6. In the Map setup window, set the scene's Ground here, Territory and Climate.
    *Observable:* `flags["acks-extras"].battlemap.country` holds the three keys
    at once, with no apply, and the record's other fields are unchanged;
    `sceneCountry(scene)` returns them; setting a select back to "Not said"
@@ -683,7 +690,7 @@ bubbling `change`.
    "none" and `water` with `navigable` false. With `{waterBorne: true}` the
    river hex's `encounterTerrain` is a river table, the desert-and-jungle one
    when its ground is a desert or a jungle.
-8. On the square scene, set Ground here in the Battlemap window, arm the brush
+8. On the square scene, set Ground here in the Map setup window, arm the brush
    and click; then call `countryAt` there.
    *Observable:* the hex-only warning, once per stroke, and no region; the
    ground reads the default with `source.ground` "scene", and the unset

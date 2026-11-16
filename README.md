@@ -314,7 +314,7 @@ Map tools for both scales, on the scene rather than in a separate window.
   not paintable, because they are conditions the weather produces.
 - **Roads and routes.** A hex has edges, corners and a centre, and a road is a
   declared path between them, which the travel readout follows.
-- **Battlemap alignment** — line a published battlemap up to the grid, and keep
+- **Map setup** — line a published battlemap up to the grid, and keep
   token scale honest across the two scales.
 
 Guide: [Map setup and token scale](https://noctempre.github.io/foundryvtt-acks-extras/guides/battlemap/).
