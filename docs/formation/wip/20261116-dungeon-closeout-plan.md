@@ -581,13 +581,63 @@ Asks OQ2 to OQ5 at its start. The UI slices are §10's findings.
 
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
-| U1 | `main` | implementer | `trapbreak-app.mjs`, `door-app.mjs`: an id built from the party and the actor; a re-render when their subjects change; `cite` kept on the parts; a pinned footer; a Judge warned where a player is blocked; `PressFocus`; the Trapbreaking floor read from the general rule's reader. | §10 Trapbreaking 1-7, 9-10; Door 3, 7, 9 | OQ7 |
-| U2 | `main` | implementer | `formation-strip.hbs` (the speed's parts, the rest, carry and elapsed tooltips), `formation-player-actions.hbs`, one home for the Trapbreaking opener, `planLock` warning the Judge. Check `topic/spell-effects` first. | §10 Dungeon tab 1, 3-9 | OQ7 |
+| U1 | `main` | implementer | `trapbreak-app.mjs`, `door-app.mjs`: an id built from the party and the actor; a re-render when their subjects change; `cite` kept on the parts; a pinned footer; a Judge warned where a player is blocked; `PressFocus`; the Trapbreaking floor read from the general rule's reader. | §10 Trapbreaking 1-7, 9-10; Door 3, 7, 9 | nothing |
+| U2 | `main` | implementer | `formation-strip.hbs` (the speed's parts, the rest, carry and elapsed tooltips), `formation-player-actions.hbs`, one home for the Trapbreaking opener, `planLock` warning the Judge. Check `topic/spell-effects` first. | §10 Dungeon tab 1, 3-9, 11 | nothing |
 | U3 | `main` | implementer | `door-app.mjs`: the basher captured at render and re-rendered on `controlToken`; partners limited to the party and the scene. | §10 Door 1-2 | nothing |
 | S26 | `main` | architect, then implementer | One owner for the Swimming term; a granted-modifier read for the Swimming, Acrobatics, Cat Burglary and Contortionism terms; `landingSave`'s `saveBonus`. | C8, the §6 read | OQ5 |
 | S20 | topic | implementer | `parseOutcomeCell` `unless`; the member inputs; `readThrow`'s exemption. | A2, §6.1 | OQ2, OQ3 |
 | S24 | topic | implementer | The cookbook rows; Mountaineering's kit, cap and leader's throw; the assisting mountaineer. | B11, A4, A8 in part, §6.10 | OQ2, OQ4 |
 | S25 | topic | implementer | Damage on a narrow or precarious path: a save, or a fall. | B9 | S26 |
+
+### Phase 3b: the party sheet in dungeon mode
+
+Added on OQ7's answer; §10's wider pass is its findings. It runs after Phase 3
+and before Phase 4, as a clean session of its own, and asks nothing of the
+owner at its start. Every slice shares `formation-view.mjs`, `lang/en.json`,
+`party-actor.mjs` or `styles/formation.css` with another, with S7 and S8, and
+with U2, so they run one after another in this order. All are surfaces already
+shipped, so all are `main`'s tree. Before its first slice the session
+registers Frame 2 and Kit 2 on the bug-intake ledger, source
+`tooltip:2026-11-16`: two figures whose tooltip cannot be written yet.
+
+Nothing in the wider pass was seen live. This phase's walk, and Phase 3c's, is
+§10's two "Only a live look settles" lists for the surfaces its slices
+touched, hovered figure by figure against the pages they name, with a real
+player seat wherever a finding names one; what the walk settles goes into
+`docs/formation/TESTING.md` with the slice.
+
+| Id | Tree | Agent | Scope | Closes | Blocked on |
+|---|---|---|---|---|---|
+| U4 | `main` | implementer | Lang strings that state a rule are rewritten to say what the field or the module does, the page reference kept, or moved to the comment beside the consumer (`buildWarnings`, `ROLE_HINTS`). The session reads every rewritten string itself before it lands. | §10 Frame 6; Order 5, 8, 9; Kit 4; Trap sheet 9; discharge 3; small dialogs 6 | U0 landed |
+| U5 | `main` | implementer | Provenance on the band, the figures rail, the overline and the tab heads: parts and page for each figure, the rest bar's page reference when nothing is imported, `data-tooltip-text` for a string assembled at render; `formatTurns` reads lib's `TURN_SECONDS`. `tools/test-party-frame.mjs`. | §10 Band 1; Frame 1, 3, 4, 5, 9 | S7, U2 |
+| U6 | `main` | architect, then implementer | Which count a stack eats by, read from the page (`rules-lookup.md`); then `campSupplies`, `consumeRations` and `provisions.mjs` agree with the Mouths cell, and the cell's tooltip lists parts that give the figure. A page that does not settle it is the owner's question, put once. | §10 Frame 2 | the ruling |
+| U7 | `main` | implementer | The Order tab's figures and glyphs: tooltips with their parts for speed, encumbrance, a carrier's load, the train's pace and counts, and the stack's body count; the dark-sight chip's source and its page reference when unread; an accessible name on every state glyph; a mark beside colour for the slowest. | §10 Order 4, 6, 7, 10, 11, 12 | U5 |
+| U8 | `main` | implementer | Keyboard routes and names: buttons where an `<a>` with no `href`, an `<img>` or a `<span>` takes the press; the map name shown only where `canOpen`; a lit state in text and in the toggle's name; `inert` glyphs. | §10 Frame 10; Order 1, 2, 3, 15; Kit 5, 6, 8 | U7 |
+| U9 | `main` | implementer | Refusals say why, on the surface: a reason beside take-out, detach and anchor; the Judge warned and let through where `toggleDetachMember` itself does not refuse. | §10 Order 13, 14; Kit 7 | U8 |
+| U10 | `main` | implementer | The Kit tab: a citation key for the light table's page, shown on a blank burn figure and on the light types; the tracked spell's record keeps where its count came from (`addSpell`, `adjustSpell`, the `spell` request) and the tooltip says it; labels on the add-spell inputs. | §10 Kit 1, 2, 3 | U9, S8 |
+| U11 | `main` | implementer | Layout: the active panel keeps a usable height under the frame, the warnings and an open Key; the art row wraps or takes an em container breakpoint, the window's floor left as ruled 2026-10-15; `scrollable` gains the members grid and the description box; member controls sized off the ramp. | §10 Frame 7, 8, 11; Order 16, 17 | U10 |
+| U12 | `main` | implementer | The band's focus and uncommitted name text kept across a re-render, with S7's `PressFocus`; an open description edit not rebuilt by a peer's write; the overline clock redrawn on `updateWorldTime` in dungeon mode. | §10 Band 2; Frame 12, 13 | U11, S7 |
+| U13 | `main` | implementer | The strip's combat figure by `acks-printed-value`: core's own encounter-movement reader first; the unread `combatSpeed` removed. `tools/test-strip.mjs`. | §10 the view's finding 1 | U2 |
+
+### Phase 3c: the other dungeon windows
+
+Also added on OQ7's answer, after Phase 3b and before Phase 4, a clean session
+of its own. `main`'s tree throughout. U14 and U15 share `skill-audit.mjs` and
+run in that order; the rest share only `lang/en.json` and
+`styles/formation.css` and run one at a time.
+
+| Id | Tree | Agent | Scope | Closes | Blocked on |
+|---|---|---|---|---|---|
+| U14 | `main` | implementer | The Skill audit's mechanics: an id per party, a re-render when the party or an ability item changes, the scroll on a part root, `PressFocus`, sizes off the ramp, columns that scroll and do not clip. `tools/live/formation-audit.mjs` finds the window by its new id. | §10 Skill audit 1-4, 11-15; Skill tab 5 | nothing |
+| U15 | `main` | implementer | The audit's and the Skill tab's figures and names: one cited-parts helper shared with `rollCheckFor`; names on the Used-for selects and check names in their options; the Sheet target and the progression table with their sources; core's tooltip in place of `title`. | §10 Skill audit 5, 6, 8, 9, 10; Skill tab 1-3 | U14 |
+| U16 | `main` | implementer | The trap sheet and the trap zone's config: the level strip's state in text; the pit's damage with its parts, and its page reference alone when a part is not imported; the trigger band shown with its source; a scrolling part root; the State select's labels and the `known` field's label. | §10 Trap sheet 1-8; configs 1, 2 | nothing |
+| U17 | `main` | architect, then implementer | The party token's HUD: a named button; `formUpFromHud` honours the picker's action; `addTokensToParty` as the `architect` rules it against the 2026-11-14 ruling and formation's MODEL. `module.mjs` is shared with S1, S11, S13 and `topic/summons-formation`: check them first. | §10 HUD 1-3 | the ruling |
+| U18 | `main` | implementer | The Walls and Regions layers: the wall's trap row names its trap, opens it and takes it off; the canvas drop is tested by seat; the two tools told apart; the door tool's `order`; the Place row's button named. | §10 Walls 1-5; configs 5 | U1, U3 |
+| U19 | `main` | implementer | The experience dialog: the gain's parts, the unread adjustment's page reference where it can be hovered, a re-read at confirm, a total below nothing refused; the two unescaped names; the overview's `title`. | §10 small dialogs 1-5, 7, 8 | U2 |
+
+Findings the wider pass made that rows already in the plan close: the
+discharge question's 1 and 2 are §7's row 2 (Phase 4), which also escapes the
+name; the region configs' 3 and 4 are §7's row 10 (Phase 5).
 
 ### Phase 4: doors and the turn plan
 
@@ -604,6 +654,7 @@ its reader (rows 3 and 4), a door within reach and battering as a plan choice
 | S22 | topic | implementer | Rigging and the traverse's load; the crawl's rigger. | B5, A4, §6.8 | nothing |
 | S23 | topic | implementer | Belaying and the rope-length fall. | B3, B12, §6.9 | Phase 4's door import |
 | | | | §7's rows 7 to 10: Mapping's throw, the crude-trap figures, the wrong-floor rate, the zone bound. | | nothing |
+| U20 | `main` | implementer | A bash's Strength term shown on the Skill audit and the Skill tab as `rollCheckFor` throws it, read from where Phase 4 leaves the factor. | §10 Skill audit 7; Skill tab 4 | Phase 4's door import, U15 |
 | S27 | `main` | the phase session | OQ6's answer carried out. | C9 | OQ6 |
 | S28 | `main` | the phase session, doc-scribe | The substance of this file moved into MODEL, DECISIONS, ROADMAP and TESTING; this file deleted; `acks-branch close dungeon-closeout`. | | all |
 
@@ -633,19 +684,25 @@ its reader (rows 3 and 4), a door within reach and battering as a plan choice
 | `scripts/formation/jumping.mjs` | S1, S4, S19, S26 |
 | `scripts/formation/swimming.mjs` | S1, S11, S12, S26 |
 | `crossing-logic.mjs`, `crossing.mjs` | S6 to S9, S12 to S25 |
-| `formation-tab-dungeon.hbs`, `formation-player-actions.hbs`, `formation-actions.mjs`, `formation-view.mjs` | S7, S8, U2 |
-| `party-actor.mjs` | S7, U2 |
-| `player-requests.mjs` | S8, S13, S15 |
+| `formation-tab-dungeon.hbs`, `formation-player-actions.hbs`, `formation-actions.mjs`, `formation-view.mjs` | S7, S8, U2, U4, U5, U7, U9, U10, U13, U19 |
+| `formation-tab-order.hbs`, `formation-tab-kit.hbs`, `formation-frame.hbs` | U2, U5, U7, U8, U9, U10 |
+| `frame-view.mjs`, `turn-engine.mjs` | U5, U10 |
+| `party-actor.mjs` | S7, U2, U7, U11, U12 |
+| `skill-audit.mjs`, `party-rolls.mjs` | U14, U15, U20 |
+| `door-app.mjs` | U1, U3, U18 |
+| `trap-zone.mjs` | U16, §7's row 2 |
+| `player-requests.mjs` | S8, S13, S15, U10 |
 | `trapbreak-app.mjs` | S3, U1 |
-| `scripts/formation/module.mjs` | S1, S11, S13, and `topic/summons-formation` |
-| `styles/formation.css` | S7, U1, U2 |
+| `scripts/formation/module.mjs` | S1, S11, S13, U12, U17, and `topic/summons-formation` |
+| `styles/formation.css` | S7, U1, U2, U8, U11, U14, U16 |
 | `lang/en.json` | nearly every slice, and `topic/cast-cell` |
 
 ## 10. The UI pass: findings
 
-Offline reading of three windows against `ui-layout.md` and `ui-tooltips.md`,
-by the design pass. Findings, not fixes; the fixes are U0 to U3 and the slices
-named. Nothing `tools/validate.mjs` §8 already fails is listed.
+Offline reading against `ui-layout.md` and `ui-tooltips.md`: three windows by
+the design pass, then, on OQ7's answer, every other surface dungeon mode
+reaches ("The wider pass", below). Findings, not fixes; the fixes are the U
+slices of §9 and the slices named. Nothing `tools/validate.mjs` §8 already fails is listed.
 
 ### The party sheet's Dungeon tab
 
@@ -695,6 +752,260 @@ named. Nothing `tools/validate.mjs` §8 already fails is listed.
 Only a live look settles: every window's floor and horizontal clipping, the
 type size on a fresh window, a first render in a detached window, two copies
 open, the footers on a short display, and focus after a press.
+
+### The wider pass: what "every dungeon window" takes in
+
+OQ7's answer (§1) widened the pass. Two `architect` readings on 2026-11-16,
+offline, against the same two rules, the word and value rules, and the
+2026-11-14 ruling that a player is blocked where a Judge is warned. The test
+for a surface: it renders, or can be opened, while the party's mode is
+`delve`. A finding marked (inferred) has its mechanism read in source and its
+symptom still to be seen live. The planning session re-read Order 1 to 3,
+Kit 6 and the strip's combat figure in source; they hold.
+
+**The party sheet, in.** Each with the symbol that shows it renders in
+`delve`:
+
+| Surface | Shown by |
+|---|---|
+| Band: crest, the Judge's mode pick and name field, the rest bar | `framePartIds`; `bandBar`'s delve branch |
+| Frame art row: saves, plate, figures, tools, reading column, sheet tools | `buildFrameView`, `figureCells`, `framePlate` |
+| Frame: the Key, the warnings | `keyLegend` on `toggleKey`; `buildWarnings` |
+| Tab row and each tab's head | `frameTabs`, `headsOf` |
+| Order tab: the Judge's head actions, ranks, bring-in, train, the mount's station chip | part `order`, ungated but for the two journey blocks below |
+| Kit tab: lights, magic lights, tracked spells, maps | part `kit`, ungated |
+| Sightings tab and Judge tab: the head and the off-journey line | `travel.isJourney` false |
+| The stack badge | `PartySheet` `#markStacks` |
+
+**The party sheet, out.** `formation-tab-city.hbs` and
+`formation-tab-wilderness.hbs` (`MODE_TEMPLATES` settlement and journey);
+`formation-country.hbs` and its card (included only on a journey); the Order
+head's two arrangement actions and a member's conveyance block (journey only);
+the Sightings day log and the Judge tab's five journey sections
+(`travel.isJourney`); the frame's territory, following and astray chips, its
+day, hex and season, the journey bar, the hours to dusk, the blocks per turn
+and the journey tools (journey or settlement branches).
+
+#### Band
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | The rest bar's tooltip `ACKS-FORMATION.frame.bar.restTitle` names the field and not the page its interval was imported from; with nothing imported (`frame.bar.restUnpriced`) it carries no page reference either | `frame-view.mjs` `bandBar`; `formation-band.hbs` bar block | degrades | U5 |
+| 2 | Core restores focus by finding the prior part inside the content box, and the sheet has moved the band into the window header: every re-render, a peer's write included, drops the Judge's focus and any uncommitted name text (inferred). A different mechanism from the Dungeon tab's finding 10 | `party-actor.mjs` `#moveBandIntoHeader`, `_preSyncPartState` | blocks a user | U12 |
+
+#### Frame
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | Each figures-rail cell (hit points, supplies, mouths, pace, light) takes `ACKS-FORMATION.frame.cell`, its own name and reading, as its tooltip: no parts and no page, though `lightCite` and the members' speeds are at hand | `frame-view.mjs` `figureCells`, `railCell` | degrades | U5 |
+| 2 | The Supplies figure counts one mouth per member actor (`campSupplies`, as `consumeRations` does) and the Mouths cell beside it reads `partyHeadcount`, which counts a stack's bodies. With a stack in the party the two disagree and no tooltip can list parts that give both | `formation-view.mjs` `campSupplies`; `figureCells` | degrades | U6 |
+| 3 | The overline's clock and the heads chip (`ACKS-FORMATION.frame.chip.heads`) have no tooltip | `frame-view.mjs` `readingOf`; `formation-frame.hbs` reading block | degrades | U5 |
+| 4 | The tab heads' figures have no tooltip: the turn count and elapsed time in `frame.head.delve`, the heads and frontage in `frame.head.order` | `frame-view.mjs` `headsOf` | degrades | U5 |
+| 5 | VALUE: the elapsed time comes from `formatTurns`, which keeps a literal for a turn's length beside lib's `TURN_SECONDS`: two owners of one figure | `turn-engine.mjs` `formatTurns` | degrades | U5 |
+| 6 | WORDS: `ACKS-FORMATION.warnings.noMapper`, `.noLight`, `.winded`, `.restDue` and `.darkSighted` each state a rule. `mapperNoLight`, `mapperDown`, `mapperNoProficiency`, `carrying` and `inCombat` say what the module does and stay | `lang/en.json`; `buildWarnings` | degrades | U4 |
+| 7 | The frame and the tab row are `flex: none` and the active panel has `min-height: 0`: when the art row, the warnings and an open Key outgrow the window the panel collapses to its padding, and the content box's scroll reaches the frame alone (inferred) | `styles/formation.css`, "The frame: the panels" | blocks a user | U11 |
+| 8 | The art row never wraps: its rails and plate are fixed widths scaled by the type ratio, the window's floor does not scale (by ruling, formation DECISIONS 2026-10-15), and the content box hides horizontal overflow. At a raised type size near the floor the sheet-tools rail is cut off (inferred) | `styles/formation.css`, "The frame: the art row" | degrades | U11 |
+| 9 | Rail cells pass a string assembled at render through `data-tooltip`, where `data-tooltip-text` is asked for | `formation-cell.hbs`, both branches | cosmetic | U5 |
+| 10 | The warnings glyph is not `inert` | `formation-frame.hbs` warnings block | cosmetic | U8 |
+| 11 | The description box scrolls and the frame part declares no `scrollable`, so its position resets on every re-render (inferred) | `party-actor.mjs` `PARTS.frame`; `__prose` | cosmetic | U11 |
+| 12 | The open description editor sits in the frame part, which re-renders on every write to the formations setting and on a member's hit-point or item change: an open edit is rebuilt from the saved source (inferred) | `formation-frame.hbs` reading block; `_onFirstRender` | degrades | U12 |
+| 13 | In dungeon mode the overline clock is not redrawn when world time moves with no formation write: the `updateWorldTime` hook refreshes party sheets only on a journey or in a city (inferred) | `module.mjs` `updateWorldTime` hook | cosmetic | U12 |
+
+#### Order tab
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | Leave behind and go back for them is an `<a>` with no `href` (`toggleLeftBehind`): no keyboard route | `formation-tab-order.hbs` casualty span | blocks a user | U8 |
+| 2 | A member's sheet opens only from a click on an `<img data-action="openSheet">` | `formation-tab-order.hbs` member row | degrades | U8 |
+| 3 | The train row's name is an `<a>` with no `href` (`stationChipOpen`); the mount's chip uses a button for the same action | `formation-tab-order.hbs` train row | degrades | U8 |
+| 4 | A member's figures have no tooltip: speed per turn, encumbrance over its maximum, a carrier's load. `ACKS-FORMATION.app.enc` is an abbreviation with none. The slowest member is marked by border colour alone | `formation-tab-order.hbs` `.details`; `buildFormationView` members | degrades | U7 |
+| 5 | WORDS: `ACKS-FORMATION.app.darkSightHint` states a rule | `lang/en.json` | degrades | U4 |
+| 6 | The dark-sight chip does not say where the member's radius came from (`senseProfile`); with a dark sense whose radius is not imported (`darkSightUnread`) the glyph has no tooltip at all | `formation-tab-order.hbs` `.details` | degrades | U7 |
+| 7 | The state glyphs (down, blinded, detached, deployed, no stashed token, riding, casualty or dead, the train's pace-setter) have a tooltip and no accessible name: the tooltip holds the only copy | `formation-tab-order.hbs` `.name`, casualty span, mount, train row | degrades | U7 |
+| 8 | WORDS: `ACKS-FORMATION.app.downBadge` states a rule, its threshold included | `lang/en.json` | degrades | U4 |
+| 9 | WORDS: `ACKS-FORMATION.role.scoutHint`, `.rearguardHint`, `.carrierHint`, and `.mapperHint` in part, state rules. Their imported figures (`roleFigures`) and page references stay | `lang/en.json`; `constants.mjs` `ROLE_HINTS` | degrades | U4 |
+| 10 | Role-chip tooltips are assembled at render and passed through `data-tooltip` | `formation-tab-order.hbs` roles | cosmetic | U7 |
+| 11 | The train's pace and station counts have no tooltip | `buildTrain`; train row | degrades | U7 |
+| 12 | The stack badge's tooltip (`ACKS-FORMATION.app.stackHint`) says what a press does and not where the body count came from | `PartySheet` `#markStacks` | degrades | U7 |
+| 13 | A player's take-out button is disabled during a fight (`takeOutLocked`) with no reason shown; the bring-in list beside it shows one | `formation-tab-order.hbs` member controls | degrades | U9 |
+| 14 | Detach is disabled with no reason on either seat (`canDetach`), and for the Judge also when the member is down, though `toggleDetachMember` refuses only a fight | `formation-view.mjs` `canDetach`; `SHARED_ACTIONS.toggleDetach` | degrades | U9 |
+| 15 | The detach, remove and casualty glyphs are not `inert` | `formation-tab-order.hbs` | cosmetic | U8 |
+| 16 | `.members` scrolls sideways inside a part that declares only `scrollable: [""]`: a wide frontage loses its horizontal position on every re-render (inferred) | `PARTS.order`; `styles/formation.css`, "Arbitrary frontage" | degrades | U11 |
+| 17 | Member controls are fixed px boxes holding ramp-sized glyphs, and the grid's track floor is in rem (inferred) | `styles/formation.css`, "Marching order controls", "Members" | cosmetic | U11 |
+
+#### Kit tab
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | With the light table not imported a light's burn figure is blank and its tooltip empty (`burnTip` falls to `lightCite()`, which is null): no lang key carries the page reference, only a comment in `buildFormationView`. The light-type options have the same gap | `buildFormationView` lights; `buildGMExtras` `lightTypes` | degrades | U10 |
+| 2 | A tracked spell's turns-left figure has no tooltip, and the record keeps only the count (`addSpell`, `adjustSpell`), so nothing can say whether it came from the spell's duration, a hand entry or the Judge's adjustment | `formation-tab-kit.hbs` spells; `turn-engine.mjs` | degrades | U10 |
+| 3 | The Judge's add-spell inputs (`data-pick="spellName"`, `"spellTurns"`) are named only by their placeholders | `formation-tab-kit.hbs` add-spell row | blocks a user | U10 |
+| 4 | WORDS: `ACKS-FORMATION.app.shieldHint` and `ACKS-FORMATION.app.toggleLightHint` state rules; the second also carries a printed duration | `lang/en.json` | degrades | U4 |
+| 5 | Whether a light is lit shows only in its glyph's weight and colour, and the toggle's accessible name is the same in both states | `formation-tab-kit.hbs` lights | degrades | U8 |
+| 6 | A map's name opens its sheet from a clickable `<span data-action="openMapItem">`: no keyboard route, and it is shown to every seat, since `buildMapsView` computes `canOpen` and the template never reads it | `formation-tab-kit.hbs` map row | degrades | U8 |
+| 7 | Anchor's refusal reason lives only in the disabled button's tooltip (`anchorReason`), and a player who does not own the holder gets no reason at all | `formation-tab-kit.hbs` map row; `buildMapsView` | degrades | U9 |
+| 8 | Glyphs in the light, spell and map rows and the add buttons are not `inert` | `formation-tab-kit.hbs` | cosmetic | U8 |
+
+The tab row, and the Sightings and Judge tabs as dungeon mode renders them,
+have no finding.
+
+#### The view behind the strip
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | VALUE: the strip's combat figure is the party's speed divided by a literal, written twice (`buildStripView`, and `buildFormationView`'s `combatSpeed`, which nothing reads). Core derives each actor's encounter movement itself (`computeAdditionnalData`); that reader is looked at first | `formation-view.mjs` | degrades | U13 |
+
+Only a live look settles, party sheet: the panel's collapse with the Key open
+and several warnings, on a short window or at a raised type size; the right
+rail's clipping near the floor; the band's focus and name text after a mode
+change and after a peer's write; an open description edit across a peer's
+write; the members grid's sideways position after a press; whether a tooltip
+shows at all on the disabled Anchor button; the overline clock after world
+time moves; a player without ownership pressing a map name, the train name or
+a portrait; two party sheets open; a first render in a detached window (the
+band's move, and the stack badge built with the main window's `document`).
+
+**Windows, dialogs and injected sections, in.** A surface is out only where a
+mode gate can be named on its opener; one with no gate is in, whatever mode
+its subject belongs to.
+
+| Surface | Opener | Shown by |
+|---|---|---|
+| `SkillAuditApp`, `skill-audit.hbs`, its reset confirm | the Order tab's `openSkillAudit` (Judge) | `SHARED_ACTIONS.openSkillAudit`; the Order head is gated on the seat alone |
+| The Skill tab and checkbox injected into ability item sheets | any ability item's sheet | `registerSkillFlagEditor` |
+| `TrapSheet`, `trap-item.hbs` | any trap item | the sheet's registration in `module.mjs` |
+| `askDischarge` | a Trapbreaking success | `attemptDisarm`, from `TrapbreakApp`, the `trapbreak` request and the turn plan |
+| The trap scene tools, the canvas drop, the wall sheet's trap row | the Walls layer, the canvas, a wall's sheet | `installTrapControls`, `installTrapDrop` |
+| The door tool's button | the Walls layer | `installDoorControl` |
+| The district tools and the District sheet's Place row | the Regions and Walls layers | `installDistrictControls`, `installDistrictPlaceRow` |
+| The Trap Zone, Encounter Zone and District behaviour configs | a region's behaviour | `registerTrapZone`, `registerEncounterZone`, `registerDistrictZone` |
+| `partyChecks`, `dealExperience` | the quick-tools rail (Judge) | `frame-view.mjs` `toolCells` |
+| `tweaks` | the sheet tools (Judge) | `frame-view.mjs` `sheetCells` |
+| The `newMap` confirm | the Kit tab | `formation-tab-kit.hbs` `newMap` |
+| `disband`, `promptForOrderName`, `pickMarchingOrder` | the Order tab; the picker also from the party token's HUD | `formation-tab-order.hbs` head; `formUpFromHud` |
+| The token HUD button | a token's HUD | the `renderTokenHUD` hook in `module.mjs` |
+| The monster-level row on a roll table's sheet | the encounter table's sheet | `installMonsterLevelRow` |
+| The core party overview's suppressed experience button | core's party overview | `installCoreXpSuppression` |
+| `poi.mjs` `askName`, `lost-fog.mjs` `showDiscovery` | a card left in the log from another mode | `promoteFromCard` and `discoverEpisode` read no mode |
+
+**Out.** `offerDayEnd` (returns unless on a journey); `lost-dialog.mjs`'s
+begin, re-anchor, end and shift dialogs (their openers sit in the Judge tab's
+journey block); `confirmBarOverride`, `openStockDialog`, `askStockInputs`,
+`hexAddPoint`, `hexClear`, `openCountryBrush` (controls only the Wilderness
+tab renders); `pickAndTravel` (the City tab). Another subsystem's window,
+opened unchanged: lib's hit-point tool (`SHARED_ACTIONS.adjustHp`), core's
+file picker and ownership config, and the member, station, place and map-item
+sheets. `ability-rolls.mjs` opens nothing for formation. Chat cards
+(`encounter-card.hbs`, `lib/roll-card.mjs` cards and the three card-action
+hooks) and canvas overlays (`trap-markers.mjs`, `column-view.mjs`) are not
+windows.
+
+#### Skill audit window
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | A fixed id: a second audit, another party's or a second press, replaces the first window's element and the first instance's actions go dead | `skill-audit.mjs` `DEFAULT_OPTIONS.id` | degrades | U14 |
+| 2 | No re-render when a member joins or leaves or an ability item is added, edited or deleted; `PartySheet.refreshAll` reaches party sheets only | `SkillAuditApp` | degrades | U14 |
+| 3 | The window's content box is the scroller while the body part declares `scrollable: [""]` on a root that never scrolls: nothing is retained, on a window that re-renders on every ruling, select change and reset (inferred) | `PARTS.body`; `styles/formation.css` | degrades | U14 |
+| 4 | No `PressFocus`: after a ruling, a roll or a select change focus falls to the body (inferred) | `SkillAuditApp` | blocks a user | U14 |
+| 5 | The items table's Used-for selects have no accessible name | `skill-audit.hbs` `select[data-field="checkKey"]` | blocks a user | U15 |
+| 6 | Each resolution's parts lose their `cite`, where `rollCheckFor`'s `sourceTip` keeps them | `_prepareContext` `resolutions` | degrades | U15 |
+| 7 | A bash's resolution omits the Strength term `rollCheckFor` adds from `cfg.strScaled`: the figure shown is not the one the card throws | `_prepareContext` `resolutions`; `party-rolls.mjs` `rollCheckFor` | degrades | U20 |
+| 8 | The Sheet target column reads core's single `system.rollTarget` with a zero fallback: an item with no target shows a zero, and a scaled or multi-throw item can disagree with the resolution table. No tooltip | `_prepareContext` `items[].target` | degrades | U15 |
+| 9 | The progression table labels its rows with the internal ladder key and shows imported values with no `citeOf` tooltip | `_prepareContext` `progressionTable` | degrades | U15 |
+| 10 | The level is printed after a literal English abbreviation in the template, and the same literal is in `resolveCheck`'s source string | `skill-audit.hbs` `.lvl`; `party-rolls.mjs` `resolveCheck` | cosmetic | U15 |
+| 11 | Table selects and inputs carry a px height while their type rides the ramp (inferred) | `styles/formation.css` `.audit-table` | degrades | U14 |
+| 12 | One column per party check beside a `nowrap` member cell, in a frame that hides horizontal overflow: the right-hand columns clip (inferred) | `styles/formation.css` `.audit-table .member-cell` | degrades | U14 |
+| 13 | Width and height in px (inferred) | `DEFAULT_OPTIONS.position` | degrades | U14 |
+| 14 | `window.resizable` is declared although the lib hook grants the corner by class | `DEFAULT_OPTIONS.window` | cosmetic | U14 |
+| 15 | The reset button's glyph is not `inert` | roster heading | cosmetic | U14 |
+
+#### The Skill tab on ability item sheets
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | Two `title=` attributes carry the Throw bonus hint | `buildSkillTabHTML` | degrades | U15 |
+| 2 | The Used-for options show internal check ids where the audit window's same select shows names | `buildSkillTabHTML` `checkOpts` | degrades | U15 |
+| 3 | The resolved target's parts lose their `cite` | `buildSkillTabHTML` | degrades | U15 |
+| 4 | A bash's resolved target omits the Strength term | `buildSkillTabHTML` | degrades | U20 |
+| 5 | The select and number input carry px sizes while their type rides the ramp (inferred) | `styles/formation.css` `.acks-formation-flags` | degrades | U14 |
+
+#### Trap sheet
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | The level strip marks the current and the filled levels by border, weight and opacity alone: no text, tooltip or state for assistive technology | `trap-item.hbs` `.acks-extras-trap-strip` | degrades | U16 |
+| 2 | The pit's derived damage has no tooltip naming its parts: the depth, the imported fall dice with their page, the spikes | `trap-item.hbs` `derivedDamage` | degrades | U16 |
+| 3 | `pitDamage`'s `unknown` is dropped: a spiked pit with no imported spike figures shows the fall's dice as if complete, and with no fall import the line vanishes with no page reference | `TrapSheet._prepareContext` | degrades | U16 |
+| 4 | The imported trigger band shows only as a placeholder: no visible copy of the figure in force and no tooltip saying where it was read | `trap-item.hbs` `system.triggerOn` | degrades | U16 |
+| 5 | The frame scrolls on a sheet that submits on change and declares no `scrollable` part (inferred) | `TrapSheet` `DEFAULT_OPTIONS`, `PARTS.form` | degrades | U16 |
+| 6 | The level field's `max` is a template literal and not `TRAP_LEVELS` | `trap-item.hbs` `system.level` | cosmetic | U16 |
+| 7 | An inline `style` gives the description editor a `rem` height | `trap-item.hbs` `prose-mirror` | cosmetic | U16 |
+| 8 | Width in px (inferred) | `DEFAULT_OPTIONS.position` | degrades | U16 |
+| 9 | WORDS: `ACKS-FORMATION.traps.hint.attackThrow` states a rule | `lang/en.json` | degrades | U4 |
+
+#### Region behaviour configs
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | The trap zone's State select lists raw state ids; the `ACKS-FORMATION.traps.state.*` labels exist and are unused | `TrapZoneBehavior.defineSchema` `state` | degrades | U16 |
+| 2 | `known` has no label or hint key under `ACKS-FORMATION.TRAP_ZONE.FIELDS`, so core labels the checkbox with its field path | `TrapZoneBehavior.defineSchema` | degrades | U16 |
+| 3 | `encounterEvery` and `encounterTarget` carry schema `max` literals the world settings of the same names do not: a figure the setting accepts is refused on a zone. The District behaviour repeats it | `EncounterZoneBehavior.defineSchema`; `DistrictBehavior.defineSchema` | degrades | §7 row 10 |
+| 4 | VALUE (inferred): the target's `max` stands for the encounter die's faces, which `importedEncounterCadence` reads from the Judge's book | same | degrades | §7 row 10 |
+| 5 | The Place row's create button is a glyph with a tooltip and no `aria-label`; its glyph is not `inert` | `district-tools.mjs` `installDistrictPlaceRow` | blocks a user | U18 |
+
+#### The discharge question
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | A player's Trapbreaking runs `attemptDisarm` on the Judge's client, so the question opens on the Judge's screen and the thrower is never asked; the turn plan's resolution waits on the answer | `trap-zone.mjs` `askDischarge`, `attemptDisarm` | degrades | §7 row 2 |
+| 2 | The actor's name is interpolated into the dialog's HTML unescaped | `askDischarge` content | cosmetic | §7 row 2 |
+| 3 | WORDS: `ACKS-FORMATION.traps.chooseHint` states a rule | `lang/en.json` | degrades | U4 |
+
+#### The Walls layer and the canvas drop
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | The wall sheet's trap row names the state alone: it neither names nor opens the trap item nor takes it off, and an item reaches a wall only by a drag | `trap-walls.mjs` `installTrapDrop`, the injected row | degrades | U18 |
+| 2 | The canvas drop has no seat test, where the row's injection has one: a player's drop attempts the wall write with no relay (inferred) | `installTrapDrop` | degrades | U18 |
+| 3 | The trap-area tool and the district-from-walls tool share one glyph on the Walls layer | `installTrapControls`; `installDistrictControls` | cosmetic | U18 |
+| 4 | The door tool declares no `order` | `door-app.mjs` `installDoorControl` | cosmetic | U18 |
+| 5 | The row's `<label>` fronts a `<span>` and names nothing | the injected row | cosmetic | U18 |
+
+#### The token HUD button
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | Named by a glyph and a tooltip, with no `aria-label`; the glyph is not `inert` | the `renderTokenHUD` hook in `module.mjs` | blocks a user | U17 |
+| 2 | On the party token with several saved orders, the picker's Delete forms the party up in that order: `formUpFromHud` reads the answer's `template` and never its `action`. Re-read in source by the planning session | `module.mjs` `formUpFromHud`; `pickMarchingOrder` | blocks a user | U17 |
+| 3 | Add to party refuses the Judge as it refuses a player (`partyHolding`). Whether one actor in two parties is a refusal the 2026-11-14 ruling reaches, or a limit of the model it does not, is ruled first | `module.mjs` `addTokensToParty` | degrades | U17 |
+
+#### Small dialogs
+
+| # | What | Where | Severity | Fix |
+|---|---|---|---|---|
+| 1 | `dealExperience`: the gain figure has no tooltip naming its parts | `xp-app.mjs` `preview` | degrades | U19 |
+| 2 | `dealExperience`: an unread adjustment renders an empty span that carries the cell's only page reference, with no width to hover (inferred) | `xp-app.mjs` `bonusCell` | degrades | U19 |
+| 3 | `dealExperience`: participants and adjustments are read at open and awarded at confirm with no re-read (inferred) | `dealExperience` | degrades | U19 |
+| 4 | `dealExperience`: a negative total passes the input; the division clamps it and the card still announces it | the ok callback | cosmetic | U19 |
+| 5 | `dealExperience`: width in px for a four-column table (inferred) | `position` | cosmetic | U19 |
+| 6 | WORDS: `ACKS-FORMATION.xp.reason.mercenary` states a rule | `lang/en.json` | degrades | U4 |
+| 7 | `disband`: the party's name is interpolated into the confirm unescaped | `SHARED_ACTIONS.disband` | cosmetic | U19 |
+| 8 | The overview injection sets a `title` on the button it hides | `installCoreXpSuppression` | cosmetic | U19 |
+
+No finding on `partyChecks`, `tweaks`, `newMap`, `promptForOrderName`,
+`askName`, `showDiscovery` or the monster-level row. Every dialog caller's
+test of the answer matches what core resolves, the HUD's finding 2 aside.
+
+Only a live look settles, the rest: whether the audit keeps its scroll and its
+focus across a ruling, its clipped columns at a raised type size and two
+audits open for two parties; the trap sheet's floor, width and scroll after a
+field change, and its level strip under a screen reader; the trap zone's
+`known` label as rendered; whether the experience dialog's unread adjustment
+can be hovered; the HUD button and the district create button under a screen
+reader, and the door tool's place in its row; which seat sees the discharge
+question on a player's success; what a player's trap drop shows; a first
+render in a detached window for the audit and the trap sheet.
 
 ## 11. The walk, first surface
 
