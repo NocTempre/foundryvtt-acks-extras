@@ -4581,7 +4581,7 @@ Teardown: both lights lit and open, the sheet closed; the fixtures stay.
 ## Summons in the party (added with summons as members)
 
 Built for a summoning cast's creatures marching in their summoner's party
-(MODEL, "Summons as members"; character-sheet MODEL, "Summons go through
+(MODEL, "A summon is a member under an id of its own"; character-sheet MODEL, "Summons go through
 spells"). A mock cannot prove that a real stash and restore keeps a creature's
 `summonedBy` and cast record in its delta, that the Player seat's placement has
 finished before the GM stashes, or that the party cell, the cast menu and the
