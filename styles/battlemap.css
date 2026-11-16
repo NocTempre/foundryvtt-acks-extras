@@ -23,7 +23,7 @@
 }
 
 .acks-extras-battlemap .acks-extras-battlemap-body {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   padding: 8px;
@@ -326,14 +326,25 @@
   line-height: 1.35;
 }
 
+/* The footer never takes more than about half the frame, so a short window at
+   a raised type size still shows the body above it, and never less than the
+   height its button and its one-line notes need; inside, only the rows list
+   gives way. The body's zero basis lets the footer take its height first. */
 .acks-extras-battlemap-foot {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: max(45%, 9em);
+  overflow: hidden;
   border-top: var(--acks-border-soft);
   background: var(--acks-paper-warm);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.acks-extras-battlemap-foot > * {
+  flex: 0 0 auto;
 }
 
 .acks-extras-battlemap-foot button {
@@ -356,7 +367,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  min-height: 0;
+  flex: 0 1 auto;
+  min-height: 1.3em;
   max-height: 11em;
   overflow-y: auto;
   display: flex;

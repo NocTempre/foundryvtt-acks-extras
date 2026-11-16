@@ -12,7 +12,7 @@ import { footprintFeet, tokenSpan } from "./footprint.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import { FLAG_EXTRAS } from "../monsters/constants.mjs";
 import { sizeSquareFeet } from "../monsters/sizes.mjs";
-import { FLAG_FORMATION_ID } from "../formation/constants.mjs";
+import { FLAG_FORMATION_ID, PARTY_TYPE } from "../formation/constants.mjs";
 import { unset } from "../lib/util.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
 
@@ -47,6 +47,9 @@ export function autoScaleEnabled(scene) {
 export function footprintOf(tokenDoc, scene = tokenDoc?.parent) {
   const unjudged = { judged: false, feet: null, feetPerCell: 0, source: null, sizeKey: null };
   if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return unjudged;
+  // A party actor's token carries no formation flag where it is the
+  // formation's shadow on a hex scene, so the actor's type decides too.
+  if (tokenDoc.actor?.type === PARTY_TYPE) return unjudged;
   if (isMarkerActor(tokenDoc.actor)) return unjudged;
   const feetPerCell = sceneFeetPerCell(scene);
   if (!(feetPerCell > 0)) return unjudged;

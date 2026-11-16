@@ -1,0 +1,1 @@
+- **Scene controls → Battlemap → Map setup panel → Token sizes → Rescale tokens on scene:** a party's shadow token (the true-position token a lost party leaves on a hex scene) is no longer resized as though it were a creature, and it carries no not-to-scale mark.

@@ -527,6 +527,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   // Not judged: no body, the Judge's own size, no scale to compare against.
   const unjudged = { judged: false, feet: null, feetPerCell: 0, source: null, sizeKey: null };
   assert.deepEqual(footprintOf(tokenFor({ party: true }), grid), unjudged, "the party token");
+  assert.deepEqual(footprintOf(tokenFor({ type: "acks-extras.party" }), grid), unjudged, "a party actor's token with no formation flag (its shadow)");
   assert.deepEqual(footprintOf(tokenFor({ type: "acks-extras.domain" }), grid), unjudged, "a marker's token");
   assert.deepEqual(footprintOf(tokenFor(), { grid: { distance: 0, units: "ft" } }), unjudged, "a scene with no usable distance");
   assert.deepEqual(footprintOf(tokenFor(), {}), unjudged, "a scene with no grid");
