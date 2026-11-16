@@ -122,6 +122,8 @@ kept. Two dismissals add *Dismiss all summons*. A creature bound by hand has
 no record: it is only ever *Release*d, never removed by the menu. Each summon
 on the scene is reached by exactly one of the three.
 
+**A summon is an entry, in either state.** `summonsOnScene` lists the character's summons as `{tokenId, held, name, img, record}`: each scene token whose actor names the character, with `held` null, then each summon riding in a party token that stands on that scene (lib's `heldSummonsOf`), with `tokenId` null and `held` naming its party and member for the relay. A deployed party member is a scene token and is listed once. The party cell counts and lists the held ones (their rows have no token to pick), `standingBySpell` groups the entries by spell, and the cast menu's and the Magic tab's *Dismiss* rows carry `entries` and hand them, with the scene, to `promptDismiss`, so a held summon is dismissed from the sheet as a standing one is. A *Release* row is only ever tokens. The party cell's member count (`membersOnScene`) counts a member that has a token of its own actor on the scene or whose deployed token (`deployedSceneId`) stands there, since a summon member's actor id is minted.
+
 **Summon…**, on a GM seat only (`bareSummonAllowed`), opens a prompt over the
 monster library: the creature, how many, and optionally the spell to record
 it against.

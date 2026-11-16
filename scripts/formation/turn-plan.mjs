@@ -35,7 +35,7 @@ import {
   unlockActivity,
 } from "../lib/turn-activities.mjs";
 import { cancelForMove, lockForMember, memberBlock, queueGroup, runPlanTurn } from "./turn-plan-logic.mjs";
-import { getFormation, getMemberActor, getPartyActor, isDown, isHurried, realMembers } from "./formation-model.mjs";
+import { getFormation, getMemberActor, getPartyActor, isDown, isHurried, memberActorById, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck, rollPartyCheck } from "./party-rolls.mjs";
 import { advanceTurns, hasEndurance, postNotesCard } from "./turn-engine.mjs";
 import { attemptDisarm, disarmRefusal, knownPlacementsNear } from "./trap-zone.mjs";
@@ -256,12 +256,12 @@ export async function resolvePlanTurn(formation, { resting = false } = {}) {
   const outcome = await runPlanTurn({
     plan: readPlan(formation),
     memberIds: takingPart(formation),
-    endures: (id) => hasEndurance(game.actors.get(id)),
+    endures: (id) => hasEndurance(memberActorById(formation, id)),
     forcedRest: resting,
     spendTurn: ({ resting: rests }) => advanceTurns(formation, 1, rests ? { resting: true } : { reason: "plan" }),
     turnOf: () => (getFormation(fid) ?? formation).clock.turnsTotal,
     writePlan: (plan) => writePlan(getFormation(fid) ?? formation, plan),
-    actorOf: (id) => (memberOf(getFormation(fid) ?? formation, id) ? game.actors.get(id) ?? null : null),
+    actorOf: (id) => (memberOf(getFormation(fid) ?? formation, id) ? memberActorById(getFormation(fid) ?? formation, id) : null),
     ctx: { formation },
     flush: async (groups) => {
       const rolled = {};
@@ -276,7 +276,7 @@ export async function resolvePlanTurn(formation, { resting = false } = {}) {
     await postNotesCard(formation, unresolved.map((r) => ({
       type: "warn",
       text: loc(`plan.${r.status}`, {
-        name: game.actors.get(r.actorId)?.name ?? "?",
+        name: memberActorById(formation, r.actorId)?.name ?? "?",
         activity: activityLabel(r.key),
       }),
     })));
@@ -300,7 +300,7 @@ export async function cancelPlanForCombat(formation) {
   if (!cancelled.length && !kept.length) return { cancelled, kept };
   await writePlan(formation, plan);
   const row = ({ actorId, entry }, outcome) => ({
-    name: game.actors.get(actorId)?.name ?? "?",
+    name: memberActorById(formation, actorId)?.name ?? "?",
     detail: activityLabel(entry.key),
     total: entry.remaining,
     outcome,
@@ -328,7 +328,7 @@ export async function cancelPlanForMove(formation) {
   const { plan, cancelled } = cancelForMove(readPlan(formation));
   if (!cancelled.length) return { cancelled };
   await writePlan(formation, plan);
-  const names = cancelled.map(({ actorId }) => game.actors.get(actorId)?.name ?? "?").join(", ");
+  const names = cancelled.map(({ actorId }) => memberActorById(formation, actorId)?.name ?? "?").join(", ");
   await ChatMessage.create({
     content: `<div class="acks-formation-card"><em>${foundry.utils.escapeHTML(loc("plan.moved", { names }))}</em></div>`,
     speaker: { alias: formation.name },
@@ -429,10 +429,10 @@ export function planView(formation) {
   const chose = rows.filter((r) => plan[r.actorId]?.key === REST_KEY).length;
   let rest = null;
   if (chose) {
-    const decision = partyRest(plan, takingPart(formation), { endures: (id) => hasEndurance(game.actors.get(id)) });
+    const decision = partyRest(plan, takingPart(formation), { endures: (id) => hasEndurance(memberActorById(formation, id)) });
     rest = {
       rests: decision.rests,
-      missing: decision.missing.map((id) => game.actors.get(id)?.name ?? "?").join(", "),
+      missing: decision.missing.map((id) => memberActorById(formation, id)?.name ?? "?").join(", "),
     };
   }
   return { rows, rest };

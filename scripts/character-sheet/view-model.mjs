@@ -139,7 +139,8 @@ export function partyMenuModel({ party = {}, owner = false, roster = false } = {
   for (const h of henchmen.filter((x) => x.onScene)) {
     items.push({ kind: "token", tokenId: h.tokenIds?.[0], img: h.img, label: h.name, valueKey: h.calamity ? "party.calamity" : "party.henchman", on: !!h.calamity });
   }
-  for (const s of summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, valueKey: "party.summon" });
+  // A summon riding in the party token has no token on the scene to pick.
+  for (const s of summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, valueKey: "party.summon", ...(s.tokenId ? {} : { disabled: true }) });
   const away = henchmen.filter((x) => !x.onScene).length;
   if (away) items.push({ kind: "info", icon: "fa-solid fa-person-walking-arrow-right", key: "party.away", data: { n: away }, disabled: true });
   if (owner && roster) items.push({ kind: "roster", icon: "fa-solid fa-people-group", key: "followers.roster" });
@@ -149,10 +150,11 @@ export function partyMenuModel({ party = {}, owner = false, roster = false } = {
 
 /**
  * How many of a character's summons stand for each of its spells, by the spell
- * id their record names, with the tokens' ids: what the Magic tab shows on a
- * summoning spell's row and what its Dismiss removes.
- * @param {{tokenId: string, record: object|null}[]} summons  `partyOf`'s summons
- * @returns {Map<string, string[]>}  spell id → token ids
+ * id their record names, with the entries themselves: what the Magic tab shows
+ * on a summoning spell's row and what its Dismiss removes, a held summon
+ * included.
+ * @param {{tokenId: string|null, held: object|null, record: object|null}[]} summons  `partyOf`'s summons
+ * @returns {Map<string, object[]>}  spell id → `summonsOnScene` entries
  */
 export function standingBySpell(summons) {
   const out = new Map();
@@ -160,7 +162,7 @@ export function standingBySpell(summons) {
     const id = s?.record?.spellId;
     if (!id) continue;
     if (!out.has(id)) out.set(id, []);
-    out.get(id).push(s.tokenId);
+    out.get(id).push(s);
   }
   return out;
 }
@@ -213,24 +215,23 @@ export function castMenuModel({ spells = [], party = {}, owner = false, bare = f
       items.push({ kind: "use", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", label: spell.name, valueKey: "cast.level", valueData: { n: Number(spell.level) || 0 }, tipKey: "cast.levelTip" });
       continue;
     }
-    const tokenIds = casts.filter((c) => c.spellId === spell.id).flatMap((c) => c.tokens.map((t) => t.tokenId));
-    if (!tokenIds.length) {
+    const entries = casts.filter((c) => c.spellId === spell.id).flatMap((c) => c.tokens);
+    if (!entries.length) {
       items.push({ kind: "cast", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", key: "party.cast", data: { name: spell.name }, tipKey: "party.castTip" });
       continue;
     }
-    const row = { kind: "dismiss", spellId: spell.id, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: spell.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+    const row = { kind: "dismiss", spellId: spell.id, entries, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: spell.name, n: entries.length }, tipKey: "party.dismissTip", tipData: { n: entries.length } };
     items.push(row);
     dismissals.push(row);
   }
   for (const c of groupByCast(loose).casts) {
-    const tokenIds = c.entries.map((e) => e.tokenId);
-    const row = { kind: "dismiss", castId: c.castId, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: c.spellName || c.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+    const row = { kind: "dismiss", castId: c.castId, entries: c.entries, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: c.spellName || c.name, n: c.entries.length }, tipKey: "party.dismissTip", tipData: { n: c.entries.length } };
     items.push(row);
     dismissals.push(row);
   }
   if (dismissals.length > 1) {
-    const n = dismissals.reduce((sum, d) => sum + d.tokenIds.length, 0);
-    items.push({ kind: "dismissAll", tokenIds: dismissals.flatMap((d) => d.tokenIds), icon: "fa-solid fa-ghost", key: "party.dismissAll", tipKey: "party.dismissTip", tipData: { n } });
+    const n = dismissals.reduce((sum, d) => sum + d.entries.length, 0);
+    items.push({ kind: "dismissAll", entries: dismissals.flatMap((d) => d.entries), icon: "fa-solid fa-ghost", key: "party.dismissAll", tipKey: "party.dismissTip", tipData: { n } });
   }
   if (bare) items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", key: "party.summonNew" });
   if (bound.length) {

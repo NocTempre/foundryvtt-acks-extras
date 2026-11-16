@@ -1,6 +1,6 @@
 /* global game, foundry, ChatMessage, ui, fromUuid, fromUuidSync */
 import { makeLoc } from "../lib/util.mjs";
-import { addMember, getFormation, getFrontage, getPartyScene, removeMember, swapCells, toggleRole } from "./formation-model.mjs";
+import { addMember, getFormation, getFrontage, getMemberActor, getPartyScene, removeMember, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
@@ -35,7 +35,7 @@ const loc = makeLoc("ACKS-FORMATION");
 function userOwnsMember(formation, user, actorId = null) {
   const members = actorId ? formation.members.filter((m) => m.actorId === actorId) : formation.members;
   return members.some((m) => {
-    const actor = game.actors.get(m.actorId);
+    const actor = getMemberActor(m);
     return actor?.testUserPermission(user, "OWNER") ?? false;
   });
 }

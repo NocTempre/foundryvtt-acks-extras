@@ -19,7 +19,7 @@ import { makeLoc, gmIds, elementOf, escape as esc, unset } from "../lib/util.mjs
 import { calendarDayOf, clockReading } from "../lib/world-time.mjs";
 import { hexLabelFromOffset, isHexScene, paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
-import { getFormation, getPartyScene, hasAbility, realMembers } from "./formation-model.mjs";
+import { getFormation, getMemberActor, getPartyScene, hasAbility, realMembers } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { TERRITORY_KEYS, travelOf } from "./travel.mjs";
 import { lostOf } from "./lost.mjs";
@@ -317,7 +317,7 @@ export async function placeFromPoint(formation, pointId) {
 /** The first member of the order whose actor holds Land Surveying, or null. */
 function surveyorOf(formation) {
   for (const member of realMembers(formation)) {
-    const actor = game.actors?.get(member.actorId);
+    const actor = getMemberActor(member);
     if (actor && (hasCapability(actor, "kw:landsurveying") || hasAbility(actor, /land\s*surveying/i))) return actor;
   }
   return null;

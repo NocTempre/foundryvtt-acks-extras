@@ -1,6 +1,6 @@
 /* global game, foundry, fromUuid, CONFIG, Roll, ui */
 import { MODULE_ID, TRAP_ITEM_TYPE, TRAP_ZONE_TYPE } from "./constants.mjs";
-import { getPartyToken, isDown, isHurried, laidOrder, updateFormation } from "./formation-model.mjs";
+import { getPartyToken, isDown, isHurried, laidOrder, memberActorById, updateFormation } from "./formation-model.mjs";
 import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap-walls.mjs";
 import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
@@ -381,7 +381,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   const figures = { ...trapFigures(), rankFeet };
   const reachOf = (row) => searcherReachFeet(row, figures);
   const searchers = autoSearchers(order, figures).filter((row) => {
-    const actor = game.actors.get(row.actorId);
+    const actor = memberActorById(formation, row.actorId);
     return actor && !isDown(actor, memberOf(formation, row.actorId));
   });
   if (!searchers.length) return empty;
@@ -415,7 +415,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
       // A null reach is the not-imported case: the crossed placement alone.
       const own = reachOf(row);
       if (own === null ? placement.uuid !== include?.uuid : placement.distanceFeet > own) continue;
-      const actor = game.actors.get(row.actorId);
+      const actor = memberActorById(formation, row.actorId);
       const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
       if (!check) continue; // no Searching skill: no automatic search to make
       const level = Number(actor?.system?.details?.level) || 1;
@@ -537,7 +537,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
 
   for (let i = 0; i < probes.length; i++) {
     const probe = probes[i];
-    const actor = game.actors.get(probe.actorId);
+    const actor = memberActorById(formation, probe.actorId);
     if (actor && isDown(actor, memberOf(formation, probe.actorId))) continue;
     const die = await new Roll(`1d${figures.triggerFaces}`).evaluate();
     rolls.push(die);
@@ -650,7 +650,7 @@ async function fireTrap(formation, placement, trap, caught, { preface = [], roll
 
   const rows = [];
   for (const victim of caught) {
-    const actor = game.actors.get(victim.actorId);
+    const actor = memberActorById(formation, victim.actorId);
     if (!actor) continue;
     const name = actor.name;
     // Did this victim beat the trap's throw? `null` when it offered none, and

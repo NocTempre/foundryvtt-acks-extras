@@ -894,7 +894,7 @@ export async function rollPartySave(formation, save, { magical = true } = {}) {
   const rows = [];
   const rolls = [];
   for (const member of formation.members) {
-    const actor = game.actors.get(member.actorId);
+    const actor = getMemberActor(member);
     const target = actor?.system?.saves?.[save]?.value;
     if (typeof target !== "number") continue;
     if (isDown(actor, member)) continue; // the down do not roll

@@ -19,6 +19,7 @@ import { FLAG_FORMATION_ID, PARTY_TYPE } from "./constants.mjs";
 import {
   adoptPartyActor,
   adoptPartyToken,
+  getMemberActor,
   getPartyActor,
   getPartyToken,
   isLinkedPartyToken,
@@ -35,7 +36,7 @@ import { STOCK_FLAG } from "./hex-stock-run.mjs";
 const loc = (key, data = {}) => game.i18n.format(`ACKS-FORMATION.repair.check.${key}`, data);
 
 /** A cell whose actor the world no longer holds. Blank squares are never dead. */
-const deadMember = (m) => !!m && !m.blank && !!m.actorId && !game.actors.get(m.actorId);
+const deadMember = (m) => !!m && !m.blank && !!m.actorId && !getMemberActor(m);
 
 /**
  * A shadow as a finding. `reason` names the lang key of the other way to settle

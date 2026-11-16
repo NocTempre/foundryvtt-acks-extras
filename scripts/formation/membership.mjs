@@ -11,7 +11,7 @@
  * Judge's own drop, HUD button and remove control pass through none of this.
  */
 import { MODULE_ID, FLAG_FORMATION_ID, PARTY_TYPE } from "./constants.mjs";
-import { getFormations, isPerson } from "./formation-model.mjs";
+import { getFormations, getMemberActor, isPerson } from "./formation-model.mjs";
 import { isGroupActor } from "../lib/group-logic.mjs";
 import { isMarkerActor } from "../lib/place.mjs";
 
@@ -72,7 +72,7 @@ export function refusalText({ key, party }, actor) {
  */
 export function partyOnScene(scene, user) {
   const here = Object.values(getFormations()).filter((f) => f.sceneId === scene?.id && f.tokenId && scene.tokens.get(f.tokenId));
-  const theirs = here.find((f) => f.members.some((m) => game.actors.get(m?.actorId)?.testUserPermission(user, "OWNER")));
+  const theirs = here.find((f) => f.members.some((m) => getMemberActor(m ?? {})?.testUserPermission(user, "OWNER")));
   return theirs ?? here[0] ?? null;
 }
 

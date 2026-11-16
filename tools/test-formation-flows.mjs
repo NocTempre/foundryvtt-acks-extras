@@ -5965,6 +5965,165 @@ await scenario("a party save rolls each member's own formula against the stored 
   }
 });
 
+/* -------------------------------------------- */
+/*  Summons as members                          */
+/* -------------------------------------------- */
+
+const servicesApi = await import("../scripts/lib/services.mjs");
+/** A summoner in a party, a world copy of its creature and a way to stand a summoned token of that copy on the scene. */
+async function summonRig(label) {
+  const caster = await member(`${label} Caster`);
+  const copy = await ActorMock.create({ name: `${label} Wolf`, type: "monster", system: { hp: { value: 5, max: 5 } }, flags: { [MODULE_ID]: { summonCopy: { sourceUuid: "Compendium.test.Actor.wolf" } } } });
+  const flagsFor = (by, castId) => ({ [MODULE_ID]: { summonedBy: by.uuid, summon: { sourceUuid: "Compendium.test.Actor.wolf", name: "Wolf", castId, at: 1 } } });
+  const wolf = async (by, castId, x, hp = 5) => {
+    const [token] = await scene.createEmbeddedDocuments("Token", [{ name: "Wolf", actorId: copy.id, actorLink: false, x, y: 1300, delta: { flags: flagsFor(by, castId), system: { hp: { value: hp, max: 5 } } } }]);
+    return token;
+  };
+  const [casterToken] = await scene.createEmbeddedDocuments("Token", [{ name: caster.name, actorId: caster.id, x: 1100, y: 1100 }]);
+  await game.settings.set(MODULE_ID, "formations", {});
+  const formation = await model.addMember(await model.createFormation(`${label} Party`), caster, casterToken);
+  await drain();
+  return { caster, copy, wolf, formation: () => model.getFormation(formation.id), id: formation.id };
+}
+const wolvesOn = (copy) => scene.tokens.filter((t) => t.actorId === copy.id);
+
+await scenario("summon members: two creatures of one copy are two members with ids of their own, deployed and restored apart", async () => {
+  const rig = await summonRig("Ident");
+  const [w1, w2] = [await rig.wolf(rig.caster, "c1", 1200), await rig.wolf(rig.caster, "c1", 1300)];
+  const copy = rig.copy;
+  const warned = notices.length;
+  // The bare copy never joins, and says why.
+  await model.addMember(rig.formation(), copy, null);
+  assert.equal(rig.formation().members.length, 1, "the copy is not added");
+  assert.ok(notices.slice(warned).some(([, m]) => m.startsWith("ACKS-FORMATION.warn.summonCopy")), "and the refusal is said");
+  assert.equal(wolvesOn(copy).length, 2, "refusing it touched no creature");
+
+  // A summon token routes through addMember to its own member.
+  const held = await model.addMember(rig.formation(), copy, w1);
+  await model.addSummonMembers(rig.id, [w2]);
+  await drain();
+  const stored = onlyFormation();
+  const wolves = stored.members.filter((m) => m.baseActorId);
+  assert.equal(wolves.length, 2, "both wolves are members");
+  assert.notEqual(wolves[0].actorId, wolves[1].actorId, "under distinct ids");
+  assert.ok(wolves.every((m) => m.baseActorId === copy.id && m.actorId !== copy.id), "each names the copy and is not it");
+  assert.equal(wolvesOn(copy).length, 0, "both tokens left the scene");
+  assert.ok(wolves.every((m) => m.tokenData?.delta?.flags?.[MODULE_ID]?.summonedBy === rig.caster.uuid), "the stash keeps the summoner's flags");
+  assert.equal(model.getMemberActor(wolves[0]), copy, "a member's actor is its copy");
+  assert.equal(held.members.length, 2, "the caller's copy holds the summon too, so a write of it keeps it");
+  await model.updateFormation(held);
+  assert.equal(onlyFormation().members.filter((m) => m.baseActorId).length, 2, "a write of the caller's copy does not drop them");
+
+  // Out and back apart: each keeps its own hit points.
+  const [a, b] = wolves;
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), a.actorId), "detached");
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), b.actorId), "detached");
+  const out = onlyFormation().members.filter((m) => m.baseActorId);
+  assert.notEqual(out[0].deployedTokenId, out[1].deployedTokenId, "two bodies, not one overwritten");
+  const live = out.map((m) => scene.tokens.get(m.deployedTokenId));
+  assert.ok(live.every((t) => t?.actorId === copy.id && t.delta?.flags?.[MODULE_ID]?.summonedBy === rig.caster.uuid), "they carry the copy and the flags");
+  live[0].delta.system.hp.value = 1;
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), a.actorId), "recalled");
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), b.actorId), "recalled");
+  const home = onlyFormation().members.filter((m) => m.baseActorId);
+  assert.deepEqual(home.map((m) => m.tokenData.delta.system.hp.value), [1, 5], "each came back with its own hit points");
+  assert.equal(wolvesOn(copy).length, 0, "and went back in");
+});
+
+await scenario("summon members: the fallback never stashes another caster's creature", async () => {
+  const rig = await summonRig("Fall");
+  const stranger = await member("Fall Stranger");
+  const plain = await ActorMock.create({ name: "Fall Hound", type: "monster", system: { hp: { value: 3, max: 3 } } });
+  const [bound] = await scene.createEmbeddedDocuments("Token", [{ name: "Hound", actorId: plain.id, actorLink: false, x: 1500, y: 1500, delta: { flags: { [MODULE_ID]: { summonedBy: stranger.uuid } } } }]);
+  const [free] = await scene.createEmbeddedDocuments("Token", [{ name: "Hound", actorId: plain.id, actorLink: false, x: 1600, y: 1500 }]);
+  await model.addMember(rig.formation(), plain, null, { scene });
+  await drain();
+  assert.ok(scene.tokens.get(bound.id), "the other caster's creature stands where it was");
+  assert.ok(!scene.tokens.get(free.id), "the free token is the one stashed");
+});
+
+await scenario("summon members: a summoner takes its summons with it, restored with their flags", async () => {
+  const rig = await summonRig("Leave");
+  const other = await member("Leave Other");
+  const w1 = await rig.wolf(rig.caster, "c1", 1200);
+  const w2 = await rig.wolf(other, "c2", 1300);
+  const w3 = await rig.wolf(rig.caster, "c1", 1400);
+  await model.addSummonMembers(rig.id, [w1, w2, w3]);
+  await drain();
+  assert.equal(onlyFormation().members.filter((m) => m.baseActorId).length, 3);
+  await model.removeMembers(rig.formation(), [rig.caster.id]);
+  await drain();
+  const left = onlyFormation().members;
+  assert.deepEqual(left.map((m) => m.tokenData?.delta?.flags?.[MODULE_ID]?.summonedBy), [other.uuid], "only the other caster's creature stays");
+  const back = wolvesOn(rig.copy);
+  assert.equal(back.length, 2, "the summoner's two stand on the map again");
+  assert.ok(back.every((t) => t.delta?.flags?.[MODULE_ID]?.summonedBy === rig.caster.uuid && t.actorLink === false), "with their flags");
+});
+
+await scenario("summon members: the roster reads them, finds a deployed one, and releases records before tokens", async () => {
+  const rig = await summonRig("Roster");
+  const roster = servicesApi.get("party-roster");
+  const w1 = await rig.wolf(rig.caster, "c1", 1200);
+  const w2 = await rig.wolf(rig.caster, "c1", 1300);
+  await model.addSummonMembers(rig.id, [w1, w2]);
+  await drain();
+  const [a, b] = onlyFormation().members.filter((m) => m.baseActorId);
+  await deployment.toggleDetachMember(onlyFormation(), b.actorId);
+  const rows = roster.members(rig.id).filter((r) => r.summonedBy);
+  assert.deepEqual(rows.map((r) => [r.summonedBy, r.summon.castId, r.stashed]), [[rig.caster.uuid, "c1", true], [rig.caster.uuid, "c1", false]], "a stashed and a deployed summon read alike");
+  assert.equal(roster.members(rig.id)[0].summonedBy, null, "a person is no summon");
+  const token = scene.tokens.get(onlyFormation().members.find((m) => m.actorId === b.actorId).deployedTokenId);
+  assert.deepEqual(roster.memberOfToken(token), { partyId: rig.id, actorId: b.actorId });
+  assert.equal(roster.memberOfToken(scene.tokens.get(onlyFormation().tokenId)), null, "the party token is no member's");
+
+  // Records go first: when the token is deleted, the member is already gone.
+  const seen = [];
+  const original = scene.deleteEmbeddedDocuments.bind(scene);
+  scene.deleteEmbeddedDocuments = async (type, ids, options) => {
+    seen.push(onlyFormation().members.some((m) => m.actorId === b.actorId));
+    return original(type, ids, options);
+  };
+  let result;
+  try {
+    result = await roster.release(rig.id, [a.actorId, b.actorId, "nobody"]);
+  } finally {
+    delete scene.deleteEmbeddedDocuments;
+  }
+  assert.deepEqual(result, { released: 2 }, "two members released; an unknown id is skipped");
+  assert.deepEqual(seen, [false], "the record was already gone when the token went");
+  assert.equal(onlyFormation().members.filter((m) => m.baseActorId).length, 0);
+  await deployment.recallMembers(onlyFormation(), {});
+  await drain();
+  assert.equal(wolvesOn(rig.copy).length, 0, "a recall afterwards restores nothing");
+  game.user = game.users.get("PL1");
+  try {
+    assert.deepEqual(await roster.release(rig.id, [rig.caster.id]), { released: 0 }, "a player releases nothing");
+  } finally {
+    game.user = game.users.get("GM1");
+  }
+});
+
+await scenario("summon members: a deployed creature's token deleted by hand ends its membership", async () => {
+  const rig = await summonRig("Hand");
+  const w1 = await rig.wolf(rig.caster, "c1", 1200);
+  const w2 = await rig.wolf(rig.caster, "c1", 1300);
+  await model.addSummonMembers(rig.id, [w1, w2]);
+  await drain();
+  const [a, b] = onlyFormation().members.filter((m) => m.baseActorId);
+  await deployment.toggleDetachMember(onlyFormation(), a.actorId);
+  await deployment.toggleDetachMember(onlyFormation(), b.actorId);
+  const aToken = scene.tokens.get(onlyFormation().members.find((m) => m.actorId === a.actorId).deployedTokenId);
+  await scene.deleteEmbeddedDocuments("Token", [aToken.id]);
+  await drain();
+  assert.deepEqual(onlyFormation().members.filter((m) => m.baseActorId).map((m) => m.actorId), [b.actorId], "the deleted one's record went");
+  await deployment.toggleDetachMember(onlyFormation(), b.actorId);
+  await drain();
+  assert.equal(wolvesOn(rig.copy).length, 0, "nothing resurrects the deleted one, and the other is back in the party");
+  await model.dissolveFormation(rig.formation());
+  await drain();
+  assert.equal(wolvesOn(rig.copy).length, 1, "disbanding restores the survivor");
+});
+
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

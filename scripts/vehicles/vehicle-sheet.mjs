@@ -33,7 +33,7 @@ import { stationsFor, effectiveCrewRoles } from "./stations.mjs";
 import { routeActorDrop } from "./drop-dialog.mjs";
 import { fractionLabel } from "../lib/util.mjs";
 import { boardForBestPace, reboardLast } from "./boarding.mjs";
-import { explorationSpeedOf } from "../formation/formation-model.mjs";
+import { explorationSpeedOf, getMemberActor } from "../formation/formation-model.mjs";
 import { STONE, encumbering6, isCurrency } from "../lib/item-model.mjs";
 import { landCoin } from "../lib/bundles.mjs";
 import { expeditionFrom, expeditionTip, TRAVEL_PACE } from "../lib/movement-scales.mjs";
@@ -632,7 +632,7 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
     const api = game.modules.get(MODULE_ID)?.api?.formation;
     const raw = api?.getFormations?.() ?? [];
     const forms = Array.isArray(raw) ? raw : Object.values(raw ?? {});
-    const members = forms.flatMap((f) => (f.members ?? []).map((m) => game.actors.get(m.actorId)).filter(Boolean));
+    const members = forms.flatMap((f) => (f.members ?? []).map((m) => getMemberActor(m)).filter(Boolean));
     const candidates = members.length ? members : game.actors.filter((a) => a.type === "character" && a.hasPlayerOwner);
     await boardForBestPace(this.actor, candidates, { ground: this.#ground, speedOf: explorationSpeedOf });
     this.render();

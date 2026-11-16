@@ -22,11 +22,11 @@
 import { MODULE_ID, LANG, SHEET_CLASS, SHEET_FLAG, TRAINING_VIEW_FLAG, MOVE_MODES, TAB_ORDER } from "./constants.mjs";
 import { makeLoc, libStorage } from "../lib/util.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
-import { SUMMON_FLAG, summonerOf, summonRecordOf, bareSummonAllowed } from "../lib/summons-logic.mjs";
-import { promptSummon, promptDismiss, summonsOf } from "../lib/summons.mjs";
+import { SUMMON_FLAG, summonerOf, bareSummonAllowed } from "../lib/summons-logic.mjs";
+import { promptSummon, promptDismiss } from "../lib/summons.mjs";
 import { castSummon } from "../magic/cast-summon.mjs";
-import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf } from "./snapshot.mjs";
-import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey, castTrackers, castTrackerShape } from "./view-model.mjs";
+import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf, summonsOnScene } from "./snapshot.mjs";
+import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey, castTrackers, castTrackerShape, standingBySpell } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
@@ -1002,7 +1002,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
         }
         case "dismiss":
         case "dismissAll":
-          await promptDismiss(this.actor, { tokens: tokensOf(pick.tokenIds) });
+          await promptDismiss(this.actor, { entries: pick.entries ?? [], scene });
           return;
         default:
           return;
@@ -1404,12 +1404,13 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     item.use?.({ skipDialog: skipDialogFor(event) });
   }
 
-  /** A summoning spell's Dismiss: every creature its casts left standing on the scene the party cell counts on. */
+  /** A summoning spell's Dismiss: every creature its casts left standing on the scene the party cell counts on, riding in a party token included. */
   static async #onSpellDismiss(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
-    const tokens = summonsOf(this.actor, { scene: currentScene() }).filter((t) => summonRecordOf(t.actor)?.spellId === item.id);
-    await promptDismiss(this.actor, { tokens });
+    const scene = currentScene();
+    const entries = standingBySpell(summonsOnScene(this.actor, scene)).get(item.id) ?? [];
+    await promptDismiss(this.actor, { entries, scene });
   }
 
   static async #onSpellReset() {

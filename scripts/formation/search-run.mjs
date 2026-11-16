@@ -17,7 +17,7 @@ import { makeLoc, gmIds, escape as esc } from "../lib/util.mjs";
 import { paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { travelOf } from "./travel.mjs";
 import { expeditionMiles } from "./formation-view.mjs";
-import { getFormation, getPartyScene, hasAbility, realMembers } from "./formation-model.mjs";
+import { getFormation, getMemberActor, getPartyScene, hasAbility, realMembers } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import { hexContext, spendSearchHour } from "./journey.mjs";
 import { searchSpec, searchOutcome, SEARCH_SUBJECTS } from "./searching.mjs";
@@ -43,7 +43,7 @@ function presentMode(present) {
 /** Whether any real member of the order holds Tracking. */
 function trackerIn(formation) {
   return realMembers(formation).some((member) => {
-    const actor = game.actors?.get(member.actorId);
+    const actor = getMemberActor(member);
     return !!actor && (hasCapability(actor, "kw:tracking") || hasAbility(actor, /tracking/i));
   });
 }

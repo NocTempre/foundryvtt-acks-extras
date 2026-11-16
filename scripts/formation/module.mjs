@@ -79,15 +79,17 @@ import {
   getFormation,
   getFormationForActor,
   getFormations,
+  getMemberActor,
   getPartyActor,
   isLinkedPartyToken,
+  isSummonMember,
   getPartyToken,
   patchFormation,
   pruneFormations,
   publicApi as formationModelApi,
   syncPartyActorSpeed,
 } from "./formation-model.mjs";
-import { findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
+import { endSummonMembership, findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
 import {
   SETTING_TEMPLATES,
   describeResult,
@@ -868,7 +870,7 @@ Hooks.on("preUpdateToken", (tokenDoc, changes) => {
   const found = findDeployedMember(tokenDoc);
   if (!found?.member?.detached) return;
   const target = { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y };
-  const actor = game.actors.get(found.member.actorId);
+  const actor = getMemberActor(found.member);
   const breach = leashBreach(found.member, tokenDoc, target, actor);
   if (!breach) return;
 
@@ -925,6 +927,23 @@ Hooks.on("deleteToken", (tokenDoc, options) => {
   followMemberToken(found.formation.id, tokenDoc, next)
     .then(() => PartySheet.refreshAll())
     .catch((err) => console.error(`${MODULE_ID} | a member's token moved to another scene could not be followed`, err));
+});
+
+/* A summon member's deployed token deleted by hand ends its membership: the
+ * record would otherwise let a recall put the creature back from its stash.
+ * A token core moved to another scene is followed above, not ended. */
+Hooks.on("deleteToken", (tokenDoc, options) => {
+  if (!isPrimaryGM() || replacementToken(tokenDoc, options)) return;
+  const found = findDeployedMember(tokenDoc);
+  if (!isSummonMember(found?.member)) return;
+  endSummonMembership(found.formation.id, tokenDoc)
+    .then(async (ended) => {
+      if (!ended) return;
+      const formation = getFormation(found.formation.id);
+      if (formation) await syncPartyActorSpeed(formation);
+      PartySheet.refreshAll();
+    })
+    .catch((err) => console.error(`${MODULE_ID} | a deleted summon's membership could not be ended`, err));
 });
 
 /* -------------------------------------------- */

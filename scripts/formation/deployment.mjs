@@ -10,6 +10,7 @@ import {
   getPartyToken,
   isDown,
   isStackMember,
+  isSummonMember,
   memberStash,
   patchDeployments,
   patchFormation,
@@ -412,6 +413,27 @@ export function memberForDeployedToken(formations, tokenDoc) {
  */
 export function findDeployedMember(tokenDoc) {
   return memberForDeployedToken(Object.values(readFormations()), tokenDoc);
+}
+
+/**
+ * A summon member's deployed token was deleted by hand (or by anything but a
+ * recall, which clears the record first): the creature is gone, so its
+ * membership ends with it, and a later recall has no stash to put it back from.
+ * Decided against the ledger at write time, as every write fired from a hook is.
+ *
+ * @param {string} formationId
+ * @param {TokenDocument} token the deleted token
+ * @returns {Promise<boolean>} whether a member was removed
+ */
+export async function endSummonMembership(formationId, token) {
+  let ended = false;
+  await patchFormation(formationId, (record) => {
+    const at = record.members?.findIndex((m) => isSummonMember(m) && holdsToken(m, token.id, token.parent?.id)) ?? -1;
+    if (at < 0) return false;
+    record.members.splice(at, 1);
+    ended = true;
+  });
+  return ended;
 }
 
 /**

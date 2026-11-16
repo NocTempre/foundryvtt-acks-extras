@@ -245,7 +245,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     const formation = this.formation;
     if (!formation) return false;
     return formation.members.some((m) => {
-      const actor = m?.actorId ? game.actors.get(m.actorId) : null;
+      const actor = m?.actorId ? getMemberActor(m) : null;
       return actor?.testUserPermission(game.user, "OWNER") ?? false;
     });
   }

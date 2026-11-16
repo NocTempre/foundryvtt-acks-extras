@@ -1,7 +1,7 @@
 /* global game, ChatMessage, CONST, foundry */
 import { FLAG_PARTY_SIGHT, FLAG_PARTY_SIZE, MODULE_ID } from "./constants.mjs";
 import { deployedTokens, isMemberDeployed } from "./deployment.mjs";
-import { getFormation, getFormations, getPartyActor, getPartyToken, partyTokenShape, patchFormation } from "./formation-model.mjs";
+import { getFormation, getFormations, getMemberActor, getPartyActor, getPartyToken, partyTokenShape, patchFormation } from "./formation-model.mjs";
 import { FLAG_FOOTPRINT_LOCK } from "../battlemap/constants.mjs";
 import { ensureMapSession } from "./map-items.mjs";
 import { syncMapperKits } from "./mapper-kit.mjs";
@@ -162,7 +162,7 @@ async function syncPartyActorOwnership(formation) {
   const desired = {
     default: game.settings.get(MODULE_ID, "playersMoveParty") ? LEVELS.OWNER : LEVELS.NONE,
   };
-  const memberActors = formation.members.map((m) => game.actors.get(m.actorId)).filter(Boolean);
+  const memberActors = formation.members.map((m) => getMemberActor(m)).filter(Boolean);
   for (const user of game.users) {
     if (user.isGM) continue;
     const level = Math.max(0, ...memberActors.map((a) => a.getUserLevel(user) ?? 0));
@@ -217,7 +217,7 @@ async function syncPartyTokenVision(formation) {
   let best = { seesInDark: false, sightRange: 0, visionMode: VISION_MODES.BASIC };
   for (const member of formation.members) {
     if (!member?.actorId || member.blank || isDeployed(formation, member.actorId)) continue;
-    const actor = game.actors.get(member.actorId);
+    const actor = getMemberActor(member);
     if (!actor) continue;
     const profile = senseProfile(actor);
     if (profile.sightRange > best.sightRange) best = profile;

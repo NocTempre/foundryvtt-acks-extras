@@ -16,7 +16,8 @@ import { sheetFlag } from "../lib/frame-model.mjs";
 import { netNumericChange } from "../lib/effect-scan.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
 import { FLAG_RECORD } from "../henchmen/constants.mjs";
-import { realMembers } from "../formation/formation-model.mjs";
+import { getFormation, realMembers } from "../formation/formation-model.mjs";
+import { heldSummonsOf } from "../lib/summons.mjs";
 import { getLoadout } from "../equipment/loadout.mjs";
 import { bearerLights, LIGHT_SOURCES, lightCite, lightFigures } from "../lib/light.mjs";
 import { senseCite, senseProfile, VISION_MODES } from "../lib/senses.mjs";
@@ -342,15 +343,23 @@ export function henchmanIds(actor) {
 /**
  * The character's summons on a scene: each token whose actor names this
  * character as summoner, with the record the module's own summoning stamped,
- * or null for one bound by hand.
+ * or null for one bound by hand, then each summon riding in a party token that
+ * stands on the scene (`held`: its party and member id, `tokenId` null). A
+ * deployed party member is a scene token and is listed once, as a token.
  * @param {Actor} actor
  * @param {Scene|null} [scene]  omitted, the one the party cell counts on
- * @returns {{tokenId: string, name: string, img: string|null, record: object|null}[]}
+ * @returns {{tokenId: string|null, held: {partyId: string, actorId: string}|null, name: string, img: string|null, record: object|null}[]}
  */
 export function summonsOnScene(actor, scene = currentScene()) {
-  return [...(scene?.tokens ?? [])]
+  const out = [...(scene?.tokens ?? [])]
     .filter((t) => summonerOf(t.actor) === actor.uuid)
-    .map((t) => ({ tokenId: t.id, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
+    .map((t) => ({ tokenId: t.id, held: null, name: t.name, img: t.texture?.src ?? t.actor?.img ?? null, record: summonRecordOf(t.actor) }));
+  if (!scene) return out;
+  for (const h of heldSummonsOf(actor)) {
+    if (getFormation(h.partyId)?.sceneId !== scene.id) continue;
+    out.push({ tokenId: null, held: { partyId: h.partyId, actorId: h.actorId }, name: h.name, img: h.img, record: h.record });
+  }
+  return out;
 }
 
 /**
@@ -383,12 +392,15 @@ export function partyOf(actor) {
   let formation = null;
   const record = globalThis.acksExtras?.formation?.getFormationForActor?.(actor.id) ?? null;
   if (record) {
-    const memberIds = realMembers(record).map((m) => m.actorId);
+    // A member stands on the scene as its own token, or, for a summon whose
+    // actor is shared with every creature of its kind, as the token it
+    // deployed as there.
+    const standing = (m) => tokensOf(m.actorId).length > 0 || (!!m.deployedTokenId && !!scene && m.deployedSceneId === scene.id);
     formation = {
       id: record.id,
       name: record.name ?? "",
       onScene: !!scene && record.sceneId === scene.id,
-      membersOnScene: memberIds.filter((id) => tokensOf(id).length > 0).length,
+      membersOnScene: realMembers(record).filter(standing).length,
     };
   }
   return {

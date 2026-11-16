@@ -19,6 +19,7 @@ import {
   SETTING_PARTY_TOKEN_SHAPE,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
+import { SUMMON_COPY_FLAG, summonOfData } from "../lib/summons-logic.mjs";
 import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
 import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
@@ -508,10 +509,27 @@ export function formationForToken(tokenDoc) {
 /*  Derived data                                */
 /* -------------------------------------------- */
 
-/** Returns the world actor a member entry points at, or null. */
+/**
+ * The world actor a member entry is made from, or null. A summon member's own
+ * `actorId` is minted for it, since several of one creature's tokens share one
+ * world copy, and `baseActorId` names that copy; every other member's `actorId`
+ * is the actor.
+ */
 export function getMemberActor(member) {
-  return game.actors.get(member.actorId) ?? null;
+  return game.actors.get(member?.baseActorId ?? member?.actorId) ?? null;
 }
+
+/**
+ * The world actor behind the member `formation` holds under this row id, for
+ * the plan rows, trap victims and other payloads that carry an id and not the
+ * member. An id no member holds reads as the actor of that id.
+ */
+export function memberActorById(formation, actorId) {
+  return getMemberActor(formation?.members?.find((m) => m?.actorId === actorId) ?? { actorId });
+}
+
+/** Is this member a summon riding in or deployed from the party, under an id of its own? */
+export const isSummonMember = (member) => !!member?.baseActorId;
 
 /** Does this actor have a proficiency/class power matching the pattern? */
 export function hasAbility(actor, pattern) {
@@ -1135,6 +1153,15 @@ export async function syncPartyActorSpeed(formation) {
  */
 export async function addMember(formation, actor, tokenDoc = null, { scene: searched = game.scenes.viewed ?? getPartyScene(formation) } = {}) {
   if (!actor) return formation;
+  // A summoning cast's creature joins under an id of its own, and the copy it
+  // was made from never joins: both checks below key on the actor's id, which
+  // every wolf of one copy shares.
+  if (actor.getFlag?.(MODULE_ID, SUMMON_COPY_FLAG)) {
+    const token = tokenDoc ?? actor.token ?? null;
+    if (token && summonOfData(token.toObject?.() ?? token).summon) return addSummonMembers(formation.id, [token], formation);
+    ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.summonCopy", { name: actor.name }));
+    return formation;
+  }
   if (formation.members.some((m) => m.actorId === actor.id)) {
     ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.alreadyMember", { name: actor.name }));
     return formation;
@@ -1147,8 +1174,9 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
     return formation;
   }
 
-  // Find the actor's token on its scene if not given one explicitly.
-  tokenDoc ??= searched?.tokens?.find((t) => t.actorId === actor.id && !t.getFlag(MODULE_ID, FLAG_FORMATION_ID)) ?? null;
+  // Find the actor's token on its scene if not given one explicitly. Never a
+  // summon's: another character's creature is no stand-in for this actor.
+  tokenDoc ??= searched?.tokens?.find((t) => t.actorId === actor.id && !t.getFlag(MODULE_ID, FLAG_FORMATION_ID) && !summonOfData(t.toObject()).summonedBy) ?? null;
 
   const member = { actorId: actor.id, roles: [], tokenData: tokenDoc ? tokenDoc.toObject() : null };
 
@@ -1173,6 +1201,54 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
   // copy that is now older than what those steps wrote.
   await syncPartyActorSpeed(formation);
   Hooks.callAll("acksExtras.memberJoined", { formationId: formation.id, actorId: actor.id });
+  return formation;
+}
+
+/**
+ * Bring summoned creatures into a formation as members, one each. A summon is
+ * an unlinked token of a world copy that every creature of its kind shares, so
+ * each member takes an `actorId` minted for it and names the copy in
+ * `baseActorId` (`getMemberActor` reads it). Only a token carrying a cast
+ * record joins; any other is skipped. A party with no token on the canvas
+ * takes none: a summon never seeds the party token.
+ *
+ * Same ordering invariant as `addMember`: ONE patch stores every member (blank
+ * cells first) with its stashed token, then the tokens are deleted, then the
+ * party speed is synced. No `acksExtras.memberJoined`: the joiners are
+ * creatures, and the arranging that hook drives is a person's.
+ *
+ * @param {string} formationId
+ * @param {TokenDocument[]} tokenDocs
+ * @param {object} [copy] the caller's copy of the record, brought into line with
+ *   the stored members so a later write of it keeps the summons
+ * @returns {Promise<object|null>} the copy, or the stored record when no copy was given
+ */
+export async function addSummonMembers(formationId, tokenDocs, copy = null) {
+  const tokens = (tokenDocs ?? []).filter((t) => t?.parent && summonOfData(t.toObject()).summon);
+  const formation = copy ?? getFormation(formationId);
+  if (!tokens.length || !formation || !getPartyToken(formation)) return formation ?? null;
+  const joining = tokens.map((token) => ({
+    token,
+    member: { actorId: foundry.utils.randomID(), baseActorId: token.actorId, roles: [], tokenData: token.toObject() },
+  }));
+  const record = await patchFormation(formationId, (stored) => {
+    for (const { member } of joining) {
+      const blank = stored.members.findIndex((m) => m?.blank);
+      if (blank >= 0) stored.members[blank] = member;
+      else stored.members.push(member);
+    }
+  });
+  if (!record) return formation;
+  if (copy) {
+    copy.members = foundry.utils.deepClone(record.members);
+    const read = readAs.get(copy);
+    if (read) read.members = foundry.utils.deepClone(record.members);
+  }
+  // Stash before destroy: the members are in storage before any token goes.
+  const perScene = new Map();
+  for (const { token } of joining) perScene.set(token.parent, [...(perScene.get(token.parent) ?? []), token.id]);
+  for (const [scene, ids] of perScene) await scene.deleteEmbeddedDocuments("Token", ids);
+  await syncPartyActorSpeed(record);
   return formation;
 }
 
@@ -1250,7 +1326,7 @@ async function recallDeployed(formation, members) {
  */
 export function memberStash(member) {
   const data = member?.tokenData;
-  if (!data || (data.actorId && data.actorId !== member.actorId)) return null;
+  if (!data || (data.actorId && data.actorId !== (member.baseActorId ?? member.actorId))) return null;
   return foundry.utils.deepClone(data);
 }
 
@@ -1271,7 +1347,7 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
   // batch in one call, so one dead member would abort every live one too.
   // A deployed member's stash is the stale pre-detach snapshot; callers
   // recall first (`recallDeployed`), and this filter guards the rest.
-  const stashed = members.filter((m) => m?.tokenData && !isMemberDeployed(m) && game.actors.get(m.actorId));
+  const stashed = members.filter((m) => m?.tokenData && !isMemberDeployed(m) && getMemberActor(m));
   if (!stashed.length) return 0;
   const scene = getPartyScene(formation) ?? game.scenes.viewed;
   if (!scene) return 0;
@@ -1292,7 +1368,7 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
 
   const toCreate = [];
   for (const member of stashed) {
-    const data = memberStash(member) ?? (await game.actors.get(member.actorId).getTokenDocument()).toObject();
+    const data = memberStash(member) ?? (await getMemberActor(member).getTokenDocument()).toObject();
     delete data._id;
     if (anchor) {
       const cell = formation.members.indexOf(member);
@@ -1326,6 +1402,12 @@ async function restoreMemberTokens(formation, members, { grid = false } = {}) {
 export async function removeMembers(formation, actorIds, { restore = true } = {}) {
   const leaving = new Set((actorIds ?? []).filter(Boolean));
   if (!leaving.size) return formation;
+  // A summoner takes its summons with it. The stash names the summoner, a
+  // deployed summon's included: its pre-deploy stash is kept until recall.
+  const summoners = new Set([...leaving].map((id) => `Actor.${id}`));
+  for (const m of formation.members) {
+    if (isSummonMember(m) && m.actorId && summoners.has(summonOfData(m.tokenData).summonedBy)) leaving.add(m.actorId);
+  }
   const departing = formation.members.filter((m) => m?.actorId && leaving.has(m.actorId));
   if (!departing.length) return formation;
 

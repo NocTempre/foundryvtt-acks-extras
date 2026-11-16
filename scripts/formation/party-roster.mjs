@@ -6,9 +6,13 @@
  * through. A linked member's is the world actor; a deployed unlinked
  * member's is their live token's actor; an unlinked member riding in the
  * party token has none, because their state lives in the stashed token, so
- * that member's hit points are written here, into the stash.
+ * that member's hit points are written here, into the stash. A member made
+ * from a summoning cast is read for its summoner and cast record
+ * (`summonOfData`), and one of them is let go by `release`.
  */
 import * as services from "../lib/services.mjs";
+import { summonOfData } from "../lib/summons-logic.mjs";
+import { findDeployedMember } from "./deployment.mjs";
 import {
   formationForToken,
   getFormation,
@@ -18,6 +22,7 @@ import {
   patchFormation,
   readFormations,
   realMembers,
+  syncPartyActorSpeed,
 } from "./formation-model.mjs";
 
 /** One member, as the contract hands it over. */
@@ -27,6 +32,8 @@ function rosterMember(member) {
   const own = memberOwnToken(member);
   // A live token is a document; a stash is plain data with no `actor`.
   const live = own?.actor ?? null;
+  // A live token holds its delta as a document, a stash as plain data.
+  const { summonedBy, summon } = summonOfData(own?.toObject?.() ?? own);
   return {
     actorId: member.actorId,
     actor,
@@ -35,6 +42,8 @@ function rosterMember(member) {
     stashed: !member.deployedTokenId && !member.deployedStack,
     unlinked: !!own,
     hp: memberHp(member, actor),
+    summonedBy,
+    summon,
   };
 }
 
@@ -66,6 +75,53 @@ async function adjustStashedHp(partyId, actorId, next) {
   return done;
 }
 
+/**
+ * The member a live scene token is, as the party and the row id it is listed
+ * under, or null for a token no member holds.
+ */
+function memberOfToken(tokenDoc) {
+  const found = tokenDoc ? findDeployedMember(tokenDoc) : null;
+  return found?.member?.actorId ? { partyId: found.formation.id, actorId: found.member.actorId } : null;
+}
+
+/**
+ * End the named members' membership, stashed or deployed. The records go in
+ * one patch first, taking the deployed tokens' ids with them, and those
+ * tokens are deleted after it: a recall then has no record to restore a
+ * deleted creature from, and the token's deletion finds no record left
+ * behind. GM only.
+ * @param {string} partyId
+ * @param {string[]} ids  row `actorId`s
+ * @returns {Promise<{released: number}>}
+ */
+async function release(partyId, ids) {
+  if (!game.user?.isGM) return { released: 0 };
+  const leaving = new Set((ids ?? []).filter(Boolean));
+  const tokens = [];
+  let released = 0;
+  const record = leaving.size
+    ? await patchFormation(partyId, (stored) => {
+        const gone = (stored.members ?? []).filter((m) => m?.actorId && leaving.has(m.actorId));
+        if (!gone.length) return false;
+        for (const m of gone) {
+          if (m.deployedTokenId && m.deployedSceneId) tokens.push({ sceneId: m.deployedSceneId, id: m.deployedTokenId });
+        }
+        stored.members = stored.members.filter((m) => !gone.includes(m));
+        released = gone.length;
+      })
+    : null;
+  if (!released) return { released: 0 };
+  const perScene = new Map();
+  for (const { sceneId, id } of tokens) perScene.set(sceneId, [...(perScene.get(sceneId) ?? []), id]);
+  for (const [sceneId, tokenIds] of perScene) {
+    const scene = game.scenes?.get?.(sceneId);
+    const present = tokenIds.filter((id) => scene?.tokens?.get?.(id));
+    if (present.length) await scene.deleteEmbeddedDocuments("Token", present);
+  }
+  await syncPartyActorSpeed(record);
+  return { released };
+}
+
 /** Provide the `party-roster` contract. Called once, at init. */
 export function registerPartyRoster() {
   services.register("party-roster", {
@@ -73,5 +129,7 @@ export function registerPartyRoster() {
     partyOf: (tokenDoc) => formationForToken(tokenDoc)?.id ?? null,
     members: (id) => realMembers(getFormation(id)).map(rosterMember).filter(Boolean),
     adjustStashedHp,
+    memberOfToken,
+    release,
   });
 }
