@@ -6030,6 +6030,18 @@ await scenario("summon members: two creatures of one copy are two members with i
   assert.equal(wolvesOn(copy).length, 0, "and went back in");
 });
 
+await scenario("summon members: a creature whose summoner is not in the party is refused", async () => {
+  const rig = await summonRig("Absent");
+  const outsider = await member("Absent Outsider");
+  const stray = await rig.wolf(outsider, "c9", 1250);
+  const warned = notices.length;
+  await model.addMember(rig.formation(), rig.copy, stray);
+  await drain();
+  assert.equal(rig.formation().members.filter((m) => m.baseActorId).length, 0, "it does not join");
+  assert.ok(scene.tokens.get(stray.id), "its token stands");
+  assert.ok(notices.slice(warned).some(([, m]) => m.startsWith("ACKS-FORMATION.warn.summonerAbsent")), "and the refusal is said");
+});
+
 await scenario("summon members: the fallback never stashes another caster's creature", async () => {
   const rig = await summonRig("Fall");
   const stranger = await member("Fall Stranger");

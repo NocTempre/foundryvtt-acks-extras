@@ -2941,6 +2941,7 @@
       "duplicatePartyToken": "This formation already has a party token on the canvas — delete it first to re-place the party.",
       "alreadyMember": "{name} is already in the formation.",
       "summonCopy": "{name} is the source copy of summoned creatures and cannot join a party; only a summoning cast's creatures do.",
+      "summonerAbsent": "{name} joins only the party its summoner marches in.",
       "noSelection": "No eligible tokens selected.",
       "frontageInvalid": "Frontage is a whole number of ranks, one or more.",
       "frontageMax": "This scene is only {max} squares wide — the party marches {max} abreast at most.",

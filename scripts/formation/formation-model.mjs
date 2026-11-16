@@ -1158,8 +1158,11 @@ export async function addMember(formation, actor, tokenDoc = null, { scene: sear
   // every wolf of one copy shares.
   if (actor.getFlag?.(MODULE_ID, SUMMON_COPY_FLAG)) {
     const token = tokenDoc ?? actor.token ?? null;
-    if (token && summonOfData(token.toObject?.() ?? token).summon) return addSummonMembers(formation.id, [token], formation);
-    ui.notifications.warn(game.i18n.format("ACKS-FORMATION.warn.summonCopy", { name: actor.name }));
+    const { summonedBy, summon } = token ? summonOfData(token.toObject?.() ?? token) : {};
+    // A summon marches only in its own summoner's party.
+    const summonerIn = summon && formation.members.some((m) => m?.actorId && !isSummonMember(m) && `Actor.${m.actorId}` === summonedBy);
+    if (summonerIn) return addSummonMembers(formation.id, [token], formation);
+    ui.notifications.warn(game.i18n.format(summon ? "ACKS-FORMATION.warn.summonerAbsent" : "ACKS-FORMATION.warn.summonCopy", { name: actor.name }));
     return formation;
   }
   if (formation.members.some((m) => m.actorId === actor.id)) {
