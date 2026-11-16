@@ -8,7 +8,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-12 — [What the live walk of the road layer found](DECISIONS-through-v11.14.5.md#2026-09-12--what-the-live-walk-of-the-road-layer-found) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-09-12 — [A road is a wall, on every grid](DECISIONS-through-v11.14.5.md#2026-09-12--a-road-is-a-wall-on-every-grid) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-08-30 — [The tool says what a scene IS: family, units, system](DECISIONS-through-v11.14.5.md#2026-08-30--the-tool-says-what-a-scene-is-family-units-system) — superseded in part by "2026-10-09 — An undeclared map's system is inferred from its scale"; "2026-11-15 — A hex map is set up from its boxes, and Apply says what it rewrites"
-- 2026-08-30 — [The right button pans; a sample says what it represents](DECISIONS-through-v11.14.5.md#2026-08-30--the-right-button-pans-a-sample-says-what-it-represents) — superseded in part by "2026-11-15 — A hex map is set up from its boxes, and Apply says what it rewrites"
+- 2026-08-30 — [The right button pans; a sample says what it represents](DECISIONS-through-v11.14.5.md#2026-08-30--the-right-button-pans-a-sample-says-what-it-represents) — superseded in part by "2026-11-15 — A hex map is set up from its boxes, and Apply says what it rewrites"; "2026-11-15 — A box counts across and down"
 - 2026-08-26 — [The panel is a window again, dismissed by the toolbar](DECISIONS-through-v11.14.5.md#2026-08-26--the-panel-is-a-window-again-dismissed-by-the-toolbar)
 - 2026-08-26 — [The tool group has a resting state, and Escape leaves](DECISIONS-through-v11.14.5.md#2026-08-26--the-tool-group-has-a-resting-state-and-escape-leaves)
 - 2026-08-26 — [One entered value, one slot](DECISIONS-through-v11.14.5.md#2026-08-26--one-entered-value-one-slot)
@@ -146,3 +146,67 @@ created at half a cell after a six-mile apply). 2026-11-13, as above.
   to it.
 - Placed tokens, tiles and walls do not move with an apply; the confirmation
   says so.
+
+## 2026-11-15 — A box counts across and down
+
+**Ruled** (owner, asked whether a square-grid box's one "spans" count becomes
+two): "Two numbers (recommended): “3 across, 1 down”. Any box shape works."
+
+**Decision.** A box on the square and scale-only families carries a count
+across and a count down, each 1 unless the Judge says otherwise, and the fit
+divides the box's width by the one and its height by the other. A hex box
+carries neither.
+
+**Supersedes in part** 2026-08-30 "The right button pans; a sample says what it
+represents": its one count divided both axes, so a strip of three squares read
+a third as tall as it is wide.
+
+**Rejected.** *One count, labelled as a square block.* It keeps the arithmetic
+right only for square blocks, and a strip is the shape a Judge drags along a
+row.
+
+**Cost.** Two inputs per box row instead of one.
+
+## 2026-11-15 — The panel says what it writes, and the token section answers to the scale
+
+**Ruled** (owner, forwarding the field report of the entry above): "Token Size
+refit functionality is still puzzling to me what is this does, because it says
+it is feets", with the rulings already quoted there ("players get blocks,
+judges get warnings"; "Yes, write it off").
+
+**Decision.**
+- The footer lists what Apply would rewrite, one row per change with units
+  (grid, cell worth, image, token sizing, a formation's system), and the
+  confirmation lists the same lines as given, so it never re-derives a figure.
+  Its placeables sentence shows only where something is placed.
+- The cell's worth sits beside the units select. The party system and the
+  country selects, which save as they change, sit under their own heading
+  below the scale; the units select stays with what Apply writes.
+- A single box whose shape reads as the other hex family is told apart from a
+  wrong family only by a second box, and the panel says both causes
+  (`planSetup`'s `lone`). It stays a warning.
+- At a mile or more a cell the token section is one line, since tokens there
+  are not sized to footprints. Below it the chips say their unit and their
+  parts, the whole-scene rescale sits with them, and a line says whether
+  placed tokens are auto-sized and where that is changed.
+- A token's size is read from `_source`. The prepared `width` and `height` are
+  core's animated values: a size change's first animation frame runs at once
+  and the rest only as the canvas ticks.
+
+**Evidence.** On 2026-11-15 the rescale reported "1 token rescaled" on every
+press with nothing to see. Read live on core 14 with the pane's ticker frozen,
+three presses counted 1, 1, 1 while `_source.width` already held 0.5 and the
+prepared width still held 1; with 90 frames driven the prepared width
+caught up and the count was 0. The half-cell cause first proposed (core holding
+widths to half cells) was refuted: core stores 0.25 as 0.25.
+
+**Rejected.**
+- *Re-rendering the token section on token selection.* A `controlToken` hook
+  would re-render the form under a field being typed into; the controls say
+  instead that they act on the selected tokens, and a press with none selected
+  says so.
+- *A confirmation that words its own figures.* Two wordings of one answer can
+  disagree; the panel's lines are the one wording.
+
+**Cost.** The footer grows with the rows; it scrolls within its own bound so
+the button stays on screen.
