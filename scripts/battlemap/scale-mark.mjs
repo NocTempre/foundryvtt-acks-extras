@@ -274,18 +274,23 @@ function showReadout(mark, token, found) {
   const ui = canvas.dimensions?.uiScale ?? 1;
   let text = mark.readout;
   if (!text || text.destroyed) {
+    // Rasterized at a fixed size and doubled resolution, then scaled by the
+    // canvas's uiScale, as core draws a nameplate: text rasterized at the
+    // scaled size is a few pixels tall on a small grid and smears when zoomed.
+    const Text = globalThis.foundry?.canvas?.containers?.PreciseText ?? PIXI.Text;
     text = mark.addChild(
-      new PIXI.Text("", {
+      new Text("", {
         fontFamily: "Signika, sans-serif",
-        fontSize: 14 * ui,
+        fontSize: 14,
         fill: 0xffffff,
         stroke: 0x000000,
-        strokeThickness: 4 * ui,
+        strokeThickness: 4,
         align: "center",
         wordWrap: true,
-        wordWrapWidth: Math.max(token.w * 3, 240 * ui),
+        wordWrapWidth: Math.max((token.w * 3) / ui, 240),
       }),
     );
+    text.scale?.set(ui, ui);
     text.anchor.set(0.5, 0);
     text.eventMode = "none";
     mark.readout = text;
