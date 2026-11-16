@@ -127,9 +127,9 @@ export const CONDITIONS = Object.freeze({
     label: "Clambering", img: "icons/svg/ladder.svg", exposes: "vulnerable",
     mods: [row("attack", "attack", { when: "source" }), row("attack", "against", { side: "against", when: "source" })],
   },
-  concentrating: { label: "Concentrating", img: "icons/svg/aura.svg" },
+  concentrating: { label: "Concentrating", img: "icons/svg/aura.svg", lost: HURT_OR_FAILED },
   concentratingStationary: {
-    label: "Concentrating and Stationary", img: "icons/svg/obelisk.svg",
+    label: "Concentrating and Stationary", img: "icons/svg/obelisk.svg", lost: HURT_OR_FAILED,
   },
   // A readied attack made against a charge (RR 295). It leaves its maker
   // Disordered, whose own figure is the cost.

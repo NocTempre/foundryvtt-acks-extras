@@ -1,4 +1,4 @@
-# lib API (apiVersion 51)
+# lib API (apiVersion 52)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 51,
+  apiVersion: 52,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -335,7 +335,7 @@ that decides them.
 | `vsAlignment` | an `ALIGNMENTS` key the target must be |
 | `vsAlignmentMode` | `gate` (default) — applies only versus that alignment; `sign` — applies always, negated otherwise; `except` — applies versus every alignment but that one |
 | `vsAlignmentOf` | `source` — the reference alignment is `ctx.sourceAlignment`, whoever the effect comes from, in place of a fixed `vsAlignment` |
-| `vsEnemy` | applies only against the source's enemy (`ctx.enemy`) |
+| `vsEnemy` | applies only where the roll's other party and the effect's bearer stand on opposing sides (`ctx.enemy`) |
 | `anyOf` | a list of branches, each holding `vsKinds`, `vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode` and `vsEnemy` and never a `sign`; the effect's own clauses AND it |
 | `tones` | restrict to some of the three `INFLUENCE_TONES` |
 | `optionalRule` | obeys a world setting of this name; **absent means enabled** |
@@ -354,7 +354,8 @@ matters most.
 
 `ctx` carries `kinds`, `alignment`, `sourceAlignment`, `enemy`, `tone` and `optionalRules`. On a
 defensive row (a bonus a recipient gains against an attacker) it describes the
-ATTACKER. The readers are lib's: `alignmentKey(text)` folds a free-text alignment
+ATTACKER, and `enemy` is the attacker's side against the recipient's, the
+bearer's, never the caster's. The readers are lib's: `alignmentKey(text)` folds a free-text alignment
 to a key (null for "None", blank or anything else), `actorAlignment(actor)`,
 `creatureKinds(actor)` and `areEnemies(tokenA, tokenB)` (`actorRead`).
 `hasScope(effect)` is true when an effect declares any target-side clause, and
@@ -558,6 +559,25 @@ It returns `parts` to write and `listed` rows left out with a `reason`
 `isUnverified(item)` is true for a scan's rows (`extras.effectsFrom`, else
 `unaudited`). The equipment loadout effect is the one writer
 (`docs/equipment/MODEL.md`).
+
+`modifierDisposition(spec, {actorType, bearer = false})` takes one opt-in. With
+`bearer`, a row on a record is read on the actor that carries it: a `target`,
+`recipient` or `area` subject reads as `self`, and the actor-type refusal (step 0
+above step 1) waits until the at-the-roll answers have been tried, so a monster
+bearer's scoped or item-gated row answers `atRoll`. Without it every answer is
+the one this section lists; the ability sheet and quick effects never pass it.
+
+`registerGate(kind, evaluate, {at})` takes `at: "roll"` (the roller's place, a
+token's light; `isRollGate`) or `at: "item"` (the weapon of the roll,
+`ctx.item`; `isItemGate`). A row gated by an item gate answers `atRoll` with
+reason `item`, right after the roll-gate test and on either path, and never
+reaches `rollGatedModifiers`. A later registration of a kind replaces its timing.
+`weaponMundane` and `weaponMagical` are item gates (`roll-mods.mjs`).
+
+`stackingPart({value, label, ref, stacksWith, notStacksWith, ...rest})` is the
+one way to build a part for `resolveStacking`: it always gives `caps`
+(`capabilitiesOf(ref)`, the capabilities a `{id, provides}` reference provides)
+and `ref`, which the resolver reads, and passes every other field through.
 
 ## Not yet consumed (built ahead of the magic work)
 
@@ -940,11 +960,13 @@ not await `_useSpell`; a feature that must wait for a cast calls
 `item._useSpell(options)`. The registry and the wrapper are
 `scripts/lib/patches/spell-use.mjs`.
 
-## `attack`, `saves` and `loseStates` — a spell on the weapon pipeline (apiVersion 51)
+## `attack`, `saves`, `rollMods` and `loseStates` — a spell on the weapon pipeline (apiVersion 52)
 
-The model is docs/lib/MODEL.md, "A spell's damage on the attack seam" and
-"Saving throws as parts"; the ruling is DECISIONS, "A spell's damage is a fourth
-attack type on a carrier".
+The model is docs/lib/MODEL.md, "A spell's damage on the attack seam", "A
+record's modifiers at the roll" and "Saving throws as parts"; the rulings are
+DECISIONS, "A spell's damage is a fourth attack type on a carrier", "A record's
+buff reaches its roll through a lib flag, resolved beside the weapon's own bonus"
+and "The loss path names its cause while it lifts".
 
 ```
 acksExtras.lib.attack = {
@@ -956,13 +978,39 @@ acksExtras.lib.attack = {
   magicDamageSpec(actor, carrier, {terms}) → Promise<{formula, data, modifiers, types, extraordinary} | null>
 }
 acksExtras.lib.saves = {
-  saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values})
-    → {save, kind, formula, baseTarget, target, parts: [{key, label, value, side}], pending, unpriced},
+  saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values,
+                         against = null, bearerToken = null, rollMods = conditions})
+    → {save, kind, formula, baseTarget, target, parts: [{key, label, value, side}],
+       pending: [{condition, value, when} | {label, value, when: "source"}], unpriced},
   saveThrow(actor, save, {…saveSpec options, roll}) → Promise<{…spec, roll, total, success}>
 }
+acksExtras.lib.rollMods = {
+  FLAG: "rollMods",                         // flags["acks-extras"].rollMods on an Active Effect
+  rollModsOf(actor) → [{effect, id, label, cite, sourceAlignment, part}],   // active effects only
+  registerItemBonusSource(source) → unregister,   // source(item, on) → [{key, label, value, provides, cite}]
+}
 acksExtras.lib.loseStates(actor, cause) → Promise<string[]>   // cause: "damage" | "save" | "moved"
+acksExtras.lib.lossInFlight(actor) → {cause, ids} | null       // held while loseStates lifts, on that client
 acksExtras.lib.STATES_LOST_HOOK                                // "acksExtras.statesLost", called with (actor, ids, cause)
 ```
+
+**The `rollMods` flag** is `{id, label, cite, sourceAlignment, parts}`, `id` the
+definition id the record stacks as. A part is `{key, on, value, itemId, gate,
+stacksWith, notStacksWith, provides}` plus the scope fields (`vsKinds`,
+`vsAlignment`, `vsAlignmentOf`, `vsAlignmentMode`, `vsEnemy`, `anyOf`); `on` is
+`attack`, `damage`, `ac`, `save` or `ward`, and a `ward` part carries no figure.
+The attack seam adds the attacker's `attack` and `damage` parts to the weapon the
+roll is made with (its `itemId`, or no item named; its item gate; its scope
+against the target), resolved against what the registered item bonus sources
+report for that weapon: the larger of two that do not stack applies, the
+weapon's figure on a tie, and a weapon figure that yields is taken back by a row
+of its negative. A target's `ac` parts are a term against the attacker. A source's
+parts are already in core's rows. `saveSpec`'s `against` is `{actor, token}`, what
+the throw is made against, and `bearerToken` the saver's own token; a `save`
+part that applies is a target part, one that cannot be settled is in `pending`
+with `when: "source"`. Core's own `rollSave` reads only the unscoped, ungated
+`save` parts and tells each scoped one. `lossInFlight` is read by a delete hook
+the lift fires on the same client.
 
 A contributor passed to `addContributor` may declare `carriers: ["attack" |
 "damage"]`: the questions it answers for a spell carrier's attack. Without it a

@@ -26,6 +26,7 @@ import { getMonsterExtras } from "./senses.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
+import { sheetSaveShift, tellRollMods } from "./roll-mods.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
   attackMath, rollMath, speedMath, subjectOf, endingAt, endingAtTurn, giverOf, lostTo,
@@ -424,10 +425,27 @@ function ownRoll(actor, on, options = {}) {
 }
 
 /**
+ * The figure a roll's records (`roll-mods.mjs`) take off a saving throw's
+ * number: the saver's unscoped save parts. A scoped part depends on what is
+ * resisted, which this roll does not name, so it is told and left out.
+ */
+function recordSaveShift(actor) {
+  try {
+    const mods = sheetSaveShift(actor);
+    tellRollMods(mods.told);
+    return mods.total;
+  } catch (err) {
+    console.error(`${MODULE_ID} | a record's saving-throw figure could not be read; the throw rolls without it`, err);
+    return 0;
+  }
+}
+
+/**
  * A saving throw: a bonus lowers the number to roll. `save` is the system's
  * key for the throw, which is not always the conditions' name for it. A throw
  * that comes up under the number it was rolled against takes away the states
- * a failed save costs.
+ * a failed save costs. This wrapper is the method's one owner: the conditions'
+ * figure and the records' figure are read here and nowhere else.
  */
 function onRollSave(wrapped, save, ...rest) {
   let math = null;
@@ -437,7 +455,7 @@ function onRollSave(wrapped, save, ...rest) {
     console.error(`${MODULE_ID} | conditions could not read a saving throw; it rolls without them`, err);
   }
   const cell = this.system?.saves?.[save];
-  const shift = -(math?.total ?? 0);
+  const shift = -((math?.total ?? 0) + recordSaveShift(this));
   const target = numOrNull(cell?.value) == null ? null : Number(cell.value) + shift;
   const rolled = withShift(cell, "value", shift, () => wrapped(save, ...rest));
   if (target != null && lostTo(this.statuses, "save").length) void loseOnFailedSave(this, rolled, target);
@@ -677,6 +695,18 @@ function onInitiativeRolled(combat) {
 /** The operation key under which a pre-update tells the update that hit points fell. */
 const HP_FELL = "hpFell";
 
+/** The loss in flight, by the losing actor's uuid: `{cause, ids}` for as long as `loseStates` is lifting. */
+const LOSING = new Map();
+
+/**
+ * The loss `loseStates` is lifting for this actor right now, `{cause, ids}`, or
+ * null. A delete hook fired by that lift runs on this client while the loss is
+ * held, so it can name what cost the state; once `loseStates` has finished (or
+ * thrown) there is nothing to read. `STATES_LOST_HOOK` fires after the lift and
+ * cannot serve.
+ */
+export const lossInFlight = (actor) => LOSING.get(actor?.uuid) ?? null;
+
 /**
  * Take off an actor the states `cause` costs it, say so, and fire
  * `STATES_LOST_HOOK` with `(actor, ids, cause)` when anything was lost. Run by
@@ -689,7 +719,14 @@ const HP_FELL = "hpFell";
 export async function loseStates(actor, cause) {
   const ids = lostTo(actor?.statuses, cause);
   if (!ids.length) return [];
-  await lift(actor, ids);
+  // The delete hooks `lift` fires on this client read the cause while it runs.
+  const mine = { cause, ids };
+  LOSING.set(actor.uuid, mine);
+  try {
+    await lift(actor, ids);
+  } finally {
+    if (LOSING.get(actor.uuid) === mine) LOSING.delete(actor.uuid);
+  }
   ui.notifications?.info(loc("notice.lost", { name: actor.name, conditions: list(ids), cause: loc(`lost.${cause}`) }));
   try {
     Hooks.callAll(STATES_LOST_HOOK, actor, ids, cause);

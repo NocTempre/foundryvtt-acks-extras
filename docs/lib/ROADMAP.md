@@ -200,8 +200,8 @@ rest of each entry is not automated:
 - **Size.** Enlarged and Shrunk do not change a creature's size category, its
   extra damage dice, its carrying capacity or its Armor Class. Shrunk's
   halved damage applies to every attack, not only physical ones.
-- **Concentration.** Nothing ends a concentrating creature's spell when it is
-  struck or moves.
+- **Concentration.** Attacking, other actions and movement do not end it, and
+  a cast the module does not run ends nothing.
 - **Escapes and spell failure.** No throw is offered to slip a hold, and a
   condition that forbids casting only warns on an attack.
 - **Monster speed.** The speed share reaches a character's derived speeds

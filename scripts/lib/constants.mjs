@@ -13,6 +13,14 @@ export const LANG_PREFIX = "ACKS-LIB";
 export const FLAG_GEAR = "gear";
 
 /**
+ * Flag key under `flags["acks-extras"]` on an Active Effect holding the roll
+ * modifiers the record carries (`roll-mods.mjs`): `{id, label, cite,
+ * sourceAlignment, parts}`. Named here because the feature that writes it and
+ * the library that reads it at the roll both name it.
+ */
+export const FLAG_ROLL_MODS = "rollMods";
+
+/**
  * The actor sub-types this library adds to the system. Named here, in the
  * one Foundry-free constants file, so a pure-logic module (and the Node test
  * harness that loads it) can import them without pulling in the sheets and

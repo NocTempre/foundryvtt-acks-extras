@@ -1083,8 +1083,9 @@ function clauseVerdict(scope, ctx, { allowSign }) {
  *   sourceAlignment   the alignment of whoever the effect comes from (a spell
  *                     record's caster, an ability's holder); read where an
  *                     effect scopes by `vsAlignmentOf: "source"`
- *   enemy             true / false / null: whether the target is the source's
- *                     enemy (`areEnemies`); null is unknown
+ *   enemy             true / false / null: whether the roll's other party and the
+ *                     effect's bearer stand on opposing sides (`areEnemies`);
+ *                     null is unknown
  *   tone              the active INFLUENCE_TONES key, when it is an influence roll
  *   optionalRules     { [ruleName]: boolean } — absent means enabled
  *

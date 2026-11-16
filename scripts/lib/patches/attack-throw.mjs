@@ -408,12 +408,13 @@ function writeMagicLabel() {
 }
 
 /**
- * The attacker's token: the one the actor is the synthetic actor of, else its
- * first of its active tokens on the scene in view (`getActiveTokens` reads the
- * canvas's own), else null. A sheet rolling for a world actor names no token,
- * so the scene's own is the best answer there is.
+ * The token an actor acts through: the one the actor is the synthetic actor of,
+ * else its first of its active tokens on the scene in view (`getActiveTokens`
+ * reads the canvas's own), else null. A sheet rolling for a world actor names no
+ * token, so the scene's own is the best answer there is. The one reader of that
+ * token: an attack's context and a cast's caster both ask it.
  */
-function attackerToken(actor) {
+export function actorToken(actor) {
   if (actor?.token) return actor.token;
   try {
     return actor?.getActiveTokens?.()?.[0]?.document ?? null;
@@ -440,7 +441,7 @@ export function attackContext(actor, options = {}) {
   const own = options.acksLib ?? {};
   return {
     actor,
-    token: attackerToken(actor),
+    token: actorToken(actor),
     item,
     weapon: item?.type === ITEM_TYPE.weapon ? item : null,
     target,

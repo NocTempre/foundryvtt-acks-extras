@@ -17,6 +17,10 @@ const {
   specKey,
   isUnverified,
   DISPOSITION,
+  isItemGate,
+  resolveStacking,
+  stackingPart,
+  capabilitiesOf,
 } = await import("../scripts/lib/typed-modifiers.mjs");
 
 let pass = 0;
@@ -414,6 +418,82 @@ check("origin: an entry with a recipe reads recipe, one without reads scan", () 
   assert.equal(effectsOriginOf(recipeEntry), "recipe");
   assert.equal(effectsOriginOf({ fields: {} }), "scan");
   assert.equal(effectsOriginOf(null), "scan");
+});
+
+/* --- The bearer reading, item gates and the stacking builder -------------- */
+
+registerGate("testWeaponKind", () => true, { at: "item" });
+registerGate("testPlaceKind", () => true, { at: "roll" });
+const asBearer = (spec, actorType = "character") => modifierDisposition(spec, { actorType, bearer: true });
+
+check("without bearer a record's subjects stay unsupported; with it they read as the bearer's own", () => {
+  for (const appliesTo of ["target", "recipient", "area"]) {
+    const spec = mod({ appliesTo });
+    assert.deepEqual([modifierDisposition(spec).kind, modifierDisposition(spec).reason], [DISPOSITION.UNSUPPORTED, "subject"]);
+    assert.equal(asBearer(spec).kind, DISPOSITION.STANDING);
+  }
+  // A subject no record names stays refused on either path.
+  assert.equal(asBearer(mod({ appliesTo: "ally" })).reason, "subject");
+  assert.equal(modifierDisposition(mod({ appliesTo: "opponent", target: "surprise" }), { bearer: true }).kind, DISPOSITION.STANDING);
+});
+check("a monster bearer's scoped row answers at the roll; without bearer a monster is refused first", () => {
+  const scoped = mod({ appliesTo: "recipient", vsKinds: ["undead"] });
+  assert.deepEqual([asBearer(scoped, "monster").kind, asBearer(scoped, "monster").reason], [DISPOSITION.AT_ROLL, "scope"]);
+  assert.deepEqual([modifierDisposition(scoped, { actorType: "monster" }).kind, modifierDisposition(scoped, { actorType: "monster" }).reason], [DISPOSITION.UNSUPPORTED, "actorType"]);
+  const own = mod({ vsKinds: ["undead"] });
+  assert.equal(modifierDisposition(own, { actorType: "monster" }).reason, "actorType");
+  assert.equal(asBearer(own, "monster").kind, DISPOSITION.AT_ROLL);
+  // Nothing at the roll to wait for: a plain row on a monster is still refused.
+  assert.equal(asBearer(mod({ appliesTo: "recipient" }), "monster").reason, "actorType");
+});
+check("an item-gated row answers at the roll, reason item, on a character and on a monster bearer", () => {
+  const gated = mod({ target: "damage", gate: { kind: "testWeaponKind" } });
+  for (const [spec, opts] of [
+    [gated, { actorType: "character" }],
+    [gated, { actorType: "character", bearer: true }],
+    [mod({ target: "damage", appliesTo: "recipient", gate: { kind: "testWeaponKind" } }), { actorType: "monster", bearer: true }],
+  ]) {
+    const d = modifierDisposition(spec, opts);
+    assert.deepEqual([d.kind, d.reason, d.gate.kind, d.paths], [DISPOSITION.AT_ROLL, "item", "testWeaponKind", []]);
+  }
+  assert.equal(modifierDisposition(gated, { actorType: "monster" }).reason, "actorType", "a monster is refused first where no bearer is read");
+});
+check("a roll gate and an item gate are told apart, and a later registration replaces the earlier timing", () => {
+  assert.equal(isItemGate("testWeaponKind"), true);
+  assert.equal(isRollGate("testWeaponKind"), false);
+  assert.equal(isRollGate("testPlaceKind"), true);
+  assert.equal(isItemGate("testPlaceKind"), false);
+  assert.equal(modifierDisposition(mod({ gate: { kind: "testPlaceKind" } })).reason, "gate");
+  registerGate("testSwitchKind", () => true, { at: "roll" });
+  registerGate("testSwitchKind", () => true, { at: "item" });
+  assert.deepEqual([isRollGate("testSwitchKind"), isItemGate("testSwitchKind")], [false, true]);
+  registerGate("testSwitchKind", () => true);
+  assert.deepEqual([isRollGate("testSwitchKind"), isItemGate("testSwitchKind")], [false, false], "no timing is neither");
+  assert.equal(isItemGate("nothing"), false);
+});
+check("rollGatedModifiers leaves an item-gated row out and keeps a roll-gated one", () => {
+  const item = (kindName) => ability(kindName, [mod({ target: "attackThrow", value: 2, gate: { kind: kindName } })], { id: `def.prof.${kindName}` });
+  const actor = character([item("testWeaponKind"), item("testPlaceKind")]);
+  assert.deepEqual(rollGatedModifiers(actor, "attackThrow").map((r) => r.gate.kind), ["testPlaceKind"]);
+});
+check("stackingPart always carries the capabilities and the reference resolveStacking reads", () => {
+  const bare = stackingPart({ value: 2, label: "Bare" });
+  assert.deepEqual([bare.caps, bare.ref, bare.stacksWith, bare.notStacksWith], [[], {}, [], []]);
+  const part = stackingPart({ value: 3, label: "Ward", ref: { id: "def.spell.testWard", provides: ["KW:Shared"] }, on: "ac", key: "k1" });
+  assert.deepEqual(part.caps, ["kw:testward", "kw:shared"]);
+  assert.deepEqual([part.on, part.key, part.value, part.label], ["ac", "k1", 3, "Ward"], "the caller's own fields ride along");
+  assert.deepEqual(capabilitiesOf({ id: "def.spell.testWard", provides: ["kw:x"] }), ["kw:testward", "kw:x"]);
+  assert.deepEqual(capabilitiesOf(undefined), []);
+});
+check("parts from the builder stack as abilities do: a shared capability keeps the larger, stacksWith adds", () => {
+  const a = stackingPart({ value: 2, label: "A", ref: { id: "def.spell.testA", provides: ["kw:shared"] } });
+  const b = stackingPart({ value: 3, label: "B", ref: { id: "def.spell.testB", provides: ["kw:shared"] } });
+  const r = resolveStacking([a, b]);
+  assert.deepEqual(r.kept.map((p) => p.label), ["B"]);
+  assert.deepEqual(r.dropped.map((p) => [p.label, p.yieldsTo]), [["A", "B"]]);
+  const c = stackingPart({ value: 2, label: "C", ref: { id: "def.spell.testC", provides: ["kw:shared"] }, stacksWith: ["def.spell.testB"] });
+  assert.deepEqual(resolveStacking([c, b]).kept.map((p) => p.label), ["C", "B"]);
+  assert.throws(() => resolveStacking([{ value: 1, label: "x" }, { value: 2, label: "y" }]), "a part built any other way throws in the resolver");
 });
 
 console.log(`test-typed-modifiers: ${pass} passed`);

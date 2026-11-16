@@ -149,4 +149,60 @@ await ok("a failed save costs the creature nothing here: the throw never lifts a
   assert.deepEqual([...caster.statuses], ["casting", "readied"]);
 });
 
+/** A creature carrying one record: an effect whose flag holds save parts. Invented spell and figures. */
+const bearing = (parts, { statuses = [], kinds = [], type = "character" } = {}) => ({
+  ...(type === "character" ? character({ statuses }) : monster({ statuses })),
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" && kinds.length ? { types: kinds } : undefined),
+  appliedEffects: [
+    { id: "fxWard", disabled: false, flags: { "acks-extras": { rollMods: { id: "def.spell.testWard", label: "Test Ward", cite: "Test cite", sourceAlignment: "lawful", parts } } } },
+  ],
+});
+const savePart = (value, over = {}) => ({ key: `save${value}`, on: "save", value, provides: ["kw:spellrecord"], ...over });
+const source = (kinds = ["undead"], alignment = "chaotic") => ({
+  actor: { type: "monster", getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { types: kinds } : undefined), system: { details: { alignment } } },
+});
+
+await ok("a save part whose scope applies against the source is a target part named for its record, and lowers the number to roll", () => {
+  const saver = bearing([savePart(2, { vsKinds: ["undead"] })]);
+  const spec = saveSpec(saver, "blast", { values: VALUES, against: source() });
+  assert.equal(spec.target, 12);
+  assert.deepEqual(spec.parts.filter((p) => p.side === "target").map((p) => [p.key, p.label, p.value]), [["save2", "Test Ward", 2]]);
+  assert.deepEqual(spec.pending, []);
+  const outside = saveSpec(saver, "blast", { values: VALUES, against: source(["beast"]) });
+  assert.deepEqual([outside.target, outside.parts, outside.pending], [14, [], []], "a scope that fails adds nothing and is not pending");
+});
+
+await ok("an undetermined scope, and a scoped part with nothing to resist, go to pending and leave the target alone", () => {
+  const saver = bearing([savePart(2, { vsKinds: ["undead"] })]);
+  const blank = saveSpec(saver, "blast", { values: VALUES, against: source([]) });
+  assert.deepEqual([blank.target, blank.pending], [14, [{ label: "Test Ward", value: 2, when: "source" }]]);
+  const none = saveSpec(saver, "blast", { values: VALUES });
+  assert.deepEqual([none.target, none.pending], [14, [{ label: "Test Ward", value: 2, when: "source" }]]);
+});
+
+await ok("an unscoped save part applies with or without a source, beside the conditions and the same way", () => {
+  const saver = bearing([savePart(2)], { statuses: ["hungry"] });
+  assert.equal(saveSpec(saver, "blast", { values: VALUES }).target, 15, "14 + 3 for the penalty, - 2 for the record");
+  assert.deepEqual(saveSpec(saver, "blast", { values: VALUES }).parts.filter((p) => p.side === "target").map((p) => p.key), ["hungry", "save2"]);
+  assert.equal(saveSpec(saver, "blast", { values: VALUES, against: source() }).target, 15);
+});
+
+await ok("rollMods: false adds none, and conditions: false implies none (the party's throw)", () => {
+  const saver = bearing([savePart(2), savePart(3, { key: "scoped", vsKinds: ["undead"], provides: ["kw:other"] })]);
+  const off = saveSpec(saver, "blast", { values: VALUES, rollMods: false, against: source() });
+  assert.deepEqual([off.target, off.parts, off.pending], [14, [], []]);
+  const party = saveSpec(saver, "blast", { values: VALUES, conditions: false, against: source() });
+  assert.deepEqual([party.target, party.parts, party.pending], [14, [], []], "formation's call reads the stored number alone");
+  const forced = saveSpec(saver, "blast", { values: VALUES, conditions: false, rollMods: true, against: source() });
+  assert.equal(forced.target, 11, "asking for the records without the conditions is possible; one record's two parts share its capability, so 14 - 3");
+});
+
+await ok("two records' save parts give one figure, and a monster bearer's record reaches its throw", () => {
+  const twice = bearing([savePart(2), savePart(4, { key: "bigger" })]);
+  assert.equal(saveSpec(twice, "blast", { values: VALUES }).target, 10, "parts of one spell share its capability: the larger");
+  const beast = bearing([savePart(3, { vsKinds: ["undead"] })], { type: "monster" });
+  assert.equal(saveSpec(beast, "blast", { against: source() }).target, 11);
+  assert.equal(saveSpec(character(), "blast", { against: source() }).target, 14, "a creature with no records adds nothing");
+});
+
 console.log(`\n${passed} passed`);

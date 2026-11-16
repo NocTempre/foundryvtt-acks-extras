@@ -9,7 +9,9 @@
  * bonuses the system adds (a character's modifier against magic and its
  * Wisdom modifier, only when the throw is against magic), the creature's
  * conditions through `rollMath("save", …)` the way the conditions' own
- * wrapper lowers the target, and whatever the caller adds. `saveThrow` rolls
+ * wrapper lowers the target, the `save` parts of the creature's records
+ * (`roll-mods.mjs`, scoped against what the throw is made against), and
+ * whatever the caller adds. `saveThrow` rolls
  * the spec. It never takes states off the creature: the loss a failed save
  * costs is the caller's, through `loseStates` (`status-effects.mjs`), so one
  * place decides who is asked to write it.
@@ -17,6 +19,7 @@
 import { LANG_PREFIX } from "./constants.mjs";
 import { rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
+import { saveModParts } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 
@@ -56,11 +59,19 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {number|string|null} [options.situational]  a figure for this one throw
  * @param {Array<{key: string, label: string, value: number|string}>} [options.parts]  the caller's parts on the roll
  * @param {object} [options.values]  the conditions' registered figures, in place of the world's
+ * @param {{actor: object, token?: object}|null} [options.against]  what the throw is made against: the saver's scoped `save` parts (`roll-mods.mjs`) are settled against it
+ * @param {object|null} [options.bearerToken]  the saver's token, read for an enemy test against `against.token`
+ * @param {boolean} [options.rollMods=conditions]  the saver's records' `save` parts join the target; off with the conditions, so a caller that opts out of the one opts out of the other
  * @returns {{save: string, kind: string, formula: string, baseTarget: number|null,
  *   target: number|null, parts: Array<{key: string, label: string, value: number|string, side: "roll"|"target"}>,
- *   pending: Array<{condition: string, value: number, when: string}>, unpriced: string[]}}
+ *   pending: Array<{condition: string, value: number, when: string}|{label: string, value: number, when: "source"}>, unpriced: string[]}}
+ *   a condition's pending row names its `condition`; a record's names its `label`
  */
-export function saveSpec(actor, save, { magical = true, conditions = true, situational = null, parts = [], values } = {}) {
+export function saveSpec(
+  actor,
+  save,
+  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions } = {},
+) {
   const kind = saveKindOf(save);
   const stored = actor?.system?.saves?.[save]?.value;
   const baseTarget = typeof stored === "number" && Number.isFinite(stored) ? stored : null;
@@ -97,6 +108,14 @@ export function saveSpec(actor, save, { magical = true, conditions = true, situa
         if (p.value) targetParts.push({ key: p.condition, label: locOr(`${LANG_PREFIX}.condition.${p.condition}`, p.condition), value: p.value, side: "target" });
       }
     }
+  }
+  if (rollMods) {
+    const mods = saveModParts(actor, { against, bearerToken });
+    for (const p of mods.parts) {
+      targetParts.push(p);
+      shift += p.value;
+    }
+    pending = [...pending, ...mods.pending];
   }
   return {
     save,

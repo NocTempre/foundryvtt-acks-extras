@@ -414,7 +414,14 @@ ok("damage and a failed save cost a caster its spell and a readied creature its 
   assert.deepEqual(lostTo(on, "save"), ["casting", "readied"]);
   assert.deepEqual(lostTo(on, "moved"), ["readied"]);
   assert.deepEqual(lostTo(null, "damage"), []);
-  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "readied"]);
+  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "concentrating", "concentratingStationary", "readied"]);
+});
+
+ok("both concentration states are lost to damage and to a failed save, and never to a move", () => {
+  const on = ["concentrating", "concentratingStationary", "covered"];
+  assert.deepEqual(lostTo(on, "damage"), ["concentrating", "concentratingStationary"]);
+  assert.deepEqual(lostTo(on, "save"), ["concentrating", "concentratingStationary"]);
+  assert.deepEqual(lostTo(on, "moved"), []);
 });
 
 /** A fight as an effect's `start` points into it: combatants by id, each with its actor. */
@@ -644,6 +651,52 @@ await (async () => {
     assert.equal(told.length, 1, "and announces nothing");
     passed++;
     console.log("ok   loseStates takes the lost states off, answers their ids and fires the hook only when something was lost");
+
+    // The cause is readable while the lift runs and gone once it has finished, a failed lift included.
+    const { lossInFlight } = await import("../scripts/lib/status-effects.mjs");
+    const during = [];
+    const watched = new SystemActor(["concentrating", "casting"], { uuid: "Actor.watched" });
+    const lifting = watched.toggleStatusEffect.bind(watched);
+    watched.toggleStatusEffect = async (id, opts) => {
+      during.push(lossInFlight(watched));
+      return lifting(id, opts);
+    };
+    assert.equal(lossInFlight(watched), null, "nothing before");
+    assert.deepEqual(await loseStates(watched, "damage"), ["concentrating", "casting"]);
+    assert.deepEqual(during.map((d) => [d.cause, d.ids]), [["damage", ["concentrating", "casting"]], ["damage", ["concentrating", "casting"]]], "held across every delete of the lift");
+    assert.equal(lossInFlight(watched), null, "and cleared after it");
+    assert.equal(lossInFlight(null), null);
+    const failing = new SystemActor(["concentrating"], { uuid: "Actor.failing" });
+    failing.toggleStatusEffect = async () => { throw new Error("refused"); };
+    const wasError = console.error;
+    console.error = () => {};
+    try {
+      await loseStates(failing, "save");
+    } finally {
+      console.error = wasError;
+    }
+    assert.equal(lossInFlight(failing), null, "a lift that failed leaves no cause behind");
+    // A second loss starting while the first lifts owns the entry: the first finishing does not clear it.
+    const gates = [];
+    const slow = new SystemActor(["concentrating", "casting"], { uuid: "Actor.slow" });
+    slow.toggleStatusEffect = (id) => new Promise((resolve) => gates.push(() => { slow.statuses.delete(id); resolve(); }));
+    const first = loseStates(slow, "damage");
+    const second = loseStates(slow, "save");
+    assert.equal(lossInFlight(slow).cause, "save", "the later loss is the one in flight");
+    // Each loss lifts two states one at a time, so the gates fill in the order: first's 1st, second's 1st, first's 2nd.
+    gates[0]();
+    await settle();
+    gates[2]();
+    await first;
+    assert.equal(lossInFlight(slow)?.cause, "save", "the earlier loss finishing leaves the later one's cause in place");
+    for (let round = 0; round < 4; round++) {
+      while (gates.length) gates.shift()();
+      await settle();
+    }
+    await Promise.all([first, second]);
+    assert.equal(lossInFlight(slow), null);
+    passed++;
+    console.log("ok   lossInFlight names the cause while loseStates lifts, and is clear before and after");
 
     // Damage: the pre-update marks an update that lowers hit points, and the update's own client lifts.
     const hurt = new SystemActor(held());

@@ -95,12 +95,16 @@ export const DISPOSITION = Object.freeze({
   UNSUPPORTED: "unsupported",
 });
 
+/** The subjects a record's row names for whoever carries the record; `modifierDisposition`'s `bearer` reads each as `self`. */
+const BEARER_SUBJECTS = Object.freeze(["target", "recipient", "area"]);
+
 /* ---------------------------------------------------------------------- */
 /*  Gates                                                                  */
 /* ---------------------------------------------------------------------- */
 
 const GATES = new Map();
 const ROLL_GATES = new Set();
+const ITEM_GATES = new Set();
 
 /**
  * Register the evaluator for one gate kind. `evaluate(actor, gate, ctx)`
@@ -113,12 +117,20 @@ const ROLL_GATES = new Set();
  * a roll (a token's light), not the actor's state: a spec it gates is never
  * written as a standing modifier, on any actor, and a roll reads it with the
  * context the roll holds (`ctx.token`).
+ *
+ * `at: "item"` marks a gate that describes the weapon the roll is made with
+ * (`ctx.item`): a spec it gates is never written as a standing modifier and
+ * is not a roll-gated row either, so the light gate's readers never ask it.
+ * Only a reader that holds a weapon asks it.
  */
 export function registerGate(kind, evaluate, { at } = {}) {
   if (!kind || typeof evaluate !== "function") return;
-  GATES.set(String(kind), evaluate);
-  if (at === "roll") ROLL_GATES.add(String(kind));
-  else ROLL_GATES.delete(String(kind));
+  const key = String(kind);
+  GATES.set(key, evaluate);
+  ROLL_GATES.delete(key);
+  ITEM_GATES.delete(key);
+  if (at === "roll") ROLL_GATES.add(key);
+  else if (at === "item") ITEM_GATES.add(key);
 }
 
 /** Whether a gate kind has an evaluator. */
@@ -126,6 +138,9 @@ export const hasGate = (kind) => GATES.has(String(kind ?? ""));
 
 /** Whether a gate kind is read at the roll (`registerGate`'s `at: "roll"`). */
 export const isRollGate = (kind) => ROLL_GATES.has(String(kind ?? ""));
+
+/** Whether a gate kind is read off the weapon of a roll (`registerGate`'s `at: "item"`). */
+export const isItemGate = (kind) => ITEM_GATES.has(String(kind ?? ""));
 
 /**
  * One gate's verdict for one actor: true, false, or null when no evaluator is
@@ -223,23 +238,36 @@ function hasRollScope(spec) {
  * resolved: `{kind, reason?, consumer?, paths}`. `kind` is a `DISPOSITION`
  * value; `reason` is a short machine word a surface localizes. A spec whose
  * gate is a roll gate is AT_ROLL with reason `gate` for any actor type, and
- * carries its `gate`. Null for a spec that is not a modifier.
+ * carries its `gate`; one whose gate is an item gate is AT_ROLL with reason
+ * `item` on either path. Null for a spec that is not a modifier.
+ *
+ * `bearer` reads a spec on the actor that carries it as a record: a spell's
+ * row whose subject is its `target`, `recipient` or `area` is the bearer's own
+ * (`self`), and the actor-type refusal waits until the answers read at the
+ * roll (an item gate, a scope) have been tried, so a monster bearer's scoped or
+ * item-gated row answers AT_ROLL. Without `bearer` every answer is the
+ * ability reader's: those three subjects are unsupported and a monster is
+ * refused first.
  */
-export function modifierDisposition(spec, { actorType = "character" } = {}) {
+export function modifierDisposition(spec, { actorType = "character", bearer = false } = {}) {
   if (spec?.type !== "modifier") return null;
   const paths = [];
   const out = (kind, extra = {}) => ({ kind, paths, ...extra });
   const rollGate = gateOf(spec) && isRollGate(gateOf(spec).kind) ? gateOf(spec) : null;
-  if (!MODIFIER_PATHS[actorType] && !rollGate) return out(DISPOSITION.UNSUPPORTED, { reason: "actorType" });
+  const itemGate = gateOf(spec) && isItemGate(gateOf(spec).kind) ? gateOf(spec) : null;
+  if (!MODIFIER_PATHS[actorType] && !rollGate && !(bearer && (itemGate || hasRollScope(spec)))) {
+    return out(DISPOSITION.UNSUPPORTED, { reason: "actorType" });
+  }
   const consumer = CONSUMED_TARGETS[spec.target];
   if (consumer) return out(DISPOSITION.CONSUMED, { consumer });
   if (spec.appliesToRoll) return out(DISPOSITION.CONSUMED, { consumer: "abilities" });
   if (spec.mode && spec.mode !== "add") return out(DISPOSITION.UNSUPPORTED, { reason: "mode" });
-  if (spec.appliesTo && spec.appliesTo !== "self" && spec.appliesTo !== "opponent") {
-    return out(DISPOSITION.UNSUPPORTED, { reason: "subject" });
-  }
+  const own = spec.appliesTo === "self" || spec.appliesTo === "opponent" || (bearer && BEARER_SUBJECTS.includes(spec.appliesTo));
+  if (spec.appliesTo && !own) return out(DISPOSITION.UNSUPPORTED, { reason: "subject" });
   // A roll gate waits for the roll on any actor: the loadout never writes it.
   if (rollGate) return out(DISPOSITION.AT_ROLL, { reason: "gate", gate: rollGate });
+  // An item gate waits for the weapon of the roll, which only a roll holds.
+  if (itemGate) return out(DISPOSITION.AT_ROLL, { reason: "item", gate: itemGate });
   if (hasRollScope(spec)) return out(DISPOSITION.AT_ROLL, { reason: "scope" });
   paths.push(...modifierPaths(spec, actorType));
   if (!paths.length) {
@@ -390,15 +418,30 @@ function conflicts(a, b) {
   return b.caps.some((c) => capsA.has(c));
 }
 
-/** The capabilities an ability provides, its own id's included, folded. */
-function capabilitiesOf(ref) {
+/**
+ * The capabilities a `{id, provides}` reference provides, its own id's
+ * included, folded: `def.<kind>.<slug>` gives `kw:<slug>`.
+ */
+export function capabilitiesOf(ref) {
   const out = [];
-  if (ref.id) {
+  if (ref?.id) {
     const tail = String(ref.id).split(".").slice(2).join("").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (tail) out.push(`kw:${tail}`);
   }
-  for (const p of ref.provides ?? []) out.push(String(p).toLowerCase());
+  for (const p of ref?.provides ?? []) out.push(String(p).toLowerCase());
   return out;
+}
+
+/**
+ * The one way to build a part `resolveStacking` can order: `{value, label}` and
+ * the reference (`{id, provides}`) it stacks as, with the capabilities that
+ * reference provides and the refs it names in `stacksWith` and
+ * `notStacksWith`. Any other field (the caller's own) rides along unchanged.
+ * `resolveStacking` reads `caps` and `ref` on every part, so a part built any
+ * other way throws there.
+ */
+export function stackingPart({ value, label, ref = {}, stacksWith = [], notStacksWith = [], ...rest } = {}) {
+  return { ...rest, value, label, ref, caps: capabilitiesOf(ref), stacksWith, notStacksWith };
 }
 
 /**

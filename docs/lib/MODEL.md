@@ -2091,15 +2091,99 @@ raw hit points outside the one amount path.
 unless the system has one. Ruling: DECISIONS, "A spell's damage is a fourth
 attack type on a carrier".
 
+## A record's modifiers at the roll
+
+An Active Effect carries the figures no field a change can write holds in
+`flags["acks-extras"].rollMods`, `{id, label, cite, sourceAlignment, parts}`.
+`roll-mods.mjs` reads them at the roll that wants them; the feature that writes a
+record resolves the figures, and lib owns the reading and the stacking.
+
+**A part** is `{key, on, value, itemId, gate, stacksWith, notStacksWith,
+provides}` plus the scope fields `scopeApplies` reads. `on` is `attack` or
+`damage` (the bearer's own weapon), `ac` (an attack made against the bearer),
+`save` (a saving throw) or `ward`, a protection with no figure that is told and
+never added. `rollModsOf(actor)` returns one entry per part of every applicable
+effect that is active; a disabled effect adds none.
+
+**Only `stackingPart` builds a part.** `resolveStacking` reads a part's
+capabilities and reference, so a bare part throws in it, and the attack seam
+drops a contributor that throws without saying so. `stackingPart({value, label,
+ref, stacksWith, notStacksWith, ...rest})` always gives `caps` and `ref`;
+`spellStackingPart(entry)` is the part of one `rollModsOf` entry, stacking as the
+record's `id` (so a printed `stacksWith` naming another record matches) with what
+the part `provides`. Resolution is per field, never across them. Two parts of one
+record on one field share the record's own capability, so the larger applies.
+
+**The weapon's own bonus.** Core's rows already carry what a weapon's bonus
+adds, so a record's part is resolved against it rather than beside it.
+`registerItemBonusSource(source)` registers a reader, `source(item, on)` giving
+`[{key, label, value, provides, cite}]`, and returns its unregister function;
+`itemBonusParts(item, on)` turns every source's answer into parts, zeros left
+out. `resolveItemParts(itemParts, spellParts)` puts the weapon's parts first, so
+a tie keeps the weapon's figure, and returns the rows to add: a kept record part
+is a row of its figure labelled `{name} ({cite})` (core's dice tooltip lists the
+label, so the tooltip names the record), a weapon part that yielded is a row of
+its negative labelled as yielding, and a weapon part that is kept adds nothing.
+A record part that yielded is told.
+
+**The attack seam.** `rollModsContributor` is asked for a spell carrier's attack
+throw and not its damage, and for both on a weapon. For `attack` and `damage` it
+reads the attacker's parts on that field whose `itemId` is the weapon's (or names
+none), whose item gate answers yes for the weapon (`gateVerdict(actor, gate,
+{item, token})`) and whose scope applies against the target, and resolves them as
+above. For `attack` it also reads the target's `ac` parts, scoped against the
+attacker, and adds a term of minus each kept figure labelled as the target's, the
+target's parts resolved among themselves so two records give one figure. A `ward`
+part whose scope applies or cannot be settled is told on the attacking seat and
+never refused, since no row says which attacks it stops. An undetermined scope
+adds nothing and is told; one that fails adds nothing and says nothing. Each
+notice is told once per attack (`ctx.rollModsTold`); the answer is cached per
+question and attack type (`ctx.rollMods`), because the dialog's preview asks again
+on every keystroke.
+
+**Scope.** `scopeCtxFor(other, {sourceAlignment, enemy})` is the context
+`scopeApplies` reads: the other party's kinds and alignment, the record's source
+alignment, and `areEnemies` of the two tokens. `vsEnemy` reads the BEARER's side
+against the roll's other party, never the caster's: the bearer is the one
+attacked or the one attacking, and a caster may have no token on the scene. A
+scope's `sign` multiplies the figure.
+
+**The item gates.** `registerGate(kind, evaluate, {at: "item"})` keeps a kind in
+its own set (`isItemGate`). A spec gated by one answers `atRoll` with reason `item`
+and never `gate`, so the roll gates' readers (`rollGatedModifiers`,
+`roll-gates.mjs`) never ask it with no weapon in hand. `weaponMundane` and
+`weaponMagical` are registered in `roll-mods.mjs` and read `ctx.item` alone
+through `isMagical`; with no weapon they answer null. A weapon is magic by what it
+is, never by what a record was put on it.
+
+**The bearer reading.** `modifierDisposition(spec, {actorType, bearer})` with
+`bearer` reads a record's row on the actor that carries it: a `target`,
+`recipient` or `area` subject is the bearer's own, and the actor-type refusal
+waits until the at-the-roll answers have been tried, so a monster bearer's scoped
+or item-gated row answers `atRoll`. Without `bearer` every answer is the ability
+reader's, unchanged. Rulings: DECISIONS, "A record's buff reaches its roll
+through a lib flag, resolved beside the weapon's own bonus".
+
 ## Saving throws as parts
 
 `saves.mjs` composes a saving throw as named parts and makes it. `saveSpec(actor,
-save, {magical, conditions, situational, parts, values})` is pure: the stored
+save, {magical, conditions, situational, parts, values, against, bearerToken,
+rollMods})` is pure: the stored
 target, the roll's parts (a character's own modifier and Wisdom modifier when the
 throw is against magic, a situational figure, the caller's parts), and the
 creature's conditions through `rollMath("save", …)`, which lower the target as the
 conditions' own wrapper does. A part is `{key, label, value, side}`; a target
-part's value is the figure that lowers the number to roll. Numbers on the roll
+part's value is the figure that lowers the number to roll. The saver's records'
+`save` parts (`saveModParts`) join the target the same way: one whose scope
+applies against `against` (`{actor, token}`, what the throw is made against, with
+`bearerToken` the saver's own token) is a target part labelled as its record; one
+that cannot be settled, or any scoped one with no `against`, comes back in
+`pending` as `{label, value, when: "source"}` beside the conditions' own rows. An
+unscoped part always applies, and the applying parts are resolved among
+themselves. `rollMods` defaults to `conditions`, so the party's save is
+unchanged. A save rolled from a sheet goes through `onRollSave`
+(`status-effects.mjs`, the method's one owner), which has no `against`: its
+unscoped parts join the shift and each scoped one is told and left out. Numbers on the roll
 sum into one signed term (`1d20 + 3`), a part that is not a number is appended,
 a zero part is not listed. Rows bound to a circumstance come back `pending` and
 a figure nobody imported `unpriced`, and neither moves the target. `saveThrow`
@@ -2508,6 +2592,15 @@ took and fires `STATES_LOST_HOOK` (`acksExtras.statesLost`) with `(actor, ids,
 cause)` only when something was lost. A feature that rolls a saving throw of
 its own (`saves.mjs`, "Saving throws as parts") calls it for a failed one; the
 throw does not.
+
+`casting` and both concentration states are lost to damage and to a failed
+saving throw, and to nothing else: a move costs a concentrating creature
+nothing. While `loseStates` lifts, it holds `{cause, ids}` under the actor's uuid,
+and `lossInFlight(actor)` answers it. The delete hooks `lift` fires run on the
+same client while it is held, so a listener can name what cost the state; it is
+cleared when the lift finishes, a failed one included, and only by the loss that
+set it. `STATES_LOST_HOOK` fires after the lift and cannot say it. A state taken
+off by any other path (the token HUD, a hand delete) carries no cause.
 
 **Earlier ids.** An effect carrying one of Foundry's generic status ids, or
 this module's earlier Hiding id, is found by the repair tool's `lib.statusIds`

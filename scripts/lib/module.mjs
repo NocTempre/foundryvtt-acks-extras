@@ -26,7 +26,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
-import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK, FLAG_ROLL_MODS } from "./constants.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
@@ -113,9 +113,10 @@ import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
 import * as conditions from "./conditions.mjs";
 import {
-  STATUS_PALETTE_SETTING, installConditionRolls, loseStates, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
+  STATUS_PALETTE_SETTING, installConditionRolls, loseStates, lossInFlight, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
+import { installRollMods, registerItemBonusSource, rollModsOf } from "./roll-mods.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
   SETTING_MANAGE_VISION,
@@ -153,7 +154,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 51,
+  apiVersion: 52,
   vocab,
   fields,
   /**
@@ -412,15 +413,28 @@ const localImpl = Object.freeze({
    * A saving throw as named parts (saves.mjs): `saveSpec` composes the
    * formula, the target and the parts a throw is made from, with no roll;
    * `saveThrow` rolls it. Neither takes a state off the creature; a failed
-   * save's loss is `loseStates`.
+   * save's loss is `loseStates`. `saveSpec` also reads the saver's records'
+   * `save` parts, scoped against its `against` option.
    */
   saves: { saveSpec: saves.saveSpec, saveThrow: saves.saveThrow },
   /**
+   * The modifiers an Active Effect carries for a roll (roll-mods.mjs), in
+   * its flag `FLAG` (`flags["acks-extras"].rollMods`): the attack seam adds
+   * them to the weapon's attack and damage and to an attack against the
+   * bearer, resolved against the weapon's own bonus. `rollModsOf(actor)`
+   * reads them; `registerItemBonusSource(source)` reports a weapon's own bonus
+   * parts so a record's part can stack with or yield to them, and returns
+   * the function that unregisters it.
+   */
+  rollMods: { registerItemBonusSource, rollModsOf, FLAG: FLAG_ROLL_MODS },
+  /**
    * Take off an actor the states a `cause` (`damage`, `save`, `moved`)
    * costs it; `STATES_LOST_HOOK` fires with `(actor, ids, cause)` when any
-   * were lost.
+   * were lost. `lossInFlight(actor)` is the `{cause, ids}` being lifted
+   * right now, readable by a delete hook that lift fires on the same client.
    */
   loseStates,
+  lossInFlight,
   STATES_LOST_HOOK,
   /**
    * The cast seam (patches/spell-use.mjs) over the system's `Item#_useSpell`.
@@ -940,6 +954,10 @@ Hooks.once("ready", () => {
 
   // Typed modifiers gated by a roll gate (a light), read on the attack throw.
   installRollGates();
+
+  // The parts an Active Effect carries for a roll (the `rollMods` flag), read
+  // on the weapon's attack and damage and on an attack against the bearer.
+  installRollMods();
 
   // The consolidated surprise card; see docs/lib/DECISIONS.md, "2026-08-11 —
   // Surprise results consolidate onto one card".

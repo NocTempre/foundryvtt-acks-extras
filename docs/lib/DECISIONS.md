@@ -342,3 +342,92 @@ flag.
 **Cost.** A module-owned creature model answers `attackThrowModifiersFor` with its
 own base for `magic`, since it never reaches the wrapper that asks for the delivery
 kind; no spell is cast by one yet.
+
+## 2026-11-16 — A record's buff reaches its roll through a lib flag, resolved beside the weapon's own bonus
+
+**Ruled.** The owner: "1 stops, 2 spells track separate, effects don't stack but
+can overlap, 3 on cast if target. Don't forget to track interaction with spells per
+day and abilities that buff certain spells". A figure a record gives to a roll no
+field can hold (an attack throw on one weapon, a term against an attacker, a
+saving-throw figure against a kind of source) rides
+`flags["acks-extras"].rollMods` on the record's Active Effect: `{id, label, cite,
+sourceAlignment, parts}`, a part `{key, on, value, itemId, gate, stacksWith,
+notStacksWith, provides}` plus the scope fields. Lib reads it; the feature that
+writes it resolves the figure and owns no reader (lib imports no feature).
+
+- **A spell's row is read on its bearer by opt-in.** `modifierDisposition(spec,
+  {actorType, bearer})`: with `bearer`, a `target`, `recipient` or `area` subject
+  reads as `self` and the actor-type refusal waits until the answers read at the
+  roll are tried, so a monster bearer's scoped or item-gated row answers `atRoll`.
+  Without it every answer is unchanged, which the existing suites pin. This settles
+  the plan's ruling 34 finding. *Rejected:* testing the scope before the subject
+  (it changes pinned answers for an `ally` row and a monster's scoped ability); a
+  second classifier (a second copy of the order).
+- **`weaponMundane` and `weaponMagical` are item gates.** `registerGate(kind, fn,
+  {at: "item"})` keeps its own set; a row gated by one answers `atRoll`, reason
+  `item`, and never `gate`, so `rollGatedModifiers` and `roll-gates.mjs` never ask
+  it. Each reads `ctx.item` alone through `isMagical` and answers null with no
+  item, so a second cast never makes a weapon magic. *Rejected:* `at: "roll"`,
+  which the light contributor would ask with no item and label as a light level.
+- **One builder makes every part.** `stackingPart` and `capabilitiesOf` are the
+  only way to build a part: `resolveStacking`'s `conflicts` reads `caps` and `ref`
+  and throws on a bare one, and the attack seam's `ask()` drops a contributor's
+  whole answer on a throw without a visible failure. Resolution is per field,
+  weapon's parts first, so a tie keeps the weapon's figure and a zero weapon part
+  is left out. *Rejected:* one resolution across fields, where a damage figure
+  would beat an attack figure. *Counter (low):* a tie keeps the source already in
+  core's rows, which the print may not prefer; a notice says which one yielded.
+- **The contributor resolves against core's bonus, never beside it.** Core's rows
+  already carry a weapon's bonus, so adding a record's figure beside it adds the
+  two against a printed clause that says they do not stack, and writing the figure
+  into `system.bonus` writes a field the next recompute erases.
+  `registerItemBonusSource(source)` reports the weapon's parts; a kept record part
+  is a row labelled `{name} ({cite})`, a dropped weapon part a row of its negative,
+  a dropped record part a notice. *Counter (medium):* a source cannot see a
+  Judge's hand edit of `system.bonus.attack`, so the negative row takes back the
+  tier's figure and not the field's.
+- **A recipient's `ac` parts are read on the attack against it.** Scoped against
+  the attacker (kinds, alignment, the record's source alignment, `areEnemies` of
+  the attacker's token and the bearer's), they are a term of minus the figure,
+  resolved among themselves; an undetermined scope is told and adds nothing; a
+  `ward` part that applies or is undetermined is told on the attacking seat and
+  never refused, since no row says which attacks it stops. `vsEnemy` reads the
+  bearer's side, not the caster's: an unlinked caster may have no token on the
+  scene and the bearer is the one attacked. *Counter (medium):* where the print
+  means the caster's enemy, a circle around a hostile bearer reads the wrong side.
+- **A saving throw against a source reads the saver's scoped `save` parts.**
+  `saveSpec(…, {against, bearerToken, rollMods = conditions})`: a part that
+  applies is a target part labelled as its record, an undetermined one or any
+  scoped one with no `against` is `pending` as `{label, value, when: "source"}`.
+  The party's save passes `conditions: false` and is unchanged. Core's own
+  `rollSave` stays the one owner of `onRollSave` in `status-effects.mjs`; it has no
+  `against`, so it applies only the unscoped, ungated parts and tells each scoped
+  one. *Rejected:* adjusting the target in the casting feature after `saveSpec`
+  (the relay would recompute without it and refuse). *Counter (medium):* a save
+  rolled from the sheet against a scoped foe never gets the figure; the notice is
+  the Judge's cue.
+
+*Cost:* lib `apiVersion` is 52. Two parts of one record on one field share the
+record's own capability and do not add, so a spell with two rows on one field
+gives the larger. A traded weapon leaves its buff with the old holder.
+
+## 2026-11-16 — The loss path names its cause while it lifts
+
+**Ruled.** Governed by the owner's "automation with transparency is the design
+principle": the table is told what ended a concentration and why. Both
+concentration states are lost to damage and to a failed saving throw (`lost` on
+their catalogue rows), and `loseStates` holds `{cause, ids}` under the actor's uuid
+for as long as it lifts, which `lossInFlight(actor)` answers. The delete hooks the
+lift fires run on the same client while it is held, so a listener can say what cost
+the state. The entry is cleared when the lift ends, a failure included, and only by
+the loss that set it.
+
+**Rejected.** Firing `STATES_LOST_HOOK` before the lift, where its listeners would
+see the states still on; reading it as the trigger, since it fires after the lift
+and only on the client that lost the states. *Counter (low):* a status lifted by
+any other path (the token HUD, a hand delete) carries no cause, and a listener
+reads it as removed.
+
+*Cost:* a concentrating creature that is struck or fails a save loses the state,
+where before nothing ended it. This narrows the conditions ROADMAP row to what
+the module still does not do.
