@@ -1,0 +1,1 @@
+- **Scene controls → Battlemap → Map setup:** the notice after a square grid is applied now reads like the hex one: the grid size in px, then the distance and unit per square.
