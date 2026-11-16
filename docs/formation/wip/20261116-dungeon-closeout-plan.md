@@ -88,6 +88,12 @@ Read 2026-11-16 by a `scout` inventory; symbols, not lines.
   Contortionism and Cat Burglary appear under `scripts/` only in comments.
   `ability-bridge.mjs` (`abilityKey`, `overrideFor`) and `party-rolls.mjs`
   (`resolveCheck`, `skillGateAllows`, `boundChecks`) are the existing reads.
+  The read itself needs no producer: an imported item answers its own
+  definition id's token (`lib/vocab.mjs` `capabilityForId`, through
+  `lib/capabilities.mjs` `hasCapability`), so `kw:climbing`, `kw:acrobatics`,
+  `kw:swimming` and `kw:mountaineering` are satisfied by the imported entries
+  as they stand. A hand-made item has no token and is caught by name, the
+  union `rest.mjs` takes for Endurance (`hasCapability(…) || hasAbility(…)`).
 - **Member weight.** `formation-model.mjs` `carriedLoad`; `lib/capacity.mjs`
   `borneWeight6`, `carriedWeight6`, `loadStone`.
 - **Plug-in points.** `lib/turn-activities.mjs` `registerTurnActivity`;
@@ -189,12 +195,12 @@ the one fall reader.
 | Proficiency | Readable today | Missing |
 |---|---|---|
 | Adventuring | `abilities/adventuring-throw.mjs` `adventuringThrow(actor, "climb")`, unused here; the imported column also holds a target, so the target has two owners | the table answers permitted-or-not only; the throw is the actor's |
-| Climbing | `skillThrow(actor, item, "climb")` on the cookbook's ladder | a "holds Climbing" read; the supplier of `obstaclePlan`'s `classThrow` |
-| Mountaineering | a name match (`formation-model.mjs` `hasAbility`) | kit, cap, leader's throw (B11) |
+| Climbing | `skillThrow(actor, item, "climb")` on the cookbook's ladder; held: `kw:climbing` or the name (§3) | the supplier of `obstaclePlan`'s `classThrow`, which S6 gives through `resolveCheck` |
+| Mountaineering | held: `kw:mountaineering` or the name | kit, cap, leader's throw (B11) |
 | Cat Burglary | a situational save effect | the traverse term, the exemption, the catch-yourself throw |
 | Contortionism | an escape-save effect | the squeeze and push terms, printed only in ch. 6 |
-| Acrobatics | a situational save effect | "holds", level, cap and bands (C7), `saveBonus` |
-| Swimming | the item's effect, unread (C8) | "holds Swimming" |
+| Acrobatics | a situational save effect; held: `kw:acrobatics` or the name; level from the actor | the cap and bands (C7), `saveBonus` |
+| Swimming | the item's effect, unread (C8); held: `kw:swimming` or the name | the granted-modifier read |
 | Dungeonbashing | `resolveCheck(actor, PARTY_CHECKS.dungeonbashing)` | the Strength factor (ROADMAP §6) |
 
 ## 5. Owner questions
@@ -402,7 +408,7 @@ against a guess (DECISIONS 2026-11-11, the import entry).
 | | length | Judge field | blank is one stretch |
 | | stretch | `stretchFeet()` | the throw is refused for everyone |
 | | permitted or not | `adventuringTarget(kind)`, as permitted-or-not only | the row is blank |
-| | holds Climbing | `hasCapability(actor, "kw:climbing")` | |
+| | holds Climbing | `hasCapability(actor, "kw:climbing")` or the name, as `rest.mjs` reads Endurance (§3) | |
 | | the member's figure | `resolveCheck(actor, climbCfg)`, a cfg local to the crossing (`capability`, `rollKey`, `advKey` all the climb's): a holder throws on the skill ladder, anyone else on the actor's own Adventuring field, which characters alone carry | a blank target, its tooltip the page reference |
 | | conditions | inside `resolveCheck` | |
 | | Judge modifier | Judge field | zero |
@@ -410,6 +416,9 @@ against a guess (DECISIONS 2026-11-11, the import entry).
 | | outcome on a miss | `obstacleOutcome` | the miss ends the attempt |
 | | traverse depth | Judge field | the fall distance reads unknown |
 | Jump | gap, run-up, precarious, charging | Judge fields | |
+| | the member's score, level, weight | the actor's own Dexterity score and level; `formation-model.mjs` `carriedLoad`'s per-member reading for the stone carried | |
+| | holds Acrobatics | `kw:acrobatics` or the name | |
+| | the Acrobatics cap and bands | the `jumping` table after S4; nothing is passed before it | the leap reads unknown for an acrobat |
 | | range and verdict | `jumpDistance`, `canClear` | the verdict reads unknown |
 | | landing | `landingSave`, then core's `rollSave`; the footing after a miss is the Judge's pick, then `landingFailure` | |
 
@@ -524,7 +533,7 @@ preceded by `acks-branch sync dungeon-closeout`.
 |---|---|---|---|---|---|
 | S1 | `main` | implementer | `obstacles.mjs`: `readThrow` tests the natural result first; `OBSTACLES` loses `vertical` and `descendOnly`; the header rewritten as mechanics. `swimming.mjs`: `swimmingThrow` answers the no-throw case for a holder only; `partySwim` and `tools/live/formation-day.mjs` follow. `jumping.mjs`: `landingSave`'s docstring. `module.mjs`: the comment. Lang: `obstacles.reason.notPermitted`, `.rappel`, `.easyClimb`. A new `tools/test-swimming.mjs`, registered in `tools/run-tests.mjs`. Two published fields go, so the `apiVersion` policy is checked. | A3, A6, C2, C4, C5, C9, D | the lowest face with a total at or over the target reads a botch, and restoring the old order fails it; a non-holder with a nil target still throws, and dropping the input fails it |
 | S2 | `main` | implementer | `formation-binding.mjs` `parseOutcomeCell` gains `advances`; `obstacles.mjs` `obstacleOutcome` returns it, a new pure `obstacleStep` answers covered, across, fell or stalled, and `attemptObstacle` uses it. `.unless` is not in this slice. Changelog `upgrading`: a re-import. | A1, §6.1 in part | a miss that does not advance, then a make, leaves the member not across; counting every miss fails it; an absent `advances` ends the attempt |
-| S3 | `main` | implementer | New `spelunkingGrid` rows for `vulnerable` and the botch band; `OBSTACLES` loses `vulnerable`; `readThrow` reads both through `formationValue`; `trapbreak-app.mjs` `_prepareContext`'s floor reads the band (look in `lib/README.md` for a band reader first). A DECISIONS entry supersedes in part the 2026-11-11 import entry's clause on helplessness, naming the 2026-11-14 ruling as the new evidence, and qualifies its `## In force` row in the same change. | C1, C3, §6.2 in part | with nothing imported, vulnerable is null; restoring the constant fails it |
+| S3 | `main` | implementer | New `spelunkingGrid` rows for `vulnerable` and the botch band; `OBSTACLES` loses `vulnerable`; `readThrow` reads both through `formationValue`. The band is the Spelunking grid's own row and is read by nothing else: the floor literal in `trapbreak-app.mjs` and `door-app.mjs` is the general automatic-failure rule (RR Introduction, "Throwing the Dice"), a different figure, and is U1's and Phase 4's. A DECISIONS entry supersedes in part the 2026-11-11 import entry's clause on helplessness, naming the 2026-11-14 ruling as the new evidence, and qualifies its `## In force` row in the same change. | C1, C3, §6.2 in part | with nothing imported, vulnerable is null; restoring the constant fails it |
 | S4 | `main` | implementer | `jumpingProse` and `assembleJumping` gain `acrobaticsDexCap` and `extendedDexBands`; `jumping.mjs` `dexModifier` reads the bands, `effectiveDex` defaults its cap from the import, `leapHeight` uses the raised score's modifier. A DECISIONS entry supersedes in part the two archived 2026-08-15 jumping entries (the cap's owner; the stale premises), evidence the §4 audit, and qualifies both `## In force` rows. The archive is not edited. | A7, C7, D, §6.3 | a leap on the un-raised modifier fails; missing bands answer null, never a table edge |
 | U0 | `main` | implementer | Lang strings that state a rule are rewritten to say what the field does, the page reference kept or moved to the consumer's comment: `app.speedHint`, `app.paceHint`, `traps.mayTryAgain`, `traps.noSecondHastyTry`, `traps.refuse.hastyNeedsSkill`, `doors.spikeHint`. | §10's word findings | `validate`; a hover pass at the walk |
 | S5 | `main` | doc-scribe | `docs/formation/ROADMAP.md`: §1's row, §3 item 3, §6a's `obstacles.mjs` row, and §7's list of false sentences, each checked against the code after S1 to S4. | D | none |
@@ -560,7 +569,7 @@ Asks OQ2 to OQ5 at its start. The UI slices are §10's findings.
 
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
-| U1 | `main` | implementer | `trapbreak-app.mjs`, `door-app.mjs`: an id built from the party and the actor; a re-render when their subjects change; `cite` kept on the parts; a pinned footer; a Judge warned where a player is blocked; `PressFocus`. | §10 Trapbreaking 1-3, 5-7, 9-11; Door 3, 7, 9-10 | OQ7 |
+| U1 | `main` | implementer | `trapbreak-app.mjs`, `door-app.mjs`: an id built from the party and the actor; a re-render when their subjects change; `cite` kept on the parts; a pinned footer; a Judge warned where a player is blocked; `PressFocus`; the Trapbreaking floor read from the general rule's reader. | §10 Trapbreaking 1-7, 9-10; Door 3, 7, 9 | OQ7 |
 | U2 | `main` | implementer | `formation-strip.hbs` (the speed's parts, the rest, carry and elapsed tooltips), `formation-player-actions.hbs`, one home for the Trapbreaking opener, `planLock` warning the Judge. Check `topic/spell-effects` first. | §10 Dungeon tab 1, 3-9 | OQ7 |
 | U3 | `main` | implementer | `door-app.mjs`: the basher captured at render and re-rendered on `controlToken`; partners limited to the party and the scene. | §10 Door 1-2 | nothing |
 | S26 | `main` | architect, then implementer | One owner for the Swimming term; a granted-modifier read for the Swimming, Acrobatics, Cat Burglary and Contortionism terms; `landingSave`'s `saveBonus`. | C8, the §6 read | OQ5 |
@@ -649,7 +658,7 @@ named. Nothing `tools/validate.mjs` §8 already fails is listed.
 | 1 | A fixed id: a second opening takes over the first window's element | `trapbreak-app.mjs` `DEFAULT_OPTIONS` | degrades | U1 |
 | 2 | No re-render when the trap, the member or their conditions change | `trapbreak-app.mjs` | degrades | U1 |
 | 3 | The parts lose their `cite` on the way to the template | `_prepareContext` | degrades | U1 |
-| 4 | The needs figure has no tooltip, and its floor is a literal | `_prepareContext` | degrades | S3 |
+| 4 | The needs figure has no tooltip, and its floor is a literal: the general automatic-failure rule's (RR Introduction, "Throwing the Dice"). Core's or lib's reader of that rule is looked for first; the door window's floor is the same figure | `_prepareContext` | degrades | U1 |
 | 5 | The range figure has no tooltip | `trapbreak.hbs` | degrades | U1 |
 | 6 | Any refusal disables the attempt for the Judge too | `trapbreak-app.mjs` | degrades | U1 |
 | 7 | The request carries no extra modifier, so the figure shown can differ from the throw (inferred) | `trapbreak-app.mjs`, `player-requests.mjs` `trapbreak` | degrades | U1 |
@@ -685,7 +694,7 @@ Fixtures, each found by `flags.world.fixture`:
 |---|---|
 | `formation/crossing-party` | a party in Dungeon mode with its token on a scene, holding the members below |
 | `formation/crossing-adventurer` | a character the Player seat owns, without Climbing |
-| `formation/imported-climber` (kept from earlier walks) | a character holding the world's imported Climbing |
+| `formation/crossing-climber` | a character holding the world's imported Climbing, added from the imported library as a user adds it. (`formation/imported-climber`, kept by TESTING's jumping section, is a plain character with no proficiency, whatever its name.) |
 | `formation/crossing-acrobat` | a character holding the imported Acrobatics |
 | `formation/crossing-beast` | a monster actor, which carries no Adventuring field |
 
@@ -695,6 +704,7 @@ with `own: <tag>`.
 
 | # | Step | Observable |
 |---|---|---|
+| 0 | Re-import the Rulebook's tables in the test world: S2 to S4 add keys a standing import does not hold | `advances` on an outcome cell, `vulnerable` on the grid, the Acrobatics cap and bands, each read back through `formationValue`. Without them step 6 passes on the absent-figure path and proves nothing |
 | 1 | Assert the start: no `crossing` flag, the four tables present | End the crossing if one stands |
 | 2 | The GM begins a sheer climb with a length | rows on both seats; kind labels with no parentheticals; each figure's tooltip in its shape; the beast's target blank, its tooltip the page reference |
 | 3 | The player's seat | no Judge field in the DOM; the adventurer's Throw blocked, its reason as text |
@@ -712,9 +722,21 @@ with `own: <tag>`.
 | 15 | A hover pass | each figure's parts against the page it names |
 | 16 | Teardown | End; the cards tracked by the ids their actions returned and swept; the sweep's result quoted; fixtures kept |
 
+The fixes landed in `main`'s tree are walked in the sections they change,
+before §11: S1 in TESTING's Swimming step 4 (rewritten) and "The Spelunking
+outcomes" with the lowest face rigged; S2 in "The Spelunking outcomes" step 2;
+S3 in the same section; S4 in "Jumping, the fall, the Spelunking table"; U0 as
+a hover pass over the six controls.
+
 ## 12. Start prompts
 
 A phase corrects the next one's prompt before it ends.
+
+**The phase session's model.** `claude-opus-5-5`. The design is ruled and
+every slice is briefed, so the session's own work is dispatching, reading
+diffs against the word and value rules, landing, and driving the walk: review
+and judgment on a settled design, which does not need the planning session's
+model. Its agents take their definitions' models with no override.
 
 ### Phase 1
 
@@ -741,8 +763,10 @@ A phase corrects the next one's prompt before it ends.
 > changed files (§2 names the peers), and say in one line what you found.
 > `docs/importer/ROADMAP.md` is a peer's.
 >
-> When S6 to S9 have landed, walk §11 on `main` yourself in the Foundry pane,
-> with a real player seat; do not hand the walk to an agent. Register §10's
+> When S6 to S9 have landed, find out who is seated, re-import the Rulebook's
+> tables in the test world (§11 step 0), walk the S1 to S4 and U0 sections
+> §11 names, then walk §11 on `main` yourself in the Foundry pane, with a real
+> player seat; do not hand the walk to an agent. Register §10's
 > door finding 4 on the bug-intake ledger. Then append "Phase 1 results" to
 > the plan (exercised live, checked offline only, not checked; commits by sha
 > and whether pushed; fixtures by marker), correct Phase 2's prompt, and
