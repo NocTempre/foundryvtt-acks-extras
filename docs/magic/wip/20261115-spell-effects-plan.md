@@ -733,6 +733,203 @@ unlinked token. Rules left at their defaults (not asked of the conditions'
 damage rows, no range band, core's direction modifiers offered, the mounted
 rider save firing on a delivery throw) go to the owner with S2a's results.
 
+## S2b rulings (the S2b session's architect, 2026-11-16)
+
+Ruled on the questions the plan left open for S2b, against source in the
+worktree (`topic/spell-effects` at f865da0e) and core's `src/`. Each keeps
+its rejected alternative and counter. Tests use invented spells only.
+
+48. **`modifierDisposition` reads a spell row on its bearer by opt-in.**
+    `modifierDisposition(spec, {actorType, bearer = false})`: with `bearer`, a
+    `target`, `recipient` or `area` subject reads as `self`, and the
+    actor-type refusal waits until the at-the-roll answers are tried, so a
+    monster recipient's scoped or item-gated row answers `atRoll`. A gate
+    registered `at: "item"` answers `atRoll`, reason `item`, right after the
+    roll-gate test. Without `bearer` every existing answer is unchanged, and
+    the existing suites prove it untouched. Settles ruling 34's finding.
+    *Rejected:* testing the scope before the subject (changes pinned answers
+    for an `ally` row); a separate spell classifier. *Counter (low):* a second
+    option on a function that already branches on actor type.
+49. **`weaponMundane` and `weaponMagical` are item gates.**
+    `registerGate(kind, fn, {at: "item"})` keeps its own set (`isItemGate`);
+    such a row never reaches `rollGatedModifiers` or `roll-gates.mjs`. Each
+    reads `ctx.item` alone through `isMagical` and answers null with no item,
+    so a second cast never makes a weapon count as magic (ruling 19).
+    *Rejected:* `at: "roll"` (the light contributor would ask it with no
+    item). *Counter (low):* a third gate timing for two kinds.
+50. **A buff rides lib's flag `flags["acks-extras"].rollMods` on an effect:
+    `{id, label, cite, sourceAlignment, parts}`.** A part is `{key, on, value,
+    itemId, gate, stacksWith, notStacksWith, provides}` plus the scope fields;
+    `on` is `attack`, `damage`, `ac`, `save` or `ward` (a ward is told, never
+    added). Only a row `modifierDisposition(row, {bearer: true})` answers
+    `atRoll` becomes a part; a standing row stays a card line. Magic writes it
+    with figures resolved at cast, a blank figure writing none. Every spell
+    part provides magic's `kw:spellrecord`, so two spell records never add
+    (owner ruling 2); `id` is the spell's definition id, so a printed
+    `stacksWith` naming another spell matches. *Rejected:* the record's
+    `changes` (no such field is writable); a magic-owned reader. *Counter
+    (medium):* a traded weapon leaves its buff with the old holder.
+51. **One builder makes every stacking part; each field resolves alone.**
+    `typed-modifiers.mjs` exports `capabilitiesOf` and `stackingPart`, the only
+    way to build a part (`resolveStacking`'s `conflicts` throws on a bare one,
+    and `ask()` swallows a contributor's throw). Resolution runs per `on`, item
+    parts first; on a tie the item's figure stands and no row is added; a zero
+    item part is left out. *Rejected:* one resolution across fields.
+    *Counter (low):* a tie keeps the source already in core's rows; the card
+    says which yielded.
+52. **Lib's contributor puts the attacker's buff on its weapon's rolls.**
+    `roll-mods.mjs`, `carriers: ["attack"]`, installed after the roll gates.
+    For `attack` and `damage` it reads the attacker's parts whose `itemId` is
+    the weapon's (or names none), whose item gate answers true and whose scope
+    applies against the target, resolves them with `itemBonusParts(item, on)`
+    from `registerItemBonusSource(source)`, and answers: a kept spell part as
+    a row labelled `{name} ({cite})` (core's dice tooltip lists it: the
+    tooltip naming the spell); a dropped item part as a row of minus its
+    figure, labelled yielding; a dropped spell part or an undetermined scope
+    told once per attack. *Rejected:* adding beside core's bonus; writing
+    `system.bonus`. *Counter (medium):* a Judge's hand edit of
+    `system.bonus.attack` is invisible to the source.
+53. **A recipient's AC and ward parts are read on the attack against it.** The
+    target's `ac` parts are scoped against the attacker (`creatureKinds`,
+    `actorAlignment`, the record's `sourceAlignment`, `areEnemies` of the
+    attacker's token and the bearer's): applies → a term of minus the figure
+    labelled as the target's, resolved among themselves; undetermined → told,
+    nothing added; fails → nothing. A ward part that applies or is
+    undetermined is told on the attacking seat, never refused. `vsEnemy`
+    reads the bearer's side, and `scopeApplies`' docstring and API "Scoping"
+    say so. *Rejected:* the caster's token (an unlinked caster may have none);
+    refusing a Player's attack. *Counter (medium):* where the print means the
+    caster's enemy, a circle around a hostile bearer reads the wrong side.
+54. **A save against a source reads the saver's scoped save parts.**
+    `saveSpec(…, {against: {actor, token}, bearerToken, rollMods =
+    conditions})`: an applying part is a target part labelled as its spell;
+    undetermined or no `against` goes to `pending`. Formation's party save is
+    unchanged. The cast passes its caster and token (`casterTokenUuid` on the
+    card) and the relay the same, so the recomputed target matches. Core's
+    own `rollSave` (`onRollSave`, its one owner) adds no scoped part and tells
+    it. *Rejected:* adjusting in magic after `saveSpec`. *Counter (medium):* a
+    sheet save never gets the figure; the notice is the Judge's cue.
+55. **Concentration is lost to damage and a failed save, and the loss names
+    its cause while it lifts.** Both rows gain `lost: HURT_OR_FAILED`;
+    `loseStates` holds `{cause, ids}` across `lift`, read by
+    `lossInFlight(actor)` from the delete hook on the same client.
+    *Rejected:* firing `STATES_LOST_HOOK` before `lift`. *Counter (low):* a
+    status lifted any other way carries no cause; the card reads "Removed".
+56. **`castDuration` answers a concentration shape `{none: "untimed", held,
+    cap?, tail?}`** (ruling 11): `held` from `duration.concentration`,
+    `mobile` when blank; `cap` for `concentrationMax` (times the level where
+    `maxPerLevel`, `{none: "noLevel"}` with none); `tail` for
+    `concentrationPlus`. `levelNeeded` asks for a level where `maxPerLevel`.
+57. **Records of a held cast and of a buff.** `spellEffectData` gains `held`,
+    `tail`, `item`, `pending`, `rollMods`. A held cast writes a status-only
+    caster record (`concentrating` or `concentratingStationary`), flag-timed by
+    `cap`. A cast's modifier and ward rows for one recipient are one record,
+    free of statuses and changes, carrying `rollMods` and a `startTime`, timed
+    only where the cast is timed; its entries are one group, applied in one
+    request. Recipient records are found by `castId`; the caster record keeps
+    no list (two relays would race it). Supersedes "Data shapes" `recipients`
+    and cast-flow step 10's list. *Rejected:* a record per row (owner ruling
+    2's example counts two records for two casts). *Counter (medium):* Undo of
+    one modifier entry takes the cast's others off that target; the tooltip
+    says so.
+58. **An area keeps ruling 7: the seat targets every token, its own
+    included;** nothing adds the caster. *Counter (medium):* a seat that
+    forgets its own token leaves its caster outside its circle; the card names
+    who got a record.
+59. **Concentration's end is one funnel, driven by the client that deleted the
+    record** (supersedes in part ruling 31's "the primary GM's client", on
+    new evidence: the cause exists only on the deleting client, and
+    `STATES_LOST_HOOK` fires after the delete, locally, and misses the HUD
+    toggle, a hand delete, a recast and the cap). Magic's `deleteActiveEffect`
+    hook acts on a held caster record when `userId` is this user's; the cause
+    is magic's own `endCause` (`cast`, `time`), else `lossInFlight`'s
+    (`damage`, `save`), else `removed`. That client ends the recipient records
+    it can write and sends the rest through `magicHeldEnd` to the GM's client,
+    which accepts only when the requester owns the caster and no held caster
+    record of the cast remains; with no GM they stay, listed with End. No tail:
+    deleted by id; a tail: re-timed from now; a tail of `none`: kept and
+    listed. One card (flag `castHeldEnd`), whispered to the GMs and the
+    caster's owners, holds the cause and each record's data; Restore (GMs)
+    recreates them with `keepId` and undoes a re-timing; End deletes one by id.
+    *Counter (medium):* a seat that disconnects mid-funnel leaves recipients
+    standing with no card.
+60. **A cast or declaration through the module ends the caster's
+    concentration at its spend.** Verdict `concentrating` warns on both seats;
+    after the spend the held records are deleted by id with `endCause:
+    "cast"`. *Counter (medium):* a cast outside the module ends nothing (lib
+    ROADMAP row).
+61. **The declaration (ruling 23), built.** `castMoment({combat, combatant})`
+    answers `free`, `resolve` (the caster's turn, initiative rolled) or
+    `declare`. Declare: capacity checked and spent once, concentration ended,
+    a status-only `casting` record, a status-free pending record
+    (`pending {spellUuid, mode, picks, casterLevel, situational, visibility,
+    item, combatId, at}`), `acks.prepareSpell` set, no card. Magic's
+    `STATES_LOST_HOOK` listener stamps the caster's pending records `lost` and
+    clears the flag. On the turn an unstamped record resolves with its stored
+    answers and the seat's current targets, with no dialog, capacity check or
+    spend (the dialog only where a stored weapon no longer fits). A stamped
+    record → `declarationLost`, none → `noDeclaration` (a hand-set
+    `prepareSpell` counts); each blocks a Player and warns a Judge, whose cast
+    runs fresh with a spend. The primary GM deletes a pending record when a
+    caster's turn begun after it ends unresolved, or the combat is deleted; the
+    spend stands. A second declaration: `declared`, block or warn; the Judge's
+    replaces the first. *Rejected:* a record that waits any number of rounds
+    (core resets initiative each round and lib lifts `casting` at the turn, so
+    it could no longer be lost). *Counter (medium):* a misclicked declaration
+    is spent.
+62. **A buff on a weapon names the weapon at the cast.** A kept item-gated row
+    needs one bearer, the seat's one targeted token; verdict `oneBearer`
+    blocks a Player and warns a Judge (those rows are then written for
+    nobody, listed). The dialog lists the bearer's weapons, marking magic
+    ones; the pick is `card.item {targetKey, id, name}`; parts carry `itemId`;
+    the relay refuses `badItem` unless the item is a weapon of the target.
+    *Counter (medium):* ammunition and paired small weapons stay outside S2.
+63. **Every record is built from the spell's rows, on either client.**
+    `applyOnTarget` takes the spell's keyed rows for the mode and picks;
+    `card.rows` is display only; the GM's client recomputes the duration.
+    *Finding fixed:* S2a's `applyRow` builds a condition's records from
+    `card.rows`, which the requesting seat wrote (`cast-apply.mjs`).
+    *Counter (low):* a Judge's edit between cast and Apply changes what
+    applies.
+64. **A modifier or ward row is a section of the cast card.** Its figure is
+    the part's value, tooltip `{spell} · {weapon} ({cite})`, a blank figure
+    `—` with the page reference alone; a dry run at cast says what an entry
+    would yield to, and the roll decides again; bounds are skipped for these
+    rows; Undo (GMs) deletes the group's record. *Counter (low):* the card can
+    read stale; the attack card is the record.
+65. **Equipment registers masterwork as an item bonus source.**
+    `printed-layers.mjs` `masterworkBonusParts(item, on)`, registered at
+    `init`, reads the tier's figures (`masterworkFigure`) or an applied
+    `masterwork.*` variation's, `provides: ["kw:masterwork"]`, cite
+    `provenanceTip`; nothing imported → no part. *Rejected:* lib reading
+    equipment's flag.
+66. **S2b is a probe, the lib half, two magic slices, then the walk.** Probes
+    on `main` in page context before the magic half, each with its fallback:
+    P1 `deleteActiveEffect` fires on the deleting client inside
+    `toggleStatusEffect`, on a linked actor and an unlinked token's; P2
+    operation options reach the local delete hook; P3 `keepId` holds on a
+    synthetic actor; P4 a Player sets `acks.prepareSpell` on its own
+    combatant; P5 `combatTurnChange` fires at a round's turnover; P6 (after
+    the lib half lands) a roll-mods row's label reaches core's attack card.
+    Lib half (`implementer`): rulings 48 to 55. Magic slice M1
+    (`implementer`): rulings 57, 62 to 65 for the buff, the weapon pick,
+    masterwork and the relay fix. Magic slice M2 (a fresh `implementer`):
+    rulings 56, 59 to 61, held ends and the declaration, with TESTING.
+
+The full split, signatures, lang keys and the walk extension are in the
+architect's report, handed to each implementer with its brief. Owner
+questions, proceeded on at the default (S2b results list them): lawful undead
+in the reverse (no); a Player's attack on a ward refused (no, told); a
+creature entering an area later gains nothing until templates (yes); a cast
+outside the module leaves concentration (yes, ROADMAP row); a declaration
+resolves without a dialog (yes); a declaration after the caster's turn waits
+a round (yes); an unread tail leaves the records standing with End (yes); a
+Judge's second declaration replaces the first (yes); a tie with masterwork
+keeps masterwork (yes). Departures from earlier rulings, also on that list:
+53's `vsEnemy` on the bearer's side, 58's caster outside its own area unless
+targeted, 59's deleting client, 61's lapse at the end of the caster's next
+turn.
+
 ## Data shapes
 
 Effect row (`lib/fields.mjs` `effectField`), new keys: `saveEffect`
