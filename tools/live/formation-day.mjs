@@ -712,7 +712,15 @@ const P = {
       t.registerTable({ id: "formation", tables: { swimmingBonus: 77, swimSpeedShare: 0.42, sinkFeetPerStone: 88, breathRounds: 99, swimWaterModifiers: { calm: 0, rough: -55, cold: -66 } } }, { priority: t.PRIORITY.OVERRIDE, source: "live-check" });
       fabricated = true;
       const r6 = s.swimmingThrow({ actor, water: "rough" });
-      out.step6 = { ...acc(), rough: { target: r6.target, unknown: r6.unknown, waterPart: r6.parts.find((p) => p.key === "water.rough") ?? null } };
+      // Unladen in calm water: the no-throw case is the proficiency holder's alone.
+      const h6 = s.swimmingThrow({ encumbrance: 0, proficient: true, water: "calm" });
+      const n6 = s.swimmingThrow({ encumbrance: 0, proficient: false, water: "calm" });
+      out.step6 = {
+        ...acc(),
+        rough: { target: r6.target, unknown: r6.unknown, waterPart: r6.parts.find((p) => p.key === "water.rough") ?? null },
+        holder: { needed: h6.needed },
+        nonHolder: { needed: n6.needed },
+      };
       t.unregisterTable("formation", { priority: t.PRIORITY.OVERRIDE });
       fabricated = false;
       out.step7 = { swimmingBonus: s.swimmingBonus(), hasDoc: t.hasDoc("formation") };
@@ -2350,9 +2358,9 @@ async function swim(gm, player, census) {
   check("swimming step 1: the world's import is on this client, and unregisterTable with no priority takes every layer off it", s.step1.worldHeld && s.step1.worldLayer && s.step1.afterUnregister === false, s.step1);
   check("swimming step 2: every accessor returns null, never 0", Object.values(s.step2).every((v) => v === null), s.step2);
   check("swimming step 3: calm is 0, rough and cold null", s.step3.calm === 0 && s.step3.rough === null && s.step3.cold === null, s.step3);
-  check("swimming step 4: rough names swimWaterModifiers and prices nothing; calm is 0, not needed, nothing unknown", s.step4.rough.target === null && s.step4.rough.needed === null && same(s.step4.rough.unknown, ["swimWaterModifiers"]) && s.step4.calm.target === 0 && s.step4.calm.needed === false && same(s.step4.calm.unknown, []), s.step4);
+  check("swimming step 4: rough names swimWaterModifiers and prices nothing; calm is 0 and a non-holder still throws, nothing unknown", s.step4.rough.target === null && s.step4.rough.needed === null && same(s.step4.rough.unknown, ["swimWaterModifiers"]) && s.step4.calm.target === 0 && s.step4.calm.needed === true && same(s.step4.calm.unknown, []), s.step4);
   check("swimming step 5: drowning is all null", s.step5.rounds === null && s.step5.feetPerRound === null && s.step5.depthAtDeath === null, s.step5);
-  check("swimming step 6: the fabricated document answers every accessor and the rough throw carries its water row", s.step6.swimmingBonus === 77 && s.step6.swimSpeedShare === 0.42 && s.step6.sinkFeetPerStone === 88 && s.step6.breathRounds === 99 && same(s.step6.rough.unknown, []) && same(s.step6.rough.waterPart, { key: "water.rough", value: -55 }) && s.step6.rough.target === 55, s.step6);
+  check("swimming step 6: the fabricated document answers every accessor and the rough throw carries its water row", s.step6.swimmingBonus === 77 && s.step6.swimSpeedShare === 0.42 && s.step6.sinkFeetPerStone === 88 && s.step6.breathRounds === 99 && same(s.step6.rough.unknown, []) && same(s.step6.rough.waterPart, { key: "water.rough", value: -55 }) && s.step6.rough.target === 55 && s.step6.holder.needed === false && s.step6.nonHolder.needed === true, s.step6);
   check("swimming step 7: unregistering by { priority } removes it: null again and hasDoc false", s.step7.swimmingBonus === null && s.step7.hasDoc === false && !s.fabricatedRemovedInFinally, s.step7);
   const back = await page(player, P.reloadTables);
   note("reload", back);

@@ -555,7 +555,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 24,
+    apiVersion: 25,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -631,7 +631,8 @@ Hooks.once("init", () => {
       TRAP_ZONE_TYPE,
     },
     doors: { ...doors, openDoorApp },
-    // The Spelunking table and the wrong-floor encounter adjustment.
+    // The obstacles a party crosses one member at a time: the Spelunking
+    // table's targets and outcomes, and the throw read against them.
     obstacles,
     // Deep water is not an obstacle: it is its own throw (`swimming.mjs`).
     swimming,

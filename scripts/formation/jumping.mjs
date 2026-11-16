@@ -292,16 +292,16 @@ export function canClear(gapFeet, options = {}) {
 }
 
 /**
- * The saving throw a landing asks for — and, first, whether it asks at all.
+ * The saving throw a landing asks for, and first whether it asks at all (RR
+ * ch. 6, Jumping and Leaping).
  *
- * RAW the save is NOT part of jumping: it is owed only for a precarious
- * destination (an incline, loose scree, a narrow pillar) or a jump made
- * charging into melee. A jump onto solid ground is simply made, and prompting
- * for a save every time would invent a check the rules do not have.
+ * The save is not part of every jump: `needed` is true only when the caller
+ * marks the destination `precarious` or the jump `charging`. Otherwise the
+ * landing is made without a throw, and nothing here prompts one.
  *
  * @param {object} o
- * @param {boolean} [o.precarious] the far side is inclined, loose or narrow
- * @param {boolean} [o.charging] the jump is a charge into melee
+ * @param {boolean} [o.precarious] the caller marks the far side precarious
+ * @param {boolean} [o.charging] the jump is made charging
  * @param {boolean} [o.acrobatics] has the Acrobatics proficiency
  * @param {number} [o.saveBonus] what that proficiency is worth here, from the
  *   ability's own terms — see NO_ACROBATICS

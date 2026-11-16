@@ -1,0 +1,1 @@
+- **Macros and companion modules → `acksExtras.formation.obstacles`:** `OBSTACLES` no longer carries the `vertical` and `descendOnly` fields, which nothing read. Formation `apiVersion` 25.

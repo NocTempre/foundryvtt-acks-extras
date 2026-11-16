@@ -127,6 +127,32 @@ ok("a failed throw and a natural 1 each read their own imported row", () => {
   resetTables();
 });
 
+ok("the lowest face is read before the target: a total at or over it is still a botch", () => {
+  load();
+  const read = (kind, classThrow, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow }), natural, total });
+  // A total well over the target, and one exactly on it, both on the lowest face.
+  for (const total of [18, 10]) {
+    const got = read("sheerClimb", 10, 1, total);
+    assert.equal(got.success, false, `total ${total}`);
+    assert.equal(got.botch, true, `total ${total}`);
+    assert.deepEqual(got.outcome, OUTCOMES.sheerClimb.botch, `total ${total}`);
+    assert.equal(got.ends, true, "the botch row names a fall");
+  }
+  // A target the lowest face's total reaches on its own does not change that.
+  assert.equal(read("sheerClimb", 0, 1, 1).botch, true);
+  assert.equal(read("easyClimb", 0, 1, 1).success, false);
+  // Any other face at the same total still makes it.
+  assert.equal(read("sheerClimb", 10, 2, 10).success, true);
+  resetTables();
+});
+
+ok("an obstacle carries no field nothing reads", () => {
+  for (const kind of OBSTACLE_KEYS) {
+    assert.equal("vertical" in OBSTACLES[kind], false, kind);
+    assert.equal("descendOnly" in OBSTACLES[kind], false, kind);
+  }
+});
+
 ok("a fixed rope reads the easy climb's outcomes", () => {
   load();
   const read = readThrow({ plan: obstaclePlan({ kind: "sheerClimb", assisted: true }), natural: 4, total: 4 });

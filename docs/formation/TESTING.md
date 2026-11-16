@@ -1966,7 +1966,11 @@ no token, no canvas — every call is API-level.
 4. `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `target: null`,
    `needed: null`, and `unknown: ["swimWaterModifiers"]` — it **names** the
    figure it lacks. The same call with `water: "calm"` returns `target: 0`,
-   `needed: false`, `unknown: []`, because nothing is missing.
+   `needed: true`, `unknown: []`: nothing is missing, and a zero target skips
+   the throw only for a holder of the Swimming proficiency. With
+   `proficient: true` the target reads the unimported bonus, so the call
+   returns `target: null` and `unknown: ["swimmingBonus"]`; the holder's skip
+   is proved at step 6.
 5. `drowning({actor})` returns `rounds`, `feetPerRound` and `depthAtDeath` all
    `null`.
 6. Now register a document and re-run. Use figures that are obviously **not**
@@ -1986,6 +1990,9 @@ no token, no canvas — every call is API-level.
    `parts` entry `{key: "water.rough", value: -55}` and the target built from
    it. A `parts` array that still lacks the water row means the throw is
    reading a constant rather than the document.
+   `swimmingThrow({encumbrance: 0, proficient: true, water: "calm"})` returns a
+   target at or under zero and `needed: false`: the holder skips the throw. The
+   same call with `proficient: false` returns `target: 0` and `needed: true`.
 7. **Exercise the removal**, not only the registration:
    `t.unregisterTable("formation", { priority: t.PRIORITY.OVERRIDE })`, then
    re-read one accessor. It returns `null` again and `hasDoc("formation")` is

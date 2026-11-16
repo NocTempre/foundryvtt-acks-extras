@@ -20,9 +20,9 @@
  * unknown, never rolled against a guess, and a missed throw whose outcome is
  * not imported ends that climber's attempt.
  *
- * A rope secured by a proficient climber, a grappling hook, or a mountaineer
- * supervising each turn `sheer` into `easy` for everyone who follows: that is
- * what `assisted` means below.
+ * `assisted` is one flag the caller sets. Where it is true, `obstaclePlan`
+ * plans a sheer climb as the easy climb, for the target and for the outcomes
+ * read; it changes no other obstacle.
  */
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { citeOf } from "../lib/tables.mjs";
@@ -34,19 +34,19 @@ const LANG_PREFIX = "ACKS-FORMATION.obstacles";
 export const OUTCOMES_TABLE = "spelunkingOutcomes";
 
 /**
- * The Spelunking tables, as the procedure each obstacle runs: its label, which
- * way it goes, and whether the climber is helpless on it. The keys name the six
- * columns, in the order the grids print them (`importer/formation-binding.mjs`
+ * The Spelunking tables, as the procedure each obstacle runs: its label and
+ * whether the climber is helpless on it. The keys name the six columns, in the
+ * order the grids print them (`importer/formation-binding.mjs`
  * `SPELUNKING_COLUMNS`). What an ordinary adventurer throws and what a missed
  * throw costs are not here: see `adventuringTarget` and `obstacleOutcome`.
  */
 export const OBSTACLES = Object.freeze({
-  easyClimb: { label: `${LANG_PREFIX}.easyClimb`, vertical: true, vulnerable: false },
-  sheerClimb: { label: `${LANG_PREFIX}.sheerClimb`, vertical: true, vulnerable: true },
-  rappel: { label: `${LANG_PREFIX}.rappel`, vertical: true, descendOnly: true, vulnerable: true },
-  crawl: { label: `${LANG_PREFIX}.crawl`, vertical: false, vulnerable: true },
-  narrowLedge: { label: `${LANG_PREFIX}.narrowLedge`, vertical: false, vulnerable: true },
-  precariousLedge: { label: `${LANG_PREFIX}.precariousLedge`, vertical: false, vulnerable: true },
+  easyClimb: { label: `${LANG_PREFIX}.easyClimb`, vulnerable: false },
+  sheerClimb: { label: `${LANG_PREFIX}.sheerClimb`, vulnerable: true },
+  rappel: { label: `${LANG_PREFIX}.rappel`, vulnerable: true },
+  crawl: { label: `${LANG_PREFIX}.crawl`, vulnerable: true },
+  narrowLedge: { label: `${LANG_PREFIX}.narrowLedge`, vulnerable: true },
+  precariousLedge: { label: `${LANG_PREFIX}.precariousLedge`, vulnerable: true },
 });
 
 /**
@@ -145,13 +145,16 @@ export function obstaclePlan({ kind, proficient = false, classThrow = null, assi
  * answers the imported outcome (`obstacleOutcome`, null while not imported)
  * and `ends`: whether the climber's attempt stops here, which it does on a
  * fall and on an outcome nobody imported.
+ *
+ * The natural result is read before the target: a throw on the lowest face is a
+ * miss whatever the total reaches, and reads the botch row.
  */
 export function readThrow({ plan, natural, total }) {
   if (!plan?.permitted || plan.target == null) return { ok: false, outcome: null };
-  const success = total >= plan.target;
-  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable: plan.obstacle.vulnerable };
   // A natural 1 is its own row on the table, read apart from a plain miss.
   const botch = natural === 1;
+  const success = !botch && total >= plan.target;
+  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable: plan.obstacle.vulnerable };
   const outcome = obstacleOutcome(plan.effective ?? plan.kind, botch ? "botch" : "fail");
   return {
     ok: true,

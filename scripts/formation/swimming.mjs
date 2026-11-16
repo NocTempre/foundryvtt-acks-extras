@@ -11,9 +11,12 @@
  * See docs/formation/DECISIONS.md, "Swimming's printed magnitudes move to the register".
  */
 
+import { hasCapability } from "../lib/capabilities.mjs";
 import { carriedBody, formationValue } from "./constants.mjs";
+import { hasAbility } from "./formation-model.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.swimming";
+const SWIMMING = /\bswimming\b/i;
 
 /**
  * The water conditions a Judge chooses between.
@@ -51,15 +54,24 @@ export const sinkFeetPerStone = () => formationValue("sinkFeetPerStone");
 export const breathRounds = () => formationValue("breathRounds");
 
 /**
+ * Does this actor hold the Swimming proficiency: by the capability an imported
+ * entry answers to, or by a hand-made ability of that name. The same union
+ * `rest.mjs` reads for Endurance.
+ */
+export const holdsSwimming = (actor) => !!actor && (hasCapability(actor, "kw:swimming") || hasAbility(actor, SWIMMING));
+
+/**
  * The throw one swimmer needs this round.
  *
- * A target of zero or less is no throw (`needed` is false). A throw that needs
- * an imported figure it lacks returns a null target and names the missing
- * figure in `unknown`.
+ * A target of zero or less is no throw (`needed` is false) for a holder of the
+ * Swimming proficiency only; anyone else still throws. A throw that needs an
+ * imported figure it lacks returns a null target and names the missing figure
+ * in `unknown`.
  *
  * @param {object} o
  * @param {number} o.encumbrance what they are carrying, in stone
- * @param {boolean} [o.proficient] has the Swimming proficiency
+ * @param {boolean} [o.proficient] holds the Swimming proficiency: it adds the
+ *   bonus and is what lets a zero target skip the throw
  * @param {string} [o.water] a key of WATER
  * @returns {{target: number|null, needed: boolean|null, parts: object[], unknown: string[]}}
  */
@@ -82,7 +94,7 @@ export function swimmingThrow({ encumbrance = 0, proficient = false, water = "ca
 
   // A water penalty is stored negative, so subtracting it raises the target.
   const target = stone - bonus - modifier;
-  return { target, needed: target > 0, parts, unknown };
+  return { target, needed: target > 0 || !proficient, parts, unknown };
 }
 
 /**
@@ -129,12 +141,16 @@ export const rescueStone = (gearStone = 0) => {
  * Everyone in a formation, and what the water asks of each, with each one's
  * drowning outcome stated whether or not their throw fails.
  *
- * @param {object[]} members [{ name, encumbrance, proficient, conMod }]
+ * A row holds the proficiency when its `proficient` says so; a row that leaves
+ * `proficient` out is read from its `actor` (`holdsSwimming`).
+ *
+ * @param {object[]} members [{ name, encumbrance, proficient, actor, conMod }]
  * @param {string} [water] a key of WATER
  */
 export function partySwim(members = [], water = "calm") {
   return members.filter(Boolean).map((m) => {
-    const throwFor = swimmingThrow({ encumbrance: m.encumbrance, proficient: m.proficient, water });
+    const proficient = m.proficient ?? holdsSwimming(m.actor);
+    const throwFor = swimmingThrow({ encumbrance: m.encumbrance, proficient, water });
     return {
       name: m.name,
       ...throwFor,
