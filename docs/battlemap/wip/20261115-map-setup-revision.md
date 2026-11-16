@@ -1201,3 +1201,120 @@ Fixture ledger:
   Foundry cannot delete. The Bake press above covers step 10's Bake.
 - The `init`, `setup` and `ready` console: no recorder was attached before
   load.
+
+### Results — Phase 4
+
+Run 2026-11-16 on `main`'s tree (no topic branch: docs, the walk, a string,
+and one fix a walk found). Agents: `implementer` (Sonnet) for the walk's
+`hex` part and the square `apply.done` wording; `doc-scribe` (Haiku) for the
+README and site-nav pointers. The phase session (Opus) rewrote MODEL, the
+guide, TESTING and ROADMAP, and drove the plates and the walks itself.
+
+**Commits, all on `main`, none pushed:**
+- a5788083: the square done notice reads "Square grid applied: grid size
+  {size} px, {distance} {units} per square.", with its fragment; the unread
+  `samples.wipeHint` and `samples.empty` keys deleted (`ACKS-BATTLEMAP.tool`
+  was already gone). Full gate green.
+- 9a8ac59e: the not-to-scale mark's hover readout is drawn as core draws a
+  nameplate (`PreciseText` at a fixed 14 px, scaled by `uiScale`), with its
+  fragment. Found shooting plate 3, registered as T-0636. Full gate green.
+- 2a50adda: the docs, plates and walk (the window's name and paths in MODEL,
+  the guide, TESTING, README, site nav and GALLERY; the three plates; ROADMAP
+  row 9; the walk's `hex` part). It adopts session c3bb6651 (Phase 3,
+  finished), whose guide lines had landed in 7d598c9d but whose ledger record
+  fell inside the Token sizes rewrite. Full gate green.
+
+**Where this file's substance went:**
+- Rulings: DECISIONS 2026-11-15 and 2026-11-16 already held them, the
+  rejected alternatives included. No new entry.
+- How it works: MODEL (the window, its ways in, the plan and its rows, the
+  hex fit, applying under `autoReposition` and `rekeyPaintedHexes`, the
+  rescale warning, the size chips, the mark).
+- How it is walked: TESTING steps 1-15a and the walk's `hex` part.
+- What is not built: ROADMAP row 9 (T-0623 to T-0635, T-0590, T-0591,
+  T-0593 to T-0595, T-0599 to T-0607) and row 2 (hex token behaviour). §8's
+  two entries are T-0590 and T-0591 in row 9.
+- The audit's findings are ledger rows; its mark design is MODEL's "The
+  not-to-scale mark".
+
+**Exercised live** (the capture driver's own browser on the GM seat, fronted
+by the driver; the session's browser pane was hidden and is not on screen, so
+no shot came from it):
+- The walk, `node tools/live/run.mjs battlemap` with the plan `{"parts":
+  ["hex"]}`: 38 pass, 0 fail (log `battlemap-20261116-122909.log`).
+  - The first two runs were blocked by the seat's election: two browser
+    panes held the Gamemaster seat, this session's and Phase 3J's. Both were
+    closed; the third run took the lead.
+  - The third run passed 35 of 37. Both fails were the walk's own
+    expectations, and both are corrected. The confirmation check wanted the
+    footer's sentence verbatim, where the dialog continues it ("… as it is
+    rescaled and shifted."). The token check wanted the token's centre within
+    5 px of a hex centre. It was 12.3 px off with its top-left at its
+    fraction: a 100 px gridless cell became 41 px hexes, and core moves a
+    token by its top-left. The check now asks for the top-left within 1 px
+    and the centre inside its hex, and TESTING 14b and MODEL say so.
+  - It covers H1-H8: entering the group arms nothing and opens the window
+    once, titled "Map setup: <scene>"; a scale bar alone cannot place hexes;
+    Pick corners is refused; five boxes, one a real pointer drag, fit tight;
+    Apply waits for the cell worth; the rows; the apply through the dialog's
+    Yes; a wall keeps its fraction; every box lands on a hex; the bare reopen
+    says what the scene is; and the columns family on its own scene.
+- Plate 1 (`docs/releases/v4.27.1/battlemap.png`), on a hex-rows scene the
+  run built (`battlemap/plate-hex`). The family and units were chosen in the
+  window, five boxes drawn by real pointer drags with Draw box armed through
+  the toolbar, and 6 typed. Fit tight, 5 of 5 used. Frame: the boxes, the red
+  hex preview, the needs list empty, and the footer's rows (Grid, Cell worth,
+  Image with the placeables sentence, Party system).
+- Plate 3 (`docs/releases/v5.5.0/battlemap-hex.png`), the same scene after
+  the real Apply button and the dialog's Yes.
+  - The scene read grid type 2, size 41, 6 mi, `autoScale` false.
+  - A one-cell token of `battlemap/plain-character` placed on a hex carries
+    the mark.
+  - Hovered by a real pointer on the Token controls, the readout read "Drawn
+    larger than its footprint / Drawn at 6 × 6 mi / Footprint 5 × 5 ft / One
+    square of 5 ft (MM p.11)", the last two from the world's import.
+  - The reopened window says "This scene is set up as Hex rows (pointy top),
+    odd offset, grid size 41 px, 6 mi a cell."
+  - The first shot showed the readout smeared past reading beside a crisp
+    nameplate. That is T-0636, fixed in 9a8ac59e and re-shot legible.
+- Plate 2 (`docs/releases/v5.5.0/battlemap-setup.png`), on a new staged map
+  (`Data/acks-test-fixtures/battlemap-scale-bar.webp`, its recipe on this
+  machine's rules shelf) and a scene the run built
+  (`battlemap/scale-bar-map`). Scale only, miles, one real drag along the
+  printed bar, "reads 4": measured 100 px per mi, rows Cell worth and Party
+  system, "This scene has no grid, and scale-only leaves it without one."
+- A scale-only apply, through the button and the dialog's Yes, on the same
+  scene (Phase 3J's gap): grid type stays 0, size 100, distance 1 mi,
+  `autoScale` false, the background unchanged, and the notice "Scale applied:
+  100 px per ruler cell, 1 mi per ruler cell."
+- The square done string, read from the loaded lang: "Square grid applied:
+  grid size 44 px, 5 ft per square." The two deleted keys are absent.
+
+**Checked offline only:**
+- `test-battlemap`, `test-battlemap-panel` and the setup-plan suite after the
+  string change and the readout fix. The full gate (build:packs, test,
+  validate) passed on a5788083, on 9a8ac59e and on the docs commit.
+- The plates were quantized to 256 colours to meet §4b's ceiling: 176 KB,
+  204 KB and 245 KB.
+
+**Not checked:**
+- A square apply live after a5788083. The string is read live; the path that
+  formats it is the one Phase 3J walked with the old wording.
+- The `init`, `setup` and `ready` console: no recorder was attached before
+  load.
+- A player seat: nothing in this phase is player-facing except the mark's
+  readout, whose two-line player form is checked offline.
+- `docs/releases/v11.10.0/battlemap-scene-country.png` shows the window's
+  pre-revision layout. It was not retaken and is stale where it frames the
+  window.
+
+**Fixtures** (`flags.world.fixture`), all kept:
+- `battlemap/plate-hex`: Scene.doCHJQrBFm7nsKLr, applied, holding one token
+  (Token.xRwV2xALXKFUSshp).
+- `battlemap/scale-bar-map`: Scene.DWq6IVuebHwajH2C, scale-only applied.
+- `battlemap/hex-walk-rows`: Scene.FSKgvLZnewMcMWno, with its wall and token.
+- `battlemap/hex-walk-cols`: Scene.FjnysIib5JMWd6vA.
+- `battlemap/plain-character`: Actor.97FrYzGyW6eb2Iea, reused.
+
+Each rebuild retired the marker's one standing document first (setup is the
+subject of each), and a census after the last run found one scene per marker.
