@@ -20,10 +20,17 @@ by hand.
 - A disposable 3-member formation with its party token on the first scene
   (see `docs/formation/TESTING.md` fixtures for the drop mechanics).
 - One disposable plain character actor with a default 1×1 prototype token.
-- A disposable scene for the scale-only and hex paths — any background will do,
-  including a flat texture (`ui/parchment.jpg`), because those paths measure
-  what you tell them rather than what is drawn. Set the background through the
+- A disposable scene for the scale-only path — any background will do,
+  including a flat texture (`ui/parchment.jpg`), because that path measures
+  what you tell it rather than what is drawn. Set the background through the
   Level (below), not in `Scene.create`.
+- Two kept scenes for the hex path, each carrying a map with DRAWN hexes: the
+  fit scores boxes against the hexes they surround, so a flat texture proves
+  nothing there. `battlemap/hex-setup-feedback` holds a pointy-topped map, a
+  square image stretched over a 4:3 scene; `battlemap/hex-cols-setup` holds a
+  flat-topped one. Build each from a hex image of your own, gridless, units
+  `ft`; the machine's copies and their geometry are listed under "Staged files"
+  in `TEST_ENVIRONMENT.md`.
 
 ## Drive mechanics (non-obvious)
 
@@ -112,9 +119,12 @@ by hand.
   band is real but wider than a guess would put it.
 - The capture overlay swallows canvas pointer events only while a mode is
   armed; scripted sampling can bypass the pointer path by pushing into
-  `app.samples.{squares,corners}` (image px) and calling
-  `app.onSamplesChanged()` — but finish with at least one REAL drag, since
-  the samples list proves the solver, not the pointer plumbing.
+  `session.samples.squares` (image px, `{x, y, w, h, cells}`; the bar is
+  `session.samples.scale = {x1, y1, x2, y2}`) and calling
+  `session.onSamplesChanged()`, with `session` imported from
+  `scripts/battlemap/session.mjs` (the panel has no such method) — but finish
+  with at least one REAL drag, since the samples list proves the solver, not
+  the pointer plumbing.
 - Sample coordinates are IMAGE pixels: convert an intended canvas point via
   the exported `acksExtras.battlemap` helpers or by reading
   `scene.dimensions.sceneX/sceneWidth` against the texture size.
@@ -235,19 +245,48 @@ by hand.
     bar with Foundry's own ruler: it reads its printed length (within the
     rounding of an integer grid size). Pin the px field instead and the
     distance re-solves to match it.
-14. **Hex.** Choose "Hex grid — rows (pointy top)", draw a box around ONE hex,
-    and type what a hex is worth with the units set to miles.
-    *Observable:* the label reads "One drawn hex is", the card reads "px hex
-    box" with two different edges, and there is no output-square field. Apply
-    and confirm: `grid.type` is 2, the scene's `grid.sizeX`/`sizeY` equal the
-    drawn hex's box mapped onto canvas, and the drawn hex's centre is within a
-    pixel of `scene.grid.getCenterPoint()` of itself. Draw only a multi-cell
-    box and the panel refuses with "draw a box around ONE hex". Flip "Even
-    offset" and re-apply: `grid.type` is 3.
-15. **Units and what they are worth.** With the scene at 10 miles per hex, drop
-    the plain character.
-    *Observable:* the token lands at the quarter-square floor (0.25), not 0.5 —
-    `tokenSpan(5, 10)` is the unconverted answer and must not be what ships.
+14. **Hex.** On `battlemap/hex-setup-feedback` reset to gridless, choose "Hex
+    grid — rows (pointy top)" and set the units to miles. Walk the three
+    routes in this order: a scale bar alone, then "Pick corners", then real
+    drags of five boxes, each tight around one hex, over four rows.
+    *Observable:* with the bar alone Apply stays disabled and a line under it
+    says a bar does not place hexes and names "Draw box". "Pick corners" is
+    refused with a notice naming "Draw box", and nothing is armed. The five
+    boxes read tight in px off (0.70 on the reporter's hex). Red outlines of
+    the fitted grid lie on the map's drawn hexes, and no "spans" box is
+    offered. The label reads "One drawn hex is"; with the unit changed and no
+    bar it is blank and Apply waits for it. Before the apply, note one token's
+    and one wall's position. Type the hex's worth (6) and apply.
+    *Observable:* the confirmation says placed tokens, tiles and walls stay
+    where they are, and they do (same `x`/`y` and `c`). The notice reads "Hex
+    grid applied: 51 px hexes, 6 mi per hex.", and `grid.type` is 2. Every
+    drawn hex centre maps into its own Foundry hex: map each through the
+    background sprite and compare with `canvas.grid.getCenterPoint(
+    canvas.grid.getOffset(p))`. The farthest is within a few px (4.5 over
+    1254 hexes), the residue of the scene's integer size. The flag reads
+    `autoScale: false` at a mile a hex.
+    Then keep ONE box and apply with "Even offset" unticked, then ticked.
+    *Observable:* `grid.type` goes 2 → 3, and the drawn box's hex lands on a
+    grid centre both times (1.65 and 1.49 px). Only the background's offset
+    moves, by half a hex, and with it the hex numbering.
+    Draw one lone box around a 2×2 block instead. *Observable today:* it is
+    taken as one hex and reads fair, with only the other-family warning
+    (ledger T-0592, open).
+14a. **Hex columns.** On `battlemap/hex-cols-setup`, choose "Hex grid —
+    columns (flat top)", miles, and drag five boxes across five columns.
+    *Observable:* tight (1.0 px on a 40 px side). After the apply, `grid.type`
+    is 4 and every drawn hex centre is within a few px of its grid centre.
+15. **Units and what they are worth.** After step 14's apply at 6 mi a hex,
+    drop the plain character.
+    *Observable:* the token keeps its prototype 1×1, because a mile-scale
+    apply writes auto-sizing off. Turn it on (Scene configuration → Basics →
+    Battlemap → Auto-size tokens) and drop again: the token lands at the
+    quarter-square floor (0.25), not 0.5. `tokenSpan(5, 10)` gives the
+    unconverted answer, which must not ship. Then drop a party actor. It takes Wilderness
+    with a notice naming the scale as the reason, and the formation's
+    `travel.mode` is `journey`. Set the scene's units to `ft` with the party
+    there, return its mode to delve, then set `mi` again. It switches back,
+    with the same notice.
 16. **The scene's party system.** Set "Party system here" to Settlement.
     *Observable:* the scene flag carries `mapSystem: "settlement"` at once,
     with no apply. Place a party token on the scene by hand (drag from the

@@ -43,8 +43,9 @@ the one you pick, and it opens on whatever the scene already uses.
   to the boxes you draw on the map's own squares.
 - **Hex grid — rows** (pointy-topped) or **columns** (flat-topped) — a
   wilderness or campaign sheet. Draw a box around **one** hex and say what a
-  hex is worth; one drawn hex becomes one Foundry hex. If the applied hexes
-  come out half a cell out of step with the map's, tick **Even offset**.
+  hex is worth; one drawn hex becomes one Foundry hex. The grid lands on your
+  hexes whether or not **Even offset** is ticked; tick it when Foundry's hex
+  numbering should match the map's.
 - **Scale only — no grid** — the map has no grid to fit, or you do not want
   one. Drag along its printed scale bar, say what the bar reads, and the scene
   measures true: the ruler and token sizes are right, the image is never

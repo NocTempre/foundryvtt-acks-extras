@@ -392,7 +392,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       rawFeet: rawFeet ? Number(rawFeet.toFixed(2)) : null,
       barFeet: barFeet ? Number(barFeet.toFixed(2)) : null,
       mapChips: this.#mapChips(rawFeet),
-      mapCellFeet: this.mapCellFeet,
+      mapCellFeet: this.mapCellFeet > 0 ? Number(this.mapCellFeet.toFixed(2)) : this.mapCellFeet,
       outputChips: this.#outputChips(),
       armedLabel: this.captureMode ? loc(`mode.${this.captureMode}`) : null,
       armedHint: this.captureMode ? loc(this.isHex && this.captureMode === "square" ? "modeHint.squareHex" : `modeHint.${this.captureMode}`) : null,
@@ -628,8 +628,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   #sampleSummary() {
     const s = this.samples;
     const parts = [];
-    if (s.squares.length) parts.push(loc("samples.countBoxes", { n: s.squares.length }));
-    if (s.corners.length) parts.push(loc("samples.countCorners", { n: s.corners.length }));
+    const count = (n, one, many) => (n === 1 ? loc(one) : loc(many, { n }));
+    if (s.squares.length) parts.push(count(s.squares.length, "samples.countBox", "samples.countBoxes"));
+    if (s.corners.length) parts.push(count(s.corners.length, "samples.countCorner", "samples.countCorners"));
     if (s.scale) parts.push(loc("samples.countScale"));
     return parts.join(" · ");
   }
