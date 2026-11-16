@@ -512,6 +512,25 @@ phase's orchestrator, once Phase 3J has landed and closed
 - Move what this file and the audit file still hold into `MODEL.md`,
   `DECISIONS.md`, `TESTING.md`, `ROADMAP.md` and the guide. Delete both
   files.
+- Phase 3J renamed the window "Map setup" on every surface (DECISIONS
+  2026-11-16). MODEL ("Battlemap window", "the assistant") and the guide
+  ("Map alignment & token scale") still carry the old names: take the new one
+  with each control's path.
+- MODEL's token paragraph still says Rescale "says nothing" and that
+  `unsizedTokenCount` counts the kept tokens. It warns now, through
+  `unsizedTokenReport`. Re-read the paragraph and its chip lines against
+  `token-scale.mjs` and the size chips (one per imported size category,
+  none without an import).
+- MODEL, the guide's Applying section and the plates must say that placed
+  things move with the map and painted hexes are re-keyed (DECISIONS
+  2026-11-16, 67b6a85a). Step 14 of TESTING already does.
+- `apply.done` for squares still reads "{size} px squares". The hex notice
+  became "grid size {size} px" in 3J. Bring the square one to the same shape,
+  with its changelog fragment.
+- The audit's findings that 3J did not build are ledger rows T-0624 to
+  T-0635, plus T-0623's tooltips. They are a later batch, not this phase's.
+  Leave them out of the plates and the guide, and point at them from
+  ROADMAP.
 - Report to the owner with the release question."
 
 ## 8. Registered, not in scope
@@ -983,3 +1002,162 @@ The docs are brought to E's token section: the guide's Applying intro and
 "Token sizes" section, MODEL's `token-scale.mjs` and `assistant-app.mjs`
 rows and its chip and trigger lines, and TESTING steps 7a and 8. DECISIONS is
 dated history and keeps "size hotbar". Phase 4 still owns the plates.
+
+### Results — Phase 3J
+
+Run 2026-11-16. `topic/map-setup-panel` was synced with `main`, then built
+in its worktree, one fresh `implementer` per slice with no model override,
+and committed there by hand. Finding 1 went to `architect` and was probed
+live before anything was built. The owner answered "Move them, build now
+(Recommended)" for finding 1, and "Map setup (Recommended)" for finding 31's
+name. The branch was landed with `acks-branch`: rebased, gated green on
+cf0d05d7 under the lease, then `main` was fast-forwarded from b7531cd5. It
+was walked on `main` and closed (worktree removed, branch deleted). Nothing
+is pushed.
+
+| Commit on `main` | Slice | What |
+|---|---|---|
+| e016edd0 | J-c | an open window follows a unit, grid type or hex parity edited in Scene configuration, so Apply no longer writes the old one back (T-0621) |
+| 5bb96ec2 | J-b | Ctrl+Z and Escape typed into a field stay with it while a mode is armed; the Scene configuration button opens the scene being configured (T-0622, T-0620) |
+| 1e916d6a | J-a | Bake works on an upright fit and says why when it cannot; Rescale warns, naming the missing import; the window names and views its scene (T-0618, T-0619, T-0620) |
+| 5808b379 | K2 | on a size tie, a group clearly smaller on both axes wins, so a block drawn first no longer sets the hex size (T-0608) |
+| ae774de2 | K3 | the name "Map setup" on every surface; the travel row shows the system a party will take and Apply leaves a declared one; the done notice, the rows' tooltip and `familyAmbiguous` reworded (T-0611, T-0612, T-0613, T-0610) |
+| 889705e8 | K1 | the token chips are the imported size categories (none without an import); every figure on the card and each box row has a tooltip of its parts, rounded once; Bake is named; a bare reopen on an applied scene says what grid it is (T-0614, T-0615, T-0609) |
+| 67b6a85a | K4 | Apply moves everything placed with the map (core's `autoReposition`) and re-keys painted terrain, territory and domain hexes to the hexes now under them (T-0617) |
+| cf0d05d7 | docs | DECISIONS: four entries (moves with the map, the size chips, the name, the travel row); TESTING: steps 1a, 14b, 14c and the J changes to 4, 6a, 7a, 8, 10, 14 and 16 |
+| e0184f03 | walk | the footer's Apply button rides the type size (it stayed at 14 px at a 20 px knob; audit 16's last part); a left-out box row's tooltip no longer says it was "read as one hex" |
+
+**Finding 1, the probe.** On the fixture scene, an apply-shaped update with
+`autoReposition` kept the `grid.size` sent. Only `preUpdateScene` fired. The
+wall and the token kept their fractions of the scene rectangle, and so did
+the painted region's polygon. Its key went stale once the grid moved against
+the image: key 29:33, hex under it 33:38. So K4 re-keys after the read-back.
+The evidence is in the shared notes (`phase3j-evidence.md`).
+
+**Ledger.** T-0608 to T-0615 and T-0617 to T-0622 are `fixed-unreleased`,
+with their shas and walk evidence in the notes. T-0623 (the tooltips left)
+stays `new`; the walk confirmed its map-cell and output chips. The audit's
+findings outside 3J's scope are registered as T-0624 to T-0635: 2, 7, 8, 9,
+10, 11's sample ×, 14, 15, 18, 19, 20 and 21. Audit 12 is in K1 (T-0615), 13
+was already built in E, and 16 is closed by the walk's fix.
+
+#### Exercised live
+
+The GM seat in the pane, emulated at 1400 × 900, alone in the world (one
+active user). Fixture `battlemap/reposition-probe`. After that, the kept
+`formation/combat-scene`.
+
+- **The door from another scene (step 1a, T-0620).** With "Round Walk"
+  viewed, the button on the probe's configuration reads "Map setup…". It
+  viewed "Reposition probe", and the window's title read "Map setup:
+  Reposition probe".
+- **Ctrl+Z and Escape in a field (step 4, T-0622).**
+  - Focused in `mapCellFeet`, both keys were left to the field (not
+    prevented): the samples stayed and the mode stayed armed.
+  - In the chat's real contenteditable the samples stayed.
+  - On the canvas body Ctrl+Z removed a sample and Escape disarmed.
+  - A synthetic key on the `<prose-mirror>` wrapper removed one. That was the
+    wrong target; the real editable is the child.
+- **The unit follow (step 14c, T-0621).** With the window open:
+  - A scene edit to `ft` showed in the session and the select.
+  - A type-3 edit set `hexEven` and its box.
+  - Edited back, the scene read mi, odd and type 2 again.
+- **The bare reopen (T-0609).** It read "This scene is set up as Hex rows
+  (pointy top), odd offset, grid size 45 px, 6 mi a cell." Its tooltip names
+  Scene configuration → Grid. In the walk, samples pushed straight into the
+  session skipped a render; a real reopen showed the line.
+- **Moves with the map (step 14b, T-0617), through the dialog's real Yes.**
+  - The dialog listed Grid (45 → 51 px) and Image, and the placeables
+    sentence.
+  - The notice read "Hex grid applied: grid size 51 px, 6 mi per hex."
+    (T-0612).
+  - Wall fractions before and after: (.30055, .50053)–(.6001, .50053) and
+    (.3008, .50033)–(.60035, .50033).
+  - The token was 16 px off its hex centre before and 2.53 px after.
+  - The region's key was 29:33 over hex 33:38 before. After, it was 29:34
+    over hex 29:34, its shape 51 px wide, and `layerValueAt` read
+    `barrensRocky` where it had read null.
+- **The travel row and the rows' tooltip (T-0611, T-0613).**
+  - The rows read "6 ft a cell → 6 mi a cell" and "Leave to the party →
+    Wilderness".
+  - Their tooltips read "As the scene has it: … After Apply: … From …".
+  - The two-boxes-in-a-row line is the new `familyAmbiguous` (T-0610).
+- **Block then cell, and cell then block (T-0608, T-0615).** Both orders
+  leave the 76.8 × 82.8 block out, and the cell reads 30.7 × 47.3. The cell's
+  tooltip read "One hex's bounding box, 30.7 × 47.3 image px, fitted over 1
+  of 2 box(es)." The block's row said "read as one hex. Left out: larger than
+  one hex.", which contradicts itself; the walk's fix rewords it.
+- **The size chips (step 8, T-0614)**, on `formation/combat-scene` (square,
+  5 ft, monsters imported).
+  - There are six chips: Small and Man-Sized 5 × 5, Large 10 × 5, Huge
+    10 × 10, Gigantic 20 × 15, Colossal 40 × 30.
+  - Each tooltip names its cells, the square, "MM p.11" and the cells it
+    draws at here. Each has an `aria-label`.
+  - The "Size categories" caption's tooltip is "MM p.11".
+  - The window's title read "Map setup: QA Combat Ground".
+- **The rescale warning (step 6a, T-0619).**
+  - With the import: "0 token(s) rescaled."
+  - With the `monsters` world layer unregistered on this client (the
+    registry is per client): `sizeSquareFeet()` null, no chips, and the
+    caption's tooltip "MM ch. 1".
+  - Rescale then warned "0 token(s) rescaled. 1 kept their size, because the
+    footprint square is not imported (MM ch. 1)." Both tokens stayed 1 × 1.
+  - The layer was re-registered from the copy taken first, and read back
+    present.
+- **Bake on an upright fit (T-0618).**
+  - `bakeCorrectedBackground` ran on the probe with a 30 × 36 fit that has no
+    `u`. It rendered 1200 × 1200 into 1440 × 1200 and handed back a square
+    36 fit, through the real PIXI render and extract.
+  - `FilePicker.upload` was replaced in the page for the call, so no file
+    was written. It returned the original path, so the background stayed.
+  - A call with no fit warned "There is no fit to correct yet…". On the hex
+    probe the button is not offered (`canBake` false), by design.
+- **`ui-layout` eye checks.** All five of the window's classes are present
+  and the drag corner is there.
+  - At 420, 320 and 260 px wide (700 tall) and at 420 × 320, nothing passed
+    the frame's right edge. The footer stayed visible and outside the
+    scroller, and the body scrolled.
+  - At a 20 px knob, on a fresh window at 320 × 500: the selects, inputs,
+    body and title (22.2 px) rode the knob. The footer was pinned and the
+    body scrolled. The Apply button stayed 14 px; fixed on the walk, and
+    read again after a real reload at 20 px raised and 14 px default.
+- **The hover pass.** A real `pointerenter` on the caption opened core's
+  tooltip with "MM p.11". The figures left bare are the map-cell and output
+  chips (5, 10, 50, 100), T-0623's.
+- **The toolbar tool** is named "Map setup".
+- **Console.** After the walk fix's reload, an error-only read was empty. The
+  buffer had dropped 858 earlier lines, so it says nothing of `init`, `setup`
+  or `ready`.
+
+Fixture ledger:
+- Built and kept: `Scene.oyTLkS24WVq5Jcle`, marker
+  `battlemap/reposition-probe`, cloned from `battlemap/hex-setup-feedback`.
+  It holds one wall, one token of `battlemap/plain-character` and one
+  painted terrain region. It is left applied: hex rows, grid size 51, 6 mi.
+- Nothing else was built, and nothing was swept.
+- `formation/combat-scene` was only read, and rescaled to no change.
+
+#### Checked offline only
+
+- Wave 1's gate (J-a, J-b, J-c) in a clone on the worktree's e4a027b1:
+  build:packs 4 s, test 154 s, validate 666 s, green. Wave 2's (K2, K3) on
+  8b761703: 3 s, 130 s, 663 s, green.
+- K1 and K4: their suites in the worktree, and the landing's full gate on
+  cf0d05d7 under the lease, green.
+- The walk fix, e0184f03, through `acks-commit` in a clone: build:packs 2 s,
+  test 191 s, validate 720 s, green.
+- The both-missing warning (`tokens.missingBoth`): no monster token stands
+  on a kept fixture. Covered by `test-battlemap-panel`.
+- Step 16, a declared system left alone by Apply: `test-battlemap-setup-plan`
+  and the panel suite.
+
+#### Not checked
+
+- A real Bake upload. It writes a file into the fixtures' folder that
+  Foundry cannot delete, so it was replaced in the page as above.
+- A player seat. Phase 3 joined one and found no Battlemap group, and J
+  adds no player-facing surface. Not re-joined.
+- Step 10's stretched scene and step 11's skewed scene: no kept fixture
+  holds either image.
+- The `init`, `setup` and `ready` console: no recorder was attached before
+  load.
