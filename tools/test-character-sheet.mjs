@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
   effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, slotBadge, storedSystem, carriesMorale, partyMenuModel, standingBySpell,
+  castMenuModel, castTrackers, castTrackerKey, castRail, isCaster, CAST_TRACKERS,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 import { buildThrows } from "../scripts/character-sheet/tabs/stats.mjs";
@@ -125,15 +126,19 @@ test("the cell promotes to the formation only when its party token is on the sce
   assert.equal(here.icon, "fa-solid fa-people-line");
 });
 
-console.log("character sheet: the party menu");
+console.log("character sheet: the party menu and the cast column");
 /** A summon entry as `partyOf` gives it; a null record is one bound by hand. */
 const summonEntry = (tokenId, record) => ({ tokenId, name: `Beast ${tokenId}`, img: null, record });
 const castRecord = (castId, spellId = "", extra = {}) => ({ castId, spellId, sourceUuid: "Actor.src1", name: "Grey Beast", at: 10, ...extra });
 const menuKinds = (items) => items.map((i) => i.kind);
+/** A summoning spell as `castOf` gives it. */
+const summonSpell = (id, name, level = 3) => ({ id, name, level, summon: true });
+/** A spell that casts through its own use. */
+const plainSpell = (id, name, level = 1) => ({ id, name, level, summon: false });
 test("every summoning spell is offered: Cast while none of its creatures stand, Dismiss with the count once some do", () => {
-  const spells = [{ id: "spB", name: "Bramble Call" }, { id: "spA", name: "Ash Call" }];
+  const spells = [summonSpell("spB", "Bramble Call"), summonSpell("spA", "Ash Call")];
   const party = { henchmen: [], summons: [summonEntry("t1", castRecord("c1", "spB")), summonEntry("t2", castRecord("c1", "spB")), summonEntry("t3", castRecord("c2", "spB"))] };
-  const items = partyMenuModel({ party, spells, owner: true });
+  const items = castMenuModel({ party, spells, owner: true });
   const cast = items.find((i) => i.kind === "cast");
   assert.deepEqual([cast.spellId, cast.key, cast.data.name], ["spA", "party.cast", "Ash Call"], "the spell with nothing standing offers Cast");
   const dismiss = items.filter((i) => i.kind === "dismiss");
@@ -145,7 +150,7 @@ test("every summoning spell is offered: Cast while none of its creatures stand, 
 });
 test("a cast whose spell is gone is a loose cast, dismissed by itself under its record's name", () => {
   const party = { summons: [summonEntry("t1", castRecord("c9", "gone1", { spellName: "Old Word" })), summonEntry("t2", castRecord("c9", "gone1", { spellName: "Old Word" })), summonEntry("t3", castRecord("c8"))] };
-  const items = partyMenuModel({ party, spells: [], owner: true });
+  const items = castMenuModel({ party, spells: [], owner: true });
   const loose = items.filter((i) => i.kind === "dismiss");
   assert.deepEqual(loose.map((i) => [i.castId, i.data.name, i.tokenIds]), [["c9", "Old Word", ["t1", "t2"]], ["c8", "Grey Beast", ["t3"]]], "a dangling spell reads by its recorded name; a bare summoning by its creature's");
   const all = items.find((i) => i.kind === "dismissAll");
@@ -154,7 +159,7 @@ test("a cast whose spell is gone is a loose cast, dismissed by itself under its 
 });
 test("a creature bound by hand keeps Release and is never in a Dismiss", () => {
   const party = { summons: [summonEntry("t1", null), summonEntry("t2", castRecord("c1", "spA"))] };
-  const items = partyMenuModel({ party, spells: [{ id: "spA", name: "Ash Call" }], owner: true });
+  const items = castMenuModel({ party, spells: [summonSpell("spA", "Ash Call")], owner: true });
   const release = items.find((i) => i.kind === "release");
   assert.deepEqual([release.tokenIds, release.data], [["t1"], { n: 1 }]);
   assert.ok(items.filter((i) => i.tokenIds && i.kind !== "release").every((i) => !i.tokenIds.includes("t1")), "no Dismiss reaches the bound creature");
@@ -170,28 +175,44 @@ test("every standing summon is reached by exactly one of spell Dismiss, loose Di
       summonEntry("e", castRecord("c4", "spA")),
     ],
   };
-  const items = partyMenuModel({ party, spells: [{ id: "spA", name: "Ash Call" }], owner: true });
+  const items = castMenuModel({ party, spells: [summonSpell("spA", "Ash Call"), plainSpell("plain1", "Plain Word")], owner: true });
   const reach = new Map();
   for (const it of items.filter((i) => i.kind === "dismiss" || i.kind === "release")) for (const id of it.tokenIds) reach.set(id, (reach.get(id) ?? 0) + 1);
   assert.deepEqual([...reach.entries()].sort(), [["a", 1], ["b", 1], ["c", 1], ["d", 1], ["e", 1]]);
 });
-test("the spell-less Summon… is offered only where the seat may summon bare; a non-owner gets the roster of who stands and the tab", () => {
-  const party = { henchmen: [{ onScene: true, tokenIds: ["h1"], name: "Henchling", img: null }, { onScene: false }], summons: [summonEntry("t1", castRecord("c1", "spA"))] };
-  const spells = [{ id: "spA", name: "Ash Call" }];
-  assert.ok(!partyMenuModel({ party, spells, owner: true, bare: false }).some((i) => i.kind === "summon"), "a Player seat is offered no Summon…");
-  assert.ok(partyMenuModel({ party, spells, owner: true, bare: true }).some((i) => i.kind === "summon"), "a GM seat is");
-  const viewer = partyMenuModel({ party, spells, owner: false, bare: true });
-  assert.deepEqual(menuKinds(viewer), ["token", "token", "info", "tab"], "a viewer who does not own the character sees who stands, who is away and the tab");
-  assert.deepEqual(viewer[0].valueKey, "party.henchman");
-  assert.deepEqual(viewer[1].valueKey, "party.summon");
+test("a spell that does not summon is cast through its own use, in spell-level then name order, with its level shown", () => {
+  const spells = [plainSpell("p2", "Zephyr", 2), summonSpell("s3", "Ash Call", 3), plainSpell("p1b", "Mend", 1), plainSpell("p1a", "Bolt", 1)];
+  const items = castMenuModel({ party: {}, spells, owner: true });
+  assert.deepEqual(items.map((i) => i.spellId), ["p1a", "p1b", "p2", "s3"], "level first, then name");
+  assert.deepEqual(menuKinds(items), ["use", "use", "use", "cast"]);
+  assert.deepEqual([items[0].label, items[0].valueKey, items[0].valueData], ["Bolt", "cast.level", { n: 1 }]);
+  assert.ok(items.every((i) => i.kind !== "use" || i.tipKey === "cast.levelTip"), "the level on a plain spell's row names where it is read from, and the summoning cast's tip is not hung on it");
 });
-test("Bind takes the controlled tokens through untouched; the roster shows where asked", () => {
-  const tokens = [{ id: "x" }, { id: "y" }];
-  const items = partyMenuModel({ party: {}, owner: true, controlled: tokens, roster: true });
-  const bind = items.find((i) => i.kind === "bind");
-  assert.equal(bind.tokens, tokens);
-  assert.deepEqual(bind.data, { n: 2 });
-  assert.deepEqual(menuKinds(items), ["bind", "roster", "tab"]);
+test("the cast menu is the owner's alone; the spell-less Summon… is offered only where the seat may summon bare", () => {
+  const party = { summons: [summonEntry("t1", castRecord("c1", "spA"))] };
+  const spells = [summonSpell("spA", "Ash Call"), plainSpell("p1", "Bolt")];
+  assert.deepEqual(castMenuModel({ party, spells, owner: false, bare: true }), [], "a seat that does not own the character is offered nothing");
+  assert.ok(!castMenuModel({ party, spells, owner: true, bare: false }).some((i) => i.kind === "summon"), "a Player seat is offered no Summon…");
+  assert.ok(castMenuModel({ party, spells, owner: true, bare: true }).some((i) => i.kind === "summon"), "a GM seat is");
+});
+test("binding by hand is retired: the menu offers no Bind; an owner with nothing to cast gets one disabled row", () => {
+  assert.ok(!castMenuModel({ party: {}, owner: true, controlled: [{ id: "x" }] }).some((i) => i.kind === "bind"), "no Bind, whatever is controlled");
+  const none = castMenuModel({ party: {}, owner: true });
+  assert.deepEqual([menuKinds(none), none[0].disabled, none[0].key], [["none"], true, "cast.nothing"]);
+});
+test("the owner rows follow the spells in the order loose Dismiss, Dismiss all, Summon…, Release", () => {
+  const party = { summons: [summonEntry("t1", castRecord("c1")), summonEntry("t2", castRecord("c2", "spA")), summonEntry("t3", null)] };
+  const items = castMenuModel({ party, spells: [summonSpell("spA", "Ash Call")], owner: true, bare: true });
+  assert.deepEqual(menuKinds(items), ["dismiss", "dismiss", "dismissAll", "summon", "release"]);
+});
+test("the party menu keeps who stands, who is away, the roster and the Followers tab, and no summon management", () => {
+  const party = { henchmen: [{ onScene: true, tokenIds: ["h1"], name: "Henchling", img: null }, { onScene: false }], summons: [summonEntry("t1", castRecord("c1", "spA")), summonEntry("t2", null)] };
+  const owner = partyMenuModel({ party, owner: true, roster: true });
+  assert.deepEqual(menuKinds(owner), ["token", "token", "token", "info", "roster", "tab"], "the owner's menu holds the token rows, the away count, the roster and the tab");
+  assert.deepEqual(owner.slice(0, 3).map((i) => i.valueKey), ["party.henchman", "party.summon", "party.summon"]);
+  assert.deepEqual(menuKinds(partyMenuModel({ party, owner: false, roster: true })), ["token", "token", "token", "info", "tab"], "a viewer sees who stands and the tab, no roster");
+  assert.deepEqual(menuKinds(partyMenuModel({ party, owner: true, roster: false })), ["token", "token", "token", "info", "tab"], "a hireling's sheet shows no roster");
+  assert.deepEqual(menuKinds(partyMenuModel({ party: {}, owner: true, roster: true })), ["roster", "tab"], "a character with no party still reaches the roster and the tab");
 });
 test("the Magic tab's standing count groups the summons by the spell their record names", () => {
   const m = standingBySpell([summonEntry("t1", castRecord("c1", "spA")), summonEntry("t2", castRecord("c2", "spA")), summonEntry("t3", castRecord("c3")), summonEntry("t4", null)]);
@@ -204,6 +225,90 @@ test("the Magic tab's standing count carries its tooltip and its Dismiss is name
   assert.ok(dismiss && /<button type="button"/.test(dismiss) && /aria-label="\{\{localize /.test(dismiss), "a real button with a name");
   const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
   assert.match(sheet, /spellDismiss: AcksCharacterSheet\.#onSpellDismiss/);
+});
+
+/** A caster-side cast record as `castOf` gives it. */
+const record = (id, extra = {}) => ({ id, name: `Spell ${id}`, img: `icons/${id}.webp`, clock: "3t", remaining: 1.5, total: 3, created: 100, ended: false, ...extra });
+test("a character is a caster by a spell item or a caster-side cast record, and by nothing else", () => {
+  assert.equal(isCaster({ spells: [], records: [] }), false);
+  assert.equal(isCaster({}), false);
+  assert.equal(isCaster({ spells: [plainSpell("p", "Bolt")], records: [] }), true);
+  assert.equal(isCaster({ spells: [], records: [record("r1", { ended: true })] }), true, "a cast that has ended still marks a caster");
+  assert.equal(isCaster({ spells: [], records: [], summons: [{ tokenId: "t1", record: null }] }), true, "a summon standing keeps its Dismiss or Release reachable");
+  assert.equal(castRail({ spells: [], records: [], owner: true }), null, "no cast column for a non-caster, so its rails are as they were");
+  assert.deepEqual([castRail({ spells: [plainSpell("p", "Bolt")], records: [], owner: false }).owner, castRail({ spells: [plainSpell("p", "Bolt")], owner: true }).owner], [false, true]);
+});
+test("the trackers are five cells, newest cast first, a pad for each one unfilled", () => {
+  const cells = castTrackers([record("old", { created: 10 }), record("new", { created: 30 }), record("mid", { created: 20 })]);
+  assert.equal(cells.length, CAST_TRACKERS);
+  assert.equal(CAST_TRACKERS, 5);
+  assert.deepEqual(cells.map((c) => c.kind), ["record", "record", "record", "pad", "pad"]);
+  assert.deepEqual(cells.slice(0, 3).map((c) => c.id), ["new", "mid", "old"]);
+  assert.deepEqual(castTrackers([]).map((c) => c.kind), ["pad", "pad", "pad", "pad", "pad"]);
+  assert.deepEqual(castTrackers([record("a"), record("b")]).slice(0, 2).map((c) => c.id), ["b", "a"], "casts made at the same time read later-listed first");
+});
+test("a tracker fills with what is left of its duration, as the Effects tab draws it, and has none without a set duration", () => {
+  const [half, unknown, open] = castTrackers([
+    record("a", { created: 3, remaining: 1.5, total: 3 }),
+    record("b", { created: 2, remaining: null, total: 3 }),
+    record("c", { created: 1, remaining: null, total: 0, clock: "—" }),
+  ]);
+  assert.deepEqual([half.pct, half.state, half.clock], [50, "left", "3t"]);
+  assert.deepEqual([unknown.pct, unknown.state], [100, "lasts"], "a duration whose remainder the clock cannot read stands at its total");
+  assert.deepEqual([open.pct, open.state], [null, "open"], "a cast with no duration has no fill");
+  assert.equal(castTrackers([record("x", { remaining: 9, total: 3 })])[0].pct, 100, "never above full");
+});
+test("a cast whose end has been announced takes no tracker", () => {
+  const cells = castTrackers([record("live", { created: 1 }), record("done", { created: 2, ended: true })]);
+  assert.deepEqual(cells.filter((c) => c.kind === "record").map((c) => c.id), ["live"]);
+});
+test("more casts than cells: the last cell shows how many it hides", () => {
+  const six = Array.from({ length: 6 }, (_, i) => record(`r${i}`, { created: i }));
+  const cells = castTrackers(six);
+  assert.deepEqual(cells.map((c) => c.kind), ["record", "record", "record", "record", "more"]);
+  assert.deepEqual(cells.slice(0, 4).map((c) => c.id), ["r5", "r4", "r3", "r2"]);
+  assert.equal(cells[4].n, 2, "the fifth stands for the two oldest");
+  assert.deepEqual(castTrackers(six.slice(0, 5)).map((c) => c.kind), ["record", "record", "record", "record", "record"], "exactly five fit without a +n");
+});
+test("the tracker key moves with a fill or a clock and with nothing else", () => {
+  const a = [record("r1", { remaining: 2, total: 3, clock: "2t" })];
+  assert.equal(castTrackerKey(a), castTrackerKey([{ ...a[0], name: "Renamed", img: "other.webp" }]), "a name or an image is not a fill");
+  assert.notEqual(castTrackerKey(a), castTrackerKey([{ ...a[0], remaining: 1, clock: "1t" }]));
+  assert.notEqual(castTrackerKey(a), castTrackerKey([]));
+});
+test("the frame model carries the cast column for a caster and none for anyone else", () => {
+  const base = { xp: {}, hp: { value: 1, max: 1 }, ac: {}, move: {}, grip: {}, light: {}, saves: {} };
+  assert.equal(buildFrameModel({ ...base, cast: { owner: true, spells: [], records: [] } }, {}).rails.cast, null);
+  assert.equal(buildFrameModel(base, {}).rails.cast, null, "a snapshot with no cast facts is no caster's");
+  const caster = buildFrameModel({ ...base, cast: { owner: true, spells: [plainSpell("p", "Bolt")], records: [record("r1")] } }, {});
+  assert.equal(caster.rails.cast.owner, true);
+  assert.deepEqual(caster.rails.cast.trackers.map((c) => c.kind), ["record", "pad", "pad", "pad", "pad"]);
+  assert.equal(caster.rails.party.mode, "none", "the party cell is untouched by the column");
+});
+test("the cast column is wired: a shared optional column, an owner-only action, tooltips and names on every cell", () => {
+  const rails = readFileSync(new URL("../templates/lib/frame/rails.hbs", import.meta.url), "utf8");
+  assert.match(rails, /\{\{#if cells\.cast\}\}\s*<div class="acks-extras-frame__rail acks-extras-frame__rail--cast">/, "the column is optional in the shared frame");
+  assert.ok(rails.indexOf("cells.cast") < rails.indexOf("{{#unless folded}}"), "it sits outside the unfolded-only part, so a folded card keeps it");
+  const cell = readFileSync(new URL("../templates/lib/frame/cell.hbs", import.meta.url), "utf8");
+  assert.match(cell, /\{\{#if tipText\}\}data-tooltip-text="\{\{tipText\}\}"/);
+  assert.match(cell, /\{\{#if label\}\}aria-label="\{\{label\}\}"\{\{\/if\}\}/);
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /castMenu: AcksCharacterSheet\.#onCastMenu/);
+  const viewActions = sheet.slice(sheet.indexOf("static VIEW_ACTIONS"), sheet.indexOf("static PARTS"));
+  assert.ok(!viewActions.includes('"castMenu"'), "a seat that cannot edit the character cannot cast for it");
+  assert.match(sheet, /static #onCastMenu\(event, target\) \{\s*if \(!this\.actor\.isOwner\) return;/);
+  assert.match(sheet, /\{ \.\.\.entry, cls: "is-pad" \}/, "a seat that is not the owner gets a pad with no action");
+  assert.match(sheet, /attr\(\{ tab: "effects" \}\)/, "a tracker opens the Effects tab");
+  const css = readFileSync(new URL("../styles/lib-frame.css", import.meta.url), "utf8");
+  assert.match(css, /\.acks-extras-frame__rail--cast \{/);
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const keys = [
+    ...castMenuModel({ party: { summons: [summonEntry("t1", castRecord("c1", "s")), summonEntry("t2", null)] }, spells: [summonSpell("s", "A"), summonSpell("z", "Z"), plainSpell("p", "B")], owner: true, bare: true }),
+    ...castMenuModel({ owner: true }),
+    ...partyMenuModel({ party: { henchmen: [{ onScene: false }] }, owner: true, roster: true }),
+  ].flatMap((i) => [i.key, i.tipKey, i.valueKey]).filter(Boolean);
+  for (const k of [...keys, "rail.cast", "rail.castViewer", "cast.track.left", "cast.track.lasts", "cast.track.open", "cast.track.more", "cast.track.pad"]) assert.ok(`ACKS-CHARACTER.${k}` in lang, `lang key ${k}`);
+  assert.ok(!/bind summons/.test(lang["ACKS-CHARACTER.rail.partyNone"]), "the empty party cell no longer promises Bind");
 });
 
 console.log("character sheet: the left rail");
@@ -327,7 +432,7 @@ Object.defineProperty(globalThis.CONST, "ACTIVE_EFFECT_MODES", {
     throw new Error("accessed deprecated CONST.ACTIVE_EFFECT_MODES");
   },
 });
-const { saveModifiers, effectClock, isTimer } = await import("../scripts/character-sheet/snapshot.mjs");
+const { saveModifiers, effectClock, isTimer, castOf } = await import("../scripts/character-sheet/snapshot.mjs");
 const throwing = (target, ...keys) => {
   for (const k of keys) {
     Object.defineProperty(target, k, {
@@ -431,6 +536,45 @@ test("no duration is no timer, and a disabled timer is not one either", () => {
   assert.equal(effectClock({}).clock, "—");
 });
 delete globalThis.CONFIG;
+
+console.log("character sheet: the cast column's facts");
+/** An Active Effect as `castOf` reads one: the cast record flag, the source duration, the prepared clock and the creation time. */
+const castEffect = (id, record, extra = {}) => ({
+  id,
+  name: `Cast ${id}`,
+  img: `icons/${id}.webp`,
+  disabled: false,
+  flags: record ? { "acks-extras": { spellEffect: { spellUuid: "Item.s1", castId: `c-${id}`, casterUuid: "Actor.a1", ...record } } } : {},
+  _source: { duration: { value: 10, units: "rounds" } },
+  duration: { units: "rounds", remaining: 4 },
+  _stats: { createdTime: 500 },
+  ...extra,
+});
+test("castOf lists the spells and only the caster-side records, with the Effects tab's clock, and marks an ended one", () => {
+  const actor = {
+    isOwner: true,
+    items: [
+      { id: "i1", type: "spell", name: "Bolt", system: { lvl: 2 }, parent: { type: "character" } },
+      { id: "i2", type: "spell", name: "Hound Call", system: { lvl: 4 }, flags: { "acks-extras": { spell: { type: "summoning" } } }, parent: { type: "character" } },
+      { id: "i3", type: "weapon", name: "Sword", system: {} },
+    ],
+    effects: [
+      castEffect("e1", { role: "caster" }),
+      castEffect("e2", { role: "recipient" }),
+      castEffect("e3", null),
+      castEffect("e4", { role: "caster", ended: 700 }, { _stats: { createdTime: 100 } }),
+    ],
+  };
+  const cast = castOf(actor);
+  assert.equal(cast.owner, true);
+  assert.deepEqual(cast.spells, [{ id: "i1", name: "Bolt", level: 2, summon: false }, { id: "i2", name: "Hound Call", level: 4, summon: true }], "spell items only, with whether each summons");
+  assert.deepEqual(cast.records.map((r) => r.id), ["e1", "e4"], "a recipient's record and an effect no cast made are no tracker's");
+  assert.deepEqual([cast.records[0].clock, cast.records[0].remaining, cast.records[0].total, cast.records[0].created, cast.records[0].ended], ["4r", 4, 10, 500, false]);
+  assert.equal(cast.records[1].ended, true);
+  assert.deepEqual(castTrackers(cast.records).map((c) => c.kind), ["record", "pad", "pad", "pad", "pad"], "the ended cast takes no cell");
+  assert.equal(castOf({ isOwner: false, items: [], effects: [] }).owner, false);
+  assert.equal(isCaster(castOf({ items: [], effects: [castEffect("e2", { role: "recipient" })] })), false, "bearing a spell's effect is not casting");
+});
 
 console.log("character sheet: the Load bar");
 test("the bar fills to the burden and runs a phantom on to the true weight", () => {

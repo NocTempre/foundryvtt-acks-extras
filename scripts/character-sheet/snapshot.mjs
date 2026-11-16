@@ -27,7 +27,9 @@ import { poolState } from "../classes/casting.mjs";
 import { isLanguageSlots, freeSlots } from "../classes/languages.mjs";
 import { FLAG_MONSTER_LIST } from "../henchmen/constants.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
-import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { isSummonSpell } from "../magic/summon-spell.mjs";
+import { spellEffectOf } from "../magic/spell-effect.mjs";
 import { docOf } from "../lib/util.mjs";
 
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -287,6 +289,7 @@ export function snapshotFrame(actor) {
     formation: formationOf(actor),
     party: partyOf(actor),
     caster: !!sys.spells?.enabled || poolState(actor).length > 0,
+    cast: castOf(actor),
     pending: pendingChoices(actor).length + openLanguageSlots,
     followers: hirelings + monsters.length,
     timers,
@@ -296,6 +299,30 @@ export function snapshotFrame(actor) {
     retainer: !!sys.retainer?.enabled,
     pendingCalamity: sys.retainer?.enabled && actor.getFlag(MODULE_ID, FLAG_RECORD)?.special?.pendingCalamity ? 1 : 0,
   };
+}
+
+/**
+ * What the cast column reads off the actor: each spell item (id, name, level,
+ * whether it summons) and each caster-side cast record, with the clock the
+ * Effects tab shows for it (`effectClock`) and when it was made, which orders
+ * the newest first. A record the module has announced as ended stays on the
+ * actor and carries `ended`.
+ * @param {Actor} actor
+ * @returns {{owner: boolean, spells: {id: string, name: string, level: number, summon: boolean}[],
+ *   records: {id: string, name: string, img: string|null, clock: string, remaining: number|null, total: number,
+ *   created: number, ended: boolean}[]}}
+ */
+export function castOf(actor) {
+  const spells = [...(actor.items ?? [])]
+    .filter((i) => i.type === ITEM_TYPE.spell)
+    .map((i) => ({ id: i.id, name: i.name, level: Math.max(0, num(i.system?.lvl)), summon: isSummonSpell(i) }));
+  const records = [...(actor.effects ?? [])]
+    .filter((e) => spellEffectOf(e)?.role === "caster")
+    .map((e) => {
+      const { clock, remaining, total } = effectClock(e);
+      return { id: e.id, name: e.name, img: e.img ?? null, clock, remaining, total, created: num(e._stats?.createdTime), ended: spellEffectOf(e).ended != null };
+    });
+  return { owner: !!actor.isOwner, spells, records };
 }
 
 /** The party this character marches in, through the formation feature's own read. */

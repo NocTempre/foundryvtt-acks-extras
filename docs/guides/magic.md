@@ -43,7 +43,7 @@ each creature stands and the tokens appear; the cast is spent only after
 that, and cancelling spends nothing. The caster carries a record of the
 cast, which runs for the spell's imported duration. When the duration ends a
 card in chat says how many of its creatures still stand, with a **Dismiss**
-button. The character sheet's party cell and Magic tab show and dismiss them
+button. The character sheet's cast cell (the first cell of the second right-rail column, for a caster) and Magic tab show and dismiss them
 too ([character sheet](character-sheet.md#the-band-and-the-rails)).
 
 ## Importing your spells

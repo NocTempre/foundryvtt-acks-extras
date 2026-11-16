@@ -472,13 +472,13 @@ red mark after the label that says something is owed on the chip's subject.
 The bar and the reading are readings, not controls: no action, so a press on
 either falls through to the header and drags the window.
 
-**The art row** is the two rails around the portrait, the prose column and,
+**The art row** is the two rails around the portrait (a sheet may add a third, `cells.cast`, beside the right rail, which the monster sheet leaves out), the prose column and,
 for an owner, the sheet-tools rail. A rail cell is one object the cell
 partial draws — `{key, action, attrs, cls, fill, title, icon, big, img,
-inside, hands, joined, sub, corner, count, disabled}` — so a sheet decides a
+inside, hands, joined, sub, corner, count, disabled, tipText, label}` — so a sheet decides a
 cell's reading in its model and its glyph and action in its context, and
 never writes cell markup. `attrs` is rendered raw: a sheet builds it through
-one escaping helper.
+one escaping helper. `tipText` is a tooltip assembled at render, written as text and taking `title`'s place; `label` is the cell's accessible name.
 
 **The fold** hides everything but the band (compact, with no bar), the
 portrait and the rails, and puts the pin bar under the art row. The fold
@@ -514,7 +514,7 @@ render finds focus held elsewhere. Anything else leaves focus alone.
 **The menu under a rail cell** (`_frameMenu`) is one row per option, the
 current one marked; a click picks, a click anywhere else closes. It is built
 by the anchor's own document, so a sheet first rendered in a detached
-browser window gets a menu of that window's.
+browser window gets a menu of that window's. A pick hands its handler the item and the click that picked it.
 
 **The type knob.** Every length in the stylesheet is a canvas figure times
 `--acks-extras-k`, the ratio of the seat's base size to the canvas's
@@ -2499,7 +2499,7 @@ world with its token. The party cell counts `summonedBy` (character-sheet
 MODEL, "The party cell"); the record is what groups a cast.
 
 **A summoning is tied to its spell.** The request names a spell item of the
-summoner, and the records it stamps keep that spell, so the party cell can group
+summoner, and the records it stamps keep that spell, so the cast menu can group
 a character's summons by spell (`groupBySpell`: a cast whose spell still
 resolves is under it; a record whose spell is gone, or that never named one, is
 `loose` and still dismissable as a cast; a token with no record, bound by

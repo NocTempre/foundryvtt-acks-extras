@@ -29,6 +29,7 @@
  *   formation {name} | null
  *   party     {formation: {name, onScene, membersOnScene}|null, henchmen: [{onScene}],
  *              summons: [{}] on the scene, calamity: number}
+ *   cast      {owner, spells: [{id, name, level, summon}], records: [{id, name, img, clock, remaining, total, created, ended}]}
  *   caster, trader (set by the sheet), pending, followers, timers, hasClass, unansweredPaths
  *   pins      string[]
  */
@@ -121,25 +122,17 @@ export function lightCell({ lit = null, ambient = null, sense = null, blinded = 
  * sheet's root; a token row carries its name as `label` instead. `tipKey` and
  * `valueKey` are lang keys too.
  *
- * Who of the party is on the scene comes first, for every viewer. An owner
- * then gets one row per summoning spell: Cast while none of its creatures
- * stand, else Dismiss with the count standing, which covers every cast of
- * that spell. A recorded summon whose spell is no summoning spell of the
- * character (deleted, or a GM's bare summoning) is a loose cast, dismissed
- * cast by cast. A creature bound by hand carries no record and only Release
- * lets it go. Each standing summon is reached by exactly one of those three.
- * The spell-less Summon… is offered only where `bare` says the seat may make
- * one (`bareSummonAllowed`).
+ * Who of the party is on the scene comes first, for every viewer: each
+ * henchman and summon on the scene, then how many of the party are elsewhere.
+ * An owner then gets the roster, and every seat gets the Followers tab. The
+ * management of summons is the cast menu's (`castMenuModel`).
  * @param {object} o
  * @param {{henchmen?: object[], summons?: object[]}} o.party  `partyOf`'s facts
- * @param {{id: string, name: string}[]} [o.spells]  the character's summoning spells
  * @param {boolean} [o.owner]  the seat owns the character
- * @param {boolean} [o.bare]  the seat may summon with no spell
- * @param {object[]} [o.controlled]  the tokens Bind would take, passed through untouched
  * @param {boolean} [o.roster]  whether the roster entry shows
  * @returns {object[]}
  */
-export function partyMenuModel({ party = {}, spells = [], owner = false, bare = false, controlled = [], roster = false } = {}) {
+export function partyMenuModel({ party = {}, owner = false, roster = false } = {}) {
   const items = [];
   const henchmen = party.henchmen ?? [];
   const summons = party.summons ?? [];
@@ -149,37 +142,7 @@ export function partyMenuModel({ party = {}, spells = [], owner = false, bare = 
   for (const s of summons) items.push({ kind: "token", tokenId: s.tokenId, img: s.img, label: s.name, valueKey: "party.summon" });
   const away = henchmen.filter((x) => !x.onScene).length;
   if (away) items.push({ kind: "info", icon: "fa-solid fa-person-walking-arrow-right", key: "party.away", data: { n: away }, disabled: true });
-  if (owner) {
-    const byId = new Map(spells.map((s) => [s.id, s]));
-    const { casts, loose, bound } = groupBySpell(summons, byId);
-    const dismissals = [];
-    for (const spell of [...spells].sort((a, b) => String(a.name).localeCompare(String(b.name)))) {
-      const tokenIds = casts.filter((c) => c.spellId === spell.id).flatMap((c) => c.tokens.map((t) => t.tokenId));
-      if (!tokenIds.length) {
-        items.push({ kind: "cast", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", key: "party.cast", data: { name: spell.name }, tipKey: "party.castTip" });
-        continue;
-      }
-      const row = { kind: "dismiss", spellId: spell.id, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: spell.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
-      items.push(row);
-      dismissals.push(row);
-    }
-    for (const c of groupByCast(loose).casts) {
-      const tokenIds = c.entries.map((e) => e.tokenId);
-      const row = { kind: "dismiss", castId: c.castId, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: c.spellName || c.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
-      items.push(row);
-      dismissals.push(row);
-    }
-    if (dismissals.length > 1) {
-      const n = dismissals.reduce((sum, d) => sum + d.tokenIds.length, 0);
-      items.push({ kind: "dismissAll", tokenIds: dismissals.flatMap((d) => d.tokenIds), icon: "fa-solid fa-ghost", key: "party.dismissAll", tipKey: "party.dismissTip", tipData: { n } });
-    }
-    if (bare) items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", key: "party.summonNew" });
-    if (controlled.length) items.push({ kind: "bind", tokens: controlled, icon: "fa-solid fa-wand-magic-sparkles", key: "party.bind", data: { n: controlled.length } });
-    if (bound.length) {
-      items.push({ kind: "release", tokenIds: bound.map((s) => s.tokenId), icon: "fa-solid fa-link-slash", key: "party.release", data: { n: bound.length }, tipKey: "party.releaseTip", tipData: { n: bound.length } });
-    }
-    if (roster) items.push({ kind: "roster", icon: "fa-solid fa-people-group", key: "followers.roster" });
-  }
+  if (owner && roster) items.push({ kind: "roster", icon: "fa-solid fa-people-group", key: "followers.roster" });
   items.push({ kind: "tab", icon: "fa-solid fa-users", key: "tab.followers" });
   return items;
 }
@@ -200,6 +163,133 @@ export function standingBySpell(summons) {
     out.get(id).push(s.tokenId);
   }
   return out;
+}
+
+/* -------------------------------------------- */
+/*  The cast column                              */
+/* -------------------------------------------- */
+
+/** How many tracker cells the cast column holds under its entry. */
+export const CAST_TRACKERS = 5;
+
+/**
+ * Whether a character gets the cast column: it holds a spell item, a
+ * caster-side cast record (an ended one still marks a caster), or a summon
+ * standing on the scene, whose Dismiss or Release lives in the cast menu.
+ * @param {{spells?: object[], records?: object[], summons?: object[]}} [cast]  `castOf`'s facts, with `partyOf`'s summons
+ */
+export const isCaster = ({ spells = [], records = [], summons = [] } = {}) => spells.length > 0 || records.length > 0 || summons.length > 0;
+
+/**
+ * The cast cell's menu, as plain items the sheet localizes (the keys and
+ * `label`s follow `partyMenuModel`). Nothing for a seat that does not own the
+ * character. An owner gets one row per spell, by spell level and then name. A
+ * spell that does not summon is cast through the spell's own use. A summoning
+ * spell is Cast while none of its creatures stand, else Dismiss with the count
+ * standing, which covers every cast of that spell. A recorded summon whose
+ * spell is no summoning spell of the character (deleted, or a GM's bare
+ * summoning) is a loose cast, dismissed cast by cast. A creature bound to the
+ * character before binding by hand was retired carries no record, and only
+ * Release lets it go. Each standing summon is
+ * reached by exactly one of those three. The spell-less Summon… is offered
+ * only where `bare` says the seat may make one (`bareSummonAllowed`).
+ * @param {object} o
+ * @param {{id: string, name: string, level?: number, summon?: boolean}[]} [o.spells]  the character's spells
+ * @param {{summons?: object[]}} [o.party]  `partyOf`'s facts
+ * @param {boolean} [o.owner]  the seat owns the character
+ * @param {boolean} [o.bare]  the seat may summon with no spell
+ * @returns {object[]}
+ */
+export function castMenuModel({ spells = [], party = {}, owner = false, bare = false } = {}) {
+  if (!owner) return [];
+  const items = [];
+  const summons = party.summons ?? [];
+  const byId = new Map(spells.filter((s) => s.summon).map((s) => [s.id, s]));
+  const { casts, loose, bound } = groupBySpell(summons, byId);
+  const dismissals = [];
+  const ordered = [...spells].sort((a, b) => (Number(a.level) || 0) - (Number(b.level) || 0) || String(a.name).localeCompare(String(b.name)));
+  for (const spell of ordered) {
+    if (!spell.summon) {
+      items.push({ kind: "use", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", label: spell.name, valueKey: "cast.level", valueData: { n: Number(spell.level) || 0 }, tipKey: "cast.levelTip" });
+      continue;
+    }
+    const tokenIds = casts.filter((c) => c.spellId === spell.id).flatMap((c) => c.tokens.map((t) => t.tokenId));
+    if (!tokenIds.length) {
+      items.push({ kind: "cast", spellId: spell.id, icon: "fa-solid fa-wand-magic-sparkles", key: "party.cast", data: { name: spell.name }, tipKey: "party.castTip" });
+      continue;
+    }
+    const row = { kind: "dismiss", spellId: spell.id, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: spell.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+    items.push(row);
+    dismissals.push(row);
+  }
+  for (const c of groupByCast(loose).casts) {
+    const tokenIds = c.entries.map((e) => e.tokenId);
+    const row = { kind: "dismiss", castId: c.castId, tokenIds, icon: "fa-solid fa-ghost", key: "party.dismiss", data: { name: c.spellName || c.name, n: tokenIds.length }, tipKey: "party.dismissTip", tipData: { n: tokenIds.length } };
+    items.push(row);
+    dismissals.push(row);
+  }
+  if (dismissals.length > 1) {
+    const n = dismissals.reduce((sum, d) => sum + d.tokenIds.length, 0);
+    items.push({ kind: "dismissAll", tokenIds: dismissals.flatMap((d) => d.tokenIds), icon: "fa-solid fa-ghost", key: "party.dismissAll", tipKey: "party.dismissTip", tipData: { n } });
+  }
+  if (bare) items.push({ kind: "summon", icon: "fa-solid fa-hand-sparkles", key: "party.summonNew" });
+  if (bound.length) {
+    items.push({ kind: "release", tokenIds: bound.map((s) => s.tokenId), icon: "fa-solid fa-link-slash", key: "party.release", data: { n: bound.length }, tipKey: "party.releaseTip", tipData: { n: bound.length } });
+  }
+  if (!items.length) items.push({ kind: "none", icon: "fa-solid fa-wand-magic-sparkles", key: "cast.nothing", disabled: true });
+  return items;
+}
+
+/**
+ * The cast column's tracker cells: exactly `slots` of them, one per active
+ * cast of this character's own, newest first. A record whose end the module
+ * has announced is over and takes no cell. Past `slots` records the last cell
+ * stands for the rest (`more`, with how many it hides); an unfilled cell is a
+ * `pad`. A record's fill is what is left of its duration, as the Effects tab
+ * draws it, and none while it has no set duration; its `state` says which of
+ * "time left", "lasts" (the time left is unknown) and "no set duration" its
+ * tooltip reads.
+ * @param {{id: string, name: string, img: string|null, clock: string, remaining: number|null, total: number,
+ *   created: number, ended?: boolean}[]} [records]  `castOf`'s records
+ * @param {number} [slots]
+ * @returns {object[]}
+ */
+export function castTrackers(records = [], slots = CAST_TRACKERS) {
+  const live = records
+    .map((record, index) => ({ record, index }))
+    .filter(({ record }) => !record.ended)
+    .sort((a, b) => num(b.record.created) - num(a.record.created) || b.index - a.index)
+    .map(({ record }) => record);
+  const over = live.length > slots;
+  const shown = over ? live.slice(0, slots - 1) : live;
+  const cells = shown.map((r) => {
+    const total = num(r.total);
+    const timed = total > 0;
+    const pct = timed ? (r.remaining != null ? clampPct((num(r.remaining) / total) * 100) : 100) : null;
+    return { kind: "record", id: r.id, name: r.name, img: r.img ?? null, clock: r.clock ?? "", pct, state: !timed ? "open" : r.remaining != null ? "left" : "lasts" };
+  });
+  if (over) cells.push({ kind: "more", n: live.length - shown.length });
+  while (cells.length < slots) cells.push({ kind: "pad" });
+  return cells;
+}
+
+/**
+ * What the sheet shows of the tracker cells, as one string: the sheet compares
+ * it across clock advances so a fill that moved re-renders and one that did not
+ * does not.
+ * @param {object[]} [records]  `castOf`'s records
+ */
+export const castTrackerKey = (records = []) => castTrackers(records).map((c) => [c.kind, c.id ?? c.n ?? "", c.pct ?? "", c.clock ?? ""].join(":")).join("|");
+
+/**
+ * The cast column, or null for a character that is no caster, so the rails
+ * stay as they were.
+ * @param {{owner?: boolean, spells?: object[], records?: object[], summons?: object[]}} [cast]  `castOf`'s facts, with `partyOf`'s summons
+ * @returns {{owner: boolean, trackers: object[]}|null}
+ */
+export function castRail(cast = {}) {
+  if (!isCaster(cast)) return null;
+  return { owner: !!cast.owner, trackers: castTrackers(cast.records) };
 }
 
 /* -------------------------------------------- */
@@ -329,6 +419,7 @@ export function buildFrameModel(snap, viewer = {}) {
     light: lightCell(snap.light ?? {}),
     formation: snap.formation ? { name: snap.formation.name } : null,
     party: partyCell(snap.party ?? {}),
+    cast: castRail({ ...(snap.cast ?? {}), summons: snap.party?.summons ?? [] }),
     tools: TOOL_CELLS.filter((t) => !t.gmOnly || viewer.isGM),
   };
   return { xp, tabs, active, rails, folded: !!viewer.folded };

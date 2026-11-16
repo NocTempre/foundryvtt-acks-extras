@@ -278,6 +278,13 @@
   margin-inline-start: calc(5px * var(--acks-extras-k));
 }
 
+/* The casters' column: the right rail's size, beside it. Its menu opens
+   toward the prose, as the right rail's does. */
+.acks-extras-frame__rail--cast {
+  width: var(--acks-extras-rail-right);
+  margin-inline-start: calc(2px * var(--acks-extras-k));
+}
+
 .acks-extras-frame__rail--tools {
   width: var(--acks-extras-rail-tools);
   margin-inline-start: var(--acks-sp-3);

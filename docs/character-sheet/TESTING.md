@@ -5,7 +5,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 
 ## Fixtures
 
-- A disposable `character` actor. On it: a `weapon` named after a RAW weapon
+- A disposable `character` actor. On it: a `spell` item (step 14's cast column needs one), a `weapon` named after a RAW weapon
   that can be held one- or two-handed (a sword), a second weapon that is
   thrown as well as swung (a dagger), a shield `armor` (`system.type`
   "shield"), a suit `armor`, an `item` "Torches (6)" with a quantity, an
@@ -30,7 +30,7 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
   Class tab's preview and the band's threshold.
 - For the party cell: a disposable scene, ACTIVATED, holding a token of the
   first actor, a token of the hireling, and a token of a disposable monster
-  actor to bind as a summon.
+  actor flagged as a summon.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -239,11 +239,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
     reached" notice means the bridge is reading the wrong half of the
     system's sheet class chain (the four live on two classes).
 14. The party cell, on the disposable scene. *Observable:* with the hireling's
-    token on the scene the cell reads `1`; control the monster's token and
-    pick *Bind* from the cell's menu — its actor gains `summonedBy` and the
-    cell reads `1*`; set `pendingCalamity` on the hireling's henchmen record
+    token on the scene the cell reads `1`; set the monster token's actor
+    flag `summonedBy` to the first actor's uuid (the cast menu has no *Bind*)
+    and the cell reads `1*`; set `pendingCalamity` on the hireling's henchmen record
     and the cell turns red; picking the hireling from the menu selects its
-    token; *Release* clears the flag and the asterisk; deleting the hireling's
+    token; *Release* (cast menu) clears the flag and the asterisk; deleting the hireling's
     token drops the figure to `0`. With a formation whose party token is on
     the scene the cell shows the marching-order glyph and its member count
     and opens the party sheet. Count renders with
@@ -670,7 +670,7 @@ ledger.
 
 ## Summons from a Player seat
 
-Built for the party cell's summoning rows, the Magic tab's standing count and
+Built for the cast menu's summoning rows, the Magic tab's standing count and
 *Dismiss*, and the card a cast's end posts (MODEL, "Summons go through spells";
 magic MODEL, "A cast's end"). A mock cannot prove that the cell's rows turn
 from *Cast* to *Dismiss* as real tokens appear and go, that the clock step
@@ -732,7 +732,7 @@ released at the start.
 
 **Steps, from the Player seat** (a real Player user, the sheet open on the
 summoner, the Tokens layer active):
-1. Character sheet → party cell. *Observable:* the menu offers *Cast <spell>*
+1. Character sheet → cast cell (the first cell of the second right-rail column). *Observable:* the menu offers *Cast <spell>*
    for both summoning spells, and neither *Summon…* nor any *Dismiss*.
 2. Pick *Cast* for the named spell. *Observable:* the creature prompt offers the
    spell's one creature with the count opening on 2. Place on the map and click
@@ -745,7 +745,7 @@ summoner, the Tokens layer active):
    "2 standing" with a tooltip, and carries a *Dismiss* button named by its
    `aria-label`; the open spell's row reads "0 standing", tooltipped, and has no
    *Dismiss*.
-4. Party cell → *Cast* for the open spell, pick a creature from a shelf the
+4. Cast cell → *Cast* for the open spell, pick a creature from a shelf the
    Player can open, place one. *Observable:* a third token of a second cast
    naming the open spell; its caster record has no duration. The cell offers
    both spells' *Dismiss*, *Dismiss all summons*, and no *Cast*.
@@ -759,13 +759,14 @@ summoner, the Tokens layer active):
    stands.
 7. Magic tab → the open spell's *Dismiss*, answer Yes. *Observable:* no summons
    stand; the cell offers both *Cast*s again.
-8. Control the bindable token alone; party cell → *Bind*. *Observable:* the
-   token names the summoner; the cell offers *Release* and no *Dismiss*;
-   *Release* lets it go.
-9. *Observable:* on the Player seat, `summons/stranger`'s cell offers neither
+8. Control the bindable token alone. *Observable:* the cast cell offers no
+   *Bind*. From the GM seat set the token's `summonedBy` to the summoner's uuid
+   (a creature bound before binding by hand was retired). *Observable:* the
+   cell offers *Release* and no *Dismiss*; *Release* lets it go.
+9. *Observable:* on the Player seat, `summons/stranger` has no cast menu and offers neither
    *Cast* nor *Summon…*, and `acksExtras.lib.summons.placeSummons` called on it
    directly resolves `{ok: false, reason: "notOwner"}` before any click, with
-   nothing made; on the GM seat, the summoner's cell offers *Summon…* beside
+   nothing made; on the GM seat, the summoner's cast menu offers *Summon…* beside
    both *Cast*s.
 
 Not walked here: that a summoned token behaves as its Player's (moved, its
@@ -943,3 +944,74 @@ climb the field report described. After step 4 the stored value is 3 and the
 prepared value 4: the field still writes what was typed.
 
 **Teardown.** Delete the character by its uuid; the effect goes with it.
+## The cast column
+
+Built for the casters' second right-rail column (MODEL, "The cast column"): its
+entry and its menu, the five trackers, and the party cell it relieved. A mock
+cannot prove that the column is drawn beside the right rail without moving the
+portrait, that the cast menu opens toward the prose and over nothing it cuts
+off, that a tracker's fill runs down on the world clock, or that a character
+marching in a formation on the scene still reaches *Cast* and *Dismiss*.
+
+**Fixtures** (kept; found by marker with `api.fixture`, built when none carries
+it):
+- `cast-cell/caster` — a `character` the Player seat OWNS, holding a `spell`
+  item at level 1 that is no summoning spell (`cast-cell/spell-plain`), and one
+  at level 2 carrying a summon row (`cast-cell/spell-summon`, built as
+  `summons/spell-named` is).
+- `cast-cell/fighter` — a `character` with no spell item and no cast record,
+  owned by the Player seat.
+- `cast-cell/scene` — a scene the Player seat views, holding a token of the
+  caster and of the fighter.
+- `cast-cell/formation` — a formation holding the caster, whose party token
+  is on `cast-cell/scene`.
+- Cast records, made by the run and tracked: an Active Effect on the caster
+  marked `flags["acks-extras"].spellEffect` `{spellUuid, castId, casterUuid,
+  role: "caster"}` with `duration: {value: 10, units: "minutes"}` and
+  `start: {time: game.time.worldTime}`; six of them for step 5, each with its
+  own `castId`, created one after another.
+
+**Steps, from the Player seat** (a real Player user):
+1. Open the fighter's sheet. *Observable:* two rails around the portrait and
+   no column of cast cells; the art row's width and the portrait's place are
+   what they were.
+2. Open the caster's sheet (no formation yet). *Observable:* a second column of
+   six cells beside the right rail, the same cell size and gap, its height the
+   portrait's; the top cell wears the wand glyph and its tooltip names the
+   cast menu; the five below are dashed pads, each tooltipped "No active
+   cast". The prose column is narrower by the column's width and nothing
+   overflows. Fold the card: the column is still there.
+3. Press the entry. *Observable:* a menu opens toward the prose with the plain
+   spell's row first (*Level 1*), then the summoning spell's *Cast* (the
+   level-2 spell), and neither *Summon…* nor any *Dismiss*. Pick the plain
+   spell: its card posts and its casting is counted; with the system's skip
+   key held on that click, no roll dialog shows.
+4. Add one cast record. *Observable:* with no further action the first pad
+   becomes a cell wearing the effect's image, filled to the top, its tooltip
+   reading the spell's name and the time left; the others are pads. From the GM
+   seat advance the clock by five minutes: the fill drops to about half without
+   a reload and the tooltip's time follows. Press the cell: the Effects tab
+   opens. Delete the record: the cell turns back to a pad.
+5. Add five more records (six in all). *Observable:* the newest four show, the
+   fifth cell reads `+2`, tooltipped with the count, and a press opens the
+   Effects tab. Stamp the oldest record `ended`: the `+2` becomes `+1`.
+6. Create the formation membership so the caster marches in the formation, its
+   party token on the scene. *Observable:* the party cell is the marching-order
+   glyph and opens the party sheet; the cast cell still opens the cast menu, and
+   its *Cast* and, once a summoning stands, *Dismiss* for the summoning spell
+   are reachable and work (the summoning cast's prompt is the magic recipe's).
+   With no formation, the party cell's menu lists who stands on the scene,
+   the roster and the Followers tab, and none of *Cast*, *Dismiss*, *Bind*,
+   *Release* or *Summon…*.
+7. Open the caster's sheet from a seat that observes and does not own it.
+   *Observable:* the column and its trackers show, the entry is a dashed pad
+   with no menu on a press, and a tracker's press still opens the Effects tab.
+8. Raise the type size setting and reopen the caster's sheet. *Observable:* the
+   column scales with the rails (cell size, gap, glyph) and its figures
+   (`+n`) with the type. Tab to the entry and press Enter: the menu opens.
+   Every cell of the column is named for a screen reader (its `aria-label`).
+
+**Teardown.** The fixtures are kept. Delete only the cast records the run made,
+by its own ledger (`api.track` each, `sweepTracked`), and the chat card the
+plain spell's cast posted; quote the sweep's result. Return the world clock
+only where the run advanced it and no peer's cast depends on it.

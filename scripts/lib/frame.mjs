@@ -180,7 +180,7 @@ export function FrameMixin(Base) {
      * @param {HTMLElement} anchor the cell the menu hangs under
      * @param {object[]} items [{label, icon?, img?, value?, on?, disabled?, tip?}, …];
      *   `tip` is a tooltip assembled at render, written as text
-     * @param {(item: object) => any} onPick called with the item picked
+     * @param {(item: object, event: Event) => any} onPick called with the item picked and the click that picked it
      */
     _frameMenu(anchor, items, onPick) {
       const doc = anchor.ownerDocument;
@@ -213,7 +213,7 @@ export function FrameMixin(Base) {
         ev.preventDefault();
         ev.stopPropagation();
         close();
-        Promise.resolve(onPick(items[Number(btn.dataset.menuIndex)])).catch((err) => console.error(`${MODULE_ID} | menu pick failed`, err));
+        Promise.resolve(onPick(items[Number(btn.dataset.menuIndex)], ev)).catch((err) => console.error(`${MODULE_ID} | menu pick failed`, err));
       });
     }
 

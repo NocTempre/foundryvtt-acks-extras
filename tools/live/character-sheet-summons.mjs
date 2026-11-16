@@ -2,7 +2,7 @@
  * Live walk, character-sheet-summons: a player summons through the character
  * sheet. Walks docs/character-sheet/TESTING.md "Summons from a Player seat" on
  * the GM and Player seats: a boot recorder attached before the reload that sees
- * `init`, `setup` and `ready`; the party cell offering Cast for each summoning
+ * `init`, `setup` and `ready`; the cast cell offering Cast for each summoning
  * spell and no spell-less Summon… to the Player; Cast placing the named
  * creature by two real clicks, after which the cell offers that spell's
  * Dismiss with its count and no Cast; the Magic tab's standing count and its
@@ -128,14 +128,14 @@ const P = {
     try { ui.notifications.clear?.(); } catch { /* chrome only */ }
     return true;
   },
-  /** Open the actor's sheet and its party cell; the menu's entries, as their labels. */
+  /** Open the actor's sheet and its cast cell; the menu's entries, as their labels. */
   menu: async ({ actorId }) => {
     const H = globalThis.__cs;
     const sheet = game.actors.get(actorId)?.sheet;
     if (!sheet) return { sheet: false, cell: false, items: [] };
     if (!sheet.rendered) { await sheet.render(true); await H.poll(() => H.root(sheet)?.isConnected); await H.sleep(600); }
     document.querySelectorAll(".acks-extras-frame__menu").forEach((m) => m.remove());
-    const button = H.root(sheet)?.querySelector('[data-action="partyMenu"]');
+    const button = H.root(sheet)?.querySelector('[data-action="castMenu"]');
     if (!button) return { sheet: true, cell: false, items: [] };
     button.click();
     await H.sleep(600);
@@ -307,6 +307,8 @@ const P = {
     return canvas.tokens.controlled.length === 1;
   },
   boundTo: async ({ uuid }) => (await fromUuid(uuid))?.actor?.getFlag("acks-extras", "summonedBy") ?? null,
+  /** Stand in for a creature bound by hand before binding was retired: the flag alone, no record. */
+  bindFlag: async ({ uuid, summonerUuid }) => { await (await fromUuid(uuid))?.actor?.setFlag("acks-extras", "summonedBy", summonerUuid); return true; },
   /** Let go of a hand-bound token a past run left bound, so the walk starts from its known shape. */
   unbind: async ({ uuid }) => { await (await fromUuid(uuid))?.actor?.unsetFlag("acks-extras", "summonedBy"); return true; },
   restore: async () => {
@@ -504,7 +506,7 @@ try {
   await run(player, P.drain);
   await run(gm, P.drain);
 
-  section("1. the party cell offers each summoning spell's Cast, and no spell-less Summon… to the Player");
+  section("1. the cast cell offers each summoning spell's Cast, and no spell-less Summon… to the Player");
   const m1 = await run(player, P.menu, { actorId: summonerId });
   check("1: Cast is offered for both summoning spells", m1.cell && m1.items.includes(castMenu.named) && m1.items.includes(castMenu.open), { n: m1.items.length });
   check("1: no Summon… and no Dismiss is offered", !m1.items.includes("Summon…") && !m1.items.some((l) => l.startsWith("Dismiss")));
@@ -619,15 +621,15 @@ try {
   check("7: the cell offers both Casts again", m7.items.includes(castMenu.named) && m7.items.includes(castMenu.open));
   await run(player, P.closeMenu);
 
-  section("8. a creature bound by hand: Release, never Dismiss");
+  section("8. a creature bound by hand before Bind was retired: Release, never Dismiss, and no Bind");
   await run(player, P.clearWindows);
   check("8: the Player controls the bindable token alone", await run(player, P.controlOnly, { tokenId: idOf(bindable) }));
   const m8 = await run(player, P.menu, { actorId: summonerId });
-  const bind = m8.items.find((l) => l.startsWith("Bind "));
-  check("8: the cell offers Bind for the controlled token", !!bind);
-  if (bind) await run(player, P.pick, { label: bind });
+  check("8: the cell offers no Bind for the controlled token", !m8.items.some((l) => l.startsWith("Bind ")));
+  await run(player, P.closeMenu);
+  await run(gm, P.bindFlag, { uuid: bindable.uuid, summonerUuid });
   await sleep(800);
-  check("8: the bound token names the summoner", (await run(gm, P.boundTo, { uuid: bindable.uuid })) === summonerUuid);
+  check("8: the flagged token names the summoner", (await run(gm, P.boundTo, { uuid: bindable.uuid })) === summonerUuid);
   const m8b = await run(player, P.menu, { actorId: summonerId });
   const release = m8b.items.find((l) => l.startsWith("Release"));
   check("8: Release is offered, and no Dismiss reaches the bound token", !!release && !m8b.items.some((l) => l.startsWith("Dismiss")));
@@ -638,7 +640,7 @@ try {
   section("9. a character the Player does not own, and the GM seat");
   await run(player, P.clearWindows);
   const m9 = await run(player, P.menu, { actorId: idOf(stranger) });
-  check("9: the stranger's cell offers neither Cast nor Summon…", m9.cell && !m9.items.some((l) => l.startsWith("Cast ")) && !m9.items.includes("Summon…"));
+  check("9: the stranger has no cast menu, so offers neither Cast nor Summon…", m9.sheet && !m9.cell && !m9.items.some((l) => l.startsWith("Cast ")) && !m9.items.includes("Summon…"));
   await run(player, P.clearWindows);
   const refused9 = await run(player, P.placeOn, { actorId: idOf(stranger), sourceUuid: shelf });
   check("9: a summoning sent through lib for the stranger is refused notOwner, before any click", refused9?.ok === false && refused9.reason === "notOwner", refused9);

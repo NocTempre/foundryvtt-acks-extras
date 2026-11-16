@@ -1,6 +1,7 @@
 {{!-- The art row: the left rail, the portrait, the right rail, the prose
       column and the sheet-tools rail. Folded, only the rails and the portrait
-      remain. Context: cells {left, right} of cell.hbs objects; art {img, alt,
+      remain. Context: cells {left, right, cast?} of cell.hbs objects, `cast`
+      a second column beside the right rail that a sheet may leave out; art {img, alt,
       overline, prose, proseSource, proseField, editing, tags}; sheetTools
       [{key, icon, title}]; editable; folded; actor.uuid. --}}
 <div class="acks-extras-frame__rail acks-extras-frame__rail--left">
@@ -18,6 +19,12 @@
 <div class="acks-extras-frame__rail acks-extras-frame__rail--right">
   {{#each cells.right}}{{> "modules/acks-extras/templates/lib/frame/cell.hbs" this}}{{/each}}
 </div>
+
+{{#if cells.cast}}
+<div class="acks-extras-frame__rail acks-extras-frame__rail--cast">
+  {{#each cells.cast}}{{> "modules/acks-extras/templates/lib/frame/cell.hbs" this}}{{/each}}
+</div>
+{{/if}}
 
 {{#unless folded}}
 <div class="acks-extras-frame__prose">

@@ -202,7 +202,7 @@ three states.
    `badCount`; with no spell, `spellRequired`. Nothing is made. The seat's own
    `placeSummons` stops before any click, and the Player's Summon… is refused
    with a warning and no prompt.
-5. From the GM seat, Summon… (`promptSummon`, the party cell's menu entry): pick
+5. From the GM seat, Summon… (`promptSummon`, the cast menu's entry): pick
    a library creature with no spell and place it. *Observable:* one token whose
    record carries no spell, and the spell's count unchanged.
 

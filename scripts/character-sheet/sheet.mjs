@@ -24,10 +24,9 @@ import { makeLoc, libStorage } from "../lib/util.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SUMMON_FLAG, summonerOf, summonRecordOf, bareSummonAllowed } from "../lib/summons-logic.mjs";
 import { promptSummon, promptDismiss, summonsOf } from "../lib/summons.mjs";
-import { isSummonSpell } from "../magic/summon-spell.mjs";
 import { castSummon } from "../magic/cast-summon.mjs";
-import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene } from "./snapshot.mjs";
-import { buildFrameModel, nextAcMode, partyMenuModel } from "./view-model.mjs";
+import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf } from "./snapshot.mjs";
+import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
@@ -126,6 +125,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       lightMenu: AcksCharacterSheet.#onLightMenu,
       formation: AcksCharacterSheet.#onFormation,
       partyMenu: AcksCharacterSheet.#onPartyMenu,
+      castMenu: AcksCharacterSheet.#onCastMenu,
       editDescription: AcksCharacterSheet.#onEditDescription,
       changeArt: AcksCharacterSheet.#onChangeArt,
       editTags: AcksCharacterSheet.#onEditTags,
@@ -233,6 +233,9 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   /** The wage line's figures at the last render (`wageLineKey`). */
   #wageLine = "";
 
+  /** The cast column's tracker fills at the last render (`castTrackerKey`). */
+  #castKey = "";
+
   /** Hook ids for the watch on documents this sheet shows but does not own. */
   #watch = [];
 
@@ -284,9 +287,12 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     };
     // The wage line counts days on the world's clock. Nearly every advance of
     // the clock leaves the line reading what it read, so only one that
-    // changes its figures re-renders.
+    // changes its figures re-renders. The cast column's trackers run down on
+    // the same clock, and re-render only once a fill or a clock has moved. The
+    // actor's own effects and spells re-render the sheet through core, so no
+    // hook of theirs is watched here.
     const watchClock = () => {
-      if (wageLineKey(this.actor) !== this.#wageLine) this.#renderSoon();
+      if (wageLineKey(this.actor) !== this.#wageLine || castTrackerKey(castOf(this.actor).records) !== this.#castKey) this.#renderSoon();
     };
     const pairs = [
       ["updateActor", watchActor], ["deleteActor", watchActor],
@@ -350,6 +356,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     if (tabs.service) panels.service = buildServicePanel(actor, { isGM: gm, pins: snap.pins });
     panels.followers = await buildFollowersTab(actor);
     this.#wageLine = wageLineKey(actor);
+    this.#castKey = castTrackerKey(snap.cast.records);
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });
     panels.effects = buildEffectsTab(actor);
 
@@ -475,6 +482,12 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     }
     if (party.calamity) r.partyTitle += ` · ${loc("rail.partyCalamity", { n: party.calamity })}`;
     r.influenceTitle = loc("rail.influence");
+    if (r.cast) {
+      r.cast.entryTitle = loc(r.cast.owner ? "rail.cast" : "rail.castViewer");
+      for (const t of r.cast.trackers) {
+        t.tip = t.kind === "record" ? loc(`cast.track.${t.state}`, { name: t.name, clock: t.clock }) : t.kind === "more" ? loc("cast.track.more", { n: t.n }) : loc("cast.track.pad");
+      }
+    }
     r.foldTitle = frame.folded ? frameLoc("fold.open") : frameLoc("fold.close");
     for (const t of frame.tabs) {
       t.label = loc(`tab.${t.key}`);
@@ -522,14 +535,33 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       { key: "light", action: "lightMenu", cls: r.light.tone ? `is-${r.light.tone}` : "", fill: r.light.pct, title: r.light.title, icon: r.light.icon, sub: r.light.sub },
       this.#partyCellDef(r),
     ];
-    return { left, right };
+    return { left, right, cast: r.cast ? this.#castCells(r.cast) : null };
+  }
+
+  /**
+   * The casters' column: the cast entry on top, which opens the cast menu for
+   * the character's owner and is a pad with no action for any other seat, then
+   * the tracker cells. A tracker with a cast behind it, and the `+n` cell, go
+   * to the Effects tab; an unfilled one is an inert pad.
+   */
+  #castCells(cast) {
+    const effects = { action: "goTab", attrs: attr({ tab: "effects" }) };
+    const entry = { key: "cast", icon: "fa-solid fa-wand-magic-sparkles", title: cast.entryTitle, label: cast.entryTitle };
+    const cells = [cast.owner ? { ...entry, action: "castMenu", cls: "is-btn" } : { ...entry, cls: "is-pad" }];
+    cast.trackers.forEach((t, i) => {
+      const named = { tipText: t.tip, label: t.tip };
+      if (t.kind === "record") cells.push({ key: `cast-${t.id}`, ...effects, cls: "is-ts", fill: t.pct, img: t.img, icon: t.img ? null : "fa-solid fa-wand-magic-sparkles", ...named });
+      else if (t.kind === "more") cells.push({ key: "cast-more", ...effects, cls: "is-btn", sub: `+${t.n}`, ...named });
+      else cells.push({ key: `cast-pad-${i}`, cls: "is-pad", ...named });
+    });
+    return cells;
   }
 
   /**
    * The party cell: the formation (opens the party sheet) while its token is
    * on the scene, else the character's own party with its count (opens the
    * party menu). A pad with no party at all — still a button, because the
-   * menu is where a Judge binds the first summon.
+   * menu is where the roster and the Followers tab are reached.
    */
   #partyCellDef(r) {
     const p = r.party;
@@ -854,39 +886,17 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   /**
    * The party menu (`partyMenuModel`): who of the party is on the scene (a
    * pick selects the token and pans to it), how many are elsewhere, and for an
-   * owner each summoning spell's Cast or Dismiss, a loose cast's Dismiss, the
-   * GM's spell-less Summon…, and the bind and release of creatures by hand —
-   * the controlled tokens become this character's summons — plus the roster
-   * and the Followers tab. A cast goes through the spell's own cast
-   * (`castSummon`), so it is spent only once its creatures stand; a dismissal
-   * goes through the GM's client (`lib/summons.mjs`); a creature bound by hand
-   * is only released, never removed.
+   * owner the roster, then the Followers tab. Summons are managed from the cast
+   * menu (`#onCastMenu`).
    */
   static #onPartyMenu(event, target) {
-    const facts = partyOf(this.actor);
-    const scene = currentScene();
-    const owner = this.actor.isOwner;
-    const mine = new Set(henchmanIds(this.actor));
-    const controlled = owner
-      ? (canvas?.tokens?.controlled ?? [])
-          .map((t) => t.document)
-          .filter((t) => t.actorId !== this.actor.id && !mine.has(t.actorId) && summonerOf(t.actor) !== this.actor.uuid && t.actor)
-      : [];
-    const model = partyMenuModel({
-      party: facts,
-      spells: this.actor.items.filter((i) => isSummonSpell(i)).map((i) => ({ id: i.id, name: i.name })),
-      owner,
-      bare: bareSummonAllowed(game.user),
-      controlled,
-      roster: !this.actor.system?.retainer?.enabled,
-    });
+    const model = partyMenuModel({ party: partyOf(this.actor), owner: this.actor.isOwner, roster: !this.actor.system?.retainer?.enabled });
     const items = model.map((it) => ({
       ...it,
       label: it.label ?? loc(it.key, it.data),
       value: it.valueKey ? loc(it.valueKey) : undefined,
-      tip: it.tipKey ? loc(it.tipKey, it.tipData ?? it.data) : undefined,
     }));
-    const tokensOf = (ids) => (ids ?? []).map((id) => scene?.tokens.get(id)).filter(Boolean);
+    const scene = currentScene();
     this._frameMenu(target, items, async (pick) => {
       switch (pick.kind) {
         case "token": {
@@ -897,13 +907,53 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
           await canvas.animatePan({ x: token.center.x, y: token.center.y });
           return;
         }
-        // The flag lands on the summoned actor — another document, or a
+        case "roster":
+          openRosterApp(this.actor);
+          return;
+        case "tab":
+          if (!this.folded) this.changeTab("followers", "primary");
+          return;
+        default:
+          return;
+      }
+    });
+  }
+
+  /**
+   * The cast menu (`castMenuModel`), the owner's alone: each spell of the
+   * character, cast through the spell's own use (which counts the casting and
+   * shows its card, with the dialog skipped on the system's skip key held on
+   * the row's click); a summoning spell's Cast or Dismiss, a loose cast's
+   * Dismiss, the GM's spell-less Summon…, and the Release of a creature
+   * bound by hand before binding was retired. A summoning cast goes through `castSummon`, so it is spent only
+   * once its creatures stand; a dismissal goes through the GM's client
+   * (`lib/summons.mjs`); a creature bound by hand is only released, never
+   * removed.
+   */
+  static #onCastMenu(event, target) {
+    if (!this.actor.isOwner) return;
+    const scene = currentScene();
+    const model = castMenuModel({
+      spells: castOf(this.actor).spells,
+      party: partyOf(this.actor),
+      owner: true,
+      bare: bareSummonAllowed(game.user),
+    });
+    const items = model.map((it) => ({
+      ...it,
+      label: it.label ?? loc(it.key, it.data),
+      value: it.valueKey ? loc(it.valueKey, it.valueData) : undefined,
+      tip: it.tipKey ? loc(it.tipKey, it.tipData ?? it.data) : undefined,
+    }));
+    const tokensOf = (ids) => (ids ?? []).map((id) => scene?.tokens.get(id)).filter(Boolean);
+    this._frameMenu(target, items, async (pick, click) => {
+      switch (pick.kind) {
+        case "use":
+          await this.actor.items.get(pick.spellId)?.use?.({ skipDialog: skipDialogFor(click) });
+          return;
+        // The flag lives on the summoned actor — another document, or a
         // token's delta — so the count is re-read here rather than waiting
         // on a hook that may not name this sheet.
-        case "bind":
-          for (const t of pick.tokens) await t.actor?.setFlag(MODULE_ID, SUMMON_FLAG, this.actor.uuid);
-          this.render();
-          return;
         case "release":
           for (const t of tokensOf(pick.tokenIds)) await t.actor?.unsetFlag(MODULE_ID, SUMMON_FLAG);
           this.render();
@@ -919,12 +969,6 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
         case "dismiss":
         case "dismissAll":
           await promptDismiss(this.actor, { tokens: tokensOf(pick.tokenIds) });
-          return;
-        case "roster":
-          openRosterApp(this.actor);
-          return;
-        case "tab":
-          if (!this.folded) this.changeTab("followers", "primary");
           return;
         default:
           return;

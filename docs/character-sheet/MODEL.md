@@ -60,7 +60,7 @@ cleave count beside them while a weapon is held — with a menu to draw,
 sheathe or change grip; the light cell answering *what can I see by*
 (blinded → a burning source with its reach and burn-down → daylight → a dark
 sense → the dark, explicitly 0′), with a menu to light, douse, shutter or
-ready a torch; and the party cell.
+ready a torch; and the party cell, then, for a caster, the cast column beside it.
 
 **The party cell** (`snapshot.mjs` `partyOf`, `view-model.mjs` `partyCell`)
 is the character's own party on the scene: the henchmen present as a figure
@@ -69,17 +69,46 @@ calamity pending on its henchmen record. A summon is a token whose actor
 carries `flags["acks-extras"].summonedBy` naming this character. The click
 opens a menu (`view-model.mjs` `partyMenuModel`): each member on the scene (a
 pick selects its token and pans to it), how many are elsewhere, and for an
-owner one row per summoning spell (below), a *Dismiss* for each loose cast,
-*Summon…* on a GM seat, the binding of the controlled tokens as summons, the
-release of those bound by hand, the roster and the Followers tab. While the character marches in a formation whose party token is on the scene the cell
-is that formation — the marching-order glyph, the count of its members
-present — and opens the party sheet. With no party and no formation it is a
-dashed pad that still opens the menu, which is where the first summon is
-bound. Token creates, updates and deletes on the scene, the scene change and
-the formation record all re-count it.
+owner the roster, then the Followers tab. While the character marches in a
+formation whose party token is on the scene the cell is that formation — the
+marching-order glyph, the count of its members present — and opens the party
+sheet, which is why the management of summons is not in this menu (below).
+With no party and no formation it is a dashed pad that still opens the menu,
+which is where the roster and the Followers tab are reached. Token creates,
+updates and deletes on the scene, the scene change and the formation record
+all re-count it.
+
+**The cast column** (`snapshot.mjs` `castOf`, `view-model.mjs` `castRail`) is
+a second six-cell column beside the right rail, for a caster: a character
+holding a spell item or a caster-side cast record (`spellEffectOf` role
+`caster`, an ended one included). Any other character's sheet has no column
+(the frame's `cells.cast` is optional, so the monster sheet has none either),
+and the column shows on the folded card too. Its top cell is the entry, which
+opens the cast menu (`castMenuModel`) for the character's owner and is a pad
+with no action for any other seat. The five below are trackers
+(`castTrackers`): this character's own caster records that have not ended,
+newest first (by the effect's creation time, the later-listed first on a tie),
+each wearing the effect's image, filled to what is left of its duration as
+the Effects tab draws it (none while it has no set duration) and tooltipped
+with the spell's name and the time left; a click goes to the Effects tab. With
+more than five casts the fifth cell reads `+n` for the rest and goes to the
+same tab; an unfilled cell is an inert pad. The fills run down on the world
+clock: `updateWorldTime` re-renders the sheet once the trackers' fills differ
+(`castTrackerKey`). The sheet's own effects and spells re-render it through
+core, so no hook of theirs is watched.
+
+**The cast menu** holds one row per spell of the character, by spell level
+then name. A spell that does not summon casts through the spell's own use,
+which counts the casting and shows its card; the system's skip key held on the
+row's click skips its dialog. A summoning spell keeps the rule below. The
+owner rows follow: each loose cast's *Dismiss*, *Dismiss all summons*,
+*Summon…* on a GM seat, and the *Release* of a creature bound by hand before
+binding by hand was retired. An owner with none of these gets one
+disabled row.
 
 **Summons go through spells.** Every spell of the character that is a
-summoning spell (magic MODEL, "Summon spells") has one row. While none of
+summoning spell (magic MODEL, "Summon spells") has one row in the cast menu.
+While none of
 its creatures stand on the scene the row is *Cast <spell>*, which runs the
 spell's own cast (`castSummon`): the creature prompt, the clicks, and the cast
 spent only once they stand. Once some stand the row is *Dismiss <spell> (n)*,
@@ -90,7 +119,7 @@ and cast, which is how the menu sorts it: a record naming no summoning
 spell the character still has (a bare *Summon…* with no spell picked or with
 another spell, or a spell since deleted) is a loose cast with a *Dismiss* of its own, by the name the record
 kept. Two dismissals add *Dismiss all summons*. A creature bound by hand has
-no record: it is only ever *Release*d, never removed by the cell. Each summon
+no record: it is only ever *Release*d, never removed by the menu. Each summon
 on the scene is reached by exactly one of the three.
 
 **Summon…**, on a GM seat only (`bareSummonAllowed`), opens a prompt over the

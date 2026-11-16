@@ -11,7 +11,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-03 — [Where the fold and the pins live (2026-09-03)](DECISIONS-through-v11.14.5.md#where-the-fold-and-the-pins-live-2026-09-03)
 - 2026-09-03 — [The training list keeps the lib vocabulary (2026-09-03)](DECISIONS-through-v11.14.5.md#the-training-list-keeps-the-lib-vocabulary-2026-09-03)
 - 2026-09-03 — [Rolls the system has no method for (2026-09-03)](DECISIONS-through-v11.14.5.md#rolls-the-system-has-no-method-for-2026-09-03)
-- 2026-09-03 — [The last right-rail cell is the character's own party (2026-09-03)](DECISIONS-through-v11.14.5.md#the-last-right-rail-cell-is-the-characters-own-party-2026-09-03)
+- 2026-09-03 — [The last right-rail cell is the character's own party (2026-09-03)](DECISIONS-through-v11.14.5.md#the-last-right-rail-cell-is-the-characters-own-party-2026-09-03) — superseded in part by "2026-11-16 — Casters get a second right-rail column"
 - 2026-09-03 — [Conditions ride on the save that clears them (2026-09-03)](DECISIONS-through-v11.14.5.md#conditions-ride-on-the-save-that-clears-them-2026-09-03)
 - 2026-09-04 — [Training is edited once, on Stats, at the weapon (2026-09-04)](DECISIONS-through-v11.14.5.md#training-is-edited-once-on-stats-at-the-weapon-2026-09-04)
 - 2026-09-04 — [The XP bar is a reading, and a press on it drags the window (2026-09-04)](DECISIONS-through-v11.14.5.md#the-xp-bar-is-a-reading-and-a-press-on-it-drags-the-window-2026-09-04)
@@ -40,5 +40,24 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-03 — [The Stats tab sets the roll modifiers apart from the targets](DECISIONS-through-v11.14.5.md#2026-11-03--the-stats-tab-sets-the-roll-modifiers-apart-from-the-targets)
 - 2026-11-10 — [A summon is an unlinked token of a GM-made copy](DECISIONS-through-v11.14.5.md#2026-11-10--a-summon-is-an-unlinked-token-of-a-gm-made-copy) — superseded in part by "2026-11-11 — A summoning is tied to its spell"
 - 2026-11-11 — [A summoning is tied to its spell](DECISIONS-through-v11.14.5.md#2026-11-11--a-summoning-is-tied-to-its-spell)
-- 2026-11-11 — [The party cell's summoning rows are one per spell](DECISIONS-through-v11.14.5.md#2026-11-11--the-party-cells-summoning-rows-are-one-per-spell) — superseded in part by "2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts"; "2026-11-11 — The party check resolves through the abilities"
+- 2026-11-11 — [The party cell's summoning rows are one per spell](DECISIONS-through-v11.14.5.md#2026-11-11--the-party-cells-summoning-rows-are-one-per-spell) — superseded in part by "2026-11-11 — A throw's modifiers are the abilities' rows, and they name their parts"; "2026-11-11 — The party check resolves through the abilities"; "2026-11-16 — Casters get a second right-rail column"
 
+## 2026-11-16 — Casters get a second right-rail column
+
+**Ruled.** The owner, 2026-11-16: "Add a 2nd column to the right rail for casters with the top being the entry and the 5 below being dynamic trackers of active spells, I will reconsider later after more user testing."
+
+**Why.** The party cell's menu held all summon management — per-spell *Cast* and *Dismiss*, a loose cast's *Dismiss*, *Dismiss all*, *Summon…*, *Bind* and *Release*. A character marching in a formation whose party token is on the scene has that cell routed to the formation sheet, so none of it was reachable.
+
+**Done.** How the column and the menus work is the model's (MODEL, "The cast column"). Release and Summon… moved from the party menu to the cast menu; the party cell and its formation routing are unchanged.
+
+**Bind retired.** Asked whether a creature bound by hand joins its binder's party, the owner, 2026-11-16: "What is bind? Sounds like a legacy shortcut ready to retire." *Bind* (2026-09-03) marked the controlled tokens as a character's summons; it predates summoning through spells (2026-11-10 and 2026-11-11), and is removed. *Release* stays, for a creature a sheet already shows as bound. This supersedes in part the 2026-09-03 right-rail ruling's "The party menu is where a Judge binds one", on the owner's word above.
+
+**Choices.**
+- A tracker's time left is `effectClock`, the Effects tab's own reading, so the cell agrees with the row its press opens; a record the module has announced as ended takes no cell, since that cast is over and its card has been posted.
+- More than five casts: the fifth cell stands for the rest as `+n` (the count it hides) and opens the same tab. Rejected: a sixth overflow row, because the column is the portrait's height.
+- A seat that does not own the character sees the column and its trackers, with the entry as a pad that opens nothing.
+- The column's trigger is a spell item, a caster-side record or a summon standing on the scene, not the Magic tab's test (`spells.enabled` or a casting pool), so a character holding a spell on a sheet with spellcasting switched off still reaches its casts.
+
+**Supersedes in part**, within seven days of the ruling it changes ("The party cell's summoning rows are one per spell", 2026-11-11), on this evidence: a character marching in a formation whose party token is on the scene has its party cell routed to the formation sheet, so the rows that ruling put in the party menu cannot be reached. That was not known then.
+
+**Cost.** A summon standing on the scene gives its summoner the column too, so *Dismiss* and *Release* stay reachable from a sheet with no spell. A character with no spell, no cast record and no summon standing cannot be given a bare *Summon…* from its own sheet; a Judge summons for it from a caster's, or gives it a spell.

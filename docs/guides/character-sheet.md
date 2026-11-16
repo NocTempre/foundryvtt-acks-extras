@@ -74,13 +74,19 @@ the dark at 0′ — with a menu to light, douse, shutter or ready a torch; and
 the party: how many of the character's henchmen are on the scene, with an
 asterisk for each summon present (`1**` is one henchman and two summons),
 red while a henchman is down with a calamity pending. Click it for who is
-here — a pick selects the token — and, as the owner, to cast each of the
-character's summoning spells while none of its creatures stand, dismiss
-those that do, and bind the tokens you have selected as this character's
-summons or release them. The Magic tab shows beside each summoning spell how
-many of its creatures stand, with a Dismiss button while some do. When the
-character marches in a formation that is on the scene, the cell is the
-formation and opens the party sheet.
+here — a pick selects the token — and, as the owner, to open the roster.
+When the character marches in a formation that is on the scene, the cell is
+the formation and opens the party sheet.
+
+A character that holds a spell has a second column beside the right rail. Its
+top cell, the wand, opens the cast menu: each of the character's spells to
+cast, a summoning spell's Cast while none of its creatures stand and its
+Dismiss while some do, and, as the owner, to release a creature bound to
+the character by hand. The five cells under it
+track the character's active casts, newest first, each filled to the time it
+has left; a press opens the Effects tab, and a `+n` in the last cell stands
+for the casts that did not fit. The Magic tab shows beside each summoning
+spell how many of its creatures stand, with a Dismiss button while some do.
 
 The far-right rail is sheet tools only: description, portrait, the alignment
 and age and fate tags, ownership, source, Tweaks.

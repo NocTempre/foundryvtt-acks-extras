@@ -1,8 +1,11 @@
 {{!-- One rail cell. Context: {key, action, attrs, cls, fill, title, icon, big,
-      img, inside: {icon, n, dash}, hands: [], joined, sub, corner, count, disabled} --}}
+      img, inside: {icon, n, dash}, hands: [], joined, sub, corner, count, disabled,
+      tipText, label}. `tipText` is a tooltip assembled at render, written as
+      text; it takes the place of `title`. `label` is the cell's accessible name. --}}
 <button type="button" class="acks-extras-frame__cell{{#if cls}} {{cls}}{{/if}}"
         {{#if action}}data-action="{{action}}"{{/if}} {{{attrs}}}
-        {{#if title}}data-tooltip="{{title}}"{{/if}}
+        {{#if tipText}}data-tooltip-text="{{tipText}}"{{else if title}}data-tooltip="{{title}}"{{/if}}
+        {{#if label}}aria-label="{{label}}"{{/if}}
         {{#if fill}}style="--acks-extras-fill: {{fill}}%"{{/if}}
         {{#if disabled}}disabled{{/if}}>
   {{#if inside}}
