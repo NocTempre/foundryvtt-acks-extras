@@ -29,6 +29,7 @@ import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { hexProbe } from "./scene-setup.mjs";
 import { hexAlignment } from "./hex-fit.mjs";
+import { rekeyPaintedHexes } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { escape as escapeHtml, makeLoc } from "../lib/util.mjs";
 
@@ -69,8 +70,19 @@ const FAMILY_TEXT = Object.freeze({
   scale: { act: "apply.scale", done: "apply.doneScale" },
 });
 
-/** Whether the scene holds a token, tile or wall that a rescaled, shifted image would pass under. */
-const holdsPlaceables = (scene) => ["tokens", "tiles", "walls"].some((key) => scene[key]?.size > 0);
+/** Whether the scene holds a token, tile, wall, note, drawing or region that moves with a rescaled, shifted image. */
+const holdsPlaceables = (scene) => ["tokens", "tiles", "walls", "notes", "drawings", "regions"].some((key) => scene[key]?.size > 0);
+
+/**
+ * The option bag of the scene write: core moves every placed object with the
+ * image (`autoReposition`), and `acksExtrasSetup` marks the write as this
+ * assistant's. A scale-only write moves the image only through the grid's
+ * padding, so it asks for the move only when its update changes `grid.size`.
+ */
+function writeOptions(scene, update, family) {
+  const moves = family !== "scale" || (update["grid.size"] !== undefined && update["grid.size"] !== scene.grid.size);
+  return moves ? { autoReposition: true, acksExtrasSetup: true } : { acksExtrasSetup: true };
+}
 
 /**
  * The one confirmation every apply asks. Its title names the family's act and
@@ -221,7 +233,9 @@ export function solveScaleOnly({ size, distance, units }) {
 
 /**
  * The one writer: confirm a solved answer, write its `update` with the module's
- * flag record, read the scene back, and say what was applied. `autoScale` is
+ * flag record, read the scene back, and say what was applied. The write moves
+ * every placed object with the image (`autoReposition`), and the painted hexes
+ * are then re-keyed to the grid as written (`rekeyPaintedHexes`). `autoScale` is
  * the planner's answer (`plan.autoScale`), written as given — never carried over
  * from the scene's own flag, so a mile-scale apply leaves token auto-sizing off
  * where it was on.
@@ -241,16 +255,19 @@ export async function writeSetup(scene, { solution, update }, { family, autoScal
   const figures = { size: solution.gridSize, distance: Number(solution.distance.toFixed(3)), units };
   if (!(await confirmApply({ act: text.act, lines, shifts: family !== "scale" && holdsPlaceables(scene) }))) return false;
 
+  const options = writeOptions(scene, update, family);
   await scene.update({
     ...update,
     ...setupPatch({ calibrated: true, distance: solution.distance, autoScale: !!autoScale }),
-  });
+  }, options);
 
   const typeKept = solution.gridType == null || scene.grid.type === solution.gridType;
   if (!wroteScale(scene, { size: solution.gridSize, distance: solution.distance }) || !typeKept) {
     ui.notifications.error(loc("warn.applyRejected"));
     return false;
   }
+  // The painted cells are keyed by the grid, and the grid just moved under them.
+  if (options.autoReposition) await rekeyPaintedHexes(scene);
   ui.notifications.info(loc(text.done, figures));
   return true;
 }

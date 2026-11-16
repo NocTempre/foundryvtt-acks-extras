@@ -368,6 +368,82 @@ export function withHexRemoved(hexKeys, shapes, key) {
   };
 }
 
+/** A polygon shape's vertex centroid, or null for a shape that is no polygon of three points or more. */
+function centroidOf(shape) {
+  const p = shape?.type === "polygon" ? shape.points : null;
+  if (!Array.isArray(p) || p.length < 6 || p.length % 2 || !p.every(Number.isFinite)) return null;
+  const n = p.length / 2;
+  let x = 0;
+  let y = 0;
+  for (let k = 0; k < p.length; k += 2) {
+    x += p[k];
+    y += p[k + 1];
+  }
+  return { x: x / n, y: y / n };
+}
+
+/** Whether two shapes are the one polygon, vertex for vertex within a thousandth of a pixel. */
+function sameShape(a, b) {
+  if (a === b) return true;
+  const pa = a?.points;
+  const pb = b?.points;
+  return a?.type === b?.type && Array.isArray(pa) && Array.isArray(pb) && pa.length === pb.length
+    && pa.every((v, n) => Math.abs(v - pb[n]) <= 1e-3);
+}
+
+/**
+ * Re-key one layer's painted cells after the grid moved under them. Each
+ * painted shape stays where it is on the map; what changes is which cell of
+ * the grid as it now stands lies under it. A shape's centroid names that cell,
+ * the key becomes the cell's, and the shape is rebuilt as the cell's own. Where
+ * two old cells land on one new cell the one whose centroid is nearest the new
+ * cell's centre keeps it, across every region of the layer (one value per hex
+ * per layer), and the other is dropped. A shape that is no polygon, or whose
+ * centroid names no cell, is kept as it was and keeps its key.
+ *
+ * Pure: the grid arrives as three functions, so no scene is read.
+ * @param {Array<{id: string, hexKeys: string[], shapes: object[]}>} regions
+ *   a layer's regions, each with its cell keys aligned index-for-index with its shapes
+ * @param {object} grid
+ * @param {(point: {x: number, y: number}) => {i: number, j: number}|null} grid.offsetOf  the cell containing a point
+ * @param {(offset: {i: number, j: number}) => {x: number, y: number}} grid.centreOf  a cell's centre
+ * @param {(offset: {i: number, j: number}) => object} grid.shapeOf  a cell's polygon shape data
+ * @returns {Array<{id: string, hexKeys: string[], shapes: object[], changed: boolean, empty: boolean}>}
+ *   one entry per region in the order given; `changed` says its keys or shapes differ from what was given
+ */
+export function rekeyPaintedCells(regions, { offsetOf, centreOf, shapeOf }) {
+  const best = new Map();
+  const entries = regions.map((region) => {
+    const keys = region.hexKeys ?? [];
+    const shapes = region.shapes ?? [];
+    if (keys.length !== shapes.length) return { aligned: false, items: [] };
+    const items = keys.map((key, n) => {
+      const centroid = centroidOf(shapes[n]);
+      const offset = centroid ? offsetOf(centroid) : null;
+      if (!offset || !Number.isFinite(offset.i) || !Number.isFinite(offset.j)) {
+        const kept = { key, shape: shapes[n], d: -1 };
+        if (!best.has(key) || best.get(key).d > -1) best.set(key, kept);
+        return kept;
+      }
+      const to = centreOf(offset);
+      const item = { key: hexKeyOf(offset), shape: shapeOf(offset), d: Math.hypot(centroid.x - to.x, centroid.y - to.y) };
+      const rival = best.get(item.key);
+      if (!rival || item.d < rival.d) best.set(item.key, item);
+      return item;
+    });
+    return { aligned: true, items };
+  });
+  return entries.map((entry, r) => {
+    const { id, hexKeys = [], shapes = [] } = regions[r];
+    if (!entry.aligned) return { id, hexKeys, shapes, changed: false, empty: false };
+    const kept = entry.items.filter((item) => best.get(item.key) === item);
+    const next = { hexKeys: kept.map((item) => item.key), shapes: kept.map((item) => item.shape) };
+    const changed = next.hexKeys.length !== hexKeys.length
+      || next.hexKeys.some((key, n) => key !== hexKeys[n] || !sameShape(next.shapes[n], shapes[n]));
+    return { id, ...next, changed, empty: next.hexKeys.length === 0 };
+  });
+}
+
 /* -------------------------------------------------------------------- */
 /*  Scene reads and writes                                              */
 /* -------------------------------------------------------------------- */
@@ -463,6 +539,42 @@ export function paintedTerrainAt(scene, point) {
 function hexShapeAt(scene, offset) {
   const vertices = scene.grid.getVertices(offset);
   return { type: "polygon", hole: false, points: vertices.flatMap((v) => [v.x, v.y]) };
+}
+
+/**
+ * Re-key every registered layer's painted cells against the grid the scene
+ * holds now (`rekeyPaintedCells`), after a write that moved the grid under the
+ * painted regions. The grid is read off `scene.grid`, the instance core builds
+ * from the scene's own data, so it answers the moment the update has landed,
+ * with no canvas redraw behind it. Every region that changed is written in one
+ * call, and one a layer lost all its cells from is deleted.
+ * @returns {Promise<number>} how many regions were rewritten or deleted
+ */
+export async function rekeyPaintedHexes(scene) {
+  if (!scene.grid?.getOffset || !game.user.isGM || !isHexScene(scene)) return 0;
+  const grid = {
+    offsetOf: (point) => scene.grid.getOffset(point),
+    centreOf: (offset) => scene.grid.getCenterPoint(offset),
+    shapeOf: (offset) => hexShapeAt(scene, offset),
+  };
+  const updates = [];
+  const removals = [];
+  for (const spec of layers.values()) {
+    const regions = layerRegionsOf(scene, spec.key);
+    const asked = regions.map((region) => ({
+      id: region.id,
+      hexKeys: region.getFlag(MODULE_ID, spec.hexesFlag) ?? [],
+      shapes: region.toObject().shapes ?? [],
+    }));
+    for (const next of rekeyPaintedCells(asked, grid)) {
+      if (!next.changed) continue;
+      if (next.empty) removals.push(next.id);
+      else updates.push({ _id: next.id, shapes: next.shapes, [`flags.${MODULE_ID}.${spec.hexesFlag}`]: next.hexKeys });
+    }
+  }
+  if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
+  if (removals.length) await scene.deleteEmbeddedDocuments("Region", removals);
+  return updates.length + removals.length;
 }
 
 /** Remove one cell from every region of one layer it appears in; the other layers keep theirs. */

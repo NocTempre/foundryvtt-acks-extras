@@ -916,9 +916,12 @@ for (const [key, entry] of Object.entries(SIZES)) {
   for (const gone of ["warn.noHexBox", "warn.badSolution", "fit.none", "fit.noneScale", "apply.confirmTitle", "apply.confirmBody", "apply.confirmHex", "apply.confirmScale"]) {
     assert.ok(!(`ACKS-BATTLEMAP.${gone}` in lang), `${gone} has no reader and should be gone`);
   }
-  assert.ok(!/placed tokens, tiles,? and walls\s+(?:move|reposition)/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]) && !/reposition/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]),
-    "the confirmation does not say placed things move with the image");
-  assert.ok(!read("../scripts/battlemap/apply.mjs").includes("autoReposition"), "no apply passes autoReposition");
+  for (const key of ["apply.confirmShift", "rows.imageStays"]) {
+    const line = lang[`ACKS-BATTLEMAP.${key}`];
+    assert.ok(/tokens, tiles, walls.*regions and painted hexes move with the map/.test(line) && !/stay/.test(line),
+      `${key} says placed things and painted hexes move with the map`);
+  }
+  assert.ok(read("../scripts/battlemap/apply.mjs").includes("autoReposition: true"), "the apply asks core to move placed objects with the image");
 }
 
 /* -------------------------------------------- */
@@ -1843,6 +1846,7 @@ import {
   hexLabelFromOffset,
   withHexAdded,
   withHexRemoved,
+  rekeyPaintedCells,
   TERRAIN_COLORS,
   UNPAINTABLE,
   paintableTerrains,
@@ -3354,4 +3358,97 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   resetTables();
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");
+/* --- re-keying painted cells under a moved grid ----------------------------
+   Proves the pure decision behind Apply's re-key: each painted shape keeps its
+   place on the map, its key becomes the cell of the NEW grid its centroid lies
+   in, and its shape is rebuilt as that cell's. Two old cells landing on one new
+   cell leave the one nearest the new cell's centre, across regions; an
+   unchanged grid changes nothing. The lattice is invented: pointy cells of
+   `size` across, from an origin. */
+{
+  const lattice = (size, ox = 0, oy = 0) => {
+    const radius = size / Math.sqrt(3);
+    const rowStep = 1.5 * radius;
+    const centreOf = ({ i, j }) => ({ x: ox + (j + (i % 2 ? 1 : 0.5)) * size, y: oy + i * rowStep + radius });
+    const offsetOf = (p) => {
+      let best = null;
+      for (let i = -2; i < 40; i++) {
+        for (let j = -2; j < 40; j++) {
+          const c = centreOf({ i, j });
+          const d = Math.hypot(c.x - p.x, c.y - p.y);
+          if (!best || d < best.d) best = { d, i, j };
+        }
+      }
+      return { i: best.i, j: best.j };
+    };
+    const shapeOf = (o) => {
+      const c = centreOf(o);
+      const points = [0, 1, 2, 3, 4, 5].flatMap((k) => {
+        const a = Math.PI / 6 + (k * Math.PI) / 3;
+        return [c.x + radius * Math.cos(a), c.y + radius * Math.sin(a)];
+      });
+      return { type: "polygon", hole: false, points };
+    };
+    return { centreOf, offsetOf, shapeOf };
+  };
+  const key = (o) => hexKeyOf(o);
+  const oldGrid = lattice(41);
+  const cells = [{ i: 4, j: 5 }, { i: 4, j: 6 }, { i: 5, j: 5 }, { i: 8, j: 2 }];
+  const region = (id, list, grid = oldGrid) => ({ id, hexKeys: list.map(key), shapes: list.map(grid.shapeOf) });
+
+  // Size 41 to 45 with a shift: each key is the cell its centroid is in, and its shape that cell's.
+  const grown = lattice(45, 7, -3);
+  const [moved] = rekeyPaintedCells([region("a", cells)], grown);
+  assert.equal(moved.changed, true);
+  assert.equal(moved.hexKeys.length, cells.length, "no two of these cells land on one");
+  cells.forEach((cell, n) => {
+    const at = oldGrid.centreOf(cell);
+    const expected = grown.offsetOf(at);
+    assert.equal(moved.hexKeys[n], key(expected), `${key(cell)} becomes the cell its centroid now lies in`);
+    assert.deepEqual(moved.shapes[n], grown.shapeOf(expected), `${key(cell)}'s shape is rebuilt for that cell`);
+    assert.ok(Math.hypot(grown.centreOf(expected).x - at.x, grown.centreOf(expected).y - at.y) < 45, "the cell is the one beneath the old shape");
+  });
+  assert.notDeepEqual(moved.hexKeys, cells.map(key), "the keys moved with the grid");
+
+  // Two old cells landing on one new cell: the one whose centroid is nearest its centre keeps it.
+  const coarse = lattice(90);
+  const pair = [{ i: 4, j: 5 }, { i: 5, j: 5 }];
+  const [merged] = rekeyPaintedCells([region("a", pair)], coarse);
+  const landed = pair.map((c) => key(coarse.offsetOf(oldGrid.centreOf(c))));
+  assert.equal(landed[0], landed[1], "the fixture puts both old cells in one new cell");
+  assert.deepEqual(merged.hexKeys, [landed[0]], "one key remains");
+  assert.equal(merged.shapes.length, 1, "and one shape, aligned with it");
+  const target = coarse.centreOf(coarse.offsetOf(oldGrid.centreOf(pair[0])));
+  const dist = (c) => Math.hypot(oldGrid.centreOf(c).x - target.x, oldGrid.centreOf(c).y - target.y);
+  const nearest = dist(pair[0]) <= dist(pair[1]) ? pair[0] : pair[1];
+  const farthest = nearest === pair[0] ? pair[1] : pair[0];
+  assert.ok(dist(nearest) < dist(farthest), "the fixture's two cells are not equally near");
+  // Reversed order: the winner is the nearest, not the first seen.
+  const [reversed] = rekeyPaintedCells([region("a", [farthest, nearest])], coarse);
+  assert.equal(reversed.hexKeys.length, 1);
+  const forward = rekeyPaintedCells([region("a", [nearest, farthest])], coarse)[0];
+  assert.deepEqual(reversed.hexKeys, forward.hexKeys, "the same cell survives whichever came first");
+
+  // Across regions of one layer: one value per hex, so the farther region loses the cell and, holding no other, goes empty.
+  const [lost, won] = rekeyPaintedCells([region("far", [farthest]), region("near", [nearest])], coarse);
+  assert.deepEqual([lost.id, lost.empty, won.id, won.empty], ["far", true, "near", false], "the region whose cell was farther is emptied");
+  assert.equal(won.hexKeys.length, 1);
+
+  // An unchanged grid changes nothing, in any region.
+  const unchanged = rekeyPaintedCells([region("a", cells), region("b", [{ i: 10, j: 10 }])], oldGrid);
+  assert.ok(unchanged.every((r) => !r.changed && !r.empty), "nothing is rewritten under a grid that did not move");
+  assert.deepEqual(unchanged[0].hexKeys, cells.map(key));
+
+  // A shape the re-key cannot read keeps its key and its shape.
+  const odd = { type: "circle", x: 10, y: 10, radius: 5 };
+  const [mixed] = rekeyPaintedCells([{ id: "m", hexKeys: ["9:9", key(cells[0])], shapes: [odd, oldGrid.shapeOf(cells[0])] }], grown);
+  assert.equal(mixed.hexKeys[0], "9:9");
+  assert.equal(mixed.shapes[0], odd);
+  assert.equal(mixed.hexKeys[1], key(grown.offsetOf(oldGrid.centreOf(cells[0]))));
+
+  // Keys and shapes that do not line up are left alone rather than guessed at.
+  const [ragged] = rekeyPaintedCells([{ id: "r", hexKeys: ["1:1", "2:2"], shapes: [oldGrid.shapeOf(cells[0])] }], grown);
+  assert.equal(ragged.changed, false);
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, the re-key of painted cells under a moved grid, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");

@@ -82,11 +82,22 @@ function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, dist
     tokens: { size: placed.tokens ?? 0 },
     tiles: { size: placed.tiles ?? 0 },
     walls: { size: placed.walls ?? 0 },
+    notes: { size: placed.notes ?? 0 },
+    drawings: { size: placed.drawings ?? 0 },
     background: { src: "map.webp" },
-    // A district drawn on the map, as far as `sceneHasDistrict` reads one.
-    regions: districts ? [{ behaviors: [{ type: `${MODULE_ID}.district`, disabled: false }] }] : [],
+    // Regions as a collection: an array that also answers `size`. A district
+    // drawn on the map is one `sceneHasDistrict` reads.
+    regions: Object.defineProperty(
+      districts
+        ? [{ behaviors: [{ type: `${MODULE_ID}.district`, disabled: false }] }]
+        : Array.from({ length: placed.regions ?? 0 }, () => ({ behaviors: [] })),
+      "size",
+      { get() { return this.length; } },
+    ),
     flags: { [MODULE_ID]: { [FLAG]: { ...flag } } },
     writes: [],
+    /** The option bag of each `update`, in step with `writes`. */
+    writeOptions: [],
     afterWrite: null,
     get dimensions() {
       return { sceneWidth: scene.width, sceneHeight: scene.height, sceneX: 0, sceneY: 0, width: scene.width, height: scene.height };
@@ -100,9 +111,10 @@ function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, dist
       if (t >= 2 && clones.broken) grid.sizeY = grid.sizeX;
       return { grid, getDimensions: () => ({ sceneX: 0, sceneY: 0 }) };
     },
-    async update(patch) {
+    async update(patch, options = {}) {
       await Promise.resolve();
       scene.writes.push(patch);
+      scene.writeOptions.push(options);
       for (const [k, v] of Object.entries(patch)) {
         if (k === "grid.type" && rejectType) continue;
         if (k === "background.src") scene.background.src = v;
@@ -322,20 +334,111 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 
 {
   // The placeables note belongs to a write that moves the scene's dimensions
-  // under something placed: the scale-only confirmation never carries it, and a
-  // hex apply does only where a token, tile or wall is there to be passed under.
+  // with something placed on it: the scale-only confirmation never carries it,
+  // and a hex apply does only where a token, tile, wall, note, drawing or
+  // region is there to be moved.
   const scene = makeScene({ type: 1, placed: { tokens: 2 } });
   setup({ family: "scale", scene, samples: { squares: [squareBox(0, 0, 180)] }, opts: { mapCellFeet: 7 }, units: "ft" });
   assert.equal((await ctx()).canApply, true);
   await applyGrid.call(app);
   assert.equal(confirms.length, 1);
   assert.ok(!confirms[0].includes("confirmShift"), "scale-only moves no placeable");
-  for (const [placed, shows] of [[{ tokens: 1 }, true], [{ tiles: 1 }, true], [{ walls: 3 }, true], [{}, false]]) {
+  for (const [placed, shows] of [[{ tokens: 1 }, true], [{ tiles: 1 }, true], [{ walls: 3 }, true], [{ regions: 1 }, true], [{ notes: 1 }, true], [{ drawings: 2 }, true], [{}, false]]) {
     const hexScene = makeScene({ placed });
     setup({ family: "hexRows", scene: hexScene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
     await ctx();
     await applyGrid.call(app);
     assert.equal(confirms[0].includes("confirmShift"), shows, `placed ${JSON.stringify(placed)}: the note shows only over something placed`);
+  }
+}
+
+{
+  // The write moves placed objects with the image: core is asked to reposition
+  // them for a square and a hex solve, and for a scale-only solve only when its
+  // update changes the grid's size. Every write is marked as the assistant's.
+  const solved = (gridType, gridSize) => ({
+    solution: { gridType, gridSize, distance: 5, units: "ft" },
+    update: { "grid.size": gridSize, "grid.distance": 5, ...(gridType == null ? {} : { "grid.type": gridType }) },
+  });
+  const optionsOf = async (scene, answer, family) => {
+    await writeSetup(scene, answer, { family, autoScale: false });
+    return scene.writeOptions.at(-1);
+  };
+  const square = await optionsOf(makeScene({ type: 1 }), solved(1, 120), "square");
+  assert.equal(square.autoReposition, true, "a square solve asks core to move placed objects with the image");
+  assert.equal(square.acksExtrasSetup, true, "and marks the write");
+  const hex = await optionsOf(makeScene(), solved(2, 100), "hexRows");
+  assert.equal(hex.autoReposition, true, "a hex solve asks it even where the size is unchanged");
+  const grown = await optionsOf(makeScene({ size: 100 }), solved(null, 120), "scale");
+  assert.equal(grown.autoReposition, true, "a scale-only solve that changes the grid size asks for it");
+  const same = await optionsOf(makeScene({ size: 100 }), solved(null, 100), "scale");
+  assert.ok(!same.autoReposition, "a scale-only solve that leaves the grid size alone does not");
+  assert.equal(same.acksExtrasSetup, true, "though it is still marked");
+}
+
+{
+  // The painted cells are re-keyed to the grid as written, once, after a write
+  // that asked core to move the map; a write that did not, or a non-GM's, touches no region.
+  Object.assign(CONST.GRID_TYPES, { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 });
+  try {
+    // An invented lattice: square cells of the scene's own grid size, so a size change re-cuts every cell.
+    const square = (n, s) => ({ type: "polygon", hole: false, points: [n * s, n * s, (n + 1) * s, n * s, (n + 1) * s, (n + 1) * s, n * s, (n + 1) * s] });
+    const painted = (type, size) => {
+      const scene = makeScene({ type, size });
+      scene.grid.getOffset = (p) => ({ i: Math.floor(p.y / scene.grid.size), j: Math.floor(p.x / scene.grid.size) });
+      scene.grid.getCenterPoint = ({ i, j }) => ({ x: (j + 0.5) * scene.grid.size, y: (i + 0.5) * scene.grid.size });
+      scene.grid.getVertices = ({ i, j }) => {
+        const s = scene.grid.size;
+        return [[j, i], [j + 1, i], [j + 1, i + 1], [j, i + 1]].map(([x, y]) => ({ x: x * s, y: y * s }));
+      };
+      const region = {
+        id: "R1",
+        flags: { terrain: "grassland", terrainHexes: ["3:3"] },
+        shapes: [square(3, 100)],
+        getFlag: (m, k) => (m === MODULE_ID ? region.flags[k] : undefined),
+        toObject: () => ({ shapes: region.shapes }),
+      };
+      scene.regions = Object.defineProperty([region], "size", { get() { return this.length; } });
+      scene.regionCalls = [];
+      scene.updateEmbeddedDocuments = async (kind, updates) => {
+        scene.regionCalls.push([kind, updates]);
+        for (const u of updates) {
+          region.shapes = u.shapes;
+          region.flags.terrainHexes = u[`flags.${MODULE_ID}.terrainHexes`];
+        }
+      };
+      scene.deleteEmbeddedDocuments = async (kind, ids) => scene.regionCalls.push([`delete ${kind}`, ids]);
+      return { scene, region };
+    };
+
+    const resize = painted(2, 100);
+    const answer = { solution: { gridType: 2, gridSize: 120, distance: 5, units: "ft" }, update: { "grid.size": 120, "grid.type": 2, "grid.distance": 5 } };
+    await writeSetup(resize.scene, answer, { family: "hexRows", autoScale: false });
+    assert.equal(resize.scene.regionCalls.length, 1, "every changed region is written in one call");
+    assert.equal(resize.scene.regionCalls[0][0], "Region");
+    assert.deepEqual(resize.region.flags.terrainHexes, ["2:2"], "the cell is the one its centroid now lies in on the grid as written");
+    assert.deepEqual(resize.region.shapes, [square(2, 120)], "and the shape is that cell's own");
+    assert.equal(notes.at(-1)[0], "info");
+
+    const kept = painted(2, 100);
+    await writeSetup(kept.scene, { solution: { gridType: 2, gridSize: 100, distance: 5, units: "ft" }, update: { "grid.size": 100, "grid.type": 2, "grid.distance": 5 } }, { family: "hexRows", autoScale: false });
+    assert.equal(kept.scene.regionCalls.length, 0, "a write that changes nothing under the cells rewrites no region");
+
+    const scaleOnly = painted(2, 100);
+    await writeSetup(scaleOnly.scene, { solution: { gridSize: 100, distance: 8, units: "ft" }, update: { "grid.size": 100, "grid.distance": 8 } }, { family: "scale", autoScale: false });
+    assert.equal(scaleOnly.scene.regionCalls.length, 0, "a scale-only write that leaves the grid size alone rewrites no region");
+
+    const squareScene = painted(1, 100);
+    await writeSetup(squareScene.scene, { solution: { gridType: 1, gridSize: 120, distance: 5, units: "ft" }, update: { "grid.size": 120, "grid.distance": 5 } }, { family: "square", autoScale: false });
+    assert.equal(squareScene.scene.regionCalls.length, 0, "a square grid holds no painted cells to re-key");
+
+    game.user.isGM = false;
+    const player = painted(2, 100);
+    await writeSetup(player.scene, answer, { family: "hexRows", autoScale: false });
+    assert.equal(player.scene.regionCalls.length, 0, "only a GM re-keys");
+  } finally {
+    game.user.isGM = true;
+    for (const key of ["HEXODDR", "HEXEVENR", "HEXODDQ", "HEXEVENQ"]) delete CONST.GRID_TYPES[key];
   }
 }
 
@@ -705,7 +808,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const footer = foot(solvable);
   assert.equal((footer.match(/<li>/g) ?? []).length, solvable.footRows.length);
   assert.equal((footer.match(/data-tooltip-text="rows\.tip/g) ?? []).length, solvable.footRows.length, "every row's figure carries its tooltip");
-  assert.ok(footer.includes("rows.imageStays"), "the image row says, on screen, that placed things stay put");
+  assert.ok(footer.includes("rows.imageStays"), "the image row says, on screen, that placed things move with the map");
   assert.ok(/data-action="applyGrid"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tip/.test(footer), "Apply is named and says what it writes");
   assert.ok(!footer.includes('data-action="rescaleTokens"'), "the whole-scene resize is in the Token sizes section, not the footer");
   assert.ok(/data-action="rescaleTokens"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tokensTip/.test(html), "where it is named and says what it resizes");

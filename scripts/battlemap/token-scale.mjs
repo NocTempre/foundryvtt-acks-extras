@@ -155,7 +155,7 @@ export async function rescaleSceneTokens(scene) {
 
 /**
  * Stamp a footprint override (feet) on the selected tokens and resize them —
- * the size hotbar's handler. Party tokens are skipped: their size is the
+ * the size chips' handler. Party tokens are skipped: their size is the
  * formation's face, not a chip.
  * @returns {Promise<number>} how many tokens were stamped.
  */
