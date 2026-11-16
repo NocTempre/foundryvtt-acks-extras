@@ -9,7 +9,8 @@
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
  *                              of battlemap "Roads"                               (part "country")
- * and, under SHOTS=1, the release's snapshots for those entries.
+ *   docs/battlemap/TESTING.md  steps 14, 14a and 14b (part "hex")
+ * and, under SHOTS=1, the release's snapshots for those entries (the "hex" part takes none).
  *
  * Machine values arrive through ./_env.mjs; nothing here names a port, a world or
  * a seat. Every figure and name
@@ -39,12 +40,28 @@
  *   - both seats' map view (restored to what each read at start);
  *   - the world clock, which the journey advances (reported as a delta).
  *
+ * The "hex" part walks the Map setup window's hex path through the real panel
+ * on two gridless scenes it rebuilds every run, `battlemap/hex-walk-rows` (which
+ * also holds one wall, one token of `battlemap/plain-character` and a seeded
+ * token auto-sizing flag) and `battlemap/hex-walk-cols`: the map's background is
+ * set through the scene's Level after creation, and one box is a real pointer
+ * drag through the seat's raw mouse input. The geometry and the images are
+ * machine facts and arrive in BATTLEMAP_HEX_MAPS, a JSON object with a `rows`
+ * and a `cols` entry:
+ *   { "rows": { "src": "<background image path in the world's data>",
+ *               "scene": [width, height] of the scene in px,
+ *               "boxes": [[x, y, w, h], ...] image px, each tight around one drawn hex,
+ *                        five over four rows,
+ *               "bar": [x1, y1, x2, y2] image px along one hex row },
+ *     "cols": { "src": ..., "scene": [w, h], "boxes": [[x, y, w, h], ...] five over five columns } }
+ * Absent, the part is blocked and names the variable.
+ *
  * WALK_PLAN names an optional plan file:
- *   { "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }
+ *   { "parts": ["layers", "modes", "country", "hex"], "retrack": ["<uuid>", ...] }
  * where `retrack` lists ids a dead run printed, swept alone at the seats.
  */
 import fs from "node:fs";
-import { connect, sleep } from "./_driver.mjs";
+import { Cdp, connect, sleep } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
 import { seats as machineSeats, PORTS, shotDir } from "./_env.mjs";
 
@@ -66,10 +83,12 @@ const TARGET = 11; // invented navigation target; the dice are rigged to a natur
 const SHOTS = process.env.SHOTS === "1";
 const SHOT_DIR = SHOTS ? shotDir() : null;
 
-// WALK_PLAN names an optional plan file ({ "parts": ["layers", "modes", "country"], "retrack": ["<uuid>", ...] }).
-let plan = { parts: ["layers", "modes", "country"], retrack: [] };
+// WALK_PLAN names an optional plan file ({ "parts": ["layers", "modes", "country", "hex"], "retrack": ["<uuid>", ...] }).
+let plan = { parts: ["layers", "modes", "country", "hex"], retrack: [] };
 if (process.env.WALK_PLAN) plan = { ...plan, ...JSON.parse(fs.readFileSync(process.env.WALK_PLAN, "utf8")) };
 const PARTS = new Set(plan.parts);
+// The hex part's images and geometry (see the header); read where the part runs, so a run without it needs nothing.
+const HEX_MAPS_RAW = process.env.BATTLEMAP_HEX_MAPS ?? null;
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -1339,6 +1358,328 @@ const P = {
     for (const a of [...foundry.applications.instances.values()]) if (/Party|Formation|Dialog|Sheet|Config|Palette|Assistant|MapModes/.test(a.constructor.name)) { try { await a.close({ animate: false }); n++; } catch (_e) { /* closed */ } }
     return n;
   },
+
+  /* ---------------- the hex setup, through the Map setup window ---------------- */
+
+  /** Sets the scene's Level background (Scene.create({background}) does not take) and reports what the Level holds. */
+  hexBackground: async ({ uuid, src }) => {
+    const scene = await fromUuid(uuid);
+    const level = scene.levels?.contents?.[0] ?? null;
+    if (level) await level.update({ "background.src": src });
+    else await scene.update({ "background.src": src });
+    return { levels: scene.levels?.size ?? 0, held: (level ? level.background?.src : scene.background?.src) === src };
+  },
+
+  /** The image's own pixel size, which the walk reads to place a token on a drawn hex. */
+  hexTexture: async ({ src }) => {
+    const t = await foundry.canvas.loadTexture(src);
+    return { width: t?.width ?? null, height: t?.height ?? null };
+  },
+
+  /**
+   * Views the scene and enters the Battlemap group the way a Judge does, with no tool named, so the group's own
+   * resting tool answers. Counts the windows that first rendered while it did, and what stood open before.
+   */
+  hexEnter: async ({ sceneId }) => {
+    const H = globalThis.__rb;
+    const old = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
+    if (old) { try { await old.close({ animate: false }); } catch (_e) { /* closed */ } }
+    try { H.m.session.session.disarm(); } catch (_e) { /* fine */ }
+    H.takeNotes();
+    const viewed = await globalThis.__P.viewScene(sceneId);
+    await ui.controls.render({ force: true });
+    await H.sleep(300);
+    ui.controls.activate({ control: "tokens", tool: "select" });
+    await H.sleep(500);
+    const before = { windows: document.querySelectorAll("#acks-extras-battlemap").length, control: ui.controls.control?.name ?? null };
+    let firstRenders = 0;
+    const hook = Hooks.on("renderApplicationV2", (app, _el, _ctx, options) => { if (app.id === "acks-extras-battlemap" && options?.isFirstRender) firstRenders++; });
+    ui.controls.activate({ control: "acksBattlemap" });
+    await H.sleep(2500);
+    Hooks.off("renderApplicationV2", hook);
+    const app = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
+    const el = H.root(app) ?? document.querySelector("#acks-extras-battlemap");
+    return {
+      viewed, before, firstRenders,
+      control: ui.controls.control?.name ?? null,
+      tool: ui.controls.tool?.name ?? null,
+      mode: H.m.session.session.mode ?? null,
+      windows: document.querySelectorAll("#acks-extras-battlemap").length,
+      title: el?.querySelector(".window-title")?.textContent.replace(/\s+/g, " ").trim() ?? null,
+      expectedTitle: game.i18n.format("ACKS-BATTLEMAP.titleScene", { scene: canvas.scene?.name ?? "" }),
+    };
+  },
+
+  /**
+   * Everything a step observes in the open window, after the panel settles: the fields, the lines, the footer's
+   * rows and the button, the fit as the window's own context computes it (picked fields only: the context holds
+   * the Scene), and the session's own state.
+   */
+  hexRead: async ({ settle = 800 } = {}) => {
+    const H = globalThis.__rb;
+    await H.sleep(settle);
+    const app = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
+    const el = H.root(app) ?? document.querySelector("#acks-extras-battlemap");
+    if (!app || !el) return { open: false };
+    const ctx = await app._prepareContext({});
+    const S = H.m.session.session;
+    const text = (n) => n?.textContent.replace(/\s+/g, " ").trim() ?? null;
+    const f = ctx.fit ?? null;
+    const grid = canvas.scene?.grid;
+    return {
+      open: true,
+      windows: document.querySelectorAll("#acks-extras-battlemap").length,
+      title: text(el.querySelector(".window-title")),
+      family: el.querySelector('select[name="gridFamily"]')?.value ?? null,
+      units: el.querySelector('select[name="units"]')?.value ?? null,
+      cellField: el.querySelector('input[name="mapCellFeet"]')?.value ?? null,
+      spansInputs: el.querySelectorAll('input[name^="boxCells"]').length,
+      boxRowCount: el.querySelectorAll(".acks-extras-battlemap-samples li").length,
+      applyDisabled: !!el.querySelector('button[data-action="applyGrid"]')?.disabled,
+      applyPresent: !!el.querySelector('button[data-action="applyGrid"]'),
+      needs: [...(ctx.needLines ?? [])],
+      unused: [...(ctx.unusedLines ?? [])],
+      warns: [...(ctx.warnLines ?? [])],
+      domNeeds: [...el.querySelectorAll("p.acks-extras-battlemap-warn")].map(text),
+      appliedLine: ctx.appliedLine ?? null,
+      matchesLine: ctx.matchesLine ?? null,
+      domApplied: text(el.querySelector("p.acks-extras-battlemap-sub .fa-circle-check")?.parentElement),
+      rows: [...el.querySelectorAll(".acks-extras-battlemap-rows li")].map((li) => ({ label: text(li.querySelector(".acks-extras-battlemap-rowlabel")), text: text(li.querySelector(".acks-extras-battlemap-rowfigure")), note: text(li.querySelector(".acks-extras-battlemap-rownote")), all: text(li) })),
+      fit: f ? { ok: !!f.ok, confidence: f.confidence ?? null, rmsPx: f.rmsPx ?? null, used: f.used ?? null, worst: f.worst ?? null, reason: f.reason ?? null, boxes: (f.boxes ?? []).map((b) => ({ index: b.index, unreachable: !!b.unreachable, notOneHex: !!b.notOneHex })), warnings: (f.warnings ?? []).map((w) => w.id ?? String(w)) } : null,
+      card: { cell: ctx.cellLabel ?? null, residual: ctx.residualText ?? null, confidence: ctx.confidenceLabel ?? null, canApply: !!ctx.canApply },
+      session: { mode: S.mode ?? null, family: S.gridFamily, units: S.units, boxes: S.samples.squares.length, corners: S.samples.corners.length, bar: !!S.samples.scale, cellWorth: S.opts.mapCellFeet ?? null },
+      grid: grid ? { type: grid.type, size: grid.size, distance: grid.distance, units: grid.units } : null,
+      control: ui.controls.control?.name ?? null,
+      tool: ui.controls.tool?.name ?? null,
+      expect: {
+        drawBox: game.i18n.localize("ACKS-BATTLEMAP.mode.square"),
+        hexBoxBar: game.i18n.format("ACKS-BATTLEMAP.needs.hexBoxBar", { tool: game.i18n.localize("ACKS-BATTLEMAP.mode.square") }),
+        hexField: game.i18n.localize("ACKS-BATTLEMAP.fields.mapCellHex"),
+        labels: ["grid", "cellWorth", "image", "tokenSizing"].map((k) => game.i18n.localize(`ACKS-BATTLEMAP.rows.label.${k}`)),
+        sizingTail: game.i18n.localize("ACKS-BATTLEMAP.rows.tokenSizingExpedition").split("}").pop().trim(),
+        appliedPrefix: game.i18n.localize("ACKS-BATTLEMAP.setup.applied").split("{")[0],
+      },
+    };
+  },
+
+  /** Drives the window's selects as a user does: `.value`, then a bubbling `change`, one at a time, the panel re-rendering between. */
+  hexSet: async ({ family = null, units = null }) => {
+    const H = globalThis.__rb;
+    const out = {};
+    const find = (name) => (H.root(foundry.applications.instances.get("acks-extras-battlemap")) ?? document.querySelector("#acks-extras-battlemap"))?.querySelector(`select[name="${name}"]`);
+    for (const [name, value, key] of [["gridFamily", family, "family"], ["units", units, "units"]]) {
+      if (value === null) continue;
+      const sel = find(name);
+      out[key] = !!sel && [...sel.options].some((o) => o.value === value);
+      if (!out[key]) continue;
+      H.change(sel, value);
+      await H.sleep(700);
+    }
+    return out;
+  },
+
+  /** Types a value into one of the window's number fields and fires its change, as a keystroke and a blur would. */
+  hexType: async ({ name, value }) => {
+    const H = globalThis.__rb;
+    const el = H.root(foundry.applications.instances.get("acks-extras-battlemap")) ?? document.querySelector("#acks-extras-battlemap");
+    const input = el?.querySelector(`input[name="${name}"]`);
+    if (!input) return { found: false };
+    H.change(input, String(value));
+    await H.sleep(700);
+    return { found: true };
+  },
+
+  /** Boxes into the session's samples, in image px, shaped as the capture overlay writes them. */
+  hexPushBoxes: async ({ boxes }) => {
+    const S = globalThis.__rb.m.session.session;
+    for (const [x, y, w, h] of boxes) S.samples.squares.push({ x, y, w, h, across: 1, down: 1 });
+    S.onSamplesChanged();
+    return S.samples.squares.length;
+  },
+
+  /** A scale bar into the session's samples, image px. */
+  hexPushBar: async ({ bar }) => {
+    const S = globalThis.__rb.m.session.session;
+    S.samples.scale = { x1: bar[0], y1: bar[1], x2: bar[2], y2: bar[3] };
+    S.onSamplesChanged();
+    return true;
+  },
+
+  /** The window's own delete button on the scale bar's row, pressed. */
+  hexDropBar: async () => {
+    const H = globalThis.__rb;
+    const el = H.root(foundry.applications.instances.get("acks-extras-battlemap")) ?? document.querySelector("#acks-extras-battlemap");
+    const btn = el?.querySelector('button[data-action="deleteSample"][data-kind="scale"]');
+    if (!btn) return { found: false };
+    btn.click();
+    await H.sleep(700);
+    return { found: true, bar: !!H.m.session.session.samples.scale };
+  },
+
+  /** A toolbar tool of the Battlemap group, activated as the toolbar does; the notices it raised and where the toolbar rests after. */
+  hexArm: async ({ tool }) => {
+    const H = globalThis.__rb;
+    H.takeNotes();
+    const r = await globalThis.__P.armCalibration({ tool });
+    return { ...r, notes: H.takeNotes() };
+  },
+
+  /**
+   * Arms Draw box through the toolbar, parks the window out of the way, pans so the box is large and left of the
+   * middle, and reports where a real pointer must go (viewport px) and what stands on the canvas at the start,
+   * the middle and the end of that path. Image px to canvas px reads the scene's dimensions and the texture.
+   */
+  hexDragPlan: async ({ box }) => {
+    const H = globalThis.__rb;
+    const S = H.m.session.session;
+    const armed = await globalThis.__P.armCalibration({ tool: "square" });
+    const { backgroundTexture } = await import("/modules/acks-extras/scripts/battlemap/scene-image.mjs");
+    const scene = canvas.scene;
+    const d = scene.dimensions;
+    const tex = backgroundTexture(scene);
+    const sx = tex.width / d.sceneWidth;
+    const sy = tex.height / d.sceneHeight;
+    const a = { x: box[0] / sx + d.sceneX, y: box[1] / sy + d.sceneY };
+    const b = { x: (box[0] + box[2]) / sx + d.sceneX, y: (box[1] + box[3]) / sy + d.sceneY };
+    const app = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
+    const el = H.root(app);
+    if (app && el) {
+      const w = el.getBoundingClientRect().width;
+      app.setPosition({ left: Math.max(0, globalThis.innerWidth - w - 12), top: 16 });
+    }
+    await H.sleep(300);
+    canvas.pan({ x: (a.x + b.x) / 2 + (globalThis.innerWidth * 0.18), y: (a.y + b.y) / 2, scale: 1 });
+    await H.sleep(500);
+    canvas.app.render();
+    const from = H.screen(a);
+    const to = H.screen(b);
+    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    const what = (p) => {
+      const n = document.elementFromPoint(p.x, p.y);
+      return { canvas: n === canvas.app.view, tag: n?.tagName ?? null, id: n?.id || n?.className?.toString?.().slice(0, 40) || null };
+    };
+    return { mode: armed.mode, tool: armed.tool, from, to, hits: [what(from), what(mid), what(to)], viewport: { w: globalThis.innerWidth, h: globalThis.innerHeight }, scale: canvas.stage.scale.x, samplesBefore: S.samples.squares.length };
+  },
+
+  /** The sample a real drag recorded, against the box it was aimed at (image px), then Draw box put down. */
+  hexAfterDrag: async ({ box }) => {
+    const H = globalThis.__rb;
+    const S = H.m.session.session;
+    const mine = S.samples.squares.at(-1) ?? null;
+    const out = { count: S.samples.squares.length, mode: S.mode ?? null };
+    if (mine) {
+      const want = { x: box[0], y: box[1], w: box[2], h: box[3] };
+      out.sample = { x: mine.x, y: mine.y, w: mine.w, h: mine.h };
+      out.delta = Object.fromEntries(Object.keys(want).map((k) => [k, Number((mine[k] - want[k]).toFixed(2))]));
+    }
+    S.requestDisarm();
+    await H.sleep(400);
+    return { ...out, tool: ui.controls.tool?.name ?? null, modeAfter: S.mode ?? null };
+  },
+
+  /**
+   * What the scene holds that a hex apply must carry: the wall's ends and the first token's centre as fractions of the
+   * scene's rectangle, the grid, and the battlemap record. The token's centre is the placeable's own where it is
+   * drawn, and its stored corner plus half its pixel size otherwise.
+   */
+  hexPlaced: async ({ sceneId }) => {
+    const scene = game.scenes.get(sceneId);
+    const d = canvas.dimensions;
+    const frac = (x, y) => ({ fx: (x - d.sceneX) / d.sceneWidth, fy: (y - d.sceneY) / d.sceneHeight });
+    const wall = scene.walls.contents[0] ?? null;
+    const tok = scene.tokens.contents[0] ?? null;
+    const grid = canvas.grid;
+    let token = null;
+    if (tok) {
+      const src = tok._source;
+      const manual = { x: src.x + (src.width * grid.sizeX) / 2, y: src.y + (src.height * grid.sizeY) / 2 };
+      const obj = tok.object?.center ? { x: tok.object.center.x, y: tok.object.center.y } : null;
+      const c = obj ?? manual;
+      const snapped = grid.getCenterPoint(grid.getOffset(c));
+      token = {
+        stored: { x: src.x, y: src.y, w: src.width, h: src.height }, manual, obj, frac: frac(c.x, c.y), topLeft: frac(src.x, src.y),
+        toGridCentre: Math.hypot(snapped.x - c.x, snapped.y - c.y), inradius: Math.min(grid.sizeX, grid.sizeY) / 2,
+      };
+    }
+    return {
+      dims: { x: d.sceneX, y: d.sceneY, w: d.sceneWidth, h: d.sceneHeight },
+      sceneSize: { w: scene.width, h: scene.height },
+      grid: { type: scene.grid.type, size: scene.grid.size, distance: scene.grid.distance, units: scene.grid.units },
+      flag: foundry.utils.deepClone(scene.getFlag("acks-extras", "battlemap") ?? null),
+      wall: wall ? { c: [...wall.c], ends: [frac(wall.c[0], wall.c[1]), frac(wall.c[2], wall.c[3])] } : null,
+      token,
+      ready: canvas.ready,
+    };
+  },
+
+  /**
+   * Presses Apply, answers the confirmation with Yes, and waits for the notice and the canvas redraw. The notice is
+   * read from the run's notification record, cleared first. Reports the dialog's text and where the toolbar is after.
+   */
+  hexApply: async () => {
+    const H = globalThis.__rb;
+    const el = H.root(foundry.applications.instances.get("acks-extras-battlemap")) ?? document.querySelector("#acks-extras-battlemap");
+    const btn = el?.querySelector('button[data-action="applyGrid"]');
+    if (!btn || btn.disabled) return { pressed: false, disabled: !!btn?.disabled };
+    const sceneId = canvas.scene.id;
+    H.takeNotes();
+    btn.click();
+    const yes = await H.poll(() => document.querySelector('button[data-action="yes"]'), { tries: 60, every: 150 });
+    if (!yes) return { pressed: true, dialog: false, notes: H.takeNotes() };
+    const dialogText = (yes.closest("dialog, .application") ?? document.body).textContent.replace(/\s+/g, " ").trim();
+    yes.click();
+    const done = await H.poll(() => H.notes.find((n) => (n.kind === "info" && /^Hex grid applied/.test(n.text)) || n.kind === "error"), { tries: 120, every: 150 });
+    await H.sleep(3500);
+    await H.poll(() => canvas.ready && canvas.scene?.id === sceneId, { tries: 100, every: 200 });
+    await H.sleep(500);
+    return {
+      pressed: true, dialog: true, dialogText, notice: done?.text ?? null, noticeKind: done?.kind ?? null, notes: H.takeNotes(),
+      control: ui.controls.control?.name ?? null, windowStillOpen: !!document.querySelector("#acks-extras-battlemap"),
+      expectedStays: game.i18n.localize("ACKS-BATTLEMAP.rows.imageStays"),
+    };
+  },
+
+  /**
+   * Each box's centre (image px) mapped through the applied background onto the canvas, against the centre of the
+   * Foundry hex that point falls in. The background's frame is read from the on-canvas sprite where one is found,
+   * and from the scene's dimensions as a second reading beside it.
+   */
+  hexCentres: async ({ boxes }) => {
+    const { backgroundTexture } = await import("/modules/acks-extras/scripts/battlemap/scene-image.mjs");
+    const scene = canvas.scene;
+    const d = canvas.dimensions;
+    const tex = backgroundTexture(scene);
+    const bg = canvas.primary?.background ?? null;
+    const sprite = bg && bg.width > 0 && bg.height > 0 ? { x: bg.x - (bg.anchor?.x ?? 0) * bg.width, y: bg.y - (bg.anchor?.y ?? 0) * bg.height, w: bg.width, h: bg.height } : null;
+    const byDims = (x, y) => ({ x: d.sceneX + (x * d.sceneWidth) / tex.width, y: d.sceneY + (y * d.sceneHeight) / tex.height });
+    const bySprite = sprite ? (x, y) => ({ x: sprite.x + (x * sprite.w) / tex.width, y: sprite.y + (y * sprite.h) / tex.height }) : null;
+    const read = (map) => boxes.map(([x, y, w, h]) => {
+      const p = map(x + w / 2, y + h / 2);
+      const c = canvas.grid.getCenterPoint(canvas.grid.getOffset(p));
+      return Number(Math.hypot(c.x - p.x, c.y - p.y).toFixed(2));
+    });
+    return {
+      type: scene.grid.type,
+      grid: scene.grid.size,
+      tex: { w: tex.width, h: tex.height },
+      dims: { x: d.sceneX, y: d.sceneY, w: d.sceneWidth, h: d.sceneHeight },
+      sprite,
+      children: (canvas.primary?.children ?? []).slice(0, 8).map((c) => `${c.constructor.name}:${Math.round(c.x)},${Math.round(c.y)},${Math.round(c.width)}x${Math.round(c.height)}`),
+      viaSprite: bySprite ? read(bySprite) : null,
+      viaDims: read(byDims),
+    };
+  },
+
+  /** Reopens the window bare, as the toolbar's button would; the old one closed first. */
+  hexReopen: async () => {
+    const H = globalThis.__rb;
+    const old = foundry.applications.instances.get("acks-extras-battlemap") ?? null;
+    if (old) { try { await old.close({ animate: false }); } catch (_e) { /* closed */ } }
+    await H.sleep(300);
+    H.B.openAssistant();
+    await H.sleep(1500);
+    return { windows: document.querySelectorAll("#acks-extras-battlemap").length };
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -2192,6 +2533,231 @@ async function walkCountry(W) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Part: the hex setup of the Map setup window                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A second DevTools client on a seat's browser, attached to its game page, for a real pointer drag. Prints no
+ * address. (The same shape as the formation walks' own.)
+ */
+async function rawInput(port) {
+  const { webSocketDebuggerUrl } = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
+  const ws = await new Promise((resolve, reject) => {
+    const w = new WebSocket(webSocketDebuggerUrl);
+    w.addEventListener("open", () => resolve(w));
+    w.addEventListener("error", () => reject(new Error("raw input: socket error")));
+  });
+  const cdp = new Cdp(ws);
+  const isGame = (u) => { try { return new URL(u).pathname.endsWith("/game"); } catch { return false; } };
+  const { targetInfos } = await cdp.send("Target.getTargets");
+  const pages = targetInfos.filter((t) => t.type === "page" && isGame(t.url));
+  if (pages.length !== 1) { try { ws.close(); } catch { /* closed */ } throw new Error(`raw input: ${pages.length} game pages on this seat`); }
+  const { sessionId } = await cdp.send("Target.attachToTarget", { targetId: pages[0].targetId, flatten: true });
+  const send = (method, params = {}) => cdp.send(method, params, sessionId);
+  await send("Page.bringToFront");
+  try { await send("Emulation.setFocusEmulationEnabled", { enabled: true }); } catch { /* not offered */ }
+  const mouse = (type, x, y, extra = {}) => send("Input.dispatchMouseEvent", { type, x, y, ...extra });
+  return {
+    /** Press, a 12 px first step, then 10 px every 20 ms, and release at the end. */
+    async drag(from, to) {
+      await mouse("mouseMoved", from.x, from.y, { button: "none", buttons: 0 });
+      await sleep(80);
+      await mouse("mousePressed", from.x, from.y, { button: "left", buttons: 1, clickCount: 1 });
+      const dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const ux = (to.x - from.x) / dist;
+      const uy = (to.y - from.y) / dist;
+      for (let d = 12; d < dist; d += 10) {
+        await mouse("mouseMoved", from.x + ux * d, from.y + uy * d, { button: "left", buttons: 1 });
+        await sleep(20);
+      }
+      await mouse("mouseMoved", to.x, to.y, { button: "left", buttons: 1 });
+      await sleep(60);
+      await mouse("mouseReleased", to.x, to.y, { button: "left", buttons: 0, clickCount: 1 });
+    },
+    close() { try { ws.close(); } catch { /* closed */ } },
+  };
+}
+
+/** How far a mapped box centre may sit from a Foundry hex centre, canvas px: the residue of the scene's integer size. */
+const HEX_CENTRE_PX = 5;
+/** How far a wall's end may move off its fraction of the scene's rectangle, scene px. */
+const HEX_WALL_PX = 1;
+
+/**
+ * A gridless scene for a hex map: the given size, units `ft`, the map's background set through its Level after
+ * creation. Rebuilt (retired by marker first, then created); everything it makes is tracked. `seedAutoSize` writes
+ * the token auto-sizing flag on, as a scene a Judge set up before holds it, so the apply's write of it is not vacuous.
+ */
+async function hexMap(gm, marker, name, map, { seedAutoSize = false } = {}) {
+  const extra = { width: map.scene[0], height: map.scene[1], ...(seedAutoSize ? { flags: { [MOD]: { battlemap: { autoScale: true } } } } : {}) };
+  const scene = await rebuiltScene(gm, marker, sceneData(name, { type: 0, distance: 5, units: "ft" }, extra));
+  note(`background ${marker}`, await page(gm, P.hexBackground, { uuid: scene.uuid, src: map.src }));
+  const tex = await page(gm, P.hexTexture, { src: map.src });
+  note(`image ${marker}`, tex);
+  return { scene, tex };
+}
+
+/** One wall across the middle and one token on a drawn hex's centre, both in the scene's own px, tracked by `create`. */
+async function hexPlaceables(gm, { scene, tex }, map) {
+  const [sw, sh] = map.scene;
+  const wall = await gm.create("Wall", { c: [Math.round(sw * 0.15), Math.round(sh / 2), Math.round(sw * 0.85), Math.round(sh / 2)] }, { parent: scene.uuid });
+  const actor = await gm.fixture("battlemap/plain-character", "Actor", { name: "QA Plain character", type: "character", prototypeToken: { width: 1, height: 1, actorLink: false } });
+  await page(gm, P.claimNames, { names: ["QA Plain character"] });
+  const [bx, by, bw, bh] = map.boxes[2];
+  const cx = ((bx + bw / 2) * sw) / tex.width;
+  const cy = ((by + bh / 2) * sh) / tex.height;
+  const token = await gm.create("Token", { name: "QA Plain character", actorId: actor.id, actorLink: false, width: 1, height: 1, x: Math.round(cx - CELL / 2), y: Math.round(cy - CELL / 2) }, { parent: scene.uuid });
+  note("placed", { wall: wall.uuid, token: token.uuid, actor: actor.uuid, built: actor.built });
+}
+
+/** The window's footer rows as the walk reads them: each of the four labels is a row, and the token row says why it is off. */
+const hexRowChecks = (s) => {
+  const labelled = s.expect.labels.map((l) => s.rows.find((r) => r.label === l) ?? null);
+  const sizing = s.rows.find((r) => r.label === s.expect.labels[3]);
+  return { labelled, sizing, haveAll: labelled.every(Boolean), sizingOk: !!sizing && sizing.all.includes(s.expect.sizingTail) };
+};
+
+/** Draws the five boxes of a map into the panel (the first by the real pointer when `drag`), then reads the fit. */
+async function hexBoxes(gm, tag, map, { drag }) {
+  let first = 0;
+  if (drag) {
+    const plan = await page(gm, P.hexDragPlan, { box: map.boxes[0] });
+    note(`drag plan ${tag}`, { mode: plan.mode, tool: plan.tool, from: plan.from, to: plan.to, viewport: plan.viewport, scale: plan.scale, hits: plan.hits });
+    check(`${tag}: Draw box is armed through the toolbar and the drag's path is bare canvas`, plan.mode === "square" && plan.hits.every((h) => h.canvas), { mode: plan.mode, hits: plan.hits });
+    const input = await rawInput(PORTS.gm);
+    try { await input.drag(plan.from, plan.to); } finally { input.close(); }
+    await sleep(600);
+    const after = await page(gm, P.hexAfterDrag, { box: map.boxes[0] });
+    note(`drag result ${tag}`, after);
+    check(`${tag}: a real pointer drag recorded one more box, within 2 image px of the box aimed at`, after.count === plan.samplesBefore + 1 && !!after.delta && Object.values(after.delta).every((v) => Math.abs(v) <= 2), { before: plan.samplesBefore, count: after.count, delta: after.delta });
+    check(`${tag}: the toolbar rests and nothing stays armed after the drag`, after.modeAfter === null && after.tool === "off", { mode: after.modeAfter, tool: after.tool });
+    first = 1;
+  }
+  note(`pushed ${tag}`, await page(gm, P.hexPushBoxes, { boxes: map.boxes.slice(first) }));
+}
+
+/** The fit reads tight with every box used, as the window's own context computes it. */
+function hexFitChecks(tag, s, expectBoxes) {
+  const f = s.fit;
+  note(`fit ${tag}`, { ok: f?.ok, confidence: f?.confidence, rmsPx: f?.rmsPx, used: f?.used, worst: f?.worst, warnings: f?.warnings, card: s.card, units: s.units, family: s.family });
+  check(`${tag}: the fit reads tight`, !!f?.ok && f.confidence === "tight", { confidence: f?.confidence, rmsPx: f?.rmsPx, worst: f?.worst });
+  check(`${tag}: no box is left out`, !!f?.ok && f.used === expectBoxes && f.boxes.every((b) => !b.unreachable && !b.notOneHex) && s.unused.length === 0 && s.warns.length === 0, { used: f?.used, boxes: f?.boxes, unused: s.unused, warns: s.warns });
+}
+
+async function walkHex(W) {
+  const { gm } = W;
+  const maps = JSON.parse(HEX_MAPS_RAW);
+  const rows = maps.rows;
+  const cols = maps.cols;
+
+  /* ---- rows ---- */
+  const built = await hexMap(gm, "battlemap/hex-walk-rows", "QA Hex walk rows", rows, { seedAutoSize: true });
+  await hexPlaceables(gm, built, rows);
+  const sceneId = built.scene.id;
+
+  section("battlemap step 14, hex rows: entering the group arms nothing and opens the window once");
+  const e = await page(gm, P.hexEnter, { sceneId });
+  note("enter", e);
+  check("H1: entering the Battlemap group rests on the off tool and arms nothing", e.control === "acksBattlemap" && e.tool === "off" && e.mode === null, { control: e.control, tool: e.tool, mode: e.mode });
+  check("H1: the window opened exactly once and reads Map setup: <scene name>", e.before.windows === 0 && e.firstRenders === 1 && e.windows === 1 && e.title === e.expectedTitle, { before: e.before, firstRenders: e.firstRenders, windows: e.windows, title: e.title, expected: e.expectedTitle });
+
+  section("battlemap step 14, hex rows: a scale bar alone does not place hexes");
+  note("family and units", await page(gm, P.hexSet, { family: "hexRows", units: "mi" }));
+  note("bar pushed", await page(gm, P.hexPushBar, { bar: rows.bar }));
+  let s = await page(gm, P.hexRead);
+  note("bar alone", { family: s.family, units: s.units, applyDisabled: s.applyDisabled, needs: s.needs, session: s.session });
+  check("H2: the family and units are the ones chosen in the window", s.family === "hexRows" && s.units === "mi" && s.session.family === "hexRows" && s.session.units === "mi", { family: s.family, units: s.units });
+  check("H2: with a scale bar alone Apply is disabled", s.applyDisabled && s.session.bar && s.session.boxes === 0, { applyDisabled: s.applyDisabled, session: s.session });
+  check("H2: the needs list says a scale bar alone does not place hexes and names Draw box", s.needs.includes(s.expect.hexBoxBar) && s.needs.some((n) => n.includes(s.expect.drawBox)), { needs: s.needs, expected: s.expect.hexBoxBar });
+
+  section("battlemap step 14, hex rows: Pick corners is refused");
+  const c = await page(gm, P.hexArm, { tool: "corners" });
+  note("corners", c);
+  check("H3: Pick corners is refused with a notice naming Draw box", c.notes.some((n) => n.kind === "warn" && n.text.includes(s.expect.drawBox)), { notes: c.notes });
+  check("H3: nothing is armed and the toolbar is back at rest", c.mode === null && c.tool === "off", { mode: c.mode, tool: c.tool });
+
+  section("battlemap step 14, hex rows: five boxes, one a real pointer drag");
+  note("bar dropped", await page(gm, P.hexDropBar));
+  await hexBoxes(gm, "H4", rows, { drag: true });
+  s = await page(gm, P.hexRead);
+  hexFitChecks("H4", s, rows.boxes.length);
+  check("H4: five boxes are drawn and no 'spans' box is offered", s.session.boxes === rows.boxes.length && s.spansInputs === 0, { boxes: s.session.boxes, spansInputs: s.spansInputs });
+
+  section("battlemap step 14, hex rows: Apply waits for what a hex is worth, then offers its rows");
+  check("H5: with the units changed and no worth typed Apply waits, and the needs list asks for the cell worth", s.applyDisabled && s.cellField === "" && s.needs.length > 0 && s.needs.every((n) => n.includes(s.expect.hexField)), { applyDisabled: s.applyDisabled, cellField: s.cellField, needs: s.needs });
+  note("cell worth typed", await page(gm, P.hexType, { name: "mapCellFeet", value: 6 }));
+  s = await page(gm, P.hexRead);
+  const rc = hexRowChecks(s);
+  note("rows", { applyDisabled: s.applyDisabled, needs: s.needs, rows: s.rows.map((r) => ({ label: r.label, text: r.text, note: r.note })) });
+  check("H5: with 6 typed Apply is enabled and nothing is asked for", !s.applyDisabled && s.needs.length === 0 && s.cellField === "6", { applyDisabled: s.applyDisabled, needs: s.needs, cell: s.cellField });
+  check("H5: the footer lists Grid, Cell worth, Image and Token sizing", rc.haveAll, { labels: s.rows.map((r) => r.label), wanted: s.expect.labels });
+  check("H5: the token sizing row says it is written off because a cell is a mile or more", rc.sizingOk, { row: rc.sizing?.all ?? null, tail: s.expect.sizingTail });
+
+  section("battlemap step 14 and 14b, hex rows: Apply, and what the map carries");
+  const before = await page(gm, P.hexPlaced, { sceneId });
+  note("before apply", { grid: before.grid, flag: before.flag, wall: before.wall?.ends, token: before.token?.frac });
+  check("H6: before the apply the scene is gridless and holds its wall and token, with auto-sizing seeded on", before.grid.type === 0 && !!before.wall && !!before.token && before.flag?.autoScale === true, { grid: before.grid, flag: before.flag });
+  const applied = await page(gm, P.hexApply);
+  note("apply", { pressed: applied.pressed, dialog: applied.dialog, notice: applied.notice, noticeKind: applied.noticeKind, control: applied.control, windowStillOpen: applied.windowStillOpen, notes: applied.notes });
+  note("confirmation", applied.dialogText ?? null);
+  // The footer row's sentence ends where the confirmation's goes on ("… as it is rescaled and shifted.").
+  const staysStem = (applied.expectedStays ?? "").replace(/\.$/, "");
+  check("H6: the confirmation says placed things move with the map", !!applied.dialogText && !!staysStem && applied.dialogText.includes(staysStem), { stays: staysStem });
+  const after = await page(gm, P.hexPlaced, { sceneId });
+  note("after apply", { grid: after.grid, flag: after.flag, wall: after.wall?.ends, token: after.token, dims: after.dims });
+  check("H6: grid.type is 2", after.grid.type === 2, after.grid);
+  check("H6: the notice reads Hex grid applied: grid size <n> px, 6 mi per hex.", applied.noticeKind === "info" && /^Hex grid applied: grid size \d+ px, 6 mi per hex\.$/.test(applied.notice ?? ""), { notice: applied.notice, grid: after.grid });
+  check("H6: the scene's autoScale flag reads false", after.flag?.autoScale === false, after.flag);
+  const wallPx = before.wall && after.wall ? before.wall.ends.flatMap((p, i) => [Math.abs(p.fx - after.wall.ends[i].fx) * after.dims.w, Math.abs(p.fy - after.wall.ends[i].fy) * after.dims.h]) : null;
+  check(`H6: the wall's ends keep their fraction of the scene within ${HEX_WALL_PX} px`, !!wallPx && Math.max(...wallPx) <= HEX_WALL_PX, { deviationPx: wallPx?.map((v) => Number(v.toFixed(3))), wallBefore: before.wall?.c, wallAfter: after.wall?.c });
+  const tokFrac = before.token && after.token ? [Math.abs(before.token.frac.fx - after.token.frac.fx) * after.dims.w, Math.abs(before.token.frac.fy - after.token.frac.fy) * after.dims.h] : null;
+  note("token", { toGridCentre: after.token?.toGridCentre, fractionShiftPx: tokFrac, stored: after.token?.stored, manual: after.token?.manual, obj: after.token?.obj });
+  // autoReposition moves a token by its top-left corner while its pixel size follows the cell, so its centre stays
+  // inside the hex it was over but leaves that hex's centre by about half the change in token size.
+  const tlPx = before.token && after.token ? [Math.abs(before.token.topLeft.fx - after.token.topLeft.fx) * after.dims.w, Math.abs(before.token.topLeft.fy - after.token.topLeft.fy) * after.dims.h] : null;
+  check(`H6: the token's top-left keeps its fraction of the scene within ${HEX_WALL_PX} px`, !!tlPx && Math.max(...tlPx) <= HEX_WALL_PX, { deviationPx: tlPx?.map((v) => Number(v.toFixed(3))) });
+  check("H6: the token's centre stays inside a hex", !!after.token && after.token.toGridCentre <= after.token.inradius, { toGridCentre: after.token?.toGridCentre, inradius: after.token?.inradius, fractionShiftPx: tokFrac });
+  const centres = await page(gm, P.hexCentres, { boxes: rows.boxes });
+  note("box centres", centres);
+  const via = centres.viaSprite ?? centres.viaDims;
+  check(`H6: every box's centre, mapped through the applied background, lies within ${HEX_CENTRE_PX} px of a Foundry hex centre`, via.length === rows.boxes.length && Math.max(...via) <= HEX_CENTRE_PX, { source: centres.viaSprite ? "sprite" : "dims", viaSprite: centres.viaSprite, viaDims: centres.viaDims });
+  note("toolbar after the apply (the redraw drops the group)", { control: applied.control });
+
+  section("battlemap step 14, hex rows: reopened bare, the window says what the scene is");
+  const wiped = await page(gm, P.pressTool, { control: "acksBattlemap", tool: "wipe" });
+  note("wipe", { found: wiped.found, control: wiped.control, tool: wiped.tool });
+  note("reopened", await page(gm, P.hexReopen));
+  s = await page(gm, P.hexRead);
+  note("applied scene", { appliedLine: s.appliedLine, matchesLine: s.matchesLine, session: s.session, grid: s.grid });
+  check("H7: with every sample erased the window shows the line 'This scene is set up as …'", !!s.appliedLine && s.appliedLine.startsWith(s.expect.appliedPrefix) && s.appliedLine.includes(`grid size ${Math.round(s.grid.size)} px`) && s.session.boxes === 0 && s.session.corners === 0 && !s.session.bar && s.windows === 1, { appliedLine: s.appliedLine, session: s.session });
+
+  /* ---- columns ---- */
+  const builtCols = await hexMap(gm, "battlemap/hex-walk-cols", "QA Hex walk cols", cols);
+  section("battlemap step 14a, hex columns: five boxes across five columns");
+  const e2 = await page(gm, P.hexEnter, { sceneId: builtCols.scene.id });
+  note("enter columns", { control: e2.control, tool: e2.tool, mode: e2.mode, windows: e2.windows, title: e2.title });
+  check("H8: the columns scene's window opened once, resting on the off tool", e2.tool === "off" && e2.mode === null && e2.windows === 1 && e2.title === e2.expectedTitle, { tool: e2.tool, mode: e2.mode, windows: e2.windows, title: e2.title, expected: e2.expectedTitle });
+  note("family and units", await page(gm, P.hexSet, { family: "hexCols", units: "mi" }));
+  note("pushed", await page(gm, P.hexPushBoxes, { boxes: cols.boxes }));
+  s = await page(gm, P.hexRead);
+  hexFitChecks("H8", s, cols.boxes.length);
+  check("H8: the family is columns, in miles", s.family === "hexCols" && s.units === "mi", { family: s.family, units: s.units });
+  note("cell worth typed", await page(gm, P.hexType, { name: "mapCellFeet", value: 6 }));
+  s = await page(gm, P.hexRead);
+  check("H8: with 6 typed Apply is enabled", !s.applyDisabled && s.needs.length === 0, { applyDisabled: s.applyDisabled, needs: s.needs });
+  const appliedCols = await page(gm, P.hexApply);
+  note("apply columns", { pressed: appliedCols.pressed, dialog: appliedCols.dialog, notice: appliedCols.notice, noticeKind: appliedCols.noticeKind });
+  const afterCols = await page(gm, P.hexPlaced, { sceneId: builtCols.scene.id });
+  check("H8: grid.type is 4", afterCols.grid.type === 4, afterCols.grid);
+  check("H8: the notice reads Hex grid applied: grid size <n> px, 6 mi per hex.", appliedCols.noticeKind === "info" && /^Hex grid applied: grid size \d+ px, 6 mi per hex\.$/.test(appliedCols.notice ?? ""), { notice: appliedCols.notice });
+  const centresCols = await page(gm, P.hexCentres, { boxes: cols.boxes });
+  note("box centres columns", centresCols);
+  const viaCols = centresCols.viaSprite ?? centresCols.viaDims;
+  check(`H8: every box's centre lies within ${HEX_CENTRE_PX} px of a Foundry hex centre`, viaCols.length === cols.boxes.length && Math.max(...viaCols) <= HEX_CENTRE_PX, { source: centresCols.viaSprite ? "sprite" : "dims", viaSprite: centresCols.viaSprite, viaDims: centresCols.viaDims });
+  note("closed", await page(gm, P.closeAll));
+}
+
+/* ------------------------------------------------------------------ */
 /*  The run                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -2202,6 +2768,13 @@ const W = {};
 try {
   section("seats");
   note("plan", { parts: [...PARTS], retrack: plan.retrack.length, nonce: NONCE });
+  // Stopped before any part runs: a half-walked battlemap is no result.
+  if (PARTS.has("hex")) {
+    if (!HEX_MAPS_RAW) blocked("BATTLEMAP_HEX_MAPS is not set: the hex part's images and geometry are this machine's (the walk's header gives the shape)");
+    const m = JSON.parse(HEX_MAPS_RAW);
+    const ok = (x) => typeof x?.src === "string" && Array.isArray(x.scene) && x.scene.length === 2 && Array.isArray(x.boxes) && x.boxes.length >= 3 && x.boxes.every((b) => Array.isArray(b) && b.length === 4);
+    if (!ok(m.rows) || !ok(m.cols) || !(Array.isArray(m.rows.bar) && m.rows.bar.length === 4) || m.rows.boxes.length < 3) blocked("BATTLEMAP_HEX_MAPS lacks a rows or cols entry of the shape the walk's header gives");
+  }
   const gm = await seat("gm");
   const player = await seat("player");
   const retracked = (plan.retrack ?? []).map((u) => gm.track(u));
@@ -2244,6 +2817,10 @@ try {
     note("travel document", await page(gm, P.registerTravel, { X, Y, miles: MILES, target: TARGET }));
     registered = true;
     await walkCountry(W);
+  }
+  if (PARTS.has("hex")) {
+    section("PART: hex setup");
+    await walkHex(W);
   }
   walkDone();
 } catch (err) {

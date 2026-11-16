@@ -7,9 +7,10 @@ Re-issued 2026-11-14.
    "The column"), and the trap sequence reads the squeezed ranks. What remains
    of it, a per-formation toggle to march unsqueezed, is in
    `docs/formation/ROADMAP.md` (the corridor-width row).
-2. **Hex token behaviour.** Hex OUTPUT ships (DECISIONS 2026-08-30): the family
-   is chosen, one drawn hex is pitched to one Foundry hex, and the shift lands
-   the drawn hex on a real one. What is not built is the token half of the
+2. **Hex token behaviour.** Hex OUTPUT ships (DECISIONS 2026-08-30 and
+   2026-11-15): the family is chosen, the grid is fitted to every box drawn
+   around a single hex, and the shift lands the drawn hexes on real ones. What
+   is not built is the token half of the
    2026-08-19 ruling — tokens that resize and auto-arrange to fill a hex as its
    occupancy changes, an optional fixed "slots-per-cell" override, and a
    show-all button. A hex scene sizes tokens by the same quantized
@@ -40,3 +41,53 @@ Re-issued 2026-11-14.
    `countryAt` and the source that answered it.
 8. **Brush ergonomics.** A flood fill and brush sizes over several hexes
    (Hexographer's); the brush paints one hex at a time.
+9. **Map setup's later batch.** Found by the map setup revision's audit and
+   walks (2026-11-15/16) and left for a batch of their own; each is a row on
+   the bug-intake ledger, by id. The Map setup window:
+   - T-0623: the corner rows, the scale-bar row, the map-cell and output
+     chips, the field placeholders, the clamped figure and the across/down
+     inputs carry no tooltip.
+   - T-0624: the window jumps to its top on every re-render (the body part
+     keeps no scroll position).
+   - T-0625: on a hex family the grid-size hint speaks of a Foundry square.
+   - T-0626: the scale-only confirmation is titled as a grid calibration.
+   - T-0627: scale-only with boxes drawn divides by the map-cell field, which
+     that family hides.
+   - T-0628: "px" names image pixels on the card and the box rows, and canvas
+     pixels in the grid-size fields and the measured scale.
+   - T-0629: a sample row's delete button has no spoken name.
+   - T-0630: a field change renders the window twice, plus once per box.
+   - T-0631: a custom size typed and confirmed with one click may be lost
+     (inferred, not walked).
+   - T-0591: the square family's loose-fit warning names no sample.
+   - T-0595: a unit respelled (`Miles` to `mi`) reads as unchanged, so a scene
+     can read as matching while Apply would still rewrite the spelling.
+   The hex fit, each measured offline in Phase 1 and not fixed: T-0593 (after
+   several boxes sharing one outline bias, a far box lands a hex short on the
+   column types), T-0594 (a stretched picture with boxes spread along one axis
+   only leaves the family to the shape fallback, which misreads rows
+   stretched 1.25 times).
+   The capture tools and the group:
+   - T-0632: Ctrl+Z removes the scale bar first, then a corner, then a box,
+     not the newest sample.
+   - T-0633: leaving the group does not select `off`, so coming back re-arms
+     the last mode or the brush.
+   - T-0634: the corners hint promises rotation and skew without naming
+     Allow skew.
+   - T-0635: three names for removing: Wipe clears every sample unasked and
+     has no hint, Eraser removes samples where the palette's Erase unpaints
+     hexes, and the brush has no Escape.
+   - T-0590: the Country brush is offered on a scene that is not a hex grid
+     and refuses only at the first click.
+   The brush, the wall layers and the navigation card: T-0599 (closing the
+   palette leaves a toolbar-armed brush armed), T-0600 (territory painted
+   under the Terrain mode or the handout view shows nowhere), T-0601 (the
+   palette's layer pills and the Map modes pills look alike and do different
+   things), T-0602 (marking selected walls always marks the first kind),
+   T-0603 (the alley preset's notice and the shore's names disagree; three
+   road presets share one glyph), T-0604 (the road row has no spoken names,
+   and its fields stay editable under "Not a road" and "Not water"), T-0605
+   (swatches put world labels in `data-tooltip`), T-0606 (the opacity slider
+   shows no figure and does nothing in Terrain mode), T-0607 (the picker's
+   clearing entry and the Dungeon/Wilderness words against the party sheet's
+   Delve/Journey).

@@ -317,7 +317,7 @@ Map tools for both scales, on the scene rather than in a separate window.
 - **Battlemap alignment** — line a published battlemap up to the grid, and keep
   token scale honest across the two scales.
 
-Guide: [Map alignment and token scale](https://noctempre.github.io/foundryvtt-acks-extras/guides/battlemap/).
+Guide: [Map setup and token scale](https://noctempre.github.io/foundryvtt-acks-extras/guides/battlemap/).
 
 ### Vehicles and voyages
 

@@ -6,7 +6,11 @@ and driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 The walk that drives this recipe is `tools/live/battlemap.mjs`
 (`node tools/live/run.mjs battlemap`; `tools/live/README.md` is the contract).
 Its header names the sections it covers; a section it does not name is walked
-by hand.
+by hand. Its part `hex` walks steps 14, 14a and 14b through the Map setup
+window on two scenes it rebuilds every run (`battlemap/hex-walk-rows`,
+`battlemap/hex-walk-cols`); their images and box geometry are machine facts,
+read from `BATTLEMAP_HEX_MAPS` (the walk's header gives its shape), and the
+part is blocked without it.
 
 ## Fixtures
 
@@ -21,9 +25,12 @@ by hand.
   (see `docs/formation/TESTING.md` fixtures for the drop mechanics).
 - One plain character actor with a default 1×1 prototype token, marker
   `battlemap/plain-character`.
-- A disposable scene for the scale-only path — any background will do,
-  including a flat texture (`ui/parchment.jpg`), because that path measures
-  what you tell it rather than what is drawn. Set the background through the
+- A scene for the scale-only path, `battlemap/scale-bar-map`: a gridless
+  area map with a printed scale bar, units `ft`. Any background works for the
+  arithmetic, a flat texture (`ui/parchment.jpg`) included, because that path
+  measures what you tell it rather than what is drawn; a release plate wants
+  a map a user could hold, with a bar to drag (this machine's copy is under
+  "Staged files" in `TEST_ENVIRONMENT.md`). Set the background through the
   Level (below), not in `Scene.create`.
 - Two kept scenes for the hex path, each carrying a map with DRAWN hexes: the
   fit scores boxes against the hexes they surround, so a flat texture proves
@@ -44,7 +51,7 @@ by hand.
 - Calibration is its own scene-control group, `acksBattlemap`, whose resting
   tool is `off`. Drive it with `ui.controls.activate({control, tool})`.
   Entering the group must arm NOTHING: assert `ui.controls.tool.name === "off"`
-  and the session's mode is null. `assistant` is a `button: true` tool — press
+  and the session's mode is null. The Map setup tool (`assistant`) is a `button: true` tool — press
   it through the DOM, which is also the double-fire check: exactly ONE app
   must open.
 - **A closed `SceneControls` makes `activate()` throw inside core.** After a
@@ -152,14 +159,14 @@ by hand.
    `rendered === true`) with a title bar and a close control, and NOTHING is
    added to the sidebar — `#sidebar` shows only core's tabs, on a Player seat
    as well as the GM's. The footer is visible without scrolling while the body
-   scrolls under it. Press the panel tool a second time: still exactly one
+   scrolls under it. Press the Map setup tool a second time: still exactly one
    window. Leave the group (select any other control): the session's mode goes
    null and **the window stays open** — core drops a layerless control group
    back to the token control on every canvas redraw, so closing it there takes
    the panel away the moment the apply lands. Press the frame's close control:
    it goes, and re-entering brings it back with the samples intact. The
    scene-config Basics tab separately shows the "Battlemap" row with its
-   "Map setup…" button and autoScale checkbox. The window's title reads "Map
+   "Map setup…" button and "Auto-size tokens" checkbox. The window's title reads "Map
    setup: <scene name>", and the toolbar tool's tooltip reads "Map setup".
 1a. **The door from another scene's configuration.** View scene A; open
    Scene configuration for scene B (Scenes sidebar → right-click B →
@@ -226,7 +233,7 @@ by hand.
    "Rescale tokens on scene".
    *Observable:* the stamped token carries `flags.acks-extras.footprint` and
    keeps the stamped size and is not counted among the tokens that kept theirs.
-8. Open the assistant on two scenes of different `grid.distance` (Scene config
+8. Open Map setup on two scenes of different `grid.distance` (Scene config
    → Grid), no scale bar measured.
    *Observable:* `app._prepareContext({})` returns `sizeChips`, one per size
    category whose frontage and the square are imported, each labelled with the
@@ -257,10 +264,14 @@ by hand.
     it: a `<name>-aligned.webp` appears beside the original, the scene
     background swaps to it, and the retained fit locks onto the new image;
     apply then behaves as step 5. The original image file is unchanged.
-12. **A box that spans several cells.** Draw one box over a single drawn cell
-    and a second across three, and type 3 in the second row's "spans" box.
-    *Observable:* the fit's cell size is the single cell's, not a third of the
-    long box; residual stays tight. Both rows carry their own value box.
+12. **A box that spans several cells.** On the square family, draw one box
+    over a single drawn cell and a second over a strip of three cells in a
+    row, and type 3 in the second row's "across" box, leaving "down" at 1.
+    *Observable:* the fit's cell size is the single cell's on both axes, not a
+    third of the strip's height; residual stays tight. Both rows carry an
+    across and a down box. A box over a 2 × 3 block set to 2 across and 3 down
+    reads the same cell. Scale-only offers the same two counts; a hex family
+    offers none.
 13. **Scale only, on the gridless scene.** Choose "Scale only — no grid", drag
     along the scale bar, and type what it reads on the bar's own row.
     *Observable:* the card reads "Measured: N px per <unit>" and NOT "no scale
@@ -279,8 +290,8 @@ by hand.
     says a bar does not place hexes and names "Draw box". "Pick corners" is
     refused with a notice naming "Draw box", and nothing is armed. The five
     boxes read tight in px off (0.70 on the reporter's hex). Red outlines of
-    the fitted grid lie on the map's drawn hexes, and no "spans" box is
-    offered. The label reads "One drawn hex is"; with the unit changed and no
+    the fitted grid lie on the map's drawn hexes, and no across or down box
+    is offered. The label reads "One drawn hex is"; with the unit changed and no
     bar it is blank and Apply waits for it. Before the apply, note one token's
     and one wall's position. Type the hex's worth (6) and apply.
     *Observable:* the confirmation says placed things move with the map, and
@@ -317,7 +328,10 @@ by hand.
     hex under its centroid (`canvas.grid.getOffset`). Draw boxes and apply the
     hex grid at a different hex size.
     *Observable:* the wall's ends and the region's polygon keep their fraction
-    (within a pixel), the token's centre lies on a hex centre, the region's key
+    (within a pixel), so does the token's top-left corner, and its centre
+    stays inside the hex it was over, off that hex's centre by about half the
+    change in its pixel size (2.5 px for 45 → 51 px hexes, 12 px for a 100 px
+    gridless cell → 41 px hexes), the region's key
     is the hex now under its centroid with a shape that hex's size, and the map
     reads that terrain there (`layerValueAt`). `grid.size` reads back as
     applied.
@@ -341,6 +355,21 @@ by hand.
     `travel.mode` is `journey`. Set the scene's units to `ft` with the party
     there, return its mode to delve, then set `mi` again. It switches back,
     with the same notice.
+15a. **The not-to-scale mark.** On a scene applied at 6 mi a hex
+    (`battlemap/reposition-probe` or the step 14 scene), with the monsters
+    tables imported, place a token of `battlemap/plain-character` at 1 × 1.
+    *Observable:* the token carries one child named `acks-extras-scale-mark`,
+    a pink rim with a handle at its lower right, on screen in a page that is
+    not hidden. Hovering it reads, for the GM, four lines: drawn larger than
+    its footprint, the size drawn at in mi, its footprint in ft, and its
+    source with the page it came from. A move and a resize keep it; leave the
+    scene and come back and it is there. On `formation/combat-scene` (square,
+    5 ft) the same actor's token at one square carries none, and no party
+    token carries one on either scene. Settings tab → Game Settings → ACKS II
+    — Extras → Not-to-scale mark on tokens turns it off for this seat and on
+    again. A Player seat sees it only on a token it can see, and its hover
+    reads the first two lines alone. No `updateToken` is written by either
+    seat while the mark draws.
 16. **The scene's party system.** Set "Party system here" to Settlement.
     *Observable:* the scene flag carries `mapSystem: "settlement"` at once,
     with no apply. Place a party token on the scene by hand (drag from the
@@ -359,11 +388,14 @@ by hand.
 
 ## Teardown
 
-Delete every scene you made (the misaligned one, the stretched one, and the
-scale/hex one), the monster, the character, the party actor (its formation goes
-with it), and the baked `-aligned.webp` file. Confirm the scenes directory and
-`getFormations()` are clean, and that the world's own scenes are as they were —
-the setup tool WRITES to whichever scene is being viewed.
+The kept fixtures stay, each left at whatever grid its last walk applied; a
+step that needs a starting shape asserts it. Sweep only what the run built and
+tracked (`api.sweepTracked()`, `.claude/rules/live-testing.md` step 4): extra
+tokens, a party actor dropped for step 15 (its formation goes with it). A
+baked `-aligned.webp` cannot be deleted through Foundry, so a walk that is not
+about Bake's upload replaces `FilePicker.upload` in the page for the press.
+Map setup WRITES to whichever scene is viewed: confirm no scene outside the
+run's fixtures changed.
 
 
 ## Terrain painting
